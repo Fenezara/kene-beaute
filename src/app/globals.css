@@ -1,0 +1,232 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-questrial), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-ojuju), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-finance: var(--finance);
+  --color-finance-foreground: var(--finance-foreground);
+  --color-gold: var(--gold);
+  --color-terre: var(--terre);
+  --color-melanine: var(--melanine);
+  --color-bissap: var(--bissap);
+  --color-sunset: var(--sunset);
+  --color-karite: var(--karite);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 1rem;
+  /* Kènè — palette panafricaine (light) */
+  --gold: #C8951E;          /* Or Kènè — primaire */
+  --terre: #A0522D;         /* Terre Bogolan */
+  --melanine: #1A1410;      /* Noir profond */
+  --success: #3F7D3F;       /* Vert Baobab */
+  --finance: #1B3A6B;       /* Bleu Indigo (finance) */
+  --bissap: #8B1A3B;        /* Bordeaux Bissap */
+  --sunset: #E07A2B;        /* Orange Sunset */
+  --karite: #F8F1E4;        /* Crème Karité */
+
+  --background: #F8F1E4;
+  --foreground: #241B12;
+  --card: #FFFBF2;
+  --card-foreground: #241B12;
+  --popover: #FFFBF2;
+  --popover-foreground: #241B12;
+  --primary: #B07F14;
+  --primary-foreground: #FFF9EC;
+  --secondary: #EFE3CC;
+  --secondary-foreground: #4A2E15;
+  --muted: #F1E7D4;
+  --muted-foreground: #7A6A54;
+  --accent: #F6E8CE;
+  --accent-foreground: #6B4110;
+  --destructive: #8B1A3B;
+  --destructive-foreground: #FCEFF3;
+  --border: #E3D5BA;
+  --input: #E3D5BA;
+  --ring: #C8951E;
+  --chart-1: #C8951E;
+  --chart-2: #3F7D3F;
+  --chart-3: #A0522D;
+  --chart-4: #8B1A3B;
+  --chart-5: #E07A2B;
+  --sidebar: #1F1812;
+  --sidebar-foreground: #F3EAD9;
+  --sidebar-primary: #C8951E;
+  --sidebar-primary-foreground: #1A1410;
+  --sidebar-accent: #2C231A;
+  --sidebar-accent-foreground: #F3EAD9;
+  --sidebar-border: #3A2E21;
+  --sidebar-ring: #C8951E;
+}
+
+.dark {
+  --gold: #DCA838;
+  --terre: #C97A4E;
+  --melanine: #0F0B08;
+  --success: #6FB96F;
+  --finance: #7FA3D8;
+  --bissap: #D0567B;
+  --sunset: #F09A52;
+  --karite: #241D14;
+
+  --background: #14100B;
+  --foreground: #F3EAD9;
+  --card: #1F1812;
+  --card-foreground: #F3EAD9;
+  --popover: #1F1812;
+  --popover-foreground: #F3EAD9;
+  --primary: #DCA838;
+  --primary-foreground: #1F1503;
+  --secondary: #2C231A;
+  --secondary-foreground: #EFD9AC;
+  --muted: #2A2119;
+  --muted-foreground: #B3A48C;
+  --accent: #33281C;
+  --accent-foreground: #F0D9A6;
+  --destructive: #E0607F;
+  --destructive-foreground: #2A0812;
+  --border: #3A2E21;
+  --input: #3A2E21;
+  --ring: #DCA838;
+  --chart-1: #DCA838;
+  --chart-2: #6FB96F;
+  --chart-3: #C97A4E;
+  --chart-4: #D0567B;
+  --chart-5: #F09A52;
+  --sidebar: #1F1812;
+  --sidebar-foreground: #F3EAD9;
+  --sidebar-primary: #DCA838;
+  --sidebar-primary-foreground: #1F1503;
+  --sidebar-accent: #2C231A;
+  --sidebar-accent-foreground: #F3EAD9;
+  --sidebar-border: #3A2E21;
+  --sidebar-ring: #DCA838;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-questrial), ui-sans-serif, system-ui, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6, .font-heading {
+    font-family: var(--font-ojuju), ui-sans-serif, system-ui, sans-serif;
+  }
+  .font-mono, .tabular-nums {
+    font-family: var(--font-plex-mono), ui-monospace, monospace;
+  }
+}
+
+@layer utilities {
+  /* Bande Kente — arrière-plan headers (max 5-10% surface) */
+  .kente-band {
+    background-image: repeating-linear-gradient(
+      90deg,
+      var(--gold) 0 14px,
+      var(--terre) 14px 22px,
+      var(--melanine) 22px 30px,
+      var(--success) 30px 36px,
+      var(--bissap) 36px 44px,
+      var(--karite) 44px 52px
+    );
+  }
+  .kente-band-soft {
+    background-image: repeating-linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--gold) 55%, transparent) 0 18px,
+      color-mix(in srgb, var(--terre) 45%, transparent) 18px 30px,
+      color-mix(in srgb, var(--success) 35%, transparent) 30px 42px,
+      color-mix(in srgb, var(--bissap) 30%, transparent) 42px 54px
+    );
+  }
+  /* Micro-points Bogolan — filigrane fonds */
+  .bogolan-dots {
+    background-image: radial-gradient(color-mix(in srgb, var(--terre) 22%, transparent) 1.1px, transparent 1.1px);
+    background-size: 18px 18px;
+  }
+  .bogolan-dots-dark {
+    background-image: radial-gradient(color-mix(in srgb, var(--gold) 14%, transparent) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+  .glass-kene {
+    background: color-mix(in srgb, var(--card) 78%, transparent);
+    backdrop-filter: blur(10px);
+  }
+  /* Heatmap spectrale pour vues VISIA-like */
+  .heatmap-pigment {
+    background: radial-gradient(circle at 50% 42%, rgba(139,26,59,.55), rgba(139,26,59,.18) 45%, transparent 70%);
+    mix-blend-mode: multiply;
+  }
+  .heatmap-inflammation {
+    background: radial-gradient(circle at 50% 42%, rgba(224,122,43,.55), rgba(224,122,43,.2) 45%, transparent 70%);
+    mix-blend-mode: multiply;
+  }
+  .heatmap-acne {
+    background:
+      radial-gradient(circle at 38% 36%, rgba(139,26,59,.6), transparent 12%),
+      radial-gradient(circle at 62% 40%, rgba(139,26,59,.5), transparent 10%),
+      radial-gradient(circle at 50% 68%, rgba(139,26,59,.45), transparent 12%);
+    mix-blend-mode: multiply;
+  }
+  .spectre-pigment { filter: sepia(.55) saturate(1.9) hue-rotate(-18deg) contrast(1.15); }
+  .spectre-inflammation { filter: sepia(.25) saturate(2.4) hue-rotate(24deg) contrast(1.1); }
+  .spectre-acne { filter: grayscale(.35) contrast(1.35) brightness(1.05); }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .pretty-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .pretty-scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--gold) 45%, transparent); border-radius: 99px; }
+  .pretty-scroll::-webkit-scrollbar-track { background: transparent; }
+}
+
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+}

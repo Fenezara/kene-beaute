@@ -1,0 +1,501 @@
+// Kènè — Schéma Prisma multi-tenant (SQLite)
+// Les types enum sont simulés via String + validation Zod côté API.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────── Globales ───────────────────────────
+
+model Country {
+  id        String  @id @default(cuid())
+  code      String  @unique // "CI" | "SN"
+  name      String
+  currency  String  @default("XOF")
+  tvaRate   Float   @default(18.0)
+  phoneCode String // "+225"
+}
+
+model MomoOperator {
+  id      String @id @default(cuid())
+  code    String @unique // wave | orange | mtn
+  name    String
+  color   String
+  ussd    String
+  active  Boolean @default(true)
+}
+
+model User {
+  id           String   @id @default(cuid())
+  phone        String   @unique
+  name         String
+  role         String   @default("client") // client | pro | admin
+  email        String?
+  city         String?
+  skinType     String? // grasse | seche | mixte | normale
+  fitzpatrick  String? // III | IV | V | VI
+  allergies    String? // texte libre
+  goals        String? // JSON [{id,label}]
+  consentHealth Boolean @default(false)
+  consentTs    DateTime?
+  referralCode String?
+  referredBy   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  diagnoses    Diagnosis[]
+  orders       Order[]
+  reviews      Review[]
+  notifications Notification[]
+  consents     Consent[]
+  appointments Appointment[] @relation("UserAppointments")
+  wallet       Wallet?
+}
+
+// ─────────────────────────── Tenants (entreprises) ───────────────────────────
+
+model Tenant {
+  id             String   @id @default(cuid())
+  name           String
+  type           String   @default("institut") // institut | spa | dermo_conseil
+  country        String // CI | SN
+  city           String
+  address        String?
+  phone          String
+  ownerName      String
+  ownerPhone     String
+  plan           String   @default("trial") // trial | pro | business
+  commissionRate Float    @default(0)
+  rating         Float    @default(4.7)
+  reviewCount    Int      @default(0)
+  description    String?
+  openingHour    Int      @default(9)
+  closingHour    Int      @default(19)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  resources      Resource[]
+  services       Service[]
+  clients        ClientProfile[]
+  appointments   Appointment[]
+  sales          Sale[]
+  products       Product[]
+  movements      InventoryMovement[]
+  employees      Employee[]
+  payPeriods     PayPeriod[]
+  accounts       ChartAccount[]
+  journals       JournalEntry[]
+  reviews        Review[]
+  notifications  Notification[]
+}
+
+model Resource {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  role      String  @default("estheticienne") // estheticienne | dermo_conseillere | caissiere
+  color     String  @default("#C8951E")
+  active    Boolean @default(true)
+
+  appointments Appointment[]
+}
+
+model Service {
+  id            String  @id @default(cuid())
+  tenantId      String
+  tenant        Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name          String
+  category      String  @default("soin") // soin | gommage | massage | diagnostic | consultation
+  durationMin   Int     @default(60)
+  price         Int
+  commissionPct Float   @default(10)
+  description   String?
+  botanicals    String? // "Karité, Baobab"
+  active        Boolean @default(true)
+
+  appointments Appointment[]
+  saleItems    SaleItem[]
+}
+
+// ─────────────────────────── CRM ───────────────────────────
+
+model ClientProfile {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String?   // lien vers User si cliente Kènè
+  name        String
+  phone       String
+  email       String?
+  skinType    String?
+  fitzpatrick String?
+  notes       String?
+  visitsCount Int       @default(0)
+  totalSpent  Int       @default(0)
+  lastVisit   DateTime?
+  rfmSegment  String    @default("Nouveau") // Champions | Fidèles | Potentiels | À risque | Perdus | Nouveaux
+  createdAt   DateTime  @default(now())
+
+  appointments Appointment[]
+  sales        Sale[]
+}
+
+// ─────────────────────────── RDV ───────────────────────────
+
+model Appointment {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientProfileId String?
+  clientProfile  ClientProfile? @relation(fields: [clientProfileId], references: [id])
+  userId         String?
+  user           User?   @relation("UserAppointments", fields: [userId], references: [id])
+  clientName     String
+  clientPhone    String
+  resourceId     String
+  resource       Resource @relation(fields: [resourceId], references: [id])
+  serviceId      String
+  service        Service @relation(fields: [serviceId], references: [id])
+  startAt        DateTime
+  durationMin    Int     @default(60)
+  status         String  @default("confirmed") // pending | confirmed | completed | cancelled | no_show
+  price          Int     @default(0)
+  depositAmount  Int     @default(0) // acompte payé via MoMo
+  paymentId      String?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  review Review?
+}
+
+// ─────────────────────────── Diagnostic IA ───────────────────────────
+
+model Diagnosis {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  zone         String // visage | dos | cuir_chevelu | mains | barbe | naevi
+  imageData    String   // base64 (redimensionné côté client)
+  resultJson   String   // résultat complet VLM
+  scoreGlobal  Int      @default(0)
+  status       String   @default("pending") // pending | done | error
+  vlmUsed      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+// ─────────────────────────── Boutique / Produits / Stock ───────────────────────────
+
+model Product {
+  id          String  @id @default(cuid())
+  tenantId    String? // null = boutique Kènè (marketplace light)
+  tenant      Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  brandLine   String  @default("Kènè Botaniques")
+  category    String  @default("soin") // serum | creme | huile | gommage | masque | savon
+  description String
+  botanicals  String // "Moringa, Karité"
+  price       Int
+  compareAt   Int?
+  stock       Int     @default(50)
+  stockAlert  Int     @default(8)
+  image       String  // /products/xxx.webp
+  rating      Float   @default(4.8)
+  reviewCount Int     @default(0)
+  active      Boolean @default(true)
+
+  movements InventoryMovement[]
+  saleItems SaleItem[]
+  orderItems OrderItem[]
+}
+
+model Sale {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientProfileId String?
+  clientProfile  ClientProfile? @relation(fields: [clientProfileId], references: [id])
+  items          SaleItem[]
+  subtotal       Int
+  discount       Int      @default(0)
+  total          Int
+  tvaAmount      Int      @default(0) // TVA incluse (18%)
+  paymentMethod  String   // wave | orange | cash | card
+  paymentRef     String?
+  cashierName    String   @default("Caisse 1")
+  status         String   @default("completed") // pending | completed | refunded
+  createdAt      DateTime @default(now())
+}
+
+model SaleItem {
+  id        String  @id @default(cuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  kind      String  // service | product
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id])
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  label     String
+  qty       Int     @default(1)
+  unitPrice Int
+  total     Int
+}
+
+model InventoryMovement {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type      String // in | out | adjust | loss
+  qty       Int
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+// ─────────────────────────── Wallet & Paiements ───────────────────────────
+
+model Wallet {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance      Int      @default(0)
+  cashbackRate Float    @default(0.05)
+  referralCode String   @unique
+  createdAt    DateTime @default(now())
+
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id        String   @id @default(cuid())
+  walletId  String
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type      String // credit | debit
+  amount    Int
+  reason    String // cashback | referral | topup | payment | refund
+  refId     String?
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id          String    @id @default(cuid())
+  userId      String?
+  purpose     String // shop_order | appointment_deposit | wallet_topup | pos_sale
+  method      String // wave | orange | cash | card | wallet
+  amount      Int
+  status      String    @default("pending") // pending | success | failed
+  ref         String    @unique
+  metaJson    String?   // contexte (orderId, appointmentId…)
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+
+  order Order?
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     OrderItem[]
+  subtotal  Int
+  cashback  Int      @default(0)
+  total     Int
+  paymentId String?  @unique
+  payment   Payment? @relation(fields: [paymentId], references: [id])
+  status    String   @default("pending") // pending | paid | delivered | cancelled
+  createdAt DateTime @default(now())
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  label     String
+  qty       Int     @default(1)
+  unitPrice Int
+  total     Int
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointmentId String?  @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  rating        Int
+  comment       String?
+  createdAt     DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  channel   String // sms | whatsapp | email
+  toPhone   String
+  message   String
+  status    String   @default("sent") // sent | scheduled
+  createdAt DateTime @default(now())
+}
+
+// ─────────────────────────── Paie (Sprint 4) ───────────────────────────
+
+model Employee {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  role         String // estheticienne | dermo_conseillere | caissiere | manager
+  contractType String   @default("CDI") // CDI | CDD | Stage
+  country      String // CI | SN
+  baseSalary   Int // mensuel brut de base XOF
+  transport    Int      @default(0)
+  housing      Int      @default(0)
+  cadres       Boolean  @default(false) // IPRES cadres (SN)
+  hireDate     DateTime @default(now())
+  cnpsNumber   String?
+  bankAccount  String?
+  active       Boolean  @default(true)
+
+  attendance  Attendance[]
+  leaves      LeaveRequest[]
+  payslips    Payslip[]
+}
+
+model Attendance {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime
+  checkIn    String?  // "08:32"
+  checkOut   String?
+  hours      Float    @default(8)
+  status     String   @default("present") // present | absent | leave | late
+}
+
+model LeaveRequest {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  startDate  DateTime
+  endDate    DateTime
+  type       String   @default("conge") // conge | maladie | maternite
+  days       Int
+  status     String   @default("approved")
+}
+
+model PayPeriod {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  period    String // "2025-06"
+  country   String
+  status    String   @default("validated") // open | validated
+  totalsJson String? // totaux agrégés
+  createdAt DateTime @default(now())
+
+  payslips Payslip[]
+}
+
+model Payslip {
+  id            String   @id @default(cuid())
+  payPeriodId   String
+  payPeriod     PayPeriod @relation(fields: [payPeriodId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  baseSalary    Int
+  hoursWorked   Float    @default(173.33)
+  grossSalary   Int
+  cnpsEmployee  Int      @default(0)
+  cnpsEmployer  Int      @default(0)
+  incomeTax     Int      @default(0) // IGR (CI) ou IR (SN)
+  cn            Int      @default(0) // Contribution Nationale CI
+  netSalary     Int
+  detailsJson   String   // détail complet lignes
+  createdAt     DateTime @default(now())
+}
+
+// ─────────────────────────── Compta SYSCOHADA ───────────────────────────
+
+model ChartAccount {
+  id       String  @id @default(cuid())
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code     String // "701000"
+  classe   Int // 1..9
+  label    String
+  type     String // actif | passif | charge | produit
+  system   Boolean @default(true) // compte du plan SYSCOHADA pré-chargé
+
+  entries JournalLine[]
+}
+
+model JournalEntry {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  journalCode String  @default("CA") // VE (ventes) | BQ (banque) | CA (caisse) | PA (paie) | OD
+  date       DateTime
+  reference  String
+  description String
+  sourceType String? // sale | payroll | manual
+  sourceId   String?
+  lines      JournalLine[]
+  createdAt  DateTime @default(now())
+}
+
+model JournalLine {
+  id        String       @id @default(cuid())
+  entryId   String
+  entry     JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId String
+  account   ChartAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  debit     Int          @default(0)
+  credit    Int          @default(0)
+  label     String?
+}
+
+// ─────────────────────────── Sécurité / Conformité ───────────────────────────
+
+model Consent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // health_data | marketing | whatsapp
+  granted   Boolean
+  ip        String?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  userId      String?
+  action      String
+  entity      String
+  entityId    String?
+  detailsJson String?
+  createdAt   DateTime @default(now())
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
