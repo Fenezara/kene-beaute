@@ -15,6 +15,9 @@ import { apiGet } from "@/lib/kene/api";
 import { xof, formatDate, formatTime, scoreColor } from "@/lib/kene/format";
 import { rfmScore, RFM_SEGMENT_STYLES } from "@/lib/kene/rfm";
 import { RFM_SEGMENTS } from "@/lib/kene/types";
+import type { BodyZone } from "@/lib/kene/types";
+import { parseDiagnosis } from "@/components/kene/client/types";
+import { SkinTwinCard, type TwinEntry } from "@/components/kene/skintwin/SkinTwinCard";
 import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, InitialAvatar, Money, SectionHeader, KenteTop } from "./ui-bits";
 import type { ProClient, ProClientDetail } from "./types";
@@ -206,13 +209,37 @@ function ClientSheet({ clientId, tenantId, onClose }: { clientId: string; tenant
   const d = detail.data;
   const c = d?.client;
 
+  /* Jumeau de Peau — agrégation 3D des diagnostics de la cliente (toutes zones) */
+  const twinEntries = useMemo<TwinEntry[]>(
+    () =>
+      (d?.diagnoses ?? []).map((dg) => {
+        const r = parseDiagnosis(dg.resultJson);
+        return {
+          id: dg.id,
+          zone: dg.zone as BodyZone,
+          score: dg.scoreGlobal,
+          fitz: r?.fitzpatrick_estime,
+          marks: r?.zones_marquages ?? [],
+          date: dg.createdAt,
+          indicators: r?.indicateurs,
+        };
+      }),
+    [d?.diagnoses],
+  );
+
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto pretty-scroll p-0">
+      <SheetContent side="right" aria-describedby={undefined} className="w-full sm:max-w-lg overflow-y-auto pretty-scroll p-0">
         {detail.error ? (
-          <div className="p-4"><ErrorState message={`Fiche indisponible : ${detail.error}`} onRetry={detail.refetch} /></div>
+          <div className="p-4">
+            {/* Titre sr-only : Radix exige un SheetTitle dès l'ouverture, même en état d'erreur */}
+            <SheetTitle className="sr-only">Fiche cliente indisponible</SheetTitle>
+            <ErrorState message={`Fiche indisponible : ${detail.error}`} onRetry={detail.refetch} />
+          </div>
         ) : detail.loading || !d || !c ? (
           <div className="space-y-3 p-4">
+            {/* Titre sr-only : présent dès le squelette de chargement (exigence Radix a11y) */}
+            <SheetTitle className="sr-only">Chargement de la fiche cliente…</SheetTitle>
             <Skeleton className="h-20" />
             <Skeleton className="h-24" />
             <Skeleton className="h-64" />
@@ -257,6 +284,8 @@ function ClientSheet({ clientId, tenantId, onClose }: { clientId: string; tenant
               {c.userId && (
                 <section aria-label="Diagnostics IA liés">
                   <h4 className="font-heading text-sm font-bold mb-2">Diagnostics Kènè ({d.diagnoses.length})</h4>
+                  {/* Jumeau de Peau — agrégation 3D de tous les diagnostics de la cliente */}
+                  {twinEntries.length > 0 && <SkinTwinCard context="pro" entries={twinEntries} className="mb-4" />}
                   {d.diagnoses.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Aucun diagnostic pour cette cliente.</p>
                   ) : (

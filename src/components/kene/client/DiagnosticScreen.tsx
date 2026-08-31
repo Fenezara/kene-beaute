@@ -11,6 +11,7 @@ import { apiGet, apiPost, resizeImage } from "@/lib/kene/api";
 import { formatDate, scoreColor, SEVERITY_STYLES } from "@/lib/kene/format";
 import { BODY_ZONES, SPECTRAL_VIEWS, type BodyZone, type DiagnosisResult, type Indicator } from "@/lib/kene/types";
 import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
+import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -393,6 +394,21 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
           </button>
         </motion.div>
       )}
+
+      {/* Jumeau de Peau — Skin Twin 3D */}
+      <SkinTwinCard
+        entries={[
+          {
+            id: diag.id,
+            zone: r.zone,
+            score: r.score_global,
+            fitz: r.fitzpatrick_estime,
+            marks: r.zones_marquages,
+            date: diag.createdAt,
+            indicators: r.indicateurs,
+          },
+        ]}
+      />
 
       {/* Tabs spectraux */}
       <section aria-label="Vues spectrales de la photo" className="mt-5">

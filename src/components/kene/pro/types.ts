@@ -123,6 +123,7 @@ export interface ProClientDetail {
     scoreGlobal: number;
     createdAt: string;
     imageData: string;
+    resultJson: string;
   }[];
 }
 

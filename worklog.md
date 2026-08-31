@@ -182,3 +182,31 @@ Stage Summary:
 - Phase A livrée : onboarding narratif immersif « Le Fil de Kente » — 6 chapitres 3D procéduraux pilotés au scroll (Lenis + rAF, aucun asset externe), fallback accessibilité, persistance localStorage, 61 fps mobile
 - Pattern réutilisable : introState.ts (uSES sans mismatch) + chapterT (conventions fadeIn/fadeOut=0) + flag store introActive
 - Prochaine étape proposée : Phase B — Skin Twin 3D (résultats diagnostic sur tête rotative + fiche CRM Pro)
+---
+Task ID: 14 (Phase B — Innovation immersive)
+Agent: main (Z.ai Code)
+Task: SKIN TWIN 3D « Ton Jumeau de Peau » — le diagnostic porté par un buste 3D interactif (résultats cliente + fiche CRM Pro 360°)
+
+Work Log:
+- src/components/kene/skintwin/twinMath.ts : math pures — tête sculptée procéduralement (bosses gaussiennes sur icosaèdre : occiput, mandibule effilée, menton, arcade, orbites, arête nasale, pommettes, oreilles, lèvres), projection photo→3D par zone (visage/barbe/cuir_chevelu→fenêtres angulaires tête ; dos/nævi→ellipsoïde torse ; mains→moufles), projection 2D fallback (viewBox 100×110), teintes Fitz IV/V/VI, SEV_HEX, matchIndicator() rapprochement flou marqueur↔indicateur (stems, seuil 0,34), DragState
+- SkinTwinScene.tsx (dynamic ssr:false) : Canvas R3F — buste (tête ico(1,4) sculptée, cou, torse ellipsoïdal, 2 moufles), socle muséal + liseré or émissif teinté score, orbite du Fil d'Or (tore incliné + 3 perles, continuité Phase A), pastilles sphères émissives couleur sévérité avec pulsation cardiaque + halo billboard sur pastille active, balayage scanner sunset descendant une fois, drag rotation avec inertie + auto-rotation après repos 2,6 s + respiration, caméra adaptative à l'aspect, frameloop coupé hors viewport (prop du Card via IntersectionObserver)
+- mode.ts : useSyncExternalStore 3d/pending/static (reduced-motion, WebGL absent, QA #twin-static) — pattern Phase A
+- SkinTwinCard.tsx : carte UI — stage sombre « musée » 340/380 px, chips numérotées = interface accessible (hover/focus↔3D, clic↔sélection), panneau détail (sévérité + indicateur lié + % + note), légende, badge Fitz, hint « Fais pivoter » (disparaît après 1re interaction), fallback SVG (silhouette buste + pastilles), note si marqueurs absents ; drag en ref mutable (zéro re-render), pointer capture + seuil 7 px click-vs-drag
+- Intégrations : DiagnosticScreen ResultView (jumeau du diagnostic courant, entre alerte dermato et tabs spectraux) ; CrmSection ClientSheet (jumeau AGRÉGÉ multi-diagnostics : 23 pastilles 21 Visage + 2 Mains, score moyen exact 75/100) + type resultJson ajouté à ProClientDetail.diagnoses
+- Chasse aux FPS (méthode bisection agent-browser) : 24 fps → 60 fps. Causes trouvées et corrigées : (1) MeshPhysicalMaterial+sheen → MeshLambertMaterial (PBR inutile en low-poly facetté, +11 fps) ; (2) flag flatShading → normales plates PRÉCALCULÉES via computeVertexNormals sur géométries non-indexées (toNonIndexed pour cylindre) — évite le chemin fragment à dérivées (+2) ; (3) pastilles transparentes → OPAQUES avec pop d'échelle à la révélation (zéro blending) ; (4) overlay wireframe supprimé (~4 fps pour un effet subtil) ; (5) antialias:false + géométries fines épaissies (anneau 0,0058→0,012) pour compenser (+14, décisif) ; (6) canvas alpha→opaque avec <color> mélanine ; (7) 2 point lights (faisceau, socle) remplacées par émissifs. Calibrage : intro mesurée à 61 fps dans le même environnement → cible légitime
+- Bug a11y PRÉEXISTANT corrigé au passage (prouvé par git stash) : fiche CRM → erreur Radix « DialogContent requires DialogTitle » pendant le squelette de chargement → SheetTitle sr-only dans branches loading/error + aria-describedby={undefined} sur SheetContent. Console fiche CRM désormais 100 % propre
+- Warning THREE « toNonIndexed: already non-indexed » éliminé (garde g.index)
+
+Tests (agent-browser + VLM, viewports 1280×800 et 390×844) :
+- Console navigateur 100 % vierge sur tous les parcours (client, Pro, fallback, reload à froid) — seul warning THREE.Clock bénin de R3F (identique Phase A)
+- Cliente : jumeau rendu (canvas 396×378), 7 pastilles/chips, clic chip → panneau détail (68 %, note, « Indicateur lié : Taches PIH post-inflammatoires » — fuzzy match OK), drag → VLM confirme ROTATED (profil gauche révélé), hint disparaît après interaction, badge Fitz V
+- FPS : 60 desktop ET 60 mobile 390px (budget 60 atteint) ; hors viewport → 61 (IO gate OK)
+- Pro CRM : jumeau agrégé 23 pastilles multi-zones (chips avec suffixe zone), score 75/100 exact, drag OK dans la Sheet, intégration propre — VLM SHIPPABLE
+- Fallback #twin-static : 0 canvas, SVG silhouette + 7 pastilles numérotées lisibles — VLM SHIPPABLE
+- Qualité : eslint 0 erreur/0 warning, tsc --noEmit 0 erreur src/, dev.log propres (incident serveur tombé en cours de route → redémarré, vérifié HTTP 200)
+
+Stage Summary:
+- Phase B livrée : « Ton Jumeau de Peau » — buste 3D procédural portant les marqueurs du diagnostic (projection par zone anatomique), rotation interactive, scan, orbite du Fil d'Or ; déployé côté cliente (résultats) et côté Pro (fiche CRM 360° agrégée)
+- Leçon perf majeure (réutilisable) : en rendu logiciel, le coût est PIXELS×shader — Lambert + normales plates précalculées + opacité évitée + pas de MSAA ; bissection empirique par masquage de meshes + calibration contre une scène de référence
+- Leçon process : les warnings console peuvent être PRÉEXISTANTS — prouver par git stash avant de se l'attribuer
+- Prochaine étape proposée : Phase C — La Route de l'Or (parcours boutique/réservation narratif) ou Skin Twin v2 (comparaison avant/après sur le jumeau, courbes d'évolution par indicateur)
