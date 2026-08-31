@@ -159,6 +159,8 @@ export interface TwinMarker {
   x: number;
   y: number;
   pos: [number, number, number];
+  /** Score santé (0-100) de l'indicateur rapproché — pilote la projection (Fil du Temps). */
+  pct: number | null;
 }
 
 export function buildMarkers(entries: TwinEntry[]): TwinMarker[] {
@@ -167,6 +169,7 @@ export function buildMarkers(entries: TwinEntry[]): TwinMarker[] {
     for (let i = 0; i < e.marks.length; i++) {
       const m = e.marks[i];
       const p = markerPosition(e.zone, m.x, m.y);
+      const ind = e.indicators?.length ? matchIndicator(m.label, e.indicators) : null;
       out.push({
         key: `${e.id}-${i}`,
         label: m.label,
@@ -176,6 +179,7 @@ export function buildMarkers(entries: TwinEntry[]): TwinMarker[] {
         x: m.x,
         y: m.y,
         pos: [p.x, p.y, p.z],
+        pct: ind ? ind.pourcentage : null,
       });
     }
   }
@@ -209,7 +213,7 @@ export function matchIndicator(label: string, indicators: TwinIndicator[] | unde
     const score = hits / wl.length;
     if (!best || score > best.score) best = { score, ind };
   }
-  return best && best.score >= 0.34 ? best.ind : null;
+  return best && best.score >= 0.3 ? best.ind : null;
 }
 
 /* ───────────────────────── État de rotation (drag) ───────────────────────── */

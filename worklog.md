@@ -238,3 +238,35 @@ Stage Summary:
 - Différenciation forte : le choix désactive des rangées (bande assombrie), badge « Choix de l'IA », cashback estimé — le tissage EST la commande
 - Réutilisable : ritual.ts (match flou partagé), drawBand() pure, pattern GoldenThread motion.path pathLength
 - Prochaine étape proposée : Phase D — Skin Twin v2 (comparaison avant/après sur le jumeau + courbes d'évolution par indicateur) ou la Route en 3D (bande tissée en WebGL dans le fil de l'intro)
+
+---
+Task ID: 16 (Phase D — Innovation immersive)
+Agent: main (Z.ai Code)
+Task: LE FIL DU TEMPS — Skin Twin v2 : le jumeau gagne la dimension temporelle (projection avant/après S+0→S+12 sur le buste 3D + courbes d'évolution par indicateur sur l'historique des diagnostics)
+
+Work Log:
+- src/lib/kene/evolution.ts (lib PURE zéro dépendance — partagée API serveur + UI client) : normKey() ; buildEvolution() agrège les resultJson en séries temporelles par indicateur (fusion floue des libellés VLM variables d'un scan à l'autre) + série score global ; projectPct() projection indicative (λ/gain par famille : PIH lent 0,15 — hydratation rapide 0,38 — rides très lent 0,13…, adhérence ×1/×0,55, horizon plafonné 12 semaines, gain modéré si p0 ≥ 50, cible ≤ 96) ; projectMarkerSev() MODÈLE HYBRIDE CONTINU (si l'indicateur lié devient sain ≥ 80 → marqueur guérit à 0 ; sinon estompe au prorata du gain relatif (proj−pct)/(96−pct) borné 0,85 ; sans indicateur lié décroissance douce ×0,2 ; jamais d'aggravation ; label passé pour les cinétiques par famille) ; pctToSev/valueColorHex/lerpHex (couleurs sans dépendance three — la lib doit rester serveur-compatible)
+- src/app/api/diagnoses/evolution/route.ts : GET ?userId= → DB done asc → buildEvolution → JSON {count, firstAt, lastAt, series[], scores[]}
+- src/components/kene/skintwin/ProjectionSlider.tsx : piste tissée kente (repeating-linear-gradient 5 couleurs) + diamants d'arrêts + NAVETTE (losange crème liseré or, left via calc()) + input range natif INVISIBLE par-dessus (drag tactile ET clavier ±1 semaine) + 4 boutons d'arrêt Aujourd'hui/S+4/S+8/S+12 + chips adhérence Intégrale/Irrégulière + note « simulation non médicale » ; aria-live sur le libellé Semaine
+- twinMath.ts : TwinMarker.pct (score santé de l'indicateur rapproché via matchIndicator dans buildMarkers — alimente la projection) ; seuil fuzzy matchIndicator abaissé 0,34 → 0,30 (libellés 3 mots type « PIH joue droite » : 1/3 = 0,33 tombait juste sous le seuil — « PIH joue droite »→« Taches PIH », « Cernes sous-orbitaires »→« Cernes & poches » maintenant rapprochés, zéro faux positif observé)
+- SkinTwinScene.tsx : prop projRef ({t 0..1, adh} — mutable, pattern progressRef Phase A, zéro re-render au drag) ; pastilles par frame : couleur interpolée SEV_COL[s0]→SEV_COL[s1] par projectMarkerSev continu + échelle ×(0,45+0,55·ratio) (rétrécissement) — copies/lerp en place, ZÉRO allocation par frame (budget rendu logiciel) ; liseré du socle verdit (rimBase→RIM_GREEN ×0,75) sous projection ; rimBase useMemo Color déclaré AVANT useFrame (fix eslint immutability)
+- SkinTwinCard.tsx : prop projection ( défaut false — CRM Pro inchangé) ; state weeks/adherence + projRef mutable (setWeeks écrit la cible, la scène suit à son rythme) ; ProjectionSlider rendu sous la scène si marqueurs ; TwinFallback proj → SVG r/ fill recalculés (lerpHex) au changement de semaines ; panneau détail : ligne « S+N : ~X % » + mini barre verte pointillée quand un indicateur est lié
+- EvolutionCard.tsx (components/kene/evolution/) : SVG pur (zéro lib de charting) — fil d'or lissé Catmull-Rom→béziers, aire dorée 0,07, nœuds pastille valueColorHex, grille 0/50/100 + labels mono, axe X dates courtes ; SI 1 SEUL DIAGNOSTIC → trajectoire projetée POINTILLÉE jusqu'à S+12 (13 échantillons hebdo projectPct, anneau terminal + label S+12) ; chips Score global + 4 indicateurs (delta coloré vert/bissap, icônes TrendingUp/Down) = interface accessible, table sr-only en miroir ; skeleton chargement, états vide/erreur silencieux ; garde-fou domaine X ≥ 6 jours
+- DiagnosticScreen.tsx : ResultView <SkinTwinCard projection /> ; HistoryView reçoit userId + <EvolutionCard userId /> en tête (au-dessus de la liste)
+
+Tests (agent-browser 2 sessions + VLM, viewports 390×844 et 1280×800) :
+- Lib pure bun : PIH 40→68 S+12 pleine / 61 partielle / hydratation 35→65 S+4 ; modèle marqueur continu (sev1 pct55→0,59 S+12, sev3 pct35→1,62, sain→0, S+0 inchangé)
+- API évolution : Mariam 7 scans → séries fusionnées (« Éclat / Uniformité du teint » fusion de libellés VLMVariables OK), deltas −48/−38/−31/+30 exacts
+- E2E complète session vierge : onboarding Awa → diagnostic démo visage (VLM 26,8 s) → résultats → jumeau + slider S+12 → VLM confirme pastilles rétrécies/verdies + liseré socle orange→vert + « Semaine +12 » ; retour S+0 restaure l'état d'origine
+- Panneau détail : « PIH joue droite | Léger | 55% | INDICATEUR LIÉ : TACHES PIH | S+12 : ~72 % » ; adhérence Irrégulière → ~56 % (×0,55 visible)
+- EvolutionCard Mariam : courbe 4 nœuds lisible (VLM : « très lisible et bien rendu »), chips commutées (PIH/Hydratation), deltas ; Awa 1 scan : point + pointillé S+12 (VLM confirmé)
+- Fallback #twin-static : 0 canvas, 5 cercles → S+12 : r 3,60→2,78 fill or-vert partiel (2 marqueurs) + r 1,62 vert total (3 guéris) ; S+0 réversible exact
+- Perf : 61 fps pendant le morph 3D ; console 100 % vierge 2 sessions (seuls logs React/HMR/THREE.Clock bénins préexistants) ; dev.log aucun ⨯
+- Qualité : eslint 0 erreur/0 warning, tsc --noEmit 0 erreur src/ (erreurs préexistantes examples/ + skills/ hors périmètre)
+
+Stage Summary:
+- Phase D livrée : « Le Fil du Temps » — le jumeau de peau devient prospectif (curseur tissé S+0→S+12, marqueurs qui guérissent en continu, adhérence à la routine) ET rétrospectif (courbes d'évolution par indicateur sur l'historique, fusion floue des libellés VLM, projection pointillée dès le premier scan)
+- Le récit produit se boucle : Phase A le fil d'or tisse l'accueil → Phase B le jumeau porte le diagnostic → Phase C la route tisse le panier → Phase D le fil traverse le TEMPS (avant/après + trajectoire)
+- Réutilisable : lib/evolution.ts pure (API + UI), pattern projRef mutable (zéro re-render au drag), smoothPath Catmull-Rom SVG
+- Leçon : modèle bucket (sev = seuils du % projeté) = marches visuelles ; modèle hybride continu (prorata du gain relatif, guérison totale si l'indicateur devient sain) = morphing honnête ET visible
+- Prochaine étape proposée : consolidation finale (polish global, revue a11y complète, README produit) ou Phase E — le Fil de Kente WebGL dans la boutique (bande tissée 3D réutilisable)

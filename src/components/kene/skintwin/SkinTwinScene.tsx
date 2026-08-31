@@ -10,6 +10,7 @@
 import { useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { PROJECT_WEEKS_MAX, projectMarkerSev } from "@/lib/kene/evolution";
 import {
   DEFAULT_SKIN,
   HAND,
@@ -30,10 +31,16 @@ export interface SkinTwinSceneProps {
   onSelect: (i: number) => void;
   dragRef: React.RefObject<DragState>;
   frameloop: "always" | "never";
+  /** Cible de projection (Fil du Temps) : t ∈ [0,1] → 0..12 semaines, adh facteur — mutable, zéro re-render. */
+  projRef?: React.RefObject<{ t: number; adh: number }> | null;
 }
 
 type DragRef = React.RefObject<DragState>;
 type RevealRef = React.RefObject<{ t: number }>;
+
+/** Couleurs de sévérité précalculées (jamais allouées dans la boucle de rendu). */
+const SEV_COL = SEV_HEX.map((h) => new THREE.Color(h));
+const RIM_GREEN = new THREE.Color("#3F7D3F");
 
 /* ───────────────────────── Le buste ───────────────────────── */
 
@@ -45,6 +52,7 @@ function Bust({
   dragRef,
   revealRef,
   rimColor,
+  projRef,
 }: {
   skin: string;
   markers: TwinMarker[];
@@ -53,6 +61,7 @@ function Bust({
   dragRef: DragRef;
   revealRef: RevealRef;
   rimColor: string;
+  projRef: SkinTwinSceneProps["projRef"];
 }) {
   const figure = useRef<THREE.Group>(null);
   const tilt = useRef<THREE.Group>(null);
@@ -60,6 +69,8 @@ function Bust({
   const torusMat = useRef<THREE.MeshLambertMaterial>(null);
   const halo = useRef<THREE.Mesh>(null);
   const markerRefs = useRef<(THREE.Mesh | null)[]>([]);
+  // couleur de base du liseré (lue par frame — copie dans le matériau, jamais réassignée)
+  const rimBase = useMemo(() => new THREE.Color(rimColor), [rimColor]);
   const setMarker = (i: number) => (el: THREE.Mesh | null) => {
     markerRefs.current[i] = el;
   };
@@ -135,17 +146,34 @@ function Bust({
     }
 
     /* pastilles : révélées au passage du faisceau par pop d'échelle (opaques — zéro
-       blending), puis pulsation cardiaque */
+       blending), puis pulsation cardiaque. Le Fil du Temps (projRef) fait « guérir »
+       les marqueurs : couleur interpolée vers le vert, échelle réduite — valeurs
+       continues, mutées en place (zéro allocation par frame). */
+    const pj = projRef?.current;
     markerRefs.current.forEach((m, i) => {
       if (!m) return;
       const data = markers[i];
       const lit = sweep >= 1 || beamY < data.pos[1] + 0.04;
       const active = i === activeIndex;
       const pulse = 1 + Math.sin(t * 2.6 + i * 1.31) * 0.09;
-      const target = lit ? (active ? 1.55 : 1) * pulse : 0.0001;
+
+      let sf = data.sev;
+      if (pj && pj.t > 0.001) {
+        sf = projectMarkerSev(data.sev, data.pct, pj.t * PROJECT_WEEKS_MAX, pj.adh, data.label);
+      }
+      const s0 = Math.min(3, Math.max(0, Math.floor(sf)));
+      const s1 = Math.min(3, s0 + 1);
+      const fr = sf - s0;
+      const mat = m.material as THREE.MeshLambertMaterial;
+      mat.color.copy(SEV_COL[s0]);
+      if (s1 !== s0 && fr > 0.001) mat.color.lerp(SEV_COL[s1], fr);
+      mat.emissive.copy(mat.color);
+      const ratio = data.sev > 0.001 ? Math.min(1, sf / data.sev) : 1;
+      const shrink = 0.45 + 0.55 * ratio;
+
+      const target = lit ? (active ? 1.55 : 1) * pulse * shrink : 0.0001;
       m.scale.setScalar(THREE.MathUtils.lerp(m.scale.x, target, Math.min(1, delta * 10)));
       m.visible = m.scale.x > 0.01;
-      const mat = m.material as THREE.MeshStandardMaterial;
       mat.emissiveIntensity = active ? 2.6 + Math.sin(t * 3.1) * 0.3 : 1.15 + Math.sin(t * 2.6 + i * 1.31) * 0.25;
     });
 
@@ -161,9 +189,14 @@ function Bust({
       }
     }
 
-    /* liseré doré du socle — il respire avec le score global (émissif, sans lumière) */
+    /* liseré doré du socle — il respire avec le score global (émissif, sans lumière) ;
+       sous projection, il verdit doucement (l'horizon de soin) */
     if (torusMat.current) {
       torusMat.current.emissiveIntensity = 0.55 + Math.sin(t * 1.7) * 0.22;
+      const g = pj ? Math.min(1, pj.t) : 0;
+      torusMat.current.color.copy(rimBase);
+      if (g > 0.001) torusMat.current.color.lerp(RIM_GREEN, g * 0.75);
+      torusMat.current.emissive.copy(torusMat.current.color);
     }
   });
 
@@ -235,7 +268,7 @@ function Bust({
       <mesh geometry={faceted.pedestal} position={[0, 0.035, 0]}>
         <meshLambertMaterial color="#241A10" emissive="#0D0805" emissiveIntensity={0.8} />
       </mesh>
-      {/* liseré du socle — teinté par le score global, il respire (émissif, sans lumière) */}
+        {/* liseré du socle — teinté par le score global, il respire (émissif, sans lumière) */}
       <mesh position={[0, 0.075, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.76, 0.016, 10, 56]} />
         <meshLambertMaterial ref={torusMat} color="#C8951E" emissive={rimColor} emissiveIntensity={0.75} />
@@ -297,6 +330,7 @@ export default function SkinTwinScene({
   onSelect,
   dragRef,
   frameloop,
+  projRef,
 }: SkinTwinSceneProps) {
   const revealRef = useRef({ t: 0 });
 
@@ -323,6 +357,7 @@ export default function SkinTwinScene({
         dragRef={dragRef}
         revealRef={revealRef}
         rimColor={rimColor}
+        projRef={projRef}
       />
       <GoldOrbit />
     </Canvas>

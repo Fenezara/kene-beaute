@@ -12,6 +12,7 @@ import { formatDate, scoreColor, SEVERITY_STYLES } from "@/lib/kene/format";
 import { BODY_ZONES, SPECTRAL_VIEWS, type BodyZone, type DiagnosisResult, type Indicator } from "@/lib/kene/types";
 import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
 import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
+import { EvolutionCard } from "@/components/kene/evolution/EvolutionCard";
 import { matchProduct, norm } from "@/components/kene/route/ritual";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -304,7 +305,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   }
 
   /* ─────────── Étape 4 — Historique ─────────── */
-  if (step === 4) return <HistoryView history={history} compareMode={compareMode} setCompareMode={setCompareMode} compareSel={compareSel} setCompareSel={setCompareSel} onBack={() => setStep(0)} onOpen={(d) => { const r = parseDiagnosis(d.resultJson); if (r) { setDiag({ id: d.id, result: r, imageData: diagImgSrc(d.imageData), createdAt: d.createdAt }); setStep(3); } }} />;
+  if (step === 4) return <HistoryView userId={user.id} history={history} compareMode={compareMode} setCompareMode={setCompareMode} compareSel={compareSel} setCompareSel={setCompareSel} onBack={() => setStep(0)} onOpen={(d) => { const r = parseDiagnosis(d.resultJson); if (r) { setDiag({ id: d.id, result: r, imageData: diagImgSrc(d.imageData), createdAt: d.createdAt }); setStep(3); } }} />;
 
   /* ─────────── Étape 3 — Résultats ─────────── */
   if (step === 3 && diag) {
@@ -378,8 +379,9 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
         </motion.div>
       )}
 
-      {/* Jumeau de Peau — Skin Twin 3D */}
+      {/* Jumeau de Peau — Skin Twin 3D + Fil du Temps (projection S+12) */}
       <SkinTwinCard
+        projection
         entries={[
           {
             id: diag.id,
@@ -615,8 +617,9 @@ function IndicatorBar({ ind }: { ind: Indicator }) {
 
 /* ══════════════ Historique + comparaison ══════════════ */
 function HistoryView({
-  history, compareMode, setCompareMode, compareSel, setCompareSel, onBack, onOpen,
+  userId, history, compareMode, setCompareMode, compareSel, setCompareSel, onBack, onOpen,
 }: {
+  userId: string;
   history: ApiDiagnosis[] | null;
   compareMode: boolean;
   setCompareMode: (v: boolean) => void;
@@ -677,6 +680,9 @@ function HistoryView({
         </div>
       ) : (
         <>
+          {/* Le Fil du Temps — courbes d'évolution */}
+          <EvolutionCard userId={userId} className="mt-4" />
+
           <div className="space-y-2.5 mt-4">
             {list.map((d) => {
               const sel = compareSel.includes(d.id);

@@ -24,6 +24,15 @@ import {
   type TwinMarker,
 } from "./twinMath";
 import { useTwinMode } from "./mode";
+import { ProjectionSlider } from "./ProjectionSlider";
+import {
+  ADHERENCE_FACTOR,
+  PROJECT_WEEKS_MAX,
+  lerpHex,
+  projectMarkerSev,
+  projectPct,
+  type Adherence,
+} from "@/lib/kene/evolution";
 
 export type { TwinEntry, TwinIndicator, TwinMarker } from "./twinMath";
 
@@ -31,7 +40,7 @@ const SkinTwinScene = dynamic(() => import("./SkinTwinScene"), { ssr: false, loa
 
 /* ───────────────────────── Fallback SVG statique ───────────────────────── */
 
-function TwinFallback({ markers }: { markers: TwinMarker[] }) {
+function TwinFallback({ markers, proj }: { markers: TwinMarker[]; proj: { weeks: number; adh: number } | null }) {
   return (
     <div className="absolute inset-0 flex items-center justify-center p-5">
       <svg viewBox="0 0 100 110" className="h-full max-h-[310px]" role="img" aria-label="Silhouette du jumeau avec les zones détectées (version statique)">
@@ -44,9 +53,15 @@ function TwinFallback({ markers }: { markers: TwinMarker[] }) {
         </g>
         {markers.map((m, i) => {
           const [cx, cy] = fallbackXY(m.zone, m.x, m.y);
+          const sf = proj ? Math.max(0, Math.min(3, projectMarkerSev(m.sev, m.pct, proj.weeks, proj.adh, m.label))) : m.sev;
+          const s0 = Math.min(3, Math.max(0, Math.floor(sf)));
+          const s1 = Math.min(3, s0 + 1);
+          const fr = sf - s0;
+          const fill = proj && s1 !== s0 && fr > 0.001 ? lerpHex(SEV_HEX[s0], SEV_HEX[s1], fr) : SEV_HEX[s0];
+          const r = 3.6 * (proj ? 0.45 + 0.55 * Math.min(1, sf / Math.max(m.sev, 0.001)) : 1);
           return (
             <g key={m.key}>
-              <circle cx={cx} cy={cy} r="3.6" fill={SEV_HEX[m.sev]} fillOpacity="0.94" stroke="#F8F1E4" strokeWidth="0.7" />
+              <circle cx={cx} cy={cy} r={r.toFixed(2)} fill={fill} fillOpacity="0.94" stroke="#F8F1E4" strokeWidth="0.7" />
               <text x={cx} y={cy + 1.5} textAnchor="middle" fontSize="4.4" fill="#F8F1E4" fontWeight="700">
                 {i + 1}
               </text>
@@ -64,10 +79,13 @@ export function SkinTwinCard({
   entries,
   context = "client",
   className,
+  projection = false,
 }: {
   entries: TwinEntry[];
   context?: "client" | "pro";
   className?: string;
+  /** Active le Fil du Temps : curseur S+0 → S+12, les marqueurs « guérissent ». */
+  projection?: boolean;
 }) {
   const mode = useTwinMode();
   const [selected, setSelected] = useState<number | null>(null);
@@ -76,6 +94,19 @@ export function SkinTwinCard({
   const [active, setActive] = useState(true); // IntersectionObserver → frameloop
   const stageRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef(createDragState());
+
+  /* Fil du Temps : cible mutable lue par la scène chaque frame (zéro re-render au drag) */
+  const [weeks, setWeeks] = useState(0);
+  const [adherence, setAdherence] = useState<Adherence>("pleine");
+  const projRef = useRef({ t: 0, adh: ADHERENCE_FACTOR.pleine });
+  const changeWeeks = (w: number) => {
+    setWeeks(w);
+    projRef.current.t = w / PROJECT_WEEKS_MAX;
+  };
+  const changeAdherence = (a: Adherence) => {
+    setAdherence(a);
+    projRef.current.adh = ADHERENCE_FACTOR[a];
+  };
 
   const markers = useMemo(() => buildMarkers(entries), [entries]);
   const multiZones = useMemo(() => new Set(entries.map((e) => e.zone)).size > 1, [entries]);
@@ -193,9 +224,15 @@ export function SkinTwinCard({
             onSelect={(i) => setSelected((v) => (v === i ? null : i))}
             dragRef={dragRef}
             frameloop={active ? "always" : "never"}
+            projRef={projection ? projRef : null}
           />
         ) : (
-          mode === "static" && <TwinFallback markers={markers} />
+          mode === "static" && (
+            <TwinFallback
+              markers={markers}
+              proj={projection ? { weeks, adh: ADHERENCE_FACTOR[adherence] } : null}
+            />
+          )
         )}
 
         {/* badge phototype */}
@@ -212,6 +249,16 @@ export function SkinTwinCard({
           </div>
         )}
       </div>
+
+      {/* Le Fil du Temps — projection indicative sur le jumeau */}
+      {projection && markers.length > 0 && (
+        <ProjectionSlider
+          weeks={weeks}
+          adherence={adherence}
+          onWeeks={changeWeeks}
+          onAdherence={changeAdherence}
+        />
+      )}
 
       {/* Pastilles = interface accessible (clavier, lecteurs d'écran) */}
       {markers.length > 0 ? (
@@ -267,6 +314,23 @@ export function SkinTwinCard({
                   </div>
                   <p className="mt-1 text-[9.5px] uppercase tracking-wide text-muted-foreground">Indicateur lié : {matched.nom}</p>
                   {matched.note && <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">{matched.note}</p>}
+                  {projection && weeks > 0 && (
+                    <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-dashed border-primary/40 bg-primary/5 px-2.5 py-1.5">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full transition-[width] duration-300"
+                          style={{
+                            width: `${projectPct(matched.pourcentage, weeks, ADHERENCE_FACTOR[adherence], matched.nom)}%`,
+                            backgroundColor: "#3F7D3F",
+                            opacity: 0.85,
+                          }}
+                        />
+                      </div>
+                      <span className="shrink-0 font-mono text-[10px] font-bold text-[#3F7D3F]">
+                        S+{weeks} : ~{projectPct(matched.pourcentage, weeks, ADHERENCE_FACTOR[adherence], matched.nom)} %
+                      </span>
+                    </div>
+                  )}
                 </>
               )}
             </div>
