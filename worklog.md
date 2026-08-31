@@ -270,3 +270,33 @@ Stage Summary:
 - Réutilisable : lib/evolution.ts pure (API + UI), pattern projRef mutable (zéro re-render au drag), smoothPath Catmull-Rom SVG
 - Leçon : modèle bucket (sev = seuils du % projeté) = marches visuelles ; modèle hybride continu (prorata du gain relatif, guérison totale si l'indicateur devient sain) = morphing honnête ET visible
 - Prochaine étape proposée : consolidation finale (polish global, revue a11y complète, README produit) ou Phase E — le Fil de Kente WebGL dans la boutique (bande tissée 3D réutilisable)
+
+---
+Task ID: E (Phase E)
+Agent: main (Z.ai Code)
+Task: Phase E — « Le Fil de la Boutique » : bande de kente tissée en WebGL dans la boutique (composant réutilisable)
+
+Work Log:
+- Choix fait entre « consolidation finale » et « Phase E » → Phase E (prolonge le récit du fil dans le dernier espace sans fil, réutilise les patterns WebGL éprouvés)
+- src/components/kene/weave/threads.ts (module PUR, zéro dépendance) : KENTE_THREADS (6 fils : or #C8951E, bissap #8B1A3B, baobab #3F7D3F, karité #F8F1E4, mélanine #241A10, sunset #E07A2B) ; weftThreadIndex() armure chevrons (pas inversé 1 rangée sur 2, liserés or en rangées 0 et n−1) ; warpThreadIndex() cycle or/mélanine + accents ; categoryThread() mapping catégorie→fil (serum→bissap, creme→karité, huile→or, gommage→sunset, masque→baobab, savon→mélanine) ; WeaveRefs + createWeaveRefs() (highlight.index seulement)
+- src/components/kene/weave/mode.ts : useWeaveMode (useSyncExternalStore, réduit à useTwinMode) — reduced-motion / #weave-static / #twin-static / WebGL absent → fallback
+- src/components/kene/weave/KenteWeaveScene.tsx : Canvas R3F (dpr ≤1,35, alpha, IO frameloop) ; WeaveBand = 3 InstancedMesh (trame 144 box SUR/SOUS la chaîne selon (col+row)%2, chaîne 24 cylindres verticaux, franges 10 cylindres pendant sous la bande) + navette d'or (octaèdre allongé métallique + pointLight) + glowLight de surbrillance ; per-frame : matrices recomposées (tissage reveal delta-based 2,6 s, pop ~7 cellules, chute en place, vague sin, franges révélées en fin), instanceColor lerpié base→bright pour le fil actif (re-upload SEULEMENT pendant la transition), parallaxe pointer lissée, fit viewport (scale ≤1,35), delta clampé 50 ms (reprise IO sans saut) ; état mutable possédé par la scène (reveal/hlK/pass/lastHl/lastKey) — la carte écrit highlight.index, la scène lit ; weaveKey comparé (lecture seule) pour re-tissage
+- src/components/kene/weave/KenteWeaveCard.tsx : wrapper réutilisable (highlightIndex, caption, label, className, weaveKey) ; dynamic import ssr:false ; IO → frameloop ; fallback CSS kente-band-soft + croisures + glow radial du fil sélectionné (renforcé après test : alpha 60 % + inset shadow) ; a11y : figure role=figure + figcaption (dot couleur + « Fil {name} » + caption), canvas aria-hidden, badge « LE FIL DE KENTE »
+- ShopScreen.tsx : hero tissé entre header et recherche ; highlightIndex = categoryThread(cat) ; caption dynamique (« La navette monte le métier… » / « N soins au catalogue » / « N soins · catégorie ») ; recherche passe mt-4 → mt-3
+- Fixes qualité : ESLint react-hooks/refs + immutability (nouvelles règles) — (1) jamais .current au render (ref objet passé en prop), (2) la scène ne mute RIEN issu de props → progression du tissage possédée par la scène, weaveKey = prop comparée ; navette agrandie (0,42×0,12×0,1, emissive 1,1, lumière 3+8·pass) après invisibilité VLM ; perf : couleurs re-upload en transition seulement + 1 lumière d'appoint retirée + dpr 1,5→1,35
+
+Tests (agent-browser + VLM, viewports 390×844 et 1280×800, session démo Mariam) :
+- Boutique mobile : bande tissée 3D confirmée par VLM (armure or/rouge/vert/noir + franges + badge) ; navette dorée visible (gauche de la bande) ; tissage d'entrée joué
+- Highlight catégorie : Sérums → fils bissap brillants/soulevés (VLM : « glowing, lifted, luminous ») + caption « Fil bissap·1 soin · sérums » ; Huiles → « Fil or·0 soin · huiles » ; navette fait un coup accéléré au changement
+- Fallback #weave-static (reload avec hash — attention : navigation hash seule ne recharge PAS le document, cache de mode déjà résolu) : 0 canvas, bande CSS + glow bissap renforcé confirmé
+- Desktop : bande contenue dans la colonne centrée ≤430px, navette visible, grille 2 colonnes intacte, zéro défaut
+- Mode sombre : bande rend bien (fond scène propre), caption contraste 7,8:1 (AA) — le « non lisible » VLM était un faux positif (préfixe « Fil » absent sans catégorie)
+- Perf : 52 fps en rendu logiciel headless (SwiftShader) après optimisations (42 avant) ; console 100 % vierge (logs bénins préexistants) ; dev.log aucun ⨯
+- Qualité : eslint 0 erreur/0 warning ; tsc --noEmit 0 erreur src/
+
+Stage Summary:
+- Phase E livrée : « Le Fil de la Boutique » — la navette tisse le catalogue, chaque catégorie a SON fil (bissap/karité/or/sunset/baobab/mélanine) qui s'illumine et saute vers l'avant
+- Le récit du fil est maintenant complet dans les 4 espaces clients : accueil (Phase A), diagnostic (Phase B), routine (Phase C), temps (Phase D), boutique (Phase E)
+- Réutilisable : KenteWeaveCard (props highlightIndex/caption/weaveKey) — n'importe quelle section peut arborer une bande tissée ; threads.ts pur réutilisable côté serveur
+- Leçons : (1) règles ESLint react-hooks/refs + immutability nouvelles génération — les scènes ne doivent rien muter qui dérive de props, posséder leur état interne et comparer des props lecture-seule ; (2) les couleurs d'instances n'ont besoin d'être re-uploadées que pendant les transitions ; (3) tester un hash QA exige un reload vrai (navigation hash ≠ rechargement)
+- Prochaine étape proposée : consolidation finale (polish global, revue a11y transversale, README produit) — ou laisser le produit en l'état, toutes les phases du récit étant tissées

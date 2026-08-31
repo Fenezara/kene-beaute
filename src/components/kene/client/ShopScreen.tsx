@@ -10,6 +10,8 @@ import { MOMO_OPERATORS } from "@/lib/kene/rfm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKene } from "@/store/kene";
+import { KenteWeaveCard } from "@/components/kene/weave/KenteWeaveCard";
+import { categoryThread } from "@/components/kene/weave/threads";
 import type { ApiOrder, ApiPayment, ApiProduct, ApiWallet } from "./types";
 import { SHOP_CATEGORIES } from "./types";
 import { EmptyBlock, Stars } from "./bits";
@@ -47,6 +49,14 @@ export function ShopScreen() {
     const nq = q.trim().toLowerCase();
     return (products ?? []).filter((p) => (!cat || p.category === cat) && (!nq || `${p.name} ${p.botanicals} ${p.description}`.toLowerCase().includes(nq)));
   }, [products, cat, q]);
+
+  /* le fil de la catégorie — la navette l'illumine dans la bande tissée */
+  const weaveCaption =
+    products === null
+      ? "La navette monte le métier…"
+      : `${filtered.length} soin${filtered.length > 1 ? "s" : ""}${
+          cat ? ` · ${SHOP_CATEGORIES.find((c) => c.id === cat)?.label.toLowerCase() ?? cat}` : " au catalogue"
+        }`;
 
   async function pay(method: PayMethod) {
     setPaying(true);
@@ -90,8 +100,13 @@ export function ShopScreen() {
         <span className="rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1 uppercase tracking-wide">Cashback 5 %</span>
       </header>
 
+      {/* Le Fil de Kente — hero tissé, le fil de la catégorie s'illumine */}
+      <div className="mt-4">
+        <KenteWeaveCard highlightIndex={cat ? categoryThread(cat) : -1} caption={weaveCaption} />
+      </div>
+
       {/* Recherche */}
-      <div className="mt-4 relative">
+      <div className="mt-3 relative">
         <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <input
           ref={inputRef}
