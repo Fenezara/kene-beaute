@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, Brush, CalendarPlus, Camera, Check, Cross, GitCompareArrows, Hand, History,
+  ArrowLeft, Brush, CalendarPlus, Camera, Check, ChevronRight, Cross, GitCompareArrows, Hand, History,
   ImagePlus, Loader2, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Sparkles, Sunrise, TriangleAlert, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -12,6 +12,8 @@ import { formatDate, scoreColor, SEVERITY_STYLES } from "@/lib/kene/format";
 import { BODY_ZONES, SPECTRAL_VIEWS, type BodyZone, type DiagnosisResult, type Indicator } from "@/lib/kene/types";
 import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
 import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
+import { matchProduct, norm } from "@/components/kene/route/ritual";
+import { RitualJourney } from "@/components/kene/route/RitualJourney";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,27 +38,6 @@ const ANALYSIS_STEPS = [
   "Cartographie inflammatoire…",
   "Score mélanoderme…",
 ];
-
-function norm(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9 ]/g, " ");
-}
-
-/** Match une recommandation libre (« Sérum Moringa éclat ») avec un produit boutique */
-function matchProduct(rec: string, products: ApiProduct[]): ApiProduct | null {
-  const words = norm(rec).split(" ").filter((w) => w.length >= 5);
-  let best: { p: ApiProduct; score: number } | null = null;
-  for (const p of products) {
-    const target = `${norm(p.name)} ${norm(p.botanicals)} ${norm(p.description)}`;
-    let score = 0;
-    for (const w of words) if (target.includes(w)) score += 1;
-    if (score > 0 && (!best || score > best.score)) best = { p, score };
-  }
-  return best?.p ?? null;
-}
 
 export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone: BodyZone | null; onZoneConsumed: () => void }) {
   const user = useKene((s) => s.user)!;
@@ -335,9 +316,11 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
 
 /* ══════════════ Résultat VISIA-like ══════════════ */
 function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: string; result: DiagnosisResult; imageData: string; createdAt: string }; products: ApiProduct[]; onNewZone: () => void; onHistory: () => void }) {
+  const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
   const addToCart = useKene((s) => s.addToCart);
   const [view, setView] = useState<string>("standard");
+  const [ritualOpen, setRitualOpen] = useState(false);
   const r = diag.result;
   const weakest = useMemo(() => [...r.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage).slice(0, 8), [r.indicateurs]);
   const viewDef = SPECTRAL_VIEWS.find((v) => v.id === view) ?? SPECTRAL_VIEWS[0];
@@ -471,7 +454,29 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
       {/* Recommandations */}
       <section aria-labelledby="reco-t" className="mt-6">
         <h2 id="reco-t" className="font-heading font-bold text-base mb-3">Ta routine personnalisée</h2>
-        <div className="rounded-2xl border-2 border-primary/50 bg-primary/5 p-4">
+
+        {/* Route de l'Or — parcours narratif */}
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setRitualOpen(true)}
+          className="relative w-full rounded-3xl bg-gradient-to-br from-[#C8951E] via-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] shadow-lg overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          aria-label="Ouvrir la Route de l'Or — tisser ma routine en 4 stations"
+        >
+          <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-25" />
+          <div aria-hidden="true" className="h-1.5 w-full" style={{ backgroundImage: "repeating-linear-gradient(90deg,#8B1A3B 0 12px,#3F7D3F 12px 20px,#C8951E 20px 28px,#E07A2B 28px 36px,#A0522D 36px 46px)" }} />
+          <div className="relative flex items-center gap-3 px-4 py-3.5">
+            <span className="grid place-items-center h-12 w-12 rounded-2xl bg-[#FFF9EC]/15 backdrop-blur border border-[#FFF9EC]/30 shrink-0">
+              <NeaOnnimIcon size={26} />
+            </span>
+            <span className="text-left min-w-0">
+              <span className="block font-heading font-black text-base leading-tight">La Route de l&apos;Or</span>
+              <span className="block text-[11px] opacity-90">Tisse ta routine en 4 stations — ton kente de soin à la fin</span>
+            </span>
+            <ChevronRight size={20} className="ml-auto opacity-80 shrink-0" />
+          </div>
+        </motion.button>
+
+        <div className="rounded-2xl border-2 border-primary/50 bg-primary/5 p-4 mt-4">
           <p className="text-xs leading-relaxed">{r.recommandations.resume}</p>
         </div>
 
@@ -578,6 +583,15 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
           <History size={16} /> Historique
         </button>
       </div>
+
+      {ritualOpen && (
+        <RitualJourney
+          diag={{ id: diag.id, result: diag.result, createdAt: diag.createdAt }}
+          products={products}
+          userName={user.name}
+          onClose={() => setRitualOpen(false)}
+        />
+      )}
     </div>
   );
 }

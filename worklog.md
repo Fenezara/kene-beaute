@@ -210,3 +210,31 @@ Stage Summary:
 - Leçon perf majeure (réutilisable) : en rendu logiciel, le coût est PIXELS×shader — Lambert + normales plates précalculées + opacité évitée + pas de MSAA ; bissection empirique par masquage de meshes + calibration contre une scène de référence
 - Leçon process : les warnings console peuvent être PRÉEXISTANTS — prouver par git stash avant de se l'attribuer
 - Prochaine étape proposée : Phase C — La Route de l'Or (parcours boutique/réservation narratif) ou Skin Twin v2 (comparaison avant/après sur le jumeau, courbes d'évolution par indicateur)
+
+---
+Task ID: 15 (Phase C — Innovation immersive)
+Agent: main (Z.ai Code)
+Task: LA ROUTE DE L'OR — le fil de la Phase A devient un parcours narratif qui TISSE la routine de soin (produits matchés → stations → kente personnel téléchargeable → panier en 1 geste)
+
+Work Log:
+- Data fix au passage : 5 doublons produits en DB (seed rejoué lors des tests précédents) supprimés en gardant les instances référencées par OrderItem/SaleItem → boutique propre à 8 produits (visible avant dans l'UI boutique)
+- src/components/kene/route/ritual.ts (logique pure, testée bun sur vraie DB) : STATIONS 4 définitions (Purifier #8B1A3B/Soigner #3F7D3F/Nourrir #C8951E/Protéger #E07A2B — poème, botanicals, catégories, clés d'indicateurs, usage matin/soir) ; buildRitual() — produits IA (recommandations VLM matchées flou, priorité) puis fallback boutique par catégorie/rating, unicité inter-stations, solaires réservés à Protéger (2 bugs trouvés par le test CLI : SPF dans Nourrir + doublon) ; stationFocus() indicateurs les plus faibles ciblés ; ritualTotal() ; shade() ; matchProduct/norm DEPLACÉS ici depuis DiagnosticScreen (source unique, import croisé)
+- src/components/kene/route/WovenBand.tsx : drawBand() pure — fond mélanine, 16 étincelles or seedées (mulberry32), 4+1 rangées tissées (armure toile : briques arrondies couleur station + accent or toutes les 4, reflet dessus, fils de trame horizontaux, onde sinusoïdale, offset alterné par rangée), clip de progression par rangée (tissage gauche→droite), NAVETTE (losange crème liseré or + fil de traîne quadratique) à la frontière de tissage, liserés or zigzag haut/bas, franges latérales quadratiques, bandeau signature (nom Ojuju résolu via getComputedStyle + document.fonts.ready, SCORE/100 mono or, diamants adinkra, cadre pointillé) ; composant canvas dpr≤2, anim rAF 2,1 s easeOut, prefers-reduced-motion → rendu direct, ResizeObserver → rendu final, bouton téléchargement PNG (toDataURL, toast), role=img + aria-label descriptif
+- src/components/kene/route/RitualJourney.tsx : overlay dialog fixed inset-0 mx-auto max-w-[430px] (Escape ferme, focus bouton X, verrou scroll body) — GoldenThread SVG (route ondulée 7 nœuds, motion.path pathLength animé, navette motion.g, nœud courant pulsé, étiquette flottante de l'étape) ; 7 écrans AnimatePresence slide : intro (NeaOnnim, cartes des 4 stations), 4 StationScreen (poème en blockquote bord couleur, chips botanicals/matrin/soir, focus « Ta peau demande » avec % sévérité, ProductPick avec toggle garder role=switch + badge « Choix de l'IA sur ta photo »), institut (Sankofa, acompte/rappel/remboursement, soins_conseilles, CTA rdv), tissage final (WovenBand — rangées assombries si aucun fil gardé dans la station = personnalisation visible, récap produits retournables, total + cashback 5 %, CTA « Tisser mon panier » addToCart tous + toast + navigation boutique, CTA réserver) ; footer sticky glass-kene Continuer/Retour h-14 + safe-area
+- Intégrations : DiagnosticScreen (CTA gradient « La Route de l'Or » dans la section recommandations avec mini bande tissée CSS, matchProduct/norm importés depuis ritual.ts) ; HomeScreen (carte relance « Route de l'Or » sous le CTA scanner si dernier diagnostic parsable, parseDiagnosis du multi.last)
+- 2 coquilles corrigées (entité &aposhui, couleur outline sans #) ; shade déplacé de WovenBand vers ritual.ts (import unique)
+
+Tests (agent-browser + VLM, viewports 390×844 et 1280×800, light + dark) :
+- Logique pure bun sur DB réelle : stations → focus corrects (Excès sébum 40 %, Taches PIH 40 %…), produits uniques, solaire en Protéger uniquement, total exact
+- Console navigateur 100 % vierge + 0 page error sur tout le parcours (seuls logs bénins THREE/HMR)
+- Parcours complet E2E mobile : accueil → carte Route → intro (VLM : fil doré + navette + « LE FIL » + stations lisibles) → Purifier (citation, chips, focus %, carte produit + switch vert) → Soigner (décochage Brume testé — switch false + carte atténuée) → Instit → TISSAGE : VLM « bande textile tissée procédurale, briques, lisière zigzag, franges, 5 rangées, MARIAM + SCORE 62/100 + losanges » — rangée Soigner NETTEMENT plus sombre = désélection visible ✓ SHIPPABLE
+- CTA final : « Tisser mon panier · 22 500 FCFA » → toast cashback 1 125 → overlay fermé → boutique + panier store vérifié (2 articles, 22 500) + barre panier « 2 articles, total 22 500 FCFA »
+- Entrée diagnostic : CTA dans résultats → dialog ouvert ✓ (note : snapshot a11y Playwright pend sur dialog+SkinTwin — contourné par eval DOM direct, l'app elle-même est saine) ; Escape → dialog fermé ✓
+- FPS mesuré pendant l'anim de tissage : 61 ✓ ; desktop 1280 : overlay exactement 430px centré (x=425) ✓ ; dark mode : VLM « fond noir profond, texte crème/or lisible, SHIPPABLE » ✓ ; bouton download PNG cliqué sans erreur ✓
+- Qualité : eslint 0 erreur/0 warning, tsc --noEmit 0 erreur src/, dev.log 200 uniquement
+
+Stage Summary:
+- Phase C livrée : « La Route de l'Or » — la métaphore du fil (Phase A) devient commerce narratif : diagnostic → 4 stations produits → institut → kente de soin tissé procéduralement (canvas 2D, navette visible, signature, PNG téléchargeable) → panier en un geste
+- Différenciation forte : le choix désactive des rangées (bande assombrie), badge « Choix de l'IA », cashback estimé — le tissage EST la commande
+- Réutilisable : ritual.ts (match flou partagé), drawBand() pure, pattern GoldenThread motion.path pathLength
+- Prochaine étape proposée : Phase D — Skin Twin v2 (comparaison avant/après sur le jumeau + courbes d'évolution par indicateur) ou la Route en 3D (bande tissée en WebGL dans le fil de l'intro)

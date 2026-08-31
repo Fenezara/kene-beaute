@@ -1,0 +1,752 @@
+     1→"use client";
+     2→// Kènè Cliente — Diagnostic IA : wizard zone → capture → analyse → résultats VISIA-like → historique
+     3→import { useEffect, useMemo, useRef, useState } from "react";
+     4→import { AnimatePresence, motion } from "framer-motion";
+     5→import {
+     6→  ArrowLeft, Brush, CalendarPlus, Camera, Check, Cross, GitCompareArrows, Hand, History,
+     7→  ImagePlus, Loader2, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Sparkles, Sunrise, TriangleAlert, X,
+     8→} from "lucide-react";
+     9→import { toast } from "sonner";
+    10→import { apiGet, apiPost, resizeImage } from "@/lib/kene/api";
+    11→import { formatDate, scoreColor, SEVERITY_STYLES } from "@/lib/kene/format";
+    12→import { BODY_ZONES, SPECTRAL_VIEWS, type BodyZone, type DiagnosisResult, type Indicator } from "@/lib/kene/types";
+    13→import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
+    14→import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
+    15→import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+    16→import { Progress } from "@/components/ui/progress";
+    17→import { Skeleton } from "@/components/ui/skeleton";
+    18→import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    19→import { useKene } from "@/store/kene";
+    20→import type { ApiDiagnosis, ApiProduct } from "./types";
+    21→import { diagImgSrc, parseDiagnosis } from "./types";
+    22→import { ScoreChip, ScoreGauge } from "./bits";
+    23→
+    24→const ZONE_ICONS: Record<BodyZone, React.ComponentType<{ size?: number; className?: string }>> = {
+    25→  visage: ScanFace,
+    26→  dos: PersonStanding,
+    27→  cuir_chevelu: Sparkles,
+    28→  mains: Hand,
+    29→  barbe: Brush,
+    30→  naevi: Cross,
+    31→};
+    32→
+    33→const ANALYSIS_STEPS = [
+    34→  "Détection des zones de pigmentation…",
+    35→  "Analyse PIH & mélasma…",
+    36→  "Cartographie inflammatoire…",
+    37→  "Score mélanoderme…",
+    38→];
+    39→
+    40→function norm(s: string): string {
+    41→  return s
+    42→    .toLowerCase()
+    43→    .normalize("NFD")
+    44→    .replace(/[\u0300-\u036f]/g, "")
+    45→    .replace(/[^a-z0-9 ]/g, " ");
+    46→}
+    47→
+    48→/** Match une recommandation libre (« Sérum Moringa éclat ») avec un produit boutique */
+    49→function matchProduct(rec: string, products: ApiProduct[]): ApiProduct | null {
+    50→  const words = norm(rec).split(" ").filter((w) => w.length >= 5);
+    51→  let best: { p: ApiProduct; score: number } | null = null;
+    52→  for (const p of products) {
+    53→    const target = `${norm(p.name)} ${norm(p.botanicals)} ${norm(p.description)}`;
+    54→    let score = 0;
+    55→    for (const w of words) if (target.includes(w)) score += 1;
+    56→    if (score > 0 && (!best || score > best.score)) best = { p, score };
+    57→  }
+    58→  return best?.p ?? null;
+    59→}
+    60→
+    61→export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone: BodyZone | null; onZoneConsumed: () => void }) {
+    62→  const user = useKene((s) => s.user)!;
+    63→  const setClientTab = useKene((s) => s.setClientTab);
+    64→  const addToCart = useKene((s) => s.addToCart);
+    65→  const setLastDiagnosisId = useKene((s) => s.setLastDiagnosisId);
+    66→
+    67→  const [step, setStep] = useState(0);
+    68→  const [zone, setZone] = useState<BodyZone>("visage");
+    69→  const [image, setImage] = useState<string>("");
+    70→  const [analyzing, setAnalyzing] = useState(false);
+    71→  const [progress, setProgress] = useState(0);
+    72→  const [checkedSteps, setCheckedSteps] = useState(0);
+    73→  const [diag, setDiag] = useState<{ id: string; result: DiagnosisResult; imageData: string; createdAt: string } | null>(null);
+    74→  const fileRef = useRef<HTMLInputElement>(null);
+    75→
+    76→  const [products, setProducts] = useState<ApiProduct[]>([]);
+    77→  const [history, setHistory] = useState<ApiDiagnosis[] | null>(null);
+    78→  const [compareMode, setCompareMode] = useState(false);
+    79→  const [compareSel, setCompareSel] = useState<string[]>([]);
+    80→
+    81→  // zone pré-sélectionnée depuis l'accueil
+    82→  useEffect(() => {
+    83→    if (pendingZone) {
+    84→      setZone(pendingZone);
+    85→      setStep(1);
+    86→      setDiag(null);
+    87→      setImage("");
+    88→      onZoneConsumed();
+    89→    }
+    90→  }, [pendingZone, onZoneConsumed]);
+    91→
+    92→  // produits pour les recommandations
+    93→  useEffect(() => {
+    94→    apiGet<{ products: ApiProduct[] }>("/api/shop/products").then((r) => setProducts(r.products ?? [])).catch(() => {});
+    95→  }, []);
+    96→
+    97→  async function loadHistory() {
+    98→    setHistory(null);
+    99→    try {
+   100→      const r = await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`);
+   101→      setHistory(r.diagnoses ?? []);
+   102→    } catch {
+   103→      setHistory([]);
+   104→    }
+   105→  }
+   106→
+   107→  function goHistory() {
+   108→    setStep(4);
+   109→    setCompareSel([]);
+   110→    setCompareMode(false);
+   111→    loadHistory();
+   112→  }
+   113→
+   114→  async function onFile(f: File | undefined) {
+   115→    if (!f) return;
+   116→    try {
+   117→      const dataUrl = await resizeImage(f);
+   118→      setImage(dataUrl);
+   119→    } catch (e) {
+   120→      toast.error(e instanceof Error ? e.message : "Photo illisible");
+   121→    }
+   122→  }
+   123→
+   124→  async function useDemoPhoto() {
+   125→    const demo = zone === "mains" ? "demo-mains-1" : zone === "dos" ? "demo-dos-1" : zone === "naevi" ? "demo-visage-2" : "demo-visage-1";
+   126→    try {
+   127→      const blob = await (await fetch(`/skin/${demo}.webp`)).blob();
+   128→      const file = new File([blob], `${demo}.webp`, { type: "image/webp" });
+   129→      await onFile(file);
+   130→      toast.success("Photo démo chargée");
+   131→    } catch {
+   132→      toast.error("Photo démo indisponible");
+   133→    }
+   134→  }
+   135→
+   136→  async function launch() {
+   137→    if (!image) return;
+   138→    setStep(2);
+   139→    setAnalyzing(true);
+   140→    setProgress(0);
+   141→    setCheckedSteps(0);
+   142→    const t0 = Date.now();
+   143→    const timer = setInterval(() => {
+   144→      setProgress((p) => Math.min(96, p + Math.random() * 7 + 2));
+   145→    }, 420);
+   146→    const steps = setInterval(() => {
+   147→      setCheckedSteps((c) => Math.min(ANALYSIS_STEPS.length, c + 1));
+   148→    }, 1150);
+   149→
+   150→    try {
+   151→      const r = await apiPost<{ diagnosis: ApiDiagnosis }>("/api/diagnoses", {
+   152→        userId: user.id,
+   153→        zone,
+   154→        image,
+   155→        fitzpatrick: user.fitzpatrick ?? undefined,
+   156→        allergies: user.allergies ?? undefined,
+   157→      });
+   158→      const result = parseDiagnosis(r.diagnosis.resultJson);
+   159→      if (!result) throw new Error("Résultat IA illisible");
+   160→      // garantir une durée d'animation minimale (~3.4 s)
+   161→      const wait = Math.max(0, 3400 - (Date.now() - t0));
+   162→      setTimeout(() => {
+   163→        setProgress(100);
+   164→        setCheckedSteps(ANALYSIS_STEPS.length);
+   165→        setTimeout(() => {
+   166→          setDiag({ id: r.diagnosis.id, result, imageData: image, createdAt: r.diagnosis.createdAt });
+   167→          setLastDiagnosisId(r.diagnosis.id);
+   168→          setAnalyzing(false);
+   169→          setStep(3);
+   170→          clearInterval(timer);
+   171→          clearInterval(steps);
+   172→        }, 450);
+   173→      }, wait);
+   174→    } catch (e) {
+   175→      clearInterval(timer);
+   176→      clearInterval(steps);
+   177→      setAnalyzing(false);
+   178→      toast.error(e instanceof Error ? e.message : "Analyse impossible");
+   179→      setStep(1);
+   180→    }
+   181→  }
+   182→
+   183→  /* ─────────── Étape 0 — Choix de zone ─────────── */
+   184→  if (step === 0) {
+   185→    return (
+   186→      <div className="pt-4">
+   187→        <button onClick={() => setClientTab("accueil")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour accueil">
+   188→          <ArrowLeft size={15} /> Accueil
+   189→        </button>
+   190→        <h1 className="font-heading font-black text-xl">Quelle zone analysons-nous ?</h1>
+   191→        <p className="text-xs text-muted-foreground mt-1 mb-5">Chaque zone est pondérée dans ton score global (PRD §8.8).</p>
+   192→        <div className="grid grid-cols-2 gap-3">
+   193→          {BODY_ZONES.map((z) => {
+   194→            const Icon = ZONE_ICONS[z.id];
+   195→            return (
+   196→              <motion.button
+   197→                key={z.id}
+   198→                whileTap={{ scale: 0.96 }}
+   199→                onClick={() => { setZone(z.id); setStep(1); setImage(""); setDiag(null); }}
+   200→                className="rounded-2xl border border-border bg-card p-4 text-left shadow-sm hover:border-primary/50 transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+   201→              >
+   202→                <div className="flex items-start justify-between">
+   203→                  <span className="grid place-items-center h-10 w-10 rounded-xl bg-primary/10 text-primary">
+   204→                    <Icon size={20} />
+   205→                  </span>
+   206→                  <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] font-bold">{Math.round(z.weight * 100)} %</span>
+   207→                </div>
+   208→                <p className="font-heading font-bold text-sm mt-3">{z.label}</p>
+   209→                <p className="text-[11px] text-muted-foreground mt-1 leading-snug line-clamp-2">{z.hint}</p>
+   210→              </motion.button>
+   211→            );
+   212→          })}
+   213→        </div>
+   214→        <button onClick={goHistory} className="mt-5 w-full h-11 rounded-xl border border-border bg-card text-sm font-medium flex items-center justify-center gap-2 active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   215→          <History size={16} className="text-primary" /> Voir mon historique
+   216→        </button>
+   217→      </div>
+   218→    );
+   219→  }
+   220→
+   221→  /* ─────────── Étape 1 — Capture ─────────── */
+   222→  if (step === 1) {
+   223→    const zoneDef = BODY_ZONES.find((z) => z.id === zone)!;
+   224→    return (
+   225→      <div className="pt-4">
+   226→        <button onClick={() => setStep(0)} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour">
+   227→          <ArrowLeft size={15} /> Changer de zone
+   228→        </button>
+   229→        <span className="rounded-full bg-primary/10 text-primary px-3 py-1 text-[11px] font-bold uppercase tracking-wide">{zoneDef.label} · {Math.round(zoneDef.weight * 100)} %</span>
+   230→        <h1 className="font-heading font-black text-xl mt-3">Prends ta photo</h1>
+   231→
+   232→        <ul className="mt-4 space-y-2">
+   233→          {[
+   234→            "Lumière naturelle de préférence, sans ombre directe",
+   235→            "Distance ~30 cm, cadre serré sur la zone",
+   236→            "Cheveux dégagés, visage net (pas de maquillage)",
+   237→          ].map((t, i) => (
+   238→            <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+   239→              <span className="mt-0.5 grid place-items-center h-4 w-4 rounded-full bg-primary/15 text-primary font-mono text-[9px] font-bold shrink-0">{i + 1}</span>
+   240→              {t}
+   241→            </li>
+   242→          ))}
+   243→        </ul>
+   244→
+   245→        <div className="mt-5">
+   246→          {image ? (
+   247→            <div className="relative rounded-3xl overflow-hidden border-2 border-primary/40 shadow-lg">
+   248→              <img src={image} alt={`Aperçu zone ${zoneDef.label}`} className="aspect-square w-full object-cover" />
+   249→              <button onClick={() => setImage("")} className="absolute top-2 right-2 h-9 w-9 grid place-items-center rounded-full bg-[#1A1410]/70 text-white backdrop-blur active:scale-90 transition-transform" aria-label="Retirer la photo">
+   250→                <X size={16} />
+   251→              </button>
+   252→            </div>
+   253→          ) : (
+   254→            <button
+   255→              onClick={() => fileRef.current?.click()}
+   256→              className="w-full aspect-square rounded-3xl border-2 border-dashed border-primary/40 bg-primary/5 grid place-items-center gap-3 active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+   257→            >
+   258→              <span className="flex flex-col items-center gap-3 text-primary">
+   259→                <Camera size={44} />
+   260→                <span className="text-sm font-semibold">Ouvrir l&apos;appareil photo</span>
+   261→                <span className="text-[11px] text-muted-foreground font-normal text-center px-6">{zoneDef.hint}</span>
+   262→              </span>
+   263→            </button>
+   264→          )}
+   265→          <input ref={fileRef} type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} aria-label="Photo de la zone" />
+   266→        </div>
+   267→
+   268→        <div className="mt-4 flex gap-2">
+   269→          <button onClick={useDemoPhoto} className="h-11 flex-1 rounded-xl border border-border bg-card text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   270→            <ImagePlus size={15} className="text-primary" /> Photo démo
+   271→          </button>
+   272→          {image && (
+   273→            <button onClick={() => fileRef.current?.click()} className="h-11 px-4 rounded-xl border border-border bg-card text-xs font-semibold flex items-center gap-1.5 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   274→              <RotateCcw size={15} /> Reprendre
+   275→            </button>
+   276→          )}
+   277→        </div>
+   278→
+   279→        <button
+   280→          onClick={launch}
+   281→          disabled={!image}
+   282→          className="mt-5 h-14 w-full rounded-2xl bg-primary text-primary-foreground font-heading font-black text-base shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   283→        >
+   284→          <NeaOnnimIcon size={22} /> Lancer l&apos;analyse IA
+   285→        </button>
+   286→      </div>
+   287→    );
+   288→  }
+   289→
+   290→  /* ─────────── Étape 2 — Analyse en cours ─────────── */
+   291→  if (step === 2 && analyzing) {
+   292→    return (
+   293→      <div className="pt-6 flex flex-col items-center">
+   294→        <div className="relative w-full max-w-[320px] rounded-3xl overflow-hidden border border-border shadow-xl">
+   295→          <img src={image} alt="Photo en cours d'analyse" className="aspect-square w-full object-cover" />
+   296→          <motion.div
+   297→            className="absolute left-0 right-0 h-16 bg-gradient-to-b from-transparent via-[#C8951E]/50 to-transparent border-y-2 border-[#C8951E]"
+   298→            animate={{ top: ["8%", "78%", "8%"] }}
+   299→            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+   300→            aria-hidden="true"
+   301→          />
+   302→        </div>
+   303→        <div className="w-full max-w-[320px] mt-6 space-y-3">
+   304→          {ANALYSIS_STEPS.map((label, i) => {
+   305→            const done = i < checkedSteps;
+   306→            const active = i === checkedSteps;
+   307→            return (
+   308→              <div key={i} className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${done ? "border-[#3F7D3F]/40 bg-[#3F7D3F]/5" : active ? "border-primary/50 bg-primary/5" : "border-border bg-card opacity-50"}`}>
+   309→                <span className={`grid place-items-center h-6 w-6 rounded-full shrink-0 ${done ? "bg-[#3F7D3F] text-white" : active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
+   310→                  {done ? <Check size={13} /> : active ? <Loader2 size={13} className="animate-spin" /> : <span className="font-mono text-[10px] font-bold">{i + 1}</span>}
+   311→                </span>
+   312→                <span className={`text-xs ${done ? "text-[#3F7D3F] font-semibold" : "text-muted-foreground"}`}>{label}</span>
+   313→              </div>
+   314→            );
+   315→          })}
+   316→        </div>
+   317→        <div className="w-full max-w-[320px] mt-5">
+   318→          <Progress value={progress} className="h-2" aria-label="Progression de l'analyse" />
+   319→          <p className="text-center text-[11px] text-muted-foreground mt-2">Vision par ordinateur spécialisée mélanoderme — 5 à 30 s</p>
+   320→        </div>
+   321→      </div>
+   322→    );
+   323→  }
+   324→
+   325→  /* ─────────── Étape 4 — Historique ─────────── */
+   326→  if (step === 4) return <HistoryView history={history} compareMode={compareMode} setCompareMode={setCompareMode} compareSel={compareSel} setCompareSel={setCompareSel} onBack={() => setStep(0)} onOpen={(d) => { const r = parseDiagnosis(d.resultJson); if (r) { setDiag({ id: d.id, result: r, imageData: diagImgSrc(d.imageData), createdAt: d.createdAt }); setStep(3); } }} />;
+   327→
+   328→  /* ─────────── Étape 3 — Résultats ─────────── */
+   329→  if (step === 3 && diag) {
+   330→    return <ResultView diag={diag} products={products} onNewZone={() => { setStep(0); setImage(""); setDiag(null); }} onHistory={goHistory} />;
+   331→  }
+   332→
+   333→  return null;
+   334→}
+   335→
+   336→/* ══════════════ Résultat VISIA-like ══════════════ */
+   337→function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: string; result: DiagnosisResult; imageData: string; createdAt: string }; products: ApiProduct[]; onNewZone: () => void; onHistory: () => void }) {
+   338→  const setClientTab = useKene((s) => s.setClientTab);
+   339→  const addToCart = useKene((s) => s.addToCart);
+   340→  const [view, setView] = useState<string>("standard");
+   341→  const r = diag.result;
+   342→  const weakest = useMemo(() => [...r.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage).slice(0, 8), [r.indicateurs]);
+   343→  const viewDef = SPECTRAL_VIEWS.find((v) => v.id === view) ?? SPECTRAL_VIEWS[0];
+   344→  const heatmapCls = view === "pigment" ? "heatmap-pigment" : view === "inflammation" ? "heatmap-inflammation" : view === "acne" ? "heatmap-acne" : "";
+   345→
+   346→  const botanicIcon = (name: string): React.ReactNode => {
+   347→    const n = norm(name);
+   348→    if (n.includes("moringa")) return <MoringaIcon size={13} />;
+   349→    if (n.includes("karite")) return <KariteIcon size={13} />;
+   350→    if (n.includes("baobab")) return <BaobabIcon size={13} />;
+   351→    return <Sparkles size={13} />;
+   352→  };
+   353→
+   354→  return (
+   355→    <div className="pt-4 pb-2">
+   356→      {/* Header score */}
+   357→      <div className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
+   358→        <div className="kente-band h-1.5 w-full" aria-hidden="true" />
+   359→        <div className="p-5 flex items-center gap-4">
+   360→          <ScoreGauge score={r.score_global} label="Zone" size={110} />
+   361→          <div className="min-w-0">
+   362→            <div className="flex items-center gap-2 flex-wrap">
+   363→              <h1 className="font-heading font-black text-lg">{BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone}</h1>
+   364→              {r.fitzpatrick_estime && <span className="rounded-full bg-melanine text-[#F8F1E4] px-2 py-0.5 text-[10px] font-bold">Fitz {r.fitzpatrick_estime}</span>}
+   365→            </div>
+   366→            <p className="text-[11px] text-muted-foreground mt-1">{formatDate(diag.createdAt)} · {r.source === "vlm" ? "Analyse VLM" : "Analyse heuristique"} · {r.indicateurs.length} indicateurs</p>
+   367→            <div className="flex gap-1.5 mt-2">
+   368→              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: scoreColor(r.score_global) }}>
+   369→                {r.score_global >= 80 ? "Excellente santé" : r.score_global >= 60 ? "Bon équilibre" : r.score_global >= 40 ? "Points à surveiller" : "Besoin de soin"}
+   370→              </span>
+   371→            </div>
+   372→          </div>
+   373→        </div>
+   374→      </div>
+   375→
+   376→      {/* Alerte orientation dermato */}
+   377→      {r.orientation_dermato && (
+   378→        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 rounded-2xl border-2 border-[#8B1A3B]/60 bg-[#8B1A3B]/5 p-4" role="alert">
+   379→          <p className="flex items-center gap-2 font-heading font-bold text-sm text-[#8B1A3B]">
+   380→            <TriangleAlert size={17} /> Consultation dermatologique conseillée
+   381→          </p>
+   382→          <p className="text-xs mt-1.5 leading-relaxed">{r.raison_orientation ?? "Une lésion présente des signes justifiant un avis médical."}</p>
+   383→          {r.abcde && r.abcde.length > 0 && (
+   384→            <div className="flex gap-1.5 flex-wrap mt-3">
+   385→              {r.abcde.map((a) => (
+   386→                <span key={a.critere} className={`rounded-full px-2.5 py-1 text-[10px] font-bold border ${a.alerte ? "bg-[#8B1A3B] text-white border-[#8B1A3B]" : "border-[#3F7D3F]/50 text-[#3F7D3F] bg-[#3F7D3F]/10"}`}>
+   387→                  {a.critere} · {a.intitule}
+   388→                </span>
+   389→              ))}
+   390→            </div>
+   391→          )}
+   392→          <button onClick={() => setClientTab("rdv")} className="mt-3 h-11 w-full rounded-xl bg-[#8B1A3B] text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#8B1A3B]">
+   393→            <CalendarPlus size={16} /> Prendre RDV avec un institut partenaire
+   394→          </button>
+   395→        </motion.div>
+   396→      )}
+   397→
+   398→      {/* Jumeau de Peau — Skin Twin 3D */}
+   399→      <SkinTwinCard
+   400→        entries={[
+   401→          {
+   402→            id: diag.id,
+   403→            zone: r.zone,
+   404→            score: r.score_global,
+   405→            fitz: r.fitzpatrick_estime,
+   406→            marks: r.zones_marquages,
+   407→            date: diag.createdAt,
+   408→            indicators: r.indicateurs,
+   409→          },
+   410→        ]}
+   411→      />
+   412→
+   413→      {/* Tabs spectraux */}
+   414→      <section aria-label="Vues spectrales de la photo" className="mt-5">
+   415→        <Tabs value={view} onValueChange={setView}>
+   416→          <TabsList className="w-full h-auto grid grid-cols-4 gap-1 bg-muted/60 p-1 rounded-2xl">
+   417→            {SPECTRAL_VIEWS.map((v) => (
+   418→              <TabsTrigger key={v.id} value={v.id} className="text-[10.5px] leading-tight px-1 py-2 rounded-xl data-[state=active]:bg-card data-[state=active]:text-primary font-semibold">
+   419→                {v.label.split(" ")[0]}
+   420→              </TabsTrigger>
+   421→            ))}
+   422→          </TabsList>
+   423→        </Tabs>
+   424→        <p className="text-[11px] text-muted-foreground mt-2 mb-2">{viewDef.label}{view !== "standard" ? " — filtre spectral + cartographie chaleur" : ""}</p>
+   425→        <div className="relative rounded-3xl overflow-hidden border border-border shadow-lg">
+   426→          <img src={diag.imageData} alt={`Vue ${viewDef.label} de la zone analysée`} className={`aspect-square w-full object-cover ${view !== "standard" ? viewDef.filter : ""}`} />
+   427→          {heatmapCls && <div aria-hidden="true" className={`absolute inset-0 ${heatmapCls} opacity-60 mix-blend-screen pointer-events-none`} />}
+   428→          {/* cadres zones détectées */}
+   429→          {r.zones_marquages.map((z, i) => (
+   430→            <div key={i} className="absolute border-2 border-dashed border-[#FFF9EC]/90 rounded-lg pointer-events-none" style={{ left: `${z.x}%`, top: `${z.y}%`, width: `${z.w}%`, height: `${z.h}%` }}>
+   431→              <span className="absolute -top-0.5 -left-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#FFF9EC]" style={{ backgroundColor: ["#3F7D3F", "#C8951E", "#E07A2B", "#8B1A3B"][Math.min(3, Math.max(0, z.severite))] }} aria-hidden="true" />
+   432→              <span className="absolute -bottom-5 left-0 whitespace-nowrap rounded-full bg-[#1A1410]/85 text-[#F8F1E4] px-1.5 py-0.5 text-[9px] font-semibold backdrop-blur-sm">{z.label}</span>
+   433→            </div>
+   434→          ))}
+   435→          <div className="absolute bottom-2 right-2 flex gap-1">
+   436→            {SEVERITY_STYLES.map((s, i) => (
+   437→              <span key={i} className="flex items-center gap-1 rounded-full bg-[#1A1410]/70 backdrop-blur px-1.5 py-0.5 text-[8px] text-[#F8F1E4]">
+   438→                <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} aria-hidden="true" />
+   439→                {s.label}
+   440→              </span>
+   441→            ))}
+   442→          </div>
+   443→        </div>
+   444→      </section>
+   445→
+   446→      {/* Indicateurs les plus faibles */}
+   447→      <section aria-labelledby="ind-t" className="mt-6">
+   448→        <h2 id="ind-t" className="font-heading font-bold text-base mb-3">Priorités de soin</h2>
+   449→        <div className="grid grid-cols-2 gap-2.5">
+   450→          {weakest.map((ind) => (
+   451→            <IndicatorBar key={ind.nom} ind={ind} />
+   452→          ))}
+   453→        </div>
+   454→        {r.indicateurs.length > 8 && (
+   455→          <Accordion type="single" collapsible className="mt-3">
+   456→            <AccordionItem value="all" className="border-border">
+   457→              <AccordionTrigger className="text-xs font-semibold py-3">Les {r.indicateurs.length} indicateurs détaillés</AccordionTrigger>
+   458→              <AccordionContent className="space-y-2.5 pb-2">
+   459→                {r.indicateurs.map((ind) => (
+   460→                  <div key={ind.nom}>
+   461→                    <IndicatorBar ind={ind} />
+   462→                    {ind.note && <p className="text-[10.5px] text-muted-foreground mt-1 leading-snug">{ind.note}</p>}
+   463→                  </div>
+   464→                ))}
+   465→              </AccordionContent>
+   466→            </AccordionItem>
+   467→          </Accordion>
+   468→        )}
+   469→      </section>
+   470→
+   471→      {/* Recommandations */}
+   472→      <section aria-labelledby="reco-t" className="mt-6">
+   473→        <h2 id="reco-t" className="font-heading font-bold text-base mb-3">Ta routine personnalisée</h2>
+   474→        <div className="rounded-2xl border-2 border-primary/50 bg-primary/5 p-4">
+   475→          <p className="text-xs leading-relaxed">{r.recommandations.resume}</p>
+   476→        </div>
+   477→
+   478→        <div className="grid grid-cols-2 gap-3 mt-4">
+   479→          <div className="rounded-2xl border border-border bg-card p-3.5">
+   480→            <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#C8951E] uppercase tracking-wide"><Sunrise size={13} /> Matin</p>
+   481→            <ul className="mt-2 space-y-1.5">
+   482→              {r.recommandations.routine_matin.slice(0, 4).map((s, i) => (
+   483→                <li key={i} className="text-[11px] leading-snug flex gap-1.5"><span className="text-primary font-mono">{i + 1}.</span> {s}</li>
+   484→              ))}
+   485→            </ul>
+   486→          </div>
+   487→          <div className="rounded-2xl border border-border bg-card p-3.5">
+   488→            <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#5C3A21] uppercase tracking-wide"><Moon size={13} /> Soir</p>
+   489→            <ul className="mt-2 space-y-1.5">
+   490→              {r.recommandations.routine_soir.slice(0, 4).map((s, i) => (
+   491→                <li key={i} className="text-[11px] leading-snug flex gap-1.5"><span className="text-terre font-mono">{i + 1}.</span> {s}</li>
+   492→              ))}
+   493→            </ul>
+   494→          </div>
+   495→        </div>
+   496→
+   497→        {r.recommandations.botaniques_conseillees.length > 0 && (
+   498→          <div className="mt-4">
+   499→            <p className="text-[11px] font-semibold text-muted-foreground mb-2">Botaniques africaines pour toi</p>
+   500→            <div className="flex flex-wrap gap-2">
+   501→              {r.recommandations.botaniques_conseillees.map((b, i) => (
+   502→                <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-karite border border-[#C8951E]/30 px-3 py-1.5 text-[11px] font-semibold text-terre">
+   503→                  {botanicIcon(b)} {b}
+   504→                </span>
+   505→              ))}
+   506→            </div>
+   507→          </div>
+   508→        )}
+   509→
+   510→        {r.recommandations.produits.length > 0 && (
+   511→          <div className="mt-4 space-y-2">
+   512→            <p className="text-[11px] font-semibold text-muted-foreground">Produits recommandés</p>
+   513→            {r.recommandations.produits.map((rec, i) => {
+   514→              const p = matchProduct(rec, products);
+   515→              return (
+   516→                <div key={i} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-2.5">
+   517→                  {p ? (
+   518→                    <img src={p.image} alt={p.name} loading="lazy" className="h-12 w-12 rounded-xl object-cover shrink-0" />
+   519→                  ) : (
+   520→                    <span className="h-12 w-12 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0"><Sparkles size={18} /></span>
+   521→                  )}
+   522→                  <div className="min-w-0 flex-1">
+   523→                    <p className="text-xs font-semibold leading-tight">{rec}</p>
+   524→                    {p && <p className="font-mono text-[11px] text-primary font-bold mt-0.5">{p.price.toLocaleString("fr-FR")} FCFA</p>}
+   525→                  </div>
+   526→                  {p ? (
+   527→                    <button
+   528→                      onClick={() => { addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image }); toast.success(`${p.name} ajouté au panier`); }}
+   529→                      className="h-9 px-3 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-transform shrink-0 focus-visible:outline-2 focus-visible:outline-primary"
+   530→                    >
+   531→                      <Plus size={13} /> Panier
+   532→                    </button>
+   533→                  ) : (
+   534→                    <button onClick={() => setClientTab("boutique")} className="h-9 px-3 rounded-full border border-primary/50 text-primary text-[11px] font-bold shrink-0 active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   535→                      Boutique
+   536→                    </button>
+   537→                  )}
+   538→                </div>
+   539→              );
+   540→            })}
+   541→          </div>
+   542→        )}
+   543→
+   544→        {r.recommandations.soins_conseilles.length > 0 && (
+   545→          <div className="mt-4">
+   546→            <p className="text-[11px] font-semibold text-muted-foreground mb-2">Soins en institut</p>
+   547→            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+   548→              {r.recommandations.soins_conseilles.map((s, i) => (
+   549→                <button key={i} onClick={() => setClientTab("rdv")} className="shrink-0 rounded-full border border-[#3F7D3F]/50 bg-[#3F7D3F]/10 px-3.5 py-2 text-[11px] font-semibold text-[#3F7D3D] flex items-center gap-1 active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-[#3F7D3D]">
+   550→                  <CalendarPlus size={13} /> {s} · Réserver
+   551→                </button>
+   552→              ))}
+   553→            </div>
+   554→          </div>
+   555→        )}
+   556→
+   557→        {r.recommandations.conseils_hygiene_vie.length > 0 && (
+   558→          <div className="mt-4 rounded-2xl bg-muted/60 p-4">
+   559→            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Hygiène de vie</p>
+   560→            <ul className="space-y-1.5">
+   561→              {r.recommandations.conseils_hygiene_vie.map((c, i) => (
+   562→                <li key={i} className="text-[11px] leading-snug flex gap-2">
+   563→                  <Check size={12} className="text-[#3F7D3F] mt-0.5 shrink-0" /> {c}
+   564→                </li>
+   565→              ))}
+   566→            </ul>
+   567→          </div>
+   568→        )}
+   569→      </section>
+   570→
+   571→      <p className="mt-5 rounded-xl bg-muted/70 p-3 text-[10px] leading-relaxed text-muted-foreground">{r.avertissement} Kènè est un outil d&apos;éducation beauté assisté par IA — les estimations ne constituent pas un diagnostic médical.</p>
+   572→
+   573→      <div className="mt-4 grid grid-cols-2 gap-3 pb-2">
+   574→        <button onClick={onNewZone} className="h-12 rounded-xl border border-primary/60 text-primary text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   575→          <ScanFace size={16} /> Nouvelle zone
+   576→        </button>
+   577→        <button onClick={onHistory} className="h-12 rounded-xl border border-border bg-card text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   578→          <History size={16} /> Historique
+   579→        </button>
+   580→      </div>
+   581→    </div>
+   582→  );
+   583→}
+   584→
+   585→function IndicatorBar({ ind }: { ind: Indicator }) {
+   586→  const sev = SEVERITY_STYLES[Math.min(3, Math.max(0, ind.severite))];
+   587→  return (
+   588→    <div className="rounded-xl border border-border bg-card p-2.5">
+   589→      <div className="flex items-start justify-between gap-1">
+   590→        <p className="text-[11px] font-semibold leading-tight line-clamp-2">{ind.nom}</p>
+   591→        <span className="font-mono text-[11px] font-bold shrink-0" style={{ color: ["#3F7D3F", "#A0720F", "#C26418", "#8B1A3B"][Math.min(3, Math.max(0, ind.severite))] }}>
+   592→          {ind.pourcentage}%
+   593→        </span>
+   594→      </div>
+   595→      <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
+   596→        <motion.div initial={{ width: 0 }} animate={{ width: `${ind.pourcentage}%` }} transition={{ duration: 0.8 }} className={`h-full rounded-full ${sev.dot}`} />
+   597→      </div>
+   598→    </div>
+   599→  );
+   600→}
+   601→
+   602→/* ══════════════ Historique + comparaison ══════════════ */
+   603→function HistoryView({
+   604→  history, compareMode, setCompareMode, compareSel, setCompareSel, onBack, onOpen,
+   605→}: {
+   606→  history: ApiDiagnosis[] | null;
+   607→  compareMode: boolean;
+   608→  setCompareMode: (v: boolean) => void;
+   609→  compareSel: string[];
+   610→  setCompareSel: (v: string[]) => void;
+   611→  onBack: () => void;
+   612→  onOpen: (d: ApiDiagnosis) => void;
+   613→}) {
+   614→  const list = useMemo(
+   615→    () => [...(history ?? [])].filter((d) => d.status === "done").sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
+   616→    [history]
+   617→  );
+   618→  const sameZoneSel = compareSel.length === 2 && list.find((d) => d.id === compareSel[0])?.zone === list.find((d) => d.id === compareSel[1])?.zone;
+   619→  const a = list.find((d) => d.id === compareSel[0]);
+   620→  const b = list.find((d) => d.id === compareSel[1]);
+   621→  const ra = a ? parseDiagnosis(a.resultJson) : null;
+   622→  const rb = b ? parseDiagnosis(b.resultJson) : null;
+   623→
+   624→  const evolutions =
+   625→    ra && rb
+   626→      ? rb.indicateurs
+   627→          .map((ib) => {
+   628→            const ia = ra.indicateurs.find((x) => x.nom === ib.nom);
+   629→            return ia ? { nom: ib.nom, delta: ib.pourcentage - ia.pourcentage } : null;
+   630→          })
+   631→          .filter((x): x is { nom: string; delta: number } => x !== null)
+   632→          .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta))
+   633→          .slice(0, 3)
+   634→      : [];
+   635→
+   636→  return (
+   637→    <div className="pt-4 pb-2">
+   638→      <button onClick={onBack} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour">
+   639→        <ArrowLeft size={15} /> Nouveau diagnostic
+   640→      </button>
+   641→      <div className="flex items-center justify-between gap-2">
+   642→        <h1 className="font-heading font-black text-xl">Mon historique</h1>
+   643→        <button
+   644→          onClick={() => { setCompareMode(!compareMode); setCompareSel([]); }}
+   645→          aria-pressed={compareMode}
+   646→          className={`h-9 px-3 rounded-full text-[11px] font-bold flex items-center gap-1.5 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${compareMode ? "bg-primary text-primary-foreground" : "border border-border bg-card"}`}
+   647→        >
+   648→          <GitCompareArrows size={14} /> Comparer
+   649→        </button>
+   650→      </div>
+   651→
+   652→      {history === null ? (
+   653→        <div className="space-y-3 mt-5">
+   654→          {[0, 1, 2].map((i) => (
+   655→            <Skeleton key={i} className="h-20 rounded-2xl" />
+   656→          ))}
+   657→        </div>
+   658→      ) : list.length === 0 ? (
+   659→        <div className="mt-6 rounded-2xl border border-dashed border-border bg-card/60 p-8 text-center">
+   660→          <NeaOnnimIcon size={38} className="mx-auto text-primary" />
+   661→          <p className="font-heading font-bold text-sm mt-3">Aucun diagnostic pour l&apos;instant</p>
+   662→          <p className="text-xs text-muted-foreground mt-1">Ton premier scan débloquera le suivi d&apos;évolution.</p>
+   663→        </div>
+   664→      ) : (
+   665→        <>
+   666→          <div className="space-y-2.5 mt-4">
+   667→            {list.map((d) => {
+   668→              const sel = compareSel.includes(d.id);
+   669→              return (
+   670→                <div key={d.id} className={`flex items-center gap-3 rounded-2xl border p-2.5 transition-colors ${sel ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+   671→                  <button
+   672→                    onClick={() => {
+   673→                      if (compareMode) {
+   674→                        setCompareSel(sel ? compareSel.filter((x) => x !== d.id) : compareSel.length < 2 ? [...compareSel, d.id] : [compareSel[1], d.id]);
+   675→                      } else onOpen(d);
+   676→                    }}
+   677→                    className="flex items-center gap-3 flex-1 min-w-0 text-left focus-visible:outline-2 focus-visible:outline-primary rounded-xl"
+   678→                    aria-label={`Diagnostic ${d.zone} du ${formatDate(d.createdAt)}, score ${d.scoreGlobal}`}
+   679→                  >
+   680→                    <img src={diagImgSrc(d.imageData)} alt={`Diagnostic ${d.zone}`} loading="lazy" className="h-14 w-14 rounded-xl object-cover shrink-0" />
+   681→                    <div className="min-w-0">
+   682→                      <p className="text-sm font-semibold">{BODY_ZONES.find((z) => z.id === d.zone)?.label ?? d.zone}</p>
+   683→                      <p className="text-[11px] text-muted-foreground">{formatDate(d.createdAt)}</p>
+   684→                    </div>
+   685→                    <div className="ml-auto"><ScoreChip score={d.scoreGlobal} /></div>
+   686→                  </button>
+   687→                  {compareMode && (
+   688→                    <button
+   689→                      onClick={() => setCompareSel(sel ? compareSel.filter((x) => x !== d.id) : compareSel.length < 2 ? [...compareSel, d.id] : [compareSel[1], d.id])}
+   690→                      aria-pressed={sel}
+   691→                      aria-label="Sélectionner pour comparaison"
+   692→                      className={`h-8 w-8 grid place-items-center rounded-full border-2 shrink-0 transition-colors ${sel ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}
+   693→                    >
+   694→                      {sel && <Check size={14} />}
+   695→                    </button>
+   696→                  )}
+   697→                </div>
+   698→              );
+   699→            })}
+   700→          </div>
+   701→
+   702→          {compareMode && (
+   703→            <AnimatePresence>
+   704→              {compareSel.length === 2 && sameZoneSel && ra && rb && a && b ? (
+   705→                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 overflow-hidden">
+   706→                  <div className="rounded-3xl border border-primary/40 bg-card p-4 shadow-md">
+   707→                    <p className="font-heading font-bold text-sm mb-3 flex items-center gap-2">
+   708→                      <GitCompareArrows size={15} className="text-primary" /> Avant / Après — {BODY_ZONES.find((z) => z.id === a.zone)?.label}
+   709→                    </p>
+   710→                    <div className="grid grid-cols-2 gap-3">
+   711→                      {[{ d: a, r: ra, tag: "Avant" }, { d: b, r: rb, tag: "Après" }].map(({ d, r, tag }) => (
+   712→                        <div key={tag}>
+   713→                          <img src={diagImgSrc(d.imageData)} alt={`${tag} — ${d.zone}`} loading="lazy" className="aspect-square w-full rounded-2xl object-cover border border-border" />
+   714→                          <div className="flex items-center justify-between mt-1.5">
+   715→                            <span className="text-[10px] uppercase tracking-wide font-bold text-muted-foreground">{tag} · {formatDate(d.createdAt, { day: "numeric", month: "short" })}</span>
+   716→                            <ScoreChip score={r.score_global} />
+   717→                          </div>
+   718→                        </div>
+   719→                      ))}
+   720→                    </div>
+   721→                    <div className="mt-3 rounded-xl bg-muted/60 p-3 flex items-center justify-between">
+   722→                      <span className="text-xs font-semibold">Évolution du score</span>
+   723→                      <span className="font-mono text-lg font-black" style={{ color: rb.score_global >= ra.score_global ? "#3F7D3F" : "#8B1A3B" }}>
+   724→                        {rb.score_global >= ra.score_global ? "+" : ""}{rb.score_global - ra.score_global} pts
+   725→                      </span>
+   726→                    </div>
+   727→                    {evolutions.length > 0 && (
+   728→                      <div className="mt-3 space-y-1.5">
+   729→                        {evolutions.map((e) => (
+   730→                          <div key={e.nom} className="flex items-center justify-between text-[11px]">
+   731→                            <span className="text-muted-foreground">{e.nom}</span>
+   732→                            <span className="font-mono font-bold" style={{ color: e.delta >= 0 ? "#3F7D3F" : "#8B1A3B" }}>
+   733→                              {e.delta >= 0 ? "+" : ""}{e.delta} %
+   734→                            </span>
+   735→                          </div>
+   736→                        ))}
+   737→                      </div>
+   738→                    )}
+   739→                  </div>
+   740→                </motion.div>
+   741→              ) : (
+   742→                <p className="mt-4 text-center text-[11px] text-muted-foreground">Sélectionne 2 diagnostics de la même zone pour comparer l&apos;évolution.</p>
+   743→              )}
+   744→            </AnimatePresence>
+   745→          )}
+   746→        </>
+   747→      )}
+   748→      <div className="h-2" />
+   749→    </div>
+   750→  );
+   751→}
+   752→

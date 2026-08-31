@@ -7,9 +7,11 @@ import { apiGet } from "@/lib/kene/api";
 import { formatDate, formatTime, xof } from "@/lib/kene/format";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 import { NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
+import { RitualJourney } from "@/components/kene/route/RitualJourney";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKene } from "@/store/kene";
 import type { ApiAppointment, ApiDiagnosis, ApiProduct, ApiWallet } from "./types";
+import { parseDiagnosis } from "./types";
 import { ScoreGauge, SectionTitle, Stars, WalletPill } from "./bits";
 
 interface HomeData {
@@ -24,6 +26,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
   const setClientTab = useKene((s) => s.setClientTab);
   const [data, setData] = useState<HomeData | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [ritualOpen, setRitualOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -82,6 +85,9 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
           : byCat(["serum", "creme"]);
     return (pick.length >= 3 ? pick : [...pick, ...all.filter((p) => !pick.includes(p))]).slice(0, 3);
   }, [data?.products, user.skinType]);
+
+  // Route de l'Or : dernier diagnostic parsable → rituel tissable depuis l'accueil
+  const lastResult = useMemo(() => (multi.last ? parseDiagnosis(multi.last.resultJson) : null), [multi.last]);
 
   const first = user.name.split(" ")[0];
 
@@ -190,6 +196,33 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
           <ChevronRight size={22} className="ml-auto opacity-80" />
         </div>
       </motion.button>
+
+      {/* Route de l'Or — rituel tissé depuis le dernier scan */}
+      {data && lastResult && multi.last && (
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setRitualOpen(true)}
+          className="relative w-full rounded-3xl border-2 border-[#C8951E]/50 bg-card shadow-sm overflow-hidden text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          aria-label="Reprendre la Route de l'Or — tisser ma routine depuis mon dernier diagnostic"
+        >
+          <div aria-hidden="true" className="h-2 w-full" style={{ backgroundImage: "repeating-linear-gradient(90deg,#8B1A3B 0 12px,#3F7D3F 12px 20px,#C8951E 20px 28px,#E07A2B 28px 36px,#A0522D 36px 46px)" }} />
+          <div className="flex items-center gap-3 p-4">
+            <span className="grid place-items-center h-12 w-12 rounded-2xl bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] shrink-0 shadow">
+              <NeaOnnimIcon size={26} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-heading font-bold text-sm">La Route de l&apos;Or</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                Ta routine se tisse en 4 stations, selon ton scan du {formatDate(multi.last.createdAt, { day: "numeric", month: "short" })}
+              </p>
+            </div>
+            <ChevronRight size={18} className="text-primary shrink-0" />
+          </div>
+        </motion.button>
+      )}
 
       {/* Prochain RDV */}
       <section aria-labelledby="rdv-t">
@@ -308,6 +341,15 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
           <Star size={10} className="text-primary" /> Coaching beauté quotidien — simulation POC (notifications WhatsApp simulées)
         </p>
       </section>
+
+      {ritualOpen && lastResult && multi.last && (
+        <RitualJourney
+          diag={{ id: multi.last.id, result: lastResult, createdAt: multi.last.createdAt }}
+          products={data?.products ?? []}
+          userName={user.name}
+          onClose={() => setRitualOpen(false)}
+        />
+      )}
     </div>
   );
 }
