@@ -136,3 +136,20 @@ Stage Summary:
 - Plateforme Kènè MVP complète et vérifiée bout-en-bout : 3 espaces (Cliente mobile-first / Pro desktop / Admin), 43 endpoints REST, VLM + LLM réels, moteurs paie CI/SN et SYSCOHADA exacts, paiements MoMo simulés + wallet, POC démarrable en 1 clic (bouton « Démo — Mariam »)
 - 3 bugs bloquants détectés et corrigés pendant l'E2E navigateur (preuve que la vérification était nécessaire)
 - État DB : données seed + diagnostics/ventes/RDV de démonstration fraîches
+
+---
+Task ID: 12 (ré-application post-rollback)
+Agent: main (Z.ai Code)
+Task: Correction hydration mismatch ThemeToggle — 2e passage après rollback environnement
+
+⚠️ INCIDENT : l'environnement a été restauré depuis un snapshot git (commit 0b31a7b, message UUID) entre les 2 sessions → le correctif initial du Task 12 (2 boutons statiques CSS) avait été ÉCRASÉ, ainsi que suppressHydrationWarning (page.tsx) et l'entrée worklog. L'utilisateur a re-signalé le même bug — légitime, le code était réellement revenu à l'état bogué.
+
+Work Log:
+- Diagnostic rollback : ThemeToggle.tsx (13:07) revenu au code dérivé de resolvedTheme ; grep confirmé aria-label dynamique de retour ; git status/montrer que le fix n'était plus dans l'arbre
+- Ré-application 1:1 du correctif validé : ThemeToggle = 2 boutons statiques commutés par CSS (`dark:hidden` / `hidden dark:flex`), aria-label fixes par bouton, setTheme("dark"|"light") fixe par bouton — AUCUN attribut rendu dérivé du thème (pattern anti-hydration-mismatch), pas d'état/effet (react-hooks/set-state-in-effect)
+- Ré-application suppressHydrationWarning sur le <p> © année (page.tsx)
+- Re-vérification agent-browser : dark preset localStorage + reload → console + page errors 100 % vides ; bascule dark→light OK (html class + localStorage + bouton visible) ; reload light → clean ; eslint 0 erreur
+
+Stage Summary:
+- Bug hydration résolu à nouveau + racine documentée (rollback snapshot) — si le bug re réapparaît, VÉRIFIER D'ABORD que le fichier n'a pas été re-réverté (cf. timestamps + grep resolvedTheme dans ThemeToggle.tsx)
+- Console navigateur vierge sur / en light ET dark, premier chargement inclus

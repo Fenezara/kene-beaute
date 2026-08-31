@@ -49,7 +49,8 @@ export default function Page() {
       <footer className="mt-auto border-t border-border/70 bg-card/60">
         <div aria-hidden="true" className="kente-band-soft h-[3px] w-full" />
         <div className="mx-auto max-w-7xl px-4 py-4 pb-24 sm:pb-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
-          <p>
+          {/* suppressHydrationWarning : l'année est calculée à chaque rendu (fuseau serveur ≠ navigateur possible) */}
+          <p suppressHydrationWarning>
             © {new Date().getFullYear()} Kènè — <span className="font-heading text-[11px] text-primary">« La beauté mélanoderme, de A à Z. »</span>
           </p>
           <p className="text-center sm:text-right">
