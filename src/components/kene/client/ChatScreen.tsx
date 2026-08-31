@@ -40,9 +40,9 @@ interface SRLike {
 type SRCtor = new () => SRLike;
 
 const TRIAGE = {
-  vert: { border: "border-l-4 border-[#3F7D3F]", bg: "bg-[#3F7D3F]/5", text: "text-[#3F7D3F]", Icon: CircleCheck, cta: "Voir la boutique", tab: "boutique" as const },
-  jaune: { border: "border-l-4 border-[#C8951E]", bg: "bg-[#C8951E]/5", text: "text-[#A0720F]", Icon: TriangleAlert, cta: "Prendre RDV", tab: "rdv" as const },
-  rouge: { border: "border-l-4 border-[#8B1A3B]", bg: "bg-[#8B1A3B]/5", text: "text-[#8B1A3B]", Icon: OctagonAlert, cta: "Voir les instituts", tab: "rdv" as const },
+  vert: { border: "border-l-4 border-success", bg: "bg-success/5", text: "text-success", Icon: CircleCheck, cta: "Voir la boutique", tab: "boutique" as const },
+  jaune: { border: "border-l-4 border-gold", bg: "bg-gold/5", text: "text-gold-text", Icon: TriangleAlert, cta: "Prendre RDV", tab: "rdv" as const },
+  rouge: { border: "border-l-4 border-bissap", bg: "bg-bissap/5", text: "text-destructive", Icon: OctagonAlert, cta: "Voir les instituts", tab: "rdv" as const },
 };
 
 let idCounter = 1;
@@ -108,7 +108,7 @@ export function ChatScreen() {
       setMessages((m) => [...m, { id: nid(), role: "user", content: "Regarde cette zone, stp.", kind: "photo", photo: dataUrl, time: Date.now() }]);
       setSending(true);
       const r = await apiPost<{ niveau: "vert" | "jaune" | "rouge"; message: string }>("/api/dermato/photo", { image: dataUrl, userId: user.id });
-      setMessages((m) => [...m, { id: nid(), role: "assistant", content: r.message, kind: "photo", niveau: r.niveau, triageMessage: r.message, time: Date.now() }]);
+      setMessages((m) => [...m, { id: nid(), role: "assistant", content: r.message, kind: "photo", niveau: r.niveau, time: Date.now() }]);
       speak(r.message);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Analyse photo impossible");

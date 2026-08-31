@@ -131,7 +131,6 @@ export function StockSection({ tenantId, onNavigate }: { tenantId: string; onNav
                           <TableCell>
                             <div className="flex items-center gap-2.5">
                               <div className="size-10 rounded-lg overflow-hidden border border-border bg-muted shrink-0">
-                                { }
                                 <img src={p.image} alt={p.name} className="size-full object-cover" />
                               </div>
                               <div className="min-w-0">
@@ -203,7 +202,7 @@ export function StockSection({ tenantId, onNavigate }: { tenantId: string; onNav
             <div className="space-y-1">
               <Label className="text-xs">Produit</Label>
               <Select value={productId || undefined} onValueChange={setProductId}>
-                <SelectTrigger><SelectValue placeholder="Choisir un produit…" /></SelectTrigger>
+                <SelectTrigger aria-label="Produit"><SelectValue placeholder="Choisir un produit…" /></SelectTrigger>
                 <SelectContent className="max-h-64">
                   {products.map((p) => (
                     <SelectItem key={p.id} value={p.id}>

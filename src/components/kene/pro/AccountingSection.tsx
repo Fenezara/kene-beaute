@@ -245,7 +245,7 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
               <div className="space-y-1 min-w-64">
                 <Label className="text-xs">Compte</Label>
                 <Select value={ledgerAccount || undefined} onValueChange={setLedgerAccount}>
-                  <SelectTrigger><SelectValue placeholder="Choisir un compte mouvementé…" /></SelectTrigger>
+                  <SelectTrigger aria-label="Compte"><SelectValue placeholder="Choisir un compte mouvementé…" /></SelectTrigger>
                   <SelectContent className="max-h-80">
                     {balance.map((r) => (
                       <SelectItem key={r.accountCode} value={r.accountCode}>
@@ -487,7 +487,7 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
               {odLines.map((l, i) => (
                 <div key={i} className="grid grid-cols-[1fr_90px_90px_32px] gap-2 items-center">
                   <Select value={l.accountCode || undefined} onValueChange={(v) => setOdLines((ls) => ls.map((x, j) => (j === i ? { ...x, accountCode: v } : x)))}>
-                    <SelectTrigger className="text-xs"><SelectValue placeholder="Compte…" /></SelectTrigger>
+                    <SelectTrigger className="text-xs" aria-label={`Compte ligne ${i + 1}`}><SelectValue placeholder="Compte…" /></SelectTrigger>
                     <SelectContent className="max-h-72">
                       {data.accounts.map((a) => (
                         <SelectItem key={a.id} value={a.code}>

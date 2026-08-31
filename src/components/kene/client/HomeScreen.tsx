@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { CalendarClock, ChevronRight, MapPin, MessageCircle, Plus, Sparkles, Star } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
-import { formatDate, formatTime, xof } from "@/lib/kene/format";
+import { formatDate, formatTime, xof, CASHBACK_RATE } from "@/lib/kene/format";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 import { NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
@@ -267,7 +267,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
             <div>
               <p className="text-[10px] uppercase tracking-[0.18em] opacity-70">Wallet Kènè</p>
               <p className="font-mono font-black text-2xl mt-1">{xof(data.wallet?.balance ?? 0)}</p>
-              <p className="text-[11px] opacity-70 mt-1">Cashback {Math.round((data.wallet?.cashbackRate ?? 0.05) * 100)} % sur chaque commande</p>
+              <p className="text-[11px] opacity-70 mt-1">Cashback {Math.round((data.wallet?.cashbackRate ?? CASHBACK_RATE) * 100)} % sur chaque commande</p>
             </div>
             <button
               onClick={() => setClientTab("profil")}

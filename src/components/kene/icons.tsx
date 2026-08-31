@@ -209,8 +209,3 @@ export function KeneLogo({ size = 40, withText = true }: { size?: number; withTe
     </span>
   );
 }
-
-/** Marque de filigrane Bogolan (points) */
-export function BogolanWatermark({ className = "" }: { className?: string }) {
-  return <div aria-hidden="true" className={`pointer-events-none absolute inset-0 bogolan-dots opacity-40 ${className}`} />;
-}

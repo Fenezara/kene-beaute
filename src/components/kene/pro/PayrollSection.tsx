@@ -460,7 +460,7 @@ function HireDialog({
             <div className="space-y-1">
               <Label className="text-xs">Rôle</Label>
               <Select value={role} onValueChange={setRole}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Rôle"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ROLES.map((r) => (
                     <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
@@ -473,7 +473,7 @@ function HireDialog({
             <div className="space-y-1">
               <Label className="text-xs">Contrat</Label>
               <Select value={contractType} onValueChange={setContractType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Contrat"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CONTRACTS.map((c) => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
@@ -484,7 +484,7 @@ function HireDialog({
             <div className="space-y-1">
               <Label className="text-xs">Pays</Label>
               <Select value={country} onValueChange={setCountry}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Pays"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="CI">Côte d&apos;Ivoire</SelectItem>
                   <SelectItem value="SN">Sénégal</SelectItem>
@@ -595,19 +595,19 @@ function PayslipDialog({ slip, periodLabel, tenantName, country, onClose }: { sl
           <div className="mt-4 ml-auto w-full sm:w-80 space-y-1 text-[12px]">
             <div className="flex justify-between border-b border-black/30 py-1">
               <span className="font-semibold">Salaire brut</span>
-              <span className="font-mono font-bold tabular-nums">{slip.grossSalary.toLocaleString("fr-FR")} FCFA</span>
+              <span className="font-mono font-bold tabular-nums">{xof(slip.grossSalary)}</span>
             </div>
             <div className="flex justify-between border-b border-black/30 py-1">
               <span className="font-semibold">Total retenues</span>
-              <span className="font-mono font-bold tabular-nums">{(totalRetenues || 0).toLocaleString("fr-FR")} FCFA</span>
+              <span className="font-mono font-bold tabular-nums">{xof(totalRetenues || 0)}</span>
             </div>
             <div className="flex justify-between bg-black/5 rounded px-2 py-2 mt-1">
               <span className="font-heading font-bold text-sm">NET À PAYER</span>
-              <span className="font-mono font-bold text-base tabular-nums">{slip.netSalary.toLocaleString("fr-FR")} FCFA</span>
+              <span className="font-mono font-bold text-base tabular-nums">{xof(slip.netSalary)}</span>
             </div>
           </div>
           <p className="mt-2 text-[10px] text-black/60 text-right">
-            Coût employeur total : <span className="font-mono">{(slip.grossSalary + slip.cnpsEmployer).toLocaleString("fr-FR")} FCFA</span> (dont part patronale <span className="font-mono">{slip.cnpsEmployer.toLocaleString("fr-FR")}</span>)
+            Coût employeur total : <span className="font-mono">{xof(slip.grossSalary + slip.cnpsEmployer)}</span> (dont part patronale <span className="font-mono">{xof(slip.cnpsEmployer)}</span>)
           </p>
 
           {/* Pied */}

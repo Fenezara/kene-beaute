@@ -25,7 +25,6 @@ interface KeneState {
   user: SessionUser | null;
   cart: CartLine[];
   proTenantId: string | null; // tenant courant de l'espace Pro (démo)
-  lastDiagnosisId: string | null;
   introActive: boolean; // introduction immersive en cours (non persisté)
   setSpace: (s: Space) => void;
   setIntroActive: (b: boolean) => void;
@@ -35,7 +34,6 @@ interface KeneState {
   setCartQty: (productId: string, qty: number) => void;
   clearCart: () => void;
   setProTenantId: (id: string) => void;
-  setLastDiagnosisId: (id: string | null) => void;
 }
 
 export const useKene = create<KeneState>()(
@@ -46,7 +44,6 @@ export const useKene = create<KeneState>()(
       user: null,
       cart: [],
       proTenantId: null,
-      lastDiagnosisId: null,
       introActive: false,
       setSpace: (space) => set({ space }),
       setIntroActive: (introActive) => set({ introActive }),
@@ -70,8 +67,7 @@ export const useKene = create<KeneState>()(
         })),
       clearCart: () => set({ cart: [] }),
       setProTenantId: (proTenantId) => set({ proTenantId }),
-      setLastDiagnosisId: (lastDiagnosisId) => set({ lastDiagnosisId }),
-    }),
+        }),
     {
       name: "kene-store",
       partialize: (s) => ({ space: s.space, user: s.user, cart: s.cart, proTenantId: s.proTenantId, clientTab: s.clientTab }),

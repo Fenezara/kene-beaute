@@ -389,7 +389,7 @@ export function PosSection({ tenantId, tenantName }: { tenantId: string; tenantN
                 <div className="mt-2 flex justify-between"><span>{METHOD_LABELS[ticket.paymentMethod] ?? ticket.paymentMethod}</span><span className="text-right">{ticket.cashierName ?? "Caisse 1"}</span></div>
                 <div className="my-2 border-t border-dashed border-black/60" />
                 <p className="text-center">Merci de votre visite</p>
-                <p className="text-center font-bold">Kènè POS — Kènè</p>
+                <p className="text-center font-bold">Kènè — Ticket de caisse</p>
                 <p className="text-center text-[9px] mt-1">Conforme SYSCOHADA · écriture CA auto</p>
               </div>
               <Button onClick={() => window.print()} className="w-full gap-2 font-semibold">

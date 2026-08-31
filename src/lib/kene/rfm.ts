@@ -20,12 +20,12 @@ export function rfmScore(recencyDays: number, frequency12m: number, monetary12m:
 }
 
 export const RFM_SEGMENT_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  Champions: { bg: "bg-[#3F7D3F]/15", text: "text-[#3F7D3F]", label: "Champions" },
-  "Fidèles": { bg: "bg-[#C8951E]/15", text: "text-[#A0720F]", label: "Fidèles" },
-  Potentiels: { bg: "bg-[#E07A2B]/15", text: "text-[#C26418]", label: "Potentiels" },
-  "À risque": { bg: "bg-[#8B1A3B]/15", text: "text-[#8B1A3B]", label: "À risque" },
-  Perdus: { bg: "bg-[#6B5B47]/15", text: "text-[#6B5B47]", label: "Perdus" },
-  Nouveaux: { bg: "bg-[#1B3A6B]/15", text: "text-[#1B3A6B]", label: "Nouveaux" },
+  Champions: { bg: "bg-success/15", text: "text-success", label: "Champions" },
+  "Fidèles": { bg: "bg-gold/15", text: "text-gold-text", label: "Fidèles" },
+  Potentiels: { bg: "bg-sunset/15", text: "text-sunset-text", label: "Potentiels" },
+  "À risque": { bg: "bg-bissap/15", text: "text-destructive", label: "À risque" },
+  Perdus: { bg: "bg-muted", text: "text-muted-foreground", label: "Perdus" },
+  Nouveaux: { bg: "bg-finance/15", text: "text-finance", label: "Nouveaux" },
 };
 
 /** Politique d'annulation RDV — PRD §8.6 */

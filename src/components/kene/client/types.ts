@@ -148,7 +148,6 @@ export interface ChatMsg {
   kind?: "text" | "photo";
   photo?: string; // dataURL côté user
   niveau?: "vert" | "jaune" | "rouge";
-  triageMessage?: string;
   time: number;
 }
 

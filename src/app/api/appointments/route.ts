@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, overlaps, genRef, notify, dayEnd, ensureWallet, debitWallet } from "@/lib/kene/server";
+import { DEPOSIT_RATE } from "@/lib/kene/format";
 
 const CreateBody = z.object({
   tenantId: z.string().min(1),
@@ -44,7 +45,6 @@ export async function POST(req: NextRequest) {
     const parsed = CreateBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, serviceId, resourceId, startAt, clientName, clientPhone, userId, paymentMethod } = parsed.data;
-    const depositAmount = parsed.data.depositAmount ?? 0;
 
     const start = new Date(startAt);
     if (Number.isNaN(start.getTime())) return jsonError("Date de début invalide", 400);
@@ -54,6 +54,10 @@ export async function POST(req: NextRequest) {
 
     const service = await db.service.findFirst({ where: { id: serviceId, tenantId, active: true } });
     if (!service) return jsonError("Service introuvable", 404);
+
+    // Acompte : la règle des 30 % du prix du service est appliquée côté serveur
+    // (la valeur cliente est plafonnée — un client malveillant ne peut pas réserver en payant moins)
+    const depositAmount = Math.max(0, Math.min(parsed.data.depositAmount ?? 0, Math.round(service.price * DEPOSIT_RATE)));
 
     const resource = await db.resource.findFirst({ where: { id: resourceId, tenantId, active: true } });
     if (!resource) return jsonError("Praticienne introuvable", 404);

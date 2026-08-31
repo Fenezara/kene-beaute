@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
-import { addDays, formatDate, formatTime, xof } from "@/lib/kene/format";
+import { addDays, formatDate, formatTime, xof, DEPOSIT_RATE } from "@/lib/kene/format";
 import { cancellationRefund } from "@/lib/kene/rfm";
 import { SankofaIcon } from "@/components/kene/icons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -53,7 +53,7 @@ export function BookingScreen() {
   const [cancelFor, setCancelFor] = useState<ApiAppointment | null>(null);
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(new Date(), i)), []);
-  const deposit = service ? Math.round(service.price * 0.3) : 0;
+  const deposit = service ? Math.round(service.price * DEPOSIT_RATE) : 0;
   const practitioner = useMemo(() => (slot?.resourceIds?.length ? resources.find((r) => r.id === slot.resourceIds![0]) ?? null : null), [slot, resources]);
 
   const loadInstitutes = useCallback(async () => {

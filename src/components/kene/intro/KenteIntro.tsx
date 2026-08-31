@@ -85,7 +85,7 @@ function ScrollIntro({ onDone }: { onDone: () => void }) {
   }, []);
 
   return (
-    <section ref={containerRef} aria-label="Introduction immersive Kènè — cinq chapitres" className="relative h-[640vh]">
+    <section ref={containerRef} aria-label="Introduction immersive Kènè — six chapitres" className="relative h-[640vh]">
       <div className="sticky top-0 h-svh overflow-hidden bg-[#1A1410]">
         {/* Couche 3D (pointer-events none — le récit se défile, il ne se clique pas) */}
         <div className="absolute inset-0 pointer-events-none">

@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Loader2, Star } from "lucide-react";
-import { scoreColor } from "@/lib/kene/format";
+import { scoreColor, readableTextColor } from "@/lib/kene/format";
 import { xof } from "@/lib/kene/format";
 
 /** Jauge circulaire SVG du score santé peau */
@@ -39,11 +39,11 @@ export function ScoreGauge({ score, size = 130, stroke = 11, label = "Score peau
   );
 }
 
-/** Pastille ronde mini score (listes) */
+/** Pastille ronde mini score (listes) — texte lisible quel que soit le fond */
 export function ScoreChip({ score }: { score: number }) {
   const color = scoreColor(score);
   return (
-    <span className="inline-grid place-items-center rounded-full px-2.5 py-1 font-mono text-xs font-bold text-white" style={{ backgroundColor: color }}>
+    <span className="inline-grid place-items-center rounded-full px-2.5 py-1 font-mono text-xs font-bold" style={{ backgroundColor: color, color: readableTextColor(color) }}>
       {score}
     </span>
   );
@@ -84,26 +84,12 @@ export function Stars({ rating, size = 12, className = "" }: { rating: number; s
   );
 }
 
-export function SpinnerButton({ loading, children, ...props }: React.ComponentProps<"button"> & { loading?: boolean }) {
-  return (
-    <button {...props} disabled={props.disabled || loading} className={`h-12 rounded-xl bg-primary text-primary-foreground font-semibold text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 ${props.className ?? ""}`}>
-      {loading && <Loader2 size={18} className="animate-spin" />}
-      {children}
-    </button>
-  );
-}
-
-/** Bandeau kente décoratif fin */
-export function KenteTop({ className = "" }: { className?: string }) {
-  return <div aria-hidden="true" className={`kente-band h-1 w-16 rounded-full ${className}`} />;
-}
-
 export const APPT_STATUS_STYLES: Record<string, { label: string; cls: string }> = {
-  pending: { label: "En attente", cls: "bg-[#E07A2B]/15 text-[#C26418]" },
-  confirmed: { label: "Confirmé", cls: "bg-[#3F7D3F]/15 text-[#3F7D3F]" },
-  completed: { label: "Terminé", cls: "bg-[#C8951E]/15 text-[#A0720F]" },
+  pending: { label: "En attente", cls: "bg-sunset/15 text-sunset-text" },
+  confirmed: { label: "Confirmé", cls: "bg-success/15 text-success" },
+  completed: { label: "Terminé", cls: "bg-gold/15 text-gold-text" },
   cancelled: { label: "Annulé", cls: "bg-muted text-muted-foreground" },
-  no_show: { label: "Absente", cls: "bg-[#8B1A3B]/15 text-[#8B1A3B]" },
+  no_show: { label: "Absente", cls: "bg-bissap/15 text-destructive" },
 };
 
 export function ApptBadge({ status }: { status: string }) {

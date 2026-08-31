@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Ojuju, Questrial, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "next-themes";
 
 const ojuju = Ojuju({
@@ -49,7 +48,6 @@ export default function RootLayout({
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           {children}
-          <Toaster />
         </ThemeProvider>
       </body>
     </html>

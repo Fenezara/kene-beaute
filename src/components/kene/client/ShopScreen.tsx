@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BadgeCheck, Check, Loader2, Minus, Plus, Search, ShoppingBag, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
-import { xof } from "@/lib/kene/format";
+import { xof, CASHBACK_RATE } from "@/lib/kene/format";
 import { MOMO_OPERATORS } from "@/lib/kene/rfm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,6 +37,8 @@ export function ShopScreen() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const subtotal = cart.reduce((s, l) => s + l.price * l.qty, 0);
+  /* taux de cashback réellement appliqué (wallet de la cliente, sinon défaut) */
+  const cashbackRate = wallet?.cashbackRate ?? CASHBACK_RATE;
 
   useEffect(() => {
     apiGet<{ products: ApiProduct[] }>("/api/shop/products")
@@ -97,7 +99,7 @@ export function ShopScreen() {
     <div className="pt-4 pb-2">
       <header className="flex items-center justify-between">
         <h1 className="font-heading font-black text-xl">Boutique Kènè</h1>
-        <span className="rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1 uppercase tracking-wide">Cashback 5 %</span>
+        <span className="rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1 uppercase tracking-wide">Cashback {Math.round(cashbackRate * 100)} %</span>
       </header>
 
       {/* Le Fil de Kente — hero tissé, le fil de la catégorie s'illumine */}
@@ -264,7 +266,7 @@ export function ShopScreen() {
 
             <div className="rounded-2xl bg-muted/60 p-4 space-y-1.5 text-xs">
               <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span className="font-mono font-semibold">{xof(subtotal)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Cashback estimé (5 %)</span><span className="font-mono font-semibold text-[#3F7D3F]">+{xof(Math.round(subtotal * 0.05))}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Cashback estimé ({Math.round(cashbackRate * 100)} %)</span><span className="font-mono font-semibold text-[#3F7D3F]">+{xof(Math.round(subtotal * cashbackRate))}</span></div>
               <div className="flex justify-between border-t border-border pt-1.5 text-sm"><span className="font-semibold">Total à payer</span><span className="font-mono font-black text-primary">{xof(subtotal)}</span></div>
             </div>
 
@@ -322,7 +324,7 @@ export function ShopScreen() {
                   </motion.span>
                   <p className="font-heading font-black text-xl text-[#F8F1E4]">Paiement réussi</p>
                   <p className="text-xs text-[#F8F1E4]/70 max-w-[280px] leading-relaxed">
-                    Commande confirmée. <span className="flex items-center gap-1 justify-center mt-1 text-[#C8951E] font-semibold"><BadgeCheck size={13} /> Cashback {xof(Math.round(payState.amount * 0.05))} crédité sur ton wallet Kènè</span>
+                    Commande confirmée. <span className="flex items-center gap-1 justify-center mt-1 text-[#C8951E] font-semibold"><BadgeCheck size={13} /> Cashback {xof(Math.round(payState.amount * cashbackRate))} crédité sur ton wallet Kènè</span>
                   </p>
                   <button onClick={() => setPayState(null)} className="mt-2 h-12 px-8 rounded-xl bg-primary text-primary-foreground font-semibold shadow active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
                     Continuer mes achats

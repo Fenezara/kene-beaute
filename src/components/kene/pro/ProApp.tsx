@@ -82,7 +82,7 @@ export function ProApp() {
 
         <div className="px-4 pb-3">
           <Select value={tid || undefined} onValueChange={(v) => setProTenantId(v)} disabled={tenantOptions.length <= 1}>
-            <SelectTrigger className="w-full bg-sidebar-accent border-sidebar-border text-sidebar-foreground h-auto py-2">
+            <SelectTrigger className="w-full bg-sidebar-accent border-sidebar-border text-sidebar-foreground h-auto py-2" aria-label="Institut actif">
               <SelectValue placeholder="Institut…" />
             </SelectTrigger>
             <SelectContent>

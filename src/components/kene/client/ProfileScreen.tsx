@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPatch, apiPost } from "@/lib/kene/api";
-import { formatDate, xof } from "@/lib/kene/format";
+import { formatDate, xof, CASHBACK_RATE } from "@/lib/kene/format";
 import { MOMO_OPERATORS } from "@/lib/kene/rfm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -213,7 +213,7 @@ export function ProfileScreen() {
             <p className="text-[10px] uppercase tracking-[0.18em] opacity-70">Solde disponible</p>
             <p className="font-mono font-black text-3xl mt-1">{wallet ? xof(wallet.balance) : "···"}</p>
             <div className="flex items-center gap-2 mt-2 text-[11px] opacity-80">
-              <BadgeCheck size={13} className="text-[#C8951E]" /> Cashback {Math.round((wallet?.cashbackRate ?? 0.05) * 100)} % · Code parrain <span className="font-mono font-bold text-[#C8951E]">{wallet?.referralCode ?? "—"}</span>
+              <BadgeCheck size={13} className="text-[#C8951E]" /> Cashback {Math.round((wallet?.cashbackRate ?? CASHBACK_RATE) * 100)} % · Code parrain <span className="font-mono font-bold text-[#C8951E]">{wallet?.referralCode ?? "—"}</span>
             </div>
             <button onClick={() => { setTopup(true); setTopupState("idle"); }} className="mt-4 h-11 w-full rounded-xl bg-[#C8951E] text-[#1A1410] font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#C8951E]">
               <Plus size={16} /> Approvisionner

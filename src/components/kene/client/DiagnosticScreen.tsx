@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost, resizeImage } from "@/lib/kene/api";
-import { formatDate, scoreColor, SEVERITY_STYLES } from "@/lib/kene/format";
+import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
 import { BODY_ZONES, SPECTRAL_VIEWS, type BodyZone, type DiagnosisResult, type Indicator } from "@/lib/kene/types";
 import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
 import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
@@ -44,7 +44,6 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
   const addToCart = useKene((s) => s.addToCart);
-  const setLastDiagnosisId = useKene((s) => s.setLastDiagnosisId);
 
   const [step, setStep] = useState(0);
   const [zone, setZone] = useState<BodyZone>("visage");
@@ -146,7 +145,6 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         setCheckedSteps(ANALYSIS_STEPS.length);
         setTimeout(() => {
           setDiag({ id: r.diagnosis.id, result, imageData: image, createdAt: r.diagnosis.createdAt });
-          setLastDiagnosisId(r.diagnosis.id);
           setAnalyzing(false);
           setStep(3);
           clearInterval(timer);
@@ -349,7 +347,7 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">{formatDate(diag.createdAt)} · {r.source === "vlm" ? "Analyse VLM" : "Analyse heuristique"} · {r.indicateurs.length} indicateurs</p>
             <div className="flex gap-1.5 mt-2">
-              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: scoreColor(r.score_global) }}>
+              <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: scoreColor(r.score_global), color: readableTextColor(scoreColor(r.score_global)) }}>
                 {r.score_global >= 80 ? "Excellente santé" : r.score_global >= 60 ? "Bon équilibre" : r.score_global >= 40 ? "Points à surveiller" : "Besoin de soin"}
               </span>
             </div>
@@ -528,7 +526,7 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold leading-tight">{rec}</p>
-                    {p && <p className="font-mono text-[11px] text-primary font-bold mt-0.5">{p.price.toLocaleString("fr-FR")} FCFA</p>}
+                    {p && <p className="font-mono text-[11px] text-primary font-bold mt-0.5">{xof(p.price)}</p>}
                   </div>
                   {p ? (
                     <button
@@ -604,7 +602,7 @@ function IndicatorBar({ ind }: { ind: Indicator }) {
     <div className="rounded-xl border border-border bg-card p-2.5">
       <div className="flex items-start justify-between gap-1">
         <p className="text-[11px] font-semibold leading-tight line-clamp-2">{ind.nom}</p>
-        <span className="font-mono text-[11px] font-bold shrink-0" style={{ color: ["#3F7D3F", "#A0720F", "#C26418", "#8B1A3B"][Math.min(3, Math.max(0, ind.severite))] }}>
+        <span className={`font-mono text-[11px] font-bold shrink-0 ${sev[Math.min(3, Math.max(0, ind.severite))].text}`}>
           {ind.pourcentage}%
         </span>
       </div>

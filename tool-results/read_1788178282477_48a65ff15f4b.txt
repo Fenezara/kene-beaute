@@ -1,0 +1,693 @@
+     1→"use client";
+     2→// Kènè Pro — Agenda : vue semaine/jour, création RDV, actions (confirmer, terminer, annuler, no-show, déplacer)
+     3→import { useMemo, useState } from "react";
+     4→import { motion } from "framer-motion";
+     5→import {
+     6→  ChevronLeft,
+     7→  ChevronRight,
+     8→  Plus,
+     9→  Banknote,
+    10→  CalendarDays,
+    11→  CheckCircle2,
+    12→  XCircle,
+    13→  UserX,
+    14→  CalendarClock,
+    15→  Calendar as CalendarIcon,
+    16→} from "lucide-react";
+    17→import { toast } from "sonner";
+    18→import { Button } from "@/components/ui/button";
+    19→import { Card } from "@/components/ui/card";
+    20→import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+    21→import { Input } from "@/components/ui/input";
+    22→import { Label } from "@/components/ui/label";
+    23→import { Textarea } from "@/components/ui/textarea";
+    24→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+    25→import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+    26→import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+    27→import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+    28→import { Skeleton } from "@/components/ui/skeleton";
+    29→import { cn } from "@/lib/utils";
+    30→import { apiGet, apiPost, apiPatch } from "@/lib/kene/api";
+    31→import { addDays, startOfWeek, formatDate, formatTime, xof } from "@/lib/kene/format";
+    32→import { useApi } from "./useApi";
+    33→import { ApptStatusBadge, EmptyState, ErrorState, Money, SectionHeader } from "./ui-bits";
+    34→import type { ProAppointment, ProCatalog, ProClient } from "./types";
+    35→
+    36→const OPEN = 9;
+    37→const CLOSE = 20;
+    38→const OPEN_MIN = OPEN * 60;
+    39→const ROW_H = 34;
+    40→const ROWS = ((CLOSE - OPEN) * 60) / 30;
+    41→
+    42→const DAY_NAMES = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+    43→
+    44→function sameDay(a: string | Date, b: Date): boolean {
+    45→  return new Date(a).toDateString() === b.toDateString();
+    46→}
+    47→function toLocalISODate(d: Date): string {
+    48→  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    49→}
+    50→function timeOptions(): string[] {
+    51→  const out: string[] = [];
+    52→  for (let m = OPEN_MIN; m < CLOSE * 60; m += 30) {
+    53→    out.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+    54→  }
+    55→  return out;
+    56→}
+    57→
+    58→export function AgendaSection({ tenantId }: { tenantId: string }) {
+    59→  const [view, setView] = useState<"jour" | "semaine">("semaine");
+    60→  const [cursor, setCursor] = useState(() => startOfWeek(new Date())); // toujours aligné lundi
+    61→  const [dayOffset, setDayOffset] = useState(() => (new Date().getDay() + 6) % 7);
+    62→  const [selected, setSelected] = useState<ProAppointment | null>(null);
+    63→  const [createOpen, setCreateOpen] = useState(false);
+    64→
+    65→  const days = useMemo(
+    66→    () => Array.from({ length: 7 }, (_, i) => addDays(cursor, i)),
+    67→    [cursor]
+    68→  );
+    69→  const rangeFrom = days[0];
+    70→  const rangeTo = addDays(days[6], 1);
+    71→
+    72→  const list = useApi<ProAppointment[]>(
+    73→    () =>
+    74→      apiGet<{ appointments: ProAppointment[] }>(
+    75→        `/api/pro/appointments?tenantId=${tenantId}&from=${rangeFrom.toISOString()}&to=${rangeTo.toISOString()}`
+    76→      ).then((r) => r.appointments ?? []),
+    77→    [tenantId, rangeFrom.toISOString(), rangeTo.toISOString()]
+    78→  );
+    79→
+    80→  const catalog = useApi<ProCatalog>(
+    81→    () => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve({ services: [], products: [] })),
+    82→    [tenantId]
+    83→  );
+    84→  const clients = useApi<ProClient[]>(
+    85→    () => (tenantId ? apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`).then((r) => r.clients ?? []) : Promise.resolve([])),
+    86→    [tenantId, createOpen]
+    87→  );
+    88→
+    89→  // Praticiennes déduites des RDV : fenêtre large (30 j passés → 45 j à venir)
+    90→  // pour disposer des resourceId réels même sur une semaine sans RDV.
+    91→  const resourcePool = useApi<ProAppointment[]>(
+    92→    () =>
+    93→      apiGet<{ appointments: ProAppointment[] }>(
+    94→        `/api/pro/appointments?tenantId=${tenantId}&from=${addDays(new Date(), -30).toISOString()}&to=${addDays(new Date(), 45).toISOString()}`
+    95→      ).then((r) => r.appointments ?? []),
+    96→    [tenantId]
+    97→  );
+    98→
+    99→  const resources = useMemo(() => {
+   100→    const map = new Map<string, { value: string; name: string; color: string }>();
+   101→    for (const a of [...(list.data ?? []), ...(resourcePool.data ?? [])]) {
+   102→      const value = a.resourceId ?? a.resource.id ?? a.resource.name;
+   103→      if (!map.has(value)) map.set(value, { value, name: a.resource.name, color: a.resource.color });
+   104→    }
+   105→    return [...map.values()];
+   106→  }, [list.data, resourcePool.data]);
+   107→
+   108→  const step = (dir: 1 | -1) => {
+   109→    if (view === "semaine") {
+   110→      setCursor((c) => addDays(c, dir * 7));
+   111→    } else {
+   112→      let o = dayOffset + dir;
+   113→      if (o < 0) {
+   114→        setCursor((c) => addDays(c, -7));
+   115→        o = 6;
+   116→      } else if (o > 6) {
+   117→        setCursor((c) => addDays(c, 7));
+   118→        o = 0;
+   119→      }
+   120→      setDayOffset(o);
+   121→    }
+   122→  };
+   123→  const goToday = () => {
+   124→    setCursor(startOfWeek(new Date()));
+   125→    setDayOffset((new Date().getDay() + 6) % 7);
+   126→  };
+   127→  const isToday = (d: Date) => d.toDateString() === new Date().toDateString();
+   128→
+   129→  const label =
+   130→    view === "semaine"
+   131→      ? `${formatDate(days[0], { day: "numeric", month: "long" })} – ${formatDate(days[6], { day: "numeric", month: "long", year: "numeric" })}`
+   132→      : formatDate(days[dayOffset], { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+   133→
+   134→  const shownDays = view === "jour" ? [days[dayOffset]] : days;
+   135→
+   136→  async function act(appt: ProAppointment, action: string, extra?: Record<string, unknown>) {
+   137→    try {
+   138→      const res = await apiPatch<{ appointment: ProAppointment; sale?: unknown }>(`/api/pro/appointments/${appt.id}`, {
+   139→        action,
+   140→        ...(extra ?? {}),
+   141→      });
+   142→      if (action === "complete") {
+   143→        toast.success("Vente encaissée", { description: "Sale créée + écriture comptable automatique (CA / SYSCOHADA)." });
+   144→      } else if (action === "cancel") {
+   145→        toast.info("Rendez-vous annulé", { description: "Politique de remboursement appliquée selon le délai." });
+   146→      } else {
+   147→        toast.success(`RDV ${action === "confirm" ? "confirmé" : action === "no_show" ? "marqué no-show" : "déplacé"}`);
+   148→      }
+   149→      setSelected(null);
+   150→      await Promise.all([list.refetch(), resourcePool.refetch()]);
+   151→      return res;
+   152→    } catch (e) {
+   153→      toast.error(e instanceof Error ? e.message : "Action impossible");
+   154→      throw e;
+   155→    }
+   156→  }
+   157→
+   158→  return (
+   159→    <div className="space-y-4">
+   160→      <SectionHeader
+   161→        title="Agenda"
+   162→        sub="Planification des soins et praticiennes"
+   163→        actions={
+   164→          <>
+   165→            <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v as "jour" | "semaine")} variant="outline" className="rounded-lg">
+   166→              <ToggleGroupItem value="jour" className="text-xs px-3">Jour</ToggleGroupItem>
+   167→              <ToggleGroupItem value="semaine" className="text-xs px-3">Semaine</ToggleGroupItem>
+   168→            </ToggleGroup>
+   169→            <Button onClick={() => setCreateOpen(true)} className="gap-1.5 font-semibold">
+   170→              <Plus className="size-4" aria-hidden="true" /> Nouveau RDV
+   171→            </Button>
+   172→          </>
+   173→        }
+   174→      />
+   175→
+   176→      <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2">
+   177→        <Button variant="ghost" size="icon" onClick={() => step(-1)} aria-label={view === "jour" ? "Jour précédent" : "Semaine précédente"}>
+   178→          <ChevronLeft className="size-4" />
+   179→        </Button>
+   180→        <p className="font-heading text-sm font-semibold capitalize flex items-center gap-2">
+   181→          <CalendarIcon className="size-4 text-primary" aria-hidden="true" />
+   182→          {label}
+   183→        </p>
+   184→        <div className="flex items-center gap-1">
+   185→          <Button variant="outline" size="sm" onClick={goToday} className="text-xs">Aujourd&apos;hui</Button>
+   186→          <Button variant="ghost" size="icon" onClick={() => step(1)} aria-label={view === "jour" ? "Jour suivant" : "Semaine suivante"}>
+   187→            <ChevronRight className="size-4" />
+   188→          </Button>
+   189→        </div>
+   190→      </div>
+   191→
+   192→      {list.error && !list.data ? (
+   193→        <ErrorState message={`Agenda indisponible : ${list.error}`} onRetry={list.refetch} />
+   194→      ) : list.loading && !list.data ? (
+   195→        <Skeleton className="h-[480px] w-full" />
+   196→      ) : (
+   197→        <Card className="overflow-hidden">
+   198→          {view === "jour" && (
+   199→            <div className="flex gap-1.5 overflow-x-auto no-scrollbar border-b border-border/70 px-3 py-2">
+   200→              {days.map((d, i) => (
+   201→                <button
+   202→                  key={i}
+   203→                  onClick={() => setDayOffset(i)}
+   204→                  aria-pressed={i === dayOffset}
+   205→                  className={cn(
+   206→                    "shrink-0 rounded-full px-3 py-1 text-xs transition-colors",
+   207→                    i === dayOffset ? "bg-primary text-primary-foreground font-semibold" : "bg-muted text-muted-foreground hover:text-foreground"
+   208→                  )}
+   209→                >
+   210→                  {DAY_NAMES[(d.getDay() + 6) % 7]} {formatDate(d, { day: "numeric" })}
+   211→                </button>
+   212→              ))}
+   213→            </div>
+   214→          )}
+   215→          <div className="overflow-x-auto pretty-scroll">
+   216→            <div className="min-w-fit">
+   217→              {/* En-têtes jours */}
+   218→              <div className="grid border-b border-border/70 bg-muted/40" style={{ gridTemplateColumns: `56px repeat(${shownDays.length}, minmax(96px, 1fr))` }}>
+   219→                <div className="h-10" aria-hidden="true" />
+   220→                {shownDays.map((d, i) => (
+   221→                  <div key={i} className={cn("h-10 border-l border-border/60 px-2 flex flex-col items-center justify-center", isToday(d) && "bg-gold/10")}>
+   222→                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{DAY_NAMES[(d.getDay() + 6) % 7]}</span>
+   223→                    <span className={cn("font-mono text-sm font-semibold", isToday(d) && "text-primary")}>{formatDate(d, { day: "numeric", month: "2-digit" })}</span>
+   224→                  </div>
+   225→                ))}
+   226→              </div>
+   227→              {/* Grille */}
+   228→              <div className="grid max-h-[70vh] overflow-y-auto pretty-scroll" style={{ gridTemplateColumns: `56px repeat(${shownDays.length}, minmax(96px, 1fr))` }}>
+   229→                <div className="relative" style={{ height: ROWS * ROW_H }}>
+   230→                  {Array.from({ length: CLOSE - OPEN }).map((_, i) => (
+   231→                    <div key={i} className="absolute right-1 -translate-y-1/2 font-mono text-[10px] text-muted-foreground tabular-nums" style={{ top: i * 2 * ROW_H + ROW_H }}>
+   232→                      {String(OPEN + i).padStart(2, "0")}:00
+   233→                    </div>
+   234→                  ))}
+   235→                </div>
+   236→                {shownDays.map((d, di) => {
+   237→                  const dayAppts = (list.data ?? []).filter((a) => sameDay(a.startAt, d));
+   238→                  return (
+   239→                    <div key={di} className={cn("relative border-l border-border/60", isToday(d) && "bg-gold/[0.04]")}>
+   240→                      {/* lignes 30 min */}
+   241→                      {Array.from({ length: ROWS }).map((_, i) => (
+   242→                        <div key={i} className={cn("border-b border-border/40", i % 2 === 0 && "border-border/70")} style={{ height: ROW_H }} />
+   243→                      ))}
+   244→                      {/* RDV */}
+   245→                      {dayAppts.map((a) => {
+   246→                        const start = new Date(a.startAt);
+   247→                        const startMin = start.getHours() * 60 + start.getMinutes();
+   248→                        const top = Math.max(0, ((startMin - OPEN_MIN) / 30) * ROW_H + 1);
+   249→                        const height = Math.max(ROW_H - 4, (a.durationMin / 30) * ROW_H - 4);
+   250→                        const cancelled = a.status === "cancelled" || a.status === "no_show";
+   251→                        return (
+   252→                          <button
+   253→                            key={a.id}
+   254→                            onClick={() => setSelected(a)}
+   255→                            aria-label={`${formatTime(a.startAt)} — ${a.clientName} — ${a.service.name}`}
+   256→                            className={cn(
+   257→                              "absolute left-0.5 right-0.5 z-10 overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 text-left shadow-sm transition-transform hover:scale-[1.02] hover:z-20 focus-visible:z-20 focus-visible:outline-2 focus-visible:outline-ring",
+   258→                              cancelled && "opacity-45 saturate-50"
+   259→                            )}
+   260→                            style={{
+   261→                              top,
+   262→                              height,
+   263→                              backgroundColor: `color-mix(in srgb, ${a.resource.color} 18%, var(--card))`,
+   264→                              borderLeftColor: a.resource.color,
+   265→                            }}
+   266→                          >
+   267→                            <p className="truncate text-[11px] font-semibold leading-tight">{formatTime(a.startAt)} {a.clientName}</p>
+   268→                            <p className="truncate text-[10px] leading-tight text-muted-foreground">{a.service.name}</p>
+   269→                          </button>
+   270→                        );
+   271→                      })}
+   272→                    </div>
+   273→                  );
+   274→                })}
+   275→              </div>
+   276→            </div>
+   277→          </div>
+   278→        </Card>
+   279→      )}
+   280→
+   281→      {(list.data ?? []).length === 0 && !list.loading && !list.error && (
+   282→        <p className="text-center text-sm text-muted-foreground">Aucun RDV {view === "jour" ? "ce jour" : "cette semaine"} — planifiez-en un avec « Nouveau RDV ».</p>
+   283→      )}
+   284→
+   285→      {/* ── Dialog détail RDV ── */}
+   286→      {selected && (
+   287→        <ApptDetailDialog
+   288→          appt={selected}
+   289→          resources={resources}
+   290→          onClose={() => setSelected(null)}
+   291→          onAction={act}
+   292→        />
+   293→      )}
+   294→
+   295→      {/* ── Dialog création ── */}
+   296→      <CreateApptDialog
+   297→        open={createOpen}
+   298→        onOpenChange={setCreateOpen}
+   299→        tenantId={tenantId}
+   300→        services={catalog.data?.services ?? []}
+   301→        resources={resources}
+   302→        clients={clients.data ?? []}
+   303→        clientsLoading={clients.loading}
+   304→        defaultDate={toLocalISODate(new Date())}
+   305→        onCreated={async () => {
+   306→          setCreateOpen(false);
+   307→          await Promise.all([list.refetch(), resourcePool.refetch()]);
+   308→          toast.success("Rendez-vous créé", { description: "La cliente recevra un rappel WhatsApp la veille." });
+   309→        }}
+   310→      />
+   311→    </div>
+   312→  );
+   313→}
+   314→
+   315→// ═════════════ Détail RDV ═════════════
+   316→function ApptDetailDialog({
+   317→  appt,
+   318→  resources,
+   319→  onClose,
+   320→  onAction,
+   321→}: {
+   322→  appt: ProAppointment;
+   323→  resources: { value: string; name: string; color: string }[];
+   324→  onClose: () => void;
+   325→  onAction: (a: ProAppointment, action: string, extra?: Record<string, unknown>) => Promise<unknown>;
+   326→}) {
+   327→  const [resched, setResched] = useState(false);
+   328→  const [busy, setBusy] = useState(false);
+   329→  const [date, setDate] = useState(toLocalISODate(new Date(appt.startAt)));
+   330→  const [time, setTime] = useState(formatTime(appt.startAt));
+   331→  const [resourceId, setResourceId] = useState(appt.resourceId ?? appt.resource.id ?? appt.resource.name);
+   332→
+   333→  async function run(action: string, extra?: Record<string, unknown>) {
+   334→    setBusy(true);
+   335→    try {
+   336→      await onAction(appt, action, extra);
+   337→    } catch {
+   338→      /* toast déjà émis */
+   339→    } finally {
+   340→      setBusy(false);
+   341→    }
+   342→  }
+   343→
+   344→  return (
+   345→    <Dialog open onOpenChange={(o) => !o && onClose()}>
+   346→      <DialogContent className="sm:max-w-md">
+   347→        <DialogHeader>
+   348→          <DialogTitle className="font-heading flex items-center gap-2">
+   349→            <CalendarDays className="size-5 text-primary" aria-hidden="true" /> {appt.clientName}
+   350→          </DialogTitle>
+   351→          <DialogDescription>
+   352→            {formatDate(appt.startAt, { weekday: "long", day: "numeric", month: "long" })} à {formatTime(appt.startAt)} · {appt.durationMin} min
+   353→          </DialogDescription>
+   354→        </DialogHeader>
+   355→
+   356→        <div className="space-y-3 text-sm">
+   357→          <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2">
+   358→            <span className="text-muted-foreground">Soin</span>
+   359→            <span className="font-medium">{appt.service.name}</span>
+   360→          </div>
+   361→          <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2">
+   362→            <span className="text-muted-foreground">Praticienne</span>
+   363→            <span className="flex items-center gap-1.5 font-medium">
+   364→              <span className="size-2.5 rounded-full" style={{ background: appt.resource.color }} aria-hidden="true" />
+   365→              {appt.resource.name}
+   366→            </span>
+   367→          </div>
+   368→          <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2">
+   369→            <span className="text-muted-foreground">Téléphone</span>
+   370→            <span className="font-mono text-xs">{appt.clientPhone}</span>
+   371→          </div>
+   372→          <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2">
+   373→            <span className="text-muted-foreground">Tarif</span>
+   374→            <Money value={appt.price} className="font-semibold text-primary" />
+   375→          </div>
+   376→          <div className="flex items-center justify-between gap-2">
+   377→            <span className="text-muted-foreground text-xs">Statut</span>
+   378→            <ApptStatusBadge status={appt.status} />
+   379→          </div>
+   380→          {appt.notes && (
+   381→            <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">{appt.notes}</p>
+   382→          )}
+   383→        </div>
+   384→
+   385→        {!resched ? (
+   386→          <div className="mt-2 grid grid-cols-2 gap-2">
+   387→            {appt.status === "pending" && (
+   388→              <Button disabled={busy} onClick={() => run("confirm")} className="gap-1.5 bg-success text-success-foreground hover:bg-success/90">
+   389→                <CheckCircle2 className="size-4" aria-hidden="true" /> Confirmer
+   390→              </Button>
+   391→            )}
+   392→            {(appt.status === "pending" || appt.status === "confirmed") && (
+   393→              <Button disabled={busy} onClick={() => run("complete")} className="gap-1.5">
+   394→                <Banknote className="size-4" aria-hidden="true" /> Terminer
+   395→              </Button>
+   396→            )}
+   397→            <Button disabled={busy} variant="outline" onClick={() => setResched(true)} className="gap-1.5">
+   398→              <CalendarClock className="size-4" aria-hidden="true" /> Déplacer
+   399→            </Button>
+   400→            {(appt.status === "pending" || appt.status === "confirmed") && (
+   401→              <>
+   402→                <Button disabled={busy} variant="outline" className="gap-1.5 text-bissap border-bissap/40 hover:bg-bissap/10" onClick={() => run("cancel")}>
+   403→                  <XCircle className="size-4" aria-hidden="true" /> Annuler
+   404→                </Button>
+   405→                <Button disabled={busy} variant="outline" className="gap-1.5 text-bissap border-bissap/40 hover:bg-bissap/10" onClick={() => run("no_show")}>
+   406→                  <UserX className="size-4" aria-hidden="true" /> No-show
+   407→                </Button>
+   408→              </>
+   409→            )}
+   410→          </div>
+   411→        ) : (
+   412→          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-2 space-y-3 rounded-xl border border-gold/40 bg-gold/5 p-3">
+   413→            <p className="text-xs font-semibold text-gold">Déplacer le rendez-vous</p>
+   414→            <div className="grid grid-cols-2 gap-2">
+   415→              <div className="space-y-1">
+   416→                <Label htmlFor="rd-date" className="text-xs">Date</Label>
+   417→                <Input id="rd-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+   418→              </div>
+   419→              <div className="space-y-1">
+   420→                <Label className="text-xs">Heure</Label>
+   421→                <Select value={time} onValueChange={setTime}>
+   422→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   423→                  <SelectContent className="max-h-64">
+   424→                    {timeOptions().map((t) => (
+   425→                      <SelectItem key={t} value={t} className="font-mono">{t}</SelectItem>
+   426→                    ))}
+   427→                  </SelectContent>
+   428→                </Select>
+   429→              </div>
+   430→            </div>
+   431→            <div className="space-y-1">
+   432→              <Label className="text-xs">Praticienne</Label>
+   433→              <Select value={resourceId} onValueChange={setResourceId}>
+   434→                <SelectTrigger><SelectValue /></SelectTrigger>
+   435→                <SelectContent>
+   436→                  {resources.map((r) => (
+   437→                    <SelectItem key={r.value} value={r.value}>
+   438→                      <span className="inline-flex items-center gap-2">
+   439→                        <span className="size-2.5 rounded-full" style={{ background: r.color }} aria-hidden="true" /> {r.name}
+   440→                      </span>
+   441→                    </SelectItem>
+   442→                  ))}
+   443→                </SelectContent>
+   444→              </Select>
+   445→            </div>
+   446→            <div className="flex gap-2">
+   447→              <Button
+   448→                disabled={busy || !date || !time}
+   449→                onClick={() => {
+   450→                  const dt = new Date(`${date}T${time}:00`);
+   451→                  void run("reschedule", { startAt: dt.toISOString(), resourceId });
+   452→                }}
+   453→                className="gap-1.5"
+   454→              >
+   455→                <CalendarClock className="size-4" aria-hidden="true" /> Valider le déplacement
+   456→              </Button>
+   457→              <Button variant="ghost" onClick={() => setResched(false)}>Retour</Button>
+   458→            </div>
+   459→          </motion.div>
+   460→        )}
+   461→      </DialogContent>
+   462→    </Dialog>
+   463→  );
+   464→}
+   465→
+   466→// ═════════════ Création RDV ═════════════
+   467→function CreateApptDialog({
+   468→  open,
+   469→  onOpenChange,
+   470→  tenantId,
+   471→  services,
+   472→  resources,
+   473→  clients,
+   474→  clientsLoading,
+   475→  defaultDate,
+   476→  onCreated,
+   477→}: {
+   478→  open: boolean;
+   479→  onOpenChange: (o: boolean) => void;
+   480→  tenantId: string;
+   481→  services: { id: string; name: string; durationMin: number; price: number }[];
+   482→  resources: { value: string; name: string; color: string }[];
+   483→  clients: ProClient[];
+   484→  clientsLoading: boolean;
+   485→  defaultDate: string;
+   486→  onCreated: () => Promise<void> | void;
+   487→}) {
+   488→  const [mode, setMode] = useState<"existing" | "new">("existing");
+   489→  const [clientQuery, setClientQuery] = useState("");
+   490→  const [comboOpen, setComboOpen] = useState(false);
+   491→  const [clientId, setClientId] = useState("");
+   492→  const [newName, setNewName] = useState("");
+   493→  const [newPhone, setNewPhone] = useState("");
+   494→  const [serviceId, setServiceId] = useState("");
+   495→  const [resourceId, setResourceId] = useState("");
+   496→  const [date, setDate] = useState(defaultDate);
+   497→  const [time, setTime] = useState("10:00");
+   498→  const [notes, setNotes] = useState("");
+   499→  const [busy, setBusy] = useState(false);
+   500→
+   501→  const client = clients.find((c) => c.id === clientId);
+   502→  const service = services.find((s) => s.id === serviceId);
+   503→  const filteredClients = clients.filter(
+   504→    (c) => c.name.toLowerCase().includes(clientQuery.toLowerCase()) || c.phone.replace(/\s/g, "").includes(clientQuery.replace(/\s/g, ""))
+   505→  );
+   506→
+   507→  async function submit() {
+   508→    if (!serviceId || !resourceId || !date || !time) {
+   509→      toast.error("Complétez service, praticienne, date et heure");
+   510→      return;
+   511→    }
+   512→    if (mode === "existing" && !clientId) {
+   513→      toast.error("Sélectionnez une cliente");
+   514→      return;
+   515→    }
+   516→    if (mode === "new" && (!newName.trim() || !newPhone.trim())) {
+   517→      toast.error("Nom et téléphone de la nouvelle cliente requis");
+   518→      return;
+   519→    }
+   520→    setBusy(true);
+   521→    try {
+   522→      await apiPost("/api/pro/appointments", {
+   523→        tenantId,
+   524→        clientName: mode === "existing" ? client?.name : newName.trim(),
+   525→        clientPhone: mode === "existing" ? client?.phone : newPhone.trim(),
+   526→        clientProfileId: mode === "existing" ? clientId : undefined,
+   527→        serviceId,
+   528→        resourceId,
+   529→        startAt: new Date(`${date}T${time}:00`).toISOString(),
+   530→        notes: notes.trim() || undefined,
+   531→      });
+   532→      setClientId("");
+   533→      setNewName("");
+   534→      setNewPhone("");
+   535→      setServiceId("");
+   536→      setNotes("");
+   537→      await onCreated();
+   538→    } catch (e) {
+   539→      toast.error(e instanceof Error ? e.message : "Création impossible");
+   540→    } finally {
+   541→      setBusy(false);
+   542→    }
+   543→  }
+   544→
+   545→  return (
+   546→    <Dialog open={open} onOpenChange={onOpenChange}>
+   547→      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto pretty-scroll">
+   548→        <DialogHeader>
+   549→          <DialogTitle className="font-heading">Nouveau rendez-vous</DialogTitle>
+   550→          <DialogDescription>Planifiez un soin pour une cliente existante ou nouvelle.</DialogDescription>
+   551→        </DialogHeader>
+   552→
+   553→        <div className="space-y-4">
+   554→          <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
+   555→            {(["existing", "new"] as const).map((m) => (
+   556→              <button
+   557→                key={m}
+   558→                onClick={() => setMode(m)}
+   559→                className={cn("rounded-md px-3 py-1.5 text-xs font-medium transition-colors", mode === m ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}
+   560→              >
+   561→                {m === "existing" ? "Cliente existante" : "Nouvelle cliente"}
+   562→              </button>
+   563→            ))}
+   564→          </div>
+   565→
+   566→          {mode === "existing" ? (
+   567→            <div className="space-y-1">
+   568→              <Label className="text-xs">Cliente</Label>
+   569→              <Popover open={comboOpen} onOpenChange={setComboOpen}>
+   570→                <PopoverTrigger asChild>
+   571→                  <Button variant="outline" role="combobox" aria-expanded={comboOpen} className="w-full justify-between font-normal">
+   572→                    {client ? `${client.name} — ${client.phone}` : "Rechercher une cliente…"}
+   573→                    <ChevronRight className="size-3.5 rotate-90 opacity-50" aria-hidden="true" />
+   574→                  </Button>
+   575→                </PopoverTrigger>
+   576→                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+   577→                  <Command shouldFilter={false}>
+   578→                    <CommandInput placeholder="Nom ou téléphone…" value={clientQuery} onValueChange={setClientQuery} />
+   579→                    <CommandList>
+   580→                      {clientsLoading ? (
+   581→                        <div className="p-3 space-y-2">
+   582→                          <Skeleton className="h-8" />
+   583→                          <Skeleton className="h-8" />
+   584→                        </div>
+   585→                      ) : (
+   586→                        <>
+   587→                          <CommandEmpty>Aucune cliente trouvée</CommandEmpty>
+   588→                          <CommandGroup>
+   589→                            {filteredClients.slice(0, 30).map((c) => (
+   590→                              <CommandItem
+   591→                                key={c.id}
+   592→                                value={c.id}
+   593→                                onSelect={() => {
+   594→                                  setClientId(c.id);
+   595→                                  setComboOpen(false);
+   596→                                }}
+   597→                              >
+   598→                                <span className="flex-1">{c.name}</span>
+   599→                                <span className="font-mono text-[11px] text-muted-foreground">{c.phone}</span>
+   600→                              </CommandItem>
+   601→                            ))}
+   602→                          </CommandGroup>
+   603→                        </>
+   604→                      )}
+   605→                    </CommandList>
+   606→                  </Command>
+   607→                </PopoverContent>
+   608→              </Popover>
+   609→            </div>
+   610→          ) : (
+   611→            <div className="grid grid-cols-2 gap-3">
+   612→              <div className="space-y-1">
+   613→                <Label htmlFor="na-name" className="text-xs">Nom complet</Label>
+   614→                <Input id="na-name" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Aminata Traoré" />
+   615→              </div>
+   616→              <div className="space-y-1">
+   617→                <Label htmlFor="na-phone" className="text-xs">Téléphone</Label>
+   618→                <Input id="na-phone" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+225 07…" className="font-mono" />
+   619→              </div>
+   620→            </div>
+   621→          )}
+   622→
+   623→          <div className="grid grid-cols-2 gap-3">
+   624→            <div className="space-y-1">
+   625→              <Label className="text-xs">Soin</Label>
+   626→              <Select value={serviceId} onValueChange={setServiceId}>
+   627→                <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
+   628→                <SelectContent className="max-h-64">
+   629→                  {services.map((s) => (
+   630→                    <SelectItem key={s.id} value={s.id}>
+   631→                      {s.name} — {xof(s.price)}
+   632→                    </SelectItem>
+   633→                  ))}
+   634→                </SelectContent>
+   635→              </Select>
+   636→            </div>
+   637→            <div className="space-y-1">
+   638→              <Label className="text-xs">Praticienne</Label>
+   639→              <Select value={resourceId} onValueChange={setResourceId}>
+   640→                <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
+   641→                <SelectContent>
+   642→                  {resources.map((r) => (
+   643→                    <SelectItem key={r.value} value={r.value}>
+   644→                      <span className="inline-flex items-center gap-2">
+   645→                        <span className="size-2.5 rounded-full" style={{ background: r.color }} aria-hidden="true" /> {r.name}
+   646→                      </span>
+   647→                    </SelectItem>
+   648→                  ))}
+   649→                </SelectContent>
+   650→              </Select>
+   651→            </div>
+   652→          </div>
+   653→
+   654→          <div className="grid grid-cols-2 gap-3">
+   655→            <div className="space-y-1">
+   656→              <Label htmlFor="na-date" className="text-xs">Date</Label>
+   657→              <Input id="na-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+   658→            </div>
+   659→            <div className="space-y-1">
+   660→              <Label className="text-xs">Heure</Label>
+   661→              <Select value={time} onValueChange={setTime}>
+   662→                <SelectTrigger><SelectValue /></SelectTrigger>
+   663→                <SelectContent className="max-h-64">
+   664→                  {timeOptions().map((t) => (
+   665→                    <SelectItem key={t} value={t} className="font-mono">{t}</SelectItem>
+   666→                  ))}
+   667→                </SelectContent>
+   668→              </Select>
+   669→            </div>
+   670→          </div>
+   671→
+   672→          {service && (
+   673→            <p className="rounded-lg bg-gold/10 px-3 py-2 text-xs text-gold">
+   674→              {service.name} · {service.durationMin} min · <span className="font-mono">{xof(service.price)}</span>
+   675→            </p>
+   676→          )}
+   677→
+   678→          <div className="space-y-1">
+   679→            <Label htmlFor="na-notes" className="text-xs">Notes (optionnel)</Label>
+   680→            <Textarea id="na-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Peaux sensibles, arrive 10 min avant…" />
+   681→          </div>
+   682→
+   683→          <Button disabled={busy} onClick={submit} className="w-full gap-1.5 font-semibold">
+   684→            <Plus className="size-4" aria-hidden="true" /> {busy ? "Création…" : "Créer le rendez-vous"}
+   685→          </Button>
+   686→        </div>
+   687→      </DialogContent>
+   688→    </Dialog>
+   689→  );
+   690→}
+   691→
+   692→
+   693→

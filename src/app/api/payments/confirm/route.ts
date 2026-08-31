@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, ensureWallet, creditWallet, notify } from "@/lib/kene/server";
+import { xof } from "@/lib/kene/format";
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
             userId: user.id,
             channel: "sms",
             toPhone: user.phone,
-            message: `Kènè : commande confirmée ✅ ${order.total} FCFA payés${order.cashback ? ` — ${order.cashback} FCFA de cashback crédités` : ""}. Livraison en cours de préparation.`,
+            message: `Kènè : commande confirmée ✅ ${xof(order.total)} payés${order.cashback ? ` — ${xof(order.cashback)} de cashback crédités` : ""}. Livraison en cours de préparation.`,
           });
         }
       }
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
           tenantId: updated.tenantId,
           channel: "sms",
           toPhone: updated.clientPhone,
-          message: `Kènè : acompte de ${payment.amount} FCFA reçu — votre RDV est confirmé ✅`,
+          message: `Kènè : acompte de ${xof(payment.amount)} reçu — votre RDV est confirmé ✅`,
         });
         await notify({
           userId: updated.userId,

@@ -49,6 +49,9 @@
   --color-bissap: var(--bissap);
   --color-sunset: var(--sunset);
   --color-karite: var(--karite);
+  /* Variantes « texte » — assombries en light / éclaircies en dark pour un contraste AA */
+  --color-gold-text: var(--gold-text);
+  --color-sunset-text: var(--sunset-text);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -66,6 +69,8 @@
   --bissap: #8B1A3B;        /* Bordeaux Bissap */
   --sunset: #E07A2B;        /* Orange Sunset */
   --karite: #F8F1E4;        /* Crème Karité */
+  --gold-text: #8F660D;     /* Or lisible en texte (light) */
+  --sunset-text: #A84F0E;   /* Sunset lisible en texte (light) */
 
   --background: #F8F1E4;
   --foreground: #241B12;
@@ -110,6 +115,8 @@
   --bissap: #D0567B;
   --sunset: #F09A52;
   --karite: #241D14;
+  --gold-text: #E3B454;
+  --sunset-text: #F0A66B;
 
   --background: #14100B;
   --foreground: #F3EAD9;
@@ -191,10 +198,6 @@
     background-image: radial-gradient(color-mix(in srgb, var(--terre) 22%, transparent) 1.1px, transparent 1.1px);
     background-size: 18px 18px;
   }
-  .bogolan-dots-dark {
-    background-image: radial-gradient(color-mix(in srgb, var(--gold) 14%, transparent) 1px, transparent 1px);
-    background-size: 16px 16px;
-  }
   .glass-kene {
     background: color-mix(in srgb, var(--card) 78%, transparent);
     backdrop-filter: blur(10px);
@@ -223,6 +226,10 @@
   .pretty-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
   .pretty-scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--gold) 45%, transparent); border-radius: 99px; }
   .pretty-scroll::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--gold) 40%, transparent) transparent; }
+  .scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--gold) 40%, transparent); border-radius: 99px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
 }
 
 @media print {

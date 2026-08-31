@@ -101,19 +101,3 @@ export interface CartLine {
   image: string;
 }
 
-export interface PosLine {
-  kind: "service" | "product";
-  id: string;
-  label: string;
-  unitPrice: number;
-  qty: number;
-}
-
-export interface PayslipDetail {
-  libelle: string;
-  base?: number;
-  taux?: string;
-  gain?: number;
-  retenue?: number;
-  employeur?: number; // part patronale
-}

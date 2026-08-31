@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, genRef, debitWallet, creditWallet, notify } from "@/lib/kene/server";
+import { CASHBACK_RATE, xof } from "@/lib/kene/format";
 
 const Body = z.object({
   userId: z.string().min(1),
@@ -33,7 +34,9 @@ export async function POST(req: NextRequest) {
       return { product: p, qty: i.qty, total: p.price * i.qty };
     });
     const subtotal = lines.reduce((s, l) => s + l.total, 0);
-    const cashback = Math.round(subtotal * 0.05);
+    // Taux de cashback : celui de la wallet de la cliente, sinon le taux par défaut
+    const wallet = await db.wallet.findUnique({ where: { userId } });
+    const cashback = Math.round(subtotal * (wallet?.cashbackRate ?? CASHBACK_RATE));
 
     const orderItemsData = lines.map((l) => ({
       productId: l.product.id,
@@ -48,8 +51,7 @@ export async function POST(req: NextRequest) {
     let paid = false;
 
     if (paymentMethod === "wallet") {
-      // Paiement wallet : solde vérifié puis débit immédiat
-      const wallet = await db.wallet.findUnique({ where: { userId } });
+      // Paiement wallet : solde vérifié puis débit immédiat (wallet déjà chargée ci-dessus)
       if (!wallet || wallet.balance < subtotal) {
         return jsonError("Solde wallet insuffisant — rechargez votre wallet Kènè", 400);
       }
@@ -106,7 +108,7 @@ export async function POST(req: NextRequest) {
       userId,
       channel: "sms",
       toPhone: user.phone,
-      message: `Kènè : commande ${order.id.slice(-6).toUpperCase()} enregistrée (${subtotal} FCFA${cashback ? `, ${cashback} FCFA de cashback` : ""}). Réf paiement ${payment.ref}.`,
+      message: `Kènè : commande ${order.id.slice(-6).toUpperCase()} enregistrée (${xof(subtotal)}${cashback ? `, ${xof(cashback)} de cashback` : ""}). Réf paiement ${payment.ref}.`,
     });
 
     const fullOrder = await db.order.findUnique({ where: { id: order.id }, include: { items: true } });

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useKene } from "@/store/kene";
 import { ClientApp } from "@/components/kene/client/ClientApp";
 import { ProApp } from "@/components/kene/pro/ProApp";
@@ -13,10 +12,6 @@ import { Toaster } from "@/components/ui/sonner";
 export default function Page() {
   const space = useKene((s) => s.space);
   const introActive = useKene((s) => s.introActive);
-
-  useEffect(() => {
-    document.documentElement.style.scrollBehavior = "smooth";
-  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

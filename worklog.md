@@ -300,3 +300,43 @@ Stage Summary:
 - Réutilisable : KenteWeaveCard (props highlightIndex/caption/weaveKey) — n'importe quelle section peut arborer une bande tissée ; threads.ts pur réutilisable côté serveur
 - Leçons : (1) règles ESLint react-hooks/refs + immutability nouvelles génération — les scènes ne doivent rien muter qui dérive de props, posséder leur état interne et comparer des props lecture-seule ; (2) les couleurs d'instances n'ont besoin d'être re-uploadées que pendant les transitions ; (3) tester un hash QA exige un reload vrai (navigation hash ≠ rechargement)
 - Prochaine étape proposée : consolidation finale (polish global, revue a11y transversale, README produit) — ou laisser le produit en l'état, toutes les phases du récit étant tissées
+
+---
+Task ID: 17 (Consolidation finale — "consolidation totale")
+Agent: main (Z.ai Code)
+Task: CONSOLIDATION TOTALE — audit transversal complet + correction des 7 problèmes majeurs + code mort + revue a11y + README produit + vérification E2E navigateur de l'ensemble
+
+Work Log:
+- Audit transversal (agent Explore, very thorough, 28 fichiers lus) : 7 majeurs (M1 cashback 0.05 hardcodé ×7, M2 double toaster mort, M3 acompte client-only, M4 contraste badges, M5 hex durs non dark, M6 ligne CRM non focusable, M7 formats monétaires) + ~15 éléments de code mort vérifiés
+- M1 : CASHBACK_RATE et DEPOSIT_RATE exportés de lib/kene/format.ts (source unique) ; API orders lit wallet.cashbackRate ?? CASHBACK_RATE (wallet chargée une seule fois) ; ShopScreen badge/estimations dynamiques (cashbackRate = wallet?.cashbackRate ?? CASHBACK_RATE) ; RitualJourney/HomeScreen/ProfileScreen/BookingScreen imports
+- M3 : clamp serveur dans api/appointments — depositAmount plafonné à Math.round(service.price × DEPOSIT_RATE) ; BookingScreen importe DEPOSIT_RATE
+- M2 : Toaster radix retiré de layout.tsx (sonner = toaster réel) ; fichiers supprimés : ui/toast.tsx, ui/toaster.tsx, hooks/use-toast.ts (~300 LOC mortes)
+- Code mort : weekKey, BogolanWatermark, SpinnerButton/KenteTop (version client), PosLine, PayslipDetail, lastDiagnosisId (store + setter + écriture DiagnosticScreen), ChatMsg.triageMessage, double scroll-behavior JS, .bogolan-dots-dark CSS, 4× JSX { } vides, ternaire sans effet ui-bits, import useEffect page.tsx
+- CSS : .scrollbar-thin DÉFINIE (était utilisée 8× sans exister) — thin 4px + Firefox scrollbar-width
+- M4 : readableTextColor(bgHex) ajouté à format.ts (luminance relative WCAG, seuil 0.22) ; ScoreChip + badge score DiagnosticScreen : texte mélanine #1A1410 sur or/sunset (6.4–6.7:1 au lieu de 2.7–3.0:1)
+- M5 : tokens --gold-text (#8F660D light / #E3B454 dark) et --sunset-text (#A84F0E / #F0A66B) créés + enregistrés @theme inline → classes text-gold-text/text-sunset-text ; migrés : SEVERITY_STYLES, APPT_STATUS_STYLES, RFM_SEGMENT_STYLES, TRIAGE ChatScreen, badge indicateur DiagnosticScreen (via SEVERITY_STYLES.text), no_show pro (text-bissap→text-destructive)
+- M6 : TableRow CRM focusable — tabIndex=0, role=button, aria-label "Ouvrir la fiche de {name}", onKeyDown Enter/Space, focus-visible
+- M7 : PayrollSection cumuls + DiagnosticScreen recommandations + SMS orders/confirm en xof() ; coquille "Kènè POS — Kènè" → "Kènè — Ticket de caisse" ; diagImgSrc dédupliquée (CrmSection importe la fonction, plus de replace inline)
+- A11y : 14 SelectTrigger dotés d'aria-label (12 automatiques via script Python + Compte ligne N / Institut actif manuels) ; aria-label EvolutionCard condensé (de la liste brute → bornes + renvoi au tableau) ; "Cinq chapitres" → "Six chapitres" (chapters.ts + aria KenteIntro) ; no_show unifié "Absente"
+- db.ts : log: ['query'] seulement hors production
+- README.md produit créé : récit des 5 phases A→E, 3 espaces, stack, palette/tokens, arborescence, 5 règles maison (xof partout, cashback wallet + acompte serveur, scènes immutables props, fallbacks WebGL, budget perf), comptes démo, scripts
+
+Tests (agent-browser + VLM, viewport 390×844, light + dark) :
+- Incident Turbopack résolu : chunk CSS partiellement périmé (utilities fraîches, :root/.dark obsolètes — --gold-text introuvable) → purge .next/cache + redémarrage serveur détaché (setsid node node_modules/.bin/next) → tokens résolus #e3b454/#f0a66b en dark
+- Intro : aria "six chapitres" ✓ ; skip → accueil Mariam complet (multi-zones 63, wallet, recommandations) ; console 100 % vierge
+- Dark VLM 7/10 : score 63 lisible, badges visibles, hiérarchie claire (troncature "+ N…" = rail scrollable attendu)
+- Boutique : 1 canvas WebGL, figcaption "Fil bissap·1 soin · sérums" au filtre Sérums, badge "Cashback 5 %" (taux wallet)
+- Historique : ScoreChip 58→texte #1A1410 sur sunset, 62/78/66→#1A1410 sur or (contraste corrigé, vérifié getComputedStyle)
+- CRM : 8 lignes focusables, focus+Enter ouvre la fiche Aïcha ✓ ; fiche Mariam : jumeau agrégé VLM (~15-20 pastilles) + RFM ✓ ; Escape ferme
+- Fallback #weave-static (reload vrai) : 0 canvas + .kente-band-soft présent ✓
+- Footer/nav : navBottom=844=innerHeight ancré mobile ; VLM light mobile "production-ready" (nav ancrée, aucun défaut bloquant)
+- M1 E2E : panier 8 500 → estimation "Cashback estimé (5 %) +425 FCFA" → paiement wallet → toast 425 → solde DB exact 2 500 (10575−8500+425) — état démo ensuite restauré (wallet 10575, stock +1, commande/paiement/transactions supprimés)
+- M3 E2E : POST acompte 999999 sur service 25 000 → Payment 7 500 (clamp 30 %) en DB ✓ — RDV de test supprimé
+- Qualité finale : eslint 0/0, tsc --noEmit 0 erreur src/, HTTP 200, dev.log sans ⨯, console navigateur vierge
+
+Stage Summary:
+- Consolidation totale livrée : les 7 majeurs corrigés et TESTÉS en navigateur (pas seulement compilés), ~450 LOC mortes supprimées, tokens dark-mode complets (gold-text/sunset-text AA dans les 2 thèmes), 14 labels de Select, CRM accessible clavier, README produit
+- Cohérence métier sécurisée : le taux de cashback et l'acompte 30 % ont désormais UNE source de vérité chacun, appliquée côté serveur (clamp) et côté affichage (estimations dynamiques)
+- Le récit du fil (Phases A→E) est intact après consolidation : intro, jumeau, route, temps, boutique — tous re-vérifiés visuellement et par DOM
+- Leçons : (1) Turbopack peut servir un CSS partiellement périmé (utilities fraîches + blocs :root obsolètes) — diagnostiquer via getComputedStyle par variable, guérir par purge du cache + redémarrage ; (2) un VLM peut fausser le mode (capture prise en light après un clic mal ciblé) — toujours vérifier documentElement.classList avant d'interpréter ; (3) les corrections d'accessibilité se vérifient au DOM (getComputedStyle color/backgroundColor) bien plus précisément qu'à l'œil
+- Produit considéré comme CONSOLIDÉ : toutes les phases du récit tissées, audité, corrigé, documenté

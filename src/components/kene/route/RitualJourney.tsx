@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, CalendarPlus, Check, Moon, ShoppingBag, Sparkles, Sunrise, X } from "lucide-react";
 import { toast } from "sonner";
-import { xof } from "@/lib/kene/format";
+import { xof, CASHBACK_RATE } from "@/lib/kene/format";
 import { BODY_ZONES, type DiagnosisResult } from "@/lib/kene/types";
 import { NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
 import { useKene } from "@/store/kene";
@@ -229,7 +229,7 @@ export function RitualJourney({
       addToCart({ productId: p.product.id, name: p.product.name, price: p.product.price, qty: 1, image: p.product.image });
     }
     toast.success(`${keptPicks.length} produits tissés dans ton panier`, {
-      description: `Cashback estimé ${xof(Math.round(total * 0.05))} sur ${xof(total)}`,
+      description: `Cashback estimé ${xof(Math.round(total * CASHBACK_RATE))} sur ${xof(total)}`,
     });
     onClose();
     setClientTab("boutique");
@@ -395,7 +395,7 @@ export function RitualJourney({
                       <span className="font-mono text-base font-black text-primary">{xof(total)}</span>
                     </div>
                     <p className="mt-1.5 text-[10.5px] text-muted-foreground">
-                      Cashback wallet estimé : <span className="font-mono font-bold text-primary">{xof(Math.round(total * 0.05))}</span> (5 %)
+                      Cashback wallet estimé : <span className="font-mono font-bold text-primary">{xof(Math.round(total * CASHBACK_RATE))}</span> ({Math.round(CASHBACK_RATE * 100)} %)
                     </p>
                   </div>
                 )}

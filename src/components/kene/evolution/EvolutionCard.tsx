@@ -168,8 +168,8 @@ export function EvolutionCard({ userId, className }: { userId: string; className
               role="img"
               aria-label={
                 chip.points.length > 1
-                  ? `Évolution de ${chip.isScore ? "score global" : chip.label} : ${chip.points.map((p) => `${p.value} %`).join(", ")}`
-                  : `Première mesure de ${chip.isScore ? "score global" : chip.label} : ${chip.points[0]?.value ?? 0} %, trajectoire projetée jusqu'à S+12`
+                  ? `Évolution de ${chip.isScore ? "score global" : chip.label} sur ${chip.points.length} mesures — de ${chip.points[0]?.value ?? 0} % à ${chip.points[chip.points.length - 1]?.value ?? 0} %. Le tableau ci-dessous détaille chaque point.`
+                  : `Première mesure de ${chip.isScore ? "score global" : chip.label} : ${chip.points[0]?.value ?? 0} %, trajectoire projetée jusqu'à S+12. Le tableau ci-dessous détaille chaque point.`
               }
             >
               {/* grille horizontale */}

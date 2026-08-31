@@ -46,7 +46,7 @@ export function KpiCard({
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
           <span className="text-primary shrink-0">{icon}</span>
         </div>
-        <p className={cn("mt-2 text-xl font-semibold tracking-tight", monetary ? "font-mono tabular-nums" : "font-mono tabular-nums")}>{value}</p>
+        <p className="mt-2 text-xl font-semibold tracking-tight font-mono tabular-nums">{value}</p>
         {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
       </CardContent>
     </Card>
@@ -59,7 +59,7 @@ export const APPT_STATUS: Record<string, { label: string; cls: string }> = {
   confirmed: { label: "Confirmé", cls: "bg-success/15 text-success border-success/30" },
   completed: { label: "Terminé", cls: "bg-gold/15 text-gold border-gold/30" },
   cancelled: { label: "Annulé", cls: "bg-muted text-muted-foreground border-border" },
-  no_show: { label: "No-show", cls: "bg-bissap/15 text-bissap border-bissap/30" },
+  no_show: { label: "Absente", cls: "bg-bissap/15 text-destructive border-bissap/30" },
 };
 
 export function ApptStatusBadge({ status }: { status: string }) {

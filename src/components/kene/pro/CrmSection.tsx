@@ -16,7 +16,7 @@ import { xof, formatDate, formatTime, scoreColor } from "@/lib/kene/format";
 import { rfmScore, RFM_SEGMENT_STYLES } from "@/lib/kene/rfm";
 import { RFM_SEGMENTS } from "@/lib/kene/types";
 import type { BodyZone } from "@/lib/kene/types";
-import { parseDiagnosis } from "@/components/kene/client/types";
+import { parseDiagnosis, diagImgSrc } from "@/components/kene/client/types";
 import { SkinTwinCard, type TwinEntry } from "@/components/kene/skintwin/SkinTwinCard";
 import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, InitialAvatar, Money, SectionHeader, KenteTop } from "./ui-bits";
@@ -171,7 +171,20 @@ export function CrmSection({ tenantId }: { tenantId: string }) {
               </TableHeader>
               <TableBody>
                 {filtered.map((c) => (
-                  <TableRow key={c.id} onClick={() => setOpenId(c.id)} className="cursor-pointer hover:bg-accent/50">
+                  <TableRow
+                    key={c.id}
+                    onClick={() => setOpenId(c.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setOpenId(c.id);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Ouvrir la fiche de ${c.name}`}
+                    className="cursor-pointer hover:bg-accent/50 focus-visible:bg-accent/50 outline-none"
+                  >
                     <TableCell>
                       <div className="flex items-center gap-2.5">
                         <InitialAvatar name={c.name} />
@@ -291,11 +304,10 @@ function ClientSheet({ clientId, tenantId, onClose }: { clientId: string; tenant
                   ) : (
                     <div className="grid grid-cols-3 gap-2">
                       {d.diagnoses.map((dg) => {
-                        const img = dg.imageData.replace(/^file:/, "");
+                        const img = diagImgSrc(dg.imageData);
                         return (
                           <div key={dg.id} className="overflow-hidden rounded-xl border border-border bg-card">
                             <div className="aspect-square bg-muted">
-                              { }
                               <img src={img} alt={`Diagnostic ${dg.zone}`} className="size-full object-cover" />
                             </div>
                             <div className="p-1.5 text-center">

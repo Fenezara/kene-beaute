@@ -235,7 +235,6 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
                   <Card key={p.id} className={cn("gap-2", !p.active && "opacity-55")}>
                     <CardContent className="p-4 flex gap-3">
                       <div className="size-16 shrink-0 rounded-xl overflow-hidden bg-muted border border-border">
-                        { }
                         <img src={p.image} alt={p.name} className="size-full object-cover" />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -303,7 +302,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
               <div className="space-y-1">
                 <Label className="text-xs">Catégorie</Label>
                 <Select value={form.category} onValueChange={(v) => f("category", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Catégorie"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {(editType === "service" ? SERVICE_CATS : PRODUCT_CATS).map((c) => (
                       <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
@@ -345,7 +344,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
               <div className="space-y-1">
                 <Label className="text-xs">Visuel produit</Label>
                 <Select value={form.image} onValueChange={(v) => f("image", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Visuel produit"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {PRODUCT_IMAGES.map((img) => (
                       <SelectItem key={img} value={img}>{img.replace("-", " ")}</SelectItem>
@@ -354,7 +353,6 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
                 </Select>
                 <div className="mt-1.5 flex items-center gap-2">
                   <div className="size-12 rounded-lg overflow-hidden border border-border bg-muted">
-                    { }
                     <img src={`/products/${form.image}.webp`} alt="Aperçu visuel produit" className="size-full object-cover" />
                   </div>
                   <span className="text-[10px] text-muted-foreground font-mono">/products/{form.image}.webp</span>

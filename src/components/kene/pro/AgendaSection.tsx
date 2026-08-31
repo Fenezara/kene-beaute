@@ -419,7 +419,7 @@ function ApptDetailDialog({
               <div className="space-y-1">
                 <Label className="text-xs">Heure</Label>
                 <Select value={time} onValueChange={setTime}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Heure"><SelectValue /></SelectTrigger>
                   <SelectContent className="max-h-64">
                     {timeOptions().map((t) => (
                       <SelectItem key={t} value={t} className="font-mono">{t}</SelectItem>
@@ -431,7 +431,7 @@ function ApptDetailDialog({
             <div className="space-y-1">
               <Label className="text-xs">Praticienne</Label>
               <Select value={resourceId} onValueChange={setResourceId}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Praticienne"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {resources.map((r) => (
                     <SelectItem key={r.value} value={r.value}>
@@ -624,7 +624,7 @@ function CreateApptDialog({
             <div className="space-y-1">
               <Label className="text-xs">Soin</Label>
               <Select value={serviceId} onValueChange={setServiceId}>
-                <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
+                <SelectTrigger aria-label="Soin"><SelectValue placeholder="Choisir…" /></SelectTrigger>
                 <SelectContent className="max-h-64">
                   {services.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
@@ -637,7 +637,7 @@ function CreateApptDialog({
             <div className="space-y-1">
               <Label className="text-xs">Praticienne</Label>
               <Select value={resourceId} onValueChange={setResourceId}>
-                <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
+                <SelectTrigger aria-label="Praticienne"><SelectValue placeholder="Choisir…" /></SelectTrigger>
                 <SelectContent>
                   {resources.map((r) => (
                     <SelectItem key={r.value} value={r.value}>
@@ -659,7 +659,7 @@ function CreateApptDialog({
             <div className="space-y-1">
               <Label className="text-xs">Heure</Label>
               <Select value={time} onValueChange={setTime}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-label="Heure"><SelectValue /></SelectTrigger>
                 <SelectContent className="max-h-64">
                   {timeOptions().map((t) => (
                     <SelectItem key={t} value={t} className="font-mono">{t}</SelectItem>
