@@ -6,6 +6,8 @@ import { Home, MessageCircle, ShoppingBag } from "lucide-react";
 import type { BodyZone } from "@/lib/kene/types";
 import { NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
 import { useKene, type ClientTab } from "@/store/kene";
+import { KenteIntro } from "@/components/kene/intro/KenteIntro";
+import { useIntroDone } from "@/components/kene/intro/introState";
 import { Onboarding } from "./Onboarding";
 import { HomeScreen } from "./HomeScreen";
 import { DiagnosticScreen } from "./DiagnosticScreen";
@@ -29,6 +31,9 @@ export function ClientApp() {
   const cartCount = useKene((s) => s.cart.reduce((n, l) => n + l.qty, 0));
   const [chatUnread, setChatUnread] = useState(true);
   const [pendingZone, setPendingZone] = useState<BodyZone | null>(null);
+  // Fil de Kente : l'introduction immersive ne se montre qu'une fois
+  // (useSyncExternalStore sur localStorage — sans mismatch d'hydratation)
+  const introDone = useIntroDone();
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -46,7 +51,10 @@ export function ClientApp() {
 
   const onZoneConsumed = useCallback(() => setPendingZone(null), []);
 
-  if (!user) return <Onboarding />;
+  if (!user) {
+    if (!introDone) return <KenteIntro />;
+    return <Onboarding />;
+  }
 
   return (
     <div className="relative mx-auto w-full max-w-[430px] min-h-[70vh] flex flex-col bg-background">

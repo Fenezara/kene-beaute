@@ -153,3 +153,32 @@ Work Log:
 Stage Summary:
 - Bug hydration résolu à nouveau + racine documentée (rollback snapshot) — si le bug re réapparaît, VÉRIFIER D'ABORD que le fichier n'a pas été re-réverté (cf. timestamps + grep resolvedTheme dans ThemeToggle.tsx)
 - Console navigateur vierge sur / en light ET dark, premier chargement inclus
+
+---
+Task ID: 13 (Phase A — Innovation immersive)
+Agent: main (Z.ai Code)
+Task: LE FIL DE KENTE — introduction narrative immersive 3D au défilement (récit d'onboarding en 6 chapitres)
+
+Work Log:
+- Dépendances : three@0.185.1 + @react-three/fiber@9.7.0 + lenis@1.3.26 + @types/three (pas de drei/gsap : tout procédural, progression pilotée en rAF maison)
+- src/components/kene/intro/chapters.ts : partition du récit — 6 chapitres [0→0.12 prologue, 0.12→0.34 fil, 0.34→0.56 jardin, 0.56→0.74 fitz, 0.74→0.90 scan, 0.90→1.00 kente], copie UX Writer FR intime, keyframes caméra CAM[7], utilitaires chapterT/easeInOut/easeOut (convention fadeIn/fadeOut=0 → pas de fondu)
+- src/components/kene/intro/Intro3D.tsx (dynamic ssr:false) : Canvas unique fond mélanine #1A1410 + fog + 3 lumières chaudes — (0) MelaninDust 1100 points additifs palette or/karité/sunset/bissap qui se condensent en galaxie spirale au scroll ; (1) GoldenThread TubeGeometry(catmullrom 240 seg) révélé par setDrawRange + navette lumineuse (sphère émissive + pointLight #E07A2B) au point curve.getPointAt ; (2) Botanical 3 arbres low-poly flatShading (baobab tronc+3 dodecaèdres verts, moringa tige+5 icosahedrons+fleurs or, karité branch+fruits bissap/karité) flottement sin + panoramique ; (3) FitzWall 3 panneaux ShaderMaterial dégradés carnations IV/V/VI + cadre or, montée + resserrement au scroll ; (4) ScanEcho tête abstraite Icosahedron(1.05,6) déplacée par bruit sinusoïdal + wireframe crème + faisceau biseau #E07A2B qui balaie une fois + 7 zones émissives qui s'allument au passage (teaser VISIA) ; (5) KenteBand PlaneGeometry 6.6×2.7 shader procédural 9 rangées × 14 colonnes palette kente + liserés or + armure sinusoïdale + ondulation vertex + 170 étincelles or
+- src/components/kene/intro/KenteIntro.tsx : orchestrateur — conteneur 640vh + sticky h-svh, Lenis 1.25s + boucle rAF unique qui écrit la progression dans ref mutable (zéro re-render) et pilote overlays HTML (opacity/translate/visibility par data-from/to/fadein/fadeout) + rail 6 points ; bouton « Passer » permanent ; CTA final or ; StaticIntro fallback (6 sections empilées, zéro animation)
+- src/components/kene/intro/introState.ts : pattern useSyncExternalStore — INTRO_KEY localStorage + événement custom same-tab + listener storage cross-tab, markIntroDone(), useIntroDone() (snapshot serveur false → aucune mismatch d'hydratation) ; mode 3d/static aussi via uES avec cache module (reduced-motion || pas de WebGL || #intro-static QA)
+- Intégration : store kene.ts +introActive (non persisté) ; page.tsx header/footer masqués pendant l'intro ; ClientApp gate `if (!user) return introDone ? <Onboarding/> : <KenteIntro/>` (re-check au logout via uES)
+- 2 bugs détectés par la vérif navigateur et corrigés : (1) chapterT fadeIn>0 rendait prologue invisible à p=0 → convention fadeIn=0 = visible immédiatement ; (2) outT=(1-local)/fadeOut = 0 à local=1 → CTA disparaissait exactement en bas de page → convention fadeOut=0 = jamais de fondu de sortie
+- 3 erreurs eslint corrigées en architecture : setState-in-effect remplacé par useSyncExternalStore (localStorage + mode), vecteurs CameraRig sortis de useMemo vers useRef (règle immutability)
+
+Tests (agent-browser + VLM, viewport 1280×800 et 390×844) :
+- Console navigateur 100 % vierge sur tout le parcours (seul warning interne THREE.Clock de R3F)
+- 6 chapitres vérifiés visuellement par VLM : particules ~150-200 dorées + titre + logo + hint / fil d'or 3D lisible / arbres low-poly + texte / 3 panneaux carnations + « IV·V·VI » / sphère wireframe + nœuds lumineux / bande kente tissée + CTA or — tous « readable, polished »
+- FPS mesuré au chapitre jardin (scène active) : 61 fps mobile 390px ✓ (budget 60)
+- Chemin doré complet : 1re visite → intro → scroll 640vh → CTA « Commencer mon histoire » → onboarding (clé posée, header restauré, scroll 0) → démo Mariam → accueil « Bonjour » ✓
+- Persistance : reload avec introDone=1 → onboarding direct, zéro canvas chargé ✓ ; skip « Passer » → onboarding + clé posée ✓
+- Fallback statique #intro-static : 6/6 chapitres HTML + CTA, zéro canvas ✓ (QA : true navigation testée — un simple changement de hash ne recharge pas la page)
+- Qualité : eslint 0 erreur, tsc --noEmit 0 erreur src/, dev.log compilations propres
+
+Stage Summary:
+- Phase A livrée : onboarding narratif immersif « Le Fil de Kente » — 6 chapitres 3D procéduraux pilotés au scroll (Lenis + rAF, aucun asset externe), fallback accessibilité, persistance localStorage, 61 fps mobile
+- Pattern réutilisable : introState.ts (uSES sans mismatch) + chapterT (conventions fadeIn/fadeOut=0) + flag store introActive
+- Prochaine étape proposée : Phase B — Skin Twin 3D (résultats diagnostic sur tête rotative + fiche CRM Pro)

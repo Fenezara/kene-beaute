@@ -26,7 +26,9 @@ interface KeneState {
   cart: CartLine[];
   proTenantId: string | null; // tenant courant de l'espace Pro (démo)
   lastDiagnosisId: string | null;
+  introActive: boolean; // introduction immersive en cours (non persisté)
   setSpace: (s: Space) => void;
+  setIntroActive: (b: boolean) => void;
   setClientTab: (t: ClientTab) => void;
   setUser: (u: SessionUser | null) => void;
   addToCart: (line: CartLine) => void;
@@ -45,7 +47,9 @@ export const useKene = create<KeneState>()(
       cart: [],
       proTenantId: null,
       lastDiagnosisId: null,
+      introActive: false,
       setSpace: (space) => set({ space }),
+      setIntroActive: (introActive) => set({ introActive }),
       setClientTab: (clientTab) => set({ clientTab }),
       setUser: (user) => set({ user }),
       addToCart: (line) =>
