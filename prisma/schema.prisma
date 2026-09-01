@@ -92,6 +92,23 @@ model Tenant {
   journals       JournalEntry[]
   reviews        Review[]
   notifications  Notification[]
+  followUpMarks  FollowUpMark[]
+}
+
+// ─────────────────────────── Relances « Le Fil du Retour » ───────────────────────────
+
+model FollowUpMark {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dedupKey  String   // "diag:<id>" | "appt:<id>" | "sale:<id>" | "client:<id>"
+  status    String   @default("done") // done | dismissed
+  via       String?  // whatsapp | call | visit | sms
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, dedupKey])
 }
 
 model Resource {

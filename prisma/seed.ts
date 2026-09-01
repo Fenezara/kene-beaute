@@ -35,6 +35,7 @@ async function main() {
     db.product.deleteMany(),
     db.appointment.deleteMany(),
     db.clientProfile.deleteMany(),
+    db.followUpMark.deleteMany(),
     db.service.deleteMany(),
     db.resource.deleteMany(),
     db.tenant.deleteMany(),
@@ -188,6 +189,7 @@ async function main() {
     { name: "Ines Yao", phone: "+2250704455667", segment: "À risque", visits: 5, spent: 112000, lastDaysAgo: 88 },
     { name: "Grace N'Guessan", phone: "+2250708899001", segment: "Perdus", visits: 2, spent: 36000, lastDaysAgo: 150 },
     { name: "Diane Kacou", phone: "+2250702233445", segment: "Nouveaux", visits: 1, spent: 18000, lastDaysAgo: 3 },
+    { name: "Nafissa Ouattara", phone: "+2250701122344", segment: "Potentiels", visits: 4, spent: 92000, lastDaysAgo: 26 },
   ];
   const clients = await Promise.all(
     clientSpecs.map((c) =>
@@ -249,12 +251,11 @@ async function main() {
   await mkAppt(0, 11, 0, 1, 1, 0, "confirmed");
   await mkAppt(0, 14, 30, 2, 0, 1, "confirmed");
   await mkAppt(0, 16, 30, 4, 3, 0, "confirmed");
-  await mkAppt(0, 18, 0, 5, 2, 2, "pending");
   await mkAppt(1, 10, 0, 3, 5, 1, "confirmed");
-  await mkAppt(1, 13, 30, 6, 0, 2, "confirmed");
   await mkAppt(2, 11, 0, 7, 1, 0, "confirmed");
   await mkAppt(2, 15, 0, 0, 3, 1, "confirmed");
   await mkAppt(3, 9, 30, 4, 2, 2, "confirmed");
+  await mkAppt(-26, 10, 30, 8, 1, 1, "completed"); // Nafissa — relance soin de suivi à S+28
   await mkAppt(-2, 10, 0, 6, 0, 0, "cancelled");
 
   // ── Plan comptable t1 + capitaux initiaux ──
@@ -544,6 +545,20 @@ async function main() {
   await pastDiag("visage", "/skin/demo-visage-1.webp", 42, 21);
   await pastDiag("mains", "/skin/demo-mains-1.webp", 17, 21);
   await pastDiag("visage", "/skin/demo-visage-2.webp", 91, 7);
+
+  // ── Diagnostic récent d'Awa (relance contrôle protocole à S+3) ──
+  const awaResult = fallbackResult("visage", 55);
+  await db.diagnosis.create({
+    data: {
+      userId: awa.id,
+      zone: "visage",
+      imageData: "file:/skin/demo-visage-1.webp",
+      resultJson: JSON.stringify(awaResult),
+      scoreGlobal: awaResult.score_global,
+      status: "done",
+      createdAt: new Date(Date.now() - 5 * 864e5),
+    },
+  });
 
   // ── Avis ──
   await db.review.createMany({

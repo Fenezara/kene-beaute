@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { CalendarClock, ChevronRight, MapPin, MessageCircle, Plus, Sparkles, Star } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
 import { formatDate, formatTime, xof, CASHBACK_RATE } from "@/lib/kene/format";
+import { nextClientStep } from "@/lib/kene/followups";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 import { NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
@@ -88,6 +89,12 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
 
   // Route de l'Or : dernier diagnostic parsable → rituel tissable depuis l'accueil
   const lastResult = useMemo(() => (multi.last ? parseDiagnosis(multi.last.resultJson) : null), [multi.last]);
+
+  // Le Fil du Retour : prochaine étape dérivée de l'activité (contrôle protocole / soin de suite)
+  const nextStep = useMemo(
+    () => (data ? nextClientStep(new Date(), data.diagnoses, data.appointments) : null),
+    [data]
+  );
 
   const first = user.name.split(" ")[0];
 
@@ -222,6 +229,41 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
             <ChevronRight size={18} className="text-primary shrink-0" />
           </div>
         </motion.button>
+      )}
+
+      {/* Le Fil du Retour — ta prochaine étape (contrôle protocole / soin de suite) */}
+      {nextStep && (
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          aria-labelledby="ns-t"
+          className="rounded-2xl border border-gold/40 bg-gradient-to-br from-gold/10 via-card to-card p-4 shadow-sm"
+        >
+          <div className="flex items-center gap-2">
+            <span className="grid place-items-center h-9 w-9 rounded-xl bg-gold/15 text-gold shrink-0">
+              <SankofaIcon size={19} />
+            </span>
+            <p id="ns-t" className="font-heading font-bold text-sm">Ta prochaine étape</p>
+            <span
+              className={
+                "ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums " +
+                (nextStep.overdue ? "bg-bissap/15 text-destructive" : "bg-gold/15 text-gold-text")
+              }
+            >
+              {nextStep.overdue ? `En retard de ${-nextStep.days} j` : nextStep.days === 0 ? "Aujourd'hui" : `Dans ${nextStep.days} j`}
+            </span>
+          </div>
+          <p className="text-sm font-semibold mt-2">{nextStep.title}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{nextStep.detail}</p>
+          <button
+            onClick={() => setClientTab(nextStep.ctaTab)}
+            className="mt-3 h-11 w-full rounded-xl bg-primary text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-1.5 shadow active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            {nextStep.ctaLabel}
+            <ChevronRight size={15} aria-hidden="true" />
+          </button>
+        </motion.section>
       )}
 
       {/* Prochain RDV */}

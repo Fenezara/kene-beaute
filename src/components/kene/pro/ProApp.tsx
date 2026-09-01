@@ -1,8 +1,8 @@
 "use client";
-// Kènè — APP PRO (desktop/tablette) : Dashboard, Agenda, Caisse POS, CRM, Catalogue, Stock, Paie, Compta
+// Kènè — APP PRO (desktop/tablette) : Dashboard, Agenda, Caisse POS, CRM, Relances, Catalogue, Stock, Paie, Compta
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { LayoutDashboard, MapPin, ChevronDown } from "lucide-react";
+import { BellRing, LayoutDashboard, MapPin, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -17,18 +17,20 @@ import { DashboardSection } from "./DashboardSection";
 import { AgendaSection } from "./AgendaSection";
 import { PosSection } from "./PosSection";
 import { CrmSection } from "./CrmSection";
+import { RelancesSection } from "./RelancesSection";
 import { CatalogSection } from "./CatalogSection";
 import { StockSection } from "./StockSection";
 import { PayrollSection } from "./PayrollSection";
 import { AccountingSection } from "./AccountingSection";
 
-export type ProSectionId = "dashboard" | "agenda" | "caisse" | "crm" | "catalogue" | "stock" | "paie" | "compta";
+export type ProSectionId = "dashboard" | "agenda" | "caisse" | "crm" | "relances" | "catalogue" | "stock" | "paie" | "compta";
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
   { id: "agenda", label: "Agenda", icon: SankofaIcon, hint: "Rendez-vous" },
   { id: "caisse", label: "Caisse", icon: AbanIcon, hint: "Point de vente" },
   { id: "crm", label: "CRM", icon: OsramIcon, hint: "Clientes & fidélité" },
+  { id: "relances", label: "Relances", icon: BellRing, hint: "Suivi post-protocole" },
   { id: "catalogue", label: "Catalogue", icon: DuafeIcon, hint: "Soins & produits" },
   { id: "stock", label: "Stock", icon: KenteIcon, hint: "Inventaire" },
   { id: "paie", label: "Paie", icon: FihankraIcon, hint: "CNPS · IPRES" },
@@ -199,6 +201,7 @@ export function ProApp() {
             {section === "agenda" && <AgendaSection tenantId={tid} />}
             {section === "caisse" && <PosSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {section === "crm" && <CrmSection tenantId={tid} />}
+            {section === "relances" && <RelancesSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {section === "catalogue" && <CatalogSection tenantId={tid} />}
             {section === "stock" && <StockSection tenantId={tid} onNavigate={setSection} />}
             {section === "paie" && <PayrollSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} tenantName={tenant?.name ?? "Institut"} />}
