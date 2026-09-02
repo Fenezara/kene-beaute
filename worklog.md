@@ -465,3 +465,39 @@ Stage Summary:
 - Les rappels automatiques passent de la simulation statique à un moteur réel : événement métier → Notification scheduled {scheduledAt, metaJson} → due-runner → fil cliente vivant (Programmé/Envoyé)
 - Croisé avec le Fil du Retour Pro (relance traitée = rappel cliente annulé ; réactivation = re-création) et le Fil du Temps (S+3 = même échéance que la « Lecture pro » contrôle conseillé)
 - Idempotence prouvée ; un rappel déjà envoyé ne re-naît jamais ; fenêtres métier S+6 / J-1 respectées
+
+---
+Task ID: 30
+Agent: main (Z.ai Code)
+Task: Export comptable Pro — fichiers CSV téléchargeables (Excel FR) avec période
+
+Contexte : la compta SYSCOHADA existait de bout en bout (plan, écritures auto caisse/paie/OD, balance, liasse) MAIS l'unique « export » était un window.print() — aucun fichier exploitable par un comptable, le journal API était plafonné à 60 écritures, et aucun livre des ventes n'existait pour les déclarations TVA. Direction choisie (suite de « fait ton choix » → « ok ») : l'export comptable, 2ᵉ volet de la proposition initiale.
+
+Work Log:
+- lib/accounting/csv.ts (NOUVEAU, lib pure client-safe) : csvEscape (guillemets doublés si ; " \n), toCsv (BOM UTF-8 + \r\n, séparateur « ; » — Excel FR), csvDate (JJ/MM/AAAA), paymentMethodLabel (wave→Wave, orange→Orange Money, cash→Espèces…), exportFilename (kene-{type}-{AAAAMMJJ-AAAAMMJJ|tout}.csv, ASCII-safe)
+- 4 constructeurs typés partageant un en-tête documentaire (Kènè Pro · type · institut+ville · période · édition + nb) :
+  - journalCsvRows : 1 ligne par ligne d'écriture (Date;Journal;Réf;Description;Compte;Intitulé;Libellé;Débit;Crédit) + TOTAUX
+  - balanceCsvRows : Compte;Classe;Intitulé;Type;D;C;Solde D;Solde C + TOTAUX + ligne de contrôle « balance équilibrée »
+  - liasseCsvRows : sections Compte de résultat / TVA / Bilan actif / Bilan passif + contrôle actif=passif
+  - salesBookCsvRows : livre des ventes par vente (Cliente, part prestations/produits, HT/TVA/TTC, mode, caissière) + TOTAUX + note « remboursements via OD »
+- GET /api/pro/accounting/export (NOUVEAU) ?tenantId=&type=journal|balance|liasse|ventes&from=&to= : données COMPLÈTES (zéro plafond), filtre période inclusif (to → 23:59:59), ventes status completed, Content-Disposition attachment + X-Rows-Count ; 400 type/date invalide, 404 institut inconnu ; réutilise computeBalance/buildStatements existants (balance et liasse de période cohérentes avec le moteur)
+- AccountingSection.tsx : actions d'en-tête réécrites — Popover « Période d'export » (presets Ce mois-ci/Mois dernier/Cette année/Tout + dates libres Du/Au, libellé vivant « Du 01/08/26 au 31/08/26 ») + DropdownMenu « Exporter » (4 CSV avec icônes FileSpreadsheet, badge contextuel TVA/lignes/comptes/bilan, spinner par item) + « Imprimer la liasse » (bascule sur l'onglet liasse puis window.print) ; downloadExport : fetch → gestion d'erreur JSON → blob → a.download (nom depuis Content-Disposition) → toast succès avec nom de fichier + nb lignes ; « Saisie manuelle OD » conservé (onglet journal)
+- A11y : menu Radix navigable clavier, Labels sur inputs date, aria-hidden sur icônes, états busy
+
+Tests (DB réelle + curl + navigateur 1440×900 & 390×844 + VLM) :
+- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; dev.log : aucune erreur runtime (uniquement 200/400/404 attendus)
+- curl 4 types : journal 28 écritures/100 lignes/108 lignes CSV ; ventes 25 (TOTAUX TTC 1 284 075, TVA 195 874) ; balance 15 comptes TOTAUX D=C 7 724 330 + « balance équilibrée » ; liasse résultat -278 834, TVA nette 122 654
+- Contrôles croisés DB : Sale.aggregate = CSV (TTC 1 284 075, TVA 195 874) ; JournalLine.aggregate = balance (D/C 7 724 330) ; HT ventes 1 088 201 = produits du compte de résultat ; TVA liasse = TVA livre des ventes
+- Filtre période : ventes&from=2026-08-01&to=2026-08-31 → 24 ventes, filename kene-ventes-20260801-20260831.csv, meta « Période : du 01/08/2026 au 31/08/2026 » ; journal août → 26 écritures ; HT+TVA=TTC vérifié ligne POS-0001 (45 890+8 260=54 150)
+- Erreurs : type=foo → 400 ; from=xx → 400 ; tenant inconnu → 404 (messages propres)
+- E2E navigateur (Pro → Compta) : boutons période + Exporter rendus ; menu 5 items ; clic « Livre des ventes » → toast « Fichier téléchargé kene-ventes-tout.csv · 25 lignes » + GET 200 dev.log + console vierge (warnings préexistants) ; preset « Mois dernier » → libellé bouton « Du 01/08/26 au 31/08/26 » → re-export → toast kene-ventes-20260801-20260831.csv · 24 lignes ; fetch in-page du journal filtré → 200/26 écritures/en-tête période exact
+- Non-régression : onglets Journal/Grand livre/Balance/Liasse intacts (liasse UI = liasse CSV : TVA 195 874/73 220/122 654, actif=passif 6 636 129, résultat -278 834) ; OD dialog inchangé
+- Responsive : 390px sans débordement (scrollW=vw=390), footer en bas (push naturel), VLM mobile « responsive et fonctionnelle » ; VLM desktop : menu 5 items ✓, contraste bon ✓
+- Screenshots : .proofs/task30-compta-export.png (menu ouvert), .proofs/task30-liasse.png, .proofs/task30-compta-mobile.png
+
+Stage Summary:
+- La compta passe du cockpit écran au dossier comptable exportable : 4 fichiers CSV Excel FR (BOM/CRLF/;) téléchargeables, filtrables par période, avec totaux et lignes de contrôle — le comptable ou l'expert-comptable peut déclarer la TVA sans Kènè
+- Cohérence structurelle prouvée : livre des ventes ↔ journal ↔ balance ↔ liasse partagent les mêmes agrégats que l'UI (aucune divergence de calcul, moteur syscohada mutualisé)
+- Zéro migration DB ; la valeur dormante (écritures existantes + tvaAmount stocké par vente) est désormais matérialisable en un clic
+- Le fil des espaces se complète : la pro sait désormais PAYER sa caisse (POS), la COMPTABILISER (écritures auto) et la DÉCLARER (exports)
+- Prochaine étape proposée : sauvegarde/rapport mensuel PDF de la liasse, ou centre de notifications cliente avec cloche non-lus (GET /api/notifications existe déjà), ou onboarding v2 avec champ code parrain
