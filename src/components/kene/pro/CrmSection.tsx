@@ -18,6 +18,7 @@ import { RFM_SEGMENTS } from "@/lib/kene/types";
 import type { BodyZone } from "@/lib/kene/types";
 import { parseDiagnosis, diagImgSrc } from "@/components/kene/client/types";
 import { SkinTwinCard, type TwinEntry } from "@/components/kene/skintwin/SkinTwinCard";
+import { ProEvolutionCard } from "@/components/kene/evolution/ProEvolutionCard";
 import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, InitialAvatar, Money, SectionHeader, KenteTop } from "./ui-bits";
 import type { ProClient, ProClientDetail } from "./types";
@@ -299,6 +300,8 @@ function ClientSheet({ clientId, tenantId, onClose }: { clientId: string; tenant
                   <h4 className="font-heading text-sm font-bold mb-2">Diagnostics Kènè ({d.diagnoses.length})</h4>
                   {/* Jumeau de Peau — agrégation 3D de tous les diagnostics de la cliente */}
                   {twinEntries.length > 0 && <SkinTwinCard context="pro" entries={twinEntries} className="mb-4" />}
+                  {/* Fil du Temps — courbe d'évolution + lecture pro (séries calculées localement) */}
+                  {d.diagnoses.length > 0 && <ProEvolutionCard rows={d.diagnoses} className="mb-4" />}
                   {d.diagnoses.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Aucun diagnostic pour cette cliente.</p>
                   ) : (

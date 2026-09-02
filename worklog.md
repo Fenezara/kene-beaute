@@ -398,3 +398,36 @@ Stage Summary:
 - Le récit du fil se poursuit : le fil relie désormais les PERSONNES (HeartHandshake) — accueil, jumeau, route, temps, boutique, retour, parrainage
 - Leçons : (1) un GET compilé à la volée peut renvoyer une erreur transitoire au premier hit pendant le recompile Turbopack → toujours offrir un « Réessayer » sur les cartes qui échouent ; (2) re-seeder invalide les sessions localStorage → le demo-login recapture l'id courant, les cartes doivent dégrader proprement ; (3) tester le partage WhatsApp par window.open capture l'onglet wa.me — l'URL contient le message entier, vérifiable sans VLM
 - Prochaine étape proposée : onboarding v2 « j'ai un code parrain » au signup (champ optionnel à l'étape OTP) ou centre de notifications cliente réel (GET /api/notifications + cloche non-lues)
+
+---
+Task ID: 28
+Agent: main (Z.ai Code)
+Task: Diagnostic evolution tracking — Fil du Temps version Pro (CRM 360°)
+
+Contexte : la partie cliente était déjà couverte (EvolutionCard « Le Fil du Temps » dans l'Historique + comparaison Avant/Après + /api/diagnoses/evolution + lib pure buildEvolution). Le chaînon manquant du suivi d'évolution était le VOLET PRO : la fiche CRM 360° n'affichait que le Jumeau de Peau 3D et la grille photos, sans courbe d'évolution ni lecture professionnelle.
+
+Work Log:
+- lib/kene/evolution.ts : extraction de smoothPath (spline Catmull-Rom → Bézier) en export partagé (avant : dupliquée dans EvolutionCard) — source unique pour les cartes cliente et pro
+- components/kene/evolution/EvolutionCard.tsx : import smoothPath depuis la lib, copie locale supprimée (aucun changement de comportement)
+- components/kene/evolution/ProEvolutionCard.tsx (NOUVEAU, ~380 lignes) : carte Fil du Temps pour la Sheet CRM — séries calculées LOCALEMENT via buildEvolution depuis les diagnostics déjà chargés par /api/pro/clients/[id] (zéro appel réseau supplémentaire, la shape ProClientDetail.diagnoses est structurellement compatible avec EvolutionRow)
+  - Courbe SVG (viewBox 440×150, fil d'or lissé, nœuds pastille valueColorHex, aire or 7 %, grille 0/50/100) + résumé « N mesures · ±X pts »
+  - Filtre par zone corporelle (chips Toutes/Visage/…, n'apparaît que si plusieurs zones scannées) — permet d'isoler la progression d'une même zone
+  - Chips indicateurs sélectionnables (Score global + top 4 séries, delta + TrendingUp/Down)
+  - « Lecture pro » : verdict de trajectoire (Progression nette > +4 / Stabilisation / Vigilance < -4), meilleur axe (> +2 pts), axe à surveiller (< -2 pts), âge du dernier scan + cadence moyenne, « Contrôle conseillé » au-delà de 8 semaines sans scan (text-sunset-text)
+  - A11y : aria-labels dynamiques sur le SVG, tableau sr-only miroir (avec zone filtrée dans la caption), aria-pressed sur tous les chips, focus-visible
+- components/kene/pro/CrmSection.tsx : intégration dans ClientSheet (section « Diagnostics Kènè », après SkinTwinCard, avant la grille photos) — rendu conditionnel rows.length > 0
+
+Tests (données réelles DB, navigateur headless 1440×900) :
+- tsc --noEmit : 0 erreur sur src/ ; eslint . : 0 erreur 0 warning ; dev.log : aucun runtime error
+- E2E fiche Mariam Diallo (Pro → CRM) : carte rendue « 12 août → 26 août · 3 scans », courbe 71→81→66 (mélange zones), 5 chips, Lecture pro à 4 insights
+- Filtre Visage (2) : courbe isolée 71→66 « -5 pts », caption sr-only « (Visage) » ; Mains (1) : état « référence initiale posée », 1 nœud, verdict différé
+- Chip « Barrière cutanée » : bascule courbe 91→53 (2 mesures)
+- Lecture pro vérifiée texte intégral : « Vigilance — réévaluer protocole et observance. | Excès de sébum : +26 pts — axe en nette amélioration. | Barrière cutanée : -38 pts — à surveiller au prochain soin. | Dernier scan il y a 1 sem. · cadence ≈ 2 sem. entre scans. »
+- Non-régression cliente : Espace Cliente (Mariam demo) → Diagnostic → Historique → EvolutionCard intacte (3 scans, 3 nœuds, chips)
+- Screenshots : .proofs/task28-crm-evolution.png + .proofs/task28-client-historique.png
+- Console : zéro erreur (seuls warnings préexistants THREE.Clock / Select uncontrolled)
+
+Stage Summary:
+- Suivi d'évolution diagnostic bouclé de bout en bout : cliente (Fil du Temps + Avant/Après) ET pro (Fil du Temps + Lecture pro actionnable dans le CRM 360°)
+- Aucune migration DB nécessaire (données existantes suffit) ; aucune nouvelle API (calcul local) ; smoothPath mutualisé
+- La Lecture pro transforme l'historique brut en décision métier : verdict protocole, axes prioritaires, rappel de contrôle — au service de la fidélisation
