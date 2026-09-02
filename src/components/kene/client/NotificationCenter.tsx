@@ -2,9 +2,14 @@
 // Kènè Cliente — Centre de notifications : cloche (badge non-lus) + Sheet
 // « À venir » (rappels programmés) / « Reçues » (envoyées, état lu/non lue)
 // + « Tout marquer comme lu » (POST /api/notifications/read).
-// Auto-contenu : charge le fil au montage (badge), rafraîchi à l'ouverture.
-import { useCallback, useEffect, useState } from "react";
+// TEMPS RÉEL (tâche 33) : socket.io vers le mini-service notify-service
+// (?XTransformPort=3004) — le fil arrive en PUSH (event `feed`) : badge, liste
+// et toast d'arrivée se mettent à jour SANS reload pendant que l'app est ouverte.
+// Dégradation douce : sans service, le comportement historique (GET au montage
+// + à l'ouverture) reste intact.
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { io, type Socket } from "socket.io-client";
 import { Bell, BellRing, CheckCheck, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,14 +20,41 @@ import { channelLabel, humanWhen } from "@/lib/kene/reminders";
 import { cn } from "@/lib/utils";
 import type { ApiReminderFeed } from "./types";
 
-export function NotificationCenter({ userId }: { userId: string }) {
+const NOTIFY_PORT = 3004;
+
+function looksLikeFeed(f: unknown): f is ApiReminderFeed {
+  const x = f as Partial<ApiReminderFeed> | null;
+  return !!x && typeof x.unread === "number" && Array.isArray(x.sent) && Array.isArray(x.scheduled);
+}
+
+function excerpt(s: string, max = 70): string {
+  const t = s.trim().replace(/\s+/g, " ");
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+}
+
+export function NotificationCenter({
+  userId,
+  onLiveFeed,
+}: {
+  userId: string;
+  /** Appelé à chaque fil reçu en temps réel (badge + liste à jour) */
+  onLiveFeed?: (feed: ApiReminderFeed) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [feed, setFeed] = useState<ApiReminderFeed | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
 
   const unread = feed?.unread ?? 0;
+
+  // Refs stables pour les callbacks socket (identité des props sans importance)
+  const socketRef = useRef<Socket | null>(null);
+  const openRef = useRef(false);
+  const prevUnreadRef = useRef<number | null>(null); // null = pas encore de fil → pas de toast
+  const onLiveFeedRef = useRef<((f: ApiReminderFeed) => void) | undefined>(undefined);
+  onLiveFeedRef.current = onLiveFeed;
 
   const load = useCallback(
     async (showSpinner: boolean) => {
@@ -30,6 +62,7 @@ export function NotificationCenter({ userId }: { userId: string }) {
       try {
         const f = await apiGet<ApiReminderFeed>(`/api/notifications?userId=${userId}`);
         setFeed(f);
+        prevUnreadRef.current = f.unread;
         setErr(null);
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Chargement impossible");
@@ -45,9 +78,55 @@ export function NotificationCenter({ userId }: { userId: string }) {
     void load(false);
   }, [load]);
 
-  // Rafraîchi à chaque ouverture (due-runner : de nouvelles arrivées possibles)
+  /* ── Temps réel : connexion au notify-service ──────────────────
+   * io('/?XTransformPort=3004') : la gateway route vers le mini-service.
+   * Une seule socket par onglet, partagée badge + Sheet + carte accueil. */
+  useEffect(() => {
+    // Never use PORT in the URL, always use XTransformPort
+    // DO NOT change the path, it is used by Caddy to forward the request to the correct port
+    const socket = io(`/?XTransformPort=${NOTIFY_PORT}`, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1_000,
+      reconnectionDelayMax: 4_000,
+      timeout: 8_000,
+    });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      setLive(true);
+      socket.emit("join", { userId });
+    });
+    socket.on("disconnect", () => setLive(false));
+    socket.on("feed", (f: unknown) => {
+      if (!looksLikeFeed(f)) return;
+      setFeed(f);
+      // Toast d'arrivée : seulement une NOUVELLE non-lue, feuille fermée
+      // (feuille ouverte → la liste s'anime d'elle-même).
+      const prev = prevUnreadRef.current;
+      if (prev !== null && f.unread > prev && !openRef.current) {
+        const first = f.sent.find((n) => !n.readAt);
+        toast("Nouvelle notification", {
+          description: first ? excerpt(first.message) : `${f.unread} notification${f.unread > 1 ? "s" : ""} non lue${f.unread > 1 ? "s" : ""}.`,
+        });
+      }
+      prevUnreadRef.current = f.unread;
+      onLiveFeedRef.current?.(f);
+    });
+
+    return () => {
+      socket.removeAllListeners();
+      socket.disconnect();
+      socketRef.current = null;
+      setLive(false);
+    };
+  }, [userId]);
+
+  // Refraîchi à chaque ouverture (doublon volontaire : le GET déclenche aussi
+  // backfill + due-runner côté API — le socket prend ensuite le relais)
   function onOpenChange(o: boolean) {
     setOpen(o);
+    openRef.current = o;
     if (o) void load(true);
   }
 
@@ -62,6 +141,9 @@ export function NotificationCenter({ userId }: { userId: string }) {
           ? { ...f, unread: 0, sent: f.sent.map((n) => ({ ...n, readAt: n.readAt ?? new Date().toISOString() })) }
           : f
       );
+      prevUnreadRef.current = 0;
+      // Le service temps réel repousse un fil frais (jamais de badge périmé)
+      socketRef.current?.emit("read-all", { userId });
       toast.success("Tout est lu", { description: `${r.updated} notification${r.updated > 1 ? "s" : ""} marquée${r.updated > 1 ? "s" : ""} comme lue${r.updated > 1 ? "s" : ""}.` });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Impossible de marquer comme lu");
@@ -95,8 +177,20 @@ export function NotificationCenter({ userId }: { userId: string }) {
           className="max-w-[430px] mx-auto rounded-t-3xl max-h-[82vh] flex flex-col"
         >
           <SheetHeader className="text-left shrink-0">
-            <SheetTitle className="font-heading font-black flex items-center gap-2">
+            <SheetTitle className="font-heading font-black flex items-center gap-2 flex-wrap">
               <BellRing size={18} className="text-primary" aria-hidden="true" /> Notifications
+              {live && (
+                <span
+                  title="Connectée en temps réel"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#3F7D3F]/10 text-[#3F7D3F] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+                >
+                  <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3F7D3D] opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#3F7D3F]" />
+                  </span>
+                  En direct
+                </span>
+              )}
             </SheetTitle>
             <p className="text-xs text-muted-foreground">
               Rappels automatiques Kènè — contrôle de protocole, RDV J-1 et messages de l&apos;institut.

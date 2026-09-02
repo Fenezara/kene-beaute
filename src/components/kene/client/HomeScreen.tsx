@@ -122,7 +122,11 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         </div>
         <div className="flex items-center gap-2">
           {data?.wallet && <WalletPill balance={data.wallet.balance} onClick={() => setClientTab("profil")} />}
-          <NotificationCenter userId={user.id} />
+          {/* onLiveFeed : la carte « Suivi WhatsApp » suit le flux temps réel de la cloche */}
+          <NotificationCenter
+            userId={user.id}
+            onLiveFeed={(f) => setData((d) => (d ? { ...d, reminders: f } : d))}
+          />
           <button
             onClick={() => setClientTab("profil")}
             aria-label="Mon profil"

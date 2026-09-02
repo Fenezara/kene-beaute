@@ -570,3 +570,42 @@ Stage Summary:
 - Leçon technique réutilisée partout où un post-login enrichit les données : TOUJOURS exécuter l'enrichissement AVANT setUser (sinon l'écran monté lit des données périmées) mais annoncer APRÈS (narratif)
 - Le Fil du Parrainage est complet de bout en bout : partage (code/WhatsApp) → saisie à l'inscription → cadeau immédiat → bonus parrain à la 1ʳᵉ commande → visibilité cloche/parrainage/admin
 - Prochaine étape proposée : cloche temps réel via socket.io (mini-service), ou PDF mensuel de la liasse, ou coupons/promos boutique (diffusion code à grande échelle)
+---
+Task ID: 33
+Agent: main (Z.ai Code)
+Task: Cloche temps réel — socket.io live feed (mini-service notify-service :3004)
+
+Contexte : le centre de notifications (tâche 31) et l'onboarding parrain (tâche 32) livraient une boîte de réception qui ne vivait qu'au montage/à l'ouverture — aucune arrivée visible pendant que l'app est ouverte, la cliente devait recharger pour découvrir un badge. Direction choisie (suite de « fait ton choix », proposition n°1 des tâches 31 ET 32) : le push temps réel via socket.io — premier canal live de Kènè.
+
+Work Log:
+- mini-services/notify-service/ (NOUVEAU, port 3004, bun --hot) : relais socket.io — la cliente rejoint sa room user:{userId} (event join, multi-onglets) ; POLL 8 s par utilisatrice connectée sur GET /api/notifications (l'API reste l'unique source de vérité : backfill + due-runner idempotents, zéro logique dupliquée) ; DIFF sur sérialisation → emit feed vers la room seulement si changement ; single-flight + debounce 250 ms par userId ; event read-all (lecture cliente → cache vidé + poll frais, jamais de badge périmé) ; event push {secret} réservé à l'app (arrivée instantanée) ; path '/' + ping/pong engine.io — le pattern du websocket de démo est répliqué à l'identique
+- Tentative AVANT nécessaire de retenir : routes HTTP /push + / santé sur le même port → engine.io (path '/') intercepte TOUT et répond « Transport unknown » (ERR_HTTP_HEADERS_SENT sur mon handler) → refonte : le push passe en PROTOCOLE socket (event + secret), zéro route HTTP, un port, un protocole
+- src/lib/kene/realtime.ts (NOUVEAU, serveur) : socket.io-client singleton globalThis (survit aux hot-reload, jamais de doublons) → connecte localhost:3004 en direct (server-to-server), register-app au secret partagé ; pushFeed(userId) fire-and-forget — emit bufferisé si connexion en cours (démarrage à froid), jamais bloquant, JAMAIS d'échec propagé (poll 8 s = filet de sécurité)
+- server.ts notify() : UN SEUL hook pushFeed après create → les 17 points de création (referral, orders, payments, appointments, followups, diagnoses, pro/appointments, cancel…) poussent TOUS instantanément, zéro route modifiée
+- NotificationCenter.tsx : socket io('/?XTransformPort=3004') (transports ws+polling, reconnexion auto) ; join au connect (re-couvre les reconnexions) ; event feed → setFeed + TOAST « Nouvelle notification » si unread augmente et feuille fermée (extrait du message) + prop onLiveFeed remontée ; pill « En direct » (point vert pulsant animate-ping) dans le titre quand connectée ; markAllRead émet read-all au service ; looksLikeFeed garde défensive ; le comportement historique (GET montage/ouverture) reste le fallback — sans service, tout continue de marcher
+- HomeScreen : onLiveFeed={(f) => setData(...)} → la carte « Suivi WhatsApp » suit le flux live de la cloche (une seule socket pour deux vues)
+- package.json : + socket.io-client ; Caddyfile inchangé (le forward ?XTransformPort existe déjà)
+
+Bugs corrigés en cours de route :
+- Voir ci-dessus : conflit engine.io/HTTP sur le même port → push par protocole socket
+- Premier pushFeed d'un process froid émis AVANT connexion (skip best-effort) → arrivée rattrapée par le tick ; fix : emit inconditionnel (bufferisation native socket.io-client, flush au connect) → 2ᵉ redeem prouvé en mode « push »
+- E2E initial silencieux : page ouverte sur localhost:3000 DIRECT → io('/?XTransformPort=3004') frappait le dev server Next, pas la gateway → re-test via localhost:81 (= chemin réel du preview) : connexion immédiate. Leçon : toujours tester les sockets via la gateway
+
+Tests (DB réelle + curl + navigateur 390×844 via gateway :81 + VLM) :
+- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; console navigateur vierge ; dev.log : uniquement des 200 (l'unique 500 du log date de la session 32 — session fantôme d'Aminata purgée, ligne 265 < redeems tâche 32 ligne 285)
+- Test A (poll) : insertion DB d'un rappel scheduled ÉCHU à 02:47:42 → due-runner flip via le poll du service → feed émis (tick) — unread 4 à 02:47:47 → badge 3→4 dans le navigateur SANS reload ; toast d'arrivée constaté au test C
+- Test B (push instantané) : 2ᵉ redeem (socket app connectée) → curl à 02:48:52.959, HTTP 200 en 125 ms, log « push reçu → poll immédiat » + « feed émis (push) — unread 6 » à 02:48:53, badge 6 à l'écran — ARRIVÉE < 1 s bout en bout
+- Test C (toast + VLM) : 3ᵉ redeem → capture .proofs/task33-toast-arrivee.png — VLM lit « Nouvelle notification / Kènè : Fanta TestToast a rejoint la communauté avec ton code 🧡… » : toast + badge + extrait exact
+- Sheet : pill « En direct » rendue (title « Connectée en temps réel ») ; liste mise à jour live (les 3 « a rejoint » apparaissent en tête de REÇUES sans reload) ; carte Suivi WhatsApp de l'accueil idem (onLiveFeed)
+- markAllRead : badge 0 + émission read-all → « feed émis (read-all) — unread 0 » ; attente 9,5 s (plus d'un cycle complet de poll) → le badge NE REVIENT PAS (course stale/périmée close)
+- Auto-correction : purge DB des notifs test → tick suivant « feed émis (tick) — unread 3 » → badge 0→3 en direct (le fil converge vers la vérité dans les DEUX sens, ajouts ET suppressions)
+- Résilience : kill + relance du service → la socket cliente ET la socket app se reconnectent seules (reconnexion socket.io) → join → feed frais émis, badge intact
+- Nettoyage : 3 fillesules test + wallets + transactions + notifs + audit logs supprimés ; Mariam restaurée à l'état d'origine (unread 3, scheduled 4, wallet 14 000, code MARIAM-KENE) ; scripts de test supprimés
+- Responsive : 390px (5 captures) + 1440px VLM « colonne mobile centrée, cloche+badge visible, aucun chevauchement » ; screenshots .proofs/task33-{sheet-endirect,live-push,toast-arrivee,sheet-live,suivi-card-live,desktop}.png
+
+Stage Summary:
+- La boucle notification est désormais LIVE de bout en bout : événement métier → notify() → push instantané (< 1 s mesuré) → badge + toast + liste + carte accueil — et le due-runner reste couvert par le poll 8 s (S+3, J-1)
+- Architecture « relais intelligent » : le mini-service ne détient AUCUNE logique métier (il proxifie l'API éprouvée de la tâche 29), l'app pousse via UN hook central (notify()), la cliente ne fait que s'abonner — chaque couche reste seule maîtresse de sa vérité
+- Résilience prouvée : reconnexion automatique des trois connexions (cliente, app, service redémarré), dégradation douce (sans service, comportement tâche 31 intact), course lecture/arrivée close (read-all → poll frais)
+- Pattern réutilisable : tout futur événement notifiable (commande expédiée, validation pro, promo) est automatiquement live dès qu'il passe par notify() ; le canal user:{userId} peut aussi servir l'indicateur « En direct » d'autres écrans
+- Prochaine étape proposée : coupons/promos boutique (diffusion de codes à grande échelle — le canal push est prêt), ou PDF mensuel de la liasse, ou badge temps réel côté Pro (nouvelle commande/relance)

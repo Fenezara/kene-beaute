@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { genRef, xof } from "./format";
 import { rfmScore } from "./rfm";
 import { PARRAIN_REWARD } from "./referral";
+import { pushFeed } from "./realtime";
 import type { SimpleLine } from "@/lib/accounting/syscohada";
 
 export function jsonError(error: string, status = 400): NextResponse {
@@ -164,7 +165,7 @@ export function notify(data: {
   scheduledAt?: Date | null; // déclenchement prévu (rappel auto)
   metaJson?: string | null; // contexte {diagId} | {apptId} | {dedupKey}
 }) {
-  return db.notification.create({
+  const created = db.notification.create({
     data: {
       userId: data.userId ?? null,
       tenantId: data.tenantId ?? null,
@@ -176,6 +177,14 @@ export function notify(data: {
       metaJson: data.metaJson ?? null,
     },
   });
+  // Temps réel : si la cliente est en ligne, son fil est repoussé en ~250 ms
+  // (best-effort — le poll 8 s du notify-service rattrape sinon tout).
+  if (data.userId) {
+    void created
+      .then(() => pushFeed(data.userId as string))
+      .catch(() => undefined);
+  }
+  return created;
 }
 
 // ─────────────── CRM : recalcul RFM d'un ClientProfile ───────────────
