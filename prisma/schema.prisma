@@ -55,6 +55,7 @@ model User {
   consents     Consent[]
   appointments Appointment[] @relation("UserAppointments")
   wallet       Wallet?
+  couponRedemptions CouponRedemption[]
 }
 
 // ─────────────────────────── Tenants (entreprises) ───────────────────────────
@@ -90,6 +91,7 @@ model Tenant {
   payPeriods     PayPeriod[]
   accounts       ChartAccount[]
   journals       JournalEntry[]
+  coupons        Coupon[]
   reviews        Review[]
   notifications  Notification[]
   followUpMarks  FollowUpMark[]
@@ -322,6 +324,8 @@ model Order {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     OrderItem[]
   subtotal  Int
+  discount  Int      @default(0) // remise coupon appliquée (0 = aucune)
+  couponCode String? // code du coupon appliqué (traçabilité)
   cashback  Int      @default(0)
   total     Int
   paymentId String?  @unique
@@ -340,6 +344,40 @@ model OrderItem {
   qty       Int     @default(1)
   unitPrice Int
   total     Int
+}
+
+// ───────────────────── Coupons boutique (Sprint 6) ─────────────────────
+
+model Coupon {
+  id          String             @id @default(cuid())
+  tenantId    String? // null = coupon maison Kènè (diffusable par l'admin)
+  tenant      Tenant?            @relation(fields: [tenantId], references: [id])
+  code        String             @unique // PROMO-XXXX, stocké uppercase
+  label       String? // description visible cliente (« Fête des mères » )
+  kind        String             // percent | fixed
+  value       Int                // percent : 5..90 (%) · fixed : 500..500000 (FCFA)
+  minOrder    Int                @default(0) // panier minimum pour appliquer
+  maxUses     Int                @default(0) // 0 = illimité
+  usedCount   Int                @default(0)
+  startsAt    DateTime           @default(now())
+  expiresAt   DateTime?
+  active      Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+
+  redemptions CouponRedemption[]
+}
+
+model CouponRedemption {
+  id        String   @id @default(cuid())
+  couponId  String
+  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId   String? // commande boutique concernée
+  discount  Int      // remise réellement appliquée (FCFA)
+  createdAt DateTime @default(now())
+
+  @@unique([couponId, userId]) // UNE seule utilisation par cliente et par coupon
 }
 
 model Review {

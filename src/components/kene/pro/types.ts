@@ -313,6 +313,30 @@ export interface AccountingResponse {
   statements: ProStatements;
 }
 
+// ─────────────── Coupons / promos boutique ───────────────
+
+export interface ProCoupon {
+  id: string;
+  tenantId: string | null;
+  code: string;
+  label: string | null;
+  kind: "percent" | "fixed";
+  value: number;
+  minOrder: number;
+  maxUses: number;
+  usedCount: number;
+  startsAt: string;
+  expiresAt: string | null;
+  active: boolean;
+  status: string; // actif | programmé | expiré | épuisé | inactif
+  redemptions: number;
+  createdAt: string;
+}
+
+export interface ProCoupons {
+  coupons: ProCoupon[];
+}
+
 // ─────────────── Admin ───────────────
 export interface AdminStats {
   users: number;

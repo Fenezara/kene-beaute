@@ -2,7 +2,7 @@
 // Kènè Cliente — Boutique : catalogue, fiche produit, panier, checkout Wave/Orange/Wallet simulé
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, Check, Loader2, Minus, Plus, Search, ShoppingBag, Trash2 } from "lucide-react";
+import { BadgeCheck, Check, Loader2, Minus, Plus, Search, ShoppingBag, Tag, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof, CASHBACK_RATE } from "@/lib/kene/format";
@@ -17,6 +17,14 @@ import { SHOP_CATEGORIES } from "./types";
 import { EmptyBlock, Stars } from "./bits";
 
 type PayMethod = "wave" | "orange" | "wallet";
+
+/* Coupon validé au checkout (aperçu local — la consommation a lieu à la commande) */
+interface AppliedPromo {
+  code: string;
+  label: string | null;
+  discount: number;
+  subtotal: number; // panier au moment de la validation (invalidation si changement)
+}
 
 export function ShopScreen() {
   const user = useKene((s) => s.user)!;
@@ -34,9 +42,17 @@ export function ShopScreen() {
   const [wallet, setWallet] = useState<ApiWallet | null>(null);
   const [payState, setPayState] = useState<{ phase: "processing" | "success"; method: PayMethod; amount: number } | null>(null);
   const [paying, setPaying] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoChecking, setPromoChecking] = useState(false);
+  const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const subtotal = cart.reduce((s, l) => s + l.price * l.qty, 0);
+  /* Coupon invalidé si le panier a changé depuis la validation (remise recalculée
+   * sur un autre sous-total) — la cliente re-valide, jamais de surprise serveur. */
+  const livePromo = promo && promo.subtotal === subtotal ? promo : null;
+  const discount = livePromo?.discount ?? 0;
+  const total = subtotal - discount;
   /* taux de cashback réellement appliqué (wallet de la cliente, sinon défaut) */
   const cashbackRate = wallet?.cashbackRate ?? CASHBACK_RATE;
 
@@ -60,11 +76,38 @@ export function ShopScreen() {
           cat ? ` · ${SHOP_CATEGORIES.find((c) => c.id === cat)?.label.toLowerCase() ?? cat}` : " au catalogue"
         }`;
 
+  /* Applique un code promo : aperçu de remise sans consommer le coupon
+   * (la consommation a lieu à la commande — toutes les gardes côté serveur). */
+  async function applyPromo() {
+    const code = promoInput.trim().toUpperCase();
+    if (!code || promoChecking) return;
+    setPromoChecking(true);
+    try {
+      const r = await apiPost<{ ok: true; coupon: { code: string; label: string | null }; discount: number; total: number }>(
+        "/api/coupons/validate",
+        { code, userId: user.id, subtotal }
+      );
+      setPromo({ code: r.coupon.code, label: r.coupon.label, discount: r.discount, subtotal });
+      setPromoInput("");
+      toast.success(`Code ${r.coupon.code} appliqué`, { description: `Remise de ${xof(r.discount)} déduite du total.` });
+    } catch (e) {
+      setPromo(null);
+      toast.error(e instanceof Error ? e.message : "Code promo invalide");
+    } finally {
+      setPromoChecking(false);
+    }
+  }
+
   async function pay(method: PayMethod) {
     setPaying(true);
     try {
       const items = cart.map((l) => ({ productId: l.productId, qty: l.qty }));
-      const r = await apiPost<{ order: ApiOrder; payment: ApiPayment | null; paid: boolean }>("/api/orders", { userId: user.id, items, paymentMethod: method });
+      const r = await apiPost<{ order: ApiOrder; payment: ApiPayment | null; paid: boolean }>("/api/orders", {
+        userId: user.id,
+        items,
+        paymentMethod: method,
+        ...(livePromo ? { couponCode: livePromo.code } : {}),
+      });
       const amount = r.order.total;
       if (method !== "wallet" && r.payment) {
         setCheckout(false);
@@ -79,6 +122,7 @@ export function ShopScreen() {
       }
       setPayState({ phase: "success", method, amount });
       clearCart();
+      setPromo(null); // le coupon est consommé : remise à zéro pour la prochaine commande
       const cb = r.order.cashback;
       toast.success(cb > 0 ? `Commande confirmée — cashback ${xof(cb)} crédité sur ton wallet` : "Commande confirmée et payée");
       if (method === "wallet") {
@@ -264,10 +308,61 @@ export function ShopScreen() {
               ))}
             </div>
 
+            {/* Code promo — l'aperçu vit côté serveur (lib/kene/coupons) */}
+            {livePromo ? (
+              <div className="rounded-2xl border border-[#3F7D3F]/30 bg-[#3F7D3F]/[0.06] p-3.5 flex items-center gap-3" aria-live="polite">
+                <span className="grid place-items-center h-9 w-9 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] shrink-0">
+                  <Tag size={16} aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold font-mono tracking-wide">{livePromo.code}</p>
+                  <p className="text-[11px] text-[#3F7D3F] leading-tight">
+                    {livePromo.label ? `${livePromo.label} · ` : ""}−{xof(livePromo.discount)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setPromo(null)}
+                  aria-label={`Retirer le code ${livePromo.code}`}
+                  className="h-8 w-8 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Tag size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                  <input
+                    value={promoInput}
+                    onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === "Enter" && void applyPromo()}
+                    placeholder="CODE PROMO"
+                    aria-label="Code promo"
+                    autoComplete="off"
+                    maxLength={24}
+                    className="h-12 w-full rounded-2xl border border-border bg-card pl-10 pr-3 text-sm font-mono uppercase tracking-wide placeholder:font-sans placeholder:normal-case placeholder:tracking-normal focus-visible:outline-2 focus-visible:outline-primary"
+                  />
+                </div>
+                <button
+                  onClick={() => void applyPromo()}
+                  disabled={!promoInput.trim() || promoChecking}
+                  className="h-12 px-5 rounded-2xl border border-border bg-card text-xs font-bold disabled:opacity-50 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  {promoChecking ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : "Appliquer"}
+                </button>
+              </div>
+            )}
+
             <div className="rounded-2xl bg-muted/60 p-4 space-y-1.5 text-xs">
               <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span className="font-mono font-semibold">{xof(subtotal)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Cashback estimé ({Math.round(cashbackRate * 100)} %)</span><span className="font-mono font-semibold text-[#3F7D3F]">+{xof(Math.round(subtotal * cashbackRate))}</span></div>
-              <div className="flex justify-between border-t border-border pt-1.5 text-sm"><span className="font-semibold">Total à payer</span><span className="font-mono font-black text-primary">{xof(subtotal)}</span></div>
+              {discount > 0 && (
+                <div className="flex justify-between text-[#3F7D3F]">
+                  <span className="font-semibold">Remise {livePromo?.code}</span>
+                  <span className="font-mono font-semibold">−{xof(discount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between"><span className="text-muted-foreground">Cashback estimé ({Math.round(cashbackRate * 100)} %)</span><span className="font-mono font-semibold text-[#3F7D3F]">+{xof(Math.round(total * cashbackRate))}</span></div>
+              <div className="flex justify-between border-t border-border pt-1.5 text-sm"><span className="font-semibold">Total à payer</span><span className="font-mono font-black text-primary">{xof(total)}</span></div>
             </div>
 
             <div>
@@ -285,14 +380,14 @@ export function ShopScreen() {
                 })}
                 <button
                   onClick={() => pay("wallet")}
-                  disabled={paying || (wallet?.balance ?? 0) < subtotal}
+                  disabled={paying || (wallet?.balance ?? 0) < total}
                   className="w-full h-12 rounded-xl border-2 border-melanine bg-card flex items-center gap-3 px-4 font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   <span className="h-7 w-7 rounded-full grid place-items-center bg-melanine text-[#C8951E] shrink-0 font-heading font-black text-xs">K</span>
                   Wallet Kènè
                   <span className="ml-auto font-mono text-[11px] text-muted-foreground">{wallet ? xof(wallet.balance) : "…"}</span>
                 </button>
-                {wallet && wallet.balance < subtotal && <p className="text-[10px] text-destructive text-center">Solde insuffisant — approvisionne ton wallet depuis ton profil.</p>}
+                {wallet && wallet.balance < total && <p className="text-[10px] text-destructive text-center">Solde insuffisant — approvisionne ton wallet depuis ton profil.</p>}
               </div>
             </div>
           </div>

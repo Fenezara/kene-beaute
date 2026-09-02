@@ -1,21 +1,25 @@
 // POST /api/orders — commande boutique (wallet = paiement immédiat, MoMo = en attente)
+// couponCode (facultatif) : validé puis consommé via lib/kene/coupons — la
+// remise réduit le total payé, le cashback s'applique sur le montant payé.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, genRef, debitWallet, creditWallet, notify, rewardReferrerIfNeeded } from "@/lib/kene/server";
 import { CASHBACK_RATE, xof } from "@/lib/kene/format";
+import { checkCoupon, redeemCoupon } from "@/lib/kene/coupons";
 
 const Body = z.object({
   userId: z.string().min(1),
   items: z.array(z.object({ productId: z.string().min(1), qty: z.number().int().min(1).max(20) })).min(1),
   paymentMethod: z.enum(["wave", "orange", "wallet"]),
+  couponCode: z.string().trim().max(40).optional(),
 });
 
 export async function POST(req: NextRequest) {
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
-    const { userId, items, paymentMethod } = parsed.data;
+    const { userId, items, paymentMethod, couponCode } = parsed.data;
 
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);
@@ -34,9 +38,22 @@ export async function POST(req: NextRequest) {
       return { product: p, qty: i.qty, total: p.price * i.qty };
     });
     const subtotal = lines.reduce((s, l) => s + l.total, 0);
+
+    // Coupon : validation complète AVANT toute écriture (garde d'usage incluse)
+    let discount = 0;
+    let appliedCouponId: string | null = null;
+    if (couponCode) {
+      const check = await checkCoupon(couponCode, subtotal, userId);
+      if (!check.ok) return jsonError(check.error ?? "Code promo invalide", 400);
+      discount = check.discount ?? 0;
+      appliedCouponId = check.coupon?.id ?? null;
+    }
+    const total = subtotal - discount;
+
     // Taux de cashback : celui de la wallet de la cliente, sinon le taux par défaut
+    // — appliqué au montant PAYÉ (après remise)
     const wallet = await db.wallet.findUnique({ where: { userId } });
-    const cashback = Math.round(subtotal * (wallet?.cashbackRate ?? CASHBACK_RATE));
+    const cashback = Math.round(total * (wallet?.cashbackRate ?? CASHBACK_RATE));
 
     const orderItemsData = lines.map((l) => ({
       productId: l.product.id,
@@ -51,19 +68,30 @@ export async function POST(req: NextRequest) {
     let paid = false;
 
     if (paymentMethod === "wallet") {
-      // Paiement wallet : solde vérifié puis débit immédiat (wallet déjà chargée ci-dessus)
-      if (!wallet || wallet.balance < subtotal) {
+      // Paiement wallet : solde vérifié puis débit immédiat (sur le total remisé)
+      if (!wallet || wallet.balance < total) {
         return jsonError("Solde wallet insuffisant — rechargez votre wallet Kènè", 400);
       }
       order = await db.order.create({
-        data: { userId, subtotal, cashback, total: subtotal, status: "paid", items: { create: orderItemsData } },
+        data: { userId, subtotal, discount, couponCode: appliedCouponId ? couponCode!.toUpperCase() : null, cashback, total, status: "paid", items: { create: orderItemsData } },
       });
+
+      // Consommation du coupon AVANT tout effet de bord (wallet/stock) : si la
+      // garde échoue (usage simultané), la commande est supprimée proprement.
+      if (appliedCouponId) {
+        const redeemed = await redeemCoupon(appliedCouponId, userId, subtotal, order.id);
+        if (!redeemed.ok) {
+          await db.order.delete({ where: { id: order.id } }).catch(() => undefined); // cascade items
+          return jsonError(redeemed.error, 400);
+        }
+      }
+
       payment = await db.payment.create({
         data: {
           userId,
           purpose: "shop_order",
           method: "wallet",
-          amount: subtotal,
+          amount: total,
           status: "success",
           confirmedAt: new Date(),
           ref: genRef("PAY"),
@@ -72,7 +100,7 @@ export async function POST(req: NextRequest) {
       });
       await db.order.update({ where: { id: order.id }, data: { paymentId: payment.id } });
 
-      await debitWallet(wallet.id, subtotal, "payment", order.id);
+      await debitWallet(wallet.id, total, "payment", order.id);
       await creditWallet(wallet.id, cashback, "cashback", order.id);
       // Parrainage : récompense du parrain à la première commande payée
       await rewardReferrerIfNeeded(userId);
@@ -90,14 +118,24 @@ export async function POST(req: NextRequest) {
     } else {
       // MoMo (wave/orange) : commande en attente de confirmation du paiement
       order = await db.order.create({
-        data: { userId, subtotal, cashback, total: subtotal, status: "pending", items: { create: orderItemsData } },
+        data: { userId, subtotal, discount, couponCode: appliedCouponId ? couponCode!.toUpperCase() : null, cashback, total, status: "pending", items: { create: orderItemsData } },
       });
+
+      // Consommation du coupon avant création du paiement (même logique anti-course)
+      if (appliedCouponId) {
+        const redeemed = await redeemCoupon(appliedCouponId, userId, subtotal, order.id);
+        if (!redeemed.ok) {
+          await db.order.delete({ where: { id: order.id } }).catch(() => undefined); // cascade items
+          return jsonError(redeemed.error, 400);
+        }
+      }
+
       payment = await db.payment.create({
         data: {
           userId,
           purpose: "shop_order",
           method: paymentMethod,
-          amount: subtotal,
+          amount: total,
           status: "pending",
           ref: genRef("PAY"),
           metaJson: JSON.stringify({ orderId: order.id }),
@@ -110,7 +148,7 @@ export async function POST(req: NextRequest) {
       userId,
       channel: "sms",
       toPhone: user.phone,
-      message: `Kènè : commande ${order.id.slice(-6).toUpperCase()} enregistrée (${xof(subtotal)}${cashback ? `, ${xof(cashback)} de cashback` : ""}). Réf paiement ${payment.ref}.`,
+      message: `Kènè : commande ${order.id.slice(-6).toUpperCase()} enregistrée (${xof(total)}${discount ? `, remise ${xof(discount)} appliquée` : ""}${cashback ? `, ${xof(cashback)} de cashback` : ""}). Réf paiement ${payment.ref}.`,
     });
 
     const fullOrder = await db.order.findUnique({ where: { id: order.id }, include: { items: true } });
