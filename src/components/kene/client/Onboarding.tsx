@@ -2,9 +2,11 @@
 // Kènè Cliente — Onboarding 3 étapes : téléphone → OTP → profil peau
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Check, ChevronLeft, Loader2, MessageSquareText, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, Gift, Loader2, MessageSquareText, ShieldCheck, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { apiPatch, apiPost } from "@/lib/kene/api";
+import { xof } from "@/lib/kene/format";
+import { FILLEUL_GIFT } from "@/lib/kene/referral";
 import { KeneLogo } from "@/components/kene/icons";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -37,6 +39,10 @@ export function Onboarding() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [isNew, setIsNew] = useState(false);
+  // Fil du Parrainage : code d'une amie saisi (facultatif) — échangé après
+  // authentification (l'API exige un userId valide et garde toutes ses
+  // protections : auto-parrainage, échange croisé, double redeem)
+  const [parrainCode, setParrainCode] = useState("");
 
   // profil peau
   const [fitz, setFitz] = useState<string>("V");
@@ -90,8 +96,11 @@ export function Onboarding() {
         if (v.user.name && v.user.name !== "Nouvelle cliente") setName(v.user.name.split(" ")[0]);
         setStep(2);
       } else {
+        // Compte déjà complet : échange du code AVANT l'entrée (données fraîches)
+        const ref = await tryReferral(v.user.id);
         setUser(v.user as SessionUser);
         toast.success(`Bienvenue ${v.user.name.split(" ")[0]}`);
+        announceReferral(ref);
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Code invalide");
@@ -103,6 +112,36 @@ export function Onboarding() {
 
   // id de l'utilisatrice authentifiée à l'étape OTP (profil finalisé à l'étape 3)
   const [authId, setAuthId] = useState<string | null>(null);
+
+  /**
+   * Échange du code parrain saisi à l'étape OTP — AVANT setUser : les données
+   * fraîches (wallet crédité, badge non-lus) doivent être visibles dès que
+   * l'accueil se monte. Renvoie le résultat, l'annonce (toasts) revient à
+   * l'appelant APRÈS l'entrée dans l'app (ordre narratif).
+   */
+  async function tryReferral(
+    uid: string
+  ): Promise<{ ok: true; gift: number; parrainName: string } | { ok: false; error: string } | null> {
+    const code = parrainCode.trim();
+    if (code.length < 4) return null; // champ vide ou trop court → ignore silencieusement
+    try {
+      const r = await apiPost<{ ok: boolean; gift: number; parrain: { name: string } }>("/api/referral/redeem", { userId: uid, code });
+      return { ok: true, gift: r.gift, parrainName: r.parrain.name };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "Code parrain invalide" };
+    }
+  }
+
+  function announceReferral(ref: Awaited<ReturnType<typeof tryReferral>>) {
+    if (!ref) return;
+    if (ref.ok) {
+      toast.success(`Cadeau de bienvenue : ${xof(ref.gift)} crédités 💛`, {
+        description: `Merci ${ref.parrainName.split(" ")[0]} ! Elle recevra sa récompense dès ta première commande.`,
+      });
+    } else {
+      toast.error(ref.error);
+    }
+  }
 
   async function saveProfile() {
     if (!authId) return toast.error("Session expirée — reviens puis revalide le code");
@@ -117,8 +156,13 @@ export function Onboarding() {
         allergies: allergies.trim() || undefined,
         goals: goals.map((id) => ({ id, label: SKIN_GOALS.find((g) => g.id === id)?.label ?? id })),
       });
+      // Le Fil du Parrainage commence ici : cadeau de bienvenue dès l'inscription.
+      // Échange AVANT setUser → l'accueil se monte avec le wallet déjà crédité
+      // et la cloche déjà badgée ; l'annonce suit l'entrée (ordre narratif).
+      const ref = await tryReferral(authId);
       setUser(r.user as SessionUser);
       toast.success("Profil beauté créé — bienvenue dans la famille Kènè");
+      announceReferral(ref);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Enregistrement impossible");
     } finally {
@@ -230,6 +274,26 @@ export function Onboarding() {
             <button onClick={async () => { if (await requestCode(`+225${digits}`)) toast.success("Nouveau code envoyé"); }} className="mt-4 mx-auto text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
               Renvoyer le code
             </button>
+
+            {/* Fil du Parrainage — code d'une amie (facultatif) */}
+            <div className="mt-6 rounded-2xl border border-dashed border-gold/60 bg-gold/5 p-4">
+              <label htmlFor="parrain" className="flex items-center gap-1.5 text-xs font-semibold">
+                <Gift size={14} className="text-gold-text" aria-hidden="true" />
+                J&apos;ai un code parrain <span className="font-normal text-muted-foreground">(facultatif)</span>
+              </label>
+              <Input
+                id="parrain"
+                value={parrainCode}
+                onChange={(e) => setParrainCode(e.target.value.toUpperCase().replace(/\s+/g, "").slice(0, 24))}
+                placeholder="EX. MARIAM-KENE"
+                autoComplete="off"
+                className="mt-2 h-11 font-mono tracking-wider"
+                aria-describedby="parrain-hint"
+              />
+              <p id="parrain-hint" className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                {xof(FILLEUL_GIFT)} de bienvenue crédités sur ton wallet dès ton inscription — et ta parraine reçoit sa récompense à ta première commande.
+              </p>
+            </div>
           </motion.div>
         )}
 

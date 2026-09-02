@@ -538,3 +538,35 @@ Stage Summary:
 - La cloche donne enfin de la VISIBILITÉ aux événements silencieux : rappels automatiques (tâche 29), bonus parrainage, confirmations de RDV — tout converge au même endroit
 - Zéro rupture : schéma additif, GET conserve sa shape (+ readAt, + unread), carte accueil intacte
 - Prochaine étape proposée : notifications push temps réel (cloche mise à jour live via socket), ou onboarding v2 « j'ai un code parrain » au signup, ou PDF mensuel de la liasse
+
+---
+Task ID: 32
+Agent: main (Z.ai Code)
+Task: Onboarding v2 — champ « J'ai un code parrain » dès l'inscription
+
+Contexte : le Fil du Parrainage (tâche 27) exigeait que la filleule trouve le champ code APRÈS inscription (Profil → Sheet « Une amie t'a donné son code ? ») — le moment d'acquisition, quand la motivation est maximale, était perdu. Direction choisie (suite de « fait ton choix ») : capter le code à l'étape OTP de l'onboarding, en réutilisant l'API POST /api/referral/redeem existante — zéro backend nouveau, toutes les gardes conservées (auto-parrainage, échange croisé, double redeem, code inconnu).
+
+Work Log:
+- Onboarding.tsx : carte pointillée dorée à l'étape 2 (OTP, sous « Renvoyer le code ») — label Gift « J'ai un code parrain (facultatif) », Input mono uppercase sans espaces (24 car. max, autoComplete off, aria-describedby), hint {xof(FILLEUL_GIFT)} « crédités dès ton inscription — ta parraine reçoit sa récompense à ta première commande » (constante importée, pas de 2 000 codé en dur)
+- tryReferral(uid) : renvoie { ok, gift, parrainName } | { ok: false, error } | null (champ < 4 car. → null silencieux) — PAS de toast interne
+- announceReferral(ref) : toast succès « Cadeau de bienvenue : 2 000 FCFA crédités 💛 / Merci Mariam !… » ou toast erreur (message serveur : code inconnu, déjà parrainée, code le tien…)
+- Branché aux DEUX chemins d'entrée : verify() (compte complet → login direct) et saveProfile() (nouvelle cliente → profil → entrée)
+
+Bugs corrigés en cours de route :
+- COURSE setUser/redeem (repéré en E2E : wallet affiché 0 et badge cloche absent alors que la DB était juste) : le redeem s'exécutait APRÈS setUser → l'accueil montait avant le crédit → données périmées. Fix : tryReferral AVANT setUser (l'accueil se monte avec wallet crédité + cloche badgée), toasts APRÈS l'entrée (ordre narratif « Profil créé » → « Cadeau crédité » préservé via announceReferral séparé)
+
+Tests (DB réelle + navigateur 390×844) :
+- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; dev.log : redeem 200 (valide) / 404 (faux code, attendu), aucune erreur runtime
+- Scénario 1 — inscription complète AVEV code : nouveau numéro 0705556677 → champ « mariam-kene » EN MINUSCULES (la normalisation casse de l'API est couverte) → profil « Aminata » → toasts « Profil créé » + « Cadeau de bienvenue : 2 000 FCFA crédités 💛 Merci Mariam ! » ; entrée : Wallet 2 000 FCFA (corrigé, plus 0) + cloche « 1 non lue » DÈS le montage ; DB : referredBy Mariam Diallo, wallet 2 000, tx credit 2000 referral gift:…, notif filleule (bienvenue) + notif parrain (Aminata a rejoint 🧡)
+- Scénario 2 — code invalide « FAUX-CODE » : toast « Code inconnu — vérifie auprès de ton amie » (404 API), inscription NON bloquée, profil créé, wallet 0, referredBy null
+- Scénario 3 — sans code (démo Mariam) : flux inchangé, wallet 14 000, aucune toast parrainage — et la cloche de Mariam affiche 5 non lues dont « Aminata a rejoint la communauté » (synergie 27×31×32 visible en un coup d'œil)
+- Purge post-test : Aminata + Bintou test + otp orphelin + 2 notifications orphelines supprimés ; Mariam intacte (wallet 14 000, code MARIAM-KENE)
+- VLM 390px : carte parrain visible et propre (bordure dorée, MARIAM-KENE lisible), aucun chevauchement/troncature ; hint sous le pli (scroll normal)
+- Screenshot : .proofs/task32-onboarding-code.png ; console navigateur vierge
+
+Stage Summary:
+- La boucle de croissance démarre désormais au bon moment : le code parrain est capté à l'étape OTP (pic de motivation), échangé automatiquement à l'authentification, et le cadeau est visible dès la première seconde dans l'app (wallet + cloche) — le « aha moment » de la filleule coïncide avec l'entrée
+- Zéro backend nouveau : le champ salue une API éprouvée (gardes intactes) ; l'UX reste optionnelle et non bloquante (mauvais code = toast, jamais un mur)
+- Leçon technique réutilisée partout où un post-login enrichit les données : TOUJOURS exécuter l'enrichissement AVANT setUser (sinon l'écran monté lit des données périmées) mais annoncer APRÈS (narratif)
+- Le Fil du Parrainage est complet de bout en bout : partage (code/WhatsApp) → saisie à l'inscription → cadeau immédiat → bonus parrain à la 1ʳᵉ commande → visibilité cloche/parrainage/admin
+- Prochaine étape proposée : cloche temps réel via socket.io (mini-service), ou PDF mensuel de la liasse, ou coupons/promos boutique (diffusion code à grande échelle)
