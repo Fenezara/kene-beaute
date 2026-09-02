@@ -8,7 +8,7 @@ export async function GET() {
     const now = new Date();
     const since30 = new Date(now.getTime() - 30 * 86_400_000);
 
-    const [users, tenants, diagnoses, orders, paidOrders, diagRecent, sales30] = await Promise.all([
+    const [users, tenants, diagnoses, orders, paidOrders, diagRecent, sales30, referrals] = await Promise.all([
       db.user.count(),
       db.tenant.count(),
       db.diagnosis.count(),
@@ -22,6 +22,7 @@ export async function GET() {
         where: { status: "completed", createdAt: { gte: since30 } },
         select: { tenantId: true, total: true },
       }),
+      db.user.count({ where: { referredBy: { not: null } } }),
     ]);
 
     const gmvBoutique = paidOrders.reduce((s, o) => s + o.total, 0);
@@ -61,6 +62,7 @@ export async function GET() {
       orders,
       gmvBoutique,
       commissionTotal,
+      referrals,
       chart,
       topTenants,
     });

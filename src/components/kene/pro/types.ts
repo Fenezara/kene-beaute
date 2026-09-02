@@ -321,6 +321,7 @@ export interface AdminStats {
   orders: number;
   gmvBoutique: number;
   commissionTotal: number;
+  referrals: number;
   chart: { date: string; count: number }[];
   topTenants: { name: string; city: string; country?: string; ca30: number }[];
 }

@@ -1,7 +1,7 @@
 // POST /api/payments/confirm — simule la confirmation MoMo et déclenche les effets métier
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { jsonError, serverError, ensureWallet, creditWallet, notify } from "@/lib/kene/server";
+import { jsonError, serverError, ensureWallet, creditWallet, notify, rewardReferrerIfNeeded } from "@/lib/kene/server";
 import { xof } from "@/lib/kene/format";
 
 export async function POST(req: NextRequest) {
@@ -34,6 +34,9 @@ export async function POST(req: NextRequest) {
           const w = await ensureWallet(order.userId);
           if (w) wallet = await creditWallet(w.id, order.cashback, "cashback", order.id);
         }
+
+        // Parrainage : récompense du parrain à la première commande payée
+        await rewardReferrerIfNeeded(order.userId);
 
         // Sorties de stock
         for (const item of items) {

@@ -1,8 +1,9 @@
 // Kènè — Helpers serveur pour les routes API (backend uniquement)
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { genRef } from "./format";
+import { genRef, xof } from "./format";
 import { rfmScore } from "./rfm";
+import { PARRAIN_REWARD } from "./referral";
 import type { SimpleLine } from "@/lib/accounting/syscohada";
 
 export function jsonError(error: string, status = 400): NextResponse {
@@ -101,6 +102,54 @@ export async function debitWallet(walletId: string, amount: number, reason: stri
   if (amount <= 0) return null;
   const wallet = await db.wallet.update({ where: { id: walletId }, data: { balance: { decrement: amount } } });
   await db.walletTransaction.create({ data: { walletId, type: "debit", amount, reason, refId: refId ?? null } });
+  return wallet;
+}
+
+// ─────────────── Parrainage « Le Fil du Parrainage » ───────────────
+/**
+ * Récompense le parrain à la PREMIÈRE commande payée de sa filleule (idempotent).
+ * À appeler dès qu'une commande passe au statut "paid" (wallet direct ou confirmation MoMo).
+ */
+export async function rewardReferrerIfNeeded(filleulUserId: string) {
+  const filleul = await db.user.findUnique({ where: { id: filleulUserId } });
+  if (!filleul?.referredBy) return null; // pas parrainée → rien à faire
+
+  const dedupRefId = `parrain:${filleulUserId}`;
+  const existing = await db.walletTransaction.findFirst({
+    where: { reason: "referral", refId: dedupRefId },
+    select: { id: true },
+  });
+  if (existing) return null; // déjà récompensé pour cette filleule
+
+  const parrainWallet = await ensureWallet(filleul.referredBy);
+  if (!parrainWallet) return null;
+
+  const wallet = await creditWallet(parrainWallet.id, PARRAIN_REWARD, "referral", dedupRefId);
+
+  const parrain = await db.user.findUnique({ where: { id: filleul.referredBy } });
+  if (parrain) {
+    await notify({
+      userId: parrain.id,
+      channel: "whatsapp",
+      toPhone: parrain.phone,
+      message: `Kènè : ${filleul.name} a passé sa première commande 🎉 Ton bonus parrainage de ${xof(PARRAIN_REWARD)} est crédité sur ton wallet !`,
+    });
+  }
+  await notify({
+    userId: filleul.id,
+    channel: "whatsapp",
+    toPhone: filleul.phone,
+    message: `Kènè : ta première commande est confirmée ✅ Ton parrain${parrain ? ` ${parrain.name}` : ""} a reçu son bonus grâce à toi 💛`,
+  });
+  await db.auditLog.create({
+    data: {
+      userId: filleul.id,
+      action: "referral_reward",
+      entity: "wallet",
+      entityId: parrainWallet.id,
+      detailsJson: JSON.stringify({ parrainId: filleul.referredBy, filleulId: filleulUserId, amount: PARRAIN_REWARD, refId: dedupRefId }),
+    },
+  });
   return wallet;
 }
 

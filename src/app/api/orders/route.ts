@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError, genRef, debitWallet, creditWallet, notify } from "@/lib/kene/server";
+import { jsonError, serverError, genRef, debitWallet, creditWallet, notify, rewardReferrerIfNeeded } from "@/lib/kene/server";
 import { CASHBACK_RATE, xof } from "@/lib/kene/format";
 
 const Body = z.object({
@@ -74,6 +74,8 @@ export async function POST(req: NextRequest) {
 
       await debitWallet(wallet.id, subtotal, "payment", order.id);
       await creditWallet(wallet.id, cashback, "cashback", order.id);
+      // Parrainage : récompense du parrain à la première commande payée
+      await rewardReferrerIfNeeded(userId);
 
       // Sorties de stock (+ mouvements pour les produits rattachés à un tenant)
       for (const l of lines) {

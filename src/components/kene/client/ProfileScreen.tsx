@@ -16,6 +16,7 @@ import { useKene, type SessionUser } from "@/store/kene";
 import type { ApiUser, ApiWallet, ApiWalletTx } from "./types";
 import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES } from "./types";
 import { SectionTitle } from "./bits";
+import { ParrainageCard } from "./ParrainageCard";
 
 /** SessionUser + goals (string JSON) renvoyé par PATCH profile */
 type ClientUser = SessionUser & { goals?: string | null };
@@ -213,7 +214,7 @@ export function ProfileScreen() {
             <p className="text-[10px] uppercase tracking-[0.18em] opacity-70">Solde disponible</p>
             <p className="font-mono font-black text-3xl mt-1">{wallet ? xof(wallet.balance) : "···"}</p>
             <div className="flex items-center gap-2 mt-2 text-[11px] opacity-80">
-              <BadgeCheck size={13} className="text-[#C8951E]" /> Cashback {Math.round((wallet?.cashbackRate ?? CASHBACK_RATE) * 100)} % · Code parrain <span className="font-mono font-bold text-[#C8951E]">{wallet?.referralCode ?? "—"}</span>
+              <BadgeCheck size={13} className="text-[#C8951E]" /> Cashback {Math.round((wallet?.cashbackRate ?? CASHBACK_RATE) * 100)} % sur chaque commande
             </div>
             <button onClick={() => { setTopup(true); setTopupState("idle"); }} className="mt-4 h-11 w-full rounded-xl bg-[#C8951E] text-[#1A1410] font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#C8951E]">
               <Plus size={16} /> Approvisionner
@@ -247,6 +248,9 @@ export function ProfileScreen() {
           </div>
         )}
       </section>
+
+      {/* Parrainage — le fil qui relie les amies */}
+      <ParrainageCard userId={user.id} userName={user.name} onRedeemed={loadWallet} />
 
       {/* Consentement */}
       <section aria-labelledby="cons-t" className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3">

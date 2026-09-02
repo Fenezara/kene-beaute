@@ -82,7 +82,11 @@ async function main() {
     },
   });
   const awa = await db.user.create({
-    data: { phone: "+2250705060708", name: "Awa Traoré", role: "client", city: "Abidjan", skinType: "grasse", fitzpatrick: "IV", consentHealth: true },
+    data: { phone: "+2250705060708", name: "Awa Traoré", role: "client", city: "Abidjan", skinType: "grasse", fitzpatrick: "IV", consentHealth: true, referredBy: mariam.id },
+  });
+  // Filleule de Mariam — a rejoint la communauté il y a 5 j via son code, a commandé il y a 4 j (récompense déclenchée)
+  const bintou = await db.user.create({
+    data: { phone: "+2250706070709", name: "Bintou Cissé", role: "client", city: "Abidjan", skinType: "mixte", fitzpatrick: "IV", consentHealth: true, referredBy: mariam.id, createdAt: new Date(Date.now() - 5 * 864e5) },
   });
   const ndeye = await db.user.create({
     data: { phone: "+221770000101", name: "Ndeye Sow", role: "pro", city: "Dakar", consentHealth: true },
@@ -517,15 +521,38 @@ async function main() {
     },
   });
 
-  // ── Wallet Mariam ──
-  const wallet = await db.wallet.create({ data: { userId: mariam.id, balance: 12500, referralCode: "MARIAM-KENE" } });
+  // ── Wallet Mariam (10 000 topup + 1 500 cashback + 2 500 bonus parrainage Bintou) ──
+  const wallet = await db.wallet.create({ data: { userId: mariam.id, balance: 14000, referralCode: "MARIAM-KENE" } });
   await db.walletTransaction.createMany({
     data: [
       { walletId: wallet.id, type: "credit", amount: 10000, reason: "topup", refId: "TOP-INIT", createdAt: new Date(Date.now() - 30 * 864e5) },
       { walletId: wallet.id, type: "credit", amount: 1500, reason: "cashback", refId: "ORD-DEMO1", createdAt: new Date(Date.now() - 12 * 864e5) },
-      { walletId: wallet.id, type: "credit", amount: 1000, reason: "referral", createdAt: new Date(Date.now() - 5 * 864e5) },
+      { walletId: wallet.id, type: "credit", amount: 2500, reason: "referral", refId: `parrain:${bintou.id}`, createdAt: new Date(Date.now() - 4 * 864e5) },
     ],
   });
+
+  // ── « Le Fil du Parrainage » : wallet de la filleule Bintou (cadeau de bienvenue 2 000) + sa 1ʳᵉ commande payée ──
+  const bintouWallet = await db.wallet.create({ data: { userId: bintou.id, balance: 2000, referralCode: "BINTOU-KENE" } });
+  await db.walletTransaction.create({
+    data: { walletId: bintouWallet.id, type: "credit", amount: 2000, reason: "referral", refId: `gift:${bintou.id}`, createdAt: new Date(Date.now() - 5 * 864e5) },
+  });
+  const savonSeed = await db.product.findFirst({ where: { name: "Savon Noir Traditionnel" } });
+  if (savonSeed) {
+    const bintouOrder = await db.order.create({
+      data: {
+        userId: bintou.id, subtotal: 4500, cashback: 225, total: 4500, status: "paid",
+        createdAt: new Date(Date.now() - 4 * 864e5),
+        items: { create: [{ productId: savonSeed.id, label: savonSeed.name, qty: 1, unitPrice: 4500, total: 4500 }] },
+      },
+    });
+    await db.payment.create({
+      data: {
+        userId: bintou.id, purpose: "shop_order", method: "wave", amount: 4500, status: "success",
+        ref: "PAY-BINTOU", confirmedAt: new Date(Date.now() - 4 * 864e5), createdAt: new Date(Date.now() - 4 * 864e5),
+        metaJson: JSON.stringify({ orderId: bintouOrder.id }),
+      },
+    });
+  }
 
   // ── Diagnostics passés de Mariam ──
   const pastDiag = (zone: BodyZone, image: string, seed: number, daysAgo: number) => {
@@ -575,6 +602,9 @@ async function main() {
       { userId: mariam.id, tenantId: t1.id, channel: "sms", toPhone: mariam.phone, message: "Kènè : Bienvenue Mariam ! Votre profil peau est prêt. Faites votre 1er diagnostic IA 🧴", createdAt: new Date(Date.now() - 30 * 864e5) },
       { userId: mariam.id, tenantId: t1.id, channel: "whatsapp", toPhone: mariam.phone, message: "Kènè : Rappel — votre soin Éclat Mélanoderme est prévu aujourd'hui à 9h30 chez Éclat d'Abidjan.", createdAt: new Date(Date.now() - 864e5) },
       { userId: mariam.id, channel: "whatsapp", toPhone: mariam.phone, message: "Kènè : Bonjour Mariam, comment se porte ta peau après 3 jours de sérum Moringa ? Envoie-moi une photo !", createdAt: new Date(Date.now() - 12 * 36e5), status: "scheduled" },
+      { userId: mariam.id, channel: "whatsapp", toPhone: mariam.phone, message: "Kènè : Bintou a passé sa première commande 🎉 Ton bonus parrainage de 2 500 FCFA est crédité sur ton wallet !", createdAt: new Date(Date.now() - 4 * 864e5) },
+      { userId: bintou.id, channel: "sms", toPhone: bintou.phone, message: "Kènè : bienvenue Bintou ! Cadeau de bienvenue de 2 000 FCFA crédité sur ton wallet 💛", createdAt: new Date(Date.now() - 5 * 864e5) },
+      { userId: bintou.id, channel: "sms", toPhone: bintou.phone, message: "Kènè : commande confirmée ✅ 4 500 FCFA payés — 225 FCFA de cashback crédités.", createdAt: new Date(Date.now() - 4 * 864e5) },
     ],
   });
 
