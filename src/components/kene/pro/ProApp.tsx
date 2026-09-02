@@ -1,8 +1,8 @@
 "use client";
-// Kènè — APP PRO (desktop/tablette) : Dashboard, Agenda, Caisse POS, CRM, Relances, Catalogue, Stock, Paie, Compta
+// Kènè — APP PRO (desktop/tablette) : Dashboard, Agenda, Caisse POS, CRM, Relances, Catalogue, Promos, Stock, Paie, Compta
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { BellRing, LayoutDashboard, MapPin, ChevronDown } from "lucide-react";
+import { BellRing, LayoutDashboard, MapPin, ChevronDown, TicketPercent } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -22,8 +22,9 @@ import { CatalogSection } from "./CatalogSection";
 import { StockSection } from "./StockSection";
 import { PayrollSection } from "./PayrollSection";
 import { AccountingSection } from "./AccountingSection";
+import { CouponsSection } from "./CouponsSection";
 
-export type ProSectionId = "dashboard" | "agenda" | "caisse" | "crm" | "relances" | "catalogue" | "stock" | "paie" | "compta";
+export type ProSectionId = "dashboard" | "agenda" | "caisse" | "crm" | "relances" | "catalogue" | "promos" | "stock" | "paie" | "compta";
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
@@ -32,6 +33,7 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
   { id: "crm", label: "CRM", icon: OsramIcon, hint: "Clientes & fidélité" },
   { id: "relances", label: "Relances", icon: BellRing, hint: "Suivi post-protocole" },
   { id: "catalogue", label: "Catalogue", icon: DuafeIcon, hint: "Soins & produits" },
+  { id: "promos", label: "Promos", icon: TicketPercent, hint: "Coupons boutique" },
   { id: "stock", label: "Stock", icon: KenteIcon, hint: "Inventaire" },
   { id: "paie", label: "Paie", icon: FihankraIcon, hint: "CNPS · IPRES" },
   { id: "compta", label: "Compta", icon: BaouleIcon, hint: "SYSCOHADA" },
@@ -203,6 +205,7 @@ export function ProApp() {
             {section === "crm" && <CrmSection tenantId={tid} />}
             {section === "relances" && <RelancesSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {section === "catalogue" && <CatalogSection tenantId={tid} />}
+            {section === "promos" && <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {section === "stock" && <StockSection tenantId={tid} onNavigate={setSection} />}
             {section === "paie" && <PayrollSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} tenantName={tenant?.name ?? "Institut"} />}
             {section === "compta" && <AccountingSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}

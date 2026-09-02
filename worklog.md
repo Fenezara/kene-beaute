@@ -609,3 +609,40 @@ Stage Summary:
 - Résilience prouvée : reconnexion automatique des trois connexions (cliente, app, service redémarré), dégradation douce (sans service, comportement tâche 31 intact), course lecture/arrivée close (read-all → poll frais)
 - Pattern réutilisable : tout futur événement notifiable (commande expédiée, validation pro, promo) est automatiquement live dès qu'il passe par notify() ; le canal user:{userId} peut aussi servir l'indicateur « En direct » d'autres écrans
 - Prochaine étape proposée : coupons/promos boutique (diffusion de codes à grande échelle — le canal push est prêt), ou PDF mensuel de la liasse, ou badge temps réel côté Pro (nouvelle commande/relance)
+
+---
+Task ID: 34
+Agent: main (Z.ai Code)
+Task: Coupons & promos boutique — création Pro, diffusion push live, remise au checkout (suite de « fait ton choix », proposition n°1 de la tâche 33)
+
+Contexte : le canal push temps réel (tâche 33) attendait sa première campagne de masse. La tâche 34 avait été ENTAMÉE dans une portion de contexte perdue (fichiers créés à 09:12-09:16 mais SANS worklog ni finalisation) — audit à l'arrivée : backend et UI client déjà complets, il manquait le montage de la section Pro, une garde API, le redémarrage du dev server et toute la validation E2E.
+
+Work Log:
+- AUDIT de l'existant (contexte perdu) : prisma Coupon/CouponRedemption (poussé en DB), lib/kene/coupons.ts (checkCoupon/redeemCoupon/couponPitch/diffuseCoupon), API pro/coupons (GET/POST/PATCH), pro/coupons/diffuse, coupons/validate, orders avec couponCode + anti-course (redemption AVANT effets de bord, suppression propre si garde échoue), ShopScreen checkout avec champ CODE PROMO + livePromo (invalidation si le panier change), CouponsSection.tsx complet — mais NON monté dans ProApp
+- ProApp.tsx : entrée nav « Promos » (icône lucide TicketPercent, entre Catalogue et Stock) + montage <CouponsSection tenantId tenantName> — ProSectionId étendu, nav desktop + chips mobile
+- pro/coupons/diffuse/route.ts : garde durcie — coupon maison (tenantId null) → 403 « diffusion réservée à l'administration » (l'UI le désactivait déjà, l'API l'impose désormais)
+- REDÉMARRAGE dev server obligatoire : db.coupon undefined (500) car le singleton Prisma globalThis datait d'avant le modèle Coupon (le client node_modules était à jour, les scripts standalone passaient — seul le dev server vivait avec l'ancien). Kill + relance = client rechargé, API 200
+- LEÇON SANDBOX MÉMORABLE : le tueur de process du sandbox fauche les enfants de commande même setsid+nohup+disown — SEUL LE DOUBLE-FORK survit (subshell `( setsid cmd & )` → reparentage à PID 1 PENDANT la commande, comme le fait agent-browser) ; dev server :3000 et notify-service :3004 relancés ainsi, stables depuis
+- E2E complet (navigateur 1440px + 390px via gateway :81, sockets incluses) :
+  · Création coupon UI Pro : dialog (type, valeur, min, max, code, label, date) → RENTEXPO-15 (-15 %, min 5 000, « Rentrée — offre expo ») → toast + carte dans la liste
+  · Diffusion UI : « Code RENTEXPO-15 diffusé — 3 clientes notifiées » ; IDEMPOTENCE re-clic → « Ce coupon a déjà été diffusé aux clientes »
+  · PUSH LIVE (curl diffusion pendant que Mariam est connectée) : curl 09:51:17.9 → log « push reçu → poll immédiat » → badge 4→5 à 09:51:19.2 (~1,3 s bout en bout, SANS reload) ; sheet ouverte : les 2 messages promo en tête, pill « EN DIRECT » actif ; 3ᵉ diffusion (TOAST-LIVE) → toast « Nouvelle notification — Code promo TOAST-LIVE : -10 % sur la boutique » + badge 6→7, capturé à 1,1 s (VLM lit le texte exact)
+  · CHECKOUT : panier 2× Savon (9 000) → RENTEXPO-15 appliqué → toast « Remise de 1 350 FCFA » + carte verte code/label/remise + récap VLM : sous-total 9 000, remise −1 350, cashback +383 (5 % du remisé), TOTAL 7 650
+  · COMMANDE wallet : « Commande confirmée — cashback 383 FCFA crédité » ; DB vérifiée : order paid discount 1350 couponCode RENTEXPO-15 total 7650, payment wallet success, redemption (Mariam, 1350, liée à la commande), usedCount 1, wallet 6733 = 14 000−7 650+383 exact (tx debit 7 650 + credit 383), notif commande avec « remise 1 350 FCFA appliquée »
+  · GARDES (curl + UI) : minOrder → « à partir de 5 000 FCFA d'achat » ; code inconnu ; coupon désactivé (PATCH toggle) → « n'est plus actif » ; RÉUTILISATION UI → « Tu as déjà utilisé ce code promo 😉 » (la garde usage court-circuite avant minOrder — ordre voulu)
+  · Compteurs Pro : RENTEXPO-15 « 1 utilisation » visible sur la carte après la commande
+  · Responsive : 390px section Promos (chips scrollables, KPIs empilés propres — VLM), 1440px liste 2 colonnes
+- NETTOYAGE intégral : order+items+payment+tx wallet, 10 notifications (9 promos + 1 commande), 3 coupons + redemptions (cascade), 3 auditLogs, stock Savon 26 restauré, wallet Mariam 14 000 ; badge navigateur 7→3 en AUTO-CORRECTION au tick suivant (le fil converge vers la vérité purgée) ; scripts temporaires supprimés
+
+Bugs corrigés en cours de route :
+- db.coupon undefined → singleton Prisma périmé au hot-reload → redémarrage du dev server (leçon : tout `db:push` avec nouveau modèle DOIT être suivi d'un restart dev)
+- Process tués entre commandes → double-fork `( setsid … & )` (leçon sandbox, ci-dessus)
+- Clic carte produit bloqué par l'image (couvre le point central) → clic JS par aria-label/textContent ; bouton panier introuvable car overlay succès paiement (payState) le masquait → fermer « Continuer mes achats » d'abord
+
+Tests finaux : tsc --noEmit 0 erreur src/ ; eslint . 0 erreur 0 warning ; dev.log uniquement des 200 + les 400 VOULUS des gardes testées ; console navigateur vierge (warnings préexistants uniquement) ; screenshots .proofs/task34-{pro-coupon-cree,live-push-toast,sheet-promo,checkout-remise,promos-liste,promos-mobile,toast-live-diffusion}.png
+
+Stage Summary:
+- La promo est une boucle fermée DE BOUT EN BOUT et TEMPS RÉEL : la pro crée le code (UI) → le diffuse (1 clic, idempotent) → la cloche de chaque cliente s'illumine + toast (< 1,3 s mesuré) → la cliente applique le code au checkout (aperçu serveur, jamais de surprise) → la commande consomme le coupon (anti-course, une seule fois par cliente) → le compteur remonte côté Pro
+- Sécurité en profondeur : toutes les gardes vivent dans lib/kene/coupons (source unique) et sont RE-vérifiées à la commande ; la validation checkout ne consomme rien ; coupon maison non diffusable depuis un institut (403 API) ; bornes métier 5-90 % / 500-500 000 FCFA
+- Le cashback s'applique au montant PAYÉ (après remise) — la remise et la fidélité se cumulent proprement, vérifié en DB au franc près
+- Prochaine étape proposée : badge temps réel côté Pro (nouvelle commande/relance — même pattern notify-service), ou PDF mensuel de la liasse, ou coupons maison gérés par l'Admin (le modèle tenantId null est prêt)

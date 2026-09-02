@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
 
     const coupon = await db.coupon.findFirst({ where: { id: couponId, OR: [{ tenantId }, { tenantId: null }] } });
     if (!coupon) return jsonError("Coupon introuvable", 404);
+    // Un coupon maison (tenantId null) ne se diffuse pas depuis un institut —
+    // l'UI le désactive, l'API l'impose (jamais de confiance au seul client)
+    if (coupon.tenantId === null) return jsonError("Coupon maison Kènè — diffusion réservée à l'administration", 403);
     if (!coupon.active) return jsonError("Active le coupon avant de le diffuser", 400);
 
     // Idempotence : déjà diffusé ?
