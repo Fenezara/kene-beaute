@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { splitTVA, saleJournalLines } from "@/lib/accounting/syscohada";
 import { jsonError, serverError, overlaps, dayEnd, createJournalEntry, recomputeClientRfm, genRef, notify } from "@/lib/kene/server";
+import { pushTenantFeed } from "@/lib/kene/realtime";
 
 const Body = z.object({
   action: z.enum(["confirm", "complete", "cancel", "no_show", "reschedule"]),
@@ -51,20 +52,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         where: { id },
         data: { startAt: newStart, resourceId: newResourceId },
       });
+      // Temps réel : autres postes/onglets Pro + dashboard rafraîchis
+      pushTenantFeed(appointment.tenantId);
       return NextResponse.json({ appointment: updated });
     }
 
     // ── confirm / cancel / no_show : changement de statut simple ──
+    // (temps réel : le badge « à confirmer » des autres postes descend en direct)
     if (action === "confirm") {
       const updated = await db.appointment.update({ where: { id }, data: { status: "confirmed" } });
+      pushTenantFeed(appointment.tenantId);
       return NextResponse.json({ appointment: updated });
     }
     if (action === "cancel") {
       const updated = await db.appointment.update({ where: { id }, data: { status: "cancelled" } });
+      pushTenantFeed(appointment.tenantId);
       return NextResponse.json({ appointment: updated });
     }
     if (action === "no_show") {
       const updated = await db.appointment.update({ where: { id }, data: { status: "no_show" } });
+      pushTenantFeed(appointment.tenantId);
       return NextResponse.json({ appointment: updated });
     }
 

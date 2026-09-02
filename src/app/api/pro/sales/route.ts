@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { splitTVA, saleJournalLines } from "@/lib/accounting/syscohada";
 import { jsonError, serverError, resolveTenant, createJournalEntry, recomputeClientRfm, genRef } from "@/lib/kene/server";
+import { pushTenantFeed } from "@/lib/kene/realtime";
 
 export async function GET(req: NextRequest) {
   try {
@@ -118,6 +119,10 @@ export async function POST(req: NextRequest) {
       });
       await recomputeClientRfm(clientProfile.id);
     }
+
+    // Temps réel : le dashboard de l'institut (CA du jour, badge) se met à jour
+    // sans reload — best-effort, le poll du service rattrape sinon.
+    pushTenantFeed(tenantId);
 
     return NextResponse.json({ sale }, { status: 201 });
   } catch (err) {

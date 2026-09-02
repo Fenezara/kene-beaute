@@ -33,7 +33,7 @@ interface KeneState {
   addToCart: (line: CartLine) => void;
   setCartQty: (productId: string, qty: number) => void;
   clearCart: () => void;
-  setProTenantId: (id: string) => void;
+  setProTenantId: (id: string | null) => void;
 }
 
 export const useKene = create<KeneState>()(

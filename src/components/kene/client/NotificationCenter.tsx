@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
+import { armHeartbeat } from "@/lib/kene/live-socket";
 import { Bell, BellRing, CheckCheck, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,10 @@ export function NotificationCenter({
     });
     socketRef.current = socket;
 
+    // Auto-guérison : service redémarré à chaud → zombie détecté ≤ 35 s,
+    // reconnexion → join rejoué au connect.
+    const disarm = armHeartbeat(socket);
+
     socket.on("connect", () => {
       setLive(true);
       socket.emit("join", { userId });
@@ -115,6 +120,7 @@ export function NotificationCenter({
     });
 
     return () => {
+      disarm();
       socket.removeAllListeners();
       socket.disconnect();
       socketRef.current = null;

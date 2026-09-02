@@ -1,7 +1,12 @@
 "use client";
 // Kènè — APP PRO (desktop/tablette) : Dashboard, Agenda, Caisse POS, CRM, Relances, Catalogue, Promos, Stock, Paie, Compta
-import { useEffect, useMemo, useState } from "react";
+// TEMPS RÉEL (tâche 35) : socket.io vers notify-service (?XTransformPort=3004),
+// room tenant:{id} — RDV réservé, commande institut, vente POS → badge Agenda,
+// toast, KPIs du dashboard et listes branchées rafraîchis SANS reload.
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { io, type Socket } from "socket.io-client";
+import { armHeartbeat } from "@/lib/kene/live-socket";
 import { BellRing, LayoutDashboard, MapPin, ChevronDown, TicketPercent } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
@@ -12,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useApi } from "./useApi";
-import type { ProOverview } from "./types";
+import type { ProOverview, ProLive } from "./types";
 import { DashboardSection } from "./DashboardSection";
 import { AgendaSection } from "./AgendaSection";
 import { PosSection } from "./PosSection";
@@ -45,6 +50,13 @@ const PLAN_STYLES: Record<string, string> = {
   trial: "bg-muted text-muted-foreground border-border",
 };
 
+const NOTIFY_PORT = 3004;
+
+function looksLikeLive(f: unknown): f is ProLive {
+  const x = f as Partial<ProLive> | null;
+  return !!x && typeof x.tenantId === "string" && typeof x.pendingAppts === "number" && typeof x.salesToday === "number";
+}
+
 export function ProApp() {
   const proTenantId = useKene((s) => s.proTenantId);
   const setProTenantId = useKene((s) => s.setProTenantId);
@@ -60,7 +72,98 @@ export function ProApp() {
     if (!proTenantId && overview.data?.tenant?.id) setProTenantId(overview.data.tenant.id);
   }, [proTenantId, overview.data, setProTenantId]);
 
+  // AUTO-GUÉRISON : un institut mémorisé (localStorage) disparu de la base ne doit jamais bloquer
+  // l'espace Pro — on oublie la préférence périmée et on retombe sur l'institut par défaut.
+  const healedRef = useRef(false);
+  useEffect(() => {
+    if (overview.error && proTenantId && !healedRef.current) {
+      healedRef.current = true;
+      setProTenantId(null);
+      toast.info("Institut mémorisé indisponible — institut par défaut chargé");
+    }
+  }, [overview.error, proTenantId, setProTenantId]);
+
   const tid = proTenantId ?? overview.data?.tenant.id ?? "";
+
+  /* ── Temps réel institut (room tenant:{tid}) ─────────────────────────
+   * join-tenant à la connexion (et à chaque changement d'institut) ;
+   * tenant-feed → badge RDV à confirmer, toast d'arrivée (RDV réservé par
+   * une cliente ou commande institut — jamais les actions de la pro
+   * elle-même), KPIs dashboard et listes Agenda/Caisse rafraîchies.
+   * Dégradation douce : sans service, tout continue au montage. */
+  const [live, setLive] = useState<ProLive | null>(null);
+  const [liveConnected, setLiveConnected] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [agendaSeen, setAgendaSeen] = useState(0); // badge = nouveau depuis la dernière visite Agenda
+  const lastEventIdRef = useRef<string | null>(null);
+  const refetchRef = useRef(overview.refetch);
+  useEffect(() => {
+    refetchRef.current = overview.refetch;
+  }, [overview.refetch]);
+
+  useEffect(() => {
+    if (!tid) return;
+    // Never use PORT in the URL, always use XTransformPort
+    // DO NOT change the path, it is used by Caddy to forward the request to the correct port
+    const socket: Socket = io(`/?XTransformPort=${NOTIFY_PORT}`, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1_000,
+      reconnectionDelayMax: 4_000,
+      timeout: 8_000,
+    });
+    // Auto-guérison : service redémarré à chaud → zombie détecté ≤ 35 s,
+    // reconnexion → join-tenant rejoué au connect.
+    const disarm = armHeartbeat(socket);
+
+    socket.on("connect", () => {
+      setLiveConnected(true);
+      socket.emit("join-tenant", { tenantId: tid });
+    });
+    socket.on("disconnect", () => setLiveConnected(false));
+    socket.on("tenant-feed", (f: unknown) => {
+      if (!looksLikeLive(f) || f.tenantId !== tid) return; // garde défensive
+      const prevId = lastEventIdRef.current;
+      setLive(f);
+      // Le baseline « déjà vues » descend avec les confirmations : si la pro
+      // a vu 3 demandes, en confirme une (reste 2) puis qu'une NOUVELLE arrive
+      // (3), le badge doit montrer 1 — pas 0.
+      setAgendaSeen((seen) => Math.min(seen, f.pendingAppts));
+      if (f.last) {
+        lastEventIdRef.current = f.last.id;
+        // Toast d'arrivée : uniquement les événements distants (réservation
+        // cliente à confirmer, commande boutique) — la pro voit déjà ses
+        // propres actions (POS, RDV créés côté institut → statut confirmed).
+        // prevId null = premier fil après montage : pas de toast (vieille
+        // activité déjà là au chargement, cf. garde prev !== null du centre
+        // de notifications cliente).
+        if (prevId !== null && f.last.id !== prevId) {
+          if (f.last.type === "appointment" && f.last.status === "pending") {
+            toast.success("Nouvelle demande de RDV", { description: f.last.label, duration: 6_000 });
+          } else if (f.last.type === "order") {
+            toast.success("Commande boutique reçue", { description: f.last.label, duration: 6_000 });
+          }
+        }
+      }
+      // KPIs + listes branchées : rechargement live (anti-flash : setFeed des useApi)
+      setRefreshKey((k) => k + 1);
+      void refetchRef.current();
+    });
+
+    return () => {
+      disarm();
+      socket.removeAllListeners();
+      socket.disconnect();
+    };
+  }, [tid]);
+
+  // Le badge se vide quand la pro visite l'Agenda (elle a vu la liste)
+  const openSection = (s: ProSectionId) => {
+    if (s === "agenda") setAgendaSeen(live?.pendingAppts ?? 0);
+    setSection(s);
+  };
+  const agendaBadge = Math.max(0, (live?.pendingAppts ?? 0) - agendaSeen);
+  const navBadges: Partial<Record<ProSectionId, number>> = agendaBadge > 0 ? { agenda: agendaBadge } : {};
 
   const tenantOptions = useMemo(() => {
     const t = overview.data?.tenant;
@@ -111,27 +214,52 @@ export function ProApp() {
             ) : (
               <Skeleton className="h-4 w-24 bg-sidebar-accent" />
             )}
+            {liveConnected && (
+              <span
+                title="Connecté en temps réel — RDV, commandes et ventes arrivent sans recharger"
+                className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-medium text-success"
+              >
+                <span className="relative flex size-1.5" aria-hidden="true">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
+                  <span className="relative inline-flex size-1.5 rounded-full bg-success" />
+                </span>
+                En direct
+              </span>
+            )}
           </div>
         </div>
 
         <nav aria-label="Navigation App Pro" className="flex-1 px-3 py-2 space-y-1">
-          {NAV.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setSection(item.id)}
-              aria-current={section === item.id ? "page" : undefined}
-              className={cn(
-                "w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-left transition-colors",
-                section === item.id
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold shadow-sm"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-              )}
-            >
-              <item.icon className="size-4.5 shrink-0" />
-              <span className="flex-0 truncate">{item.label}</span>
-              {section === item.id && <ChevronDown className="size-3.5 -rotate-90 opacity-70" aria-hidden="true" />}
-            </button>
-          ))}
+          {NAV.map((item) => {
+            const badge = navBadges[item.id];
+            return (
+              <button
+                key={item.id}
+                onClick={() => openSection(item.id)}
+                aria-current={section === item.id ? "page" : undefined}
+                aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
+                className={cn(
+                  "w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-left transition-colors",
+                  section === item.id
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold shadow-sm"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                )}
+              >
+                <item.icon className="size-4.5 shrink-0" />
+                <span className="flex-0 truncate">{item.label}</span>
+                {badge ? (
+                  <span
+                    role="status"
+                    className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-bissap px-1.5 text-[11px] font-semibold text-white"
+                  >
+                    {badge}
+                  </span>
+                ) : (
+                  section === item.id && <ChevronDown className="size-3.5 -rotate-90 opacity-70" aria-hidden="true" />
+                )}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="border-t border-sidebar-border p-4">
@@ -155,20 +283,29 @@ export function ProApp() {
         {/* Nav mobile — chips scrollables */}
         <div className="lg:hidden border-b border-border bg-card/70">
           <nav aria-label="Navigation App Pro (mobile)" className="flex gap-1.5 overflow-x-auto no-scrollbar px-3 py-2.5">
-            {NAV.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setSection(item.id)}
-                aria-current={section === item.id ? "page" : undefined}
-                className={cn(
-                  "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-colors",
-                  section === item.id ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <item.icon className="size-3.5" />
-                {item.label}
-              </button>
-            ))}
+            {NAV.map((item) => {
+              const badge = navBadges[item.id];
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => openSection(item.id)}
+                  aria-current={section === item.id ? "page" : undefined}
+                  aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
+                  className={cn(
+                    "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-colors",
+                    section === item.id ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <item.icon className="size-3.5" />
+                  {item.label}
+                  {badge ? (
+                    <span role="status" className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white">
+                      {badge}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
           </nav>
         </div>
 
@@ -176,8 +313,17 @@ export function ProApp() {
           {/* En-tête mobile */}
           <div className="lg:hidden mb-4 flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 {tenant ? `${tenant.city} · ${tenant.country}` : "…"}
+                {liveConnected && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-medium text-success">
+                    <span className="relative flex size-1.5" aria-hidden="true">
+                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
+                      <span className="relative inline-flex size-1.5 rounded-full bg-success" />
+                    </span>
+                    En direct
+                  </span>
+                )}
               </p>
               <h1 className="font-heading text-lg font-bold truncate">{activeLabel} — {tenant?.name ?? "Kènè Pro"}</h1>
             </div>
@@ -198,15 +344,15 @@ export function ProApp() {
             className="min-w-0"
           >
             {section === "dashboard" && (
-              <DashboardSection tenantId={tid} overview={overview} loadingOverview={overview.loading} onNavigate={setSection} />
+              <DashboardSection tenantId={tid} overview={overview} loadingOverview={overview.loading} onNavigate={openSection} />
             )}
-            {section === "agenda" && <AgendaSection tenantId={tid} />}
-            {section === "caisse" && <PosSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
+            {section === "agenda" && <AgendaSection tenantId={tid} refreshKey={refreshKey} />}
+            {section === "caisse" && <PosSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} refreshKey={refreshKey} />}
             {section === "crm" && <CrmSection tenantId={tid} />}
             {section === "relances" && <RelancesSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {section === "catalogue" && <CatalogSection tenantId={tid} />}
             {section === "promos" && <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
-            {section === "stock" && <StockSection tenantId={tid} onNavigate={setSection} />}
+            {section === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
             {section === "paie" && <PayrollSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} tenantName={tenant?.name ?? "Institut"} />}
             {section === "compta" && <AccountingSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
           </motion.div>

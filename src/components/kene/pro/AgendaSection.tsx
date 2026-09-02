@@ -55,7 +55,7 @@ function timeOptions(): string[] {
   return out;
 }
 
-export function AgendaSection({ tenantId }: { tenantId: string }) {
+export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; refreshKey?: number }) {
   const [view, setView] = useState<"jour" | "semaine">("semaine");
   const [cursor, setCursor] = useState(() => startOfWeek(new Date())); // toujours aligné lundi
   const [dayOffset, setDayOffset] = useState(() => (new Date().getDay() + 6) % 7);
@@ -74,7 +74,7 @@ export function AgendaSection({ tenantId }: { tenantId: string }) {
       apiGet<{ appointments: ProAppointment[] }>(
         `/api/pro/appointments?tenantId=${tenantId}&from=${rangeFrom.toISOString()}&to=${rangeTo.toISOString()}`
       ).then((r) => r.appointments ?? []),
-    [tenantId, rangeFrom.toISOString(), rangeTo.toISOString()]
+    [tenantId, rangeFrom.toISOString(), rangeTo.toISOString(), refreshKey]
   );
 
   const catalog = useApi<ProCatalog>(

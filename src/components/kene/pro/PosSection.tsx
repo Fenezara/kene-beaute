@@ -37,7 +37,7 @@ const PAY_METHODS: { code: PaymentMethod; label: string; cls: string }[] = [
 
 const METHOD_LABELS: Record<string, string> = { wave: "Wave", orange: "Orange Money", cash: "Espèces", card: "Carte bancaire", wallet: "Wallet Kènè" };
 
-export function PosSection({ tenantId, tenantName }: { tenantId: string; tenantName: string }) {
+export function PosSection({ tenantId, tenantName, refreshKey = 0 }: { tenantId: string; tenantName: string; refreshKey?: number }) {
   const [lines, setLines] = useState<TicketLine[]>([]);
   const [discountInput, setDiscountInput] = useState("");
   const [clientId, setClientId] = useState("");
@@ -51,7 +51,7 @@ export function PosSection({ tenantId, tenantName }: { tenantId: string; tenantN
     () => (tenantId ? apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`).then((r) => r.clients ?? []) : Promise.resolve([])),
     [tenantId]
   );
-  const sales = useApi<SalesResponse>(() => (tenantId ? apiGet<SalesResponse>(`/api/pro/sales?tenantId=${tenantId}`) : Promise.resolve({ sales: [] })), [tenantId]);
+  const sales = useApi<SalesResponse>(() => (tenantId ? apiGet<SalesResponse>(`/api/pro/sales?tenantId=${tenantId}`) : Promise.resolve({ sales: [] })), [tenantId, refreshKey]);
 
   const discount = Math.max(0, Math.min(Number(discountInput) || 0, 1_000_000));
   const subtotal = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.qty, 0), [lines]);

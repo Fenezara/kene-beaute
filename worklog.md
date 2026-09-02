@@ -646,3 +646,46 @@ Stage Summary:
 - Sécurité en profondeur : toutes les gardes vivent dans lib/kene/coupons (source unique) et sont RE-vérifiées à la commande ; la validation checkout ne consomme rien ; coupon maison non diffusable depuis un institut (403 API) ; bornes métier 5-90 % / 500-500 000 FCFA
 - Le cashback s'applique au montant PAYÉ (après remise) — la remise et la fidélité se cumulent proprement, vérifié en DB au franc près
 - Prochaine étape proposée : badge temps réel côté Pro (nouvelle commande/relance — même pattern notify-service), ou PDF mensuel de la liasse, ou coupons maison gérés par l'Admin (le modèle tenantId null est prêt)
+---
+Task ID: 35
+Agent: main (Z.ai Code)
+Task: Bug bloquant « espace Pro ne charge pas » + badge & flux temps réel côté Pro (suite de « fait ton choix… mais côté pro ne charge pas »)
+
+Contexte : l'utilisateur autorise la tâche 35 ET signale que l'espace Pro ne charge pas. Diagnostic prioritaire avant tout développement.
+
+Work Log:
+
+BUGFIX — espace Pro ne charge pas :
+- Diagnostic : GET /api/pro/overview?tenantId=cmtecz88f0009mbdhquxaoy4a → 404 EN BOUCLE dans dev.log. Cause : le localStorage « kene-store » persiste proTenantId d'une ANCIENNE génération de base (le tenant n'existe plus — la DB actuelle a cmtjdaiij… et cmtjdaiik…). resolveTenant() → 404 « Institut introuvable » → overview.data null + tid périmé → TOUTES les sections Pro en squelettes/blocage permanent.
+- Fix (défense en profondeur) : store setProTenantId accepte null + AUTO-GUÉRISON dans ProApp — si overview échoue alors qu'un tenant était mémorisé, on l'oublie (retombe sur le tenant par défaut) + toast « Institutut mémorisé indisponible — institut par défaut chargé ». Reproduit l'état exact de l'utilisateur (localStorage space=pro + ID périmé) → séquence guérie en log : 404 (ID périmé) → 200 (défaut) → 200 (ID réparé cmtjdaiij…), KPIs/graphes rendus, localStorage réparé définitivement, sections Promos/Caisse vérifiées.
+- Leçon : toute donnée persistée (localStorage) doit être considérée comme une PRÉFÉRENCE jamais comme une vérité — si elle échoue, on retombe sur la source (défaut serveur) au lieu de bloquer.
+
+TÂCHE 35 — badge & flux temps réel côté Pro (pattern notify-service étendu) :
+- GET /api/pro/live?tenantId= (NOUVEAU) : payload léger diffable — pendingAppts (badge Agenda), apptsToday, salesToday (KPI live), ordersToday (commandes contenant un produit de l'institut), last {type,id,at,label,status} (moteur de toasts). Garde 404 tenant inconnu.
+- notify-service : rooms tenant:{id} (event join-tenant), pollTenant → GET /api/pro/live → diff → emit tenant-feed ; push {secret, tenantId?} étendu ; single-flight/debounce/tick 8 s partagés ; nettoyage disconnect complet ; event hb/hb-ack (heartbeat).
+- realtime.ts : pushTenantFeed(tenantId) (même socket app, emit inconditionnel bufferisé).
+- Hooks serveur : notify() → si tenantId → pushTenantFeed (RDV réservés, relances WhatsApp, diffusions coupon couvertes d'un seul point) ; POST /api/pro/sales (POS) explicite ; POST /api/orders → push par produit-institut distinct (produits maison = silence, honnête) ; PATCH pro/appointments/[id] confirm/cancel/no_show/reschedule explicites.
+- ProApp : socket io('/?XTransformPort=3004') + join-tenant au connect (et par changement d'institut) ; tenant-feed → garde looksLikeLive + tenantId ; badge Agenda = pendingAppts − agendaSeen (baseline visitée, CLAMPÉE à la baisse quand les confirmations descendent — sinon une confirm suivie d'une nouvelle réservation masquerait le badge) ; toasts UNIQUEMENT distants (RDV pending réservé cliente / commande institut — jamais POS ni RDV créés pro : statut confirmed) et PAS au premier fil après montage (garde prevId !== null, comme NotificationCenter) ; pill « En direct » (desktop sidebar + mobile header, point pulsant) ; refreshKey → AgendaSection (liste RDV) + PosSection (ventes) + overview.refetch() (KPIs dashboard) — tout vit sans reload.
+- live-socket.ts (NOUVEAU) : armHeartbeat(socket) — sonde hb toutes les 30 s, sans ack sous 5 s → disconnect+connect (zombie = service rechargé à chaud alors que le TCP survit : le client croit être connecté, le nouveau service ne le connaît pas). Armé sur la socket app (realtime.ts), NotificationCenter et ProApp.
+- LEÇON bunny : bun --hot a des sémantiques de rechargement opaques (parfois le state module survit, parfois tout re-runit) ; les sockets existantes peuvent finir zombies. Le heartbeat est le filet, le tick 8 s la garantie — pire cas mesuré : livraison ≤ 8 s.
+
+Tests E2E (navigateur via gateway :81, DB réelle) :
+- BUGFIX : état utilisateur reproduit → espace Pro chargé + toast + localStorage réparé (voir ci-dessus)
+- Test d'or (réservation cliente via API pendant que Pro est ouvert) : POST 10:27:43.6 → « push pro reçu » + « tenant-feed émis (push) — 2 RDV » 10:27:43 → badge 2→3 + toast « Nouvelle demande de RDV — Diagnostic IA + Consultation · Aïcha Bakayoko · 3 sept. » capturé à 2,5 s — ~1,3 s bout en bout
+- Cycle bidirectionnel : confirm pro (PATCH, push 10:30:31) → badge 3→2 ; nouvelle réservation (push 10:30:33) → badge 2→3 — les DEUX sens instantanés ; badge se vide à la visite Agenda (baseline) ; grille Agenda affiche les 3 RDV en attente
+- Vente POS 10 000 (cash) : KPI « CA aujourd'hui » 0 → 10 000 SANS reload, 7 j 384 k → 394 k, AUCUN toast (action de la pro = silencieuse par design)
+- Commande boutique (produit institut Gommage 9 500, wallet Mariam) : toast « Commande boutique reçue — 9 500 FCFA · 1 article(s) · Mariam Diallo » + feed « 1 commande(s) » — capturé
+- Auto-correction : purge DB des RDV de test → tick suivant « tenant-feed émis (tick) — 0 RDV · CA 0 · 0 commande » → badge retombe à 0 en direct (convergence bidirectionnelle comme tâche 33)
+- Résilience : rechargement à chaud du service → reconnexion auto des sockets pro (join re-émis, feed frais) ; heartbeat armé partout ; rechargement page → join → badge synchronisé immédiatement
+- Non-régression : espace Cliente (accueil/cloche/wallet) intact après les allers-retours d'espaces ; socket unique par espace au montage/démontage
+- Responsive : 390 px (chips + badge Agenda + pill EN DIRECT dans l'en-tête mobile, VLM « propre, aucun chevauchement, badge lisible ») et 1440 px (VLM : sidebar + badge Agenda « 3 » + badge vert « En direct » + aucun chevauchement)
+- tsc --noEmit 0 erreur src/ ; eslint . 0 erreur 0 warning ; console navigateur vierge ; dev.log uniquement des 200 (+ le 404 VOULU de la garde tenant inconnu)
+- Nettoyage intégral : 5 RDV test, 5+1 notifications, 1 vente POS + écriture comptable + lignes, 1 commande + items + payment + tx wallet + stock Gommage 34→35, wallet Mariam restauré 14 000 ; groupBy RDV = état d'origine exact (1 cancelled / 5 completed / 8 confirmed)
+- Screenshots : .proofs/task35-{fix-pro-charge,fix-toast,live-push-toast,toast-rdv-live,toast-commande,mobile-dashboard,desktop-live}.png
+
+Stage Summary:
+- L'espace Pro est désormais LIVE de bout en bout : une cliente réserve → la pro voit le badge Agenda monter, un toast, l'agenda se rafraîchir et le dashboard vivre — en ~1,3 s mesuré, sans reload ; la pro confirme → les autres postes/onglets se corriger en direct
+- Le bug bloquant « Pro ne charge pas » est réparé à la RACINE avec auto-guérison permanente : plus aucune donnée localStorage périmée ne peut bloquer un espace
+- Architecture « relais intelligent » étendue au canal institut : le service reste sans logique métier (il proxifie /api/pro/live), l'app pousse via notify() + 4 points explicites, l'espace Pro s'abonne — le tout avec heartbeat anti-zombie et tick 8 s en filet
+- Les deux espaces partagent désormais le temps réel : cloche cliente (user:{id}) + badge pro (tenant:{id}) sur le même service, les mêmes patterns et les mêmes garanties
+- Prochaine étape proposée : PDF mensuel de la liasse (compta → export), coupons maison gérés par l'Admin (modèle tenantId null prêt), ou visio-diagnostic (SkinTwin → partage pro)

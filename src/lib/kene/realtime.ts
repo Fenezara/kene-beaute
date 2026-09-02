@@ -11,6 +11,7 @@
 // globalThis : le socket survit aux hot-reload du dev server Next.js
 // (sinon chaque recompilation ouvrirait une connexion de plus).
 import { io, type Socket } from "socket.io-client";
+import { armHeartbeat } from "./live-socket";
 
 const NOTIFY_URL = process.env.NOTIFY_SERVICE_URL ?? "http://localhost:3004";
 const PUSH_SECRET = process.env.PUSH_SECRET ?? "kene-push-secret";
@@ -32,6 +33,10 @@ function ensurePushSocket(): Socket | null {
     socket.on("connect", () => {
       socket.emit("register-app", { secret: PUSH_SECRET });
     });
+    // Auto-guérison : si le service redémarre à chaud, le TCP survit mais la
+    // session socket.io devient orpheline (push perdus en silence). Le
+    // heartbeat détecte le zombie ≤ 35 s et reconnecte → register-app rejoué.
+    armHeartbeat(socket);
     g.__kenePushSocket = socket;
     return socket;
   } catch {
@@ -51,4 +56,17 @@ export function pushFeed(userId?: string | null): void {
   const socket = ensurePushSocket();
   if (!socket) return;
   socket.emit("push", { secret: PUSH_SECRET, userId });
+}
+
+/**
+ * Même canal, côté institut : après un événement tenant (RDV réservé, vente
+ * POS, commande contenant un produit de l'institut…), l'espace Pro connecté
+ * à ce tenant reçoit un `tenant-feed` frais en ~250 ms — badge, toasts et
+ * KPIs du dashboard sans reload.
+ */
+export function pushTenantFeed(tenantId?: string | null): void {
+  if (!tenantId) return;
+  const socket = ensurePushSocket();
+  if (!socket) return;
+  socket.emit("push", { secret: PUSH_SECRET, tenantId });
 }

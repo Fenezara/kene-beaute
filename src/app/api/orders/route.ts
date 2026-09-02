@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, genRef, debitWallet, creditWallet, notify, rewardReferrerIfNeeded } from "@/lib/kene/server";
 import { CASHBACK_RATE, xof } from "@/lib/kene/format";
 import { checkCoupon, redeemCoupon } from "@/lib/kene/coupons";
+import { pushTenantFeed } from "@/lib/kene/realtime";
 
 const Body = z.object({
   userId: z.string().min(1),
@@ -150,6 +151,13 @@ export async function POST(req: NextRequest) {
       toPhone: user.phone,
       message: `Kènè : commande ${order.id.slice(-6).toUpperCase()} enregistrée (${xof(total)}${discount ? `, remise ${xof(discount)} appliquée` : ""}${cashback ? `, ${xof(cashback)} de cashback` : ""}). Réf paiement ${payment.ref}.`,
     });
+
+    // Temps réel institut : si la commande contient des produits de l'institut,
+    // l'espace Pro connecté est réveillé (badge + toast + KPIs). Les produits
+    // maison (tenantId null) ne concernent aucun institut → silence.
+    for (const t of new Set(lines.map((l) => l.product.tenantId).filter((t): t is string => !!t))) {
+      pushTenantFeed(t);
+    }
 
     const fullOrder = await db.order.findUnique({ where: { id: order.id }, include: { items: true } });
     return NextResponse.json({ order: fullOrder, payment: paid ? null : payment, paid }, { status: 201 });

@@ -20,6 +20,24 @@ export interface ProTenant {
 
 export type PaymentMethod = "wave" | "orange" | "cash" | "card";
 
+// ─────────────── Flux temps réel institut (/api/pro/live) ───────────────
+export interface ProLiveEvent {
+  type: "appointment" | "order" | "sale";
+  id: string;
+  at: string;
+  label: string;
+  status?: string; // RDV : pending = réservé côté cliente (à confirmer)
+}
+
+export interface ProLive {
+  tenantId: string;
+  pendingAppts: number; // RDV à confirmer → badge Agenda
+  apptsToday: number;
+  salesToday: number; // CA POS du jour (KPI live)
+  ordersToday: number; // commandes boutique contenant un produit de l'institut
+  last: ProLiveEvent | null;
+}
+
 // ─────────────── Overview ───────────────
 export interface ProKpis {
   caToday: number;

@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { genRef, xof } from "./format";
 import { rfmScore } from "./rfm";
 import { PARRAIN_REWARD } from "./referral";
-import { pushFeed } from "./realtime";
+import { pushFeed, pushTenantFeed } from "./realtime";
 import type { SimpleLine } from "@/lib/accounting/syscohada";
 
 export function jsonError(error: string, status = 400): NextResponse {
@@ -179,6 +179,14 @@ export function notify(data: {
   });
   // Temps réel : si la cliente est en ligne, son fil est repoussé en ~250 ms
   // (best-effort — le poll 8 s du notify-service rattrape sinon tout).
+  // Même canal côté institut : un événement tenant (RDV, relance, diffusion)
+  // réveille aussi l'espace Pro connecté à ce tenant.
+  const tenantId = data.tenantId;
+  if (tenantId) {
+    void created
+      .then(() => pushTenantFeed(tenantId))
+      .catch(() => undefined);
+  }
   if (data.userId) {
     void created
       .then(() => pushFeed(data.userId as string))
