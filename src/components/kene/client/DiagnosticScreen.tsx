@@ -597,17 +597,20 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
 }
 
 function IndicatorBar({ ind }: { ind: Indicator }) {
-  const sev = SEVERITY_STYLES[Math.min(3, Math.max(0, ind.severite))];
+  // Garde double : severite absente (anciens resultJson) → NaN index → 0 ;
+  // index hors bornes → clamp 0..3 ; SEVERITY_STYLES[i] résolu UNE fois.
+  const sevIdx = Number.isFinite(ind.severite) ? Math.min(3, Math.max(0, Math.trunc(ind.severite))) : 0;
+  const sev = SEVERITY_STYLES[sevIdx] ?? SEVERITY_STYLES[0];
   return (
     <div className="rounded-xl border border-border bg-card p-2.5">
       <div className="flex items-start justify-between gap-1">
         <p className="text-[11px] font-semibold leading-tight line-clamp-2">{ind.nom}</p>
-        <span className={`font-mono text-[11px] font-bold shrink-0 ${sev[Math.min(3, Math.max(0, ind.severite))].text}`}>
+        <span className={`font-mono text-[11px] font-bold shrink-0 ${sev.text}`}>
           {ind.pourcentage}%
         </span>
       </div>
       <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
-        <motion.div initial={{ width: 0 }} animate={{ width: `${ind.pourcentage}%` }} transition={{ duration: 0.8 }} className={`h-full rounded-full ${sev.dot}`} />
+        <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, Math.max(0, ind.pourcentage))}%` }} transition={{ duration: 0.8 }} className={`h-full rounded-full ${sev.dot}`} />
       </div>
     </div>
   );

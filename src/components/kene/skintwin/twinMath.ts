@@ -173,7 +173,8 @@ export function buildMarkers(entries: TwinEntry[]): TwinMarker[] {
       out.push({
         key: `${e.id}-${i}`,
         label: m.label,
-        sev: Math.min(3, Math.max(0, m.severite)),
+        // Garde : severite absente (anciens resultJson) → NaN index → 0
+        sev: Number.isFinite(m.severite) ? Math.min(3, Math.max(0, Math.trunc(m.severite))) : 0,
         zone: e.zone,
         diagId: e.id,
         x: m.x,

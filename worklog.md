@@ -719,3 +719,22 @@ Stage Summary:
 - Consultation des données : OUI pour les DEUX parties — l'entreprise avait déjà tout (CRM complet) ; la cliente dispose maintenant de « Mes commandes » (GET /api/orders + UI) en plus de ses diagnostics, RDV, wallet et notifications. La commande de démo (UV7FTR) reste en base pour illustrer la fonction.
 - Leçon Tailwind v4 : éviter flex-<nombre> sur un libellé — flex: 0 écrase la base à 0% ; préférer min-w-0 + truncate pour un texte qui doit se réduire gracieusement.
 - Prochaine étape proposée : PDF mensuel de la liasse compta, coupons maison côté Admin, ou export données cliente (RGPD — portabilité).
+
+---
+Task ID: 37
+Agent: main (Z.ai Code)
+Task: Bug bloquant — Runtime TypeError « Cannot read properties of undefined (reading 'text') » dans IndicatorBar (DiagnosticScreen.tsx:605) au rendu du résultat de diagnostic
+
+Work Log:
+- Diagnostic : SEVERITY_STYLES (format.ts) est un TABLEAU d'objets {dot,label,text}. IndicatorBar faisait une DOUBLE indexation : `const sev = SEVERITY_STYLES[i]` (objet résolu) puis `sev[i].text` — sev[0..3] sur un objet = undefined → TypeError SYSTÉMATIQUE à chaque affichage d'un résultat (vue directe OU historique). Cause secondaire : ind.severite absent dans d'anciens resultJson → Math.max(0, undefined) = NaN → SEVERITY_STYLES[NaN] = undefined.
+- Fix 1 — DiagnosticScreen.tsx IndicatorBar : résolution unique et gardée — sevIdx = Number.isFinite(ind.severite) ? clamp(0..3, trunc) : 0 ; sev = SEVERITY_STYLES[sevIdx] ?? SEVERITY_STYLES[0] ; usage sev.text / sev.dot ; largeur de barre clampée 0-100.
+- Fix 2 — types.ts parseDiagnosis (défense en profondeur) : assainissement de chaque indicateur (nom requis, severite clamp 0-3 sinon 0, pourcentage clamp 0-100 sinon 0) — protège TOUS les consommateurs (DiagnosticScreen, CRM, SkinTwin, Evolution, RitualJourney).
+- Fix 3 — twinMath.ts buildMarkers : même garde Number.isFinite sur m.severite (SEVERITY_STYLES[NaN].label / SEV_HEX[NaN] auraient crashé SkinTwinCard).
+- Vérifications : bun run lint 0 erreur ; tsc --noEmit 0 erreur src/ ; serveur :3000 → 200 via gateway :81.
+- E2E (390×844, gateway :81, Mariam démo) : Diagnostic → « Voir mon historique » → ouverture « Diagnostic visage 2 sept. 2026 (62) » → écran de résultat COMPLET sans crash (Priorités de soin avec barres : Cernes 35 %, PIH 40 %, Sébum 40 %, Éclat 45 %…, accordéon 14 indicateurs détaillés OK) ; 2e diagnostic « Mains 12 août (81) » OK ; agent-browser errors VIDE, console vierge (hors warning THREE bénin) ; l'ancien TypeError n'est plus reproductible.
+- Screenshots : .proofs/task37-{diag-result-visage,diag-detail-14indicateurs,diag-result-mains}.png
+
+Stage Summary:
+- Le crash de l'écran de résultat de diagnostic est réparé à la racine : plus aucune double indexation, plus aucun NaN possible — données anciennes (resultJson incomplets) et nouvelles rendent de manière sûre.
+- Leçon code : quand on résout un item d'un tableau de styles, NE PAS ré-indexer l'objet résultat ; et toute valeur numérique venue d'un JSON persisté doit passer par Number.isFinite avant clamp/index (NaN se propage silencieusement dans Math.min/max).
+- Le diagnostic IA est de nouveau consultable de bout en bout (vue résultat + historique + comparaison).

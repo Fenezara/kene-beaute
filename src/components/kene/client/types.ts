@@ -177,7 +177,17 @@ export function parseDiagnosis(resultJson: string): import("@/lib/kene/types").D
   try {
     const r = JSON.parse(resultJson) as import("@/lib/kene/types").DiagnosisResult;
     if (typeof r.score_global !== "number" || !Array.isArray(r.indicateurs)) return null;
-    return r;
+    // Assainissement des indicateurs : les anciens resultJson peuvent omettre
+    // severite/pourcentage → NaN dans les index/clamps des consommateurs
+    // (IndicatorBar, SkinTwin, Evolution, CRM). On normalise une fois ici.
+    const indicateurs = r.indicateurs
+      .filter((i) => !!i && typeof i.nom === "string")
+      .map((i) => ({
+        ...i,
+        severite: Number.isFinite(i.severite) ? Math.min(3, Math.max(0, Math.trunc(i.severite))) : 0,
+        pourcentage: Number.isFinite(i.pourcentage) ? Math.min(100, Math.max(0, Math.trunc(i.pourcentage))) : 0,
+      }));
+    return { ...r, indicateurs };
   } catch {
     return null;
   }
