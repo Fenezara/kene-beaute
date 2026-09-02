@@ -1,11 +1,12 @@
 "use client";
 // Kènè Cliente — Boutique : catalogue, fiche produit, panier, checkout Wave/Orange/Wallet simulé
-import { useEffect, useMemo, useRef, useState } from "react";
+// + « Mes commandes » : historique des commandes enregistrées (consultation par la cliente).
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, Check, Loader2, Minus, Plus, Search, ShoppingBag, Tag, Trash2, X } from "lucide-react";
+import { BadgeCheck, Check, History, Loader2, Minus, Plus, Search, ShoppingBag, Tag, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
-import { xof, CASHBACK_RATE } from "@/lib/kene/format";
+import { xof, CASHBACK_RATE, formatDate, formatTime } from "@/lib/kene/format";
 import { MOMO_OPERATORS } from "@/lib/kene/rfm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,6 +48,16 @@ export function ShopScreen() {
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  /* « Mes commandes » — historique consultable (chargé au montage, rafraîchi
+   * après chaque commande réussie : la cliente suit ses données enregistrées). */
+  const [view, setView] = useState<"catalogue" | "commandes">("catalogue");
+  const [orders, setOrders] = useState<ApiOrder[] | null>(null);
+  const refreshOrders = useCallback(() => {
+    apiGet<{ orders: ApiOrder[] }>(`/api/orders?userId=${user.id}`)
+      .then((r) => setOrders(r.orders ?? []))
+      .catch(() => setOrders((prev) => prev ?? []));
+  }, [user.id]);
+
   const subtotal = cart.reduce((s, l) => s + l.price * l.qty, 0);
   /* Coupon invalidé si le panier a changé depuis la validation (remise recalculée
    * sur un autre sous-total) — la cliente re-valide, jamais de surprise serveur. */
@@ -61,7 +72,8 @@ export function ShopScreen() {
       .then((r) => setProducts(r.products ?? []))
       .catch(() => setProducts([]));
     apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).then((r) => setWallet(r.wallet)).catch(() => {});
-  }, [user.id]);
+    refreshOrders();
+  }, [user.id, refreshOrders]);
 
   const filtered = useMemo(() => {
     const nq = q.trim().toLowerCase();
@@ -123,6 +135,7 @@ export function ShopScreen() {
       setPayState({ phase: "success", method, amount });
       clearCart();
       setPromo(null); // le coupon est consommé : remise à zéro pour la prochaine commande
+      void refreshOrders(); // la nouvelle commande apparaît dans « Mes commandes »
       const cb = r.order.cashback;
       toast.success(cb > 0 ? `Commande confirmée — cashback ${xof(cb)} crédité sur ton wallet` : "Commande confirmée et payée");
       if (method === "wallet") {
@@ -146,6 +159,30 @@ export function ShopScreen() {
         <span className="rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1 uppercase tracking-wide">Cashback {Math.round(cashbackRate * 100)} %</span>
       </header>
 
+      {/* Bascule Catalogue ↔ Mes commandes — la cliente consulte ses données */}
+      <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl border border-border bg-card p-1" role="tablist" aria-label="Vues boutique">
+        <button
+          role="tab"
+          aria-selected={view === "catalogue"}
+          onClick={() => setView("catalogue")}
+          className={`h-10 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-primary ${view === "catalogue" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          <ShoppingBag size={14} aria-hidden="true" /> Catalogue
+        </button>
+        <button
+          role="tab"
+          aria-selected={view === "commandes"}
+          onClick={() => setView("commandes")}
+          className={`h-10 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-primary ${view === "commandes" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          <History size={14} aria-hidden="true" /> Mes commandes{orders !== null && orders.length > 0 ? ` (${orders.length})` : ""}
+        </button>
+      </div>
+
+      {view === "commandes" ? (
+        <OrdersView orders={orders} onRefresh={refreshOrders} onShop={() => setView("catalogue")} />
+      ) : (
+        <>
       {/* Le Fil de Kente — hero tissé, le fil de la catégorie s'illumine */}
       <div className="mt-4">
         <KenteWeaveCard highlightIndex={cat ? categoryThread(cat) : -1} caption={weaveCaption} />
@@ -213,6 +250,8 @@ export function ShopScreen() {
             </button>
           ))}
         </div>
+      )}
+        </>
       )}
 
       {/* Barre panier sticky au-dessus de la nav */}
@@ -430,6 +469,104 @@ export function ShopScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/* ══════════════ Mes commandes — historique consultable ══════════════ */
+
+const ORDER_STATUS: Record<string, { label: string; cls: string }> = {
+  pending: { label: "En attente", cls: "bg-gold/12 text-terre border-gold/30" },
+  paid: { label: "Payée", cls: "bg-[#3F7D3F]/12 text-[#3F7D3F] border-[#3F7D3F]/30" },
+  delivered: { label: "Livrée", cls: "bg-primary/12 text-primary border-primary/30" },
+  cancelled: { label: "Annulée", cls: "bg-destructive/10 text-destructive border-destructive/30" },
+};
+
+function OrdersView({ orders, onRefresh, onShop }: { orders: ApiOrder[] | null; onRefresh: () => void; onShop: () => void }) {
+  if (orders === null) {
+    return (
+      <div className="mt-4 space-y-3">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-36 rounded-2xl" />
+        ))}
+      </div>
+    );
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div className="mt-4">
+        <EmptyBlock
+          icon={<History size={22} />}
+          title="Aucune commande pour l'instant"
+          text="Tes commandes boutique s'enregistrent ici — articles, remises et cashback."
+          cta={
+            <button onClick={onShop} className="h-11 px-6 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+              Découvrir le catalogue
+            </button>
+          }
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 space-y-3" aria-live="polite">
+      {orders.map((o) => {
+        const st = ORDER_STATUS[o.status] ?? { label: o.status, cls: "bg-muted text-muted-foreground border-border" };
+        return (
+          <article key={o.id} aria-label={`Commande N° ${o.id.slice(-6).toUpperCase()}`} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+            <div className="kente-band-soft h-1 w-full" aria-hidden="true" />
+            <div className="p-4 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-mono text-xs font-bold tracking-wide">N° {o.id.slice(-6).toUpperCase()}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{formatDate(o.createdAt)} · {formatTime(o.createdAt)}</p>
+                </div>
+                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${st.cls}`}>{st.label}</span>
+              </div>
+
+              <ul className="space-y-1.5">
+                {(o.items ?? []).map((it) => (
+                  <li key={it.id} className="flex items-baseline justify-between gap-2 text-xs">
+                    <span className="min-w-0 truncate">
+                      <span className="font-mono text-muted-foreground">{it.qty}×</span> {it.label}
+                    </span>
+                    <span className="shrink-0 font-mono font-semibold">{xof(it.total)}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="rounded-xl bg-muted/50 px-3 py-2.5 space-y-1 text-[11px]">
+                <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span className="font-mono">{xof(o.subtotal)}</span></div>
+                {!!o.discount && (
+                  <div className="flex justify-between text-terre">
+                    <span className="font-semibold">Remise {o.couponCode ?? ""}</span>
+                    <span className="font-mono">−{xof(o.discount)}</span>
+                  </div>
+                )}
+                {!!o.cashback && o.status !== "pending" && (
+                  <div className="flex justify-between text-[#3F7D3F]">
+                    <span>Cashback crédité</span>
+                    <span className="font-mono">+{xof(o.cashback)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t border-border pt-1 text-xs">
+                  <span className="font-semibold">Total</span>
+                  <span className="font-mono font-black text-primary">{xof(o.total)}</span>
+                </div>
+              </div>
+
+              {o.status === "pending" && (
+                <p className="text-[10px] text-muted-foreground leading-snug">Paiement mobile money à confirmer — la commande passera à « Payée » dès réception.</p>
+              )}
+            </div>
+          </article>
+        );
+      })}
+      <button onClick={onRefresh} className="h-11 w-full rounded-xl border border-border bg-card text-xs font-bold text-muted-foreground hover:text-foreground active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-primary">
+        Rafraîchir
+      </button>
     </div>
   );
 }

@@ -108,6 +108,8 @@ export interface ApiProduct {
 export interface ApiOrder {
   id: string;
   subtotal: number;
+  discount?: number;
+  couponCode?: string | null;
   cashback: number;
   total: number;
   status: string;

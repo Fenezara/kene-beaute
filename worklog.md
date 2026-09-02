@@ -689,3 +689,33 @@ Stage Summary:
 - Architecture « relais intelligent » étendue au canal institut : le service reste sans logique métier (il proxifie /api/pro/live), l'app pousse via notify() + 4 points explicites, l'espace Pro s'abonne — le tout avec heartbeat anti-zombie et tick 8 s en filet
 - Les deux espaces partagent désormais le temps réel : cloche cliente (user:{id}) + badge pro (tenant:{id}) sur le même service, les mêmes patterns et les mêmes garanties
 - Prochaine étape proposée : PDF mensuel de la liasse (compta → export), coupons maison gérés par l'Admin (modèle tenantId null prêt), ou visio-diagnostic (SkinTwin → partage pro)
+
+---
+Task ID: 36
+Agent: main (Z.ai Code)
+Task: « En mode PC, les onglets de la barre de navigation ne sont pas nommés » + question « les clients et l'entreprise peuvent-ils consulter les données enregistrées ? »
+
+Work Log:
+- Vérification services : app :3000 OK, gateway :81 OK, notify-service :3004 OK (health polling OK) ; /api/pro/live 200 en continu → l'espace Pro charge bien (bug tâche 35 confirmé résolu).
+- BUGFIX onglets non nommés (mode PC, sidebar Pro) : reproduction desktop 1440×900 + VLM → 10 boutons ICÔNE-SEULE. Cause exacte mesurée au DOM : <span className="flex-0 truncate"> — en Tailwind v4, flex-0 = flex: 0 1 0% → flex-basis 0% + grow 0 → largeur 0px, et truncate (overflow hidden) rend le libellé invisible. Le texte était rendu mais replié sur lui-même. Fix : flex-0 → min-w-0 (basis auto, shrink 1) — 1 seul usage dans tout src/. Validation : les 10 largeurs passent de 0px à 28–101px, VLM lit « Tableau de bord, Agenda, Caisse, CRM, Relances, Catalogue, Promos, Stock, Paie, Compta ».
+- RÉPONSE à la question consultation des données (audit de l'existant) :
+  * Entreprise (Pro) — DÉJÀ COMPLET : CRM (fiches clientes : identité, RFM, diagnostics IA avec photos/scores, Jumeau de Peau 3D, Fil du Temps, ventes, RDV, notes), Agenda, Caisse (ventes récentes), Compta, dashboard (commandes boutique). Vérifié E2E : fiche Mariam Diallo = 5 diagnostics + jumeau + évolution 71→62 + RFM 5/5/5/5.
+  * Cliente — TOUT SAUF ses commandes boutique : historique diagnostics (comparaison), Mes RDV, transactions wallet, notifications, profil éditable ✓ ; MAIS /api/orders n'avait que POST → aucune vue « Mes commandes ».
+- DÉVELOPPEMENT « Mes commandes » (comblage du manque) :
+  * GET /api/orders?userId= (NOUVEAU) : user vérifié, findMany desc + items inclus, 404 garde.
+  * types.ts : ApiOrder + discount?, couponCode?.
+  * ShopScreen : bascule role=tablist « Catalogue ↔ Mes commandes (n) » sous le titre ; chargement au montage + refreshOrders() rafraîchi après chaque paiement réussi ; OrdersView (squelettes, état vide avec CTA, cartes commande : N° + date + badge statut [En attente/Payée/Livrée/Annulée], lignes d'articles, sous-total/remise coupon/cashback/total, hint pending) ; bouton Rafraîchir ; tout le catalogue existant inchangé derrière la bascule.
+- E2E (via gateway :81, DB réelle, Mariam démo) :
+  * Mes commandes vide → « Aucune commande pour l'instant » + CTA (VLM ok).
+  * Achat réel Savon Noir 4 500 wallet → succès → retour Boutique → « Mes commandes (1) » : carte N° UV7FTR, 2 sept. 11:21, badge « Payée » vert, 1× Savon, sous-total 4 500, cashback +225, total 4 500 (VML transcription exacte). Cohérence DB vérifiée : wallet 14 000 → 9 725 (= −4 500 + 225 cashback), tx debit/credit, notification SMS UV7FTR, statut paid.
+  * Commande conservée volontairement (donnée démo cohérente) : la cliente voit un historique réel, l'institut la voit côté tableau de bord.
+  * CRM : fiche Mariam (diagnostics + jumeau + évolution + RFM) ✓ ; Caisse : POS + Ventes récentes ✓.
+  * Mobile 390×844 : bascule visible, nav basse 5/5 libellés (Accueil, Diagnostic, Boutique, RDV, Chat — DOM vérifié), footer en bas sans chevauchement.
+  * tsc --noEmit 0 erreur src/ ; eslint 0 erreur/0 warning ; console navigateur vierge (hors warning THREE) ; dev.log : uniquement des 200.
+- Screenshots : .proofs/task36-{nav-pc-libelles,mes-commandes-vide,mes-commandes-commande,crm-fiche-mariam,caisse-ventes,mobile-boutique}.png
+
+Stage Summary:
+- Onglets PC nommés : la sidebar Pro affiche désormais les 10 libellés — cause racine Tailwind v4 flex-0 (basis 0%) piégée par truncate, corrigée par min-w-0.
+- Consultation des données : OUI pour les DEUX parties — l'entreprise avait déjà tout (CRM complet) ; la cliente dispose maintenant de « Mes commandes » (GET /api/orders + UI) en plus de ses diagnostics, RDV, wallet et notifications. La commande de démo (UV7FTR) reste en base pour illustrer la fonction.
+- Leçon Tailwind v4 : éviter flex-<nombre> sur un libellé — flex: 0 écrase la base à 0% ; préférer min-w-0 + truncate pour un texte qui doit se réduire gracieusement.
+- Prochaine étape proposée : PDF mensuel de la liasse compta, coupons maison côté Admin, ou export données cliente (RGPD — portabilité).

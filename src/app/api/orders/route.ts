@@ -1,6 +1,8 @@
 // POST /api/orders — commande boutique (wallet = paiement immédiat, MoMo = en attente)
 // couponCode (facultatif) : validé puis consommé via lib/kene/coupons — la
 // remise réduit le total payé, le cashback s'applique sur le montant payé.
+// GET /api/orders?userId= — historique des commandes de la cliente (« Mes commandes ») :
+// la cliente consulte ses données enregistrées, l'institut les voit côté CRM/Caisse.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -15,6 +17,24 @@ const Body = z.object({
   paymentMethod: z.enum(["wave", "orange", "wallet"]),
   couponCode: z.string().trim().max(40).optional(),
 });
+
+export async function GET(req: NextRequest) {
+  try {
+    const userId = req.nextUrl.searchParams.get("userId")?.trim() ?? "";
+    if (!userId) return jsonError("userId requis", 400);
+    const user = await db.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) return jsonError("Utilisatrice introuvable", 404);
+
+    const orders = await db.order.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: { items: { orderBy: { label: "asc" } } },
+    });
+    return NextResponse.json({ orders });
+  } catch (err) {
+    return serverError("orders GET", err);
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {

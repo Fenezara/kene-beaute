@@ -246,7 +246,7 @@ export function ProApp() {
                 )}
               >
                 <item.icon className="size-4.5 shrink-0" />
-                <span className="flex-0 truncate">{item.label}</span>
+                <span className="min-w-0 truncate">{item.label}</span>
                 {badge ? (
                   <span
                     role="status"
