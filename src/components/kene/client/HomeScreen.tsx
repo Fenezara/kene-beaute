@@ -10,6 +10,7 @@ import { channelLabel, humanWhen } from "@/lib/kene/reminders";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 import { NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
+import { NotificationCenter } from "./NotificationCenter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKene } from "@/store/kene";
 import type { ApiAppointment, ApiDiagnosis, ApiProduct, ApiReminderFeed, ApiWallet } from "./types";
@@ -121,6 +122,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         </div>
         <div className="flex items-center gap-2">
           {data?.wallet && <WalletPill balance={data.wallet.balance} onClick={() => setClientTab("profil")} />}
+          <NotificationCenter userId={user.id} />
           <button
             onClick={() => setClientTab("profil")}
             aria-label="Mon profil"

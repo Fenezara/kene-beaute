@@ -159,6 +159,7 @@ export interface ApiReminder {
   status: string; // sent | scheduled
   scheduledAt: string | null;
   metaJson: string | null;
+  readAt: string | null; // lecture cliente (status sent uniquement)
   createdAt: string;
 }
 
@@ -166,6 +167,7 @@ export interface ApiReminderFeed {
   scheduled: ApiReminder[]; // à venir (encore pertinents)
   sent: ApiReminder[]; // historique 30 j
   created: number; // rappels matérialisés par le backfill
+  unread: number; // envoyées non lues (badge cloche, fenêtre 30 j)
 }
 
 /** Parse sûr d'un resultJson de diagnostic */

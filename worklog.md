@@ -501,3 +501,40 @@ Stage Summary:
 - Zéro migration DB ; la valeur dormante (écritures existantes + tvaAmount stocké par vente) est désormais matérialisable en un clic
 - Le fil des espaces se complète : la pro sait désormais PAYER sa caisse (POS), la COMPTABILISER (écritures auto) et la DÉCLARER (exports)
 - Prochaine étape proposée : sauvegarde/rapport mensuel PDF de la liasse, ou centre de notifications cliente avec cloche non-lus (GET /api/notifications existe déjà), ou onboarding v2 avec champ code parrain
+
+---
+Task ID: 31
+Agent: main (Z.ai Code)
+Task: Centre de notifications cliente — cloche non-lus + boîte de réception
+
+Contexte : le moteur de rappels (tâche 29) matérialise des Notification scheduled/sent, mais elles ne vivent que dans la carte « Suivi WhatsApp » de l'accueil — pas de badge d'arrivée, pas d'état lu/non lue, pas d'historique consultable. Direction choisie (suite de « fait ton choix ») : la cloche de notifications cliente, 3ᵉ volet de la proposition initiale (PDF liasse / cloche / onboarding parrain).
+
+Work Log:
+- prisma/schema.prisma : Notification.readAt DateTime? (additif, db:push sans perte) — null = non lue ; les scheduled ne sont jamais marquées
+- GET /api/notifications : sent mappé avec readAt ISO + NOUVEAU agrégat unread (count sur TOUTES les sent readAt null de la fenêtre 30 j, pas seulement la page de 10 — le badge est exhaustif)
+- POST /api/notifications/read (NOUVEAU) { userId, ids? } : zod + 404 utilisatrice inconnue ; updateMany status sent & readAt null (& id in ids si ciblé) → readAt now ; renvoie { updated } ; idempotent (updated 0 au 2ᵉ appel) ; « tout marquer » marque au-delà de la fenêtre affichée (honnête : zéro non-lu restant)
+- components/kene/client/NotificationCenter.tsx (NOUVEAU, ~230 lignes) : composant auto-contenu — cloche (h-11 w-11, style cohérent bouton profil : bg-card border, BellRing) + badge (bg bissap #8B1A3B, >9 → « 9+ », role=status aria-live) ; charge au montage (badge silencieux), rafraîchit à l'ouverture (due-runner : nouvelles arrivées possibles)
+  - Sheet bottom max-w-[430px] mx-auto rounded-t-3xl (pattern ProfileScreen) : titre + sous-titre, « Tout marquer comme lu (N) » (visible si unread > 0), sections « À VENIR (n) » (vert, PROGRAMMÉ + humanWhen + canal) et « REÇUES (n) » (non-lue : bord primary/30, fond primary/6 %, icône BellRing, badge NOUVEAU, texte medium ; lue : neutre CheckCircle2) ; skeletons, erreur + Réessayer, empty-state « Tes rappels s'activent tout seuls » ; AnimatePresence par item ; scroll interne pretty-scroll max-h 82vh
+  - markAllRead : POST → mise à jour locale immédiate (badge 0 + items lus, zéro re-fetch) → toast « Tout est lu · N notifications marquées »
+- types.ts : ApiReminder.readAt + ApiReminderFeed.unread
+- HomeScreen : cloche insérée dans le header (entre WalletPill et bouton profil) — la carte « Suivi WhatsApp » quick-view est conservée (non-régression)
+
+Bugs corrigés en cours de route :
+- Client Prisma périmé dans le dev-server après db:push (Unknown argument readAt → 500) → kill + relance arrière-plan (leçon tâche 29 réappliquée)
+- Le lancement nohup simple est mort silencieusement après ~40 s (sandbox) → relance (nohup bun run dev &) en sous-shell détaché, stabilité vérifiée sur 45 s + 3 checks 200
+
+Tests (DB réelle + curl + navigateur 390×844 + VLM) :
+- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; dev.log : aucune erreur runtime (200 attendus, 404 du test volontaire)
+- curl GET : unread 3, created 0 (backfill idempotent), scheduled 2 (legacy + protocole visage 16 sept.), sent 3 toutes UNREAD avec readAt null
+- curl POST read : { updated 4 } (3 affichées + 1 hors fenêtre 30 j — le badge est exhaustif) ; GET après : unread 0, toutes read ; 2ᵉ POST : updated 0 (idempotent) ; erreurs propres 400 userId requis / 404 utilisatrice inconnue
+- E2E navigateur (démo Mariam) : cloche rendue « Notifications — 3 non lues » (badge 3) ; Sheet ouvert → À VENIR (2) + REÇUES (3) + bouton « Tout marquer comme lu (3) » ; clic → toast « Tout est lu · 4 notifications marquées comme lues » + badge disparu (aria-label redevenu « Notifications ») + bouton retiré + badges NOUVEAU effacés + PROGRAMMÉ intacts ; reload après reset DB → badge 3 de retour
+- Non-régression : carte « Suivi WhatsApp » de l'accueil intacte (PROGRAMMÉ 16 sept. + envoyées) ; wallet 14 000 ; score multi-zones 69
+- A11y : aria-label dynamique avec compte, badge role=status aria-live polite, sections aria-labelledby, focus-visible
+- Responsive 390px : header (Bonjour / wallet / cloche / avatar) sans chevauchement — VLM « parfaitement lisible et bien espacé » ; sheet VLM « propre, aucun défaut »
+- Screenshots : .proofs/task31-cloche-badge.png, task31-centre-notifications.png, task31-suivi-whatsapp.png ; console navigateur vierge
+
+Stage Summary:
+- Le Fil du Retour cliente est désormais une vraie boîte de réception : arrivée (due-runner) → badge non-lus → consultation (Sheet sections À venir/Reçues) → lecture (état lu/non lue) → tout marquer lu — boucle complète
+- La cloche donne enfin de la VISIBILITÉ aux événements silencieux : rappels automatiques (tâche 29), bonus parrainage, confirmations de RDV — tout converge au même endroit
+- Zéro rupture : schéma additif, GET conserve sa shape (+ readAt, + unread), carte accueil intacte
+- Prochaine étape proposée : notifications push temps réel (cloche mise à jour live via socket), ou onboarding v2 « j'ai un code parrain » au signup, ou PDF mensuel de la liasse

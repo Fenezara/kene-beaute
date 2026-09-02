@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
 
     /* ── 3) Lecture du fil (sent 30 j + scheduled pertinents) ── */
 
-    const [sentRaw, scheduledRaw, allDiags, futureAppts] = await Promise.all([
+    const [sentRaw, scheduledRaw, allDiags, futureAppts, unreadCount] = await Promise.all([
       db.notification.findMany({
         where: { userId, status: "sent", createdAt: { gte: new Date(now.getTime() - 30 * DAY) } },
         orderBy: { createdAt: "desc" },
@@ -151,6 +151,10 @@ export async function GET(req: NextRequest) {
       db.appointment.findMany({
         where: { userId, startAt: { gte: now }, status: { in: ["confirmed", "pending", "completed"] } },
         select: { id: true },
+      }),
+      // Badge : toutes les envoyées non lues de la fenêtre 30 j (pas seulement la page)
+      db.notification.count({
+        where: { userId, status: "sent", readAt: null, createdAt: { gte: new Date(now.getTime() - 30 * DAY) } },
       }),
     ]);
 
@@ -185,10 +189,11 @@ export async function GET(req: NextRequest) {
       status: n.status,
       scheduledAt: n.scheduledAt ? n.scheduledAt.toISOString() : null,
       metaJson: n.metaJson,
+      readAt: n.readAt ? n.readAt.toISOString() : null,
       createdAt: n.createdAt.toISOString(),
     }));
 
-    return NextResponse.json({ scheduled, sent, created: toCreate.length });
+    return NextResponse.json({ scheduled, sent, created: toCreate.length, unread: unreadCount });
   } catch (err) {
     return serverError("notifications", err);
   }

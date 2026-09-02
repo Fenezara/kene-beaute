@@ -367,6 +367,7 @@ model Notification {
   status       String    @default("sent") // sent | scheduled
   scheduledAt  DateTime? // déclenchement prévu (status scheduled) — null = immédiat
   metaJson     String?   // contexte {diagId} | {apptId} | {dedupKey} — annulation intelligente
+  readAt       DateTime? // lecture cliente (status sent) — null = non lue
   createdAt    DateTime  @default(now())
 }
 
