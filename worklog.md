@@ -431,3 +431,37 @@ Stage Summary:
 - Suivi d'évolution diagnostic bouclé de bout en bout : cliente (Fil du Temps + Avant/Après) ET pro (Fil du Temps + Lecture pro actionnable dans le CRM 360°)
 - Aucune migration DB nécessaire (données existantes suffit) ; aucune nouvelle API (calcul local) ; smoothPath mutualisé
 - La Lecture pro transforme l'historique brut en décision métier : verdict protocole, axes prioritaires, rappel de contrôle — au service de la fidélisation
+
+---
+Task ID: 29
+Agent: main (Z.ai Code)
+Task: Rappels automatiques post-protocole — matérialisation réelle de bout en bout
+
+Contexte : « Le Fil du Retour » Pro (queue dérivée + FollowUpMark + WhatsApp manuel) existait, mais les rappels côté cliente étaient une CARTE CODÉE EN DUR dans HomeScreen (« simulation POC »), le modèle Notification n'avait ni date de déclenchement ni contexte annulable, aucun événement métier ne créait de rappel, et rien n'« envoyait » les rappels à l'échéance. Direction choisie par l'utilisateur (« fait ton choix ») parmi : rappels auto / export compta.
+
+Work Log:
+- prisma/schema.prisma : Notification + scheduledAt DateTime? + metaJson String? (additif, db:push sans perte) ; notify() (lib/kene/server.ts) accepte désormais scheduledAt + metaJson
+- lib/kene/reminders.ts (NOUVEAU, lib pure) : readMeta défensif, scheduledStillRelevant (apptId → RDV futur non annulé ; diagId → toujours dernier de sa zone ; dedupKey → relance pro non traitée), humanWhen (« Aujourd'hui 20:00 » / « Demain 09:30 » / « Jeudi 12 sept. » / année si nécessaire), channelLabel — client-safe
+- GET /api/notifications?userId= (NOUVEAU) :
+  1. BACKFILL idempotent — matérialise les rappels manquants (contrôle protocole S+3 par dernier diag de zone, fenêtre S+6 ; rappel J-1 par RDV confirmé à venir) ; la couverture lit les méta des notifications scheduled ET sent ≤ 60 j (un rappel déjà parti ne re-naît pas) ; les relances pro « done » ferment le besoin cliente
+  2. DUE-RUNNER — updateMany scheduled & scheduledAt ≤ now → sent (envoi simulé POC)
+  3. FILTRE de pertinence — RDV annulé / contrôle refait (diag plus récent) / relance pro traitée exclus du fil
+- Hooks événements métier : POST /api/diagnoses (done) → rappel S+3 scheduled {diagId} ; POST /api/appointments (RDV confirmé wallet immédiat) → rappel J-1 {apptId} ; payments/confirm (acompte MoMo) → le faux message « J-1 programmé (simulé) » remplacé par le vrai rappel scheduledAt = startAt−24 h
+- POST /api/pro/followups : quand la pro marque « traité » (diag:*), le rappel automatique cliente sur le même diag est supprimé (anti-doublon) ; réactivation (todo) → le backfill le re-crée (self-heal)
+- HomeScreen : 5ᵉ appel parallèle /api/notifications ; carte « Suivi WhatsApp » REWRITE — scheduled (vert, badge Programmé + humanWhen + canal) / sent (neutre, badge Envoyé + date) / skeletons / empty-state « Tes rappels s'activent tout seuls » ; note POC honnête « contrôle protocole S+3 & RDV J-1 (POC, envois simulés) »
+
+Bugs corrigés en cours de route :
+- Prisma Client périmé dans le dev-server au moment du db:push → 500 sur metaJson : redémarrage du dev server (kill + relance arrière-plan)
+- Backfill non idempotent : la couverture ne lisait que les scheduled → chaque GET re-créait les rappels overdue déjà flippés sent (doublon observé 01:30/01:31) → couverture élargie aux sent ≤ 60 j + gate FollowUpMark done ; testé 2 GET successifs → created: 0
+
+Tests (données réelles DB + curl + navigateur) :
+- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; dev.log sans erreur runtime
+- Backfill : Mariam → 2 rappels programmés (visage S+3 = 16 sept., + legacy seed) ; mains S+3 overdue → flippé sent par le due-runner
+- POST /api/diagnoses (image test) → rappel S+3 créé avec metaJson.diagId (23 sept.) ; test diag + notification purge (nettoyage)
+- Pro mark done (diag:cmtjdainm…) → rappel cliente visage SUPPRIMÉ du fil + relance WhatsApp journalisée en sent ; réactivation todo → re-création automatique (created: 1)
+- E2E navigateur (Mariam démo) : carte rendue 5 blocs réels (2 Programmé · 16 sept./à venir, 3 Envoyé · Aujourd'hui/Hier) ; zéro erreur console ; screenshot .proofs/task29-suivi-whatsapp.png
+
+Stage Summary:
+- Les rappels automatiques passent de la simulation statique à un moteur réel : événement métier → Notification scheduled {scheduledAt, metaJson} → due-runner → fil cliente vivant (Programmé/Envoyé)
+- Croisé avec le Fil du Retour Pro (relance traitée = rappel cliente annulé ; réactivation = re-création) et le Fil du Temps (S+3 = même échéance que la « Lecture pro » contrôle conseillé)
+- Idempotence prouvée ; un rappel déjà envoyé ne re-naît jamais ; fenêtres métier S+6 / J-1 respectées

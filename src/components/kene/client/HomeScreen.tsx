@@ -2,16 +2,17 @@
 // Kènè Cliente — Accueil : score multi-zones, prochain RDV, wallet, recommandations, suivi
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { CalendarClock, ChevronRight, MapPin, MessageCircle, Plus, Sparkles, Star } from "lucide-react";
+import { CalendarClock, CheckCircle2, ChevronRight, BellRing, MapPin, MessageCircle, Plus, Sparkles, Star } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
 import { formatDate, formatTime, xof, CASHBACK_RATE } from "@/lib/kene/format";
 import { nextClientStep } from "@/lib/kene/followups";
+import { channelLabel, humanWhen } from "@/lib/kene/reminders";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 import { NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKene } from "@/store/kene";
-import type { ApiAppointment, ApiDiagnosis, ApiProduct, ApiWallet } from "./types";
+import type { ApiAppointment, ApiDiagnosis, ApiProduct, ApiReminderFeed, ApiWallet } from "./types";
 import { parseDiagnosis } from "./types";
 import { ScoreGauge, SectionTitle, Stars, WalletPill } from "./bits";
 
@@ -20,6 +21,7 @@ interface HomeData {
   appointments: ApiAppointment[];
   wallet: ApiWallet | null;
   products: ApiProduct[];
+  reminders: ApiReminderFeed | null;
 }
 
 export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }) {
@@ -33,13 +35,21 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
     let alive = true;
     (async () => {
       try {
-        const [d, a, w, p] = await Promise.all([
+        const [d, a, w, p, r] = await Promise.all([
           apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`),
           apiGet<{ appointments: ApiAppointment[] }>(`/api/appointments?userId=${user.id}`),
           apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).catch(() => null),
           apiGet<{ products: ApiProduct[] }>("/api/shop/products"),
+          apiGet<ApiReminderFeed>(`/api/notifications?userId=${user.id}`).catch(() => null),
         ]);
-        if (alive) setData({ diagnoses: d.diagnoses ?? [], appointments: a.appointments ?? [], wallet: w?.wallet ?? null, products: p.products ?? [] });
+        if (alive)
+          setData({
+            diagnoses: d.diagnoses ?? [],
+            appointments: a.appointments ?? [],
+            wallet: w?.wallet ?? null,
+            products: p.products ?? [],
+            reminders: r ?? null,
+          });
       } catch (e) {
         if (alive) setErr(e instanceof Error ? e.message : "Chargement impossible");
       }
@@ -355,32 +365,64 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         )}
       </section>
 
-      {/* Suivi WhatsApp */}
+      {/* Suivi WhatsApp — rappels automatiques réels (protocole S+3, RDV J-1, historique) */}
       <section aria-labelledby="wa-t" className="mb-2">
         <SectionTitle icon={<MessageCircle size={16} />}>
           <span id="wa-t">Suivi WhatsApp</span>
         </SectionTitle>
         <div className="space-y-2">
-          {[
-            { time: "Demain 20:00", text: `Bonsoir ${first} — pense à ton masque aloka ce soir, ta peau adore.`, scheduled: true },
-            { time: nextAppt ? `J-1 · ${formatDate(nextAppt.startAt, { day: "numeric", month: "short" })}` : "Après ton 1er RDV", text: nextAppt ? `Rappel : ${nextAppt.service?.name} chez ${nextAppt.tenant?.name} demain.` : "Réserve ton 1er soin et reçois un rappel J-1.", scheduled: true },
-          ].map((m, i) => (
-            <div key={i} className="flex items-start gap-3 rounded-2xl border border-[#3F7D3F]/25 bg-[#3F7D3F]/5 p-3.5">
-              <span className="grid place-items-center h-9 w-9 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] shrink-0">
-                <MessageCircle size={16} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs leading-relaxed">{m.text}</p>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <span className="rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide">Programmé</span>
-                  <span className="text-[10px] text-muted-foreground">{m.time}</span>
-                </div>
-              </div>
+          {data === null ? (
+            <>
+              <Skeleton className="h-[76px] rounded-2xl" />
+              <Skeleton className="h-[76px] rounded-2xl" />
+            </>
+          ) : !data.reminders || (data.reminders.scheduled.length === 0 && data.reminders.sent.length === 0) ? (
+            <div className="rounded-2xl border border-dashed border-border bg-card/60 p-5 text-center">
+              <BellRing size={22} className="mx-auto text-primary" aria-hidden />
+              <p className="mt-2 text-xs font-semibold">Tes rappels s&apos;activent tout seuls</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Contrôle de protocole 3 semaines après un scan, rappel J-1 avant chaque RDV confirmé.
+              </p>
             </div>
-          ))}
+          ) : (
+            <>
+              {data.reminders.scheduled.slice(0, 2).map((m) => (
+                <div key={m.id} className="flex items-start gap-3 rounded-2xl border border-[#3F7D3F]/25 bg-[#3F7D3F]/5 p-3.5">
+                  <span className="grid place-items-center h-9 w-9 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] shrink-0">
+                    <BellRing size={16} aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs leading-relaxed">{m.message}</p>
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      <span className="rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide">Programmé</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {m.scheduledAt ? humanWhen(m.scheduledAt) : "à venir"} · {channelLabel(m.channel)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {data.reminders.sent.slice(0, 3).map((m) => (
+                <div key={m.id} className="flex items-start gap-3 rounded-2xl border border-border bg-card p-3.5">
+                  <span className="grid place-items-center h-9 w-9 rounded-full bg-muted text-muted-foreground shrink-0">
+                    <CheckCircle2 size={16} aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs leading-relaxed">{m.message}</p>
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      <span className="rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide">Envoyé</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {humanWhen(m.createdAt)} · {channelLabel(m.channel)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
         <p className="mt-3 text-center text-[10px] text-muted-foreground flex items-center justify-center gap-1">
-          <Star size={10} className="text-primary" /> Coaching beauté quotidien — simulation POC (notifications WhatsApp simulées)
+          <Star size={10} className="text-primary" aria-hidden /> Rappels automatiques — contrôle protocole S+3 &amp; RDV J-1 (POC, envois simulés)
         </p>
       </section>
 

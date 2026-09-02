@@ -71,6 +71,18 @@ export async function POST(req: NextRequest) {
           message: `⚠️ Kènè : votre analyse de nævi présente des signes suspects (${result.raison_orientation?.slice(0, 120) ?? "critères ABCDE"}). Nous vous recommandons de consulter un dermatologue sans délai. Prenez aussi RDV avec une dermo-conseillère partenaire via l'app.`,
         });
       }
+
+      // Rappel automatique « contrôle de protocole » programmé à S+3 (annulé
+      // si un nouveau scan survient — filtre GET /api/notifications).
+      await notify({
+        userId,
+        channel: "whatsapp",
+        toPhone: user.phone,
+        message: `Kènè 🧴 ${(user.name.split(/\s+/)[0] ?? user.name).trim()}, ton protocole ${zone.replace("_", " ")} (score ${result.score_global}/100) suit son cours. Dans 3 semaines, refais ton diagnostic IA pour mesurer tes progrès et ajuster ta routine — ça prend 2 minutes.`,
+        status: "scheduled",
+        scheduledAt: new Date(Date.now() + 21 * 86_400_000),
+        metaJson: JSON.stringify({ diagId: diagnosis.id }),
+      });
     } catch (err) {
       console.error("[kene:api:diagnoses] VLM échec:", err instanceof Error ? err.message : err);
       diagnosis = await db.diagnosis.update({

@@ -102,6 +102,36 @@ export async function POST(req: NextRequest) {
       update: { status, via: via ?? null, note: note ?? null },
     });
 
+    // Relance traitée → le rappel automatique côté cliente (même diagnostic)
+    // devient un doublon : on l'annule silencieusement.
+    if (status === "done" && dedupKey.startsWith("diag:")) {
+      const diagId = dedupKey.slice(5);
+      let clientUserId: string | null = null;
+      if (clientProfileId) {
+        const profile = await db.clientProfile.findUnique({ where: { id: clientProfileId }, select: { userId: true } });
+        clientUserId = profile?.userId ?? null;
+      }
+      if (clientUserId) {
+        const scheds = await db.notification.findMany({
+          where: { userId: clientUserId, status: "scheduled" },
+          select: { id: true, metaJson: true },
+        });
+        const staleIds = scheds
+          .filter((n) => {
+            try {
+              const m = JSON.parse(n.metaJson ?? "{}") as { diagId?: string };
+              return m.diagId === diagId;
+            } catch {
+              return false;
+            }
+          })
+          .map((n) => n.id);
+        if (staleIds.length > 0) {
+          await db.notification.deleteMany({ where: { id: { in: staleIds } } });
+        }
+      }
+    }
+
     // Relance WhatsApp → notification journalisée (visible dans l'historique client)
     if (via === "whatsapp" && clientPhone) {
       let userId: string | null = null;

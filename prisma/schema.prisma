@@ -356,16 +356,18 @@ model Review {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  tenantId  String?
-  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
-  channel   String // sms | whatsapp | email
-  toPhone   String
-  message   String
-  status    String   @default("sent") // sent | scheduled
-  createdAt DateTime @default(now())
+  id           String    @id @default(cuid())
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id])
+  tenantId     String?
+  tenant       Tenant?   @relation(fields: [tenantId], references: [id])
+  channel      String // sms | whatsapp | email
+  toPhone      String
+  message      String
+  status       String    @default("sent") // sent | scheduled
+  scheduledAt  DateTime? // déclenchement prévu (status scheduled) — null = immédiat
+  metaJson     String?   // contexte {diagId} | {apptId} | {dedupKey} — annulation intelligente
+  createdAt    DateTime  @default(now())
 }
 
 // ─────────────────────────── Paie (Sprint 4) ───────────────────────────

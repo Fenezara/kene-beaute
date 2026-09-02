@@ -80,13 +80,22 @@ export async function POST(req: NextRequest) {
           toPhone: updated.clientPhone,
           message: `Kènè : acompte de ${xof(payment.amount)} reçu — votre RDV est confirmé ✅`,
         });
+        // Rappel automatique J-1 réel : programmé 24 h avant le RDV, envoyé au
+        // fil de l'eau par le due-runner (GET /api/notifications).
+        const [svc, tnt] = await Promise.all([
+          db.service.findUnique({ where: { id: updated.serviceId }, select: { name: true } }),
+          db.tenant.findUnique({ where: { id: updated.tenantId }, select: { name: true } }),
+        ]);
+        const fireAt = new Date(new Date(updated.startAt).getTime() - 24 * 3_600_000);
         await notify({
           userId: updated.userId,
           tenantId: updated.tenantId,
           channel: "whatsapp",
           toPhone: updated.clientPhone,
-          message: `Kènè : rappel RDV J-1 programmé (simulé) — nous vous écrirons 24 h avant votre rendez-vous. À bientôt !`,
+          message: `Kènè ✨ petit rappel : ${svc?.name ?? "ton soin"} chez ${tnt?.name ?? "l'institut"} le ${new Date(updated.startAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}. Préviens-nous si tu dois déplacer, sinon on t'attend avec plaisir !`,
           status: "scheduled",
+          scheduledAt: fireAt.getTime() > Date.now() ? fireAt : new Date(),
+          metaJson: JSON.stringify({ apptId: updated.id }),
         });
       }
     }

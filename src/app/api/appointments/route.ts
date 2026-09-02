@@ -165,6 +165,24 @@ export async function POST(req: NextRequest) {
         : `Kènè : demande de RDV ${service.name} chez ${tenant.name} enregistrée. Confirmation à venir.`,
     });
 
+    // Rappel automatique J-1 (24 h avant) — créé dès que le RDV est confirmé
+    // (paiement wallet immédiat). Le path MoMo le crée à la confirmation du
+    // paiement ; le filtre GET /api/notifications masque celui d'un RDV annulé.
+    if (appointment.status === "confirmed" && userId && new Date(start).getTime() > Date.now() + 24 * 3_600_000) {
+      const u = await db.user.findUnique({ where: { id: userId }, select: { name: true } });
+      const first = (u?.name.split(/\s+/)[0] ?? clientName).trim();
+      await notify({
+        userId,
+        tenantId,
+        channel: "whatsapp",
+        toPhone: clientPhone,
+        message: `Kènè ✨ ${first}, petit rappel : ${service.name} chez ${tenant.name} le ${new Date(start).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}. Préviens-nous si tu dois déplacer, sinon on t'attend avec plaisir !`,
+        status: "scheduled",
+        scheduledAt: new Date(new Date(start).getTime() - 24 * 3_600_000),
+        metaJson: JSON.stringify({ apptId: appointment.id }),
+      });
+    }
+
     return NextResponse.json({ appointment, payment: payment ?? undefined }, { status: 201 });
   } catch (err) {
     return serverError("appointments:post", err);

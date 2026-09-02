@@ -151,6 +151,23 @@ export interface ChatMsg {
   time: number;
 }
 
+/* ── Rappels automatiques (GET /api/notifications) ── */
+export interface ApiReminder {
+  id: string;
+  channel: string;
+  message: string;
+  status: string; // sent | scheduled
+  scheduledAt: string | null;
+  metaJson: string | null;
+  createdAt: string;
+}
+
+export interface ApiReminderFeed {
+  scheduled: ApiReminder[]; // à venir (encore pertinents)
+  sent: ApiReminder[]; // historique 30 j
+  created: number; // rappels matérialisés par le backfill
+}
+
 /** Parse sûr d'un resultJson de diagnostic */
 export function parseDiagnosis(resultJson: string): import("@/lib/kene/types").DiagnosisResult | null {
   try {

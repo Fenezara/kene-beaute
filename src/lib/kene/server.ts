@@ -154,7 +154,16 @@ export async function rewardReferrerIfNeeded(filleulUserId: string) {
 }
 
 // ─────────────── Notifications (SMS/WhatsApp simulés) ───────────────
-export function notify(data: { userId?: string | null; tenantId?: string | null; channel: string; toPhone: string; message: string; status?: string }) {
+export function notify(data: {
+  userId?: string | null;
+  tenantId?: string | null;
+  channel: string;
+  toPhone: string;
+  message: string;
+  status?: string;
+  scheduledAt?: Date | null; // déclenchement prévu (rappel auto)
+  metaJson?: string | null; // contexte {diagId} | {apptId} | {dedupKey}
+}) {
   return db.notification.create({
     data: {
       userId: data.userId ?? null,
@@ -163,6 +172,8 @@ export function notify(data: { userId?: string | null; tenantId?: string | null;
       toPhone: data.toPhone,
       message: data.message,
       status: data.status ?? "sent",
+      scheduledAt: data.scheduledAt ?? null,
+      metaJson: data.metaJson ?? null,
     },
   });
 }
