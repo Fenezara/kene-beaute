@@ -18,7 +18,7 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 
 ## Les trois espaces
 
-- **Cliente** (mobile-first, ≤ 430 px) : accueil, chatbot de triage (photo → VLM), diagnostic IA, jumeau 3D, route de l'or, historique/évolution, boutique + checkout Wave / Orange Money / Wallet Kènè (cashback), « Mes commandes », profil & wallet, prise de RDV avec acompte, cloche de notifications temps réel.
+- **Cliente** (mobile-first, ≤ 430 px) : accueil, chatbot de triage (photo → VLM), diagnostic IA, jumeau 3D, route de l'or, historique/évolution, **lecture vocale TTS du diagnostic** (« Écouter le résumé »), boutique + checkout Wave / Orange Money / Wallet Kènè (cashback), « Mes commandes », profil & wallet, prise de RDV avec acompte, cloche de notifications temps réel.
 - **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, CRM 360° avec fiche cliente (jumeau de peau agrégé, score RFM), catalogue soins/produits, POS (ticket SYSCOHADA), stock, paie CNPS CI / IPM SN, comptabilité (grand livre, OD, bilan) — badge & flux « En direct » (RDV, ventes, commandes) via socket.io.
 - **Admin** : multi-instituts, santé de la plateforme.
 
@@ -29,7 +29,7 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 - **Prisma + SQLite** (`prisma/schema.prisma`, client via `@/lib/db`)
 - **Zustand** (persist) pour l'état client, sonner pour les toasts
 - **3D** : @react-three/fiber + drei — rendu éprouvé en mode logiciel (DPR plafonné, `IntersectionObserver` → frameloop, refs mutables zéro re-render)
-- **IA** : VLM du SDK `z-ai-web-dev-sdk` (backend uniquement, via `src/lib/ai/vlm.ts`) pour le diagnostic photo et le triage chat
+- **IA** : VLM du SDK `z-ai-web-dev-sdk` (backend uniquement, via `src/lib/ai/vlm.ts`) pour le diagnostic photo et le triage chat ; TTS du même SDK via `POST /api/tts` (narration française du diagnostic, `src/lib/kene/narration.ts`, cache mémoire 32 Mo + cache blob client)
 - **Temps réel** : mini-service socket.io `mini-services/notify-service` (port 3004, relais sans logique métier) — cloche cliente `user:{id}` + badge institut `tenant:{id}` ; poussé par `notify()` et les API, poll 8 s + push, heartbeat anti-zombie ; le front passe par la gateway (`io('/?XTransformPort=3004')`)
 
 ## Palette & design tokens
@@ -79,7 +79,7 @@ Cœur de cible : femmes 20-45 peaux mélanodermes (Abidjan pilote, expansion UEM
 |---|---|---|---|
 | Digitale lettrée (18-35) | fort | Exigence d'expérience, churn silencieux | Intro skippable, vitesse, design soigné, cashback |
 | Semi-lettrée numérique (25-45) | le plus fort | Parcours multi-étapes, jargon, formulaires | Diagnostic photo d'abord (VLM, zéro saisie), libellés Léger/Moyen/Fort, checkout wallet en 1 geste |
-| Non-lectrice / illettrée | ~40 % des femmes selon zones | Tout texte = exclusion | Photo + (backlog) lecture vocale TTS, pictogrammes |
+| Non-lectrice / illettrée | ~40 % des femmes selon zones | Tout texte = exclusion | Photo + lecture vocale TTS du diagnostic ✅, pictogrammes (suite) |
 | Rurale / petite data | fort hors villes | Coût data, téléphones d'entrée de gamme | Fallbacks 3D statiques (`#twin-static`, `#weave-static`) |
 | WhatsApp-first | dominant | Ne quitte pas WhatsApp | WhatsApp déjà canal (relances, commande) |
 | Méfiante (peur dépigmentation) | transverse | IA « qui juge la peau » = boîte noire | Résultats par indicateur explicites, aucune promesse d'éclaircissement, orientation dermato |
@@ -93,7 +93,7 @@ Risques d'échec classés : 1) non-lectrices → funnel vide silencieux ; 2) pro
 - Paiements **simulés** (wallet interne + transactions) — intégration Wave Business / Orange Money à venir.
 - Connexion par sélecteur de démo — OTP réel prévu (modèle `OtpCode` déjà dans le schéma Prisma).
 - SQLite mono-fichier — passage Postgres prévu à l'échelle.
-- Backlog priorisé (étude utilisateurs) : lecture vocale TTS des résultats → glossaire 1 tap (PIH, sébum…) → compression photo côté client → mode saisie Pro allégé → langues locales audio (dioula, baoulé).
+- Backlog priorisé (étude utilisateurs) : lecture vocale TTS des résultats **fait (tâche 39)** → glossaire 1 tap (PIH, sébum…) → compression photo côté client → mode saisie Pro allégé → langues locales audio (dioula, baoulé).
 
 ## Comptes de démonstration
 

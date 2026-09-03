@@ -760,3 +760,33 @@ Stage Summary:
 - Deuxième enseignement : côté B le CRM ne doit dépendre d'aucune saisie manuelle — la donnée doit arriver toute seule (diagnostic client, vente POS, commande boutique), ce que l'architecture actuelle fait déjà.
 - README et worklog alignés sur l'état réel (37 tâches de dev + étude 38) : les documents de base sont à jour.
 - Prochaines étapes candidates : TTS lecture des résultats → glossaire 1 tap → compression photo client → mode Pro allégé → OTP réel (OtpCode prêt) → paiements réels → export PDF liasse → portabilité données.
+
+---
+Task ID: 39
+Agent: main (Z.ai Code)
+Task: « On y va » — lecture vocale TTS des résultats de diagnostic (attaque du risque n°1 de l'étude utilisateurs : les non-lectrices)
+
+Work Log:
+- Skill TTS chargé et contraintes intégrées : z-ai-web-dev-sdk BACKEND ONLY, max 1024 chars/requête, voix whitelistées (tongtong…), speed 0.5-2.0, Response → arrayBuffer() → Buffer, WAV 24 kHz 16-bit mono. Test CLI préalable : WAV RIFF valide (826 Ko / ~17 s).
+- NOUVEAU src/lib/kene/narration.ts (lib PURE) : numberToFrench(0-100) en toutes lettres (« soixante-deux » lu plus fiablement que « 62 »), verdictWord/levelWord (mêmes seuils que l'UI), clipSentences (coupe fin de phrase), fnv1a (hash cache), buildNarration(result, {userName}) — assemble par priorité décroissante dans un budget de 950 chars : accueil → score+verdict → 3 priorités (indicateurs les plus faibles, niveau parlé) → orientation dermato (+raison) → résumé conseils → 1 geste matin + 1 soir → botaniques → avertissement légal.
+- NOUVEAU src/app/api/tts/route.ts (POST, runtime nodejs) : validations (texte requis ≤ 1000, voice whitelist, speed clamp 0.5-2) → ZAI.create() → audio.tts.create({wav}) → NextResponse Uint8Array + Content-Type/Length audio/wav. Cache mémoire FIFO plafonné 32 Mo (hash fnv1a voice|speed|text) ; garde « audio vide » 502 ; erreurs 400/500 JSON propres.
+- NOUVEAU src/components/kene/client/VoiceNarration.tsx (« use client ») : bouton « Écouter le résumé » (h-12, bg-primary) avec 3 états — idle (Volume2) / loading (Loader2 spin « Préparation de l'audio… », disabled) / playing (équaliseur 4 barres framer-motion scaleY + Square « Arrêter la lecture », hint « Lecture en cours… ») ; POST /api/tts → blob → URL.createObjectURL → new Audio ; cache objectURL module-level FIFO 8 (replay instantané SANS re-consommer de quota TTS, éviction sans révoquer l'URL en cours) ; onended/onerror gérés ; stop au démontage ; toasts d'erreur actionnables.
+- DiagnosticScreen.tsx : <VoiceNarration result={r} userName={user.name}/> intégré dans ResultView juste sous la carte de score (avant l'alerte dermato) — la lecture est proposée AU MOMENT où la cliente découvre son résultat, en vue directe ET historique (même composant).
+- Vérifications statiques : bun run lint 0 erreur/0 warning ; tsc --noEmit 0 erreur src/.
+- Test narration RÉELLE (bun + prisma, diagnostic visage Mariam) : 917 chars — « Bonjour Mariam… score global soixante-deux sur cent. Bon équilibre général. Première priorité : Cernes & poches, à surveiller de près… consultation dermatologique conseillée… » — assemblage correct.
+- Test API curl : 1er appel 200 (WAV RIFF 3,78 Mo ≈ 79 s de parole, ~21 s de génération) ; 2e appel 79 ms (cache mémoire serveur). Gardes : {} → 400 « Texte requis » ; 1200 chars → 400 « Texte trop long ».
+- E2E agent-browser (gateway :81, DB réelle, 390×844 puis 1440×900) :
+  * Parcours : intro passée → « Démo — Entrer comme Mariam » → Diagnostic → « Voir mon historique » → diagnostic visage 2 sept (62) → bouton « Écouter le résumé vocal du diagnostic » présent dans la région « Lecture vocale du diagnostic ».
+  * Clic → lecture DÉMARRÉE (cache serveur : instantané) → bouton « Arrêter la lecture » + équaliseur + « Lecture en cours… » (VLM : « bouton doré, texte blanc, position correcte sous la carte Visage »).
+  * Cycle complet : clic Arrêter → retour idle → re-clic → lecture en 1,5 s (cache blob client, AUCUN nouveau POST).
+  * Génération non cachée (diagnostic mains 81) : bouton disabled + spinner pendant ~15 s → lecture démarrée (dev.log : POST /api/tts 200 in 15.2s) — parcours 1re écoute validé en conditions réelles.
+  * Desktop 1440×900 : colonne mobile-first centrée (~40-45 %), bouton + égaliseur OK (VLM).
+  * agent-browser errors VIDE ; console sans error/failed ; dev.log : uniquement 200 (+2 gardes 400 voulues) ; navigateur fermé.
+- Screenshots : .proofs/task39-{mobile-lecture,mobile-replay,mobile-preparation,mobile-mains-lecture,desktop-resultat}.png
+- Docs de base mises à jour : README (ligne Cliente « lecture vocale (TTS) », ligne IA « + lecture vocale », segment non-lectrice « garde en place ✅ », backlog recentré sur glossaire 1 tap) + worklog (cette entrée).
+
+Stage Summary:
+- La barrière n°1 de l'étude utilisateurs est attaquée concrètement : une cliente qui ne lit pas peut maintenant ÉCOUTER son diagnostic complet (score, priorités, orientation dermato, conseils, avertissement) via un bouton doré « Écouter le résumé ».
+- Architecture 3 couches réutilisable : narration.ts (lib pure, budget 950 chars, priorisation des blocs) → /api/tts (SDK backend, validations, cache mémoire 32 Mo FIFO) → VoiceNarration (3 états, cache blob 8 entrées, replay gratuit).
+- Coûts maîtrisés : la génération (~15-20 s) ne se paye qu'à la 1re écoute d'une narration ; ré-écoute instantanée (blob client), ré-écoute réseau 79 ms (cache serveur) ; textes identiques déterministes (buildNarration pur).
+- Prochaine étape candidate : glossaire 1 tap (PIH, sébum…) → compression photo côté client → mode saisie Pro allégé → langues locales audio (dioula/baoulé).

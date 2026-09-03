@@ -13,6 +13,7 @@ import { BODY_ZONES, SPECTRAL_VIEWS, type BodyZone, type DiagnosisResult, type I
 import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
 import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
 import { EvolutionCard } from "@/components/kene/evolution/EvolutionCard";
+import { VoiceNarration } from "./VoiceNarration";
 import { matchProduct, norm } from "@/components/kene/route/ritual";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -354,6 +355,9 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
           </div>
         </div>
       </div>
+
+      {/* Lecture vocale — accès non-lectrices & confort audio (TTS) */}
+      <VoiceNarration result={r} userName={user.name} />
 
       {/* Alerte orientation dermato */}
       {r.orientation_dermato && (
