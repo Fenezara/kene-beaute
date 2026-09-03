@@ -903,3 +903,18 @@ Stage Summary:
 - Les 3 espaces × 3 formats remplissent désormais l'écran selon les patterns 2026 : mobile = tab-bar (Cliente) / chips (Pro) ; tablette = rail d'icônes verticales dès 768 px (TikTok iPad) ; desktop = sidebar libellée + feed centré + rail droit (Instagram web).
 - La capture « avant » de l'utilisateur (19h55) est bien l'ancien état ; la capture mobile (21h32) confirmait le nouveau shell — ce qui restait à parfaire (tablette, stories, libellé xl) est fait et vérifié.
 - Aucune API touchée (100 % présentation). Backlog inchangé : OTP réel, paiements Wave/OM, portabilité RGPD, langues locales, pictogrammes.
+---
+Task ID: 47
+Agent: Z.ai Code (principal)
+Task: Diagnostic « l'application ne s'affiche plus » — vérification de l'état des services et de l'affichage réel.
+
+Work Log:
+- Constat processus : les 3 services (app :3000, notify :3004, gateway :81) avaient TOUS redémarré à 22:58 (reboot sandbox) — fenêtre d'indisponibilité pendant laquelle la gateway servait le placeholder : cause la plus probable du « ne s'affiche plus » vu par l'utilisateur.
+- Vérification E2E via gateway :81 (agent-browser) : intro Kènè → 6 chapitres + « Passer » OK ; « Entrer comme Mariam » → feed d'accueil complet (tab-bar 5 onglets + CTA Scanner, stories 6 zones, carte score multi-zones 79/100, wallet 9 725 FCFA, 4 notifs, chat 1 message) ; bascules Espace Pro / Console Admin présentes.
+- Console navigateur : 0 erreur (seuls logs Fast Refresh + WebGL Context Lost attendu en quittant le jumeau 3D) ; dev.log : uniquement des 200 (7-42 ms) + requêtes Prisma normales.
+- Captures de contrôle : .proofs/debug-{intro,home,desktop}.png
+
+Stage Summary:
+- L'application s'affiche à nouveau correctement : le problème était la fenêtre de reboot du sandbox (services 3000/3004/81 tous repartis à 22:58), pas une régression code.
+- Action utilisateur : rafraîchir le panneau de prévisualisation (bouton « Open in New Tab » si besoin).
+- Backlog inchangé : portabilité RGPD, OTP réel, paiements Wave/OM, langues locales, pictogrammes.
