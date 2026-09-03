@@ -790,3 +790,44 @@ Stage Summary:
 - Architecture 3 couches réutilisable : narration.ts (lib pure, budget 950 chars, priorisation des blocs) → /api/tts (SDK backend, validations, cache mémoire 32 Mo FIFO) → VoiceNarration (3 états, cache blob 8 entrées, replay gratuit).
 - Coûts maîtrisés : la génération (~15-20 s) ne se paye qu'à la 1re écoute d'une narration ; ré-écoute instantanée (blob client), ré-écoute réseau 79 ms (cache serveur) ; textes identiques déterministes (buildNarration pur).
 - Prochaine étape candidate : glossaire 1 tap (PIH, sébum…) → compression photo côté client → mode saisie Pro allégé → langues locales audio (dioula/baoulé).
+
+---
+Task ID: 40-43
+Agent: main (Z.ai Code)
+Task: « Oui traite tout » — backlog complet de l'étude utilisateurs : glossaire 1 tap, compression photo renforcée, cliente express (mode Pro allégé), lecture lente (FLN)
+
+Work Log:
+
+TÂCHE 40 — Glossaire 1 tap (PIH, sébum…) + lecture vocale des définitions :
+- NOUVEAU src/lib/kene/glossary.ts (lib PURE) : 28 définitions SIMPLES (phrases courtes, mots du quotidien, zéro jargon non expliqué) couvrant les 41 indicateurs de ZONE_INDICATORS via alias de zones + matching 3 niveaux : clé exacte normalisée (NFD sans accents) → alias (« Taches PIH du dos » / « … barbe » → PIH) → mots-clés de repli (libellés proches du VLM). glossaryFor() retourne null sur terme inconnu (pas de « ? » affiché). Test bun : 30/30 termes réels couverts, inconnus → null.
+- NOUVEAU src/components/kene/client/ttsAudio.ts : fetchTtsAudioUrl(text, speed) — module client UNIQUE de consommation TTS (cache objectURL FIFO 8, clé fnv1a+speed, éviction sans révoquer l'URL active) — partagé par VoiceNarration, SpeakButton et tout futur consommateur.
+- NOUVEAU src/components/kene/client/SpeakButton.tsx : bouton « Écouter » compact réutilisable (idle/loading/playing, stop au démontage, toasts).
+- NOUVEAU src/components/kene/client/GlossaryDialog.tsx : Dialog shadcn — en-tête « QUE VEUT DIRE CE MOT ? », titre, définition, SpeakButton (speed 0.9), « J'ai compris ».
+- DiagnosticScreen.tsx : IndicatorBar accepte onAsk — le nom de l'indicateur devient un bouton avec icône CircleHelp quand une définition existe (priorités + accordéon 14 indicateurs) ; ResultView porte l'état glossary et rend le Dialog.
+- E2E (mobile 390×844, gateway :81, Mariam) : 8 boutons « Expliquer le mot : … » sur les priorités du diagnostic visage 62 ; tap « Taches PIH » → Dialog (titre + définition + VLM confirme le rendu) ; Écouter → génération 7,6 s → « Arrêter » (lecture en cours) ; 2e terme « Cernes & poches » ✓ ; fermeture « J'ai compris » ✓.
+
+TÂCHE 41 — Compression photo renforcée :
+- api.ts resizeImage : 900px/q0.82 → 820px/q0.8 (suffit pour le VLM, ~25-35 % d'octets en moins — segment « petite data »).
+- DiagnosticScreen onFile : toast « Photo compressée : X Ko → Y Ko — léger pour ta connexion » quand la compression est significative (orig > 250 Ko et ratio > 2) — transparence du coût data au moment du choix.
+
+TÂCHE 42 — Cliente express (mode saisie Pro allégé) :
+- POST /api/pro/clients (NOUVEAU) : validations (nom 2-80, téléphone 8-15 chiffres), création ClientProfile minimale (rfmSegment « Nouveau », note « Créée express depuis la caisse »), ANTI-DOUBLON sur chiffres normalisés.
+- BUG corrigé en E2E : 1re version contains SQL brut → « 07 05 44 33 22 » (espaces) échappait à « 0705443322 » (compact) → doublon créé. Fix : comparaison JS sur digits (les 10 derniers = numéro local CI, absorbe +225/espaces/compact) → réutilisation de la fiche (reused: true) + toast dédié. Test curl : 3 formats différents → même fiche retournée.
+- PosSection.tsx : bouton « Express » (UserRoundPlus, or) à côté du Select cliente ; Dialog 2 champs (nom + téléphone, Enter = valider, placeholder « Aïcha Bakayoko ») ; création → sélection automatique dans le ticket + refetch clients + toast ; « Sans cliente » → « Sans cliente ».
+- E2E (espace Pro, Caisse) : création « Aminata Traoré » → sélectionnée + toast « ajoutée au carnet clientes » ; re-test doublon UI (« Fanta Doumbia », même numéro en +225) → « Aminata Traoré existait déjà — fiche réutilisée », Fanta NON créée ; CRM : Aminata présente dans le carnet (la donnée arrive toute seule — pas de double saisie).
+
+TÂCHE 43 — Lecture lente (compréhension français langue seconde) :
+- VoiceNarration.tsx refondu sur ttsAudio.ts partagé + toggle « Lecture lente » (icône Turtle, speed 0.85) : chip sous le bouton principal, état actif visible, couper la lecture en cours au changement de vitesse, hint « Lecture lente en cours… ». Clé de cache inclut la vitesse → normal et lent = 2 entrées distinctes.
+- E2E : activation → narration en vitesse lente générée (17,4 s) puis « Arrêter la lecture » affiché ✓. Voix dioula/baoulé non disponibles dans le moteur TTS — la lecture lente + vocabulaire simple est le substitut réaliste actuel ; langues locales réelles documentées comme évolution (voix custom).
+
+Vérifications transverses :
+- bun run lint 0 erreur/0 warning ; tsc --noEmit 0 erreur src/ (relancés après le fix anti-doublon).
+- Console navigateur : aucune erreur pendant TOUTE la session ; dev.log : uniquement 200/201 (POST clients 201/200, TTS 200 dont cache 17 ms vs génération 7,6-17,4 s) + 2 gardes 400 testées en tâche 39.
+- Nettoyage intégral : clientes de test supprimées (Aminata Traoré, Testeuse Express, Autre Nom) — aucune vente/RDV lié (créées vierges), CRM et caisse revenus à l'état d'origine.
+- Screenshots : .proofs/task40-{glossaire-pih,glossaire-lecture}.png · task42-dialog-express.png · task43-{lecture-lente,lecture-lente-active}.png
+
+Stage Summary:
+- Les 4 items du backlog « étude utilisateurs » sont traités : le jargon est expliqué en 1 tap (28 définitions simples, lues à voix haute), la photo envoie moins de données (et le dit), la praticienne crée une cliente en 2 champs depuis la caisse (CRM auto-alimenté, anti-doublon multi-formats), et la narration se met en mode lent pour l'écoute FLN.
+- Architecture : un SEUL module TTS client (ttsAudio.ts) alimente désormais narration + glossaire — cache partagé FIFO 8, coût réseau uniquement à la 1re écoute d'un texte.
+- Leçon : un « contains » SQL brut sur un téléphone est un piège à formats (espaces, +225, compact) — toujours normaliser en chiffres avant de comparer ; détecté par E2E (le curl seul l'avait raté car même format).
+- Prochaines étapes candidates : OTP réel (OtpCode prêt) → paiements réels Wave/OM → export PDF liasse compta → portabilité données (RGPD).

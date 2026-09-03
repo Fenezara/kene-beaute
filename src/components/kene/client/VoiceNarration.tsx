@@ -1,22 +1,22 @@
 "use client";
 // Kènè — lecture vocale TTS du diagnostic (accès non-lectrices & confort audio).
-// POST /api/tts → blob WAV → <Audio> ; cache objectURL par hash de narration
-// (module-level, FIFO 8) pour ré-écouter sans re-consommer de quota TTS.
+// Utilise le cache TTS partagé (ttsAudio.ts) + option « lecture lente »
+// (speed 0.85) pour l'écoute en français langue seconde.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Loader2, Square, Volume2 } from "lucide-react";
+import { Loader2, Square, Turtle, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import type { DiagnosisResult } from "@/lib/kene/types";
-import { buildNarration, fnv1a } from "@/lib/kene/narration";
+import { buildNarration } from "@/lib/kene/narration";
+import { fetchTtsAudioUrl } from "./ttsAudio";
 
-const BLOB_CACHE_MAX = 8;
-const blobCache = new Map<string, string>();
+const SLOW_SPEED = 0.85;
 
 export function VoiceNarration({ result, userName }: { result: DiagnosisResult; userName?: string }) {
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
+  const [slow, setSlow] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const narration = useMemo(() => buildNarration(result, { userName }), [result, userName]);
-  const key = useMemo(() => fnv1a(narration), [narration]);
 
   // stop + libération au démontage
   useEffect(
@@ -27,48 +27,25 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
     [],
   );
 
+  function stopAudio() {
+    const a = audioRef.current;
+    if (a) {
+      a.pause();
+      a.currentTime = 0;
+    }
+    audioRef.current = null;
+  }
+
   async function toggle() {
     if (state === "playing") {
-      const a = audioRef.current;
-      if (a) {
-        a.pause();
-        a.currentTime = 0;
-      }
+      stopAudio();
       setState("idle");
       return;
     }
     if (state === "loading") return;
     setState("loading");
     try {
-      let url = blobCache.get(key);
-      if (!url) {
-        const res = await fetch("/api/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: narration }),
-        });
-        if (!res.ok) {
-          let msg = "Synthèse vocale indisponible";
-          try {
-            const j = (await res.json()) as { error?: string };
-            if (j?.error) msg = j.error;
-          } catch {
-            /* réponse non-JSON */
-          }
-          throw new Error(msg);
-        }
-        const blob = await res.blob();
-        if (blob.size < 100) throw new Error("Audio vide");
-        url = URL.createObjectURL(blob);
-        blobCache.set(key, url);
-        while (blobCache.size > BLOB_CACHE_MAX) {
-          const first = blobCache.keys().next().value;
-          if (first === undefined) break;
-          const u = blobCache.get(first);
-          blobCache.delete(first);
-          if (u && first !== key) URL.revokeObjectURL(u);
-        }
-      }
+      const url = await fetchTtsAudioUrl(narration, slow ? SLOW_SPEED : 1);
       const audio = new Audio(url);
       audioRef.current = audio;
       audio.onended = () => setState("idle");
@@ -82,6 +59,15 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
       setState("idle");
       toast.error(e instanceof Error ? e.message : "Lecture vocale indisponible");
     }
+  }
+
+  function toggleSlow() {
+    // changer la vitesse pendant une lecture : couper proprement avant
+    if (state === "playing") {
+      stopAudio();
+      setState("idle");
+    }
+    setSlow(!slow);
   }
 
   return (
@@ -120,8 +106,20 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
           </>
         )}
       </button>
-      <p className="text-center text-[10px] text-muted-foreground mt-1.5">
-        {state === "playing" ? "Lecture en cours…" : "Pour écouter plutôt que lire"}
+      <div className="flex items-center justify-center gap-2 mt-1.5">
+        <button
+          onClick={toggleSlow}
+          aria-pressed={slow}
+          aria-label="Lecture lente (pour mieux comprendre à l'écoute)"
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 h-6 text-[10px] font-bold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${
+            slow ? "bg-primary/15 text-primary border border-primary/40" : "text-muted-foreground border border-border"
+          }`}
+        >
+          <Turtle size={11} aria-hidden="true" /> {slow ? "Lecture lente activée" : "Lecture lente"}
+        </button>
+      </div>
+      <p className="text-center text-[10px] text-muted-foreground mt-1">
+        {state === "playing" ? (slow ? "Lecture lente en cours…" : "Lecture en cours…") : "Pour écouter plutôt que lire"}
       </p>
     </div>
   );

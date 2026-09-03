@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, Brush, CalendarPlus, Camera, Check, ChevronRight, Cross, GitCompareArrows, Hand, History,
+  ArrowLeft, Brush, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, GitCompareArrows, Hand, History,
   ImagePlus, Loader2, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Sparkles, Sunrise, TriangleAlert, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +14,8 @@ import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/
 import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
 import { EvolutionCard } from "@/components/kene/evolution/EvolutionCard";
 import { VoiceNarration } from "./VoiceNarration";
+import { GlossaryDialog } from "./GlossaryDialog";
+import { glossaryFor, type GlossaryEntry } from "@/lib/kene/glossary";
 import { matchProduct, norm } from "@/components/kene/route/ritual";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -98,6 +100,12 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     try {
       const dataUrl = await resizeImage(f);
       setImage(dataUrl);
+      // Transparence « petite data » : montrer le poids réel envoyé (compressé côté client)
+      const origKo = Math.round(f.size / 1024);
+      const sentKo = Math.max(1, Math.round((dataUrl.length * 0.75) / 1024)); // base64 ≈ 4/3
+      if (origKo > 250 && origKo > sentKo * 2) {
+        toast.success(`Photo compressée : ${origKo.toLocaleString("fr-FR")} Ko → ${sentKo.toLocaleString("fr-FR")} Ko — léger pour ta connexion`);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Photo illisible");
     }
@@ -321,6 +329,7 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
   const addToCart = useKene((s) => s.addToCart);
   const [view, setView] = useState<string>("standard");
   const [ritualOpen, setRitualOpen] = useState(false);
+  const [glossary, setGlossary] = useState<GlossaryEntry | null>(null);
   const r = diag.result;
   const weakest = useMemo(() => [...r.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage).slice(0, 8), [r.indicateurs]);
   const viewDef = SPECTRAL_VIEWS.find((v) => v.id === view) ?? SPECTRAL_VIEWS[0];
@@ -333,6 +342,11 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
     if (n.includes("baobab")) return <BaobabIcon size={13} />;
     return <Sparkles size={13} />;
   };
+
+  function askGlossary(term: string) {
+    const entry = glossaryFor(term);
+    if (entry) setGlossary(entry);
+  }
 
   return (
     <div className="pt-4 pb-2">
@@ -435,7 +449,7 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
         <h2 id="ind-t" className="font-heading font-bold text-base mb-3">Priorités de soin</h2>
         <div className="grid grid-cols-2 gap-2.5">
           {weakest.map((ind) => (
-            <IndicatorBar key={ind.nom} ind={ind} />
+            <IndicatorBar key={ind.nom} ind={ind} onAsk={askGlossary} />
           ))}
         </div>
         {r.indicateurs.length > 8 && (
@@ -445,7 +459,7 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
               <AccordionContent className="space-y-2.5 pb-2">
                 {r.indicateurs.map((ind) => (
                   <div key={ind.nom}>
-                    <IndicatorBar ind={ind} />
+                    <IndicatorBar ind={ind} onAsk={askGlossary} />
                     {ind.note && <p className="text-[10.5px] text-muted-foreground mt-1 leading-snug">{ind.note}</p>}
                   </div>
                 ))}
@@ -596,19 +610,34 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
           onClose={() => setRitualOpen(false)}
         />
       )}
+
+      {/* Glossaire 1 tap — « ? » sur un indicateur ouvre sa définition simple */}
+      <GlossaryDialog entry={glossary} onClose={() => setGlossary(null)} />
     </div>
   );
 }
 
-function IndicatorBar({ ind }: { ind: Indicator }) {
+function IndicatorBar({ ind, onAsk }: { ind: Indicator; onAsk?: (term: string) => void }) {
   // Garde double : severite absente (anciens resultJson) → NaN index → 0 ;
   // index hors bornes → clamp 0..3 ; SEVERITY_STYLES[i] résolu UNE fois.
   const sevIdx = Number.isFinite(ind.severite) ? Math.min(3, Math.max(0, Math.trunc(ind.severite))) : 0;
   const sev = SEVERITY_STYLES[sevIdx] ?? SEVERITY_STYLES[0];
+  const explainable = onAsk && glossaryFor(ind.nom) !== null;
   return (
     <div className="rounded-xl border border-border bg-card p-2.5">
       <div className="flex items-start justify-between gap-1">
-        <p className="text-[11px] font-semibold leading-tight line-clamp-2">{ind.nom}</p>
+        {explainable ? (
+          <button
+            onClick={() => onAsk?.(ind.nom)}
+            aria-label={`Expliquer le mot : ${ind.nom}`}
+            className="min-w-0 text-left flex items-start gap-1 rounded-md focus-visible:outline-2 focus-visible:outline-primary transition-colors hover:text-primary"
+          >
+            <p className="text-[11px] font-semibold leading-tight line-clamp-2">{ind.nom}</p>
+            <CircleHelp size={13} className="text-primary shrink-0 mt-px" aria-hidden="true" />
+          </button>
+        ) : (
+          <p className="text-[11px] font-semibold leading-tight line-clamp-2">{ind.nom}</p>
+        )}
         <span className={`font-mono text-[11px] font-bold shrink-0 ${sev.text}`}>
           {ind.pourcentage}%
         </span>

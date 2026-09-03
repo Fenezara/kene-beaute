@@ -2,10 +2,11 @@
 // Kènè Pro — Caisse POS : catalogue cliquable, ticket, paiement mobile money, ticket thermique imprimable
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Minus, Plus, Printer, ReceiptText, Trash2, Wallet, User, Sparkles } from "lucide-react";
+import { Check, Loader2, Minus, Plus, Printer, ReceiptText, Trash2, Wallet, User, UserRoundPlus, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -46,6 +47,12 @@ export function PosSection({ tenantId, tenantName, refreshKey = 0 }: { tenantId:
   const [ticket, setTicket] = useState<ProSale | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  // Cliente express — mode saisie allégé (2 champs) pour les praticiennes peu administratives
+  const [expressOpen, setExpressOpen] = useState(false);
+  const [expressName, setExpressName] = useState("");
+  const [expressPhone, setExpressPhone] = useState("");
+  const [expressBusy, setExpressBusy] = useState(false);
+
   const catalog = useApi<ProCatalog>(() => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve({ services: [], products: [] })), [tenantId]);
   const clients = useApi<ProClient[]>(
     () => (tenantId ? apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`).then((r) => r.clients ?? []) : Promise.resolve([])),
@@ -68,6 +75,37 @@ export function PosSection({ tenantId, tenantName, refreshKey = 0 }: { tenantId:
     setLines((ls) =>
       ls.map((l, idx) => (idx === i ? { ...l, qty: l.qty + delta } : l)).filter((l) => l.qty > 0)
     );
+  }
+
+  async function createExpressClient() {
+    const name = expressName.trim().replace(/\s+/g, " ");
+    const phone = expressPhone.trim();
+    if (name.length < 2) {
+      toast.error("Le nom est trop court");
+      return;
+    }
+    if (phone.replace(/\D/g, "").length < 8) {
+      toast.error("Téléphone invalide — au moins 8 chiffres");
+      return;
+    }
+    setExpressBusy(true);
+    try {
+      const r = await apiPost<{ client: ProClient; reused: boolean }>("/api/pro/clients", { tenantId, name, phone });
+      setClientId(r.client.id);
+      setExpressOpen(false);
+      setExpressName("");
+      setExpressPhone("");
+      void clients.refetch();
+      toast.success(
+        r.reused
+          ? `${r.client.name} existait déjà — fiche réutilisée`
+          : `${r.client.name} ajoutée au carnet clientes`
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Création impossible");
+    } finally {
+      setExpressBusy(false);
+    }
   }
 
   async function pay(method: PaymentMethod) {
@@ -227,18 +265,91 @@ export function PosSection({ tenantId, tenantName, refreshKey = 0 }: { tenantId:
               <Label htmlFor="pos-client" className="text-[11px] text-muted-foreground flex items-center gap-1">
                 <User className="size-3" aria-hidden="true" /> Cliente (optionnel)
               </Label>
-              <Select value={clientId || undefined} onValueChange={(v) => setClientId(v === "__none" ? "" : v)}>
-                <SelectTrigger id="pos-client" className="h-8 text-xs">
-                  <SelectValue placeholder="Sans client" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">Sans client</SelectItem>
-                  {(clients.data ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name} — {c.phone}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-1.5">
+                <Select value={clientId || undefined} onValueChange={(v) => setClientId(v === "__none" ? "" : v)}>
+                  <SelectTrigger id="pos-client" className="h-8 text-xs flex-1 min-w-0">
+                    <SelectValue placeholder="Sans cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">Sans cliente</SelectItem>
+                    {(clients.data ?? []).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name} — {c.phone}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <button
+                  onClick={() => setExpressOpen(true)}
+                  aria-label="Cliente express — créer une fiche en 2 champs"
+                  title="Cliente express — 2 champs"
+                  className="h-8 px-2.5 shrink-0 rounded-md border border-gold/50 text-gold-text text-[11px] font-bold flex items-center gap-1.5 hover:bg-gold/10 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  <UserRoundPlus size={14} aria-hidden="true" /> <span className="hidden sm:inline">Express</span>
+                </button>
+              </div>
             </div>
+
+            {/* Cliente express — Dialog 2 champs (mode saisie allégé) */}
+            <Dialog open={expressOpen} onOpenChange={setExpressOpen}>
+              <DialogContent className="max-w-[360px] rounded-2xl p-5 gap-4">
+                <DialogHeader className="space-y-1.5 text-left">
+                  <DialogTitle className="font-heading font-black text-base flex items-center gap-2">
+                    <UserRoundPlus size={17} className="text-gold" aria-hidden="true" /> Cliente express
+                  </DialogTitle>
+                  <DialogDescription className="text-xs leading-relaxed">
+                    Une walk-in qui n&apos;est pas au carnet ? Deux champs suffisent — le CRM se remplit tout seul ensuite.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="express-name" className="text-xs">Nom complet</Label>
+                    <Input
+                      id="express-name"
+                      value={expressName}
+                      onChange={(e) => setExpressName(e.target.value)}
+                      placeholder="Aïcha Bakayoko"
+                      className="h-10"
+                      autoFocus
+                      maxLength={80}
+                      onKeyDown={(e) => e.key === "Enter" && createExpressClient()}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="express-phone" className="text-xs">Téléphone</Label>
+                    <Input
+                      id="express-phone"
+                      value={expressPhone}
+                      onChange={(e) => setExpressPhone(e.target.value)}
+                      inputMode="tel"
+                      placeholder="07 07 07 07 07"
+                      className="h-10"
+                      maxLength={20}
+                      onKeyDown={(e) => e.key === "Enter" && createExpressClient()}
+                    />
+                    <p className="text-[10px] text-muted-foreground">Sert aux relances WhatsApp — saisi une seule fois.</p>
+                  </div>
+                </div>
+                <DialogFooter className="gap-2 sm:justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setExpressOpen(false)}
+                    disabled={expressBusy}
+                    className="rounded-lg"
+                  >
+                    <X size={14} aria-hidden="true" /> Annuler
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={createExpressClient}
+                    disabled={expressBusy}
+                    className="rounded-lg bg-gold text-gold-text hover:bg-gold/90 font-bold"
+                  >
+                    {expressBusy ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Check size={14} aria-hidden="true" />}
+                    Créer et encaisser
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <div className="space-y-1.5 border-t border-dashed border-border pt-2 text-sm">
               <div className="flex justify-between text-xs text-muted-foreground">

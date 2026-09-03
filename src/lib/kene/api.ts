@@ -45,8 +45,10 @@ export async function apiPatch<T>(url: string, body?: unknown): Promise<T> {
   return handle<T>(res);
 }
 
-/** Redimensionne une photo côté client (max 900px, JPEG q0.82) → dataURL */
-export function resizeImage(file: File, maxSide = 900): Promise<string> {
+/** Redimensionne une photo côté client (max 820px, JPEG q0.8) → dataURL.
+ *  820px/q0.8 suffit pour l'analyse VLM et réduit fortement le coût data
+ *  (segment « petite data » : recharges journalières de 100-500 FCFA). */
+export function resizeImage(file: File, maxSide = 820): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Lecture du fichier impossible"));
@@ -61,7 +63,7 @@ export function resizeImage(file: File, maxSide = 900): Promise<string> {
         const ctx = canvas.getContext("2d");
         if (!ctx) return reject(new Error("Canvas indisponible"));
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
       };
       img.src = String(reader.result);
     };

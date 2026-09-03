@@ -18,8 +18,8 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 
 ## Les trois espaces
 
-- **Cliente** (mobile-first, ≤ 430 px) : accueil, chatbot de triage (photo → VLM), diagnostic IA, jumeau 3D, route de l'or, historique/évolution, **lecture vocale TTS du diagnostic** (« Écouter le résumé »), boutique + checkout Wave / Orange Money / Wallet Kènè (cashback), « Mes commandes », profil & wallet, prise de RDV avec acompte, cloche de notifications temps réel.
-- **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, CRM 360° avec fiche cliente (jumeau de peau agrégé, score RFM), catalogue soins/produits, POS (ticket SYSCOHADA), stock, paie CNPS CI / IPM SN, comptabilité (grand livre, OD, bilan) — badge & flux « En direct » (RDV, ventes, commandes) via socket.io.
+- **Cliente** (mobile-first, ≤ 430 px) : accueil, chatbot de triage (photo → VLM), diagnostic IA, jumeau 3D, route de l'or, historique/évolution, **lecture vocale TTS du diagnostic** (« Écouter le résumé » + mode lent), **glossaire 1 tap** (définitions simples lues à voix haute), boutique + checkout Wave / Orange Money / Wallet Kènè (cashback), « Mes commandes », profil & wallet, prise de RDV avec acompte, cloche de notifications temps réel.
+- **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, CRM 360° avec fiche cliente (jumeau de peau agrégé, score RFM), catalogue soins/produits, POS (ticket SYSCOHADA) avec **cliente express** (2 champs depuis la caisse, anti-doublon multi-formats), stock, paie CNPS CI / IPM SN, comptabilité (grand livre, OD, bilan) — badge & flux « En direct » (RDV, ventes, commandes) via socket.io.
 - **Admin** : multi-instituts, santé de la plateforme.
 
 ## Stack technique
@@ -78,13 +78,13 @@ Cœur de cible : femmes 20-45 peaux mélanodermes (Abidjan pilote, expansion UEM
 | Segment | Poids | Barrière principale | Garde produit Kènè |
 |---|---|---|---|
 | Digitale lettrée (18-35) | fort | Exigence d'expérience, churn silencieux | Intro skippable, vitesse, design soigné, cashback |
-| Semi-lettrée numérique (25-45) | le plus fort | Parcours multi-étapes, jargon, formulaires | Diagnostic photo d'abord (VLM, zéro saisie), libellés Léger/Moyen/Fort, checkout wallet en 1 geste |
-| Non-lectrice / illettrée | ~40 % des femmes selon zones | Tout texte = exclusion | Photo + lecture vocale TTS du diagnostic ✅, pictogrammes (suite) |
-| Rurale / petite data | fort hors villes | Coût data, téléphones d'entrée de gamme | Fallbacks 3D statiques (`#twin-static`, `#weave-static`) |
+| Semi-lettrée numérique (25-45) | le plus fort | Parcours multi-étapes, jargon, formulaires | Diagnostic photo d'abord (VLM, zéro saisie), libellés Léger/Moyen/Fort, glossaire 1 tap ✅, checkout wallet en 1 geste |
+| Non-lectrice / illettrée | ~40 % des femmes selon zones | Tout texte = exclusion | Photo + lecture vocale TTS (normal **ou lente**) + glossaire 1 tap ✅, pictogrammes (suite) |
+| Rurale / petite data | fort hors villes | Coût data, téléphones d'entrée de gamme | Fallbacks 3D statiques (`#twin-static`, `#weave-static`), compression photo 820px + toast « léger pour ta connexion » ✅ |
 | WhatsApp-first | dominant | Ne quitte pas WhatsApp | WhatsApp déjà canal (relances, commande) |
 | Méfiante (peur dépigmentation) | transverse | IA « qui juge la peau » = boîte noire | Résultats par indicateur explicites, aucune promesse d'éclaircissement, orientation dermato |
 | Gérante d'institut organisée | cœur B | — | CRM/caisse/compta complets |
-| Praticienne peu administrative | fréquent B | Saisie = friction → CRM vide | Peu de champs, données auto (diagnostic client, ventes POS, commandes) |
+| Praticienne peu administrative | fréquent B | Saisie = friction → CRM vide | Cliente express 2 champs depuis la caisse ✅, données auto (diagnostic client, ventes POS, commandes) |
 
 Risques d'échec classés : 1) non-lectrices → funnel vide silencieux ; 2) pro non-saisissante → promesse 360° non tenue ; 3) méfiance → bad buzz possible ; 4) semi-lettrées → abandon en milieu de parcours ; 5) petites data → poids de l'app ; 6) digitales exigeantes → déception comparative.
 
@@ -93,7 +93,7 @@ Risques d'échec classés : 1) non-lectrices → funnel vide silencieux ; 2) pro
 - Paiements **simulés** (wallet interne + transactions) — intégration Wave Business / Orange Money à venir.
 - Connexion par sélecteur de démo — OTP réel prévu (modèle `OtpCode` déjà dans le schéma Prisma).
 - SQLite mono-fichier — passage Postgres prévu à l'échelle.
-- Backlog priorisé (étude utilisateurs) : lecture vocale TTS des résultats **fait (tâche 39)** → glossaire 1 tap (PIH, sébum…) → compression photo côté client → mode saisie Pro allégé → langues locales audio (dioula, baoulé).
+- Backlog priorisé (étude utilisateurs) : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → restent : langues locales réelles (voix dioula/baoulé custom — indisponibles dans le moteur TTS actuel), pictogrammes purs.
 
 ## Comptes de démonstration
 
