@@ -171,7 +171,7 @@ export function Onboarding() {
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-[430px] min-h-[70vh] bg-background overflow-hidden">
+    <div className="relative mx-auto w-full max-w-[520px] min-h-[80vh] bg-background overflow-hidden">
       {/* ───── Étape 1 — Téléphone ───── */}
       <AnimatePresence mode="wait">
         {step === 0 && (

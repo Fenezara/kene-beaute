@@ -18,7 +18,7 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 
 ## Les trois espaces
 
-- **Cliente** (mobile-first, ≤ 430 px) : accueil, chatbot de triage (photo → VLM), diagnostic IA, jumeau 3D, route de l'or, historique/évolution, **lecture vocale TTS du diagnostic** (« Écouter le résumé » + mode lent), **glossaire 1 tap** (définitions simples lues à voix haute), boutique + checkout Wave / Orange Money / Wallet Kènè (cashback), « Mes commandes », profil & wallet, prise de RDV avec acompte, cloche de notifications temps réel.
+- **Cliente** (**shell applicatif plein écran type app 2026** — Instagram/TikTok/Facebook) : mobile = header glass (cloche live, chat, thème) + flux plein cadre + **tab-bar 5 onglets avec CTA « Scanner » central surélevé** ; desktop = **sidebar gauche façon Instagram web** (nav verticale + bascule Espace Pro/Admin) + feed centré 640 px + **rail droit** (mini-profil, actions rapides, légal) ; tablette = layout mobile enrichi. Feed d'accueil : **stories par zone** (re-scan 1 tap + scores en anneau), carte score multi-zones avec lecture vocale TTS, glossaire 1 tap, diagnostic IA, jumeau 3D, route de l'or, boutique (grille adaptative 2-3 colonnes) + checkout Wave / Orange Money / Wallet Kènè (cashback), profil & wallet, prise de RDV avec acompte, chatbot de triage, notifications temps réel. Scroll **interne au shell** (le document ne scrolle jamais) — transitions d'onglets animées, zéro espace perdu sur PC/tablette/mobile.
 - **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, CRM 360° avec fiche cliente (jumeau de peau agrégé, score RFM), catalogue soins/produits, POS (ticket SYSCOHADA) avec **cliente express** (2 champs depuis la caisse, anti-doublon multi-formats), stock, paie CNPS CI / IPM SN, comptabilité (grand livre, OD, bilan, exports CSV) et **liasse comptable PDF en 1 clic** (dossier complet 7 sections, période au choix — prête pour le comptable/DGI) — badge & flux « En direct » (RDV, ventes, commandes) via socket.io.
 - **Admin** : multi-instituts, santé de la plateforme.
 
@@ -94,7 +94,7 @@ Risques d'échec classés : 1) non-lectrices → funnel vide silencieux ; 2) pro
 - Paiements **simulés** (wallet interne + transactions) — intégration Wave Business / Orange Money à venir.
 - Connexion par sélecteur de démo — OTP réel prévu (modèle `OtpCode` déjà dans le schéma Prisma).
 - SQLite mono-fichier — passage Postgres prévu à l'échelle.
-- Backlog priorisé : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → ~~liasse PDF comptable~~ ✅ (t. 44) → restent côté pro : OTP réel (`OtpCode` prêt, nécessite une passerelle SMS), paiements réels Wave/OM (nécessite des identifiants marchands), portabilité données RGPD ; côté cliente : langues locales réelles (voix dioula/baoulé custom — indisponibles dans le moteur TTS actuel), pictogrammes purs.
+- Backlog priorisé : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → ~~liasse PDF comptable~~ ✅ (t. 44) → ~~refonte UX « app 2026 » plein écran~~ ✅ (t. 45) → restent côté pro : OTP réel (`OtpCode` prêt, nécessite une passerelle SMS), paiements réels Wave/OM (nécessite des identifiants marchands), portabilité données RGPD ; côté cliente : langues locales réelles (voix dioula/baoulé custom — indisponibles dans le moteur TTS actuel), pictogrammes purs.
 
 ## Comptes de démonstration
 

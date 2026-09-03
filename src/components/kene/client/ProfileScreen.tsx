@@ -280,7 +280,7 @@ export function ProfileScreen() {
 
       {/* Sheet approvisionnement */}
       <Sheet open={topup} onOpenChange={(o) => { setTopup(o); if (!o) setTopupState("idle"); }}>
-        <SheetContent side="bottom" className="max-w-[430px] mx-auto rounded-t-3xl">
+        <SheetContent side="bottom" className="max-w-[560px] mx-auto rounded-t-3xl">
           <SheetHeader className="text-left">
             <SheetTitle className="font-heading font-black">Approvisionner mon wallet</SheetTitle>
           </SheetHeader>

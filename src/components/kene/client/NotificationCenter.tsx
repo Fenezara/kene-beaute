@@ -180,7 +180,7 @@ export function NotificationCenter({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="bottom"
-          className="max-w-[430px] mx-auto rounded-t-3xl max-h-[82vh] flex flex-col"
+          className="max-w-[560px] mx-auto rounded-t-3xl max-h-[82vh] flex flex-col"
         >
           <SheetHeader className="text-left shrink-0">
             <SheetTitle className="font-heading font-black flex items-center gap-2 flex-wrap">

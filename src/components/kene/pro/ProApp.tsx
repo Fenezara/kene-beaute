@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
 import { KeneLogo, DuafeIcon, SankofaIcon, AbanIcon, OsramIcon, KenteIcon, FihankraIcon, BaouleIcon } from "@/components/kene/icons";
+import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
+import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -174,9 +176,9 @@ export function ProApp() {
   const activeLabel = NAV.find((n) => n.id === section)?.label ?? "";
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] min-h-[calc(100vh-8rem)] flex flex-col lg:flex-row">
+    <div className="mx-auto w-full max-w-[1600px] min-h-screen flex flex-col lg:flex-row">
       {/* ───────── Sidebar desktop ───────── */}
-      <aside className="hidden lg:flex w-[240px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground sticky top-[67px] self-start max-h-[calc(100vh-67px)] overflow-y-auto pretty-scroll">
+      <aside className="hidden lg:flex w-[240px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground sticky top-0 self-start max-h-screen overflow-y-auto pretty-scroll">
         <div className="p-4 pb-3">
           <div className="flex items-center gap-2.5">
             <KeneLogo size={36} withText={false} />
@@ -274,7 +276,16 @@ export function ProApp() {
               <p className="truncate text-sm font-medium">Fatou Koné</p>
               <p className="text-[11px] text-sidebar-foreground/60">Gérante — démo</p>
             </div>
+            <div className="ml-auto flex items-center gap-1.5">
+              <ThemeToggle />
+            </div>
           </div>
+          <div className="px-4 pt-3">
+            <SpaceSwitcher />
+          </div>
+          <p className="px-4 pt-3 pb-4 text-[10px] leading-relaxed text-sidebar-foreground/50">
+            Kènè POC — paiements simulés · CNPS CI / IPM SN / SYSCOHADA
+          </p>
         </div>
       </aside>
 
@@ -328,6 +339,12 @@ export function ProApp() {
               <h1 className="font-heading text-lg font-bold truncate">{activeLabel} — {tenant?.name ?? "Kènè Pro"}</h1>
             </div>
             <KeneLogo size={30} withText={false} />
+            <div className="flex items-center gap-1.5">
+              <ThemeToggle />
+              <span className="md:hidden">
+                <SpaceSwitcher />
+              </span>
+            </div>
           </div>
 
           {overview.error && section === "dashboard" && (

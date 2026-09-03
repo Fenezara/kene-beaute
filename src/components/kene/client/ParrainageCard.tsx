@@ -177,7 +177,7 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
 
       {/* Sheet échange de code */}
       <Sheet open={redeemOpen} onOpenChange={(o) => { setRedeemOpen(o); if (!o) setCode(""); }}>
-        <SheetContent side="bottom" className="max-w-[430px] mx-auto rounded-t-3xl">
+        <SheetContent side="bottom" className="max-w-[560px] mx-auto rounded-t-3xl">
           <SheetHeader className="text-left">
             <SheetTitle className="font-heading font-black">Le code de ton amie</SheetTitle>
           </SheetHeader>

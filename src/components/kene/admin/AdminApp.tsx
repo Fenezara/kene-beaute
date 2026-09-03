@@ -11,6 +11,8 @@ import { xof } from "@/lib/kene/format";
 import { useApi } from "@/components/kene/pro/useApi";
 import { EmptyState, ErrorState, KpiCard, KenteTop, Money, dayLabel } from "@/components/kene/pro/ui-bits";
 import type { AdminStats } from "@/components/kene/pro/types";
+import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
+import { ThemeToggle } from "@/components/kene/ThemeToggle";
 
 export function AdminApp() {
   const stats = useApi<AdminStats>(() => apiGet<AdminStats>("/api/admin/stats"), []);
@@ -46,7 +48,7 @@ export function AdminApp() {
   const maxCa = Math.max(1, ...data.topTenants.map((t) => t.ca30));
 
   return (
-    <div className="mx-auto max-w-6xl px-3 sm:px-6 py-6 space-y-5 min-h-[calc(100vh-8rem)]">
+    <div className="mx-auto max-w-6xl px-3 sm:px-6 py-6 space-y-5 min-h-screen">
       <ConsoleHeader />
 
       {/* KPIs */}
@@ -146,7 +148,11 @@ function ConsoleHeader() {
           <h2 className="font-heading text-2xl font-bold tracking-tight">Console Kènè</h2>
           <p className="text-sm text-muted-foreground">Pilotage de la plateforme — instituts, IA diagnostic, marketplace</p>
         </div>
-        <Badge className="bg-finance/15 text-finance border border-finance/30 hover:bg-finance/15">Espace administrateur</Badge>
+        <div className="flex items-center gap-2">
+          <Badge className="bg-finance/15 text-finance border border-finance/30 hover:bg-finance/15">Espace administrateur</Badge>
+          <ThemeToggle />
+          <SpaceSwitcher />
+        </div>
       </div>
     </div>
   );

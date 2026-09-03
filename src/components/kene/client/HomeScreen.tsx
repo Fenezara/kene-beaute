@@ -1,18 +1,38 @@
 "use client";
-// Kènè Cliente — Accueil : score multi-zones, prochain RDV, wallet, recommandations, suivi
+// Kènè Cliente — Fil d'accueil (façon feed Instagram/TikTok) :
+// stories de zones (scan rapide + scores), carte score multi-zones avec lecture
+// vocale TTS, CTA scan, Route de l'Or, prochain RDV, wallet, recommandations
+// et suivi WhatsApp. Les mentions légales vivent en fin de fil (app-like).
+
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { CalendarClock, CheckCircle2, ChevronRight, BellRing, MapPin, MessageCircle, Plus, Sparkles, Star } from "lucide-react";
+import {
+  BellRing,
+  Brush,
+  CalendarClock,
+  CheckCircle2,
+  ChevronRight,
+  CircleDot,
+  Hand,
+  MapPin,
+  MessageCircle,
+  PersonStanding,
+  Plus,
+  ScanFace,
+  Sparkles,
+  Star,
+  Waves,
+} from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
-import { formatDate, formatTime, xof, CASHBACK_RATE } from "@/lib/kene/format";
+import { formatDate, formatTime, scoreColor, xof, CASHBACK_RATE } from "@/lib/kene/format";
 import { nextClientStep } from "@/lib/kene/followups";
 import { channelLabel, humanWhen } from "@/lib/kene/reminders";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 import { NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
-import { NotificationCenter } from "./NotificationCenter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKene } from "@/store/kene";
+import { VoiceNarration } from "./VoiceNarration";
 import type { ApiAppointment, ApiDiagnosis, ApiProduct, ApiReminderFeed, ApiWallet } from "./types";
 import { parseDiagnosis } from "./types";
 import { ScoreGauge, SectionTitle, Stars, WalletPill } from "./bits";
@@ -24,6 +44,16 @@ interface HomeData {
   products: ApiProduct[];
   reminders: ApiReminderFeed | null;
 }
+
+/** Icône par zone de scan (stories du feed) */
+const ZONE_ICON: Record<BodyZone, React.ComponentType<{ className?: string }>> = {
+  visage: ScanFace,
+  dos: PersonStanding,
+  cuir_chevelu: Waves,
+  mains: Hand,
+  barbe: Brush,
+  naevi: CircleDot,
+};
 
 export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }) {
   const user = useKene((s) => s.user)!;
@@ -63,7 +93,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
   // Score multi-zones pondéré (PRD §8.8) — dernier diagnostic par zone
   const multi = useMemo(() => {
     const byZone = new Map<BodyZone, ApiDiagnosis>();
-    [...data?.diagnoses ?? []]
+    [...(data?.diagnoses ?? [])]
       .filter((d) => d.status === "done")
       .sort((x, y) => +new Date(y.createdAt) - +new Date(x.createdAt))
       .forEach((d) => {
@@ -71,7 +101,10 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
       });
     const covered = BODY_ZONES.filter((z) => byZone.has(z.id));
     const weightSum = covered.reduce((s, z) => s + z.weight, 0);
-    const score = covered.length && weightSum > 0 ? Math.round(covered.reduce((s, z) => s + (byZone.get(z.id)?.scoreGlobal ?? 0) * z.weight, 0) / weightSum) : null;
+    const score =
+      covered.length && weightSum > 0
+        ? Math.round(covered.reduce((s, z) => s + (byZone.get(z.id)?.scoreGlobal ?? 0) * z.weight, 0) / weightSum)
+        : null;
     const missing = BODY_ZONES.filter((z) => !byZone.has(z.id));
     const last = covered.length ? byZone.get(covered[0].id) : null;
     return { byZone, covered, score, missing, last };
@@ -80,7 +113,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
   const nextAppt = useMemo(() => {
     const now = Date.now();
     return (
-      [...data?.appointments ?? []]
+      [...(data?.appointments ?? [])]
         .filter((a) => new Date(a.startAt).getTime() >= now && a.status !== "cancelled")
         .sort((x, y) => +new Date(x.startAt) - +new Date(y.startAt))[0] ?? null
     );
@@ -104,42 +137,84 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
   // Le Fil du Retour : prochaine étape dérivée de l'activité (contrôle protocole / soin de suite)
   const nextStep = useMemo(
     () => (data ? nextClientStep(new Date(), data.diagnoses, data.appointments) : null),
-    [data]
+    [data],
   );
 
   const first = user.name.split(" ")[0];
 
   return (
-    <div className="flex flex-col gap-6 pt-4">
-      {/* Header */}
-      <header className="flex items-center justify-between gap-3">
+    <div className="flex flex-col gap-5 pt-1">
+      {/* ───── Salutation ───── */}
+      <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.16em] text-primary font-semibold">Bonjour</p>
-          <h1 className="font-heading font-black text-xl leading-tight truncate">{first}</h1>
+          <h2 className="font-heading font-black text-xl leading-tight truncate">{first} ✨</h2>
           <p className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
             <MapPin size={11} /> {user.city || "Abidjan"} · {user.fitzpatrick ? `Fitzpatrick ${user.fitzpatrick}` : "Phototype à définir"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {data?.wallet && <WalletPill balance={data.wallet.balance} onClick={() => setClientTab("profil")} />}
-          {/* onLiveFeed : la carte « Suivi WhatsApp » suit le flux temps réel de la cloche */}
-          <NotificationCenter
-            userId={user.id}
-            onLiveFeed={(f) => setData((d) => (d ? { ...d, reminders: f } : d))}
-          />
-          <button
-            onClick={() => setClientTab("profil")}
-            aria-label="Mon profil"
-            className="h-11 w-11 grid place-items-center rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] font-heading font-bold shadow active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary"
-          >
-            {first.charAt(0)}
-          </button>
-        </div>
+        {data?.wallet && <WalletPill balance={data.wallet.balance} onClick={() => setClientTab("profil")} />}
       </header>
+
+      {/* ───── Stories : scan rapide + zones avec score ───── */}
+      <section aria-label="Scan rapide par zone" className="-mx-3 sm:-mx-5 px-3 sm:px-5">
+        <div className="flex gap-3.5 overflow-x-auto no-scrollbar py-1.5">
+          {/* Story Scanner */}
+          <button
+            onClick={() => setClientTab("diagnostic")}
+            aria-label="Scanner ma peau — nouveau diagnostic"
+            className="shrink-0 w-[68px] flex flex-col items-center gap-1.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary rounded-xl"
+          >
+            <span className="grid place-items-center h-[66px] w-[66px] rounded-full p-[3px] bg-gradient-to-br from-[#C8951E] via-[#A0522D] to-[#8B1A3B] shadow-md active:scale-95 transition-transform">
+              <span className="grid place-items-center h-full w-full rounded-full bg-background">
+                <NeaOnnimIcon size={26} className="text-primary" />
+              </span>
+            </span>
+            <span className="text-[10px] font-bold text-primary">Scanner</span>
+          </button>
+
+          {/* Stories zones */}
+          {BODY_ZONES.map((z) => {
+            const d = multi.byZone.get(z.id);
+            const covered = !!d;
+            const Icon = ZONE_ICON[z.id];
+            const color = covered ? scoreColor(d!.scoreGlobal) : "var(--border)";
+            return (
+              <button
+                key={z.id}
+                onClick={() => onScanZone(z.id)}
+                aria-label={`${covered ? `Re-scanner ${z.label} — dernier score ${d!.scoreGlobal}` : `Scanner ${z.label} pour compléter ton score`} · pondération ${Math.round(z.weight * 100)} %`}
+                className="shrink-0 w-[68px] flex flex-col items-center gap-1.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary rounded-xl"
+              >
+                <span
+                  className="relative grid place-items-center h-[66px] w-[66px] rounded-full bg-card shadow-sm active:scale-95 transition-transform"
+                  style={covered ? { boxShadow: `0 0 0 3px ${color}` } : { border: "2.5px dashed var(--border)" }}
+                >
+                  <Icon className={covered ? "text-foreground/80" : "text-muted-foreground"} />
+                  {!covered && (
+                    <span className="absolute -bottom-0.5 -right-0.5 grid place-items-center h-6 w-6 rounded-full bg-primary text-primary-foreground border-2 border-background">
+                      <Plus size={13} strokeWidth={2.5} />
+                    </span>
+                  )}
+                  {covered && (
+                    <span
+                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-px font-mono text-[10px] font-bold text-background tabular-nums"
+                      style={{ backgroundColor: color }}
+                    >
+                      {d!.scoreGlobal}
+                    </span>
+                  )}
+                </span>
+                <span className={`text-[10px] w-full text-center truncate ${covered ? "font-semibold" : "text-muted-foreground font-medium"}`}>{z.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       {err && <p className="rounded-xl bg-destructive/10 text-destructive text-xs p-3">{err}</p>}
 
-      {/* Score multi-zones */}
+      {/* ───── Carte score multi-zones (avec lecture vocale) ───── */}
       <section aria-labelledby="sc-t" className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="kente-band h-1.5 w-full" aria-hidden="true" />
         <div id="sc-t" className="p-5">
@@ -153,10 +228,10 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
               </div>
             </div>
           ) : multi.score !== null ? (
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <ScoreGauge score={multi.score} label="Multi-zones" />
-              <div className="min-w-0">
-                <h2 className="font-heading font-bold text-base">Santé de ta peau</h2>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-heading font-bold text-base">Santé de ta peau</h3>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   {multi.covered.length} zone{multi.covered.length > 1 ? "s" : ""} analysée{multi.covered.length > 1 ? "s" : ""} · pondération PRD
                   {multi.last && <span className="block mt-1">Dernier scan : {formatDate(multi.last.createdAt)}</span>}
@@ -164,10 +239,25 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {multi.covered.map((z) => (
                     <span key={z.id} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium">
-                      {z.label} {byZoneScore(multi.byZone.get(z.id))}
+                      {z.label} {multi.byZone.get(z.id)?.scoreGlobal}
                     </span>
                   ))}
+                  {multi.missing.map((z) => (
+                    <button
+                      key={z.id}
+                      onClick={() => onScanZone(z.id)}
+                      className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary active:scale-95 transition-transform"
+                    >
+                      + {z.label}
+                    </button>
+                  ))}
                 </div>
+                {/* Lecture vocale du dernier diagnostic (accès non-lectrices) */}
+                {lastResult && (
+                  <div className="mt-3">
+                    <VoiceNarration result={lastResult} userName={user.name} />
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -177,12 +267,12 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
               <p className="text-xs text-muted-foreground mt-1">Analyse IA de 6 zones — commence par le visage.</p>
             </div>
           )}
-          {multi.missing.length > 0 && (
+          {data && multi.missing.length > 0 && (
             <div className="mt-4 pt-4 border-t border-dashed border-border">
               <p className="text-[11px] font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
                 <Sparkles size={12} className="text-primary" /> Zones à scanner pour compléter ton score
               </p>
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                 {multi.missing.map((z) => (
                   <button
                     key={z.id}
@@ -198,7 +288,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         </div>
       </section>
 
-      {/* CTA Scanner */}
+      {/* ───── CTA Scanner ───── */}
       <motion.button
         initial={{ scale: 0.97, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -220,7 +310,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         </div>
       </motion.button>
 
-      {/* Route de l'Or — rituel tissé depuis le dernier scan */}
+      {/* ───── Route de l'Or — rituel tissé depuis le dernier scan ───── */}
       {data && lastResult && multi.last && (
         <motion.button
           initial={{ opacity: 0, y: 10 }}
@@ -247,7 +337,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         </motion.button>
       )}
 
-      {/* Le Fil du Retour — ta prochaine étape (contrôle protocole / soin de suite) */}
+      {/* ───── Le Fil du Retour — ta prochaine étape ───── */}
       {nextStep && (
         <motion.section
           initial={{ opacity: 0, y: 10 }}
@@ -282,7 +372,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         </motion.section>
       )}
 
-      {/* Prochain RDV */}
+      {/* ───── Prochain RDV ───── */}
       <section aria-labelledby="rdv-t">
         <SectionTitle icon={<SankofaIcon size={17} />}>
           <span id="rdv-t">Prochain rendez-vous</span>
@@ -317,7 +407,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         )}
       </section>
 
-      {/* Wallet */}
+      {/* ───── Wallet ───── */}
       {data && (
         <section aria-label="Mon wallet Kènè" className="rounded-2xl bg-[#1A1410] text-[#F8F1E4] p-4 shadow-md relative overflow-hidden">
           <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-20" />
@@ -338,7 +428,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         </section>
       )}
 
-      {/* Recommandé pour ta peau */}
+      {/* ───── Recommandé pour ta peau ───── */}
       <section aria-labelledby="reco-t">
         <SectionTitle
           icon={<Sparkles size={16} />}
@@ -353,7 +443,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         {!data ? (
           <Skeleton className="h-44 rounded-2xl" />
         ) : (
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin snap-x">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 snap-x">
             {reco.map((p) => (
               <button key={p.id} onClick={() => setClientTab("boutique")} className="snap-start shrink-0 w-36 text-left rounded-2xl border border-border bg-card overflow-hidden shadow-sm active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
                 <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full object-cover" />
@@ -371,8 +461,8 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         )}
       </section>
 
-      {/* Suivi WhatsApp — rappels automatiques réels (protocole S+3, RDV J-1, historique) */}
-      <section aria-labelledby="wa-t" className="mb-2">
+      {/* ───── Suivi WhatsApp ───── */}
+      <section aria-labelledby="wa-t">
         <SectionTitle icon={<MessageCircle size={16} />}>
           <span id="wa-t">Suivi WhatsApp</span>
         </SectionTitle>
@@ -432,6 +522,17 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         </p>
       </section>
 
+      {/* ───── Fin de fil — mentions légales (app-like) ───── */}
+      <footer className="pt-4 pb-2 text-center">
+        <div aria-hidden="true" className="kente-band-soft h-[3px] w-24 mx-auto rounded-full mb-3" />
+        <p suppressHydrationWarning className="text-[10px] text-muted-foreground">
+          © {new Date().getFullYear()} Kènè — « La beauté mélanoderme, de A à Z. »
+        </p>
+        <p className="text-[10px] text-muted-foreground/70 mt-1">
+          POC — Paiements Wave / Orange Money simulés · Estimations IA non médicales · CNPS CI / IPM SN / SYSCOHADA
+        </p>
+      </footer>
+
       {ritualOpen && lastResult && multi.last && (
         <RitualJourney
           diag={{ id: multi.last.id, result: lastResult, createdAt: multi.last.createdAt }}
@@ -442,8 +543,4 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
       )}
     </div>
   );
-}
-
-function byZoneScore(d?: ApiDiagnosis): string {
-  return d ? `${d.scoreGlobal}` : "";
 }

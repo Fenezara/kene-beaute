@@ -218,7 +218,7 @@ export function ShopScreen() {
 
       {/* Grille produits */}
       {products === null ? (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="space-y-2">
               <Skeleton className="aspect-square rounded-2xl" />
@@ -230,7 +230,7 @@ export function ShopScreen() {
       ) : filtered.length === 0 ? (
         <EmptyBlock icon={<Search size={22} />} title="Aucun produit trouvé" text="Essaie un autre mot-clé ou une autre catégorie." />
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {filtered.map((p) => (
             <button
               key={p.id}
@@ -278,7 +278,7 @@ export function ShopScreen() {
 
       {/* Sheet fiche produit */}
       <Sheet open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
-        <SheetContent side="bottom" className="max-h-[88vh] rounded-t-3xl px-0 overflow-y-auto max-w-[430px] mx-auto">
+        <SheetContent side="bottom" className="max-h-[88vh] rounded-t-3xl px-0 overflow-y-auto max-w-[560px] mx-auto">
           {detail && (
             <>
               <div className="mx-auto sticky top-0 z-10 bg-card/95 backdrop-blur pt-2 pb-1">
@@ -324,7 +324,7 @@ export function ShopScreen() {
 
       {/* Sheet checkout */}
       <Sheet open={checkout} onOpenChange={(o) => !o && setCheckout(false)}>
-        <SheetContent side="bottom" className="max-h-[90vh] rounded-t-3xl overflow-y-auto max-w-[430px] mx-auto">
+        <SheetContent side="bottom" className="max-h-[90vh] rounded-t-3xl overflow-y-auto max-w-[560px] mx-auto">
           <SheetHeader className="text-left">
             <SheetTitle className="font-heading font-black">Ma commande</SheetTitle>
           </SheetHeader>
@@ -437,7 +437,7 @@ export function ShopScreen() {
       <AnimatePresence>
         {payState && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] bg-[#1A1410]/97 backdrop-blur-sm grid place-items-center">
-            <div className="w-full max-w-[430px] mx-auto px-6">
+            <div className="w-full max-w-[560px] mx-auto px-6">
               {payState.phase === "processing" ? (
                 <div className="flex flex-col items-center gap-5 text-center" aria-live="polite">
                   <div className="grid place-items-center w-20 h-20 rounded-3xl font-heading font-black text-3xl text-[#1A1410] shadow-lg" style={{ backgroundColor: op(payState.method)?.color ?? "#C8951E" }}>
