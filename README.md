@@ -19,7 +19,7 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 ## Les trois espaces
 
 - **Cliente** (mobile-first, ≤ 430 px) : accueil, chatbot de triage (photo → VLM), diagnostic IA, jumeau 3D, route de l'or, historique/évolution, **lecture vocale TTS du diagnostic** (« Écouter le résumé » + mode lent), **glossaire 1 tap** (définitions simples lues à voix haute), boutique + checkout Wave / Orange Money / Wallet Kènè (cashback), « Mes commandes », profil & wallet, prise de RDV avec acompte, cloche de notifications temps réel.
-- **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, CRM 360° avec fiche cliente (jumeau de peau agrégé, score RFM), catalogue soins/produits, POS (ticket SYSCOHADA) avec **cliente express** (2 champs depuis la caisse, anti-doublon multi-formats), stock, paie CNPS CI / IPM SN, comptabilité (grand livre, OD, bilan) — badge & flux « En direct » (RDV, ventes, commandes) via socket.io.
+- **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, CRM 360° avec fiche cliente (jumeau de peau agrégé, score RFM), catalogue soins/produits, POS (ticket SYSCOHADA) avec **cliente express** (2 champs depuis la caisse, anti-doublon multi-formats), stock, paie CNPS CI / IPM SN, comptabilité (grand livre, OD, bilan, exports CSV) et **liasse comptable PDF en 1 clic** (dossier complet 7 sections, période au choix — prête pour le comptable/DGI) — badge & flux « En direct » (RDV, ventes, commandes) via socket.io.
 - **Admin** : multi-instituts, santé de la plateforme.
 
 ## Stack technique
@@ -31,6 +31,7 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 - **3D** : @react-three/fiber + drei — rendu éprouvé en mode logiciel (DPR plafonné, `IntersectionObserver` → frameloop, refs mutables zéro re-render)
 - **IA** : VLM du SDK `z-ai-web-dev-sdk` (backend uniquement, via `src/lib/ai/vlm.ts`) pour le diagnostic photo et le triage chat ; TTS du même SDK via `POST /api/tts` (narration française du diagnostic, `src/lib/kene/narration.ts`, cache mémoire 32 Mo + cache blob client)
 - **Temps réel** : mini-service socket.io `mini-services/notify-service` (port 3004, relais sans logique métier) — cloche cliente `user:{id}` + badge institut `tenant:{id}` ; poussé par `notify()` et les API, poll 8 s + push, heartbeat anti-zombie ; le front passe par la gateway (`io('/?XTransformPort=3004')`)
+- **PDF zéro-dépendance** : moteur PDF minimal maison (`src/lib/accounting/pdf.ts`) — pages A4, polices standard Helvetica (WinAnsi, accents FR), métriques AFM pour l'alignement à droite des montants, pagination & pieds de page — alimente la liasse comptable (`GET /api/pro/accounting/export?format=pdf`, ~80 Ko/7 pages en <200 ms)
 
 ## Palette & design tokens
 
@@ -93,7 +94,7 @@ Risques d'échec classés : 1) non-lectrices → funnel vide silencieux ; 2) pro
 - Paiements **simulés** (wallet interne + transactions) — intégration Wave Business / Orange Money à venir.
 - Connexion par sélecteur de démo — OTP réel prévu (modèle `OtpCode` déjà dans le schéma Prisma).
 - SQLite mono-fichier — passage Postgres prévu à l'échelle.
-- Backlog priorisé (étude utilisateurs) : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → restent : langues locales réelles (voix dioula/baoulé custom — indisponibles dans le moteur TTS actuel), pictogrammes purs.
+- Backlog priorisé : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → ~~liasse PDF comptable~~ ✅ (t. 44) → restent côté pro : OTP réel (`OtpCode` prêt, nécessite une passerelle SMS), paiements réels Wave/OM (nécessite des identifiants marchands), portabilité données RGPD ; côté cliente : langues locales réelles (voix dioula/baoulé custom — indisponibles dans le moteur TTS actuel), pictogrammes purs.
 
 ## Comptes de démonstration
 

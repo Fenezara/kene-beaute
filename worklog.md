@@ -831,3 +831,28 @@ Stage Summary:
 - Architecture : un SEUL module TTS client (ttsAudio.ts) alimente désormais narration + glossaire — cache partagé FIFO 8, coût réseau uniquement à la 1re écoute d'un texte.
 - Leçon : un « contains » SQL brut sur un téléphone est un piège à formats (espaces, +225, compact) — toujours normaliser en chiffres avant de comparer ; détecté par E2E (le curl seul l'avait raté car même format).
 - Prochaines étapes candidates : OTP réel (OtpCode prêt) → paiements réels Wave/OM → export PDF liasse compta → portabilité données (RGPD).
+
+---
+Task ID: 44
+Agent: Z.ai Code (principal)
+Task: Export PDF de la liasse comptable — dossier complet multi-pages pour le comptable/DGI, généré côté serveur sans dépendance externe.
+
+Work Log:
+- Choix justifié : OTP réel et paiements Wave/OM exigent des identifiants externes (SMS gateway, compte marchand) indisponibles dans la sandbox → code non testable ; la liasse PDF est 100 % réalisable et vérifiable.
+- NOUVEAU src/lib/accounting/pdf.ts (~680 lignes) : moteur PDF minimal ZÉRO DÉPENDANCE — pages A4 595×842, polices standard Helvetica/Bold/Oblique (aucun fichier de police à embarquer, /WinAnsiEncoding pour les accents FR), encodage cp1252 + échappement \( \) \, table de largeurs AFM ASCII exacte (accents = lettre de base via NFD) pour alignement à droite exact des montants, rects/lignes/hlines, pagination automatique (ensure/newPage), en-tête courant + pied « Page N / M » en 2e passe, xref/trailer conformes (entrées 20 octets).
+- liassePdf(input) : 7 sections — page de garde (chiffres clés 6 cartes, sommaire, mentions), 1 Compte de résultat (produits/charges par compte + résultat vert/rouge + contrôle), 2 Déclaration TVA, 3 Bilan actif/passif (contrôle actif=passif), 4 Balance générale (6 colonnes + totaux + contrôle), 5 Journal (28 écritures, en-têtes bande or, lignes débit/crédit + totaux), 6 Livre des ventes (8 colonnes HT/TVA/TTC + totaux), 7 Mentions repliées (wrapText).
+- Route export/route.ts : param format=csv|pdf — PDF réservé à type=liasse (garde 400 dédiée) ; réutilise l'assemblage de données des CSV (entrées+comptes+ventes en //) ; réponse application/pdf + Content-Disposition kene-liasse-{période}.pdf + X-Pages-Count/X-Rows-Count.
+- AccountingSection.tsx : exportBusy passe à une clé « format:type » ; downloadExport(type, format) ; menu « Dossier pour le comptable » → item « Liasse PDF (dossier complet) » (FileText, or) ; toast dédié « Liasse PDF téléchargée · N pages » ; « Imprimer la liasse » recentré « papier » ; libellé période mis à jour.
+- 3 BUGS détectés en auto-relecture AVANT tout test puis corrigés : (1) off-by-one objets PDF (Kids 6+2i / Contents 7+2i — sinon pages blanches), (2) totaux balance/journal mal alignés sur leurs colonnes, (3) Tc (interlettrage) QUI SURVIT aux blocs BT/ET — le « KÈNÈ » en Tc 2.2 bavait sur les textes suivants (« É c l a t d ' A b i d j a n ») → Tc TOUJOURS explicite (0 par défaut, aussi dans header/footer). Puis E2E : (4) colonne TTC du livre des ventes calculée hors page (right edge 617 > 595) + colonnes montants trop serrées → géométrie refondue ; (5) mentions tronquées → wrapText multi-lignes.
+- Vérifications E2E complètes : curl gateway :81 → 200, 83 658 octets, 7 pages, 68 lignes ; garde type=journal&format=pdf → 400 claire ; format=xml → 400 ; tenant inconnu → 404 ; période from/to → kene-liasse-20260801-20260831.pdf, 6 pages, 64 lignes.
+- qpdf --check : « No syntax or stream encoding errors found » ; lecture intégrale du PDF via lecteur natif (7 pages de texte extraites et vérifiées : totaux balance 7 724 330 = 7 724 330, actif = passif 6 636 129, TVA 122 654, 25 ventes TTC 1 284 075).
+- Navigateur (agent-browser, desktop 1440×900, gateway :81) : Pro → Compta → Exporter → « Liasse PDF (dossier complet) » → toast « kene-liasse-tout.pdf · 7 pages » ✓ ; période « Mois dernier » → re-export → toast « kene-liasse-20260801-20260831.pdf · 6 pages » ✓ ; requête réseau 200 vue ; console 0 erreur (2 warnings préexistants).
+- VLM (glm-5v) sur 4 pages rendues (garde, résultat/TVA/bilan, balance/journal, ventes) : « Rendu propre » — aucun chevauchement, aucun débordement, chiffres alignés.
+- bun run lint 0 erreur ; tsc --noEmit 0 erreur src/ ; dev.log : uniquement 200 (26-194 ms) + gardes 400/404 testées.
+- Captures : .proofs/task44-compta-toast.png · task44-compta-periode.png · task44-liasse.pdf · task44-page-{1,2,3,6}.png · task44-pdf-page1.png
+
+Stage Summary:
+- La gérante télécharge en 1 clic (avec période au choix) un dossier comptable PDF de 6-7 pages prêt à transmettre : compte de résultat, TVA, bilan, balance, journal, livre des ventes + mentions SYSCOHADA/OHADA — 83 Ko générés en <200 ms, zéro dépendance installée.
+- Le moteur PDF maison (polices standard + métriques AFM + WinAnsi) est réutilisable pour tout futur document (factures clientes, fiches diagnostic imprimables).
+- Leçon technique : l'état texte PDF (Tc, Tw, Tf) SURVIT aux blocs BT/ET et aux pages — tout opérateur doit être réinitialisé explicitement ; et la géométrie des colonnes doit être vérifiée sur la largeur de page (595 pt) avant tout test navigateur.
+- Prochaines étapes candidates : portabilité données RGPD (export JSON « mes données » côté cliente) → pictogrammes purs → OTP réel/paiements réels dès obtention des identifiants externes.

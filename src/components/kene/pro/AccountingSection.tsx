@@ -9,6 +9,7 @@ import {
   Download,
   Equal,
   FileSpreadsheet,
+  FileText,
   Landmark,
   Library,
   Loader2,
@@ -66,8 +67,8 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
   const [ledgerAccount, setLedgerAccount] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
-  // ── Exports CSV & période ──
-  const [exportBusy, setExportBusy] = useState<ExportType | null>(null);
+  // ── Exports CSV/PDF & période — clé de charge « format:type » ──
+  const [exportBusy, setExportBusy] = useState<string | null>(null);
   const [period, setPeriod] = useState<{ from: string; to: string } | null>(null);
   const [periodOpen, setPeriodOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState("");
@@ -108,11 +109,12 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
     setPeriodOpen(false);
   }
 
-  async function downloadExport(type: ExportType) {
+  async function downloadExport(type: ExportType, format: "csv" | "pdf" = "csv") {
+    const busyKey = `${format}:${type}`;
     if (exportBusy) return;
-    setExportBusy(type);
+    setExportBusy(busyKey);
     try {
-      const params = new URLSearchParams({ tenantId, type });
+      const params = new URLSearchParams({ tenantId, type, format });
       if (period?.from) params.set("from", period.from);
       if (period?.to) params.set("to", period.to);
       const res = await fetch(`/api/pro/accounting/export?${params.toString()}`);
@@ -127,9 +129,11 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
         throw new Error(msg);
       }
       const disposition = res.headers.get("Content-Disposition") ?? "";
+      const fallback = format === "pdf" ? "kene-liasse.pdf" : exportFilename(type, period?.from, period?.to);
       const filename =
-        /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? exportFilename(type, period?.from, period?.to);
+        /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? fallback;
       const rowsCount = res.headers.get("X-Rows-Count");
+      const pagesCount = res.headers.get("X-Pages-Count");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -139,8 +143,8 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
       a.click();
       a.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 2000);
-      toast.success("Fichier téléchargé", {
-        description: `${filename}${rowsCount ? ` · ${rowsCount} lignes` : ""}`,
+      toast.success(format === "pdf" ? "Liasse PDF téléchargée" : "Fichier téléchargé", {
+        description: `${filename}${pagesCount ? ` · ${pagesCount} pages` : rowsCount ? ` · ${rowsCount} lignes` : ""}`,
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Export impossible");
@@ -264,7 +268,7 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
                 <div>
                   <p className="text-xs font-semibold">Période d&apos;export</p>
                   <p className="text-[11px] text-muted-foreground">
-                    Filtre les fichiers CSV téléchargés (journal, balance, liasse, ventes).
+                    Filtre les fichiers téléchargés — les 4 CSV et le PDF de la liasse.
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -341,7 +345,7 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
                     disabled={exportBusy !== null}
                     className="gap-2"
                   >
-                    {exportBusy === t ? (
+                    {exportBusy === `csv:${t}` ? (
                       <Loader2 className="size-4 shrink-0 animate-spin text-finance" aria-hidden="true" />
                     ) : (
                       <FileSpreadsheet className="size-4 shrink-0 text-finance" aria-hidden="true" />
@@ -353,10 +357,24 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[11px]">Dossier pour le comptable</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onSelect={() => downloadExport("liasse", "pdf")}
+                  disabled={exportBusy !== null}
+                  className="gap-2"
+                >
+                  {exportBusy === "pdf:liasse" ? (
+                    <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden="true" />
+                  ) : (
+                    <FileText className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                  )}
+                  <span className="flex-1 font-semibold">Liasse PDF (dossier complet)</span>
+                  <span className="text-[10px] text-muted-foreground">comptable</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={printLiasse} className="gap-2">
                   <Printer className="size-4 shrink-0" aria-hidden="true" />
                   <span className="flex-1">Imprimer la liasse</span>
-                  <span className="text-[10px] text-muted-foreground">PDF</span>
+                  <span className="text-[10px] text-muted-foreground">papier</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

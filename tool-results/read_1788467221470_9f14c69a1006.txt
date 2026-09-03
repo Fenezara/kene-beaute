@@ -1,0 +1,756 @@
+     1→"use client";
+     2→// Kènè Pro — Compta SYSCOHADA : journal, grand livre, balance, liasse fiscale (bilan + résultat + TVA)
+     3→// + Exports CSV téléchargeables (Excel FR) avec période au choix : livre des ventes, journal, balance, liasse.
+     4→import { Fragment, useMemo, useState } from "react";
+     5→import {
+     6→  BookOpen,
+     7→  CalendarRange,
+     8→  CheckCircle2,
+     9→  Download,
+    10→  Equal,
+    11→  FileSpreadsheet,
+    12→  Landmark,
+    13→  Library,
+    14→  Loader2,
+    15→  Plus,
+    16→  Printer,
+    17→  Scale,
+    18→  Trash2,
+    19→  TrendingDown,
+    20→  TrendingUp,
+    21→} from "lucide-react";
+    22→import { toast } from "sonner";
+    23→import { Button } from "@/components/ui/button";
+    24→import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+    25→import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+    26→import {
+    27→  DropdownMenu,
+    28→  DropdownMenuContent,
+    29→  DropdownMenuItem,
+    30→  DropdownMenuLabel,
+    31→  DropdownMenuSeparator,
+    32→  DropdownMenuTrigger,
+    33→} from "@/components/ui/dropdown-menu";
+    34→import { Input } from "@/components/ui/input";
+    35→import { Label } from "@/components/ui/label";
+    36→import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+    37→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+    38→import { Skeleton } from "@/components/ui/skeleton";
+    39→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+    40→import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    41→import { cn } from "@/lib/utils";
+    42→import { apiGet, apiPost } from "@/lib/kene/api";
+    43→import { formatDate } from "@/lib/kene/format";
+    44→import { CLASSES_LABELS } from "@/lib/accounting/syscohada";
+    45→import { EXPORT_TYPE_LABELS, exportFilename, type ExportType } from "@/lib/accounting/csv";
+    46→import { useApi } from "./useApi";
+    47→import { ClasseBadge, EmptyState, ErrorState, JournalBadge, KenteTop, Money, SectionHeader } from "./ui-bits";
+    48→import type { AccountingResponse } from "./types";
+    49→
+    50→interface OdLine {
+    51→  accountCode: string;
+    52→  debit: string;
+    53→  credit: string;
+    54→}
+    55→
+    56→export function AccountingSection({ tenantId, tenantName }: { tenantId: string; tenantName: string }) {
+    57→  const [tab, setTab] = useState("journal");
+    58→  const [expanded, setExpanded] = useState<string | null>(null);
+    59→  const [odOpen, setOdOpen] = useState(false);
+    60→  const [odDesc, setOdDesc] = useState("");
+    61→  const [odDate, setOdDate] = useState(() => new Date().toISOString().slice(0, 10));
+    62→  const [odLines, setOdLines] = useState<OdLine[]>([
+    63→    { accountCode: "", debit: "", credit: "" },
+    64→    { accountCode: "", debit: "", credit: "" },
+    65→  ]);
+    66→  const [ledgerAccount, setLedgerAccount] = useState<string>("");
+    67→  const [busy, setBusy] = useState(false);
+    68→
+    69→  // ── Exports CSV & période ──
+    70→  const [exportBusy, setExportBusy] = useState<ExportType | null>(null);
+    71→  const [period, setPeriod] = useState<{ from: string; to: string } | null>(null);
+    72→  const [periodOpen, setPeriodOpen] = useState(false);
+    73→  const [customFrom, setCustomFrom] = useState("");
+    74→  const [customTo, setCustomTo] = useState("");
+    75→
+    76→  const periodLabel = !period
+    77→    ? "Toute la période"
+    78→    : `Du ${formatDate(period.from, { day: "2-digit", month: "2-digit", year: "2-digit" })}${
+    79→        period.to ? ` au ${formatDate(period.to, { day: "2-digit", month: "2-digit", year: "2-digit" })}` : ""
+    80→      }`;
+    81→
+    82→  function ymd(d: Date): string {
+    83→    const p = (x: number) => String(x).padStart(2, "0");
+    84→    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    85→  }
+    86→
+    87→  function applyPreset(kind: "month" | "lastMonth" | "year") {
+    88→    const now = new Date();
+    89→    let from: Date;
+    90→    let to: Date;
+    91→    if (kind === "month") {
+    92→      from = new Date(now.getFullYear(), now.getMonth(), 1);
+    93→      to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    94→    } else if (kind === "lastMonth") {
+    95→      from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    96→      to = new Date(now.getFullYear(), now.getMonth(), 0);
+    97→    } else {
+    98→      from = new Date(now.getFullYear(), 0, 1);
+    99→      to = now;
+   100→    }
+   101→    setPeriod({ from: ymd(from), to: ymd(to) });
+   102→    setPeriodOpen(false);
+   103→  }
+   104→
+   105→  function applyCustomPeriod() {
+   106→    if (!customFrom && !customTo) return;
+   107→    setPeriod({ from: customFrom, to: customTo });
+   108→    setPeriodOpen(false);
+   109→  }
+   110→
+   111→  async function downloadExport(type: ExportType) {
+   112→    if (exportBusy) return;
+   113→    setExportBusy(type);
+   114→    try {
+   115→      const params = new URLSearchParams({ tenantId, type });
+   116→      if (period?.from) params.set("from", period.from);
+   117→      if (period?.to) params.set("to", period.to);
+   118→      const res = await fetch(`/api/pro/accounting/export?${params.toString()}`);
+   119→      if (!res.ok) {
+   120→        let msg = `Export impossible (${res.status})`;
+   121→        try {
+   122→          const j = (await res.json()) as { error?: string };
+   123→          if (j.error) msg = j.error;
+   124→        } catch {
+   125→          /* réponse non-JSON : message générique conservé */
+   126→        }
+   127→        throw new Error(msg);
+   128→      }
+   129→      const disposition = res.headers.get("Content-Disposition") ?? "";
+   130→      const filename =
+   131→        /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? exportFilename(type, period?.from, period?.to);
+   132→      const rowsCount = res.headers.get("X-Rows-Count");
+   133→      const blob = await res.blob();
+   134→      const url = URL.createObjectURL(blob);
+   135→      const a = document.createElement("a");
+   136→      a.href = url;
+   137→      a.download = filename;
+   138→      document.body.appendChild(a);
+   139→      a.click();
+   140→      a.remove();
+   141→      window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+   142→      toast.success("Fichier téléchargé", {
+   143→        description: `${filename}${rowsCount ? ` · ${rowsCount} lignes` : ""}`,
+   144→      });
+   145→    } catch (e) {
+   146→      toast.error(e instanceof Error ? e.message : "Export impossible");
+   147→    } finally {
+   148→      setExportBusy(null);
+   149→    }
+   150→  }
+   151→
+   152→  function printLiasse() {
+   153→    setTab("liasse");
+   154→    window.setTimeout(() => window.print(), 200);
+   155→  }
+   156→
+   157→  const acc = useApi<AccountingResponse>(
+   158→    () => (tenantId ? apiGet<AccountingResponse>(`/api/pro/accounting?tenantId=${tenantId}`) : Promise.resolve(null as unknown as AccountingResponse)),
+   159→    [tenantId]
+   160→  );
+   161→
+   162→  const entries = useMemo(
+   163→    () => [...(acc.data?.entries ?? [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+   164→    [acc.data]
+   165→  );
+   166→  const balance = useMemo(() => [...(acc.data?.balance ?? [])].sort((a, b) => a.accountCode.localeCompare(b.accountCode)), [acc.data]);
+   167→  const balanceByClasse = useMemo(() => {
+   168→    const map = new Map<number, typeof balance>();
+   169→    for (const row of balance) {
+   170→      const arr = map.get(row.classe) ?? [];
+   171→      arr.push(row);
+   172→      map.set(row.classe, arr);
+   173→    }
+   174→    return [...map.entries()].sort((a, b) => a[0] - b[0]);
+   175→  }, [balance]);
+   176→  const totalDebit = balance.reduce((s, r) => s + r.totalDebit, 0);
+   177→  const totalCredit = balance.reduce((s, r) => s + r.totalCredit, 0);
+   178→
+   179→  // Grand livre — lignes chronologiques du compte sélectionné
+   180→  const ledgerLines = useMemo(() => {
+   181→    if (!ledgerAccount || !acc.data) return [];
+   182→    const out: { date: string; journal: string; label: string; debit: number; credit: number; solde: number }[] = [];
+   183→    const sorted = [...(acc.data.entries ?? [])].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+   184→    let solde = 0;
+   185→    for (const e of sorted) {
+   186→      for (const l of e.lines) {
+   187→        if (l.account.code !== ledgerAccount) continue;
+   188→        solde += l.debit - l.credit;
+   189→        out.push({ date: e.date, journal: e.journalCode, label: l.label || e.description, debit: l.debit, credit: l.credit, solde });
+   190→      }
+   191→    }
+   192→    return out;
+   193→  }, [ledgerAccount, acc.data]);
+   194→
+   195→  const odTotals = odLines.reduce(
+   196→    (t, l) => ({ d: t.d + (Number(l.debit) || 0), c: t.c + (Number(l.credit) || 0) }),
+   197→    { d: 0, c: 0 }
+   198→  );
+   199→  const odBalanced = odTotals.d > 0 && Math.abs(odTotals.d - odTotals.c) < 0.5;
+   200→
+   201→  async function submitOd() {
+   202→    const lines = odLines
+   203→      .filter((l) => l.accountCode && (Number(l.debit) > 0 || Number(l.credit) > 0))
+   204→      .map((l) => ({ accountCode: l.accountCode, debit: Number(l.debit) || 0, credit: Number(l.credit) || 0 }));
+   205→    if (!odDesc.trim() || lines.length < 2 || !odBalanced) {
+   206→      toast.error("Description requise, au moins 2 lignes et équilibre débit = crédit");
+   207→      return;
+   208→    }
+   209→    setBusy(true);
+   210→    try {
+   211→      await apiPost("/api/pro/accounting/manual", { tenantId, journalCode: "OD", date: odDate, description: odDesc.trim(), lines });
+   212→      toast.success("Écriture OD enregistrée", { description: "Le journal et la balance sont à jour." });
+   213→      setOdOpen(false);
+   214→      setOdDesc("");
+   215→      setOdLines([
+   216→        { accountCode: "", debit: "", credit: "" },
+   217→        { accountCode: "", debit: "", credit: "" },
+   218→      ]);
+   219→      await acc.refetch();
+   220→    } catch (e) {
+   221→      toast.error(e instanceof Error ? e.message : "Enregistrement impossible");
+   222→    } finally {
+   223→      setBusy(false);
+   224→    }
+   225→  }
+   226→
+   227→  if (acc.error && !acc.data) {
+   228→    return (
+   229→      <div className="space-y-4">
+   230→        <SectionHeader title="Compta" sub="SYSCOHADA révisé — journal, grand livre, balance, liasse" />
+   231→        <ErrorState message={`Comptabilité indisponible : ${acc.error}`} onRetry={acc.refetch} />
+   232→      </div>
+   233→    );
+   234→  }
+   235→  if (acc.loading && !acc.data) {
+   236→    return (
+   237→      <div className="space-y-4">
+   238→        <Skeleton className="h-9 w-72" />
+   239→        <Skeleton className="h-12 w-full" />
+   240→        <Skeleton className="h-96 w-full" />
+   241→      </div>
+   242→    );
+   243→  }
+   244→  const data = acc.data;
+   245→  if (!data) return null;
+   246→
+   247→  const st = data.statements;
+   248→
+   249→  return (
+   250→    <div className="space-y-4">
+   251→      <SectionHeader
+   252→        title="Compta"
+   253→        sub={`SYSCOHADA révisé — ${entries.length} écritures · ${balance.length} comptes mouvementés`}
+   254→        actions={
+   255→          <>
+   256→            <Popover open={periodOpen} onOpenChange={setPeriodOpen}>
+   257→              <PopoverTrigger asChild>
+   258→                <Button variant="outline" className="gap-1.5 text-xs">
+   259→                  <CalendarRange className="size-4" aria-hidden="true" />
+   260→                  {periodLabel}
+   261→                </Button>
+   262→              </PopoverTrigger>
+   263→              <PopoverContent align="end" className="w-72 space-y-3">
+   264→                <div>
+   265→                  <p className="text-xs font-semibold">Période d&apos;export</p>
+   266→                  <p className="text-[11px] text-muted-foreground">
+   267→                    Filtre les fichiers CSV téléchargés (journal, balance, liasse, ventes).
+   268→                  </p>
+   269→                </div>
+   270→                <div className="grid grid-cols-2 gap-2">
+   271→                  <Button variant="outline" size="sm" onClick={() => applyPreset("month")}>
+   272→                    Ce mois-ci
+   273→                  </Button>
+   274→                  <Button variant="outline" size="sm" onClick={() => applyPreset("lastMonth")}>
+   275→                    Mois dernier
+   276→                  </Button>
+   277→                  <Button variant="outline" size="sm" onClick={() => applyPreset("year")}>
+   278→                    Cette année
+   279→                  </Button>
+   280→                  <Button
+   281→                    variant="outline"
+   282→                    size="sm"
+   283→                    onClick={() => {
+   284→                      setPeriod(null);
+   285→                      setPeriodOpen(false);
+   286→                    }}
+   287→                  >
+   288→                    Tout
+   289→                  </Button>
+   290→                </div>
+   291→                <div className="space-y-2 border-t pt-3">
+   292→                  <div className="grid grid-cols-2 gap-2">
+   293→                    <div className="space-y-1">
+   294→                      <Label htmlFor="exp-from" className="text-[11px]">
+   295→                        Du
+   296→                      </Label>
+   297→                      <Input
+   298→                        id="exp-from"
+   299→                        type="date"
+   300→                        value={customFrom}
+   301→                        onChange={(e) => setCustomFrom(e.target.value)}
+   302→                        className="h-8 text-xs"
+   303→                      />
+   304→                    </div>
+   305→                    <div className="space-y-1">
+   306→                      <Label htmlFor="exp-to" className="text-[11px]">
+   307→                        Au
+   308→                      </Label>
+   309→                      <Input
+   310→                        id="exp-to"
+   311→                        type="date"
+   312→                        value={customTo}
+   313→                        onChange={(e) => setCustomTo(e.target.value)}
+   314→                        className="h-8 text-xs"
+   315→                      />
+   316→                    </div>
+   317→                  </div>
+   318→                  <Button size="sm" className="w-full" onClick={applyCustomPeriod} disabled={!customFrom && !customTo}>
+   319→                    Appliquer cette période
+   320→                  </Button>
+   321→                </div>
+   322→              </PopoverContent>
+   323→            </Popover>
+   324→            <DropdownMenu>
+   325→              <DropdownMenuTrigger asChild>
+   326→                <Button className="gap-1.5 font-semibold" disabled={exportBusy !== null}>
+   327→                  {exportBusy ? (
+   328→                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+   329→                  ) : (
+   330→                    <Download className="size-4" aria-hidden="true" />
+   331→                  )}
+   332→                  Exporter
+   333→                </Button>
+   334→              </DropdownMenuTrigger>
+   335→              <DropdownMenuContent align="end" className="w-64">
+   336→                <DropdownMenuLabel className="text-[11px]">Fichiers CSV (Excel FR)</DropdownMenuLabel>
+   337→                {(["ventes", "journal", "balance", "liasse"] as const).map((t) => (
+   338→                  <DropdownMenuItem
+   339→                    key={t}
+   340→                    onSelect={() => downloadExport(t)}
+   341→                    disabled={exportBusy !== null}
+   342→                    className="gap-2"
+   343→                  >
+   344→                    {exportBusy === t ? (
+   345→                      <Loader2 className="size-4 shrink-0 animate-spin text-finance" aria-hidden="true" />
+   346→                    ) : (
+   347→                      <FileSpreadsheet className="size-4 shrink-0 text-finance" aria-hidden="true" />
+   348→                    )}
+   349→                    <span className="flex-1">{EXPORT_TYPE_LABELS[t]}</span>
+   350→                    <span className="text-[10px] text-muted-foreground">
+   351→                      {t === "ventes" ? "TVA" : t === "journal" ? "lignes" : t === "balance" ? "comptes" : "bilan"}
+   352→                    </span>
+   353→                  </DropdownMenuItem>
+   354→                ))}
+   355→                <DropdownMenuSeparator />
+   356→                <DropdownMenuItem onSelect={printLiasse} className="gap-2">
+   357→                  <Printer className="size-4 shrink-0" aria-hidden="true" />
+   358→                  <span className="flex-1">Imprimer la liasse</span>
+   359→                  <span className="text-[10px] text-muted-foreground">PDF</span>
+   360→                </DropdownMenuItem>
+   361→              </DropdownMenuContent>
+   362→            </DropdownMenu>
+   363→            {tab === "journal" && (
+   364→              <Button variant="outline" onClick={() => setOdOpen(true)} className="gap-1.5">
+   365→                <Plus className="size-4" aria-hidden="true" /> Saisie manuelle OD
+   366→              </Button>
+   367→            )}
+   368→          </>
+   369→        }
+   370→      />
+   371→
+   372→      <Tabs value={tab} onValueChange={setTab}>
+   373→        <TabsList className="flex-wrap h-auto">
+   374→          <TabsTrigger value="journal" className="text-xs gap-1.5"><BookOpen className="size-3.5" aria-hidden="true" /> Journal</TabsTrigger>
+   375→          <TabsTrigger value="ledger" className="text-xs gap-1.5"><Library className="size-3.5" aria-hidden="true" /> Grand livre</TabsTrigger>
+   376→          <TabsTrigger value="balance" className="text-xs gap-1.5"><Scale className="size-3.5" aria-hidden="true" /> Balance</TabsTrigger>
+   377→          <TabsTrigger value="liasse" className="text-xs gap-1.5"><Landmark className="size-3.5" aria-hidden="true" /> Liasse fiscale</TabsTrigger>
+   378→        </TabsList>
+   379→
+   380→        {/* ───────── JOURNAL ───────── */}
+   381→        <TabsContent value="journal" className="mt-3">
+   382→          <Card className="overflow-hidden">
+   383→            <CardContent className="p-0">
+   384→              {entries.length === 0 ? (
+   385→                <EmptyState label="Aucune écriture au journal" sub="Les ventes POS et la paie génèrent automatiquement les écritures." />
+   386→              ) : (
+   387→                <ul className="divide-y divide-border/70">
+   388→                  {entries.map((e) => {
+   389→                    const open = expanded === e.id;
+   390→                    const totD = e.lines.reduce((s, l) => s + l.debit, 0);
+   391→                    const totC = e.lines.reduce((s, l) => s + l.credit, 0);
+   392→                    return (
+   393→                      <li key={e.id}>
+   394→                        <button
+   395→                          onClick={() => setExpanded(open ? null : e.id)}
+   396→                          aria-expanded={open}
+   397→                          className="w-full flex flex-wrap items-center gap-2.5 px-4 py-3 text-left hover:bg-accent/40 transition-colors"
+   398→                        >
+   399→                          <JournalBadge code={e.journalCode} />
+   400→                          <span className="font-mono text-xs text-muted-foreground w-24 shrink-0">{formatDate(e.date)}</span>
+   401→                          <span className="font-mono text-[11px] text-muted-foreground hidden sm:inline w-28 shrink-0 truncate">{e.reference}</span>
+   402→                          <span className="min-w-0 flex-1 truncate text-sm">{e.description}</span>
+   403→                          <Money value={totD} className="text-xs font-semibold shrink-0" />
+   404→                          <span className="text-[10px] text-muted-foreground">{open ? "▲" : "▼"}</span>
+   405→                        </button>
+   406→                        {open && (
+   407→                          <div className="border-t border-border/60 bg-muted/30 px-4 py-3 overflow-x-auto pretty-scroll">
+   408→                            <table className="w-full text-xs min-w-[560px]">
+   409→                              <thead>
+   410→                                <tr className="text-left text-muted-foreground border-b border-border">
+   411→                                  <th className="py-1.5 font-medium">Compte</th>
+   412→                                  <th className="py-1.5 font-medium">Libellé</th>
+   413→                                  <th className="py-1.5 font-medium text-right">Débit</th>
+   414→                                  <th className="py-1.5 font-medium text-right">Crédit</th>
+   415→                                </tr>
+   416→                              </thead>
+   417→                              <tbody>
+   418→                                {e.lines.map((l, i) => (
+   419→                                  <tr key={i} className="border-b border-border/50">
+   420→                                    <td className="py-1.5 font-mono">{l.account.code}</td>
+   421→                                    <td className="py-1.5">{l.label || l.account.label}</td>
+   422→                                    <td className="py-1.5 text-right font-mono tabular-nums">{l.debit ? l.debit.toLocaleString("fr-FR") : ""}</td>
+   423→                                    <td className="py-1.5 text-right font-mono tabular-nums">{l.credit ? l.credit.toLocaleString("fr-FR") : ""}</td>
+   424→                                  </tr>
+   425→                                ))}
+   426→                                <tr className="font-semibold">
+   427→                                  <td colSpan={2} className="py-1.5">Totaux — {Math.abs(totD - totC) < 0.5 ? "écriture équilibrée" : "déséquilibre"}</td>
+   428→                                  <td className="py-1.5 text-right font-mono tabular-nums">{totD.toLocaleString("fr-FR")}</td>
+   429→                                  <td className="py-1.5 text-right font-mono tabular-nums">{totC.toLocaleString("fr-FR")}</td>
+   430→                                </tr>
+   431→                              </tbody>
+   432→                            </table>
+   433→                            {Math.abs(totD - totC) < 0.5 && (
+   434→                              <p className="mt-1.5 flex items-center gap-1 text-[11px] text-success">
+   435→                                <CheckCircle2 className="size-3.5" aria-hidden="true" /> Débit = Crédit
+   436→                              </p>
+   437→                            )}
+   438→                          </div>
+   439→                        )}
+   440→                      </li>
+   441→                    );
+   442→                  })}
+   443→                </ul>
+   444→              )}
+   445→            </CardContent>
+   446→          </Card>
+   447→        </TabsContent>
+   448→
+   449→        {/* ───────── GRAND LIVRE ───────── */}
+   450→        <TabsContent value="ledger" className="mt-3 space-y-3">
+   451→          <Card>
+   452→            <CardContent className="p-4 flex flex-wrap items-end gap-3">
+   453→              <div className="space-y-1 min-w-64">
+   454→                <Label className="text-xs">Compte</Label>
+   455→                <Select value={ledgerAccount || undefined} onValueChange={setLedgerAccount}>
+   456→                  <SelectTrigger aria-label="Compte"><SelectValue placeholder="Choisir un compte mouvementé…" /></SelectTrigger>
+   457→                  <SelectContent className="max-h-80">
+   458→                    {balance.map((r) => (
+   459→                      <SelectItem key={r.accountCode} value={r.accountCode}>
+   460→                        <span className="font-mono">{r.accountCode}</span> — {r.accountLabel}
+   461→                      </SelectItem>
+   462→                    ))}
+   463→                  </SelectContent>
+   464→                </Select>
+   465→              </div>
+   466→              {ledgerAccount && (
+   467→                <div className="rounded-xl border border-border bg-card px-4 py-2">
+   468→                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Solde final</p>
+   469→                  <Money value={ledgerLines[ledgerLines.length - 1]?.solde ?? 0} className={cn("text-base font-bold", (ledgerLines[ledgerLines.length - 1]?.solde ?? 0) >= 0 ? "text-terre" : "text-success")} />
+   470→                </div>
+   471→              )}
+   472→            </CardContent>
+   473→          </Card>
+   474→          {!ledgerAccount ? (
+   475→            <EmptyState label="Sélectionnez un compte" sub="Le grand livre retrace chronologiquement toutes ses lignes." />
+   476→          ) : ledgerLines.length === 0 ? (
+   477→            <EmptyState label="Aucun mouvement sur ce compte" />
+   478→          ) : (
+   479→            <Card className="overflow-hidden">
+   480→              <div className="overflow-x-auto pretty-scroll">
+   481→                <Table>
+   482→                  <TableHeader>
+   483→                    <TableRow>
+   484→                      <TableHead>Date</TableHead>
+   485→                      <TableHead>Journal</TableHead>
+   486→                      <TableHead>Libellé</TableHead>
+   487→                      <TableHead className="text-right">Débit</TableHead>
+   488→                      <TableHead className="text-right">Crédit</TableHead>
+   489→                      <TableHead className="text-right">Solde progressif</TableHead>
+   490→                    </TableRow>
+   491→                  </TableHeader>
+   492→                  <TableBody>
+   493→                    {ledgerLines.map((l, i) => (
+   494→                      <TableRow key={i}>
+   495→                        <TableCell className="font-mono text-xs">{formatDate(l.date)}</TableCell>
+   496→                        <TableCell><JournalBadge code={l.journal} /></TableCell>
+   497→                        <TableCell className="text-xs">{l.label}</TableCell>
+   498→                        <TableCell className="text-right"><Money value={l.debit} className="text-xs" /></TableCell>
+   499→                        <TableCell className="text-right"><Money value={l.credit} className="text-xs" /></TableCell>
+   500→                        <TableCell className="text-right"><Money value={Math.abs(l.solde)} className={cn("text-xs font-semibold", l.solde >= 0 ? "text-terre" : "text-success")} /></TableCell>
+   501→                      </TableRow>
+   502→                    ))}
+   503→                  </TableBody>
+   504→                </Table>
+   505→              </div>
+   506→            </Card>
+   507→          )}
+   508→        </TabsContent>
+   509→
+   510→        {/* ───────── BALANCE ───────── */}
+   511→        <TabsContent value="balance" className="mt-3">
+   512→          <Card className="overflow-hidden">
+   513→            <CardContent className="p-0">
+   514→              {balance.length === 0 ? (
+   515→                <EmptyState label="Balance vide" sub="Aucune écriture enregistrée." />
+   516→              ) : (
+   517→                <div className="overflow-x-auto pretty-scroll">
+   518→                  <Table>
+   519→                    <TableHeader>
+   520→                      <TableRow>
+   521→                        <TableHead>Compte</TableHead>
+   522→                        <TableHead className="hidden md:table-cell">Libellé</TableHead>
+   523→                        <TableHead className="text-right">Total débit</TableHead>
+   524→                        <TableHead className="text-right">Total crédit</TableHead>
+   525→                        <TableHead className="text-right">Solde débiteur</TableHead>
+   526→                        <TableHead className="text-right">Solde créditeur</TableHead>
+   527→                      </TableRow>
+   528→                    </TableHeader>
+   529→                    <TableBody>
+   530→                      {balanceByClasse.map(([classe, rows]) => (
+   531→                        <Fragment key={classe}>
+   532→                          <TableRow className="bg-muted/60 hover:bg-muted/60">
+   533→                            <TableCell colSpan={6} className="py-2">
+   534→                              <span className="flex items-center gap-2">
+   535→                                <ClasseBadge classe={classe} />
+   536→                                <span className="font-heading text-xs font-bold">{CLASSES_LABELS[classe] ?? `Classe ${classe}`}</span>
+   537→                              </span>
+   538→                            </TableCell>
+   539→                          </TableRow>
+   540→                          {rows.map((r) => (
+   541→                            <TableRow key={r.accountCode}>
+   542→                              <TableCell className="font-mono text-xs">{r.accountCode}</TableCell>
+   543→                              <TableCell className="hidden md:table-cell text-xs">{r.accountLabel}</TableCell>
+   544→                              <TableCell className="text-right"><Money value={r.totalDebit} className="text-xs" /></TableCell>
+   545→                              <TableCell className="text-right"><Money value={r.totalCredit} className="text-xs" /></TableCell>
+   546→                              <TableCell className="text-right"><Money value={r.solde > 0 ? r.solde : 0} className="text-xs" /></TableCell>
+   547→                              <TableCell className="text-right"><Money value={r.solde < 0 ? -r.solde : 0} className="text-xs" /></TableCell>
+   548→                            </TableRow>
+   549→                          ))}
+   550→                        </Fragment>
+   551→                      ))}
+   552→                      <TableRow className="font-bold bg-gold/10 hover:bg-gold/10">
+   553→                        <TableCell colSpan={2} className="py-2.5">TOTAUX</TableCell>
+   554→                        <TableCell className="text-right"><Money value={totalDebit} className="text-xs" /></TableCell>
+   555→                        <TableCell className="text-right"><Money value={totalCredit} className="text-xs" /></TableCell>
+   556→                        <TableCell colSpan={2} className="py-2.5">
+   557→                          <span className={cn("inline-flex items-center gap-1 text-xs", Math.abs(totalDebit - totalCredit) < 0.5 ? "text-success" : "text-bissap")}>
+   558→                            <Equal className="size-3.5" aria-hidden="true" />
+   559→                            {Math.abs(totalDebit - totalCredit) < 0.5 ? "Balance équilibrée (D = C)" : "Déséquilibre détecté"}
+   560→                          </span>
+   561→                        </TableCell>
+   562→                      </TableRow>
+   563→                    </TableBody>
+   564→                  </Table>
+   565→                </div>
+   566→              )}
+   567→            </CardContent>
+   568→          </Card>
+   569→        </TabsContent>
+   570→
+   571→        {/* ───────── LIASSE FISCALE ───────── */}
+   572→        <TabsContent value="liasse" className="mt-3">
+   573→          <div className="print-area space-y-4">
+   574→            <div className="hidden print:block">
+   575→              <p className="font-heading font-bold text-lg">{tenantName} — Liasse fiscale SYSCOHADA</p>
+   576→              <p className="text-xs">Édité le {formatDate(new Date())} — Kènè Pro</p>
+   577→            </div>
+   578→
+   579→            {/* TVA */}
+   580→            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+   581→              {[
+   582→                { label: "TVA collectée (18 %)", value: st.tvaCollected },
+   583→                { label: "TVA déductible", value: st.tvaDeductible },
+   584→                { label: "TVA à payer", value: st.tvaAPayer, strong: true },
+   585→              ].map((c) => (
+   586→                <Card key={c.label} className={cn("overflow-hidden pt-0 border-finance/30", c.strong && "bg-finance/5")}>
+   587→                  <KenteTop className="opacity-40" />
+   588→                  <CardContent className="p-4">
+   589→                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{c.label}</p>
+   590→                    <Money value={c.value} className={cn("text-lg font-bold", c.strong ? "text-finance" : "")} />
+   591→                  </CardContent>
+   592→                </Card>
+   593→              ))}
+   594→            </div>
+   595→
+   596→            <div className="grid lg:grid-cols-2 gap-4">
+   597→              {/* Bilan */}
+   598→              <Card className="overflow-hidden pt-0">
+   599→                <KenteTop />
+   600→                <CardHeader className="pb-2">
+   601→                  <CardTitle className="font-heading text-base flex items-center gap-2">
+   602→                    <Landmark className="size-4 text-finance" aria-hidden="true" /> Bilan
+   603→                  </CardTitle>
+   604→                </CardHeader>
+   605→                <CardContent className="space-y-3">
+   606→                  <div>
+   607→                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Actif</p>
+   608→                    <ul className="text-sm divide-y divide-border/60">
+   609→                      {st.actif.map((a) => (
+   610→                        <li key={a.label} className="flex justify-between gap-2 py-1.5">
+   611→                          <span className="truncate">{a.label}</span>
+   612→                          <Money value={a.amount} className="text-xs" />
+   613→                        </li>
+   614→                      ))}
+   615→                    </ul>
+   616→                    <div className="flex justify-between mt-1.5 pt-2 border-t-2 border-border font-semibold">
+   617→                      <span>Total actif</span>
+   618→                      <Money value={st.totalActif} className="text-sm text-finance" />
+   619→                    </div>
+   620→                  </div>
+   621→                  <div>
+   622→                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Passif</p>
+   623→                    <ul className="text-sm divide-y divide-border/60">
+   624→                      {st.passif.map((p) => (
+   625→                        <li key={p.label} className={cn("flex justify-between gap-2 py-1.5", p.label.startsWith("Résultat") && "font-semibold text-gold")}>
+   626→                          <span className="truncate">{p.label}</span>
+   627→                          <Money value={p.amount} className="text-xs" />
+   628→                        </li>
+   629→                      ))}
+   630→                    </ul>
+   631→                    <div className="flex justify-between mt-1.5 pt-2 border-t-2 border-border font-semibold">
+   632→                      <span>Total passif</span>
+   633→                      <Money value={st.totalPassif} className="text-sm text-finance" />
+   634→                    </div>
+   635→                  </div>
+   636→                  <p className={cn("flex items-center gap-1.5 text-xs", Math.abs(st.totalActif - st.totalPassif) < 1 ? "text-success" : "text-bissap")}>
+   637→                    <CheckCircle2 className="size-3.5 shrink-0" aria-hidden="true" />
+   638→                    {Math.abs(st.totalActif - st.totalPassif) < 1
+   639→                      ? "Bilan équilibré : Actif = Passif"
+   640→                      : `Écart actif/passif : ${Math.abs(st.totalActif - st.totalPassif).toLocaleString("fr-FR")} FCFA`}
+   641→                  </p>
+   642→                </CardContent>
+   643→              </Card>
+   644→
+   645→              {/* Compte de résultat */}
+   646→              <Card className="overflow-hidden pt-0">
+   647→                <KenteTop />
+   648→                <CardHeader className="pb-2">
+   649→                  <CardTitle className="font-heading text-base flex items-center gap-2">
+   650→                    <TrendingUp className="size-4 text-finance" aria-hidden="true" /> Compte de résultat
+   651→                  </CardTitle>
+   652→                </CardHeader>
+   653→                <CardContent className="space-y-2">
+   654→                  <div className="flex justify-between items-center rounded-xl bg-success/8 border border-success/25 px-4 py-3">
+   655→                    <span className="flex items-center gap-2 text-sm font-medium"><TrendingUp className="size-4 text-success" aria-hidden="true" /> Produits</span>
+   656→                    <Money value={st.produits} className="text-base font-bold text-success" />
+   657→                  </div>
+   658→                  <div className="flex justify-between items-center rounded-xl bg-bissap/8 border border-bissap/25 px-4 py-3">
+   659→                    <span className="flex items-center gap-2 text-sm font-medium"><TrendingDown className="size-4 text-bissap" aria-hidden="true" /> Charges</span>
+   660→                    <Money value={st.charges} className="text-base font-bold text-bissap" />
+   661→                  </div>
+   662→                  <div className={cn("flex justify-between items-center rounded-xl px-4 py-4 border", st.resultat >= 0 ? "bg-success/10 border-success/40" : "bg-bissap/10 border-bissap/40")}>
+   663→                    <span className="font-heading font-bold">RÉSULTAT NET</span>
+   664→                    <Money value={st.resultat} className={cn("text-2xl font-bold", st.resultat >= 0 ? "text-success" : "text-bissap")} />
+   665→                  </div>
+   666→                  <p className="text-[11px] text-muted-foreground">
+   667→                    Résultat intégré au passif du bilan (ligne « Résultat de l&apos;exercice »).
+   668→                  </p>
+   669→                </CardContent>
+   670→              </Card>
+   671→            </div>
+   672→          </div>
+   673→        </TabsContent>
+   674→      </Tabs>
+   675→
+   676→      {/* ── Dialog saisie OD ── */}
+   677→      <Dialog open={odOpen} onOpenChange={setOdOpen}>
+   678→        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto pretty-scroll">
+   679→          <DialogHeader>
+   680→            <DialogTitle className="font-heading">Saisie manuelle — Opérations diverses (OD)</DialogTitle>
+   681→            <DialogDescription>Écriture libre au journal OD. Le débit doit égaler le crédit.</DialogDescription>
+   682→          </DialogHeader>
+   683→          <div className="space-y-3">
+   684→            <div className="grid grid-cols-2 gap-3">
+   685→              <div className="space-y-1">
+   686→                <Label htmlFor="od-desc" className="text-xs">Description</Label>
+   687→                <Input id="od-desc" value={odDesc} onChange={(e) => setOdDesc(e.target.value)} placeholder="Régularisation caisse juin…" />
+   688→              </div>
+   689→              <div className="space-y-1">
+   690→                <Label htmlFor="od-date" className="text-xs">Date</Label>
+   691→                <Input id="od-date" type="date" value={odDate} onChange={(e) => setOdDate(e.target.value)} />
+   692→              </div>
+   693→            </div>
+   694→            <div className="space-y-2">
+   695→              {odLines.map((l, i) => (
+   696→                <div key={i} className="grid grid-cols-[1fr_90px_90px_32px] gap-2 items-center">
+   697→                  <Select value={l.accountCode || undefined} onValueChange={(v) => setOdLines((ls) => ls.map((x, j) => (j === i ? { ...x, accountCode: v } : x)))}>
+   698→                    <SelectTrigger className="text-xs" aria-label={`Compte ligne ${i + 1}`}><SelectValue placeholder="Compte…" /></SelectTrigger>
+   699→                    <SelectContent className="max-h-72">
+   700→                      {data.accounts.map((a) => (
+   701→                        <SelectItem key={a.id} value={a.code}>
+   702→                          <span className="font-mono">{a.code}</span> — {a.label}
+   703→                        </SelectItem>
+   704→                      ))}
+   705→                    </SelectContent>
+   706→                  </Select>
+   707→                  <Input
+   708→                    inputMode="numeric"
+   709→                    value={l.debit}
+   710→                    onChange={(e) => setOdLines((ls) => ls.map((x, j) => (j === i ? { ...x, debit: e.target.value.replace(/[^0-9]/g, "") } : x)))}
+   711→                    placeholder="Débit"
+   712→                    className="font-mono text-xs text-right"
+   713→                    aria-label={`Ligne ${i + 1} débit`}
+   714→                  />
+   715→                  <Input
+   716→                    inputMode="numeric"
+   717→                    value={l.credit}
+   718→                    onChange={(e) => setOdLines((ls) => ls.map((x, j) => (j === i ? { ...x, credit: e.target.value.replace(/[^0-9]/g, "") } : x)))}
+   719→                    placeholder="Crédit"
+   720→                    className="font-mono text-xs text-right"
+   721→                    aria-label={`Ligne ${i + 1} crédit`}
+   722→                  />
+   723→                  <Button
+   724→                    variant="ghost"
+   725→                    size="icon"
+   726→                    className="size-8 text-muted-foreground hover:text-bissap"
+   727→                    onClick={() => setOdLines((ls) => ls.filter((_, j) => j !== i))}
+   728→                    aria-label={`Supprimer la ligne ${i + 1}`}
+   729→                    disabled={odLines.length <= 2}
+   730→                  >
+   731→                    <Trash2 className="size-3.5" />
+   732→                  </Button>
+   733→                </div>
+   734→              ))}
+   735→              <Button variant="outline" size="sm" onClick={() => setOdLines((ls) => [...ls, { accountCode: "", debit: "", credit: "" }])} className="gap-1 w-fit">
+   736→                <Plus className="size-3.5" aria-hidden="true" /> Ajouter une ligne
+   737→              </Button>
+   738→            </div>
+   739→            <div className={cn("flex items-center justify-between rounded-lg px-3 py-2 text-xs font-mono", odBalanced ? "bg-success/10 text-success" : "bg-bissap/10 text-bissap")}>
+   740→              <span>Débit : {odTotals.d.toLocaleString("fr-FR")}</span>
+   741→              <span className="flex items-center gap-1">
+   742→                <Equal className="size-3" aria-hidden="true" />
+   743→                {odBalanced ? "Équilibrée" : `Écart : ${(odTotals.d - odTotals.c).toLocaleString("fr-FR")}`}
+   744→              </span>
+   745→              <span>Crédit : {odTotals.c.toLocaleString("fr-FR")}</span>
+   746→            </div>
+   747→            <Button disabled={busy || !odBalanced} onClick={submitOd} className="w-full font-semibold">
+   748→              {busy ? "Enregistrement…" : "Enregistrer l'écriture OD"}
+   749→            </Button>
+   750→          </div>
+   751→        </DialogContent>
+   752→      </Dialog>
+   753→    </div>
+   754→  );
+   755→}
+   756→

@@ -1,8 +1,11 @@
-// GET /api/pro/accounting/export?tenantId=&type=journal|balance|liasse|ventes&from=&to=
-// Fichiers CSV téléchargeables (Excel FR) — données COMPLÈTES (pas de plafond 60) + filtre période.
+// GET /api/pro/accounting/export?tenantId=&type=journal|balance|liasse|ventes&from=&to=&format=csv|pdf
+// CSV : fichiers Excel FR téléchargeables — données COMPLÈTES (pas de plafond 60) + filtre période.
+// PDF : réservé au type « liasse » — dossier complet multi-pages (compte de résultat, TVA,
+// bilan, balance, journal, livre des ventes) généré sans dépendance externe.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { computeBalance, buildStatements } from "@/lib/accounting/syscohada";
+import { liassePdf, liassePdfFilename } from "@/lib/accounting/pdf";
 import {
   toCsv,
   journalCsvRows,
@@ -42,6 +45,14 @@ export async function GET(req: NextRequest) {
     }
     const type = typeParam as ExportType;
 
+    const formatParam = (sp.get("format") ?? "csv").toLowerCase();
+    if (formatParam !== "csv" && formatParam !== "pdf") {
+      return jsonError(`Format d'export inconnu « ${formatParam} » — formats acceptés : csv, pdf`, 400);
+    }
+    if (formatParam === "pdf" && type !== "liasse") {
+      return jsonError("Le format PDF est réservé au type « liasse » (dossier complet) — journal, balance et ventes s'exportent en CSV", 400);
+    }
+
     const from = parseDay(sp.get("from"));
     const toRaw = parseDay(sp.get("to"));
     if (from === null) return jsonError("Paramètre « from » invalide — format attendu AAAA-MM-JJ", 400);
@@ -49,6 +60,71 @@ export async function GET(req: NextRequest) {
     const to = toRaw ? endOfDay(toRaw) : undefined;
 
     const dateFilter = from || to ? { gte: from, lte: to } : undefined;
+
+    // ── PDF : la liasse complète (toutes sections, une seule requête) ──
+    if (formatParam === "pdf") {
+      const [entries, accounts, sales] = await Promise.all([
+        db.journalEntry.findMany({
+          where: { tenantId: tenant.id, ...(dateFilter ? { date: dateFilter } : {}) },
+          include: {
+            lines: { include: { account: { select: { code: true, label: true } } }, orderBy: { id: "asc" } },
+          },
+          orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+        }),
+        db.chartAccount.findMany({ where: { tenantId: tenant.id } }),
+        db.sale.findMany({
+          where: { tenantId: tenant.id, status: "completed", ...(dateFilter ? { createdAt: dateFilter } : {}) },
+          include: { items: true, clientProfile: { select: { name: true } } },
+          orderBy: { createdAt: "asc" },
+        }),
+      ]);
+      const accountsMap = new Map(accounts.map((a) => [a.code, { code: a.code, label: a.label, classe: a.classe, type: a.type }]));
+      const flatLines = entries.flatMap((e) =>
+        e.lines.map((l) => ({ accountCode: l.account?.code ?? "?", debit: l.debit, credit: l.credit }))
+      );
+      const balance = computeBalance(flatLines, accountsMap);
+      const statements = buildStatements(balance);
+      const pdf = liassePdf({
+        tenantName: tenant.name,
+        tenantCity: tenant.city,
+        from,
+        to,
+        entries,
+        balance,
+        statements,
+        sales: sales.map((s) => {
+          const servicesAmount = s.items.filter((i) => i.kind === "service").reduce((t2, i) => t2 + i.total, 0);
+          const productsAmount = s.items.filter((i) => i.kind === "product").reduce((t2, i) => t2 + i.total, 0);
+          return {
+            date: s.createdAt,
+            ref: s.paymentRef,
+            clientName: s.clientProfile?.name ?? null,
+            itemCount: s.items.length,
+            servicesAmount,
+            productsAmount,
+            subtotal: s.subtotal,
+            discount: s.discount,
+            total: s.total,
+            tvaAmount: s.tvaAmount,
+            paymentMethod: s.paymentMethod,
+            paymentRef: s.paymentRef,
+            cashierName: s.cashierName,
+          };
+        }),
+      });
+      return new NextResponse(new Uint8Array(pdf.data), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Length": String(pdf.data.length),
+          "Content-Disposition": `attachment; filename="${liassePdfFilename(from, to)}"`,
+          "X-Rows-Count": String(entries.length + sales.length + balance.length),
+          "X-Pages-Count": String(pdf.pages),
+          "X-Export-Type": "Liasse PDF (dossier complet)",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
 
     let rows: CsvCell[][] = [];
     let count = 0;
