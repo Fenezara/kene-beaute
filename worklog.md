@@ -738,3 +738,25 @@ Stage Summary:
 - Le crash de l'écran de résultat de diagnostic est réparé à la racine : plus aucune double indexation, plus aucun NaN possible — données anciennes (resultJson incomplets) et nouvelles rendent de manière sûre.
 - Leçon code : quand on résout un item d'un tableau de styles, NE PAS ré-indexer l'objet résultat ; et toute valeur numérique venue d'un JSON persisté doit passer par Number.isFinite avant clamp/index (NaN se propage silencieusement dans Math.min/max).
 - Le diagnostic IA est de nouveau consultable de bout en bout (vue résultat + historique + comparaison).
+
+---
+Task ID: 38
+Agent: main (Z.ai Code)
+Task: « Étudions un peu les utilisateurs ? dans ce domaine cosmétique en 2026. y a t il des lettrés, illettrés, etc... qui peuvent faire échouer le projet » + « on y va et n'oublie pas de mettre à jour tous nos documents de base »
+
+Work Log:
+- Étude utilisateurs 2026 livrée (analyse produit, pas de code) : segmentation bicéphale C (cliente) / B (institut) + prescripteurs ; repères Côte d'Ivoire — alphabétisation adultes ~56 % (femmes ~47 %, rural bien plus bas), mobile money omniprésent (Wave/OM), WhatsApp dominant, data rechargée en petits paquets journaliers, français 2e langue pour la majorité.
+- Segments C identifiés : digitale lettrée exigeante (churn silencieux, comparaison internationale), semi-lettrée numérique (gros volume urbain — drop-off sur parcours multi-étapes/jargon/formulaires), non-lectrice (~40 % des femmes selon zones — exclue silencieusement de tout funnel textuel), rurale/petite data (coût d'accès, téléphones entrée de gamme), WhatsApp-first (ne quitte jamais l'app), méfiante post-dépigmentation (IA = boîte noire suspecte), pressée (intro narrative = sortie avant la valeur).
+- Segments B : gérante organisée (motrice — CRM/caisse/compta), praticienne peu administrative (risque n°1 côté B : CRM vide si la saisie est une friction), personnel salarié (perception surveillance → non-usage).
+- Prescripteurs : dermatos/pharmaciens (sceptiques vis-à-vis d'une IA non validée — une phrase « cette app dit n'importe quoi » casse la confiance), skinfluencers (gatekeepers — un bad buzz « l'IA juge la peau » = crise réputationnelle).
+- Classement des risques d'échec : 1) non-lectrices → funnel vide silencieux ; 2) pro non-saisissante → promesse 360° non tenue ; 3) méfiance/dépigmentation → rejet + bad buzz ; 4) semi-lettrées → abandon milieu de parcours ; 5) petites data → poids de l'app ; 6) digitales exigeantes → déception comparative.
+- Audit des gardes produit DÉJÀ en place : diagnostic par photo VLM (zéro saisie textuelle), libellés simples Léger/Moyen/Fort + pastilles couleur, WhatsApp canal (relances + commande), fallbacks 3D statiques #twin-static/#weave-static, intro skippable, wallet 1 geste, cashback, orientation dermato.
+- Manques traduits en backlog priorisé : lecture vocale TTS des questions/résultats (skill TTS dispo) → glossaire 1 tap (PIH, sébum…) → compression photo côté client avant upload → mode saisie Pro allégé → à terme langues locales audio (dioula, baoulé) + ASR.
+- Documents de base mis à jour (README.md) : espaces Cliente (« Mes commandes », cloche temps réel) et Pro (badge « En direct ») enrichis ; stack + ligne « Temps réel » (mini-service socket.io :3004, poll 8 s + push, heartbeat) ; arborescence close proprement + ligne notify-service ; NOUVELLE section « Utilisateurs & littératie — repères 2026 » (tableau 8 segments barrière/garde + risques classés) ; NOUVELLE section « Limites assumées (démo) & priorités » (paiements simulés, OTP prévu, SQLite→Postgres, backlog).
+- Services vérifiés avant/après : app :3000 → 200, gateway :81 → 200, notify-service :3004 vivant (400 attendu sur GET plain — service socket.io) ; aucun code applicatif modifié → lint/tsc inchangés (validés en tâche 37).
+
+Stage Summary:
+- Conclusion clé : la LITTÉRATIE (pas la technologie) est la première barrière d'adoption — en CI, un funnel purement textuel exclut silencieusement ~4 femmes sur 10 ; la voix (TTS) et les pictogrammes passent en priorité de backlog.
+- Deuxième enseignement : côté B le CRM ne doit dépendre d'aucune saisie manuelle — la donnée doit arriver toute seule (diagnostic client, vente POS, commande boutique), ce que l'architecture actuelle fait déjà.
+- README et worklog alignés sur l'état réel (37 tâches de dev + étude 38) : les documents de base sont à jour.
+- Prochaines étapes candidates : TTS lecture des résultats → glossaire 1 tap → compression photo client → mode Pro allégé → OTP réel (OtpCode prêt) → paiements réels → export PDF liasse → portabilité données.

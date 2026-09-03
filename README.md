@@ -18,8 +18,8 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 
 ## Les trois espaces
 
-- **Cliente** (mobile-first, ≤ 430 px) : accueil, chatbot de triage (photo → VLM), diagnostic IA, jumeau 3D, route de l'or, historique/évolution, boutique + checkout Wave / Orange Money / Wallet Kènè (cashback), profil & wallet, prise de RDV avec acompte.
-- **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, CRM 360° avec fiche cliente (jumeau de peau agrégé, score RFM), catalogue soins/produits, POS (ticket SYSCOHADA), stock, paie CNPS CI / IPM SN, comptabilité (grand livre, OD, bilan).
+- **Cliente** (mobile-first, ≤ 430 px) : accueil, chatbot de triage (photo → VLM), diagnostic IA, jumeau 3D, route de l'or, historique/évolution, boutique + checkout Wave / Orange Money / Wallet Kènè (cashback), « Mes commandes », profil & wallet, prise de RDV avec acompte, cloche de notifications temps réel.
+- **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, CRM 360° avec fiche cliente (jumeau de peau agrégé, score RFM), catalogue soins/produits, POS (ticket SYSCOHADA), stock, paie CNPS CI / IPM SN, comptabilité (grand livre, OD, bilan) — badge & flux « En direct » (RDV, ventes, commandes) via socket.io.
 - **Admin** : multi-instituts, santé de la plateforme.
 
 ## Stack technique
@@ -30,6 +30,7 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 - **Zustand** (persist) pour l'état client, sonner pour les toasts
 - **3D** : @react-three/fiber + drei — rendu éprouvé en mode logiciel (DPR plafonné, `IntersectionObserver` → frameloop, refs mutables zéro re-render)
 - **IA** : VLM du SDK `z-ai-web-dev-sdk` (backend uniquement, via `src/lib/ai/vlm.ts`) pour le diagnostic photo et le triage chat
+- **Temps réel** : mini-service socket.io `mini-services/notify-service` (port 3004, relais sans logique métier) — cloche cliente `user:{id}` + badge institut `tenant:{id}` ; poussé par `notify()` et les API, poll 8 s + push, heartbeat anti-zombie ; le front passe par la gateway (`io('/?XTransformPort=3004')`)
 
 ## Palette & design tokens
 
@@ -58,8 +59,10 @@ src/
 │  │  │                    # CASHBACK_RATE, DEPOSIT_RATE, SEVERITY_STYLES
 │  │  ├─ evolution.ts      # agrégation historique + projection S+12
 │  │  ├─ rfm.ts / server.ts / api.ts / types.ts
-├─ stores/ (zustand) · prisma/ · db/
+└─ stores/ (zustand) · prisma/ · db/
 ```
+
+À côté de `src/` : `mini-services/notify-service/` — relais socket.io :3004 (temps réel cloche cliente + badge institut), consommé par le front via la gateway (`io('/?XTransformPort=3004')`).
 
 **Règles maison** (issues des phases précédentes) :
 1. Toute monnaie passe par `xof()` (mono + séparateurs fr-FR).
@@ -67,6 +70,30 @@ src/
 3. Les scènes 3D ne mutent rien qui dérive de props : état interne possédé, props lues et comparées ; couleurs d'instances re-uploadées seulement pendant les transitions.
 4. Chaque scène WebGL a un fallback (`#twin-static`, `#weave-static`, reduced-motion, WebGL absent).
 5. Perf en rendu logiciel : Lambert + normales plates, pas d'opacité, pas de MSAA, DPR ≤ 1,5, budget ~60 fps.
+
+## Utilisateurs & littératie — repères 2026
+
+Cœur de cible : femmes 20-45 peaux mélanodermes (Abidjan pilote, expansion UEMOA), prescriptrices jeunes, et côté B les instituts. En Côte d'Ivoire, l'alphabétisation des adultes reste partielle (~56 %, femmes ~47 %) et le français n'est la première langue de presque personne : **la lecture ne peut pas être le seul canal**.
+
+| Segment | Poids | Barrière principale | Garde produit Kènè |
+|---|---|---|---|
+| Digitale lettrée (18-35) | fort | Exigence d'expérience, churn silencieux | Intro skippable, vitesse, design soigné, cashback |
+| Semi-lettrée numérique (25-45) | le plus fort | Parcours multi-étapes, jargon, formulaires | Diagnostic photo d'abord (VLM, zéro saisie), libellés Léger/Moyen/Fort, checkout wallet en 1 geste |
+| Non-lectrice / illettrée | ~40 % des femmes selon zones | Tout texte = exclusion | Photo + (backlog) lecture vocale TTS, pictogrammes |
+| Rurale / petite data | fort hors villes | Coût data, téléphones d'entrée de gamme | Fallbacks 3D statiques (`#twin-static`, `#weave-static`) |
+| WhatsApp-first | dominant | Ne quitte pas WhatsApp | WhatsApp déjà canal (relances, commande) |
+| Méfiante (peur dépigmentation) | transverse | IA « qui juge la peau » = boîte noire | Résultats par indicateur explicites, aucune promesse d'éclaircissement, orientation dermato |
+| Gérante d'institut organisée | cœur B | — | CRM/caisse/compta complets |
+| Praticienne peu administrative | fréquent B | Saisie = friction → CRM vide | Peu de champs, données auto (diagnostic client, ventes POS, commandes) |
+
+Risques d'échec classés : 1) non-lectrices → funnel vide silencieux ; 2) pro non-saisissante → promesse 360° non tenue ; 3) méfiance → bad buzz possible ; 4) semi-lettrées → abandon en milieu de parcours ; 5) petites data → poids de l'app ; 6) digitales exigeantes → déception comparative.
+
+## Limites assumées (démo) & priorités
+
+- Paiements **simulés** (wallet interne + transactions) — intégration Wave Business / Orange Money à venir.
+- Connexion par sélecteur de démo — OTP réel prévu (modèle `OtpCode` déjà dans le schéma Prisma).
+- SQLite mono-fichier — passage Postgres prévu à l'échelle.
+- Backlog priorisé (étude utilisateurs) : lecture vocale TTS des résultats → glossaire 1 tap (PIH, sébum…) → compression photo côté client → mode saisie Pro allégé → langues locales audio (dioula, baoulé).
 
 ## Comptes de démonstration
 
