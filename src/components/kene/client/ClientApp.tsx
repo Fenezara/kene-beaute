@@ -1,9 +1,10 @@
 "use client";
 // Kènè Cliente — Shell applicatif plein écran, expérience type réseaux sociaux 2026
 // (Instagram / TikTok / Facebook) :
-//   • Mobile  : header glass (logo · cloche · chat) + flux plein cadre + tab-bar bas
+//   • Mobile (<md)  : header glass (logo · cloche · chat) + flux plein cadre + tab-bar bas
 //               5 onglets avec CTA « Scanner » central surélevé.
-//   • Tablette (lg) : sidebar icônes (façon Instagram web compacte) + colonne centrée.
+//   • Tablette (md+) : rail d'icônes 84 px (façon TikTok iPad / Instagram web compacte)
+//               + colonne centrée — l'écran large est exploité dès 768 px.
 //   • Desktop  (xl) : sidebar complète libellée + feed centré max 640 px + rail droit
 //               (mini-profil, actions rapides, mentions légales) — zéro espace perdu.
 // Le Fil de Kente (intro) et l'onboarding restent plein cadre, hors shell.
@@ -97,10 +98,10 @@ export function ClientApp() {
 
   return (
     <div className="h-dvh flex overflow-hidden bg-background">
-      {/* ───────── Sidebar desktop / tablette (lg+) ───────── */}
+      {/* ───────── Rail latéral tablette + desktop (md+) ───────── */}
       <aside
         aria-label="Navigation principale"
-        className="hidden lg:flex w-[84px] xl:w-[248px] shrink-0 flex-col border-r border-border bg-card/60 backdrop-blur"
+        className="hidden md:flex w-[84px] xl:w-[248px] shrink-0 flex-col border-r border-border bg-card/60 backdrop-blur"
       >
         <div className="h-16 flex items-center px-4 xl:px-5 border-b border-border/60">
           <span className="hidden xl:block">
@@ -123,7 +124,7 @@ export function ClientApp() {
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "group rounded-2xl transition-all focus-visible:outline-2 focus-visible:outline-primary",
-                    "xl:flex xl:items-center xl:gap-3 xl:px-3 xl:h-12 xl:bg-gradient-to-r xl:from-[#C8951E] xl:to-[#A0522D] xl:text-[#FFF9EC] xl:shadow-md xl:hover:shadow-lg",
+                    "xl:flex xl:flex-row xl:items-center xl:justify-start xl:gap-3 xl:px-3 xl:h-12 xl:bg-gradient-to-r xl:from-[#C8951E] xl:to-[#A0522D] xl:text-[#FFF9EC] xl:shadow-md xl:hover:shadow-lg",
                     "flex flex-col items-center gap-1 py-2.5",
                     active && "ring-2 ring-[#C8951E]/40 xl:ring-[#FFF9EC]/60",
                   )}
@@ -194,10 +195,10 @@ export function ClientApp() {
         {/* Header unique responsive : mobile = logo + actions ; desktop = titre + actions */}
         <header className="shrink-0 z-40 glass-kene border-b border-border/70">
           <div className="h-14 sm:h-16 flex items-center justify-between gap-2 px-3 sm:px-5">
-            <div className="lg:hidden">
+            <div className="md:hidden">
               <KeneLogo size={32} withText />
             </div>
-            <div className="hidden lg:flex items-baseline gap-2.5 min-w-0">
+            <div className="hidden md:flex items-baseline gap-2.5 min-w-0">
               <h1 className="font-heading font-bold text-lg xl:text-xl truncate">{TITLES[tab]}</h1>
               <p className="text-[11px] text-muted-foreground truncate hidden xl:block">
                 {tab === "accueil" ? `Bonjour ${first} ✨` : tab === "chat" ? "Éducation cutanée · en ligne" : "Kènè — la beauté mélanoderme"}
@@ -209,7 +210,7 @@ export function ClientApp() {
               <button
                 onClick={() => goTab("chat")}
                 aria-label={`Dr. Kènè — chat${chatUnread ? " — 1 nouveau message" : ""}`}
-                className="lg:hidden relative grid place-items-center h-11 w-11 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition focus-visible:outline-2 focus-visible:outline-primary"
+                className="md:hidden relative grid place-items-center h-11 w-11 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition focus-visible:outline-2 focus-visible:outline-primary"
               >
                 <MessageCircle size={21} />
                 {chatUnread && <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-background" aria-hidden="true" />}
@@ -222,7 +223,7 @@ export function ClientApp() {
 
         {/* Zone de flux — scroll interne (l'app ne scrolle jamais le document) */}
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pretty-scroll">
-          <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-28 lg:pb-10">
+          <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-28 md:pb-10">
             <AnimatePresence mode="wait">
               <motion.div
                 key={tab}
@@ -245,7 +246,7 @@ export function ClientApp() {
         {/* ───────── Tab-bar mobile (CTA scan central surélevé) ───────── */}
         <nav
           aria-label="Navigation principale mobile"
-          className="lg:hidden shrink-0 z-40 glass-kene border-t border-border/70 pb-[env(safe-area-inset-bottom)]"
+          className="md:hidden shrink-0 z-40 glass-kene border-t border-border/70 pb-[env(safe-area-inset-bottom)]"
         >
           <div className="grid grid-cols-5 h-[68px]">
             {NAV_MOBILE.map((n) => {

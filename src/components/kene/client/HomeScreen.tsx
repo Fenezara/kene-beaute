@@ -55,6 +55,16 @@ const ZONE_ICON: Record<BodyZone, React.ComponentType<{ className?: string }>> =
   naevi: CircleDot,
 };
 
+/** Libellé court des stories (2 lignes autorisées, façon Instagram) */
+const STORY_LABEL: Record<BodyZone, string> = {
+  visage: "Visage",
+  dos: "Dos",
+  cuir_chevelu: "Cuir chevelu",
+  mains: "Mains",
+  barbe: "Barbe",
+  naevi: "Grains de beauté",
+};
+
 export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }) {
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
@@ -205,7 +215,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
                     </span>
                   )}
                 </span>
-                <span className={`text-[10px] w-full text-center truncate ${covered ? "font-semibold" : "text-muted-foreground font-medium"}`}>{z.label}</span>
+                <span className={`text-[10px] w-full text-center leading-tight line-clamp-2 break-words min-h-[26px] ${covered ? "font-semibold" : "text-muted-foreground font-medium"}`}>{STORY_LABEL[z.id]}</span>
               </button>
             );
           })}

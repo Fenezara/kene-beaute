@@ -176,20 +176,20 @@ export function ProApp() {
   const activeLabel = NAV.find((n) => n.id === section)?.label ?? "";
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] min-h-screen flex flex-col lg:flex-row">
-      {/* ───────── Sidebar desktop ───────── */}
-      <aside className="hidden lg:flex w-[240px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground sticky top-0 self-start max-h-screen overflow-y-auto pretty-scroll">
-        <div className="p-4 pb-3">
-          <div className="flex items-center gap-2.5">
+    <div className="w-full min-h-screen flex flex-col md:flex-row">
+      {/* ───────── Rail sidebar tablette (md→lg icônes) / desktop (lg+ libellés) ───────── */}
+      <aside className="hidden md:flex w-[76px] lg:w-[240px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground sticky top-0 self-start max-h-screen overflow-y-auto pretty-scroll">
+        <div className="p-2.5 lg:p-4 lg:pb-3">
+          <div className="flex items-center justify-center lg:justify-start lg:gap-2.5">
             <KeneLogo size={36} withText={false} />
-            <div className="leading-tight">
+            <div className="hidden lg:block leading-tight">
               <p className="font-heading font-bold text-lg">Kènè <span className="text-sidebar-primary">Pro</span></p>
               <p className="text-[10px] uppercase tracking-[0.16em] text-sidebar-foreground/60">Gestion institut</p>
             </div>
           </div>
         </div>
 
-        <div className="px-4 pb-3">
+        <div className="hidden lg:block px-4 pb-3">
           <Select value={tid || undefined} onValueChange={(v) => setProTenantId(v)} disabled={tenantOptions.length <= 1}>
             <SelectTrigger className="w-full bg-sidebar-accent border-sidebar-border text-sidebar-foreground h-auto py-2" aria-label="Institut actif">
               <SelectValue placeholder="Institut…" />
@@ -231,7 +231,7 @@ export function ProApp() {
           </div>
         </div>
 
-        <nav aria-label="Navigation App Pro" className="flex-1 px-3 py-2 space-y-1">
+        <nav aria-label="Navigation App Pro" className="flex-1 px-1.5 lg:px-3 py-2 space-y-1">
           {NAV.map((item) => {
             const badge = navBadges[item.id];
             return (
@@ -240,15 +240,16 @@ export function ProApp() {
                 onClick={() => openSection(item.id)}
                 aria-current={section === item.id ? "page" : undefined}
                 aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
+                title={item.label}
                 className={cn(
-                  "w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-left transition-colors",
+                  "w-full flex items-center justify-center lg:justify-start gap-3 rounded-xl px-2 py-2.5 lg:px-3 lg:py-2.5 text-sm text-left transition-colors",
                   section === item.id
                     ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold shadow-sm"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 )}
               >
                 <item.icon className="size-4.5 shrink-0" />
-                <span className="min-w-0 truncate">{item.label}</span>
+                <span className="hidden lg:block min-w-0 truncate">{item.label}</span>
                 {badge ? (
                   <span
                     role="status"
@@ -257,33 +258,33 @@ export function ProApp() {
                     {badge}
                   </span>
                 ) : (
-                  section === item.id && <ChevronDown className="size-3.5 -rotate-90 opacity-70" aria-hidden="true" />
+                  section === item.id && <ChevronDown className="hidden lg:block size-3.5 -rotate-90 opacity-70" aria-hidden="true" />
                 )}
               </button>
             );
           })}
         </nav>
 
-        <div className="border-t border-sidebar-border p-4">
-          <div className="flex items-center gap-3">
+        <div className="border-t border-sidebar-border p-2.5 lg:p-4">
+          <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-3">
             <span
               aria-hidden="true"
               className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[11px] font-semibold text-[#FFF9EC]"
             >
               FK
             </span>
-            <div className="min-w-0 leading-tight">
+            <div className="hidden lg:block min-w-0 leading-tight">
               <p className="truncate text-sm font-medium">Fatou Koné</p>
               <p className="text-[11px] text-sidebar-foreground/60">Gérante — démo</p>
             </div>
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="lg:ml-auto flex items-center gap-1.5">
               <ThemeToggle />
             </div>
           </div>
-          <div className="px-4 pt-3">
+          <div className="hidden lg:block px-4 pt-3">
             <SpaceSwitcher />
           </div>
-          <p className="px-4 pt-3 pb-4 text-[10px] leading-relaxed text-sidebar-foreground/50">
+          <p className="hidden lg:block px-4 pt-3 pb-4 text-[10px] leading-relaxed text-sidebar-foreground/50">
             Kènè POC — paiements simulés · CNPS CI / IPM SN / SYSCOHADA
           </p>
         </div>
@@ -291,8 +292,8 @@ export function ProApp() {
 
       {/* ───────── Zone contenu ───────── */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Nav mobile — chips scrollables */}
-        <div className="lg:hidden border-b border-border bg-card/70">
+        {/* Nav mobile — chips scrollables (uniquement <md) */}
+        <div className="md:hidden border-b border-border bg-card/70">
           <nav aria-label="Navigation App Pro (mobile)" className="flex gap-1.5 overflow-x-auto no-scrollbar px-3 py-2.5">
             {NAV.map((item) => {
               const badge = navBadges[item.id];
@@ -321,7 +322,7 @@ export function ProApp() {
         </div>
 
         <div className="p-3 sm:p-5 lg:p-6 flex-1 min-w-0">
-          {/* En-tête mobile */}
+          {/* En-tête compact mobile + tablette (rail icônes md→lg sans libellés) */}
           <div className="lg:hidden mb-4 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -341,7 +342,7 @@ export function ProApp() {
             <KeneLogo size={30} withText={false} />
             <div className="flex items-center gap-1.5">
               <ThemeToggle />
-              <span className="md:hidden">
+              <span className="lg:hidden">
                 <SpaceSwitcher />
               </span>
             </div>

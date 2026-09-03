@@ -878,3 +878,28 @@ Stage Summary:
 - Feed d'accueil « réseaux sociaux » : stories de zones scannables en 1 tap, score multi-zones avec TTS, légal en fin de fil.
 - Pro/Admin deviennent autonomes (ThemeToggle + SpaceSwitcher intégrés, offsets racine corrigés).
 - Aucune API modifiée : refonte 100 % présentation. Backlog inchangé : OTP réel, paiements Wave/OM, portabilité RGPD, langues locales, pictogrammes.
+---
+Task ID: 46
+Agent: Z.ai Code (principal)
+Task: « Regarde » (captures utilisateur avant/après) — audit E2E complet de la refonte plein écran sur les 3 formats + finitions tablette « app 2026 ».
+
+Contexte :
+- L'utilisateur a envoyé 2 captures : PC 19h55 (espace Pro AVANT la t. 45 — header rôle + chips, écran non rempli) et mobile 21h32 (APRÈS — shell social valide). La refonte t. 45 était donc bien déployée ; il restait à auditer + parfaire la tablette, signalée « vue téléphone étirée » par mon audit VLM.
+
+Work Log:
+- Audit E2E complet via gateway :81 (agent-browser + VLM glm-5v, Mariam démo) :
+  - DESKTOP 1440×900 : Cliente = sidebar 248 px + feed 640 + rail droit 320 (VLM « polished, fills screen, no dead space ») ; Pro = sidebar 240 + KPI 6 col + graphiques pleine largeur (« Excellent ») ; Admin = console centrée propre.
+  - MOBILE 390×844 : tab-bar 5 onglets + CTA Scanner surélevé, stories, feed plein cadre ✓.
+  - TABLETTE 768×1024 : DIAGNOSTIC « vue téléphone étirée » (tab-bar + colonne unique) → à corriger ; Pro = chips horizontales (truncation « Promos ») → à corriger.
+- TABLETTE CLIENTE (ClientApp.tsx) : le rail d'icônes 84 px passe de lg (1024) à **md (768)** — tab-bar bas + logo mobile + bouton chat header deviennent `md:hidden` (mobile uniquement), padding flux `pb-28 md:pb-10` → façon TikTok iPad dès 768 px.
+- TABLETTE PRO (ProApp.tsx) : sidebar → **rail d'icônes 76 px de md à lg** (`w-[76px] lg:w-[240px]`), libellés/badges chips `hidden lg:block`, boutons nav centrés `justify-center lg:justify-start` + `title` natif au survol ; chips horizontales et en-tête compact deviennent `<md seulement ; en-tête compact garde tenant + section + En direct + bascules jusqu'à lg ; suppression du conteneur max-w-1600 → pleine largeur native.
+- STORIES (HomeScreen.tsx) : libellés story dédiés `STORY_LABEL` (naevi → « Grains de beauté ») + `line-clamp-2 leading-tight break-words min-h-[26px]` au lieu de `truncate` — plus aucun libellé coupé (« Navl… » signalé par VLM).
+- BUG VISUEL CORRIGÉ (repéré par zoom VLM + getComputedStyle) : bouton Scanner de la sidebar Cliente restait `flex-col` en xl (il manquait `xl:flex-row`) → le libellé débordait sous le dégradé et était illisible ; fix + vérif DOM `dir:row, h:48` + VLM « Scanner clairement lisible ».
+- Vérifications : tsc --noEmit 0 erreur src/ ; bun run lint 0 problème ; dev.log uniquement 200 ; console navigateur 0 erreur.
+- E2E final 3 formats × 3 espaces : Cliente tablette = rail + feed (VLM « successful ») ; Pro tablette = rail 76 px + KPI 3 col (« Present and Correct ») ; mobile Cliente (tab-bar, Boutik 2 col « polished ») ; mobile Pro (chips + en-tête compact) ; notifications sheet (4 non lues, À VENIR/REÇUES) ; bascules d'espaces via Profil (mobile) et sidebar/rail (md+).
+- Captures : .proofs/task46-{desktop-accueil,desktop-pro,desktop-admin,desktop-v3,mobile-accueil,mobile-v2,mobile-boutik,mobile-notifs,mobile-pro-v2,tablet-accueil,tablet-client-v2,tablet-pro2,tablet-pro-v3}.png
+
+Stage Summary:
+- Les 3 espaces × 3 formats remplissent désormais l'écran selon les patterns 2026 : mobile = tab-bar (Cliente) / chips (Pro) ; tablette = rail d'icônes verticales dès 768 px (TikTok iPad) ; desktop = sidebar libellée + feed centré + rail droit (Instagram web).
+- La capture « avant » de l'utilisateur (19h55) est bien l'ancien état ; la capture mobile (21h32) confirmait le nouveau shell — ce qui restait à parfaire (tablette, stories, libellé xl) est fait et vérifié.
+- Aucune API touchée (100 % présentation). Backlog inchangé : OTP réel, paiements Wave/OM, portabilité RGPD, langues locales, pictogrammes.
