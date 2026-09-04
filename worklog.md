@@ -1094,3 +1094,22 @@ Stage Summary:
 - Normes 2026 : conformité AA maintenant mesurée en direct (gradient-aware) sur 6 écrans × 2 thèmes — 0 échec résiduel ; cibles tactiles 100 % ≥ 40px (skip-link sr-only excepté, conforme WCAG 2.5.8).
 - Production : le « je ne vois rien » récurrent = OOM kill du next-server (2,3 Go / 3,9 Go RAM sandbox, 0 swap) — mitigé par redémarrage ; surveillance recommandée.
 - Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.
+
+---
+Task ID: 57
+Agent: Z.ai Code (principal)
+Task: « Rien n'a changé, toujours les mêmes choses » — les correctifs 55/56 (contraste, cibles, gestes) étant invisibles à l'œil, appliquer une refonte VISIBLE du shell Cliente aux standards visuels 2026 (Instagram/TikTok).
+
+Work Log:
+- Diagnostic : les t. 55/56 étaient des correctifs de conformité (contraste, tailles tactiles, gestes) — réels mais imperceptibles au premier regard ; l'utilisateur attendait une différence VISIBLE.
+- globals.css : .glass-kene blur 10→16 px + opacité 78→80 % ; nouvelle classe .kente-text (dégradé gold-text→terre→bissap, background-clip:text, AA grand texte 4,99:1 light / 6,9:1 dark).
+- DÉCOUVERTE : le compilateur (Lightning CSS) SUPPRIME silencieusement backdrop-filter des règles custom (.glass-kene n'a JAMAIS eu de flou réel — bg translucide seul) → correctif : classes Tailwind natives backdrop-blur-[16px] ajoutées aux 4 sites (header, indicateur pull, pilule, footer Route de l'Or) — blur(16px) vérifié en computed style.
+- ClientApp.tsx : tab-bar mobile re-conçue en PILULE FLOTTANTE — nav absolute bottom + pointer-events-none (gestes swipe préservés sous la barre), pilule glass mx-3 mb-2.5 h-16 rounded-[26px] shadow profonde, CTA Scanner -mt-7 (50 px, déborde du bord haut), blob actif bg-primary/15 + icône scale 1.12 spring, pastille panier repositionnée ; pb-28→pb-36 du flux (contenu jamais masqué) ; colonne principale relative.
+- HomeScreen.tsx : prénom « Mariam » en .kente-text (text-2xl) ; stories couvertes → anneaux CONIC (couleur score + balayage or #C8951E — pattern Instagram) ; carte score → héro dégradé from-card via-card to-primary/8, rounded-[26px], ombre portée douce.
+- Vérifications E2E (agent-browser, 390×844 + 1440×900, gateway :81) : pilule x=12/w=366/h=64/radius 26/bottom 834 — flotte ; CTA top 762 (déborde de 8 px) ; anneau conique + héro dégradé + kente-text clip:text en computed styles ✓ ; blur 16 px actif pilule + header ✓ ; 5 cibles onglets 73×62 ✓ ; 40 boutons, seul <40 px = skip-link sr-only ; navigation onglets testée (Boutik→catalogue, retour Accueil) ; desktop sans régression (nav masquée, rail présent, h1 Accueil) ; 0 erreur console ; lint 0 problème ; tsc 0 erreur src/.
+- Captures : .proofs/task57-{mobile-light,mobile-dark,desktop}.png
+
+Stage Summary:
+- Le shell Cliente est désormais VISUELLEMENT 2026 : pilule de verre flottante (vraie translucidité + vrai flou — le flou n'avait jamais fonctionné), anneaux de stories coniques, héro en dégradé, prénom en dégradé kente, blob actif animé sur les onglets.
+- Fond de bug corrigé : Lightning CSS strip backdrop-filter des règles custom — règle maison : toujours doubler d'une classe Tailwind backdrop-blur-* pour les surfaces verre.
+- Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.

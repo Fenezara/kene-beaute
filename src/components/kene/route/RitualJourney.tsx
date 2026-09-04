@@ -416,7 +416,7 @@ export function RitualJourney({
       </div>
 
       {/* footer navigation */}
-      <footer className="shrink-0 border-t border-border/70 glass-kene px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
+      <footer className="shrink-0 border-t border-border/70 glass-kene backdrop-blur-[16px] px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
         <div className="flex gap-2.5">
           {step > 0 && (
             <button

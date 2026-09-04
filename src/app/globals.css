@@ -223,8 +223,16 @@
     background-size: 18px 18px;
   }
   .glass-kene {
-    background: color-mix(in srgb, var(--card) 78%, transparent);
-    backdrop-filter: blur(10px);
+    background: color-mix(in srgb, var(--card) 80%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  /* Texte dégradé kente (prénom, titres héro — texte large ≥ 3:1) */
+  .kente-text {
+    background-image: linear-gradient(105deg, var(--gold-text) 0%, var(--terre) 52%, var(--bissap) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
   /* Heatmap spectrale pour vues VISIA-like */
   .heatmap-pigment {

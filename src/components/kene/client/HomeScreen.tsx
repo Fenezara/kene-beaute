@@ -173,7 +173,7 @@ export function HomeScreen({
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.16em] text-primary font-semibold">Bonjour</p>
-          <h2 className="font-heading font-black text-xl leading-tight truncate">{first} ✨</h2>
+          <h2 className="font-heading font-black text-2xl leading-tight truncate"><span className="kente-text">{first}</span> ✨</h2>
           <p className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
             <MapPin size={11} /> {user.city || "Abidjan"} · {user.fitzpatrick ? `Fitzpatrick ${user.fitzpatrick}` : "Phototype à définir"}
           </p>
@@ -212,10 +212,18 @@ export function HomeScreen({
                 className="shrink-0 w-[68px] flex flex-col items-center gap-1.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary rounded-xl"
               >
                 <span
-                  className="relative grid place-items-center h-[66px] w-[66px] rounded-full bg-card shadow-sm active:scale-95 transition-transform"
-                  style={covered ? { boxShadow: `0 0 0 3px ${color}` } : { border: "2.5px dashed var(--border)" }}
+                  className="relative grid place-items-center h-[66px] w-[66px] rounded-full p-[3px] active:scale-95 transition-transform shadow-md"
+                  style={
+                    covered
+                      ? { background: `conic-gradient(from 210deg, ${color} 0%, ${color} 45%, #C8951E 68%, ${color} 100%)` }
+                      : undefined
+                  }
                 >
-                  <Icon className={covered ? "text-foreground/80" : "text-muted-foreground"} />
+                  <span
+                    className={`grid place-items-center h-full w-full rounded-full bg-background ${covered ? "" : "border-[2.5px] border-dashed border-border"}`}
+                  >
+                    <Icon className={covered ? "text-foreground/80" : "text-muted-foreground"} />
+                  </span>
                   {!covered && (
                     <span className="absolute -bottom-0.5 -right-0.5 grid place-items-center h-6 w-6 rounded-full bg-primary text-primary-foreground border-2 border-background">
                       <Plus size={13} strokeWidth={2.5} />
@@ -223,7 +231,7 @@ export function HomeScreen({
                   )}
                   {covered && (
                     <span
-                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-px font-mono text-[10px] font-bold tabular-nums"
+                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-px font-mono text-[10px] font-bold tabular-nums shadow-sm"
                       style={{ backgroundColor: color, color: readableTextColor(color) }}
                     >
                       {d!.scoreGlobal}
@@ -240,7 +248,7 @@ export function HomeScreen({
       {err && <p className="rounded-xl bg-destructive/10 text-destructive text-xs p-3">{err}</p>}
 
       {/* ───── Carte score multi-zones (avec lecture vocale) ───── */}
-      <section aria-labelledby="sc-t" className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
+      <section aria-labelledby="sc-t" className="rounded-[26px] border border-border/70 overflow-hidden shadow-[0_18px_44px_-18px_rgba(28,17,9,0.28)] bg-gradient-to-br from-card via-card to-primary/[0.08]">
         <div className="kente-band h-1.5 w-full" aria-hidden="true" />
         <div id="sc-t" className="p-5">
           {!data ? (

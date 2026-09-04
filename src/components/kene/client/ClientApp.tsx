@@ -298,9 +298,9 @@ export function ClientApp() {
       </aside>
 
       {/* ───────── Colonne principale ───────── */}
-      <div className="flex-1 min-w-0 flex flex-col h-full">
+      <div className="relative flex-1 min-w-0 flex flex-col h-full">
         {/* Header unique responsive : mobile = logo + actions ; desktop = titre + actions */}
-        <header className="shrink-0 z-40 glass-kene border-b border-border/70">
+        <header className="shrink-0 z-40 glass-kene backdrop-blur-[16px] border-b border-border/70">
           <div className="h-14 sm:h-16 flex items-center justify-between gap-2 px-3 sm:px-5">
             <div className="md:hidden">
               <KeneLogo size={32} withText />
@@ -356,7 +356,7 @@ export function ClientApp() {
                 transition: pull > 0 ? "none" : "transform .3s ease",
               }}
             >
-              <span className="grid place-items-center h-11 w-11 rounded-full glass-kene border border-border shadow-md">
+              <span className="grid place-items-center h-11 w-11 rounded-full glass-kene backdrop-blur-[16px] border border-border shadow-md">
                 {refreshing ? (
                   <Loader2 size={20} className="animate-spin text-primary" />
                 ) : (
@@ -366,7 +366,7 @@ export function ClientApp() {
             </div>
           )}
           {refreshing && <span role="status" className="sr-only">Actualisation du fil en cours</span>}
-          <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-28 md:pb-10">
+          <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-36 md:pb-10">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={tab}
@@ -386,12 +386,12 @@ export function ClientApp() {
           </div>
         </div>
 
-        {/* ───────── Tab-bar mobile (CTA scan central surélevé) ───────── */}
+        {/* ───────── Tab-bar mobile flottante — pilule de verre 2026 (façon Instagram/TikTok) ───────── */}
         <nav
           aria-label="Navigation principale mobile"
-          className="md:hidden shrink-0 z-40 glass-kene border-t border-border/70 pb-[env(safe-area-inset-bottom)]"
+          className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom)]"
         >
-          <div className="grid grid-cols-5 h-[68px]">
+          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-5 h-[64px] rounded-[26px] glass-kene backdrop-blur-[16px] border border-border/60 shadow-[0_14px_38px_-10px_rgba(28,17,9,0.42)]">
             {NAV_MOBILE.map((n) => {
               const active = tab === n.tab;
               const Icon = n.icon;
@@ -402,15 +402,15 @@ export function ClientApp() {
                     onClick={() => goTab(n.tab)}
                     aria-current={active ? "page" : undefined}
                     aria-label="Scanner ma peau — diagnostic IA"
-                    className="relative flex flex-col items-center justify-end pb-1.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+                    className="relative flex flex-col items-center justify-end pb-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
                   >
                     <span
                       className={cn(
-                        "grid place-items-center h-[52px] w-[52px] -mt-6 rounded-full border-4 border-background shadow-lg transition-all active:scale-95",
+                        "grid place-items-center h-[50px] w-[50px] -mt-7 rounded-full border-4 border-background shadow-lg transition-all active:scale-95",
                         "bg-gradient-to-br from-[#A0522D] to-[#8B1A3B]",
                       )}
                     >
-                      <NeaOnnimIcon size={24} />
+                      <NeaOnnimIcon size={23} />
                     </span>
                     <span className={cn("text-[10px] font-semibold mt-0.5", active ? "text-primary" : "text-muted-foreground")}>Scanner</span>
                   </button>
@@ -427,22 +427,25 @@ export function ClientApp() {
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 >
-                  <span className="relative">
-                    <Icon className={active ? "size-[23px] font-bold" : "size-[23px]"} />
+                  <motion.span
+                    animate={active ? { scale: 1.12 } : { scale: 1 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 22 }}
+                    className={cn("relative grid place-items-center rounded-full p-1.5 transition-colors", active && "bg-primary/15")}
+                  >
+                    <Icon className="size-[22px]" />
                     {n.tab === "boutique" && cartCount > 0 && (
                       <motion.span
                         key={cartCount}
                         initial={{ scale: 0.4 }}
                         animate={{ scale: 1 }}
                         transition={{ type: "spring", stiffness: 500, damping: 18 }}
-                        className="absolute -top-1.5 -right-2 h-4 min-w-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-black grid place-items-center ring-2 ring-background" aria-hidden="true"
+                        className="absolute -top-1 -right-1.5 h-4 min-w-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-black grid place-items-center ring-2 ring-background" aria-hidden="true"
                       >
                         {cartCount}
                       </motion.span>
                     )}
-                  </span>
+                  </motion.span>
                   <span className={cn("text-[10px]", active ? "font-bold" : "font-semibold")}>{n.label}</span>
-                  {active && <motion.span layoutId="tab-dot" className="absolute bottom-1.5 h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />}
                 </button>
               );
             })}
