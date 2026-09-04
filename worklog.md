@@ -1156,3 +1156,24 @@ Stage Summary:
 - Réponse : OUI, l'écran est 100 % normal. C'est l'écran de connexion attendu quand aucune session n'est active dans le navigateur de l'utilisatrice (déconnexion, cache vidé ou nouveau contexte navigateur).
 - Le numéro gris = placeholder d'exemple ; le badge « POC démo » et le lien Mariam = marqueurs de démo intentionnels ; la session persiste en localStorage une fois connectée.
 - Parcours de connexion revalidé E2E de bout en bout (intro → login → démo → accueil), aucune erreur.
+
+---
+Task ID: 59
+Agent: Main (Z.ai Code)
+Task: Audit honnête « tout ce qui doit exister dans une meilleure application 2026 est-il implémenté ? »
+
+Work Log:
+- Inventaire complet : 17 écrans clients + 12 sections Pro + Admin, 15 groupes d'API, mini-service socket.io :3004
+- Vérifié PWA : aucun manifest.json, aucun service worker → NON installable
+- Vérifié offline : simple listener online/offline (indicateur réseau), pas de cache hors-ligne
+- Vérifié Web Push : socket.io ne fonctionne que app ouverte, pas de Push API
+- Vérifié questionnaire métier : IMPLÉMENTÉ (src/lib/kene/questionnaire.ts, ~questions moteur scoring, fusion questionnaire±VLM, UI Pro DiagnosticsSection 4 étapes) — le backlog était obsolète
+- Vérifié i18n : interface 100 % français, langues locales (dy/bq/bt) couvertes uniquement en TTS résumés
+- Vérifié sécurité : pas de rate limiting API (429), pas de 2FA/WebAuthn
+- Vérifié RGPD export : /api/profile/export OK
+- Vérifié lazy loading : imports statiques de tous les écrans dans ClientApp (bundle unique)
+- Favoris/wishlist produits : absents
+
+Stage Summary:
+- Réponse à l'utilisateur : cœur fonctionnel riche et conforme 2026 (IA multi-zones, questionnaire métier, TTS 4 langues, WCAG AA, temps réel, RGPD export), MAIS 6 manques identifiés vs le standard 2026 : (1) PWA installable (manifest+SW+icônes) le plus critique, (2) cache offline réel, (3) Web Push hors app, (4) i18n UI locale, (5) favoris, (6) rate-limit/2FA. Paiements/SMS réels restent simulés (POC assumé, dépend de comptes externes).
+- Backlog corrigé : item « questionnaire diagnostic » = DÉJÀ FAIT (à retirer du backlog).
