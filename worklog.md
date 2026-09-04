@@ -1113,3 +1113,26 @@ Stage Summary:
 - Le shell Cliente est désormais VISUELLEMENT 2026 : pilule de verre flottante (vraie translucidité + vrai flou — le flou n'avait jamais fonctionné), anneaux de stories coniques, héro en dégradé, prénom en dégradé kente, blob actif animé sur les onglets.
 - Fond de bug corrigé : Lightning CSS strip backdrop-filter des règles custom — règle maison : toujours doubler d'une classe Tailwind backdrop-blur-* pour les surfaces verre.
 - Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.
+
+---
+Task ID: 58
+Agent: Z.ai Code (principal)
+Task: « Je ne suis satisfait de tout » — critique VLM sans complaisance de l'accueil + refonte visuelle profonde des éléments datés.
+
+Work Log:
+- Méthode : captures réelles 390×844 → critique par IA vision (z-ai vision, prompt « directeur artistique exigeant, standard 2026, critique brutale ») → corrections ciblées → re-critique comparative.
+- Critique VLM initiale (verbatim clé) : « exécution 2022-2023, corporate beige » ; bande kente multicolore = « drapeau appliqué arbitrairement, bruyant et cheap » ; prénom serif = « WordArt 2005, clash daté » ; bouton audio = « Windows 95, trop lourd » ; densité = « desktop shrinké » ; labels stories trop petits.
+- Corrections appliquées (5 fichiers) :
+  1. globals.css : .kente-band et .kente-band-soft transformés de repeating-linear-gradient segments durs (6 couleurs drapeau) en dégradé tonal CONTINU 100deg or→terre→bissap→or — impact global immédiat sur les 10 composants qui l'utilisent (ClientApp header, DiagnosticScreen, ShopScreen, ProfileScreen, Onboarding, RitualJourney, AdminApp, pro/ui-bits, KenteWeaveCard, KenteIntro).
+  2. HomeScreen : prénom serif font-heading → font-black sans-serif 26px tracking-tight (dégradé kente-text conservé) ; CTA « Scanner ma peau » titre serif → sans-serif black ; espacement sections gap-5→gap-6 ; carte score p-5→p-6, bande kente h-1.5→h-[3px] tonale, séparateur border-t avant VoiceNarration (respiration) ; labels stories 10→11px.
+  3. VoiceNarration : bouton « Écouter le résumé » re-stylé 2 fois (itération VLM comparée) — final : pilule full rounded-full, bg-primary solide (primaire assumé — la 1re version tonale /12 a été rejetée par la 2e passe VLM « ressemble désactivé »), sans serif, ombre douce colorée 26px -12px au lieu de shadow-md dur.
+- Itération VLM mesure : critique initiale « 2022-2023 corporate » → 2e passe comparative → 3e passe « 7,5/10, palette maîtrisée, hiérarchie lisible » (restes : aération — corrigée p-6 + séparateur ; preuve sociale — backlog UX ; hiérarchie stories — rings score déjà différenciés).
+- OOM kill #2 du next-server pendant la session (dmesg pid 1544, 1,94 Go RSS) → redémarrage, services 200, E2E re-validé.
+- Vérifications finales : contraste 0 échec (150 textes gradient-aware light), 47 boutons seul <40px = skip-link sr-only, lint 0 problème, tsc 0 erreur src/, 0 erreur console.
+- Captures : .proofs/task58-{avant,apres,home-final,boutique,profil}.png
+
+Stage Summary:
+- Éléments « datés » supprimés : plus aucune bande drapeau à segments (dégradés tonals partout via le seul globals.css), plus de serif sur prénom/CTA audio, boutons lourds remplacés par pilules à ombre douce.
+- Processus reproductible établi : capture → critique VLM → correction → re-critique — l'app peut être notée objectivement à chaque itération.
+- Le VLM confirme la progression (palette « maîtrisée », « cohérente ») ; restes identifiés pour itération suivante : preuve sociale/avis dans le feed, mise en avant de la meilleure zone.
+- Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.

@@ -168,12 +168,12 @@ export function HomeScreen({
   const first = user.name.split(" ")[0];
 
   return (
-    <div className="flex flex-col gap-5 pt-1">
+    <div className="flex flex-col gap-6 pt-1">
       {/* ───── Salutation ───── */}
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.16em] text-primary font-semibold">Bonjour</p>
-          <h2 className="font-heading font-black text-2xl leading-tight truncate"><span className="kente-text">{first}</span> ✨</h2>
+          <h2 className="font-black text-[26px] leading-tight tracking-tight truncate"><span className="kente-text">{first}</span> ✨</h2>
           <p className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
             <MapPin size={11} /> {user.city || "Abidjan"} · {user.fitzpatrick ? `Fitzpatrick ${user.fitzpatrick}` : "Phototype à définir"}
           </p>
@@ -238,7 +238,7 @@ export function HomeScreen({
                     </span>
                   )}
                 </span>
-                <span className={`text-[10px] w-full text-center leading-tight line-clamp-2 break-words min-h-[26px] ${covered ? "font-semibold" : "text-muted-foreground font-medium"}`}>{STORY_LABEL[z.id]}</span>
+                <span className={`text-[11px] w-full text-center leading-tight line-clamp-2 break-words min-h-[26px] ${covered ? "font-semibold" : "text-muted-foreground font-medium"}`}>{STORY_LABEL[z.id]}</span>
               </button>
             );
           })}
@@ -249,8 +249,8 @@ export function HomeScreen({
 
       {/* ───── Carte score multi-zones (avec lecture vocale) ───── */}
       <section aria-labelledby="sc-t" className="rounded-[26px] border border-border/70 overflow-hidden shadow-[0_18px_44px_-18px_rgba(28,17,9,0.28)] bg-gradient-to-br from-card via-card to-primary/[0.08]">
-        <div className="kente-band h-1.5 w-full" aria-hidden="true" />
-        <div id="sc-t" className="p-5">
+        <div className="kente-band h-[3px] w-full" aria-hidden="true" />
+        <div id="sc-t" className="p-6">
           {!data ? (
             <div className="flex items-center gap-4">
               <Skeleton className="h-[130px] w-[130px] rounded-full" />
@@ -287,7 +287,7 @@ export function HomeScreen({
                 </div>
                 {/* Lecture vocale du dernier diagnostic (accès non-lectrices) */}
                 {lastResult && (
-                  <div className="mt-3">
+                  <div className="mt-5 pt-4 border-t border-border/60">
                     <VoiceNarration result={lastResult} userName={user.name} />
                   </div>
                 )}
@@ -336,7 +336,7 @@ export function HomeScreen({
             <NeaOnnimIcon size={30} />
           </span>
           <span className="text-left">
-            <span className="block font-heading font-black text-lg leading-tight">Scanner ma peau</span>
+            <span className="block font-black text-lg tracking-tight">Scanner ma peau</span>
             <span className="block text-[11px] opacity-90">Analyse IA VISIA-like · 6 zones · 30 s</span>
           </span>
           <ChevronRight size={22} className="ml-auto opacity-80" aria-hidden="true" />

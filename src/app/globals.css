@@ -196,25 +196,27 @@
 }
 
 @layer utilities {
-  /* Bande Kente — arrière-plan headers (max 5-10% surface) */
+  /* Bande Kente — arrière-plan headers (max 5-10% surface).
+     2026 : dégradé tonal CONTINU or→terre→bissap (l'identité sans la cacophonie
+     des segments durs façon drapeau) ; kente-band-soft garde le tissage discret
+     pour les surfaces secondaires. */
   .kente-band {
-    background-image: repeating-linear-gradient(
-      90deg,
-      var(--gold) 0 14px,
-      var(--terre) 14px 22px,
-      var(--melanine) 22px 30px,
-      var(--success) 30px 36px,
-      var(--bissap) 36px 44px,
-      var(--karite) 44px 52px
+    background-image: linear-gradient(
+      100deg,
+      var(--gold) 0%,
+      var(--terre) 38%,
+      var(--bissap) 62%,
+      var(--terre) 82%,
+      var(--gold) 100%
     );
   }
   .kente-band-soft {
-    background-image: repeating-linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--gold) 55%, transparent) 0 18px,
-      color-mix(in srgb, var(--terre) 45%, transparent) 18px 30px,
-      color-mix(in srgb, var(--success) 35%, transparent) 30px 42px,
-      color-mix(in srgb, var(--bissap) 30%, transparent) 42px 54px
+    background-image: linear-gradient(
+      100deg,
+      color-mix(in srgb, var(--gold) 55%, transparent) 0%,
+      color-mix(in srgb, var(--terre) 40%, transparent) 40%,
+      color-mix(in srgb, var(--bissap) 32%, transparent) 65%,
+      color-mix(in srgb, var(--gold) 45%, transparent) 100%
     );
   }
   /* Micro-points Bogolan — filigrane fonds */

@@ -97,7 +97,7 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
             ? `Arrêter la lecture vocale du diagnostic (${langLabel})`
             : `Écouter le résumé vocal du diagnostic (${langLabel})`
         }
-        className="h-12 w-full rounded-2xl bg-primary text-primary-foreground font-heading font-bold text-sm shadow-md flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60"
+        className="h-12 w-full rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-[0_10px_26px_-12px_rgba(143,102,13,0.6)] flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60"
       >
         {state === "playing" ? (
           <>
