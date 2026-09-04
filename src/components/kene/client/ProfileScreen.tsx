@@ -150,7 +150,7 @@ export function ProfileScreen() {
 
   return (
     <div className="pt-4 pb-2 flex flex-col gap-6">
-      <button onClick={() => setClientTab("accueil")} className="self-start inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour accueil">
+      <button onClick={() => setClientTab("accueil")} className="self-start inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label="Retour accueil">
         <ArrowLeft size={15} /> Accueil
       </button>
 
@@ -210,7 +210,7 @@ export function ProfileScreen() {
             <p className="text-[11px] font-semibold text-muted-foreground mb-2">Type de peau</p>
             <div className="flex flex-wrap gap-1.5">
               {SKIN_TYPES.map((t) => (
-                <button key={t.id} onClick={() => setSkinType(t.id)} aria-pressed={skinType === t.id} className={`rounded-full px-3 py-1.5 text-xs font-medium active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${skinType === t.id ? "bg-primary text-primary-foreground" : "border border-border"}`}>{t.label}</button>
+                <button key={t.id} onClick={() => setSkinType(t.id)} aria-pressed={skinType === t.id} className={`rounded-full px-3 min-h-10 text-xs font-medium active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${skinType === t.id ? "bg-primary text-primary-foreground" : "border border-border"}`}>{t.label}</button>
               ))}
             </div>
           </div>
@@ -218,7 +218,7 @@ export function ProfileScreen() {
             <p className="text-[11px] font-semibold text-muted-foreground mb-2">Objectifs</p>
             <div className="flex flex-wrap gap-1.5">
               {SKIN_GOALS.map((g) => (
-                <button key={g.id} onClick={() => setGoals((s) => (s.includes(g.id) ? s.filter((x) => x !== g.id) : [...s, g.id]))} aria-pressed={goals.includes(g.id)} className={`rounded-full px-3 py-1.5 text-xs font-medium active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${goals.includes(g.id) ? "bg-primary text-primary-foreground" : "border border-border"}`}>{g.label}</button>
+                <button key={g.id} onClick={() => setGoals((s) => (s.includes(g.id) ? s.filter((x) => x !== g.id) : [...s, g.id]))} aria-pressed={goals.includes(g.id)} className={`rounded-full px-3 min-h-10 text-xs font-medium active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${goals.includes(g.id) ? "bg-primary text-primary-foreground" : "border border-border"}`}>{g.label}</button>
               ))}
             </div>
           </div>
@@ -259,14 +259,14 @@ export function ProfileScreen() {
               const credit = t.type === "credit";
               return (
                 <div key={t.id} className="flex items-center gap-3 px-4 py-3">
-                  <span className={`grid place-items-center h-8 w-8 rounded-full shrink-0 ${credit ? "bg-[#3F7D3F]/15 text-[#3F7D3F]" : "bg-[#8B1A3B]/10 text-[#8B1A3B]"}`}>
+                  <span className={`grid place-items-center h-8 w-8 rounded-full shrink-0 ${credit ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
                     {credit ? <ArrowDownLeft size={15} /> : <ArrowUpRight size={15} />}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold">{REASON_LABELS[t.reason] ?? t.reason}</p>
                     <p className="text-[10px] text-muted-foreground">{formatDate(t.createdAt, { day: "numeric", month: "short", year: "2-digit" })}</p>
                   </div>
-                  <span className={`font-mono text-sm font-bold ${credit ? "text-[#3F7D3F]" : "text-[#8B1A3B]"}`}>
+                  <span className={`font-mono text-sm font-bold ${credit ? "text-success" : "text-destructive"}`}>
                     {credit ? "+" : "−"}{xof(t.amount)}
                   </span>
                 </div>
@@ -281,12 +281,12 @@ export function ProfileScreen() {
 
       {/* Consentement */}
       <section aria-labelledby="cons-t" className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3">
-        <ShieldCheck size={20} className={user.consentHealth ? "text-[#3F7D3F]" : "text-destructive"} />
+        <ShieldCheck size={20} className={user.consentHealth ? "text-success" : "text-destructive"} />
         <div className="flex-1">
           <p className="text-xs font-semibold">Consentement données santé</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">{user.consentHealth ? "Accordé — photos et diagnostics utilisés uniquement pour tes analyses." : "Non accordé — requis pour le diagnostic IA."}</p>
         </div>
-        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${user.consentHealth ? "bg-[#3F7D3F]/15 text-[#3F7D3F]" : "bg-destructive/10 text-destructive"}`}>
+        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${user.consentHealth ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
           {user.consentHealth ? "Actif" : "Inactif"}
         </span>
       </section>

@@ -239,7 +239,7 @@ export function ShopScreen() {
             role="tab"
             aria-selected={cat === c.id}
             onClick={() => setCat(c.id)}
-            className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${cat === c.id ? "bg-primary text-primary-foreground shadow" : "border border-border bg-card text-foreground/80"}`}
+            className={`shrink-0 rounded-full px-3.5 min-h-10 text-xs font-semibold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${cat === c.id ? "bg-primary text-primary-foreground shadow" : "border border-border bg-card text-foreground/80"}`}
           >
             {c.label}
           </button>

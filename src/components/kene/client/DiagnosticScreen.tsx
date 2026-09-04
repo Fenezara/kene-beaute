@@ -174,7 +174,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   if (step === 0) {
     return (
       <div className="pt-4">
-        <button onClick={() => setClientTab("accueil")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour accueil">
+        <button onClick={() => setClientTab("accueil")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label="Retour accueil">
           <ArrowLeft size={15} /> Accueil
         </button>
         <h2 className="font-heading font-black text-xl">Quelle zone analysons-nous ?</h2>

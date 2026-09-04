@@ -271,7 +271,7 @@ export function HomeScreen({
                     <button
                       key={z.id}
                       onClick={() => onScanZone(z.id)}
-                      className="rounded-full border border-primary/40 bg-primary/10 px-3 min-h-9 inline-flex items-center text-[11px] font-semibold text-primary active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+                      className="rounded-full border border-primary/40 bg-primary/10 px-3 min-h-10 inline-flex items-center text-[11px] font-semibold text-primary active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary"
                     >
                       + {z.label}
                     </button>
@@ -302,7 +302,7 @@ export function HomeScreen({
                   <button
                     key={z.id}
                     onClick={() => onScanZone(z.id)}
-                    className="shrink-0 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+                    className="shrink-0 rounded-full border border-primary/40 bg-primary/10 px-3 min-h-10 inline-flex items-center text-[11px] font-semibold text-primary active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary"
                   >
                     + {z.label} · {Math.round(z.weight * 100)} %
                   </button>
@@ -458,7 +458,7 @@ export function HomeScreen({
         <SectionTitle
           icon={<Sparkles size={16} />}
           action={
-            <button onClick={() => setClientTab("boutique")} className="text-[11px] font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary rounded">
+            <button onClick={() => setClientTab("boutique")} className="text-[11px] font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1">
               Voir la boutique
             </button>
           }

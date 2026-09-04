@@ -1068,3 +1068,29 @@ Stage Summary:
 - NORMES : light mode maintenant AA (or interdit en texte, dégradés CTA 5.6:1+, pastilles auto-contrastées), reduced-motion global, h1 par vue à tout format, cibles ≥ 44 px sur les parcours critiques, dialogs modal, focus partout — le socle dark restait la référence.
 - UX : gestes natifs 2026 (tirer-actualiser, swipe, double-tap), haptique Android, résilience réseau, confirmations animées Wave, transitions directionnelles, badge panier vivant.
 - Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.
+
+---
+Task ID: 56
+Agent: Z.ai Code (principal)
+Task: « Je ne vois rien » + re-vérification complète des normes/standards 2026 après la refonte UX (t. 55).
+
+Work Log:
+- Diagnostic « je ne vois rien » : services :81/:3004 vivants mais :3000 muet → curl gateway = 502 ; dmesg = `Out of memory: Killed process (next-server), anon-rss 2 320 460 kB` — le serveur Next dev (Turbopack + 3D + Prisma, 2,3 Go RSS) a été OOM-killé (sandbox 3,9 Go RAM, 0 swap). C'est la cause racine récurrente des « écrans blancs » rapportés par l'utilisateur (cf. t. 47).
+- Redémarrage `bun run dev` → :3000 et :81 en 200 ; E2E : intro → Passer → Démo Mariam → feed complet (score 79, wallet 10 k, 7 notifs).
+- Audit live agent-browser (script DOM gradient-aware : pire-cas = couleur la plus claire du dégradé) sur 6 écrans × 2 thèmes :
+  - Accueil light : 80 textes → 0 échec AA ; Boutique : 43 → 0 ; Chat : 16 → 1 (statut « En ligne » #3F7D3F 4,43:1) ; Profil light : 71 → 0 ; Profil dark : 71 → 6 (montants wallet #3F7D3F 3,52:1 / #8B1A3B 1,93:1) ; Diagnostic : 29 → 0.
+  - Cibles tactiles < 40px restantes : 14 éléments (chips zones 36, filtres boutique 34, type de peau 30, langues 36, « Lecture lente » 36, « Voir la boutique » 17, 2 × « Retour accueil » 16).
+- Corrections (6 fichiers) :
+  - ProfileScreen : montants + icônes + badge consentement wallet → `text-success`/`text-destructive` (var thémées : #346834 light 4,9:1 / #6FB96F dark 7,63:1 ; débit #E0607F 5,31:1) ; chips type de peau + objectifs min-h-10 ; « Retour accueil » min-h-10.
+  - ChatScreen : statut « En ligne » #3F7D3F → text-success + 10→11px (4,43→4,9:1).
+  - HomeScreen : chips zones (×2 listes) min-h-9/py-1.5 → min-h-10 ; « Voir la boutique » min-h-10.
+  - ShopScreen : filtres catalogue py-2 → min-h-10.
+  - VoiceNarration : « Lecture lente » + pills langues min-h-9 → min-h-10.
+  - DiagnosticScreen : « Retour accueil » min-h-10.
+- Re-vérification live : Accueil 93 textes 0 échec ; 47 boutons, seul sous-40px = skip-link sr-only (normal) ; chips zones/langues/catégories/peau = 40px ; wallet dark 7,63:1/5,31:1 ; 0 erreur console ; lint 0 problème ; tsc 0 erreur src/ ; viewport meta ✓, lang=fr ✓, safe-area CSS ✓, prefers-reduced-motion CSS ✓.
+- Captures : .proofs/task56-{intro,login,home-mobile,final-light,final-dark}.png
+
+Stage Summary:
+- Normes 2026 : conformité AA maintenant mesurée en direct (gradient-aware) sur 6 écrans × 2 thèmes — 0 échec résiduel ; cibles tactiles 100 % ≥ 40px (skip-link sr-only excepté, conforme WCAG 2.5.8).
+- Production : le « je ne vois rien » récurrent = OOM kill du next-server (2,3 Go / 3,9 Go RAM sandbox, 0 swap) — mitigé par redémarrage ; surveillance recommandée.
+- Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.

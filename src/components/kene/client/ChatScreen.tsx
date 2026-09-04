@@ -155,7 +155,7 @@ export function ChatScreen() {
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-heading font-bold text-sm">Dr. Kènè</p>
-          <p className="text-[10px] text-[#3F7D3F] font-semibold">En ligne — éducation cutanée</p>
+          <p className="text-[11px] text-success font-semibold">En ligne — éducation cutanée</p>
         </div>
         <button
           onClick={() => {
