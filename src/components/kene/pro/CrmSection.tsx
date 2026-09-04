@@ -1,7 +1,8 @@
 "use client";
-// Kènè Pro — CRM : recherche, segments RFM, fiche cliente (ventes, RDV, diagnostics IA, notes)
+// Kènè Pro — CRM : recherche, segments RFM, fiche cliente (ventes, RDV, diagnostics IA, diagnostics en institut, notes)
 import { useEffect, useMemo, useState } from "react";
-import { Phone, Search, Sparkles, Users, Wallet } from "lucide-react";
+import { Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -17,11 +18,13 @@ import { rfmScore, RFM_SEGMENT_STYLES } from "@/lib/kene/rfm";
 import { RFM_SEGMENTS } from "@/lib/kene/types";
 import type { BodyZone } from "@/lib/kene/types";
 import { parseDiagnosis, diagImgSrc } from "@/components/kene/client/types";
+import { parseProDiagnosis } from "@/lib/kene/questionnaire";
 import { SkinTwinCard, type TwinEntry } from "@/components/kene/skintwin/SkinTwinCard";
 import { ProEvolutionCard } from "@/components/kene/evolution/ProEvolutionCard";
 import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, InitialAvatar, Money, SectionHeader, KenteTop } from "./ui-bits";
-import type { ProClient, ProClientDetail } from "./types";
+import { ResultView } from "./DiagnosticsSection";
+import type { ProClient, ProClientDetail, ProDiagnosisItem } from "./types";
 
 function useDebounced<T>(value: T, delay = 350): T {
   const [v, setV] = useState(value);
@@ -66,7 +69,7 @@ function RfmDots({ client }: { client: ProClient }) {
   );
 }
 
-export function CrmSection({ tenantId }: { tenantId: string }) {
+export function CrmSection({ tenantId, onStartDiagnostic }: { tenantId: string; onStartDiagnostic?: (clientId: string) => void }) {
   const [query, setQuery] = useState("");
   const q = useDebounced(query);
   const [segment, setSegment] = useState<string | null>(null);
@@ -209,13 +212,30 @@ export function CrmSection({ tenantId }: { tenantId: string }) {
         )}
       </Card>
 
-      {openId && <ClientSheet clientId={openId} tenantId={tenantId} onClose={() => setOpenId(null)} />}
+      {openId && (
+        <ClientSheet
+          clientId={openId}
+          tenantId={tenantId}
+          onClose={() => setOpenId(null)}
+          onStartDiagnostic={onStartDiagnostic}
+        />
+      )}
     </div>
   );
 }
 
 // ═════════════ Fiche cliente ═════════════
-function ClientSheet({ clientId, tenantId, onClose }: { clientId: string; tenantId: string; onClose: () => void }) {
+function ClientSheet({
+  clientId,
+  tenantId,
+  onClose,
+  onStartDiagnostic,
+}: {
+  clientId: string;
+  tenantId: string;
+  onClose: () => void;
+  onStartDiagnostic?: (clientId: string) => void;
+}) {
   // Note locale : chargée au montage (la fiche est re-montée à chaque ouverture)
   const [note, setNote] = useState(() => (typeof window === "undefined" ? "" : window.localStorage.getItem(`kene-crm-note-${clientId}`) ?? ""));
   const detail = useApi<ProClientDetail>(() => apiGet<ProClientDetail>(`/api/pro/clients/${clientId}`), [clientId]);
@@ -292,6 +312,38 @@ function ClientSheet({ clientId, tenantId, onClose }: { clientId: string; tenant
               <section aria-label="Score RFM">
                 <h4 className="font-heading text-sm font-bold mb-2">Score RFM</h4>
                 <RfmDots client={c} />
+              </section>
+
+              {/* Diagnostics réalisés EN INSTITUT — l'activité de l'entreprise */}
+              <section aria-label="Diagnostics en institut">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <h4 className="font-heading text-sm font-bold">Diagnostics en institut ({d.proDiagnoses.length})</h4>
+                  {onStartDiagnostic && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        onClose();
+                        onStartDiagnostic(c.id);
+                      }}
+                      className="gap-1.5 font-semibold"
+                      aria-label={`Lancer un diagnostic en cabine pour ${c.name}`}
+                    >
+                      <Stethoscope className="size-3.5" aria-hidden="true" />
+                      Lancer un diagnostic
+                    </Button>
+                  )}
+                </div>
+                {d.proDiagnoses.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Aucun diagnostic en cabine pour cette cliente — l&apos;entretien questionnaire prend 3 minutes.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {d.proDiagnoses.map((pd) => (
+                      <InstituteDiagRow key={pd.id} item={pd} />
+                    ))}
+                  </ul>
+                )}
               </section>
 
               {/* Diagnostics liés */}
@@ -388,5 +440,47 @@ function ClientSheet({ clientId, tenantId, onClose }: { clientId: string; tenant
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+// ── Rangée diagnostic en institut (dépliable → résultat complet) ──
+function InstituteDiagRow({ item }: { item: ProDiagnosisItem }) {
+  const [open, setOpen] = useState(false);
+  const result = useMemo(() => parseProDiagnosis(item.resultJson), [item.resultJson]);
+  const flags = result?.questionnaire?.flags ?? [];
+
+  return (
+    <li className="rounded-xl border border-border overflow-hidden">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
+        aria-label={`Diagnostic en institut du ${new Date(item.createdAt).toLocaleDateString("fr-FR")} — score ${item.scoreGlobal}/100 — ${flags.length} vigilance(s)`}
+      >
+        <span
+          className="grid size-10 shrink-0 place-items-center rounded-full border-2 font-mono text-xs font-bold"
+          style={{ borderColor: scoreColor(item.scoreGlobal), color: scoreColor(item.scoreGlobal) }}
+        >
+          {item.scoreGlobal}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-medium">
+            <span className="capitalize">{item.zone.replace("_", " ")}</span>
+            {item.practitioner ? ` · ${item.practitioner}` : ""}
+          </p>
+          <p className="text-[10px] text-muted-foreground font-mono">
+            {formatDate(item.createdAt, { day: "2-digit", month: "short", year: "2-digit" })}
+            {item.vlmUsed ? " · photo IA" : " · entretien"}
+            {flags.length > 0 ? ` · ${flags.length} vigilance${flags.length > 1 ? "s" : ""}` : ""}
+          </p>
+        </div>
+        <ChevronDown className={cn("size-4 text-muted-foreground shrink-0 transition-transform", open && "rotate-180")} aria-hidden="true" />
+      </button>
+      {open && result && (
+        <div className="border-t border-border bg-muted/20 p-3">
+          <ResultView result={result} photo={item.photoData ?? null} meta={{ zone: item.zone, createdAt: item.createdAt, practitioner: item.practitioner }} />
+        </div>
+      )}
+    </li>
   );
 }

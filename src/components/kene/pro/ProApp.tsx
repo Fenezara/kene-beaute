@@ -1,5 +1,5 @@
 "use client";
-// Kènè — APP PRO (desktop/tablette) : Dashboard, Agenda, Caisse POS, CRM, Relances, Catalogue, Promos, Stock, Paie, Compta
+// Kènè — APP PRO (desktop/tablette) : Dashboard, Agenda, Diagnostic en cabine, Caisse POS, CRM, Relances, Catalogue, Promos, Stock, Paie, Compta
 // TEMPS RÉEL (tâche 35) : socket.io vers notify-service (?XTransformPort=3004),
 // room tenant:{id} — RDV réservé, commande institut, vente POS → badge Agenda,
 // toast, KPIs du dashboard et listes branchées rafraîchis SANS reload.
@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, LayoutDashboard, MapPin, ChevronDown, TicketPercent } from "lucide-react";
+import { BellRing, LayoutDashboard, MapPin, ChevronDown, Stethoscope, TicketPercent } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -30,12 +30,14 @@ import { StockSection } from "./StockSection";
 import { PayrollSection } from "./PayrollSection";
 import { AccountingSection } from "./AccountingSection";
 import { CouponsSection } from "./CouponsSection";
+import { DiagnosticsSection } from "./DiagnosticsSection";
 
-export type ProSectionId = "dashboard" | "agenda" | "caisse" | "crm" | "relances" | "catalogue" | "promos" | "stock" | "paie" | "compta";
+export type ProSectionId = "dashboard" | "agenda" | "diagnostic" | "caisse" | "crm" | "relances" | "catalogue" | "promos" | "stock" | "paie" | "compta";
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
   { id: "agenda", label: "Agenda", icon: SankofaIcon, hint: "Rendez-vous" },
+  { id: "diagnostic", label: "Diagnostic", icon: Stethoscope, hint: "En cabine + questionnaire" },
   { id: "caisse", label: "Caisse", icon: AbanIcon, hint: "Point de vente" },
   { id: "crm", label: "CRM", icon: OsramIcon, hint: "Clientes & fidélité" },
   { id: "relances", label: "Relances", icon: BellRing, hint: "Suivi post-protocole" },
@@ -63,6 +65,9 @@ export function ProApp() {
   const proTenantId = useKene((s) => s.proTenantId);
   const setProTenantId = useKene((s) => s.setProTenantId);
   const [section, setSection] = useState<ProSectionId>("dashboard");
+  // Commande « Lancer un diagnostic » depuis la fiche CRM (objet neuf à chaque
+  // clic → rouvre l'assistant même pour la même cliente)
+  const [diagCommand, setDiagCommand] = useState<{ clientId: string; nonce: number } | null>(null);
 
   const overview = useApi<ProOverview>(
     () => apiGet<ProOverview>(`/api/pro/overview${proTenantId ? `?tenantId=${proTenantId}` : ""}`),
@@ -365,8 +370,17 @@ export function ProApp() {
               <DashboardSection tenantId={tid} overview={overview} loadingOverview={overview.loading} onNavigate={openSection} />
             )}
             {section === "agenda" && <AgendaSection tenantId={tid} refreshKey={refreshKey} />}
+            {section === "diagnostic" && (
+              <DiagnosticsSection
+                tenantId={tid}
+                refreshKey={refreshKey}
+                preselectCommand={diagCommand}
+                onCommandHandled={() => setDiagCommand(null)}
+                onNavigate={openSection}
+              />
+            )}
             {section === "caisse" && <PosSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} refreshKey={refreshKey} />}
-            {section === "crm" && <CrmSection tenantId={tid} />}
+            {section === "crm" && <CrmSection tenantId={tid} onStartDiagnostic={(clientId) => { setDiagCommand({ clientId, nonce: Date.now() }); openSection("diagnostic"); }} />}
             {section === "relances" && <RelancesSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {section === "catalogue" && <CatalogSection tenantId={tid} />}
             {section === "promos" && <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}

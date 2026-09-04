@@ -95,6 +95,7 @@ model Tenant {
   reviews        Review[]
   notifications  Notification[]
   followUpMarks  FollowUpMark[]
+  proDiagnoses   ProDiagnosis[]
 }
 
 // ─────────────────────────── Relances « Le Fil du Retour » ───────────────────────────
@@ -163,6 +164,27 @@ model ClientProfile {
 
   appointments Appointment[]
   sales        Sale[]
+  proDiagnoses ProDiagnosis[]
+}
+
+// ─────────────────────────── Diagnostic en institut (questionnaire ± photo) ───────────────────────────
+
+model ProDiagnosis {
+  id               String       @id @default(cuid())
+  tenantId         String
+  tenant           Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientProfileId  String
+  clientProfile    ClientProfile @relation(fields: [clientProfileId], references: [id])
+  userId           String?      // si la cliente est aussi sur l'app Kènè (notification envoyée)
+  zone             String       // visage | dos | cuir_chevelu | mains | barbe | naevi
+  practitioner     String?      // praticienne qui a réalisé le diagnostic
+  questionnaireJson String      // réponses brutes { questionId: value | value[] }
+  photoData        String?      // data URL (optionnelle — photo prise en cabine)
+  resultJson       String       // résultat complet (questionnaire ± VLM fusionnés)
+  scoreGlobal      Int          @default(0)
+  vlmUsed          Boolean      @default(false) // photo analysée par le VLM
+  photoUsed        Boolean      @default(false) // photo jointe
+  createdAt        DateTime     @default(now())
 }
 
 // ─────────────────────────── RDV ───────────────────────────

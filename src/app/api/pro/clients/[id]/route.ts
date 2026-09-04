@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const since12m = new Date();
     since12m.setFullYear(since12m.getFullYear() - 1);
 
-    const [sales, appointments, sales12m, diagnoses] = await Promise.all([
+    const [sales, appointments, sales12m, diagnoses, proDiagnoses] = await Promise.all([
       db.sale.findMany({
         where: { clientProfileId: id },
         include: { items: true },
@@ -37,6 +37,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
             take: 5,
           })
         : Promise.resolve([]),
+      // Diagnostics réalisés EN INSTITUT (questionnaire ± photo) — l'activité
+      // de l'entreprise elle-même, distincte des self-scans de la cliente.
+      db.proDiagnosis.findMany({
+        where: { clientProfileId: id },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
     ]);
 
     // RFM recalculé à la volée (non persisté)
@@ -51,6 +58,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       sales,
       appointments,
       diagnoses,
+      proDiagnoses,
     });
   } catch (err) {
     return serverError("pro/clients/[id]", err);

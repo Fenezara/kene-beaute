@@ -143,6 +143,38 @@ export interface ProClientDetail {
     imageData: string;
     resultJson: string;
   }[];
+  proDiagnoses: ProDiagnosisItem[];
+}
+
+// ─────────────── Diagnostic en institut (questionnaire ± photo) ───────────────
+
+export interface ProDiagnosisItem {
+  id: string;
+  zone: string;
+  practitioner?: string | null;
+  scoreGlobal: number;
+  vlmUsed: boolean;
+  photoUsed: boolean;
+  createdAt: string;
+  clientProfileId: string;
+  clientName: string;
+  resultJson: string;
+  questionnaireJson?: string;
+  photoData?: string | null;
+  userId?: string | null;
+  [k: string]: unknown;
+}
+
+export interface ProDiagnosesKpis {
+  monthCount: number;
+  avgScore: number;
+  photoShare: number;
+  total: number;
+}
+
+export interface ProDiagnosesResponse {
+  diagnoses: ProDiagnosisItem[];
+  kpis: ProDiagnosesKpis;
 }
 
 // ─────────────── Catalogue ───────────────

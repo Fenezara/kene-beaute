@@ -19,7 +19,7 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 ## Les trois espaces
 
 - **Cliente** (**shell applicatif plein écran type app 2026** — Instagram/TikTok/Facebook) : mobile = header glass (cloche live, chat, thème) + flux plein cadre + **tab-bar 5 onglets avec CTA « Scanner » central surélevé** ; tablette (≥ 768 px) = **rail d'icônes vertical façon TikTok iPad** (la tab-bar disparaît, l'écran large est exploité) ; desktop = **sidebar gauche façon Instagram web** (nav verticale + bascule Espace Pro/Admin) + feed centré 640 px + **rail droit** (mini-profil, actions rapides, légal). Feed d'accueil : **stories par zone** (re-scan 1 tap + scores en anneau, libellés 2 lignes, dégradé d'affordance au scroll), carte score multi-zones avec **lecture vocale TTS multilingue** (français complet, **résumé compact traduit en dioula / baoulé / bété**), **résumé en pictos tapables** (tuile = 1 icône + 1 mot, se lit à voix haute), glossaire 1 tap, diagnostic IA, jumeau 3D, route de l'or, boutique (grille adaptative 2-3 colonnes) + **Mes commandes** + checkout avec **code promo** (remise + cashback sur le montant payé) Wave / Orange Money / Wallet Kènè, profil & wallet, **parrainage** (« Le Fil du Parrainage » : cadeau filleule 2 000 F, bonus parraine 2 500 F à la 1re commande payée, idempotent), prise de RDV avec acompte, **rappels automatiques** (S+3 protocole, J-1, carte « Ta prochaine étape » + suivi WhatsApp live), **export « Mes données » RGPD art. 20** (JSON complet en 1 tap depuis le Profil), chatbot Dr. Kènè (LLM + triage photo), notifications temps réel. Scroll **interne au shell** (le document ne scrolle jamais — hors intro/onboarding) — transitions d'onglets animées, zéro espace perdu sur PC/tablette/mobile.
-- **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, CRM 360° (fiche cliente : jumeau de peau agrégé, évolution, ventes/RDV/notes, score RFM), **Relances « Le Fil du Retour »** (KPI, filtres, WhatsApp wa.me pré-rempli, traiter/ignorer/réactiver), catalogue soins/produits, POS (ticket SYSCOHADA) avec **cliente express** (2 champs depuis la caisse, anti-doublon multi-formats), **Promos** (coupons % ou montant fixe, création/diffusion push live), stock, paie CNPS CI / IPM SN (+ e-CNPS XML), comptabilité (grand livre, OD, bilan, exports CSV) et **liasse comptable PDF en 1 clic** (dossier complet 7 sections, période au choix — prête pour le comptable/DGI) — badge & flux « En direct » (RDV, ventes, commandes) via socket.io. Shell pleine largeur : mobile = chips + en-tête compact (institut + En direct) ; **tablette (≥ 768 px) = rail d'icônes 76 px** (libellés dès lg) ; desktop = sidebar 240 px libellée.
+- **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, **Diagnostic en cabine** (l'institut réalise le diagnostic de peau au sein de sa structure : questionnaire dermatologique structuré — 4 sections, 21 questions dont dépigération/grossesse en questions sensibles — ± photo analysée par le VLM, fusion déclaratif 38 % / observation 62 %, résultat + protocole enregistré dans le CRM, cliente notifiée si elle est sur l'app), CRM 360° (fiche cliente : jumeau de peau agrégé, évolution, ventes/RDV/notes, **diagnostics en institut dépliables**, score RFM), **Relances « Le Fil du Retour »** (KPI, filtres, WhatsApp wa.me pré-rempli, traiter/ignorer/réactiver), catalogue soins/produits, POS (ticket SYSCOHADA) avec **cliente express** (2 champs depuis la caisse, anti-doublon multi-formats), **Promos** (coupons % ou montant fixe, création/diffusion push live), stock, paie CNPS CI / IPM SN (+ e-CNPS XML), comptabilité (grand livre, OD, bilan, exports CSV) et **liasse comptable PDF en 1 clic** (dossier complet 7 sections, période au choix — prête pour le comptable/DGI) — badge & flux « En direct » (RDV, ventes, commandes) via socket.io. Shell pleine largeur : mobile = chips + en-tête compact (institut + En direct) ; **tablette (≥ 768 px) = rail d'icônes 76 px** (libellés dès lg) ; desktop = sidebar 240 px libellée.
 - **Admin** : multi-instituts, santé de la plateforme (console pleine largeur, KPI 6 cartes dont Parrainages, courbe diagnostics 14 j, top instituts).
 
 ## Stack technique
@@ -43,7 +43,7 @@ Palette panafricaine en variables CSS (light + dark) : or `#C8951E`, bissap `#8B
 src/
 ├─ app/
 │  ├─ page.tsx             # route unique /
-│  └─ api/                 # 47 routes :
+│  └─ api/                 # 48 routes :
 │     ├─ auth/             #   otp/request · otp/verify · consent · profile
 │     │                     #   (+ profile/export — portabilité RGPD)
 │     ├─ diagnoses/        #   GET,POST (+ /evolution)
@@ -61,6 +61,7 @@ src/
 │     │                     #   sales · stock · followups · employees
 │     │                     #   (+ attendance) · payroll (+ run · ecnps)
 │     │                     #   accounting (+ manual · export csv|pdf)
+│     │                     #   · diagnoses (en cabine : questionnaire ± VLM)
 │     └─ admin/stats
 ├─ components/kene/
 │  ├─ client/              # ClientApp (shell) · HomeScreen (feed) ·
@@ -69,8 +70,9 @@ src/
 │  │                       # VoiceNarration (+ langues) · PictoSummary ·
 │  │                       # ParrainageCard · GlossaryDialog · SpeakButton ·
 │  │                       # ttsAudio (cache blob) · bits · types
-│  ├─ pro/                 # ProApp (shell) · Dashboard · Agenda · Pos ·
-│  │                       # Crm · Relances · Catalog · Coupons · Stock ·
+│  ├─ pro/                 # ProApp (shell) · Dashboard · Agenda ·
+│  │                       # Diagnostics (cabine) · Pos · Crm · Relances ·
+│  │                       # Catalog · Coupons · Stock ·
 │  │                       # Payroll · Accounting · types · ui-bits · useApi
 │  ├─ admin/AdminApp.tsx
 │  ├─ intro/               # Phase A — KenteIntro · Intro3D · chapters · introState
@@ -84,6 +86,9 @@ src/
 │  ├─ kene/                # lib PURES (aucune dépendance React) :
 │  │   ├─ format.ts        #   xof(), dates, scoreColor(), contrastes…
 │  │   ├─ narration.ts     #   narration FR + compacte multilingue + NARRATION_LANGS
+│  │   ├─ questionnaire.ts #   diagnostic en institut : questions, scoring par
+│  │   │                   #   indicateur, drapeaux (dépigération, grossesse…),
+│  │   │                   #   recommandations, fusion questionnaire ± VLM
 │  │   ├─ glossary.ts      #   28 définitions simples (≤300 chars, TTS-compatible)
 │  │   ├─ evolution.ts · coupons.ts · followups.ts · referral.ts ·
 │  │   ├─ reminders.ts · narration · live-socket.ts · realtime.ts
@@ -129,7 +134,7 @@ Risques d'échec classés : 1) non-lectrices → funnel vide silencieux ; 2) pro
 - Connexion par sélecteur de démo — OTP réel prévu (modèle `OtpCode` déjà dans le schéma Prisma).
 - Traductions dioula/baoulé/bété **IA indicatives** (POC) — voix natives locales indisponibles dans le moteur TTS actuel.
 - SQLite mono-fichier — passage Postgres prévu à l'échelle.
-- Backlog priorisé : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → ~~liasse PDF comptable~~ ✅ (t. 44) → ~~refonte UX « app 2026 » plein écran~~ ✅ (t. 45) → ~~finitions tablette/libellés~~ ✅ (t. 46) → ~~audit mobile 360° (390/360, clair/sombre) + affordances scroll~~ ✅ (t. 47-48) → ~~portabilité RGPD « Mes données »~~ ✅ (t. 49) → ~~langues locales (dioula/baoulé/bété)~~ ✅ (t. 50) → ~~résumé en pictos non-lectrices~~ ✅ (t. 51) → **reste** : OTP réel (nécessite une passerelle SMS — `OtpCode` prêt), paiements réels Wave/OM (nécessite des identifiants marchands), voix TTS natives locales.
+- Backlog priorisé : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → ~~liasse PDF comptable~~ ✅ (t. 44) → ~~refonte UX « app 2026 » plein écran~~ ✅ (t. 45) → ~~finitions tablette/libellés~~ ✅ (t. 46) → ~~audit mobile 360° (390/360, clair/sombre) + affordances scroll~~ ✅ (t. 47-48) → ~~portabilité RGPD « Mes données »~~ ✅ (t. 49) → ~~langues locales (dioula/baoulé/bété)~~ ✅ (t. 50) → ~~résumé en pictos non-lectrices~~ ✅ (t. 51) → ~~audit & réécriture README~~ ✅ (t. 52-53) → ~~diagnostic en institut + questionnaire (espace Pro)~~ ✅ (t. 54) → **reste** : OTP réel (nécessite une passerelle SMS — `OtpCode` prêt), paiements réels Wave/OM (nécessite des identifiants marchands), voix TTS natives locales.
 
 ## Comptes de démonstration
 

@@ -996,3 +996,28 @@ Work Log:
 Stage Summary:
 - Le document est désormais fidèle au code : chaque fonctionnalité annoncée existe, chaque fonctionnalité livrée est documentée.
 - Reste ouvert (externes) : OTP réel via passerelle SMS (OtpCode prêt), paiements réels Wave/OM (identifiants marchands), voix TTS natives locales.
+
+---
+Task ID: 54
+Agent: Z.ai Code (principal)
+Task: Diagnostic de peau réalisé par l'entreprise au sein de sa structure, accompagné d'un questionnaire (espace Pro).
+
+Work Log:
+- Demande user : « l'entreprise aussi réalise des diagnostics de peau au sein de sa structure, accompagnés de questionnaire » → nouvelle capacité « Diagnostic en cabine » côté Pro (distincte des self-scans cliente).
+- Prisma : modèle `ProDiagnosis` (tenant + clientProfile + questionnaireJson + photoData + resultJson + scoreGlobal + vlmUsed/photoUsed + practitioner) — push additif, zéro perte de données.
+- Lib pure `src/lib/kene/questionnaire.ts` : 4 sections / 21 questions (peau, routine, mode de vie, santé ; dépigération & grossesse = questions « sensibles » encadrées or) ; moteur de scoring par indicateur de la zone (base 78 ± deltas mot-clés, clamp 5-98) ; drapeaux danger/warn/info (dépigération active/passée, grossesse, hypersensibilité, traitement, aucune protection solaire, allergies) ; recommandations ciblées par indicateurs faibles (routines, botaniques, produits, soins institut, hygiène) ; honnêteté clinique nævi (questionnaire ne note pas ABCDE) ; `mergeResults()` fusion VLM 62 % / déclaratif 38 % ; `parseProDiagnosis` défensif.
+- API `POST/GET /api/pro/diagnoses` : cliente CRM OU express (anti-doublon 10 derniers chiffres), validation questionnaire complet (400 sinon), photo optionnelle → VLM → fusion, persistance + fiche CRM enrichie (visite comptée, peau/phototype/notes), notification WhatsApp à la cliente si liée (metaJson proDiagId) ; GET liste 50 + KPIs (mois, score moyen, part photo IA).
+- `/api/pro/clients/[id]` : proDiagnoses (10 derniers, photoData inclus) dans la fiche 360°.
+- `DiagnosticsSection.tsx` (nouveau) : carte pédagogie fusion, 3 KPIs, historique scrollable (score coloré, badge Photo IA/Entretien, vigilances) ; assistant 4 étapes en Sheet — 1 Cliente (recherche CRM + express + zone + praticienne préremplie Fatou Koné) / 2 Questionnaire (pills radio+chips multi, progression, sensibles encadrées) / 3 Photo optionnelle (upload + resizeImage 820px + poids affiché) / 4 Analyse (messages rotatifs pendant VLM) → ResultView (anneau score conic-gradient, verdict, vigilances, indicateurs triés faibles→forts + barres, protocole matin/soir/botaniques/soins/hygiène, avertissement) ; DetailSheet historique avec photo de cabine ; « Voir la fiche CRM ».
+- ProApp : section « Diagnostic » (icône Stethoscope, 3e position) sur desktop/tablette/mobile + commande `diagCommand` {clientId, nonce} depuis le CRM.
+- CrmSection : bloc « Diagnostics en institut (N) » dans la fiche (rangées dépliables → ResultView complet) + bouton « Lancer un diagnostic » → navigue et pré-remplit l'assistant.
+- 2 correctifs de robustesse pendant l'E2E : (a) ouverture du wizard à la commande CRM pendant le RENDU (comparaison nonce, pas d'effet — lint set-state-in-effect) ; (b) bouton Close shadcn recouvert par le header sticky → `[&>button]:z-30` sur SheetContent.
+- E2E API (gateway :81) : POST sans photo → 59/100 (2 vigilances : solaire + dépig passée, priorité PIH 29) ; POST avec photo seedée → 71/100 « vlm+questionnaire » (fitz V, 7 marquages, recommandations VLM conservées) ; express Nadège Kouassi zone mains → 67 (sécheresse 37 logique) ; gardes 400 (17 manquantes, sans cliente, zone invalide) ; notification Mariam vérifiée en base ; fiche CRM renvoie proDiagnoses.
+- E2E navigateur (1440×900 puis 390×844) : assistant complet Rokia Coulibaly — sélection CRM → questionnaire 100 % → upload photo (108 Ko) → analyse VLM → toast « Diagnostic enregistré — Rokia Coulibaly · 75/100 » → liste rafraîchie (3 diagnostics) ; détail historique avec photo ; fiche CRM → dépliage → « Lancer un diagnostic » → wizard pré-rempli sur Rokia ; fermeture + anti-réouverture OK ; console 0 erreur nouvelle ; VLM confirme visibilité intégrale mobile (section, étapes 1-2) et desktop (résultat, fiche CRM).
+- Vérifications finales : tsc 0 erreur src/ ; eslint 0 problème ; dev.log uniquement 200/201.
+- Captures : task54-{section-list,desktop-liste,list-final,detail-vlm,wizard-step1,wizard-step2,analysing,result,crm-fiche,mobile-nav,mobile-section,mobile-wizard1,mobile-wizard2}.png
+
+Stage Summary:
+- L'entreprise réalise désormais ELLE-MÊME le diagnostic de peau en cabine : entretien questionnaire structuré ± photo IA, fusionnés en un score unique, archivés dans le CRM 360° — la boucle observation-vendeuse (praticienne) ↔ déclaration cliente est fermée.
+- Modèle de scoring réutilisable : les drapeaux de vigilance (dépigération, grossesse…) protègent directement le protocole institut — aligné au positionnement santé publique de Kènè.
+- Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.
