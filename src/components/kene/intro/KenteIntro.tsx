@@ -71,8 +71,11 @@ function ScrollIntro({ onDone }: { onDone: () => void }) {
           const d = dotRefs.current[i];
           if (!d) return;
           const active = p >= ch.from && p < ch.to + (i === CHAPTERS.length - 1 ? 0.2 : 0);
-          d.style.backgroundColor = active ? "#C8951E" : "rgba(248,241,228,0.22)";
-          d.style.transform = `scale(${active ? 1.6 : 1})`;
+          const dot = d.firstElementChild as HTMLElement | null;
+          if (dot) {
+            dot.style.backgroundColor = active ? "#C8951E" : "rgba(248,241,228,0.22)";
+            dot.style.transform = `scale(${active ? 1.6 : 1})`;
+          }
         });
       }
       raf = requestAnimationFrame(loop);
@@ -86,6 +89,7 @@ function ScrollIntro({ onDone }: { onDone: () => void }) {
 
   return (
     <section ref={containerRef} aria-label="Introduction immersive Kènè — six chapitres" className="relative h-[640vh]">
+      <h1 className="sr-only">Kènè — Le Fil de Kente, introduction</h1>
       <div className="sticky top-0 h-svh overflow-hidden bg-[#1A1410]">
         {/* Couche 3D (pointer-events none — le récit se défile, il ne se clique pas) */}
         <div className="absolute inset-0 pointer-events-none">
@@ -104,8 +108,8 @@ function ScrollIntro({ onDone }: { onDone: () => void }) {
           <X size={13} /> Passer
         </button>
 
-        {/* Rail de chapitres */}
-        <nav aria-label="Chapitres de l'introduction" className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2.5">
+        {/* Rail de chapitres — cible tactile 44 px, point visuel à l'intérieur */}
+        <nav aria-label="Chapitres de l'introduction" className="absolute left-1 top-1/2 z-10 flex -translate-y-1/2 flex-col">
           {CHAPTERS.map((ch, i) => (
             <button
               key={ch.id}
@@ -115,8 +119,10 @@ function ScrollIntro({ onDone }: { onDone: () => void }) {
               aria-label={ch.overline}
               title={ch.overline}
               onClick={onDone}
-              className="h-1.5 w-1.5 rounded-full bg-[#F8F1E4]/22 transition-transform duration-300"
-            />
+              className="grid h-11 w-11 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-[#C8951E]"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-[#F8F1E4]/22 transition-transform duration-300" />
+            </button>
           ))}
         </nav>
 
@@ -177,6 +183,14 @@ function ScrollIntro({ onDone }: { onDone: () => void }) {
 function StaticIntro({ onDone }: { onDone: () => void }) {
   return (
     <div className="bg-[#1A1410] text-[#F8F1E4]">
+      <h1 className="sr-only">Kènè — Le Fil de Kente, introduction</h1>
+      {/* Sortie permanente — on ne force personne à défiler 6 écrans */}
+      <button
+        onClick={onDone}
+        className="fixed bottom-5 right-4 z-30 inline-flex items-center gap-1.5 rounded-full border border-[#F8F1E4]/20 bg-[#1A1410]/80 px-4 min-h-11 text-xs text-[#F8F1E4]/80 backdrop-blur transition-colors hover:bg-[#F8F1E4]/15 hover:text-[#F8F1E4] focus-visible:outline-2 focus-visible:outline-[#C8951E]"
+      >
+        <X size={13} aria-hidden="true" /> Passer l&apos;introduction
+      </button>
       <div className="mx-auto flex max-w-2xl flex-col">
         {CHAPTERS.map((ch) => (
           <section key={ch.id} className="flex min-h-svh flex-col items-center justify-center px-6 py-16 text-center">

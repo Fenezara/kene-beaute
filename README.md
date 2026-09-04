@@ -35,7 +35,7 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 
 ## Palette & design tokens
 
-Palette panafricaine en variables CSS (light + dark) : or `#C8951E`, bissap `#8B1A3B`, vert baobab `#3F7D3F`, sunset `#E07A2B`, terre bogolan `#A0522D`, mélanine `#1A1410`, crème karité `#F8F1E4`. Variantes `--gold-text` / `--sunset-text` garantissent un contraste WCAG AA dans les deux thèmes (contrastes vérifiés au mesureur : tab-bar ≥ 8.6:1, stories ≥ 7.7:1 en sombre). Bandes kente en `repeating-linear-gradient`, filigranes bogolan en `radial-gradient`.
+Palette panafricaine en variables CSS (light + dark) : or `#C8951E` (aplats décoratifs), bissap `#8B1A3B`, vert baobab `#346834`, sunset `#B45309`, terre bogolan `#A0522D`, mélanine `#1A1410`, crème karité `#F8F1E4`. **Contrastes WCAG AA vérifiés dans les 2 thèmes (t. 55)** : `--primary` light = `#8F660D` (or profond, 4.6-4.9:1 en texte ET boutons), variantes `--gold-text` / `--sunset-text`, variables `--score-*` thème-adaptées via `scoreVar()`, dégradés CTA terre→bissap ≥ 5.6:1, pastilles score auto-contrastées (`readableTextColor`). `prefers-reduced-motion` respecté globalement (`MotionConfig reducedMotion="user"` + media query CSS). Bandes kente en `repeating-linear-gradient`, filigranes bogolan en `radial-gradient`.
 
 ## Architecture
 
@@ -115,11 +115,11 @@ Cœur de cible : femmes 20-45 peaux mélanodermes (Abidjan pilote, expansion UEM
 
 | Segment | Poids | Barrière principale | Garde produit Kènè |
 |---|---|---|---|
-| Digitale lettrée (18-35) | fort | Exigence d'expérience, churn silencieux | Intro skippable, vitesse, design soigné, cashback |
+| Digitale lettrée (18-35) | fort | Exigence d'expérience, churn silencieux | Intro skippable, vitesse, design soigné, cashback, **gestes 2026** (tirer-actualiser, swipe entre onglets, double-tap panier, haptique) ✅ |
 | Semi-lettrée numérique (25-45) | le plus fort | Parcours multi-étapes, jargon, formulaires | Diagnostic photo d'abord (VLM, zéro saisie), libellés Léger/Moyen/Fort, glossaire 1 tap ✅, checkout wallet en 1 geste |
 | Non-lectrice / illettrée | ~40 % des femmes selon zones | Tout texte = exclusion | Photo + lecture vocale TTS (normal **ou lente**) + **résumé en pictos tapables** ✅ + glossaire 1 tap ✅ |
 | Langue première locale | dominant | Le français parlé exclut aussi | **Narration compacte traduite en dioula / baoulé / bété** ✅ (traduction IA indicative) |
-| Rurale / petite data | fort hors villes | Coût data, téléphones d'entrée de gamme | Fallbacks 3D statiques (`#twin-static`, `#weave-static`), compression photo 820px + toast « léger pour ta connexion » ✅ |
+| Rurale / petite data | fort hors villes | Coût data, téléphones d'entrée de gamme | Fallbacks 3D statiques (`#twin-static`, `#weave-static`), compression photo 820px + toast « léger pour ta connexion » ✅, **bandeau hors-ligne + données affichées** (façon Wave) ✅ |
 | WhatsApp-first | dominant | Ne quitte pas WhatsApp | WhatsApp déjà canal (relances, commande, parrainage) |
 | Méfiante (peur dépigmentation) | transverse | IA « qui juge la peau » = boîte noire | Résultats par indicateur explicites, aucune promesse d'éclaircissement, orientation dermato |
 | Gérante d'institut organisée | cœur B | — | CRM/caisse/compta complets + liasse PDF |
@@ -134,7 +134,12 @@ Risques d'échec classés : 1) non-lectrices → funnel vide silencieux ; 2) pro
 - Connexion par sélecteur de démo — OTP réel prévu (modèle `OtpCode` déjà dans le schéma Prisma).
 - Traductions dioula/baoulé/bété **IA indicatives** (POC) — voix natives locales indisponibles dans le moteur TTS actuel.
 - SQLite mono-fichier — passage Postgres prévu à l'échelle.
-- Backlog priorisé : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → ~~liasse PDF comptable~~ ✅ (t. 44) → ~~refonte UX « app 2026 » plein écran~~ ✅ (t. 45) → ~~finitions tablette/libellés~~ ✅ (t. 46) → ~~audit mobile 360° (390/360, clair/sombre) + affordances scroll~~ ✅ (t. 47-48) → ~~portabilité RGPD « Mes données »~~ ✅ (t. 49) → ~~langues locales (dioula/baoulé/bété)~~ ✅ (t. 50) → ~~résumé en pictos non-lectrices~~ ✅ (t. 51) → ~~audit & réécriture README~~ ✅ (t. 52-53) → ~~diagnostic en institut + questionnaire (espace Pro)~~ ✅ (t. 54) → **reste** : OTP réel (nécessite une passerelle SMS — `OtpCode` prêt), paiements réels Wave/OM (nécessite des identifiants marchands), voix TTS natives locales.
+- Backlog priorisé : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → ~~liasse PDF comptable~~ ✅ (t. 44) → ~~refonte UX « app 2026 » plein écran~~ ✅ (t. 45) → ~~finitions tablette/libellés~~ ✅ (t. 46) → ~~audit mobile 360° (390/360, clair/sombre) + affordances scroll~~ ✅ (t. 47-48) → ~~portabilité RGPD « Mes données »~~ ✅ (t. 49) → ~~langues locales (dioula/baoulé/bété)~~ ✅ (t. 50) → ~~résumé en pictos non-lectrices~~ ✅ (t. 51) → ~~audit & réécriture README~~ ✅ (t. 52-53) → ~~diagnostic en institut + questionnaire (espace Pro)~~ ✅ (t. 54) → ~~audit normes WCAG AA + UX gestes apps 2026 (Instagram/TikTok/Wave)~~ ✅ (t. 55) → **reste** : OTP réel (nécessite une passerelle SMS — `OtpCode` prêt), paiements réels Wave/OM (nécessite des identifiants marchands), voix TTS natives locales.
+
+### Conformité & UX livrées (t. 55)
+
+- **WCAG 2.1 AA** : contrastes light refondus (cause racine or corrigée ~80 % des défauts), cibles tactiles ≥ 44 px sur les parcours critiques (pills langues, chips, qty POS, dots intro, Sheet close 36 px + « Fermer »), h1 unique par vue à tout format, focus visible partout (chat réparé), dialogs modaux sur les overlays paiement, `aria-required`/labels OTP, hiérarchie h2/h3 dans les Sheets.
+- **UX Instagram/TikTok/Wave** : pull-to-refresh (indicateur NeaOnnim + toast + haptique), swipe horizontal entre onglets avec transitions directionnelles, double-tap « ajout rapide » burst panier kente, succès paiement animé (coche dessinée + confettis kente + montant), haptique Android (patterns tap/light/medium/success), badge panier rebond, bandeau hors-ligne résilient.
 
 ## Comptes de démonstration
 

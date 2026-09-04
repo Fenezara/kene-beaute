@@ -59,6 +59,19 @@ export function scoreColor(score: number): string {
   return "#8B1A3B";
 }
 
+/**
+ * Couleur de score adaptée au thème actif (variables CSS --score-*) :
+ * à utiliser en TEXTE, trait SVG (style.stroke) ou fond — contrairement à
+ * scoreColor() (hex fixes, réservés aux aplats + readableTextColor).
+ * En light les variantes sont assombries (WCAG AA ≥ 4.5:1 sur crème).
+ */
+export function scoreVar(score: number): string {
+  if (score >= 80) return "var(--score-haut)";
+  if (score >= 60) return "var(--score-moyen)";
+  if (score >= 40) return "var(--score-atten)";
+  return "var(--score-faible)";
+}
+
 /** Couleur de texte lisible (WCAG) sur un fond hex — clair sur fond foncé, mélanine sur fond clair */
 export function readableTextColor(bgHex: string): string {
   const h = bgHex.replace("#", "");

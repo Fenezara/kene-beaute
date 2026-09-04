@@ -24,7 +24,7 @@ import {
   Waves,
 } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
-import { formatDate, formatTime, scoreColor, xof, CASHBACK_RATE } from "@/lib/kene/format";
+import { formatDate, formatTime, scoreColor, readableTextColor, xof, CASHBACK_RATE } from "@/lib/kene/format";
 import { nextClientStep } from "@/lib/kene/followups";
 import { channelLabel, humanWhen } from "@/lib/kene/reminders";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
@@ -65,7 +65,17 @@ const STORY_LABEL: Record<BodyZone, string> = {
   naevi: "Grains de beauté",
 };
 
-export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }) {
+export function HomeScreen({
+  onScanZone,
+  refreshKey = 0,
+  onRefreshed,
+}: {
+  onScanZone: (z: BodyZone) => void;
+  /** Incrémenté par le pull-to-refresh du shell — déclenche un rechargement */
+  refreshKey?: number;
+  /** Appelé à la fin du chargement (le shell ferme l'indicateur de tirage) */
+  onRefreshed?: () => void;
+}) {
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
   const [data, setData] = useState<HomeData | null>(null);
@@ -83,7 +93,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
           apiGet<{ products: ApiProduct[] }>("/api/shop/products"),
           apiGet<ApiReminderFeed>(`/api/notifications?userId=${user.id}`).catch(() => null),
         ]);
-        if (alive)
+        if (alive) {
           setData({
             diagnoses: d.diagnoses ?? [],
             appointments: a.appointments ?? [],
@@ -91,14 +101,19 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
             products: p.products ?? [],
             reminders: r ?? null,
           });
+          if (alive) onRefreshed?.();
+        }
       } catch (e) {
-        if (alive) setErr(e instanceof Error ? e.message : "Chargement impossible");
+        if (alive) {
+          setErr(e instanceof Error ? e.message : "Chargement impossible");
+          onRefreshed?.();
+        }
       }
     })();
     return () => {
       alive = false;
     };
-  }, [user.id]);
+  }, [user.id, refreshKey, onRefreshed]);
 
   // Score multi-zones pondéré (PRD §8.8) — dernier diagnostic par zone
   const multi = useMemo(() => {
@@ -208,8 +223,8 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
                   )}
                   {covered && (
                     <span
-                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-px font-mono text-[10px] font-bold text-background tabular-nums"
-                      style={{ backgroundColor: color }}
+                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-px font-mono text-[10px] font-bold tabular-nums"
+                      style={{ backgroundColor: color, color: readableTextColor(color) }}
                     >
                       {d!.scoreGlobal}
                     </span>
@@ -256,7 +271,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
                     <button
                       key={z.id}
                       onClick={() => onScanZone(z.id)}
-                      className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary active:scale-95 transition-transform"
+                      className="rounded-full border border-primary/40 bg-primary/10 px-3 min-h-9 inline-flex items-center text-[11px] font-semibold text-primary active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary"
                     >
                       + {z.label}
                     </button>
@@ -304,7 +319,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         animate={{ scale: 1, opacity: 1 }}
         whileTap={{ scale: 0.98 }}
         onClick={() => setClientTab("diagnostic")}
-        className="relative h-24 rounded-3xl bg-gradient-to-br from-[#C8951E] via-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] shadow-lg overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="relative h-24 rounded-3xl bg-gradient-to-br from-[#A0522D] via-[#8B1A3B] to-[#6B2416] text-[#FFF9EC] shadow-lg overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         aria-label="Scanner ma peau maintenant"
       >
         <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-30" />
@@ -316,7 +331,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
             <span className="block font-heading font-black text-lg leading-tight">Scanner ma peau</span>
             <span className="block text-[11px] opacity-90">Analyse IA VISIA-like · 6 zones · 30 s</span>
           </span>
-          <ChevronRight size={22} className="ml-auto opacity-80" />
+          <ChevronRight size={22} className="ml-auto opacity-80" aria-hidden="true" />
         </div>
       </motion.button>
 
@@ -429,10 +444,10 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
             </div>
             <button
               onClick={() => setClientTab("profil")}
-              className="h-11 w-11 grid place-items-center rounded-full bg-[#C8951E] text-[#FFF9EC] shadow active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-[#C8951E]"
+              className="h-11 w-11 grid place-items-center rounded-full bg-[#A0522D] text-[#FFF9EC] shadow active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-[#A0522D]"
               aria-label="Approvisionner mon wallet"
             >
-              <Plus size={20} />
+              <Plus size={20} aria-hidden="true" />
             </button>
           </div>
         </section>

@@ -204,10 +204,9 @@ export function NotificationCenter({
             {unread > 0 && (
               <Button
                 variant="outline"
-                size="sm"
                 onClick={markAllRead}
                 disabled={busy}
-                className="gap-1.5 w-fit text-xs"
+                className="gap-1.5 w-fit min-h-11 px-4 text-xs"
               >
                 <CheckCheck size={14} aria-hidden="true" />
                 {busy ? "Marquage…" : `Tout marquer comme lu (${unread})`}
@@ -225,7 +224,7 @@ export function NotificationCenter({
             ) : err && !feed ? (
               <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-center">
                 <p className="text-xs text-destructive">{err}</p>
-                <Button variant="outline" size="sm" className="mt-2" onClick={() => void load(true)}>
+                <Button variant="outline" className="mt-2 min-h-11 px-4" onClick={() => void load(true)}>
                   Réessayer
                 </Button>
               </div>

@@ -177,7 +177,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         <button onClick={() => setClientTab("accueil")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour accueil">
           <ArrowLeft size={15} /> Accueil
         </button>
-        <h1 className="font-heading font-black text-xl">Quelle zone analysons-nous ?</h1>
+        <h2 className="font-heading font-black text-xl">Quelle zone analysons-nous ?</h2>
         <p className="text-xs text-muted-foreground mt-1 mb-5">Chaque zone est pondérée dans ton score global (PRD §8.8).</p>
         <div className="grid grid-cols-2 gap-3">
           {BODY_ZONES.map((z) => {
@@ -217,7 +217,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           <ArrowLeft size={15} /> Changer de zone
         </button>
         <span className="rounded-full bg-primary/10 text-primary px-3 py-1 text-[11px] font-bold uppercase tracking-wide">{zoneDef.label} · {Math.round(zoneDef.weight * 100)} %</span>
-        <h1 className="font-heading font-black text-xl mt-3">Prends ta photo</h1>
+        <h2 className="font-heading font-black text-xl mt-3">Prends ta photo</h2>
 
         <ul className="mt-4 space-y-2">
           {[
@@ -236,7 +236,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           {image ? (
             <div className="relative rounded-3xl overflow-hidden border-2 border-primary/40 shadow-lg">
               <img src={image} alt={`Aperçu zone ${zoneDef.label}`} className="aspect-square w-full object-cover" />
-              <button onClick={() => setImage("")} className="absolute top-2 right-2 h-9 w-9 grid place-items-center rounded-full bg-[#1A1410]/70 text-white backdrop-blur active:scale-90 transition-transform" aria-label="Retirer la photo">
+              <button onClick={() => setImage("")} className="absolute top-2 right-2 h-10 w-10 grid place-items-center rounded-full bg-[#1A1410]/70 text-white backdrop-blur active:scale-90 transition-transform" aria-label="Retirer la photo">
                 <X size={16} />
               </button>
             </div>
@@ -358,7 +358,7 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
           <ScoreGauge score={r.score_global} label="Zone" size={110} />
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="font-heading font-black text-lg">{BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone}</h1>
+              <h2 className="font-heading font-black text-lg">{BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone}</h2>
               {r.fitzpatrick_estime && <span className="rounded-full bg-melanine text-[#F8F1E4] px-2 py-0.5 text-[10px] font-bold">Fitz {r.fitzpatrick_estime}</span>}
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">{formatDate(diag.createdAt)} · {r.source === "vlm" ? "Analyse VLM" : "Analyse heuristique"} · {r.indicateurs.length} indicateurs</p>
@@ -441,7 +441,7 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
           ))}
           <div className="absolute bottom-2 right-2 flex gap-1">
             {SEVERITY_STYLES.map((s, i) => (
-              <span key={i} className="flex items-center gap-1 rounded-full bg-[#1A1410]/70 backdrop-blur px-1.5 py-0.5 text-[8px] text-[#F8F1E4]">
+              <span key={i} className="flex items-center gap-1 rounded-full bg-[#1A1410]/70 backdrop-blur px-1.5 py-0.5 text-[11px] text-[#F8F1E4]">
                 <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} aria-hidden="true" />
                 {s.label}
               </span>
@@ -483,7 +483,7 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => setRitualOpen(true)}
-          className="relative w-full rounded-3xl bg-gradient-to-br from-[#C8951E] via-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] shadow-lg overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="relative w-full rounded-3xl bg-gradient-to-br from-[#A0522D] via-[#8B1A3B] to-[#6B2416] text-[#FFF9EC] shadow-lg overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           aria-label="Ouvrir la Route de l'Or — tisser ma routine en 4 stations"
         >
           <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-25" />
@@ -506,7 +506,7 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
 
         <div className="grid grid-cols-2 gap-3 mt-4">
           <div className="rounded-2xl border border-border bg-card p-3.5">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#C8951E] uppercase tracking-wide"><Sunrise size={13} /> Matin</p>
+            <p className="flex items-center gap-1.5 text-[11px] font-bold text-gold-text uppercase tracking-wide"><Sunrise size={13} /> Matin</p>
             <ul className="mt-2 space-y-1.5">
               {r.recommandations.routine_matin.slice(0, 4).map((s, i) => (
                 <li key={i} className="text-[11px] leading-snug flex gap-1.5"><span className="text-primary font-mono">{i + 1}.</span> {s}</li>
@@ -555,12 +555,12 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
                   {p ? (
                     <button
                       onClick={() => { addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image }); toast.success(`${p.name} ajouté au panier`); }}
-                      className="h-9 px-3 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-transform shrink-0 focus-visible:outline-2 focus-visible:outline-primary"
+                      className="h-10 px-3 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-transform shrink-0 focus-visible:outline-2 focus-visible:outline-primary"
                     >
                       <Plus size={13} /> Panier
                     </button>
                   ) : (
-                    <button onClick={() => setClientTab("boutique")} className="h-9 px-3 rounded-full border border-primary/50 text-primary text-[11px] font-bold shrink-0 active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+                    <button onClick={() => setClientTab("boutique")} className="h-10 px-3 rounded-full border border-primary/50 text-primary text-[11px] font-bold shrink-0 active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
                       Boutique
                     </button>
                   )}
@@ -696,11 +696,11 @@ function HistoryView({
         <ArrowLeft size={15} /> Nouveau diagnostic
       </button>
       <div className="flex items-center justify-between gap-2">
-        <h1 className="font-heading font-black text-xl">Mon historique</h1>
+        <h2 className="font-heading font-black text-xl">Mon historique</h2>
         <button
           onClick={() => { setCompareMode(!compareMode); setCompareSel([]); }}
           aria-pressed={compareMode}
-          className={`h-9 px-3 rounded-full text-[11px] font-bold flex items-center gap-1.5 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${compareMode ? "bg-primary text-primary-foreground" : "border border-border bg-card"}`}
+          className={`h-10 px-3 rounded-full text-[11px] font-bold flex items-center gap-1.5 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${compareMode ? "bg-primary text-primary-foreground" : "border border-border bg-card"}`}
         >
           <GitCompareArrows size={14} /> Comparer
         </button>
@@ -749,7 +749,7 @@ function HistoryView({
                       onClick={() => setCompareSel(sel ? compareSel.filter((x) => x !== d.id) : compareSel.length < 2 ? [...compareSel, d.id] : [compareSel[1], d.id])}
                       aria-pressed={sel}
                       aria-label="Sélectionner pour comparaison"
-                      className={`h-8 w-8 grid place-items-center rounded-full border-2 shrink-0 transition-colors ${sel ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}
+                      className={`h-9 w-9 grid place-items-center rounded-full border-2 shrink-0 transition-colors ${sel ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}
                     >
                       {sel && <Check size={14} />}
                     </button>

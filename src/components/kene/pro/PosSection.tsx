@@ -179,7 +179,7 @@ export function PosSection({ tenantId, tenantName, refreshKey = 0 }: { tenantId:
                         >
                           <p className="text-sm font-medium leading-tight line-clamp-2 group-hover:text-primary">{s.name}</p>
                           <p className="mt-1 text-[11px] text-muted-foreground">{s.durationMin} min</p>
-                          <p className="mt-1 font-mono text-sm font-semibold text-gold">{xof(s.price)}</p>
+                          <p className="mt-1 font-mono text-sm font-semibold text-gold-text">{xof(s.price)}</p>
                         </button>
                       ))}
                     </div>
@@ -200,7 +200,7 @@ export function PosSection({ tenantId, tenantName, refreshKey = 0 }: { tenantId:
                           <p className={cn("mt-1 text-[11px]", p.stock <= p.stockAlert ? "text-bissap font-medium" : "text-muted-foreground")}>
                             Stock : {p.stock}
                           </p>
-                          <p className="mt-1 font-mono text-sm font-semibold text-gold">{xof(p.price)}</p>
+                          <p className="mt-1 font-mono text-sm font-semibold text-gold-text">{xof(p.price)}</p>
                         </button>
                       ))}
                     </div>
@@ -243,17 +243,17 @@ export function PosSection({ tenantId, tenantName, refreshKey = 0 }: { tenantId:
                         <p className="font-mono text-[10px] text-muted-foreground">{xof(l.unitPrice)} × {l.qty}</p>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="size-6" onClick={() => setQty(i, -1)} aria-label={`Retirer un ${l.label}`}>
-                          <Minus className="size-3" />
+                        <Button variant="ghost" size="icon" className="size-10" onClick={() => setQty(i, -1)} aria-label={`Retirer un ${l.label}`}>
+                          <Minus className="size-3.5" />
                         </Button>
                         <span className="w-5 text-center font-mono text-xs font-semibold tabular-nums">{l.qty}</span>
-                        <Button variant="ghost" size="icon" className="size-6" onClick={() => setQty(i, 1)} aria-label={`Ajouter un ${l.label}`}>
-                          <Plus className="size-3" />
+                        <Button variant="ghost" size="icon" className="size-10" onClick={() => setQty(i, 1)} aria-label={`Ajouter un ${l.label}`}>
+                          <Plus className="size-3.5" />
                         </Button>
                       </div>
                       <span className="w-20 shrink-0 text-right font-mono text-xs font-semibold tabular-nums">{xof(l.unitPrice * l.qty)}</span>
-                      <Button variant="ghost" size="icon" className="size-6 text-muted-foreground hover:text-bissap" onClick={() => setQty(i, -l.qty)} aria-label={`Supprimer ${l.label}`}>
-                        <Trash2 className="size-3" />
+                      <Button variant="ghost" size="icon" className="size-10 text-muted-foreground hover:text-bissap" onClick={() => setQty(i, -l.qty)} aria-label={`Supprimer ${l.label}`}>
+                        <Trash2 className="size-3.5" />
                       </Button>
                     </motion.li>
                   ))}
@@ -293,7 +293,7 @@ export function PosSection({ tenantId, tenantName, refreshKey = 0 }: { tenantId:
               <DialogContent className="max-w-[360px] rounded-2xl p-5 gap-4">
                 <DialogHeader className="space-y-1.5 text-left">
                   <DialogTitle className="font-heading font-black text-base flex items-center gap-2">
-                    <UserRoundPlus size={17} className="text-gold" aria-hidden="true" /> Cliente express
+                    <UserRoundPlus size={17} className="text-gold-text" aria-hidden="true" /> Cliente express
                   </DialogTitle>
                   <DialogDescription className="text-xs leading-relaxed">
                     Une walk-in qui n&apos;est pas au carnet ? Deux champs suffisent — le CRM se remplit tout seul ensuite.
@@ -342,7 +342,7 @@ export function PosSection({ tenantId, tenantName, refreshKey = 0 }: { tenantId:
                     size="sm"
                     onClick={createExpressClient}
                     disabled={expressBusy}
-                    className="rounded-lg bg-gold text-gold-text hover:bg-gold/90 font-bold"
+                    className="rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-bold focus-visible:outline-2 focus-visible:outline-primary"
                   >
                     {expressBusy ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Check size={14} aria-hidden="true" />}
                     Créer et encaisser
@@ -364,12 +364,12 @@ export function PosSection({ tenantId, tenantName, refreshKey = 0 }: { tenantId:
                   value={discountInput}
                   onChange={(e) => setDiscountInput(e.target.value.replace(/[^0-9]/g, ""))}
                   placeholder="0"
-                  className="h-7 w-28 text-right font-mono text-xs"
+                  className="h-10 w-28 text-right font-mono text-xs"
                 />
               </div>
               <div className="flex items-baseline justify-between">
                 <span className="font-heading font-bold">TOTAL</span>
-                <span className="font-mono text-xl font-bold text-gold tabular-nums">{xof(total)}</span>
+                <span className="font-mono text-xl font-bold text-gold-text tabular-nums">{xof(total)}</span>
               </div>
             </div>
 
@@ -447,7 +447,7 @@ export function PosSection({ tenantId, tenantName, refreshKey = 0 }: { tenantId:
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 gap-1 text-[11px]"
+                    className="h-11 gap-1 text-[11px]"
                     onClick={() => {
                       setTicket(s);
                       setSheetOpen(true);

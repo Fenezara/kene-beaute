@@ -1,0 +1,1024 @@
+     1→# Kènè — Worklog
+     2→
+     3→Projet : plateforme beauté panafricaine (PRD v1.0) — Next.js 16, TS strict, Prisma/SQLite, VLM z-ai-web-dev-sdk, Tailwind 4 + shadcn/ui, single-page `/` avec 3 espaces (Cliente/Pro/Admin) commutés via Zustand.
+     4→
+     5→Conventions :
+     6→- Palette : or #C8951E, terre #A0522D, mélanine #1A1410, baobab #3F7D3F, indigo finance #1B3A6B, karité #F8F1E4, bissap #8B1A3B, sunset #E07A2B. Fonts : Ojuju (titres), Questrial (corps), IBM Plex Mono (chiffres). Icônes Adinkra SVG dans `src/components/kene/icons.tsx`.
+     7→- Tout l'UI visible est dans `/` (src/app/page.tsx). APIs REST sous `/api/*`. SDK z-ai uniquement backend.
+     8→- DB : `import { db } from "@/lib/db"` (déprécier l'ancien log query ? non, ok).
+     9→- Utilitaires : `src/lib/kene/{types,rfm,format}.ts`, `src/lib/payroll/index.ts`, `src/lib/accounting/syscohada.ts`, `src/lib/ai/vlm.ts`.
+    10→
+    11→---
+    12→Task ID: 1+2+3
+    13→Agent: main (Z.ai Code)
+    14→Task: Design system, schéma Prisma, libs métier, seed
+    15→
+    16→Work Log:
+    17→- globals.css : palette panafricaine light/dark, patterns kente-band / bogolan-dots, heatmaps spectrales (pigment/inflammation/acne), filtres spectre-*, print .print-area
+    18→- layout.tsx : fonts Google Ojuju/Questrial/IBM Plex Mono via next/font, lang fr, ThemeProvider next-themes, metadata Kènè
+    19→- components/kene/icons.tsx : icônes Adinkra SVG (Duafe logo, Sankofa, Aban, NeaOnnim, Osram, Fihankra, Kente, Baoule, Karité, Baobab, Moringa) + KeneLogo + BogolanWatermark
+    20→- public/kene-logo.svg
+    21→- prisma/schema.prisma : 30 modèles multi-tenant (User, Tenant, Resource, Service, ClientProfile, Appointment, Diagnosis, Product, Sale, InventoryMovement, Wallet, Payment, Order, Review, Notification, Employee, Attendance, PayPeriod, Payslip, ChartAccount, JournalEntry, Consent, AuditLog, OtpCode…) — poussé en DB
+    22→- prisma/seed.ts exécuté : 2 tenants (Éclat d'Abidjan CI / Institut Baobab SN), 4 users (Mariam cliente démo +2250701020304, Ndeye pro, admin), 9 services, 13 produits (8 boutique + 5 POS), 11 clients CRM avec segments RFM, 15 RDV (passés/aujourd'hui/semaine), 29 ventes 30 jours avec écritures CA/BQ, plan SYSCOHADA + capitaux + achat + paie journalisée, 6 employés (4 CI, 2 SN), pointage 7j, 1 PayPeriod + 4 Payslips, wallet Mariam 12 500 FCFA, 3 diagnostics passés (visage×2, mains), avis, notifications SMS/WhatsApp simulées
+    23→- lib/payroll/index.ts : computePayrollCI (CNPS pension 6,3/7,7 % plafond 3 375 000 ; PF 5 %, maternité 0,75 %, AT 2 % plafond 70 000 ; congés 8 % ; IGR barème 5 tranches ; CN 1,5 %), computePayrollSN (IPM PF 7 % plafond 63 000 ; IPRES 5,6/8,4 % ou cadres 2,4/3,6 % plafond 432 000 ; IR SN 7 tranches), buildECnpsXml export e-CNPS
+    24→- lib/accounting/syscohada.ts : plan SYSCOHADA 30+ comptes, splitTVA 18 %, saleJournalLines/purchaseJournalLines/payrollJournalLines, computeBalance, buildStatements (bilan + résultat + TVA à payer)
+    25→- lib/kene/rfm.ts : rfmScore + segments, cancellationRefund (>72h 100 % / 24-72h 80 % / 2-24h 30 % / <2h 0), generateDaySlots, MOMO_OPERATORS
+    26→- lib/kene/types.ts : DiagnosisResult complet (14 indicateurs visage, zones_marquages bbox %, recommandations, ABCDE), BODY_ZONES pondérés (visage 40 %, nævi 20 %, dos 15 %…), SPECTRAL_VIEWS, RFM_SEGMENTS
+    27→- lib/kene/format.ts : xof(), formatDate/Time, severity/score colors, genRef
+    28→- lib/ai/vlm.ts : runDiagnosis (prompt VLM spécialisé Fitzpatrick IV-VI, JSON strict, normalisation, fallback déterministe) + triageLesion (vert/jaune/rouge)
+    29→
+    30→Stage Summary:
+    31→- Fondations 100 % : design system + DB seedée + moteurs métier paie/compta/RFM/VLM
+    32→- Démo : cliente Mariam +2250701020304 (wallet 12 500, 3 diagnostics), tenant pro « Éclat d'Abidjan » CI avec 30 jours de données
+    33→- Prochaine étape : store Zustand + APIs REST + UI 3 espaces
+    34→
+    35→---
+    36→Task ID: 8-c
+    37→Agent: subagent-C (Pro + Admin)
+    38→
+    39→Task: APP PRO complète (Dashboard, Agenda, Caisse POS, CRM, Catalogue, Stock, Paie, Compta) + Console Admin
+    40→
+    41→Work Log:
+    42→- src/components/kene/pro/types.ts : types de réponse du contrat API /api/pro/* & /api/admin/stats (re-export PayrollLine depuis lib/payroll)
+    43→- src/components/kene/pro/useApi.ts : hook local useApi(fn, deps) → { data, loading, error, refetch, setData } (pas de React Query)
+    44→- src/components/kene/pro/ui-bits.tsx : briques partagées (KpiCard+KenteTop, Money=font-mono+xof, ApptStatusBadge, JournalBadge, ClasseBadge, EmptyState, ErrorState, LoadingBlock, SectionHeader, InitialAvatar, dayLabel robuste « 16/08 » ou ISO)
+    45→- ProApp.tsx : shell desktop-first — sidebar 240px bg-sidebar (logo compact, sélecteur d'institut pattern multi-tenant, badge plan+ville+pays, nav 8 sections avec icônes Adinkra, user démo « Fatou Koné — Gérante »), chips horizontales <lg, motion par section, tenant par défaut mémorisé via useKene.setProTenantId
+    46→- DashboardSection : 6 KPI cards kente-band-soft, BarChart CA 14j (var(--chart-1), tooltip xof), PieChart paiements (Wave #1DC8FF / Orange #FF7900 / Espèces or / Carte vert) + légende %, top soins, timeline du jour (heure font-mono, statut), alertes stock bissap → nav Stock
+    47→- AgendaSection : vue semaine 7 col × créneaux 30 min (9h-20h, scroll 70vh, blocs RDV colorés resource.color avec color-mix), vue jour (chips L-D), nav ‹ Aujourd'hui › ; détail RDV en Dialog avec actions PATCH confirm/complete (toast « Vente encaissée + compta auto »)/cancel/no-show/reschedule (date+heure+praticienne) ; création RDV : combobox Command clientes (recherche nom/tél) ou nouvelle cliente, service, praticienne, date+heure 30 min, notes ; praticiennes déduites des RDV sur fenêtre large −30j/+45j (resourceId réel du champ top-level, fallback resource.id puis nom)
+    48→- PosSection : 2 panneaux — catalogue (Tabs Soins|Produits, cards +1 ticket) / ticket (steppers qty, remise, TOTAL or, cliente optionnelle, 4 boutons paiement brand colors), overlay succès animé (check spring), Sheet ticket thermique print-area w-[300px] font-mono noir/blanc (TVA 18% via splitTVA, n° ticket, window.print), ventes récentes ×5 avec re-print
+    49→- CrmSection : recherche debounced (q serveur), 3 stats (clientes, panier moyen, champions), chips filtres RFM (RFM_SEGMENTS + RFM_SEGMENT_STYLES), table (avatar initiale, tél, dernière visite, visites, total font-mono, badge segment) → Sheet fiche : RFM 3×5 dots calculés via rfmScore, diagnostics IA liés (imageData avec préfixe « file: » strippé), Tabs Ventes/RDV/Notes (localStorage kene-crm-note-{id})
+    50→- CatalogSection : Tabs Soins|Produits, cards (catégorie, durée, prix mono, commission %, botanicals, stock+alerte produits, visuel), Switch actif/inactif → PATCH, menu … (modifier/activer), Dialog création/édition avec aperçu visuel /products/*.webp
+    51→- StockSection : alertes bissap en tête, table inventaire (img 40px, stock mono + badge alerte, seuil, valeur), Dialog mouvement (Entrée/Sortie/Perte + motif) → POST, historique mouvements badges colorés (in success / out terre / loss bissap)
+    52→- PayrollSection : (a) cards employés (rôle, contrat, pays CI/SN, salaire mono, n° CNPS/IPRES) + pointage du jour (badge présent/retard/absent, Pointer arrivée/départ, heures mono) + Dialog embauche (cadres IPRES si SN) ; (b) exécution paie (input month → POST run, 400 si validée) + 5 KPI (masse brute, patronales, salariés, IGR/IR+CN, net) calculés depuis les payslips (robuste aux clés totalsJson) ; (c) périodes expandables avec table bulletins + vue bulletin A4 imprimable (print-area 720px : en-tête, régime depuis detailsJson, lignes PayrollLine base/taux/gains/retenues + part employeur, NET À PAYER, pied « Conforme CNPS CI / IPM SN ») + export e-CNPS XML (blob download ecnps-{period}.xml, périodes CI) + note IPRES si SN
+    53→- AccountingSection : sous-tabs Journal (entries expandables, JournalBadge CA/BQ/PA/OD, lignes D/C mono + check équilibre, saisie manuelle OD Dialog avec lignes dynamiques + équilibre live) / Grand livre (select compte → lignes chrono + solde progressif + solde final) / Balance (groupée par classe avec CLASSES_LABELS + ClasseBadge, TOTAUX + égalité D=C) / Liasse fiscale (print-area : TVA collectée/déductible/à payer finance, Bilan actif/passif + équilibre, Compte de résultat avec RÉSULTAT NET coloré, bouton Exporter → window.print)
+    54→- AdminApp : header « Console Kènè » + kente-band, 5 KPI (users, tenants, diagnostics, commandes, GMV mono + commissions), LineChart diagnostics 14j, table instituts avec barre proportion or→terre, note POC
+    55→- Robustesse inter-agents : ressources agenda via resourceId top-level (l'API n'expose pas resource.id imbriqué) ; dates chart acceptées « 16/08 » ou ISO ; totalsJson/payroll via calcul client ; sale.items reconstruits si absents du POST
+    56→
+    57→Qualité:
+    58→- tsc --noEmit : 0 erreur sur src/components/kene/{pro,admin} ; eslint pro+admin : 0 error 0 warning
+    59→- POST /api/pro/appointments testé OK avec resourceId réel (201) ; GET overview/catalog/sales/payroll/accounting/admin/stats vérifiés
+    60→- Reste 1 erreur lint connue HORS périmètre : src/components/kene/ThemeToggle.tsx (react-hooks/set-state-in-effect) — fichier fondation main, à corriger par le propriétaire
+    61→- N.B. : icônes Adinkra ont une erreur TS latente HORS périmètre (icons.tsx TS1016 param requis après optionnel) invisible car @ts n'est pas bloquant en dev
+    62→
+    63→Stage Summary:
+    64→- APP Pro 8 modules + Console Admin livrés et branchés sur le contrat API réel, desktop-first responsive, palette panafricaine, font-mono+xof sur tous les chiffres, toasts sonner, skeletons/empty states partout, prints (ticket 300px, bulletin A4, liasse)
+    65→
+    66→---
+    67→Task ID: 4-a
+    68→Agent: subagent-A (APIs)
+    69→Task: Toutes les routes API REST Kènè (43 endpoints)
+    70→
+    71→Work Log:
+    72→- src/lib/kene/server.ts : helpers serveur (jsonError/serverError loggés, resolveTenant mono-tenant démo, slugify/instituteImage, dates, overlaps, ensureWallet/credit/debit, notify, recomputeClientRfm, createJournalEntry résout SimpleLine→ChartAccount en sautant les comptes absents)
+    73→- Auth : POST otp/request (normalise espaces, devCode simulé 6 chiffres 5 min) ; otp/verify (user auto-créé, role pro si phone=ownerPhone, referralCode) ; PATCH profile (goals→JSON) ; POST consent (+records Consent, ip)
+    74→- IA : POST diagnoses (zod zone/image, pending→runDiagnosis→done, alerte whatsapp naevi+orientation_dermato, maxDuration 60, runtime nodejs) ; GET diagnoses ; POST dermato/chat (system prompt mélanoderme + LLM SDK) ; dermato/photo (triageLesion vert/jaune/rouge)
+    75→- Instituts/RDV cliente : institutes liste (image /instituts/{slug}.webp, _count, filtres slugify) ; détail (services/ressources/avis) ; availability (grille 30 min × ressources, dispo = durée service sans chevauchement, passé=indispo) ; appointments GET/POST (anti-chevauchement 409, acompte→Payment) ; cancel (cancellationRefund→crédit wallet, whatsapp) ; review (recalcul note institut)
+    76→- Boutique/Paiements/Wallet : shop/products (tenantId null) ; orders (cashback 5 %, wallet=payé immédiat sinon MoMo pending, stocks+mouvements) ; payments initiate/confirm (shop_order→paid+cashback+stock, wallet_topup→crédit, appointment_deposit→confirmed+deposit+rappel J-1) ; wallet GET (création à la volée KENE-{id[-6:]}) ; topup
+    77→- Pro : overview (7 KPIs dont occupancyPct, chart 14 j, paymentSplit, topServices, agenda du jour, stockAlerts) ; appointments GET/POST(CRM auto par téléphone)/PATCH(confirm|complete→Sale+écriture CA/BQ+CRM/RFM|cancel|no_show|reschedule 409) ; clients liste+fiche 360°(rfm à la volée) ; catalog GET/POST/PATCH(stock→movement adjust) ; stock GET/POST(in/out/loss+notification seuil) ; sales GET/POST(POS mixte, remise, splitTVA, écriture auto, CRM) ; employees+attendance(upsert, late>09:15) ; payroll GET/run(computePayroll CI/SN, totalsJson, écriture PA)/ecnps(XML attachment) ; accounting GET(plan, journaux, balance TOUTES lignes, états) + manual OD (équilibrage vérifié)
+    78→- Admin : stats (counts, gmvBoutique, commissions marketplace, chart diagnostics 14 j, topTenants CA 30 j)
+    79→- Correctifs : payrollJournalLines vient de @/lib/accounting/syscohada ; Product/Service/Employee sans createdAt (tris adaptés) ; let payment dans confirm ; order.items capturés avant update ; OTP espaces internes normalisés
+    80→
+    81→Tests:
+    82→- Suite directe 51 scénarios (bun, handlers + DB side-effects) : 50 OK / 1 assertion de test erronée (match CRM par téléphone = spec)
+    83→- curl HTTP : 18 GET → 200 + POST flows (OTP 200/400, orders 201 & wallet-paid, confirm 200 & double 400, RDV 201 & chevauchement 409 & cancel refund, POS 201 + journal +1, payroll run 201 & doublon 400, ecnps 200 XML + 404, OD 201 & déséquilibrée 400, chat LLM 200 ~3 s, diagnoses VLM 200 ~6 s)
+    84→- DB remise à l'état seed après tests (comptes, ventes 29, wallet 12 500, ratings, CRM réconcilié) ; eslint src/app/api + lib/kene/server.ts → 0 erreur ; dev.log sans erreur de compilation (les ⨯ restants sont historiques, périmètre agent B)
+    85→
+    86→Stage Summary:
+    87→- Backend 100 % opérationnel et testé : 43 endpoints REST conformes au contrat frontend, effets métier complets (wallet, stocks, RFM, SYSCOHADA, paie CI/SN, e-CNPS)
+    88→- Prêt pour l'intégration UI (agent B) ; démo : Mariam +2250701020304, pro « Éclat d'Abidjan » (tenant par défaut si tenantId absent)
+    89→---
+    90→Task ID: 7-b
+    91→Agent: subagent-B (Cliente)
+    92→
+    93→Task: APP CLIENTE complète (Sprint 1 diagnostic IA + Sprint 3 boutique/RDV/wallet/chat) — mobile-first ≤430px
+    94→
+    95→Work Log:
+    96→- src/components/kene/client/types.ts : types de réponse du contrat API cliente (ApiUser/Diagnosis/Institute/Service/Resource/Review/Slot/Appointment/Product/Order/Payment/Wallet/WalletTx/ChatMsg) + parseDiagnosis sûr + diagImgSrc (gère préfixe « file: » du seed) + constantes UI (SHOP_CATEGORIES, SKIN_TYPES, SKIN_GOALS, FITZPATRICK_CARDS avec dégradés carnations #8D5524→#241A10)
+    97→- bits.tsx : briques partagées — ScoreGauge (SVG stroke-dasharray animé scoreColor), ScoreChip, SectionTitle, EmptyBlock, Stars, SpinnerButton, KenteTop, APPT_STATUS_STYLES/ApptBadge, WalletPill, MomoProcessing (écran opérateur simulé)
+    98→- ClientApp.tsx : orchestrateur — !user → Onboarding, sinon conteneur max-w-[430px] + AnimatePresence par tab + nav bas sticky glass-kene grid-cols-5 (Diagnostic surélevé cercle or -mt-5, badge panier + dot chat non lu clearé via goTab, dot or actif, pb-[env(safe-area-inset-bottom)]) ; pendingZone propagé Accueil→Diagnostic
+    99→- Onboarding.tsx : 3 étapes framer-motion slide — (1) hero /hero/hero-client.webp h-60 + overlay dégradé + KeneLogo + input +225 + bouton démo Mariam (otp/request→verify devCode, compte riche → accueil direct) ; (2) input-otp 6 + carte « SMS simulé » devCode cliquable autofill+submit + renvoyer + prénom si « Nouvelle cliente » ; (3) Fitzpatrick IV/V/VI cartes dégradés + chips type/goals + allergies + checkbox consent OBLIGATOIRE → POST consent + PATCH profile (userId capté au verify)
+   100→- HomeScreen.tsx : header « Bonjour {prénom} » + ville + WalletPill + avatar initiale ; score multi-zones pondéré BODY_ZONES (dernier diag/zone, 69 pour Mariam) + gauge + chips zones manquantes cliquables (scan direct) ; CTA géant Scanner (NeaOnnimIcon, bogolan overlay) ; prochain RDV (SankofaIcon) ; wallet card mélanine (solde, cashback 5 %) ; « Recommandé pour ta peau » 3 produits h-scroll selon skinType ; Suivi WhatsApp cartes simulées badge « Programmé »
+   101→- DiagnosticScreen.tsx : wizard 5 étapes — grille 2col zones (icônes lucide + badge poids %) ; capture (tips 3 points, file capture=user → resizeImage, photo démo fetch /skin/demo-*.webp) ; analyse (barre scan loop, 4 étapes checkées progressivement, Progress, POST /api/diagnoses en parallèle + durée min 3,4 s, typo corrigée) ; RÉSULTAT VISIA-like : gauge + Fitz estimé + alerte bissap orientation_dermato (raison + chips ABCDE + CTA RDV), Tabs 4 vues spectrales (filter spectre-* + heatmap-* overlay mix-blend-screen + cadres dashed zones_marquages % + dot sévérité + légende), grille 2×4 priorités (barres SEVERITY_STYLES animées), Accordion 14 indicateurs avec notes, recommandations (resume bord or, routine matin/soir 2 col Sunrise/Moon, badges botaniques Moringa/Karité/Baobab, produits matchés flou→produits boutique avec +Panier→addToCart+toast, soins→Réserver, hygiène de vie), disclaimer, Nouvelle zone/Historique ; HISTORIQUE : cartes miniature+ScoreChip, mode comparaison (sélection 2 même zone → avant/après côte à côte + delta score coloré + top 3 évolutions indicateurs)
+   102→- ShopScreen.tsx : chips catégories + recherche ; grille 2col (img square rounded, botanicals text-terre, prix mono, Stars) ; Sheet fiche (qty stepper, stock max) ; barre panier sticky bottom-[84px] au-dessus nav (badge count) ; Sheet checkout (steppers, sous-total, cashback 5 % estimé, Wave/Orange couleurs + Wallet disabled si insuffisant) ; overlay paiement simulé plein cadre (logo opérateur, montant, n°, spinner 3 s) → POST payments/confirm → succès check spring + toast cashback ; wallet → orders paid direct
+   103→- BookingScreen.tsx : Tabs Réserver/Mes RDV — instituts (hero img, ★+count, ville, nb soins) → détail (description, avis h-scroll, services durée/prix/botanicals) → 7 jours chips → availability grille 4col slots disabled grisés → récap (praticienne = 1er resourceIds, prix, acompte 30 %) → paiement Wave simulé/Wallet → POST appointments (+confirm) → confirmation Sankofa « Rappel SMS J-1 programmé (simulé) » ; Mes RDV : à venir (annuler → Dialog politique cancellationRefund complète + remboursement estimé live → POST cancel → toast wallet) / passés (completed → Dialog avis 5 étoiles cliquables + commentaire → POST review) ; FIX closure bug : chooseService fetch directement avec le service fraîchoir (les créneaux ne se chargeaient pas sinon)
+   104→- ChatScreen.tsx : WhatsApp-like fond bogolan-dots — bulles user bg-primary/90 / IA bg-card + avatar DuafeIcon « Dr. Kènè » ; suggestions initiales ; triage photo : resizeImage → POST dermato/photo → bulle bord gauche vert/jaune/rouge + CircleCheck/TriangleAlert/OctagonAlert + CTA selon niveau (boutique/RDV) ; micro webkitSpeechRecognition fr-FR typé maison (tooltip si non supporté) ; toggle TTS speechSynthesis fr-FR ; typing 3 dots animés ; footer « Éducation cutanée — pas de prescription médicale »
+   105→- ProfileScreen.tsx : carte identité éditable (PATCH) ; profil peau rééditable (Fitz chips dégradés/type/goals/allergies → PATCH, goals parsés via type local ClientUser car SessionStore n'expose pas goals) ; wallet complet (solde mélanine + code parrain + transactions crédit/déb colorés + Sheet approvisionnement chips 2000/5000/10000 + Wave/Orange → topup + confirm simulé 2,6 s + écran succès spring) ; consentement statut ; carte « Vous êtes gérante ? → Espace Pro » (setSpace('pro')) ; déconnexion (setUser(null))
+   106→
+   107→Tests (navigateur headless + curl, serveur :3000 réel) :
+   108→- Onboarding démo Mariam → accueil : score multi-zones 69 (visage 66×40 % + mains 81×10 %, zones manquantes ok), wallet 12 500, recommandations mixte OK
+   109→- Diagnostic réel visage photo démo : POST VLM 15-30 s → score 78, tabs spectraux (classe spectre-pigment vérifiée sur img), 14 indicateurs, 4 produits matchés +Panier
+   110→- Boutique : ajout panier 17 000 → checkout Wave simulé → confirm → wallet 12 500+850 cashback=13 350 vérifié API ; bouton wallet correctement disabled (solde < total)
+   111→- RDV : Éclat d'Abidjan → Diagnostic IA + Consultation → créneaux 13 dispo (fix closure) → 13:30 → acompte 3 000 Wave → « Rendez-vous confirmé » + rappel J-1 → RDV visible dans Mes RDV (Bintou Cissé)
+   112→- Chat : suggestion PIH → réponse LLM complète (SPF, niacinamide, AHA…) sans erreur console
+   113→- Diagnostic de test nettoyé en DB (3 diagnostics seed restaurés) ; le RDV démo créé est conservé (utile pour Mes RDV)
+   114→- tsc --noEmit : 0 erreur ; eslint : 0 erreur 0 warning ; dev.log sans erreur de compilation récente
+   115→
+   116→Stage Summary:
+   117→- App Cliente 100 % fonctionnelle branchée sur le contrat API réel : onboarding OTP démo 1-clic, diagnostic IA VISIA-like multi-zones avec vues spectrales & historique comparatif, boutique + paiements mobile money simulés + cashback wallet, réservation RDV avec acompte et annulation remboursée, chat Dr. Kènè vocal/photo/TTS, profil complet
+   118→- Aucun fichier hors src/components/kene/client/ modifié (sauf worklog)
+   119→
+   120→---
+   121→Task ID: 9+10+11
+   122→Agent: main (Z.ai Code)
+   123→Task: Intégration, corrections, vérification E2E agent-browser, images, rapport final
+   124→
+   125→Work Log:
+   126→- Images : 15 assets générés via SDK (8 produits, 4 peaux démo, 2 instituts, 1 hero) — scripts/gen-images.ts
+   127→- Corrections typing/lint : ThemeToggle (dark:hidden sans state, règle react-hooks/set-state-in-effect), icons.tsx TS1016, vlm.ts (VisionMessage + model "glm-4.6v" explicites, botaniques_conseillees aligné partout), types.ts (emoji retiré de BODY_ZONES), 3 routes API (annotions Awaited<ReturnType<…>> | null)
+   128→- BUG #1 (bloquant RDV wallet) : POST /api/appointments rejetait paymentMethod "wallet" (zod wave|orange) → wallet natif : ensureWallet → contrôle solde → debitWallet → Payment success + RDV confirmed direct (testé curl + navigateur, débit 3 000 vérifié)
+   129→- BUG #2 (liasse) : bilan déséquilibré si résultat négatif → buildStatements présente la PERTE à l'actif (convention SYSCOHADA) → écart 0 vérifié (6 683 305 = 6 683 305)
+   130→- BUG #3 (crash fiche CRM) : GET /api/pro/clients/[id] sans include service → a.service.name undefined → include ajouté, fiche re-testée OK (5 diagnostics liés, RFM, onglets)
+   131→- Cosmétique : compteur d'avis instituts = champ marketing seedé (132/87) au lieu de _count POC
+   132→- E2E agent-browser (golden paths) : Démo Mariam 1-clic → accueil score multi-zones pondéré 79/100 → diagnostic VLM RÉEL visage démo (POST 200 en 19,9 s < 30 s PRD) → écran VISIA (gauge, 4 vues spectrales + heatmaps + cadres zones_marquages, 8 priorités + accordion 14 indicateurs, routine, produits matchés boutique) → + panier → checkout Wave simulé → cashback +225 crédité (wallet 13 575) → RDV Éclat d'Abidjan (créneaux, acompte 3 000 wallet, confirmation + rappel J-1 simulé) → chat Dr. Kènè (LLM : réponse PIH + botaniques) → Espace Pro : dashboard KPIs + BarChart/PieChart → agenda semaine + détail RDV → POS 28 000 Wave + ticket thermique imprimable → CRM table + fiche → Stock alertes → Paie (pointage retard >09:15, périodes, bulletin A4 détaillé : CNPS 6,3 %/7,7 %, IGR tranches, CN 1,5 % — recalculs vérifiés exacts, e-CNPS XML) → Compta (Balance D=C équilibrée, Liasse bilan + compte résultat + TVA 243 050/73 220/169 830) → Admin console → responsive iPhone 14 OK → dark mode validé par VLM (« excellent contrast ») → footer sticky vérifié (mt-auto + push naturel)
+   133→- Qualité finale : eslint 0 erreur, tsc --noEmit 0 erreur (src), dev.log sans erreur, page 200
+   134→
+   135→Stage Summary:
+   136→- Plateforme Kènè MVP complète et vérifiée bout-en-bout : 3 espaces (Cliente mobile-first / Pro desktop / Admin), 43 endpoints REST, VLM + LLM réels, moteurs paie CI/SN et SYSCOHADA exacts, paiements MoMo simulés + wallet, POC démarrable en 1 clic (bouton « Démo — Mariam »)
+   137→- 3 bugs bloquants détectés et corrigés pendant l'E2E navigateur (preuve que la vérification était nécessaire)
+   138→- État DB : données seed + diagnostics/ventes/RDV de démonstration fraîches
+   139→
+   140→---
+   141→Task ID: 12 (ré-application post-rollback)
+   142→Agent: main (Z.ai Code)
+   143→Task: Correction hydration mismatch ThemeToggle — 2e passage après rollback environnement
+   144→
+   145→⚠️ INCIDENT : l'environnement a été restauré depuis un snapshot git (commit 0b31a7b, message UUID) entre les 2 sessions → le correctif initial du Task 12 (2 boutons statiques CSS) avait été ÉCRASÉ, ainsi que suppressHydrationWarning (page.tsx) et l'entrée worklog. L'utilisateur a re-signalé le même bug — légitime, le code était réellement revenu à l'état bogué.
+   146→
+   147→Work Log:
+   148→- Diagnostic rollback : ThemeToggle.tsx (13:07) revenu au code dérivé de resolvedTheme ; grep confirmé aria-label dynamique de retour ; git status/montrer que le fix n'était plus dans l'arbre
+   149→- Ré-application 1:1 du correctif validé : ThemeToggle = 2 boutons statiques commutés par CSS (`dark:hidden` / `hidden dark:flex`), aria-label fixes par bouton, setTheme("dark"|"light") fixe par bouton — AUCUN attribut rendu dérivé du thème (pattern anti-hydration-mismatch), pas d'état/effet (react-hooks/set-state-in-effect)
+   150→- Ré-application suppressHydrationWarning sur le <p> © année (page.tsx)
+   151→- Re-vérification agent-browser : dark preset localStorage + reload → console + page errors 100 % vides ; bascule dark→light OK (html class + localStorage + bouton visible) ; reload light → clean ; eslint 0 erreur
+   152→
+   153→Stage Summary:
+   154→- Bug hydration résolu à nouveau + racine documentée (rollback snapshot) — si le bug re réapparaît, VÉRIFIER D'ABORD que le fichier n'a pas été re-réverté (cf. timestamps + grep resolvedTheme dans ThemeToggle.tsx)
+   155→- Console navigateur vierge sur / en light ET dark, premier chargement inclus
+   156→
+   157→---
+   158→Task ID: 13 (Phase A — Innovation immersive)
+   159→Agent: main (Z.ai Code)
+   160→Task: LE FIL DE KENTE — introduction narrative immersive 3D au défilement (récit d'onboarding en 6 chapitres)
+   161→
+   162→Work Log:
+   163→- Dépendances : three@0.185.1 + @react-three/fiber@9.7.0 + lenis@1.3.26 + @types/three (pas de drei/gsap : tout procédural, progression pilotée en rAF maison)
+   164→- src/components/kene/intro/chapters.ts : partition du récit — 6 chapitres [0→0.12 prologue, 0.12→0.34 fil, 0.34→0.56 jardin, 0.56→0.74 fitz, 0.74→0.90 scan, 0.90→1.00 kente], copie UX Writer FR intime, keyframes caméra CAM[7], utilitaires chapterT/easeInOut/easeOut (convention fadeIn/fadeOut=0 → pas de fondu)
+   165→- src/components/kene/intro/Intro3D.tsx (dynamic ssr:false) : Canvas unique fond mélanine #1A1410 + fog + 3 lumières chaudes — (0) MelaninDust 1100 points additifs palette or/karité/sunset/bissap qui se condensent en galaxie spirale au scroll ; (1) GoldenThread TubeGeometry(catmullrom 240 seg) révélé par setDrawRange + navette lumineuse (sphère émissive + pointLight #E07A2B) au point curve.getPointAt ; (2) Botanical 3 arbres low-poly flatShading (baobab tronc+3 dodecaèdres verts, moringa tige+5 icosahedrons+fleurs or, karité branch+fruits bissap/karité) flottement sin + panoramique ; (3) FitzWall 3 panneaux ShaderMaterial dégradés carnations IV/V/VI + cadre or, montée + resserrement au scroll ; (4) ScanEcho tête abstraite Icosahedron(1.05,6) déplacée par bruit sinusoïdal + wireframe crème + faisceau biseau #E07A2B qui balaie une fois + 7 zones émissives qui s'allument au passage (teaser VISIA) ; (5) KenteBand PlaneGeometry 6.6×2.7 shader procédural 9 rangées × 14 colonnes palette kente + liserés or + armure sinusoïdale + ondulation vertex + 170 étincelles or
+   166→- src/components/kene/intro/KenteIntro.tsx : orchestrateur — conteneur 640vh + sticky h-svh, Lenis 1.25s + boucle rAF unique qui écrit la progression dans ref mutable (zéro re-render) et pilote overlays HTML (opacity/translate/visibility par data-from/to/fadein/fadeout) + rail 6 points ; bouton « Passer » permanent ; CTA final or ; StaticIntro fallback (6 sections empilées, zéro animation)
+   167→- src/components/kene/intro/introState.ts : pattern useSyncExternalStore — INTRO_KEY localStorage + événement custom same-tab + listener storage cross-tab, markIntroDone(), useIntroDone() (snapshot serveur false → aucune mismatch d'hydratation) ; mode 3d/static aussi via uES avec cache module (reduced-motion || pas de WebGL || #intro-static QA)
+   168→- Intégration : store kene.ts +introActive (non persisté) ; page.tsx header/footer masqués pendant l'intro ; ClientApp gate `if (!user) return introDone ? <Onboarding/> : <KenteIntro/>` (re-check au logout via uES)
+   169→- 2 bugs détectés par la vérif navigateur et corrigés : (1) chapterT fadeIn>0 rendait prologue invisible à p=0 → convention fadeIn=0 = visible immédiatement ; (2) outT=(1-local)/fadeOut = 0 à local=1 → CTA disparaissait exactement en bas de page → convention fadeOut=0 = jamais de fondu de sortie
+   170→- 3 erreurs eslint corrigées en architecture : setState-in-effect remplacé par useSyncExternalStore (localStorage + mode), vecteurs CameraRig sortis de useMemo vers useRef (règle immutability)
+   171→
+   172→Tests (agent-browser + VLM, viewport 1280×800 et 390×844) :
+   173→- Console navigateur 100 % vierge sur tout le parcours (seul warning interne THREE.Clock de R3F)
+   174→- 6 chapitres vérifiés visuellement par VLM : particules ~150-200 dorées + titre + logo + hint / fil d'or 3D lisible / arbres low-poly + texte / 3 panneaux carnations + « IV·V·VI » / sphère wireframe + nœuds lumineux / bande kente tissée + CTA or — tous « readable, polished »
+   175→- FPS mesuré au chapitre jardin (scène active) : 61 fps mobile 390px ✓ (budget 60)
+   176→- Chemin doré complet : 1re visite → intro → scroll 640vh → CTA « Commencer mon histoire » → onboarding (clé posée, header restauré, scroll 0) → démo Mariam → accueil « Bonjour » ✓
+   177→- Persistance : reload avec introDone=1 → onboarding direct, zéro canvas chargé ✓ ; skip « Passer » → onboarding + clé posée ✓
+   178→- Fallback statique #intro-static : 6/6 chapitres HTML + CTA, zéro canvas ✓ (QA : true navigation testée — un simple changement de hash ne recharge pas la page)
+   179→- Qualité : eslint 0 erreur, tsc --noEmit 0 erreur src/, dev.log compilations propres
+   180→
+   181→Stage Summary:
+   182→- Phase A livrée : onboarding narratif immersif « Le Fil de Kente » — 6 chapitres 3D procéduraux pilotés au scroll (Lenis + rAF, aucun asset externe), fallback accessibilité, persistance localStorage, 61 fps mobile
+   183→- Pattern réutilisable : introState.ts (uSES sans mismatch) + chapterT (conventions fadeIn/fadeOut=0) + flag store introActive
+   184→- Prochaine étape proposée : Phase B — Skin Twin 3D (résultats diagnostic sur tête rotative + fiche CRM Pro)
+   185→---
+   186→Task ID: 14 (Phase B — Innovation immersive)
+   187→Agent: main (Z.ai Code)
+   188→Task: SKIN TWIN 3D « Ton Jumeau de Peau » — le diagnostic porté par un buste 3D interactif (résultats cliente + fiche CRM Pro 360°)
+   189→
+   190→Work Log:
+   191→- src/components/kene/skintwin/twinMath.ts : math pures — tête sculptée procéduralement (bosses gaussiennes sur icosaèdre : occiput, mandibule effilée, menton, arcade, orbites, arête nasale, pommettes, oreilles, lèvres), projection photo→3D par zone (visage/barbe/cuir_chevelu→fenêtres angulaires tête ; dos/nævi→ellipsoïde torse ; mains→moufles), projection 2D fallback (viewBox 100×110), teintes Fitz IV/V/VI, SEV_HEX, matchIndicator() rapprochement flou marqueur↔indicateur (stems, seuil 0,34), DragState
+   192→- SkinTwinScene.tsx (dynamic ssr:false) : Canvas R3F — buste (tête ico(1,4) sculptée, cou, torse ellipsoïdal, 2 moufles), socle muséal + liseré or émissif teinté score, orbite du Fil d'Or (tore incliné + 3 perles, continuité Phase A), pastilles sphères émissives couleur sévérité avec pulsation cardiaque + halo billboard sur pastille active, balayage scanner sunset descendant une fois, drag rotation avec inertie + auto-rotation après repos 2,6 s + respiration, caméra adaptative à l'aspect, frameloop coupé hors viewport (prop du Card via IntersectionObserver)
+   193→- mode.ts : useSyncExternalStore 3d/pending/static (reduced-motion, WebGL absent, QA #twin-static) — pattern Phase A
+   194→- SkinTwinCard.tsx : carte UI — stage sombre « musée » 340/380 px, chips numérotées = interface accessible (hover/focus↔3D, clic↔sélection), panneau détail (sévérité + indicateur lié + % + note), légende, badge Fitz, hint « Fais pivoter » (disparaît après 1re interaction), fallback SVG (silhouette buste + pastilles), note si marqueurs absents ; drag en ref mutable (zéro re-render), pointer capture + seuil 7 px click-vs-drag
+   195→- Intégrations : DiagnosticScreen ResultView (jumeau du diagnostic courant, entre alerte dermato et tabs spectraux) ; CrmSection ClientSheet (jumeau AGRÉGÉ multi-diagnostics : 23 pastilles 21 Visage + 2 Mains, score moyen exact 75/100) + type resultJson ajouté à ProClientDetail.diagnoses
+   196→- Chasse aux FPS (méthode bisection agent-browser) : 24 fps → 60 fps. Causes trouvées et corrigées : (1) MeshPhysicalMaterial+sheen → MeshLambertMaterial (PBR inutile en low-poly facetté, +11 fps) ; (2) flag flatShading → normales plates PRÉCALCULÉES via computeVertexNormals sur géométries non-indexées (toNonIndexed pour cylindre) — évite le chemin fragment à dérivées (+2) ; (3) pastilles transparentes → OPAQUES avec pop d'échelle à la révélation (zéro blending) ; (4) overlay wireframe supprimé (~4 fps pour un effet subtil) ; (5) antialias:false + géométries fines épaissies (anneau 0,0058→0,012) pour compenser (+14, décisif) ; (6) canvas alpha→opaque avec <color> mélanine ; (7) 2 point lights (faisceau, socle) remplacées par émissifs. Calibrage : intro mesurée à 61 fps dans le même environnement → cible légitime
+   197→- Bug a11y PRÉEXISTANT corrigé au passage (prouvé par git stash) : fiche CRM → erreur Radix « DialogContent requires DialogTitle » pendant le squelette de chargement → SheetTitle sr-only dans branches loading/error + aria-describedby={undefined} sur SheetContent. Console fiche CRM désormais 100 % propre
+   198→- Warning THREE « toNonIndexed: already non-indexed » éliminé (garde g.index)
+   199→
+   200→Tests (agent-browser + VLM, viewports 1280×800 et 390×844) :
+   201→- Console navigateur 100 % vierge sur tous les parcours (client, Pro, fallback, reload à froid) — seul warning THREE.Clock bénin de R3F (identique Phase A)
+   202→- Cliente : jumeau rendu (canvas 396×378), 7 pastilles/chips, clic chip → panneau détail (68 %, note, « Indicateur lié : Taches PIH post-inflammatoires » — fuzzy match OK), drag → VLM confirme ROTATED (profil gauche révélé), hint disparaît après interaction, badge Fitz V
+   203→- FPS : 60 desktop ET 60 mobile 390px (budget 60 atteint) ; hors viewport → 61 (IO gate OK)
+   204→- Pro CRM : jumeau agrégé 23 pastilles multi-zones (chips avec suffixe zone), score 75/100 exact, drag OK dans la Sheet, intégration propre — VLM SHIPPABLE
+   205→- Fallback #twin-static : 0 canvas, SVG silhouette + 7 pastilles numérotées lisibles — VLM SHIPPABLE
+   206→- Qualité : eslint 0 erreur/0 warning, tsc --noEmit 0 erreur src/, dev.log propres (incident serveur tombé en cours de route → redémarré, vérifié HTTP 200)
+   207→
+   208→Stage Summary:
+   209→- Phase B livrée : « Ton Jumeau de Peau » — buste 3D procédural portant les marqueurs du diagnostic (projection par zone anatomique), rotation interactive, scan, orbite du Fil d'Or ; déployé côté cliente (résultats) et côté Pro (fiche CRM 360° agrégée)
+   210→- Leçon perf majeure (réutilisable) : en rendu logiciel, le coût est PIXELS×shader — Lambert + normales plates précalculées + opacité évitée + pas de MSAA ; bissection empirique par masquage de meshes + calibration contre une scène de référence
+   211→- Leçon process : les warnings console peuvent être PRÉEXISTANTS — prouver par git stash avant de se l'attribuer
+   212→- Prochaine étape proposée : Phase C — La Route de l'Or (parcours boutique/réservation narratif) ou Skin Twin v2 (comparaison avant/après sur le jumeau, courbes d'évolution par indicateur)
+   213→
+   214→---
+   215→Task ID: 15 (Phase C — Innovation immersive)
+   216→Agent: main (Z.ai Code)
+   217→Task: LA ROUTE DE L'OR — le fil de la Phase A devient un parcours narratif qui TISSE la routine de soin (produits matchés → stations → kente personnel téléchargeable → panier en 1 geste)
+   218→
+   219→Work Log:
+   220→- Data fix au passage : 5 doublons produits en DB (seed rejoué lors des tests précédents) supprimés en gardant les instances référencées par OrderItem/SaleItem → boutique propre à 8 produits (visible avant dans l'UI boutique)
+   221→- src/components/kene/route/ritual.ts (logique pure, testée bun sur vraie DB) : STATIONS 4 définitions (Purifier #8B1A3B/Soigner #3F7D3F/Nourrir #C8951E/Protéger #E07A2B — poème, botanicals, catégories, clés d'indicateurs, usage matin/soir) ; buildRitual() — produits IA (recommandations VLM matchées flou, priorité) puis fallback boutique par catégorie/rating, unicité inter-stations, solaires réservés à Protéger (2 bugs trouvés par le test CLI : SPF dans Nourrir + doublon) ; stationFocus() indicateurs les plus faibles ciblés ; ritualTotal() ; shade() ; matchProduct/norm DEPLACÉS ici depuis DiagnosticScreen (source unique, import croisé)
+   222→- src/components/kene/route/WovenBand.tsx : drawBand() pure — fond mélanine, 16 étincelles or seedées (mulberry32), 4+1 rangées tissées (armure toile : briques arrondies couleur station + accent or toutes les 4, reflet dessus, fils de trame horizontaux, onde sinusoïdale, offset alterné par rangée), clip de progression par rangée (tissage gauche→droite), NAVETTE (losange crème liseré or + fil de traîne quadratique) à la frontière de tissage, liserés or zigzag haut/bas, franges latérales quadratiques, bandeau signature (nom Ojuju résolu via getComputedStyle + document.fonts.ready, SCORE/100 mono or, diamants adinkra, cadre pointillé) ; composant canvas dpr≤2, anim rAF 2,1 s easeOut, prefers-reduced-motion → rendu direct, ResizeObserver → rendu final, bouton téléchargement PNG (toDataURL, toast), role=img + aria-label descriptif
+   223→- src/components/kene/route/RitualJourney.tsx : overlay dialog fixed inset-0 mx-auto max-w-[430px] (Escape ferme, focus bouton X, verrou scroll body) — GoldenThread SVG (route ondulée 7 nœuds, motion.path pathLength animé, navette motion.g, nœud courant pulsé, étiquette flottante de l'étape) ; 7 écrans AnimatePresence slide : intro (NeaOnnim, cartes des 4 stations), 4 StationScreen (poème en blockquote bord couleur, chips botanicals/matrin/soir, focus « Ta peau demande » avec % sévérité, ProductPick avec toggle garder role=switch + badge « Choix de l'IA sur ta photo »), institut (Sankofa, acompte/rappel/remboursement, soins_conseilles, CTA rdv), tissage final (WovenBand — rangées assombries si aucun fil gardé dans la station = personnalisation visible, récap produits retournables, total + cashback 5 %, CTA « Tisser mon panier » addToCart tous + toast + navigation boutique, CTA réserver) ; footer sticky glass-kene Continuer/Retour h-14 + safe-area
+   224→- Intégrations : DiagnosticScreen (CTA gradient « La Route de l'Or » dans la section recommandations avec mini bande tissée CSS, matchProduct/norm importés depuis ritual.ts) ; HomeScreen (carte relance « Route de l'Or » sous le CTA scanner si dernier diagnostic parsable, parseDiagnosis du multi.last)
+   225→- 2 coquilles corrigées (entité &aposhui, couleur outline sans #) ; shade déplacé de WovenBand vers ritual.ts (import unique)
+   226→
+   227→Tests (agent-browser + VLM, viewports 390×844 et 1280×800, light + dark) :
+   228→- Logique pure bun sur DB réelle : stations → focus corrects (Excès sébum 40 %, Taches PIH 40 %…), produits uniques, solaire en Protéger uniquement, total exact
+   229→- Console navigateur 100 % vierge + 0 page error sur tout le parcours (seuls logs bénins THREE/HMR)
+   230→- Parcours complet E2E mobile : accueil → carte Route → intro (VLM : fil doré + navette + « LE FIL » + stations lisibles) → Purifier (citation, chips, focus %, carte produit + switch vert) → Soigner (décochage Brume testé — switch false + carte atténuée) → Instit → TISSAGE : VLM « bande textile tissée procédurale, briques, lisière zigzag, franges, 5 rangées, MARIAM + SCORE 62/100 + losanges » — rangée Soigner NETTEMENT plus sombre = désélection visible ✓ SHIPPABLE
+   231→- CTA final : « Tisser mon panier · 22 500 FCFA » → toast cashback 1 125 → overlay fermé → boutique + panier store vérifié (2 articles, 22 500) + barre panier « 2 articles, total 22 500 FCFA »
+   232→- Entrée diagnostic : CTA dans résultats → dialog ouvert ✓ (note : snapshot a11y Playwright pend sur dialog+SkinTwin — contourné par eval DOM direct, l'app elle-même est saine) ; Escape → dialog fermé ✓
+   233→- FPS mesuré pendant l'anim de tissage : 61 ✓ ; desktop 1280 : overlay exactement 430px centré (x=425) ✓ ; dark mode : VLM « fond noir profond, texte crème/or lisible, SHIPPABLE » ✓ ; bouton download PNG cliqué sans erreur ✓
+   234→- Qualité : eslint 0 erreur/0 warning, tsc --noEmit 0 erreur src/, dev.log 200 uniquement
+   235→
+   236→Stage Summary:
+   237→- Phase C livrée : « La Route de l'Or » — la métaphore du fil (Phase A) devient commerce narratif : diagnostic → 4 stations produits → institut → kente de soin tissé procéduralement (canvas 2D, navette visible, signature, PNG téléchargeable) → panier en un geste
+   238→- Différenciation forte : le choix désactive des rangées (bande assombrie), badge « Choix de l'IA », cashback estimé — le tissage EST la commande
+   239→- Réutilisable : ritual.ts (match flou partagé), drawBand() pure, pattern GoldenThread motion.path pathLength
+   240→- Prochaine étape proposée : Phase D — Skin Twin v2 (comparaison avant/après sur le jumeau + courbes d'évolution par indicateur) ou la Route en 3D (bande tissée en WebGL dans le fil de l'intro)
+   241→
+   242→---
+   243→Task ID: 16 (Phase D — Innovation immersive)
+   244→Agent: main (Z.ai Code)
+   245→Task: LE FIL DU TEMPS — Skin Twin v2 : le jumeau gagne la dimension temporelle (projection avant/après S+0→S+12 sur le buste 3D + courbes d'évolution par indicateur sur l'historique des diagnostics)
+   246→
+   247→Work Log:
+   248→- src/lib/kene/evolution.ts (lib PURE zéro dépendance — partagée API serveur + UI client) : normKey() ; buildEvolution() agrège les resultJson en séries temporelles par indicateur (fusion floue des libellés VLM variables d'un scan à l'autre) + série score global ; projectPct() projection indicative (λ/gain par famille : PIH lent 0,15 — hydratation rapide 0,38 — rides très lent 0,13…, adhérence ×1/×0,55, horizon plafonné 12 semaines, gain modéré si p0 ≥ 50, cible ≤ 96) ; projectMarkerSev() MODÈLE HYBRIDE CONTINU (si l'indicateur lié devient sain ≥ 80 → marqueur guérit à 0 ; sinon estompe au prorata du gain relatif (proj−pct)/(96−pct) borné 0,85 ; sans indicateur lié décroissance douce ×0,2 ; jamais d'aggravation ; label passé pour les cinétiques par famille) ; pctToSev/valueColorHex/lerpHex (couleurs sans dépendance three — la lib doit rester serveur-compatible)
+   249→- src/app/api/diagnoses/evolution/route.ts : GET ?userId= → DB done asc → buildEvolution → JSON {count, firstAt, lastAt, series[], scores[]}
+   250→- src/components/kene/skintwin/ProjectionSlider.tsx : piste tissée kente (repeating-linear-gradient 5 couleurs) + diamants d'arrêts + NAVETTE (losange crème liseré or, left via calc()) + input range natif INVISIBLE par-dessus (drag tactile ET clavier ±1 semaine) + 4 boutons d'arrêt Aujourd'hui/S+4/S+8/S+12 + chips adhérence Intégrale/Irrégulière + note « simulation non médicale » ; aria-live sur le libellé Semaine
+   251→- twinMath.ts : TwinMarker.pct (score santé de l'indicateur rapproché via matchIndicator dans buildMarkers — alimente la projection) ; seuil fuzzy matchIndicator abaissé 0,34 → 0,30 (libellés 3 mots type « PIH joue droite » : 1/3 = 0,33 tombait juste sous le seuil — « PIH joue droite »→« Taches PIH », « Cernes sous-orbitaires »→« Cernes & poches » maintenant rapprochés, zéro faux positif observé)
+   252→- SkinTwinScene.tsx : prop projRef ({t 0..1, adh} — mutable, pattern progressRef Phase A, zéro re-render au drag) ; pastilles par frame : couleur interpolée SEV_COL[s0]→SEV_COL[s1] par projectMarkerSev continu + échelle ×(0,45+0,55·ratio) (rétrécissement) — copies/lerp en place, ZÉRO allocation par frame (budget rendu logiciel) ; liseré du socle verdit (rimBase→RIM_GREEN ×0,75) sous projection ; rimBase useMemo Color déclaré AVANT useFrame (fix eslint immutability)
+   253→- SkinTwinCard.tsx : prop projection ( défaut false — CRM Pro inchangé) ; state weeks/adherence + projRef mutable (setWeeks écrit la cible, la scène suit à son rythme) ; ProjectionSlider rendu sous la scène si marqueurs ; TwinFallback proj → SVG r/ fill recalculés (lerpHex) au changement de semaines ; panneau détail : ligne « S+N : ~X % » + mini barre verte pointillée quand un indicateur est lié
+   254→- EvolutionCard.tsx (components/kene/evolution/) : SVG pur (zéro lib de charting) — fil d'or lissé Catmull-Rom→béziers, aire dorée 0,07, nœuds pastille valueColorHex, grille 0/50/100 + labels mono, axe X dates courtes ; SI 1 SEUL DIAGNOSTIC → trajectoire projetée POINTILLÉE jusqu'à S+12 (13 échantillons hebdo projectPct, anneau terminal + label S+12) ; chips Score global + 4 indicateurs (delta coloré vert/bissap, icônes TrendingUp/Down) = interface accessible, table sr-only en miroir ; skeleton chargement, états vide/erreur silencieux ; garde-fou domaine X ≥ 6 jours
+   255→- DiagnosticScreen.tsx : ResultView <SkinTwinCard projection /> ; HistoryView reçoit userId + <EvolutionCard userId /> en tête (au-dessus de la liste)
+   256→
+   257→Tests (agent-browser 2 sessions + VLM, viewports 390×844 et 1280×800) :
+   258→- Lib pure bun : PIH 40→68 S+12 pleine / 61 partielle / hydratation 35→65 S+4 ; modèle marqueur continu (sev1 pct55→0,59 S+12, sev3 pct35→1,62, sain→0, S+0 inchangé)
+   259→- API évolution : Mariam 7 scans → séries fusionnées (« Éclat / Uniformité du teint » fusion de libellés VLMVariables OK), deltas −48/−38/−31/+30 exacts
+   260→- E2E complète session vierge : onboarding Awa → diagnostic démo visage (VLM 26,8 s) → résultats → jumeau + slider S+12 → VLM confirme pastilles rétrécies/verdies + liseré socle orange→vert + « Semaine +12 » ; retour S+0 restaure l'état d'origine
+   261→- Panneau détail : « PIH joue droite | Léger | 55% | INDICATEUR LIÉ : TACHES PIH | S+12 : ~72 % » ; adhérence Irrégulière → ~56 % (×0,55 visible)
+   262→- EvolutionCard Mariam : courbe 4 nœuds lisible (VLM : « très lisible et bien rendu »), chips commutées (PIH/Hydratation), deltas ; Awa 1 scan : point + pointillé S+12 (VLM confirmé)
+   263→- Fallback #twin-static : 0 canvas, 5 cercles → S+12 : r 3,60→2,78 fill or-vert partiel (2 marqueurs) + r 1,62 vert total (3 guéris) ; S+0 réversible exact
+   264→- Perf : 61 fps pendant le morph 3D ; console 100 % vierge 2 sessions (seuls logs React/HMR/THREE.Clock bénins préexistants) ; dev.log aucun ⨯
+   265→- Qualité : eslint 0 erreur/0 warning, tsc --noEmit 0 erreur src/ (erreurs préexistantes examples/ + skills/ hors périmètre)
+   266→
+   267→Stage Summary:
+   268→- Phase D livrée : « Le Fil du Temps » — le jumeau de peau devient prospectif (curseur tissé S+0→S+12, marqueurs qui guérissent en continu, adhérence à la routine) ET rétrospectif (courbes d'évolution par indicateur sur l'historique, fusion floue des libellés VLM, projection pointillée dès le premier scan)
+   269→- Le récit produit se boucle : Phase A le fil d'or tisse l'accueil → Phase B le jumeau porte le diagnostic → Phase C la route tisse le panier → Phase D le fil traverse le TEMPS (avant/après + trajectoire)
+   270→- Réutilisable : lib/evolution.ts pure (API + UI), pattern projRef mutable (zéro re-render au drag), smoothPath Catmull-Rom SVG
+   271→- Leçon : modèle bucket (sev = seuils du % projeté) = marches visuelles ; modèle hybride continu (prorata du gain relatif, guérison totale si l'indicateur devient sain) = morphing honnête ET visible
+   272→- Prochaine étape proposée : consolidation finale (polish global, revue a11y complète, README produit) ou Phase E — le Fil de Kente WebGL dans la boutique (bande tissée 3D réutilisable)
+   273→
+   274→---
+   275→Task ID: E (Phase E)
+   276→Agent: main (Z.ai Code)
+   277→Task: Phase E — « Le Fil de la Boutique » : bande de kente tissée en WebGL dans la boutique (composant réutilisable)
+   278→
+   279→Work Log:
+   280→- Choix fait entre « consolidation finale » et « Phase E » → Phase E (prolonge le récit du fil dans le dernier espace sans fil, réutilise les patterns WebGL éprouvés)
+   281→- src/components/kene/weave/threads.ts (module PUR, zéro dépendance) : KENTE_THREADS (6 fils : or #C8951E, bissap #8B1A3B, baobab #3F7D3F, karité #F8F1E4, mélanine #241A10, sunset #E07A2B) ; weftThreadIndex() armure chevrons (pas inversé 1 rangée sur 2, liserés or en rangées 0 et n−1) ; warpThreadIndex() cycle or/mélanine + accents ; categoryThread() mapping catégorie→fil (serum→bissap, creme→karité, huile→or, gommage→sunset, masque→baobab, savon→mélanine) ; WeaveRefs + createWeaveRefs() (highlight.index seulement)
+   282→- src/components/kene/weave/mode.ts : useWeaveMode (useSyncExternalStore, réduit à useTwinMode) — reduced-motion / #weave-static / #twin-static / WebGL absent → fallback
+   283→- src/components/kene/weave/KenteWeaveScene.tsx : Canvas R3F (dpr ≤1,35, alpha, IO frameloop) ; WeaveBand = 3 InstancedMesh (trame 144 box SUR/SOUS la chaîne selon (col+row)%2, chaîne 24 cylindres verticaux, franges 10 cylindres pendant sous la bande) + navette d'or (octaèdre allongé métallique + pointLight) + glowLight de surbrillance ; per-frame : matrices recomposées (tissage reveal delta-based 2,6 s, pop ~7 cellules, chute en place, vague sin, franges révélées en fin), instanceColor lerpié base→bright pour le fil actif (re-upload SEULEMENT pendant la transition), parallaxe pointer lissée, fit viewport (scale ≤1,35), delta clampé 50 ms (reprise IO sans saut) ; état mutable possédé par la scène (reveal/hlK/pass/lastHl/lastKey) — la carte écrit highlight.index, la scène lit ; weaveKey comparé (lecture seule) pour re-tissage
+   284→- src/components/kene/weave/KenteWeaveCard.tsx : wrapper réutilisable (highlightIndex, caption, label, className, weaveKey) ; dynamic import ssr:false ; IO → frameloop ; fallback CSS kente-band-soft + croisures + glow radial du fil sélectionné (renforcé après test : alpha 60 % + inset shadow) ; a11y : figure role=figure + figcaption (dot couleur + « Fil {name} » + caption), canvas aria-hidden, badge « LE FIL DE KENTE »
+   285→- ShopScreen.tsx : hero tissé entre header et recherche ; highlightIndex = categoryThread(cat) ; caption dynamique (« La navette monte le métier… » / « N soins au catalogue » / « N soins · catégorie ») ; recherche passe mt-4 → mt-3
+   286→- Fixes qualité : ESLint react-hooks/refs + immutability (nouvelles règles) — (1) jamais .current au render (ref objet passé en prop), (2) la scène ne mute RIEN issu de props → progression du tissage possédée par la scène, weaveKey = prop comparée ; navette agrandie (0,42×0,12×0,1, emissive 1,1, lumière 3+8·pass) après invisibilité VLM ; perf : couleurs re-upload en transition seulement + 1 lumière d'appoint retirée + dpr 1,5→1,35
+   287→
+   288→Tests (agent-browser + VLM, viewports 390×844 et 1280×800, session démo Mariam) :
+   289→- Boutique mobile : bande tissée 3D confirmée par VLM (armure or/rouge/vert/noir + franges + badge) ; navette dorée visible (gauche de la bande) ; tissage d'entrée joué
+   290→- Highlight catégorie : Sérums → fils bissap brillants/soulevés (VLM : « glowing, lifted, luminous ») + caption « Fil bissap·1 soin · sérums » ; Huiles → « Fil or·0 soin · huiles » ; navette fait un coup accéléré au changement
+   291→- Fallback #weave-static (reload avec hash — attention : navigation hash seule ne recharge PAS le document, cache de mode déjà résolu) : 0 canvas, bande CSS + glow bissap renforcé confirmé
+   292→- Desktop : bande contenue dans la colonne centrée ≤430px, navette visible, grille 2 colonnes intacte, zéro défaut
+   293→- Mode sombre : bande rend bien (fond scène propre), caption contraste 7,8:1 (AA) — le « non lisible » VLM était un faux positif (préfixe « Fil » absent sans catégorie)
+   294→- Perf : 52 fps en rendu logiciel headless (SwiftShader) après optimisations (42 avant) ; console 100 % vierge (logs bénins préexistants) ; dev.log aucun ⨯
+   295→- Qualité : eslint 0 erreur/0 warning ; tsc --noEmit 0 erreur src/
+   296→
+   297→Stage Summary:
+   298→- Phase E livrée : « Le Fil de la Boutique » — la navette tisse le catalogue, chaque catégorie a SON fil (bissap/karité/or/sunset/baobab/mélanine) qui s'illumine et saute vers l'avant
+   299→- Le récit du fil est maintenant complet dans les 4 espaces clients : accueil (Phase A), diagnostic (Phase B), routine (Phase C), temps (Phase D), boutique (Phase E)
+   300→- Réutilisable : KenteWeaveCard (props highlightIndex/caption/weaveKey) — n'importe quelle section peut arborer une bande tissée ; threads.ts pur réutilisable côté serveur
+   301→- Leçons : (1) règles ESLint react-hooks/refs + immutability nouvelles génération — les scènes ne doivent rien muter qui dérive de props, posséder leur état interne et comparer des props lecture-seule ; (2) les couleurs d'instances n'ont besoin d'être re-uploadées que pendant les transitions ; (3) tester un hash QA exige un reload vrai (navigation hash ≠ rechargement)
+   302→- Prochaine étape proposée : consolidation finale (polish global, revue a11y transversale, README produit) — ou laisser le produit en l'état, toutes les phases du récit étant tissées
+   303→
+   304→---
+   305→Task ID: 17 (Consolidation finale — "consolidation totale")
+   306→Agent: main (Z.ai Code)
+   307→Task: CONSOLIDATION TOTALE — audit transversal complet + correction des 7 problèmes majeurs + code mort + revue a11y + README produit + vérification E2E navigateur de l'ensemble
+   308→
+   309→Work Log:
+   310→- Audit transversal (agent Explore, very thorough, 28 fichiers lus) : 7 majeurs (M1 cashback 0.05 hardcodé ×7, M2 double toaster mort, M3 acompte client-only, M4 contraste badges, M5 hex durs non dark, M6 ligne CRM non focusable, M7 formats monétaires) + ~15 éléments de code mort vérifiés
+   311→- M1 : CASHBACK_RATE et DEPOSIT_RATE exportés de lib/kene/format.ts (source unique) ; API orders lit wallet.cashbackRate ?? CASHBACK_RATE (wallet chargée une seule fois) ; ShopScreen badge/estimations dynamiques (cashbackRate = wallet?.cashbackRate ?? CASHBACK_RATE) ; RitualJourney/HomeScreen/ProfileScreen/BookingScreen imports
+   312→- M3 : clamp serveur dans api/appointments — depositAmount plafonné à Math.round(service.price × DEPOSIT_RATE) ; BookingScreen importe DEPOSIT_RATE
+   313→- M2 : Toaster radix retiré de layout.tsx (sonner = toaster réel) ; fichiers supprimés : ui/toast.tsx, ui/toaster.tsx, hooks/use-toast.ts (~300 LOC mortes)
+   314→- Code mort : weekKey, BogolanWatermark, SpinnerButton/KenteTop (version client), PosLine, PayslipDetail, lastDiagnosisId (store + setter + écriture DiagnosticScreen), ChatMsg.triageMessage, double scroll-behavior JS, .bogolan-dots-dark CSS, 4× JSX { } vides, ternaire sans effet ui-bits, import useEffect page.tsx
+   315→- CSS : .scrollbar-thin DÉFINIE (était utilisée 8× sans exister) — thin 4px + Firefox scrollbar-width
+   316→- M4 : readableTextColor(bgHex) ajouté à format.ts (luminance relative WCAG, seuil 0.22) ; ScoreChip + badge score DiagnosticScreen : texte mélanine #1A1410 sur or/sunset (6.4–6.7:1 au lieu de 2.7–3.0:1)
+   317→- M5 : tokens --gold-text (#8F660D light / #E3B454 dark) et --sunset-text (#A84F0E / #F0A66B) créés + enregistrés @theme inline → classes text-gold-text/text-sunset-text ; migrés : SEVERITY_STYLES, APPT_STATUS_STYLES, RFM_SEGMENT_STYLES, TRIAGE ChatScreen, badge indicateur DiagnosticScreen (via SEVERITY_STYLES.text), no_show pro (text-bissap→text-destructive)
+   318→- M6 : TableRow CRM focusable — tabIndex=0, role=button, aria-label "Ouvrir la fiche de {name}", onKeyDown Enter/Space, focus-visible
+   319→- M7 : PayrollSection cumuls + DiagnosticScreen recommandations + SMS orders/confirm en xof() ; coquille "Kènè POS — Kènè" → "Kènè — Ticket de caisse" ; diagImgSrc dédupliquée (CrmSection importe la fonction, plus de replace inline)
+   320→- A11y : 14 SelectTrigger dotés d'aria-label (12 automatiques via script Python + Compte ligne N / Institut actif manuels) ; aria-label EvolutionCard condensé (de la liste brute → bornes + renvoi au tableau) ; "Cinq chapitres" → "Six chapitres" (chapters.ts + aria KenteIntro) ; no_show unifié "Absente"
+   321→- db.ts : log: ['query'] seulement hors production
+   322→- README.md produit créé : récit des 5 phases A→E, 3 espaces, stack, palette/tokens, arborescence, 5 règles maison (xof partout, cashback wallet + acompte serveur, scènes immutables props, fallbacks WebGL, budget perf), comptes démo, scripts
+   323→
+   324→Tests (agent-browser + VLM, viewport 390×844, light + dark) :
+   325→- Incident Turbopack résolu : chunk CSS partiellement périmé (utilities fraîches, :root/.dark obsolètes — --gold-text introuvable) → purge .next/cache + redémarrage serveur détaché (setsid node node_modules/.bin/next) → tokens résolus #e3b454/#f0a66b en dark
+   326→- Intro : aria "six chapitres" ✓ ; skip → accueil Mariam complet (multi-zones 63, wallet, recommandations) ; console 100 % vierge
+   327→- Dark VLM 7/10 : score 63 lisible, badges visibles, hiérarchie claire (troncature "+ N…" = rail scrollable attendu)
+   328→- Boutique : 1 canvas WebGL, figcaption "Fil bissap·1 soin · sérums" au filtre Sérums, badge "Cashback 5 %" (taux wallet)
+   329→- Historique : ScoreChip 58→texte #1A1410 sur sunset, 62/78/66→#1A1410 sur or (contraste corrigé, vérifié getComputedStyle)
+   330→- CRM : 8 lignes focusables, focus+Enter ouvre la fiche Aïcha ✓ ; fiche Mariam : jumeau agrégé VLM (~15-20 pastilles) + RFM ✓ ; Escape ferme
+   331→- Fallback #weave-static (reload vrai) : 0 canvas + .kente-band-soft présent ✓
+   332→- Footer/nav : navBottom=844=innerHeight ancré mobile ; VLM light mobile "production-ready" (nav ancrée, aucun défaut bloquant)
+   333→- M1 E2E : panier 8 500 → estimation "Cashback estimé (5 %) +425 FCFA" → paiement wallet → toast 425 → solde DB exact 2 500 (10575−8500+425) — état démo ensuite restauré (wallet 10575, stock +1, commande/paiement/transactions supprimés)
+   334→- M3 E2E : POST acompte 999999 sur service 25 000 → Payment 7 500 (clamp 30 %) en DB ✓ — RDV de test supprimé
+   335→- Qualité finale : eslint 0/0, tsc --noEmit 0 erreur src/, HTTP 200, dev.log sans ⨯, console navigateur vierge
+   336→
+   337→Stage Summary:
+   338→- Consolidation totale livrée : les 7 majeurs corrigés et TESTÉS en navigateur (pas seulement compilés), ~450 LOC mortes supprimées, tokens dark-mode complets (gold-text/sunset-text AA dans les 2 thèmes), 14 labels de Select, CRM accessible clavier, README produit
+   339→- Cohérence métier sécurisée : le taux de cashback et l'acompte 30 % ont désormais UNE source de vérité chacun, appliquée côté serveur (clamp) et côté affichage (estimations dynamiques)
+   340→- Le récit du fil (Phases A→E) est intact après consolidation : intro, jumeau, route, temps, boutique — tous re-vérifiés visuellement et par DOM
+   341→- Leçons : (1) Turbopack peut servir un CSS partiellement périmé (utilities fraîches + blocs :root obsolètes) — diagnostiquer via getComputedStyle par variable, guérir par purge du cache + redémarrage ; (2) un VLM peut fausser le mode (capture prise en light après un clic mal ciblé) — toujours vérifier documentElement.classList avant d'interpréter ; (3) les corrections d'accessibilité se vérifient au DOM (getComputedStyle color/backgroundColor) bien plus précisément qu'à l'œil
+   342→- Produit considéré comme CONSOLIDÉ : toutes les phases du récit tissées, audité, corrigé, documenté
+   343→
+   344→---
+   345→Task ID: 28
+   346→Agent: main (Z.ai Code)
+   347→Task: CHOIX FAIT entre les 3 directions proposées → « LE FIL DU RETOUR » — rappels automatiques post-protocole & fidélisation (Pro + Cliente). Vérification préalable : suivi d'évolution déjà livré (Phase D) et compta SYSCOHADA déjà livrée → les relances étaient la seule des 3 propositions absentes du repo (état repo = worklog 1-17 consolidé ; les features PDF/CRM-360 mentionnées dans la conversation n'étaient pas présentes dans ce checkout).
+   348→
+   349→Work Log:
+   350→- prisma/schema.prisma : modèle FollowUpMark { tenantId, dedupKey ("diag:|appt:|sale:|client:"), status done|dismissed, via whatsapp|call|visit|sms, note, @@unique([tenantId, dedupKey]) } + relation Tenant.followUpMarks → db:push
+   351→- src/lib/kene/followups.ts (lib PURE serveur+client, zéro dépendance) : constantes métier POST_PROTOCOL_DAYS=21 / POST_SOIN_DAYS=28 / POST_PURCHASE_DAYS=10 / INACTIVE_DAYS=60 ; KIND_META (badges) ; buildFollowUps() dérive les relances de l'activité réelle — (1) contrôle protocole S+3 après dernier diagnostic (clos si retour en institut postérieur ; RDV futur affiché en note informative, pas suppressif), (2) soin de suivi S+4 après dernier RDV complété (supprimé si rébookée), (3) satisfaction produits J+10 après dernière vente produits (≤15 j), (4) inactive >60 j sans visite ni RDV futur ; fusion des marques (todo/done/dismissed + via + handledAt), tri retards en tête ; buildRelanceMessage() 4 tons chaleureux Kènè (≤280 chars) ; waLink() ; nextClientStep() côté cliente (contrôle en retard → CTA « Refaire mon diagnostic » tab diagnostic, sinon « Réserver » tab rdv ; null si RDV futur couvre)
+   352→- src/app/api/pro/followups/route.ts : GET ?tenantId= (clients + RDV + diagnostics userId-liés 90 j + ventes produits 30 j + marks → items + counts late/week/upcoming/done/dismissed) ; POST zod (done|dismissed|todo ; upsert @@unique ; status=todo → deleteMany = réactivation ; via=whatsapp + clientPhone → notify() Notification journalisée + userId résolu via clientProfileId ; AuditLog followup_mark/followup_reopen)
+   353→- src/components/kene/pro/RelancesSection.tsx : SectionHeader « Le Fil du Retour » + 4 KpiCard (En retard/Semaine/À venir/Traitées) + 5 chips filtres comptés (filtre initial intelligent = premier panier non vide) + liste max-h-[62vh] pretty-scroll AnimatePresence (Card KenteTop, InitialAvatar, badge KIND_META, DueChip retard bissap/aujourd'hui sunset/semaine gold, note « RDV déjà prévu le X », actions WhatsApp [window.open wa.me + POST via=whatsapp] / Appel traité / Plus tard ; traitées → « Traitée · Appel · le X » + Réactiver ; toasts sonner, busyKey, refetch)
+   354→- ProApp.tsx : NAV « Relances » (BellRing) entre CRM et Catalogue + union ProSectionId + rendu section (fix parse : accolade fermante manquante dans new_str initial — détectée via dev.log 204:112 + od -c)
+   355→- HomeScreen.tsx (cliente) : carte « Ta prochaine étape » (SankofaIcon — l'adinkra du retour, bord gold/40, dégradé from-gold/10, chip Dans N j / En retard de N j, titre+detail+CTA h-11) entre Route de l'Or et Prochain RDV ; nextStep = nextClientStep(diagnoses, appointments)
+   356→- prisma/seed.ts : client Nafissa Ouattara (Potentiels, 26 j, soin complété -26 j) ; RDV futurs retirés à Ines (pending) et Grace (confirmé) — cohérent avec segments À risque/Perdus ; diagnostic Awa -5 j ; followUpMark.deleteMany dans le reset → re-seed + redémarrage serveur (client Prisma chargé en mémoire ≠ post-push)
+   357→
+   358→Tests (agent-browser + VLM, viewports 1440×900 et 390×844, light + dark) :
+   359→- Lib pure bun sur DB re-seedée : 11 items exacts — Grace inactive -90 j, Ines -28 j, Awa produits -2 j, Nafissa soin +1 j, Mariam protocole +14 j (note RDV 3 sept.), Awa protocole +16 j, Aïcha soin +25 j… ; nextClientStep Mariam/Awa = post_protocol +14/+16 j
+   360→- API GET : 200, counts {late:3, week:4, upcoming:4} ; POST : marks upsertés
+   361→- E2E Pro desktop : nav « Relances » → KPI 3/4/4/0 → 3 cartes retard avec 3 boutons chacune ; « Appel traité » Grace → toast + KPI traitées 1 + chip En retard 2 + carte absente du filtre ; filtre Traitées → « Traitée · Appel · le 1 sept. » + Réactiver ; WhatsApp Ines → nouvel onglet wa.me/2250704455667 avec message complet pré-rempli (« Bonjour Ines, ça fait longtemps 👋… ») + FollowUpMark via=whatsapp en DB + Notification whatsapp sent + AuditLog ×2 ; reload → persistance (traitées 2) ; Réactiver Grace → retour todo (late 2)
+   362→- E2E Cliente : carte « Ta prochaine étape — Dans 14 j — Contrôle de ton protocole — score 66/100 » desktop + mobile (358 px) ; CTA → onglet RDV vérifié ; géométrie CTA vs nav fixe mesurée (ctaBottom 368 < navTop 771 après scroll — le « NEEDS FIX » VLM initial était un artefact de position de scroll, faux positif confirmé)
+   363→- Mobile Pro : chips nav scrollables, section Relances complète sans débordement horizontal ; dark mode : contrastes OK (texte crème 243,234,217), VLM « SHIPPABLE » ×4 (desktop relances, mobile+dark, next-step ×2)
+   364→- Console 100 % vierge (logs bénins THREE/HMR préexistants), 0 page error ; eslint 0 erreur/0 warning ; tsc --noEmit 0 erreur src/ (examples/skills hors périmètre préexistant) ; GET / 200
+   365→
+   366→Stage Summary:
+   367→- « Le Fil du Retour » livré : relances 100 % DÉRIVÉES de l'activité (aucun cron à maintenir — recalcul à chaque ouverture), marques seules persistées (FollowUpMark @@unique tenantId+dedupKey), actions WhatsApp journalisées (Notification + AuditLog)
+   368→- Les 3 espaces gagnent : Pro = section Relances complète (KPI, filtres, WhatsApp wa.me pré-rempli, traiter/ignorer/réactiver) ; Cliente = carte « Ta prochaine étape » (contrôle protocole S+3 / soin de suite S+4, CTA contextuel diagnostic ou RDV)
+   369→- Règles métier défendables : contrôle protocole non fermé par une simple réservation (note informative), soin de suivi supprimé si rébookée, inactivité > 60 j sans RDV, satisfaction produits 10 j
+   370→- Le récit du fil se poursuit : le Fil du Retour ramène la cliente au tissage (Sankofa = « reviens et prends-le »)
+   371→- Leçons : (1) le client Prisma en mémoire du dev server ne voit pas db:push → toujours redémarrer ; (2) vérifier les accolades des new_str multi-édits via dev.log + od -c quand Turbopack échoue au parse ; (3) un VLM peut crier « overlap » sur une capture mi-scroll — toujours trancher par géométrie DOM (getBoundingClientRect vs nav fixe)
+   372→
+   373→---
+   374→Task ID: 29
+   375→Agent: main (Z.ai Code)
+   376→Task: « LE FIL DU PARRAINAGE » — programme de parrainage bouton boucle de croissance (après Task 28 : les 3 directions initiales étant couvertes — évolution = Phase D, relances = Task 28, compta = SYSCOHADA livré — choix porté sur le parrainage, le fil qui relie les amies, infra dormante : User.referredBy + Wallet.referralCode + reason "referral" existaient sans flux)
+   377→
+   378→Work Log:
+   379→- src/lib/kene/referral.ts (lib PURE zéro dépendance serveur+client) : FILLEUL_GIFT=2 000 (cadeau bienvenue filleule, immédiat à l'échange du code) + PARRAIN_REWARD=2 500 (bonus parrain à la 1ʳᵉ commande PAYÉE de la filleule) ; parrainRewardRefId()/filleulGiftRefId() clés de dédup (`parrain:{id}` / `gift:{id}`) ; referralShareMessage() WhatsApp chaleureux + referralWaLink() (waLink importé de followups.ts, reste pure) ; type ReferralSummary (code, referredBy {name, rewarded}, invitees, stats) partagé API+UI
+   380→- src/lib/kene/server.ts : rewardReferrerIfNeeded(userId) — idempotent (findFirst reason referral + refId `parrain:{userId}`), crédite le parrain (ensureWallet), notifie parrain (whatsapp) + filleule (sms), AuditLog referral_reward ; import xof + PARRAIN_REWARD
+   381→- Hooks récompense : /api/orders (paiement wallet direct, après cashback) + /api/payments/confirm (shop_order MoMo, après cashback) → rewardReferrerIfNeeded(order.userId)
+   382→- GET /api/referral?userId= : ensureWallet → code, referredBy (+rewarded via tx), filleules (users referredBy=userId, 1ʳᵉ commande payée asc, rewardedIds via refIds), earnings = Σ credits referral sur MA wallet
+   383→- POST /api/referral/redeem {userId, code} : zod ; 400 si déjà parrainée / propre code / échange croisé (parrain.referredBy = moi) ; 404 code inconnu (recherche exacte uppercase puis telle quelle) ; effets : User.referredBy=parrain.id + creditWallet FILLEUL_GIFT (refId gift:) + notifications (parrain whatsapp « tu recevras 2 500 dès sa première commande », filleule sms cadeau) + AuditLog referral_redeem
+   384→- src/components/kene/client/ParrainageCard.tsx (section Profil, entre Wallet et Consentement) : carte mélanine kente-band-soft — code font-mono + copier (clipboard + toast + état ✓) + CTA vert « Inviter une amie sur WhatsApp » (wa.me sans numéro = sélecteur de contact, message complet pré-rempli) ; phrase dynamique « {prénom} partage son fil » (fallback « Ton fil à partager » si nom par défaut) ; 3 stats (Filleules / Récompensées / Gains mono) ; liste filleules (avatar initiale, date, badge vert « +2 500 FCFA ✓ » ou muted « 1ʳᵉ commande… », max-h-44 scroll) ; si referredBy → carte « Parrainée par {name} » avec état du bonus ; sinon CTA pointillé « Une amie t'a donné son code ? » → Sheet bottom (input uppercase mono + Enter) → POST + toast + refetch + onRedeemed→loadWallet parent ; états skeleton/erreur + bouton « Réessayer »
+   385→- ProfileScreen : ligne wallet simplifiée (code retiré — déplacé vers la carte dédiée), import ParrainageCard
+   386→- prisma/seed.ts : Awa referredBy=mariam (filleule EN ATTENTE, zéro commande boutique) ; Bintou Cissé +2250706070709 (filleule RÉCOMPENSÉE : wallet 2 000 gift + commande Savon Noir 4 500 payée wave -4 j + Payment PAY-BINTOU) ; wallet Mariam 14 000 = topup 10 000 + cashback 1 500 + parrain 2 500 (refId parrain:{bintou}) ; notifications cohérentes (reward Mariam -4 j, bienvenue + commande Bintou)
+   387→- Admin : stats route + AdminStats.referredBy count → 6ᵉ KpiCard « Parrainages » (HeartHandshake, hint « Fil du Parrainage », grid xl 5→6)
+   388→
+   389→Tests (suite bun 23 assertions contre dev server + DB réelle + agent-browser 390×844/1280×800 + VLM) :
+   390→- API 23/23 ✓ : OTP vierge → GET summary (code KENE-XXXX) ; 404 inconnu ; 400 propre code / double redeem / échange croisé ; redeem « mariam-kene » minuscules → gift 2 000 + referredBy + tx refId gift: ; parrain 1 filleule non récompensée earnings 1 000 (pré-seed) ; commande wave → confirm → wallet Mariam 12 500→15 000 + tx refId parrain: + 2 notifications + 2 audits ; 2ᵉ commande payée → AUCUN double bonus (15 000 stable) ; stats finales rewarded 1 / earnings 3 500 ; côté filleule referredBy.rewarded passe à true
+   391→- E2E navigateur : carte rendue (code MARIAM-KENE, stats 2/1/2 500, Awa « 1ʳᵉ commande… », Bintou « +2 500 FCFA ✓ » — VLM : « aucun chevauchement, contraste OK ») ; CTA WhatsApp → nouvel onglet wa.me avec message complet pré-rempli lu par VLM (code MARIAM-KENE + 2 000 FCFA dans l'URL) ; onboarding complète nouvelle cliente → Profil → Sheet code « MARIAM-KENE » → toast + sheet fermée + wallet 2 000 live + « Parrainée par Mariam Diallo — Elle recevra 2 500 FCFA dès ta première commande » ; côté Mariam : 3 filleules (la test + Awa + Bintou) ; erreur propre code → toast « Ce code est le tien — partage-le à une amie ! 💛 » + sheet reste ouverte ; Escape ferme ; desktop 1280 : conteneur centré ~430px VLM « cohérent et professionnel » ; console Admin : KPI PARRAINAGES 3 ; 0 page error, console vierge (warnings préexistants) ; stale session après re-seed → état erreur + « Réessayer » fonctionne (re-login démo → carte parfaite)
+   392→- Qualité : eslint 0 erreur 0 warning ; tsc --noEmit 0 erreur src/ ; dev.log 200 uniquement ; DB re-seedée en état démo propre (script de test supprimé)
+   393→
+   394→Stage Summary:
+   395→- « Le Fil du Parrainage » livré : boucle de croissance complète — partage du code (copier/WhatsApp pré-rempli) → cadeau filleule 2 000 FCFA immédiat → bonus parrain 2 500 FCFA à la 1ʳᵉ commande payée (idempotent, les DEUX chemins de paiement couverts) → visibilité : cliente (stats + filleules + état parrain), admin (KPI)
+   396→- Zéro migration : User.referredBy + WalletTransaction.refId + Notification + AuditLog existaient déjà — la valeur était endormie dans le schéma
+   397→- Règles métier défendables : une filleule par code (referredBy unique), pas d'auto-parrainage, pas d'échange croisé, récompense conditionnée à un achat réel (pas à l'inscription), notifications honnêtes des deux côtés
+   398→- Le récit du fil se poursuit : le fil relie désormais les PERSONNES (HeartHandshake) — accueil, jumeau, route, temps, boutique, retour, parrainage
+   399→- Leçons : (1) un GET compilé à la volée peut renvoyer une erreur transitoire au premier hit pendant le recompile Turbopack → toujours offrir un « Réessayer » sur les cartes qui échouent ; (2) re-seeder invalide les sessions localStorage → le demo-login recapture l'id courant, les cartes doivent dégrader proprement ; (3) tester le partage WhatsApp par window.open capture l'onglet wa.me — l'URL contient le message entier, vérifiable sans VLM
+   400→- Prochaine étape proposée : onboarding v2 « j'ai un code parrain » au signup (champ optionnel à l'étape OTP) ou centre de notifications cliente réel (GET /api/notifications + cloche non-lues)
+   401→
+   402→---
+   403→Task ID: 28
+   404→Agent: main (Z.ai Code)
+   405→Task: Diagnostic evolution tracking — Fil du Temps version Pro (CRM 360°)
+   406→
+   407→Contexte : la partie cliente était déjà couverte (EvolutionCard « Le Fil du Temps » dans l'Historique + comparaison Avant/Après + /api/diagnoses/evolution + lib pure buildEvolution). Le chaînon manquant du suivi d'évolution était le VOLET PRO : la fiche CRM 360° n'affichait que le Jumeau de Peau 3D et la grille photos, sans courbe d'évolution ni lecture professionnelle.
+   408→
+   409→Work Log:
+   410→- lib/kene/evolution.ts : extraction de smoothPath (spline Catmull-Rom → Bézier) en export partagé (avant : dupliquée dans EvolutionCard) — source unique pour les cartes cliente et pro
+   411→- components/kene/evolution/EvolutionCard.tsx : import smoothPath depuis la lib, copie locale supprimée (aucun changement de comportement)
+   412→- components/kene/evolution/ProEvolutionCard.tsx (NOUVEAU, ~380 lignes) : carte Fil du Temps pour la Sheet CRM — séries calculées LOCALEMENT via buildEvolution depuis les diagnostics déjà chargés par /api/pro/clients/[id] (zéro appel réseau supplémentaire, la shape ProClientDetail.diagnoses est structurellement compatible avec EvolutionRow)
+   413→  - Courbe SVG (viewBox 440×150, fil d'or lissé, nœuds pastille valueColorHex, aire or 7 %, grille 0/50/100) + résumé « N mesures · ±X pts »
+   414→  - Filtre par zone corporelle (chips Toutes/Visage/…, n'apparaît que si plusieurs zones scannées) — permet d'isoler la progression d'une même zone
+   415→  - Chips indicateurs sélectionnables (Score global + top 4 séries, delta + TrendingUp/Down)
+   416→  - « Lecture pro » : verdict de trajectoire (Progression nette > +4 / Stabilisation / Vigilance < -4), meilleur axe (> +2 pts), axe à surveiller (< -2 pts), âge du dernier scan + cadence moyenne, « Contrôle conseillé » au-delà de 8 semaines sans scan (text-sunset-text)
+   417→  - A11y : aria-labels dynamiques sur le SVG, tableau sr-only miroir (avec zone filtrée dans la caption), aria-pressed sur tous les chips, focus-visible
+   418→- components/kene/pro/CrmSection.tsx : intégration dans ClientSheet (section « Diagnostics Kènè », après SkinTwinCard, avant la grille photos) — rendu conditionnel rows.length > 0
+   419→
+   420→Tests (données réelles DB, navigateur headless 1440×900) :
+   421→- tsc --noEmit : 0 erreur sur src/ ; eslint . : 0 erreur 0 warning ; dev.log : aucun runtime error
+   422→- E2E fiche Mariam Diallo (Pro → CRM) : carte rendue « 12 août → 26 août · 3 scans », courbe 71→81→66 (mélange zones), 5 chips, Lecture pro à 4 insights
+   423→- Filtre Visage (2) : courbe isolée 71→66 « -5 pts », caption sr-only « (Visage) » ; Mains (1) : état « référence initiale posée », 1 nœud, verdict différé
+   424→- Chip « Barrière cutanée » : bascule courbe 91→53 (2 mesures)
+   425→- Lecture pro vérifiée texte intégral : « Vigilance — réévaluer protocole et observance. | Excès de sébum : +26 pts — axe en nette amélioration. | Barrière cutanée : -38 pts — à surveiller au prochain soin. | Dernier scan il y a 1 sem. · cadence ≈ 2 sem. entre scans. »
+   426→- Non-régression cliente : Espace Cliente (Mariam demo) → Diagnostic → Historique → EvolutionCard intacte (3 scans, 3 nœuds, chips)
+   427→- Screenshots : .proofs/task28-crm-evolution.png + .proofs/task28-client-historique.png
+   428→- Console : zéro erreur (seuls warnings préexistants THREE.Clock / Select uncontrolled)
+   429→
+   430→Stage Summary:
+   431→- Suivi d'évolution diagnostic bouclé de bout en bout : cliente (Fil du Temps + Avant/Après) ET pro (Fil du Temps + Lecture pro actionnable dans le CRM 360°)
+   432→- Aucune migration DB nécessaire (données existantes suffit) ; aucune nouvelle API (calcul local) ; smoothPath mutualisé
+   433→- La Lecture pro transforme l'historique brut en décision métier : verdict protocole, axes prioritaires, rappel de contrôle — au service de la fidélisation
+   434→
+   435→---
+   436→Task ID: 29
+   437→Agent: main (Z.ai Code)
+   438→Task: Rappels automatiques post-protocole — matérialisation réelle de bout en bout
+   439→
+   440→Contexte : « Le Fil du Retour » Pro (queue dérivée + FollowUpMark + WhatsApp manuel) existait, mais les rappels côté cliente étaient une CARTE CODÉE EN DUR dans HomeScreen (« simulation POC »), le modèle Notification n'avait ni date de déclenchement ni contexte annulable, aucun événement métier ne créait de rappel, et rien n'« envoyait » les rappels à l'échéance. Direction choisie par l'utilisateur (« fait ton choix ») parmi : rappels auto / export compta.
+   441→
+   442→Work Log:
+   443→- prisma/schema.prisma : Notification + scheduledAt DateTime? + metaJson String? (additif, db:push sans perte) ; notify() (lib/kene/server.ts) accepte désormais scheduledAt + metaJson
+   444→- lib/kene/reminders.ts (NOUVEAU, lib pure) : readMeta défensif, scheduledStillRelevant (apptId → RDV futur non annulé ; diagId → toujours dernier de sa zone ; dedupKey → relance pro non traitée), humanWhen (« Aujourd'hui 20:00 » / « Demain 09:30 » / « Jeudi 12 sept. » / année si nécessaire), channelLabel — client-safe
+   445→- GET /api/notifications?userId= (NOUVEAU) :
+   446→  1. BACKFILL idempotent — matérialise les rappels manquants (contrôle protocole S+3 par dernier diag de zone, fenêtre S+6 ; rappel J-1 par RDV confirmé à venir) ; la couverture lit les méta des notifications scheduled ET sent ≤ 60 j (un rappel déjà parti ne re-naît pas) ; les relances pro « done » ferment le besoin cliente
+   447→  2. DUE-RUNNER — updateMany scheduled & scheduledAt ≤ now → sent (envoi simulé POC)
+   448→  3. FILTRE de pertinence — RDV annulé / contrôle refait (diag plus récent) / relance pro traitée exclus du fil
+   449→- Hooks événements métier : POST /api/diagnoses (done) → rappel S+3 scheduled {diagId} ; POST /api/appointments (RDV confirmé wallet immédiat) → rappel J-1 {apptId} ; payments/confirm (acompte MoMo) → le faux message « J-1 programmé (simulé) » remplacé par le vrai rappel scheduledAt = startAt−24 h
+   450→- POST /api/pro/followups : quand la pro marque « traité » (diag:*), le rappel automatique cliente sur le même diag est supprimé (anti-doublon) ; réactivation (todo) → le backfill le re-crée (self-heal)
+   451→- HomeScreen : 5ᵉ appel parallèle /api/notifications ; carte « Suivi WhatsApp » REWRITE — scheduled (vert, badge Programmé + humanWhen + canal) / sent (neutre, badge Envoyé + date) / skeletons / empty-state « Tes rappels s'activent tout seuls » ; note POC honnête « contrôle protocole S+3 & RDV J-1 (POC, envois simulés) »
+   452→
+   453→Bugs corrigés en cours de route :
+   454→- Prisma Client périmé dans le dev-server au moment du db:push → 500 sur metaJson : redémarrage du dev server (kill + relance arrière-plan)
+   455→- Backfill non idempotent : la couverture ne lisait que les scheduled → chaque GET re-créait les rappels overdue déjà flippés sent (doublon observé 01:30/01:31) → couverture élargie aux sent ≤ 60 j + gate FollowUpMark done ; testé 2 GET successifs → created: 0
+   456→
+   457→Tests (données réelles DB + curl + navigateur) :
+   458→- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; dev.log sans erreur runtime
+   459→- Backfill : Mariam → 2 rappels programmés (visage S+3 = 16 sept., + legacy seed) ; mains S+3 overdue → flippé sent par le due-runner
+   460→- POST /api/diagnoses (image test) → rappel S+3 créé avec metaJson.diagId (23 sept.) ; test diag + notification purge (nettoyage)
+   461→- Pro mark done (diag:cmtjdainm…) → rappel cliente visage SUPPRIMÉ du fil + relance WhatsApp journalisée en sent ; réactivation todo → re-création automatique (created: 1)
+   462→- E2E navigateur (Mariam démo) : carte rendue 5 blocs réels (2 Programmé · 16 sept./à venir, 3 Envoyé · Aujourd'hui/Hier) ; zéro erreur console ; screenshot .proofs/task29-suivi-whatsapp.png
+   463→
+   464→Stage Summary:
+   465→- Les rappels automatiques passent de la simulation statique à un moteur réel : événement métier → Notification scheduled {scheduledAt, metaJson} → due-runner → fil cliente vivant (Programmé/Envoyé)
+   466→- Croisé avec le Fil du Retour Pro (relance traitée = rappel cliente annulé ; réactivation = re-création) et le Fil du Temps (S+3 = même échéance que la « Lecture pro » contrôle conseillé)
+   467→- Idempotence prouvée ; un rappel déjà envoyé ne re-naît jamais ; fenêtres métier S+6 / J-1 respectées
+   468→
+   469→---
+   470→Task ID: 30
+   471→Agent: main (Z.ai Code)
+   472→Task: Export comptable Pro — fichiers CSV téléchargeables (Excel FR) avec période
+   473→
+   474→Contexte : la compta SYSCOHADA existait de bout en bout (plan, écritures auto caisse/paie/OD, balance, liasse) MAIS l'unique « export » était un window.print() — aucun fichier exploitable par un comptable, le journal API était plafonné à 60 écritures, et aucun livre des ventes n'existait pour les déclarations TVA. Direction choisie (suite de « fait ton choix » → « ok ») : l'export comptable, 2ᵉ volet de la proposition initiale.
+   475→
+   476→Work Log:
+   477→- lib/accounting/csv.ts (NOUVEAU, lib pure client-safe) : csvEscape (guillemets doublés si ; " \n), toCsv (BOM UTF-8 + \r\n, séparateur « ; » — Excel FR), csvDate (JJ/MM/AAAA), paymentMethodLabel (wave→Wave, orange→Orange Money, cash→Espèces…), exportFilename (kene-{type}-{AAAAMMJJ-AAAAMMJJ|tout}.csv, ASCII-safe)
+   478→- 4 constructeurs typés partageant un en-tête documentaire (Kènè Pro · type · institut+ville · période · édition + nb) :
+   479→  - journalCsvRows : 1 ligne par ligne d'écriture (Date;Journal;Réf;Description;Compte;Intitulé;Libellé;Débit;Crédit) + TOTAUX
+   480→  - balanceCsvRows : Compte;Classe;Intitulé;Type;D;C;Solde D;Solde C + TOTAUX + ligne de contrôle « balance équilibrée »
+   481→  - liasseCsvRows : sections Compte de résultat / TVA / Bilan actif / Bilan passif + contrôle actif=passif
+   482→  - salesBookCsvRows : livre des ventes par vente (Cliente, part prestations/produits, HT/TVA/TTC, mode, caissière) + TOTAUX + note « remboursements via OD »
+   483→- GET /api/pro/accounting/export (NOUVEAU) ?tenantId=&type=journal|balance|liasse|ventes&from=&to= : données COMPLÈTES (zéro plafond), filtre période inclusif (to → 23:59:59), ventes status completed, Content-Disposition attachment + X-Rows-Count ; 400 type/date invalide, 404 institut inconnu ; réutilise computeBalance/buildStatements existants (balance et liasse de période cohérentes avec le moteur)
+   484→- AccountingSection.tsx : actions d'en-tête réécrites — Popover « Période d'export » (presets Ce mois-ci/Mois dernier/Cette année/Tout + dates libres Du/Au, libellé vivant « Du 01/08/26 au 31/08/26 ») + DropdownMenu « Exporter » (4 CSV avec icônes FileSpreadsheet, badge contextuel TVA/lignes/comptes/bilan, spinner par item) + « Imprimer la liasse » (bascule sur l'onglet liasse puis window.print) ; downloadExport : fetch → gestion d'erreur JSON → blob → a.download (nom depuis Content-Disposition) → toast succès avec nom de fichier + nb lignes ; « Saisie manuelle OD » conservé (onglet journal)
+   485→- A11y : menu Radix navigable clavier, Labels sur inputs date, aria-hidden sur icônes, états busy
+   486→
+   487→Tests (DB réelle + curl + navigateur 1440×900 & 390×844 + VLM) :
+   488→- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; dev.log : aucune erreur runtime (uniquement 200/400/404 attendus)
+   489→- curl 4 types : journal 28 écritures/100 lignes/108 lignes CSV ; ventes 25 (TOTAUX TTC 1 284 075, TVA 195 874) ; balance 15 comptes TOTAUX D=C 7 724 330 + « balance équilibrée » ; liasse résultat -278 834, TVA nette 122 654
+   490→- Contrôles croisés DB : Sale.aggregate = CSV (TTC 1 284 075, TVA 195 874) ; JournalLine.aggregate = balance (D/C 7 724 330) ; HT ventes 1 088 201 = produits du compte de résultat ; TVA liasse = TVA livre des ventes
+   491→- Filtre période : ventes&from=2026-08-01&to=2026-08-31 → 24 ventes, filename kene-ventes-20260801-20260831.csv, meta « Période : du 01/08/2026 au 31/08/2026 » ; journal août → 26 écritures ; HT+TVA=TTC vérifié ligne POS-0001 (45 890+8 260=54 150)
+   492→- Erreurs : type=foo → 400 ; from=xx → 400 ; tenant inconnu → 404 (messages propres)
+   493→- E2E navigateur (Pro → Compta) : boutons période + Exporter rendus ; menu 5 items ; clic « Livre des ventes » → toast « Fichier téléchargé kene-ventes-tout.csv · 25 lignes » + GET 200 dev.log + console vierge (warnings préexistants) ; preset « Mois dernier » → libellé bouton « Du 01/08/26 au 31/08/26 » → re-export → toast kene-ventes-20260801-20260831.csv · 24 lignes ; fetch in-page du journal filtré → 200/26 écritures/en-tête période exact
+   494→- Non-régression : onglets Journal/Grand livre/Balance/Liasse intacts (liasse UI = liasse CSV : TVA 195 874/73 220/122 654, actif=passif 6 636 129, résultat -278 834) ; OD dialog inchangé
+   495→- Responsive : 390px sans débordement (scrollW=vw=390), footer en bas (push naturel), VLM mobile « responsive et fonctionnelle » ; VLM desktop : menu 5 items ✓, contraste bon ✓
+   496→- Screenshots : .proofs/task30-compta-export.png (menu ouvert), .proofs/task30-liasse.png, .proofs/task30-compta-mobile.png
+   497→
+   498→Stage Summary:
+   499→- La compta passe du cockpit écran au dossier comptable exportable : 4 fichiers CSV Excel FR (BOM/CRLF/;) téléchargeables, filtrables par période, avec totaux et lignes de contrôle — le comptable ou l'expert-comptable peut déclarer la TVA sans Kènè
+   500→- Cohérence structurelle prouvée : livre des ventes ↔ journal ↔ balance ↔ liasse partagent les mêmes agrégats que l'UI (aucune divergence de calcul, moteur syscohada mutualisé)
+   501→- Zéro migration DB ; la valeur dormante (écritures existantes + tvaAmount stocké par vente) est désormais matérialisable en un clic
+   502→- Le fil des espaces se complète : la pro sait désormais PAYER sa caisse (POS), la COMPTABILISER (écritures auto) et la DÉCLARER (exports)
+   503→- Prochaine étape proposée : sauvegarde/rapport mensuel PDF de la liasse, ou centre de notifications cliente avec cloche non-lus (GET /api/notifications existe déjà), ou onboarding v2 avec champ code parrain
+   504→
+   505→---
+   506→Task ID: 31
+   507→Agent: main (Z.ai Code)
+   508→Task: Centre de notifications cliente — cloche non-lus + boîte de réception
+   509→
+   510→Contexte : le moteur de rappels (tâche 29) matérialise des Notification scheduled/sent, mais elles ne vivent que dans la carte « Suivi WhatsApp » de l'accueil — pas de badge d'arrivée, pas d'état lu/non lue, pas d'historique consultable. Direction choisie (suite de « fait ton choix ») : la cloche de notifications cliente, 3ᵉ volet de la proposition initiale (PDF liasse / cloche / onboarding parrain).
+   511→
+   512→Work Log:
+   513→- prisma/schema.prisma : Notification.readAt DateTime? (additif, db:push sans perte) — null = non lue ; les scheduled ne sont jamais marquées
+   514→- GET /api/notifications : sent mappé avec readAt ISO + NOUVEAU agrégat unread (count sur TOUTES les sent readAt null de la fenêtre 30 j, pas seulement la page de 10 — le badge est exhaustif)
+   515→- POST /api/notifications/read (NOUVEAU) { userId, ids? } : zod + 404 utilisatrice inconnue ; updateMany status sent & readAt null (& id in ids si ciblé) → readAt now ; renvoie { updated } ; idempotent (updated 0 au 2ᵉ appel) ; « tout marquer » marque au-delà de la fenêtre affichée (honnête : zéro non-lu restant)
+   516→- components/kene/client/NotificationCenter.tsx (NOUVEAU, ~230 lignes) : composant auto-contenu — cloche (h-11 w-11, style cohérent bouton profil : bg-card border, BellRing) + badge (bg bissap #8B1A3B, >9 → « 9+ », role=status aria-live) ; charge au montage (badge silencieux), rafraîchit à l'ouverture (due-runner : nouvelles arrivées possibles)
+   517→  - Sheet bottom max-w-[430px] mx-auto rounded-t-3xl (pattern ProfileScreen) : titre + sous-titre, « Tout marquer comme lu (N) » (visible si unread > 0), sections « À VENIR (n) » (vert, PROGRAMMÉ + humanWhen + canal) et « REÇUES (n) » (non-lue : bord primary/30, fond primary/6 %, icône BellRing, badge NOUVEAU, texte medium ; lue : neutre CheckCircle2) ; skeletons, erreur + Réessayer, empty-state « Tes rappels s'activent tout seuls » ; AnimatePresence par item ; scroll interne pretty-scroll max-h 82vh
+   518→  - markAllRead : POST → mise à jour locale immédiate (badge 0 + items lus, zéro re-fetch) → toast « Tout est lu · N notifications marquées »
+   519→- types.ts : ApiReminder.readAt + ApiReminderFeed.unread
+   520→- HomeScreen : cloche insérée dans le header (entre WalletPill et bouton profil) — la carte « Suivi WhatsApp » quick-view est conservée (non-régression)
+   521→
+   522→Bugs corrigés en cours de route :
+   523→- Client Prisma périmé dans le dev-server après db:push (Unknown argument readAt → 500) → kill + relance arrière-plan (leçon tâche 29 réappliquée)
+   524→- Le lancement nohup simple est mort silencieusement après ~40 s (sandbox) → relance (nohup bun run dev &) en sous-shell détaché, stabilité vérifiée sur 45 s + 3 checks 200
+   525→
+   526→Tests (DB réelle + curl + navigateur 390×844 + VLM) :
+   527→- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; dev.log : aucune erreur runtime (200 attendus, 404 du test volontaire)
+   528→- curl GET : unread 3, created 0 (backfill idempotent), scheduled 2 (legacy + protocole visage 16 sept.), sent 3 toutes UNREAD avec readAt null
+   529→- curl POST read : { updated 4 } (3 affichées + 1 hors fenêtre 30 j — le badge est exhaustif) ; GET après : unread 0, toutes read ; 2ᵉ POST : updated 0 (idempotent) ; erreurs propres 400 userId requis / 404 utilisatrice inconnue
+   530→- E2E navigateur (démo Mariam) : cloche rendue « Notifications — 3 non lues » (badge 3) ; Sheet ouvert → À VENIR (2) + REÇUES (3) + bouton « Tout marquer comme lu (3) » ; clic → toast « Tout est lu · 4 notifications marquées comme lues » + badge disparu (aria-label redevenu « Notifications ») + bouton retiré + badges NOUVEAU effacés + PROGRAMMÉ intacts ; reload après reset DB → badge 3 de retour
+   531→- Non-régression : carte « Suivi WhatsApp » de l'accueil intacte (PROGRAMMÉ 16 sept. + envoyées) ; wallet 14 000 ; score multi-zones 69
+   532→- A11y : aria-label dynamique avec compte, badge role=status aria-live polite, sections aria-labelledby, focus-visible
+   533→- Responsive 390px : header (Bonjour / wallet / cloche / avatar) sans chevauchement — VLM « parfaitement lisible et bien espacé » ; sheet VLM « propre, aucun défaut »
+   534→- Screenshots : .proofs/task31-cloche-badge.png, task31-centre-notifications.png, task31-suivi-whatsapp.png ; console navigateur vierge
+   535→
+   536→Stage Summary:
+   537→- Le Fil du Retour cliente est désormais une vraie boîte de réception : arrivée (due-runner) → badge non-lus → consultation (Sheet sections À venir/Reçues) → lecture (état lu/non lue) → tout marquer lu — boucle complète
+   538→- La cloche donne enfin de la VISIBILITÉ aux événements silencieux : rappels automatiques (tâche 29), bonus parrainage, confirmations de RDV — tout converge au même endroit
+   539→- Zéro rupture : schéma additif, GET conserve sa shape (+ readAt, + unread), carte accueil intacte
+   540→- Prochaine étape proposée : notifications push temps réel (cloche mise à jour live via socket), ou onboarding v2 « j'ai un code parrain » au signup, ou PDF mensuel de la liasse
+   541→
+   542→---
+   543→Task ID: 32
+   544→Agent: main (Z.ai Code)
+   545→Task: Onboarding v2 — champ « J'ai un code parrain » dès l'inscription
+   546→
+   547→Contexte : le Fil du Parrainage (tâche 27) exigeait que la filleule trouve le champ code APRÈS inscription (Profil → Sheet « Une amie t'a donné son code ? ») — le moment d'acquisition, quand la motivation est maximale, était perdu. Direction choisie (suite de « fait ton choix ») : capter le code à l'étape OTP de l'onboarding, en réutilisant l'API POST /api/referral/redeem existante — zéro backend nouveau, toutes les gardes conservées (auto-parrainage, échange croisé, double redeem, code inconnu).
+   548→
+   549→Work Log:
+   550→- Onboarding.tsx : carte pointillée dorée à l'étape 2 (OTP, sous « Renvoyer le code ») — label Gift « J'ai un code parrain (facultatif) », Input mono uppercase sans espaces (24 car. max, autoComplete off, aria-describedby), hint {xof(FILLEUL_GIFT)} « crédités dès ton inscription — ta parraine reçoit sa récompense à ta première commande » (constante importée, pas de 2 000 codé en dur)
+   551→- tryReferral(uid) : renvoie { ok, gift, parrainName } | { ok: false, error } | null (champ < 4 car. → null silencieux) — PAS de toast interne
+   552→- announceReferral(ref) : toast succès « Cadeau de bienvenue : 2 000 FCFA crédités 💛 / Merci Mariam !… » ou toast erreur (message serveur : code inconnu, déjà parrainée, code le tien…)
+   553→- Branché aux DEUX chemins d'entrée : verify() (compte complet → login direct) et saveProfile() (nouvelle cliente → profil → entrée)
+   554→
+   555→Bugs corrigés en cours de route :
+   556→- COURSE setUser/redeem (repéré en E2E : wallet affiché 0 et badge cloche absent alors que la DB était juste) : le redeem s'exécutait APRÈS setUser → l'accueil montait avant le crédit → données périmées. Fix : tryReferral AVANT setUser (l'accueil se monte avec wallet crédité + cloche badgée), toasts APRÈS l'entrée (ordre narratif « Profil créé » → « Cadeau crédité » préservé via announceReferral séparé)
+   557→
+   558→Tests (DB réelle + navigateur 390×844) :
+   559→- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; dev.log : redeem 200 (valide) / 404 (faux code, attendu), aucune erreur runtime
+   560→- Scénario 1 — inscription complète AVEV code : nouveau numéro 0705556677 → champ « mariam-kene » EN MINUSCULES (la normalisation casse de l'API est couverte) → profil « Aminata » → toasts « Profil créé » + « Cadeau de bienvenue : 2 000 FCFA crédités 💛 Merci Mariam ! » ; entrée : Wallet 2 000 FCFA (corrigé, plus 0) + cloche « 1 non lue » DÈS le montage ; DB : referredBy Mariam Diallo, wallet 2 000, tx credit 2000 referral gift:…, notif filleule (bienvenue) + notif parrain (Aminata a rejoint 🧡)
+   561→- Scénario 2 — code invalide « FAUX-CODE » : toast « Code inconnu — vérifie auprès de ton amie » (404 API), inscription NON bloquée, profil créé, wallet 0, referredBy null
+   562→- Scénario 3 — sans code (démo Mariam) : flux inchangé, wallet 14 000, aucune toast parrainage — et la cloche de Mariam affiche 5 non lues dont « Aminata a rejoint la communauté » (synergie 27×31×32 visible en un coup d'œil)
+   563→- Purge post-test : Aminata + Bintou test + otp orphelin + 2 notifications orphelines supprimés ; Mariam intacte (wallet 14 000, code MARIAM-KENE)
+   564→- VLM 390px : carte parrain visible et propre (bordure dorée, MARIAM-KENE lisible), aucun chevauchement/troncature ; hint sous le pli (scroll normal)
+   565→- Screenshot : .proofs/task32-onboarding-code.png ; console navigateur vierge
+   566→
+   567→Stage Summary:
+   568→- La boucle de croissance démarre désormais au bon moment : le code parrain est capté à l'étape OTP (pic de motivation), échangé automatiquement à l'authentification, et le cadeau est visible dès la première seconde dans l'app (wallet + cloche) — le « aha moment » de la filleule coïncide avec l'entrée
+   569→- Zéro backend nouveau : le champ salue une API éprouvée (gardes intactes) ; l'UX reste optionnelle et non bloquante (mauvais code = toast, jamais un mur)
+   570→- Leçon technique réutilisée partout où un post-login enrichit les données : TOUJOURS exécuter l'enrichissement AVANT setUser (sinon l'écran monté lit des données périmées) mais annoncer APRÈS (narratif)
+   571→- Le Fil du Parrainage est complet de bout en bout : partage (code/WhatsApp) → saisie à l'inscription → cadeau immédiat → bonus parrain à la 1ʳᵉ commande → visibilité cloche/parrainage/admin
+   572→- Prochaine étape proposée : cloche temps réel via socket.io (mini-service), ou PDF mensuel de la liasse, ou coupons/promos boutique (diffusion code à grande échelle)
+   573→---
+   574→Task ID: 33
+   575→Agent: main (Z.ai Code)
+   576→Task: Cloche temps réel — socket.io live feed (mini-service notify-service :3004)
+   577→
+   578→Contexte : le centre de notifications (tâche 31) et l'onboarding parrain (tâche 32) livraient une boîte de réception qui ne vivait qu'au montage/à l'ouverture — aucune arrivée visible pendant que l'app est ouverte, la cliente devait recharger pour découvrir un badge. Direction choisie (suite de « fait ton choix », proposition n°1 des tâches 31 ET 32) : le push temps réel via socket.io — premier canal live de Kènè.
+   579→
+   580→Work Log:
+   581→- mini-services/notify-service/ (NOUVEAU, port 3004, bun --hot) : relais socket.io — la cliente rejoint sa room user:{userId} (event join, multi-onglets) ; POLL 8 s par utilisatrice connectée sur GET /api/notifications (l'API reste l'unique source de vérité : backfill + due-runner idempotents, zéro logique dupliquée) ; DIFF sur sérialisation → emit feed vers la room seulement si changement ; single-flight + debounce 250 ms par userId ; event read-all (lecture cliente → cache vidé + poll frais, jamais de badge périmé) ; event push {secret} réservé à l'app (arrivée instantanée) ; path '/' + ping/pong engine.io — le pattern du websocket de démo est répliqué à l'identique
+   582→- Tentative AVANT nécessaire de retenir : routes HTTP /push + / santé sur le même port → engine.io (path '/') intercepte TOUT et répond « Transport unknown » (ERR_HTTP_HEADERS_SENT sur mon handler) → refonte : le push passe en PROTOCOLE socket (event + secret), zéro route HTTP, un port, un protocole
+   583→- src/lib/kene/realtime.ts (NOUVEAU, serveur) : socket.io-client singleton globalThis (survit aux hot-reload, jamais de doublons) → connecte localhost:3004 en direct (server-to-server), register-app au secret partagé ; pushFeed(userId) fire-and-forget — emit bufferisé si connexion en cours (démarrage à froid), jamais bloquant, JAMAIS d'échec propagé (poll 8 s = filet de sécurité)
+   584→- server.ts notify() : UN SEUL hook pushFeed après create → les 17 points de création (referral, orders, payments, appointments, followups, diagnoses, pro/appointments, cancel…) poussent TOUS instantanément, zéro route modifiée
+   585→- NotificationCenter.tsx : socket io('/?XTransformPort=3004') (transports ws+polling, reconnexion auto) ; join au connect (re-couvre les reconnexions) ; event feed → setFeed + TOAST « Nouvelle notification » si unread augmente et feuille fermée (extrait du message) + prop onLiveFeed remontée ; pill « En direct » (point vert pulsant animate-ping) dans le titre quand connectée ; markAllRead émet read-all au service ; looksLikeFeed garde défensive ; le comportement historique (GET montage/ouverture) reste le fallback — sans service, tout continue de marcher
+   586→- HomeScreen : onLiveFeed={(f) => setData(...)} → la carte « Suivi WhatsApp » suit le flux live de la cloche (une seule socket pour deux vues)
+   587→- package.json : + socket.io-client ; Caddyfile inchangé (le forward ?XTransformPort existe déjà)
+   588→
+   589→Bugs corrigés en cours de route :
+   590→- Voir ci-dessus : conflit engine.io/HTTP sur le même port → push par protocole socket
+   591→- Premier pushFeed d'un process froid émis AVANT connexion (skip best-effort) → arrivée rattrapée par le tick ; fix : emit inconditionnel (bufferisation native socket.io-client, flush au connect) → 2ᵉ redeem prouvé en mode « push »
+   592→- E2E initial silencieux : page ouverte sur localhost:3000 DIRECT → io('/?XTransformPort=3004') frappait le dev server Next, pas la gateway → re-test via localhost:81 (= chemin réel du preview) : connexion immédiate. Leçon : toujours tester les sockets via la gateway
+   593→
+   594→Tests (DB réelle + curl + navigateur 390×844 via gateway :81 + VLM) :
+   595→- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; console navigateur vierge ; dev.log : uniquement des 200 (l'unique 500 du log date de la session 32 — session fantôme d'Aminata purgée, ligne 265 < redeems tâche 32 ligne 285)
+   596→- Test A (poll) : insertion DB d'un rappel scheduled ÉCHU à 02:47:42 → due-runner flip via le poll du service → feed émis (tick) — unread 4 à 02:47:47 → badge 3→4 dans le navigateur SANS reload ; toast d'arrivée constaté au test C
+   597→- Test B (push instantané) : 2ᵉ redeem (socket app connectée) → curl à 02:48:52.959, HTTP 200 en 125 ms, log « push reçu → poll immédiat » + « feed émis (push) — unread 6 » à 02:48:53, badge 6 à l'écran — ARRIVÉE < 1 s bout en bout
+   598→- Test C (toast + VLM) : 3ᵉ redeem → capture .proofs/task33-toast-arrivee.png — VLM lit « Nouvelle notification / Kènè : Fanta TestToast a rejoint la communauté avec ton code 🧡… » : toast + badge + extrait exact
+   599→- Sheet : pill « En direct » rendue (title « Connectée en temps réel ») ; liste mise à jour live (les 3 « a rejoint » apparaissent en tête de REÇUES sans reload) ; carte Suivi WhatsApp de l'accueil idem (onLiveFeed)
+   600→- markAllRead : badge 0 + émission read-all → « feed émis (read-all) — unread 0 » ; attente 9,5 s (plus d'un cycle complet de poll) → le badge NE REVIENT PAS (course stale/périmée close)
+   601→- Auto-correction : purge DB des notifs test → tick suivant « feed émis (tick) — unread 3 » → badge 0→3 en direct (le fil converge vers la vérité dans les DEUX sens, ajouts ET suppressions)
+   602→- Résilience : kill + relance du service → la socket cliente ET la socket app se reconnectent seules (reconnexion socket.io) → join → feed frais émis, badge intact
+   603→- Nettoyage : 3 fillesules test + wallets + transactions + notifs + audit logs supprimés ; Mariam restaurée à l'état d'origine (unread 3, scheduled 4, wallet 14 000, code MARIAM-KENE) ; scripts de test supprimés
+   604→- Responsive : 390px (5 captures) + 1440px VLM « colonne mobile centrée, cloche+badge visible, aucun chevauchement » ; screenshots .proofs/task33-{sheet-endirect,live-push,toast-arrivee,sheet-live,suivi-card-live,desktop}.png
+   605→
+   606→Stage Summary:
+   607→- La boucle notification est désormais LIVE de bout en bout : événement métier → notify() → push instantané (< 1 s mesuré) → badge + toast + liste + carte accueil — et le due-runner reste couvert par le poll 8 s (S+3, J-1)
+   608→- Architecture « relais intelligent » : le mini-service ne détient AUCUNE logique métier (il proxifie l'API éprouvée de la tâche 29), l'app pousse via UN hook central (notify()), la cliente ne fait que s'abonner — chaque couche reste seule maîtresse de sa vérité
+   609→- Résilience prouvée : reconnexion automatique des trois connexions (cliente, app, service redémarré), dégradation douce (sans service, comportement tâche 31 intact), course lecture/arrivée close (read-all → poll frais)
+   610→- Pattern réutilisable : tout futur événement notifiable (commande expédiée, validation pro, promo) est automatiquement live dès qu'il passe par notify() ; le canal user:{userId} peut aussi servir l'indicateur « En direct » d'autres écrans
+   611→- Prochaine étape proposée : coupons/promos boutique (diffusion de codes à grande échelle — le canal push est prêt), ou PDF mensuel de la liasse, ou badge temps réel côté Pro (nouvelle commande/relance)
+   612→
+   613→---
+   614→Task ID: 34
+   615→Agent: main (Z.ai Code)
+   616→Task: Coupons & promos boutique — création Pro, diffusion push live, remise au checkout (suite de « fait ton choix », proposition n°1 de la tâche 33)
+   617→
+   618→Contexte : le canal push temps réel (tâche 33) attendait sa première campagne de masse. La tâche 34 avait été ENTAMÉE dans une portion de contexte perdue (fichiers créés à 09:12-09:16 mais SANS worklog ni finalisation) — audit à l'arrivée : backend et UI client déjà complets, il manquait le montage de la section Pro, une garde API, le redémarrage du dev server et toute la validation E2E.
+   619→
+   620→Work Log:
+   621→- AUDIT de l'existant (contexte perdu) : prisma Coupon/CouponRedemption (poussé en DB), lib/kene/coupons.ts (checkCoupon/redeemCoupon/couponPitch/diffuseCoupon), API pro/coupons (GET/POST/PATCH), pro/coupons/diffuse, coupons/validate, orders avec couponCode + anti-course (redemption AVANT effets de bord, suppression propre si garde échoue), ShopScreen checkout avec champ CODE PROMO + livePromo (invalidation si le panier change), CouponsSection.tsx complet — mais NON monté dans ProApp
+   622→- ProApp.tsx : entrée nav « Promos » (icône lucide TicketPercent, entre Catalogue et Stock) + montage <CouponsSection tenantId tenantName> — ProSectionId étendu, nav desktop + chips mobile
+   623→- pro/coupons/diffuse/route.ts : garde durcie — coupon maison (tenantId null) → 403 « diffusion réservée à l'administration » (l'UI le désactivait déjà, l'API l'impose désormais)
+   624→- REDÉMARRAGE dev server obligatoire : db.coupon undefined (500) car le singleton Prisma globalThis datait d'avant le modèle Coupon (le client node_modules était à jour, les scripts standalone passaient — seul le dev server vivait avec l'ancien). Kill + relance = client rechargé, API 200
+   625→- LEÇON SANDBOX MÉMORABLE : le tueur de process du sandbox fauche les enfants de commande même setsid+nohup+disown — SEUL LE DOUBLE-FORK survit (subshell `( setsid cmd & )` → reparentage à PID 1 PENDANT la commande, comme le fait agent-browser) ; dev server :3000 et notify-service :3004 relancés ainsi, stables depuis
+   626→- E2E complet (navigateur 1440px + 390px via gateway :81, sockets incluses) :
+   627→  · Création coupon UI Pro : dialog (type, valeur, min, max, code, label, date) → RENTEXPO-15 (-15 %, min 5 000, « Rentrée — offre expo ») → toast + carte dans la liste
+   628→  · Diffusion UI : « Code RENTEXPO-15 diffusé — 3 clientes notifiées » ; IDEMPOTENCE re-clic → « Ce coupon a déjà été diffusé aux clientes »
+   629→  · PUSH LIVE (curl diffusion pendant que Mariam est connectée) : curl 09:51:17.9 → log « push reçu → poll immédiat » → badge 4→5 à 09:51:19.2 (~1,3 s bout en bout, SANS reload) ; sheet ouverte : les 2 messages promo en tête, pill « EN DIRECT » actif ; 3ᵉ diffusion (TOAST-LIVE) → toast « Nouvelle notification — Code promo TOAST-LIVE : -10 % sur la boutique » + badge 6→7, capturé à 1,1 s (VLM lit le texte exact)
+   630→  · CHECKOUT : panier 2× Savon (9 000) → RENTEXPO-15 appliqué → toast « Remise de 1 350 FCFA » + carte verte code/label/remise + récap VLM : sous-total 9 000, remise −1 350, cashback +383 (5 % du remisé), TOTAL 7 650
+   631→  · COMMANDE wallet : « Commande confirmée — cashback 383 FCFA crédité » ; DB vérifiée : order paid discount 1350 couponCode RENTEXPO-15 total 7650, payment wallet success, redemption (Mariam, 1350, liée à la commande), usedCount 1, wallet 6733 = 14 000−7 650+383 exact (tx debit 7 650 + credit 383), notif commande avec « remise 1 350 FCFA appliquée »
+   632→  · GARDES (curl + UI) : minOrder → « à partir de 5 000 FCFA d'achat » ; code inconnu ; coupon désactivé (PATCH toggle) → « n'est plus actif » ; RÉUTILISATION UI → « Tu as déjà utilisé ce code promo 😉 » (la garde usage court-circuite avant minOrder — ordre voulu)
+   633→  · Compteurs Pro : RENTEXPO-15 « 1 utilisation » visible sur la carte après la commande
+   634→  · Responsive : 390px section Promos (chips scrollables, KPIs empilés propres — VLM), 1440px liste 2 colonnes
+   635→- NETTOYAGE intégral : order+items+payment+tx wallet, 10 notifications (9 promos + 1 commande), 3 coupons + redemptions (cascade), 3 auditLogs, stock Savon 26 restauré, wallet Mariam 14 000 ; badge navigateur 7→3 en AUTO-CORRECTION au tick suivant (le fil converge vers la vérité purgée) ; scripts temporaires supprimés
+   636→
+   637→Bugs corrigés en cours de route :
+   638→- db.coupon undefined → singleton Prisma périmé au hot-reload → redémarrage du dev server (leçon : tout `db:push` avec nouveau modèle DOIT être suivi d'un restart dev)
+   639→- Process tués entre commandes → double-fork `( setsid … & )` (leçon sandbox, ci-dessus)
+   640→- Clic carte produit bloqué par l'image (couvre le point central) → clic JS par aria-label/textContent ; bouton panier introuvable car overlay succès paiement (payState) le masquait → fermer « Continuer mes achats » d'abord
+   641→
+   642→Tests finaux : tsc --noEmit 0 erreur src/ ; eslint . 0 erreur 0 warning ; dev.log uniquement des 200 + les 400 VOULUS des gardes testées ; console navigateur vierge (warnings préexistants uniquement) ; screenshots .proofs/task34-{pro-coupon-cree,live-push-toast,sheet-promo,checkout-remise,promos-liste,promos-mobile,toast-live-diffusion}.png
+   643→
+   644→Stage Summary:
+   645→- La promo est une boucle fermée DE BOUT EN BOUT et TEMPS RÉEL : la pro crée le code (UI) → le diffuse (1 clic, idempotent) → la cloche de chaque cliente s'illumine + toast (< 1,3 s mesuré) → la cliente applique le code au checkout (aperçu serveur, jamais de surprise) → la commande consomme le coupon (anti-course, une seule fois par cliente) → le compteur remonte côté Pro
+   646→- Sécurité en profondeur : toutes les gardes vivent dans lib/kene/coupons (source unique) et sont RE-vérifiées à la commande ; la validation checkout ne consomme rien ; coupon maison non diffusable depuis un institut (403 API) ; bornes métier 5-90 % / 500-500 000 FCFA
+   647→- Le cashback s'applique au montant PAYÉ (après remise) — la remise et la fidélité se cumulent proprement, vérifié en DB au franc près
+   648→- Prochaine étape proposée : badge temps réel côté Pro (nouvelle commande/relance — même pattern notify-service), ou PDF mensuel de la liasse, ou coupons maison gérés par l'Admin (le modèle tenantId null est prêt)
+   649→---
+   650→Task ID: 35
+   651→Agent: main (Z.ai Code)
+   652→Task: Bug bloquant « espace Pro ne charge pas » + badge & flux temps réel côté Pro (suite de « fait ton choix… mais côté pro ne charge pas »)
+   653→
+   654→Contexte : l'utilisateur autorise la tâche 35 ET signale que l'espace Pro ne charge pas. Diagnostic prioritaire avant tout développement.
+   655→
+   656→Work Log:
+   657→
+   658→BUGFIX — espace Pro ne charge pas :
+   659→- Diagnostic : GET /api/pro/overview?tenantId=cmtecz88f0009mbdhquxaoy4a → 404 EN BOUCLE dans dev.log. Cause : le localStorage « kene-store » persiste proTenantId d'une ANCIENNE génération de base (le tenant n'existe plus — la DB actuelle a cmtjdaiij… et cmtjdaiik…). resolveTenant() → 404 « Institut introuvable » → overview.data null + tid périmé → TOUTES les sections Pro en squelettes/blocage permanent.
+   660→- Fix (défense en profondeur) : store setProTenantId accepte null + AUTO-GUÉRISON dans ProApp — si overview échoue alors qu'un tenant était mémorisé, on l'oublie (retombe sur le tenant par défaut) + toast « Institutut mémorisé indisponible — institut par défaut chargé ». Reproduit l'état exact de l'utilisateur (localStorage space=pro + ID périmé) → séquence guérie en log : 404 (ID périmé) → 200 (défaut) → 200 (ID réparé cmtjdaiij…), KPIs/graphes rendus, localStorage réparé définitivement, sections Promos/Caisse vérifiées.
+   661→- Leçon : toute donnée persistée (localStorage) doit être considérée comme une PRÉFÉRENCE jamais comme une vérité — si elle échoue, on retombe sur la source (défaut serveur) au lieu de bloquer.
+   662→
+   663→TÂCHE 35 — badge & flux temps réel côté Pro (pattern notify-service étendu) :
+   664→- GET /api/pro/live?tenantId= (NOUVEAU) : payload léger diffable — pendingAppts (badge Agenda), apptsToday, salesToday (KPI live), ordersToday (commandes contenant un produit de l'institut), last {type,id,at,label,status} (moteur de toasts). Garde 404 tenant inconnu.
+   665→- notify-service : rooms tenant:{id} (event join-tenant), pollTenant → GET /api/pro/live → diff → emit tenant-feed ; push {secret, tenantId?} étendu ; single-flight/debounce/tick 8 s partagés ; nettoyage disconnect complet ; event hb/hb-ack (heartbeat).
+   666→- realtime.ts : pushTenantFeed(tenantId) (même socket app, emit inconditionnel bufferisé).
+   667→- Hooks serveur : notify() → si tenantId → pushTenantFeed (RDV réservés, relances WhatsApp, diffusions coupon couvertes d'un seul point) ; POST /api/pro/sales (POS) explicite ; POST /api/orders → push par produit-institut distinct (produits maison = silence, honnête) ; PATCH pro/appointments/[id] confirm/cancel/no_show/reschedule explicites.
+   668→- ProApp : socket io('/?XTransformPort=3004') + join-tenant au connect (et par changement d'institut) ; tenant-feed → garde looksLikeLive + tenantId ; badge Agenda = pendingAppts − agendaSeen (baseline visitée, CLAMPÉE à la baisse quand les confirmations descendent — sinon une confirm suivie d'une nouvelle réservation masquerait le badge) ; toasts UNIQUEMENT distants (RDV pending réservé cliente / commande institut — jamais POS ni RDV créés pro : statut confirmed) et PAS au premier fil après montage (garde prevId !== null, comme NotificationCenter) ; pill « En direct » (desktop sidebar + mobile header, point pulsant) ; refreshKey → AgendaSection (liste RDV) + PosSection (ventes) + overview.refetch() (KPIs dashboard) — tout vit sans reload.
+   669→- live-socket.ts (NOUVEAU) : armHeartbeat(socket) — sonde hb toutes les 30 s, sans ack sous 5 s → disconnect+connect (zombie = service rechargé à chaud alors que le TCP survit : le client croit être connecté, le nouveau service ne le connaît pas). Armé sur la socket app (realtime.ts), NotificationCenter et ProApp.
+   670→- LEÇON bunny : bun --hot a des sémantiques de rechargement opaques (parfois le state module survit, parfois tout re-runit) ; les sockets existantes peuvent finir zombies. Le heartbeat est le filet, le tick 8 s la garantie — pire cas mesuré : livraison ≤ 8 s.
+   671→
+   672→Tests E2E (navigateur via gateway :81, DB réelle) :
+   673→- BUGFIX : état utilisateur reproduit → espace Pro chargé + toast + localStorage réparé (voir ci-dessus)
+   674→- Test d'or (réservation cliente via API pendant que Pro est ouvert) : POST 10:27:43.6 → « push pro reçu » + « tenant-feed émis (push) — 2 RDV » 10:27:43 → badge 2→3 + toast « Nouvelle demande de RDV — Diagnostic IA + Consultation · Aïcha Bakayoko · 3 sept. » capturé à 2,5 s — ~1,3 s bout en bout
+   675→- Cycle bidirectionnel : confirm pro (PATCH, push 10:30:31) → badge 3→2 ; nouvelle réservation (push 10:30:33) → badge 2→3 — les DEUX sens instantanés ; badge se vide à la visite Agenda (baseline) ; grille Agenda affiche les 3 RDV en attente
+   676→- Vente POS 10 000 (cash) : KPI « CA aujourd'hui » 0 → 10 000 SANS reload, 7 j 384 k → 394 k, AUCUN toast (action de la pro = silencieuse par design)
+   677→- Commande boutique (produit institut Gommage 9 500, wallet Mariam) : toast « Commande boutique reçue — 9 500 FCFA · 1 article(s) · Mariam Diallo » + feed « 1 commande(s) » — capturé
+   678→- Auto-correction : purge DB des RDV de test → tick suivant « tenant-feed émis (tick) — 0 RDV · CA 0 · 0 commande » → badge retombe à 0 en direct (convergence bidirectionnelle comme tâche 33)
+   679→- Résilience : rechargement à chaud du service → reconnexion auto des sockets pro (join re-émis, feed frais) ; heartbeat armé partout ; rechargement page → join → badge synchronisé immédiatement
+   680→- Non-régression : espace Cliente (accueil/cloche/wallet) intact après les allers-retours d'espaces ; socket unique par espace au montage/démontage
+   681→- Responsive : 390 px (chips + badge Agenda + pill EN DIRECT dans l'en-tête mobile, VLM « propre, aucun chevauchement, badge lisible ») et 1440 px (VLM : sidebar + badge Agenda « 3 » + badge vert « En direct » + aucun chevauchement)
+   682→- tsc --noEmit 0 erreur src/ ; eslint . 0 erreur 0 warning ; console navigateur vierge ; dev.log uniquement des 200 (+ le 404 VOULU de la garde tenant inconnu)
+   683→- Nettoyage intégral : 5 RDV test, 5+1 notifications, 1 vente POS + écriture comptable + lignes, 1 commande + items + payment + tx wallet + stock Gommage 34→35, wallet Mariam restauré 14 000 ; groupBy RDV = état d'origine exact (1 cancelled / 5 completed / 8 confirmed)
+   684→- Screenshots : .proofs/task35-{fix-pro-charge,fix-toast,live-push-toast,toast-rdv-live,toast-commande,mobile-dashboard,desktop-live}.png
+   685→
+   686→Stage Summary:
+   687→- L'espace Pro est désormais LIVE de bout en bout : une cliente réserve → la pro voit le badge Agenda monter, un toast, l'agenda se rafraîchir et le dashboard vivre — en ~1,3 s mesuré, sans reload ; la pro confirme → les autres postes/onglets se corriger en direct
+   688→- Le bug bloquant « Pro ne charge pas » est réparé à la RACINE avec auto-guérison permanente : plus aucune donnée localStorage périmée ne peut bloquer un espace
+   689→- Architecture « relais intelligent » étendue au canal institut : le service reste sans logique métier (il proxifie /api/pro/live), l'app pousse via notify() + 4 points explicites, l'espace Pro s'abonne — le tout avec heartbeat anti-zombie et tick 8 s en filet
+   690→- Les deux espaces partagent désormais le temps réel : cloche cliente (user:{id}) + badge pro (tenant:{id}) sur le même service, les mêmes patterns et les mêmes garanties
+   691→- Prochaine étape proposée : PDF mensuel de la liasse (compta → export), coupons maison gérés par l'Admin (modèle tenantId null prêt), ou visio-diagnostic (SkinTwin → partage pro)
+   692→
+   693→---
+   694→Task ID: 36
+   695→Agent: main (Z.ai Code)
+   696→Task: « En mode PC, les onglets de la barre de navigation ne sont pas nommés » + question « les clients et l'entreprise peuvent-ils consulter les données enregistrées ? »
+   697→
+   698→Work Log:
+   699→- Vérification services : app :3000 OK, gateway :81 OK, notify-service :3004 OK (health polling OK) ; /api/pro/live 200 en continu → l'espace Pro charge bien (bug tâche 35 confirmé résolu).
+   700→- BUGFIX onglets non nommés (mode PC, sidebar Pro) : reproduction desktop 1440×900 + VLM → 10 boutons ICÔNE-SEULE. Cause exacte mesurée au DOM : <span className="flex-0 truncate"> — en Tailwind v4, flex-0 = flex: 0 1 0% → flex-basis 0% + grow 0 → largeur 0px, et truncate (overflow hidden) rend le libellé invisible. Le texte était rendu mais replié sur lui-même. Fix : flex-0 → min-w-0 (basis auto, shrink 1) — 1 seul usage dans tout src/. Validation : les 10 largeurs passent de 0px à 28–101px, VLM lit « Tableau de bord, Agenda, Caisse, CRM, Relances, Catalogue, Promos, Stock, Paie, Compta ».
+   701→- RÉPONSE à la question consultation des données (audit de l'existant) :
+   702→  * Entreprise (Pro) — DÉJÀ COMPLET : CRM (fiches clientes : identité, RFM, diagnostics IA avec photos/scores, Jumeau de Peau 3D, Fil du Temps, ventes, RDV, notes), Agenda, Caisse (ventes récentes), Compta, dashboard (commandes boutique). Vérifié E2E : fiche Mariam Diallo = 5 diagnostics + jumeau + évolution 71→62 + RFM 5/5/5/5.
+   703→  * Cliente — TOUT SAUF ses commandes boutique : historique diagnostics (comparaison), Mes RDV, transactions wallet, notifications, profil éditable ✓ ; MAIS /api/orders n'avait que POST → aucune vue « Mes commandes ».
+   704→- DÉVELOPPEMENT « Mes commandes » (comblage du manque) :
+   705→  * GET /api/orders?userId= (NOUVEAU) : user vérifié, findMany desc + items inclus, 404 garde.
+   706→  * types.ts : ApiOrder + discount?, couponCode?.
+   707→  * ShopScreen : bascule role=tablist « Catalogue ↔ Mes commandes (n) » sous le titre ; chargement au montage + refreshOrders() rafraîchi après chaque paiement réussi ; OrdersView (squelettes, état vide avec CTA, cartes commande : N° + date + badge statut [En attente/Payée/Livrée/Annulée], lignes d'articles, sous-total/remise coupon/cashback/total, hint pending) ; bouton Rafraîchir ; tout le catalogue existant inchangé derrière la bascule.
+   708→- E2E (via gateway :81, DB réelle, Mariam démo) :
+   709→  * Mes commandes vide → « Aucune commande pour l'instant » + CTA (VLM ok).
+   710→  * Achat réel Savon Noir 4 500 wallet → succès → retour Boutique → « Mes commandes (1) » : carte N° UV7FTR, 2 sept. 11:21, badge « Payée » vert, 1× Savon, sous-total 4 500, cashback +225, total 4 500 (VML transcription exacte). Cohérence DB vérifiée : wallet 14 000 → 9 725 (= −4 500 + 225 cashback), tx debit/credit, notification SMS UV7FTR, statut paid.
+   711→  * Commande conservée volontairement (donnée démo cohérente) : la cliente voit un historique réel, l'institut la voit côté tableau de bord.
+   712→  * CRM : fiche Mariam (diagnostics + jumeau + évolution + RFM) ✓ ; Caisse : POS + Ventes récentes ✓.
+   713→  * Mobile 390×844 : bascule visible, nav basse 5/5 libellés (Accueil, Diagnostic, Boutique, RDV, Chat — DOM vérifié), footer en bas sans chevauchement.
+   714→  * tsc --noEmit 0 erreur src/ ; eslint 0 erreur/0 warning ; console navigateur vierge (hors warning THREE) ; dev.log : uniquement des 200.
+   715→- Screenshots : .proofs/task36-{nav-pc-libelles,mes-commandes-vide,mes-commandes-commande,crm-fiche-mariam,caisse-ventes,mobile-boutique}.png
+   716→
+   717→Stage Summary:
+   718→- Onglets PC nommés : la sidebar Pro affiche désormais les 10 libellés — cause racine Tailwind v4 flex-0 (basis 0%) piégée par truncate, corrigée par min-w-0.
+   719→- Consultation des données : OUI pour les DEUX parties — l'entreprise avait déjà tout (CRM complet) ; la cliente dispose maintenant de « Mes commandes » (GET /api/orders + UI) en plus de ses diagnostics, RDV, wallet et notifications. La commande de démo (UV7FTR) reste en base pour illustrer la fonction.
+   720→- Leçon Tailwind v4 : éviter flex-<nombre> sur un libellé — flex: 0 écrase la base à 0% ; préférer min-w-0 + truncate pour un texte qui doit se réduire gracieusement.
+   721→- Prochaine étape proposée : PDF mensuel de la liasse compta, coupons maison côté Admin, ou export données cliente (RGPD — portabilité).
+   722→
+   723→---
+   724→Task ID: 37
+   725→Agent: main (Z.ai Code)
+   726→Task: Bug bloquant — Runtime TypeError « Cannot read properties of undefined (reading 'text') » dans IndicatorBar (DiagnosticScreen.tsx:605) au rendu du résultat de diagnostic
+   727→
+   728→Work Log:
+   729→- Diagnostic : SEVERITY_STYLES (format.ts) est un TABLEAU d'objets {dot,label,text}. IndicatorBar faisait une DOUBLE indexation : `const sev = SEVERITY_STYLES[i]` (objet résolu) puis `sev[i].text` — sev[0..3] sur un objet = undefined → TypeError SYSTÉMATIQUE à chaque affichage d'un résultat (vue directe OU historique). Cause secondaire : ind.severite absent dans d'anciens resultJson → Math.max(0, undefined) = NaN → SEVERITY_STYLES[NaN] = undefined.
+   730→- Fix 1 — DiagnosticScreen.tsx IndicatorBar : résolution unique et gardée — sevIdx = Number.isFinite(ind.severite) ? clamp(0..3, trunc) : 0 ; sev = SEVERITY_STYLES[sevIdx] ?? SEVERITY_STYLES[0] ; usage sev.text / sev.dot ; largeur de barre clampée 0-100.
+   731→- Fix 2 — types.ts parseDiagnosis (défense en profondeur) : assainissement de chaque indicateur (nom requis, severite clamp 0-3 sinon 0, pourcentage clamp 0-100 sinon 0) — protège TOUS les consommateurs (DiagnosticScreen, CRM, SkinTwin, Evolution, RitualJourney).
+   732→- Fix 3 — twinMath.ts buildMarkers : même garde Number.isFinite sur m.severite (SEVERITY_STYLES[NaN].label / SEV_HEX[NaN] auraient crashé SkinTwinCard).
+   733→- Vérifications : bun run lint 0 erreur ; tsc --noEmit 0 erreur src/ ; serveur :3000 → 200 via gateway :81.
+   734→- E2E (390×844, gateway :81, Mariam démo) : Diagnostic → « Voir mon historique » → ouverture « Diagnostic visage 2 sept. 2026 (62) » → écran de résultat COMPLET sans crash (Priorités de soin avec barres : Cernes 35 %, PIH 40 %, Sébum 40 %, Éclat 45 %…, accordéon 14 indicateurs détaillés OK) ; 2e diagnostic « Mains 12 août (81) » OK ; agent-browser errors VIDE, console vierge (hors warning THREE bénin) ; l'ancien TypeError n'est plus reproductible.
+   735→- Screenshots : .proofs/task37-{diag-result-visage,diag-detail-14indicateurs,diag-result-mains}.png
+   736→
+   737→Stage Summary:
+   738→- Le crash de l'écran de résultat de diagnostic est réparé à la racine : plus aucune double indexation, plus aucun NaN possible — données anciennes (resultJson incomplets) et nouvelles rendent de manière sûre.
+   739→- Leçon code : quand on résout un item d'un tableau de styles, NE PAS ré-indexer l'objet résultat ; et toute valeur numérique venue d'un JSON persisté doit passer par Number.isFinite avant clamp/index (NaN se propage silencieusement dans Math.min/max).
+   740→- Le diagnostic IA est de nouveau consultable de bout en bout (vue résultat + historique + comparaison).
+   741→
+   742→---
+   743→Task ID: 38
+   744→Agent: main (Z.ai Code)
+   745→Task: « Étudions un peu les utilisateurs ? dans ce domaine cosmétique en 2026. y a t il des lettrés, illettrés, etc... qui peuvent faire échouer le projet » + « on y va et n'oublie pas de mettre à jour tous nos documents de base »
+   746→
+   747→Work Log:
+   748→- Étude utilisateurs 2026 livrée (analyse produit, pas de code) : segmentation bicéphale C (cliente) / B (institut) + prescripteurs ; repères Côte d'Ivoire — alphabétisation adultes ~56 % (femmes ~47 %, rural bien plus bas), mobile money omniprésent (Wave/OM), WhatsApp dominant, data rechargée en petits paquets journaliers, français 2e langue pour la majorité.
+   749→- Segments C identifiés : digitale lettrée exigeante (churn silencieux, comparaison internationale), semi-lettrée numérique (gros volume urbain — drop-off sur parcours multi-étapes/jargon/formulaires), non-lectrice (~40 % des femmes selon zones — exclue silencieusement de tout funnel textuel), rurale/petite data (coût d'accès, téléphones entrée de gamme), WhatsApp-first (ne quitte jamais l'app), méfiante post-dépigmentation (IA = boîte noire suspecte), pressée (intro narrative = sortie avant la valeur).
+   750→- Segments B : gérante organisée (motrice — CRM/caisse/compta), praticienne peu administrative (risque n°1 côté B : CRM vide si la saisie est une friction), personnel salarié (perception surveillance → non-usage).
+   751→- Prescripteurs : dermatos/pharmaciens (sceptiques vis-à-vis d'une IA non validée — une phrase « cette app dit n'importe quoi » casse la confiance), skinfluencers (gatekeepers — un bad buzz « l'IA juge la peau » = crise réputationnelle).
+   752→- Classement des risques d'échec : 1) non-lectrices → funnel vide silencieux ; 2) pro non-saisissante → promesse 360° non tenue ; 3) méfiance/dépigmentation → rejet + bad buzz ; 4) semi-lettrées → abandon milieu de parcours ; 5) petites data → poids de l'app ; 6) digitales exigeantes → déception comparative.
+   753→- Audit des gardes produit DÉJÀ en place : diagnostic par photo VLM (zéro saisie textuelle), libellés simples Léger/Moyen/Fort + pastilles couleur, WhatsApp canal (relances + commande), fallbacks 3D statiques #twin-static/#weave-static, intro skippable, wallet 1 geste, cashback, orientation dermato.
+   754→- Manques traduits en backlog priorisé : lecture vocale TTS des questions/résultats (skill TTS dispo) → glossaire 1 tap (PIH, sébum…) → compression photo côté client avant upload → mode saisie Pro allégé → à terme langues locales audio (dioula, baoulé) + ASR.
+   755→- Documents de base mis à jour (README.md) : espaces Cliente (« Mes commandes », cloche temps réel) et Pro (badge « En direct ») enrichis ; stack + ligne « Temps réel » (mini-service socket.io :3004, poll 8 s + push, heartbeat) ; arborescence close proprement + ligne notify-service ; NOUVELLE section « Utilisateurs & littératie — repères 2026 » (tableau 8 segments barrière/garde + risques classés) ; NOUVELLE section « Limites assumées (démo) & priorités » (paiements simulés, OTP prévu, SQLite→Postgres, backlog).
+   756→- Services vérifiés avant/après : app :3000 → 200, gateway :81 → 200, notify-service :3004 vivant (400 attendu sur GET plain — service socket.io) ; aucun code applicatif modifié → lint/tsc inchangés (validés en tâche 37).
+   757→
+   758→Stage Summary:
+   759→- Conclusion clé : la LITTÉRATIE (pas la technologie) est la première barrière d'adoption — en CI, un funnel purement textuel exclut silencieusement ~4 femmes sur 10 ; la voix (TTS) et les pictogrammes passent en priorité de backlog.
+   760→- Deuxième enseignement : côté B le CRM ne doit dépendre d'aucune saisie manuelle — la donnée doit arriver toute seule (diagnostic client, vente POS, commande boutique), ce que l'architecture actuelle fait déjà.
+   761→- README et worklog alignés sur l'état réel (37 tâches de dev + étude 38) : les documents de base sont à jour.
+   762→- Prochaines étapes candidates : TTS lecture des résultats → glossaire 1 tap → compression photo client → mode Pro allégé → OTP réel (OtpCode prêt) → paiements réels → export PDF liasse → portabilité données.
+   763→
+   764→---
+   765→Task ID: 39
+   766→Agent: main (Z.ai Code)
+   767→Task: « On y va » — lecture vocale TTS des résultats de diagnostic (attaque du risque n°1 de l'étude utilisateurs : les non-lectrices)
+   768→
+   769→Work Log:
+   770→- Skill TTS chargé et contraintes intégrées : z-ai-web-dev-sdk BACKEND ONLY, max 1024 chars/requête, voix whitelistées (tongtong…), speed 0.5-2.0, Response → arrayBuffer() → Buffer, WAV 24 kHz 16-bit mono. Test CLI préalable : WAV RIFF valide (826 Ko / ~17 s).
+   771→- NOUVEAU src/lib/kene/narration.ts (lib PURE) : numberToFrench(0-100) en toutes lettres (« soixante-deux » lu plus fiablement que « 62 »), verdictWord/levelWord (mêmes seuils que l'UI), clipSentences (coupe fin de phrase), fnv1a (hash cache), buildNarration(result, {userName}) — assemble par priorité décroissante dans un budget de 950 chars : accueil → score+verdict → 3 priorités (indicateurs les plus faibles, niveau parlé) → orientation dermato (+raison) → résumé conseils → 1 geste matin + 1 soir → botaniques → avertissement légal.
+   772→- NOUVEAU src/app/api/tts/route.ts (POST, runtime nodejs) : validations (texte requis ≤ 1000, voice whitelist, speed clamp 0.5-2) → ZAI.create() → audio.tts.create({wav}) → NextResponse Uint8Array + Content-Type/Length audio/wav. Cache mémoire FIFO plafonné 32 Mo (hash fnv1a voice|speed|text) ; garde « audio vide » 502 ; erreurs 400/500 JSON propres.
+   773→- NOUVEAU src/components/kene/client/VoiceNarration.tsx (« use client ») : bouton « Écouter le résumé » (h-12, bg-primary) avec 3 états — idle (Volume2) / loading (Loader2 spin « Préparation de l'audio… », disabled) / playing (équaliseur 4 barres framer-motion scaleY + Square « Arrêter la lecture », hint « Lecture en cours… ») ; POST /api/tts → blob → URL.createObjectURL → new Audio ; cache objectURL module-level FIFO 8 (replay instantané SANS re-consommer de quota TTS, éviction sans révoquer l'URL en cours) ; onended/onerror gérés ; stop au démontage ; toasts d'erreur actionnables.
+   774→- DiagnosticScreen.tsx : <VoiceNarration result={r} userName={user.name}/> intégré dans ResultView juste sous la carte de score (avant l'alerte dermato) — la lecture est proposée AU MOMENT où la cliente découvre son résultat, en vue directe ET historique (même composant).
+   775→- Vérifications statiques : bun run lint 0 erreur/0 warning ; tsc --noEmit 0 erreur src/.
+   776→- Test narration RÉELLE (bun + prisma, diagnostic visage Mariam) : 917 chars — « Bonjour Mariam… score global soixante-deux sur cent. Bon équilibre général. Première priorité : Cernes & poches, à surveiller de près… consultation dermatologique conseillée… » — assemblage correct.
+   777→- Test API curl : 1er appel 200 (WAV RIFF 3,78 Mo ≈ 79 s de parole, ~21 s de génération) ; 2e appel 79 ms (cache mémoire serveur). Gardes : {} → 400 « Texte requis » ; 1200 chars → 400 « Texte trop long ».
+   778→- E2E agent-browser (gateway :81, DB réelle, 390×844 puis 1440×900) :
+   779→  * Parcours : intro passée → « Démo — Entrer comme Mariam » → Diagnostic → « Voir mon historique » → diagnostic visage 2 sept (62) → bouton « Écouter le résumé vocal du diagnostic » présent dans la région « Lecture vocale du diagnostic ».
+   780→  * Clic → lecture DÉMARRÉE (cache serveur : instantané) → bouton « Arrêter la lecture » + équaliseur + « Lecture en cours… » (VLM : « bouton doré, texte blanc, position correcte sous la carte Visage »).
+   781→  * Cycle complet : clic Arrêter → retour idle → re-clic → lecture en 1,5 s (cache blob client, AUCUN nouveau POST).
+   782→  * Génération non cachée (diagnostic mains 81) : bouton disabled + spinner pendant ~15 s → lecture démarrée (dev.log : POST /api/tts 200 in 15.2s) — parcours 1re écoute validé en conditions réelles.
+   783→  * Desktop 1440×900 : colonne mobile-first centrée (~40-45 %), bouton + égaliseur OK (VLM).
+   784→  * agent-browser errors VIDE ; console sans error/failed ; dev.log : uniquement 200 (+2 gardes 400 voulues) ; navigateur fermé.
+   785→- Screenshots : .proofs/task39-{mobile-lecture,mobile-replay,mobile-preparation,mobile-mains-lecture,desktop-resultat}.png
+   786→- Docs de base mises à jour : README (ligne Cliente « lecture vocale (TTS) », ligne IA « + lecture vocale », segment non-lectrice « garde en place ✅ », backlog recentré sur glossaire 1 tap) + worklog (cette entrée).
+   787→
+   788→Stage Summary:
+   789→- La barrière n°1 de l'étude utilisateurs est attaquée concrètement : une cliente qui ne lit pas peut maintenant ÉCOUTER son diagnostic complet (score, priorités, orientation dermato, conseils, avertissement) via un bouton doré « Écouter le résumé ».
+   790→- Architecture 3 couches réutilisable : narration.ts (lib pure, budget 950 chars, priorisation des blocs) → /api/tts (SDK backend, validations, cache mémoire 32 Mo FIFO) → VoiceNarration (3 états, cache blob 8 entrées, replay gratuit).
+   791→- Coûts maîtrisés : la génération (~15-20 s) ne se paye qu'à la 1re écoute d'une narration ; ré-écoute instantanée (blob client), ré-écoute réseau 79 ms (cache serveur) ; textes identiques déterministes (buildNarration pur).
+   792→- Prochaine étape candidate : glossaire 1 tap (PIH, sébum…) → compression photo côté client → mode saisie Pro allégé → langues locales audio (dioula/baoulé).
+   793→
+   794→---
+   795→Task ID: 40-43
+   796→Agent: main (Z.ai Code)
+   797→Task: « Oui traite tout » — backlog complet de l'étude utilisateurs : glossaire 1 tap, compression photo renforcée, cliente express (mode Pro allégé), lecture lente (FLN)
+   798→
+   799→Work Log:
+   800→
+   801→TÂCHE 40 — Glossaire 1 tap (PIH, sébum…) + lecture vocale des définitions :
+   802→- NOUVEAU src/lib/kene/glossary.ts (lib PURE) : 28 définitions SIMPLES (phrases courtes, mots du quotidien, zéro jargon non expliqué) couvrant les 41 indicateurs de ZONE_INDICATORS via alias de zones + matching 3 niveaux : clé exacte normalisée (NFD sans accents) → alias (« Taches PIH du dos » / « … barbe » → PIH) → mots-clés de repli (libellés proches du VLM). glossaryFor() retourne null sur terme inconnu (pas de « ? » affiché). Test bun : 30/30 termes réels couverts, inconnus → null.
+   803→- NOUVEAU src/components/kene/client/ttsAudio.ts : fetchTtsAudioUrl(text, speed) — module client UNIQUE de consommation TTS (cache objectURL FIFO 8, clé fnv1a+speed, éviction sans révoquer l'URL active) — partagé par VoiceNarration, SpeakButton et tout futur consommateur.
+   804→- NOUVEAU src/components/kene/client/SpeakButton.tsx : bouton « Écouter » compact réutilisable (idle/loading/playing, stop au démontage, toasts).
+   805→- NOUVEAU src/components/kene/client/GlossaryDialog.tsx : Dialog shadcn — en-tête « QUE VEUT DIRE CE MOT ? », titre, définition, SpeakButton (speed 0.9), « J'ai compris ».
+   806→- DiagnosticScreen.tsx : IndicatorBar accepte onAsk — le nom de l'indicateur devient un bouton avec icône CircleHelp quand une définition existe (priorités + accordéon 14 indicateurs) ; ResultView porte l'état glossary et rend le Dialog.
+   807→- E2E (mobile 390×844, gateway :81, Mariam) : 8 boutons « Expliquer le mot : … » sur les priorités du diagnostic visage 62 ; tap « Taches PIH » → Dialog (titre + définition + VLM confirme le rendu) ; Écouter → génération 7,6 s → « Arrêter » (lecture en cours) ; 2e terme « Cernes & poches » ✓ ; fermeture « J'ai compris » ✓.
+   808→
+   809→TÂCHE 41 — Compression photo renforcée :
+   810→- api.ts resizeImage : 900px/q0.82 → 820px/q0.8 (suffit pour le VLM, ~25-35 % d'octets en moins — segment « petite data »).
+   811→- DiagnosticScreen onFile : toast « Photo compressée : X Ko → Y Ko — léger pour ta connexion » quand la compression est significative (orig > 250 Ko et ratio > 2) — transparence du coût data au moment du choix.
+   812→
+   813→TÂCHE 42 — Cliente express (mode saisie Pro allégé) :
+   814→- POST /api/pro/clients (NOUVEAU) : validations (nom 2-80, téléphone 8-15 chiffres), création ClientProfile minimale (rfmSegment « Nouveau », note « Créée express depuis la caisse »), ANTI-DOUBLON sur chiffres normalisés.
+   815→- BUG corrigé en E2E : 1re version contains SQL brut → « 07 05 44 33 22 » (espaces) échappait à « 0705443322 » (compact) → doublon créé. Fix : comparaison JS sur digits (les 10 derniers = numéro local CI, absorbe +225/espaces/compact) → réutilisation de la fiche (reused: true) + toast dédié. Test curl : 3 formats différents → même fiche retournée.
+   816→- PosSection.tsx : bouton « Express » (UserRoundPlus, or) à côté du Select cliente ; Dialog 2 champs (nom + téléphone, Enter = valider, placeholder « Aïcha Bakayoko ») ; création → sélection automatique dans le ticket + refetch clients + toast ; « Sans cliente » → « Sans cliente ».
+   817→- E2E (espace Pro, Caisse) : création « Aminata Traoré » → sélectionnée + toast « ajoutée au carnet clientes » ; re-test doublon UI (« Fanta Doumbia », même numéro en +225) → « Aminata Traoré existait déjà — fiche réutilisée », Fanta NON créée ; CRM : Aminata présente dans le carnet (la donnée arrive toute seule — pas de double saisie).
+   818→
+   819→TÂCHE 43 — Lecture lente (compréhension français langue seconde) :
+   820→- VoiceNarration.tsx refondu sur ttsAudio.ts partagé + toggle « Lecture lente » (icône Turtle, speed 0.85) : chip sous le bouton principal, état actif visible, couper la lecture en cours au changement de vitesse, hint « Lecture lente en cours… ». Clé de cache inclut la vitesse → normal et lent = 2 entrées distinctes.
+   821→- E2E : activation → narration en vitesse lente générée (17,4 s) puis « Arrêter la lecture » affiché ✓. Voix dioula/baoulé non disponibles dans le moteur TTS — la lecture lente + vocabulaire simple est le substitut réaliste actuel ; langues locales réelles documentées comme évolution (voix custom).
+   822→
+   823→Vérifications transverses :
+   824→- bun run lint 0 erreur/0 warning ; tsc --noEmit 0 erreur src/ (relancés après le fix anti-doublon).
+   825→- Console navigateur : aucune erreur pendant TOUTE la session ; dev.log : uniquement 200/201 (POST clients 201/200, TTS 200 dont cache 17 ms vs génération 7,6-17,4 s) + 2 gardes 400 testées en tâche 39.
+   826→- Nettoyage intégral : clientes de test supprimées (Aminata Traoré, Testeuse Express, Autre Nom) — aucune vente/RDV lié (créées vierges), CRM et caisse revenus à l'état d'origine.
+   827→- Screenshots : .proofs/task40-{glossaire-pih,glossaire-lecture}.png · task42-dialog-express.png · task43-{lecture-lente,lecture-lente-active}.png
+   828→
+   829→Stage Summary:
+   830→- Les 4 items du backlog « étude utilisateurs » sont traités : le jargon est expliqué en 1 tap (28 définitions simples, lues à voix haute), la photo envoie moins de données (et le dit), la praticienne crée une cliente en 2 champs depuis la caisse (CRM auto-alimenté, anti-doublon multi-formats), et la narration se met en mode lent pour l'écoute FLN.
+   831→- Architecture : un SEUL module TTS client (ttsAudio.ts) alimente désormais narration + glossaire — cache partagé FIFO 8, coût réseau uniquement à la 1re écoute d'un texte.
+   832→- Leçon : un « contains » SQL brut sur un téléphone est un piège à formats (espaces, +225, compact) — toujours normaliser en chiffres avant de comparer ; détecté par E2E (le curl seul l'avait raté car même format).
+   833→- Prochaines étapes candidates : OTP réel (OtpCode prêt) → paiements réels Wave/OM → export PDF liasse compta → portabilité données (RGPD).
+   834→
+   835→---
+   836→Task ID: 44
+   837→Agent: Z.ai Code (principal)
+   838→Task: Export PDF de la liasse comptable — dossier complet multi-pages pour le comptable/DGI, généré côté serveur sans dépendance externe.
+   839→
+   840→Work Log:
+   841→- Choix justifié : OTP réel et paiements Wave/OM exigent des identifiants externes (SMS gateway, compte marchand) indisponibles dans la sandbox → code non testable ; la liasse PDF est 100 % réalisable et vérifiable.
+   842→- NOUVEAU src/lib/accounting/pdf.ts (~680 lignes) : moteur PDF minimal ZÉRO DÉPENDANCE — pages A4 595×842, polices standard Helvetica/Bold/Oblique (aucun fichier de police à embarquer, /WinAnsiEncoding pour les accents FR), encodage cp1252 + échappement \( \) \, table de largeurs AFM ASCII exacte (accents = lettre de base via NFD) pour alignement à droite exact des montants, rects/lignes/hlines, pagination automatique (ensure/newPage), en-tête courant + pied « Page N / M » en 2e passe, xref/trailer conformes (entrées 20 octets).
+   843→- liassePdf(input) : 7 sections — page de garde (chiffres clés 6 cartes, sommaire, mentions), 1 Compte de résultat (produits/charges par compte + résultat vert/rouge + contrôle), 2 Déclaration TVA, 3 Bilan actif/passif (contrôle actif=passif), 4 Balance générale (6 colonnes + totaux + contrôle), 5 Journal (28 écritures, en-têtes bande or, lignes débit/crédit + totaux), 6 Livre des ventes (8 colonnes HT/TVA/TTC + totaux), 7 Mentions repliées (wrapText).
+   844→- Route export/route.ts : param format=csv|pdf — PDF réservé à type=liasse (garde 400 dédiée) ; réutilise l'assemblage de données des CSV (entrées+comptes+ventes en //) ; réponse application/pdf + Content-Disposition kene-liasse-{période}.pdf + X-Pages-Count/X-Rows-Count.
+   845→- AccountingSection.tsx : exportBusy passe à une clé « format:type » ; downloadExport(type, format) ; menu « Dossier pour le comptable » → item « Liasse PDF (dossier complet) » (FileText, or) ; toast dédié « Liasse PDF téléchargée · N pages » ; « Imprimer la liasse » recentré « papier » ; libellé période mis à jour.
+   846→- 3 BUGS détectés en auto-relecture AVANT tout test puis corrigés : (1) off-by-one objets PDF (Kids 6+2i / Contents 7+2i — sinon pages blanches), (2) totaux balance/journal mal alignés sur leurs colonnes, (3) Tc (interlettrage) QUI SURVIT aux blocs BT/ET — le « KÈNÈ » en Tc 2.2 bavait sur les textes suivants (« É c l a t d ' A b i d j a n ») → Tc TOUJOURS explicite (0 par défaut, aussi dans header/footer). Puis E2E : (4) colonne TTC du livre des ventes calculée hors page (right edge 617 > 595) + colonnes montants trop serrées → géométrie refondue ; (5) mentions tronquées → wrapText multi-lignes.
+   847→- Vérifications E2E complètes : curl gateway :81 → 200, 83 658 octets, 7 pages, 68 lignes ; garde type=journal&format=pdf → 400 claire ; format=xml → 400 ; tenant inconnu → 404 ; période from/to → kene-liasse-20260801-20260831.pdf, 6 pages, 64 lignes.
+   848→- qpdf --check : « No syntax or stream encoding errors found » ; lecture intégrale du PDF via lecteur natif (7 pages de texte extraites et vérifiées : totaux balance 7 724 330 = 7 724 330, actif = passif 6 636 129, TVA 122 654, 25 ventes TTC 1 284 075).
+   849→- Navigateur (agent-browser, desktop 1440×900, gateway :81) : Pro → Compta → Exporter → « Liasse PDF (dossier complet) » → toast « kene-liasse-tout.pdf · 7 pages » ✓ ; période « Mois dernier » → re-export → toast « kene-liasse-20260801-20260831.pdf · 6 pages » ✓ ; requête réseau 200 vue ; console 0 erreur (2 warnings préexistants).
+   850→- VLM (glm-5v) sur 4 pages rendues (garde, résultat/TVA/bilan, balance/journal, ventes) : « Rendu propre » — aucun chevauchement, aucun débordement, chiffres alignés.
+   851→- bun run lint 0 erreur ; tsc --noEmit 0 erreur src/ ; dev.log : uniquement 200 (26-194 ms) + gardes 400/404 testées.
+   852→- Captures : .proofs/task44-compta-toast.png · task44-compta-periode.png · task44-liasse.pdf · task44-page-{1,2,3,6}.png · task44-pdf-page1.png
+   853→
+   854→Stage Summary:
+   855→- La gérante télécharge en 1 clic (avec période au choix) un dossier comptable PDF de 6-7 pages prêt à transmettre : compte de résultat, TVA, bilan, balance, journal, livre des ventes + mentions SYSCOHADA/OHADA — 83 Ko générés en <200 ms, zéro dépendance installée.
+   856→- Le moteur PDF maison (polices standard + métriques AFM + WinAnsi) est réutilisable pour tout futur document (factures clientes, fiches diagnostic imprimables).
+   857→- Leçon technique : l'état texte PDF (Tc, Tw, Tf) SURVIT aux blocs BT/ET et aux pages — tout opérateur doit être réinitialisé explicitement ; et la géométrie des colonnes doit être vérifiée sur la largeur de page (595 pt) avant tout test navigateur.
+   858→- Prochaines étapes candidates : portabilité données RGPD (export JSON « mes données » côté cliente) → pictogrammes purs → OTP réel/paiements réels dès obtention des identifiants externes.
+   859→---
+   860→Task ID: 45
+   861→Agent: Z.ai Code (principal)
+   862→Task: Refonte UX « app 2026 » plein écran — l'interface doit remplir chaque écran (PC / tablette / mobile) avec des parcours type Instagram / TikTok / Facebook. Réparation au passage du serveur :3000 qui ne démarrait plus.
+   863→
+   864→Work Log:
+   865→- INCIDENT initial : le process Next.js (port 3000) était MORT (seuls notify :3004 + gateway :81 survivaient) → la gateway servait le placeholder sandbox « Z » sur fond blanc. Le sandbox recrée le shell à chaque appel Bash et récolte les processus de l'invocation : bun run dev mourait même avec nohup+setsid. FIX DÉFINITIF : lancement orphelin double-fork `( setsid nohup bun run dev </dev/null >/dev/null 2>&1 & )` → PPID 1, survit entre les appels (vérifié par témoin sleep 600 + HTTP 200 persistants).
+   866→- page.tsx refondu : racine minimale min-h-dvh sans header/footer — chaque espace gère SON shell. Le Fil de Kente (intro scroll 640 vh) et l'onboarding restent hors shell (scroll document préservé, pas d'overflow-hidden à la racine).
+   867→- ClientApp.tsx REÉCRIT (shell applicatif h-dvh, scroll INTERNE) : mobile = header glass unique responsive (KeneLogo + cloche NotificationCenter + bouton chat header + ThemeToggle) + zone de flux scrollable (overscroll-contain) + tab-bar 5 onglets (Accueil / Boutik / CTA « Scanner » central surélevé type TikTok / RDV / Profil) avec badges panier + dot chat ; desktop lg+ = sidebar 84 px icônes → xl 248 px libellés (Instagram web : item actif gras + indicateur gauche, Messages avec badge, bascule Espace Pro / Console Admin + micro-légal) ; xl+ accueil = RAIL DROIT 320 px (mini-profil, 4 actions rapides, mentions légales POC). Changement d'onglet → scrollTo top du conteneur interne (plus de window.scrollTo).
+   868→- HomeScreen.tsx refondu en FEED : rangée STORIES (story « Scanner » anneau dégradé + 6 stories zones — zone couverte = anneau coloré au score + pastille score, zone manquante = cercle pointillé + « + » ; tap = re-scan/scan de la zone via pendingZone) ; salutation compacte + WalletPill ; carte score multi-zones AVEC VoiceNarration intégrée (lecture TTS depuis le feed) ; CTA scan dégradé, Route de l'Or, Fil du Retour, RDV, wallet, reco produits, suivi WhatsApp ; fin de fil = mentions légales (bande kente + © + POC) — pattern app-like, aucun footer flottant.
+   869→- Écrans secondaires élargis : SheetContent 430→560 px (Shop, Profil, NotificationCenter, Parrainage, Booking checkout), Onboarding 430→520 px min-h-[80vh], grilles produits grid-cols-2 sm:grid-cols-3.
+   870→- ProApp : sidebar sticky top-0/max-h-screen (les offsets top-[67px] comptaient l'ex-header racine disparu) + min-h-screen ; bas de sidebar = ThemeToggle + SpaceSwitcher + légal ; header mobile = ThemeToggle + SpaceSwitcher (md:hidden). AdminApp : min-h-screen, ConsoleHeader + ThemeToggle + SpaceSwitcher (pills).
+   871→- Vérifications : tsc --noEmit 0 erreur src/ (2 fixes strokeWidth sur icônes typées ComponentType) ; bun run lint 0 erreur ; dev.log sans erreur (uniquement 200).
+   872→- E2E complet via gateway :81 (agent-browser + VLM) : intro → « Passer » → « Démo Mariam » ; MOBILE 390×844 : header (4 notifs, chat, thème) + stories (Visage 62 / Mains 81) + carte score 66 + TTS + tab-bar 5 onglets vue VLM « polished, professional » ; story Visage tapée → diagnostic visage PRÉ-SÉLECTIONNÉ (« De face, lumière naturelle ») ; Photo démo → analyse IA → résultat + lecture vocale + jumeau 3D ; Boutik / Profil / chat Dr. Kènè OK. DESKTOP 1440×900 : sidebar + feed centré + rail droit (mini-profil, 4 actions, légal) confirmés par VLM ; Boutique (grille), Profil, Messages, Diagnostic, sheet Notifications (EN DIRECT, À VENIR/REÇUES), bascule Espace Pro → dashboard Palmensiel KPIs OK, retour Cliente OK. TABLETTE 768×1024 : layout mobile enrichi (header + tab-bar + grille) type TikTok — assumé. Console navigateur : 0 erreur (warning Radix préexistant).
+   873→- Screenshots : .proofs/task45-*.png (mobile-feed, desktop-feed, desktop-shop, desktop-chat, desktop-diag, notifications, pro-space, tablet, result-tts, mobile-profil, back-client).
+   874→
+   875→Stage Summary:
+   876→- Le serveur :3000 tient désormais entre les invocations Bash (pattern orphelin double-fork documenté) — c'était LA cause de « l'application ne s'affiche pas ».
+   877→- L'app Cliente est un vrai shell applicatif plein écran : mobile (tab-bar + CTA scan surélevé), tablette (layout mobile enrichi), desktop (sidebar Instagram web + feed 640 px + rail droit xl). Zéro colonne 430 px flottante : l'écran est rempli sur toutes les tailles.
+   878→- Feed d'accueil « réseaux sociaux » : stories de zones scannables en 1 tap, score multi-zones avec TTS, légal en fin de fil.
+   879→- Pro/Admin deviennent autonomes (ThemeToggle + SpaceSwitcher intégrés, offsets racine corrigés).
+   880→- Aucune API modifiée : refonte 100 % présentation. Backlog inchangé : OTP réel, paiements Wave/OM, portabilité RGPD, langues locales, pictogrammes.
+   881→---
+   882→Task ID: 46
+   883→Agent: Z.ai Code (principal)
+   884→Task: « Regarde » (captures utilisateur avant/après) — audit E2E complet de la refonte plein écran sur les 3 formats + finitions tablette « app 2026 ».
+   885→
+   886→Contexte :
+   887→- L'utilisateur a envoyé 2 captures : PC 19h55 (espace Pro AVANT la t. 45 — header rôle + chips, écran non rempli) et mobile 21h32 (APRÈS — shell social valide). La refonte t. 45 était donc bien déployée ; il restait à auditer + parfaire la tablette, signalée « vue téléphone étirée » par mon audit VLM.
+   888→
+   889→Work Log:
+   890→- Audit E2E complet via gateway :81 (agent-browser + VLM glm-5v, Mariam démo) :
+   891→  - DESKTOP 1440×900 : Cliente = sidebar 248 px + feed 640 + rail droit 320 (VLM « polished, fills screen, no dead space ») ; Pro = sidebar 240 + KPI 6 col + graphiques pleine largeur (« Excellent ») ; Admin = console centrée propre.
+   892→  - MOBILE 390×844 : tab-bar 5 onglets + CTA Scanner surélevé, stories, feed plein cadre ✓.
+   893→  - TABLETTE 768×1024 : DIAGNOSTIC « vue téléphone étirée » (tab-bar + colonne unique) → à corriger ; Pro = chips horizontales (truncation « Promos ») → à corriger.
+   894→- TABLETTE CLIENTE (ClientApp.tsx) : le rail d'icônes 84 px passe de lg (1024) à **md (768)** — tab-bar bas + logo mobile + bouton chat header deviennent `md:hidden` (mobile uniquement), padding flux `pb-28 md:pb-10` → façon TikTok iPad dès 768 px.
+   895→- TABLETTE PRO (ProApp.tsx) : sidebar → **rail d'icônes 76 px de md à lg** (`w-[76px] lg:w-[240px]`), libellés/badges chips `hidden lg:block`, boutons nav centrés `justify-center lg:justify-start` + `title` natif au survol ; chips horizontales et en-tête compact deviennent `<md seulement ; en-tête compact garde tenant + section + En direct + bascules jusqu'à lg ; suppression du conteneur max-w-1600 → pleine largeur native.
+   896→- STORIES (HomeScreen.tsx) : libellés story dédiés `STORY_LABEL` (naevi → « Grains de beauté ») + `line-clamp-2 leading-tight break-words min-h-[26px]` au lieu de `truncate` — plus aucun libellé coupé (« Navl… » signalé par VLM).
+   897→- BUG VISUEL CORRIGÉ (repéré par zoom VLM + getComputedStyle) : bouton Scanner de la sidebar Cliente restait `flex-col` en xl (il manquait `xl:flex-row`) → le libellé débordait sous le dégradé et était illisible ; fix + vérif DOM `dir:row, h:48` + VLM « Scanner clairement lisible ».
+   898→- Vérifications : tsc --noEmit 0 erreur src/ ; bun run lint 0 problème ; dev.log uniquement 200 ; console navigateur 0 erreur.
+   899→- E2E final 3 formats × 3 espaces : Cliente tablette = rail + feed (VLM « successful ») ; Pro tablette = rail 76 px + KPI 3 col (« Present and Correct ») ; mobile Cliente (tab-bar, Boutik 2 col « polished ») ; mobile Pro (chips + en-tête compact) ; notifications sheet (4 non lues, À VENIR/REÇUES) ; bascules d'espaces via Profil (mobile) et sidebar/rail (md+).
+   900→- Captures : .proofs/task46-{desktop-accueil,desktop-pro,desktop-admin,desktop-v3,mobile-accueil,mobile-v2,mobile-boutik,mobile-notifs,mobile-pro-v2,tablet-accueil,tablet-client-v2,tablet-pro2,tablet-pro-v3}.png
+   901→
+   902→Stage Summary:
+   903→- Les 3 espaces × 3 formats remplissent désormais l'écran selon les patterns 2026 : mobile = tab-bar (Cliente) / chips (Pro) ; tablette = rail d'icônes verticales dès 768 px (TikTok iPad) ; desktop = sidebar libellée + feed centré + rail droit (Instagram web).
+   904→- La capture « avant » de l'utilisateur (19h55) est bien l'ancien état ; la capture mobile (21h32) confirmait le nouveau shell — ce qui restait à parfaire (tablette, stories, libellé xl) est fait et vérifié.
+   905→- Aucune API touchée (100 % présentation). Backlog inchangé : OTP réel, paiements Wave/OM, portabilité RGPD, langues locales, pictogrammes.
+   906→---
+   907→Task ID: 47
+   908→Agent: Z.ai Code (principal)
+   909→Task: Diagnostic « l'application ne s'affiche plus » — vérification de l'état des services et de l'affichage réel.
+   910→
+   911→Work Log:
+   912→- Constat processus : les 3 services (app :3000, notify :3004, gateway :81) avaient TOUS redémarré à 22:58 (reboot sandbox) — fenêtre d'indisponibilité pendant laquelle la gateway servait le placeholder : cause la plus probable du « ne s'affiche plus » vu par l'utilisateur.
+   913→- Vérification E2E via gateway :81 (agent-browser) : intro Kènè → 6 chapitres + « Passer » OK ; « Entrer comme Mariam » → feed d'accueil complet (tab-bar 5 onglets + CTA Scanner, stories 6 zones, carte score multi-zones 79/100, wallet 9 725 FCFA, 4 notifs, chat 1 message) ; bascules Espace Pro / Console Admin présentes.
+   914→- Console navigateur : 0 erreur (seuls logs Fast Refresh + WebGL Context Lost attendu en quittant le jumeau 3D) ; dev.log : uniquement des 200 (7-42 ms) + requêtes Prisma normales.
+   915→- Captures de contrôle : .proofs/debug-{intro,home,desktop}.png
+   916→
+   917→Stage Summary:
+   918→- L'application s'affiche à nouveau correctement : le problème était la fenêtre de reboot du sandbox (services 3000/3004/81 tous repartis à 22:58), pas une régression code.
+   919→- Action utilisateur : rafraîchir le panneau de prévisualisation (bouton « Open in New Tab » si besoin).
+   920→- Backlog inchangé : portabilité RGPD, OTP réel, paiements Wave/OM, langues locales, pictogrammes.
+   921→---
+   922→Task ID: 48
+   923→Agent: Z.ai Code (principal)
+   924→Task: Audit mobile 360° demandé par l'utilisatrice (« certaines informations, cercles, icônes ne sont pas visibles ») + corrections.
+   925→
+   926→Work Log:
+   927→- Audit systématique multi-outils (géométrie DOM : éléments hors viewport / hors conteneurs scrollables ; éléments taille zéro avec filtre ancêtres cachés ; contrastes calculés oklab→ratio WCAG ; VLM glm-5v sur captures zoomées) sur : home (stories, score, chips, tab-bar), Boutique, RDV, Messages/Chat, Profil, Notifications sheet, flux diagnostic complet (zones → photo → analyse → résultat + jumeau), intro, login, Pro mobile — en 390×844 ET 360×640, clair ET sombre.
+   928→- Constats : géométrie saine partout (0 élément non-scrollable clippé, 0 icône taille zéro réelle, contrastes tab-bar 8.6-9.7:1 et stories 7.7:1 en sombre — WCAG AA OK). Vrais défauts : (1) badge flottant Next.js DevTools + son portail couvrait le coin de la tab-bar → devIndicators: false dans next.config.ts (portail 0×0 vérifié) ; (2) rangées scrollables (stories, chips zones, produits reco) sans signal d'affordance → les derniers items « n'existaient pas » pour l'utilisatrice ; (3) en-tête compact Pro mobile : titre tronqué (« Tableau de bord — Éc… »).
+   929→- FIX affordance : nouveau composant ScrollFadeRow (bits.tsx) — ResizeObserver + onScroll, dégradé droit from-background qui disparaît en fin de scroll ; appliqué aux 3 rangées (stories 7 items 568/366 px, chips 4 items, produits 3 items) + pr de respiration ; rôle group + aria-label « fais défiler ».
+   930→- FIX en-tête Pro : ligne petite = « Éclat d'Abidjan · Abidjan — Cocody » + badge En direct (shrink-0), h1 = section seule — plus aucune perte d'info.
+   931→- E2E : fade présent sur les 3 rangées, disparaît après scroll (fadeGone: true) ; portail dev 0×0 ; tsc/eslint 0 erreur ; console 0 erreur après rechargement frais.
+   932→- Captures : .proofs/audit-* (home/boutique/rdv/messages/profil/notifs/diag/dark/360/twin), task48-{pro-header,scroll-fade}.png
+   933→- Leçon : les hallucinations VLM sont fréquentes sur captures défilées à moitié (jumeau « coupé », labels tronqués) — TOUJOURS recouper par mesure DOM (getBoundingClientRect + computed styles) avant de corriger.
+   934→
+   935→Stage Summary:
+   936→- Le mobile était structurellement sain (audité par mesure, pas par impression) ; les 3 vrais défauts (badge dev, affordances scroll, titre Pro) sont corrigés et vérifiés.
+   937→- devIndicators retiré = la préview est propre pour l'utilisatrice (plus de bouton Next.js flottant).
+   938→
+   939→---
+   940→Task ID: 49
+   941→Agent: Z.ai Code (principal)
+   942→Task: Portabilité RGPD — « Mes données » export JSON côté cliente (art. 20).
+   943→
+   944→Work Log:
+   945→- NOUVELLE route GET /api/profile/export : 8 requêtes Promise.all (consents, diagnoses+resultJson, appointments+service/tenant, orders+items+payment, wallet+txs, notifications≤500, couponRedemptions+coupon, payments) + parrainage (parrain + filleuls) ; payload FR lisible (formatVersion, generatedAt, note RGPD) ; photos exclues (volumétrie), résultats complets inclus ; Content-Disposition attachment kene-mes-donnees-YYYYMMJJ.json + X-Data-Sections ; guards 400 (userId requis) / 404 (inconnue).
+   946→- BUG de première écriture (select code/discount inexistants sur CouponRedemption → Prisma 500) détecté au curl et corrigé : include coupon {code,label,kind,value} + remise réelle.
+   947→- ProfileScreen : carte « Mes données RGPD » (icône Download terre, badge RGPD, description du contenu) + bouton plein largeur → fetch blob → objectURL → a.download (nom depuis Content-Disposition) → revoke différé 4 s ; toast « Mes données téléchargées · N Ko » ; micro-mention art. 20 + photos non incluses.
+   948→- E2E complet : curl gateway → 200, 47 481 octets, 13 sections (Mariam : 7 diagnostics, 2 filleuls, 1 commande, 11 notifs, 5 txs wallet, code MARIAM-KENE) ; guards 400/404 ; navigateur (390×844) : section rendue (VLM), clic → toast → fichier ~/Downloads/kene-mes-donnees-20260904.json rechargé et validé (13 sections).
+   949→
+   950→Stage Summary:
+   951→- La cliente télécharge en 1 tap son dossier complet RGPD — le seul engagement réglementaire restant est tenu.
+   952→- Pattern réutilisable pour un futur export PDF « mes données ».
+   953→
+   954→---
+   955→Task ID: 50
+   956→Agent: Z.ai Code (principal)
+   957→Task: Narration en langues locales — dioula, baoulé, bété (TTS + traduction LLM).
+   958→
+   959→Work Log:
+   960→- narration.ts : buildNarrationCompact() (≤420 chars : bonjour, score en toutes lettres + verdict, priorité n°1, orientation dermato, geste matin/soir, avertissement) + NARRATION_LANGS (fr/dy/bq/bt).
+   961→- /api/tts : param lang (fr défaut) — pour dy/bq/bt : traduction LLM AVEC système strict (phrases orales courtes, orthographe latine lisible par un TTS français, nombres en toutes lettres, noms propres et « Kènè » intacts, réponse brute) → puis synthèse WAV ; cache traduction FIFO 128 (clé fnv1a) + cache audio existant étendu (clé inclut lang) ; erreur traduction → 502 dédié « Traduction dioula indisponible ».
+   962→- ttsAudio.ts : fetchTtsAudioUrl(text, speed, lang) — paramètre propagé, clé cache lang-aware.
+   963→- VoiceNarration.tsx : sélecteur de langue (pills FR/Dioula/Baoulé/Bété, aria-pressed, bascule coupe l'audio proprement) ; narration FR = complète, locales = compacte ; états : « Traduction Dioula… » pendant le chargement, aide « Résumé en X · traduction IA indicative ».
+   964→- E2E : curl dioula → 200, WAV 24 kHz mono 29,7 s (1,4 Mo) en 8 s ; 2e appel cache 16 ms ; garde empty→400, lang inconnu→fallback fr→200. Navigateur : pill Dioula activée → lecture → VLM confirme « Arrêter la lecture » + equalizer animé + pill dorée active ; POST /api/tts 200 (7,7 s) dans dev.log.
+   965→- Captures : task50-{dioula-loading,dioula-playing}.png
+   966→
+   967→Stage Summary:
+   968→- La barrière « le français parlé exclut aussi » est traitée : résumé vocal traduit en 3 langues ivoiriennes (traduction IA indicative assumée dans l'UI).
+   969→- Architecture : traduction LLM en amont du TTS, les deux caches (texte + audio) côté serveur — ré-écoute instantanée.
+   970→
+   971→---
+   972→Task ID: 51
+   973→Agent: Z.ai Code (principal)
+   974→Task: Résumé en pictogrammes — mode non-lectrices sur le diagnostic.
+   975→
+   976→Work Log:
+   977→- NOUVEAU PictoSummary.tsx : 6 priorités (scores santé les plus bas) → tuiles 3 colonnes, chacune = grande icône cercle colorée (scoreColor) + libellé 1-2 mots + score mono ; tap → fetchTtsAudioUrl(« {label}. {verdict court}. », 0.92) et lecture (badge Volume2 sur la tuile active, Loader2 pendant synthèse) ; mapping mot-clé→picto (36 entrées normalisées NFD : hydrat→Droplets, barrière→Shield, éclat→Sparkles, tache/pigment→CircleDot, acné→Zap, irritation/folliculite→Flame, sébum/pores/texture→Waves, cernes→Moon, élasticit/fermeté→Activity…) ; fallback Sparkles + 1er mot.
+   978→- Intégré dans DiagnosticScreen ResultView juste sous VoiceNarration (zoneLabel + score en toutes lettres dans l'entête de section).
+   979→- E2E : diagnostic démo Visage → snapshot montre « Résumé en pictogrammes — tape une tuile pour l'écouter » + 6 tuiles (Pores/Sébum/Éclairer/Taches/Hydrater/…) ; tap Pores → POST /api/tts 200 (679 ms) lecture confirmée ; VLM : « grille 3×2 parfaitement alignée, icônes claires, aucun clipping ».
+   980→- Captures : task51-{pictos,picto-playing}.png
+   981→
+   982→Stage Summary:
+   983→- Le funnel non-lectrices est complet : photo → score en anneau → narration vocale multilingue → pictos tapables → glossaire audible.
+   984→- Les pictos partagent le cache TTS global (coût réseau uniquement à la 1re écoute).
+   985→
+   986→---
+   987→Task ID: 52-53
+   988→Agent: Z.ai Code (principal)
+   989→Task: Audit document (README vs code, sous-agent 52-a) + réécriture complète du README + vérifications finales.
+   990→
+   991→Work Log:
+   992→- Sous-agent Explore (52-a) : audit exhaustif README ↔ code — 5 affirmations fausses (drei, « Palmensiel », « 7 diagnostics », src/stores/, db:reset sans migrations), 4 familles d'API non documentées (coupons, notifications, referral, tts + sous-routes pro), 5 modules fonctionnels entiers manquants (parrainage t.27/32, coupons t.34, relances t.28, rappels auto t.29, Mes commandes t.36), inventaire complet des 47 routes API et des composants.
+   993→- README réécrit intégralement : espaces Cliente/Pro/Admin à jour (parrainage, coupons, relances, rappels, Mes commandes, RGPD, langues locales, pictos) ; stack corrigée (drei retiré, LLM vs VLM clarifiés, TTS multilingue) ; arborescence complète (47 routes détaillées, lib/kene + accounting + ai, composants par famille, store/kene.ts, notify-service + commande de démarrage) ; comptes démo corrigés (Éclat d'Abidjan CI / Institut Baobab SN, Mariam 3 diagnostics seedés) ; scripts corrigés (db:push = workflow du repo, notify-service) ; backlog barré à jour (t. 39→51) ; table littératie enrichie (lignes « langue première locale » + « droits données ») ; règle maison n°6 (affordance scroll).
+   994→- Vérifications finales : tsc 0 erreur src/ ; eslint 0 problème ; console navigateur 0 erreur après rechargement frais ; dev.log uniquement 200 ; desktop 1440×900 sans régression (VLM « three-column Instagram-web style, no visual regressions »).
+   995→
+   996→Stage Summary:
+   997→- Le document est désormais fidèle au code : chaque fonctionnalité annoncée existe, chaque fonctionnalité livrée est documentée.
+   998→- Reste ouvert (externes) : OTP réel via passerelle SMS (OtpCode prêt), paiements réels Wave/OM (identifiants marchands), voix TTS natives locales.
+   999→
+  1000→---
+  1001→Task ID: 54
+  1002→Agent: Z.ai Code (principal)
+  1003→Task: Diagnostic de peau réalisé par l'entreprise au sein de sa structure, accompagné d'un questionnaire (espace Pro).
+  1004→
+  1005→Work Log:
+  1006→- Demande user : « l'entreprise aussi réalise des diagnostics de peau au sein de sa structure, accompagnés de questionnaire » → nouvelle capacité « Diagnostic en cabine » côté Pro (distincte des self-scans cliente).
+  1007→- Prisma : modèle `ProDiagnosis` (tenant + clientProfile + questionnaireJson + photoData + resultJson + scoreGlobal + vlmUsed/photoUsed + practitioner) — push additif, zéro perte de données.
+  1008→- Lib pure `src/lib/kene/questionnaire.ts` : 4 sections / 21 questions (peau, routine, mode de vie, santé ; dépigération & grossesse = questions « sensibles » encadrées or) ; moteur de scoring par indicateur de la zone (base 78 ± deltas mot-clés, clamp 5-98) ; drapeaux danger/warn/info (dépigération active/passée, grossesse, hypersensibilité, traitement, aucune protection solaire, allergies) ; recommandations ciblées par indicateurs faibles (routines, botaniques, produits, soins institut, hygiène) ; honnêteté clinique nævi (questionnaire ne note pas ABCDE) ; `mergeResults()` fusion VLM 62 % / déclaratif 38 % ; `parseProDiagnosis` défensif.
+  1009→- API `POST/GET /api/pro/diagnoses` : cliente CRM OU express (anti-doublon 10 derniers chiffres), validation questionnaire complet (400 sinon), photo optionnelle → VLM → fusion, persistance + fiche CRM enrichie (visite comptée, peau/phototype/notes), notification WhatsApp à la cliente si liée (metaJson proDiagId) ; GET liste 50 + KPIs (mois, score moyen, part photo IA).
+  1010→- `/api/pro/clients/[id]` : proDiagnoses (10 derniers, photoData inclus) dans la fiche 360°.
+  1011→- `DiagnosticsSection.tsx` (nouveau) : carte pédagogie fusion, 3 KPIs, historique scrollable (score coloré, badge Photo IA/Entretien, vigilances) ; assistant 4 étapes en Sheet — 1 Cliente (recherche CRM + express + zone + praticienne préremplie Fatou Koné) / 2 Questionnaire (pills radio+chips multi, progression, sensibles encadrées) / 3 Photo optionnelle (upload + resizeImage 820px + poids affiché) / 4 Analyse (messages rotatifs pendant VLM) → ResultView (anneau score conic-gradient, verdict, vigilances, indicateurs triés faibles→forts + barres, protocole matin/soir/botaniques/soins/hygiène, avertissement) ; DetailSheet historique avec photo de cabine ; « Voir la fiche CRM ».
+  1012→- ProApp : section « Diagnostic » (icône Stethoscope, 3e position) sur desktop/tablette/mobile + commande `diagCommand` {clientId, nonce} depuis le CRM.
+  1013→- CrmSection : bloc « Diagnostics en institut (N) » dans la fiche (rangées dépliables → ResultView complet) + bouton « Lancer un diagnostic » → navigue et pré-remplit l'assistant.
+  1014→- 2 correctifs de robustesse pendant l'E2E : (a) ouverture du wizard à la commande CRM pendant le RENDU (comparaison nonce, pas d'effet — lint set-state-in-effect) ; (b) bouton Close shadcn recouvert par le header sticky → `[&>button]:z-30` sur SheetContent.
+  1015→- E2E API (gateway :81) : POST sans photo → 59/100 (2 vigilances : solaire + dépig passée, priorité PIH 29) ; POST avec photo seedée → 71/100 « vlm+questionnaire » (fitz V, 7 marquages, recommandations VLM conservées) ; express Nadège Kouassi zone mains → 67 (sécheresse 37 logique) ; gardes 400 (17 manquantes, sans cliente, zone invalide) ; notification Mariam vérifiée en base ; fiche CRM renvoie proDiagnoses.
+  1016→- E2E navigateur (1440×900 puis 390×844) : assistant complet Rokia Coulibaly — sélection CRM → questionnaire 100 % → upload photo (108 Ko) → analyse VLM → toast « Diagnostic enregistré — Rokia Coulibaly · 75/100 » → liste rafraîchie (3 diagnostics) ; détail historique avec photo ; fiche CRM → dépliage → « Lancer un diagnostic » → wizard pré-rempli sur Rokia ; fermeture + anti-réouverture OK ; console 0 erreur nouvelle ; VLM confirme visibilité intégrale mobile (section, étapes 1-2) et desktop (résultat, fiche CRM).
+  1017→- Vérifications finales : tsc 0 erreur src/ ; eslint 0 problème ; dev.log uniquement 200/201.
+  1018→- Captures : task54-{section-list,desktop-liste,list-final,detail-vlm,wizard-step1,wizard-step2,analysing,result,crm-fiche,mobile-nav,mobile-section,mobile-wizard1,mobile-wizard2}.png
+  1019→
+  1020→Stage Summary:
+  1021→- L'entreprise réalise désormais ELLE-MÊME le diagnostic de peau en cabine : entretien questionnaire structuré ± photo IA, fusionnés en un score unique, archivés dans le CRM 360° — la boucle observation-vendeuse (praticienne) ↔ déclaration cliente est fermée.
+  1022→- Modèle de scoring réutilisable : les drapeaux de vigilance (dépigération, grossesse…) protègent directement le protocole institut — aligné au positionnement santé publique de Kènè.
+  1023→- Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.
+  1024→

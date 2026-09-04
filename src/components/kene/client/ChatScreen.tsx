@@ -263,7 +263,7 @@ export function ChatScreen() {
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); send(); } }}
             placeholder={listening ? "Je t'écoute…" : "Écris à Dr. Kènè…"}
             aria-label="Message pour Dr. Kènè"
-            className="flex-1 min-w-0 bg-transparent px-1 py-2.5 text-sm outline-none placeholder:text-muted-foreground/70"
+            className="flex-1 min-w-0 bg-transparent px-1 py-2.5 text-sm rounded-lg outline-none placeholder:text-muted-foreground/70 focus-visible:outline-2 focus-visible:outline-primary"
           />
           <button onClick={() => fileRef.current?.click()} disabled={photoBusy} aria-label="Envoyer une photo" className="h-11 w-11 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
             {photoBusy ? <ImagePlus size={19} className="animate-pulse text-primary" /> : <Camera size={19} />}

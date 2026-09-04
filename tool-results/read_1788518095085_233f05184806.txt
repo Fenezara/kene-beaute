@@ -1,0 +1,1191 @@
+     1→"use client";
+     2→// Kènè Pro — Diagnostic en cabine : L'ENTREPRISE réalise le diagnostic de peau
+     3→// au sein de sa structure, accompagné d'un questionnaire dermatologique.
+     4→// Assistant 4 étapes : Cliente → Questionnaire → Photo (option) → Résultat.
+     5→// Fusion serveur : entretien déclaratif (38 %) ± photo analysée par le VLM (62 %).
+     6→// Chaque diagnostic enrichit le CRM (visite, peau, notes) et notifie la cliente
+     7→// si elle est aussi sur l'app Kènè.
+     8→import { useEffect, useMemo, useRef, useState } from "react";
+     9→import { motion } from "framer-motion";
+    10→import {
+    11→  Camera, ChevronLeft, ChevronRight, ImagePlus, Info, Loader2, OctagonAlert,
+    12→  Search, Sparkles, Stethoscope, Trash2, UserPlus, Users,
+    13→} from "lucide-react";
+    14→import { toast } from "sonner";
+    15→import { Badge } from "@/components/ui/badge";
+    16→import { Button } from "@/components/ui/button";
+    17→import { Card, CardContent } from "@/components/ui/card";
+    18→import { Input } from "@/components/ui/input";
+    19→import { Progress } from "@/components/ui/progress";
+    20→import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+    21→import { Skeleton } from "@/components/ui/skeleton";
+    22→import { Textarea } from "@/components/ui/textarea";
+    23→import { cn } from "@/lib/utils";
+    24→import { apiGet, apiPost, resizeImage } from "@/lib/kene/api";
+    25→import { formatDate, formatTime, scoreColor } from "@/lib/kene/format";
+    26→import { BODY_ZONES } from "@/lib/kene/types";
+    27→import type { BodyZone } from "@/lib/kene/types";
+    28→import {
+    29→  QUESTIONS, QUESTIONNAIRE_SECTIONS, defaultAnswers, questionnaireProgress, parseProDiagnosis,
+    30→} from "@/lib/kene/questionnaire";
+    31→import type { ProDiagnosisResult, QAnswers } from "@/lib/kene/questionnaire";
+    32→import { useApi } from "./useApi";
+    33→import type { ProClient, ProDiagnosesKpis, ProDiagnosisItem } from "./types";
+    34→import { EmptyState, ErrorState, InitialAvatar, KenteTop, SectionHeader } from "./ui-bits";
+    35→import type { ProSectionId } from "./ProApp";
+    36→
+    37→interface Props {
+    38→  tenantId: string;
+    39→  refreshKey?: number;
+    40→  /** Commande « Lancer un diagnostic » depuis la fiche CRM (nonce = rouvre l'assistant) */
+    41→  preselectCommand?: { clientId: string; nonce: number } | null;
+    42→  /** Accusé de réception de la commande (le wizard s'est ouvert puis refermé) */
+    43→  onCommandHandled?: () => void;
+    44→  onNavigate?: (s: ProSectionId) => void;
+    45→}
+    46→
+    47→const EMPTY_KPIS: ProDiagnosesKpis = { monthCount: 0, avgScore: 0, photoShare: 0, total: 0 };
+    48→
+    49→function toastError(e: unknown, fallback = "Action impossible") {
+    50→  toast.error(e instanceof Error ? e.message : fallback);
+    51→}
+    52→
+    53→export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand, onCommandHandled, onNavigate }: Props) {
+    54→  const [wizardOpen, setWizardOpen] = useState(false);
+    55→  const [detailId, setDetailId] = useState<string | null>(null);
+    56→
+    57→  // Commande CRM « Lancer un diagnostic » : détectée pendant le RENDU (pattern
+    58→  // React « ajustement d'état », pas d'effet). La comparaison par nonce gère
+    59→  // le montage frais (section CRM → section Diagnostic) ET la relance : le
+    60→  // composant peut ne pas être monté quand la commande arrive.
+    61→  const [seenNonce, setSeenNonce] = useState(-1);
+    62→  if (preselectCommand && preselectCommand.nonce > seenNonce) {
+    63→    setSeenNonce(preselectCommand.nonce);
+    64→    setWizardOpen(true);
+    65→  }
+    66→
+    67→  const list = useApi<{ diagnoses: ProDiagnosisItem[]; kpis: ProDiagnosesKpis }>(
+    68→    () =>
+    69→      tenantId
+    70→        ? apiGet<{ diagnoses: ProDiagnosisItem[]; kpis: ProDiagnosesKpis }>(`/api/pro/diagnoses?tenantId=${tenantId}`)
+    71→        : Promise.resolve({ diagnoses: [], kpis: EMPTY_KPIS }),
+    72→    [tenantId, refreshKey]
+    73→  );
+    74→
+    75→  const diagnoses = list.data?.diagnoses ?? [];
+    76→  const kpis = list.data?.kpis ?? EMPTY_KPIS;
+    77→  const detail = detailId ? diagnoses.find((d) => d.id === detailId) : null;
+    78→
+    79→  return (
+    80→    <div className="space-y-4">
+    81→      <SectionHeader
+    82→        title="Diagnostic en cabine"
+    83→        sub="L'institut réalise le diagnostic peau, guidé par le questionnaire dermatologique"
+    84→        actions={
+    85→          <Button onClick={() => setWizardOpen(true)} className="gap-2 font-semibold" aria-label="Lancer un nouveau diagnostic en cabine">
+    86→            <Stethoscope className="size-4" aria-hidden="true" />
+    87→            Nouveau diagnostic
+    88→          </Button>
+    89→        }
+    90→      />
+    91→
+    92→      {/* Principe de fusion — pédagogie rapide pour la praticienne */}
+    93→      <Card className="overflow-hidden pt-0 border-gold/25">
+    94→        <KenteTop />
+    95→        <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+    96→          <span className="grid size-10 place-items-center rounded-xl bg-gold/12 text-gold shrink-0">
+    97→            <Sparkles className="size-5" aria-hidden="true" />
+    98→          </span>
+    99→          <p className="text-sm leading-relaxed text-muted-foreground">
+   100→            <span className="font-semibold text-foreground">Entretien + photo fusionnés.</span> Le questionnaire
+   101→            capture ce que la cliente <em>déclare</em> (38 %), la photo de cabine apporte ce que l&apos;IA{" "}
+   102→            <em>observe</em> (62 %). Sans photo, le diagnostic reste valable sur l&apos;entretien seul. Chaque passage
+   103→            enrichit la fiche CRM et notifie la cliente.
+   104→          </p>
+   105→        </CardContent>
+   106→      </Card>
+   107→
+   108→      {/* KPIs */}
+   109→      <div className="grid grid-cols-3 gap-3">
+   110→        <KpiStat icon={<Stethoscope className="size-4" />} label="Diagnostics" value={String(kpis.total)} hint={`${kpis.monthCount} ce mois-ci`} />
+   111→        <KpiStat icon={<Sparkles className="size-4" />} label="Score moyen" value={`${kpis.avgScore}/100`} hint="santé de peau fusionnée" monetary={false} />
+   112→        <KpiStat icon={<Camera className="size-4" />} label="Avec photo IA" value={`${kpis.photoShare} %`} hint="analyse VLM couplée" monetary={false} />
+   113→      </div>
+   114→
+   115→      {/* Historique */}
+   116→      <Card className="overflow-hidden">
+   117→        {list.error && !list.data ? (
+   118→          <CardContent className="p-4">
+   119→            <ErrorState message={`Diagnostics indisponibles : ${list.error}`} onRetry={list.refetch} />
+   120→          </CardContent>
+   121→        ) : list.loading && !list.data ? (
+   122→          <CardContent className="p-4 space-y-2">
+   123→            {Array.from({ length: 4 }).map((_, i) => (
+   124→              <Skeleton key={i} className="h-14" />
+   125→            ))}
+   126→          </CardContent>
+   127→        ) : diagnoses.length === 0 ? (
+   128→          <CardContent>
+   129→            <EmptyState
+   130→              label="Aucun diagnostic en cabine"
+   131→              sub="Lancez le premier : questionnaire guidé, photo optionnelle, résultat dans le CRM."
+   132→            />
+   133→            <div className="mt-2 flex justify-center">
+   134→              <Button size="sm" onClick={() => setWizardOpen(true)} className="gap-1.5">
+   135→                <Stethoscope className="size-3.5" aria-hidden="true" />
+   136→                Premier diagnostic
+   137→              </Button>
+   138→            </div>
+   139→          </CardContent>
+   140→        ) : (
+   141→          <ul className="divide-y divide-border max-h-[28rem] overflow-y-auto pretty-scroll">
+   142→            {diagnoses.map((d) => {
+   143→              const flags = parseProDiagnosis(d.resultJson)?.questionnaire.flags ?? [];
+   144→              const danger = flags.some((f) => f.level === "danger");
+   145→              return (
+   146→                <li key={d.id}>
+   147→                  <button
+   148→                    onClick={() => setDetailId(d.id)}
+   149→                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent/50 focus-visible:bg-accent/50 outline-none transition-colors"
+   150→                    aria-label={`Ouvrir le diagnostic de ${d.clientName} — score ${d.scoreGlobal}/100`}
+   151→                  >
+   152→                    <InitialAvatar name={d.clientName} />
+   153→                    <div className="min-w-0 flex-1">
+   154→                      <p className="truncate text-sm font-medium">{d.clientName}</p>
+   155→                      <p className="text-[11px] text-muted-foreground truncate">
+   156→                        <span className="capitalize">{d.zone.replace("_", " ")}</span>
+   157→                        {d.practitioner ? ` · ${d.practitioner}` : ""}
+   158→                        {flags.length > 0 ? ` · ${flags.length} vigilance${flags.length > 1 ? "s" : ""}` : ""}
+   159→                      </p>
+   160→                    </div>
+   161→                    {danger && (
+   162→                      <Badge variant="outline" className="hidden sm:inline-flex bg-bissap/10 text-bissap border-bissap/30 text-[10px]">
+   163→                        <OctagonAlert className="size-3" aria-hidden="true" />
+   164→                        Vigilance
+   165→                      </Badge>
+   166→                    )}
+   167→                    <Badge variant="outline" className={cn("text-[10px]", d.vlmUsed ? "bg-gold/10 text-gold border-gold/30" : "bg-muted text-muted-foreground")}>
+   168→                      {d.vlmUsed ? "Photo IA" : "Entretien"}
+   169→                    </Badge>
+   170→                    <div className="text-right shrink-0">
+   171→                      <p className="font-mono text-sm font-bold tabular-nums" style={{ color: scoreColor(d.scoreGlobal) }}>
+   172→                        {d.scoreGlobal}
+   173→                      </p>
+   174→                      <p className="text-[10px] text-muted-foreground font-mono">
+   175→                        {formatDate(d.createdAt, { day: "2-digit", month: "2-digit" })} {formatTime(d.createdAt)}
+   176→                      </p>
+   177→                    </div>
+   178→                    <ChevronRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+   179→                  </button>
+   180→                </li>
+   181→              );
+   182→            })}
+   183→          </ul>
+   184→        )}
+   185→      </Card>
+   186→
+   187→      {wizardOpen && (
+   188→        <DiagWizard
+   189→          tenantId={tenantId}
+   190→          preselectClientId={preselectCommand?.clientId ?? null}
+   191→          onClose={() => {
+   192→            setWizardOpen(false);
+   193→            onCommandHandled?.(); // ProApp oublie la commande → pas de réouverture
+   194→          }}
+   195→          onSaved={() => void list.refetch()}
+   196→        />
+   197→      )}
+   198→
+   199→      {detail && (
+   200→        <DetailSheet
+   201→          item={detail}
+   202→          tenantId={tenantId}
+   203→          onClose={() => setDetailId(null)}
+   204→          onNavigate={onNavigate}
+   205→        />
+   206→      )}
+   207→    </div>
+   208→  );
+   209→}
+   210→
+   211→function KpiStat({ icon, label, value, hint, monetary = false }: { icon: React.ReactNode; label: string; value: string; hint?: string; monetary?: boolean }) {
+   212→  return (
+   213→    <Card className="overflow-hidden pt-0">
+   214→      <KenteTop />
+   215→      <CardContent className="p-3">
+   216→        <div className="flex items-center justify-between gap-2">
+   217→          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
+   218→          <span className="text-primary shrink-0">{icon}</span>
+   219→        </div>
+   220→        <p className="mt-1.5 font-mono text-lg font-semibold tabular-nums leading-tight">{monetary ? `${value} F` : value}</p>
+   221→        {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
+   222→      </CardContent>
+   223→    </Card>
+   224→  );
+   225→}
+   226→
+   227→// ═════════════ Assistant 4 étapes ═════════════
+   228→
+   229→type WizardClient = { id: string; name: string; phone: string };
+   230→
+   231→const STEPS = [
+   232→  { n: 1, label: "Cliente" },
+   233→  { n: 2, label: "Questionnaire" },
+   234→  { n: 3, label: "Photo" },
+   235→  { n: 4, label: "Résultat" },
+   236→];
+   237→
+   238→const ANALYSIS_STEPS = [
+   239→  "Analyse de l'entretien (questionnaire)…",
+   240→  "Lecture de la photo par l'IA…",
+   241→  "Fusion déclaratif + observation…",
+   242→  "Rédaction des recommandations…",
+   243→];
+   244→
+   245→function DiagWizard({
+   246→  tenantId,
+   247→  preselectClientId,
+   248→  onClose,
+   249→  onSaved,
+   250→}: {
+   251→  tenantId: string;
+   252→  preselectClientId?: string | null;
+   253→  onClose: () => void;
+   254→  onSaved: () => void;
+   255→}) {
+   256→  const [step, setStep] = useState(1);
+   257→  const [zone, setZone] = useState<BodyZone>("visage");
+   258→  const [selected, setSelected] = useState<WizardClient | null>(null);
+   259→  const [answers, setAnswers] = useState<QAnswers>(defaultAnswers);
+   260→  const [photo, setPhoto] = useState<string | null>(null);
+   261→  const [practitioner, setPractitioner] = useState("Fatou Koné");
+   262→  const [submitting, setSubmitting] = useState(false);
+   263→  const [result, setResult] = useState<ProDiagnosisResult | null>(null);
+   264→  const [submitError, setSubmitError] = useState<string | null>(null);
+   265→  const [analysisMsg, setAnalysisMsg] = useState(ANALYSIS_STEPS[0]);
+   266→
+   267→  // Message d'attente rotatif pendant l'analyse VLM (10-30 s possibles)
+   268→  const msgIdx = useRef(0);
+   269→  useEffect(() => {
+   270→    if (!submitting) return;
+   271→    msgIdx.current = 0;
+   272→    setAnalysisMsg(ANALYSIS_STEPS[0]);
+   273→    const t = window.setInterval(() => {
+   274→      msgIdx.current = (msgIdx.current + 1) % ANALYSIS_STEPS.length;
+   275→      setAnalysisMsg(ANALYSIS_STEPS[msgIdx.current]);
+   276→    }, 4_000);
+   277→    return () => window.clearInterval(t);
+   278→  }, [submitting]);
+   279→
+   280→  const progress = useMemo(() => questionnaireProgress(answers), [answers]);
+   281→  const zoneLabel = BODY_ZONES.find((z) => z.id === zone)?.label ?? zone;
+   282→
+   283→  const reset = () => {
+   284→    setStep(1);
+   285→    setZone("visage");
+   286→    setSelected(null);
+   287→    setAnswers(defaultAnswers());
+   288→    setPhoto(null);
+   289→    setResult(null);
+   290→    setSubmitError(null);
+   291→  };
+   292→
+   293→  const submit = async () => {
+   294→    setSubmitting(true);
+   295→    setSubmitError(null);
+   296→    setResult(null);
+   297→    setStep(4);
+   298→    try {
+   299→      const res = await apiPost<{ diagnosis: ProDiagnosisItem; result: ProDiagnosisResult; reusedClient: boolean }>(
+   300→        "/api/pro/diagnoses",
+   301→        {
+   302→          tenantId,
+   303→          zone,
+   304→          answers,
+   305→          clientProfileId: selected?.id,
+   306→          photo: photo ?? undefined,
+   307→          practitioner: practitioner.trim() || undefined,
+   308→        }
+   309→      );
+   310→      setResult(res.result);
+   311→      toast.success(`Diagnostic enregistré — ${res.diagnosis.clientName} · ${res.result.score_global}/100`, {
+   312→        description: res.result.questionnaire.flags.length > 0 ? `${res.result.questionnaire.flags.length} point(s) de vigilance noté(s) — visible dans la fiche CRM.` : "Résultat fusionné disponible dans le CRM.",
+   313→        duration: 7_000,
+   314→      });
+   315→      if (res.reusedClient) toast.info("Fiche CRM existante réutilisée (téléphone déjà enregistré).");
+   316→      onSaved();
+   317→    } catch (e) {
+   318→      setSubmitError(e instanceof Error ? e.message : "Analyse impossible");
+   319→      toastError(e, "Analyse impossible");
+   320→    } finally {
+   321→      setSubmitting(false);
+   322→    }
+   323→  };
+   324→
+   325→  return (
+   326→    <Sheet open onOpenChange={(o) => !o && onClose()}>
+   327→      <SheetContent side="right" aria-describedby={undefined} className="w-full sm:max-w-xl overflow-y-auto pretty-scroll p-0 [&>button]:z-30">
+   328→        <SheetHeader className="p-4 pb-3 border-b border-border bg-muted/40 sticky top-0 z-10">
+   329→          <SheetTitle className="font-heading text-lg leading-tight">
+   330→            Diagnostic en cabine {result ? "— résultat" : `— étape ${step}/3`}
+   331→          </SheetTitle>
+   332→          <SheetDescription className="text-xs">
+   333→            {result
+   334→              ? `${selected?.name ?? ""} · ${zoneLabel.toLowerCase()} · ${practitioner || "praticienne"}`.replace(/^ · /, "")
+   335→              : "Questionnaire dermatologique ± photo — fusionnée en un score unique."}
+   336→          </SheetDescription>
+   337→          {/* Stepper */}
+   338→          <div className="mt-2 flex items-center gap-1.5" role="group" aria-label="Étapes du diagnostic">
+   339→            {STEPS.map((s, i) => {
+   340→              const state = result ? 4 : step;
+   341→              const active = s.n === state;
+   342→              const done = s.n < state;
+   343→              return (
+   344→                <div key={s.n} className="flex items-center gap-1.5 min-w-0">
+   345→                  <span
+   346→                    className={cn(
+   347→                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+   348→                      active ? "bg-primary text-primary-foreground" : done ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
+   349→                    )}
+   350→                    aria-current={active ? "step" : undefined}
+   351→                  >
+   352→                    <span className="font-mono">{done ? "✓" : s.n}</span>
+   353→                    <span className="hidden xs:inline sm:inline">{s.label}</span>
+   354→                  </span>
+   355→                  {i < STEPS.length - 1 && <span className="h-px w-3 bg-border shrink-0" aria-hidden="true" />}
+   356→                </div>
+   357→              );
+   358→            })}
+   359→          </div>
+   360→        </SheetHeader>
+   361→
+   362→        <div className="p-4 space-y-4">
+   363→          {step === 1 && (
+   364→            <ClientStep
+   365→              tenantId={tenantId}
+   366→              preselectClientId={preselectClientId}
+   367→              selected={selected}
+   368→              onSelect={setSelected}
+   369→              zone={zone}
+   370→              onZone={setZone}
+   371→              practitioner={practitioner}
+   372→              onPractitioner={setPractitioner}
+   373→              onNext={() => setStep(2)}
+   374→            />
+   375→          )}
+   376→          {step === 2 && (
+   377→            <QuestionnaireStep
+   378→              answers={answers}
+   379→              onChange={setAnswers}
+   380→              progress={progress}
+   381→              onBack={() => setStep(1)}
+   382→              onNext={() => setStep(3)}
+   383→            />
+   384→          )}
+   385→          {step === 3 && (
+   386→            <PhotoStep
+   387→              photo={photo}
+   388→              onPhoto={setPhoto}
+   389→              zoneLabel={zoneLabel}
+   390→              onBack={() => setStep(2)}
+   391→              onSubmit={submit}
+   392→            />
+   393→          )}
+   394→          {step === 4 && (
+   395→            <ResultStep
+   396→              submitting={submitting}
+   397→              analysisMsg={analysisMsg}
+   398→              error={submitError}
+   399→              result={result}
+   400→              clientName={selected?.name}
+   401→              onRetryBack={() => setStep(3)}
+   402→              onNew={reset}
+   403→              onDone={onClose}
+   404→            />
+   405→          )}
+   406→        </div>
+   407→      </SheetContent>
+   408→    </Sheet>
+   409→  );
+   410→}
+   411→
+   412→// ── Étape 1 : cliente + zone + praticienne ──
+   413→function ClientStep({
+   414→  tenantId,
+   415→  preselectClientId,
+   416→  selected,
+   417→  onSelect,
+   418→  zone,
+   419→  onZone,
+   420→  practitioner,
+   421→  onPractitioner,
+   422→  onNext,
+   423→}: {
+   424→  tenantId: string;
+   425→  preselectClientId?: string | null;
+   426→  selected: WizardClient | null;
+   427→  onSelect: (c: WizardClient) => void;
+   428→  zone: BodyZone;
+   429→  onZone: (z: BodyZone) => void;
+   430→  practitioner: string;
+   431→  onPractitioner: (v: string) => void;
+   432→  onNext: () => void;
+   433→}) {
+   434→  const [query, setQuery] = useState("");
+   435→  const [debounced, setDebounced] = useState("");
+   436→  const [express, setExpress] = useState({ name: "", phone: "" });
+   437→  const [creating, setCreating] = useState(false);
+   438→
+   439→  useEffect(() => {
+   440→    const t = window.setTimeout(() => setDebounced(query.trim()), 300);
+   441→    return () => window.clearTimeout(t);
+   442→  }, [query]);
+   443→
+   444→  // Préselection CRM : charge la fiche dès l'ouverture
+   445→  const preselected = useApi<WizardClient | null>(
+   446→    () =>
+   447→      preselectClientId
+   448→        ? apiGet<{ client: { id: string; name: string; phone: string } }>(`/api/pro/clients/${preselectClientId}`).then((r) => r.client)
+   449→        : Promise.resolve(null),
+   450→    [preselectClientId]
+   451→  );
+   452→  useEffect(() => {
+   453→    if (preselected.data && !selected) onSelect(preselected.data);
+   454→  }, [preselected.data, selected, onSelect]);
+   455→
+   456→  const results = useApi<ProClient[]>(
+   457→    () =>
+   458→      tenantId && debounced.length >= 2
+   459→        ? apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}&q=${encodeURIComponent(debounced)}`).then((r) => r.clients ?? [])
+   460→        : Promise.resolve([]),
+   461→    [tenantId, debounced]
+   462→  );
+   463→
+   464→  const createExpress = async () => {
+   465→    if (express.name.trim().length < 2) return toast.error("Nom trop court");
+   466→    if (express.phone.replace(/\D/g, "").length < 8) return toast.error("Téléphone invalide (8 chiffres min.)");
+   467→    setCreating(true);
+   468→    try {
+   469→      const res = await apiPost<{ client: ProClient; reused: boolean }>("/api/pro/clients", {
+   470→        tenantId,
+   471→        name: express.name,
+   472→        phone: express.phone,
+   473→      });
+   474→      onSelect({ id: res.client.id, name: res.client.name, phone: res.client.phone });
+   475→      toast.success(res.reused ? `Fiche existante retrouvée : ${res.client.name}` : `Cliente créée : ${res.client.name}`);
+   476→    } catch (e) {
+   477→      toastError(e, "Création impossible");
+   478→    } finally {
+   479→      setCreating(false);
+   480→    }
+   481→  };
+   482→
+   483→  return (
+   484→    <div className="space-y-5">
+   485→      {/* Cliente sélectionnée */}
+   486→      {selected ? (
+   487→        <Card className="border-success/40 bg-success/5">
+   488→          <CardContent className="p-3.5 flex items-center gap-3">
+   489→            <InitialAvatar name={selected.name} />
+   490→            <div className="min-w-0 flex-1">
+   491→              <p className="text-sm font-semibold truncate">{selected.name}</p>
+   492→              <p className="text-xs font-mono text-muted-foreground">{selected.phone}</p>
+   493→            </div>
+   494→            <Button size="sm" variant="outline" onClick={() => onSelect(null as unknown as WizardClient)} className="gap-1">
+   495→              <UserPlus className="size-3.5" aria-hidden="true" />
+   496→              Changer
+   497→            </Button>
+   498→          </CardContent>
+   499→        </Card>
+   500→      ) : (
+   501→        <>
+   502→          {/* Recherche CRM */}
+   503→          <div>
+   504→            <label htmlFor="diag-search" className="text-sm font-semibold mb-1.5 block">
+   505→              Cliente du CRM
+   506→            </label>
+   507→            <div className="relative">
+   508→              <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+   509→              <Input
+   510→                id="diag-search"
+   511→                value={query}
+   512→                onChange={(e) => setQuery(e.target.value)}
+   513→                placeholder="Nom ou téléphone…"
+   514→                className="pl-8"
+   515→                aria-label="Rechercher une cliente du CRM"
+   516→              />
+   517→            </div>
+   518→            {results.loading && debounced.length >= 2 && <Skeleton className="mt-2 h-16" />}
+   519→            {results.data && results.data.length > 0 && (
+   520→              <ul className="mt-2 rounded-xl border border-border divide-y divide-border overflow-hidden max-h-56 overflow-y-auto pretty-scroll">
+   521→                {results.data.slice(0, 6).map((c) => (
+   522→                  <li key={c.id}>
+   523→                    <button
+   524→                      onClick={() => onSelect({ id: c.id, name: c.name, phone: c.phone })}
+   525→                      className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
+   526→                      aria-label={`Sélectionner ${c.name}`}
+   527→                    >
+   528→                      <InitialAvatar name={c.name} className="size-8 text-[11px]" />
+   529→                      <div className="min-w-0 flex-1">
+   530→                        <p className="truncate text-sm font-medium">{c.name}</p>
+   531→                        <p className="text-[11px] font-mono text-muted-foreground">{c.phone}</p>
+   532→                      </div>
+   533→                      <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
+   534→                    </button>
+   535→                  </li>
+   536→                ))}
+   537→              </ul>
+   538→            )}
+   539→            {results.data && debounced.length >= 2 && results.data.length === 0 && (
+   540→              <p className="mt-2 text-xs text-muted-foreground">Aucune fiche — créez-la express ci-dessous.</p>
+   541→            )}
+   542→          </div>
+   543→
+   544→          {/* Express */}
+   545→          <div className="rounded-xl border border-dashed border-border p-3.5">
+   546→            <p className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+   547→              <UserPlus className="size-4 text-primary" aria-hidden="true" />
+   548→              Cliente nouvelle — création express
+   549→            </p>
+   550→            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+   551→              <Input value={express.name} onChange={(e) => setExpress((s) => ({ ...s, name: e.target.value }))} placeholder="Nom complet" aria-label="Nom de la cliente" />
+   552→              <Input value={express.phone} onChange={(e) => setExpress((s) => ({ ...s, phone: e.target.value }))} placeholder="Téléphone" aria-label="Téléphone de la cliente" inputMode="tel" />
+   553→              <Button variant="outline" onClick={createExpress} disabled={creating} className="gap-1.5">
+   554→                {creating ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Users className="size-4" aria-hidden="true" />}
+   555→                Créer
+   556→              </Button>
+   557→            </div>
+   558→          </div>
+   559→        </>
+   560→      )}
+   561→
+   562→      {/* Zone */}
+   563→      <div>
+   564→        <p className="text-sm font-semibold mb-1.5">Zone à diagnostiquer</p>
+   565→        <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Zone à diagnostiquer">
+   566→          {BODY_ZONES.map((z) => (
+   567→            <button
+   568→              key={z.id}
+   569→              role="radio"
+   570→              aria-checked={zone === z.id}
+   571→              onClick={() => onZone(z.id)}
+   572→              className={cn(
+   573→                "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+   574→                zone === z.id ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:text-foreground"
+   575→              )}
+   576→            >
+   577→              {z.label}
+   578→            </button>
+   579→          ))}
+   580→        </div>
+   581→      </div>
+   582→
+   583→      {/* Praticienne */}
+   584→      <div>
+   585→        <label htmlFor="diag-practitioner" className="text-sm font-semibold mb-1.5 block">
+   586→          Praticienne
+   587→        </label>
+   588→        <Input
+   589→          id="diag-practitioner"
+   590→          value={practitioner}
+   591→          onChange={(e) => onPractitioner(e.target.value)}
+   592→          placeholder="Qui réalise le diagnostic ?"
+   593→          aria-label="Praticienne qui réalise le diagnostic"
+   594→        />
+   595→      </div>
+   596→
+   597→      <Button onClick={onNext} disabled={!selected} className="w-full gap-1.5 font-semibold">
+   598→        Commencer le questionnaire
+   599→        <ChevronRight className="size-4" aria-hidden="true" />
+   600→      </Button>
+   601→    </div>
+   602→  );
+   603→}
+   604→
+   605→// ── Étape 2 : questionnaire ──
+   606→function QuestionnaireStep({
+   607→  answers,
+   608→  onChange,
+   609→  progress,
+   610→  onBack,
+   611→  onNext,
+   612→}: {
+   613→  answers: QAnswers;
+   614→  onChange: (a: QAnswers) => void;
+   615→  progress: number;
+   616→  onBack: () => void;
+   617→  onNext: () => void;
+   618→}) {
+   619→  const setAnswer = (id: string, value: string | string[]) => onChange({ ...answers, [id]: value });
+   620→  const toggleMulti = (id: string, value: string) => {
+   621→    const cur = Array.isArray(answers[id]) ? (answers[id] as string[]) : [];
+   622→    setAnswer(id, cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value]);
+   623→  };
+   624→
+   625→  return (
+   626→    <div className="space-y-5">
+   627→      <div>
+   628→        <div className="flex items-center justify-between text-xs mb-1.5">
+   629→          <span className="text-muted-foreground">Progression de l&apos;entretien</span>
+   630→          <span className="font-mono font-semibold">{Math.round(progress * 100)} %</span>
+   631→        </div>
+   632→        <Progress value={progress * 100} aria-label="Progression du questionnaire" />
+   633→      </div>
+   634→
+   635→      {QUESTIONNAIRE_SECTIONS.map((section) => (
+   636→        <section key={section.id} aria-label={section.label}>
+   637→          <h3 className="font-heading text-sm font-bold flex items-baseline gap-2">
+   638→            {section.label}
+   639→            <span className="text-[11px] font-normal text-muted-foreground">{section.description}</span>
+   640→          </h3>
+   641→          <div className="mt-2.5 space-y-3">
+   642→            {QUESTIONS.filter((q) => q.section === section.id).map((q) => {
+   643→              const current = answers[q.id];
+   644→              const isText = q.type === "text";
+   645→              return (
+   646→                <div
+   647→                  key={q.id}
+   648→                  className={cn(
+   649→                    "rounded-xl border p-3",
+   650→                    q.sensitive ? "border-gold/40 bg-gold/[0.04]" : "border-border bg-card"
+   651→                  )}
+   652→                >
+   653→                  <p className="text-sm font-medium">
+   654→                    {q.label}
+   655→                    {q.required && (
+   656→                      <span className="ml-1 text-bissap" aria-hidden="true">
+   657→                        *
+   658→                      </span>
+   659→                    )}
+   660→                    {q.sensitive && (
+   661→                      <Badge variant="outline" className="ml-2 bg-gold/10 text-gold border-gold/30 text-[9px] align-middle">
+   662→                        important
+   663→                      </Badge>
+   664→                    )}
+   665→                  </p>
+   666→                  {q.help && <p className="mt-0.5 text-[11px] text-muted-foreground">{q.help}</p>}
+   667→
+   668→                  {isText ? (
+   669→                    q.id === "notes" ? (
+   670→                      <Textarea
+   671→                        rows={2}
+   672→                        value={typeof current === "string" ? current : ""}
+   673→                        onChange={(e) => setAnswer(q.id, e.target.value)}
+   674→                        placeholder={q.placeholder}
+   675→                        aria-label={q.label}
+   676→                        className="mt-2 bg-card"
+   677→                      />
+   678→                    ) : (
+   679→                      <Input
+   680→                        value={typeof current === "string" ? current : ""}
+   681→                        onChange={(e) => setAnswer(q.id, e.target.value)}
+   682→                        placeholder={q.placeholder}
+   683→                        aria-label={q.label}
+   684→                        className="mt-2 bg-card"
+   685→                      />
+   686→                    )
+   687→                  ) : (
+   688→                    <div
+   689→                      className={cn("mt-2 flex flex-wrap gap-1.5", q.type === "multi" ? "pt-0" : "pt-0")}
+   690→                      role={q.type === "single" ? "radiogroup" : "group"}
+   691→                      aria-label={q.label}
+   692→                    >
+   693→                      {q.options.map((o) => {
+   694→                        const active =
+   695→                          q.type === "multi" ? Array.isArray(current) && current.includes(o.value) : current === o.value;
+   696→                        return (
+   697→                          <button
+   698→                            key={o.value}
+   699→                            type="button"
+   700→                            role={q.type === "single" ? "radio" : "checkbox"}
+   701→                            aria-checked={active}
+   702→                            aria-pressed={q.type === "multi" ? active : undefined}
+   703→                            onClick={() => (q.type === "multi" ? toggleMulti(q.id, o.value) : setAnswer(q.id, o.value))}
+   704→                            className={cn(
+   705→                              "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+   706→                              active
+   707→                                ? "bg-primary text-primary-foreground shadow-sm"
+   708→                                : "bg-muted text-muted-foreground hover:text-foreground"
+   709→                            )}
+   710→                          >
+   711→                            {o.label}
+   712→                          </button>
+   713→                        );
+   714→                      })}
+   715→                    </div>
+   716→                  )}
+   717→                </div>
+   718→              );
+   719→            })}
+   720→          </div>
+   721→        </section>
+   722→      ))}
+   723→
+   724→      <div className="flex gap-2 pb-2">
+   725→        <Button variant="outline" onClick={onBack} className="gap-1.5">
+   726→          <ChevronLeft className="size-4" aria-hidden="true" />
+   727→          Retour
+   728→        </Button>
+   729→        <Button onClick={onNext} disabled={progress < 1} className="flex-1 gap-1.5 font-semibold">
+   730→          {progress < 1 ? `Questionnaire à compléter (${Math.round(progress * 100)} %)` : "Étape photo (option)"}
+   731→          <ChevronRight className="size-4" aria-hidden="true" />
+   732→        </Button>
+   733→      </div>
+   734→    </div>
+   735→  );
+   736→}
+   737→
+   738→// ── Étape 3 : photo optionnelle ──
+   739→function PhotoStep({
+   740→  photo,
+   741→  onPhoto,
+   742→  zoneLabel,
+   743→  onBack,
+   744→  onSubmit,
+   745→}: {
+   746→  photo: string | null;
+   747→  onPhoto: (p: string | null) => void;
+   748→  zoneLabel: string;
+   749→  onBack: () => void;
+   750→  onSubmit: () => void;
+   751→}) {
+   752→  const [busy, setBusy] = useState(false);
+   753→
+   754→  const pick = async (file: File | undefined) => {
+   755→    if (!file) return;
+   756→    setBusy(true);
+   757→    try {
+   758→      const dataUrl = await resizeImage(file);
+   759→      onPhoto(dataUrl);
+   760→      toast.success("Photo prête — compressée pour l'analyse");
+   761→    } catch {
+   762→      toast.error("Photo illisible — réessayez");
+   763→    } finally {
+   764→      setBusy(false);
+   765→    }
+   766→  };
+   767→
+   768→  return (
+   769→    <div className="space-y-5">
+   770→      <div className="rounded-xl border border-border bg-card p-4">
+   771→        <p className="text-sm font-semibold flex items-center gap-1.5">
+   772→          <Camera className="size-4 text-primary" aria-hidden="true" />
+   773→          Photo de la zone « {zoneLabel} »
+   774→        </p>
+   775→        <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+   776→          Optionnelle mais recommandée : l&apos;IA observe la peau (62 % du score) et repère taches, imperfections,
+   777→          lésions. Sans photo, le diagnostic repose sur l&apos;entretien (déclaratif) — valable pour un premier passage.
+   778→        </p>
+   779→      </div>
+   780→
+   781→      {photo ? (
+   782→        <div className="space-y-2">
+   783→          <div className="relative rounded-xl overflow-hidden border border-border">
+   784→            <img src={photo} alt={`Photo de la zone ${zoneLabel}`} className="w-full aspect-square object-cover" />
+   785→            <button
+   786→              onClick={() => onPhoto(null)}
+   787→              className="absolute top-2 right-2 grid size-8 place-items-center rounded-full bg-background/85 text-foreground shadow-sm hover:bg-background"
+   788→              aria-label="Retirer la photo"
+   789→            >
+   790→              <Trash2 className="size-4" aria-hidden="true" />
+   791→            </button>
+   792→          </div>
+   793→          <p className="text-[11px] text-muted-foreground">
+   794→            {(photo.length * 0.75 / 1024).toFixed(0)} Ko — prête pour l&apos;analyse VLM.
+   795→          </p>
+   796→        </div>
+   797→      ) : (
+   798→        <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 py-8 cursor-pointer hover:border-primary/50 transition-colors">
+   799→          {busy ? (
+   800→            <Loader2 className="size-6 animate-spin text-primary" aria-hidden="true" />
+   801→          ) : (
+   802→            <ImagePlus className="size-6 text-muted-foreground" aria-hidden="true" />
+   803→          )}
+   804→          <span className="text-sm font-medium">{busy ? "Compression…" : "Prendre / choisir une photo"}</span>
+   805→          <span className="text-[11px] text-muted-foreground">Lumière naturelle, cadre sur la zone</span>
+   806→          <input
+   807→            type="file"
+   808→            accept="image/*"
+   809→            capture="environment"
+   810→            className="sr-only"
+   811→            onChange={(e) => pick(e.target.files?.[0])}
+   812→            aria-label={`Photo de la zone ${zoneLabel}`}
+   813→          />
+   814→        </label>
+   815→      )}
+   816→
+   817→      <div className="flex gap-2 pb-2">
+   818→        <Button variant="outline" onClick={onBack} className="gap-1.5">
+   819→          <ChevronLeft className="size-4" aria-hidden="true" />
+   820→          Retour
+   821→        </Button>
+   822→        <Button onClick={onSubmit} disabled={busy} className="flex-1 gap-1.5 font-semibold">
+   823→          <Sparkles className="size-4" aria-hidden="true" />
+   824→          {photo ? "Lancer l'analyse (10-30 s)" : "Analyser sans photo"}
+   825→        </Button>
+   826→      </div>
+   827→    </div>
+   828→  );
+   829→}
+   830→
+   831→// ── Étape 4 : analyse / résultat ──
+   832→function ResultStep({
+   833→  submitting,
+   834→  analysisMsg,
+   835→  error,
+   836→  result,
+   837→  clientName,
+   838→  onRetryBack,
+   839→  onNew,
+   840→  onDone,
+   841→}: {
+   842→  submitting: boolean;
+   843→  analysisMsg: string;
+   844→  error: string | null;
+   845→  result: ProDiagnosisResult | null;
+   846→  clientName?: string;
+   847→  onRetryBack: () => void;
+   848→  onNew: () => void;
+   849→  onDone: () => void;
+   850→}) {
+   851→  if (submitting) {
+   852→    return (
+   853→      <div className="py-10 flex flex-col items-center gap-4 text-center" role="status" aria-live="polite">
+   854→        <div className="relative size-16">
+   855→          <Loader2 className="size-16 animate-spin text-primary" aria-hidden="true" />
+   856→          <Stethoscope className="absolute inset-0 m-auto size-6 text-primary/70" aria-hidden="true" />
+   857→        </div>
+   858→        <div>
+   859→          <p className="font-heading font-bold">Analyse en cours…</p>
+   860→          <motion.p key={analysisMsg} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="mt-1 text-sm text-muted-foreground">
+   861→            {analysisMsg}
+   862→          </motion.p>
+   863→        </div>
+   864→        <p className="text-[11px] text-muted-foreground">La photo peut demander jusqu&apos;à 30 s — ne fermez pas l&apos;assistant.</p>
+   865→      </div>
+   866→    );
+   867→  }
+   868→
+   869→  if (error) {
+   870→    return (
+   871→      <div className="space-y-3">
+   872→        <ErrorState message={`Analyse échouée : ${error}`} onRetry={onRetryBack} />
+   873→        <Button variant="outline" onClick={onRetryBack} className="w-full">
+   874→          Reprendre
+   875→        </Button>
+   876→      </div>
+   877→    );
+   878→  }
+   879→
+   880→  if (!result) return null;
+   881→  return (
+   882→    <div className="space-y-5">
+   883→      <ResultView result={result} clientName={clientName} />
+   884→      <div className="flex gap-2 pb-2">
+   885→        <Button variant="outline" onClick={onNew} className="gap-1.5">
+   886→          Nouveau diagnostic
+   887→        </Button>
+   888→        <Button onClick={onDone} className="flex-1 gap-1.5 font-semibold">
+   889→          Terminer
+   890→        </Button>
+   891→      </div>
+   892→    </div>
+   893→  );
+   894→}
+   895→
+   896→// ═════════════ Vue résultat partagée (assistant + fiche liste) ═════════════
+   897→
+   898→const FLAG_STYLES = {
+   899→  danger: { icon: OctagonAlert, cls: "border-bissap/40 bg-bissap/5 text-bissap" },
+   900→  warn: { icon: OctagonAlert, cls: "border-gold/40 bg-gold/5 text-gold" },
+   901→  info: { icon: Info, cls: "border-border bg-muted/50 text-muted-foreground" },
+   902→} as const;
+   903→
+   904→const SEVERITY_LABEL = ["aucun", "léger", "moyen", "fort"];
+   905→
+   906→export function ResultView({
+   907→  result,
+   908→  clientName,
+   909→  photo,
+   910→  meta,
+   911→}: {
+   912→  result: ProDiagnosisResult;
+   913→  clientName?: string;
+   914→  photo?: string | null;
+   915→  meta?: { zone?: string; createdAt?: string; practitioner?: string | null };
+   916→}) {
+   917→  const color = scoreColor(result.score_global);
+   918→  const pct = Math.max(4, Math.min(100, result.score_global));
+   919→  const verdict =
+   920→    result.score_global >= 80 ? "Peau équilibrée" : result.score_global >= 65 ? "Équilibre correct" : result.score_global >= 50 ? "Attention ciblée" : "Protocole de fond";
+   921→
+   922→  const flags = result.questionnaire?.flags ?? [];
+   923→  const sortedIndicators = [...result.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage);
+   924→  const rec = result.recommandations;
+   925→
+   926→  return (
+   927→    <div className="space-y-5">
+   928→      {/* En-tête score */}
+   929→      <Card className="overflow-hidden pt-0">
+   930→        <KenteTop />
+   931→        <CardContent className="p-4">
+   932→          <div className="flex items-center gap-4">
+   933→            <div
+   934→              className="relative size-24 shrink-0 rounded-full grid place-items-center"
+   935→              style={{ background: `conic-gradient(${color} ${pct}%, color-mix(in srgb, currentColor 12%, transparent) 0)` }}
+   936→              role="img"
+   937→              aria-label={`Score santé de peau : ${result.score_global} sur 100`}
+   938→            >
+   939→              <div className="absolute inset-[7px] rounded-full bg-card grid place-items-center">
+   940→                <div className="text-center leading-none">
+   941→                  <p className="font-mono text-2xl font-bold" style={{ color }}>
+   942→                    {result.score_global}
+   943→                  </p>
+   944→                  <p className="text-[9px] text-muted-foreground mt-0.5">/ 100</p>
+   945→                </div>
+   946→              </div>
+   947→            </div>
+   948→            <div className="min-w-0 flex-1">
+   949→              <p className="font-heading text-lg font-bold leading-tight" style={{ color }}>
+   950→                {verdict}
+   951→              </p>
+   952→              <p className="mt-0.5 text-xs text-muted-foreground capitalize">
+   953→                {clientName ? `${clientName} · ` : ""}
+   954→                {(meta?.zone ?? result.zone).replace("_", " ")}
+   955→                {meta?.practitioner ? ` · ${meta.practitioner}` : ""}
+   956→              </p>
+   957→              {meta?.createdAt && (
+   958→                <p className="text-[11px] text-muted-foreground font-mono">
+   959→                  {formatDate(meta.createdAt)} {formatTime(meta.createdAt)}
+   960→                </p>
+   961→              )}
+   962→              <div className="mt-1.5 flex flex-wrap gap-1.5">
+   963→                <Badge variant="outline" className={cn("text-[10px]", result.source.includes("vlm") ? "bg-gold/10 text-gold border-gold/30" : "bg-muted text-muted-foreground")}>
+   964→                  {result.source === "vlm+questionnaire" ? "Entretien + photo IA" : "Entretien seul"}
+   965→                </Badge>
+   966→                {result.questionnaire && (
+   967→                  <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">
+   968→                    {result.questionnaire.answered}/{result.questionnaire.total} réponses
+   969→                  </Badge>
+   970→                )}
+   971→                {result.orientation_dermato && (
+   972→                  <Badge variant="outline" className="text-[10px] bg-bissap/10 text-bissap border-bissap/30">
+   973→                    Orientation dermato
+   974→                  </Badge>
+   975→                )}
+   976→              </div>
+   977→            </div>
+   978→          </div>
+   979→          <p className="mt-3 text-sm leading-relaxed">{rec?.resume}</p>
+   980→        </CardContent>
+   981→      </Card>
+   982→
+   983→      {/* Vigilances */}
+   984→      {flags.length > 0 && (
+   985→        <section aria-label="Points de vigilance">
+   986→          <h4 className="font-heading text-sm font-bold mb-2">Vigilances de l&apos;entretien</h4>
+   987→          <ul className="space-y-2">
+   988→            {flags.map((f, i) => {
+   989→              const st = FLAG_STYLES[f.level] ?? FLAG_STYLES.info;
+   990→              const Icon = st.icon;
+   991→              return (
+   992→                <li key={i} className={cn("flex gap-2.5 rounded-xl border p-3", st.cls)}>
+   993→                  <Icon className="size-4 shrink-0 mt-0.5" aria-hidden="true" />
+   994→                  <div className="min-w-0">
+   995→                    <p className="text-sm font-semibold">{f.label}</p>
+   996→                    {f.detail && <p className="mt-0.5 text-xs leading-relaxed opacity-90">{f.detail}</p>}
+   997→                  </div>
+   998→                </li>
+   999→              );
+  1000→            })}
+  1001→          </ul>
+  1002→        </section>
+  1003→      )}
+  1004→
+  1005→      {/* Photo + indicateurs */}
+  1006→      <section aria-label="Indicateurs">
+  1007→        <h4 className="font-heading text-sm font-bold mb-2">Indicateurs de la zone</h4>
+  1008→        <div className={cn("grid gap-3", photo ? "sm:grid-cols-[10rem_1fr]" : "")}>
+  1009→          {photo && (
+  1010→            <div className="rounded-xl overflow-hidden border border-border h-fit">
+  1011→              <img src={photo} alt="Photo de cabine du diagnostic" className="w-full aspect-square object-cover" />
+  1012→              <p className="p-1.5 text-[10px] text-muted-foreground text-center">Photo de cabine</p>
+  1013→            </div>
+  1014→          )}
+  1015→          <ul className="space-y-2 min-w-0">
+  1016→            {sortedIndicators.map((ind) => {
+  1017→              const c = scoreColor(ind.pourcentage);
+  1018→              return (
+  1019→                <li key={ind.nom}>
+  1020→                  <div className="flex items-baseline justify-between gap-2">
+  1021→                    <p className="text-xs font-medium truncate">{ind.nom}</p>
+  1022→                    <p className="font-mono text-xs font-bold tabular-nums shrink-0" style={{ color: c }}>
+  1023→                      {ind.pourcentage}
+  1024→                      <span className="ml-1 text-[9px] font-normal text-muted-foreground">{SEVERITY_LABEL[ind.severite] ?? ""}</span>
+  1025→                    </p>
+  1026→                  </div>
+  1027→                  <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+  1028→                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(3, ind.pourcentage)}%`, background: c }} />
+  1029→                  </div>
+  1030→                </li>
+  1031→              );
+  1032→            })}
+  1033→          </ul>
+  1034→        </div>
+  1035→      </section>
+  1036→
+  1037→      {/* Recommandations */}
+  1038→      {rec && (
+  1039→        <section aria-label="Recommandations">
+  1040→          <h4 className="font-heading text-sm font-bold mb-2">Protocole recommandé</h4>
+  1041→          <div className="space-y-3">
+  1042→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1043→              {rec.routine_matin?.length > 0 && (
+  1044→                <div className="rounded-xl border border-border bg-card p-3">
+  1045→                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Matin</p>
+  1046→                  <ul className="space-y-1">
+  1047→                    {rec.routine_matin.map((s, i) => (
+  1048→                      <li key={i} className="text-xs flex gap-1.5">
+  1049→                        <span className="text-gold font-mono shrink-0" aria-hidden="true">
+  1050→                          {i + 1}.
+  1051→                        </span>
+  1052→                        {s}
+  1053→                      </li>
+  1054→                    ))}
+  1055→                  </ul>
+  1056→                </div>
+  1057→              )}
+  1058→              {rec.routine_soir?.length > 0 && (
+  1059→                <div className="rounded-xl border border-border bg-card p-3">
+  1060→                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Soir</p>
+  1061→                  <ul className="space-y-1">
+  1062→                    {rec.routine_soir.map((s, i) => (
+  1063→                      <li key={i} className="text-xs flex gap-1.5">
+  1064→                        <span className="text-sunset font-mono shrink-0" aria-hidden="true">
+  1065→                          {i + 1}.
+  1066→                        </span>
+  1067→                        {s}
+  1068→                      </li>
+  1069→                    ))}
+  1070→                  </ul>
+  1071→                </div>
+  1072→              )}
+  1073→            </div>
+  1074→
+  1075→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1076→              {rec.botaniques_conseillees?.length > 0 && (
+  1077→                <div className="rounded-xl border border-border bg-card p-3">
+  1078→                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Botaniques</p>
+  1079→                  <div className="flex flex-wrap gap-1.5">
+  1080→                    {rec.botaniques_conseillees.map((b, i) => (
+  1081→                      <Badge key={i} variant="outline" className="text-[10px] bg-gold/8 text-gold border-gold/25">
+  1082→                        {b}
+  1083→                      </Badge>
+  1084→                    ))}
+  1085→                  </div>
+  1086→                </div>
+  1087→              )}
+  1088→              {rec.soins_conseilles?.length > 0 && (
+  1089→                <div className="rounded-xl border border-border bg-card p-3">
+  1090→                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Soins en institut</p>
+  1091→                  <ul className="space-y-1">
+  1092→                    {rec.soins_conseilles.map((s, i) => (
+  1093→                      <li key={i} className="text-xs flex gap-1.5">
+  1094→                        <span className="text-success" aria-hidden="true">
+  1095→                          •
+  1096→                        </span>
+  1097→                        {s}
+  1098→                      </li>
+  1099→                    ))}
+  1100→                  </ul>
+  1101→                </div>
+  1102→              )}
+  1103→            </div>
+  1104→
+  1105→            {rec.conseils_hygiene_vie?.length > 0 && (
+  1106→              <div className="rounded-xl border border-border bg-muted/40 p-3">
+  1107→                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Hygiène de vie</p>
+  1108→                <ul className="space-y-1">
+  1109→                  {rec.conseils_hygiene_vie.map((s, i) => (
+  1110→                    <li key={i} className="text-xs flex gap-1.5">
+  1111→                      <Info className="size-3 shrink-0 mt-0.5 text-muted-foreground" aria-hidden="true" />
+  1112→                      {s}
+  1113→                    </li>
+  1114→                  ))}
+  1115→                </ul>
+  1116→              </div>
+  1117→            )}
+  1118→          </div>
+  1119→          <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">{result.avertissement}</p>
+  1120→        </section>
+  1121→      )}
+  1122→    </div>
+  1123→  );
+  1124→}
+  1125→
+  1126→// ═════════════ Fiche détail depuis l'historique ═════════════
+  1127→
+  1128→function DetailSheet({
+  1129→  item,
+  1130→  tenantId,
+  1131→  onClose,
+  1132→  onNavigate,
+  1133→}: {
+  1134→  item: ProDiagnosisItem;
+  1135→  tenantId: string;
+  1136→  onClose: () => void;
+  1137→  onNavigate?: (s: ProSectionId) => void;
+  1138→}) {
+  1139→  // Photo + contexte CRM complets depuis la fiche cliente
+  1140→  const detail = useApi<{ client: ProClient; proDiagnoses: ProDiagnosisItem[] } | null>(
+  1141→    () =>
+  1142→      item.clientProfileId
+  1143→        ? apiGet<{ client: ProClient; proDiagnoses: ProDiagnosisItem[] }>(`/api/pro/clients/${item.clientProfileId}`)
+  1144→        : Promise.resolve(null),
+  1145→    [item.clientProfileId]
+  1146→  );
+  1147→  const result = parseProDiagnosis(item.resultJson);
+  1148→  const fullItem = detail.data?.proDiagnoses?.find((d) => d.id === item.id);
+  1149→
+  1150→  return (
+  1151→    <Sheet open onOpenChange={(o) => !o && onClose()}>
+  1152→      <SheetContent side="right" aria-describedby={undefined} className="w-full sm:max-w-xl overflow-y-auto pretty-scroll p-0">
+  1153→        <SheetHeader className="p-4 pb-3 border-b border-border bg-muted/40">
+  1154→          <SheetTitle className="font-heading text-lg leading-tight">Diagnostic — {item.clientName}</SheetTitle>
+  1155→          <SheetDescription className="text-xs">
+  1156→            Réalisé en institut{item.practitioner ? ` par ${item.practitioner}` : ""} ·{" "}
+  1157→            <span className="capitalize">{item.zone.replace("_", " ")}</span>
+  1158→          </SheetDescription>
+  1159→        </SheetHeader>
+  1160→        <div className="p-4">
+  1161→          {!result ? (
+  1162→            <ErrorState message="Résultat illisible pour ce diagnostic" />
+  1163→          ) : (
+  1164→            <>
+  1165→              <ResultView
+  1166→                result={result}
+  1167→                clientName={item.clientName}
+  1168→                photo={fullItem?.photoData ?? null}
+  1169→                meta={{ zone: item.zone, createdAt: item.createdAt, practitioner: item.practitioner }}
+  1170→              />
+  1171→              {onNavigate && (
+  1172→                <Button
+  1173→                  variant="outline"
+  1174→                  className="mt-4 w-full gap-1.5"
+  1175→                  onClick={() => {
+  1176→                    onClose();
+  1177→                    onNavigate("crm");
+  1178→                  }}
+  1179→                >
+  1180→                  Voir la fiche CRM de {item.clientName}
+  1181→                  <ChevronRight className="size-4" aria-hidden="true" />
+  1182→                </Button>
+  1183→              )}
+  1184→            </>
+  1185→          )}
+  1186→        </div>
+  1187→      </SheetContent>
+  1188→    </Sheet>
+  1189→  );
+  1190→}
+  1191→

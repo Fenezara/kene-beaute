@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Fingerprint, RotateCw, ScanFace } from "lucide-react";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
-import { formatDate, scoreColor, SEVERITY_STYLES } from "@/lib/kene/format";
+import { formatDate, scoreColor, scoreVar, SEVERITY_STYLES } from "@/lib/kene/format";
 import {
   DEFAULT_SKIN,
   FITZ_SKIN,
@@ -308,7 +308,7 @@ export function SkinTwinCard({
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                       <div className="h-full rounded-full" style={{ width: `${matched.pourcentage}%`, backgroundColor: SEV_HEX[selectedMarker.sev] }} />
                     </div>
-                    <span className="font-mono text-xs font-bold" style={{ color: scoreColor(matched.pourcentage) }}>
+                    <span className="font-mono text-xs font-bold" style={{ color: scoreVar(matched.pourcentage) }}>
                       {matched.pourcentage}%
                     </span>
                   </div>

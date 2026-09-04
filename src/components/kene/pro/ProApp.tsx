@@ -49,7 +49,7 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
 ];
 
 const PLAN_STYLES: Record<string, string> = {
-  pro: "bg-gold/15 text-gold border-gold/30",
+  pro: "bg-gold/15 text-gold-text border-gold/30",
   business: "bg-success/15 text-success border-success/30",
   trial: "bg-muted text-muted-foreground border-border",
 };
@@ -309,7 +309,7 @@ export function ProApp() {
                   aria-current={section === item.id ? "page" : undefined}
                   aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
                   className={cn(
-                    "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-colors",
+                    "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 min-h-11 text-xs font-medium transition-colors",
                     section === item.id ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -327,7 +327,10 @@ export function ProApp() {
         </div>
 
         <div className="p-3 sm:p-5 lg:p-6 flex-1 min-w-0">
-          {/* En-tête compact mobile + tablette (rail icônes md→lg sans libellés) */}
+          {/* En-tête compact mobile + tablette (rail icônes md→lg sans libellés) —
+              sans le h1 : celui-ci vit ci-dessous, unique et rendu en permanence
+              (visible desktop, sr-only en mobile où l'en-tête + la chip active
+              de la nav portent déjà la section courante). */}
           <div className="lg:hidden mb-4 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground truncate flex items-center gap-1.5">
@@ -342,7 +345,6 @@ export function ProApp() {
                   </span>
                 )}
               </p>
-              <h1 className="font-heading text-lg font-bold truncate">{activeLabel}</h1>
             </div>
             <KeneLogo size={30} withText={false} />
             <div className="flex items-center gap-1.5">
@@ -352,6 +354,12 @@ export function ProApp() {
               </span>
             </div>
           </div>
+
+          {/* Titre de vue — h1 UNIQUE de l'espace Pro, rendu en permanence
+              (accessible aux lecteurs d'écran sur tous les écrans) : visible
+              sur desktop lg+ où aucun en-tête n'existe, masqué en visuel sur
+              mobile/tablette. */}
+          <h1 className="sr-only lg:not-sr-only font-heading text-lg font-bold truncate mb-4">{activeLabel}</h1>
 
           {overview.error && section === "dashboard" && (
             <div className="mb-4 rounded-lg border border-bissap/30 bg-bissap/5 px-4 py-2.5 text-sm text-bissap">

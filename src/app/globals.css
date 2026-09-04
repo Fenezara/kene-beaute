@@ -1,4 +1,5 @@
 @import "tailwindcss";
+/* tokens v56 — WCAG AA light (aout 2026) */
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
@@ -60,17 +61,22 @@
 
 :root {
   --radius: 1rem;
-  /* Kènè — palette panafricaine (light) */
-  --gold: #C8951E;          /* Or Kènè — primaire */
+  /* Kènè — palette panafricaine (light, contrastes WCAG AA ≥ 4.5:1) */
+  --gold: #C8951E;          /* Or Kènè — aplats décoratifs uniquement */
   --terre: #A0522D;         /* Terre Bogolan */
   --melanine: #1A1410;      /* Noir profond */
-  --success: #3F7D3F;       /* Vert Baobab */
+  --success: #346834;       /* Vert Baobab (4.5:1+ en texte light) */
   --finance: #1B3A6B;       /* Bleu Indigo (finance) */
   --bissap: #8B1A3B;        /* Bordeaux Bissap */
-  --sunset: #E07A2B;        /* Orange Sunset */
+  --sunset: #B45309;        /* Orange Sunset assombri (AA light) */
   --karite: #F8F1E4;        /* Crème Karité */
   --gold-text: #8F660D;     /* Or lisible en texte (light) */
   --sunset-text: #A84F0E;   /* Sunset lisible en texte (light) */
+  /* Scores santé — variantes texte/graphiques par thème */
+  --score-haut: #346834;
+  --score-moyen: #8F660D;
+  --score-atten: #A84F0E;
+  --score-faible: #8B1A3B;
 
   --background: #F8F1E4;
   --foreground: #241B12;
@@ -78,19 +84,19 @@
   --card-foreground: #241B12;
   --popover: #FFFBF2;
   --popover-foreground: #241B12;
-  --primary: #B07F14;
+  --primary: #8F660D;       /* Or profond — texte ET boutons AA (4.6-4.9:1) */
   --primary-foreground: #FFF9EC;
   --secondary: #EFE3CC;
   --secondary-foreground: #4A2E15;
   --muted: #F1E7D4;
-  --muted-foreground: #7A6A54;
+  --muted-foreground: #6B5A42;
   --accent: #F6E8CE;
   --accent-foreground: #6B4110;
   --destructive: #8B1A3B;
   --destructive-foreground: #FCEFF3;
   --border: #E3D5BA;
   --input: #E3D5BA;
-  --ring: #C8951E;
+  --ring: #8F660D;
   --chart-1: #C8951E;
   --chart-2: #3F7D3F;
   --chart-3: #A0522D;
@@ -117,6 +123,11 @@
   --karite: #241D14;
   --gold-text: #E3B454;
   --sunset-text: #F0A66B;
+  /* Scores santé — variantes texte/graphiques par thème */
+  --score-haut: #7BC47F;
+  --score-moyen: #E3B454;
+  --score-atten: #F0A66B;
+  --score-faible: #E0607F;
 
   --background: #14100B;
   --foreground: #F3EAD9;
@@ -158,6 +169,19 @@
   }
   html {
     scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
   body {
     @apply bg-background text-foreground;

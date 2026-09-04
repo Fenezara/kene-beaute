@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { DiagnosisResult, Indicator } from "@/lib/kene/types";
-import { scoreColor } from "@/lib/kene/format";
+import { scoreColor, scoreVar } from "@/lib/kene/format";
 import { numberToFrench } from "@/lib/kene/narration";
 import { fetchTtsAudioUrl } from "./ttsAudio";
 
@@ -164,13 +164,13 @@ export function PictoSummary({ result, zoneLabel }: { result: DiagnosisResult; z
             >
               <span
                 className="grid place-items-center h-14 w-14 rounded-full"
-                style={{ backgroundColor: `${color}22`, color }}
+                style={{ backgroundColor: `${color}22`, color: scoreVar(t.pct) }}
                 aria-hidden="true"
               >
                 {loading ? <Loader2 size={26} className="animate-spin" /> : <Icon size={26} />}
               </span>
               <span className="text-[11px] font-bold text-center leading-tight">{t.label}</span>
-              <span className="font-mono text-[10px] font-bold" style={{ color }}>
+              <span className="font-mono text-[10px] font-bold" style={{ color: scoreVar(t.pct) }}>
                 {t.pct}
               </span>
               {active && (

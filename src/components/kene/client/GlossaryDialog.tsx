@@ -25,7 +25,7 @@ export function GlossaryDialog({ entry, onClose }: { entry: GlossaryEntry | null
               <SpeakButton text={glossarySpoken(entry)} label="Écouter" speed={0.9} />
               <button
                 onClick={onClose}
-                className="h-8 px-3 rounded-full text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+                className="min-h-11 px-4 rounded-full text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary"
               >
                 J&apos;ai compris
               </button>

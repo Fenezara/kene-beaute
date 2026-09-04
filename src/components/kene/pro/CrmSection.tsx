@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { apiGet } from "@/lib/kene/api";
-import { xof, formatDate, formatTime, scoreColor } from "@/lib/kene/format";
+import { xof, formatDate, formatTime, scoreVar } from "@/lib/kene/format";
 import { rfmScore, RFM_SEGMENT_STYLES } from "@/lib/kene/rfm";
 import { RFM_SEGMENTS } from "@/lib/kene/types";
 import type { BodyZone } from "@/lib/kene/types";
@@ -60,7 +60,7 @@ function RfmDots({ client }: { client: ProClient }) {
                 <span key={i} className={cn("size-2.5 rounded-full", i < val ? "bg-gold" : "bg-border")} aria-hidden="true" />
               ))}
             </div>
-            <p className="mt-1 font-mono text-sm font-semibold text-gold">{val}/5</p>
+            <p className="mt-1 font-mono text-sm font-semibold text-gold-text">{val}/5</p>
             <p className="text-[9px] text-muted-foreground leading-tight">{g.hint}</p>
           </div>
         );
@@ -111,7 +111,7 @@ export function CrmSection({ tenantId, onStartDiagnostic }: { tenantId: string; 
           <Card key={s.label} className="overflow-hidden pt-0">
             <KenteTop />
             <CardContent className="p-3 flex items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-xl bg-gold/12 text-gold shrink-0">{s.icon}</span>
+              <span className="grid size-9 place-items-center rounded-xl bg-gold/12 text-gold-text shrink-0">{s.icon}</span>
               <div className="min-w-0">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</p>
                 <p className="font-mono text-lg font-semibold leading-tight tabular-nums truncate">{s.value}</p>
@@ -125,7 +125,7 @@ export function CrmSection({ tenantId, onStartDiagnostic }: { tenantId: string; 
       <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5" role="group" aria-label="Filtrer par segment RFM">
         <button
           onClick={() => setSegment(null)}
-          className={cn("shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors", !segment ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}
+          className={cn("shrink-0 rounded-full px-3 py-1.5 min-h-11 text-xs font-medium transition-colors", !segment ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}
         >
           Tous ({totalClients})
         </button>
@@ -138,7 +138,7 @@ export function CrmSection({ tenantId, onStartDiagnostic }: { tenantId: string; 
               onClick={() => setSegment(segment === seg ? null : seg)}
               aria-pressed={segment === seg}
               className={cn(
-                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors",
+                "shrink-0 rounded-full px-3 py-1.5 min-h-11 text-xs font-medium border transition-colors",
                 segment === seg ? cn(st.bg, st.text, "border-current font-semibold") : "bg-card border-border text-muted-foreground hover:text-foreground"
               )}
             >
@@ -185,7 +185,6 @@ export function CrmSection({ tenantId, onStartDiagnostic }: { tenantId: string; 
                       }
                     }}
                     tabIndex={0}
-                    role="button"
                     aria-label={`Ouvrir la fiche de ${c.name}`}
                     className="cursor-pointer hover:bg-accent/50 focus-visible:bg-accent/50 outline-none"
                   >
@@ -367,7 +366,7 @@ function ClientSheet({
                             </div>
                             <div className="p-1.5 text-center">
                               <p className="text-[10px] font-medium capitalize">{dg.zone.replace("_", " ")}</p>
-                              <p className="font-mono text-xs font-bold" style={{ color: scoreColor(dg.scoreGlobal) }}>{dg.scoreGlobal}/100</p>
+                              <p className="font-mono text-xs font-bold" style={{ color: scoreVar(dg.scoreGlobal) }}>{dg.scoreGlobal}/100</p>
                               <p className="text-[9px] text-muted-foreground">{formatDate(dg.createdAt, { day: "numeric", month: "short" })}</p>
                             </div>
                           </div>
@@ -459,7 +458,7 @@ function InstituteDiagRow({ item }: { item: ProDiagnosisItem }) {
       >
         <span
           className="grid size-10 shrink-0 place-items-center rounded-full border-2 font-mono text-xs font-bold"
-          style={{ borderColor: scoreColor(item.scoreGlobal), color: scoreColor(item.scoreGlobal) }}
+          style={{ borderColor: scoreVar(item.scoreGlobal), color: scoreVar(item.scoreGlobal) }}
         >
           {item.scoreGlobal}
         </span>

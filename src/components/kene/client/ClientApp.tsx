@@ -11,8 +11,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BriefcaseBusiness, CalendarDays, Home, MessageCircle, ShieldCheck, ShoppingBag, User } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, Home, Loader2, MessageCircle, ShieldCheck, ShoppingBag, User, WifiOff } from "lucide-react";
+import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
+import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
+import { formatTime } from "@/lib/kene/format";
 import { KeneLogo, NeaOnnimIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { useKene, type ClientTab } from "@/store/kene";
@@ -56,6 +59,9 @@ const TITLES: Record<ClientTab, string> = {
   profil: "Mon profil",
 };
 
+/** Ordre de balayage mobile (swipe horizontal gauche/droite — TikTok-like) */
+const SWIPE_ORDER: ClientTab[] = ["accueil", "boutique", "diagnostic", "rdv", "profil"];
+
 export function ClientApp() {
   const user = useKene((s) => s.user);
   const tab = useKene((s) => s.clientTab);
@@ -69,15 +75,110 @@ export function ClientApp() {
   // (useSyncExternalStore sur localStorage — sans mismatch d'hydratation)
   const introDone = useIntroDone();
 
-  // Remonte en haut du flux à chaque changement d'onglet (scroll interne au shell)
+  // ─── Pull-to-refresh (Instagram / Wave) ───
+  const [pull, setPull] = useState(0);          // distance d'étirement (px, résistive)
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const pullStart = useRef<{ y: number; x: number; atTop: boolean } | null>(null);
+  const wasRefreshing = useRef(false);
+
+  // ─── Swipe horizontal entre onglets (TikTok) ───
+  const swipeStart = useRef<{ x: number; y: number; ok: boolean } | null>(null);
+
+  // ─── Direction de transition (sens de navigation) + connectivité ───
+  const [navDir, setNavDir] = useState<1 | -1>(1);
+  const [online, setOnline] = useState(true);
+
+  // Bandeau hors-ligne — résilience réseau façon Wave
+  useEffect(() => {
+    const update = () => setOnline(isOnline());
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+
+  // Remonte en haut du flux à chaque changement d'onglet (le tirage est
+  // réinitialisé par les gestionnaires tactiles, jamais par cet effet)
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [tab]);
 
   function goTab(t: ClientTab) {
+    if (t !== tab) {
+      const from = SWIPE_ORDER.indexOf(tab);
+      const to = SWIPE_ORDER.indexOf(t);
+      if (from >= 0 && to >= 0) setNavDir(to > from ? 1 : -1);
+      haptic(HAPTIC.tap);
+    }
     if (t === "chat") setChatUnread(false);
     setClientTab(t);
   }
+
+  // ─── Gestes tactiles du conteneur de flux ───
+  const onTouchStart = (e: React.TouchEvent) => {
+    const el = scrollRef.current;
+    const t = e.touches[0];
+    pullStart.current = { y: t.clientY, x: t.clientX, atTop: !el || el.scrollTop <= 0 };
+    // le swipe est ignoré s'il démarre dans une rangée horizontale scrollable
+    const target = e.target as HTMLElement;
+    const inScrollRow = !!target.closest("[data-scroll-row]");
+    swipeStart.current = { x: t.clientX, y: t.clientY, ok: !inScrollRow };
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (refreshing) return;
+    const s = pullStart.current;
+    if (!s || !s.atTop) return;
+    const t = e.touches[0];
+    const dy = t.clientY - s.y;
+    const dx = t.clientX - s.x;
+    if (dy <= 0 || Math.abs(dx) > Math.abs(dy)) return; // tirage vertical uniquement
+    setPull(Math.min(dy / 2.2, 96)); // résistif : l'icône s'alourdit en fin de course
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    // 1) fin de tirage → actualisation si seuil franchi
+    const dist = pull;
+    pullStart.current = null;
+    if (dist > 56) {
+      haptic(HAPTIC.medium);
+      setRefreshing(true);
+      setPull(0);
+      wasRefreshing.current = true;
+      setRefreshKey((k) => k + 1);
+    } else {
+      setPull(0);
+    }
+    // 2) swipe horizontal → onglet voisin
+    const s = swipeStart.current;
+    swipeStart.current = null;
+    if (!s || !s.ok || refreshing) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+    const idx = SWIPE_ORDER.indexOf(tab);
+    if (idx < 0) return;
+    const next = dx < 0 ? SWIPE_ORDER[idx + 1] : SWIPE_ORDER[idx - 1];
+    if (next) {
+      setNavDir(dx < 0 ? 1 : -1);
+      haptic(HAPTIC.tap);
+      setClientTab(next);
+    }
+  };
+
+  // Le fil signale la fin de son rechargement (déclenché par refreshKey)
+  const onRefreshed = useCallback(() => {
+    if (!wasRefreshing.current) return;
+    wasRefreshing.current = false;
+    setRefreshing(false);
+    haptic(HAPTIC.success);
+    toast.success("Fil actualisé", { description: `Mis à jour à ${formatTime(new Date())}` });
+  }, []);
 
   const onScanZone = useCallback(
     (z: BodyZone) => {
@@ -124,12 +225,12 @@ export function ClientApp() {
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "group rounded-2xl transition-all focus-visible:outline-2 focus-visible:outline-primary",
-                    "xl:flex xl:flex-row xl:items-center xl:justify-start xl:gap-3 xl:px-3 xl:h-12 xl:bg-gradient-to-r xl:from-[#C8951E] xl:to-[#A0522D] xl:text-[#FFF9EC] xl:shadow-md xl:hover:shadow-lg",
+                    "xl:flex xl:flex-row xl:items-center xl:justify-start xl:gap-3 xl:px-3 xl:h-12 xl:bg-gradient-to-r xl:from-[#A0522D] xl:to-[#8B1A3B] xl:text-[#FFF9EC] xl:shadow-md xl:hover:shadow-lg",
                     "flex flex-col items-center gap-1 py-2.5",
                     active && "ring-2 ring-[#C8951E]/40 xl:ring-[#FFF9EC]/60",
                   )}
                 >
-                  <span className="grid place-items-center h-11 w-11 xl:h-6 xl:w-6 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] xl:bg-transparent xl:shadow-none shadow-md group-hover:scale-105 transition-transform">
+                  <span className="grid place-items-center h-11 w-11 xl:h-6 xl:w-6 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] xl:bg-transparent xl:shadow-none shadow-md group-hover:scale-105 transition-transform">
                     <NeaOnnimIcon size={22} className="xl:hidden" />
                     <NeaOnnimIcon size={19} className="hidden xl:block" />
                   </span>
@@ -156,9 +257,15 @@ export function ClientApp() {
                     <span className="absolute -top-1 -right-1.5 h-2.5 w-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-card" aria-hidden="true" />
                   )}
                   {n.tab === "boutique" && cartCount > 0 && (
-                    <span className="absolute -top-1.5 -right-2 h-4 min-w-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-black grid place-items-center ring-2 ring-card" aria-hidden="true">
+                    <motion.span
+                      key={cartCount}
+                      initial={{ scale: 0.4 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 18 }}
+                      className="absolute -top-1.5 -right-2 h-4 min-w-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-black grid place-items-center ring-2 ring-card" aria-hidden="true"
+                    >
                       {cartCount}
-                    </span>
+                    </motion.span>
                   )}
                 </span>
                 <span className={cn("text-[10px] xl:text-[15px]", active ? "font-bold" : "font-medium")}>{n.label}</span>
@@ -198,9 +305,11 @@ export function ClientApp() {
             <div className="md:hidden">
               <KeneLogo size={32} withText />
             </div>
-            <div className="hidden md:flex items-baseline gap-2.5 min-w-0">
-              <h1 className="font-heading font-bold text-lg xl:text-xl truncate">{TITLES[tab]}</h1>
-              <p className="text-[11px] text-muted-foreground truncate hidden xl:block">
+            {/* h1 de vue : présent pour les lecteurs d'écran à TOUS les formats
+                (sr-only mobile, visible md+ — un seul h1 par vue) */}
+            <div className="flex items-baseline gap-2.5 min-w-0">
+              <h1 className="sr-only md:not-sr-only md:font-heading md:font-bold md:text-lg xl:text-xl truncate">{TITLES[tab]}</h1>
+              <p className="hidden xl:block text-[11px] text-muted-foreground truncate">
                 {tab === "accueil" ? `Bonjour ${first} ✨` : tab === "chat" ? "Éducation cutanée · en ligne" : "Kènè — la beauté mélanoderme"}
               </p>
             </div>
@@ -219,20 +328,54 @@ export function ClientApp() {
             </div>
           </div>
           <div aria-hidden="true" className="kente-band-soft h-[3px] w-full" />
+          {/* Bandeau hors-ligne — le contenu affiché reste disponible (façon Wave) */}
+          {!online && (
+            <div role="status" className="flex items-center justify-center gap-2 bg-gold/15 text-gold-text text-[11px] font-semibold py-1.5 border-b border-gold/30">
+              <WifiOff size={13} aria-hidden="true" />
+              Connexion perdue — tes données restent affichées, réessaie quand le réseau revient
+            </div>
+          )}
         </header>
 
-        {/* Zone de flux — scroll interne (l'app ne scrolle jamais le document) */}
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pretty-scroll">
+        {/* Zone de flux — scroll interne (l'app ne scrolle jamais le document)
+            Gestes : tirer-actualiser + balayage horizontal entre onglets (tactile) */}
+        <div
+          ref={scrollRef}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pretty-scroll"
+        >
+          {/* Indicateur pull-to-refresh (Instagram) — icône qui descend avec le doigt */}
+          {(pull > 0 || refreshing) && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute top-0 inset-x-0 z-30 flex flex-col items-center pt-2"
+              style={{
+                transform: `translateY(${refreshing ? 0 : Math.min(Math.max(pull - 44, 0), 52)}px)`,
+                transition: pull > 0 ? "none" : "transform .3s ease",
+              }}
+            >
+              <span className="grid place-items-center h-11 w-11 rounded-full glass-kene border border-border shadow-md">
+                {refreshing ? (
+                  <Loader2 size={20} className="animate-spin text-primary" />
+                ) : (
+                  <NeaOnnimIcon size={20} className="text-primary" />
+                )}
+              </span>
+            </div>
+          )}
+          {refreshing && <span role="status" className="sr-only">Actualisation du fil en cours</span>}
           <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-28 md:pb-10">
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={tab}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
+                initial={{ opacity: 0, x: 16 * navDir, y: 6 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                exit={{ opacity: 0, x: -12 * navDir, y: -4 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
               >
-                {tab === "accueil" && <HomeScreen onScanZone={onScanZone} />}
+                {tab === "accueil" && <HomeScreen onScanZone={onScanZone} refreshKey={refreshKey} onRefreshed={onRefreshed} />}
                 {tab === "diagnostic" && <DiagnosticScreen pendingZone={pendingZone} onZoneConsumed={onZoneConsumed} />}
                 {tab === "boutique" && <ShopScreen />}
                 {tab === "rdv" && <BookingScreen />}
@@ -264,7 +407,7 @@ export function ClientApp() {
                     <span
                       className={cn(
                         "grid place-items-center h-[52px] w-[52px] -mt-6 rounded-full border-4 border-background shadow-lg transition-all active:scale-95",
-                        active ? "bg-gradient-to-br from-[#C8951E] to-[#8B1A3B]" : "bg-gradient-to-br from-[#C8951E] to-[#A0522D]",
+                        "bg-gradient-to-br from-[#A0522D] to-[#8B1A3B]",
                       )}
                     >
                       <NeaOnnimIcon size={24} />
@@ -287,9 +430,15 @@ export function ClientApp() {
                   <span className="relative">
                     <Icon className={active ? "size-[23px] font-bold" : "size-[23px]"} />
                     {n.tab === "boutique" && cartCount > 0 && (
-                      <span className="absolute -top-1.5 -right-2 h-4 min-w-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-black grid place-items-center ring-2 ring-background" aria-hidden="true">
+                      <motion.span
+                        key={cartCount}
+                        initial={{ scale: 0.4 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 18 }}
+                        className="absolute -top-1.5 -right-2 h-4 min-w-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-black grid place-items-center ring-2 ring-background" aria-hidden="true"
+                      >
                         {cartCount}
-                      </span>
+                      </motion.span>
                     )}
                   </span>
                   <span className={cn("text-[10px]", active ? "font-bold" : "font-semibold")}>{n.label}</span>
@@ -307,7 +456,7 @@ export function ClientApp() {
           {/* Mini-profil */}
           <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
             <div className="flex items-center gap-3.5">
-              <span className="grid place-items-center h-14 w-14 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] font-heading font-bold text-xl shadow">
+              <span className="grid place-items-center h-14 w-14 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] font-heading font-bold text-xl shadow">
                 {first.charAt(0)}
               </span>
               <div className="min-w-0">
@@ -326,7 +475,7 @@ export function ClientApp() {
 
           {/* Actions rapides */}
           <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => goTab("diagnostic")} className="rounded-2xl bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] p-3.5 text-left shadow-md active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Scanner ma peau">
+            <button onClick={() => goTab("diagnostic")} className="rounded-2xl bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] p-3.5 text-left shadow-md active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Scanner ma peau">
               <NeaOnnimIcon size={20} />
               <p className="text-xs font-bold mt-1.5 leading-tight">Scanner<br />ma peau</p>
             </button>

@@ -62,7 +62,7 @@ export function SpeakButton({
       onClick={toggle}
       disabled={state === "loading"}
       aria-label={state === "playing" ? `Arrêter : ${label ?? text.slice(0, 40)}` : `Écouter : ${label ?? text.slice(0, 40)}`}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-full border border-primary/50 text-primary text-[11px] font-bold px-3 h-8 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full border border-primary/50 text-primary text-[11px] font-bold px-3.5 min-h-11 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 ${className}`}
     >
       {state === "playing" ? (
         <>

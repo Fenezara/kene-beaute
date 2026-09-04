@@ -21,7 +21,7 @@ export function ThemeToggle() {
         variant="outline"
         size="icon"
         aria-label="Passer en mode sombre"
-        className="rounded-full border-border bg-card/70 dark:hidden"
+        className="size-11 rounded-full border-border bg-card/70 dark:hidden"
         onClick={() => setTheme("dark")}
       >
         <Moon className="size-4" />
@@ -30,7 +30,7 @@ export function ThemeToggle() {
         variant="outline"
         size="icon"
         aria-label="Passer en mode clair"
-        className="rounded-full border-border bg-card/70 hidden dark:flex"
+        className="size-11 rounded-full border-border bg-card/70 hidden dark:flex"
         onClick={() => setTheme("light")}
       >
         <SunMedium className="size-4" />

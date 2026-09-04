@@ -22,7 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { apiGet, apiPost, resizeImage } from "@/lib/kene/api";
-import { formatDate, formatTime, scoreColor } from "@/lib/kene/format";
+import { formatDate, formatTime, scoreVar } from "@/lib/kene/format";
 import { BODY_ZONES } from "@/lib/kene/types";
 import type { BodyZone } from "@/lib/kene/types";
 import {
@@ -93,7 +93,7 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
       <Card className="overflow-hidden pt-0 border-gold/25">
         <KenteTop />
         <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-gold/12 text-gold shrink-0">
+          <span className="grid size-10 place-items-center rounded-xl bg-gold/12 text-gold-text shrink-0">
             <Sparkles className="size-5" aria-hidden="true" />
           </span>
           <p className="text-sm leading-relaxed text-muted-foreground">
@@ -164,11 +164,11 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
                         Vigilance
                       </Badge>
                     )}
-                    <Badge variant="outline" className={cn("text-[10px]", d.vlmUsed ? "bg-gold/10 text-gold border-gold/30" : "bg-muted text-muted-foreground")}>
+                    <Badge variant="outline" className={cn("text-[10px]", d.vlmUsed ? "bg-gold/10 text-gold-text border-gold/30" : "bg-muted text-muted-foreground")}>
                       {d.vlmUsed ? "Photo IA" : "Entretien"}
                     </Badge>
                     <div className="text-right shrink-0">
-                      <p className="font-mono text-sm font-bold tabular-nums" style={{ color: scoreColor(d.scoreGlobal) }}>
+                      <p className="font-mono text-sm font-bold tabular-nums" style={{ color: scoreVar(d.scoreGlobal) }}>
                         {d.scoreGlobal}
                       </p>
                       <p className="text-[10px] text-muted-foreground font-mono">
@@ -570,7 +570,7 @@ function ClientStep({
               aria-checked={zone === z.id}
               onClick={() => onZone(z.id)}
               className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                "rounded-full px-3 py-1.5 min-h-11 text-xs font-medium transition-colors",
                 zone === z.id ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:text-foreground"
               )}
             >
@@ -658,7 +658,7 @@ function QuestionnaireStep({
                       </span>
                     )}
                     {q.sensitive && (
-                      <Badge variant="outline" className="ml-2 bg-gold/10 text-gold border-gold/30 text-[9px] align-middle">
+                      <Badge variant="outline" className="ml-2 bg-gold/10 text-gold-text border-gold/30 text-[9px] align-middle">
                         important
                       </Badge>
                     )}
@@ -689,6 +689,7 @@ function QuestionnaireStep({
                       className={cn("mt-2 flex flex-wrap gap-1.5", q.type === "multi" ? "pt-0" : "pt-0")}
                       role={q.type === "single" ? "radiogroup" : "group"}
                       aria-label={q.label}
+                      aria-required={q.required}
                     >
                       {q.options.map((o) => {
                         const active =
@@ -702,7 +703,7 @@ function QuestionnaireStep({
                             aria-pressed={q.type === "multi" ? active : undefined}
                             onClick={() => (q.type === "multi" ? toggleMulti(q.id, o.value) : setAnswer(q.id, o.value))}
                             className={cn(
-                              "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                              "rounded-full px-3 py-1.5 min-h-11 text-xs font-medium transition-colors",
                               active
                                 ? "bg-primary text-primary-foreground shadow-sm"
                                 : "bg-muted text-muted-foreground hover:text-foreground"
@@ -897,7 +898,7 @@ function ResultStep({
 
 const FLAG_STYLES = {
   danger: { icon: OctagonAlert, cls: "border-bissap/40 bg-bissap/5 text-bissap" },
-  warn: { icon: OctagonAlert, cls: "border-gold/40 bg-gold/5 text-gold" },
+  warn: { icon: OctagonAlert, cls: "border-gold/40 bg-gold/5 text-gold-text" },
   info: { icon: Info, cls: "border-border bg-muted/50 text-muted-foreground" },
 } as const;
 
@@ -914,7 +915,7 @@ export function ResultView({
   photo?: string | null;
   meta?: { zone?: string; createdAt?: string; practitioner?: string | null };
 }) {
-  const color = scoreColor(result.score_global);
+  const color = scoreVar(result.score_global);
   const pct = Math.max(4, Math.min(100, result.score_global));
   const verdict =
     result.score_global >= 80 ? "Peau équilibrée" : result.score_global >= 65 ? "Équilibre correct" : result.score_global >= 50 ? "Attention ciblée" : "Protocole de fond";
@@ -960,7 +961,7 @@ export function ResultView({
                 </p>
               )}
               <div className="mt-1.5 flex flex-wrap gap-1.5">
-                <Badge variant="outline" className={cn("text-[10px]", result.source.includes("vlm") ? "bg-gold/10 text-gold border-gold/30" : "bg-muted text-muted-foreground")}>
+                <Badge variant="outline" className={cn("text-[10px]", result.source.includes("vlm") ? "bg-gold/10 text-gold-text border-gold/30" : "bg-muted text-muted-foreground")}>
                   {result.source === "vlm+questionnaire" ? "Entretien + photo IA" : "Entretien seul"}
                 </Badge>
                 {result.questionnaire && (
@@ -983,7 +984,7 @@ export function ResultView({
       {/* Vigilances */}
       {flags.length > 0 && (
         <section aria-label="Points de vigilance">
-          <h4 className="font-heading text-sm font-bold mb-2">Vigilances de l&apos;entretien</h4>
+          <h3 className="font-heading text-sm font-bold mb-2">Vigilances de l&apos;entretien</h3>
           <ul className="space-y-2">
             {flags.map((f, i) => {
               const st = FLAG_STYLES[f.level] ?? FLAG_STYLES.info;
@@ -1004,7 +1005,7 @@ export function ResultView({
 
       {/* Photo + indicateurs */}
       <section aria-label="Indicateurs">
-        <h4 className="font-heading text-sm font-bold mb-2">Indicateurs de la zone</h4>
+        <h3 className="font-heading text-sm font-bold mb-2">Indicateurs de la zone</h3>
         <div className={cn("grid gap-3", photo ? "sm:grid-cols-[10rem_1fr]" : "")}>
           {photo && (
             <div className="rounded-xl overflow-hidden border border-border h-fit">
@@ -1014,7 +1015,7 @@ export function ResultView({
           )}
           <ul className="space-y-2 min-w-0">
             {sortedIndicators.map((ind) => {
-              const c = scoreColor(ind.pourcentage);
+              const c = scoreVar(ind.pourcentage);
               return (
                 <li key={ind.nom}>
                   <div className="flex items-baseline justify-between gap-2">
@@ -1037,7 +1038,7 @@ export function ResultView({
       {/* Recommandations */}
       {rec && (
         <section aria-label="Recommandations">
-          <h4 className="font-heading text-sm font-bold mb-2">Protocole recommandé</h4>
+          <h3 className="font-heading text-sm font-bold mb-2">Protocole recommandé</h3>
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {rec.routine_matin?.length > 0 && (
@@ -1046,7 +1047,7 @@ export function ResultView({
                   <ul className="space-y-1">
                     {rec.routine_matin.map((s, i) => (
                       <li key={i} className="text-xs flex gap-1.5">
-                        <span className="text-gold font-mono shrink-0" aria-hidden="true">
+                        <span className="text-gold-text font-mono shrink-0" aria-hidden="true">
                           {i + 1}.
                         </span>
                         {s}
@@ -1078,7 +1079,7 @@ export function ResultView({
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Botaniques</p>
                   <div className="flex flex-wrap gap-1.5">
                     {rec.botaniques_conseillees.map((b, i) => (
-                      <Badge key={i} variant="outline" className="text-[10px] bg-gold/8 text-gold border-gold/25">
+                      <Badge key={i} variant="outline" className="text-[10px] bg-gold/8 text-gold-text border-gold/25">
                         {b}
                       </Badge>
                     ))}

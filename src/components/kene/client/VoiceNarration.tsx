@@ -129,7 +129,7 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
           onClick={toggleSlow}
           aria-pressed={slow}
           aria-label="Lecture lente (pour mieux comprendre à l'écoute)"
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 h-6 text-[10px] font-bold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-9 text-[10px] font-bold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${
             slow ? "bg-primary/15 text-primary border border-primary/40" : "text-muted-foreground border border-border"
           }`}
         >
@@ -147,7 +147,7 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
               onClick={() => switchLang(l.code)}
               aria-pressed={lang === l.code}
               aria-label={`Lire en ${l.label}`}
-              className={`h-5 rounded-full px-2 text-[10px] font-bold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${
+              className={`min-h-9 rounded-full px-3 text-[10px] font-bold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${
                 lang === l.code ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >

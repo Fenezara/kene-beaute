@@ -3,10 +3,11 @@
 // + « Mes commandes » : historique des commandes enregistrées (consultation par la cliente).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, Check, History, Loader2, Minus, Plus, Search, ShoppingBag, Tag, Trash2, X } from "lucide-react";
+import { BadgeCheck, History, Loader2, Minus, Plus, Search, ShoppingBag, Tag, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof, CASHBACK_RATE, formatDate, formatTime } from "@/lib/kene/format";
+import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { MOMO_OPERATORS } from "@/lib/kene/rfm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,7 +16,7 @@ import { KenteWeaveCard } from "@/components/kene/weave/KenteWeaveCard";
 import { categoryThread } from "@/components/kene/weave/threads";
 import type { ApiOrder, ApiPayment, ApiProduct, ApiWallet } from "./types";
 import { SHOP_CATEGORIES } from "./types";
-import { EmptyBlock, Stars } from "./bits";
+import { EmptyBlock, Stars, SuccessBurst } from "./bits";
 
 type PayMethod = "wave" | "orange" | "wallet";
 
@@ -43,6 +44,34 @@ export function ShopScreen() {
   const [wallet, setWallet] = useState<ApiWallet | null>(null);
   const [payState, setPayState] = useState<{ phase: "processing" | "success"; method: PayMethod; amount: number } | null>(null);
   const [paying, setPaying] = useState(false);
+
+  // ─── Double-tap « ajout rapide » (TikTok Shop / Instagram) ───
+  // 1er tap = ouvre la fiche (avec un délai court annulable) ; 2e tap < 320 ms
+  // = ajoute directement au panier + burst animé sur la carte.
+  const lastTap = useRef<{ id: string; t: number; timer: number | null }>({ id: "", t: 0, timer: null });
+  const [burst, setBurst] = useState<{ id: string; x: number; y: number } | null>(null);
+
+  const onCardTap = (p: ApiProduct, e: React.MouseEvent<HTMLButtonElement>) => {
+    const now = Date.now();
+    const s = lastTap.current;
+    if (s.id === p.id && now - s.t < 320 && s.timer) {
+      window.clearTimeout(s.timer);
+      lastTap.current = { id: "", t: 0, timer: null };
+      addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image });
+      haptic(HAPTIC.light);
+      const rect = e.currentTarget.getBoundingClientRect();
+      setBurst({ id: p.id, x: e.clientX - rect.left, y: e.clientY - rect.top });
+      window.setTimeout(() => setBurst(null), 700);
+      toast.success(`${p.name} ajouté au panier`, { description: "Astuce : double-tape une carte pour l'ajouter en 1 geste" });
+    } else {
+      if (s.timer) window.clearTimeout(s.timer);
+      const timer = window.setTimeout(() => {
+        setDetail(p);
+        setQty(1);
+      }, 240);
+      lastTap.current = { id: p.id, t: now, timer };
+    }
+  };
   const [promoInput, setPromoInput] = useState("");
   const [promoChecking, setPromoChecking] = useState(false);
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
@@ -133,6 +162,7 @@ export function ShopScreen() {
         await new Promise((res) => setTimeout(res, 1200));
       }
       setPayState({ phase: "success", method, amount });
+      haptic(HAPTIC.success);
       clearCart();
       setPromo(null); // le coupon est consommé : remise à zéro pour la prochaine commande
       void refreshOrders(); // la nouvelle commande apparaît dans « Mes commandes »
@@ -234,10 +264,27 @@ export function ShopScreen() {
           {filtered.map((p) => (
             <button
               key={p.id}
-              onClick={() => { setDetail(p); setQty(1); }}
-              className="text-left rounded-2xl border border-border bg-card overflow-hidden shadow-sm active:scale-[0.98] transition-transform hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-primary"
-              aria-label={`${p.name}, ${xof(p.price)}`}
+              onClick={(e) => onCardTap(p, e)}
+              className="relative text-left rounded-2xl border border-border bg-card overflow-hidden shadow-sm active:scale-[0.98] transition-transform hover:border-primary/40 touch-manipulation focus-visible:outline-2 focus-visible:outline-primary"
+              aria-label={`${p.name}, ${xof(p.price)} — appuie une fois pour la fiche, deux fois pour l'ajouter au panier`}
             >
+              {/* Burst double-tap — panier kente qui jaillit sous le doigt */}
+              {burst?.id === p.id && (
+                <motion.span
+                  aria-hidden="true"
+                  initial={{ scale: 0.3, opacity: 0.95 }}
+                  animate={{ scale: 1.7, opacity: 0 }}
+                  transition={{ duration: 0.65, ease: "easeOut" }}
+                  className="pointer-events-none absolute z-20"
+                  style={{ left: burst.x, top: burst.y }}
+                >
+                  <span className="grid place-items-center h-20 w-20 -ml-10 -mt-10 rounded-full bg-[#FFF9EC]/30 backdrop-blur-[2px] shadow-xl">
+                    <span className="grid place-items-center h-12 w-12 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] shadow-lg">
+                      <ShoppingBag size={22} className="text-[#FFF9EC]" />
+                    </span>
+                  </span>
+                </motion.span>
+              )}
               <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full object-cover" />
               <div className="p-2.5">
                 <p className="text-[13px] font-semibold leading-tight line-clamp-2 min-h-9">{p.name}</p>
@@ -259,18 +306,18 @@ export function ShopScreen() {
         {cart.length > 0 && !payState && (
           <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="sticky bottom-[84px] z-20 mt-4">
             <button
-              onClick={() => setCheckout(true)}
-              className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#C8951E] to-[#A0522D] text-[#FFF9EC] shadow-xl flex items-center justify-between px-4 active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              onClick={() => { setCheckout(true); haptic(HAPTIC.tap); }}
+              className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] shadow-xl flex items-center justify-between px-4 active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               aria-label={`Panier ${cart.length} articles, total ${xof(subtotal)} — commander`}
             >
               <span className="flex items-center gap-2 text-sm font-semibold">
-                <span className="relative">
+                <span className="relative" aria-hidden="true">
                   <ShoppingBag size={20} />
                   <span className="absolute -top-1.5 -right-2 h-4 min-w-4 px-0.5 rounded-full bg-[#FFF9EC] text-[#A0520F] text-[9px] font-black grid place-items-center">{cart.reduce((s, l) => s + l.qty, 0)}</span>
                 </span>
-                {cart.length} article{cart.length > 1 ? "s" : ""}
+                <span aria-hidden="true">{cart.length} article{cart.length > 1 ? "s" : ""}</span>
               </span>
-              <span className="font-mono font-black text-base">{xof(subtotal)}</span>
+              <span className="font-mono font-black text-base" aria-hidden="true">{xof(subtotal)}</span>
             </button>
           </motion.div>
         )}
@@ -433,10 +480,21 @@ export function ShopScreen() {
         </SheetContent>
       </Sheet>
 
-      {/* Overlay paiement simulé plein écran */}
+      {/* Overlay paiement simulé plein écran — dialog accessible (pattern RitualJourney) */}
       <AnimatePresence>
         {payState && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] bg-[#1A1410]/97 backdrop-blur-sm grid place-items-center">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={payState.phase === "processing" ? `Paiement en cours, ${xof(payState.amount)}` : "Paiement réussi"}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && payState.phase === "success") setPayState(null);
+            }}
+            className="fixed inset-0 z-[70] bg-[#1A1410]/97 backdrop-blur-sm grid place-items-center"
+          >
             <div className="w-full max-w-[560px] mx-auto px-6">
               {payState.phase === "processing" ? (
                 <div className="flex flex-col items-center gap-5 text-center" aria-live="polite">
@@ -445,22 +503,21 @@ export function ShopScreen() {
                   </div>
                   <p className="font-heading font-bold text-lg text-[#F8F1E4]">{op(payState.method)?.name ?? "Wallet Kènè"}</p>
                   <p className="font-mono text-3xl font-black text-[#F8F1E4]">{xof(payState.amount)}</p>
-                  <p className="text-[11px] text-[#F8F1E4]/60 font-mono">+{user.phone.slice(0, 9)}···</p>
+                  <p className="text-[11px] text-[#F8F1E4]/70 font-mono">+{user.phone.slice(0, 9)}···</p>
                   <div className="flex items-center gap-2 text-sm text-[#F8F1E4]/80">
-                    <Loader2 size={16} className="animate-spin" /> Traitement en cours…
+                    <Loader2 size={16} className="animate-spin" aria-hidden="true" /> Traitement en cours…
                   </div>
-                  <p className="text-[10px] text-[#F8F1E4]/40">Paiement mobile money simulé — POC</p>
+                  <p className="text-[10px] text-[#F8F1E4]/60">Paiement mobile money simulé — POC</p>
                 </div>
               ) : (
                 <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 18 }} className="flex flex-col items-center gap-4 text-center py-6">
-                  <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.15, type: "spring", stiffness: 300, damping: 15 }} className="grid place-items-center h-20 w-20 rounded-full bg-[#3F7D3F] shadow-xl">
-                    <Check size={40} className="text-white" strokeWidth={3} />
-                  </motion.span>
+                  <SuccessBurst />
                   <p className="font-heading font-black text-xl text-[#F8F1E4]">Paiement réussi</p>
-                  <p className="text-xs text-[#F8F1E4]/70 max-w-[280px] leading-relaxed">
-                    Commande confirmée. <span className="flex items-center gap-1 justify-center mt-1 text-[#C8951E] font-semibold"><BadgeCheck size={13} /> Cashback {xof(Math.round(payState.amount * cashbackRate))} crédité sur ton wallet Kènè</span>
+                  <p className="font-mono text-sm font-bold text-[#F8F1E4]/90">{xof(payState.amount)}</p>
+                  <p className="text-xs text-[#F8F1E4]/70 max-w-[300px] leading-relaxed">
+                    Commande confirmée. <span className="flex items-center gap-1 justify-center mt-1 text-gold-text dark:text-[#E3B454] font-semibold"><BadgeCheck size={13} aria-hidden="true" /> Cashback {xof(Math.round(payState.amount * cashbackRate))} crédité sur ton wallet Kènè</span>
                   </p>
-                  <button onClick={() => setPayState(null)} className="mt-2 h-12 px-8 rounded-xl bg-primary text-primary-foreground font-semibold shadow active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+                  <button autoFocus onClick={() => setPayState(null)} className="mt-2 h-12 px-8 rounded-xl bg-primary text-primary-foreground font-semibold shadow active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
                     Continuer mes achats
                   </button>
                 </motion.div>

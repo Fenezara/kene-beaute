@@ -16,7 +16,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useKene } from "@/store/kene";
 import type { ApiAppointment, ApiInstitute, ApiPayment, ApiResource, ApiReview, ApiService, ApiSlot, ApiWallet } from "./types";
-import { ApptBadge, EmptyBlock, MomoProcessing, SectionTitle, Stars } from "./bits";
+import { ApptBadge, EmptyBlock, MomoProcessing, SectionTitle, Stars, SuccessBurst } from "./bits";
+import { HAPTIC, haptic } from "@/lib/kene/ux";
 
 type PayMethod = "wave" | "wallet";
 
@@ -157,6 +158,7 @@ export function BookingScreen() {
         await new Promise((res) => setTimeout(res, 1200));
       }
       setPayOverlay({ phase: "done", amount: deposit });
+      haptic(HAPTIC.success);
       setTimeout(() => setPayOverlay(null), 1400);
       setConfirmed(r.appointment);
       const w = await apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).catch(() => null);
@@ -552,10 +554,19 @@ export function BookingScreen() {
         </DialogContent>
       </Dialog>
 
-      {/* Overlay paiement acompte simulé */}
+      {/* Overlay paiement acompte simulé — dialog accessible (pattern RitualJourney) */}
       <AnimatePresence>
         {payOverlay && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] bg-[#1A1410]/97 grid place-items-center">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={payOverlay.phase === "processing" ? `Paiement de l'acompte en cours, ${xof(payOverlay.amount)}` : "Acompte confirmé"}
+            aria-live="polite"
+            className="fixed inset-0 z-[70] bg-[#1A1410]/97 grid place-items-center"
+          >
             <div className="w-full max-w-[560px] mx-auto px-6">
               {payOverlay.phase === "processing" ? (
                 payMethod === "wave" ? (
@@ -565,15 +576,14 @@ export function BookingScreen() {
                     <span className="grid place-items-center h-20 w-20 rounded-3xl bg-melanine text-[#C8951E] font-heading font-black text-2xl">K</span>
                     <p className="font-heading font-bold text-lg text-[#F8F1E4]">Wallet Kènè</p>
                     <p className="font-mono text-3xl font-black text-[#F8F1E4]">{xof(payOverlay.amount)}</p>
-                    <div className="flex items-center gap-2 text-sm text-[#F8F1E4]/80"><Loader2 size={16} className="animate-spin" /> Débit du wallet…</div>
+                    <div className="flex items-center gap-2 text-sm text-[#F8F1E4]/80"><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Débit du wallet…</div>
                   </div>
                 )
               ) : (
                 <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 18 }} className="flex flex-col items-center gap-4 text-center py-6">
-                  <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 15 }} className="grid place-items-center h-20 w-20 rounded-full bg-[#3F7D3F] shadow-xl">
-                    <Check size={40} className="text-white" strokeWidth={3} />
-                  </motion.span>
+                  <SuccessBurst />
                   <p className="font-heading font-black text-xl text-[#F8F1E4]">Acompte confirmé</p>
+                  <p className="font-mono text-sm font-bold text-[#F8F1E4]/90">{xof(payOverlay.amount)}</p>
                 </motion.div>
               )}
             </div>

@@ -226,7 +226,7 @@ export function Onboarding() {
               <button
                 onClick={startDemo}
                 disabled={loading}
-                className="mx-auto text-[12px] text-muted-foreground underline underline-offset-4 decoration-dotted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary rounded"
+                className="mx-auto inline-flex items-center min-h-11 px-3 text-[12px] text-muted-foreground underline underline-offset-4 decoration-dotted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary rounded"
               >
                 Démo — Entrer comme Mariam (compte riche : 3 diagnostics, wallet)
               </button>
@@ -240,21 +240,24 @@ export function Onboarding() {
         {/* ───── Étape 2 — OTP ───── */}
         {step === 1 && (
           <motion.div key="s1" {...slide} transition={{ duration: 0.35 }} className="px-5 pt-10 flex flex-col min-h-[70vh]">
-            <button onClick={() => setStep(0)} className="self-start inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour">
-              <ChevronLeft size={16} /> Modifier le numéro
+            <button onClick={() => setStep(0)} className="self-start inline-flex items-center gap-1 min-h-11 px-2 -ml-2 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour">
+              <ChevronLeft size={16} aria-hidden="true" /> Modifier le numéro
             </button>
             <h1 className="font-heading font-black text-xl mt-6">Confirme ton code</h1>
             <p className="text-sm text-muted-foreground mt-1">
               Saisis les 6 chiffres envoyés au <span className="font-mono">+225{digits}</span>
             </p>
             <div className="mt-8 flex justify-center">
-              <InputOTP maxLength={6} value={otp} onChange={(v) => setOtp(v)} autoFocus>
-                <InputOTPGroup>
-                  {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <InputOTPSlot key={i} index={i} />
-                  ))}
-                </InputOTPGroup>
-              </InputOTP>
+              <div className="flex flex-col items-center gap-2">
+                <span id="otp-label" className="sr-only">Code à 6 chiffres reçu par SMS</span>
+                <InputOTP maxLength={6} value={otp} onChange={(v) => setOtp(v)} autoFocus autoComplete="one-time-code" aria-labelledby="otp-label">
+                  <InputOTPGroup>
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <InputOTPSlot key={i} index={i} />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
             </div>
             <button
               onClick={() => verify()}
@@ -271,7 +274,7 @@ export function Onboarding() {
               </button>
               <p className="text-[11px] text-muted-foreground mt-1">Touche le code pour le remplir</p>
             </div>
-            <button onClick={async () => { if (await requestCode(`+225${digits}`)) toast.success("Nouveau code envoyé"); }} className="mt-4 mx-auto text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
+            <button onClick={async () => { if (await requestCode(`+225${digits}`)) toast.success("Nouveau code envoyé"); }} className="mt-4 mx-auto inline-flex items-center min-h-11 px-3 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded">
               Renvoyer le code
             </button>
 
@@ -350,7 +353,9 @@ export function Onboarding() {
 
             <section>
               <h2 className="text-sm font-semibold mb-2">Allergies connues <span className="text-muted-foreground font-normal">(facultatif)</span></h2>
+              <label htmlFor="allergies-input" className="sr-only">Allergies connues, facultatif</label>
               <textarea
+                id="allergies-input"
                 value={allergies}
                 onChange={(e) => setAllergies(e.target.value)}
                 rows={2}
