@@ -1136,3 +1136,23 @@ Stage Summary:
 - Processus reproductible établi : capture → critique VLM → correction → re-critique — l'app peut être notée objectivement à chaque itération.
 - Le VLM confirme la progression (palette « maîtrisée », « cohérente ») ; restes identifiés pour itération suivante : preuve sociale/avis dans le feed, mise en avant de la meilleure zone.
 - Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.
+
+---
+Task ID: 58
+Agent: Main (Z.ai Code)
+Task: Répondre à la question utilisateur « est-ce que c'est normal ? » avec capture d'écran de l'écran de connexion (Onboarding étape 1)
+
+Work Log:
+- Vérifié l'état du serveur via gateway :81 → 200 (pas d'OOM kill cette fois)
+- Analysé la capture uploadée (VLM glm-5v-turbo) : écran de connexion, champ téléphone avec placeholder gris « 07 01 02 03 04 », badge « POC démo », bouton doré, lien démo Mariam
+- Croisé avec le code source (Onboarding.tsx ligne 205 : placeholder, pas une valeur pré-remplie ; badge POC ligne 184 ; lien démo ligne 231)
+- Vérifié la persistance session : store zustand persist (localStorage « kene-store », partialize user/cart/space/clientTab) → la session survit aux rafraîchissements
+- E2E via agent-browser (viewport 390×844, port :81) : localStorage.clear() → intro (skip via bouton « Passer ») → écran de connexion (identique à la capture) → clic « Démo — Entrer comme Mariam » → accueil « Mariam ✨ » chargé
+- Console : 0 erreur (seul warning bénin THREE.Clock deprecated, provenant de l'intro 3D) ; dev.log : 0 erreur
+- Fermeture agent-browser pour libérer la mémoire (prévention OOM)
+- Preuve : .proofs/check-login-flow-ok.png
+
+Stage Summary:
+- Réponse : OUI, l'écran est 100 % normal. C'est l'écran de connexion attendu quand aucune session n'est active dans le navigateur de l'utilisatrice (déconnexion, cache vidé ou nouveau contexte navigateur).
+- Le numéro gris = placeholder d'exemple ; le badge « POC démo » et le lien Mariam = marqueurs de démo intentionnels ; la session persiste en localStorage une fois connectée.
+- Parcours de connexion revalidé E2E de bout en bout (intro → login → démo → accueil), aucune erreur.
