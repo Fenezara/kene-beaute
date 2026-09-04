@@ -13,64 +13,96 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 | **A — Le Fil de Kente** | Accueil | Introduction 3D immersive (WebGL, six chapitres au fil d'or) ; fallback CSS statique et `prefers-reduced-motion` |
 | **B — Ton Jumeau de Peau** | Diagnostic | Buste 3D procédural portant les marqueurs du diagnostic VLM par zone anatomique (23 pastilles, rotation interactive, orbite du Fil d'Or) ; jumeau agrégé côté Pro (CRM 360°) |
 | **C — La Route de l'Or** | Résultats | Parcours narratif en 7 étapes : 4 stations (Purifier / Soigner / Nourrir / Protéger) matchant les produits aux indicateurs du diagnostic → institut (Sankofa) → **kente de soin tissé procéduralement** (canvas 2D, navette visible, signature, PNG téléchargeable) → panier en un geste |
-| **D — Le Fil du Temps** | Historique | Skin Twin prospectif : curseur tissé S+0 → S+12, marqueurs qui guérissent en continu (modèle hybride), adhérence à la routine ; courbes d'évolution rétrospectives par indicateur (fusion floue des libellés VLM, projection pointillée dès le premier scan) |
+| **D — Le Fil du Temps** | Historique | Skin Twin prospectif : curseur tissé S+0 → S+12, marqueurs qui guérissent en continu (modèle hybride), adhérence à la routine ; courbes d'évolution rétrospectives par indicateur (fusion floue des libellés VLM, projection pointillée dès le premier scan) — aussi côté Pro (ProEvolutionCard dans le CRM) |
 | **E — Le Fil de la Boutique** | Boutique | Bande de kente tissée en WebGL dans le catalogue : chaque catégorie a SON fil (bissap / karité / or / sunset / baobab / mélanine) qui s'illumine et saute vers l'avant quand on filtre |
 
 ## Les trois espaces
 
-- **Cliente** (**shell applicatif plein écran type app 2026** — Instagram/TikTok/Facebook) : mobile = header glass (cloche live, chat, thème) + flux plein cadre + **tab-bar 5 onglets avec CTA « Scanner » central surélevé** ; tablette (≥ 768 px) = **rail d'icônes vertical façon TikTok iPad** (la tab-bar disparaît, l'écran large est exploité) ; desktop = **sidebar gauche façon Instagram web** (nav verticale + bascule Espace Pro/Admin) + feed centré 640 px + **rail droit** (mini-profil, actions rapides, légal). Feed d'accueil : **stories par zone** (re-scan 1 tap + scores en anneau, libellés 2 lignes), carte score multi-zones avec lecture vocale TTS, glossaire 1 tap, diagnostic IA, jumeau 3D, route de l'or, boutique (grille adaptative 2-3 colonnes) + checkout Wave / Orange Money / Wallet Kènè (cashback), profil & wallet, prise de RDV avec acompte, chatbot de triage, notifications temps réel. Scroll **interne au shell** (le document ne scrolle jamais) — transitions d'onglets animées, zéro espace perdu sur PC/tablette/mobile.
-- **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, CRM 360° avec fiche cliente (jumeau de peau agrégé, score RFM), catalogue soins/produits, POS (ticket SYSCOHADA) avec **cliente express** (2 champs depuis la caisse, anti-doublon multi-formats), stock, paie CNPS CI / IPM SN, comptabilité (grand livre, OD, bilan, exports CSV) et **liasse comptable PDF en 1 clic** (dossier complet 7 sections, période au choix — prête pour le comptable/DGI) — badge & flux « En direct » (RDV, ventes, commandes) via socket.io. Shell pleine largeur : mobile = chips + en-tête compact ; **tablette (≥ 768 px) = rail d'icônes 76 px** (libellés dès lg) ; desktop = sidebar 240 px libellée.
-- **Admin** : multi-instituts, santé de la plateforme (console pleine largeur, KPI 6 cartes, courbe diagnostics 14 j, top instituts).
+- **Cliente** (**shell applicatif plein écran type app 2026** — Instagram/TikTok/Facebook) : mobile = header glass (cloche live, chat, thème) + flux plein cadre + **tab-bar 5 onglets avec CTA « Scanner » central surélevé** ; tablette (≥ 768 px) = **rail d'icônes vertical façon TikTok iPad** (la tab-bar disparaît, l'écran large est exploité) ; desktop = **sidebar gauche façon Instagram web** (nav verticale + bascule Espace Pro/Admin) + feed centré 640 px + **rail droit** (mini-profil, actions rapides, légal). Feed d'accueil : **stories par zone** (re-scan 1 tap + scores en anneau, libellés 2 lignes, dégradé d'affordance au scroll), carte score multi-zones avec **lecture vocale TTS multilingue** (français complet, **résumé compact traduit en dioula / baoulé / bété**), **résumé en pictos tapables** (tuile = 1 icône + 1 mot, se lit à voix haute), glossaire 1 tap, diagnostic IA, jumeau 3D, route de l'or, boutique (grille adaptative 2-3 colonnes) + **Mes commandes** + checkout avec **code promo** (remise + cashback sur le montant payé) Wave / Orange Money / Wallet Kènè, profil & wallet, **parrainage** (« Le Fil du Parrainage » : cadeau filleule 2 000 F, bonus parraine 2 500 F à la 1re commande payée, idempotent), prise de RDV avec acompte, **rappels automatiques** (S+3 protocole, J-1, carte « Ta prochaine étape » + suivi WhatsApp live), **export « Mes données » RGPD art. 20** (JSON complet en 1 tap depuis le Profil), chatbot Dr. Kènè (LLM + triage photo), notifications temps réel. Scroll **interne au shell** (le document ne scrolle jamais — hors intro/onboarding) — transitions d'onglets animées, zéro espace perdu sur PC/tablette/mobile.
+- **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, CRM 360° (fiche cliente : jumeau de peau agrégé, évolution, ventes/RDV/notes, score RFM), **Relances « Le Fil du Retour »** (KPI, filtres, WhatsApp wa.me pré-rempli, traiter/ignorer/réactiver), catalogue soins/produits, POS (ticket SYSCOHADA) avec **cliente express** (2 champs depuis la caisse, anti-doublon multi-formats), **Promos** (coupons % ou montant fixe, création/diffusion push live), stock, paie CNPS CI / IPM SN (+ e-CNPS XML), comptabilité (grand livre, OD, bilan, exports CSV) et **liasse comptable PDF en 1 clic** (dossier complet 7 sections, période au choix — prête pour le comptable/DGI) — badge & flux « En direct » (RDV, ventes, commandes) via socket.io. Shell pleine largeur : mobile = chips + en-tête compact (institut + En direct) ; **tablette (≥ 768 px) = rail d'icônes 76 px** (libellés dès lg) ; desktop = sidebar 240 px libellée.
+- **Admin** : multi-instituts, santé de la plateforme (console pleine largeur, KPI 6 cartes dont Parrainages, courbe diagnostics 14 j, top instituts).
 
 ## Stack technique
 
 - **Next.js 16** (App Router, TypeScript strict) — tout dans `src/app`
 - **Tailwind CSS 4 + shadcn/ui** (New York) + Framer Motion ; polices Ojuju / Questrial / IBM Plex Mono
 - **Prisma + SQLite** (`prisma/schema.prisma`, client via `@/lib/db`)
-- **Zustand** (persist) pour l'état client, sonner pour les toasts
-- **3D** : @react-three/fiber + drei — rendu éprouvé en mode logiciel (DPR plafonné, `IntersectionObserver` → frameloop, refs mutables zéro re-render)
-- **IA** : VLM du SDK `z-ai-web-dev-sdk` (backend uniquement, via `src/lib/ai/vlm.ts`) pour le diagnostic photo et le triage chat ; TTS du même SDK via `POST /api/tts` (narration française du diagnostic, `src/lib/kene/narration.ts`, cache mémoire 32 Mo + cache blob client)
+- **Zustand** (persist, `src/store/kene.ts`) pour l'état client, sonner pour les toasts
+- **3D** : @react-three/fiber — rendu éprouvé en mode logiciel (DPR plafonné, `IntersectionObserver` → frameloop, refs mutables zéro re-render)
+- **IA** : VLM du SDK `z-ai-web-dev-sdk` (backend uniquement, via `src/lib/ai/vlm.ts`) pour le diagnostic photo et le triage photo du chat ; LLM du même SDK pour Dr. Kènè (`/api/dermato/chat`) et pour la **traduction des narrations vers dioula / baoulé / bété** ; TTS via `POST /api/tts` (WAV 24 kHz, cache mémoire serveur 32 Mo + cache blob client FIFO 8) — narration française complète (`src/lib/kene/narration.ts`), **résumé compact multilingue** (traduction LLM → synthèse), lecture lente 0.85×
 - **Temps réel** : mini-service socket.io `mini-services/notify-service` (port 3004, relais sans logique métier) — cloche cliente `user:{id}` + badge institut `tenant:{id}` ; poussé par `notify()` et les API, poll 8 s + push, heartbeat anti-zombie ; le front passe par la gateway (`io('/?XTransformPort=3004')`)
 - **PDF zéro-dépendance** : moteur PDF minimal maison (`src/lib/accounting/pdf.ts`) — pages A4, polices standard Helvetica (WinAnsi, accents FR), métriques AFM pour l'alignement à droite des montants, pagination & pieds de page — alimente la liasse comptable (`GET /api/pro/accounting/export?format=pdf`, ~80 Ko/7 pages en <200 ms)
 
 ## Palette & design tokens
 
-Palette panafricaine en variables CSS (light + dark) : or `#C8951E`, bissap `#8B1A3B`, vert baobab `#3F7D3F`, sunset `#E07A2B`, terre bogolan `#A0522D`, mélanine `#1A1410`, crème karité `#F8F1E4`. Variantes `--gold-text` / `--sunset-text` garantissent un contraste WCAG AA dans les deux thèmes. Bandes kente en `repeating-linear-gradient`, filigranes bogolan en `radial-gradient`.
+Palette panafricaine en variables CSS (light + dark) : or `#C8951E`, bissap `#8B1A3B`, vert baobab `#3F7D3F`, sunset `#E07A2B`, terre bogolan `#A0522D`, mélanine `#1A1410`, crème karité `#F8F1E4`. Variantes `--gold-text` / `--sunset-text` garantissent un contraste WCAG AA dans les deux thèmes (contrastes vérifiés au mesureur : tab-bar ≥ 8.6:1, stories ≥ 7.7:1 en sombre). Bandes kente en `repeating-linear-gradient`, filigranes bogolan en `radial-gradient`.
 
 ## Architecture
 
 ```
 src/
-├─ app/                    # route unique / + API routes
-│  └─ api/                 # admin, appointments, auth, dermato, diagnoses
-│                          # (+ /evolution), institutes, orders, payments,
-│                          # pro, shop, wallet
+├─ app/
+│  ├─ page.tsx             # route unique /
+│  └─ api/                 # 47 routes :
+│     ├─ auth/             #   otp/request · otp/verify · consent · profile
+│     │                     #   (+ profile/export — portabilité RGPD)
+│     ├─ diagnoses/        #   GET,POST (+ /evolution)
+│     ├─ dermato/          #   photo (VLM) · chat (LLM Dr. Kènè)
+│     ├─ appointments/     #   GET,POST (+ [id]/cancel · [id]/review)
+│     ├─ institutes/       #   (+ [id] · [id]/availability)
+│     ├─ shop/products · orders · payments/ (initiate·confirm)
+│     ├─ wallet/           #   (+ /topup)
+│     ├─ coupons/          #   /validate (checkout)
+│     ├─ referral/         #   (+ /redeem)
+│     ├─ notifications/    #   (+ /read)
+│     ├─ tts/              #   POST — synthèse vocale (lang fr|dy|bq|bt)
+│     ├─ pro/              #   overview · live · appointments · clients
+│     │                     #   (+ express) · catalog · coupons (+ diffuse)
+│     │                     #   sales · stock · followups · employees
+│     │                     #   (+ attendance) · payroll (+ run · ecnps)
+│     │                     #   accounting (+ manual · export csv|pdf)
+│     └─ admin/stats
 ├─ components/kene/
-│  ├─ client/              # écrans cliente (mobile-first)
-│  ├─ pro/                 # back-office institut
-│  ├─ admin/               # supervision
-│  ├─ intro/               # Phase A — intro 3D (chapters.ts, Intro3D…)
-│  ├─ skintwin/            # Phases B & D — jumeau 3D + projection S+12
-│  ├─ route/               # Phase C — Route de l'Or (ritual.ts, WovenBand…)
-│  ├─ evolution/           # Phase D — courbes d'évolution (SVG pur)
-│  ├─ weave/               # Phase E — bande kente WebGL réutilisable
-│  ├─ icons.tsx / ThemeToggle / SpaceSwitcher
-├─ lib/kene/               # lib PURES (aucune dépendance React) :
-│  │  ├─ format.ts         # xof(), dates, scoreColor(), readableTextColor(),
-│  │  │                    # CASHBACK_RATE, DEPOSIT_RATE, SEVERITY_STYLES
-│  │  ├─ evolution.ts      # agrégation historique + projection S+12
-│  │  ├─ rfm.ts / server.ts / api.ts / types.ts
-└─ stores/ (zustand) · prisma/ · db/
+│  ├─ client/              # ClientApp (shell) · HomeScreen (feed) ·
+│  │                       # DiagnosticScreen · ShopScreen · BookingScreen ·
+│  │                       # ChatScreen · ProfileScreen · NotificationCenter ·
+│  │                       # VoiceNarration (+ langues) · PictoSummary ·
+│  │                       # ParrainageCard · GlossaryDialog · SpeakButton ·
+│  │                       # ttsAudio (cache blob) · bits · types
+│  ├─ pro/                 # ProApp (shell) · Dashboard · Agenda · Pos ·
+│  │                       # Crm · Relances · Catalog · Coupons · Stock ·
+│  │                       # Payroll · Accounting · types · ui-bits · useApi
+│  ├─ admin/AdminApp.tsx
+│  ├─ intro/               # Phase A — KenteIntro · Intro3D · chapters · introState
+│  ├─ skintwin/            # Phases B & D — SkinTwinCard · SkinTwinScene ·
+│  │                       # ProjectionSlider · twinMath · mode
+│  ├─ route/               # Phase C — RitualJourney · WovenBand · ritual
+│  ├─ evolution/           # EvolutionCard (cliente) · ProEvolutionCard (CRM)
+│  ├─ weave/               # Phase E — KenteWeaveCard · KenteWeaveScene · threads
+│  └─ icons.tsx · ThemeToggle · SpaceSwitcher
+├─ lib/
+│  ├─ kene/                # lib PURES (aucune dépendance React) :
+│  │   ├─ format.ts        #   xof(), dates, scoreColor(), contrastes…
+│  │   ├─ narration.ts     #   narration FR + compacte multilingue + NARRATION_LANGS
+│  │   ├─ glossary.ts      #   28 définitions simples (≤300 chars, TTS-compatible)
+│  │   ├─ evolution.ts · coupons.ts · followups.ts · referral.ts ·
+│  │   ├─ reminders.ts · narration · live-socket.ts · realtime.ts
+│  │   └─ rfm.ts · server.ts · api.ts · types.ts
+│  ├─ accounting/          # syscohada · csv · pdf (moteur PDF maison)
+│  └─ ai/vlm.ts            # prompts + parsing VLM (tri-tiers VLM→heuristique)
+├─ store/kene.ts           # zustand (persist)
+prisma/ (schéma + seed) · db/ (SQLite) · mini-services/notify-service/
 ```
 
-À côté de `src/` : `mini-services/notify-service/` — relais socket.io :3004 (temps réel cloche cliente + badge institut), consommé par le front via la gateway (`io('/?XTransformPort=3004')`).
+À côté de `src/` : `mini-services/notify-service/` — relais socket.io :3004 (temps réel cloche cliente + badge institut), consommé par le front via la gateway (`io('/?XTransformPort=3004')`). Démarrage : `cd mini-services/notify-service && bun run dev` (bun --hot, port 3004).
 
 **Règles maison** (issues des phases précédentes) :
 1. Toute monnaie passe par `xof()` (mono + séparateurs fr-FR).
 2. Le taux de cashback vient de la wallet cliente (`CASHBACK_RATE` en fallback) ; l'acompte RDV (30 % = `DEPOSIT_RATE`) est **revalidé côté serveur**.
 3. Les scènes 3D ne mutent rien qui dérive de props : état interne possédé, props lues et comparées ; couleurs d'instances re-uploadées seulement pendant les transitions.
 4. Chaque scène WebGL a un fallback (`#twin-static`, `#weave-static`, reduced-motion, WebGL absent).
-5. Perf en rendu logiciel : Lambert + normales plates, pas d'opacité, pas de MSAA, DPR ≤ 1,5, budget ~60 fps.
+5. Perf en rendu logiciel : Lambert + normales plates, pas d'opacité, DPR ≤ 1,5, budget ~60 fps.
+6. Toute rangée horizontale scrollable porte un **signal d'affordance** (cercle partiel + dégradé `ScrollFadeRow`) : le contenu hors écran doit rester découvrrible.
 
 ## Utilisateurs & littératie — repères 2026
 
@@ -80,12 +112,14 @@ Cœur de cible : femmes 20-45 peaux mélanodermes (Abidjan pilote, expansion UEM
 |---|---|---|---|
 | Digitale lettrée (18-35) | fort | Exigence d'expérience, churn silencieux | Intro skippable, vitesse, design soigné, cashback |
 | Semi-lettrée numérique (25-45) | le plus fort | Parcours multi-étapes, jargon, formulaires | Diagnostic photo d'abord (VLM, zéro saisie), libellés Léger/Moyen/Fort, glossaire 1 tap ✅, checkout wallet en 1 geste |
-| Non-lectrice / illettrée | ~40 % des femmes selon zones | Tout texte = exclusion | Photo + lecture vocale TTS (normal **ou lente**) + glossaire 1 tap ✅, pictogrammes (suite) |
+| Non-lectrice / illettrée | ~40 % des femmes selon zones | Tout texte = exclusion | Photo + lecture vocale TTS (normal **ou lente**) + **résumé en pictos tapables** ✅ + glossaire 1 tap ✅ |
+| Langue première locale | dominant | Le français parlé exclut aussi | **Narration compacte traduite en dioula / baoulé / bété** ✅ (traduction IA indicative) |
 | Rurale / petite data | fort hors villes | Coût data, téléphones d'entrée de gamme | Fallbacks 3D statiques (`#twin-static`, `#weave-static`), compression photo 820px + toast « léger pour ta connexion » ✅ |
-| WhatsApp-first | dominant | Ne quitte pas WhatsApp | WhatsApp déjà canal (relances, commande) |
+| WhatsApp-first | dominant | Ne quitte pas WhatsApp | WhatsApp déjà canal (relances, commande, parrainage) |
 | Méfiante (peur dépigmentation) | transverse | IA « qui juge la peau » = boîte noire | Résultats par indicateur explicites, aucune promesse d'éclaircissement, orientation dermato |
-| Gérante d'institut organisée | cœur B | — | CRM/caisse/compta complets |
+| Gérante d'institut organisée | cœur B | — | CRM/caisse/compta complets + liasse PDF |
 | Praticienne peu administrative | fréquent B | Saisie = friction → CRM vide | Cliente express 2 champs depuis la caisse ✅, données auto (diagnostic client, ventes POS, commandes) |
+| Droits sur ses données | transverse | Confiance + RGPD | **« Mes données » : export JSON complet en 1 tap** ✅ |
 
 Risques d'échec classés : 1) non-lectrices → funnel vide silencieux ; 2) pro non-saisissante → promesse 360° non tenue ; 3) méfiance → bad buzz possible ; 4) semi-lettrées → abandon en milieu de parcours ; 5) petites data → poids de l'app ; 6) digitales exigeantes → déception comparative.
 
@@ -93,20 +127,25 @@ Risques d'échec classés : 1) non-lectrices → funnel vide silencieux ; 2) pro
 
 - Paiements **simulés** (wallet interne + transactions) — intégration Wave Business / Orange Money à venir.
 - Connexion par sélecteur de démo — OTP réel prévu (modèle `OtpCode` déjà dans le schéma Prisma).
+- Traductions dioula/baoulé/bété **IA indicatives** (POC) — voix natives locales indisponibles dans le moteur TTS actuel.
 - SQLite mono-fichier — passage Postgres prévu à l'échelle.
-- Backlog priorisé : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → ~~liasse PDF comptable~~ ✅ (t. 44) → ~~refonte UX « app 2026 » plein écran~~ ✅ (t. 45) → ~~tablette : rail d'icônes Cliente + Pro dès 768 px, stories 2 lignes, fix libellé sidebar xl~~ ✅ (t. 46) → restent côté pro : OTP réel (`OtpCode` prêt, nécessite une passerelle SMS), paiements réels Wave/OM (nécessite des identifiants marchands), portabilité données RGPD ; côté cliente : langues locales réelles (voix dioula/baoulé custom — indisponibles dans le moteur TTS actuel), pictogrammes purs.
+- Backlog priorisé : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → ~~liasse PDF comptable~~ ✅ (t. 44) → ~~refonte UX « app 2026 » plein écran~~ ✅ (t. 45) → ~~finitions tablette/libellés~~ ✅ (t. 46) → ~~audit mobile 360° (390/360, clair/sombre) + affordances scroll~~ ✅ (t. 47-48) → ~~portabilité RGPD « Mes données »~~ ✅ (t. 49) → ~~langues locales (dioula/baoulé/bété)~~ ✅ (t. 50) → ~~résumé en pictos non-lectrices~~ ✅ (t. 51) → **reste** : OTP réel (nécessite une passerelle SMS — `OtpCode` prêt), paiements réels Wave/OM (nécessite des identifiants marchands), voix TTS natives locales.
 
 ## Comptes de démonstration
 
-Seeded dans `prisma/seed.ts` (SQLite) — p. ex. **Mariam** (cliente, 7 diagnostics historiques pour les courbes), **Awa** (cliente neuve, projection pointillée dès le 1er scan), comptes Pro (institut Palmensiel Abidjan) et Admin.
+Seeded dans `prisma/seed.ts` (SQLite) — p. ex. **Mariam Diallo** (cliente riche : 3 diagnostics seedés + wallet, parraine Awa & Bintou), **Awa Traoré** (cliente filleule, projection pointillée dès le 1er scan), comptes Pro : **Éclat d'Abidjan** (CI, gérante Fatou Koné +225 070 908 0706) et **Institut Baobab** (SN, Dakar, Ndeye Sow), plus la **Console Kènè** (admin).
 
 ## Scripts
 
 ```bash
 bun run dev        # dev server (port 3000, log dans dev.log)
 bun run lint       # eslint
-bun run db:push    # pousse le schéma Prisma
-bun run db:reset   # reset + seed
+bun run db:push    # pousse le schéma Prisma (workflow de ce repo — pas de migrations)
+bun run db:generate
+# temps réel (à part) :
+cd mini-services/notify-service && bun run dev   # socket.io :3004 (bun --hot)
 ```
+
+Variables d'environnement (`.env`) : `DATABASE_URL` (requis) ; optionnelles avec défauts — `NOTIFY_SERVICE_URL`, `PUSH_SECRET`, `APP_URL`.
 
 QA rapide : suffixer l'URL de `#twin-static` ou `#weave-static` (puis recharger) force les fallbacks non-WebGL.

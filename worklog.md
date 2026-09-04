@@ -918,3 +918,81 @@ Stage Summary:
 - L'application s'affiche à nouveau correctement : le problème était la fenêtre de reboot du sandbox (services 3000/3004/81 tous repartis à 22:58), pas une régression code.
 - Action utilisateur : rafraîchir le panneau de prévisualisation (bouton « Open in New Tab » si besoin).
 - Backlog inchangé : portabilité RGPD, OTP réel, paiements Wave/OM, langues locales, pictogrammes.
+---
+Task ID: 48
+Agent: Z.ai Code (principal)
+Task: Audit mobile 360° demandé par l'utilisatrice (« certaines informations, cercles, icônes ne sont pas visibles ») + corrections.
+
+Work Log:
+- Audit systématique multi-outils (géométrie DOM : éléments hors viewport / hors conteneurs scrollables ; éléments taille zéro avec filtre ancêtres cachés ; contrastes calculés oklab→ratio WCAG ; VLM glm-5v sur captures zoomées) sur : home (stories, score, chips, tab-bar), Boutique, RDV, Messages/Chat, Profil, Notifications sheet, flux diagnostic complet (zones → photo → analyse → résultat + jumeau), intro, login, Pro mobile — en 390×844 ET 360×640, clair ET sombre.
+- Constats : géométrie saine partout (0 élément non-scrollable clippé, 0 icône taille zéro réelle, contrastes tab-bar 8.6-9.7:1 et stories 7.7:1 en sombre — WCAG AA OK). Vrais défauts : (1) badge flottant Next.js DevTools + son portail couvrait le coin de la tab-bar → devIndicators: false dans next.config.ts (portail 0×0 vérifié) ; (2) rangées scrollables (stories, chips zones, produits reco) sans signal d'affordance → les derniers items « n'existaient pas » pour l'utilisatrice ; (3) en-tête compact Pro mobile : titre tronqué (« Tableau de bord — Éc… »).
+- FIX affordance : nouveau composant ScrollFadeRow (bits.tsx) — ResizeObserver + onScroll, dégradé droit from-background qui disparaît en fin de scroll ; appliqué aux 3 rangées (stories 7 items 568/366 px, chips 4 items, produits 3 items) + pr de respiration ; rôle group + aria-label « fais défiler ».
+- FIX en-tête Pro : ligne petite = « Éclat d'Abidjan · Abidjan — Cocody » + badge En direct (shrink-0), h1 = section seule — plus aucune perte d'info.
+- E2E : fade présent sur les 3 rangées, disparaît après scroll (fadeGone: true) ; portail dev 0×0 ; tsc/eslint 0 erreur ; console 0 erreur après rechargement frais.
+- Captures : .proofs/audit-* (home/boutique/rdv/messages/profil/notifs/diag/dark/360/twin), task48-{pro-header,scroll-fade}.png
+- Leçon : les hallucinations VLM sont fréquentes sur captures défilées à moitié (jumeau « coupé », labels tronqués) — TOUJOURS recouper par mesure DOM (getBoundingClientRect + computed styles) avant de corriger.
+
+Stage Summary:
+- Le mobile était structurellement sain (audité par mesure, pas par impression) ; les 3 vrais défauts (badge dev, affordances scroll, titre Pro) sont corrigés et vérifiés.
+- devIndicators retiré = la préview est propre pour l'utilisatrice (plus de bouton Next.js flottant).
+
+---
+Task ID: 49
+Agent: Z.ai Code (principal)
+Task: Portabilité RGPD — « Mes données » export JSON côté cliente (art. 20).
+
+Work Log:
+- NOUVELLE route GET /api/profile/export : 8 requêtes Promise.all (consents, diagnoses+resultJson, appointments+service/tenant, orders+items+payment, wallet+txs, notifications≤500, couponRedemptions+coupon, payments) + parrainage (parrain + filleuls) ; payload FR lisible (formatVersion, generatedAt, note RGPD) ; photos exclues (volumétrie), résultats complets inclus ; Content-Disposition attachment kene-mes-donnees-YYYYMMJJ.json + X-Data-Sections ; guards 400 (userId requis) / 404 (inconnue).
+- BUG de première écriture (select code/discount inexistants sur CouponRedemption → Prisma 500) détecté au curl et corrigé : include coupon {code,label,kind,value} + remise réelle.
+- ProfileScreen : carte « Mes données RGPD » (icône Download terre, badge RGPD, description du contenu) + bouton plein largeur → fetch blob → objectURL → a.download (nom depuis Content-Disposition) → revoke différé 4 s ; toast « Mes données téléchargées · N Ko » ; micro-mention art. 20 + photos non incluses.
+- E2E complet : curl gateway → 200, 47 481 octets, 13 sections (Mariam : 7 diagnostics, 2 filleuls, 1 commande, 11 notifs, 5 txs wallet, code MARIAM-KENE) ; guards 400/404 ; navigateur (390×844) : section rendue (VLM), clic → toast → fichier ~/Downloads/kene-mes-donnees-20260904.json rechargé et validé (13 sections).
+
+Stage Summary:
+- La cliente télécharge en 1 tap son dossier complet RGPD — le seul engagement réglementaire restant est tenu.
+- Pattern réutilisable pour un futur export PDF « mes données ».
+
+---
+Task ID: 50
+Agent: Z.ai Code (principal)
+Task: Narration en langues locales — dioula, baoulé, bété (TTS + traduction LLM).
+
+Work Log:
+- narration.ts : buildNarrationCompact() (≤420 chars : bonjour, score en toutes lettres + verdict, priorité n°1, orientation dermato, geste matin/soir, avertissement) + NARRATION_LANGS (fr/dy/bq/bt).
+- /api/tts : param lang (fr défaut) — pour dy/bq/bt : traduction LLM AVEC système strict (phrases orales courtes, orthographe latine lisible par un TTS français, nombres en toutes lettres, noms propres et « Kènè » intacts, réponse brute) → puis synthèse WAV ; cache traduction FIFO 128 (clé fnv1a) + cache audio existant étendu (clé inclut lang) ; erreur traduction → 502 dédié « Traduction dioula indisponible ».
+- ttsAudio.ts : fetchTtsAudioUrl(text, speed, lang) — paramètre propagé, clé cache lang-aware.
+- VoiceNarration.tsx : sélecteur de langue (pills FR/Dioula/Baoulé/Bété, aria-pressed, bascule coupe l'audio proprement) ; narration FR = complète, locales = compacte ; états : « Traduction Dioula… » pendant le chargement, aide « Résumé en X · traduction IA indicative ».
+- E2E : curl dioula → 200, WAV 24 kHz mono 29,7 s (1,4 Mo) en 8 s ; 2e appel cache 16 ms ; garde empty→400, lang inconnu→fallback fr→200. Navigateur : pill Dioula activée → lecture → VLM confirme « Arrêter la lecture » + equalizer animé + pill dorée active ; POST /api/tts 200 (7,7 s) dans dev.log.
+- Captures : task50-{dioula-loading,dioula-playing}.png
+
+Stage Summary:
+- La barrière « le français parlé exclut aussi » est traitée : résumé vocal traduit en 3 langues ivoiriennes (traduction IA indicative assumée dans l'UI).
+- Architecture : traduction LLM en amont du TTS, les deux caches (texte + audio) côté serveur — ré-écoute instantanée.
+
+---
+Task ID: 51
+Agent: Z.ai Code (principal)
+Task: Résumé en pictogrammes — mode non-lectrices sur le diagnostic.
+
+Work Log:
+- NOUVEAU PictoSummary.tsx : 6 priorités (scores santé les plus bas) → tuiles 3 colonnes, chacune = grande icône cercle colorée (scoreColor) + libellé 1-2 mots + score mono ; tap → fetchTtsAudioUrl(« {label}. {verdict court}. », 0.92) et lecture (badge Volume2 sur la tuile active, Loader2 pendant synthèse) ; mapping mot-clé→picto (36 entrées normalisées NFD : hydrat→Droplets, barrière→Shield, éclat→Sparkles, tache/pigment→CircleDot, acné→Zap, irritation/folliculite→Flame, sébum/pores/texture→Waves, cernes→Moon, élasticit/fermeté→Activity…) ; fallback Sparkles + 1er mot.
+- Intégré dans DiagnosticScreen ResultView juste sous VoiceNarration (zoneLabel + score en toutes lettres dans l'entête de section).
+- E2E : diagnostic démo Visage → snapshot montre « Résumé en pictogrammes — tape une tuile pour l'écouter » + 6 tuiles (Pores/Sébum/Éclairer/Taches/Hydrater/…) ; tap Pores → POST /api/tts 200 (679 ms) lecture confirmée ; VLM : « grille 3×2 parfaitement alignée, icônes claires, aucun clipping ».
+- Captures : task51-{pictos,picto-playing}.png
+
+Stage Summary:
+- Le funnel non-lectrices est complet : photo → score en anneau → narration vocale multilingue → pictos tapables → glossaire audible.
+- Les pictos partagent le cache TTS global (coût réseau uniquement à la 1re écoute).
+
+---
+Task ID: 52-53
+Agent: Z.ai Code (principal)
+Task: Audit document (README vs code, sous-agent 52-a) + réécriture complète du README + vérifications finales.
+
+Work Log:
+- Sous-agent Explore (52-a) : audit exhaustif README ↔ code — 5 affirmations fausses (drei, « Palmensiel », « 7 diagnostics », src/stores/, db:reset sans migrations), 4 familles d'API non documentées (coupons, notifications, referral, tts + sous-routes pro), 5 modules fonctionnels entiers manquants (parrainage t.27/32, coupons t.34, relances t.28, rappels auto t.29, Mes commandes t.36), inventaire complet des 47 routes API et des composants.
+- README réécrit intégralement : espaces Cliente/Pro/Admin à jour (parrainage, coupons, relances, rappels, Mes commandes, RGPD, langues locales, pictos) ; stack corrigée (drei retiré, LLM vs VLM clarifiés, TTS multilingue) ; arborescence complète (47 routes détaillées, lib/kene + accounting + ai, composants par famille, store/kene.ts, notify-service + commande de démarrage) ; comptes démo corrigés (Éclat d'Abidjan CI / Institut Baobab SN, Mariam 3 diagnostics seedés) ; scripts corrigés (db:push = workflow du repo, notify-service) ; backlog barré à jour (t. 39→51) ; table littératie enrichie (lignes « langue première locale » + « droits données ») ; règle maison n°6 (affordance scroll).
+- Vérifications finales : tsc 0 erreur src/ ; eslint 0 problème ; console navigateur 0 erreur après rechargement frais ; dev.log uniquement 200 ; desktop 1440×900 sans régression (VLM « three-column Instagram-web style, no visual regressions »).
+
+Stage Summary:
+- Le document est désormais fidèle au code : chaque fonctionnalité annoncée existe, chaque fonctionnalité livrée est documentée.
+- Reste ouvert (externes) : OTP réel via passerelle SMS (OtpCode prêt), paiements réels Wave/OM (identifiants marchands), voix TTS natives locales.

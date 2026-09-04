@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  // Le badge/dev-tools flottant Next.js couvre la tab-bar mobile en préview — on le retire
+  devIndicators: false,
 };
 
 export default nextConfig;

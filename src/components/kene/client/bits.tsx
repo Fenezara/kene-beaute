@@ -1,10 +1,61 @@
 "use client";
 // Kènè Cliente — Briques UI partagées (mobile-first)
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Loader2, Star } from "lucide-react";
 import { scoreColor, readableTextColor } from "@/lib/kene/format";
 import { xof } from "@/lib/kene/format";
+
+/**
+ * Rangée horizontale scrollable avec signal d'affordance :
+ * dégradé droit tant qu'il reste du contenu caché, retiré en fin de scroll.
+ * (Sinon les dernières stories / produits « n'existent pas » pour l'utilisatrice.)
+ */
+export function ScrollFadeRow({
+  children,
+  className = "",
+  label,
+}: {
+  children: ReactNode;
+  className?: string;
+  label?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [state, setState] = useState<{ can: boolean; done: boolean }>({ can: false, done: false });
+  const check = () => {
+    const el = ref.current;
+    if (!el) return;
+    const can = el.scrollWidth - el.clientWidth > 8;
+    const done = el.scrollLeft + el.clientWidth >= el.scrollWidth - 8;
+    setState({ can, done });
+  };
+  useEffect(() => {
+    check();
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div className="relative min-w-0">
+      <div
+        ref={ref}
+        onScroll={check}
+        className={className}
+        {...(label ? { role: "group", "aria-label": label } : {})}
+      >
+        {children}
+      </div>
+      {state.can && !state.done && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background via-background/70 to-transparent"
+        />
+      )}
+    </div>
+  );
+}
 
 /** Jauge circulaire SVG du score santé peau */
 export function ScoreGauge({ score, size = 130, stroke = 11, label = "Score peau" }: { score: number; size?: number; stroke?: number; label?: string }) {

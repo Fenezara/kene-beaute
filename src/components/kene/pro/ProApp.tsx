@@ -325,10 +325,10 @@ export function ProApp() {
           {/* En-tête compact mobile + tablette (rail icônes md→lg sans libellés) */}
           <div className="lg:hidden mb-4 flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                {tenant ? `${tenant.city} · ${tenant.country}` : "…"}
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground truncate flex items-center gap-1.5">
+                <span className="truncate">{tenant ? `${tenant.name} · ${tenant.city}` : "…"}</span>
                 {liveConnected && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-medium text-success">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-medium text-success shrink-0">
                     <span className="relative flex size-1.5" aria-hidden="true">
                       <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
                       <span className="relative inline-flex size-1.5 rounded-full bg-success" />
@@ -337,7 +337,7 @@ export function ProApp() {
                   </span>
                 )}
               </p>
-              <h1 className="font-heading text-lg font-bold truncate">{activeLabel} — {tenant?.name ?? "Kènè Pro"}</h1>
+              <h1 className="font-heading text-lg font-bold truncate">{activeLabel}</h1>
             </div>
             <KeneLogo size={30} withText={false} />
             <div className="flex items-center gap-1.5">

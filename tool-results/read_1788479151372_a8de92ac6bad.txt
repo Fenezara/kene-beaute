@@ -1,0 +1,402 @@
+   520→- HomeScreen : cloche insérée dans le header (entre WalletPill et bouton profil) — la carte « Suivi WhatsApp » quick-view est conservée (non-régression)
+   521→
+   522→Bugs corrigés en cours de route :
+   523→- Client Prisma périmé dans le dev-server après db:push (Unknown argument readAt → 500) → kill + relance arrière-plan (leçon tâche 29 réappliquée)
+   524→- Le lancement nohup simple est mort silencieusement après ~40 s (sandbox) → relance (nohup bun run dev &) en sous-shell détaché, stabilité vérifiée sur 45 s + 3 checks 200
+   525→
+   526→Tests (DB réelle + curl + navigateur 390×844 + VLM) :
+   527→- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; dev.log : aucune erreur runtime (200 attendus, 404 du test volontaire)
+   528→- curl GET : unread 3, created 0 (backfill idempotent), scheduled 2 (legacy + protocole visage 16 sept.), sent 3 toutes UNREAD avec readAt null
+   529→- curl POST read : { updated 4 } (3 affichées + 1 hors fenêtre 30 j — le badge est exhaustif) ; GET après : unread 0, toutes read ; 2ᵉ POST : updated 0 (idempotent) ; erreurs propres 400 userId requis / 404 utilisatrice inconnue
+   530→- E2E navigateur (démo Mariam) : cloche rendue « Notifications — 3 non lues » (badge 3) ; Sheet ouvert → À VENIR (2) + REÇUES (3) + bouton « Tout marquer comme lu (3) » ; clic → toast « Tout est lu · 4 notifications marquées comme lues » + badge disparu (aria-label redevenu « Notifications ») + bouton retiré + badges NOUVEAU effacés + PROGRAMMÉ intacts ; reload après reset DB → badge 3 de retour
+   531→- Non-régression : carte « Suivi WhatsApp » de l'accueil intacte (PROGRAMMÉ 16 sept. + envoyées) ; wallet 14 000 ; score multi-zones 69
+   532→- A11y : aria-label dynamique avec compte, badge role=status aria-live polite, sections aria-labelledby, focus-visible
+   533→- Responsive 390px : header (Bonjour / wallet / cloche / avatar) sans chevauchement — VLM « parfaitement lisible et bien espacé » ; sheet VLM « propre, aucun défaut »
+   534→- Screenshots : .proofs/task31-cloche-badge.png, task31-centre-notifications.png, task31-suivi-whatsapp.png ; console navigateur vierge
+   535→
+   536→Stage Summary:
+   537→- Le Fil du Retour cliente est désormais une vraie boîte de réception : arrivée (due-runner) → badge non-lus → consultation (Sheet sections À venir/Reçues) → lecture (état lu/non lue) → tout marquer lu — boucle complète
+   538→- La cloche donne enfin de la VISIBILITÉ aux événements silencieux : rappels automatiques (tâche 29), bonus parrainage, confirmations de RDV — tout converge au même endroit
+   539→- Zéro rupture : schéma additif, GET conserve sa shape (+ readAt, + unread), carte accueil intacte
+   540→- Prochaine étape proposée : notifications push temps réel (cloche mise à jour live via socket), ou onboarding v2 « j'ai un code parrain » au signup, ou PDF mensuel de la liasse
+   541→
+   542→---
+   543→Task ID: 32
+   544→Agent: main (Z.ai Code)
+   545→Task: Onboarding v2 — champ « J'ai un code parrain » dès l'inscription
+   546→
+   547→Contexte : le Fil du Parrainage (tâche 27) exigeait que la filleule trouve le champ code APRÈS inscription (Profil → Sheet « Une amie t'a donné son code ? ») — le moment d'acquisition, quand la motivation est maximale, était perdu. Direction choisie (suite de « fait ton choix ») : capter le code à l'étape OTP de l'onboarding, en réutilisant l'API POST /api/referral/redeem existante — zéro backend nouveau, toutes les gardes conservées (auto-parrainage, échange croisé, double redeem, code inconnu).
+   548→
+   549→Work Log:
+   550→- Onboarding.tsx : carte pointillée dorée à l'étape 2 (OTP, sous « Renvoyer le code ») — label Gift « J'ai un code parrain (facultatif) », Input mono uppercase sans espaces (24 car. max, autoComplete off, aria-describedby), hint {xof(FILLEUL_GIFT)} « crédités dès ton inscription — ta parraine reçoit sa récompense à ta première commande » (constante importée, pas de 2 000 codé en dur)
+   551→- tryReferral(uid) : renvoie { ok, gift, parrainName } | { ok: false, error } | null (champ < 4 car. → null silencieux) — PAS de toast interne
+   552→- announceReferral(ref) : toast succès « Cadeau de bienvenue : 2 000 FCFA crédités 💛 / Merci Mariam !… » ou toast erreur (message serveur : code inconnu, déjà parrainée, code le tien…)
+   553→- Branché aux DEUX chemins d'entrée : verify() (compte complet → login direct) et saveProfile() (nouvelle cliente → profil → entrée)
+   554→
+   555→Bugs corrigés en cours de route :
+   556→- COURSE setUser/redeem (repéré en E2E : wallet affiché 0 et badge cloche absent alors que la DB était juste) : le redeem s'exécutait APRÈS setUser → l'accueil montait avant le crédit → données périmées. Fix : tryReferral AVANT setUser (l'accueil se monte avec wallet crédité + cloche badgée), toasts APRÈS l'entrée (ordre narratif « Profil créé » → « Cadeau crédité » préservé via announceReferral séparé)
+   557→
+   558→Tests (DB réelle + navigateur 390×844) :
+   559→- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; dev.log : redeem 200 (valide) / 404 (faux code, attendu), aucune erreur runtime
+   560→- Scénario 1 — inscription complète AVEV code : nouveau numéro 0705556677 → champ « mariam-kene » EN MINUSCULES (la normalisation casse de l'API est couverte) → profil « Aminata » → toasts « Profil créé » + « Cadeau de bienvenue : 2 000 FCFA crédités 💛 Merci Mariam ! » ; entrée : Wallet 2 000 FCFA (corrigé, plus 0) + cloche « 1 non lue » DÈS le montage ; DB : referredBy Mariam Diallo, wallet 2 000, tx credit 2000 referral gift:…, notif filleule (bienvenue) + notif parrain (Aminata a rejoint 🧡)
+   561→- Scénario 2 — code invalide « FAUX-CODE » : toast « Code inconnu — vérifie auprès de ton amie » (404 API), inscription NON bloquée, profil créé, wallet 0, referredBy null
+   562→- Scénario 3 — sans code (démo Mariam) : flux inchangé, wallet 14 000, aucune toast parrainage — et la cloche de Mariam affiche 5 non lues dont « Aminata a rejoint la communauté » (synergie 27×31×32 visible en un coup d'œil)
+   563→- Purge post-test : Aminata + Bintou test + otp orphelin + 2 notifications orphelines supprimés ; Mariam intacte (wallet 14 000, code MARIAM-KENE)
+   564→- VLM 390px : carte parrain visible et propre (bordure dorée, MARIAM-KENE lisible), aucun chevauchement/troncature ; hint sous le pli (scroll normal)
+   565→- Screenshot : .proofs/task32-onboarding-code.png ; console navigateur vierge
+   566→
+   567→Stage Summary:
+   568→- La boucle de croissance démarre désormais au bon moment : le code parrain est capté à l'étape OTP (pic de motivation), échangé automatiquement à l'authentification, et le cadeau est visible dès la première seconde dans l'app (wallet + cloche) — le « aha moment » de la filleule coïncide avec l'entrée
+   569→- Zéro backend nouveau : le champ salue une API éprouvée (gardes intactes) ; l'UX reste optionnelle et non bloquante (mauvais code = toast, jamais un mur)
+   570→- Leçon technique réutilisée partout où un post-login enrichit les données : TOUJOURS exécuter l'enrichissement AVANT setUser (sinon l'écran monté lit des données périmées) mais annoncer APRÈS (narratif)
+   571→- Le Fil du Parrainage est complet de bout en bout : partage (code/WhatsApp) → saisie à l'inscription → cadeau immédiat → bonus parrain à la 1ʳᵉ commande → visibilité cloche/parrainage/admin
+   572→- Prochaine étape proposée : cloche temps réel via socket.io (mini-service), ou PDF mensuel de la liasse, ou coupons/promos boutique (diffusion code à grande échelle)
+   573→---
+   574→Task ID: 33
+   575→Agent: main (Z.ai Code)
+   576→Task: Cloche temps réel — socket.io live feed (mini-service notify-service :3004)
+   577→
+   578→Contexte : le centre de notifications (tâche 31) et l'onboarding parrain (tâche 32) livraient une boîte de réception qui ne vivait qu'au montage/à l'ouverture — aucune arrivée visible pendant que l'app est ouverte, la cliente devait recharger pour découvrir un badge. Direction choisie (suite de « fait ton choix », proposition n°1 des tâches 31 ET 32) : le push temps réel via socket.io — premier canal live de Kènè.
+   579→
+   580→Work Log:
+   581→- mini-services/notify-service/ (NOUVEAU, port 3004, bun --hot) : relais socket.io — la cliente rejoint sa room user:{userId} (event join, multi-onglets) ; POLL 8 s par utilisatrice connectée sur GET /api/notifications (l'API reste l'unique source de vérité : backfill + due-runner idempotents, zéro logique dupliquée) ; DIFF sur sérialisation → emit feed vers la room seulement si changement ; single-flight + debounce 250 ms par userId ; event read-all (lecture cliente → cache vidé + poll frais, jamais de badge périmé) ; event push {secret} réservé à l'app (arrivée instantanée) ; path '/' + ping/pong engine.io — le pattern du websocket de démo est répliqué à l'identique
+   582→- Tentative AVANT nécessaire de retenir : routes HTTP /push + / santé sur le même port → engine.io (path '/') intercepte TOUT et répond « Transport unknown » (ERR_HTTP_HEADERS_SENT sur mon handler) → refonte : le push passe en PROTOCOLE socket (event + secret), zéro route HTTP, un port, un protocole
+   583→- src/lib/kene/realtime.ts (NOUVEAU, serveur) : socket.io-client singleton globalThis (survit aux hot-reload, jamais de doublons) → connecte localhost:3004 en direct (server-to-server), register-app au secret partagé ; pushFeed(userId) fire-and-forget — emit bufferisé si connexion en cours (démarrage à froid), jamais bloquant, JAMAIS d'échec propagé (poll 8 s = filet de sécurité)
+   584→- server.ts notify() : UN SEUL hook pushFeed après create → les 17 points de création (referral, orders, payments, appointments, followups, diagnoses, pro/appointments, cancel…) poussent TOUS instantanément, zéro route modifiée
+   585→- NotificationCenter.tsx : socket io('/?XTransformPort=3004') (transports ws+polling, reconnexion auto) ; join au connect (re-couvre les reconnexions) ; event feed → setFeed + TOAST « Nouvelle notification » si unread augmente et feuille fermée (extrait du message) + prop onLiveFeed remontée ; pill « En direct » (point vert pulsant animate-ping) dans le titre quand connectée ; markAllRead émet read-all au service ; looksLikeFeed garde défensive ; le comportement historique (GET montage/ouverture) reste le fallback — sans service, tout continue de marcher
+   586→- HomeScreen : onLiveFeed={(f) => setData(...)} → la carte « Suivi WhatsApp » suit le flux live de la cloche (une seule socket pour deux vues)
+   587→- package.json : + socket.io-client ; Caddyfile inchangé (le forward ?XTransformPort existe déjà)
+   588→
+   589→Bugs corrigés en cours de route :
+   590→- Voir ci-dessus : conflit engine.io/HTTP sur le même port → push par protocole socket
+   591→- Premier pushFeed d'un process froid émis AVANT connexion (skip best-effort) → arrivée rattrapée par le tick ; fix : emit inconditionnel (bufferisation native socket.io-client, flush au connect) → 2ᵉ redeem prouvé en mode « push »
+   592→- E2E initial silencieux : page ouverte sur localhost:3000 DIRECT → io('/?XTransformPort=3004') frappait le dev server Next, pas la gateway → re-test via localhost:81 (= chemin réel du preview) : connexion immédiate. Leçon : toujours tester les sockets via la gateway
+   593→
+   594→Tests (DB réelle + curl + navigateur 390×844 via gateway :81 + VLM) :
+   595→- tsc --noEmit : 0 erreur src/ ; eslint . : 0 erreur 0 warning ; console navigateur vierge ; dev.log : uniquement des 200 (l'unique 500 du log date de la session 32 — session fantôme d'Aminata purgée, ligne 265 < redeems tâche 32 ligne 285)
+   596→- Test A (poll) : insertion DB d'un rappel scheduled ÉCHU à 02:47:42 → due-runner flip via le poll du service → feed émis (tick) — unread 4 à 02:47:47 → badge 3→4 dans le navigateur SANS reload ; toast d'arrivée constaté au test C
+   597→- Test B (push instantané) : 2ᵉ redeem (socket app connectée) → curl à 02:48:52.959, HTTP 200 en 125 ms, log « push reçu → poll immédiat » + « feed émis (push) — unread 6 » à 02:48:53, badge 6 à l'écran — ARRIVÉE < 1 s bout en bout
+   598→- Test C (toast + VLM) : 3ᵉ redeem → capture .proofs/task33-toast-arrivee.png — VLM lit « Nouvelle notification / Kènè : Fanta TestToast a rejoint la communauté avec ton code 🧡… » : toast + badge + extrait exact
+   599→- Sheet : pill « En direct » rendue (title « Connectée en temps réel ») ; liste mise à jour live (les 3 « a rejoint » apparaissent en tête de REÇUES sans reload) ; carte Suivi WhatsApp de l'accueil idem (onLiveFeed)
+   600→- markAllRead : badge 0 + émission read-all → « feed émis (read-all) — unread 0 » ; attente 9,5 s (plus d'un cycle complet de poll) → le badge NE REVIENT PAS (course stale/périmée close)
+   601→- Auto-correction : purge DB des notifs test → tick suivant « feed émis (tick) — unread 3 » → badge 0→3 en direct (le fil converge vers la vérité dans les DEUX sens, ajouts ET suppressions)
+   602→- Résilience : kill + relance du service → la socket cliente ET la socket app se reconnectent seules (reconnexion socket.io) → join → feed frais émis, badge intact
+   603→- Nettoyage : 3 fillesules test + wallets + transactions + notifs + audit logs supprimés ; Mariam restaurée à l'état d'origine (unread 3, scheduled 4, wallet 14 000, code MARIAM-KENE) ; scripts de test supprimés
+   604→- Responsive : 390px (5 captures) + 1440px VLM « colonne mobile centrée, cloche+badge visible, aucun chevauchement » ; screenshots .proofs/task33-{sheet-endirect,live-push,toast-arrivee,sheet-live,suivi-card-live,desktop}.png
+   605→
+   606→Stage Summary:
+   607→- La boucle notification est désormais LIVE de bout en bout : événement métier → notify() → push instantané (< 1 s mesuré) → badge + toast + liste + carte accueil — et le due-runner reste couvert par le poll 8 s (S+3, J-1)
+   608→- Architecture « relais intelligent » : le mini-service ne détient AUCUNE logique métier (il proxifie l'API éprouvée de la tâche 29), l'app pousse via UN hook central (notify()), la cliente ne fait que s'abonner — chaque couche reste seule maîtresse de sa vérité
+   609→- Résilience prouvée : reconnexion automatique des trois connexions (cliente, app, service redémarré), dégradation douce (sans service, comportement tâche 31 intact), course lecture/arrivée close (read-all → poll frais)
+   610→- Pattern réutilisable : tout futur événement notifiable (commande expédiée, validation pro, promo) est automatiquement live dès qu'il passe par notify() ; le canal user:{userId} peut aussi servir l'indicateur « En direct » d'autres écrans
+   611→- Prochaine étape proposée : coupons/promos boutique (diffusion de codes à grande échelle — le canal push est prêt), ou PDF mensuel de la liasse, ou badge temps réel côté Pro (nouvelle commande/relance)
+   612→
+   613→---
+   614→Task ID: 34
+   615→Agent: main (Z.ai Code)
+   616→Task: Coupons & promos boutique — création Pro, diffusion push live, remise au checkout (suite de « fait ton choix », proposition n°1 de la tâche 33)
+   617→
+   618→Contexte : le canal push temps réel (tâche 33) attendait sa première campagne de masse. La tâche 34 avait été ENTAMÉE dans une portion de contexte perdue (fichiers créés à 09:12-09:16 mais SANS worklog ni finalisation) — audit à l'arrivée : backend et UI client déjà complets, il manquait le montage de la section Pro, une garde API, le redémarrage du dev server et toute la validation E2E.
+   619→
+   620→Work Log:
+   621→- AUDIT de l'existant (contexte perdu) : prisma Coupon/CouponRedemption (poussé en DB), lib/kene/coupons.ts (checkCoupon/redeemCoupon/couponPitch/diffuseCoupon), API pro/coupons (GET/POST/PATCH), pro/coupons/diffuse, coupons/validate, orders avec couponCode + anti-course (redemption AVANT effets de bord, suppression propre si garde échoue), ShopScreen checkout avec champ CODE PROMO + livePromo (invalidation si le panier change), CouponsSection.tsx complet — mais NON monté dans ProApp
+   622→- ProApp.tsx : entrée nav « Promos » (icône lucide TicketPercent, entre Catalogue et Stock) + montage <CouponsSection tenantId tenantName> — ProSectionId étendu, nav desktop + chips mobile
+   623→- pro/coupons/diffuse/route.ts : garde durcie — coupon maison (tenantId null) → 403 « diffusion réservée à l'administration » (l'UI le désactivait déjà, l'API l'impose désormais)
+   624→- REDÉMARRAGE dev server obligatoire : db.coupon undefined (500) car le singleton Prisma globalThis datait d'avant le modèle Coupon (le client node_modules était à jour, les scripts standalone passaient — seul le dev server vivait avec l'ancien). Kill + relance = client rechargé, API 200
+   625→- LEÇON SANDBOX MÉMORABLE : le tueur de process du sandbox fauche les enfants de commande même setsid+nohup+disown — SEUL LE DOUBLE-FORK survit (subshell `( setsid cmd & )` → reparentage à PID 1 PENDANT la commande, comme le fait agent-browser) ; dev server :3000 et notify-service :3004 relancés ainsi, stables depuis
+   626→- E2E complet (navigateur 1440px + 390px via gateway :81, sockets incluses) :
+   627→  · Création coupon UI Pro : dialog (type, valeur, min, max, code, label, date) → RENTEXPO-15 (-15 %, min 5 000, « Rentrée — offre expo ») → toast + carte dans la liste
+   628→  · Diffusion UI : « Code RENTEXPO-15 diffusé — 3 clientes notifiées » ; IDEMPOTENCE re-clic → « Ce coupon a déjà été diffusé aux clientes »
+   629→  · PUSH LIVE (curl diffusion pendant que Mariam est connectée) : curl 09:51:17.9 → log « push reçu → poll immédiat » → badge 4→5 à 09:51:19.2 (~1,3 s bout en bout, SANS reload) ; sheet ouverte : les 2 messages promo en tête, pill « EN DIRECT » actif ; 3ᵉ diffusion (TOAST-LIVE) → toast « Nouvelle notification — Code promo TOAST-LIVE : -10 % sur la boutique » + badge 6→7, capturé à 1,1 s (VLM lit le texte exact)
+   630→  · CHECKOUT : panier 2× Savon (9 000) → RENTEXPO-15 appliqué → toast « Remise de 1 350 FCFA » + carte verte code/label/remise + récap VLM : sous-total 9 000, remise −1 350, cashback +383 (5 % du remisé), TOTAL 7 650
+   631→  · COMMANDE wallet : « Commande confirmée — cashback 383 FCFA crédité » ; DB vérifiée : order paid discount 1350 couponCode RENTEXPO-15 total 7650, payment wallet success, redemption (Mariam, 1350, liée à la commande), usedCount 1, wallet 6733 = 14 000−7 650+383 exact (tx debit 7 650 + credit 383), notif commande avec « remise 1 350 FCFA appliquée »
+   632→  · GARDES (curl + UI) : minOrder → « à partir de 5 000 FCFA d'achat » ; code inconnu ; coupon désactivé (PATCH toggle) → « n'est plus actif » ; RÉUTILISATION UI → « Tu as déjà utilisé ce code promo 😉 » (la garde usage court-circuite avant minOrder — ordre voulu)
+   633→  · Compteurs Pro : RENTEXPO-15 « 1 utilisation » visible sur la carte après la commande
+   634→  · Responsive : 390px section Promos (chips scrollables, KPIs empilés propres — VLM), 1440px liste 2 colonnes
+   635→- NETTOYAGE intégral : order+items+payment+tx wallet, 10 notifications (9 promos + 1 commande), 3 coupons + redemptions (cascade), 3 auditLogs, stock Savon 26 restauré, wallet Mariam 14 000 ; badge navigateur 7→3 en AUTO-CORRECTION au tick suivant (le fil converge vers la vérité purgée) ; scripts temporaires supprimés
+   636→
+   637→Bugs corrigés en cours de route :
+   638→- db.coupon undefined → singleton Prisma périmé au hot-reload → redémarrage du dev server (leçon : tout `db:push` avec nouveau modèle DOIT être suivi d'un restart dev)
+   639→- Process tués entre commandes → double-fork `( setsid … & )` (leçon sandbox, ci-dessus)
+   640→- Clic carte produit bloqué par l'image (couvre le point central) → clic JS par aria-label/textContent ; bouton panier introuvable car overlay succès paiement (payState) le masquait → fermer « Continuer mes achats » d'abord
+   641→
+   642→Tests finaux : tsc --noEmit 0 erreur src/ ; eslint . 0 erreur 0 warning ; dev.log uniquement des 200 + les 400 VOULUS des gardes testées ; console navigateur vierge (warnings préexistants uniquement) ; screenshots .proofs/task34-{pro-coupon-cree,live-push-toast,sheet-promo,checkout-remise,promos-liste,promos-mobile,toast-live-diffusion}.png
+   643→
+   644→Stage Summary:
+   645→- La promo est une boucle fermée DE BOUT EN BOUT et TEMPS RÉEL : la pro crée le code (UI) → le diffuse (1 clic, idempotent) → la cloche de chaque cliente s'illumine + toast (< 1,3 s mesuré) → la cliente applique le code au checkout (aperçu serveur, jamais de surprise) → la commande consomme le coupon (anti-course, une seule fois par cliente) → le compteur remonte côté Pro
+   646→- Sécurité en profondeur : toutes les gardes vivent dans lib/kene/coupons (source unique) et sont RE-vérifiées à la commande ; la validation checkout ne consomme rien ; coupon maison non diffusable depuis un institut (403 API) ; bornes métier 5-90 % / 500-500 000 FCFA
+   647→- Le cashback s'applique au montant PAYÉ (après remise) — la remise et la fidélité se cumulent proprement, vérifié en DB au franc près
+   648→- Prochaine étape proposée : badge temps réel côté Pro (nouvelle commande/relance — même pattern notify-service), ou PDF mensuel de la liasse, ou coupons maison gérés par l'Admin (le modèle tenantId null est prêt)
+   649→---
+   650→Task ID: 35
+   651→Agent: main (Z.ai Code)
+   652→Task: Bug bloquant « espace Pro ne charge pas » + badge & flux temps réel côté Pro (suite de « fait ton choix… mais côté pro ne charge pas »)
+   653→
+   654→Contexte : l'utilisateur autorise la tâche 35 ET signale que l'espace Pro ne charge pas. Diagnostic prioritaire avant tout développement.
+   655→
+   656→Work Log:
+   657→
+   658→BUGFIX — espace Pro ne charge pas :
+   659→- Diagnostic : GET /api/pro/overview?tenantId=cmtecz88f0009mbdhquxaoy4a → 404 EN BOUCLE dans dev.log. Cause : le localStorage « kene-store » persiste proTenantId d'une ANCIENNE génération de base (le tenant n'existe plus — la DB actuelle a cmtjdaiij… et cmtjdaiik…). resolveTenant() → 404 « Institut introuvable » → overview.data null + tid périmé → TOUTES les sections Pro en squelettes/blocage permanent.
+   660→- Fix (défense en profondeur) : store setProTenantId accepte null + AUTO-GUÉRISON dans ProApp — si overview échoue alors qu'un tenant était mémorisé, on l'oublie (retombe sur le tenant par défaut) + toast « Institutut mémorisé indisponible — institut par défaut chargé ». Reproduit l'état exact de l'utilisateur (localStorage space=pro + ID périmé) → séquence guérie en log : 404 (ID périmé) → 200 (défaut) → 200 (ID réparé cmtjdaiij…), KPIs/graphes rendus, localStorage réparé définitivement, sections Promos/Caisse vérifiées.
+   661→- Leçon : toute donnée persistée (localStorage) doit être considérée comme une PRÉFÉRENCE jamais comme une vérité — si elle échoue, on retombe sur la source (défaut serveur) au lieu de bloquer.
+   662→
+   663→TÂCHE 35 — badge & flux temps réel côté Pro (pattern notify-service étendu) :
+   664→- GET /api/pro/live?tenantId= (NOUVEAU) : payload léger diffable — pendingAppts (badge Agenda), apptsToday, salesToday (KPI live), ordersToday (commandes contenant un produit de l'institut), last {type,id,at,label,status} (moteur de toasts). Garde 404 tenant inconnu.
+   665→- notify-service : rooms tenant:{id} (event join-tenant), pollTenant → GET /api/pro/live → diff → emit tenant-feed ; push {secret, tenantId?} étendu ; single-flight/debounce/tick 8 s partagés ; nettoyage disconnect complet ; event hb/hb-ack (heartbeat).
+   666→- realtime.ts : pushTenantFeed(tenantId) (même socket app, emit inconditionnel bufferisé).
+   667→- Hooks serveur : notify() → si tenantId → pushTenantFeed (RDV réservés, relances WhatsApp, diffusions coupon couvertes d'un seul point) ; POST /api/pro/sales (POS) explicite ; POST /api/orders → push par produit-institut distinct (produits maison = silence, honnête) ; PATCH pro/appointments/[id] confirm/cancel/no_show/reschedule explicites.
+   668→- ProApp : socket io('/?XTransformPort=3004') + join-tenant au connect (et par changement d'institut) ; tenant-feed → garde looksLikeLive + tenantId ; badge Agenda = pendingAppts − agendaSeen (baseline visitée, CLAMPÉE à la baisse quand les confirmations descendent — sinon une confirm suivie d'une nouvelle réservation masquerait le badge) ; toasts UNIQUEMENT distants (RDV pending réservé cliente / commande institut — jamais POS ni RDV créés pro : statut confirmed) et PAS au premier fil après montage (garde prevId !== null, comme NotificationCenter) ; pill « En direct » (desktop sidebar + mobile header, point pulsant) ; refreshKey → AgendaSection (liste RDV) + PosSection (ventes) + overview.refetch() (KPIs dashboard) — tout vit sans reload.
+   669→- live-socket.ts (NOUVEAU) : armHeartbeat(socket) — sonde hb toutes les 30 s, sans ack sous 5 s → disconnect+connect (zombie = service rechargé à chaud alors que le TCP survit : le client croit être connecté, le nouveau service ne le connaît pas). Armé sur la socket app (realtime.ts), NotificationCenter et ProApp.
+   670→- LEÇON bunny : bun --hot a des sémantiques de rechargement opaques (parfois le state module survit, parfois tout re-runit) ; les sockets existantes peuvent finir zombies. Le heartbeat est le filet, le tick 8 s la garantie — pire cas mesuré : livraison ≤ 8 s.
+   671→
+   672→Tests E2E (navigateur via gateway :81, DB réelle) :
+   673→- BUGFIX : état utilisateur reproduit → espace Pro chargé + toast + localStorage réparé (voir ci-dessus)
+   674→- Test d'or (réservation cliente via API pendant que Pro est ouvert) : POST 10:27:43.6 → « push pro reçu » + « tenant-feed émis (push) — 2 RDV » 10:27:43 → badge 2→3 + toast « Nouvelle demande de RDV — Diagnostic IA + Consultation · Aïcha Bakayoko · 3 sept. » capturé à 2,5 s — ~1,3 s bout en bout
+   675→- Cycle bidirectionnel : confirm pro (PATCH, push 10:30:31) → badge 3→2 ; nouvelle réservation (push 10:30:33) → badge 2→3 — les DEUX sens instantanés ; badge se vide à la visite Agenda (baseline) ; grille Agenda affiche les 3 RDV en attente
+   676→- Vente POS 10 000 (cash) : KPI « CA aujourd'hui » 0 → 10 000 SANS reload, 7 j 384 k → 394 k, AUCUN toast (action de la pro = silencieuse par design)
+   677→- Commande boutique (produit institut Gommage 9 500, wallet Mariam) : toast « Commande boutique reçue — 9 500 FCFA · 1 article(s) · Mariam Diallo » + feed « 1 commande(s) » — capturé
+   678→- Auto-correction : purge DB des RDV de test → tick suivant « tenant-feed émis (tick) — 0 RDV · CA 0 · 0 commande » → badge retombe à 0 en direct (convergence bidirectionnelle comme tâche 33)
+   679→- Résilience : rechargement à chaud du service → reconnexion auto des sockets pro (join re-émis, feed frais) ; heartbeat armé partout ; rechargement page → join → badge synchronisé immédiatement
+   680→- Non-régression : espace Cliente (accueil/cloche/wallet) intact après les allers-retours d'espaces ; socket unique par espace au montage/démontage
+   681→- Responsive : 390 px (chips + badge Agenda + pill EN DIRECT dans l'en-tête mobile, VLM « propre, aucun chevauchement, badge lisible ») et 1440 px (VLM : sidebar + badge Agenda « 3 » + badge vert « En direct » + aucun chevauchement)
+   682→- tsc --noEmit 0 erreur src/ ; eslint . 0 erreur 0 warning ; console navigateur vierge ; dev.log uniquement des 200 (+ le 404 VOULU de la garde tenant inconnu)
+   683→- Nettoyage intégral : 5 RDV test, 5+1 notifications, 1 vente POS + écriture comptable + lignes, 1 commande + items + payment + tx wallet + stock Gommage 34→35, wallet Mariam restauré 14 000 ; groupBy RDV = état d'origine exact (1 cancelled / 5 completed / 8 confirmed)
+   684→- Screenshots : .proofs/task35-{fix-pro-charge,fix-toast,live-push-toast,toast-rdv-live,toast-commande,mobile-dashboard,desktop-live}.png
+   685→
+   686→Stage Summary:
+   687→- L'espace Pro est désormais LIVE de bout en bout : une cliente réserve → la pro voit le badge Agenda monter, un toast, l'agenda se rafraîchir et le dashboard vivre — en ~1,3 s mesuré, sans reload ; la pro confirme → les autres postes/onglets se corriger en direct
+   688→- Le bug bloquant « Pro ne charge pas » est réparé à la RACINE avec auto-guérison permanente : plus aucune donnée localStorage périmée ne peut bloquer un espace
+   689→- Architecture « relais intelligent » étendue au canal institut : le service reste sans logique métier (il proxifie /api/pro/live), l'app pousse via notify() + 4 points explicites, l'espace Pro s'abonne — le tout avec heartbeat anti-zombie et tick 8 s en filet
+   690→- Les deux espaces partagent désormais le temps réel : cloche cliente (user:{id}) + badge pro (tenant:{id}) sur le même service, les mêmes patterns et les mêmes garanties
+   691→- Prochaine étape proposée : PDF mensuel de la liasse (compta → export), coupons maison gérés par l'Admin (modèle tenantId null prêt), ou visio-diagnostic (SkinTwin → partage pro)
+   692→
+   693→---
+   694→Task ID: 36
+   695→Agent: main (Z.ai Code)
+   696→Task: « En mode PC, les onglets de la barre de navigation ne sont pas nommés » + question « les clients et l'entreprise peuvent-ils consulter les données enregistrées ? »
+   697→
+   698→Work Log:
+   699→- Vérification services : app :3000 OK, gateway :81 OK, notify-service :3004 OK (health polling OK) ; /api/pro/live 200 en continu → l'espace Pro charge bien (bug tâche 35 confirmé résolu).
+   700→- BUGFIX onglets non nommés (mode PC, sidebar Pro) : reproduction desktop 1440×900 + VLM → 10 boutons ICÔNE-SEULE. Cause exacte mesurée au DOM : <span className="flex-0 truncate"> — en Tailwind v4, flex-0 = flex: 0 1 0% → flex-basis 0% + grow 0 → largeur 0px, et truncate (overflow hidden) rend le libellé invisible. Le texte était rendu mais replié sur lui-même. Fix : flex-0 → min-w-0 (basis auto, shrink 1) — 1 seul usage dans tout src/. Validation : les 10 largeurs passent de 0px à 28–101px, VLM lit « Tableau de bord, Agenda, Caisse, CRM, Relances, Catalogue, Promos, Stock, Paie, Compta ».
+   701→- RÉPONSE à la question consultation des données (audit de l'existant) :
+   702→  * Entreprise (Pro) — DÉJÀ COMPLET : CRM (fiches clientes : identité, RFM, diagnostics IA avec photos/scores, Jumeau de Peau 3D, Fil du Temps, ventes, RDV, notes), Agenda, Caisse (ventes récentes), Compta, dashboard (commandes boutique). Vérifié E2E : fiche Mariam Diallo = 5 diagnostics + jumeau + évolution 71→62 + RFM 5/5/5/5.
+   703→  * Cliente — TOUT SAUF ses commandes boutique : historique diagnostics (comparaison), Mes RDV, transactions wallet, notifications, profil éditable ✓ ; MAIS /api/orders n'avait que POST → aucune vue « Mes commandes ».
+   704→- DÉVELOPPEMENT « Mes commandes » (comblage du manque) :
+   705→  * GET /api/orders?userId= (NOUVEAU) : user vérifié, findMany desc + items inclus, 404 garde.
+   706→  * types.ts : ApiOrder + discount?, couponCode?.
+   707→  * ShopScreen : bascule role=tablist « Catalogue ↔ Mes commandes (n) » sous le titre ; chargement au montage + refreshOrders() rafraîchi après chaque paiement réussi ; OrdersView (squelettes, état vide avec CTA, cartes commande : N° + date + badge statut [En attente/Payée/Livrée/Annulée], lignes d'articles, sous-total/remise coupon/cashback/total, hint pending) ; bouton Rafraîchir ; tout le catalogue existant inchangé derrière la bascule.
+   708→- E2E (via gateway :81, DB réelle, Mariam démo) :
+   709→  * Mes commandes vide → « Aucune commande pour l'instant » + CTA (VLM ok).
+   710→  * Achat réel Savon Noir 4 500 wallet → succès → retour Boutique → « Mes commandes (1) » : carte N° UV7FTR, 2 sept. 11:21, badge « Payée » vert, 1× Savon, sous-total 4 500, cashback +225, total 4 500 (VML transcription exacte). Cohérence DB vérifiée : wallet 14 000 → 9 725 (= −4 500 + 225 cashback), tx debit/credit, notification SMS UV7FTR, statut paid.
+   711→  * Commande conservée volontairement (donnée démo cohérente) : la cliente voit un historique réel, l'institut la voit côté tableau de bord.
+   712→  * CRM : fiche Mariam (diagnostics + jumeau + évolution + RFM) ✓ ; Caisse : POS + Ventes récentes ✓.
+   713→  * Mobile 390×844 : bascule visible, nav basse 5/5 libellés (Accueil, Diagnostic, Boutique, RDV, Chat — DOM vérifié), footer en bas sans chevauchement.
+   714→  * tsc --noEmit 0 erreur src/ ; eslint 0 erreur/0 warning ; console navigateur vierge (hors warning THREE) ; dev.log : uniquement des 200.
+   715→- Screenshots : .proofs/task36-{nav-pc-libelles,mes-commandes-vide,mes-commandes-commande,crm-fiche-mariam,caisse-ventes,mobile-boutique}.png
+   716→
+   717→Stage Summary:
+   718→- Onglets PC nommés : la sidebar Pro affiche désormais les 10 libellés — cause racine Tailwind v4 flex-0 (basis 0%) piégée par truncate, corrigée par min-w-0.
+   719→- Consultation des données : OUI pour les DEUX parties — l'entreprise avait déjà tout (CRM complet) ; la cliente dispose maintenant de « Mes commandes » (GET /api/orders + UI) en plus de ses diagnostics, RDV, wallet et notifications. La commande de démo (UV7FTR) reste en base pour illustrer la fonction.
+   720→- Leçon Tailwind v4 : éviter flex-<nombre> sur un libellé — flex: 0 écrase la base à 0% ; préférer min-w-0 + truncate pour un texte qui doit se réduire gracieusement.
+   721→- Prochaine étape proposée : PDF mensuel de la liasse compta, coupons maison côté Admin, ou export données cliente (RGPD — portabilité).
+   722→
+   723→---
+   724→Task ID: 37
+   725→Agent: main (Z.ai Code)
+   726→Task: Bug bloquant — Runtime TypeError « Cannot read properties of undefined (reading 'text') » dans IndicatorBar (DiagnosticScreen.tsx:605) au rendu du résultat de diagnostic
+   727→
+   728→Work Log:
+   729→- Diagnostic : SEVERITY_STYLES (format.ts) est un TABLEAU d'objets {dot,label,text}. IndicatorBar faisait une DOUBLE indexation : `const sev = SEVERITY_STYLES[i]` (objet résolu) puis `sev[i].text` — sev[0..3] sur un objet = undefined → TypeError SYSTÉMATIQUE à chaque affichage d'un résultat (vue directe OU historique). Cause secondaire : ind.severite absent dans d'anciens resultJson → Math.max(0, undefined) = NaN → SEVERITY_STYLES[NaN] = undefined.
+   730→- Fix 1 — DiagnosticScreen.tsx IndicatorBar : résolution unique et gardée — sevIdx = Number.isFinite(ind.severite) ? clamp(0..3, trunc) : 0 ; sev = SEVERITY_STYLES[sevIdx] ?? SEVERITY_STYLES[0] ; usage sev.text / sev.dot ; largeur de barre clampée 0-100.
+   731→- Fix 2 — types.ts parseDiagnosis (défense en profondeur) : assainissement de chaque indicateur (nom requis, severite clamp 0-3 sinon 0, pourcentage clamp 0-100 sinon 0) — protège TOUS les consommateurs (DiagnosticScreen, CRM, SkinTwin, Evolution, RitualJourney).
+   732→- Fix 3 — twinMath.ts buildMarkers : même garde Number.isFinite sur m.severite (SEVERITY_STYLES[NaN].label / SEV_HEX[NaN] auraient crashé SkinTwinCard).
+   733→- Vérifications : bun run lint 0 erreur ; tsc --noEmit 0 erreur src/ ; serveur :3000 → 200 via gateway :81.
+   734→- E2E (390×844, gateway :81, Mariam démo) : Diagnostic → « Voir mon historique » → ouverture « Diagnostic visage 2 sept. 2026 (62) » → écran de résultat COMPLET sans crash (Priorités de soin avec barres : Cernes 35 %, PIH 40 %, Sébum 40 %, Éclat 45 %…, accordéon 14 indicateurs détaillés OK) ; 2e diagnostic « Mains 12 août (81) » OK ; agent-browser errors VIDE, console vierge (hors warning THREE bénin) ; l'ancien TypeError n'est plus reproductible.
+   735→- Screenshots : .proofs/task37-{diag-result-visage,diag-detail-14indicateurs,diag-result-mains}.png
+   736→
+   737→Stage Summary:
+   738→- Le crash de l'écran de résultat de diagnostic est réparé à la racine : plus aucune double indexation, plus aucun NaN possible — données anciennes (resultJson incomplets) et nouvelles rendent de manière sûre.
+   739→- Leçon code : quand on résout un item d'un tableau de styles, NE PAS ré-indexer l'objet résultat ; et toute valeur numérique venue d'un JSON persisté doit passer par Number.isFinite avant clamp/index (NaN se propage silencieusement dans Math.min/max).
+   740→- Le diagnostic IA est de nouveau consultable de bout en bout (vue résultat + historique + comparaison).
+   741→
+   742→---
+   743→Task ID: 38
+   744→Agent: main (Z.ai Code)
+   745→Task: « Étudions un peu les utilisateurs ? dans ce domaine cosmétique en 2026. y a t il des lettrés, illettrés, etc... qui peuvent faire échouer le projet » + « on y va et n'oublie pas de mettre à jour tous nos documents de base »
+   746→
+   747→Work Log:
+   748→- Étude utilisateurs 2026 livrée (analyse produit, pas de code) : segmentation bicéphale C (cliente) / B (institut) + prescripteurs ; repères Côte d'Ivoire — alphabétisation adultes ~56 % (femmes ~47 %, rural bien plus bas), mobile money omniprésent (Wave/OM), WhatsApp dominant, data rechargée en petits paquets journaliers, français 2e langue pour la majorité.
+   749→- Segments C identifiés : digitale lettrée exigeante (churn silencieux, comparaison internationale), semi-lettrée numérique (gros volume urbain — drop-off sur parcours multi-étapes/jargon/formulaires), non-lectrice (~40 % des femmes selon zones — exclue silencieusement de tout funnel textuel), rurale/petite data (coût d'accès, téléphones entrée de gamme), WhatsApp-first (ne quitte jamais l'app), méfiante post-dépigmentation (IA = boîte noire suspecte), pressée (intro narrative = sortie avant la valeur).
+   750→- Segments B : gérante organisée (motrice — CRM/caisse/compta), praticienne peu administrative (risque n°1 côté B : CRM vide si la saisie est une friction), personnel salarié (perception surveillance → non-usage).
+   751→- Prescripteurs : dermatos/pharmaciens (sceptiques vis-à-vis d'une IA non validée — une phrase « cette app dit n'importe quoi » casse la confiance), skinfluencers (gatekeepers — un bad buzz « l'IA juge la peau » = crise réputationnelle).
+   752→- Classement des risques d'échec : 1) non-lectrices → funnel vide silencieux ; 2) pro non-saisissante → promesse 360° non tenue ; 3) méfiance/dépigmentation → rejet + bad buzz ; 4) semi-lettrées → abandon milieu de parcours ; 5) petites data → poids de l'app ; 6) digitales exigeantes → déception comparative.
+   753→- Audit des gardes produit DÉJÀ en place : diagnostic par photo VLM (zéro saisie textuelle), libellés simples Léger/Moyen/Fort + pastilles couleur, WhatsApp canal (relances + commande), fallbacks 3D statiques #twin-static/#weave-static, intro skippable, wallet 1 geste, cashback, orientation dermato.
+   754→- Manques traduits en backlog priorisé : lecture vocale TTS des questions/résultats (skill TTS dispo) → glossaire 1 tap (PIH, sébum…) → compression photo côté client avant upload → mode saisie Pro allégé → à terme langues locales audio (dioula, baoulé) + ASR.
+   755→- Documents de base mis à jour (README.md) : espaces Cliente (« Mes commandes », cloche temps réel) et Pro (badge « En direct ») enrichis ; stack + ligne « Temps réel » (mini-service socket.io :3004, poll 8 s + push, heartbeat) ; arborescence close proprement + ligne notify-service ; NOUVELLE section « Utilisateurs & littératie — repères 2026 » (tableau 8 segments barrière/garde + risques classés) ; NOUVELLE section « Limites assumées (démo) & priorités » (paiements simulés, OTP prévu, SQLite→Postgres, backlog).
+   756→- Services vérifiés avant/après : app :3000 → 200, gateway :81 → 200, notify-service :3004 vivant (400 attendu sur GET plain — service socket.io) ; aucun code applicatif modifié → lint/tsc inchangés (validés en tâche 37).
+   757→
+   758→Stage Summary:
+   759→- Conclusion clé : la LITTÉRATIE (pas la technologie) est la première barrière d'adoption — en CI, un funnel purement textuel exclut silencieusement ~4 femmes sur 10 ; la voix (TTS) et les pictogrammes passent en priorité de backlog.
+   760→- Deuxième enseignement : côté B le CRM ne doit dépendre d'aucune saisie manuelle — la donnée doit arriver toute seule (diagnostic client, vente POS, commande boutique), ce que l'architecture actuelle fait déjà.
+   761→- README et worklog alignés sur l'état réel (37 tâches de dev + étude 38) : les documents de base sont à jour.
+   762→- Prochaines étapes candidates : TTS lecture des résultats → glossaire 1 tap → compression photo client → mode Pro allégé → OTP réel (OtpCode prêt) → paiements réels → export PDF liasse → portabilité données.
+   763→
+   764→---
+   765→Task ID: 39
+   766→Agent: main (Z.ai Code)
+   767→Task: « On y va » — lecture vocale TTS des résultats de diagnostic (attaque du risque n°1 de l'étude utilisateurs : les non-lectrices)
+   768→
+   769→Work Log:
+   770→- Skill TTS chargé et contraintes intégrées : z-ai-web-dev-sdk BACKEND ONLY, max 1024 chars/requête, voix whitelistées (tongtong…), speed 0.5-2.0, Response → arrayBuffer() → Buffer, WAV 24 kHz 16-bit mono. Test CLI préalable : WAV RIFF valide (826 Ko / ~17 s).
+   771→- NOUVEAU src/lib/kene/narration.ts (lib PURE) : numberToFrench(0-100) en toutes lettres (« soixante-deux » lu plus fiablement que « 62 »), verdictWord/levelWord (mêmes seuils que l'UI), clipSentences (coupe fin de phrase), fnv1a (hash cache), buildNarration(result, {userName}) — assemble par priorité décroissante dans un budget de 950 chars : accueil → score+verdict → 3 priorités (indicateurs les plus faibles, niveau parlé) → orientation dermato (+raison) → résumé conseils → 1 geste matin + 1 soir → botaniques → avertissement légal.
+   772→- NOUVEAU src/app/api/tts/route.ts (POST, runtime nodejs) : validations (texte requis ≤ 1000, voice whitelist, speed clamp 0.5-2) → ZAI.create() → audio.tts.create({wav}) → NextResponse Uint8Array + Content-Type/Length audio/wav. Cache mémoire FIFO plafonné 32 Mo (hash fnv1a voice|speed|text) ; garde « audio vide » 502 ; erreurs 400/500 JSON propres.
+   773→- NOUVEAU src/components/kene/client/VoiceNarration.tsx (« use client ») : bouton « Écouter le résumé » (h-12, bg-primary) avec 3 états — idle (Volume2) / loading (Loader2 spin « Préparation de l'audio… », disabled) / playing (équaliseur 4 barres framer-motion scaleY + Square « Arrêter la lecture », hint « Lecture en cours… ») ; POST /api/tts → blob → URL.createObjectURL → new Audio ; cache objectURL module-level FIFO 8 (replay instantané SANS re-consommer de quota TTS, éviction sans révoquer l'URL en cours) ; onended/onerror gérés ; stop au démontage ; toasts d'erreur actionnables.
+   774→- DiagnosticScreen.tsx : <VoiceNarration result={r} userName={user.name}/> intégré dans ResultView juste sous la carte de score (avant l'alerte dermato) — la lecture est proposée AU MOMENT où la cliente découvre son résultat, en vue directe ET historique (même composant).
+   775→- Vérifications statiques : bun run lint 0 erreur/0 warning ; tsc --noEmit 0 erreur src/.
+   776→- Test narration RÉELLE (bun + prisma, diagnostic visage Mariam) : 917 chars — « Bonjour Mariam… score global soixante-deux sur cent. Bon équilibre général. Première priorité : Cernes & poches, à surveiller de près… consultation dermatologique conseillée… » — assemblage correct.
+   777→- Test API curl : 1er appel 200 (WAV RIFF 3,78 Mo ≈ 79 s de parole, ~21 s de génération) ; 2e appel 79 ms (cache mémoire serveur). Gardes : {} → 400 « Texte requis » ; 1200 chars → 400 « Texte trop long ».
+   778→- E2E agent-browser (gateway :81, DB réelle, 390×844 puis 1440×900) :
+   779→  * Parcours : intro passée → « Démo — Entrer comme Mariam » → Diagnostic → « Voir mon historique » → diagnostic visage 2 sept (62) → bouton « Écouter le résumé vocal du diagnostic » présent dans la région « Lecture vocale du diagnostic ».
+   780→  * Clic → lecture DÉMARRÉE (cache serveur : instantané) → bouton « Arrêter la lecture » + équaliseur + « Lecture en cours… » (VLM : « bouton doré, texte blanc, position correcte sous la carte Visage »).
+   781→  * Cycle complet : clic Arrêter → retour idle → re-clic → lecture en 1,5 s (cache blob client, AUCUN nouveau POST).
+   782→  * Génération non cachée (diagnostic mains 81) : bouton disabled + spinner pendant ~15 s → lecture démarrée (dev.log : POST /api/tts 200 in 15.2s) — parcours 1re écoute validé en conditions réelles.
+   783→  * Desktop 1440×900 : colonne mobile-first centrée (~40-45 %), bouton + égaliseur OK (VLM).
+   784→  * agent-browser errors VIDE ; console sans error/failed ; dev.log : uniquement 200 (+2 gardes 400 voulues) ; navigateur fermé.
+   785→- Screenshots : .proofs/task39-{mobile-lecture,mobile-replay,mobile-preparation,mobile-mains-lecture,desktop-resultat}.png
+   786→- Docs de base mises à jour : README (ligne Cliente « lecture vocale (TTS) », ligne IA « + lecture vocale », segment non-lectrice « garde en place ✅ », backlog recentré sur glossaire 1 tap) + worklog (cette entrée).
+   787→
+   788→Stage Summary:
+   789→- La barrière n°1 de l'étude utilisateurs est attaquée concrètement : une cliente qui ne lit pas peut maintenant ÉCOUTER son diagnostic complet (score, priorités, orientation dermato, conseils, avertissement) via un bouton doré « Écouter le résumé ».
+   790→- Architecture 3 couches réutilisable : narration.ts (lib pure, budget 950 chars, priorisation des blocs) → /api/tts (SDK backend, validations, cache mémoire 32 Mo FIFO) → VoiceNarration (3 états, cache blob 8 entrées, replay gratuit).
+   791→- Coûts maîtrisés : la génération (~15-20 s) ne se paye qu'à la 1re écoute d'une narration ; ré-écoute instantanée (blob client), ré-écoute réseau 79 ms (cache serveur) ; textes identiques déterministes (buildNarration pur).
+   792→- Prochaine étape candidate : glossaire 1 tap (PIH, sébum…) → compression photo côté client → mode saisie Pro allégé → langues locales audio (dioula/baoulé).
+   793→
+   794→---
+   795→Task ID: 40-43
+   796→Agent: main (Z.ai Code)
+   797→Task: « Oui traite tout » — backlog complet de l'étude utilisateurs : glossaire 1 tap, compression photo renforcée, cliente express (mode Pro allégé), lecture lente (FLN)
+   798→
+   799→Work Log:
+   800→
+   801→TÂCHE 40 — Glossaire 1 tap (PIH, sébum…) + lecture vocale des définitions :
+   802→- NOUVEAU src/lib/kene/glossary.ts (lib PURE) : 28 définitions SIMPLES (phrases courtes, mots du quotidien, zéro jargon non expliqué) couvrant les 41 indicateurs de ZONE_INDICATORS via alias de zones + matching 3 niveaux : clé exacte normalisée (NFD sans accents) → alias (« Taches PIH du dos » / « … barbe » → PIH) → mots-clés de repli (libellés proches du VLM). glossaryFor() retourne null sur terme inconnu (pas de « ? » affiché). Test bun : 30/30 termes réels couverts, inconnus → null.
+   803→- NOUVEAU src/components/kene/client/ttsAudio.ts : fetchTtsAudioUrl(text, speed) — module client UNIQUE de consommation TTS (cache objectURL FIFO 8, clé fnv1a+speed, éviction sans révoquer l'URL active) — partagé par VoiceNarration, SpeakButton et tout futur consommateur.
+   804→- NOUVEAU src/components/kene/client/SpeakButton.tsx : bouton « Écouter » compact réutilisable (idle/loading/playing, stop au démontage, toasts).
+   805→- NOUVEAU src/components/kene/client/GlossaryDialog.tsx : Dialog shadcn — en-tête « QUE VEUT DIRE CE MOT ? », titre, définition, SpeakButton (speed 0.9), « J'ai compris ».
+   806→- DiagnosticScreen.tsx : IndicatorBar accepte onAsk — le nom de l'indicateur devient un bouton avec icône CircleHelp quand une définition existe (priorités + accordéon 14 indicateurs) ; ResultView porte l'état glossary et rend le Dialog.
+   807→- E2E (mobile 390×844, gateway :81, Mariam) : 8 boutons « Expliquer le mot : … » sur les priorités du diagnostic visage 62 ; tap « Taches PIH » → Dialog (titre + définition + VLM confirme le rendu) ; Écouter → génération 7,6 s → « Arrêter » (lecture en cours) ; 2e terme « Cernes & poches » ✓ ; fermeture « J'ai compris » ✓.
+   808→
+   809→TÂCHE 41 — Compression photo renforcée :
+   810→- api.ts resizeImage : 900px/q0.82 → 820px/q0.8 (suffit pour le VLM, ~25-35 % d'octets en moins — segment « petite data »).
+   811→- DiagnosticScreen onFile : toast « Photo compressée : X Ko → Y Ko — léger pour ta connexion » quand la compression est significative (orig > 250 Ko et ratio > 2) — transparence du coût data au moment du choix.
+   812→
+   813→TÂCHE 42 — Cliente express (mode saisie Pro allégé) :
+   814→- POST /api/pro/clients (NOUVEAU) : validations (nom 2-80, téléphone 8-15 chiffres), création ClientProfile minimale (rfmSegment « Nouveau », note « Créée express depuis la caisse »), ANTI-DOUBLON sur chiffres normalisés.
+   815→- BUG corrigé en E2E : 1re version contains SQL brut → « 07 05 44 33 22 » (espaces) échappait à « 0705443322 » (compact) → doublon créé. Fix : comparaison JS sur digits (les 10 derniers = numéro local CI, absorbe +225/espaces/compact) → réutilisation de la fiche (reused: true) + toast dédié. Test curl : 3 formats différents → même fiche retournée.
+   816→- PosSection.tsx : bouton « Express » (UserRoundPlus, or) à côté du Select cliente ; Dialog 2 champs (nom + téléphone, Enter = valider, placeholder « Aïcha Bakayoko ») ; création → sélection automatique dans le ticket + refetch clients + toast ; « Sans cliente » → « Sans cliente ».
+   817→- E2E (espace Pro, Caisse) : création « Aminata Traoré » → sélectionnée + toast « ajoutée au carnet clientes » ; re-test doublon UI (« Fanta Doumbia », même numéro en +225) → « Aminata Traoré existait déjà — fiche réutilisée », Fanta NON créée ; CRM : Aminata présente dans le carnet (la donnée arrive toute seule — pas de double saisie).
+   818→
+   819→TÂCHE 43 — Lecture lente (compréhension français langue seconde) :
+   820→- VoiceNarration.tsx refondu sur ttsAudio.ts partagé + toggle « Lecture lente » (icône Turtle, speed 0.85) : chip sous le bouton principal, état actif visible, couper la lecture en cours au changement de vitesse, hint « Lecture lente en cours… ». Clé de cache inclut la vitesse → normal et lent = 2 entrées distinctes.
+   821→- E2E : activation → narration en vitesse lente générée (17,4 s) puis « Arrêter la lecture » affiché ✓. Voix dioula/baoulé non disponibles dans le moteur TTS — la lecture lente + vocabulaire simple est le substitut réaliste actuel ; langues locales réelles documentées comme évolution (voix custom).
+   822→
+   823→Vérifications transverses :
+   824→- bun run lint 0 erreur/0 warning ; tsc --noEmit 0 erreur src/ (relancés après le fix anti-doublon).
+   825→- Console navigateur : aucune erreur pendant TOUTE la session ; dev.log : uniquement 200/201 (POST clients 201/200, TTS 200 dont cache 17 ms vs génération 7,6-17,4 s) + 2 gardes 400 testées en tâche 39.
+   826→- Nettoyage intégral : clientes de test supprimées (Aminata Traoré, Testeuse Express, Autre Nom) — aucune vente/RDV lié (créées vierges), CRM et caisse revenus à l'état d'origine.
+   827→- Screenshots : .proofs/task40-{glossaire-pih,glossaire-lecture}.png · task42-dialog-express.png · task43-{lecture-lente,lecture-lente-active}.png
+   828→
+   829→Stage Summary:
+   830→- Les 4 items du backlog « étude utilisateurs » sont traités : le jargon est expliqué en 1 tap (28 définitions simples, lues à voix haute), la photo envoie moins de données (et le dit), la praticienne crée une cliente en 2 champs depuis la caisse (CRM auto-alimenté, anti-doublon multi-formats), et la narration se met en mode lent pour l'écoute FLN.
+   831→- Architecture : un SEUL module TTS client (ttsAudio.ts) alimente désormais narration + glossaire — cache partagé FIFO 8, coût réseau uniquement à la 1re écoute d'un texte.
+   832→- Leçon : un « contains » SQL brut sur un téléphone est un piège à formats (espaces, +225, compact) — toujours normaliser en chiffres avant de comparer ; détecté par E2E (le curl seul l'avait raté car même format).
+   833→- Prochaines étapes candidates : OTP réel (OtpCode prêt) → paiements réels Wave/OM → export PDF liasse compta → portabilité données (RGPD).
+   834→
+   835→---
+   836→Task ID: 44
+   837→Agent: Z.ai Code (principal)
+   838→Task: Export PDF de la liasse comptable — dossier complet multi-pages pour le comptable/DGI, généré côté serveur sans dépendance externe.
+   839→
+   840→Work Log:
+   841→- Choix justifié : OTP réel et paiements Wave/OM exigent des identifiants externes (SMS gateway, compte marchand) indisponibles dans la sandbox → code non testable ; la liasse PDF est 100 % réalisable et vérifiable.
+   842→- NOUVEAU src/lib/accounting/pdf.ts (~680 lignes) : moteur PDF minimal ZÉRO DÉPENDANCE — pages A4 595×842, polices standard Helvetica/Bold/Oblique (aucun fichier de police à embarquer, /WinAnsiEncoding pour les accents FR), encodage cp1252 + échappement \( \) \, table de largeurs AFM ASCII exacte (accents = lettre de base via NFD) pour alignement à droite exact des montants, rects/lignes/hlines, pagination automatique (ensure/newPage), en-tête courant + pied « Page N / M » en 2e passe, xref/trailer conformes (entrées 20 octets).
+   843→- liassePdf(input) : 7 sections — page de garde (chiffres clés 6 cartes, sommaire, mentions), 1 Compte de résultat (produits/charges par compte + résultat vert/rouge + contrôle), 2 Déclaration TVA, 3 Bilan actif/passif (contrôle actif=passif), 4 Balance générale (6 colonnes + totaux + contrôle), 5 Journal (28 écritures, en-têtes bande or, lignes débit/crédit + totaux), 6 Livre des ventes (8 colonnes HT/TVA/TTC + totaux), 7 Mentions repliées (wrapText).
+   844→- Route export/route.ts : param format=csv|pdf — PDF réservé à type=liasse (garde 400 dédiée) ; réutilise l'assemblage de données des CSV (entrées+comptes+ventes en //) ; réponse application/pdf + Content-Disposition kene-liasse-{période}.pdf + X-Pages-Count/X-Rows-Count.
+   845→- AccountingSection.tsx : exportBusy passe à une clé « format:type » ; downloadExport(type, format) ; menu « Dossier pour le comptable » → item « Liasse PDF (dossier complet) » (FileText, or) ; toast dédié « Liasse PDF téléchargée · N pages » ; « Imprimer la liasse » recentré « papier » ; libellé période mis à jour.
+   846→- 3 BUGS détectés en auto-relecture AVANT tout test puis corrigés : (1) off-by-one objets PDF (Kids 6+2i / Contents 7+2i — sinon pages blanches), (2) totaux balance/journal mal alignés sur leurs colonnes, (3) Tc (interlettrage) QUI SURVIT aux blocs BT/ET — le « KÈNÈ » en Tc 2.2 bavait sur les textes suivants (« É c l a t d ' A b i d j a n ») → Tc TOUJOURS explicite (0 par défaut, aussi dans header/footer). Puis E2E : (4) colonne TTC du livre des ventes calculée hors page (right edge 617 > 595) + colonnes montants trop serrées → géométrie refondue ; (5) mentions tronquées → wrapText multi-lignes.
+   847→- Vérifications E2E complètes : curl gateway :81 → 200, 83 658 octets, 7 pages, 68 lignes ; garde type=journal&format=pdf → 400 claire ; format=xml → 400 ; tenant inconnu → 404 ; période from/to → kene-liasse-20260801-20260831.pdf, 6 pages, 64 lignes.
+   848→- qpdf --check : « No syntax or stream encoding errors found » ; lecture intégrale du PDF via lecteur natif (7 pages de texte extraites et vérifiées : totaux balance 7 724 330 = 7 724 330, actif = passif 6 636 129, TVA 122 654, 25 ventes TTC 1 284 075).
+   849→- Navigateur (agent-browser, desktop 1440×900, gateway :81) : Pro → Compta → Exporter → « Liasse PDF (dossier complet) » → toast « kene-liasse-tout.pdf · 7 pages » ✓ ; période « Mois dernier » → re-export → toast « kene-liasse-20260801-20260831.pdf · 6 pages » ✓ ; requête réseau 200 vue ; console 0 erreur (2 warnings préexistants).
+   850→- VLM (glm-5v) sur 4 pages rendues (garde, résultat/TVA/bilan, balance/journal, ventes) : « Rendu propre » — aucun chevauchement, aucun débordement, chiffres alignés.
+   851→- bun run lint 0 erreur ; tsc --noEmit 0 erreur src/ ; dev.log : uniquement 200 (26-194 ms) + gardes 400/404 testées.
+   852→- Captures : .proofs/task44-compta-toast.png · task44-compta-periode.png · task44-liasse.pdf · task44-page-{1,2,3,6}.png · task44-pdf-page1.png
+   853→
+   854→Stage Summary:
+   855→- La gérante télécharge en 1 clic (avec période au choix) un dossier comptable PDF de 6-7 pages prêt à transmettre : compte de résultat, TVA, bilan, balance, journal, livre des ventes + mentions SYSCOHADA/OHADA — 83 Ko générés en <200 ms, zéro dépendance installée.
+   856→- Le moteur PDF maison (polices standard + métriques AFM + WinAnsi) est réutilisable pour tout futur document (factures clientes, fiches diagnostic imprimables).
+   857→- Leçon technique : l'état texte PDF (Tc, Tw, Tf) SURVIT aux blocs BT/ET et aux pages — tout opérateur doit être réinitialisé explicitement ; et la géométrie des colonnes doit être vérifiée sur la largeur de page (595 pt) avant tout test navigateur.
+   858→- Prochaines étapes candidates : portabilité données RGPD (export JSON « mes données » côté cliente) → pictogrammes purs → OTP réel/paiements réels dès obtention des identifiants externes.
+   859→---
+   860→Task ID: 45
+   861→Agent: Z.ai Code (principal)
+   862→Task: Refonte UX « app 2026 » plein écran — l'interface doit remplir chaque écran (PC / tablette / mobile) avec des parcours type Instagram / TikTok / Facebook. Réparation au passage du serveur :3000 qui ne démarrait plus.
+   863→
+   864→Work Log:
+   865→- INCIDENT initial : le process Next.js (port 3000) était MORT (seuls notify :3004 + gateway :81 survivaient) → la gateway servait le placeholder sandbox « Z » sur fond blanc. Le sandbox recrée le shell à chaque appel Bash et récolte les processus de l'invocation : bun run dev mourait même avec nohup+setsid. FIX DÉFINITIF : lancement orphelin double-fork `( setsid nohup bun run dev </dev/null >/dev/null 2>&1 & )` → PPID 1, survit entre les appels (vérifié par témoin sleep 600 + HTTP 200 persistants).
+   866→- page.tsx refondu : racine minimale min-h-dvh sans header/footer — chaque espace gère SON shell. Le Fil de Kente (intro scroll 640 vh) et l'onboarding restent hors shell (scroll document préservé, pas d'overflow-hidden à la racine).
+   867→- ClientApp.tsx REÉCRIT (shell applicatif h-dvh, scroll INTERNE) : mobile = header glass unique responsive (KeneLogo + cloche NotificationCenter + bouton chat header + ThemeToggle) + zone de flux scrollable (overscroll-contain) + tab-bar 5 onglets (Accueil / Boutik / CTA « Scanner » central surélevé type TikTok / RDV / Profil) avec badges panier + dot chat ; desktop lg+ = sidebar 84 px icônes → xl 248 px libellés (Instagram web : item actif gras + indicateur gauche, Messages avec badge, bascule Espace Pro / Console Admin + micro-légal) ; xl+ accueil = RAIL DROIT 320 px (mini-profil, 4 actions rapides, mentions légales POC). Changement d'onglet → scrollTo top du conteneur interne (plus de window.scrollTo).
+   868→- HomeScreen.tsx refondu en FEED : rangée STORIES (story « Scanner » anneau dégradé + 6 stories zones — zone couverte = anneau coloré au score + pastille score, zone manquante = cercle pointillé + « + » ; tap = re-scan/scan de la zone via pendingZone) ; salutation compacte + WalletPill ; carte score multi-zones AVEC VoiceNarration intégrée (lecture TTS depuis le feed) ; CTA scan dégradé, Route de l'Or, Fil du Retour, RDV, wallet, reco produits, suivi WhatsApp ; fin de fil = mentions légales (bande kente + © + POC) — pattern app-like, aucun footer flottant.
+   869→- Écrans secondaires élargis : SheetContent 430→560 px (Shop, Profil, NotificationCenter, Parrainage, Booking checkout), Onboarding 430→520 px min-h-[80vh], grilles produits grid-cols-2 sm:grid-cols-3.
+   870→- ProApp : sidebar sticky top-0/max-h-screen (les offsets top-[67px] comptaient l'ex-header racine disparu) + min-h-screen ; bas de sidebar = ThemeToggle + SpaceSwitcher + légal ; header mobile = ThemeToggle + SpaceSwitcher (md:hidden). AdminApp : min-h-screen, ConsoleHeader + ThemeToggle + SpaceSwitcher (pills).
+   871→- Vérifications : tsc --noEmit 0 erreur src/ (2 fixes strokeWidth sur icônes typées ComponentType) ; bun run lint 0 erreur ; dev.log sans erreur (uniquement 200).
+   872→- E2E complet via gateway :81 (agent-browser + VLM) : intro → « Passer » → « Démo Mariam » ; MOBILE 390×844 : header (4 notifs, chat, thème) + stories (Visage 62 / Mains 81) + carte score 66 + TTS + tab-bar 5 onglets vue VLM « polished, professional » ; story Visage tapée → diagnostic visage PRÉ-SÉLECTIONNÉ (« De face, lumière naturelle ») ; Photo démo → analyse IA → résultat + lecture vocale + jumeau 3D ; Boutik / Profil / chat Dr. Kènè OK. DESKTOP 1440×900 : sidebar + feed centré + rail droit (mini-profil, 4 actions, légal) confirmés par VLM ; Boutique (grille), Profil, Messages, Diagnostic, sheet Notifications (EN DIRECT, À VENIR/REÇUES), bascule Espace Pro → dashboard Palmensiel KPIs OK, retour Cliente OK. TABLETTE 768×1024 : layout mobile enrichi (header + tab-bar + grille) type TikTok — assumé. Console navigateur : 0 erreur (warning Radix préexistant).
+   873→- Screenshots : .proofs/task45-*.png (mobile-feed, desktop-feed, desktop-shop, desktop-chat, desktop-diag, notifications, pro-space, tablet, result-tts, mobile-profil, back-client).
+   874→
+   875→Stage Summary:
+   876→- Le serveur :3000 tient désormais entre les invocations Bash (pattern orphelin double-fork documenté) — c'était LA cause de « l'application ne s'affiche pas ».
+   877→- L'app Cliente est un vrai shell applicatif plein écran : mobile (tab-bar + CTA scan surélevé), tablette (layout mobile enrichi), desktop (sidebar Instagram web + feed 640 px + rail droit xl). Zéro colonne 430 px flottante : l'écran est rempli sur toutes les tailles.
+   878→- Feed d'accueil « réseaux sociaux » : stories de zones scannables en 1 tap, score multi-zones avec TTS, légal en fin de fil.
+   879→- Pro/Admin deviennent autonomes (ThemeToggle + SpaceSwitcher intégrés, offsets racine corrigés).
+   880→- Aucune API modifiée : refonte 100 % présentation. Backlog inchangé : OTP réel, paiements Wave/OM, portabilité RGPD, langues locales, pictogrammes.
+   881→---
+   882→Task ID: 46
+   883→Agent: Z.ai Code (principal)
+   884→Task: « Regarde » (captures utilisateur avant/après) — audit E2E complet de la refonte plein écran sur les 3 formats + finitions tablette « app 2026 ».
+   885→
+   886→Contexte :
+   887→- L'utilisateur a envoyé 2 captures : PC 19h55 (espace Pro AVANT la t. 45 — header rôle + chips, écran non rempli) et mobile 21h32 (APRÈS — shell social valide). La refonte t. 45 était donc bien déployée ; il restait à auditer + parfaire la tablette, signalée « vue téléphone étirée » par mon audit VLM.
+   888→
+   889→Work Log:
+   890→- Audit E2E complet via gateway :81 (agent-browser + VLM glm-5v, Mariam démo) :
+   891→  - DESKTOP 1440×900 : Cliente = sidebar 248 px + feed 640 + rail droit 320 (VLM « polished, fills screen, no dead space ») ; Pro = sidebar 240 + KPI 6 col + graphiques pleine largeur (« Excellent ») ; Admin = console centrée propre.
+   892→  - MOBILE 390×844 : tab-bar 5 onglets + CTA Scanner surélevé, stories, feed plein cadre ✓.
+   893→  - TABLETTE 768×1024 : DIAGNOSTIC « vue téléphone étirée » (tab-bar + colonne unique) → à corriger ; Pro = chips horizontales (truncation « Promos ») → à corriger.
+   894→- TABLETTE CLIENTE (ClientApp.tsx) : le rail d'icônes 84 px passe de lg (1024) à **md (768)** — tab-bar bas + logo mobile + bouton chat header deviennent `md:hidden` (mobile uniquement), padding flux `pb-28 md:pb-10` → façon TikTok iPad dès 768 px.
+   895→- TABLETTE PRO (ProApp.tsx) : sidebar → **rail d'icônes 76 px de md à lg** (`w-[76px] lg:w-[240px]`), libellés/badges chips `hidden lg:block`, boutons nav centrés `justify-center lg:justify-start` + `title` natif au survol ; chips horizontales et en-tête compact deviennent `<md seulement ; en-tête compact garde tenant + section + En direct + bascules jusqu'à lg ; suppression du conteneur max-w-1600 → pleine largeur native.
+   896→- STORIES (HomeScreen.tsx) : libellés story dédiés `STORY_LABEL` (naevi → « Grains de beauté ») + `line-clamp-2 leading-tight break-words min-h-[26px]` au lieu de `truncate` — plus aucun libellé coupé (« Navl… » signalé par VLM).
+   897→- BUG VISUEL CORRIGÉ (repéré par zoom VLM + getComputedStyle) : bouton Scanner de la sidebar Cliente restait `flex-col` en xl (il manquait `xl:flex-row`) → le libellé débordait sous le dégradé et était illisible ; fix + vérif DOM `dir:row, h:48` + VLM « Scanner clairement lisible ».
+   898→- Vérifications : tsc --noEmit 0 erreur src/ ; bun run lint 0 problème ; dev.log uniquement 200 ; console navigateur 0 erreur.
+   899→- E2E final 3 formats × 3 espaces : Cliente tablette = rail + feed (VLM « successful ») ; Pro tablette = rail 76 px + KPI 3 col (« Present and Correct ») ; mobile Cliente (tab-bar, Boutik 2 col « polished ») ; mobile Pro (chips + en-tête compact) ; notifications sheet (4 non lues, À VENIR/REÇUES) ; bascules d'espaces via Profil (mobile) et sidebar/rail (md+).
+   900→- Captures : .proofs/task46-{desktop-accueil,desktop-pro,desktop-admin,desktop-v3,mobile-accueil,mobile-v2,mobile-boutik,mobile-notifs,mobile-pro-v2,tablet-accueil,tablet-client-v2,tablet-pro2,tablet-pro-v3}.png
+   901→
+   902→Stage Summary:
+   903→- Les 3 espaces × 3 formats remplissent désormais l'écran selon les patterns 2026 : mobile = tab-bar (Cliente) / chips (Pro) ; tablette = rail d'icônes verticales dès 768 px (TikTok iPad) ; desktop = sidebar libellée + feed centré + rail droit (Instagram web).
+   904→- La capture « avant » de l'utilisateur (19h55) est bien l'ancien état ; la capture mobile (21h32) confirmait le nouveau shell — ce qui restait à parfaire (tablette, stories, libellé xl) est fait et vérifié.
+   905→- Aucune API touchée (100 % présentation). Backlog inchangé : OTP réel, paiements Wave/OM, portabilité RGPD, langues locales, pictogrammes.
+   906→---
+   907→Task ID: 47
+   908→Agent: Z.ai Code (principal)
+   909→Task: Diagnostic « l'application ne s'affiche plus » — vérification de l'état des services et de l'affichage réel.
+   910→
+   911→Work Log:
+   912→- Constat processus : les 3 services (app :3000, notify :3004, gateway :81) avaient TOUS redémarré à 22:58 (reboot sandbox) — fenêtre d'indisponibilité pendant laquelle la gateway servait le placeholder : cause la plus probable du « ne s'affiche plus » vu par l'utilisateur.
+   913→- Vérification E2E via gateway :81 (agent-browser) : intro Kènè → 6 chapitres + « Passer » OK ; « Entrer comme Mariam » → feed d'accueil complet (tab-bar 5 onglets + CTA Scanner, stories 6 zones, carte score multi-zones 79/100, wallet 9 725 FCFA, 4 notifs, chat 1 message) ; bascules Espace Pro / Console Admin présentes.
+   914→- Console navigateur : 0 erreur (seuls logs Fast Refresh + WebGL Context Lost attendu en quittant le jumeau 3D) ; dev.log : uniquement des 200 (7-42 ms) + requêtes Prisma normales.
+   915→- Captures de contrôle : .proofs/debug-{intro,home,desktop}.png
+   916→
+   917→Stage Summary:
+   918→- L'application s'affiche à nouveau correctement : le problème était la fenêtre de reboot du sandbox (services 3000/3004/81 tous repartis à 22:58), pas une régression code.
+   919→- Action utilisateur : rafraîchir le panneau de prévisualisation (bouton « Open in New Tab » si besoin).
+
+[showing lines 520-919 of 921; use offset=920 with limit to continue reading]

@@ -2,12 +2,14 @@
 // Kènè — lecture vocale TTS du diagnostic (accès non-lectrices & confort audio).
 // Utilise le cache TTS partagé (ttsAudio.ts) + option « lecture lente »
 // (speed 0.85) pour l'écoute en français langue seconde.
+// Langues : français (complet) + dioula / baoulé / bété (résumé compact,
+// traduction IA indicative — Côte d'Ivoire).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Loader2, Square, Turtle, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import type { DiagnosisResult } from "@/lib/kene/types";
-import { buildNarration } from "@/lib/kene/narration";
+import { buildNarration, buildNarrationCompact, NARRATION_LANGS, type NarrationLang } from "@/lib/kene/narration";
 import { fetchTtsAudioUrl } from "./ttsAudio";
 
 const SLOW_SPEED = 0.85;
@@ -15,8 +17,12 @@ const SLOW_SPEED = 0.85;
 export function VoiceNarration({ result, userName }: { result: DiagnosisResult; userName?: string }) {
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
   const [slow, setSlow] = useState(false);
+  const [lang, setLang] = useState<NarrationLang>("fr");
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const narration = useMemo(() => buildNarration(result, { userName }), [result, userName]);
+  const narration = useMemo(
+    () => (lang === "fr" ? buildNarration(result, { userName }) : buildNarrationCompact(result, { userName })),
+    [result, userName, lang],
+  );
 
   // stop + libération au démontage
   useEffect(
@@ -26,6 +32,15 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
     },
     [],
   );
+
+  // changer de langue pendant une lecture : couper proprement
+  function switchLang(next: NarrationLang) {
+    if (state === "playing") {
+      stopAudio();
+      setState("idle");
+    }
+    setLang(next);
+  }
 
   function stopAudio() {
     const a = audioRef.current;
@@ -45,7 +60,7 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
     if (state === "loading") return;
     setState("loading");
     try {
-      const url = await fetchTtsAudioUrl(narration, slow ? SLOW_SPEED : 1);
+      const url = await fetchTtsAudioUrl(narration, slow ? SLOW_SPEED : 1, lang);
       const audio = new Audio(url);
       audioRef.current = audio;
       audio.onended = () => setState("idle");
@@ -70,6 +85,8 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
     setSlow(!slow);
   }
 
+  const langLabel = NARRATION_LANGS.find((l) => l.code === lang)?.label ?? "Français";
+
   return (
     <div role="region" aria-label="Lecture vocale du diagnostic" className="mt-4">
       <button
@@ -77,8 +94,8 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
         disabled={state === "loading"}
         aria-label={
           state === "playing"
-            ? "Arrêter la lecture vocale du diagnostic"
-            : "Écouter le résumé vocal du diagnostic"
+            ? `Arrêter la lecture vocale du diagnostic (${langLabel})`
+            : `Écouter le résumé vocal du diagnostic (${langLabel})`
         }
         className="h-12 w-full rounded-2xl bg-primary text-primary-foreground font-heading font-bold text-sm shadow-md flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60"
       >
@@ -98,7 +115,8 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
           </>
         ) : state === "loading" ? (
           <>
-            <Loader2 size={17} className="animate-spin" aria-hidden="true" /> Préparation de l&apos;audio…
+            <Loader2 size={17} className="animate-spin" aria-hidden="true" />{" "}
+            {lang === "fr" ? "Préparation de l'audio…" : `Traduction ${langLabel}…`}
           </>
         ) : (
           <>
@@ -106,7 +124,7 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
           </>
         )}
       </button>
-      <div className="flex items-center justify-center gap-2 mt-1.5">
+      <div className="flex items-center justify-center gap-1.5 mt-1.5 flex-wrap">
         <button
           onClick={toggleSlow}
           aria-pressed={slow}
@@ -117,9 +135,35 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
         >
           <Turtle size={11} aria-hidden="true" /> {slow ? "Lecture lente activée" : "Lecture lente"}
         </button>
+        <span aria-hidden="true" className="text-muted-foreground/40 text-[10px]">·</span>
+        <div
+          role="group"
+          aria-label="Langue de la lecture vocale"
+          className="inline-flex items-center gap-1 rounded-full border border-border px-1 py-0.5"
+        >
+          {NARRATION_LANGS.map((l) => (
+            <button
+              key={l.code}
+              onClick={() => switchLang(l.code)}
+              aria-pressed={lang === l.code}
+              aria-label={`Lire en ${l.label}`}
+              className={`h-5 rounded-full px-2 text-[10px] font-bold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${
+                lang === l.code ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {l.code === "fr" ? "FR" : l.label}
+            </button>
+          ))}
+        </div>
       </div>
       <p className="text-center text-[10px] text-muted-foreground mt-1">
-        {state === "playing" ? (slow ? "Lecture lente en cours…" : "Lecture en cours…") : "Pour écouter plutôt que lire"}
+        {state === "playing"
+          ? slow
+            ? "Lecture lente en cours…"
+            : "Lecture en cours…"
+          : lang === "fr"
+            ? "Pour écouter plutôt que lire"
+            : "Résumé en " + langLabel + " · traduction IA indicative"}
       </p>
     </div>
   );

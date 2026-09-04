@@ -35,7 +35,7 @@ import { useKene } from "@/store/kene";
 import { VoiceNarration } from "./VoiceNarration";
 import type { ApiAppointment, ApiDiagnosis, ApiProduct, ApiReminderFeed, ApiWallet } from "./types";
 import { parseDiagnosis } from "./types";
-import { ScoreGauge, SectionTitle, Stars, WalletPill } from "./bits";
+import { ScoreGauge, ScrollFadeRow, SectionTitle, Stars, WalletPill } from "./bits";
 
 interface HomeData {
   diagnoses: ApiDiagnosis[];
@@ -168,7 +168,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
 
       {/* ───── Stories : scan rapide + zones avec score ───── */}
       <section aria-label="Scan rapide par zone" className="-mx-3 sm:-mx-5 px-3 sm:px-5">
-        <div className="flex gap-3.5 overflow-x-auto no-scrollbar py-1.5">
+        <ScrollFadeRow label="Stories des zones — fais défiler horizontalement" className="flex gap-3.5 overflow-x-auto no-scrollbar py-1.5 pr-2">
           {/* Story Scanner */}
           <button
             onClick={() => setClientTab("diagnostic")}
@@ -219,7 +219,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
               </button>
             );
           })}
-        </div>
+        </ScrollFadeRow>
       </section>
 
       {err && <p className="rounded-xl bg-destructive/10 text-destructive text-xs p-3">{err}</p>}
@@ -282,7 +282,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
               <p className="text-[11px] font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
                 <Sparkles size={12} className="text-primary" /> Zones à scanner pour compléter ton score
               </p>
-              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              <ScrollFadeRow label="Zones manquantes — fais défiler" className="flex gap-2 overflow-x-auto no-scrollbar pb-1 pr-1">
                 {multi.missing.map((z) => (
                   <button
                     key={z.id}
@@ -292,7 +292,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
                     + {z.label} · {Math.round(z.weight * 100)} %
                   </button>
                 ))}
-              </div>
+              </ScrollFadeRow>
             </div>
           )}
         </div>
@@ -453,7 +453,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
         {!data ? (
           <Skeleton className="h-44 rounded-2xl" />
         ) : (
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 snap-x">
+          <ScrollFadeRow label="Produits recommandés — fais défiler" className="flex gap-3 overflow-x-auto no-scrollbar pb-2 snap-x pr-1">
             {reco.map((p) => (
               <button key={p.id} onClick={() => setClientTab("boutique")} className="snap-start shrink-0 w-36 text-left rounded-2xl border border-border bg-card overflow-hidden shadow-sm active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
                 <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full object-cover" />
@@ -467,7 +467,7 @@ export function HomeScreen({ onScanZone }: { onScanZone: (z: BodyZone) => void }
                 </div>
               </button>
             ))}
-          </div>
+          </ScrollFadeRow>
         )}
       </section>
 

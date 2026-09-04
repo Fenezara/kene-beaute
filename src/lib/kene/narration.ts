@@ -75,6 +75,56 @@ export function fnv1a(s: string): string {
 
 const ORDINALS = ["Première priorité", "Deuxième priorité", "Troisième priorité"];
 
+/** Langues de narration parlée disponibles (FR + langues ivoiriennes) */
+export const NARRATION_LANGS = [
+  { code: "fr", label: "Français" },
+  { code: "dy", label: "Dioula" },
+  { code: "bq", label: "Baoulé" },
+  { code: "bt", label: "Bété" },
+] as const;
+
+export type NarrationLang = (typeof NARRATION_LANGS)[number]["code"];
+
+/**
+ * Narration COURTE (≤ 420 chars) pour les langues locales :
+ * l'essentiel oralisable — score, verdict, priorité n°1, un geste,
+ * orientation dermato, avertissement. Les traductions locales portent
+ * sur ce texte compact (plus fiable + moins coûteux).
+ */
+export function buildNarrationCompact(result: DiagnosisResult, opts?: { userName?: string }): string {
+  const name = (opts?.userName ?? "").trim().split(/\s+/)[0] ?? "";
+  const hello = name ? `Bonjour ${name}.` : "Bonjour.";
+  const blocks: string[] = [`${hello} Voici ton diagnostic en résumé.`];
+
+  blocks.push(`Ton score est de ${numberToFrench(result.score_global)} sur cent. ${verdictWord(result.score_global)}`);
+
+  const weakest = [...result.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage).find((ind) => ind.pourcentage < 85);
+  if (weakest) blocks.push(`La priorité : ${weakest.nom}, ${levelWord(weakest.pourcentage)}.`);
+
+  if (result.orientation_dermato) blocks.push("Important : une consultation dermatologique est conseillée.");
+
+  const matin = (result.recommandations.routine_matin ?? [])[0];
+  if (matin) blocks.push(`Le matin : ${clipSentences(matin, 110)}`);
+  const soir = (result.recommandations.routine_soir ?? [])[0];
+  if (soir) blocks.push(`Le soir : ${clipSentences(soir, 110)}`);
+
+  blocks.push("Kènè est un outil d'éducation beauté, pas un avis médical.");
+
+  const parts: string[] = [];
+  let used = 0;
+  for (const b of blocks) {
+    if (b.length === 0) continue;
+    if (used + b.length + 1 <= 420 || parts.length === 0) {
+      parts.push(b);
+      used += b.length + 1;
+    } else if (420 - used > 60) {
+      parts.push(clipSentences(b, 420 - used - 1));
+      break;
+    }
+  }
+  return parts.join(" ").replace(/\s+/g, " ").trim();
+}
+
 /**
  * Construit le texte parlé du diagnostic : score, verdict, 3 priorités,
  * résumé des conseils, 1 geste matin + soir, orientation dermato,

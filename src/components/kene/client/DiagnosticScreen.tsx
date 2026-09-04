@@ -14,6 +14,7 @@ import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/
 import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
 import { EvolutionCard } from "@/components/kene/evolution/EvolutionCard";
 import { VoiceNarration } from "./VoiceNarration";
+import { PictoSummary } from "./PictoSummary";
 import { GlossaryDialog } from "./GlossaryDialog";
 import { glossaryFor, type GlossaryEntry } from "@/lib/kene/glossary";
 import { matchProduct, norm } from "@/components/kene/route/ritual";
@@ -372,6 +373,11 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
 
       {/* Lecture vocale — accès non-lectrices & confort audio (TTS) */}
       <VoiceNarration result={r} userName={user.name} />
+
+      {/* Résumé en pictos — tuiles tapables lues à voix haute (non-lectrices) */}
+      <div className="mt-4">
+        <PictoSummary result={r} zoneLabel={BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone} />
+      </div>
 
       {/* Alerte orientation dermato */}
       {r.orientation_dermato && (

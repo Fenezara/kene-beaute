@@ -8,16 +8,16 @@ import { fnv1a } from "@/lib/kene/narration";
 const BLOB_CACHE_MAX = 8;
 const blobCache = new Map<string, string>();
 
-/** Récupère (ou met en cache) l'URL audio d'un texte. speed 0.5-2 (0.85 = lent). */
-export async function fetchTtsAudioUrl(text: string, speed = 1): Promise<string> {
-  const key = `${speed === 1 ? "n" : speed}|${fnv1a(text)}`;
+/** Récupère (ou met en cache) l'URL audio d'un texte. speed 0.5-2 (0.85 = lent), lang fr|dy|bq|bt. */
+export async function fetchTtsAudioUrl(text: string, speed = 1, lang: "fr" | "dy" | "bq" | "bt" = "fr"): Promise<string> {
+  const key = `${lang}|${speed === 1 ? "n" : speed}|${fnv1a(text)}`;
   const hit = blobCache.get(key);
   if (hit) return hit;
 
   const res = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, speed }),
+    body: JSON.stringify({ text, speed, lang }),
   });
   if (!res.ok) {
     let msg = "Synthèse vocale indisponible";

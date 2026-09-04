@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowDownLeft, ArrowLeft, ArrowUpRight, BadgeCheck, Building2, Check, Loader2, LogOut, MapPin,
+  ArrowDownLeft, ArrowLeft, ArrowUpRight, BadgeCheck, Building2, Check, Download, Loader2, LogOut, MapPin,
   Pencil, Phone, Plus, ShieldCheck, Sparkles, Wallet as WalletIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -59,6 +59,7 @@ export function ProfileScreen() {
   const [method, setMethod] = useState<"wave" | "orange">("wave");
   const [topupState, setTopupState] = useState<"idle" | "processing" | "done">("idle");
   const [topupBusy, setTopupBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
 
   const loadWallet = useCallback(() => {
     apiGet<{ wallet: ApiWallet; transactions: ApiWalletTx[] }>(`/api/wallet?userId=${user.id}`)
@@ -69,6 +70,32 @@ export function ProfileScreen() {
   useEffect(() => {
     loadWallet();
   }, [loadWallet]);
+
+  /** Portabilité RGPD — télécharge « mes données » en JSON via blob */
+  async function downloadMyData() {
+    setExportBusy(true);
+    try {
+      const res = await fetch(`/api/profile/export?userId=${encodeURIComponent(user.id)}`);
+      if (!res.ok) throw new Error("Export impossible");
+      const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition") ?? "";
+      const m = /filename="([^"]+)"/.exec(cd);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = m?.[1] ?? `kene-mes-donnees-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      const kb = Math.max(1, Math.round(blob.size / 1024));
+      toast.success(`Mes données téléchargées · ${kb} Ko`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export impossible");
+    } finally {
+      setExportBusy(false);
+    }
+  }
 
   async function saveIdentity() {
     setSavingId(true);
@@ -262,6 +289,28 @@ export function ProfileScreen() {
         <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${user.consentHealth ? "bg-[#3F7D3F]/15 text-[#3F7D3F]" : "bg-destructive/10 text-destructive"}`}>
           {user.consentHealth ? "Actif" : "Inactif"}
         </span>
+      </section>
+
+      {/* Mes données — portabilité RGPD (art. 20) */}
+      <section aria-labelledby="rgpd-t" className="rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center gap-3">
+          <span className="grid place-items-center h-10 w-10 rounded-xl bg-terre/15 text-terre shrink-0">
+            <Download size={19} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p id="rgpd-t" className="text-xs font-bold flex items-center gap-1.5">Mes données <span className="rounded-full bg-muted px-1.5 py-px text-[9px] font-semibold text-muted-foreground">RGPD</span></p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Ton dossier complet en un fichier : diagnostics, rendez-vous, commandes, wallet, parrainage, notifications.</p>
+          </div>
+        </div>
+        <button
+          onClick={downloadMyData}
+          disabled={exportBusy}
+          className="mt-3 h-11 w-full rounded-xl border-2 border-terre/50 bg-terre/10 text-terre text-xs font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-terre"
+        >
+          {exportBusy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+          {exportBusy ? "Préparation…" : "Télécharger mes données (JSON)"}
+        </button>
+        <p className="mt-2 text-[10px] text-muted-foreground">Art. 20 RGPD — droit à la portabilité. Les photos ne sont pas incluses (poids) ; les résultats complets oui.</p>
       </section>
 
       {/* Espace pro */}
