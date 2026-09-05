@@ -15,7 +15,7 @@
 
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BriefcaseBusiness, CalendarDays, Home, Loader2, MessageCircle, ShieldCheck, ShoppingBag, User, WifiOff } from "lucide-react";
+import { CalendarDays, Home, Loader2, MessageCircle, Settings, ShoppingBag, User, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
 import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
@@ -61,6 +61,7 @@ const TITLES: Record<ClientTab, string> = {
   rdv: "title.rdv",
   chat: "title.chat",
   profil: "title.profile",
+  parametres: "title.parametres",
 };
 
 /** Ordre de balayage mobile (swipe horizontal gauche/droite — TikTok-like) */
@@ -75,6 +76,9 @@ const DiagnosticScreen = lazy(() => import("./DiagnosticScreen").then((m) => ({ 
 const ShopScreen = lazy(() => import("./ShopScreen").then((m) => ({ default: m.ShopScreen })));
 const BookingScreen = lazy(() => import("./BookingScreen").then((m) => ({ default: m.BookingScreen })));
 const ChatScreen = lazy(() => import("./ChatScreen").then((m) => ({ default: m.ChatScreen })));
+// Paramètres : écran de réglages standard (t. 69-c) — lazy comme les autres
+// écrans lourds, chunk dédié au premier clic sur l'engrenage du header.
+const SettingsScreen = lazy(() => import("./SettingsScreen").then((m) => ({ default: m.SettingsScreen })));
 // Cloche + Sheet notifications : lazy aussi (socket.io du header sort du premier rendu)
 const NotificationCenter = lazy(() => import("./NotificationCenter").then((m) => ({ default: m.NotificationCenter })));
 
@@ -105,7 +109,6 @@ export function ClientApp() {
   const user = useKene((s) => s.user);
   const tab = useKene((s) => s.clientTab);
   const setClientTab = useKene((s) => s.setClientTab);
-  const setSpace = useKene((s) => s.setSpace);
   const cartCount = useKene((s) => s.cart.reduce((n, l) => n + l.qty, 0));
   // Gate d'hydratation kene-store (contrat t. 63-b) : _keneHydrated passe à
   // true quand la relecture localStorage est finie (onRehydrateStorage, même
@@ -352,22 +355,10 @@ export function ClientApp() {
           })}
         </nav>
 
-        {/* Bas de sidebar : bascule d'espaces + micro légal */}
-        <div className="border-t border-border/60 p-2.5 xl:p-4 flex flex-col gap-1.5">
-          <button
-            onClick={() => setSpace("pro")}
-            className="flex flex-col xl:flex-row items-center justify-center xl:justify-start gap-1 xl:gap-3.5 py-2.5 xl:py-0 xl:h-11 xl:px-3 rounded-2xl text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary"
-          >
-            <BriefcaseBusiness className="size-[18px]" />
-            <span className="text-[9px] xl:text-[13px] font-medium">{t("space.pro")}</span>
-          </button>
-          <button
-            onClick={() => setSpace("admin")}
-            className="flex flex-col xl:flex-row items-center justify-center xl:justify-start gap-1 xl:gap-3.5 py-2.5 xl:py-0 xl:h-11 xl:px-3 rounded-2xl text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary"
-          >
-            <ShieldCheck className="size-[18px]" />
-            <span className="text-[9px] xl:text-[13px] font-medium">{t("space.admin")}</span>
-          </button>
+        {/* Bas de sidebar : micro légal (l'isolation des comptes t. 69-a a
+            retiré la bascule libre vers les espaces Pro/Admin — chaque compte
+            n'accède qu'à son propre espace). */}
+        <div className="border-t border-border/60 p-2.5 xl:p-4">
           <p className="hidden xl:block px-3 pt-2 text-[10px] leading-relaxed text-muted-foreground/70">
             Kènè POC — paiements simulés · estimations IA non médicales
           </p>
@@ -397,6 +388,16 @@ export function ClientApp() {
               <Suspense fallback={<BellLoading />}>
                 <NotificationCenter userId={user.id} />
               </Suspense>
+              {/* Engrenage Paramètres (t. 69-c) — visible à TOUS les formats,
+                  même pattern que le bouton chat mobile (l'écran vit dans
+                  l'onglet « parametres », hors tab-bar et hors balayage). */}
+              <button
+                onClick={() => goTab("parametres")}
+                aria-label={t("title.parametres")}
+                className="relative grid place-items-center h-11 w-11 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition focus-visible:outline-2 focus-visible:outline-primary"
+              >
+                <Settings size={21} />
+              </button>
               <button
                 onClick={() => goTab("chat")}
                 aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
@@ -487,6 +488,11 @@ export function ClientApp() {
                   {tab === "profil" && (
                     <ScreenBoundary name="Profil">
                       <ProfileScreen />
+                    </ScreenBoundary>
+                  )}
+                  {tab === "parametres" && (
+                    <ScreenBoundary name="Paramètres">
+                      <SettingsScreen />
                     </ScreenBoundary>
                   )}
                 </Suspense>

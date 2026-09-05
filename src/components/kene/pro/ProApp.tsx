@@ -7,12 +7,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, LayoutDashboard, MapPin, Stethoscope, TicketPercent } from "lucide-react";
+import { BellRing, LayoutDashboard, MapPin, Settings, Stethoscope, TicketPercent } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
 import { KeneLogo, DuafeIcon, SankofaIcon, AbanIcon, OsramIcon, KenteIcon, FihankraIcon, BaouleIcon } from "@/components/kene/icons";
-import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -31,8 +30,9 @@ import { PayrollSection } from "./PayrollSection";
 import { AccountingSection } from "./AccountingSection";
 import { CouponsSection } from "./CouponsSection";
 import { DiagnosticsSection } from "./DiagnosticsSection";
+import { SettingsSection } from "./SettingsSection";
 
-export type ProSectionId = "dashboard" | "agenda" | "diagnostic" | "caisse" | "crm" | "relances" | "catalogue" | "promos" | "stock" | "paie" | "compta";
+export type ProSectionId = "dashboard" | "agenda" | "diagnostic" | "caisse" | "crm" | "relances" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres";
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
@@ -46,6 +46,7 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
   { id: "stock", label: "Stock", icon: KenteIcon, hint: "Inventaire" },
   { id: "paie", label: "Paie", icon: FihankraIcon, hint: "CNPS · IPRES" },
   { id: "compta", label: "Compta", icon: BaouleIcon, hint: "SYSCOHADA" },
+  { id: "parametres", label: "Paramètres", icon: Settings, hint: "Compte · affichage · session" },
 ];
 
 const PLAN_STYLES: Record<string, string> = {
@@ -64,8 +65,10 @@ function looksLikeLive(f: unknown): f is ProLive {
 export function ProApp() {
   const proTenantId = useKene((s) => s.proTenantId);
   const setProTenantId = useKene((s) => s.setProTenantId);
-  // Compte de session (t. 66-b) : alimente le chip de la sidebar quand le
-  // user connecté est une gérante (rôle « pro ») — sinon démo Fatou Koné.
+  // Compte de session (t. 66-b) : alimente le chip de la sidebar. Depuis
+  // l'isolation des comptes (t. 69-a), l'espace Pro n'est monté QUE pour une
+  // session de rôle « pro » — le fallback démo « Fatou Koné » reste défensif
+  // (aucun risque si un jour l'espace est ouvert sans session).
   const sessionUser = useKene((s) => s.user);
   const [section, setSection] = useState<ProSectionId>("dashboard");
   // Commande « Lancer un diagnostic » depuis la fiche CRM (objet neuf à chaque
@@ -183,8 +186,9 @@ export function ProApp() {
   const tenant = overview.data?.tenant;
   const activeLabel = NAV.find((n) => n.id === section)?.label ?? "";
 
-  // Chip compte (t. 66-b) : nom de la gérante de session si le compte est
-  // pro, sinon la démo « Fatou Koné » (POC sans session pro ouverte).
+  // Chip compte (t. 66-b) : nom de la gérante de session (rôle « pro », le
+  // seul qui monte cet espace depuis l'isolation t. 69-a) ; le fallback « Fatou
+  // Koné » reste défensif (session pro sans nom lisible).
   const proOwner = sessionUser?.role === "pro" ? sessionUser : null;
   const chipName =
     proOwner?.name && proOwner.name !== "Nouvelle cliente" && proOwner.name.trim() ? proOwner.name.trim() : "Fatou Koné";
@@ -301,8 +305,10 @@ export function ProApp() {
           })}
         </nav>
 
-        {/* Chip gérante (t. 66-b) — carte verre : la gérante de session si le
-            compte est pro, sinon la démo « Fatou Koné » (POC sans session pro). */}
+        {/* Chip gérante (t. 66-b) — carte verre : la gérante de session (rôle
+            « pro », seule façon d'entrer ici depuis l'isolation t. 69-a) ; le
+            fallback « Fatou Koné — Gérante démo » reste défensif. Les réglages
+            (t. 69-c) vivent dans la NAV ci-dessus, dernière entrée. */}
         <div className="p-2.5 lg:p-4">
           <div className="k-card rounded-[20px] p-2 lg:p-3">
             <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-2.5">
@@ -321,10 +327,7 @@ export function ProApp() {
               </div>
             </div>
           </div>
-          <div className="hidden lg:block px-1 pt-3">
-            <SpaceSwitcher />
-          </div>
-          <p className="hidden lg:block px-1 pt-2 pb-1 text-[10px] leading-relaxed text-muted-foreground/60">
+          <p className="hidden lg:block px-1 pt-3 text-[10px] leading-relaxed text-muted-foreground/60">
             Kènè POC — paiements simulés · CNPS CI / IPM SN / SYSCOHADA
           </p>
         </div>
@@ -397,9 +400,6 @@ export function ProApp() {
             <KeneLogo size={30} withText={false} />
             <div className="flex items-center gap-1.5">
               <ThemeToggle />
-              <span className="lg:hidden">
-                <SpaceSwitcher />
-              </span>
             </div>
           </div>
 
@@ -437,6 +437,7 @@ export function ProApp() {
             {section === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
             {section === "paie" && <PayrollSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} tenantName={tenant?.name ?? "Institut"} />}
             {section === "compta" && <AccountingSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
+            {section === "parametres" && <SettingsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} tenantCity={tenant?.city} />}
           </motion.div>
         </div>
       </div>

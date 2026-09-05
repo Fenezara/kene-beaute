@@ -1,19 +1,47 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="96" viewBox="0 0 300 96" role="img" aria-label="Kènè — Beauté mélanoderme">
+  <!-- Lockup Kènè — badge Duafe canonique + wordmark Fraunces + filet kente + devise.
+       (mirrors src/components/kene/icons.tsx KeneMark / KeneLogo) -->
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#C8951E"/>
+    <linearGradient id="keneGold" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="96" y2="96">
+      <stop offset="0" stop-color="#E3B04B"/>
+      <stop offset="0.42" stop-color="#C8951E"/>
       <stop offset="1" stop-color="#A0522D"/>
     </linearGradient>
+    <radialGradient id="keneSheen" cx="32%" cy="24%" r="62%">
+      <stop offset="0" stop-color="#FFF9EC" stop-opacity="0.3"/>
+      <stop offset="0.55" stop-color="#FFF9EC" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="kenteClip">
+      <rect x="116" y="70" width="140" height="3" rx="1.5"/>
+    </clipPath>
   </defs>
-  <rect width="64" height="64" rx="16" fill="url(#g)"/>
-  <g fill="none" stroke="#FFF9EC" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M14 12v40"/>
-    <path d="M14 12h28a6 6 0 0 1 6 6v34"/>
-    <path d="M14 22h30"/>
-    <path d="M22 22V12"/>
-    <path d="M30 22V12"/>
-    <path d="M38 22V12"/>
-    <circle cx="30" cy="36" r="6"/>
-    <path d="M30 42v6"/>
+  <!-- Badge squircle dégradé chaud -->
+  <rect x="3" y="3" width="90" height="90" rx="24" fill="url(#keneGold)"/>
+  <!-- Filet intérieur crème — relief 1 -->
+  <rect x="6.5" y="6.5" width="83" height="83" rx="20.5" fill="none" stroke="#FFF9EC" stroke-opacity="0.32" stroke-width="1.8"/>
+  <!-- Reflet radial haut-gauche — relief 2 -->
+  <rect x="3" y="3" width="90" height="90" rx="24" fill="url(#keneSheen)"/>
+  <!-- Duafe — peigne, beauté & féminité (24-grid × 2.3) -->
+  <g transform="translate(20.4 20.4) scale(2.3)" fill="none" stroke="#FFF9EC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 3v18"/>
+    <path d="M5 3h11.5a2.5 2.5 0 0 1 2.5 2.5V21H5"/>
+    <path d="M5 7.5h11"/>
+    <path d="M8.5 7.5V3"/>
+    <path d="M12 7.5V3"/>
+    <path d="M15.5 7.5V3"/>
+    <circle cx="12" cy="13" r="2.6"/>
+    <path d="M12 15.6V19"/>
   </g>
+  <!-- Wordmark -->
+  <text x="116" y="58" font-family="Fraunces, 'Playfair Display', Georgia, serif" font-size="46" font-weight="700" fill="#1A1410">Kènè</text>
+  <!-- Filet kente : or / terre / baobab -->
+  <g clip-path="url(#kenteClip)">
+    <rect x="116" y="70" width="46.67" height="3" fill="#C8951E"/>
+    <rect x="162.67" y="70" width="46.66" height="3" fill="#A0522D"/>
+    <rect x="209.33" y="70" width="46.67" height="3" fill="#3F7D3F"/>
+  </g>
+  <!-- Devise — letter-spacing aéré, textLength garanti sans débordement quel que
+       soit le moteur de rendu (navigateurs) ; largeur naturelle (serif large)
+       < 284 < viewBox 300 → jamais rogné. -->
+  <text x="116" y="86" font-family="Fraunces, 'Playfair Display', Georgia, serif" font-size="9.5" font-weight="600" letter-spacing="2" fill="#6B5B4A" textLength="160" lengthAdjust="spacingAndGlyphs">BEAUTÉ MÉLANODERME</text>
 </svg>

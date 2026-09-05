@@ -1,0 +1,604 @@
+     1→"use client";
+     2→// Kènè Cliente — Profil : identité, profil peau rééditable, wallet complet, consentement, espace pro — ÉCLAT 2026
+     3→import { useCallback, useEffect, useState } from "react";
+     4→import { motion } from "framer-motion";
+     5→import {
+     6→  ArrowDownLeft, ArrowLeft, ArrowUpRight, BadgeCheck, Building2, Check, Download, Languages, Loader2, LogOut, MapPin,
+     7→  Pencil, Phone, Plus, ShieldCheck, Smartphone, Sparkles, Wallet as WalletIcon,
+     8→} from "lucide-react";
+     9→import { toast } from "sonner";
+    10→import { apiGet, apiPatch, apiPost } from "@/lib/kene/api";
+    11→import { formatDate, xof, CASHBACK_RATE } from "@/lib/kene/format";
+    12→import { LANGS, type Lang } from "@/lib/kene/i18n";
+    13→import { useT } from "@/lib/kene/use-t";
+    14→import { MOMO_OPERATORS } from "@/lib/kene/rfm";
+    15→import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+    16→import {
+    17→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    18→} from "@/components/ui/alert-dialog";
+    19→import { IconBadge, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
+    20→import { useKene, type SessionUser } from "@/store/kene";
+    21→import { useSecurity } from "@/store/security";
+    22→import type { ApiUser, ApiWallet, ApiWalletTx } from "./types";
+    23→import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES } from "./types";
+    24→import { SectionTitle } from "./bits";
+    25→import { ParrainageCard } from "./ParrainageCard";
+    26→import { useInstallPrompt } from "@/components/kene/pwa/use-install";
+    27→
+    28→/** SessionUser + goals (string JSON) renvoyé par PATCH profile */
+    29→type ClientUser = SessionUser & { goals?: string | null };
+    30→
+    31→const REASON_LABELS: Record<string, string> = {
+    32→  cashback: "Cashback commande",
+    33→  referral: "Bonus parrainage",
+    34→  topup: "Approvisionnement",
+    35→  payment: "Paiement",
+    36→  refund: "Remboursement RDV",
+    37→};
+    38→
+    39→export function ProfileScreen() {
+    40→  const user = useKene((s) => s.user) as ClientUser;
+    41→  const setUser = useKene((s) => s.setUser);
+    42→  const setClientTab = useKene((s) => s.setClientTab);
+    43→  const clearCart = useKene((s) => s.clearCart);
+    44→  const { t, lang, setLang } = useT();
+    45→
+    46→  const [edit, setEdit] = useState(false);
+    47→  const [name, setName] = useState(user.name);
+    48→  const [city, setCity] = useState(user.city ?? "");
+    49→  const [savingId, setSavingId] = useState(false);
+    50→
+    51→  const [fitz, setFitz] = useState(user.fitzpatrick ?? "V");
+    52→  const [skinType, setSkinType] = useState(user.skinType ?? "mixte");
+    53→  const [allergies, setAllergies] = useState(user.allergies ?? "");
+    54→  const [goals, setGoals] = useState<string[]>(() => {
+    55→    try {
+    56→      return (JSON.parse(user.goals ?? "[]") as { id: string }[]).map((g) => g.id);
+    57→    } catch {
+    58→      return [];
+    59→    }
+    60→  });
+    61→  const [savingSkin, setSavingSkin] = useState(false);
+    62→
+    63→  const [wallet, setWallet] = useState<ApiWallet | null>(null);
+    64→  const [txs, setTxs] = useState<ApiWalletTx[] | null>(null);
+    65→  const [topup, setTopup] = useState(false);
+    66→  const [amount, setAmount] = useState(5000);
+    67→  const [method, setMethod] = useState<"wave" | "orange">("wave");
+    68→  const [topupState, setTopupState] = useState<"idle" | "processing" | "done">("idle");
+    69→  const [topupBusy, setTopupBusy] = useState(false);
+    70→  const [exportBusy, setExportBusy] = useState(false);
+    71→  // Confirmation « Créer un compte entreprise » (isolation des comptes t. 69-a)
+    72→  const [proSignup, setProSignup] = useState(false);
+    73→
+    74→  // Installation PWA — même source d'événement que la bannière d'accueil.
+    75→  const { canInstall, promptInstall, isStandalone, isIOS } = useInstallPrompt();
+    76→
+    77→  // Sécurité renforcée (2FA-lite) : code SMS exigé avant chaque paiement.
+    78→  const secureEnabled = useSecurity((s) => s.enabled);
+    79→  const setSecureEnabled = useSecurity((s) => s.setEnabled);
+    80→
+    81→  const loadWallet = useCallback(() => {
+    82→    apiGet<{ wallet: ApiWallet; transactions: ApiWalletTx[] }>(`/api/wallet?userId=${user.id}`)
+    83→      .then((r) => { setWallet(r.wallet); setTxs(r.transactions ?? []); })
+    84→      .catch(() => setTxs([]));
+    85→  }, [user.id]);
+    86→
+    87→  useEffect(() => {
+    88→    loadWallet();
+    89→  }, [loadWallet]);
+    90→
+    91→  /** Portabilité RGPD — télécharge « mes données » en JSON via blob */
+    92→  async function downloadMyData() {
+    93→    setExportBusy(true);
+    94→    try {
+    95→      const res = await fetch(`/api/profile/export?userId=${encodeURIComponent(user.id)}`);
+    96→      if (!res.ok) throw new Error("Export impossible");
+    97→      const blob = await res.blob();
+    98→      const cd = res.headers.get("Content-Disposition") ?? "";
+    99→      const m = /filename="([^"]+)"/.exec(cd);
+   100→      const url = URL.createObjectURL(blob);
+   101→      const a = document.createElement("a");
+   102→      a.href = url;
+   103→      a.download = m?.[1] ?? `kene-mes-donnees-${new Date().toISOString().slice(0, 10)}.json`;
+   104→      document.body.appendChild(a);
+   105→      a.click();
+   106→      a.remove();
+   107→      setTimeout(() => URL.revokeObjectURL(url), 4000);
+   108→      const kb = Math.max(1, Math.round(blob.size / 1024));
+   109→      toast.success(`Mes données téléchargées · ${kb} Ko`);
+   110→    } catch (e) {
+   111→      toast.error(e instanceof Error ? e.message : "Export impossible");
+   112→    } finally {
+   113→      setExportBusy(false);
+   114→    }
+   115→  }
+   116→
+   117→  /** « Créer un compte entreprise » (t. 69-a) : l'espace Pro vit sur un compte
+   118→   *  DÉDIÉ, séparé du compte cliente — on pose le pont sessionStorage que
+   119→   *  l'onboarding consomme à son montage (mode entreprise), on vide le panier
+   120→   *  (règle de déconnexion) puis on ferme la session cliente. */
+   121→  function startProSignup() {
+   122→    try {
+   123→      sessionStorage.setItem("kene-pro-signup", "1");
+   124→    } catch {
+   125→      /* stockage indisponible : l'onboarding démarrera simplement en mode cliente */
+   126→    }
+   127→    clearCart();
+   128→    setUser(null);
+   129→    toast.info("À très vite — bienvenue dans l'aventure entreprise");
+   130→  }
+   131→
+   132→  /** Installer l'app (prompt natif, ou instructions iOS / navigateur). */
+   133→  async function installApp() {
+   134→    if (canInstall) {
+   135→      const accepted = await promptInstall();
+   136→      if (accepted) toast.success("Kènè installée sur ton écran d'accueil 💛");
+   137→      return;
+   138→    }
+   139→    if (isIOS) {
+   140→      toast.info("Installer sur iPhone", {
+   141→        description: "Bouton Partager ⬆️ puis « Sur l'écran d'accueil ».",
+   142→        duration: 8000,
+   143→      });
+   144→      return;
+   145→    }
+   146→    toast.info("Installation manuelle", {
+   147→      description: "Menu du navigateur → « Installer l'application » ou « Ajouter à l'écran d'accueil ».",
+   148→      duration: 8000,
+   149→    });
+   150→  }
+   151→
+   152→  async function saveIdentity() {
+   153→    setSavingId(true);
+   154→    try {
+   155→      const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", { userId: user.id, name: name.trim() || undefined, city: city.trim() || undefined });
+   156→      setUser({ ...user, ...r.user } as SessionUser);
+   157→      setEdit(false);
+   158→      toast.success("Profil mis à jour");
+   159→    } catch (e) {
+   160→      toast.error(e instanceof Error ? e.message : "Mise à jour impossible");
+   161→    } finally {
+   162→      setSavingId(false);
+   163→    }
+   164→  }
+   165→
+   166→  async function saveSkin() {
+   167→    setSavingSkin(true);
+   168→    try {
+   169→      const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {
+   170→        userId: user.id,
+   171→        skinType,
+   172→        fitzpatrick: fitz,
+   173→        allergies: allergies.trim() || undefined,
+   174→        goals: goals.map((id) => ({ id, label: SKIN_GOALS.find((g) => g.id === id)?.label ?? id })),
+   175→      });
+   176→      setUser({ ...user, ...r.user } as SessionUser);
+   177→      toast.success("Profil peau mis à jour");
+   178→    } catch (e) {
+   179→      toast.error(e instanceof Error ? e.message : "Mise à jour impossible");
+   180→    } finally {
+   181→      setSavingSkin(false);
+   182→    }
+   183→  }
+   184→
+   185→  /** Langue de l'interface (i18n) — indépendante de la langue de lecture vocale. */
+   186→  function selectLang(l: Lang) {
+   187→    if (l === lang) return;
+   188→    setLang(l);
+   189→    const label = LANGS.find((x) => x.id === l)?.label ?? "";
+   190→    toast.success(`Interface en ${label.toLowerCase()}`);
+   191→  }
+   192→
+   193→  /** Sécurité renforcée : bascule la re-vérification par code avant paiement. */
+   194→  function toggleSecure() {
+   195→    const next = !secureEnabled;
+   196→    setSecureEnabled(next);
+   197→    if (next) toast.success("Sécurité renforcée activée");
+   198→    else toast("Sécurité renforcée désactivée");
+   199→  }
+   200→
+   201→  async function runTopup() {
+   202→    setTopupBusy(true);
+   203→    setTopupState("processing");
+   204→    try {
+   205→      const r = await apiPost<{ payment: { id: string; confirmToken?: string } }>("/api/wallet/topup", { userId: user.id, amount, method });
+   206→      // Contrat confirmToken (63-b/63-c) : un approvisionnement mobile money en
+   207→      // attente porte son jeton — absent, on n'appelle JAMAIS confirm et on
+   208→      // revient au formulaire comme après un échec (aucun crédit fantôme).
+   209→      const confirmToken = r.payment.confirmToken;
+   210→      if (!confirmToken) {
+   211→        setTopupState("idle");
+   212→        toast.error("Paiement impossible — réessaie dans quelques instants");
+   213→        return;
+   214→      }
+   215→      await new Promise((res) => setTimeout(res, 2600));
+   216→      await apiPost("/api/payments/confirm", { paymentId: r.payment.id, confirmToken });
+   217→      setTopupState("done");
+   218→      toast.success(`${xof(amount)} crédités sur ton wallet`);
+   219→      loadWallet();
+   220→    } catch (e) {
+   221→      setTopupState("idle");
+   222→      toast.error(e instanceof Error ? e.message : "Approvisionnement impossible");
+   223→    } finally {
+   224→      setTopupBusy(false);
+   225→    }
+   226→  }
+   227→
+   228→  return (
+   229→    <>
+   230→      <Reveal className="pt-4 pb-2 flex flex-col gap-6" stagger={0.07}>
+   231→        <RevealItem className="self-start">
+   232→          <button onClick={() => setClientTab("accueil")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label={t("profile.back.aria")}>
+   233→            <ArrowLeft size={15} /> {t("tab.home")}
+   234→          </button>
+   235→        </RevealItem>
+   236→
+   237→      {/* Identité */}
+   238→      <RevealItem>
+   239→        <section aria-labelledby="me-t" className="k-card overflow-hidden rounded-[24px]">
+   240→          <div className="kente-band h-1.5 w-full" aria-hidden="true" />
+   241→          <div id="me-t" className="p-5">
+   242→            <div className="flex items-center gap-4">
+   243→              <span className="k-glow-gold grid place-items-center h-16 w-16 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] font-heading font-black text-2xl">
+   244→                {user.name.charAt(0)}
+   245→              </span>
+   246→              <div className="min-w-0 flex-1">
+   247→                <p className="font-heading font-black text-[22px] leading-tight truncate">{user.name}</p>
+   248→                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-mono"><Phone size={12} /> {user.phone}</p>
+   249→                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5"><MapPin size={12} /> {user.city || "Ville non renseignée"}</p>
+   250→              </div>
+   251→              <button onClick={() => setEdit((v) => !v)} aria-label="Modifier mon profil" className="k-chip h-10 w-10 grid place-items-center rounded-full text-muted-foreground hover:text-primary transition-all focus-visible:outline-2 focus-visible:outline-primary">
+   252→                <Pencil size={16} />
+   253→              </button>
+   254→            </div>
+   255→            {edit && (
+   256→              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden">
+   257→                <div className="mt-4 space-y-3">
+   258→                  <div>
+   259→                    <label htmlFor="p-name" className="text-[11px] font-semibold text-muted-foreground">Prénom & nom</label>
+   260→                    <input id="p-name" value={name} onChange={(e) => setName(e.target.value)} className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+   261→                  </div>
+   262→                  <div>
+   263→                    <label htmlFor="p-city" className="text-[11px] font-semibold text-muted-foreground">Ville</label>
+   264→                    <input id="p-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Abidjan" className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+   265→                  </div>
+   266→                  <button onClick={saveIdentity} disabled={savingId} className="k-btn-gold h-11 w-full rounded-xl text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+   267→                    {savingId ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Enregistrer
+   268→                  </button>
+   269→                </div>
+   270→              </motion.div>
+   271→            )}
+   272→          </div>
+   273→        </section>
+   274→      </RevealItem>
+   275→
+   276→      {/* Profil peau */}
+   277→      <RevealItem>
+   278→        <section aria-labelledby="skin-t">
+   279→          <SectionTitle icon={<Sparkles size={16} />}><span id="skin-t">Mon profil peau</span></SectionTitle>
+   280→          <div className="k-card rounded-[24px] p-4 space-y-4">
+   281→            <div>
+   282→              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Phototype Fitzpatrick</p>
+   283→              <div className="grid grid-cols-3 gap-2">
+   284→                {FITZPATRICK_CARDS.map((f) => (
+   285→                  <button key={f.id} onClick={() => setFitz(f.id)} aria-pressed={fitz === f.id} className={`rounded-[14px] p-1.5 border-2 text-left active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${fitz === f.id ? "border-primary" : "border-transparent"}`}>
+   286→                    <div className="h-8 rounded-lg mb-1" style={{ background: f.gradient }} aria-hidden="true" />
+   287→                    <p className="text-[11px] font-bold">{f.id}</p>
+   288→                  </button>
+   289→                ))}
+   290→              </div>
+   291→            </div>
+   292→            <div>
+   293→              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Type de peau</p>
+   294→              <div className="flex flex-wrap gap-1.5">
+   295→                {SKIN_TYPES.map((t) => (
+   296→                  <button key={t.id} onClick={() => setSkinType(t.id)} aria-pressed={skinType === t.id} className={`rounded-full px-3 min-h-10 text-xs font-medium transition-all focus-visible:outline-2 focus-visible:outline-primary ${skinType === t.id ? "k-btn-gold text-primary-foreground" : "k-chip"}`}>{t.label}</button>
+   297→                ))}
+   298→              </div>
+   299→            </div>
+   300→            <div>
+   301→              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Objectifs</p>
+   302→              <div className="flex flex-wrap gap-1.5">
+   303→                {SKIN_GOALS.map((g) => (
+   304→                  <button key={g.id} onClick={() => setGoals((s) => (s.includes(g.id) ? s.filter((x) => x !== g.id) : [...s, g.id]))} aria-pressed={goals.includes(g.id)} className={`rounded-full px-3 min-h-10 text-xs font-medium transition-all focus-visible:outline-2 focus-visible:outline-primary ${goals.includes(g.id) ? "k-btn-gold text-primary-foreground" : "k-chip"}`}>{g.label}</button>
+   305→                ))}
+   306→              </div>
+   307→            </div>
+   308→            <div>
+   309→              <label htmlFor="p-all" className="text-[11px] font-semibold text-muted-foreground">Allergies</label>
+   310→              <textarea id="p-all" value={allergies} onChange={(e) => setAllergies(e.target.value)} rows={2} placeholder="Ex. huile de coco…" className="k-input mt-1 w-full rounded-xl px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+   311→            </div>
+   312→            <button onClick={saveSkin} disabled={savingSkin} className="k-btn-gold h-11 w-full rounded-xl text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+   313→              {savingSkin ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Mettre à jour mon profil peau
+   314→            </button>
+   315→          </div>
+   316→        </section>
+   317→      </RevealItem>
+   318→
+   319→      {/* Langue de l'interface — i18n UI, indépendante de la lecture vocale
+   320→          (la langue TTS se règle dans les pilules du résumé vocal, accueil) */}
+   321→      <RevealItem>
+   322→        <section aria-labelledby="lang-t" className="k-card rounded-[24px] p-4">
+   323→          <div className="flex items-center gap-3">
+   324→            <IconBadge icon={<Languages size={19} />} tone="gold" />
+   325→            <div className="flex-1 min-w-0">
+   326→              <p id="lang-t" className="text-xs font-bold">{t("lang.selector.label")}</p>
+   327→              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{t("lang.selector.note")}</p>
+   328→            </div>
+   329→          </div>
+   330→          <div className="mt-3 grid grid-cols-2 gap-2">
+   331→            {LANGS.map((l) => {
+   332→              const active = lang === l.id;
+   333→              return (
+   334→                <button
+   335→                  key={l.id}
+   336→                  onClick={() => selectLang(l.id)}
+   337→                  aria-pressed={active}
+   338→                  className={`k-chip rounded-[14px] border p-3 min-h-12 text-left active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+   339→                    active ? "border-primary bg-primary/10" : "hover:border-primary/40"
+   340→                  }`}
+   341→              >
+   342→                <span className="flex items-center justify-between gap-1.5">
+   343→                  <span className={`text-xs font-bold ${active ? "text-primary" : "text-foreground"}`}>{l.label}</span>
+   344→                  {active ? (
+   345→                    <Check size={13} className="text-primary shrink-0" aria-hidden="true" />
+   346→                  ) : (
+   347→                    <span className="text-[9px] font-mono font-bold text-muted-foreground/70" aria-hidden="true">{l.flag}</span>
+   348→                  )}
+   349→                </span>
+   350→                <span className="block text-[10px] text-muted-foreground mt-1">{l.note}</span>
+   351→              </button>
+   352→            );
+   353→          })}
+   354→          </div>
+   355→        </section>
+   356→      </RevealItem>
+   357→
+   358→      {/* Wallet */}
+   359→      <RevealItem>
+   360→        <section aria-labelledby="wa-t">
+   361→          <SectionTitle icon={<WalletIcon size={16} />}><span id="wa-t">Mon wallet Kènè</span></SectionTitle>
+   362→          <div className="k-glow-gold relative rounded-[24px] bg-[#1A1410] text-[#F8F1E4] p-5 overflow-hidden">
+   363→            <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-20" />
+   364→            <div className="relative">
+   365→              <p className="text-[10px] uppercase tracking-[0.18em] opacity-70">Solde disponible</p>
+   366→              <p className="font-mono font-black text-3xl mt-1 tabular-nums">{wallet ? xof(wallet.balance) : "···"}</p>
+   367→              <div className="flex items-center gap-2 mt-2 text-[11px] opacity-80">
+   368→                <BadgeCheck size={13} className="text-[#C8951E]" /> Cashback {Math.round((wallet?.cashbackRate ?? CASHBACK_RATE) * 100)} % sur chaque commande
+   369→              </div>
+   370→              <button onClick={() => { setTopup(true); setTopupState("idle"); }} className="k-btn-gold mt-4 h-11 w-full rounded-xl text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-[#C8951E]">
+   371→                <Plus size={16} /> Approvisionner
+   372→              </button>
+   373→            </div>
+   374→          </div>
+   375→          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">Dernières transactions</p>
+   376→          {txs === null ? (
+   377→            <div className="space-y-2">{[0, 1, 2].map((i) => <Shimmer key={i} className="h-12 rounded-[14px]" />)}</div>
+   378→          ) : txs.length === 0 ? (
+   379→            <p className="text-xs text-muted-foreground text-center py-3">Aucune transaction pour l&apos;instant.</p>
+   380→          ) : (
+   381→            <div className="k-card divide-y divide-border max-h-72 overflow-y-auto scrollbar-thin rounded-[24px]">
+   382→              {txs.map((t) => {
+   383→                const credit = t.type === "credit";
+   384→                return (
+   385→                  <div key={t.id} className="flex items-center gap-3 px-4 py-3">
+   386→                    <span className={`grid place-items-center h-8 w-8 rounded-[10px] shrink-0 ${credit ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
+   387→                      {credit ? <ArrowDownLeft size={15} /> : <ArrowUpRight size={15} />}
+   388→                    </span>
+   389→                    <div className="min-w-0 flex-1">
+   390→                      <p className="text-xs font-semibold">{REASON_LABELS[t.reason] ?? t.reason}</p>
+   391→                      <p className="text-[10px] text-muted-foreground">{formatDate(t.createdAt, { day: "numeric", month: "short", year: "2-digit" })}</p>
+   392→                    </div>
+   393→                    <span className={`font-mono text-sm font-bold tabular-nums ${credit ? "text-success" : "text-destructive"}`}>
+   394→                      {credit ? "+" : "−"}{xof(t.amount)}
+   395→                    </span>
+   396→                  </div>
+   397→                );
+   398→              })}
+   399→            </div>
+   400→          )}
+   401→        </section>
+   402→      </RevealItem>
+   403→
+   404→      {/* Parrainage — le fil qui relie les amies */}
+   405→      <ParrainageCard userId={user.id} userName={user.name} onRedeemed={loadWallet} />
+   406→
+   407→      {/* Consentement */}
+   408→      <RevealItem>
+   409→        <section aria-labelledby="cons-t" className="k-card rounded-[24px] p-4 flex items-center gap-3">
+   410→          <IconBadge icon={<ShieldCheck size={19} />} tone={user.consentHealth ? "success" : "bissap"} />
+   411→          <div className="flex-1">
+   412→            <p className="text-xs font-semibold">Consentement données santé</p>
+   413→            <p className="text-[11px] text-muted-foreground mt-0.5">{user.consentHealth ? "Accordé — photos et diagnostics utilisés uniquement pour tes analyses." : "Non accordé — requis pour le diagnostic IA."}</p>
+   414→          </div>
+   415→          <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${user.consentHealth ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
+   416→            {user.consentHealth ? "Actif" : "Inactif"}
+   417→          </span>
+   418→        </section>
+   419→      </RevealItem>
+   420→
+   421→      {/* Mes données — portabilité RGPD (art. 20) */}
+   422→      <RevealItem>
+   423→        <section aria-labelledby="rgpd-t" className="k-card rounded-[24px] p-4">
+   424→          <div className="flex items-center gap-3">
+   425→            <IconBadge icon={<Download size={19} />} tone="terre" />
+   426→            <div className="flex-1 min-w-0">
+   427→              <p id="rgpd-t" className="text-xs font-bold flex items-center gap-1.5">Mes données <span className="rounded-full bg-muted px-1.5 py-px text-[9px] font-semibold text-muted-foreground">RGPD</span></p>
+   428→              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Ton dossier complet en un fichier : diagnostics, rendez-vous, commandes, wallet, parrainage, notifications.</p>
+   429→            </div>
+   430→          </div>
+   431→          <button
+   432→            onClick={downloadMyData}
+   433→            disabled={exportBusy}
+   434→            className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   435→          >
+   436→            {exportBusy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+   437→            {exportBusy ? "Préparation…" : "Télécharger mes données (JSON)"}
+   438→          </button>
+   439→          <p className="mt-2 text-[10px] text-muted-foreground">Art. 20 RGPD — droit à la portabilité. Les photos ne sont pas incluses (poids) ; les résultats complets oui.</p>
+   440→        </section>
+   441→      </RevealItem>
+   442→
+   443→      {/* Sécurité renforcée — 2FA-lite : code SMS avant chaque paiement.
+   444→          Toute la rangée est le bouton (cible ≥ 40 px) ; l'indicateur est un
+   445→          pseudo-switch purement décoratif (un vrai Switch shadcn rendrait un
+   446→          <button> imbriqué — HTML invalide + erreur d'hydratation). */}
+   447→      <RevealItem>
+   448→        <section aria-labelledby="sec-t" className="k-card rounded-[24px] p-4">
+   449→          <button
+   450→            type="button"
+   451→            role="switch"
+   452→            aria-checked={secureEnabled}
+   453→            aria-label="Sécurité renforcée avant paiement"
+   454→            onClick={toggleSecure}
+   455→            className="w-full flex items-center gap-3 rounded-xl text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+   456→          >
+   457→            <IconBadge icon={<ShieldCheck size={19} />} tone="gold" />
+   458→          <span className="flex-1 min-w-0 py-1.5">
+   459→            <span id="sec-t" className="block text-xs font-bold">Sécurité renforcée</span>
+   460→            <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">Exige un code par SMS avant chaque paiement — même si quelqu&apos;un a ton téléphone.</span>
+   461→          </span>
+   462→          <span aria-hidden="true" className={`pointer-events-none ml-auto inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${secureEnabled ? "bg-primary" : "bg-input"}`}>
+   463→            <span className={`block size-5 rounded-full bg-[#FFF9EC] shadow transition-transform duration-200 ${secureEnabled ? "translate-x-5" : "translate-x-0"}`} />
+   464→          </span>
+   465→          </button>
+   466→        </section>
+   467→      </RevealItem>
+   468→
+   469→      {/* Application — installation PWA sur l'écran d'accueil */}
+   470→      <RevealItem>
+   471→        <section aria-labelledby="app-t" className="k-card rounded-[24px] p-4">
+   472→          <div className="flex items-center gap-3">
+   473→            <IconBadge icon={<Smartphone size={19} />} tone="gold" />
+   474→          <div className="flex-1 min-w-0">
+   475→            <p id="app-t" className="text-xs font-bold">Application</p>
+   476→            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Installe Kènè sur ton écran d&apos;accueil : un tap pour ouvrir, et tes diagnostics restent consultables même hors-ligne.</p>
+   477→          </div>
+   478→        </div>
+   479→        {isStandalone ? (
+   480→          <p className="mt-3 rounded-xl bg-success/10 text-success text-xs font-semibold px-3 min-h-10 flex items-center gap-2">
+   481→            <BadgeCheck size={15} className="shrink-0" /> Kènè est déjà installée sur ton téléphone
+   482→          </p>
+   483→        ) : (
+   484→            <button
+   485→              onClick={() => void installApp()}
+   486→              className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   487→            >
+   488→              <Download size={15} /> Installer Kènè
+   489→            </button>
+   490→          )}
+   491→        </section>
+   492→      </RevealItem>
+   493→
+   494→      {/* Espace entreprise — compte DÉDIÉ séparé du compte cliente (isolation
+   495→          stricte t. 69-a) : plus d'entrée directe vers l'espace Pro, une
+   496→          information honnête + un départ assisté vers l'inscription. */}
+   497→      <RevealItem>
+   498→        <section aria-labelledby="prosignup-t" className="rounded-[24px] border-2 border-dashed border-primary/40 bg-primary/5 p-4">
+   499→          <p id="prosignup-t" className="flex items-center gap-2 font-heading font-bold text-sm text-primary">
+   500→            <Building2 size={17} aria-hidden="true" /> Vous êtes gérante d&apos;institut ?
+   501→          </p>
+   502→          <p className="text-xs text-muted-foreground mt-1">
+   503→            L&apos;espace entreprise Kènè vit sur un compte dédié, séparé de ton compte cliente — agenda, caisse, CRM, paie, comptabilité.
+   504→          </p>
+   505→          <button
+   506→            onClick={() => setProSignup(true)}
+   507→            className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   508→          >
+   509→            Créer un compte entreprise
+   510→          </button>
+   511→        </section>
+   512→      </RevealItem>
+   513→
+   514→      {/* Déconnexion — le panier est vidé AVANT de perdre la session : la
+   515→          prochaine utilisatrice du téléphone n'hérite de rien. */}
+   516→      <RevealItem>
+   517→        <button
+   518→          onClick={() => { clearCart(); setUser(null); toast.info("À bientôt sur Kènè"); }}
+   519→          className="h-12 rounded-2xl border border-destructive/40 bg-destructive/10 text-destructive text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive"
+   520→        >
+   521→          <LogOut size={16} /> Déconnexion
+   522→        </button>
+   523→      </RevealItem>
+   524→      </Reveal>
+   525→
+   526→      {/* Confirmation « Créer un compte entreprise » — la session cliente va
+   527→          être fermée : le dialogue le dit honnêtement (isolation t. 69-a). */}
+   528→      <AlertDialog open={proSignup} onOpenChange={setProSignup}>
+   529→        <AlertDialogContent>
+   530→          <AlertDialogHeader>
+   531→            <AlertDialogTitle className="font-heading font-bold">Créer un compte entreprise ?</AlertDialogTitle>
+   532→            <AlertDialogDescription>
+   533→              Ta session cliente sera fermée sur cet appareil. Tu créeras ton espace entreprise avec ce même numéro s&apos;il ne gère pas déjà un institut, ou un numéro dédié.
+   534→            </AlertDialogDescription>
+   535→          </AlertDialogHeader>
+   536→          <AlertDialogFooter>
+   537→            <AlertDialogCancel>Annuler</AlertDialogCancel>
+   538→            <AlertDialogAction onClick={startProSignup}>Continuer</AlertDialogAction>
+   539→          </AlertDialogFooter>
+   540→        </AlertDialogContent>
+   541→      </AlertDialog>
+   542→
+   543→      {/* Sheet approvisionnement */}
+   544→      <Sheet open={topup} onOpenChange={(o) => { setTopup(o); if (!o) setTopupState("idle"); }}>
+   545→        <SheetContent side="bottom" className="max-w-[560px] mx-auto rounded-t-3xl">
+   546→          <SheetHeader className="text-left">
+   547→            <SheetTitle className="font-heading font-black">Approvisionner mon wallet</SheetTitle>
+   548→          </SheetHeader>
+   549→          <div className="px-4 pb-6">
+   550→            {topupState === "idle" && (
+   551→              <div className="space-y-4">
+   552→                <div>
+   553→                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Montant</p>
+   554→                  <div className="grid grid-cols-3 gap-2">
+   555→                    {[2000, 5000, 10000].map((a) => (
+   556→                      <button key={a} onClick={() => setAmount(a)} aria-pressed={amount === a} className={`h-12 rounded-xl font-mono text-sm font-bold tabular-nums transition-all focus-visible:outline-2 focus-visible:outline-primary ${amount === a ? "k-btn-gold text-primary-foreground" : "k-chip"}`}>
+   557→                        {a.toLocaleString("fr-FR")}
+   558→                      </button>
+   559→                    ))}
+   560→                  </div>
+   561→                </div>
+   562→                <div>
+   563→                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Depuis</p>
+   564→                  <div className="grid grid-cols-2 gap-2">
+   565→                    {MOMO_OPERATORS.filter((o) => o.code === "wave" || o.code === "orange").map((o) => (
+   566→                      <button key={o.code} onClick={() => setMethod(o.code as "wave" | "orange")} aria-pressed={method === o.code} className={`h-12 rounded-xl border-2 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${method === o.code ? "bg-card" : "border-border bg-card opacity-60"}`} style={{ borderColor: method === o.code ? o.color : undefined }}>
+   567→                        <span className="h-6 w-6 rounded-full grid place-items-center text-[#1A1410] font-black text-[11px]" style={{ backgroundColor: o.color }}>{o.name.charAt(0)}</span>
+   568→                        {o.name}
+   569→                      </button>
+   570→                    ))}
+   571→                  </div>
+   572→                </div>
+   573→                <button onClick={runTopup} disabled={topupBusy} className="k-btn-gold h-12 w-full rounded-xl text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+   574→                  {topupBusy ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Créditer {xof(amount)}
+   575→                </button>
+   576→              </div>
+   577→            )}
+   578→            {topupState === "processing" && (
+   579→              <div className="flex flex-col items-center gap-4 py-8">
+   580→                <div className="grid place-items-center w-16 h-16 rounded-3xl font-heading font-black text-2xl text-[#1A1410]" style={{ backgroundColor: MOMO_OPERATORS.find((o) => o.code === method)?.color }}>
+   581→                  {MOMO_OPERATORS.find((o) => o.code === method)?.name.charAt(0)}
+   582→                </div>
+   583→                <p className="font-mono text-2xl font-black tabular-nums">{xof(amount)}</p>
+   584→                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Traitement en cours…</div>
+   585→                <p className="text-[10px] text-muted-foreground font-mono">{user.phone}</p>
+   586→              </div>
+   587→            )}
+   588→            {topupState === "done" && (
+   589→              <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center gap-3 py-8 text-center">
+   590→                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 15 }} className="grid place-items-center h-16 w-16 rounded-full bg-[#346834]">
+   591→                  <Check size={32} className="text-white" strokeWidth={3} />
+   592→                </motion.span>
+   593→                <p className="font-heading font-black text-lg">Wallet crédité</p>
+   594→                <p className="text-xs text-muted-foreground">Nouveau solde mis à disposition immédiatement.</p>
+   595→                <button onClick={() => setTopup(false)} className="k-btn-gold mt-2 h-11 px-6 rounded-xl text-primary-foreground font-semibold text-sm focus-visible:outline-2 focus-visible:outline-primary">Fermer</button>
+   596→              </motion.div>
+   597→            )}
+   598→          </div>
+   599→        </SheetContent>
+   600→      </Sheet>
+   601→    </>
+   602→  );
+   603→}
+   604→

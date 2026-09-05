@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 
 export type IconProps = React.SVGProps<SVGSVGElement> & { size?: number };
 
@@ -185,17 +185,78 @@ export function MoringaIcon(props: IconProps) {
   );
 }
 
-/** Badge Kènè seul — Duafe sur or fondu terre, coins doux 26 %, fine bordure
- *  intérieure claire (relief orfèvrerie). Pour usages sans wordmark. */
+/** Géométrie canonique du mark Kènè (96-grid) — partagée par KeneMark et
+ *  les fichiers statiques public/kene-{mark,logo}.svg. Ne pas éditer sans
+ *  régénérer les icônes PWA (scripts/gen-logo.ts). */
+const KENE_BADGE_PATHS = (
+  <>
+    <path d="M5 3v18" />
+    <path d="M5 3h11.5a2.5 2.5 0 0 1 2.5 2.5V21H5" />
+    <path d="M5 7.5h11" />
+    <path d="M8.5 7.5V3" />
+    <path d="M12 7.5V3" />
+    <path d="M15.5 7.5V3" />
+    <circle cx="12" cy="13" r="2.6" />
+    <path d="M12 15.6V19" />
+  </>
+);
+
+/** Badge Kènè seul — squircle or fondu terre (dégradé vectoriel 3 tons),
+ *  double relief orfèvrerie (filet intérieur crème + reflet radial haut-gauche),
+ *  Duafe centré. SVG pur, lisible de 20 px à l'infini. Pour usages sans wordmark. */
 export function KeneMark({ size = 40, className = "" }: { size?: number; className?: string }) {
+  // IDs uniques par instance : plusieurs marks sur une même page sans collision
+  // (useId renvoie des « : » — nettoyés car exotiques en url(#…)).
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const gold = `keneGold-${uid}`;
+  const sheen = `keneSheen-${uid}`;
   return (
-    <span
-      className={`grid shrink-0 select-none place-items-center rounded-[26%] bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] shadow-md inset-ring-1 inset-ring-[#FFF9EC]/25 ${className}`}
-      style={{ width: size, height: size }}
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 96 96"
       aria-hidden="true"
+      className={`shrink-0 select-none ${className}`}
     >
-      <DuafeIcon size={size * 0.62} strokeWidth={1.8} />
-    </span>
+      <defs>
+        <linearGradient id={gold} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="96" y2="96">
+          <stop offset="0" stopColor="#E3B04B" />
+          <stop offset="0.42" stopColor="#C8951E" />
+          <stop offset="1" stopColor="#A0522D" />
+        </linearGradient>
+        <radialGradient id={sheen} cx="32%" cy="24%" r="62%">
+          <stop offset="0" stopColor="#FFF9EC" stopOpacity="0.3" />
+          <stop offset="0.55" stopColor="#FFF9EC" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      {/* Badge squircle dégradé chaud */}
+      <rect x="3" y="3" width="90" height="90" rx="24" fill={`url(#${gold})`} />
+      {/* Filet intérieur crème — relief 1 */}
+      <rect
+        x="6.5"
+        y="6.5"
+        width="83"
+        height="83"
+        rx="20.5"
+        fill="none"
+        stroke="#FFF9EC"
+        strokeOpacity="0.32"
+        strokeWidth="1.8"
+      />
+      {/* Reflet radial haut-gauche — relief 2 */}
+      <rect x="3" y="3" width="90" height="90" rx="24" fill={`url(#${sheen})`} />
+      {/* Duafe centré (24-grid × 2.3, stroke 1.8 → ~4.1 effectif) */}
+      <g
+        transform="translate(20.4 20.4) scale(2.3)"
+        fill="none"
+        stroke="#FFF9EC"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {KENE_BADGE_PATHS}
+      </g>
+    </svg>
   );
 }
 
@@ -223,7 +284,7 @@ export function KeneLogo({ size = 40, withText = true }: { size?: number; withTe
             </span>
           </span>
           <span
-            className="mt-[5px] text-[8.5px] font-semibold uppercase tracking-[0.24em] whitespace-nowrap"
+            className="mt-[5px] text-[8.5px] font-semibold uppercase tracking-[0.26em] whitespace-nowrap"
             style={{ color: "var(--muted-foreground)" }}
           >
             Beauté mélanoderme

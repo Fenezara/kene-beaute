@@ -1,26 +1,26 @@
 "use client";
-// Kènè Cliente — Profil : identité, profil peau rééditable, wallet complet, consentement, espace pro — ÉCLAT 2026
+// Kènè Cliente — Profil : identité, profil peau rééditable, wallet complet, parrainage — ÉCLAT 2026.
+// Les réglages (langue, notifications, sécurité, RGPD, PWA, espace entreprise,
+// déconnexion) vivent désormais dans SettingsScreen (t. 69-c) — lien discret
+// en pied d'écran vers l'onglet « parametres ».
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowDownLeft, ArrowLeft, ArrowUpRight, BadgeCheck, Building2, Check, Download, Languages, Loader2, LogOut, MapPin,
-  Pencil, Phone, Plus, ShieldCheck, Smartphone, Sparkles, Wallet as WalletIcon,
+  ArrowDownLeft, ArrowLeft, ArrowUpRight, BadgeCheck, Check, Loader2, MapPin,
+  Pencil, Phone, Plus, Settings, Sparkles, Wallet as WalletIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPatch, apiPost } from "@/lib/kene/api";
 import { formatDate, xof, CASHBACK_RATE } from "@/lib/kene/format";
-import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
 import { MOMO_OPERATORS } from "@/lib/kene/rfm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { IconBadge, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
+import { Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import { useKene, type SessionUser } from "@/store/kene";
-import { useSecurity } from "@/store/security";
 import type { ApiUser, ApiWallet, ApiWalletTx } from "./types";
 import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES } from "./types";
 import { SectionTitle } from "./bits";
 import { ParrainageCard } from "./ParrainageCard";
-import { useInstallPrompt } from "@/components/kene/pwa/use-install";
 
 /** SessionUser + goals (string JSON) renvoyé par PATCH profile */
 type ClientUser = SessionUser & { goals?: string | null };
@@ -36,10 +36,8 @@ const REASON_LABELS: Record<string, string> = {
 export function ProfileScreen() {
   const user = useKene((s) => s.user) as ClientUser;
   const setUser = useKene((s) => s.setUser);
-  const setSpace = useKene((s) => s.setSpace);
   const setClientTab = useKene((s) => s.setClientTab);
-  const clearCart = useKene((s) => s.clearCart);
-  const { t, lang, setLang } = useT();
+  const { t } = useT();
 
   const [edit, setEdit] = useState(false);
   const [name, setName] = useState(user.name);
@@ -65,14 +63,6 @@ export function ProfileScreen() {
   const [method, setMethod] = useState<"wave" | "orange">("wave");
   const [topupState, setTopupState] = useState<"idle" | "processing" | "done">("idle");
   const [topupBusy, setTopupBusy] = useState(false);
-  const [exportBusy, setExportBusy] = useState(false);
-
-  // Installation PWA — même source d'événement que la bannière d'accueil.
-  const { canInstall, promptInstall, isStandalone, isIOS } = useInstallPrompt();
-
-  // Sécurité renforcée (2FA-lite) : code SMS exigé avant chaque paiement.
-  const secureEnabled = useSecurity((s) => s.enabled);
-  const setSecureEnabled = useSecurity((s) => s.setEnabled);
 
   const loadWallet = useCallback(() => {
     apiGet<{ wallet: ApiWallet; transactions: ApiWalletTx[] }>(`/api/wallet?userId=${user.id}`)
@@ -83,52 +73,6 @@ export function ProfileScreen() {
   useEffect(() => {
     loadWallet();
   }, [loadWallet]);
-
-  /** Portabilité RGPD — télécharge « mes données » en JSON via blob */
-  async function downloadMyData() {
-    setExportBusy(true);
-    try {
-      const res = await fetch(`/api/profile/export?userId=${encodeURIComponent(user.id)}`);
-      if (!res.ok) throw new Error("Export impossible");
-      const blob = await res.blob();
-      const cd = res.headers.get("Content-Disposition") ?? "";
-      const m = /filename="([^"]+)"/.exec(cd);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = m?.[1] ?? `kene-mes-donnees-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
-      const kb = Math.max(1, Math.round(blob.size / 1024));
-      toast.success(`Mes données téléchargées · ${kb} Ko`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Export impossible");
-    } finally {
-      setExportBusy(false);
-    }
-  }
-
-  /** Installer l'app (prompt natif, ou instructions iOS / navigateur). */
-  async function installApp() {
-    if (canInstall) {
-      const accepted = await promptInstall();
-      if (accepted) toast.success("Kènè installée sur ton écran d'accueil 💛");
-      return;
-    }
-    if (isIOS) {
-      toast.info("Installer sur iPhone", {
-        description: "Bouton Partager ⬆️ puis « Sur l'écran d'accueil ».",
-        duration: 8000,
-      });
-      return;
-    }
-    toast.info("Installation manuelle", {
-      description: "Menu du navigateur → « Installer l'application » ou « Ajouter à l'écran d'accueil ».",
-      duration: 8000,
-    });
-  }
 
   async function saveIdentity() {
     setSavingId(true);
@@ -161,22 +105,6 @@ export function ProfileScreen() {
     } finally {
       setSavingSkin(false);
     }
-  }
-
-  /** Langue de l'interface (i18n) — indépendante de la langue de lecture vocale. */
-  function selectLang(l: Lang) {
-    if (l === lang) return;
-    setLang(l);
-    const label = LANGS.find((x) => x.id === l)?.label ?? "";
-    toast.success(`Interface en ${label.toLowerCase()}`);
-  }
-
-  /** Sécurité renforcée : bascule la re-vérification par code avant paiement. */
-  function toggleSecure() {
-    const next = !secureEnabled;
-    setSecureEnabled(next);
-    if (next) toast.success("Sécurité renforcée activée");
-    else toast("Sécurité renforcée désactivée");
   }
 
   async function runTopup() {
@@ -297,45 +225,6 @@ export function ProfileScreen() {
         </section>
       </RevealItem>
 
-      {/* Langue de l'interface — i18n UI, indépendante de la lecture vocale
-          (la langue TTS se règle dans les pilules du résumé vocal, accueil) */}
-      <RevealItem>
-        <section aria-labelledby="lang-t" className="k-card rounded-[24px] p-4">
-          <div className="flex items-center gap-3">
-            <IconBadge icon={<Languages size={19} />} tone="gold" />
-            <div className="flex-1 min-w-0">
-              <p id="lang-t" className="text-xs font-bold">{t("lang.selector.label")}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{t("lang.selector.note")}</p>
-            </div>
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {LANGS.map((l) => {
-              const active = lang === l.id;
-              return (
-                <button
-                  key={l.id}
-                  onClick={() => selectLang(l.id)}
-                  aria-pressed={active}
-                  className={`k-chip rounded-[14px] border p-3 min-h-12 text-left active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-                    active ? "border-primary bg-primary/10" : "hover:border-primary/40"
-                  }`}
-              >
-                <span className="flex items-center justify-between gap-1.5">
-                  <span className={`text-xs font-bold ${active ? "text-primary" : "text-foreground"}`}>{l.label}</span>
-                  {active ? (
-                    <Check size={13} className="text-primary shrink-0" aria-hidden="true" />
-                  ) : (
-                    <span className="text-[9px] font-mono font-bold text-muted-foreground/70" aria-hidden="true">{l.flag}</span>
-                  )}
-                </span>
-                <span className="block text-[10px] text-muted-foreground mt-1">{l.note}</span>
-              </button>
-            );
-          })}
-          </div>
-        </section>
-      </RevealItem>
-
       {/* Wallet */}
       <RevealItem>
         <section aria-labelledby="wa-t">
@@ -385,109 +274,12 @@ export function ProfileScreen() {
       {/* Parrainage — le fil qui relie les amies */}
       <ParrainageCard userId={user.id} userName={user.name} onRedeemed={loadWallet} />
 
-      {/* Consentement */}
-      <RevealItem>
-        <section aria-labelledby="cons-t" className="k-card rounded-[24px] p-4 flex items-center gap-3">
-          <IconBadge icon={<ShieldCheck size={19} />} tone={user.consentHealth ? "success" : "bissap"} />
-          <div className="flex-1">
-            <p className="text-xs font-semibold">Consentement données santé</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">{user.consentHealth ? "Accordé — photos et diagnostics utilisés uniquement pour tes analyses." : "Non accordé — requis pour le diagnostic IA."}</p>
-          </div>
-          <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${user.consentHealth ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
-            {user.consentHealth ? "Actif" : "Inactif"}
-          </span>
-        </section>
-      </RevealItem>
-
-      {/* Mes données — portabilité RGPD (art. 20) */}
-      <RevealItem>
-        <section aria-labelledby="rgpd-t" className="k-card rounded-[24px] p-4">
-          <div className="flex items-center gap-3">
-            <IconBadge icon={<Download size={19} />} tone="terre" />
-            <div className="flex-1 min-w-0">
-              <p id="rgpd-t" className="text-xs font-bold flex items-center gap-1.5">Mes données <span className="rounded-full bg-muted px-1.5 py-px text-[9px] font-semibold text-muted-foreground">RGPD</span></p>
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Ton dossier complet en un fichier : diagnostics, rendez-vous, commandes, wallet, parrainage, notifications.</p>
-            </div>
-          </div>
-          <button
-            onClick={downloadMyData}
-            disabled={exportBusy}
-            className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
-            {exportBusy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
-            {exportBusy ? "Préparation…" : "Télécharger mes données (JSON)"}
-          </button>
-          <p className="mt-2 text-[10px] text-muted-foreground">Art. 20 RGPD — droit à la portabilité. Les photos ne sont pas incluses (poids) ; les résultats complets oui.</p>
-        </section>
-      </RevealItem>
-
-      {/* Sécurité renforcée — 2FA-lite : code SMS avant chaque paiement.
-          Toute la rangée est le bouton (cible ≥ 40 px) ; l'indicateur est un
-          pseudo-switch purement décoratif (un vrai Switch shadcn rendrait un
-          <button> imbriqué — HTML invalide + erreur d'hydratation). */}
-      <RevealItem>
-        <section aria-labelledby="sec-t" className="k-card rounded-[24px] p-4">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={secureEnabled}
-            aria-label="Sécurité renforcée avant paiement"
-            onClick={toggleSecure}
-            className="w-full flex items-center gap-3 rounded-xl text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
-          >
-            <IconBadge icon={<ShieldCheck size={19} />} tone="gold" />
-          <span className="flex-1 min-w-0 py-1.5">
-            <span id="sec-t" className="block text-xs font-bold">Sécurité renforcée</span>
-            <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">Exige un code par SMS avant chaque paiement — même si quelqu&apos;un a ton téléphone.</span>
-          </span>
-          <span aria-hidden="true" className={`pointer-events-none ml-auto inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${secureEnabled ? "bg-primary" : "bg-input"}`}>
-            <span className={`block size-5 rounded-full bg-[#FFF9EC] shadow transition-transform duration-200 ${secureEnabled ? "translate-x-5" : "translate-x-0"}`} />
-          </span>
-          </button>
-        </section>
-      </RevealItem>
-
-      {/* Application — installation PWA sur l'écran d'accueil */}
-      <RevealItem>
-        <section aria-labelledby="app-t" className="k-card rounded-[24px] p-4">
-          <div className="flex items-center gap-3">
-            <IconBadge icon={<Smartphone size={19} />} tone="gold" />
-          <div className="flex-1 min-w-0">
-            <p id="app-t" className="text-xs font-bold">Application</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Installe Kènè sur ton écran d&apos;accueil : un tap pour ouvrir, et tes diagnostics restent consultables même hors-ligne.</p>
-          </div>
-        </div>
-        {isStandalone ? (
-          <p className="mt-3 rounded-xl bg-success/10 text-success text-xs font-semibold px-3 min-h-10 flex items-center gap-2">
-            <BadgeCheck size={15} className="shrink-0" /> Kènè est déjà installée sur ton téléphone
-          </p>
-        ) : (
-            <button
-              onClick={() => void installApp()}
-              className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              <Download size={15} /> Installer Kènè
-            </button>
-          )}
-        </section>
-      </RevealItem>
-
-      {/* Espace pro */}
-      <RevealItem>
-        <button onClick={() => setSpace("pro")} className="rounded-[24px] border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
-          <p className="flex items-center gap-2 font-heading font-bold text-sm text-primary"><Building2 size={17} /> Vous êtes gérante d&apos;institut ?</p>
-          <p className="text-xs text-muted-foreground mt-1">Découvrir l&apos;Espace Pro Kènè : agenda, caisse, CRM, stock, paie, comptabilité.</p>
-        </button>
-      </RevealItem>
-
-      {/* Déconnexion — le panier est vidé AVANT de perdre la session : la
-          prochaine utilisatrice du téléphone n'hérite de rien. */}
-      <RevealItem>
-        <button
-          onClick={() => { clearCart(); setUser(null); toast.info("À bientôt sur Kènè"); }}
-          className="h-12 rounded-2xl border border-destructive/40 bg-destructive/10 text-destructive text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive"
-        >
-          <LogOut size={16} /> Déconnexion
+      {/* Passerelle Paramètres (t. 69-c) — les réglages de l'application
+          (apparence, langue, notifications, sécurité, RGPD, PWA, session)
+          vivent désormais dans l'onglet dédié : lien discret en pied de profil. */}
+      <RevealItem className="self-center pt-1">
+        <button onClick={() => setClientTab("parametres")} className="inline-flex items-center gap-1.5 min-h-10 px-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors rounded focus-visible:outline-2 focus-visible:outline-primary">
+          <Settings size={13} /> Paramètres de l&apos;application
         </button>
       </RevealItem>
       </Reveal>

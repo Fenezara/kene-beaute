@@ -9,6 +9,8 @@
 //   • Après hydratation du store (gate _keneHydrated), SI une session existe :
 //     UNE requête GET /api/auth/session?userId=.
 //   • 200 → profil rafraîchi (setUser) — jamais déconnecter sur réponse inattendue.
+//     Isolation des comptes (t. 69-a) : setUser fait suivre l'espace au rôle
+//     frais du serveur (clamp store) — un rôle changé côté base est suivi ici.
 //   • 404 → session révolue : déconnexion douce (setUser(null) + clearCart +
 //     toast « Session expirée — reconnecte-toi », pas d'alerte) + retour à
 //     l'espace cliente (l'onboarding/login y vit).

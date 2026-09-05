@@ -6,7 +6,7 @@
 // Mode entreprise (t. 66-b) : même téléphone → OTP, puis formulaire
 // institut (jamais de questionnaire peau — le consent santé n'est requis
 // que pour la cliente, au diagnostic IA) → POST /api/auth/pro/register.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight, BriefcaseBusiness, Check, ChevronLeft, Flower2, Gift, Loader2, MessageSquareText, ShieldCheck, Smartphone, Sparkles, Stethoscope,
@@ -80,6 +80,23 @@ export function Onboarding() {
 
   const digits = phone.replace(/\D/g, "");
   const phoneValid = digits.length >= 8;
+
+  // Pont « cliente curieuse → compte entreprise » (t. 69-a) : ProfileScreen
+  // pose un drapeau sessionStorage AVANT de fermer la session cliente ; au
+  // montage de l'onboarding on le consomme et on bascule le mode vers « pro »
+  // (comme le ferait le bandeau entreprise de l'étape 1). Effet au montage
+  // uniquement, APRÈS hydratation → aucun mismatch (jamais de storage pendant
+  // le rendu).
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("kene-pro-signup") === "1") {
+        sessionStorage.removeItem("kene-pro-signup");
+        setMode("pro");
+      }
+    } catch {
+      /* stockage indisponible : l'onboarding reste en mode cliente */
+    }
+  }, []);
   // Progression indicative du questionnaire (barre ÉCLAT 2026, étape profil) —
   // pure dérivation d'état pour l'affichage, aucun usage métier.
   const profileProgress =
@@ -130,6 +147,20 @@ export function Onboarding() {
           setOwnerName(v.user.name);
         }
         setStep(2);
+        return;
+      }
+      // Isolation des comptes (t. 69-a) : un numéro de gérante ou d'admin
+      // qui se connecte ici atterrit directement dans SON espace — jamais
+      // dans le questionnaire peau ni le parrainage (réservés aux clientes).
+      // setUser fait suivre l'espace au rôle (clamp store) → ProApp/AdminApp
+      // se monte, Onboarding se démonte.
+      if (v.user.role === "pro" || v.user.role === "admin") {
+        setUser(v.user as SessionUser);
+        toast.success(
+          v.user.role === "pro"
+            ? `Bienvenue ${v.user.name.split(" ")[0]} — ton espace entreprise t'attend`
+            : `Bienvenue ${v.user.name.split(" ")[0]}`
+        );
         return;
       }
       const fresh = v.user.consentHealth && v.user.skinType;

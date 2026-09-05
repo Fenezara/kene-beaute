@@ -11,7 +11,6 @@ import { xof } from "@/lib/kene/format";
 import { useApi } from "@/components/kene/pro/useApi";
 import { EmptyState, ErrorState, KpiCard, KenteTop, Money, dayLabel } from "@/components/kene/pro/ui-bits";
 import type { AdminStats } from "@/components/kene/pro/types";
-import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 
 export function AdminApp() {
@@ -151,7 +150,6 @@ function ConsoleHeader() {
         <div className="flex items-center gap-2">
           <Badge className="bg-finance/15 text-finance border border-finance/30 hover:bg-finance/15">Espace administrateur</Badge>
           <ThemeToggle />
-          <SpaceSwitcher />
         </div>
       </div>
     </div>

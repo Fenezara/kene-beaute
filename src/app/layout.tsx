@@ -35,7 +35,10 @@ export const metadata: Metadata = {
     title: "Kènè",
   },
   icons: {
-    icon: "/kene-logo.svg",
+    icon: [
+      { url: "/kene-mark.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
     apple: "/icons/apple-touch-icon.png",
   },
 };

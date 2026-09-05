@@ -59,6 +59,7 @@ const FR: Dict = {
   "title.rdv": "Rendez-vous",
   "title.chat": "Dr. Kènè",
   "title.profile": "Mon profil",
+  "title.parametres": "Paramètres",
 
   // Accueil
   "home.greeting": "Bonjour",
