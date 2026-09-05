@@ -27,7 +27,7 @@ import { useKene, type ClientTab } from "@/store/kene";
 import { useT } from "@/lib/kene/use-t";
 import { KenteIntro } from "@/components/kene/intro/KenteIntro";
 import { useIntroDone } from "@/components/kene/intro/introState";
-import { Onboarding } from "./Onboarding";
+import { WelcomeDoors } from "./WelcomeDoors";
 import { HomeScreen } from "./HomeScreen";
 import { ProfileScreen } from "./ProfileScreen";
 import { ScreenBoundary } from "./ScreenBoundary";
@@ -291,7 +291,11 @@ export function ClientApp() {
 
   if (!user) {
     if (!introDone) return <KenteIntro />;
-    return <Onboarding />;
+    // Page d'accueil hors session (t. 73) : promesse + deux Portes
+    // (cliente / entreprise) + carte de reconnexion express pour celle qui
+    // revient — l'écran de connexion vit DANS les Portes ( WelcomeDoors →
+    // Onboarding) et garde son bouton retour.
+    return <WelcomeDoors />;
   }
 
   const first = user.name.split(" ")[0];

@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Voici la description de la mise en page pour cette capture d'écran (1280px) :\n\n*   **Disposition côte à côte :** Les deux portes sont bien positionées l'une à côté de l'autre, séparées par un fin espace vertical. Elles occupent la largeur inférieure de l'écran de manière symétrique.\n*   **Proportions et centrage :** Les éléments semblent correctement proportionnés et l'ensemble du contenu (logo, photo, texte, carte blanche et portes) est parfaitement centré horizontalement sur la page.\n*   **Absence de défauts majeurs :** Il n'y a pas d'éléments visiblement étirés ou déformés. Le texte est entièrement lisible et n'est pas coupé par les bords de l'écran.\n*   **État visuel :** Seuls les sommets arrondis des deux demi-cercles (portes) sont visibles dans le bas de l'image, suggérant que le contenu se poursuit vers le bas (scroll).",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1788624545,
+  "id": "202609060009006793c9e5ea074b71",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202609060009006793c9e5ea074b71",
+  "usage": {
+    "completion_tokens": 229,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1311,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 1540
+  }
+}

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError, apiGet, apiPatch, apiPost } from "@/lib/kene/api";
+import { rememberAccount } from "@/lib/kene/last-account";
 import { xof } from "@/lib/kene/format";
 import { FILLEUL_GIFT } from "@/lib/kene/referral";
 import { AuroraBackdrop, Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Reveal, RevealItem } from "@/components/kene/ui2026";
@@ -41,13 +42,36 @@ const PRO_COUNTRIES = [
   { code: "SN", label: "Sénégal" },
 ] as const;
 
-export function Onboarding() {
+/**
+ * Props des Portes (t. 73) — toutes OPTIONNELLES, l'écran reste autonome :
+ *  • initialMode : porte d'origine (cliente par défaut, entreprise si c'est
+ *    par elle qu'on est entré — le bandeau de bascule reste actif) ;
+ *  • initialPhone : numéro du dernier compte mémorisé (E.164, « +225… » —
+ *    le préfixe opérateur de l'UI est retiré) → reconnexion express ;
+ *  • onBack : retour aux Portes (visible à l'étape 1 uniquement).
+ */
+export function Onboarding({
+  initialMode,
+  initialPhone,
+  onBack,
+}: {
+  initialMode?: "client" | "pro";
+  initialPhone?: string;
+  onBack?: () => void;
+} = {}) {
   const setUser = useKene((s) => s.setUser);
   const setProTenantId = useKene((s) => s.setProTenantId);
   const setSpace = useKene((s) => s.setSpace);
   const { t } = useT();
   const [step, setStep] = useState(0);
-  const [phone, setPhone] = useState("");
+  // Reconnexion express : le numéro mémorisé arrive en E.164 → on retire le
+  // préfixe +225 affiché séparément (les autres préfixes resteraient tels
+  // quels — cas théorique POC mono-opérateur, garde-fou slice(0,14) intact).
+  const [phone, setPhone] = useState(() => {
+    const raw = initialPhone ?? "";
+    const d = raw.replace(/\D/g, "");
+    return d.startsWith("225") ? d.slice(3) : raw;
+  });
   const [name, setName] = useState("");
   const [devCode, setDevCode] = useState("");
   const [otp, setOtp] = useState("");
@@ -55,7 +79,7 @@ export function Onboarding() {
   const [isNew, setIsNew] = useState(false);
   // Mode d'inscription : cliente (par défaut) ou compte entreprise (institut,
   // spa, dermo-conseillère) — l'étape après l'OTP change, le SMS non.
-  const [mode, setMode] = useState<"client" | "pro">("client");
+  const [mode, setMode] = useState<"client" | "pro">(initialMode ?? "client");
   // Fil du Parrainage : code d'une amie saisi (facultatif) — échangé après
   // authentification (l'API exige un userId valide et garde toutes ses
   // protections : auto-parrainage, échange croisé, double redeem)
@@ -121,6 +145,7 @@ export function Onboarding() {
     try {
       const res = await apiPost<{ ok: boolean; devCode: string }>("/api/auth/otp/request", { phone: "+2250701020304" });
       const v = await apiPost<{ user: ApiUser }>("/api/auth/otp/verify", { phone: "+2250701020304", code: res.devCode });
+      rememberAccount({ phone: "+2250701020304", name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" });
       setUser(v.user as SessionUser);
       toast.success(`Bienvenue ${v.user.name.split(" ")[0]} — compte démo riche chargé`);
     } catch (e) {
@@ -135,6 +160,10 @@ export function Onboarding() {
     setLoading(true);
     try {
       const v = await apiPost<{ user: ApiUser }>("/api/auth/otp/verify", { phone: `+225${digits}`, code, name: name.trim() || undefined });
+      // Mémoire du dernier compte (t. 73) : clé dédiée kene-last-account,
+      // locale à l'appareil, survit à la déconnexion → carte « Contente de
+      // te revoir » sur la page d'accueil. Aucun effet si le stockage refuse.
+      rememberAccount({ phone: `+225${digits}`, name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" });
       setAuthId(v.user.id);
       if (!v.user.name || v.user.name === "Nouvelle cliente") setIsNew(true);
       if (mode === "pro") {
@@ -232,6 +261,8 @@ export function Onboarding() {
       // Échange AVANT setUser → l'accueil se monte avec le wallet déjà crédité
       // et la cloche déjà badgée ; l'annonce suit l'entrée (ordre narratif).
       const ref = await tryReferral(authId);
+      // Le prénom choisi ici devient celui de la carte de reconnexion.
+      rememberAccount({ phone: `+225${digits}`, name: r.user.name, role: "client" });
       setUser(r.user as SessionUser);
       toast.success("Profil beauté créé — bienvenue dans la famille Kènè");
       announceReferral(ref);
@@ -262,6 +293,8 @@ export function Onboarding() {
         country,
         type: proType,
       });
+      // Passage de rôle client→pro : la mémoire suit (carte « Espace entreprise »).
+      rememberAccount({ phone: `+225${digits}`, name: r.user.name, role: "pro" });
       setUser(r.user as SessionUser);
       setProTenantId(r.tenant.id);
       setSpace("pro");
@@ -309,6 +342,18 @@ export function Onboarding() {
           <motion.div key="s0" {...slide} transition={{ duration: 0.35 }} className="flex flex-col min-h-[70vh]">
             <Reveal y={18} className="flex flex-col flex-1">
               <div className="relative h-60">
+                {/* Retour aux Portes (t. 73) — pilule verre posée SUR le héros
+                    (zéro décalage de mise en page) ; absente si l'écran est
+                    monté seul (aucun parent Portes). */}
+                {onBack && (
+                  <button
+                    onClick={onBack}
+                    aria-label="Retour aux portes d'accueil"
+                    className="absolute left-3 top-3 z-10 inline-flex min-h-11 items-center gap-1.5 rounded-full k-chip px-3.5 text-[11px] font-semibold text-foreground/85 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+                  >
+                    <ChevronLeft size={15} aria-hidden="true" /> Les portes
+                  </button>
+                )}
                 <img src="/hero/hero-client.webp" alt="Portrait d'une femme africaine au teint lumineux" className="absolute inset-0 h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/25 to-transparent" />
                 <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">

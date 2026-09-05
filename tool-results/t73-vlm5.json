@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Voici l'analyse de la capture en mode sombre (basée sur le design visible) :\n\n*   **Lisibilité préservée** : Les deux portes (marron foncé et or/ambre) conservent un contraste suffisant avec leur fond. Le texte blanc sur la porte \"Espace Client\" et le texte sombre (ou or clair) sur la porte \"Espace Entreprise\" restent parfaitement lisibles, sans risque de fusion avec l'arrière-plan.\n*   **Élégance chromatique** : La palette chaude (terres brûlées, or, crème) s'adapte très bien au mode sombre. Les tons profonds des arches donnent un aspect premium et chaleureux, évitant l'effet \"gris froid\" ou délavé souvent critiqué sur les interfaces sombres.\n*   **Aucun défaut technique** : Pas de problème de \"porte invisible\" (les contours et les ombres portées définissent bien les volumes), pas de texte illisible, et aucun flash blanc détecté (l'interface semble conserver son fond crème/beige clair même en mode sombre, ou utiliser une transition douce). Le bouton rouge bordeaux reste également très visible.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1788624564,
+  "id": "20260906000916c7306f8261d04067",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260906000916c7306f8261d04067",
+  "usage": {
+    "completion_tokens": 271,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 444,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 715
+  }
+}

@@ -1,0 +1,782 @@
+     1→"use client";
+     2→// Kènè Cliente — Onboarding 3 étapes : téléphone → OTP → profil peau
+     3→// ÉCLAT 2026 : aurora plein cadre, GlassCard héro, Reveal en cascade —
+     4→// présentation seule, AUCUNE logique touchée (mode pro, OTP, parrainage,
+     5→// registerPro/409, slice(0,14) demeurent intacts).
+     6→// Mode entreprise (t. 66-b) : même téléphone → OTP, puis formulaire
+     7→// institut (jamais de questionnaire peau — le consent santé n'est requis
+     8→// que pour la cliente, au diagnostic IA) → POST /api/auth/pro/register.
+     9→import { useEffect, useRef, useState } from "react";
+    10→import { AnimatePresence, motion } from "framer-motion";
+    11→import {
+    12→  ArrowRight, BriefcaseBusiness, Check, ChevronLeft, Flower2, Gift, Loader2, MessageSquareText, ShieldCheck, Smartphone, Sparkles, Stethoscope,
+    13→} from "lucide-react";
+    14→import { toast } from "sonner";
+    15→import { ApiError, apiGet, apiPatch, apiPost } from "@/lib/kene/api";
+    16→import { xof } from "@/lib/kene/format";
+    17→import { FILLEUL_GIFT } from "@/lib/kene/referral";
+    18→import { AuroraBackdrop, Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Reveal, RevealItem } from "@/components/kene/ui2026";
+    19→import { KeneLogo } from "@/components/kene/icons";
+    20→import { useT } from "@/lib/kene/use-t";
+    21→import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+    22→import { useKene, type SessionUser } from "@/store/kene";
+    23→import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES, type ApiProRegisterResponse, type ApiUser, readSession } from "./types";
+    24→
+    25→const slide = { initial: { x: 60, opacity: 0 }, animate: { x: 0, opacity: 1 }, exit: { x: -60, opacity: 0 } };
+    26→
+    27→/* Compte entreprise — types d'activité (contrat POST /api/auth/pro/register). */
+    28→const PRO_TYPES: {
+    29→  id: "institut" | "spa" | "dermo_conseil";
+    30→  label: string;
+    31→  hint: string;
+    32→  icon: React.ComponentType<{ size?: number; className?: string }>;
+    33→}[] = [
+    34→  { id: "institut", label: "Institut de beauté", hint: "Soins visage & corps", icon: Sparkles },
+    35→  { id: "spa", label: "Spa", hint: "Détente & bien-être", icon: Flower2 },
+    36→  { id: "dermo_conseil", label: "Dermo-conseil", hint: "Conseil peau expert", icon: Stethoscope },
+    37→];
+    38→
+    39→const PRO_COUNTRIES = [
+    40→  { code: "CI", label: "Côte d'Ivoire" },
+    41→  { code: "SN", label: "Sénégal" },
+    42→] as const;
+    43→
+    44→export function Onboarding() {
+    45→  const setUser = useKene((s) => s.setUser);
+    46→  const setProTenantId = useKene((s) => s.setProTenantId);
+    47→  const setSpace = useKene((s) => s.setSpace);
+    48→  const { t } = useT();
+    49→  const [step, setStep] = useState(0);
+    50→  const [phone, setPhone] = useState("");
+    51→  const [name, setName] = useState("");
+    52→  const [devCode, setDevCode] = useState("");
+    53→  const [otp, setOtp] = useState("");
+    54→  const [loading, setLoading] = useState(false);
+    55→  const [isNew, setIsNew] = useState(false);
+    56→  // Mode d'inscription : cliente (par défaut) ou compte entreprise (institut,
+    57→  // spa, dermo-conseillère) — l'étape après l'OTP change, le SMS non.
+    58→  const [mode, setMode] = useState<"client" | "pro">("client");
+    59→  // Fil du Parrainage : code d'une amie saisi (facultatif) — échangé après
+    60→  // authentification (l'API exige un userId valide et garde toutes ses
+    61→  // protections : auto-parrainage, échange croisé, double redeem)
+    62→  const [parrainCode, setParrainCode] = useState("");
+    63→
+    64→  // profil peau
+    65→  const [fitz, setFitz] = useState<string>("V");
+    66→  const [skinType, setSkinType] = useState<string>("mixte");
+    67→  const [allergies, setAllergies] = useState("");
+    68→  const [goals, setGoals] = useState<string[]>(["pih", "eclat"]);
+    69→  const [consent, setConsent] = useState(false);
+    70→  const [savingProfile, setSavingProfile] = useState(false);
+    71→
+    72→  // compte entreprise (mode pro) — POST /api/auth/pro/register
+    73→  const [instituteName, setInstituteName] = useState("");
+    74→  const [proType, setProType] = useState<"institut" | "spa" | "dermo_conseil">("institut");
+    75→  const [city, setCity] = useState("Abidjan");
+    76→  const [country, setCountry] = useState<"CI" | "SN">("CI");
+    77→  const [ownerName, setOwnerName] = useState("");
+    78→  const [savingPro, setSavingPro] = useState(false);
+    79→  const otpRef = useRef<HTMLInputElement>(null);
+    80→
+    81→  const digits = phone.replace(/\D/g, "");
+    82→  const phoneValid = digits.length >= 8;
+    83→
+    84→  // Pont « cliente curieuse → compte entreprise » (t. 69-a) : ProfileScreen
+    85→  // pose un drapeau sessionStorage AVANT de fermer la session cliente ; au
+    86→  // montage de l'onboarding on le consomme et on bascule le mode vers « pro »
+    87→  // (comme le ferait le bandeau entreprise de l'étape 1). Effet au montage
+    88→  // uniquement, APRÈS hydratation → aucun mismatch (jamais de storage pendant
+    89→  // le rendu).
+    90→  useEffect(() => {
+    91→    try {
+    92→      if (sessionStorage.getItem("kene-pro-signup") === "1") {
+    93→        sessionStorage.removeItem("kene-pro-signup");
+    94→        setMode("pro");
+    95→      }
+    96→    } catch {
+    97→      /* stockage indisponible : l'onboarding reste en mode cliente */
+    98→    }
+    99→  }, []);
+   100→  // Progression indicative du questionnaire (barre ÉCLAT 2026, étape profil) —
+   101→  // pure dérivation d'état pour l'affichage, aucun usage métier.
+   102→  const profileProgress =
+   103→    25 + (goals.length > 0 ? 20 : 0) + (isNew ? (name.trim() ? 15 : 0) : 15) + (allergies.trim() ? 10 : 0) + (consent ? 30 : 0);
+   104→
+   105→  async function requestCode(p = `+225${digits}`) {
+   106→    setLoading(true);
+   107→    try {
+   108→      const res = await apiPost<{ ok: boolean; devCode: string }>("/api/auth/otp/request", { phone: p });
+   109→      setDevCode(res.devCode);
+   110→      return true;
+   111→    } catch (e) {
+   112→      toast.error(e instanceof Error ? e.message : "Envoi impossible");
+   113→      return false;
+   114→    } finally {
+   115→      setLoading(false);
+   116→    }
+   117→  }
+   118→
+   119→  async function startDemo() {
+   120→    setLoading(true);
+   121→    try {
+   122→      const res = await apiPost<{ ok: boolean; devCode: string }>("/api/auth/otp/request", { phone: "+2250701020304" });
+   123→      const v = await apiPost<{ user: ApiUser }>("/api/auth/otp/verify", { phone: "+2250701020304", code: res.devCode });
+   124→      setUser(v.user as SessionUser);
+   125→      toast.success(`Bienvenue ${v.user.name.split(" ")[0]} — compte démo riche chargé`);
+   126→    } catch (e) {
+   127→      toast.error(e instanceof Error ? e.message : "Démo indisponible");
+   128→    } finally {
+   129→      setLoading(false);
+   130→    }
+   131→  }
+   132→
+   133→  async function verify(code = otp) {
+   134→    if (code.length !== 6) return;
+   135→    setLoading(true);
+   136→    try {
+   137→      const v = await apiPost<{ user: ApiUser }>("/api/auth/otp/verify", { phone: `+225${digits}`, code, name: name.trim() || undefined });
+   138→      setAuthId(v.user.id);
+   139→      if (!v.user.name || v.user.name === "Nouvelle cliente") setIsNew(true);
+   140→      if (mode === "pro") {
+   141→        // Mode entreprise : JAMAIS de questionnaire peau (phototype/objectifs/
+   142→        // consent santé = diagnostic IA cliente uniquement) — directement le
+   143→        // formulaire institut après l'OTP. Le prénom connu pré-remplit la
+   144→        // gérante, le parrainage reste réservé au mode cliente.
+   145→        if (v.user.name && v.user.name !== "Nouvelle cliente") {
+   146→          setName(v.user.name.split(" ")[0]);
+   147→          setOwnerName(v.user.name);
+   148→        }
+   149→        setStep(2);
+   150→        return;
+   151→      }
+   152→      // Isolation des comptes (t. 69-a) : un numéro de gérante ou d'admin
+   153→      // qui se connecte ici atterrit directement dans SON espace — jamais
+   154→      // dans le questionnaire peau ni le parrainage (réservés aux clientes).
+   155→      // setUser fait suivre l'espace au rôle (clamp store) → ProApp/AdminApp
+   156→      // se monte, Onboarding se démonte.
+   157→      if (v.user.role === "pro" || v.user.role === "admin") {
+   158→        setUser(v.user as SessionUser);
+   159→        toast.success(
+   160→          v.user.role === "pro"
+   161→            ? `Bienvenue ${v.user.name.split(" ")[0]} — ton espace entreprise t'attend`
+   162→            : `Bienvenue ${v.user.name.split(" ")[0]}`
+   163→        );
+   164→        return;
+   165→      }
+   166→      const fresh = v.user.consentHealth && v.user.skinType;
+   167→      if (!fresh) {
+   168→        if (v.user.name && v.user.name !== "Nouvelle cliente") setName(v.user.name.split(" ")[0]);
+   169→        setStep(2);
+   170→      } else {
+   171→        // Compte déjà complet : échange du code AVANT l'entrée (données fraîches)
+   172→        const ref = await tryReferral(v.user.id);
+   173→        setUser(v.user as SessionUser);
+   174→        toast.success(`Bienvenue ${v.user.name.split(" ")[0]}`);
+   175→        announceReferral(ref);
+   176→      }
+   177→    } catch (e) {
+   178→      toast.error(e instanceof Error ? e.message : "Code invalide");
+   179→      setOtp("");
+   180→    } finally {
+   181→      setLoading(false);
+   182→    }
+   183→  }
+   184→
+   185→  // id de l'utilisatrice authentifiée à l'étape OTP (profil finalisé à l'étape 3)
+   186→  const [authId, setAuthId] = useState<string | null>(null);
+   187→
+   188→  /**
+   189→   * Échange du code parrain saisi à l'étape OTP — AVANT setUser : les données
+   190→   * fraîches (wallet crédité, badge non-lus) doivent être visibles dès que
+   191→   * l'accueil se monte. Renvoie le résultat, l'annonce (toasts) revient à
+   192→   * l'appelant APRÈS l'entrée dans l'app (ordre narratif).
+   193→   */
+   194→  async function tryReferral(
+   195→    uid: string
+   196→  ): Promise<{ ok: true; gift: number; parrainName: string } | { ok: false; error: string } | null> {
+   197→    const code = parrainCode.trim();
+   198→    if (code.length < 4) return null; // champ vide ou trop court → ignore silencieusement
+   199→    try {
+   200→      const r = await apiPost<{ ok: boolean; gift: number; parrain: { name: string } }>("/api/referral/redeem", { userId: uid, code });
+   201→      return { ok: true, gift: r.gift, parrainName: r.parrain.name };
+   202→    } catch (e) {
+   203→      return { ok: false, error: e instanceof Error ? e.message : "Code parrain invalide" };
+   204→    }
+   205→  }
+   206→
+   207→  function announceReferral(ref: Awaited<ReturnType<typeof tryReferral>>) {
+   208→    if (!ref) return;
+   209→    if (ref.ok) {
+   210→      toast.success(`Cadeau de bienvenue : ${xof(ref.gift)} crédités 💛`, {
+   211→        description: `Merci ${ref.parrainName.split(" ")[0]} ! Elle recevra sa récompense dès ta première commande.`,
+   212→      });
+   213→    } else {
+   214→      toast.error(ref.error);
+   215→    }
+   216→  }
+   217→
+   218→  async function saveProfile() {
+   219→    if (!authId) return toast.error("Session expirée — reviens puis revalide le code");
+   220→    setSavingProfile(true);
+   221→    try {
+   222→      await apiPost("/api/auth/consent", { userId: authId });
+   223→      const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {
+   224→        userId: authId,
+   225→        name: name.trim() || undefined,
+   226→        skinType,
+   227→        fitzpatrick: fitz,
+   228→        allergies: allergies.trim() || undefined,
+   229→        goals: goals.map((id) => ({ id, label: SKIN_GOALS.find((g) => g.id === id)?.label ?? id })),
+   230→      });
+   231→      // Le Fil du Parrainage commence ici : cadeau de bienvenue dès l'inscription.
+   232→      // Échange AVANT setUser → l'accueil se monte avec le wallet déjà crédité
+   233→      // et la cloche déjà badgée ; l'annonce suit l'entrée (ordre narratif).
+   234→      const ref = await tryReferral(authId);
+   235→      setUser(r.user as SessionUser);
+   236→      toast.success("Profil beauté créé — bienvenue dans la famille Kènè");
+   237→      announceReferral(ref);
+   238→    } catch (e) {
+   239→      toast.error(e instanceof Error ? e.message : "Enregistrement impossible");
+   240→    } finally {
+   241→      setSavingProfile(false);
+   242→    }
+   243→  }
+   244→
+   245→  /** Création du compte entreprise (POST /api/auth/pro/register, contrat figé
+   246→   *  t. 66) : 201 → session + tenant mémorisés → espace Pro. 409 (ce numéro
+   247→   *  gère déjà un espace) : ApiError ne transporte pas le body → GET session
+   248→   *  de secours, on y retourne si le compte est bien passé pro. */
+   249→  async function registerPro() {
+   250→    if (!authId) return toast.error("Session expirée — reviens puis revalide le code");
+   251→    const institute = instituteName.trim();
+   252→    if (institute.length < 3 || institute.length > 60) {
+   253→      return toast.error("Nom de l'institut : 3 à 60 caractères");
+   254→    }
+   255→    setSavingPro(true);
+   256→    try {
+   257→      const r = await apiPost<ApiProRegisterResponse>("/api/auth/pro/register", {
+   258→        userId: authId,
+   259→        instituteName: institute,
+   260→        ownerName: ownerName.trim() || undefined,
+   261→        city: city.trim() || "Abidjan",
+   262→        country,
+   263→        type: proType,
+   264→      });
+   265→      setUser(r.user as SessionUser);
+   266→      setProTenantId(r.tenant.id);
+   267→      setSpace("pro");
+   268→      toast.success(`« ${r.tenant.name} » est né 🎉 Bienvenue dans ton espace Pro`);
+   269→    } catch (e) {
+   270→      if (e instanceof ApiError && e.status === 409) {
+   271→        // Lecture de secours : si le compte est déjà pro (et qu'on retrouve
+   272→        // le tenant), on entre directement dans l'espace entreprise — sinon
+   273→        // on affiche l'erreur renvoyée par l'API.
+   274→        let entered = false;
+   275→        try {
+   276→          const s = readSession(await apiGet<unknown>(`/api/auth/session?userId=${authId}`));
+   277→          if (s.user && s.user.role === "pro") {
+   278→            setUser(s.user as SessionUser);
+   279→            if (s.tenantId) setProTenantId(s.tenantId);
+   280→            setSpace("pro");
+   281→            entered = true;
+   282→            toast.success(
+   283→              s.tenantName
+   284→                ? `Tu gères déjà « ${s.tenantName} » — on y retourne`
+   285→                : "Tu gères déjà ton espace entreprise — on y retourne",
+   286→            );
+   287→          }
+   288→        } catch {
+   289→          /* session injoignable → message du 409 ci-dessous */
+   290→        }
+   291→        if (!entered) toast.error(e.message || "Un espace entreprise existe déjà pour ce numéro");
+   292→      } else {
+   293→        toast.error(e instanceof Error ? e.message : "Création impossible");
+   294→      }
+   295→    } finally {
+   296→      setSavingPro(false);
+   297→    }
+   298→  }
+   299→
+   300→  return (
+   301→    <div className="relative isolate mx-auto w-full max-w-[430px] min-h-[80vh] overflow-hidden">
+   302→      {/* Atmosphère ÉCLAT 2026 — l'écran de connexion vit sur l'aurora plein
+   303→          cadre (fixed, -z-10) comme l'app connectée ; isolate garantit que les
+   304→          lueurs passent au-dessus du fond de page, sous le contenu. */}
+   305→      <AuroraBackdrop />
+   306→      {/* ───── Étape 1 — Téléphone ───── */}
+   307→      <AnimatePresence mode="wait">
+   308→        {step === 0 && (
+   309→          <motion.div key="s0" {...slide} transition={{ duration: 0.35 }} className="flex flex-col min-h-[70vh]">
+   310→            <Reveal y={18} className="flex flex-col flex-1">
+   311→              <div className="relative h-60">
+   312→                <img src="/hero/hero-client.webp" alt="Portrait d'une femme africaine au teint lumineux" className="absolute inset-0 h-full w-full object-cover" />
+   313→                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/25 to-transparent" />
+   314→                <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
+   315→                  <KeneLogo size={42} />
+   316→                  <span className="rounded-full bg-[#6B2416]/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#FFF9EC]">POC démo</span>
+   317→                </div>
+   318→              </div>
+   319→              <div className="px-5 -mt-2 pb-8 flex flex-col gap-5 flex-1">
+   320→                <RevealItem>
+   321→                  <h1 className="kente-text-flow font-heading font-black text-[22px] leading-tight">{t("onboarding.title")}</h1>
+   322→                  <p className="text-sm text-muted-foreground mt-2">
+   323→                    {t("onboarding.subtitle")}
+   324→                  </p>
+   325→                </RevealItem>
+   326→                <RevealItem>
+   327→                  <GlassCard hero grain className="rounded-[26px] p-5">
+   328→                    <div className="flex items-center justify-between gap-2">
+   329→                      <label htmlFor="phone" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+   330→                        {t("onboarding.phone.label")}
+   331→                      </label>
+   332→                      {mode === "pro" && (
+   333→                        <span className="rounded-full bg-primary/10 text-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide">
+   334→                          Entreprise
+   335→                        </span>
+   336→                      )}
+   337→                    </div>
+   338→                    <div className="relative mt-2.5">
+   339→                      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 font-mono text-[15px] text-muted-foreground">+225</span>
+   340→                      <input
+   341→                        id="phone"
+   342→                        ref={otpRef}
+   343→                        inputMode="tel"
+   344→                        autoComplete="tel"
+   345→                        placeholder="07 01 02 03 04"
+   346→                        value={phone}
+   347→                        onChange={(e) => setPhone(e.target.value.replace(/[^\d\s]/g, "").slice(0, 14))}
+   348→                        className="k-input h-14 w-full rounded-2xl pl-16 pr-4 text-base font-mono tracking-wider text-foreground placeholder:text-muted-foreground/70"
+   349→                      />
+   350→                    </div>
+   351→                    <PrimaryCTA
+   352→                      onClick={async () => {
+   353→                        if (!phoneValid) return toast.error("Numéro incomplet (8 chiffres min.)");
+   354→                        if (await requestCode()) {
+   355→                          setStep(1);
+   356→                          toast.success("Code envoyé par SMS (simulé)");
+   357→                        }
+   358→                      }}
+   359→                      disabled={loading || !phoneValid}
+   360→                      className="mt-4 w-full"
+   361→                    >
+   362→                      {loading ? <Loader2 size={18} className="animate-spin" /> : <MessageSquareText size={18} />}
+   363→                      {t("onboarding.cta")}
+   364→                    </PrimaryCTA>
+   365→                    {/* « Rester connectée » rassurée dès l'inscription (réalité
+   366→                        technique : localStorage kene-store, session par appareil). */}
+   367→                    <p className="mt-3 flex items-start justify-center gap-1.5 text-[11px] leading-relaxed text-muted-foreground text-center">
+   368→                      <Smartphone size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
+   369→                      Une seule connexion suffit : tu restes connectée sur cet appareil, comme sur tes applis préférées.
+   370→                    </p>
+   371→                  </GlassCard>
+   372→                </RevealItem>
+   373→
+   374→                {/* Compte entreprise — institut, spa, dermo-conseillère.
+   375→                    NB cascade : k-card écrase border, ring et bg sur le même
+   376→                    élément → l'anneau pointillé vit sur l'enveloppe, le verre
+   377→                    sur la carte interne (glass + dashed ring, signature 66-b). */}
+   378→                <RevealItem>
+   379→                  {mode === "client" ? (
+   380→                    <div className="rounded-[22px] border border-dashed border-primary/40 p-[4px]">
+   381→                      <div className="k-card rounded-[18px] p-3.5">
+   382→                        <div className="flex items-start gap-3">
+   383→                          <IconBadge icon={<BriefcaseBusiness size={18} />} size="sm" tone="gold" />
+   384→                          <div className="min-w-0">
+   385→                            <p className="text-xs leading-relaxed text-muted-foreground">Tu es un institut, un spa ou une dermo-conseillère ?</p>
+   386→                            <button
+   387→                              onClick={() => setMode("pro")}
+   388→                              className="mt-1 -ml-2 px-2 min-h-11 inline-flex items-center text-sm font-bold text-primary underline underline-offset-4 decoration-primary/40 hover:decoration-primary active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary rounded"
+   389→                            >
+   390→                              Créer un compte entreprise
+   391→                            </button>
+   392→                          </div>
+   393→                        </div>
+   394→                      </div>
+   395→                    </div>
+   396→                  ) : (
+   397→                    <div className="rounded-[22px] border border-dashed border-primary/60 p-[4px]" aria-live="polite">
+   398→                      <div className="k-card rounded-[18px] p-3.5">
+   399→                        <div className="flex items-start gap-3">
+   400→                          <span className="k-btn-gold grid h-10 w-10 place-items-center rounded-[12px] text-primary-foreground shrink-0" aria-hidden="true">
+   401→                            <BriefcaseBusiness size={19} />
+   402→                          </span>
+   403→                          <div className="min-w-0">
+   404→                            <p className="text-xs font-bold text-primary uppercase tracking-wide">Inscription entreprise</p>
+   405→                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+   406→                              Institut · Spa · Dermo-conseil — après ton code SMS, tu créeras ton espace de gestion (agenda, caisse, CRM).
+   407→                            </p>
+   408→                            <button
+   409→                              onClick={() => setMode("client")}
+   410→                              className="mt-1 -ml-2 px-2 min-h-11 inline-flex items-center text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary rounded"
+   411→                            >
+   412→                              Tu es une cliente ? Revenir au compte personnel
+   413→                            </button>
+   414→                          </div>
+   415→                        </div>
+   416→                      </div>
+   417→                    </div>
+   418→                  )}
+   419→                </RevealItem>
+   420→                <RevealItem>
+   421→                  <button
+   422→                    onClick={startDemo}
+   423→                    disabled={loading}
+   424→                    className="mx-auto inline-flex items-center min-h-11 px-3 text-[12px] text-muted-foreground underline underline-offset-4 decoration-dotted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary rounded"
+   425→                  >
+   426→                    Démo — Entrer comme Mariam (compte riche : 3 diagnostics, wallet)
+   427→                  </button>
+   428→                </RevealItem>
+   429→                <RevealItem className="mt-auto">
+   430→                  <p className="text-[11px] leading-relaxed text-muted-foreground text-center">
+   431→                    {t("onboarding.legal")}
+   432→                  </p>
+   433→                </RevealItem>
+   434→              </div>
+   435→            </Reveal>
+   436→          </motion.div>
+   437→        )}
+   438→
+   439→        {/* ───── Étape 2 — OTP ───── */}
+   440→        {step === 1 && (
+   441→          <motion.div key="s1" {...slide} transition={{ duration: 0.35 }} className="px-5 pt-10 flex flex-col min-h-[70vh]">
+   442→            <Reveal y={18}>
+   443→              <RevealItem>
+   444→                <button onClick={() => setStep(0)} className="self-start inline-flex items-center gap-1 min-h-11 px-2 -ml-2 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour">
+   445→                  <ChevronLeft size={16} aria-hidden="true" /> Modifier le numéro
+   446→                </button>
+   447→              </RevealItem>
+   448→              <RevealItem>
+   449→                <h1 className="font-heading font-black text-xl mt-6">Confirme ton code</h1>
+   450→                <p className="text-sm text-muted-foreground mt-1">
+   451→                  Saisis les 6 chiffres envoyés au <span className="font-mono">+225{digits}</span>
+   452→                </p>
+   453→              </RevealItem>
+   454→              <RevealItem className="mt-8">
+   455→                <div className="k-card rounded-[22px] p-5 flex justify-center">
+   456→                  <div className="flex flex-col items-center gap-2">
+   457→                    <span id="otp-label" className="sr-only">Code à 6 chiffres reçu par SMS</span>
+   458→                    <InputOTP maxLength={6} value={otp} onChange={(v) => setOtp(v)} autoFocus autoComplete="one-time-code" aria-labelledby="otp-label">
+   459→                      <InputOTPGroup>
+   460→                        {[0, 1, 2, 3, 4, 5].map((i) => (
+   461→                          <InputOTPSlot key={i} index={i} />
+   462→                        ))}
+   463→                      </InputOTPGroup>
+   464→                    </InputOTP>
+   465→                  </div>
+   466→                </div>
+   467→              </RevealItem>
+   468→              <RevealItem>
+   469→                <PrimaryCTA
+   470→                  onClick={() => verify()}
+   471→                  disabled={otp.length !== 6 || loading}
+   472→                  className="mt-8 w-full"
+   473→                >
+   474→                  {loading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+   475→                  Continuer
+   476→                </PrimaryCTA>
+   477→              </RevealItem>
+   478→              <RevealItem>
+   479→                <div className="mt-6 rounded-[22px] border border-dashed border-primary/50 p-[4px]">
+   480→                  <div className="k-card rounded-[18px] p-3.5 text-center">
+   481→                    <p className="text-[10px] uppercase tracking-[0.14em] text-primary font-semibold">SMS simulé (POC)</p>
+   482→                    <button onClick={() => { setOtp(devCode); setTimeout(() => verify(devCode), 250); }} className="mt-2 font-mono text-2xl font-black tracking-[0.3em] text-primary hover:scale-105 active:scale-95 transition-transform" aria-label={`Code reçu ${devCode}, remplir automatiquement`}>
+   483→                      {devCode}
+   484→                    </button>
+   485→                    <p className="text-[11px] text-muted-foreground mt-1">Touche le code pour le remplir</p>
+   486→                  </div>
+   487→                </div>
+   488→              </RevealItem>
+   489→              <RevealItem>
+   490→                <button onClick={async () => { if (await requestCode(`+225${digits}`)) toast.success("Nouveau code envoyé"); }} className="mt-4 mx-auto inline-flex items-center min-h-11 px-3 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded">
+   491→                  Renvoyer le code
+   492→                </button>
+   493→              </RevealItem>
+   494→
+   495→              {/* Fil du Parrainage — code d'une amie (facultatif, cliente uniquement) */}
+   496→              {mode === "client" && (
+   497→                <RevealItem>
+   498→                  <div className="mt-6 k-card rounded-[22px] p-4">
+   499→                    <label htmlFor="parrain" className="flex items-center gap-1.5 text-xs font-semibold">
+   500→                      <Gift size={14} className="text-gold-text" aria-hidden="true" />
+   501→                      J&apos;ai un code parrain <span className="font-normal text-muted-foreground">(facultatif)</span>
+   502→                    </label>
+   503→                    <input
+   504→                      id="parrain"
+   505→                      value={parrainCode}
+   506→                      onChange={(e) => setParrainCode(e.target.value.toUpperCase().replace(/\s+/g, "").slice(0, 24))}
+   507→                      placeholder="EX. MARIAM-KENE"
+   508→                      autoComplete="off"
+   509→                      className="mt-2 k-input h-11 w-full rounded-2xl px-3.5 font-mono text-sm tracking-wider text-foreground placeholder:text-muted-foreground/70"
+   510→                      aria-describedby="parrain-hint"
+   511→                    />
+   512→                    <p id="parrain-hint" className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+   513→                      {xof(FILLEUL_GIFT)} de bienvenue crédités sur ton wallet dès ton inscription — et ta parraine reçoit sa récompense à ta première commande.
+   514→                    </p>
+   515→                  </div>
+   516→                </RevealItem>
+   517→              )}
+   518→              {mode === "pro" && (
+   519→                <RevealItem>
+   520→                  <p className="mt-6 k-card rounded-[22px] p-4 text-[11px] leading-relaxed text-muted-foreground">
+   521→                    <BriefcaseBusiness size={13} className="inline mr-1.5 -mt-0.5 text-primary" aria-hidden="true" />
+   522→                    Ton espace entreprise sera créé juste après ce code — agenda, caisse, CRM et diagnostics en cabine t&apos;attendent.
+   523→                  </p>
+   524→                </RevealItem>
+   525→              )}
+   526→            </Reveal>
+   527→          </motion.div>
+   528→        )}
+   529→
+   530→        {/* ───── Étape 3 (pro) — Compte entreprise ───── */}
+   531→        {step === 2 && mode === "pro" && (
+   532→          <motion.div key="s2pro" {...slide} transition={{ duration: 0.35 }} className="px-5 pt-10 pb-10 flex flex-col min-h-[70vh]">
+   533→            <Reveal y={18} className="flex flex-col gap-5 flex-1">
+   534→              <RevealItem>
+   535→                <button onClick={() => setStep(1)} className="self-start inline-flex items-center gap-1 min-h-11 px-2 -ml-2 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour au code SMS">
+   536→                  <ChevronLeft size={16} aria-hidden="true" /> Modifier le numéro
+   537→                </button>
+   538→              </RevealItem>
+   539→
+   540→              <RevealItem>
+   541→                <div>
+   542→                  <div className="kente-band h-1.5 w-14 rounded-full mb-3" aria-hidden="true" />
+   543→                  <h1 className="font-heading font-black text-xl">Crée ton espace entreprise</h1>
+   544→                  <p className="text-sm text-muted-foreground mt-1">
+   545→                    Agenda, caisse, CRM et diagnostics en cabine — pensés pour les instituts qui chérissent les peaux mélanodermes.
+   546→                  </p>
+   547→                </div>
+   548→              </RevealItem>
+   549→
+   550→              <RevealItem>
+   551→                <div>
+   552→                  <label htmlFor="institute-name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+   553→                    Nom de l&apos;institut
+   554→                  </label>
+   555→                  <input
+   556→                    id="institute-name"
+   557→                    value={instituteName}
+   558→                    onChange={(e) => setInstituteName(e.target.value.slice(0, 60))}
+   559→                    placeholder="Ex. Institut Karité & Lumière"
+   560→                    autoComplete="organization"
+   561→                    className="mt-2 k-input h-12 w-full rounded-2xl px-4 text-base text-foreground placeholder:text-muted-foreground/70"
+   562→                    aria-describedby="institute-hint"
+   563→                  />
+   564→                  <p id="institute-hint" className="mt-1.5 text-[11px] text-muted-foreground">
+   565→                    3 à 60 caractères — c&apos;est le nom que verront tes clientes.
+   566→                  </p>
+   567→                </div>
+   568→              </RevealItem>
+   569→
+   570→              <RevealItem>
+   571→                <fieldset>
+   572→                  <legend className="text-sm font-semibold mb-2">Type d&apos;activité</legend>
+   573→                  <div className="grid grid-cols-3 gap-2">
+   574→                    {PRO_TYPES.map((ty) => {
+   575→                      const Icon = ty.icon;
+   576→                      return (
+   577→                        <button
+   578→                          key={ty.id}
+   579→                          type="button"
+   580→                          onClick={() => setProType(ty.id)}
+   581→                          aria-pressed={proType === ty.id}
+   582→                          className="k-card relative rounded-[22px] p-3 text-left transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary"
+   583→                        >
+   584→                          {proType === ty.id && (
+   585→                            <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[22px] bg-primary/8 ring-2 ring-inset ring-primary/60" />
+   586→                          )}
+   587→                          <div className="relative">
+   588→                            <IconBadge icon={<Icon size={18} />} size="sm" tone="gold" />
+   589→                            <p className="font-heading font-bold text-[13px] mt-2 leading-tight">{ty.label}</p>
+   590→                            <p className="text-[10px] leading-tight text-muted-foreground mt-0.5">{ty.hint}</p>
+   591→                          </div>
+   592→                        </button>
+   593→                      );
+   594→                    })}
+   595→                  </div>
+   596→                </fieldset>
+   597→              </RevealItem>
+   598→
+   599→              <RevealItem>
+   600→                <div className="grid grid-cols-2 gap-3">
+   601→                  <div>
+   602→                    <label htmlFor="pro-city" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+   603→                      Ville
+   604→                    </label>
+   605→                    <input
+   606→                      id="pro-city"
+   607→                      value={city}
+   608→                      onChange={(e) => setCity(e.target.value.slice(0, 40))}
+   609→                      placeholder="Abidjan"
+   610→                      autoComplete="address-level2"
+   611→                      className="mt-2 k-input h-12 w-full rounded-2xl px-4 text-sm text-foreground placeholder:text-muted-foreground/70"
+   612→                    />
+   613→                  </div>
+   614→                  <fieldset>
+   615→                    <legend className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pays</legend>
+   616→                    <div className="mt-2 grid grid-cols-2 gap-2">
+   617→                      {PRO_COUNTRIES.map((c) => (
+   618→                        <Chip key={c.code} selected={country === c.code} onClick={() => setCountry(c.code)} className="min-h-12 w-full justify-center">
+   619→                          {c.label}
+   620→                        </Chip>
+   621→                      ))}
+   622→                    </div>
+   623→                  </fieldset>
+   624→                </div>
+   625→              </RevealItem>
+   626→
+   627→              <RevealItem>
+   628→                <div>
+   629→                  <label htmlFor="owner-name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+   630→                    Ton nom de gérante <span className="font-normal normal-case">(facultatif)</span>
+   631→                  </label>
+   632→                  <input
+   633→                    id="owner-name"
+   634→                    value={ownerName}
+   635→                    onChange={(e) => setOwnerName(e.target.value.slice(0, 60))}
+   636→                    placeholder="Ex. Fatou Koné"
+   637→                    autoComplete="name"
+   638→                    className="mt-2 k-input h-12 w-full rounded-2xl px-4 text-sm text-foreground placeholder:text-muted-foreground/70"
+   639→                  />
+   640→                </div>
+   641→              </RevealItem>
+   642→
+   643→              <RevealItem>
+   644→                <PrimaryCTA
+   645→                  onClick={() => void registerPro()}
+   646→                  disabled={savingPro || instituteName.trim().length < 3}
+   647→                  className="sticky bottom-4 w-full"
+   648→                >
+   649→                  {savingPro ? <Loader2 size={18} className="animate-spin" /> : <BriefcaseBusiness size={18} />}
+   650→                  Créer mon espace entreprise
+   651→                </PrimaryCTA>
+   652→              </RevealItem>
+   653→              <RevealItem>
+   654→                <p className="text-[11px] leading-relaxed text-muted-foreground text-center">
+   655→                  Paiements simulés (POC) · Tes clientes continuent de réserver et commander depuis l&apos;app cliente.
+   656→                </p>
+   657→              </RevealItem>
+   658→            </Reveal>
+   659→          </motion.div>
+   660→        )}
+   661→
+   662→        {/* ───── Étape 3 (cliente) — Profil peau ───── */}
+   663→        {step === 2 && mode === "client" && (
+   664→          <motion.div key="s2" {...slide} transition={{ duration: 0.35 }} className="px-5 pt-8 pb-10 flex flex-col min-h-[70vh]">
+   665→            <Reveal y={18} className="flex flex-col gap-6 flex-1">
+   666→              <RevealItem>
+   667→                <div>
+   668→                  <div className="kente-band h-1.5 w-14 rounded-full mb-3" aria-hidden="true" />
+   669→                  <h1 className="font-heading font-black text-xl">Parle-nous de ta peau</h1>
+   670→                  <p className="text-sm text-muted-foreground mt-1">2 minutes pour personnaliser ton diagnostic et tes recommandations.</p>
+   671→                  <ProgressBar value={profileProgress} className="mt-4" />
+   672→                </div>
+   673→              </RevealItem>
+   674→
+   675→              <RevealItem>
+   676→                <section aria-labelledby="fitz-t">
+   677→                  <h2 id="fitz-t" className="text-sm font-semibold mb-2 flex items-center gap-2">
+   678→                    <IconBadge icon={<Sparkles size={14} />} size="sm" tone="gold" /> Phototype Fitzpatrick
+   679→                  </h2>
+   680→                  <div className="grid grid-cols-3 gap-2">
+   681→                    {FITZPATRICK_CARDS.map((f) => (
+   682→                      <button
+   683→                        key={f.id}
+   684→                        onClick={() => setFitz(f.id)}
+   685→                        aria-pressed={fitz === f.id}
+   686→                        className="k-card relative rounded-[22px] p-2.5 text-left transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary"
+   687→                      >
+   688→                        {fitz === f.id && (
+   689→                          <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[22px] bg-primary/8 ring-2 ring-inset ring-primary/60" />
+   690→                        )}
+   691→                        <div className="relative">
+   692→                          <div className="h-12 rounded-xl mb-2" style={{ background: f.gradient }} aria-hidden="true" />
+   693→                          <p className="font-heading font-bold text-sm">{f.id}</p>
+   694→                          <p className="text-[10px] leading-tight text-muted-foreground mt-0.5 line-clamp-3">{f.desc}</p>
+   695→                        </div>
+   696→                      </button>
+   697→                    ))}
+   698→                  </div>
+   699→                </section>
+   700→              </RevealItem>
+   701→
+   702→              <RevealItem>
+   703→                <section>
+   704→                  <h2 className="text-sm font-semibold mb-2">Type de peau</h2>
+   705→                  <div className="flex flex-wrap gap-2">
+   706→                    {SKIN_TYPES.map((t) => (
+   707→                      <Chip key={t.id} selected={skinType === t.id} onClick={() => setSkinType(t.id)}>
+   708→                        {t.label}
+   709→                      </Chip>
+   710→                    ))}
+   711→                  </div>
+   712→                </section>
+   713→              </RevealItem>
+   714→
+   715→              <RevealItem>
+   716→                <section>
+   717→                  <h2 className="text-sm font-semibold mb-2">Mes objectifs</h2>
+   718→                  <div className="flex flex-wrap gap-2">
+   719→                    {SKIN_GOALS.map((g) => (
+   720→                      <Chip key={g.id} selected={goals.includes(g.id)} onClick={() => setGoals((s) => (s.includes(g.id) ? s.filter((x) => x !== g.id) : [...s, g.id]))}>
+   721→                        {g.label}
+   722→                      </Chip>
+   723→                    ))}
+   724→                  </div>
+   725→                </section>
+   726→              </RevealItem>
+   727→
+   728→              <RevealItem>
+   729→                <section>
+   730→                  <h2 className="text-sm font-semibold mb-2">Allergies connues <span className="text-muted-foreground font-normal">(facultatif)</span></h2>
+   731→                  <label htmlFor="allergies-input" className="sr-only">Allergies connues, facultatif</label>
+   732→                  <textarea
+   733→                    id="allergies-input"
+   734→                    value={allergies}
+   735→                    onChange={(e) => setAllergies(e.target.value)}
+   736→                    rows={2}
+   737→                    placeholder="Ex. huile de coco, parfums, latex…"
+   738→                    className="k-input w-full rounded-2xl px-3.5 py-2.5 text-sm min-h-11 text-foreground placeholder:text-muted-foreground/70"
+   739→                  />
+   740→                </section>
+   741→              </RevealItem>
+   742→
+   743→              {isNew && (
+   744→                <RevealItem>
+   745→                  <div>
+   746→                    <label htmlFor="pname" className="text-sm font-semibold mb-2 block">Mon prénom</label>
+   747→                    <input id="pname" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Mariam" className="k-input h-12 w-full rounded-2xl px-4 text-base text-foreground placeholder:text-muted-foreground/70" />
+   748→                  </div>
+   749→                </RevealItem>
+   750→              )}
+   751→
+   752→              <RevealItem>
+   753→                <label className="k-card rounded-[22px] flex items-start gap-3 p-3.5 cursor-pointer active:scale-[0.99] transition-transform">
+   754→                  <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[#C8951E]" />
+   755→                  <span className="text-[12px] leading-relaxed text-muted-foreground">
+   756→                    <ShieldCheck size={14} className="inline mr-1 text-primary" />
+   757→                    J&apos;accepte le traitement de mes données santé (photos de peau, historique) pour mes diagnostics personnalisés. Chiffrées, jamais partagées sans mon accord. <span className="text-primary font-semibold">Obligatoire.</span>
+   758→                  </span>
+   759→                </label>
+   760→              </RevealItem>
+   761→
+   762→              <RevealItem>
+   763→                <PrimaryCTA
+   764→                  onClick={async () => {
+   765→                    if (!consent) return toast.error("Le consentement santé est obligatoire pour le diagnostic");
+   766→                    await saveProfile();
+   767→                  }}
+   768→                  disabled={!consent || savingProfile}
+   769→                  className="sticky bottom-4 w-full"
+   770→                >
+   771→                  {savingProfile ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+   772→                  Créer mon espace beauté
+   773→                </PrimaryCTA>
+   774→              </RevealItem>
+   775→            </Reveal>
+   776→          </motion.div>
+   777→        )}
+   778→      </AnimatePresence>
+   779→    </div>
+   780→  );
+   781→}
+   782→

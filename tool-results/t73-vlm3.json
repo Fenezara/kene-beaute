@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Voici la description détaillée des éléments demandés :\n\n*   **Carte \"Contente de te revoir\"** : Elle affiche le titre **\"Contente de te revoir, Mariam 👋\"**, suivi du numéro masqué **\"+225 •• •• 03 04\"** et de la mention **\"Espace cliente\"**. Elle contient un bouton principal **\"→ Reprendre ma session\"** (fond rouge brique) ainsi que deux liens textuels en bas : **\"Utiliser un autre numéro\"** (souligné) à gauche et **\"Oublier\"** à droite.\n*   **Les deux portes (Choisis ta porte)** : Sous la section, on trouve deux grandes cartes arrondies en forme d'arches. Celle de gauche est **marron foncé** avec une icône de loupe, intitulée **\"ESPACE CLIENTE / Prendre soin\"**. Celle de droite est **dorée/jaune ocre** avec une icône de mallette, intitulée **\"ESPACE ENTREPRISE\"**.\n*   **Défauts visuels notables** : Le texte **\"Prendre soin\"** sur la porte de gauche est **visiblement coupé** dans sa partie inférieure par le bord bas de l'image. De plus, les deux arches des portes sont **tronquées** en haut, ne montrant que leur partie courbée sans le sommet complet.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1788624501,
+  "id": "20260906000809d5b60e112abc4dbe",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260906000809d5b60e112abc4dbe",
+  "usage": {
+    "completion_tokens": 329,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 3745,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 4074
+  }
+}

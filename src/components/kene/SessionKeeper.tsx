@@ -21,6 +21,7 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { apiGet, ApiError } from "@/lib/kene/api";
+import { rememberAccount } from "@/lib/kene/last-account";
 import { useKene, type SessionUser } from "@/store/kene";
 import { readSession } from "@/components/kene/client/types";
 
@@ -43,7 +44,17 @@ export function SessionKeeper() {
         const s = readSession(payload);
         // 200 : profil frais si la réponse est lisible ; sinon on garde la
         // session locale (ne jamais déconnecter sur une réponse inattendue).
-        if (s.user) setUser(s.user as SessionUser);
+        if (s.user) {
+          setUser(s.user as SessionUser);
+          // Mémoire de reconnexion (t. 73) : rafraîchie depuis la base —
+          // cookie 90 j = « rester connectée », la carte « Contente de te
+          // revoir » des Portes garde ainsi prénom/rôle à jour.
+          rememberAccount({
+            phone: s.user.phone,
+            name: s.user.name,
+            role: s.user.role === "pro" || s.user.role === "admin" ? s.user.role : "client",
+          });
+        }
       })
       .catch((e: unknown) => {
         if (cancelled) return;
