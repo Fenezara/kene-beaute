@@ -3,7 +3,7 @@
 // + « Mes commandes » : historique des commandes enregistrées (consultation par la cliente).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, History, Loader2, Minus, Plus, Search, ShoppingBag, Tag, Trash2, X } from "lucide-react";
+import { BadgeCheck, Heart, History, Loader2, Lock, Minus, Plus, Search, ShoppingBag, Tag, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof, CASHBACK_RATE, formatDate, formatTime } from "@/lib/kene/format";
@@ -12,11 +12,15 @@ import { MOMO_OPERATORS } from "@/lib/kene/rfm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKene } from "@/store/kene";
+import { useFavorites } from "@/store/favorites";
+import { useSecurity } from "@/store/security";
 import { KenteWeaveCard } from "@/components/kene/weave/KenteWeaveCard";
 import { categoryThread } from "@/components/kene/weave/threads";
 import type { ApiOrder, ApiPayment, ApiProduct, ApiWallet } from "./types";
 import { SHOP_CATEGORIES } from "./types";
 import { EmptyBlock, Stars, SuccessBurst } from "./bits";
+import { FavButton } from "./FavButton";
+import { SecureVerify } from "./SecureVerify";
 
 type PayMethod = "wave" | "orange" | "wallet";
 
@@ -38,12 +42,19 @@ export function ShopScreen() {
   const [products, setProducts] = useState<ApiProduct[] | null>(null);
   const [cat, setCat] = useState("");
   const [q, setQ] = useState("");
+  const [favOnly, setFavOnly] = useState(false); // filtre « ♥ Favoris » (cumulable avec catégorie + recherche)
+  const favs = useFavorites((s) => s.favs);
   const [detail, setDetail] = useState<ApiProduct | null>(null);
   const [qty, setQty] = useState(1);
   const [checkout, setCheckout] = useState(false);
   const [wallet, setWallet] = useState<ApiWallet | null>(null);
   const [payState, setPayState] = useState<{ phase: "processing" | "success"; method: PayMethod; amount: number } | null>(null);
   const [paying, setPaying] = useState(false);
+
+  // Sécurité renforcée (2FA-lite) : si activée, la cliente re-vérifie son code
+  // AVANT que le moindre appel de paiement ne parte (voir startPay + SecureVerify).
+  const securityEnabled = useSecurity((s) => s.enabled);
+  const [pendingPay, setPendingPay] = useState<PayMethod | null>(null);
 
   // ─── Double-tap « ajout rapide » (TikTok Shop / Instagram) ───
   // 1er tap = ouvre la fiche (avec un délai court annulable) ; 2e tap < 320 ms
@@ -106,8 +117,13 @@ export function ShopScreen() {
 
   const filtered = useMemo(() => {
     const nq = q.trim().toLowerCase();
-    return (products ?? []).filter((p) => (!cat || p.category === cat) && (!nq || `${p.name} ${p.botanicals} ${p.description}`.toLowerCase().includes(nq)));
-  }, [products, cat, q]);
+    return (products ?? []).filter(
+      (p) =>
+        (!cat || p.category === cat) &&
+        (!favOnly || favs.includes(p.id)) &&
+        (!nq || `${p.name} ${p.botanicals} ${p.description}`.toLowerCase().includes(nq))
+    );
+  }, [products, cat, q, favOnly, favs]);
 
   /* le fil de la catégorie — la navette l'illumine dans la bande tissée */
   const weaveCaption =
@@ -115,7 +131,7 @@ export function ShopScreen() {
       ? "La navette monte le métier…"
       : `${filtered.length} soin${filtered.length > 1 ? "s" : ""}${
           cat ? ` · ${SHOP_CATEGORIES.find((c) => c.id === cat)?.label.toLowerCase() ?? cat}` : " au catalogue"
-        }`;
+        }${favOnly ? " · favoris" : ""}`;
 
   /* Applique un code promo : aperçu de remise sans consommer le coupon
    * (la consommation a lieu à la commande — toutes les gardes côté serveur). */
@@ -137,6 +153,18 @@ export function ShopScreen() {
     } finally {
       setPromoChecking(false);
     }
+  }
+
+  /** Passerelle paiement : vérification d'identité par code si la sécurité
+   *  renforcée est active — le paiement initialement prévu (pay) n'est lancé
+   *  qu'une fois le code confirmé ; annulé sinon, rien n'est engagé. */
+  function startPay(method: PayMethod) {
+    if (securityEnabled) {
+      haptic(HAPTIC.tap);
+      setPendingPay(method);
+      return;
+    }
+    void pay(method);
   }
 
   async function pay(method: PayMethod) {
@@ -231,19 +259,27 @@ export function ShopScreen() {
         />
       </div>
 
-      {/* Catégories */}
-      <div className="flex gap-2 overflow-x-auto py-3 scrollbar-thin -mx-1 px-1" role="tablist" aria-label="Catégories">
+      {/* Filtres : catégories + favoris (bascules aria-pressed, cumulables) */}
+      <div className="flex gap-2 overflow-x-auto py-3 scrollbar-thin -mx-1 px-1" role="group" aria-label="Filtres de la boutique">
         {SHOP_CATEGORIES.map((c) => (
           <button
             key={c.id}
-            role="tab"
-            aria-selected={cat === c.id}
+            aria-pressed={cat === c.id}
             onClick={() => setCat(c.id)}
             className={`shrink-0 rounded-full px-3.5 min-h-10 text-xs font-semibold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${cat === c.id ? "bg-primary text-primary-foreground shadow" : "border border-border bg-card text-foreground/80"}`}
           >
             {c.label}
           </button>
         ))}
+        {/* ♥ Favoris — filtre cumulable, badge count si ≥ 1 */}
+        <button
+          aria-pressed={favOnly}
+          onClick={() => { setFavOnly((v) => !v); haptic(HAPTIC.tap); }}
+          className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 min-h-10 text-xs font-semibold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${favOnly ? "bg-primary text-primary-foreground shadow" : "border border-border bg-card text-foreground/80"}`}
+        >
+          <Heart size={13} fill={favOnly ? "currentColor" : "none"} aria-hidden="true" />
+          Favoris{favs.length > 0 ? ` · ${favs.length}` : ""}
+        </button>
       </div>
 
       {/* Grille produits */}
@@ -258,43 +294,69 @@ export function ShopScreen() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyBlock icon={<Search size={22} />} title="Aucun produit trouvé" text="Essaie un autre mot-clé ou une autre catégorie." />
+        favOnly && favs.length === 0 ? (
+          <EmptyBlock
+            icon={<Heart size={22} />}
+            title="Aucun favori pour l'instant"
+            text="Touche le cœur sur un soin pour le retrouver ici."
+          />
+        ) : favOnly ? (
+          <EmptyBlock
+            icon={<Heart size={22} />}
+            title="Aucun favori dans cette sélection"
+            text="Tes favoris ne passent pas ce filtre — essaie une autre catégorie ou efface la recherche."
+            cta={
+              <button
+                onClick={() => { setCat(""); setQ(""); }}
+                className="h-11 px-6 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+              >
+                Voir tous mes favoris
+              </button>
+            }
+          />
+        ) : (
+          <EmptyBlock icon={<Search size={22} />} title="Aucun produit trouvé" text="Essaie un autre mot-clé ou une autre catégorie." />
+        )
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {filtered.map((p) => (
-            <button
-              key={p.id}
-              onClick={(e) => onCardTap(p, e)}
-              className="relative text-left rounded-2xl border border-border bg-card overflow-hidden shadow-sm active:scale-[0.98] transition-transform hover:border-primary/40 touch-manipulation focus-visible:outline-2 focus-visible:outline-primary"
-              aria-label={`${p.name}, ${xof(p.price)} — appuie une fois pour la fiche, deux fois pour l'ajouter au panier`}
-            >
-              {/* Burst double-tap — panier kente qui jaillit sous le doigt */}
-              {burst?.id === p.id && (
-                <motion.span
-                  aria-hidden="true"
-                  initial={{ scale: 0.3, opacity: 0.95 }}
-                  animate={{ scale: 1.7, opacity: 0 }}
-                  transition={{ duration: 0.65, ease: "easeOut" }}
-                  className="pointer-events-none absolute z-20"
-                  style={{ left: burst.x, top: burst.y }}
-                >
-                  <span className="grid place-items-center h-20 w-20 -ml-10 -mt-10 rounded-full bg-[#FFF9EC]/30 backdrop-blur-[2px] shadow-xl">
-                    <span className="grid place-items-center h-12 w-12 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] shadow-lg">
-                      <ShoppingBag size={22} className="text-[#FFF9EC]" />
+            /* Wrapper relatif : le cœur est un FRÈRE de la carte (jamais de <button>
+               imbriqué — HTML valide, focus/a11y propres), posé sur l'image en absolu. */
+            <div key={p.id} className="relative">
+              <button
+                onClick={(e) => onCardTap(p, e)}
+                className="relative block w-full text-left rounded-2xl border border-border bg-card overflow-hidden shadow-sm active:scale-[0.98] transition-transform hover:border-primary/40 touch-manipulation focus-visible:outline-2 focus-visible:outline-primary"
+                aria-label={`${p.name}, ${xof(p.price)} — appuie une fois pour la fiche, deux fois pour l'ajouter au panier`}
+              >
+                {/* Burst double-tap — panier kente qui jaillit sous le doigt */}
+                {burst?.id === p.id && (
+                  <motion.span
+                    aria-hidden="true"
+                    initial={{ scale: 0.3, opacity: 0.95 }}
+                    animate={{ scale: 1.7, opacity: 0 }}
+                    transition={{ duration: 0.65, ease: "easeOut" }}
+                    className="pointer-events-none absolute z-20"
+                    style={{ left: burst.x, top: burst.y }}
+                  >
+                    <span className="grid place-items-center h-20 w-20 -ml-10 -mt-10 rounded-full bg-[#FFF9EC]/30 backdrop-blur-[2px] shadow-xl">
+                      <span className="grid place-items-center h-12 w-12 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] shadow-lg">
+                        <ShoppingBag size={22} className="text-[#FFF9EC]" />
+                      </span>
                     </span>
-                  </span>
-                </motion.span>
-              )}
-              <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full object-cover" />
-              <div className="p-2.5">
-                <p className="text-[13px] font-semibold leading-tight line-clamp-2 min-h-9">{p.name}</p>
-                <p className="text-[10px] text-terre mt-1 truncate">{p.botanicals}</p>
-                <div className="flex items-center justify-between mt-1.5">
-                  <span className="font-mono text-[13px] font-bold">{xof(p.price)}</span>
-                  <Stars rating={p.rating} size={9} />
+                  </motion.span>
+                )}
+                <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full object-cover" />
+                <div className="p-2.5">
+                  <p className="text-[13px] font-semibold leading-tight line-clamp-2 min-h-9">{p.name}</p>
+                  <p className="text-[10px] text-terre mt-1 truncate">{p.botanicals}</p>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className="font-mono text-[13px] font-bold">{xof(p.price)}</span>
+                    <Stars rating={p.rating} size={9} />
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+              <FavButton variant="card" productId={p.id} productName={p.name} />
+            </div>
           ))}
         </div>
       )}
@@ -363,6 +425,8 @@ export function ShopScreen() {
                 >
                   <Plus size={17} /> Ajouter au panier — {xof(detail.price * qty)}
                 </button>
+                {/* Favori — action secondaire de la fiche produit (persistante, par appareil) */}
+                <FavButton variant="inline" productId={detail.id} productName={detail.name} />
               </div>
             </>
           )}
@@ -453,11 +517,16 @@ export function ShopScreen() {
 
             <div>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Mode de paiement</p>
+              {securityEnabled && (
+                <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1">
+                  <Lock size={10} aria-hidden="true" /> Vérification par code activée
+                </p>
+              )}
               <div className="space-y-2">
                 {(["wave", "orange"] as const).map((m) => {
                   const o = op(m)!;
                   return (
-                    <button key={m} onClick={() => pay(m)} disabled={paying} className="w-full h-12 rounded-xl border-2 bg-card flex items-center gap-3 px-4 font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" style={{ borderColor: o.color }}>
+                    <button key={m} onClick={() => startPay(m)} disabled={paying} className="w-full h-12 rounded-xl border-2 bg-card flex items-center gap-3 px-4 font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" style={{ borderColor: o.color }}>
                       <span className="h-7 w-7 rounded-full grid place-items-center font-heading font-black text-[#1A1410] text-xs shrink-0" style={{ backgroundColor: o.color }}>{o.name.charAt(0)}</span>
                       {o.name}
                       <span className="ml-auto text-[10px] font-normal text-muted-foreground">{o.hint}</span>
@@ -465,7 +534,7 @@ export function ShopScreen() {
                   );
                 })}
                 <button
-                  onClick={() => pay("wallet")}
+                  onClick={() => startPay("wallet")}
                   disabled={paying || (wallet?.balance ?? 0) < total}
                   className="w-full h-12 rounded-xl border-2 border-melanine bg-card flex items-center gap-3 px-4 font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
@@ -479,6 +548,19 @@ export function ShopScreen() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Sécurité renforcée — code OTP exigé avant de lancer le paiement */}
+      <SecureVerify
+        open={pendingPay !== null}
+        phone={user.phone}
+        amount={total}
+        onVerified={() => {
+          const method = pendingPay;
+          setPendingPay(null);
+          if (method) void pay(method);
+        }}
+        onCancel={() => setPendingPay(null)}
+      />
 
       {/* Overlay paiement simulé plein écran — dialog accessible (pattern RitualJourney) */}
       <AnimatePresence>

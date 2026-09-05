@@ -11,6 +11,7 @@ import { useKene } from "@/store/kene";
 import { ClientApp } from "@/components/kene/client/ClientApp";
 import { ProApp } from "@/components/kene/pro/ProApp";
 import { AdminApp } from "@/components/kene/admin/AdminApp";
+import { PwaProvider } from "@/components/kene/pwa/PwaProvider";
 import { Toaster } from "@/components/ui/sonner";
 
 export default function Page() {
@@ -31,6 +32,9 @@ export default function Page() {
           {space === "pro" && <ProApp />}
           {space === "admin" && <AdminApp />}
         </main>
+
+        {/* PWA : enregistrement du service worker + mise à jour offline (aucun rendu) */}
+        <PwaProvider />
 
         <Toaster position="top-center" richColors closeButton />
       </div>

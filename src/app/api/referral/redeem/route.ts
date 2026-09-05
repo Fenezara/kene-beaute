@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, ensureWallet, creditWallet, notify } from "@/lib/kene/server";
 import { FILLEUL_GIFT, PARRAIN_REWARD, filleulGiftRefId } from "@/lib/kene/referral";
 import { xof } from "@/lib/kene/format";
+import { rateLimit, rlKey, rateLimitResponse, REFERRAL_REDEEM } from "@/lib/kene/rate-limit";
 
 const Body = z.object({
   userId: z.string().min(1),
@@ -14,6 +15,13 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "referral:redeem"), REFERRAL_REDEEM);
+  if (!rl.ok) {
+    return rateLimitResponse(
+      rl.retryAfterSec,
+      `Trop de tentatives de code parrain — réessaie dans ${Math.max(1, Math.ceil(rl.retryAfterSec / 60))} min`,
+    );
+  }
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("userId et code requis (4 à 40 caractères)", 400);

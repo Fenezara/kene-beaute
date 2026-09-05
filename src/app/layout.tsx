@@ -27,7 +27,16 @@ export const metadata: Metadata = {
     "Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibrée peaux mélanodermes, instituts partenaires, boutique cosmétique aux botaniques africains, et gestion complète d'institut (RDV, caisse, paie CNPS/IPM, compta SYSCOHADA).",
   keywords: ["Kènè", "beauté", "mélanoderme", "peau noire", "diagnostic IA", "institut", "Afrique", "Wave", "Orange Money", "CNPS", "SYSCOHADA"],
   authors: [{ name: "Kènè" }],
-  icons: { icon: "/kene-logo.svg" },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Kènè",
+  },
+  icons: {
+    icon: "/kene-logo.svg",
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

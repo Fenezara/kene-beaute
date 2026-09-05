@@ -8,6 +8,7 @@ import { apiPatch, apiPost } from "@/lib/kene/api";
 import { xof } from "@/lib/kene/format";
 import { FILLEUL_GIFT } from "@/lib/kene/referral";
 import { KeneLogo } from "@/components/kene/icons";
+import { useT } from "@/lib/kene/use-t";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useKene, type SessionUser } from "@/store/kene";
@@ -32,6 +33,7 @@ function Chip({ active, children, onClick }: { active: boolean; children: React.
 
 export function Onboarding() {
   const setUser = useKene((s) => s.setUser);
+  const { t } = useT();
   const [step, setStep] = useState(0);
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
@@ -186,14 +188,14 @@ export function Onboarding() {
             </div>
             <div className="px-5 -mt-2 pb-8 flex flex-col gap-5 flex-1">
               <div>
-                <h1 className="font-heading font-black text-2xl leading-tight">La beauté mélanoderme, de A à Z.</h1>
+                <h1 className="font-heading font-black text-2xl leading-tight">{t("onboarding.title")}</h1>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Diagnostic IA multi-zones, boutique botaniques, instituts partenaires et coach Dr. Kènè — pensés pour les peaux Fitzpatrick IV–VI.
+                  {t("onboarding.subtitle")}
                 </p>
               </div>
               <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
                 <label htmlFor="phone" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Mon numéro
+                  {t("onboarding.phone.label")}
                 </label>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="h-12 px-3 grid place-items-center rounded-xl border border-border bg-muted font-mono text-sm">+225</span>
@@ -220,7 +222,7 @@ export function Onboarding() {
                   className="mt-4 h-12 w-full rounded-xl bg-primary text-primary-foreground font-semibold text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60"
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" /> : <MessageSquareText size={18} />}
-                  Recevoir mon code
+                  {t("onboarding.cta")}
                 </button>
               </div>
               <button
@@ -231,7 +233,7 @@ export function Onboarding() {
                 Démo — Entrer comme Mariam (compte riche : 3 diagnostics, wallet)
               </button>
               <p className="mt-auto text-[11px] leading-relaxed text-muted-foreground text-center">
-                En continuant, tu acceptes les conditions Kènè. Données santé chiffrées, jamais revendues.
+                {t("onboarding.legal")}
               </p>
             </div>
           </motion.div>

@@ -19,6 +19,7 @@ import { formatTime } from "@/lib/kene/format";
 import { KeneLogo, NeaOnnimIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { useKene, type ClientTab } from "@/store/kene";
+import { useT } from "@/lib/kene/use-t";
 import { KenteIntro } from "@/components/kene/intro/KenteIntro";
 import { useIntroDone } from "@/components/kene/intro/introState";
 import { Onboarding } from "./Onboarding";
@@ -31,38 +32,40 @@ import { ProfileScreen } from "./ProfileScreen";
 import { NotificationCenter } from "./NotificationCenter";
 import { cn } from "@/lib/utils";
 
-/** Navigation latérale (desktop) — libellés façon Instagram web */
-const NAV_DESKTOP: { tab: ClientTab; label: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
-  { tab: "accueil", label: "Accueil", icon: Home },
-  { tab: "diagnostic", label: "Scanner", icon: NeaOnnimIcon, scan: true },
-  { tab: "boutique", label: "Boutique", icon: ShoppingBag },
-  { tab: "rdv", label: "Rendez-vous", icon: CalendarDays },
-  { tab: "chat", label: "Messages", icon: MessageCircle },
-  { tab: "profil", label: "Profil", icon: User },
+/** Navigation latérale (desktop) — libellés façon Instagram web.
+ *  labelKey = clé i18n (repli français) — t() résout à l'affichage. */
+const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
+  { tab: "accueil", labelKey: "tab.home", icon: Home },
+  { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
+  { tab: "boutique", labelKey: "tab.shop", icon: ShoppingBag },
+  { tab: "rdv", labelKey: "tab.rdv", icon: CalendarDays },
+  { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
+  { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
 /** Tab-bar mobile — 5 emplacements, CTA scan central surélevé (TikTok-like) */
-const NAV_MOBILE: { tab: ClientTab; label: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
-  { tab: "accueil", label: "Accueil", icon: Home },
-  { tab: "boutique", label: "Boutik", icon: ShoppingBag },
-  { tab: "diagnostic", label: "Scanner", icon: NeaOnnimIcon, scan: true },
-  { tab: "rdv", label: "RDV", icon: CalendarDays },
-  { tab: "profil", label: "Profil", icon: User },
+const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
+  { tab: "accueil", labelKey: "tab.home", icon: Home },
+  { tab: "boutique", labelKey: "tab.shop.short", icon: ShoppingBag },
+  { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
+  { tab: "rdv", labelKey: "tab.rdv.short", icon: CalendarDays },
+  { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
 const TITLES: Record<ClientTab, string> = {
-  accueil: "Accueil",
-  diagnostic: "Diagnostic IA",
-  boutique: "Boutique",
-  rdv: "Rendez-vous",
-  chat: "Dr. Kènè",
-  profil: "Mon profil",
+  accueil: "title.home",
+  diagnostic: "title.diag",
+  boutique: "title.shop",
+  rdv: "title.rdv",
+  chat: "title.chat",
+  profil: "title.profile",
 };
 
 /** Ordre de balayage mobile (swipe horizontal gauche/droite — TikTok-like) */
 const SWIPE_ORDER: ClientTab[] = ["accueil", "boutique", "diagnostic", "rdv", "profil"];
 
 export function ClientApp() {
+  const { t } = useT();
   const user = useKene((s) => s.user);
   const tab = useKene((s) => s.clientTab);
   const setClientTab = useKene((s) => s.setClientTab);
@@ -235,7 +238,7 @@ export function ClientApp() {
                     <NeaOnnimIcon size={19} className="hidden xl:block" />
                   </span>
                   <span className={cn("text-[10px] xl:text-sm font-semibold xl:font-bold tracking-wide", active ? "text-primary xl:text-inherit" : "text-muted-foreground xl:text-inherit")}>
-                    {n.label}
+                    {t(n.labelKey)}
                   </span>
                 </button>
               );
@@ -245,7 +248,7 @@ export function ClientApp() {
                 key={n.tab}
                 onClick={() => goTab(n.tab)}
                 aria-current={active ? "page" : undefined}
-                aria-label={`${n.label}${n.tab === "chat" && chatUnread ? " — 1 nouveau message" : ""}${n.tab === "boutique" && cartCount > 0 ? ` — ${cartCount} article${cartCount > 1 ? "s" : ""} au panier` : ""}`}
+                aria-label={`${t(n.labelKey)}${n.tab === "chat" && chatUnread ? " — 1 nouveau message" : ""}${n.tab === "boutique" && cartCount > 0 ? ` — ${cartCount} article${cartCount > 1 ? "s" : ""} au panier` : ""}`}
                 className={cn(
                   "relative flex flex-col xl:flex-row items-center justify-center xl:justify-start gap-1 xl:gap-3.5 py-2.5 xl:py-0 xl:h-12 xl:px-3 rounded-2xl transition-colors focus-visible:outline-2 focus-visible:outline-primary",
                   active ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
@@ -268,7 +271,7 @@ export function ClientApp() {
                     </motion.span>
                   )}
                 </span>
-                <span className={cn("text-[10px] xl:text-[15px]", active ? "font-bold" : "font-medium")}>{n.label}</span>
+                <span className={cn("text-[10px] xl:text-[15px]", active ? "font-bold" : "font-medium")}>{t(n.labelKey)}</span>
                 {active && <motion.span layoutId="side-indicator" className="hidden xl:block absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-full bg-primary" aria-hidden="true" />}
               </button>
             );
@@ -282,14 +285,14 @@ export function ClientApp() {
             className="flex flex-col xl:flex-row items-center justify-center xl:justify-start gap-1 xl:gap-3.5 py-2.5 xl:py-0 xl:h-11 xl:px-3 rounded-2xl text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary"
           >
             <BriefcaseBusiness className="size-[18px]" />
-            <span className="text-[9px] xl:text-[13px] font-medium">Espace Pro</span>
+            <span className="text-[9px] xl:text-[13px] font-medium">{t("space.pro")}</span>
           </button>
           <button
             onClick={() => setSpace("admin")}
             className="flex flex-col xl:flex-row items-center justify-center xl:justify-start gap-1 xl:gap-3.5 py-2.5 xl:py-0 xl:h-11 xl:px-3 rounded-2xl text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary"
           >
             <ShieldCheck className="size-[18px]" />
-            <span className="text-[9px] xl:text-[13px] font-medium">Console Admin</span>
+            <span className="text-[9px] xl:text-[13px] font-medium">{t("space.admin")}</span>
           </button>
           <p className="hidden xl:block px-3 pt-2 text-[10px] leading-relaxed text-muted-foreground/70">
             Kènè POC — paiements simulés · estimations IA non médicales
@@ -308,9 +311,9 @@ export function ClientApp() {
             {/* h1 de vue : présent pour les lecteurs d'écran à TOUS les formats
                 (sr-only mobile, visible md+ — un seul h1 par vue) */}
             <div className="flex items-baseline gap-2.5 min-w-0">
-              <h1 className="sr-only md:not-sr-only md:font-heading md:font-bold md:text-lg xl:text-xl truncate">{TITLES[tab]}</h1>
+              <h1 className="sr-only md:not-sr-only md:font-heading md:font-bold md:text-lg xl:text-xl truncate">{t(TITLES[tab])}</h1>
               <p className="hidden xl:block text-[11px] text-muted-foreground truncate">
-                {tab === "accueil" ? `Bonjour ${first} ✨` : tab === "chat" ? "Éducation cutanée · en ligne" : "Kènè — la beauté mélanoderme"}
+                {tab === "accueil" ? `${t("home.greeting")} ${first} ✨` : tab === "chat" ? "Éducation cutanée · en ligne" : "Kènè — la beauté mélanoderme"}
               </p>
             </div>
             <div className="flex items-center gap-1">
@@ -318,7 +321,7 @@ export function ClientApp() {
               <NotificationCenter userId={user.id} />
               <button
                 onClick={() => goTab("chat")}
-                aria-label={`Dr. Kènè — chat${chatUnread ? " — 1 nouveau message" : ""}`}
+                aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
                 className="md:hidden relative grid place-items-center h-11 w-11 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition focus-visible:outline-2 focus-visible:outline-primary"
               >
                 <MessageCircle size={21} />
@@ -332,7 +335,7 @@ export function ClientApp() {
           {!online && (
             <div role="status" className="flex items-center justify-center gap-2 bg-gold/15 text-gold-text text-[11px] font-semibold py-1.5 border-b border-gold/30">
               <WifiOff size={13} aria-hidden="true" />
-              Connexion perdue — tes données restent affichées, réessaie quand le réseau revient
+              {t("common.offline")}
             </div>
           )}
         </header>
@@ -401,7 +404,7 @@ export function ClientApp() {
                     key={n.tab}
                     onClick={() => goTab(n.tab)}
                     aria-current={active ? "page" : undefined}
-                    aria-label="Scanner ma peau — diagnostic IA"
+                    aria-label={t("nav.scan.aria")}
                     className="relative flex flex-col items-center justify-end pb-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
                   >
                     <span
@@ -412,7 +415,7 @@ export function ClientApp() {
                     >
                       <NeaOnnimIcon size={23} />
                     </span>
-                    <span className={cn("text-[10px] font-semibold mt-0.5", active ? "text-primary" : "text-muted-foreground")}>Scanner</span>
+                    <span className={cn("text-[10px] font-semibold mt-0.5", active ? "text-primary" : "text-muted-foreground")}>{t(n.labelKey)}</span>
                   </button>
                 );
               }
@@ -421,7 +424,7 @@ export function ClientApp() {
                   key={n.tab}
                   onClick={() => goTab(n.tab)}
                   aria-current={active ? "page" : undefined}
-                  aria-label={n.label + (n.tab === "boutique" && cartCount > 0 ? ` — ${cartCount} article${cartCount > 1 ? "s" : ""} au panier` : "")}
+                  aria-label={t(n.labelKey) + (n.tab === "boutique" && cartCount > 0 ? ` — ${cartCount} article${cartCount > 1 ? "s" : ""} au panier` : "")}
                   className={cn(
                     "relative flex flex-col items-center justify-center gap-1 h-full transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
                     active ? "text-primary" : "text-muted-foreground",
@@ -445,7 +448,7 @@ export function ClientApp() {
                       </motion.span>
                     )}
                   </motion.span>
-                  <span className={cn("text-[10px]", active ? "font-bold" : "font-semibold")}>{n.label}</span>
+                  <span className={cn("text-[10px]", active ? "font-bold" : "font-semibold")}>{t(n.labelKey)}</span>
                 </button>
               );
             })}
@@ -472,13 +475,13 @@ export function ClientApp() {
               onClick={() => goTab("profil")}
               className="mt-3.5 h-10 w-full rounded-xl border border-primary/40 bg-primary/10 text-primary text-xs font-bold active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
             >
-              Voir mon profil
+              {t("rail.view.profile")}
             </button>
           </div>
 
           {/* Actions rapides */}
           <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => goTab("diagnostic")} className="rounded-2xl bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] p-3.5 text-left shadow-md active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Scanner ma peau">
+            <button onClick={() => goTab("diagnostic")} className="rounded-2xl bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] p-3.5 text-left shadow-md active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label={t("home.scan.cta")}>
               <NeaOnnimIcon size={20} />
               <p className="text-xs font-bold mt-1.5 leading-tight">Scanner<br />ma peau</p>
             </button>

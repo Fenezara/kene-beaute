@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, genRef } from "@/lib/kene/server";
+import { rateLimit, rlKey, rateLimitResponse, PAYMENTS } from "@/lib/kene/rate-limit";
 
 const Body = z.object({
   userId: z.string().optional(),
@@ -13,6 +14,10 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "payments:initiate"), PAYMENTS);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Trop de requêtes de paiement — patiente quelques secondes");
+  }
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);

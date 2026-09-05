@@ -7,16 +7,21 @@
 // et toast d'arrivée se mettent à jour SANS reload pendant que l'app est ouverte.
 // Dégradation douce : sans service, le comportement historique (GET au montage
 // + à l'ouverture) reste intact.
+// WEB PUSH (t. 60-e) : carte « Rappels sur mon téléphone » en bas du Sheet —
+// abonnement Push API (VAPID) via le service worker : les rappels arrivent
+// en notification système MÊME application fermée.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { Bell, BellRing, CheckCheck, CheckCircle2 } from "lucide-react";
+import { Bell, BellRing, CheckCheck, CheckCircle2, Loader2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { apiGet, apiPost } from "@/lib/kene/api";
+import { getActivePushSubscription, getPushStatus, pushKeyToBase64, subscribeToPush, type PushStatus } from "@/lib/kene/push-client";
 import { channelLabel, humanWhen } from "@/lib/kene/reminders";
 import { cn } from "@/lib/utils";
 import type { ApiReminderFeed } from "./types";
@@ -47,6 +52,10 @@ export function NotificationCenter({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [live, setLive] = useState(false);
+  // Web Push : "checking" le temps de lire permission + abonnement réels,
+  // puis "on" | "off" | "unsupported" (navigateur sans service worker/PushManager).
+  const [pushStatus, setPushStatus] = useState<PushStatus | "checking">("checking");
+  const [pushBusy, setPushBusy] = useState(false);
 
   const unread = feed?.unread ?? 0;
 
@@ -78,6 +87,19 @@ export function NotificationCenter({
   useEffect(() => {
     void load(false);
   }, [load]);
+
+  // Web Push : état réel au montage (support navigateur + permission +
+  // abonnement actif) — la carte du Sheet se cale dessus, jamais sur un état deviné.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const s = await getPushStatus();
+      if (!cancelled) setPushStatus(s);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* ── Temps réel : connexion au notify-service ──────────────────
    * io('/?XTransformPort=3004') : la gateway route vers le mini-service.
@@ -158,6 +180,63 @@ export function NotificationCenter({
     }
   }
 
+  /* ── Web Push : activation des rappels téléphone ───────────────
+   * Permission navigateur → clé publique VAPID → abonnement pushManager
+   * → enregistrement côté serveur (dispatch même app fermée). */
+  async function enablePush() {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      const perm = typeof Notification !== "undefined" ? await Notification.requestPermission() : "denied";
+      if (perm !== "granted") {
+        setPushStatus("off");
+        toast.error("Autorisation refusée dans les réglages du navigateur");
+        return;
+      }
+      const { publicKey } = await apiGet<{ publicKey: string | null }>("/api/push/public-key");
+      if (!publicKey) {
+        setPushStatus("off");
+        toast.error("Notifications indisponibles");
+        return;
+      }
+      const sub = await subscribeToPush(publicKey);
+      await apiPost<{ ok: boolean }>("/api/push/subscribe", {
+        userId,
+        subscription: {
+          endpoint: sub.endpoint,
+          keys: { p256dh: pushKeyToBase64(sub.getKey("p256dh")), auth: pushKeyToBase64(sub.getKey("auth")) },
+        },
+      });
+      setPushStatus("on");
+      toast.success("Rappels activés — tu seras prévenue même app fermée 💛");
+    } catch (e) {
+      setPushStatus("off");
+      toast.error(e instanceof Error ? e.message : "Activation impossible");
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
+  /* Désactivation : désabonnement local (pushManager) + purge serveur. */
+  async function disablePush() {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      const sub = await getActivePushSubscription();
+      if (sub) {
+        const endpoint = sub.endpoint;
+        await sub.unsubscribe().catch(() => undefined);
+        await apiPost<{ ok: boolean }>("/api/push/unsubscribe", { endpoint });
+      }
+      setPushStatus("off");
+      toast("Rappels désactivés");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Désactivation impossible");
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
   return (
     <>
       <button
@@ -214,7 +293,7 @@ export function NotificationCenter({
             )}
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto pretty-scroll px-4 pb-5 space-y-4">
+          <div className="flex-1 overflow-y-auto pretty-scroll px-4 pb-4 space-y-4">
             {loading && !feed ? (
               <div className="space-y-2.5 pt-2">
                 <Skeleton className="h-[76px] rounded-2xl" />
@@ -322,6 +401,41 @@ export function NotificationCenter({
                 )}
               </>
             )}
+          </div>
+
+          {/* ── Rappels sur mon téléphone (Web Push, t. 60-e) ──
+             Pinnée en bas du Sheet (hors zone de scroll) : le Switch pilote
+             l'abonnement Push API — notifications système même app fermée. */}
+          <div className="shrink-0 border-t border-border px-4 pt-3 pb-4">
+            <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-card p-3.5">
+              <span
+                className={cn(
+                  "grid place-items-center h-11 w-11 rounded-full shrink-0",
+                  pushStatus === "on" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                )}
+                aria-hidden="true"
+              >
+                {pushBusy ? <Loader2 size={20} className="animate-spin" /> : <Smartphone size={20} />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold">Rappels sur mon téléphone</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  {pushStatus === "unsupported"
+                    ? "Non disponible sur ce navigateur"
+                    : pushStatus === "on"
+                      ? "Activés — tu reçois tes rappels même application fermée"
+                      : "Reçois tes rappels même application fermée"}
+                </p>
+              </div>
+              <Switch
+                checked={pushStatus === "on"}
+                onCheckedChange={(v) => (v ? void enablePush() : void disablePush())}
+                disabled={pushBusy || pushStatus === "checking" || pushStatus === "unsupported"}
+                aria-label="Rappels sur mon téléphone"
+                // Interrupteur agrandi (h-10 w-14 ≥ 40 px, pouce size-7)
+                className="h-10 w-14 [&_[data-slot=switch-thumb]]:size-7"
+              />
+            </div>
           </div>
         </SheetContent>
       </Sheet>

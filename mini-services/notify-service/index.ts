@@ -78,6 +78,26 @@ async function poll(userId: string, reason: string) {
     const u = (payload as { unread?: number })?.unread ?? 0;
     const s = (payload as { scheduled?: unknown[] })?.scheduled?.length ?? 0;
     log(`feed émis (${reason}) — unread ${u} · ${s} à venir`, userId);
+
+    // Web Push (t. 60-e) : fil FRAIS = potentiellement une nouvelle notification
+    // → dispatch vers les abonnements Push API de la cliente (elle la reçoit
+    // même application fermée, via son service worker). FIRE-AND-FORGET :
+    // jamais bloquant, jamais de crash si l'API ne répond pas / 403 / 429 —
+    // le push est un bonus, la socket reste la voie principale.
+    fetch(`${APP}/api/push/dispatch`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "user-agent": "kene-notify-service/1.0" },
+      body: JSON.stringify({ secret: PUSH_SECRET, userId }),
+      signal: AbortSignal.timeout(8_000),
+    })
+      .then(async (r) => {
+        if (!r.ok) return;
+        const j = (await r.json().catch(() => null)) as { sent?: number; failed?: number } | null;
+        if (j && (j.sent ?? 0) > 0) {
+          log(`push web dispatché — ${j.sent} envoyé(s), ${j.failed ?? 0} échec(s)`, userId);
+        }
+      })
+      .catch(() => {}); // silence absolu — l'app Next est peut-être down, on continue
   } catch (e) {
     log(`poll ${reason} → échec réseau (${e instanceof Error ? e.message : "?"}) — silencieux`, userId);
   } finally {

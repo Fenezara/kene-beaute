@@ -29,7 +29,9 @@ import { nextClientStep } from "@/lib/kene/followups";
 import { channelLabel, humanWhen } from "@/lib/kene/reminders";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 import { NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
+import { InstallBanner } from "@/components/kene/pwa/InstallBanner";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
+import { useT } from "@/lib/kene/use-t";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKene } from "@/store/kene";
 import { VoiceNarration } from "./VoiceNarration";
@@ -78,6 +80,7 @@ export function HomeScreen({
 }) {
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
+  const { t } = useT();
   const [data, setData] = useState<HomeData | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [ritualOpen, setRitualOpen] = useState(false);
@@ -172,7 +175,7 @@ export function HomeScreen({
       {/* ───── Salutation ───── */}
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-primary font-semibold">Bonjour</p>
+          <p className="text-[11px] uppercase tracking-[0.16em] text-primary font-semibold">{t("home.greeting")}</p>
           <h2 className="font-black text-[26px] leading-tight tracking-tight truncate"><span className="kente-text">{first}</span> ✨</h2>
           <p className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
             <MapPin size={11} /> {user.city || "Abidjan"} · {user.fitzpatrick ? `Fitzpatrick ${user.fitzpatrick}` : "Phototype à définir"}
@@ -181,13 +184,16 @@ export function HomeScreen({
         {data?.wallet && <WalletPill balance={data.wallet.balance} onClick={() => setClientTab("profil")} />}
       </header>
 
+      {/* ───── Bannière d'installation PWA (auto-masquée : installée / fermée / standalone) ───── */}
+      <InstallBanner />
+
       {/* ───── Stories : scan rapide + zones avec score ───── */}
       <section aria-label="Scan rapide par zone" className="-mx-3 sm:-mx-5 px-3 sm:px-5">
         <ScrollFadeRow label="Stories des zones — fais défiler horizontalement" className="flex gap-3.5 overflow-x-auto no-scrollbar py-1.5 pr-2">
           {/* Story Scanner */}
           <button
             onClick={() => setClientTab("diagnostic")}
-            aria-label="Scanner ma peau — nouveau diagnostic"
+            aria-label={t("home.scan.story.aria")}
             className="shrink-0 w-[68px] flex flex-col items-center gap-1.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary rounded-xl"
           >
             <span className="grid place-items-center h-[66px] w-[66px] rounded-full p-[3px] bg-gradient-to-br from-[#C8951E] via-[#A0522D] to-[#8B1A3B] shadow-md active:scale-95 transition-transform">
@@ -195,7 +201,7 @@ export function HomeScreen({
                 <NeaOnnimIcon size={26} className="text-primary" />
               </span>
             </span>
-            <span className="text-[10px] font-bold text-primary">Scanner</span>
+            <span className="text-[10px] font-bold text-primary">{t("tab.scan")}</span>
           </button>
 
           {/* Stories zones */}
@@ -262,9 +268,9 @@ export function HomeScreen({
             </div>
           ) : multi.score !== null ? (
             <div className="flex flex-wrap items-center gap-4">
-              <ScoreGauge score={multi.score} label="Multi-zones" />
+              <ScoreGauge score={multi.score} label={t("home.score.zone")} />
               <div className="min-w-0 flex-1">
-                <h3 className="font-heading font-bold text-base">Santé de ta peau</h3>
+                <h3 className="font-heading font-bold text-base">{t("home.score.title")}</h3>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   {multi.covered.length} zone{multi.covered.length > 1 ? "s" : ""} analysée{multi.covered.length > 1 ? "s" : ""} · pondération PRD
                   {multi.last && <span className="block mt-1">Dernier scan : {formatDate(multi.last.createdAt)}</span>}
@@ -296,14 +302,14 @@ export function HomeScreen({
           ) : (
             <div className="text-center py-2">
               <NeaOnnimIcon size={40} className="mx-auto text-primary" />
-              <p className="font-heading font-bold mt-2">Ton premier diagnostic t&apos;attend</p>
-              <p className="text-xs text-muted-foreground mt-1">Analyse IA de 6 zones — commence par le visage.</p>
+              <p className="font-heading font-bold mt-2">{t("home.first.title")}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("home.first.sub")}</p>
             </div>
           )}
           {data && multi.missing.length > 0 && (
             <div className="mt-4 pt-4 border-t border-dashed border-border">
               <p className="text-[11px] font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                <Sparkles size={12} className="text-primary" /> Zones à scanner pour compléter ton score
+                <Sparkles size={12} className="text-primary" /> {t("home.missing.title")}
               </p>
               <ScrollFadeRow label="Zones manquantes — fais défiler" className="flex gap-2 overflow-x-auto no-scrollbar pb-1 pr-1">
                 {multi.missing.map((z) => (
@@ -328,7 +334,7 @@ export function HomeScreen({
         whileTap={{ scale: 0.98 }}
         onClick={() => setClientTab("diagnostic")}
         className="relative h-24 rounded-3xl bg-gradient-to-br from-[#A0522D] via-[#8B1A3B] to-[#6B2416] text-[#FFF9EC] shadow-lg overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        aria-label="Scanner ma peau maintenant"
+        aria-label={t("home.scan.aria")}
       >
         <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-30" />
         <div className="relative h-full flex items-center justify-center gap-3 px-4">
@@ -336,8 +342,8 @@ export function HomeScreen({
             <NeaOnnimIcon size={30} />
           </span>
           <span className="text-left">
-            <span className="block font-black text-lg tracking-tight">Scanner ma peau</span>
-            <span className="block text-[11px] opacity-90">Analyse IA VISIA-like · 6 zones · 30 s</span>
+            <span className="block font-black text-lg tracking-tight">{t("home.scan.cta")}</span>
+            <span className="block text-[11px] opacity-90">{t("home.scan.sub")}</span>
           </span>
           <ChevronRight size={22} className="ml-auto opacity-80" aria-hidden="true" />
         </div>
@@ -383,7 +389,7 @@ export function HomeScreen({
             <span className="grid place-items-center h-9 w-9 rounded-xl bg-gold/15 text-gold shrink-0">
               <SankofaIcon size={19} />
             </span>
-            <p id="ns-t" className="font-heading font-bold text-sm">Ta prochaine étape</p>
+            <p id="ns-t" className="font-heading font-bold text-sm">{t("home.next.title")}</p>
             <span
               className={
                 "ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums " +
@@ -408,7 +414,7 @@ export function HomeScreen({
       {/* ───── Prochain RDV ───── */}
       <section aria-labelledby="rdv-t">
         <SectionTitle icon={<SankofaIcon size={17} />}>
-          <span id="rdv-t">Prochain rendez-vous</span>
+          <span id="rdv-t">{t("home.rdv.title")}</span>
         </SectionTitle>
         {!data ? (
           <Skeleton className="h-24 rounded-2xl" />
@@ -434,7 +440,7 @@ export function HomeScreen({
           </button>
         ) : (
           <button onClick={() => setClientTab("rdv")} className="w-full rounded-2xl border border-dashed border-border bg-card/60 p-4 flex items-center justify-between active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
-            <span className="text-xs text-muted-foreground">Aucun RDV à venir — réserve un soin en 2 minutes.</span>
+            <span className="text-xs text-muted-foreground">{t("home.rdv.empty")}</span>
             <ChevronRight size={16} className="text-primary" />
           </button>
         )}
@@ -467,11 +473,11 @@ export function HomeScreen({
           icon={<Sparkles size={16} />}
           action={
             <button onClick={() => setClientTab("boutique")} className="text-[11px] font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1">
-              Voir la boutique
+              {t("home.shop.cta")}
             </button>
           }
         >
-          <span id="reco-t">Recommandé pour ta peau</span>
+          <span id="reco-t">{t("home.reco.title")}</span>
         </SectionTitle>
         {!data ? (
           <Skeleton className="h-44 rounded-2xl" />
@@ -497,7 +503,7 @@ export function HomeScreen({
       {/* ───── Suivi WhatsApp ───── */}
       <section aria-labelledby="wa-t">
         <SectionTitle icon={<MessageCircle size={16} />}>
-          <span id="wa-t">Suivi WhatsApp</span>
+          <span id="wa-t">{t("home.whatsapp.title")}</span>
         </SectionTitle>
         <div className="space-y-2">
           {data === null ? (

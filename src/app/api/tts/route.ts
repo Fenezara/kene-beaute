@@ -5,6 +5,7 @@
 // Cache mémoire FIFO plafonné (les narrations de diagnostic reviennent souvent).
 import { NextRequest, NextResponse } from "next/server";
 import ZAI from "z-ai-web-dev-sdk";
+import { rateLimit, rlKey, rateLimitResponse, TTS } from "@/lib/kene/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -77,6 +78,10 @@ function audioResponse(buf: Buffer): NextResponse {
 }
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "tts"), TTS);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Synthèse vocale très sollicitée — reprends dans quelques secondes");
+  }
   try {
     const body: unknown = await req.json().catch(() => null);
     const b = (body ?? {}) as { text?: unknown; voice?: unknown; speed?: unknown; lang?: unknown };

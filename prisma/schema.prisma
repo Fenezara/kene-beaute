@@ -431,6 +431,18 @@ model Notification {
   createdAt    DateTime  @default(now())
 }
 
+// ─────────────────────────── Web Push VAPID (t. 60-e) ───────────────────────────
+// Abonnements navigateur (Push API) — rappels reçus MÊME application fermée.
+// endpoint = URL du push service du navigateur (unique par abonnement).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
+
 // ─────────────────────────── Paie (Sprint 4) ───────────────────────────
 
 model Employee {

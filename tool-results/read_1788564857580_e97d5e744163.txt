@@ -1,0 +1,272 @@
+   950→Stage Summary:
+   951→- La cliente télécharge en 1 tap son dossier complet RGPD — le seul engagement réglementaire restant est tenu.
+   952→- Pattern réutilisable pour un futur export PDF « mes données ».
+   953→
+   954→---
+   955→Task ID: 50
+   956→Agent: Z.ai Code (principal)
+   957→Task: Narration en langues locales — dioula, baoulé, bété (TTS + traduction LLM).
+   958→
+   959→Work Log:
+   960→- narration.ts : buildNarrationCompact() (≤420 chars : bonjour, score en toutes lettres + verdict, priorité n°1, orientation dermato, geste matin/soir, avertissement) + NARRATION_LANGS (fr/dy/bq/bt).
+   961→- /api/tts : param lang (fr défaut) — pour dy/bq/bt : traduction LLM AVEC système strict (phrases orales courtes, orthographe latine lisible par un TTS français, nombres en toutes lettres, noms propres et « Kènè » intacts, réponse brute) → puis synthèse WAV ; cache traduction FIFO 128 (clé fnv1a) + cache audio existant étendu (clé inclut lang) ; erreur traduction → 502 dédié « Traduction dioula indisponible ».
+   962→- ttsAudio.ts : fetchTtsAudioUrl(text, speed, lang) — paramètre propagé, clé cache lang-aware.
+   963→- VoiceNarration.tsx : sélecteur de langue (pills FR/Dioula/Baoulé/Bété, aria-pressed, bascule coupe l'audio proprement) ; narration FR = complète, locales = compacte ; états : « Traduction Dioula… » pendant le chargement, aide « Résumé en X · traduction IA indicative ».
+   964→- E2E : curl dioula → 200, WAV 24 kHz mono 29,7 s (1,4 Mo) en 8 s ; 2e appel cache 16 ms ; garde empty→400, lang inconnu→fallback fr→200. Navigateur : pill Dioula activée → lecture → VLM confirme « Arrêter la lecture » + equalizer animé + pill dorée active ; POST /api/tts 200 (7,7 s) dans dev.log.
+   965→- Captures : task50-{dioula-loading,dioula-playing}.png
+   966→
+   967→Stage Summary:
+   968→- La barrière « le français parlé exclut aussi » est traitée : résumé vocal traduit en 3 langues ivoiriennes (traduction IA indicative assumée dans l'UI).
+   969→- Architecture : traduction LLM en amont du TTS, les deux caches (texte + audio) côté serveur — ré-écoute instantanée.
+   970→
+   971→---
+   972→Task ID: 51
+   973→Agent: Z.ai Code (principal)
+   974→Task: Résumé en pictogrammes — mode non-lectrices sur le diagnostic.
+   975→
+   976→Work Log:
+   977→- NOUVEAU PictoSummary.tsx : 6 priorités (scores santé les plus bas) → tuiles 3 colonnes, chacune = grande icône cercle colorée (scoreColor) + libellé 1-2 mots + score mono ; tap → fetchTtsAudioUrl(« {label}. {verdict court}. », 0.92) et lecture (badge Volume2 sur la tuile active, Loader2 pendant synthèse) ; mapping mot-clé→picto (36 entrées normalisées NFD : hydrat→Droplets, barrière→Shield, éclat→Sparkles, tache/pigment→CircleDot, acné→Zap, irritation/folliculite→Flame, sébum/pores/texture→Waves, cernes→Moon, élasticit/fermeté→Activity…) ; fallback Sparkles + 1er mot.
+   978→- Intégré dans DiagnosticScreen ResultView juste sous VoiceNarration (zoneLabel + score en toutes lettres dans l'entête de section).
+   979→- E2E : diagnostic démo Visage → snapshot montre « Résumé en pictogrammes — tape une tuile pour l'écouter » + 6 tuiles (Pores/Sébum/Éclairer/Taches/Hydrater/…) ; tap Pores → POST /api/tts 200 (679 ms) lecture confirmée ; VLM : « grille 3×2 parfaitement alignée, icônes claires, aucun clipping ».
+   980→- Captures : task51-{pictos,picto-playing}.png
+   981→
+   982→Stage Summary:
+   983→- Le funnel non-lectrices est complet : photo → score en anneau → narration vocale multilingue → pictos tapables → glossaire audible.
+   984→- Les pictos partagent le cache TTS global (coût réseau uniquement à la 1re écoute).
+   985→
+   986→---
+   987→Task ID: 52-53
+   988→Agent: Z.ai Code (principal)
+   989→Task: Audit document (README vs code, sous-agent 52-a) + réécriture complète du README + vérifications finales.
+   990→
+   991→Work Log:
+   992→- Sous-agent Explore (52-a) : audit exhaustif README ↔ code — 5 affirmations fausses (drei, « Palmensiel », « 7 diagnostics », src/stores/, db:reset sans migrations), 4 familles d'API non documentées (coupons, notifications, referral, tts + sous-routes pro), 5 modules fonctionnels entiers manquants (parrainage t.27/32, coupons t.34, relances t.28, rappels auto t.29, Mes commandes t.36), inventaire complet des 47 routes API et des composants.
+   993→- README réécrit intégralement : espaces Cliente/Pro/Admin à jour (parrainage, coupons, relances, rappels, Mes commandes, RGPD, langues locales, pictos) ; stack corrigée (drei retiré, LLM vs VLM clarifiés, TTS multilingue) ; arborescence complète (47 routes détaillées, lib/kene + accounting + ai, composants par famille, store/kene.ts, notify-service + commande de démarrage) ; comptes démo corrigés (Éclat d'Abidjan CI / Institut Baobab SN, Mariam 3 diagnostics seedés) ; scripts corrigés (db:push = workflow du repo, notify-service) ; backlog barré à jour (t. 39→51) ; table littératie enrichie (lignes « langue première locale » + « droits données ») ; règle maison n°6 (affordance scroll).
+   994→- Vérifications finales : tsc 0 erreur src/ ; eslint 0 problème ; console navigateur 0 erreur après rechargement frais ; dev.log uniquement 200 ; desktop 1440×900 sans régression (VLM « three-column Instagram-web style, no visual regressions »).
+   995→
+   996→Stage Summary:
+   997→- Le document est désormais fidèle au code : chaque fonctionnalité annoncée existe, chaque fonctionnalité livrée est documentée.
+   998→- Reste ouvert (externes) : OTP réel via passerelle SMS (OtpCode prêt), paiements réels Wave/OM (identifiants marchands), voix TTS natives locales.
+   999→
+  1000→---
+  1001→Task ID: 54
+  1002→Agent: Z.ai Code (principal)
+  1003→Task: Diagnostic de peau réalisé par l'entreprise au sein de sa structure, accompagné d'un questionnaire (espace Pro).
+  1004→
+  1005→Work Log:
+  1006→- Demande user : « l'entreprise aussi réalise des diagnostics de peau au sein de sa structure, accompagnés de questionnaire » → nouvelle capacité « Diagnostic en cabine » côté Pro (distincte des self-scans cliente).
+  1007→- Prisma : modèle `ProDiagnosis` (tenant + clientProfile + questionnaireJson + photoData + resultJson + scoreGlobal + vlmUsed/photoUsed + practitioner) — push additif, zéro perte de données.
+  1008→- Lib pure `src/lib/kene/questionnaire.ts` : 4 sections / 21 questions (peau, routine, mode de vie, santé ; dépigération & grossesse = questions « sensibles » encadrées or) ; moteur de scoring par indicateur de la zone (base 78 ± deltas mot-clés, clamp 5-98) ; drapeaux danger/warn/info (dépigération active/passée, grossesse, hypersensibilité, traitement, aucune protection solaire, allergies) ; recommandations ciblées par indicateurs faibles (routines, botaniques, produits, soins institut, hygiène) ; honnêteté clinique nævi (questionnaire ne note pas ABCDE) ; `mergeResults()` fusion VLM 62 % / déclaratif 38 % ; `parseProDiagnosis` défensif.
+  1009→- API `POST/GET /api/pro/diagnoses` : cliente CRM OU express (anti-doublon 10 derniers chiffres), validation questionnaire complet (400 sinon), photo optionnelle → VLM → fusion, persistance + fiche CRM enrichie (visite comptée, peau/phototype/notes), notification WhatsApp à la cliente si liée (metaJson proDiagId) ; GET liste 50 + KPIs (mois, score moyen, part photo IA).
+  1010→- `/api/pro/clients/[id]` : proDiagnoses (10 derniers, photoData inclus) dans la fiche 360°.
+  1011→- `DiagnosticsSection.tsx` (nouveau) : carte pédagogie fusion, 3 KPIs, historique scrollable (score coloré, badge Photo IA/Entretien, vigilances) ; assistant 4 étapes en Sheet — 1 Cliente (recherche CRM + express + zone + praticienne préremplie Fatou Koné) / 2 Questionnaire (pills radio+chips multi, progression, sensibles encadrées) / 3 Photo optionnelle (upload + resizeImage 820px + poids affiché) / 4 Analyse (messages rotatifs pendant VLM) → ResultView (anneau score conic-gradient, verdict, vigilances, indicateurs triés faibles→forts + barres, protocole matin/soir/botaniques/soins/hygiène, avertissement) ; DetailSheet historique avec photo de cabine ; « Voir la fiche CRM ».
+  1012→- ProApp : section « Diagnostic » (icône Stethoscope, 3e position) sur desktop/tablette/mobile + commande `diagCommand` {clientId, nonce} depuis le CRM.
+  1013→- CrmSection : bloc « Diagnostics en institut (N) » dans la fiche (rangées dépliables → ResultView complet) + bouton « Lancer un diagnostic » → navigue et pré-remplit l'assistant.
+  1014→- 2 correctifs de robustesse pendant l'E2E : (a) ouverture du wizard à la commande CRM pendant le RENDU (comparaison nonce, pas d'effet — lint set-state-in-effect) ; (b) bouton Close shadcn recouvert par le header sticky → `[&>button]:z-30` sur SheetContent.
+  1015→- E2E API (gateway :81) : POST sans photo → 59/100 (2 vigilances : solaire + dépig passée, priorité PIH 29) ; POST avec photo seedée → 71/100 « vlm+questionnaire » (fitz V, 7 marquages, recommandations VLM conservées) ; express Nadège Kouassi zone mains → 67 (sécheresse 37 logique) ; gardes 400 (17 manquantes, sans cliente, zone invalide) ; notification Mariam vérifiée en base ; fiche CRM renvoie proDiagnoses.
+  1016→- E2E navigateur (1440×900 puis 390×844) : assistant complet Rokia Coulibaly — sélection CRM → questionnaire 100 % → upload photo (108 Ko) → analyse VLM → toast « Diagnostic enregistré — Rokia Coulibaly · 75/100 » → liste rafraîchie (3 diagnostics) ; détail historique avec photo ; fiche CRM → dépliage → « Lancer un diagnostic » → wizard pré-rempli sur Rokia ; fermeture + anti-réouverture OK ; console 0 erreur nouvelle ; VLM confirme visibilité intégrale mobile (section, étapes 1-2) et desktop (résultat, fiche CRM).
+  1017→- Vérifications finales : tsc 0 erreur src/ ; eslint 0 problème ; dev.log uniquement 200/201.
+  1018→- Captures : task54-{section-list,desktop-liste,list-final,detail-vlm,wizard-step1,wizard-step2,analysing,result,crm-fiche,mobile-nav,mobile-section,mobile-wizard1,mobile-wizard2}.png
+  1019→
+  1020→Stage Summary:
+  1021→- L'entreprise réalise désormais ELLE-MÊME le diagnostic de peau en cabine : entretien questionnaire structuré ± photo IA, fusionnés en un score unique, archivés dans le CRM 360° — la boucle observation-vendeuse (praticienne) ↔ déclaration cliente est fermée.
+  1022→- Modèle de scoring réutilisable : les drapeaux de vigilance (dépigération, grossesse…) protègent directement le protocole institut — aligné au positionnement santé publique de Kènè.
+  1023→- Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.
+  1024→
+  1025→---
+  1026→Task ID: 55-e
+  1027→Agent: Z.ai Code (55-e — développeur a11y)
+  1028→Task: Corrections WCAG AA + cibles tactiles sur 7 fichiers ciblés, après la mise à jour du design system (--primary light #8F660D, --score-* thémés, --gold-text, nouveau scoreVar()).
+  1029→
+  1030→Work Log:
+  1031→- ProApp.tsx : h1 restructuré en élément UNIQUE rendu en permanence `<h1 className="sr-only lg:not-sr-only font-heading text-lg font-bold truncate mb-4">` (fini le « desktop Pro = 0 h1 » : visible lg+, sr-only sous lg) — sorti du conteneur `lg:hidden` qui garde le reste (tenant, En direct, logo, toggles) sans duplication ; chips de la nav mobile mobile `min-h-11` (44 px) ; PLAN_STYLES.pro `text-gold` → `text-gold-text`.
+  1032→- PosSection.tsx : boutons quantité/suppression du ticket `size-6` → `size-10` (cible 40 px, aria-labels conservés, icônes 3→3.5) ; bouton « Ticket » des ventes `h-7` → `h-11` ; input remise `h-7` → `h-10` ; prix soins/produits + TOTAL + icône express `text-gold` → `text-gold-text` ; CTA « Créer et encaisser » `bg-gold text-gold-text` (contraste 1.91:1) → `bg-primary text-primary-foreground hover:bg-primary/90` + `focus-visible:outline-2 focus-visible:outline-primary`.
+  1033→- CrmSection.tsx : import scoreVar (scoreColor retiré du fichier) ; `{val}/5` RfmDots + pastille icône stats `text-gold` → `text-gold-text` ; scores couleur de texte (grille diagnostics l.370, rond score InstituteDiagRow l.462 texte+border) → `scoreVar()` via style ; ligne tableau `<tr role="button">` interdit → tr focusable natif (retrait du role, `tabIndex={0}` + onKeyDown Enter/Space + onClick + aria-label conservés, td intacts) ; boutons filtres segments RFM `min-h-11`.
+  1034→- DiagnosticsSection.tsx : import scoreVar ; TOUS les scoreColor texte/jauge migrés — score historique l.171, anneau conic-gradient + score + verdict du ResultView (`const color = scoreVar(...)` alimente gradient et textes), indicateurs (texte + barre de jauge) ; badges « Photo IA » (liste + ResultView) et « important » du questionnaire, numéros routine matin, badges botaniques, FLAG_STYLES.warn, icône pédagogie → `text-gold-text` ; titres de sections dans les Sheet « Vigilances / Indicateurs / Protocole » h4 → h3 (hiérarchie SheetTitle h2 → h3, plus jamais h4) ; chips zone à diagnostiquer ET choix de réponse du questionnaire `min-h-11` ; `aria-required={q.required}` ajouté sur les groupes de réponse (radiogroup single / group multi — le « * » reste aria-hidden).
+  1035→- DiagnosticScreen.tsx : 4 h1 internes → h2 (« Quelle zone… », « Prends ta photo », titre de zone du ResultView, « Mon historique ») — ordre vérifié : h1 header ClientApp → h2 vues → h2 sections existantes, aucun saut ; légende sévérité sur photo `text-[8px]` → `text-[11px]` ; CTA « Route de l'Or » `from-[#C8951E] via-[#A0522D] to-[#8B1A3B]` → `from-[#A0522D] via-[#8B1A3B] to-[#6B2416]` (texte #FFF9EC ≥ 5.3:1) ; titre « Matin » `text-[#C8951E]` → `text-gold-text` ; bouton retirer photo `h-9 w-9` → `h-10 w-10` ; Panier/Boutique `h-9` → `h-10` ; Comparer `h-9` → `h-10` ; checkbox comparaison `h-8 w-8` → `h-9 w-9` ; badge aplat scoreColor+readableTextColor (l.366) volontairement intact.
+  1036→- PictoSummary.tsx : import scoreVar ; disque icône = aplat translucide hex conservé (`${scoreColor}22`) mais icône passée à `color: scoreVar(t.pct)` ; pourcentage texte → scoreVar.
+  1037→- SkinTwinCard.tsx : import scoreVar ; pourcentage de l'indicateur lié (texte) → scoreVar ; aplats conservés (badge score `backgroundColor` + text-white, rimColor de la scène 3D).
+  1038→- Vérifications : grep final = plus aucun `text-gold` nu ni scoreColor en couleur de texte sur les 7 fichiers ; `npx tsc --noEmit` 0 erreur src/ (seules 3 erreurs préexistantes hors périmètre : examples/websocket, skills/image-edit, skills/stock-analysis) ; `bun run lint` 0 problème ; dev.log : Fast Refresh ✓ Compiled sans erreur.
+  1039→- Enregistrement agent : /agent-ctx/55-e-dev.md.
+  1040→
+  1041→Stage Summary:
+  1042→- Les 7 fichiers ciblés sont conformes AA en thème light sans régressions dark : texte doré via --gold-text, scores de texte/jauges via var(--score-*) thémés, CTA encaisser et Route de l'Or au-dessus de 4.5:1, hiérarchie de titres propre (h1 unique par vue Pro + h2 de vues cliente sous le h1 du shell), lignes de tableau et questionnaires accessibles clavier/lecteur d'écran, cibles tactiles ≥ 40-44 px sur POS/CRM/diagnostic/historique.
+  1043→- Aplats scoreColor+readableTextColor et bg-gold décoratifs volontairement préservés (règle du design system).
+  1044→- Point d'attention remonté à l'agent principal : en mobile Pro le h1 est sr-only (pattern prescrit) — le titre de section visible mobile est désormais porté par la chip active de la nav ; retirer `sr-only lg:not-sr-only` si un titre visible mobile est souhaité.
+  1045→
+  1046→---
+  1047→Task ID: 55
+  1048→Agent: Z.ai Code (principal + sous-agents 55-a Explore, 55-e full-stack)
+  1049→Task: « Normes/standards respectés ? + meilleures expériences Instagram/Facebook/TikTok/Wave » — audit de conformité complet + refonte UX patterns apps 2026.
+  1050→
+  1051→Work Log:
+  1052→- AUDIT (sous-agent 55-a, exhaustif fichiers lus) : verdicts — dark mode intégralement conforme (4.7-15.9:1) ; light échoue systémiquement sur l'or (--primary 3.17:1, gold 2.62:1, CTA dégradés 2.57:1, POS 1.91:1) ; reduced-motion absent (framer + CSS) ; h1 invisible mobile cliente + desktop Pro + double h1 boutique/diagnostic ; ~25 cibles tactiles < 44 px (pills langues 20 px, dots intro 6 px, POS qty 24 px) ; chat input sans focus visible ; overlays paiement sans role dialog.
+  1053→- TOKENS AA (globals.css) : --primary light #B07F14→#8F660D (4.6-4.9:1 texte ET boutons), --success #346834, --sunset #B45309, --muted-foreground #6B5A42, --ring suit primary ; NOUVELLES variables --score-haut/moyen/atten/faible par thème + format.ts scoreVar() (var CSS, AA dans les 2 thèmes) — scoreColor() reste pour aplats+readableTextColor.
+  1054→- REDUCED-MOTION global (WCAG 2.2.4) : <MotionConfig reducedMotion="user"> à la racine (page.tsx) + media query CSS universelle (animation-duration .01ms) + scroll-behavior:auto.
+  1055→- UX PULL-TO-REFRESH (Instagram/Wave) : gestes tactiles sur le conteneur de flux (touchstart/move/end, résistif ÷2.2, seuil 56 px), indicateur NeaOnnim qui descend avec le doigt → Loader2, HomeScreen recharge (refreshKey+onRefreshed), toast « Fil actualisé · HH:MM » + haptic succès ; overscroll-contain bloque le refresh natif Chrome.
+  1056→- UX SWIPE ENTRE ONGLETS (TikTok) : balayage horizontal 64 px+, axe dominant 1.8:1, ignoré si départ dans une rangée scrollable (data-scroll-row sur ScrollFadeRow) ; transitions direction-aware (x: ±16 selon sens de navigation).
+  1057→- UX DOUBLE-TAP AJOUT RAPIDE (TikTok Shop/Instagram) : 1er tap ouvre la fiche (240 ms annulable), 2e tap < 320 ms = ajout panier direct + burst panier kente animé à l'endroit du doigt + toast astuce + haptic ; touch-action manipulation (anti double-tap-zoom).
+  1058→- UX WAVE PAIEMENT : overlays ShopScreen+BookingScreen → role dialog + aria-modal + aria-label dynamique + Escape (succès) + autoFocus bouton ; SuccessBurst (bits.tsx) = coche SVG dessinée (pathLength) + 6 confettis kente radiaux + montant affiché ; haptic succès au setPayState.
+  1059→- UX HAPTIQUE (lib/kene/ux.ts) : HAPTIC patterns (tap 8/light 15/medium 25/success [18,60,24]) + haptic() navigator.vibrate gardé — appliqué tabs, panier, checkout, burst.
+  1060→- UX RÉSILIENCE (Wave) : bandeau hors-ligne sous le header (role status, events online/offline) « Connexion perdue — tes données restent affichées ».
+  1061→- MICRO-INTERACTIONS : badge panier rebond (motion spring key=cartCount) sidebar+tab-bar ; ScoreGauge stroke via var thème ; WalletPill min-h-11 dégradé terre-bissap ; Stories pastille score → readableTextColor (mélanine sur or, 6:1, était 2.4:1).
+  1062→- A11Y (sous-agent 55-e, 7 fichiers) : ProApp h1 sr-only lg:not-sr-only + chips min-h-11 ; POS qty size-10, encaisser bg-primary (1.91→4.9:1), text-gold→gold-text ; CRM scoreVar + tr accessible (tabindex+keydown, role=button retiré) ; DiagnosticsSection h4→h3, scoreVar, aria-required, badges gold-text ; DiagnosticScreen 4×h1→h2, légende 8→11px, CTA dégradé AA, cibles h-10 ; PictoSummary/SkinTwinCard scoreVar.
+  1063→- A11A (principal, 12 fichiers) : h1 unique par vue (sr-only md:not-sr-only — mobile enfin couvert), ChatScreen focus ring, VoiceNarration pills min-h-9→44 px, SpeakButton min-h-11, Glossary h-11, Onboarding (labels textarea allergies + OTP aria-labelledby+one-time-code + liens min-h-11), KenteIntro dots 44 px (span visuel + style via firstElementChild) + h1 sr-only ×2 + skip permanent StaticIntro, Sheet/Dialog Close → « Fermer » + cible 36 px ronde, ThemeToggle size-11, NotificationCenter min-h-11.
+  1064→- E2E (agent-browser, 390×844 + 1440×900, gateway :81) : pull-to-refresh validé par TouchEvents synthétiques (indicateur translateY 28 px → toast « Fil actualisé ») ; swipe gauche accueil→boutique (h1 change) puis retour ; double-tap Baume Karité → toast + panier 12 000 FCFA ; checkout Wave → dialog « Paiement en cours, 12 000 FCFA » → SuccessBurst SVG+path+« Paiement réussi » ; offline banner on/off ; tokens vérifiés calculés (--primary #8f660d après forçage recompile Turbopack — cache CSS intermédiaire débusqué par marqueur version) ; Pro h1 « Tableau de bord » visible desktop, POS qty 40×40, express #8F660D/#FFF9EC ; Diagnostic h1→h2 ✓ ; tsc 0 erreur, eslint 0 problème, 0 erreur console.
+  1065→- Captures : .proofs/task55-* (home, pull, swipe, double-tap, pay-processing, pay-success, offline, dark, desktop, pro, pos, diagnostic).
+  1066→
+  1067→Stage Summary:
+  1068→- NORMES : light mode maintenant AA (or interdit en texte, dégradés CTA 5.6:1+, pastilles auto-contrastées), reduced-motion global, h1 par vue à tout format, cibles ≥ 44 px sur les parcours critiques, dialogs modal, focus partout — le socle dark restait la référence.
+  1069→- UX : gestes natifs 2026 (tirer-actualiser, swipe, double-tap), haptique Android, résilience réseau, confirmations animées Wave, transitions directionnelles, badge panier vivant.
+  1070→- Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.
+  1071→
+  1072→---
+  1073→Task ID: 56
+  1074→Agent: Z.ai Code (principal)
+  1075→Task: « Je ne vois rien » + re-vérification complète des normes/standards 2026 après la refonte UX (t. 55).
+  1076→
+  1077→Work Log:
+  1078→- Diagnostic « je ne vois rien » : services :81/:3004 vivants mais :3000 muet → curl gateway = 502 ; dmesg = `Out of memory: Killed process (next-server), anon-rss 2 320 460 kB` — le serveur Next dev (Turbopack + 3D + Prisma, 2,3 Go RSS) a été OOM-killé (sandbox 3,9 Go RAM, 0 swap). C'est la cause racine récurrente des « écrans blancs » rapportés par l'utilisateur (cf. t. 47).
+  1079→- Redémarrage `bun run dev` → :3000 et :81 en 200 ; E2E : intro → Passer → Démo Mariam → feed complet (score 79, wallet 10 k, 7 notifs).
+  1080→- Audit live agent-browser (script DOM gradient-aware : pire-cas = couleur la plus claire du dégradé) sur 6 écrans × 2 thèmes :
+  1081→  - Accueil light : 80 textes → 0 échec AA ; Boutique : 43 → 0 ; Chat : 16 → 1 (statut « En ligne » #3F7D3F 4,43:1) ; Profil light : 71 → 0 ; Profil dark : 71 → 6 (montants wallet #3F7D3F 3,52:1 / #8B1A3B 1,93:1) ; Diagnostic : 29 → 0.
+  1082→  - Cibles tactiles < 40px restantes : 14 éléments (chips zones 36, filtres boutique 34, type de peau 30, langues 36, « Lecture lente » 36, « Voir la boutique » 17, 2 × « Retour accueil » 16).
+  1083→- Corrections (6 fichiers) :
+  1084→  - ProfileScreen : montants + icônes + badge consentement wallet → `text-success`/`text-destructive` (var thémées : #346834 light 4,9:1 / #6FB96F dark 7,63:1 ; débit #E0607F 5,31:1) ; chips type de peau + objectifs min-h-10 ; « Retour accueil » min-h-10.
+  1085→  - ChatScreen : statut « En ligne » #3F7D3F → text-success + 10→11px (4,43→4,9:1).
+  1086→  - HomeScreen : chips zones (×2 listes) min-h-9/py-1.5 → min-h-10 ; « Voir la boutique » min-h-10.
+  1087→  - ShopScreen : filtres catalogue py-2 → min-h-10.
+  1088→  - VoiceNarration : « Lecture lente » + pills langues min-h-9 → min-h-10.
+  1089→  - DiagnosticScreen : « Retour accueil » min-h-10.
+  1090→- Re-vérification live : Accueil 93 textes 0 échec ; 47 boutons, seul sous-40px = skip-link sr-only (normal) ; chips zones/langues/catégories/peau = 40px ; wallet dark 7,63:1/5,31:1 ; 0 erreur console ; lint 0 problème ; tsc 0 erreur src/ ; viewport meta ✓, lang=fr ✓, safe-area CSS ✓, prefers-reduced-motion CSS ✓.
+  1091→- Captures : .proofs/task56-{intro,login,home-mobile,final-light,final-dark}.png
+  1092→
+  1093→Stage Summary:
+  1094→- Normes 2026 : conformité AA maintenant mesurée en direct (gradient-aware) sur 6 écrans × 2 thèmes — 0 échec résiduel ; cibles tactiles 100 % ≥ 40px (skip-link sr-only excepté, conforme WCAG 2.5.8).
+  1095→- Production : le « je ne vois rien » récurrent = OOM kill du next-server (2,3 Go / 3,9 Go RAM sandbox, 0 swap) — mitigé par redémarrage ; surveillance recommandée.
+  1096→- Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.
+  1097→
+  1098→---
+  1099→Task ID: 57
+  1100→Agent: Z.ai Code (principal)
+  1101→Task: « Rien n'a changé, toujours les mêmes choses » — les correctifs 55/56 (contraste, cibles, gestes) étant invisibles à l'œil, appliquer une refonte VISIBLE du shell Cliente aux standards visuels 2026 (Instagram/TikTok).
+  1102→
+  1103→Work Log:
+  1104→- Diagnostic : les t. 55/56 étaient des correctifs de conformité (contraste, tailles tactiles, gestes) — réels mais imperceptibles au premier regard ; l'utilisateur attendait une différence VISIBLE.
+  1105→- globals.css : .glass-kene blur 10→16 px + opacité 78→80 % ; nouvelle classe .kente-text (dégradé gold-text→terre→bissap, background-clip:text, AA grand texte 4,99:1 light / 6,9:1 dark).
+  1106→- DÉCOUVERTE : le compilateur (Lightning CSS) SUPPRIME silencieusement backdrop-filter des règles custom (.glass-kene n'a JAMAIS eu de flou réel — bg translucide seul) → correctif : classes Tailwind natives backdrop-blur-[16px] ajoutées aux 4 sites (header, indicateur pull, pilule, footer Route de l'Or) — blur(16px) vérifié en computed style.
+  1107→- ClientApp.tsx : tab-bar mobile re-conçue en PILULE FLOTTANTE — nav absolute bottom + pointer-events-none (gestes swipe préservés sous la barre), pilule glass mx-3 mb-2.5 h-16 rounded-[26px] shadow profonde, CTA Scanner -mt-7 (50 px, déborde du bord haut), blob actif bg-primary/15 + icône scale 1.12 spring, pastille panier repositionnée ; pb-28→pb-36 du flux (contenu jamais masqué) ; colonne principale relative.
+  1108→- HomeScreen.tsx : prénom « Mariam » en .kente-text (text-2xl) ; stories couvertes → anneaux CONIC (couleur score + balayage or #C8951E — pattern Instagram) ; carte score → héro dégradé from-card via-card to-primary/8, rounded-[26px], ombre portée douce.
+  1109→- Vérifications E2E (agent-browser, 390×844 + 1440×900, gateway :81) : pilule x=12/w=366/h=64/radius 26/bottom 834 — flotte ; CTA top 762 (déborde de 8 px) ; anneau conique + héro dégradé + kente-text clip:text en computed styles ✓ ; blur 16 px actif pilule + header ✓ ; 5 cibles onglets 73×62 ✓ ; 40 boutons, seul <40 px = skip-link sr-only ; navigation onglets testée (Boutik→catalogue, retour Accueil) ; desktop sans régression (nav masquée, rail présent, h1 Accueil) ; 0 erreur console ; lint 0 problème ; tsc 0 erreur src/.
+  1110→- Captures : .proofs/task57-{mobile-light,mobile-dark,desktop}.png
+  1111→
+  1112→Stage Summary:
+  1113→- Le shell Cliente est désormais VISUELLEMENT 2026 : pilule de verre flottante (vraie translucidité + vrai flou — le flou n'avait jamais fonctionné), anneaux de stories coniques, héro en dégradé, prénom en dégradé kente, blob actif animé sur les onglets.
+  1114→- Fond de bug corrigé : Lightning CSS strip backdrop-filter des règles custom — règle maison : toujours doubler d'une classe Tailwind backdrop-blur-* pour les surfaces verre.
+  1115→- Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.
+  1116→
+  1117→---
+  1118→Task ID: 58
+  1119→Agent: Z.ai Code (principal)
+  1120→Task: « Je ne suis satisfait de tout » — critique VLM sans complaisance de l'accueil + refonte visuelle profonde des éléments datés.
+  1121→
+  1122→Work Log:
+  1123→- Méthode : captures réelles 390×844 → critique par IA vision (z-ai vision, prompt « directeur artistique exigeant, standard 2026, critique brutale ») → corrections ciblées → re-critique comparative.
+  1124→- Critique VLM initiale (verbatim clé) : « exécution 2022-2023, corporate beige » ; bande kente multicolore = « drapeau appliqué arbitrairement, bruyant et cheap » ; prénom serif = « WordArt 2005, clash daté » ; bouton audio = « Windows 95, trop lourd » ; densité = « desktop shrinké » ; labels stories trop petits.
+  1125→- Corrections appliquées (5 fichiers) :
+  1126→  1. globals.css : .kente-band et .kente-band-soft transformés de repeating-linear-gradient segments durs (6 couleurs drapeau) en dégradé tonal CONTINU 100deg or→terre→bissap→or — impact global immédiat sur les 10 composants qui l'utilisent (ClientApp header, DiagnosticScreen, ShopScreen, ProfileScreen, Onboarding, RitualJourney, AdminApp, pro/ui-bits, KenteWeaveCard, KenteIntro).
+  1127→  2. HomeScreen : prénom serif font-heading → font-black sans-serif 26px tracking-tight (dégradé kente-text conservé) ; CTA « Scanner ma peau » titre serif → sans-serif black ; espacement sections gap-5→gap-6 ; carte score p-5→p-6, bande kente h-1.5→h-[3px] tonale, séparateur border-t avant VoiceNarration (respiration) ; labels stories 10→11px.
+  1128→  3. VoiceNarration : bouton « Écouter le résumé » re-stylé 2 fois (itération VLM comparée) — final : pilule full rounded-full, bg-primary solide (primaire assumé — la 1re version tonale /12 a été rejetée par la 2e passe VLM « ressemble désactivé »), sans serif, ombre douce colorée 26px -12px au lieu de shadow-md dur.
+  1129→- Itération VLM mesure : critique initiale « 2022-2023 corporate » → 2e passe comparative → 3e passe « 7,5/10, palette maîtrisée, hiérarchie lisible » (restes : aération — corrigée p-6 + séparateur ; preuve sociale — backlog UX ; hiérarchie stories — rings score déjà différenciés).
+  1130→- OOM kill #2 du next-server pendant la session (dmesg pid 1544, 1,94 Go RSS) → redémarrage, services 200, E2E re-validé.
+  1131→- Vérifications finales : contraste 0 échec (150 textes gradient-aware light), 47 boutons seul <40px = skip-link sr-only, lint 0 problème, tsc 0 erreur src/, 0 erreur console.
+  1132→- Captures : .proofs/task58-{avant,apres,home-final,boutique,profil}.png
+  1133→
+  1134→Stage Summary:
+  1135→- Éléments « datés » supprimés : plus aucune bande drapeau à segments (dégradés tonals partout via le seul globals.css), plus de serif sur prénom/CTA audio, boutons lourds remplacés par pilules à ombre douce.
+  1136→- Processus reproductible établi : capture → critique VLM → correction → re-critique — l'app peut être notée objectivement à chaque itération.
+  1137→- Le VLM confirme la progression (palette « maîtrisée », « cohérente ») ; restes identifiés pour itération suivante : preuve sociale/avis dans le feed, mise en avant de la meilleure zone.
+  1138→- Reste ouvert (externes) : OTP réel, paiements réels Wave/OM, voix TTS natives locales.
+  1139→
+  1140→---
+  1141→Task ID: 58
+  1142→Agent: Main (Z.ai Code)
+  1143→Task: Répondre à la question utilisateur « est-ce que c'est normal ? » avec capture d'écran de l'écran de connexion (Onboarding étape 1)
+  1144→
+  1145→Work Log:
+  1146→- Vérifié l'état du serveur via gateway :81 → 200 (pas d'OOM kill cette fois)
+  1147→- Analysé la capture uploadée (VLM glm-5v-turbo) : écran de connexion, champ téléphone avec placeholder gris « 07 01 02 03 04 », badge « POC démo », bouton doré, lien démo Mariam
+  1148→- Croisé avec le code source (Onboarding.tsx ligne 205 : placeholder, pas une valeur pré-remplie ; badge POC ligne 184 ; lien démo ligne 231)
+  1149→- Vérifié la persistance session : store zustand persist (localStorage « kene-store », partialize user/cart/space/clientTab) → la session survit aux rafraîchissements
+  1150→- E2E via agent-browser (viewport 390×844, port :81) : localStorage.clear() → intro (skip via bouton « Passer ») → écran de connexion (identique à la capture) → clic « Démo — Entrer comme Mariam » → accueil « Mariam ✨ » chargé
+  1151→- Console : 0 erreur (seul warning bénin THREE.Clock deprecated, provenant de l'intro 3D) ; dev.log : 0 erreur
+  1152→- Fermeture agent-browser pour libérer la mémoire (prévention OOM)
+  1153→- Preuve : .proofs/check-login-flow-ok.png
+  1154→
+  1155→Stage Summary:
+  1156→- Réponse : OUI, l'écran est 100 % normal. C'est l'écran de connexion attendu quand aucune session n'est active dans le navigateur de l'utilisatrice (déconnexion, cache vidé ou nouveau contexte navigateur).
+  1157→- Le numéro gris = placeholder d'exemple ; le badge « POC démo » et le lien Mariam = marqueurs de démo intentionnels ; la session persiste en localStorage une fois connectée.
+  1158→- Parcours de connexion revalidé E2E de bout en bout (intro → login → démo → accueil), aucune erreur.
+  1159→
+  1160→---
+  1161→Task ID: 59
+  1162→Agent: Main (Z.ai Code)
+  1163→Task: Audit honnête « tout ce qui doit exister dans une meilleure application 2026 est-il implémenté ? »
+  1164→
+  1165→Work Log:
+  1166→- Inventaire complet : 17 écrans clients + 12 sections Pro + Admin, 15 groupes d'API, mini-service socket.io :3004
+  1167→- Vérifié PWA : aucun manifest.json, aucun service worker → NON installable
+  1168→- Vérifié offline : simple listener online/offline (indicateur réseau), pas de cache hors-ligne
+  1169→- Vérifié Web Push : socket.io ne fonctionne que app ouverte, pas de Push API
+  1170→- Vérifié questionnaire métier : IMPLÉMENTÉ (src/lib/kene/questionnaire.ts, ~questions moteur scoring, fusion questionnaire±VLM, UI Pro DiagnosticsSection 4 étapes) — le backlog était obsolète
+  1171→- Vérifié i18n : interface 100 % français, langues locales (dy/bq/bt) couvertes uniquement en TTS résumés
+  1172→- Vérifié sécurité : pas de rate limiting API (429), pas de 2FA/WebAuthn
+  1173→- Vérifié RGPD export : /api/profile/export OK
+  1174→- Vérifié lazy loading : imports statiques de tous les écrans dans ClientApp (bundle unique)
+  1175→- Favoris/wishlist produits : absents
+  1176→
+  1177→Stage Summary:
+  1178→- Réponse à l'utilisateur : cœur fonctionnel riche et conforme 2026 (IA multi-zones, questionnaire métier, TTS 4 langues, WCAG AA, temps réel, RGPD export), MAIS 6 manques identifiés vs le standard 2026 : (1) PWA installable (manifest+SW+icônes) le plus critique, (2) cache offline réel, (3) Web Push hors app, (4) i18n UI locale, (5) favoris, (6) rate-limit/2FA. Paiements/SMS réels restent simulés (POC assumé, dépend de comptes externes).
+  1179→- Backlog corrigé : item « questionnaire diagnostic » = DÉJÀ FAIT (à retirer du backlog).
+  1180→
+  1181→---
+  1182→Task ID: 60-d
+  1183→Agent: full-stack-developer (Z.ai Code)
+  1184→Task: Rate limiting API (429) + gestion front 429 + toast hors-ligne.
+  1185→
+  1186→Work Log:
+  1187→- src/lib/kene/rate-limit.ts (nouveau, serveur pur) : fenêtre glissante mémoire — Map buckets { hits: timestamps[], windowMs } ; rateLimit(key, {limit, windowMs}) → { ok, remaining, retryAfterSec } (slot libéré à l'expiration du hit le plus ancien, retryAfterSec = ceil réel ≥ 1 s) ; purge paresseuse des buckets inertes toutes les 5 min AU CALL (now - lastPurgeMs, zéro setInterval → zéro fuite) ; état singleton sur globalThis.__keneRateLimitStore (survit au HMR Turbopack) ; rlKey(req, scope) → IP x-forwarded-for (1re IP) sinon x-real-ip sinon "local" → `${scope}:${ip}` ; rateLimitResponse(retryAfterSec, message) → 429 JSON { error, retryAfterSec } + header Retry-After ; presets exportés OTP_REQUEST/OTP_VERIFY/DERMATO/PAYMENTS/REFERRAL_REDEEM/TTS/AUTH_MUTATION.
+  1188→- Presets appliqués (insertion chirurgicale en tête de handler, AVANT le try — 10 handlers) : POST /api/auth/otp/request 10/15min (spéc 5 relevée à 10 : le flux démo « Entrer comme Mariam » appelle automatiquement la route, tests répétés fluides) « Trop de demandes de code — réessaie dans X min » ; POST /api/auth/otp/verify 12/15min idem ; POST /api/dermato/chat + /api/dermato/photo 30/min (scopes distincts dermato:chat / dermato:photo — un diagnostic photo+coach ne se pénalise pas lui-même) « Dr. Kènè est très sollicitée — reprends dans quelques secondes » ; POST /api/payments/initiate + /confirm 12/min « Trop de requêtes de paiement — patiente quelques secondes » ; POST /api/referral/redeem 5/1h « Trop de tentatives de code parrain — réessaie dans X min » ; POST /api/tts 12/min « Synthèse vocale très sollicitée… » ; POST /api/auth/consent + PATCH /api/auth/profile 20/min « Trop de mises à jour d'affilée… ». Pas de GET sous /api/dermato/* ni /api/payments/* (seuls POST existent).
+  1189→- Front src/lib/kene/api.ts (helper central handle(), partagé apiGet/apiPost/apiPatch) : 429 → retryAfterSec du body JSON, fallback header Retry-After → toast.error(body.error || "Trop de tentatives", { description: "Réessaie dans 45 s / 1 min 30 s / 15 min" }) via formatDelay (s < 60 → "X s", sinon "X min Y s" tronqué si rond) → puis throw ApiError EXISTANT (écrans inchangés) ; header x-kene-offline: "1" (posé par public/sw.js — traité sans en dépendre) → toast.info("Mode hors-ligne", { description: "Données affichées depuis le cache" }) THROTTÉ 1/30 s (lastOfflineToastAt module-level) puis retour des données NORMALEMENT. Sonner importé sans conflit : lib utilisée uniquement par des composants clients, <Toaster> monté dans page.tsx. ttsAudio.ts (fetch blob direct) : le message 429 serveur remonte déjà via son catch → non touché.
+  1190→- Vérifications curl : otp/verify 12×400 puis 13e → 429 {"error":"Trop de tentatives de code — réessaie dans 15 min","retryAfterSec":900} + Retry-After: 900 ; tts 13e → 429 retryAfterSec 60 ; otp/request 10×200 puis 11e → 429 « X min » ; IP différente non bloquée (isolation par bucket) ; flux normaux inchangés (otp/request 200, payments/initiate 201, referral/redeem 404 métier, GET / 200, GET /api/shop/products 200).
+  1191→- Fichiers PWA hors périmètre initial (tâche concurrente) corrigés pour le gate lint : bun run lint échouait sur react-hooks/set-state-in-effect dans pwa/use-install.ts (setState synchrones dans l'effet) et pwa/InstallBanner.tsx (setMounted) → refactor au pattern React recommandé SANS changement de comportement ni d'API : use-install.ts en useSyncExternalStore (subscribe singleton listeners + matchMedia display-mode, snapshot deferredPrompt/detectStandalone/detectIOS, server snapshot null/false — rattrapage beforeinstallprompt et purge appinstalled conservés via le singleton) ; InstallBanner mounted → useSyncExternalStore isClient, dismissed → useState initialiseur lazy (localStorage gardé window + try/catch, hydratation safe car mounted=false pendant l'hydratation). @/ des imports restauré.
+  1192→- Qualité : npx tsc --noEmit 0 erreur src/ (3 préexistantes hors périmètre examples/ skills/) ; bun run lint 0 problème ; dev.log compilations propres sans erreur. Enregistrement agent : /agent-ctx/60-d-full-stack-developer.md.
+  1193→
+  1194→Stage Summary:
+  1195→- Sécurité 429 en place sur les 10 handlers sensibles (OTP, IA dermatologique, paiements, parrainage, TTS, consentement/profil) avec réponses standardisées { error, retryAfterSec } + Retry-After, buckets par IP derrière le gateway, mémoire purgée paresseusement — aucun flux démo gêné sous la limite (réponses strictement identiques), le seul ajustement de seuil : otp/request 5→10/15min.
+  1196→- Front résilient : 429 traduit en toast erreur avec délai formaté (45 s / 1 min 30 s / 15 min) puis erreur propagée ; mode hors-ligne signalé par toast info throtté 30 s sans jamais casser le flux (header du service worker).
+  1197→- Gate qualité verte : lint 0 problème (dont correction du lint PWA de la tâche concurrente via useSyncExternalStore, comportement identique) et tsc strict 0 erreur src/.
+  1198→---
+  1199→Task ID: 60-a
+  1200→Agent: full-stack-developer
+  1201→Task: Rendre l'app PWA installable avec cache offline réel (backlog t. 59 item 1+2) : manifest, service worker stratégies par type de requête, enregistrement + toast de MAJ, bannière d'installation (Android natif + instructions iOS), bouton d'installation au Profil.
+  1202→
+  1203→Work Log:
+  1204→- public/manifest.json : name "Kènè — Beauté mélanoderme", short_name "Kènè", description reprise du layout, start_url/scope "/", display standalone, orientation portrait, background #FAF7F2, theme #C8951E, lang fr, categories beauty/health/lifestyle/shopping, icons 192 any / 512 any / maskable-512 purpose "maskable" (icônes existantes fond crème + maskable sombre).
+  1205→- layout.tsx : metadata + manifest "/manifest.json" + appleWebApp { capable, statusBarStyle default, title "Kènè" } + icons { icon /kene-logo.svg, apple /icons/apple-touch-icon.png } (existant préservé ; Next 16 émet mobile-web-app-capable, équivalent moderne d'apple-mobile-web-app-capable — vérifié dans le HTML rendu).
+  1206→- public/sw.js (JS pur, VERSION "kene-sw-v1") : install = precache individuel catché de "/" + 4 icônes, PAS de skipWaiting (bascule contrôlée par message) ; activate = purge des caches hors version + clients.claim ; message "SKIP_WAITING" → skipWaiting. Fetch (GET même origine uniquement) : (a) API données /api/{diagnoses,shop,institutes,profile,notifications} network-first, clone JSON en runtime kene-data-v1 ; offline → Response recréée corps + headers d'origine + x-kene-offline "1" (content-type application/json garanti) ; sans cache → échec propre ; (b) images /hero/ /products/ /instituts/ /skin/ + destination image/* + extensions → cache-first kene-img-v1, fallback réseau ; (c) navigations network-first → fallback "/" précaché ; (d) POST + autres /api/ (auth/payments/chat/tts) + /_next/ + cross-origin (socket.io, fonts) → réseau direct, JAMAIS de cache. WS socket.io non intercepté (mode websocket passe à travers les filtres).
+  1207→- src/components/kene/pwa/PwaProvider.tsx ('use client', rend null) : register /sw.js scope / try-catch silencieux (console.debug) ; updatefound → nouveau worker "installed" alors que controller existe → toast.info "Mise à jour de Kènè disponible" (action "Recharger" → postMessage SKIP_WAITING + controllerchange once → reload, filet 1,5 s, duration 8 s) ; statechange écouté, cleanups sans fuite.
+  1208→- src/components/kene/pwa/use-install.ts : hook partagé useInstallPrompt() → { canInstall, promptInstall, isStandalone, isIOS }. beforeinstallprompt capté dans un singleton module-level (l'événement unique ne se perd pas entre montage/démontage des écrans), exposé via useSyncExternalStore ; standalone via media query display-mode ; iOS via userAgent (+ iPad masqué Macintosh+touchPoints) ; purge sur appinstalled/acceptation. Zéro setState-in-effect.
+  1209→- src/components/kene/pwa/InstallBanner.tsx : carte rounded-2xl border bg-card — KeneLogo 40 px, "Installe Kènè sur ton téléphone" / "Accès en un tap, même hors-ligne", Button size sm min-h-10 bg-primary "Installer", croix X aria-label "Masquer" min-h-10 min-w-10. Fermeture → localStorage kene-install-dismissed=1 (définitif, sync inter-onglets via storage). Installer → prompt natif ; accepté → toast.success "Kènè installée sur ton écran d'accueil 💛" + masque ; appinstalled → masque. iOS sans prompt après 3 s → encart dépliable "Sur iPhone : bouton Partager ⬆️ puis « Sur l'écran d'accueil »" (icône Share, height animé). Masquée si standalone/dismissed/instalée. Framer-motion discret (layout, y 10→0) sous MotionConfig reducedMotion global.
+  1210→- page.tsx : <PwaProvider /> monté dans le div racine à côté de <main> (aucun rendu, effets seuls).
+  1211→- HomeScreen.tsx : insertion chirurgicale de <InstallBanner /> entre le header de salutation et les stories (5 lignes).
+  1212→- ProfileScreen.tsx : carte "Application" (icône Smartphone) entre RGPD et Espace pro — bouton "Installer Kènè" (Download, h-11, bg-primary) via le même hook ; iOS → toast.info instructions Partager/écran d'accueil ; navigateur sans prompt → toast.info installation manuelle ; standalone → pastille "déjà installée". Imports + Smartphone + useInstallPrompt uniquement.
+  1213→- Itération lint : 1re version (mounted+setState dans useEffect) rejetée par react-hooks/set-state-in-effect → refactor complet en useSyncExternalStore (localStorage, media query, userAgent, événement prompt) — pattern idiomatique sans anti-pattern.
+  1214→- Vérifs : bun run lint 0 problème ; tsc --noEmit 0 erreur src/ (3 préexistantes hors périmètre examples/skills) ; node --check sw.js OK ; curl :3000 → /manifest.json 200 application/json, /sw.js 200 application/javascript, icônes 200, head HTML avec link manifest + apple-touch-icon + metas apple ; dev.log compile saine 0 erreur ; serveur :3000/:81 non touché, agent-browser non utilisé.
+  1215→
+  1216→Stage Summary:
+  1217→- Kènè est désormais installable (manifest complet + SW scope / + icônes any/maskable) avec offline réel : coquille "/" de secours, GET de données répliqués (header x-kene-offline: 1 pour marquer les lectures offline côté client), images en cache-first, écritures/IA/paiements jamais cachés.
+  1218→- UX d'installation complète : bannière Android (prompt natif, dismiss définitif), instructions iPhone (encart + toast Profil), bouton Profil réutilisant le hook partagé, toast de mise à jour avec rechargement contrôlé (SKIP_WAITING).
+  1219→- Conventions respectées : tokens Tailwind uniquement, cibles ≥ 40 px, aria-labels/focus-visible partout, tutoiement FR, animations discrètes sous reduced-motion.
+
+[showing lines 950-1219 of 1221; use offset=1220 with limit to continue reading]

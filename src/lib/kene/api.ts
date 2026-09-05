@@ -1,4 +1,7 @@
-// Kènè — helpers fetch côté client
+// Kènè — helpers fetch côté client (importé uniquement par des composants
+// clients → sonner est sûr ici ; le <Toaster> est monté dans page.tsx).
+import { toast } from "sonner";
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -7,7 +10,34 @@ export class ApiError extends Error {
   }
 }
 
+// ─────────────── Toasts réseau centralisés ───────────────
+// Hors-ligne (header posé par le service worker) : max 1 toast / 30 s,
+// variable module-level — le flux continue avec les données du cache.
+let lastOfflineToastAt = 0;
+const OFFLINE_TOAST_THROTTLE_MS = 30_000;
+
+/** "45 s" | "1 min 30 s" | "15 min" — joli et lisible. */
+function formatDelay(sec: number): string {
+  if (sec < 60) return `${Math.max(1, sec)} s`;
+  const min = Math.floor(sec / 60);
+  const rest = sec % 60;
+  return rest === 0 ? `${min} min` : `${min} min ${rest} s`;
+}
+
+/** Délai de déblocage d'un 429 : body JSON retryAfterSec, sinon header Retry-After. */
+function retryAfterSec(body: { error?: string; retryAfterSec?: number } | null, res: Response): number {
+  if (typeof body?.retryAfterSec === "number" && body.retryAfterSec > 0) return body.retryAfterSec;
+  const header = Number(res.headers.get("Retry-After"));
+  return Number.isFinite(header) && header > 0 ? header : 0;
+}
+
 async function handle<T>(res: Response): Promise<T> {
+  // Réponse servie depuis le cache hors-ligne → simple info, flux normal.
+  if (res.headers.get("x-kene-offline") === "1" && Date.now() - lastOfflineToastAt > OFFLINE_TOAST_THROTTLE_MS) {
+    lastOfflineToastAt = Date.now();
+    toast.info("Mode hors-ligne", { description: "Données affichées depuis le cache" });
+  }
+
   const text = await res.text();
   let data: unknown = null;
   try {
@@ -16,7 +46,14 @@ async function handle<T>(res: Response): Promise<T> {
     data = null;
   }
   if (!res.ok) {
-    const msg = (data as { error?: string })?.error ?? `Erreur ${res.status}`;
+    const body = data as { error?: string; retryAfterSec?: number } | null;
+    if (res.status === 429) {
+      const sec = retryAfterSec(body, res);
+      toast.error(body?.error || "Trop de tentatives", {
+        description: sec > 0 ? `Réessaie dans ${formatDelay(sec)}` : "Réessaie dans un instant",
+      });
+    }
+    const msg = body?.error ?? `Erreur ${res.status}`;
     throw new ApiError(msg, res.status);
   }
   return data as T;

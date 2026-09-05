@@ -3,8 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, ensureWallet, creditWallet, notify, rewardReferrerIfNeeded } from "@/lib/kene/server";
 import { xof } from "@/lib/kene/format";
+import { rateLimit, rlKey, rateLimitResponse, PAYMENTS } from "@/lib/kene/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "payments:confirm"), PAYMENTS);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Trop de requêtes de paiement — patiente quelques secondes");
+  }
   try {
     const body = (await req.json().catch(() => null)) as { paymentId?: string } | null;
     const paymentId = body?.paymentId;

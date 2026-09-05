@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
+import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 
 const Body = z.object({
   userId: z.string().min(1),
@@ -15,6 +16,10 @@ const Body = z.object({
 });
 
 export async function PATCH(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "auth:profile"), AUTH_MUTATION);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Trop de mises à jour d'affilée — réessaie dans quelques secondes");
+  }
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);

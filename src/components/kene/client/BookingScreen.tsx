@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, BadgeCheck, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Loader2, MapPin,
+  ArrowLeft, BadgeCheck, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Loader2, Lock, MapPin,
   MessageSquareQuote, Star, TriangleAlert, Users, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -15,8 +15,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useKene } from "@/store/kene";
+import { useSecurity } from "@/store/security";
 import type { ApiAppointment, ApiInstitute, ApiPayment, ApiResource, ApiReview, ApiService, ApiSlot, ApiWallet } from "./types";
 import { ApptBadge, EmptyBlock, MomoProcessing, SectionTitle, Stars, SuccessBurst } from "./bits";
+import { SecureVerify } from "./SecureVerify";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 
 type PayMethod = "wave" | "wallet";
@@ -45,6 +47,11 @@ export function BookingScreen() {
   const [paying, setPaying] = useState(false);
   const [payOverlay, setPayOverlay] = useState<{ phase: "processing" | "done"; amount: number } | null>(null);
   const [confirmed, setConfirmed] = useState<ApiAppointment | null>(null);
+
+  // Sécurité renforcée (2FA-lite) : si activée ET acompte payant, la cliente
+  // re-vérifie son code AVANT la confirmation du RDV (voir startBook + SecureVerify).
+  const securityEnabled = useSecurity((s) => s.enabled);
+  const [pendingBook, setPendingBook] = useState(false);
 
   // ── Mes RDV ──
   const [mine, setMine] = useState<ApiAppointment[] | null>(null);
@@ -129,6 +136,18 @@ export function BookingScreen() {
     } catch {
       setSlots([]);
     }
+  }
+
+  /** Passerelle confirmation : vérification d'identité par code si la
+   *  sécurité renforcée est active et qu'un acompte est réglé — la
+   *  réservation (book) ne part qu'une fois le code confirmé. */
+  function startBook() {
+    if (securityEnabled && deposit > 0) {
+      haptic(HAPTIC.tap);
+      setPendingBook(true);
+      return;
+    }
+    void book();
   }
 
   async function book() {
@@ -394,6 +413,11 @@ export function BookingScreen() {
                       </div>
 
                       <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">Payer l&apos;acompte avec</p>
+                      {securityEnabled && deposit > 0 && (
+                        <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1">
+                          <Lock size={10} aria-hidden="true" /> Vérification par code activée
+                        </p>
+                      )}
                       <div className="grid grid-cols-2 gap-2">
                         <button onClick={() => setPayMethod("wave")} aria-pressed={payMethod === "wave"} className={`h-11 rounded-xl border-2 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${payMethod === "wave" ? "border-[#1DC8FF] bg-[#1DC8FF]/10" : "border-border bg-card"}`}>
                           <span className="h-5 w-5 rounded-full grid place-items-center text-[#1A1410] text-[10px] font-black" style={{ backgroundColor: "#1DC8FF" }}>W</span> Wave
@@ -409,7 +433,7 @@ export function BookingScreen() {
                       </div>
                       {wallet && wallet.balance < deposit && <p className="text-[10px] text-destructive mt-1.5">Solde wallet insuffisant pour l&apos;acompte.</p>}
 
-                      <button onClick={book} disabled={paying} className="mt-3 h-12 w-full rounded-xl bg-primary text-primary-foreground font-heading font-black text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                      <button onClick={startBook} disabled={paying} className="mt-3 h-12 w-full rounded-xl bg-primary text-primary-foreground font-heading font-black text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                         {paying ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />} Confirmer pour {xof(deposit)}
                       </button>
                     </motion.div>
@@ -553,6 +577,18 @@ export function BookingScreen() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Sécurité renforcée — code OTP exigé avant de confirmer l'acompte */}
+      <SecureVerify
+        open={pendingBook}
+        phone={user.phone}
+        amount={deposit > 0 ? deposit : undefined}
+        onVerified={() => {
+          setPendingBook(false);
+          void book();
+        }}
+        onCancel={() => setPendingBook(false)}
+      />
 
       {/* Overlay paiement acompte simulé — dialog accessible (pattern RitualJourney) */}
       <AnimatePresence>
