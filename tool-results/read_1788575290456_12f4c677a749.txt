@@ -1,0 +1,600 @@
+     1→"use client";
+     2→// Kènè Cliente — Fil d'accueil (façon feed Instagram/TikTok) :
+     3→// stories de zones (scan rapide + scores), carte score multi-zones avec lecture
+     4→// vocale TTS, CTA scan, Route de l'Or, prochain RDV, wallet, recommandations
+     5→// et suivi WhatsApp. Les mentions légales vivent en fin de fil (app-like).
+     6→
+     7→import { useEffect, useMemo, useState } from "react";
+     8→import { motion } from "framer-motion";
+     9→import {
+    10→  BellRing,
+    11→  Brush,
+    12→  CalendarClock,
+    13→  CheckCircle2,
+    14→  ChevronRight,
+    15→  CircleDot,
+    16→  Hand,
+    17→  MapPin,
+    18→  MessageCircle,
+    19→  PersonStanding,
+    20→  Plus,
+    21→  ScanFace,
+    22→  Sparkles,
+    23→  Star,
+    24→  Waves,
+    25→} from "lucide-react";
+    26→import { apiGet } from "@/lib/kene/api";
+    27→import { formatDate, formatTime, scoreColor, readableTextColor, xof, CASHBACK_RATE } from "@/lib/kene/format";
+    28→import { nextClientStep } from "@/lib/kene/followups";
+    29→import { channelLabel, humanWhen } from "@/lib/kene/reminders";
+    30→import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
+    31→import { NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
+    32→import { InstallBanner } from "@/components/kene/pwa/InstallBanner";
+    33→import { RitualJourney } from "@/components/kene/route/RitualJourney";
+    34→import { useT } from "@/lib/kene/use-t";
+    35→import { Skeleton } from "@/components/ui/skeleton";
+    36→import { useKene } from "@/store/kene";
+    37→import { VoiceNarration } from "./VoiceNarration";
+    38→import type { ApiAppointment, ApiDiagnosis, ApiProduct, ApiReminderFeed, ApiWallet } from "./types";
+    39→import { parseDiagnosis } from "./types";
+    40→import { ScoreGauge, ScrollFadeRow, SectionTitle, Stars, WalletPill } from "./bits";
+    41→
+    42→interface HomeData {
+    43→  diagnoses: ApiDiagnosis[];
+    44→  appointments: ApiAppointment[];
+    45→  wallet: ApiWallet | null;
+    46→  products: ApiProduct[];
+    47→  reminders: ApiReminderFeed | null;
+    48→}
+    49→
+    50→/** Icône par zone de scan (stories du feed) */
+    51→const ZONE_ICON: Record<BodyZone, React.ComponentType<{ className?: string }>> = {
+    52→  visage: ScanFace,
+    53→  dos: PersonStanding,
+    54→  cuir_chevelu: Waves,
+    55→  mains: Hand,
+    56→  barbe: Brush,
+    57→  naevi: CircleDot,
+    58→};
+    59→
+    60→/** Libellé court des stories (2 lignes autorisées, façon Instagram) */
+    61→const STORY_LABEL: Record<BodyZone, string> = {
+    62→  visage: "Visage",
+    63→  dos: "Dos",
+    64→  cuir_chevelu: "Cuir chevelu",
+    65→  mains: "Mains",
+    66→  barbe: "Barbe",
+    67→  naevi: "Grains de beauté",
+    68→};
+    69→
+    70→export function HomeScreen({
+    71→  onScanZone,
+    72→  refreshKey = 0,
+    73→  onRefreshed,
+    74→}: {
+    75→  onScanZone: (z: BodyZone) => void;
+    76→  /** Incrémenté par le pull-to-refresh du shell — déclenche un rechargement */
+    77→  refreshKey?: number;
+    78→  /** Appelé à la fin du chargement (le shell ferme l'indicateur de tirage) */
+    79→  onRefreshed?: () => void;
+    80→}) {
+    81→  const user = useKene((s) => s.user)!;
+    82→  const setClientTab = useKene((s) => s.setClientTab);
+    83→  const { t } = useT();
+    84→  const [data, setData] = useState<HomeData | null>(null);
+    85→  const [err, setErr] = useState<string | null>(null);
+    86→  const [ritualOpen, setRitualOpen] = useState(false);
+    87→
+    88→  useEffect(() => {
+    89→    let alive = true;
+    90→    (async () => {
+    91→      try {
+    92→        const [d, a, w, p, r] = await Promise.all([
+    93→          apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`),
+    94→          apiGet<{ appointments: ApiAppointment[] }>(`/api/appointments?userId=${user.id}`),
+    95→          apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).catch(() => null),
+    96→          apiGet<{ products: ApiProduct[] }>("/api/shop/products"),
+    97→          apiGet<ApiReminderFeed>(`/api/notifications?userId=${user.id}`).catch(() => null),
+    98→        ]);
+    99→        if (alive) {
+   100→          setData({
+   101→            diagnoses: d.diagnoses ?? [],
+   102→            appointments: a.appointments ?? [],
+   103→            wallet: w?.wallet ?? null,
+   104→            products: p.products ?? [],
+   105→            reminders: r ?? null,
+   106→          });
+   107→          if (alive) onRefreshed?.();
+   108→        }
+   109→      } catch (e) {
+   110→        if (alive) {
+   111→          setErr(e instanceof Error ? e.message : "Chargement impossible");
+   112→          onRefreshed?.();
+   113→        }
+   114→      }
+   115→    })();
+   116→    return () => {
+   117→      alive = false;
+   118→    };
+   119→  }, [user.id, refreshKey, onRefreshed]);
+   120→
+   121→  // Score multi-zones pondéré (PRD §8.8) — dernier diagnostic par zone
+   122→  const multi = useMemo(() => {
+   123→    const byZone = new Map<BodyZone, ApiDiagnosis>();
+   124→    [...(data?.diagnoses ?? [])]
+   125→      .filter((d) => d.status === "done")
+   126→      .sort((x, y) => +new Date(y.createdAt) - +new Date(x.createdAt))
+   127→      .forEach((d) => {
+   128→        if (!byZone.has(d.zone)) byZone.set(d.zone, d);
+   129→      });
+   130→    const covered = BODY_ZONES.filter((z) => byZone.has(z.id));
+   131→    const weightSum = covered.reduce((s, z) => s + z.weight, 0);
+   132→    const score =
+   133→      covered.length && weightSum > 0
+   134→        ? Math.round(covered.reduce((s, z) => s + (byZone.get(z.id)?.scoreGlobal ?? 0) * z.weight, 0) / weightSum)
+   135→        : null;
+   136→    const missing = BODY_ZONES.filter((z) => !byZone.has(z.id));
+   137→    const last = covered.length ? byZone.get(covered[0].id) : null;
+   138→    return { byZone, covered, score, missing, last };
+   139→  }, [data?.diagnoses]);
+   140→
+   141→  const nextAppt = useMemo(() => {
+   142→    const now = Date.now();
+   143→    return (
+   144→      [...(data?.appointments ?? [])]
+   145→        .filter((a) => new Date(a.startAt).getTime() >= now && a.status !== "cancelled")
+   146→        .sort((x, y) => +new Date(x.startAt) - +new Date(y.startAt))[0] ?? null
+   147→    );
+   148→  }, [data?.appointments]);
+   149→
+   150→  const reco = useMemo(() => {
+   151→    const all = data?.products ?? [];
+   152→    const byCat = (cats: string[]) => all.filter((p) => cats.includes(p.category));
+   153→    const pick =
+   154→      user.skinType === "grasse"
+   155→        ? byCat(["serum", "savon"])
+   156→        : user.skinType === "seche"
+   157→          ? byCat(["creme", "huile"])
+   158→          : byCat(["serum", "creme"]);
+   159→    return (pick.length >= 3 ? pick : [...pick, ...all.filter((p) => !pick.includes(p))]).slice(0, 3);
+   160→  }, [data?.products, user.skinType]);
+   161→
+   162→  // Route de l'Or : dernier diagnostic parsable → rituel tissable depuis l'accueil
+   163→  const lastResult = useMemo(() => (multi.last ? parseDiagnosis(multi.last.resultJson) : null), [multi.last]);
+   164→
+   165→  // Le Fil du Retour : prochaine étape dérivée de l'activité (contrôle protocole / soin de suite)
+   166→  const nextStep = useMemo(
+   167→    () => (data ? nextClientStep(new Date(), data.diagnoses, data.appointments) : null),
+   168→    [data],
+   169→  );
+   170→
+   171→  const first = user.name.split(" ")[0];
+   172→
+   173→  return (
+   174→    <div className="flex flex-col gap-6 pt-1">
+   175→      {/* ───── Salutation ───── */}
+   176→      <header className="flex items-end justify-between gap-3">
+   177→        <div className="min-w-0">
+   178→          {/* Filet kente — signature du bloc (décoratif) */}
+   179→          <span
+   180→            aria-hidden="true"
+   181→            className="mb-1.5 block h-[3px] w-10 rounded-full bg-gradient-to-r from-[#C8951E] via-[#A0522D] to-[#3F7D3F] opacity-80"
+   182→          />
+   183→          <p className="text-[11px] uppercase tracking-[0.16em] text-primary font-semibold">{t("home.greeting")}</p>
+   184→          <h2 className="font-heading font-black text-[29px] leading-tight tracking-tight truncate"><span className="kente-text">{first}</span> ✨</h2>
+   185→          <p className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+   186→            <MapPin size={11} /> {user.city || "Abidjan"} · {user.fitzpatrick ? `Fitzpatrick ${user.fitzpatrick}` : "Phototype à définir"}
+   187→          </p>
+   188→        </div>
+   189→        <div className="flex shrink-0 items-center gap-2">
+   190→          {data?.wallet && <WalletPill balance={data.wallet.balance} onClick={() => setClientTab("profil")} />}
+   191→          {/* Avatar initiale — décoratif (le prénom est dans le h2) */}
+   192→          <span
+   193→            aria-hidden="true"
+   194→            className="grid h-9 w-9 shrink-0 select-none place-items-center rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] font-heading text-sm font-bold text-[#FFF9EC] ring-2 ring-[#C8951E]/40"
+   195→          >
+   196→            {(first.charAt(0) || "K").toUpperCase()}
+   197→          </span>
+   198→        </div>
+   199→      </header>
+   200→
+   201→      {/* ───── Bannière d'installation PWA (auto-masquée : installée / fermée / standalone) ───── */}
+   202→      <InstallBanner />
+   203→
+   204→      {/* ───── Stories : scan rapide + zones avec score ───── */}
+   205→      <section aria-label="Scan rapide par zone" className="-mx-3 sm:-mx-5 px-3 sm:px-5">
+   206→        <ScrollFadeRow label="Stories des zones — fais défiler horizontalement" className="flex gap-3.5 overflow-x-auto no-scrollbar py-1.5 pr-2">
+   207→          {/* Story Scanner */}
+   208→          <button
+   209→            onClick={() => setClientTab("diagnostic")}
+   210→            aria-label={t("home.scan.story.aria")}
+   211→            className="shrink-0 w-[68px] flex flex-col items-center gap-1.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary rounded-xl"
+   212→          >
+   213→            <span className="grid place-items-center h-[66px] w-[66px] rounded-full p-[3px] bg-gradient-to-br from-[#C8951E] via-[#A0522D] to-[#8B1A3B] shadow-md active:scale-95 transition-transform">
+   214→              <span className="grid place-items-center h-full w-full rounded-full bg-background">
+   215→                <NeaOnnimIcon size={26} className="text-primary" />
+   216→              </span>
+   217→            </span>
+   218→            <span className="text-[10px] font-bold text-primary">{t("tab.scan")}</span>
+   219→          </button>
+   220→
+   221→          {/* Stories zones */}
+   222→          {BODY_ZONES.map((z) => {
+   223→            const d = multi.byZone.get(z.id);
+   224→            const covered = !!d;
+   225→            const Icon = ZONE_ICON[z.id];
+   226→            const color = covered ? scoreColor(d!.scoreGlobal) : "var(--border)";
+   227→            return (
+   228→              <button
+   229→                key={z.id}
+   230→                onClick={() => onScanZone(z.id)}
+   231→                aria-label={`${covered ? `Re-scanner ${z.label} — dernier score ${d!.scoreGlobal}` : `Scanner ${z.label} pour compléter ton score`} · pondération ${Math.round(z.weight * 100)} %`}
+   232→                className="shrink-0 w-[68px] flex flex-col items-center gap-1.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary rounded-xl"
+   233→              >
+   234→                <span
+   235→                  className="relative grid place-items-center h-[66px] w-[66px] rounded-full p-[3px] active:scale-95 transition-transform shadow-md"
+   236→                  style={
+   237→                    covered
+   238→                      ? { background: `conic-gradient(from 210deg, ${color} 0%, ${color} 45%, #C8951E 68%, ${color} 100%)` }
+   239→                      : undefined
+   240→                  }
+   241→                >
+   242→                  <span
+   243→                    className={`grid place-items-center h-full w-full rounded-full bg-background ${covered ? "" : "border-[2.5px] border-dashed border-border"}`}
+   244→                  >
+   245→                    <Icon className={covered ? "text-foreground/80" : "text-muted-foreground"} />
+   246→                  </span>
+   247→                  {!covered && (
+   248→                    <span className="absolute -bottom-0.5 -right-0.5 grid place-items-center h-6 w-6 rounded-full bg-primary text-primary-foreground border-2 border-background">
+   249→                      <Plus size={13} strokeWidth={2.5} />
+   250→                    </span>
+   251→                  )}
+   252→                  {covered && (
+   253→                    <span
+   254→                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5 py-px font-mono text-[10px] font-bold tabular-nums shadow-sm"
+   255→                      style={{ backgroundColor: color, color: readableTextColor(color) }}
+   256→                    >
+   257→                      {d!.scoreGlobal}
+   258→                    </span>
+   259→                  )}
+   260→                </span>
+   261→                <span className={`text-[11px] w-full text-center leading-tight line-clamp-2 break-words min-h-[26px] ${covered ? "font-semibold" : "text-muted-foreground font-medium"}`}>{STORY_LABEL[z.id]}</span>
+   262→              </button>
+   263→            );
+   264→          })}
+   265→        </ScrollFadeRow>
+   266→      </section>
+   267→
+   268→      {err && <p className="rounded-xl bg-destructive/10 text-destructive text-xs p-3">{err}</p>}
+   269→
+   270→      {/* ───── Carte score multi-zones (avec lecture vocale) ───── */}
+   271→      <section aria-labelledby="sc-t" className="rounded-[26px] border border-border/70 overflow-hidden shadow-[0_18px_44px_-18px_rgba(28,17,9,0.28)] bg-gradient-to-br from-card via-card to-primary/[0.08]">
+   272→        <div className="kente-band h-[3px] w-full" aria-hidden="true" />
+   273→        <div id="sc-t" className="p-6">
+   274→          {!data ? (
+   275→            <div className="flex items-center gap-4">
+   276→              <Skeleton className="h-[130px] w-[130px] rounded-full" />
+   277→              <div className="flex-1 space-y-2">
+   278→                <Skeleton className="h-4 w-3/4" />
+   279→                <Skeleton className="h-3 w-full" />
+   280→                <Skeleton className="h-3 w-2/3" />
+   281→              </div>
+   282→            </div>
+   283→          ) : multi.score !== null ? (
+   284→            <div className="flex flex-wrap items-center gap-4">
+   285→              <ScoreGauge score={multi.score} label={t("home.score.zone")} />
+   286→              <div className="min-w-0 flex-1">
+   287→                <h3 className="font-heading font-bold text-base">{t("home.score.title")}</h3>
+   288→                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+   289→                  {multi.covered.length} zone{multi.covered.length > 1 ? "s" : ""} analysée{multi.covered.length > 1 ? "s" : ""} · pondération PRD
+   290→                  {multi.last && <span className="block mt-1">Dernier scan : {formatDate(multi.last.createdAt)}</span>}
+   291→                </p>
+   292→                <div className="flex flex-wrap gap-1.5 mt-2">
+   293→                  {multi.covered.map((z) => (
+   294→                    <span key={z.id} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium">
+   295→                      {z.label} {multi.byZone.get(z.id)?.scoreGlobal}
+   296→                    </span>
+   297→                  ))}
+   298→                  {multi.missing.map((z) => (
+   299→                    <button
+   300→                      key={z.id}
+   301→                      onClick={() => onScanZone(z.id)}
+   302→                      className="rounded-full border border-primary/40 bg-primary/10 px-3 min-h-10 inline-flex items-center text-[11px] font-semibold text-primary active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+   303→                    >
+   304→                      + {z.label}
+   305→                    </button>
+   306→                  ))}
+   307→                </div>
+   308→                {/* Lecture vocale du dernier diagnostic (accès non-lectrices) */}
+   309→                {lastResult && (
+   310→                  <div className="mt-5 pt-4 border-t border-border/60">
+   311→                    <VoiceNarration result={lastResult} userName={user.name} />
+   312→                  </div>
+   313→                )}
+   314→              </div>
+   315→            </div>
+   316→          ) : (
+   317→            <div className="text-center py-2">
+   318→              <NeaOnnimIcon size={40} className="mx-auto text-primary" />
+   319→              <p className="font-heading font-bold mt-2">{t("home.first.title")}</p>
+   320→              <p className="text-xs text-muted-foreground mt-1">{t("home.first.sub")}</p>
+   321→            </div>
+   322→          )}
+   323→          {data && multi.missing.length > 0 && (
+   324→            <div className="mt-4 pt-4 border-t border-dashed border-border">
+   325→              <p className="text-[11px] font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+   326→                <Sparkles size={12} className="text-primary" /> {t("home.missing.title")}
+   327→              </p>
+   328→              <ScrollFadeRow label="Zones manquantes — fais défiler" className="flex gap-2 overflow-x-auto no-scrollbar pb-1 pr-1">
+   329→                {multi.missing.map((z) => (
+   330→                  <button
+   331→                    key={z.id}
+   332→                    onClick={() => onScanZone(z.id)}
+   333→                    className="shrink-0 rounded-full border border-primary/40 bg-primary/10 px-3 min-h-10 inline-flex items-center text-[11px] font-semibold text-primary active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+   334→                  >
+   335→                    + {z.label} · {Math.round(z.weight * 100)} %
+   336→                  </button>
+   337→                ))}
+   338→              </ScrollFadeRow>
+   339→            </div>
+   340→          )}
+   341→        </div>
+   342→      </section>
+   343→
+   344→      {/* ───── CTA Scanner ───── */}
+   345→      <motion.button
+   346→        initial={{ scale: 0.97, opacity: 0 }}
+   347→        animate={{ scale: 1, opacity: 1 }}
+   348→        whileTap={{ scale: 0.98 }}
+   349→        onClick={() => setClientTab("diagnostic")}
+   350→        className="relative h-24 rounded-3xl bg-gradient-to-br from-[#A0522D] via-[#8B1A3B] to-[#6B2416] text-[#FFF9EC] shadow-lg overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   351→        aria-label={t("home.scan.aria")}
+   352→      >
+   353→        <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-30" />
+   354→        <div className="relative h-full flex items-center justify-center gap-3 px-4">
+   355→          <span className="grid place-items-center h-14 w-14 rounded-2xl bg-[#FFF9EC]/15 backdrop-blur border border-[#FFF9EC]/30">
+   356→            <NeaOnnimIcon size={30} />
+   357→          </span>
+   358→          <span className="text-left">
+   359→            <span className="block font-black text-lg tracking-tight">{t("home.scan.cta")}</span>
+   360→            <span className="block text-[11px] opacity-90">{t("home.scan.sub")}</span>
+   361→          </span>
+   362→          <ChevronRight size={22} className="ml-auto opacity-80" aria-hidden="true" />
+   363→        </div>
+   364→      </motion.button>
+   365→
+   366→      {/* ───── Route de l'Or — rituel tissé depuis le dernier scan ───── */}
+   367→      {data && lastResult && multi.last && (
+   368→        <motion.button
+   369→          initial={{ opacity: 0, y: 10 }}
+   370→          animate={{ opacity: 1, y: 0 }}
+   371→          transition={{ delay: 0.1 }}
+   372→          whileTap={{ scale: 0.98 }}
+   373→          onClick={() => setRitualOpen(true)}
+   374→          className="relative w-full rounded-3xl border-2 border-[#C8951E]/50 bg-card shadow-sm overflow-hidden text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   375→          aria-label="Reprendre la Route de l'Or — tisser ma routine depuis mon dernier diagnostic"
+   376→        >
+   377→          <div aria-hidden="true" className="h-2 w-full" style={{ backgroundImage: "repeating-linear-gradient(90deg,#8B1A3B 0 12px,#3F7D3F 12px 20px,#C8951E 20px 28px,#E07A2B 28px 36px,#A0522D 36px 46px)" }} />
+   378→          <div className="flex items-center gap-3 p-4">
+   379→            <span className="grid place-items-center h-12 w-12 rounded-2xl bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] shrink-0 shadow">
+   380→              <NeaOnnimIcon size={26} />
+   381→            </span>
+   382→            <div className="min-w-0 flex-1">
+   383→              <p className="font-heading font-bold text-sm">La Route de l&apos;Or</p>
+   384→              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+   385→                Ta routine se tisse en 4 stations, selon ton scan du {formatDate(multi.last.createdAt, { day: "numeric", month: "short" })}
+   386→              </p>
+   387→            </div>
+   388→            <ChevronRight size={18} className="text-primary shrink-0" />
+   389→          </div>
+   390→        </motion.button>
+   391→      )}
+   392→
+   393→      {/* ───── Le Fil du Retour — ta prochaine étape ───── */}
+   394→      {nextStep && (
+   395→        <motion.section
+   396→          initial={{ opacity: 0, y: 10 }}
+   397→          animate={{ opacity: 1, y: 0 }}
+   398→          transition={{ delay: 0.05 }}
+   399→          aria-labelledby="ns-t"
+   400→          className="rounded-2xl border border-gold/40 bg-gradient-to-br from-gold/10 via-card to-card p-4 shadow-sm"
+   401→        >
+   402→          <div className="flex items-center gap-2">
+   403→            <span className="grid place-items-center h-9 w-9 rounded-xl bg-gold/15 text-gold shrink-0">
+   404→              <SankofaIcon size={19} />
+   405→            </span>
+   406→            <p id="ns-t" className="font-heading font-bold text-sm">{t("home.next.title")}</p>
+   407→            <span
+   408→              className={
+   409→                "ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums " +
+   410→                (nextStep.overdue ? "bg-bissap/15 text-destructive" : "bg-gold/15 text-gold-text")
+   411→              }
+   412→            >
+   413→              {nextStep.overdue ? `En retard de ${-nextStep.days} j` : nextStep.days === 0 ? "Aujourd'hui" : `Dans ${nextStep.days} j`}
+   414→            </span>
+   415→          </div>
+   416→          <p className="text-sm font-semibold mt-2">{nextStep.title}</p>
+   417→          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{nextStep.detail}</p>
+   418→          <button
+   419→            onClick={() => setClientTab(nextStep.ctaTab)}
+   420→            className="mt-3 h-11 w-full rounded-xl bg-primary text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-1.5 shadow active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+   421→          >
+   422→            {nextStep.ctaLabel}
+   423→            <ChevronRight size={15} aria-hidden="true" />
+   424→          </button>
+   425→        </motion.section>
+   426→      )}
+   427→
+   428→      {/* ───── Prochain RDV ───── */}
+   429→      <section aria-labelledby="rdv-t">
+   430→        <SectionTitle icon={<SankofaIcon size={17} />}>
+   431→          <span id="rdv-t">{t("home.rdv.title")}</span>
+   432→        </SectionTitle>
+   433→        {!data ? (
+   434→          <Skeleton className="h-24 rounded-2xl" />
+   435→        ) : nextAppt ? (
+   436→          <button onClick={() => setClientTab("rdv")} className="w-full text-left rounded-2xl border border-border bg-card p-4 shadow-sm active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   437→            <div className="flex items-center justify-between gap-2">
+   438→              <div className="flex items-center gap-3 min-w-0">
+   439→                <span className="grid place-items-center h-11 w-11 rounded-xl bg-primary/10 text-primary shrink-0">
+   440→                  <CalendarClock size={20} />
+   441→                </span>
+   442→                <div className="min-w-0">
+   443→                  <p className="font-semibold text-sm truncate">{nextAppt.service?.name ?? "Soin"}</p>
+   444→                  <p className="text-xs text-muted-foreground truncate">
+   445→                    {nextAppt.tenant?.name} · {nextAppt.resource?.name}
+   446→                  </p>
+   447→                </div>
+   448→              </div>
+   449→              <div className="text-right shrink-0">
+   450→                <p className="font-mono text-sm font-bold text-primary">{formatTime(nextAppt.startAt)}</p>
+   451→                <p className="text-[11px] text-muted-foreground">{formatDate(nextAppt.startAt, { day: "numeric", month: "short" })}</p>
+   452→              </div>
+   453→            </div>
+   454→          </button>
+   455→        ) : (
+   456→          <button onClick={() => setClientTab("rdv")} className="w-full rounded-2xl border border-dashed border-border bg-card/60 p-4 flex items-center justify-between active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   457→            <span className="text-xs text-muted-foreground">{t("home.rdv.empty")}</span>
+   458→            <ChevronRight size={16} className="text-primary" />
+   459→          </button>
+   460→        )}
+   461→      </section>
+   462→
+   463→      {/* ───── Wallet ───── */}
+   464→      {data && (
+   465→        <section aria-label="Mon wallet Kènè" className="rounded-2xl bg-[#1A1410] text-[#F8F1E4] p-4 shadow-md relative overflow-hidden">
+   466→          <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-20" />
+   467→          <div className="relative flex items-center justify-between gap-3">
+   468→            <div>
+   469→              <p className="text-[10px] uppercase tracking-[0.18em] opacity-70">Wallet Kènè</p>
+   470→              <p className="font-mono font-black text-2xl mt-1">{xof(data.wallet?.balance ?? 0)}</p>
+   471→              <p className="text-[11px] opacity-70 mt-1">Cashback {Math.round((data.wallet?.cashbackRate ?? CASHBACK_RATE) * 100)} % sur chaque commande</p>
+   472→            </div>
+   473→            <button
+   474→              onClick={() => setClientTab("profil")}
+   475→              className="h-11 w-11 grid place-items-center rounded-full bg-[#A0522D] text-[#FFF9EC] shadow active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-[#A0522D]"
+   476→              aria-label="Approvisionner mon wallet"
+   477→            >
+   478→              <Plus size={20} aria-hidden="true" />
+   479→            </button>
+   480→          </div>
+   481→        </section>
+   482→      )}
+   483→
+   484→      {/* ───── Recommandé pour ta peau ───── */}
+   485→      <section aria-labelledby="reco-t">
+   486→        <SectionTitle
+   487→          icon={<Sparkles size={16} />}
+   488→          action={
+   489→            <button onClick={() => setClientTab("boutique")} className="text-[11px] font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1">
+   490→              {t("home.shop.cta")}
+   491→            </button>
+   492→          }
+   493→        >
+   494→          <span id="reco-t">{t("home.reco.title")}</span>
+   495→        </SectionTitle>
+   496→        {!data ? (
+   497→          <Skeleton className="h-44 rounded-2xl" />
+   498→        ) : (
+   499→          <ScrollFadeRow label="Produits recommandés — fais défiler" className="flex gap-3 overflow-x-auto no-scrollbar pb-2 snap-x pr-1">
+   500→            {reco.map((p) => (
+   501→              <button key={p.id} onClick={() => setClientTab("boutique")} className="snap-start shrink-0 w-36 text-left rounded-2xl border border-border bg-card overflow-hidden shadow-sm active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   502→                <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full object-cover" />
+   503→                <div className="p-2.5">
+   504→                  <p className="text-xs font-semibold leading-tight line-clamp-2 min-h-8">{p.name}</p>
+   505→                  <p className="text-[10px] text-terre mt-0.5 truncate">{p.botanicals}</p>
+   506→                  <div className="flex items-center justify-between mt-1.5">
+   507→                    <span className="font-mono text-xs font-bold">{xof(p.price)}</span>
+   508→                    <Stars rating={p.rating} size={9} />
+   509→                  </div>
+   510→                </div>
+   511→              </button>
+   512→            ))}
+   513→          </ScrollFadeRow>
+   514→        )}
+   515→      </section>
+   516→
+   517→      {/* ───── Suivi WhatsApp ───── */}
+   518→      <section aria-labelledby="wa-t">
+   519→        <SectionTitle icon={<MessageCircle size={16} />}>
+   520→          <span id="wa-t">{t("home.whatsapp.title")}</span>
+   521→        </SectionTitle>
+   522→        <div className="space-y-2">
+   523→          {data === null ? (
+   524→            <>
+   525→              <Skeleton className="h-[76px] rounded-2xl" />
+   526→              <Skeleton className="h-[76px] rounded-2xl" />
+   527→            </>
+   528→          ) : !data.reminders || (data.reminders.scheduled.length === 0 && data.reminders.sent.length === 0) ? (
+   529→            <div className="rounded-2xl border border-dashed border-border bg-card/60 p-5 text-center">
+   530→              <BellRing size={22} className="mx-auto text-primary" aria-hidden />
+   531→              <p className="mt-2 text-xs font-semibold">Tes rappels s&apos;activent tout seuls</p>
+   532→              <p className="mt-1 text-[11px] text-muted-foreground">
+   533→                Contrôle de protocole 3 semaines après un scan, rappel J-1 avant chaque RDV confirmé.
+   534→              </p>
+   535→            </div>
+   536→          ) : (
+   537→            <>
+   538→              {data.reminders.scheduled.slice(0, 2).map((m) => (
+   539→                <div key={m.id} className="flex items-start gap-3 rounded-2xl border border-[#3F7D3F]/25 bg-[#3F7D3F]/5 p-3.5">
+   540→                  <span className="grid place-items-center h-9 w-9 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] shrink-0">
+   541→                    <BellRing size={16} aria-hidden />
+   542→                  </span>
+   543→                  <div className="min-w-0 flex-1">
+   544→                    <p className="text-xs leading-relaxed">{m.message}</p>
+   545→                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+   546→                      <span className="rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide">Programmé</span>
+   547→                      <span className="text-[10px] text-muted-foreground">
+   548→                        {m.scheduledAt ? humanWhen(m.scheduledAt) : "à venir"} · {channelLabel(m.channel)}
+   549→                      </span>
+   550→                    </div>
+   551→                  </div>
+   552→                </div>
+   553→              ))}
+   554→              {data.reminders.sent.slice(0, 3).map((m) => (
+   555→                <div key={m.id} className="flex items-start gap-3 rounded-2xl border border-border bg-card p-3.5">
+   556→                  <span className="grid place-items-center h-9 w-9 rounded-full bg-muted text-muted-foreground shrink-0">
+   557→                    <CheckCircle2 size={16} aria-hidden />
+   558→                  </span>
+   559→                  <div className="min-w-0 flex-1">
+   560→                    <p className="text-xs leading-relaxed">{m.message}</p>
+   561→                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+   562→                      <span className="rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide">Envoyé</span>
+   563→                      <span className="text-[10px] text-muted-foreground">
+   564→                        {humanWhen(m.createdAt)} · {channelLabel(m.channel)}
+   565→                      </span>
+   566→                    </div>
+   567→                  </div>
+   568→                </div>
+   569→              ))}
+   570→            </>
+   571→          )}
+   572→        </div>
+   573→        <p className="mt-3 text-center text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+   574→          <Star size={10} className="text-primary" aria-hidden /> Rappels automatiques — contrôle protocole S+3 &amp; RDV J-1 (POC, envois simulés)
+   575→        </p>
+   576→      </section>
+   577→
+   578→      {/* ───── Fin de fil — mentions légales (app-like) ───── */}
+   579→      <footer className="pt-4 pb-2 text-center">
+   580→        <div aria-hidden="true" className="kente-band-soft h-[3px] w-24 mx-auto rounded-full mb-3" />
+   581→        <p suppressHydrationWarning className="text-[10px] text-muted-foreground">
+   582→          © {new Date().getFullYear()} Kènè — « La beauté mélanoderme, enfin comprise. »
+   583→        </p>
+   584→        <p className="text-[10px] text-muted-foreground/70 mt-1">
+   585→          POC — Paiements Wave / Orange Money simulés · Estimations IA non médicales · CNPS CI / IPM SN / SYSCOHADA
+   586→        </p>
+   587→      </footer>
+   588→
+   589→      {ritualOpen && lastResult && multi.last && (
+   590→        <RitualJourney
+   591→          diag={{ id: multi.last.id, result: lastResult, createdAt: multi.last.createdAt }}
+   592→          products={data?.products ?? []}
+   593→          userName={user.name}
+   594→          onClose={() => setRitualOpen(false)}
+   595→        />
+   596→      )}
+   597→    </div>
+   598→  );
+   599→}
+   600→

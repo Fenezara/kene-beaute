@@ -264,6 +264,162 @@
   .scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
   .scrollbar-thin::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--gold) 40%, transparent); border-radius: 99px; }
   .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+  /* ════════════════════════════════════════════════════════════════
+     ÉCLAT 2026 — couche de modernité visuelle (atmosphère + surfaces)
+     Principes : profondeur par stratification (pas par aplats opaques),
+     lumière douce teintée (jamais de gris neutre), translucidité sans
+     blur coûteux sur les cartes (blur réservé aux chrome UI).
+     ════════════════════════════════════════════════════════════════ */
+
+  /* 1) Atmosphère aurora — 3 lueurs radiales fixes derrière le contenu.
+     S'adapte light/dark via les vars (le fond reste --background). */
+  .aurora-kene {
+    background-image:
+      radial-gradient(58% 42% at 12% 0%, color-mix(in srgb, var(--gold) 14%, transparent) 0%, transparent 68%),
+      radial-gradient(50% 38% at 96% 12%, color-mix(in srgb, var(--terre) 12%, transparent) 0%, transparent 64%),
+      radial-gradient(64% 46% at 50% 108%, color-mix(in srgb, var(--bissap) 10%, transparent) 0%, transparent 70%);
+  }
+  /* Variante discrète pour chrome (nav, header) — pas de gradient massif */
+  .aurora-kene-soft {
+    background-image:
+      radial-gradient(70% 120% at 0% 0%, color-mix(in srgb, var(--gold) 9%, transparent) 0%, transparent 60%),
+      radial-gradient(70% 120% at 100% 0%, color-mix(in srgb, var(--terre) 7%, transparent) 0%, transparent 60%);
+  }
+  /* Grain photographique — texture premium par bruit SVG fin */
+  .grain-kene::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+    background-size: 160px 160px;
+    border-radius: inherit;
+  }
+
+  /* 2) Surfaces verre 2.0 — translucides, saturées, filet lumineux haut,
+     ombre MULTI-COUCHE teintée terre (jamais de gris neutre). */
+  .k-card {
+    background:
+      linear-gradient(160deg, color-mix(in srgb, #FFF9EC 4%, transparent) 0%, transparent 34%),
+      color-mix(in srgb, var(--card) 78%, transparent);
+    border: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, #FFF9EC 30%, transparent),
+      0 1px 2px rgba(26, 18, 12, 0.06),
+      0 18px 44px -18px rgba(26, 18, 12, 0.22);
+  }
+  /* Hover desktop — élévation douce (transform + ombre renforcée) */
+  .k-card-hover {
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .k-card-hover:hover {
+      transform: translateY(-3px);
+      box-shadow:
+        inset 0 1px 0 color-mix(in srgb, #FFF9EC 30%, transparent),
+        0 2px 4px rgba(26, 18, 12, 0.07),
+        0 26px 60px -20px rgba(26, 18, 12, 0.3);
+    }
+  }
+  /* Carte « héro » — lueur or interne subtile (score, récap) */
+  .k-card-hero {
+    background:
+      radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--gold) 10%, transparent) 0%, transparent 52%),
+      radial-gradient(110% 90% at 100% 100%, color-mix(in srgb, var(--bissap) 8%, transparent) 0%, transparent 56%),
+      color-mix(in srgb, var(--card) 82%, transparent);
+  }
+  /* Chrome verre (header, nav, sheets) — blur + saturation maximale */
+  .k-chrome {
+    background: color-mix(in srgb, var(--card) 62%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(1.6);
+    backdrop-filter: blur(22px) saturate(1.6);
+    border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, #FFF9EC 22%, transparent),
+      0 18px 44px -14px rgba(26, 18, 12, 0.4);
+  }
+
+  /* 3) Boutons & actions — dégradé signature + halo teinté + feedback tactile */
+  .k-cta {
+    background-image: linear-gradient(135deg, var(--terre) 0%, var(--bissap) 58%, #6B2416 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 249, 236, 0.22),
+      0 10px 28px -10px color-mix(in srgb, var(--bissap) 55%, transparent);
+    transition: box-shadow 0.3s ease, transform 0.18s ease, filter 0.3s ease;
+  }
+  .k-cta:hover { filter: brightness(1.06); box-shadow: inset 0 1px 0 rgba(255,249,236,.22), 0 16px 38px -12px color-mix(in srgb, var(--bissap) 60%, transparent); }
+  .k-cta:active { transform: scale(0.965); }
+  /* Halo doré — pour l'avatar, le CTA scan, éléments focus premium */
+  .k-glow-gold {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--gold) 35%, transparent),
+      0 8px 24px -6px color-mix(in srgb, var(--gold) 45%, transparent);
+  }
+  /* Bouton primaire plat premium (or profond, AA) — remplace les bg-primary secs */
+  .k-btn-gold {
+    background-image: linear-gradient(160deg, color-mix(in srgb, var(--primary) 92%, #FFF9EC) 0%, var(--primary) 55%, color-mix(in srgb, var(--primary) 88%, var(--terre) 60%) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 249, 236, 0.25), 0 8px 22px -8px color-mix(in srgb, var(--primary) 50%, transparent);
+    transition: box-shadow 0.3s ease, transform 0.18s ease, filter 0.25s ease;
+  }
+  .k-btn-gold:hover { filter: brightness(1.05); }
+  .k-btn-gold:active { transform: scale(0.965); }
+
+  /* 4) Puces (chips) verre — non sélectionnées translucides, sélectionnées or */
+  .k-chip {
+    background: color-mix(in srgb, var(--card) 62%, transparent);
+    border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, #FFF9EC 18%, transparent);
+    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .k-chip:active { transform: scale(0.95); }
+
+  /* 5) Entrées & squelettes */
+  .k-input {
+    background: color-mix(in srgb, var(--card) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+    box-shadow: inset 0 2px 6px rgba(26, 18, 12, 0.05);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  }
+  .k-input:focus-visible, .k-input:focus {
+    border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent);
+    outline: none;
+  }
+  .k-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .k-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(90deg, transparent 0%, color-mix(in srgb, #FFF9EC 22%, transparent) 50%, transparent 100%);
+    animation: k-shimmer 1.6s infinite cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  @keyframes k-shimmer { 100% { transform: translateX(100%); } }
+
+  /* 6) Texte signature animé — dégradé kente qui respire (grands titres) */
+  .kente-text-flow {
+    background-image: linear-gradient(110deg, var(--gold-text) 0%, var(--terre) 30%, var(--bissap) 55%, var(--gold-text) 85%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: k-flow 7s ease-in-out infinite alternate;
+  }
+  @keyframes k-flow { 0% { background-position: 0% 0; } 100% { background-position: 92% 0; } }
+
+  /* 7) Anneaux de score — lueur douce du halo */
+  .k-ring-glow { filter: drop-shadow(0 6px 14px color-mix(in srgb, var(--gold) 35%, transparent)); }
+
+  /* 8) Filet kente vertical (bordures gauche signature, desktop) */
+  .k-rail-line {
+    background-image: linear-gradient(180deg, var(--gold) 0%, var(--terre) 50%, var(--bissap) 100%);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--gold) 40%, transparent);
+  }
 }
 
 @media print {

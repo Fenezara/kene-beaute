@@ -1,10 +1,15 @@
 "use client";
-// Kènè Cliente — Briques UI partagées (mobile-first)
+// Kènè Cliente — Briques UI partagées (mobile-first) — ÉCLAT 2026.
+// Mêmes signatures d'export (zéro breaking change) ; les surfaces passent
+// au verre translucide (k-card), les badges aux halos teintés, l'anneau de
+// score au dégradé signature (voir ui2026.tsx pour les primitives).
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Loader2, Star } from "lucide-react";
-import { scoreColor, scoreVar, readableTextColor } from "@/lib/kene/format";
+import { scoreColor, readableTextColor } from "@/lib/kene/format";
 import { xof } from "@/lib/kene/format";
+import { ScoreRing } from "@/components/kene/ui2026";
+import { cn } from "@/lib/utils";
 
 /**
  * Rangée horizontale scrollable avec signal d'affordance :
@@ -58,53 +63,30 @@ export function ScrollFadeRow({
   );
 }
 
-/** Jauge circulaire SVG du score santé peau — couleurs thème-adaptées (AA) */
+/** Jauge circulaire du score santé peau — anneau signature 2026 :
+ *  dégradé or→score→bissap, halo doré, chiffre mono tabulaire. */
 export function ScoreGauge({ score, size = 130, stroke = 11, label = "Score peau" }: { score: number; size?: number; stroke?: number; label?: string }) {
-  const r = (size - stroke) / 2;
-  const C = 2 * Math.PI * r;
-  const color = scoreVar(score);
-  return (
-    <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={`${label} ${score} sur 100`}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke} />
-        <motion.circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={C}
-          initial={{ strokeDashoffset: C }}
-          animate={{ strokeDashoffset: C * (1 - score / 100) }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
-          style={{ stroke: color }}
-        />
-      </svg>
-      <div className="absolute inset-0 grid place-items-center">
-        <div className="text-center leading-none">
-          <div className="font-mono font-bold" style={{ fontSize: size * 0.28, color }}>{score}</div>
-          <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mt-1">{label}</div>
-        </div>
-      </div>
-    </div>
-  );
+  return <ScoreRing score={score} size={size} stroke={stroke} label={label} />;
 }
 
 /** Pastille ronde mini score (listes) — texte lisible quel que soit le fond */
 export function ScoreChip({ score }: { score: number }) {
   const color = scoreColor(score);
   return (
-    <span className="inline-grid place-items-center rounded-full px-2.5 py-1 font-mono text-xs font-bold" style={{ backgroundColor: color, color: readableTextColor(color) }}>
+    <span className="inline-grid place-items-center rounded-full px-2.5 py-1 font-mono text-xs font-bold ring-1 ring-inset ring-black/10" style={{ backgroundColor: color, color: readableTextColor(color) }}>
       {score}
     </span>
   );
 }
 export function SectionTitle({ children, icon, action }: { children: ReactNode; icon?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-2 mb-3">
-      <h2 className="font-heading font-bold text-base flex items-center gap-2">
-        {icon && <span className="text-primary">{icon}</span>}
+    <div className="mb-3.5 flex items-end justify-between gap-2">
+      <h2 className="flex items-center gap-2.5 font-heading text-[17px] font-bold tracking-tight">
+        {icon && (
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[11px] bg-gradient-to-br from-[#C8951E]/18 to-[#C8951E]/6 text-gold-text ring-1 ring-inset ring-[#C8951E]/25">
+            {icon}
+          </span>
+        )}
         {children}
       </h2>
       {action}
@@ -114,11 +96,11 @@ export function SectionTitle({ children, icon, action }: { children: ReactNode; 
 
 export function EmptyBlock({ icon, title, text, cta }: { icon: ReactNode; title: string; text?: string; cta?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-card/60 px-4 py-8 text-center flex flex-col items-center gap-3">
-      <div className="grid place-items-center w-14 h-14 rounded-full bg-muted text-primary">{icon}</div>
+    <div className="k-card grain-kene relative flex flex-col items-center gap-3.5 rounded-[24px] px-4 py-9 text-center">
+      <div className="grid h-16 w-16 place-items-center rounded-[20px] bg-gradient-to-br from-[#C8951E]/16 to-[#A0522D]/10 text-gold-text ring-1 ring-inset ring-[#C8951E]/20">{icon}</div>
       <div>
-        <p className="font-heading font-semibold text-sm">{title}</p>
-        {text && <p className="text-xs text-muted-foreground mt-1 max-w-[260px]">{text}</p>}
+        <p className="font-heading text-sm font-bold tracking-tight">{title}</p>
+        {text && <p className="mt-1.5 max-w-[260px] text-xs leading-relaxed text-muted-foreground">{text}</p>}
       </div>
       {cta}
     </div>
@@ -145,15 +127,20 @@ export const APPT_STATUS_STYLES: Record<string, { label: string; cls: string }> 
 
 export function ApptBadge({ status }: { status: string }) {
   const s = APPT_STATUS_STYLES[status] ?? { label: status, cls: "bg-muted text-muted-foreground" };
-  return <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${s.cls}`}>{s.label}</span>;
+  return <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ring-current/15", s.cls)}>{s.label}</span>;
 }
 
-/** Wallet inline compact — cible tactile 44 px, dégradé terre→bissap (AA) */
+/** Wallet inline compact — cible tactile 44 px, verre or + halo, point vivant */
 export function WalletPill({ balance, onClick }: { balance: number; onClick?: () => void }) {
   return (
-    <button onClick={onClick} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] min-h-11 px-4 text-[#FFF9EC] shadow active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-[#A0522D]" aria-label={`Wallet ${xof(balance)} — ouvrir`}>
-      <span className="font-mono text-xs font-bold">{xof(balance, { compact: true })}</span>
-      <span className="w-1.5 h-1.5 rounded-full bg-[#FFF9EC]/80" aria-hidden="true" />
+    <button onClick={onClick} className="k-glow-gold inline-flex min-h-11 items-center gap-1.5 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] px-4 text-[#FFF9EC] transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-[#C8951E]" aria-label={`Wallet ${xof(balance)} — ouvrir`}>
+      <span className="font-mono text-xs font-bold tabular-nums">{xof(balance, { compact: true })}</span>
+      <motion.span
+        aria-hidden="true"
+        className="h-1.5 w-1.5 rounded-full bg-[#FFF9EC]/90"
+        animate={{ opacity: [1, 0.35, 1], scale: [1, 0.8, 1] }}
+        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+      />
     </button>
   );
 }

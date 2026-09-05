@@ -22,6 +22,7 @@ import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
 import { formatTime } from "@/lib/kene/format";
 import { KeneLogo, NeaOnnimIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
+import { AuroraBackdrop, IconBadge } from "@/components/kene/ui2026";
 import { useKene, type ClientTab } from "@/store/kene";
 import { useT } from "@/lib/kene/use-t";
 import { KenteIntro } from "@/components/kene/intro/KenteIntro";
@@ -273,11 +274,15 @@ export function ClientApp() {
   const first = user.name.split(" ")[0];
 
   return (
-    <div className="h-dvh flex overflow-hidden bg-background">
-      {/* ───────── Rail latéral tablette + desktop (md+) ───────── */}
+    <div className="h-dvh flex overflow-hidden">
+      {/* Atmosphère ÉCLAT 2026 — lueurs aurora derrière tout le shell (le fond
+          de page vient du body : ce div reste transparent pour laisser passer
+          la couche fixe -z-10, light et dark). */}
+      <AuroraBackdrop />
+      {/* ───────── Rail latéral tablette + desktop (md+) — chrome verre ───────── */}
       <aside
         aria-label="Navigation principale"
-        className="hidden md:flex w-[84px] xl:w-[248px] shrink-0 flex-col border-r border-border bg-card/60 backdrop-blur"
+        className="hidden md:flex w-[84px] xl:w-[248px] shrink-0 flex-col k-chrome"
       >
         <div className="h-16 flex items-center px-4 xl:px-5 border-b border-border/60">
           <span className="hidden xl:block">
@@ -299,19 +304,14 @@ export function ClientApp() {
                   onClick={() => goTab(n.tab)}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "group rounded-2xl transition-all focus-visible:outline-2 focus-visible:outline-primary",
-                    "xl:flex xl:flex-row xl:items-center xl:justify-start xl:gap-3 xl:px-3 xl:h-12 xl:bg-gradient-to-r xl:from-[#A0522D] xl:to-[#8B1A3B] xl:text-[#FFF9EC] xl:shadow-md xl:hover:shadow-lg",
-                    "flex flex-col items-center gap-1 py-2.5",
-                    active && "ring-2 ring-[#C8951E]/40 xl:ring-[#FFF9EC]/60",
+                    "k-cta flex flex-col items-center gap-1 py-2.5 rounded-2xl text-[#FFF9EC] focus-visible:outline-2 focus-visible:outline-primary",
+                    "xl:flex-row xl:items-center xl:justify-start xl:gap-3 xl:px-3 xl:h-12",
+                    active && "outline-2 outline-[#FFF9EC]/80",
                   )}
                 >
-                  <span className="grid place-items-center h-11 w-11 xl:h-6 xl:w-6 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] xl:bg-transparent xl:shadow-none shadow-md group-hover:scale-105 transition-transform">
-                    <NeaOnnimIcon size={22} className="xl:hidden" />
-                    <NeaOnnimIcon size={19} className="hidden xl:block" />
-                  </span>
-                  <span className={cn("text-[10px] xl:text-sm font-semibold xl:font-bold tracking-wide", active ? "text-primary xl:text-inherit" : "text-muted-foreground xl:text-inherit")}>
-                    {t(n.labelKey)}
-                  </span>
+                  <NeaOnnimIcon size={22} className="xl:hidden" />
+                  <NeaOnnimIcon size={19} className="hidden xl:block" />
+                  <span className="text-[10px] xl:text-sm font-semibold xl:font-bold tracking-wide">{t(n.labelKey)}</span>
                 </button>
               );
             }
@@ -323,11 +323,13 @@ export function ClientApp() {
                 aria-label={`${t(n.labelKey)}${n.tab === "chat" && chatUnread ? " — 1 nouveau message" : ""}${n.tab === "boutique" && cartCount > 0 ? ` — ${cartCount} article${cartCount > 1 ? "s" : ""} au panier` : ""}`}
                 className={cn(
                   "relative flex flex-col xl:flex-row items-center justify-center xl:justify-start gap-1 xl:gap-3.5 py-2.5 xl:py-0 xl:h-12 xl:px-3 rounded-2xl transition-colors focus-visible:outline-2 focus-visible:outline-primary",
-                  active ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                  active ? "bg-primary/12 text-primary" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
                 )}
               >
                 <span className="relative">
-                  <Icon className={active ? "size-[22px] font-bold" : "size-[22px]"} />
+                  {/* md : squircle teinté (IconBadge) ; xl : icône nue alignée au libellé */}
+                  <Icon className={cn("hidden xl:block size-[22px]", active && "font-bold")} />
+                  <IconBadge icon={<Icon className="size-[22px]" />} className="xl:hidden" />
                   {n.tab === "chat" && chatUnread && (
                     <span className="absolute -top-1 -right-1.5 h-2.5 w-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-card" aria-hidden="true" />
                   )}
@@ -344,7 +346,7 @@ export function ClientApp() {
                   )}
                 </span>
                 <span className={cn("text-[10px] xl:text-[15px]", active ? "font-bold" : "font-medium")}>{t(n.labelKey)}</span>
-                {active && <motion.span layoutId="side-indicator" className="hidden xl:block absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-full bg-primary" aria-hidden="true" />}
+                {active && <motion.span layoutId="side-indicator" className="k-rail-line hidden xl:block absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full" aria-hidden="true" />}
               </button>
             );
           })}
@@ -374,8 +376,9 @@ export function ClientApp() {
 
       {/* ───────── Colonne principale ───────── */}
       <div className="relative flex-1 min-w-0 flex flex-col h-full">
-        {/* Header unique responsive : mobile = logo + actions ; desktop = titre + actions */}
-        <header className="shrink-0 z-40 glass-kene backdrop-blur-[16px] border-b border-border/70">
+        {/* Header unique responsive : mobile = logo + actions ; desktop = titre + actions.
+            k-chrome = verre blur+saturate (le CSS gère le filet et l'ombre). */}
+        <header className="shrink-0 z-40 k-chrome">
           <div className="h-14 sm:h-16 flex items-center justify-between gap-2 px-3 sm:px-5">
             <div className="md:hidden">
               <KeneLogo size={32} withText />
@@ -383,7 +386,7 @@ export function ClientApp() {
             {/* h1 de vue : présent pour les lecteurs d'écran à TOUS les formats
                 (sr-only mobile, visible md+ — un seul h1 par vue) */}
             <div className="flex items-baseline gap-2.5 min-w-0">
-              <h1 className="sr-only md:not-sr-only md:font-heading md:font-bold md:text-lg xl:text-xl truncate">{t(TITLES[tab])}</h1>
+              <h1 className="sr-only md:not-sr-only md:font-heading md:font-bold md:tracking-tight md:text-lg xl:text-xl truncate">{t(TITLES[tab])}</h1>
               <p className="hidden xl:block text-[11px] text-muted-foreground truncate">
                 {tab === "accueil" ? `${t("home.greeting")} ${first} ✨` : tab === "chat" ? "Éducation cutanée · en ligne" : "Kènè — la beauté mélanoderme"}
               </p>
@@ -405,7 +408,7 @@ export function ClientApp() {
               <ThemeToggle />
             </div>
           </div>
-          <div aria-hidden="true" className="kente-band-soft h-[3px] w-full" />
+          <div aria-hidden="true" className="kente-band-soft h-[2px] w-full" />
           {/* Bandeau hors-ligne — le contenu affiché reste disponible (façon Wave) */}
           {!online && (
             <div role="status" className="flex items-center justify-center gap-2 bg-gold/15 text-gold-text text-[11px] font-semibold py-1.5 border-b border-gold/30">
@@ -434,7 +437,7 @@ export function ClientApp() {
                 transition: pull > 0 ? "none" : "transform .3s ease",
               }}
             >
-              <span className="grid place-items-center h-11 w-11 rounded-full glass-kene backdrop-blur-[16px] border border-border shadow-md">
+              <span className="grid place-items-center h-11 w-11 rounded-full k-chrome">
                 {refreshing ? (
                   <Loader2 size={20} className="animate-spin text-primary" />
                 ) : (
@@ -492,12 +495,12 @@ export function ClientApp() {
           </div>
         </div>
 
-        {/* ───────── Tab-bar mobile flottante — pilule de verre 2026 (façon Instagram/TikTok) ───────── */}
+        {/* ───────── Tab-bar mobile flottante — chrome verre 2026 + blob actif ───────── */}
         <nav
           aria-label="Navigation principale mobile"
           className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom)]"
         >
-          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-5 h-[64px] rounded-[26px] glass-kene backdrop-blur-[16px] border border-border/60 shadow-[0_14px_38px_-10px_rgba(28,17,9,0.42)]">
+          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-5 h-[64px] rounded-[30px] k-chrome">
             {NAV_MOBILE.map((n) => {
               const active = tab === n.tab;
               const Icon = n.icon;
@@ -512,8 +515,8 @@ export function ClientApp() {
                   >
                     <span
                       className={cn(
-                        "grid place-items-center h-[50px] w-[50px] -mt-7 rounded-full border-4 border-background shadow-lg transition-all active:scale-95",
-                        "bg-gradient-to-br from-[#A0522D] to-[#8B1A3B]",
+                        "grid place-items-center h-[50px] w-[50px] -mt-7 rounded-full border-4 border-background transition-all active:scale-95",
+                        "bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] k-glow-gold",
                       )}
                     >
                       <NeaOnnimIcon size={23} />
@@ -533,39 +536,44 @@ export function ClientApp() {
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 >
-                  <motion.span
-                    animate={active ? { scale: 1.12 } : { scale: 1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                    className={cn("relative grid place-items-center rounded-full p-1.5 transition-colors", active && "bg-primary/15")}
-                  >
-                    <Icon className="size-[22px]" />
-                    {n.tab === "boutique" && cartCount > 0 && (
-                      <motion.span
-                        key={cartCount}
-                        initial={{ scale: 0.4 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", stiffness: 500, damping: 18 }}
-                        className="absolute -top-1 -right-1.5 h-4 min-w-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-black grid place-items-center ring-2 ring-background" aria-hidden="true"
-                      >
-                        {cartCount}
-                      </motion.span>
-                    )}
-                  </motion.span>
-                  <span className={cn("text-[10px]", active ? "font-bold" : "font-semibold")}>{t(n.labelKey)}</span>
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-      </div>
+                <span className="relative grid place-items-center rounded-full p-1.5">
+                  {/* Blob actif — pastille or translucide qui glisse entre les onglets */}
+                  {active && (
+                    <motion.span
+                      layoutId="nav-blob"
+                      transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                      className="absolute inset-0 rounded-full bg-primary/18"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <Icon className="relative size-[22px]" />
+                  {n.tab === "boutique" && cartCount > 0 && (
+                    <motion.span
+                      key={cartCount}
+                      initial={{ scale: 0.4 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 18 }}
+                      className="absolute -top-1 -right-1.5 h-4 min-w-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-black grid place-items-center ring-2 ring-background" aria-hidden="true"
+                    >
+                      {cartCount}
+                    </motion.span>
+                  )}
+                </span>
+                <span className={cn("text-[10px]", active ? "font-bold" : "font-semibold")}>{t(n.labelKey)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+    </div>
 
-      {/* ───────── Rail droit desktop (xl+, accueil) — façon Instagram web ───────── */}
+      {/* ───────── Rail droit desktop (xl+, accueil) — chrome verre + cartes k ───────── */}
       {tab === "accueil" && (
-        <aside aria-label="Informations et raccourcis" className="hidden xl:flex w-[320px] shrink-0 flex-col gap-4 border-l border-border bg-card/40 backdrop-blur p-5 overflow-y-auto pretty-scroll">
+        <aside aria-label="Informations et raccourcis" className="hidden xl:flex w-[320px] shrink-0 flex-col gap-4 k-chrome p-5 overflow-y-auto pretty-scroll">
           {/* Mini-profil */}
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div className="k-card k-card-hover rounded-[24px] p-4">
             <div className="flex items-center gap-3.5">
-              <span className="grid place-items-center h-14 w-14 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] font-heading font-bold text-xl shadow">
+              <span className="grid place-items-center h-14 w-14 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] k-glow-gold text-[#FFF9EC] font-heading font-bold text-xl">
                 {first.charAt(0)}
               </span>
               <div className="min-w-0">
@@ -576,7 +584,7 @@ export function ClientApp() {
             </div>
             <button
               onClick={() => goTab("profil")}
-              className="mt-3.5 h-10 w-full rounded-xl border border-primary/40 bg-primary/10 text-primary text-xs font-bold active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+              className="mt-3.5 h-10 w-full rounded-2xl k-btn-gold text-primary-foreground text-xs font-bold focus-visible:outline-2 focus-visible:outline-primary"
             >
               {t("rail.view.profile")}
             </button>
@@ -584,26 +592,26 @@ export function ClientApp() {
 
           {/* Actions rapides */}
           <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => goTab("diagnostic")} className="rounded-2xl bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] p-3.5 text-left shadow-md active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label={t("home.scan.cta")}>
+            <button onClick={() => goTab("diagnostic")} className="k-cta rounded-[24px] text-[#FFF9EC] p-3.5 text-left focus-visible:outline-2 focus-visible:outline-primary" aria-label={t("home.scan.cta")}>
               <NeaOnnimIcon size={20} />
               <p className="text-xs font-bold mt-1.5 leading-tight">Scanner<br />ma peau</p>
             </button>
-            <button onClick={() => goTab("boutique")} className="rounded-2xl border border-border bg-card p-3.5 text-left shadow-sm active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Boutique">
+            <button onClick={() => goTab("boutique")} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Boutique">
               <ShoppingBag size={20} className="text-primary" />
               <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Boutique<br />botaniques</p>
             </button>
-            <button onClick={() => goTab("rdv")} className="rounded-2xl border border-border bg-card p-3.5 text-left shadow-sm active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Rendez-vous">
+            <button onClick={() => goTab("rdv")} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Rendez-vous">
               <CalendarDays size={20} className="text-primary" />
               <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Prendre<br />RDV</p>
             </button>
-            <button onClick={() => goTab("chat")} className="rounded-2xl border border-border bg-card p-3.5 text-left shadow-sm active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Dr. Kènè — chat">
+            <button onClick={() => goTab("chat")} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Dr. Kènè — chat">
               <MessageCircle size={20} className="text-primary" />
               <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Dr. Kènè<br />chat IA</p>
             </button>
           </div>
 
           {/* Mentions légales */}
-          <div className="mt-auto rounded-2xl border border-dashed border-border bg-card/60 p-4 text-[11px] leading-relaxed text-muted-foreground">
+          <div className="mt-auto k-card rounded-[24px] p-4 text-[11px] leading-relaxed text-muted-foreground">
             <p className="font-heading font-bold text-xs text-foreground/80 mb-1.5">Kènè — POC</p>
             <p>Paiements Wave / Orange Money simulés · estimations IA non médicales.</p>
             <p className="mt-1">Conforme CNPS CI / IPM SN / SYSCOHADA.</p>

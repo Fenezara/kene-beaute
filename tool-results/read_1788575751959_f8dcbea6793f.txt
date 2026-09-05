@@ -1,0 +1,540 @@
+     1→"use client";
+     2→// Kènè Cliente — Profil : identité, profil peau rééditable, wallet complet, consentement, espace pro
+     3→import { useCallback, useEffect, useState } from "react";
+     4→import { motion } from "framer-motion";
+     5→import {
+     6→  ArrowDownLeft, ArrowLeft, ArrowUpRight, BadgeCheck, Building2, Check, Download, Languages, Loader2, LogOut, MapPin,
+     7→  Pencil, Phone, Plus, ShieldCheck, Smartphone, Sparkles, Wallet as WalletIcon,
+     8→} from "lucide-react";
+     9→import { toast } from "sonner";
+    10→import { apiGet, apiPatch, apiPost } from "@/lib/kene/api";
+    11→import { formatDate, xof, CASHBACK_RATE } from "@/lib/kene/format";
+    12→import { LANGS, type Lang } from "@/lib/kene/i18n";
+    13→import { useT } from "@/lib/kene/use-t";
+    14→import { MOMO_OPERATORS } from "@/lib/kene/rfm";
+    15→import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+    16→import { Skeleton } from "@/components/ui/skeleton";
+    17→import { Switch } from "@/components/ui/switch";
+    18→import { useKene, type SessionUser } from "@/store/kene";
+    19→import { useSecurity } from "@/store/security";
+    20→import type { ApiUser, ApiWallet, ApiWalletTx } from "./types";
+    21→import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES } from "./types";
+    22→import { SectionTitle } from "./bits";
+    23→import { ParrainageCard } from "./ParrainageCard";
+    24→import { useInstallPrompt } from "@/components/kene/pwa/use-install";
+    25→
+    26→/** SessionUser + goals (string JSON) renvoyé par PATCH profile */
+    27→type ClientUser = SessionUser & { goals?: string | null };
+    28→
+    29→const REASON_LABELS: Record<string, string> = {
+    30→  cashback: "Cashback commande",
+    31→  referral: "Bonus parrainage",
+    32→  topup: "Approvisionnement",
+    33→  payment: "Paiement",
+    34→  refund: "Remboursement RDV",
+    35→};
+    36→
+    37→export function ProfileScreen() {
+    38→  const user = useKene((s) => s.user) as ClientUser;
+    39→  const setUser = useKene((s) => s.setUser);
+    40→  const setSpace = useKene((s) => s.setSpace);
+    41→  const setClientTab = useKene((s) => s.setClientTab);
+    42→  const clearCart = useKene((s) => s.clearCart);
+    43→  const { t, lang, setLang } = useT();
+    44→
+    45→  const [edit, setEdit] = useState(false);
+    46→  const [name, setName] = useState(user.name);
+    47→  const [city, setCity] = useState(user.city ?? "");
+    48→  const [savingId, setSavingId] = useState(false);
+    49→
+    50→  const [fitz, setFitz] = useState(user.fitzpatrick ?? "V");
+    51→  const [skinType, setSkinType] = useState(user.skinType ?? "mixte");
+    52→  const [allergies, setAllergies] = useState(user.allergies ?? "");
+    53→  const [goals, setGoals] = useState<string[]>(() => {
+    54→    try {
+    55→      return (JSON.parse(user.goals ?? "[]") as { id: string }[]).map((g) => g.id);
+    56→    } catch {
+    57→      return [];
+    58→    }
+    59→  });
+    60→  const [savingSkin, setSavingSkin] = useState(false);
+    61→
+    62→  const [wallet, setWallet] = useState<ApiWallet | null>(null);
+    63→  const [txs, setTxs] = useState<ApiWalletTx[] | null>(null);
+    64→  const [topup, setTopup] = useState(false);
+    65→  const [amount, setAmount] = useState(5000);
+    66→  const [method, setMethod] = useState<"wave" | "orange">("wave");
+    67→  const [topupState, setTopupState] = useState<"idle" | "processing" | "done">("idle");
+    68→  const [topupBusy, setTopupBusy] = useState(false);
+    69→  const [exportBusy, setExportBusy] = useState(false);
+    70→
+    71→  // Installation PWA — même source d'événement que la bannière d'accueil.
+    72→  const { canInstall, promptInstall, isStandalone, isIOS } = useInstallPrompt();
+    73→
+    74→  // Sécurité renforcée (2FA-lite) : code SMS exigé avant chaque paiement.
+    75→  const secureEnabled = useSecurity((s) => s.enabled);
+    76→  const setSecureEnabled = useSecurity((s) => s.setEnabled);
+    77→
+    78→  const loadWallet = useCallback(() => {
+    79→    apiGet<{ wallet: ApiWallet; transactions: ApiWalletTx[] }>(`/api/wallet?userId=${user.id}`)
+    80→      .then((r) => { setWallet(r.wallet); setTxs(r.transactions ?? []); })
+    81→      .catch(() => setTxs([]));
+    82→  }, [user.id]);
+    83→
+    84→  useEffect(() => {
+    85→    loadWallet();
+    86→  }, [loadWallet]);
+    87→
+    88→  /** Portabilité RGPD — télécharge « mes données » en JSON via blob */
+    89→  async function downloadMyData() {
+    90→    setExportBusy(true);
+    91→    try {
+    92→      const res = await fetch(`/api/profile/export?userId=${encodeURIComponent(user.id)}`);
+    93→      if (!res.ok) throw new Error("Export impossible");
+    94→      const blob = await res.blob();
+    95→      const cd = res.headers.get("Content-Disposition") ?? "";
+    96→      const m = /filename="([^"]+)"/.exec(cd);
+    97→      const url = URL.createObjectURL(blob);
+    98→      const a = document.createElement("a");
+    99→      a.href = url;
+   100→      a.download = m?.[1] ?? `kene-mes-donnees-${new Date().toISOString().slice(0, 10)}.json`;
+   101→      document.body.appendChild(a);
+   102→      a.click();
+   103→      a.remove();
+   104→      setTimeout(() => URL.revokeObjectURL(url), 4000);
+   105→      const kb = Math.max(1, Math.round(blob.size / 1024));
+   106→      toast.success(`Mes données téléchargées · ${kb} Ko`);
+   107→    } catch (e) {
+   108→      toast.error(e instanceof Error ? e.message : "Export impossible");
+   109→    } finally {
+   110→      setExportBusy(false);
+   111→    }
+   112→  }
+   113→
+   114→  /** Installer l'app (prompt natif, ou instructions iOS / navigateur). */
+   115→  async function installApp() {
+   116→    if (canInstall) {
+   117→      const accepted = await promptInstall();
+   118→      if (accepted) toast.success("Kènè installée sur ton écran d'accueil 💛");
+   119→      return;
+   120→    }
+   121→    if (isIOS) {
+   122→      toast.info("Installer sur iPhone", {
+   123→        description: "Bouton Partager ⬆️ puis « Sur l'écran d'accueil ».",
+   124→        duration: 8000,
+   125→      });
+   126→      return;
+   127→    }
+   128→    toast.info("Installation manuelle", {
+   129→      description: "Menu du navigateur → « Installer l'application » ou « Ajouter à l'écran d'accueil ».",
+   130→      duration: 8000,
+   131→    });
+   132→  }
+   133→
+   134→  async function saveIdentity() {
+   135→    setSavingId(true);
+   136→    try {
+   137→      const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", { userId: user.id, name: name.trim() || undefined, city: city.trim() || undefined });
+   138→      setUser({ ...user, ...r.user } as SessionUser);
+   139→      setEdit(false);
+   140→      toast.success("Profil mis à jour");
+   141→    } catch (e) {
+   142→      toast.error(e instanceof Error ? e.message : "Mise à jour impossible");
+   143→    } finally {
+   144→      setSavingId(false);
+   145→    }
+   146→  }
+   147→
+   148→  async function saveSkin() {
+   149→    setSavingSkin(true);
+   150→    try {
+   151→      const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {
+   152→        userId: user.id,
+   153→        skinType,
+   154→        fitzpatrick: fitz,
+   155→        allergies: allergies.trim() || undefined,
+   156→        goals: goals.map((id) => ({ id, label: SKIN_GOALS.find((g) => g.id === id)?.label ?? id })),
+   157→      });
+   158→      setUser({ ...user, ...r.user } as SessionUser);
+   159→      toast.success("Profil peau mis à jour");
+   160→    } catch (e) {
+   161→      toast.error(e instanceof Error ? e.message : "Mise à jour impossible");
+   162→    } finally {
+   163→      setSavingSkin(false);
+   164→    }
+   165→  }
+   166→
+   167→  /** Langue de l'interface (i18n) — indépendante de la langue de lecture vocale. */
+   168→  function selectLang(l: Lang) {
+   169→    if (l === lang) return;
+   170→    setLang(l);
+   171→    const label = LANGS.find((x) => x.id === l)?.label ?? "";
+   172→    toast.success(`Interface en ${label.toLowerCase()}`);
+   173→  }
+   174→
+   175→  /** Sécurité renforcée : bascule la re-vérification par code avant paiement. */
+   176→  function toggleSecure() {
+   177→    const next = !secureEnabled;
+   178→    setSecureEnabled(next);
+   179→    if (next) toast.success("Sécurité renforcée activée");
+   180→    else toast("Sécurité renforcée désactivée");
+   181→  }
+   182→
+   183→  async function runTopup() {
+   184→    setTopupBusy(true);
+   185→    setTopupState("processing");
+   186→    try {
+   187→      const r = await apiPost<{ payment: { id: string; confirmToken?: string } }>("/api/wallet/topup", { userId: user.id, amount, method });
+   188→      // Contrat confirmToken (63-b/63-c) : un approvisionnement mobile money en
+   189→      // attente porte son jeton — absent, on n'appelle JAMAIS confirm et on
+   190→      // revient au formulaire comme après un échec (aucun crédit fantôme).
+   191→      const confirmToken = r.payment.confirmToken;
+   192→      if (!confirmToken) {
+   193→        setTopupState("idle");
+   194→        toast.error("Paiement impossible — réessaie dans quelques instants");
+   195→        return;
+   196→      }
+   197→      await new Promise((res) => setTimeout(res, 2600));
+   198→      await apiPost("/api/payments/confirm", { paymentId: r.payment.id, confirmToken });
+   199→      setTopupState("done");
+   200→      toast.success(`${xof(amount)} crédités sur ton wallet`);
+   201→      loadWallet();
+   202→    } catch (e) {
+   203→      setTopupState("idle");
+   204→      toast.error(e instanceof Error ? e.message : "Approvisionnement impossible");
+   205→    } finally {
+   206→      setTopupBusy(false);
+   207→    }
+   208→  }
+   209→
+   210→  return (
+   211→    <div className="pt-4 pb-2 flex flex-col gap-6">
+   212→      <button onClick={() => setClientTab("accueil")} className="self-start inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label={t("profile.back.aria")}>
+   213→        <ArrowLeft size={15} /> {t("tab.home")}
+   214→      </button>
+   215→
+   216→      {/* Identité */}
+   217→      <section aria-labelledby="me-t" className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
+   218→        <div className="kente-band h-1.5 w-full" aria-hidden="true" />
+   219→        <div id="me-t" className="p-5">
+   220→          <div className="flex items-center gap-4">
+   221→            <span className="grid place-items-center h-16 w-16 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] font-heading font-black text-2xl shadow">
+   222→              {user.name.charAt(0)}
+   223→            </span>
+   224→            <div className="min-w-0 flex-1">
+   225→              <p className="font-heading font-black text-lg leading-tight truncate">{user.name}</p>
+   226→              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-mono"><Phone size={12} /> {user.phone}</p>
+   227→              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5"><MapPin size={12} /> {user.city || "Ville non renseignée"}</p>
+   228→            </div>
+   229→            <button onClick={() => setEdit((v) => !v)} aria-label="Modifier mon profil" className="h-10 w-10 grid place-items-center rounded-full border border-border text-muted-foreground hover:text-primary active:scale-90 transition-all focus-visible:outline-2 focus-visible:outline-primary">
+   230→              <Pencil size={16} />
+   231→            </button>
+   232→          </div>
+   233→          {edit && (
+   234→            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden">
+   235→              <div className="mt-4 space-y-3">
+   236→                <div>
+   237→                  <label htmlFor="p-name" className="text-[11px] font-semibold text-muted-foreground">Prénom & nom</label>
+   238→                  <input id="p-name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+   239→                </div>
+   240→                <div>
+   241→                  <label htmlFor="p-city" className="text-[11px] font-semibold text-muted-foreground">Ville</label>
+   242→                  <input id="p-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Abidjan" className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+   243→                </div>
+   244→                <button onClick={saveIdentity} disabled={savingId} className="h-11 w-full rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+   245→                  {savingId ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Enregistrer
+   246→                </button>
+   247→              </div>
+   248→            </motion.div>
+   249→          )}
+   250→        </div>
+   251→      </section>
+   252→
+   253→      {/* Profil peau */}
+   254→      <section aria-labelledby="skin-t">
+   255→        <SectionTitle icon={<Sparkles size={16} />}><span id="skin-t">Mon profil peau</span></SectionTitle>
+   256→        <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
+   257→          <div>
+   258→            <p className="text-[11px] font-semibold text-muted-foreground mb-2">Phototype Fitzpatrick</p>
+   259→            <div className="grid grid-cols-3 gap-2">
+   260→              {FITZPATRICK_CARDS.map((f) => (
+   261→                <button key={f.id} onClick={() => setFitz(f.id)} aria-pressed={fitz === f.id} className={`rounded-xl p-1.5 border-2 text-left active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${fitz === f.id ? "border-primary" : "border-transparent"}`}>
+   262→                  <div className="h-8 rounded-lg mb-1" style={{ background: f.gradient }} aria-hidden="true" />
+   263→                  <p className="text-[11px] font-bold">{f.id}</p>
+   264→                </button>
+   265→              ))}
+   266→            </div>
+   267→          </div>
+   268→          <div>
+   269→            <p className="text-[11px] font-semibold text-muted-foreground mb-2">Type de peau</p>
+   270→            <div className="flex flex-wrap gap-1.5">
+   271→              {SKIN_TYPES.map((t) => (
+   272→                <button key={t.id} onClick={() => setSkinType(t.id)} aria-pressed={skinType === t.id} className={`rounded-full px-3 min-h-10 text-xs font-medium active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${skinType === t.id ? "bg-primary text-primary-foreground" : "border border-border"}`}>{t.label}</button>
+   273→              ))}
+   274→            </div>
+   275→          </div>
+   276→          <div>
+   277→            <p className="text-[11px] font-semibold text-muted-foreground mb-2">Objectifs</p>
+   278→            <div className="flex flex-wrap gap-1.5">
+   279→              {SKIN_GOALS.map((g) => (
+   280→                <button key={g.id} onClick={() => setGoals((s) => (s.includes(g.id) ? s.filter((x) => x !== g.id) : [...s, g.id]))} aria-pressed={goals.includes(g.id)} className={`rounded-full px-3 min-h-10 text-xs font-medium active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${goals.includes(g.id) ? "bg-primary text-primary-foreground" : "border border-border"}`}>{g.label}</button>
+   281→              ))}
+   282→            </div>
+   283→          </div>
+   284→          <div>
+   285→            <label htmlFor="p-all" className="text-[11px] font-semibold text-muted-foreground">Allergies</label>
+   286→            <textarea id="p-all" value={allergies} onChange={(e) => setAllergies(e.target.value)} rows={2} placeholder="Ex. huile de coco…" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+   287→          </div>
+   288→          <button onClick={saveSkin} disabled={savingSkin} className="h-11 w-full rounded-xl border border-primary/60 text-primary text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary">
+   289→            {savingSkin ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Mettre à jour mon profil peau
+   290→          </button>
+   291→        </div>
+   292→      </section>
+   293→
+   294→      {/* Langue de l'interface — i18n UI, indépendante de la lecture vocale
+   295→          (la langue TTS se règle dans les pilules du résumé vocal, accueil) */}
+   296→      <section aria-labelledby="lang-t" className="rounded-2xl border border-border bg-card p-4">
+   297→        <div className="flex items-center gap-3">
+   298→          <span className="grid place-items-center h-10 w-10 rounded-xl bg-primary/15 text-primary shrink-0">
+   299→            <Languages size={19} />
+   300→          </span>
+   301→          <div className="flex-1 min-w-0">
+   302→            <p id="lang-t" className="text-xs font-bold">{t("lang.selector.label")}</p>
+   303→            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{t("lang.selector.note")}</p>
+   304→          </div>
+   305→        </div>
+   306→        <div className="mt-3 grid grid-cols-2 gap-2">
+   307→          {LANGS.map((l) => {
+   308→            const active = lang === l.id;
+   309→            return (
+   310→              <button
+   311→                key={l.id}
+   312→                onClick={() => selectLang(l.id)}
+   313→                aria-pressed={active}
+   314→                className={`rounded-xl border p-3 min-h-12 text-left active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+   315→                  active ? "border-primary bg-primary/10" : "border-border hover:border-primary/40"
+   316→                }`}
+   317→              >
+   318→                <span className="flex items-center justify-between gap-1.5">
+   319→                  <span className={`text-xs font-bold ${active ? "text-primary" : "text-foreground"}`}>{l.label}</span>
+   320→                  {active ? (
+   321→                    <Check size={13} className="text-primary shrink-0" aria-hidden="true" />
+   322→                  ) : (
+   323→                    <span className="text-[9px] font-mono font-bold text-muted-foreground/70" aria-hidden="true">{l.flag}</span>
+   324→                  )}
+   325→                </span>
+   326→                <span className="block text-[10px] text-muted-foreground mt-1">{l.note}</span>
+   327→              </button>
+   328→            );
+   329→          })}
+   330→        </div>
+   331→      </section>
+   332→
+   333→      {/* Wallet */}
+   334→      <section aria-labelledby="wa-t">
+   335→        <SectionTitle icon={<WalletIcon size={16} />}><span id="wa-t">Mon wallet Kènè</span></SectionTitle>
+   336→        <div className="rounded-3xl bg-[#1A1410] text-[#F8F1E4] p-5 shadow-md relative overflow-hidden">
+   337→          <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-20" />
+   338→          <div className="relative">
+   339→            <p className="text-[10px] uppercase tracking-[0.18em] opacity-70">Solde disponible</p>
+   340→            <p className="font-mono font-black text-3xl mt-1">{wallet ? xof(wallet.balance) : "···"}</p>
+   341→            <div className="flex items-center gap-2 mt-2 text-[11px] opacity-80">
+   342→              <BadgeCheck size={13} className="text-[#C8951E]" /> Cashback {Math.round((wallet?.cashbackRate ?? CASHBACK_RATE) * 100)} % sur chaque commande
+   343→            </div>
+   344→            <button onClick={() => { setTopup(true); setTopupState("idle"); }} className="mt-4 h-11 w-full rounded-xl bg-[#C8951E] text-[#1A1410] font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#C8951E]">
+   345→              <Plus size={16} /> Approvisionner
+   346→            </button>
+   347→          </div>
+   348→        </div>
+   349→        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">Dernières transactions</p>
+   350→        {txs === null ? (
+   351→          <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-12 rounded-xl" />)}</div>
+   352→        ) : txs.length === 0 ? (
+   353→          <p className="text-xs text-muted-foreground text-center py-3">Aucune transaction pour l&apos;instant.</p>
+   354→        ) : (
+   355→          <div className="rounded-2xl border border-border bg-card divide-y divide-border max-h-72 overflow-y-auto scrollbar-thin">
+   356→            {txs.map((t) => {
+   357→              const credit = t.type === "credit";
+   358→              return (
+   359→                <div key={t.id} className="flex items-center gap-3 px-4 py-3">
+   360→                  <span className={`grid place-items-center h-8 w-8 rounded-full shrink-0 ${credit ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
+   361→                    {credit ? <ArrowDownLeft size={15} /> : <ArrowUpRight size={15} />}
+   362→                  </span>
+   363→                  <div className="min-w-0 flex-1">
+   364→                    <p className="text-xs font-semibold">{REASON_LABELS[t.reason] ?? t.reason}</p>
+   365→                    <p className="text-[10px] text-muted-foreground">{formatDate(t.createdAt, { day: "numeric", month: "short", year: "2-digit" })}</p>
+   366→                  </div>
+   367→                  <span className={`font-mono text-sm font-bold ${credit ? "text-success" : "text-destructive"}`}>
+   368→                    {credit ? "+" : "−"}{xof(t.amount)}
+   369→                  </span>
+   370→                </div>
+   371→              );
+   372→            })}
+   373→          </div>
+   374→        )}
+   375→      </section>
+   376→
+   377→      {/* Parrainage — le fil qui relie les amies */}
+   378→      <ParrainageCard userId={user.id} userName={user.name} onRedeemed={loadWallet} />
+   379→
+   380→      {/* Consentement */}
+   381→      <section aria-labelledby="cons-t" className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3">
+   382→        <ShieldCheck size={20} className={user.consentHealth ? "text-success" : "text-destructive"} />
+   383→        <div className="flex-1">
+   384→          <p className="text-xs font-semibold">Consentement données santé</p>
+   385→          <p className="text-[11px] text-muted-foreground mt-0.5">{user.consentHealth ? "Accordé — photos et diagnostics utilisés uniquement pour tes analyses." : "Non accordé — requis pour le diagnostic IA."}</p>
+   386→        </div>
+   387→        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${user.consentHealth ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
+   388→          {user.consentHealth ? "Actif" : "Inactif"}
+   389→        </span>
+   390→      </section>
+   391→
+   392→      {/* Mes données — portabilité RGPD (art. 20) */}
+   393→      <section aria-labelledby="rgpd-t" className="rounded-2xl border border-border bg-card p-4">
+   394→        <div className="flex items-center gap-3">
+   395→          <span className="grid place-items-center h-10 w-10 rounded-xl bg-terre/15 text-terre shrink-0">
+   396→            <Download size={19} />
+   397→          </span>
+   398→          <div className="flex-1 min-w-0">
+   399→            <p id="rgpd-t" className="text-xs font-bold flex items-center gap-1.5">Mes données <span className="rounded-full bg-muted px-1.5 py-px text-[9px] font-semibold text-muted-foreground">RGPD</span></p>
+   400→            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Ton dossier complet en un fichier : diagnostics, rendez-vous, commandes, wallet, parrainage, notifications.</p>
+   401→          </div>
+   402→        </div>
+   403→        <button
+   404→          onClick={downloadMyData}
+   405→          disabled={exportBusy}
+   406→          className="mt-3 h-11 w-full rounded-xl border-2 border-terre/50 bg-terre/10 text-terre text-xs font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-terre"
+   407→        >
+   408→          {exportBusy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+   409→          {exportBusy ? "Préparation…" : "Télécharger mes données (JSON)"}
+   410→        </button>
+   411→        <p className="mt-2 text-[10px] text-muted-foreground">Art. 20 RGPD — droit à la portabilité. Les photos ne sont pas incluses (poids) ; les résultats complets oui.</p>
+   412→      </section>
+   413→
+   414→      {/* Sécurité renforcée — 2FA-lite : code SMS avant chaque paiement.
+   415→          Toute la rangée est le bouton (cible ≥ 40 px), le Switch shadcn est
+   416→          l'indicateur visuel (pointer-events-none, hors focus). */}
+   417→      <section aria-labelledby="sec-t" className="rounded-2xl border border-border bg-card p-4">
+   418→        <button
+   419→          type="button"
+   420→          role="switch"
+   421→          aria-checked={secureEnabled}
+   422→          aria-label="Sécurité renforcée avant paiement"
+   423→          onClick={toggleSecure}
+   424→          className="w-full flex items-center gap-3 rounded-xl text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+   425→        >
+   426→          <span className="grid place-items-center h-10 w-10 rounded-xl bg-primary/15 text-primary shrink-0" aria-hidden="true">
+   427→            <ShieldCheck size={19} />
+   428→          </span>
+   429→          <span className="flex-1 min-w-0 py-1.5">
+   430→            <span id="sec-t" className="block text-xs font-bold">Sécurité renforcée</span>
+   431→            <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">Exige un code par SMS avant chaque paiement — même si quelqu&apos;un a ton téléphone.</span>
+   432→          </span>
+   433→          <span className="pointer-events-none shrink-0 grid place-items-center min-h-10 min-w-10" aria-hidden="true">
+   434→            <Switch checked={secureEnabled} tabIndex={-1} />
+   435→          </span>
+   436→        </button>
+   437→      </section>
+   438→
+   439→      {/* Application — installation PWA sur l'écran d'accueil */}
+   440→      <section aria-labelledby="app-t" className="rounded-2xl border border-border bg-card p-4">
+   441→        <div className="flex items-center gap-3">
+   442→          <span className="grid place-items-center h-10 w-10 rounded-xl bg-primary/15 text-primary shrink-0">
+   443→            <Smartphone size={19} />
+   444→          </span>
+   445→          <div className="flex-1 min-w-0">
+   446→            <p id="app-t" className="text-xs font-bold">Application</p>
+   447→            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Installe Kènè sur ton écran d&apos;accueil : un tap pour ouvrir, et tes diagnostics restent consultables même hors-ligne.</p>
+   448→          </div>
+   449→        </div>
+   450→        {isStandalone ? (
+   451→          <p className="mt-3 rounded-xl bg-success/10 text-success text-xs font-semibold px-3 min-h-10 flex items-center gap-2">
+   452→            <BadgeCheck size={15} className="shrink-0" /> Kènè est déjà installée sur ton téléphone
+   453→          </p>
+   454→        ) : (
+   455→          <button
+   456→            onClick={() => void installApp()}
+   457→            className="mt-3 h-11 w-full rounded-xl bg-primary text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   458→          >
+   459→            <Download size={15} /> Installer Kènè
+   460→          </button>
+   461→        )}
+   462→      </section>
+   463→
+   464→      {/* Espace pro */}
+   465→      <button onClick={() => setSpace("pro")} className="rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   466→        <p className="flex items-center gap-2 font-heading font-bold text-sm text-primary"><Building2 size={17} /> Vous êtes gérante d&apos;institut ?</p>
+   467→        <p className="text-xs text-muted-foreground mt-1">Découvrir l&apos;Espace Pro Kènè : agenda, caisse, CRM, stock, paie, comptabilité.</p>
+   468→      </button>
+   469→
+   470→      {/* Déconnexion — le panier est vidé AVANT de perdre la session : la
+   471→          prochaine utilisatrice du téléphone n'hérite de rien. */}
+   472→      <button
+   473→        onClick={() => { clearCart(); setUser(null); toast.info("À bientôt sur Kènè"); }}
+   474→        className="h-12 rounded-xl border border-destructive/40 text-destructive text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive"
+   475→      >
+   476→        <LogOut size={16} /> Déconnexion
+   477→      </button>
+   478→
+   479→      {/* Sheet approvisionnement */}
+   480→      <Sheet open={topup} onOpenChange={(o) => { setTopup(o); if (!o) setTopupState("idle"); }}>
+   481→        <SheetContent side="bottom" className="max-w-[560px] mx-auto rounded-t-3xl">
+   482→          <SheetHeader className="text-left">
+   483→            <SheetTitle className="font-heading font-black">Approvisionner mon wallet</SheetTitle>
+   484→          </SheetHeader>
+   485→          <div className="px-4 pb-6">
+   486→            {topupState === "idle" && (
+   487→              <div className="space-y-4">
+   488→                <div>
+   489→                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Montant</p>
+   490→                  <div className="grid grid-cols-3 gap-2">
+   491→                    {[2000, 5000, 10000].map((a) => (
+   492→                      <button key={a} onClick={() => setAmount(a)} aria-pressed={amount === a} className={`h-12 rounded-xl font-mono text-sm font-bold active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${amount === a ? "bg-primary text-primary-foreground" : "border border-border bg-card"}`}>
+   493→                        {a.toLocaleString("fr-FR")}
+   494→                      </button>
+   495→                    ))}
+   496→                  </div>
+   497→                </div>
+   498→                <div>
+   499→                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Depuis</p>
+   500→                  <div className="grid grid-cols-2 gap-2">
+   501→                    {MOMO_OPERATORS.filter((o) => o.code === "wave" || o.code === "orange").map((o) => (
+   502→                      <button key={o.code} onClick={() => setMethod(o.code as "wave" | "orange")} aria-pressed={method === o.code} className={`h-12 rounded-xl border-2 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${method === o.code ? "bg-card" : "border-border bg-card opacity-60"}`} style={{ borderColor: method === o.code ? o.color : undefined }}>
+   503→                        <span className="h-6 w-6 rounded-full grid place-items-center text-[#1A1410] font-black text-[11px]" style={{ backgroundColor: o.color }}>{o.name.charAt(0)}</span>
+   504→                        {o.name}
+   505→                      </button>
+   506→                    ))}
+   507→                  </div>
+   508→                </div>
+   509→                <button onClick={runTopup} disabled={topupBusy} className="h-12 w-full rounded-xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+   510→                  {topupBusy ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Créditer {xof(amount)}
+   511→                </button>
+   512→              </div>
+   513→            )}
+   514→            {topupState === "processing" && (
+   515→              <div className="flex flex-col items-center gap-4 py-8">
+   516→                <div className="grid place-items-center w-16 h-16 rounded-3xl font-heading font-black text-2xl text-[#1A1410]" style={{ backgroundColor: MOMO_OPERATORS.find((o) => o.code === method)?.color }}>
+   517→                  {MOMO_OPERATORS.find((o) => o.code === method)?.name.charAt(0)}
+   518→                </div>
+   519→                <p className="font-mono text-2xl font-black">{xof(amount)}</p>
+   520→                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Traitement en cours…</div>
+   521→                <p className="text-[10px] text-muted-foreground font-mono">{user.phone}</p>
+   522→              </div>
+   523→            )}
+   524→            {topupState === "done" && (
+   525→              <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center gap-3 py-8 text-center">
+   526→                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 15 }} className="grid place-items-center h-16 w-16 rounded-full bg-[#3F7D3F]">
+   527→                  <Check size={32} className="text-white" strokeWidth={3} />
+   528→                </motion.span>
+   529→                <p className="font-heading font-black text-lg">Wallet crédité</p>
+   530→                <p className="text-xs text-muted-foreground">Nouveau solde mis à disposition immédiatement.</p>
+   531→                <button onClick={() => setTopup(false)} className="mt-2 h-11 px-6 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">Fermer</button>
+   532→              </motion.div>
+   533→            )}
+   534→          </div>
+   535→        </SheetContent>
+   536→      </Sheet>
+   537→    </div>
+   538→  );
+   539→}
+   540→

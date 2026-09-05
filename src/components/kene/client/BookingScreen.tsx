@@ -12,7 +12,7 @@ import { addDays, formatDate, formatTime, xof, DEPOSIT_RATE } from "@/lib/kene/f
 import { cancellationRefund } from "@/lib/kene/rfm";
 import { SankofaIcon } from "@/components/kene/icons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Chip, IconBadge, PrimaryCTA, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useKene } from "@/store/kene";
 import { useSecurity } from "@/store/security";
@@ -253,139 +253,182 @@ export function BookingScreen() {
         <AnimatePresence mode="wait">
           {confirmed ? (
             /* — Confirmation — */
-            <motion.div key="ok" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="pt-8 flex flex-col items-center text-center">
-              <span className="grid place-items-center h-20 w-20 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3D]">
-                <SankofaIcon size={38} />
-              </span>
-              <h2 className="font-heading font-black text-xl mt-4">Rendez-vous confirmé</h2>
-              <div className="mt-4 w-full rounded-2xl border border-border bg-card p-4 text-left space-y-1.5">
-                <p className="font-semibold text-sm">{confirmed.service?.name ?? "Soin"}</p>
-                <p className="text-xs text-muted-foreground">{confirmed.tenant?.name}</p>
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5"><CalendarDays size={13} /> {formatDate(confirmed.startAt)} · <Clock size={13} /> {formatTime(confirmed.startAt)}</p>
-                {confirmed.resource?.name && <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Users size={13} /> {confirmed.resource.name}</p>}
-                {confirmed.depositAmount > 0 && <p className="text-xs font-mono text-primary font-bold pt-1 border-t border-dashed border-border">Acompte réglé : {xof(confirmed.depositAmount)}</p>}
-              </div>
-              <p className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#3F7D3F]/10 text-[#3F7D3D] px-3 py-1.5 text-[11px] font-semibold">
-                <MessageSquareQuote size={13} /> Rappel SMS J-1 programmé (simulé)
-              </p>
-              <div className="mt-6 grid grid-cols-2 gap-3 w-full">
-                <button onClick={() => { setConfirmed(null); setInst(null); setService(null); loadInstitutes(); }} className="h-12 rounded-xl border border-primary/60 text-primary text-sm font-bold active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
-                  Autre RDV
-                </button>
-                <button onClick={() => setTab("mine")} className="h-12 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
-                  Mes RDV
-                </button>
-              </div>
+            <motion.div key="ok" exit={{ opacity: 0, x: -30 }}>
+              <Reveal className="flex flex-col items-center pt-8 text-center">
+                <RevealItem>
+                  <span className="grid place-items-center h-20 w-20 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3D]">
+                    <SankofaIcon size={38} />
+                  </span>
+                </RevealItem>
+                <RevealItem>
+                  <h2 className="font-heading font-black text-xl mt-4">Rendez-vous confirmé</h2>
+                </RevealItem>
+                <RevealItem className="w-full">
+                  <div className="mt-4 w-full k-card k-card-hero rounded-[24px] p-4 text-left space-y-1.5">
+                    <p className="font-semibold text-sm">{confirmed.service?.name ?? "Soin"}</p>
+                    <p className="text-xs text-muted-foreground">{confirmed.tenant?.name}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5"><CalendarDays size={13} /> {formatDate(confirmed.startAt)} · <Clock size={13} /> {formatTime(confirmed.startAt)}</p>
+                    {confirmed.resource?.name && <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Users size={13} /> {confirmed.resource.name}</p>}
+                    {confirmed.depositAmount > 0 && <p className="text-xs font-mono text-primary font-bold tabular-nums pt-1 border-t border-dashed border-border">Acompte réglé : {xof(confirmed.depositAmount)}</p>}
+                  </div>
+                </RevealItem>
+                <RevealItem>
+                  <p className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#3F7D3F]/10 text-[#3F7D3D] px-3 py-1.5 text-[11px] font-semibold">
+                    <MessageSquareQuote size={13} /> Rappel SMS J-1 programmé (simulé)
+                  </p>
+                </RevealItem>
+                <RevealItem className="w-full">
+                  <div className="mt-6 grid grid-cols-2 gap-3 w-full">
+                    <button onClick={() => { setConfirmed(null); setInst(null); setService(null); loadInstitutes(); }} className="h-12 rounded-xl border border-primary/60 text-primary text-sm font-bold active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+                      Autre RDV
+                    </button>
+                    <button onClick={() => setTab("mine")} className="k-btn-gold h-12 rounded-xl text-primary-foreground text-sm font-bold focus-visible:outline-2 focus-visible:outline-primary">
+                      Mes RDV
+                    </button>
+                  </div>
+                </RevealItem>
+              </Reveal>
             </motion.div>
           ) : !inst ? (
             /* — Liste instituts — */
-            <motion.div key="list" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-              <SectionTitle icon={<MapPin size={16} />}>Instituts partenaires</SectionTitle>
-              {institutes === null ? (
-                <div className="space-y-3">
-                  {[0, 1].map((i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
-                </div>
-              ) : institutes.length === 0 ? (
-                <EmptyBlock icon={<MapPin size={22} />} title="Aucun institut pour l'instant" text="De nouveaux instituts Kènè arrivent à Abidjan et Dakar." />
-              ) : (
-                <div className="space-y-3">
-                  {institutes.map((i) => (
-                    <button key={i.id} onClick={() => openInstitute(i)} className="w-full text-left rounded-2xl border border-border bg-card overflow-hidden shadow-sm active:scale-[0.99] transition-transform hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-primary">
-                      <div className="relative">
-                        <img src={i.image} alt={i.name} loading="lazy" className="h-32 w-full object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#1A1410]/70 to-transparent" />
-                        <div className="absolute bottom-2 left-3 right-3 flex items-end justify-between gap-2 text-[#F8F1E4]">
-                          <div>
-                            <p className="font-heading font-bold text-sm leading-tight">{i.name}</p>
-                            <p className="text-[10px] opacity-85 flex items-center gap-1"><MapPin size={10} /> {i.city}, {i.country}</p>
+            <motion.div key="list" exit={{ opacity: 0, x: -30 }}>
+              <Reveal className="space-y-3">
+                <RevealItem>
+                  <SectionTitle icon={<MapPin size={16} />}>Instituts partenaires</SectionTitle>
+                </RevealItem>
+                {institutes === null ? (
+                  <div className="space-y-3">
+                    {[0, 1].map((i) => <Shimmer key={i} className="h-36 rounded-[24px]" />)}
+                  </div>
+                ) : institutes.length === 0 ? (
+                  <EmptyBlock icon={<MapPin size={22} />} title="Aucun institut pour l'instant" text="De nouveaux instituts Kènè arrivent à Abidjan et Dakar." />
+                ) : (
+                  institutes.map((i) => (
+                    <RevealItem key={i.id}>
+                      <button onClick={() => openInstitute(i)} className="k-card k-card-hover block w-full rounded-[24px] p-2.5 text-left transition-transform active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-primary">
+                        <div className="relative">
+                          <img src={i.image} alt={i.name} loading="lazy" className="h-32 w-full rounded-[18px] object-cover" />
+                          <div aria-hidden="true" className="absolute inset-0 rounded-[18px] bg-gradient-to-t from-[#1A1410]/65 via-[#1A1410]/15 to-transparent" />
+                          <div className="absolute bottom-2.5 left-3 right-3 flex items-end justify-between gap-2 text-[#F8F1E4]">
+                            <div className="min-w-0">
+                              <p className="font-heading text-sm font-bold leading-tight">{i.name}</p>
+                              <span className="k-chip mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold text-foreground">
+                                <MapPin size={10} aria-hidden="true" /> {i.city}, {i.country}
+                              </span>
+                            </div>
+                            <span className="flex shrink-0 items-center gap-1 rounded-full bg-[#1A1410]/60 px-2 py-0.5 text-[10px] font-bold">
+                              <Star size={10} className="fill-[#C8951E] text-[#C8951E]" aria-hidden="true" /> {i.rating.toFixed(1)} ({i.reviewCount})
+                            </span>
                           </div>
-                          <span className="flex items-center gap-1 rounded-full bg-[#1A1410]/60 backdrop-blur px-2 py-0.5 text-[10px] font-bold">
-                            <Star size={10} className="fill-[#C8951E] text-[#C8951E]" /> {i.rating.toFixed(1)} ({i.reviewCount})
+                        </div>
+                        <div className="flex items-center justify-between px-1.5 py-2.5 text-[11px] text-muted-foreground">
+                          <span>{i._count?.services ?? 0} soins · {i._count?.reviews ?? 0} avis</span>
+                          <span className="k-btn-gold inline-flex items-center gap-0.5 rounded-full px-3.5 py-1.5 font-bold text-primary-foreground">
+                            Réserver <ChevronRight size={13} aria-hidden="true" />
                           </span>
                         </div>
-                      </div>
-                      <div className="px-3 py-2.5 flex items-center justify-between text-[11px] text-muted-foreground">
-                        <span>{i._count?.services ?? 0} soins · {i._count?.reviews ?? 0} avis</span>
-                        <span className="flex items-center gap-0.5 text-primary font-semibold">Réserver <ChevronRight size={13} /></span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
+                      </button>
+                    </RevealItem>
+                  ))
+                )}
+              </Reveal>
             </motion.div>
           ) : (
             /* — Détail institut — */
-            <motion.div key="detail" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-              <button onClick={() => setInst(null)} className="mt-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour aux instituts">
-                <ArrowLeft size={15} /> Tous les instituts
-              </button>
-              <div className="relative mt-3 rounded-2xl overflow-hidden">
-                <img src={inst.image} alt={inst.name} className="h-44 w-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#1A1410]/80 to-transparent" />
-                <div className="absolute bottom-3 left-4 right-4 text-[#F8F1E4]">
-                  <h2 className="font-heading font-black text-lg">{inst.name}</h2>
-                  <p className="text-[11px] opacity-90 flex items-center gap-2">
-                    <span className="flex items-center gap-1"><Star size={11} className="fill-[#C8951E] text-[#C8951E]" /> {inst.rating.toFixed(1)}</span>
-                    <span className="flex items-center gap-1"><MapPin size={11} /> {inst.city}</span>
-                    <span className="flex items-center gap-1"><Clock size={11} /> {inst.openingHour}h–{inst.closingHour}h</span>
-                  </p>
-                </div>
-              </div>
-              {inst.description && <p className="text-xs text-muted-foreground leading-relaxed mt-3">{inst.description}</p>}
+            <motion.div key="detail" exit={{ opacity: 0, x: -30 }}>
+              <Reveal>
+                <RevealItem>
+                  <button onClick={() => setInst(null)} className="mt-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour aux instituts">
+                    <ArrowLeft size={15} /> Tous les instituts
+                  </button>
+                  <div className="k-card mt-3 rounded-[24px] p-2.5">
+                    <div className="relative">
+                      <img src={inst.image} alt={inst.name} className="h-44 w-full rounded-[18px] object-cover" />
+                      <div aria-hidden="true" className="absolute inset-0 rounded-[18px] bg-gradient-to-t from-[#1A1410]/75 via-[#1A1410]/15 to-transparent" />
+                      <div className="absolute bottom-3 left-4 right-4 text-[#F8F1E4]">
+                        <h2 className="font-heading font-black text-lg leading-tight">{inst.name}</h2>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 px-1 pt-2.5">
+                      <span className="k-chip inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold">
+                        <Star size={11} className="fill-[#C8951E] text-[#C8951E]" aria-hidden="true" /> {inst.rating.toFixed(1)}
+                      </span>
+                      <span className="k-chip inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold">
+                        <MapPin size={11} aria-hidden="true" /> {inst.city}
+                      </span>
+                      <span className="k-chip inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold">
+                        <Clock size={11} aria-hidden="true" /> {inst.openingHour}h–{inst.closingHour}h
+                      </span>
+                    </div>
+                  </div>
+                </RevealItem>
+                <RevealItem>
+                  {inst.description && <p className="text-xs text-muted-foreground leading-relaxed mt-3">{inst.description}</p>}
+                </RevealItem>
 
               {detailLoading ? (
-                <div className="space-y-2 mt-4">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
+                <div className="space-y-2 mt-4">{[0, 1, 2].map((i) => <Shimmer key={i} className="h-16 rounded-[18px]" />)}</div>
               ) : (
                 <>
                   {/* Avis */}
                   {reviews.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Ce que disent les clientes</p>
-                      <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
-                        {reviews.slice(0, 5).map((rv) => (
-                          <div key={rv.id} className="shrink-0 w-56 rounded-2xl border border-border bg-card p-3">
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs font-semibold">{rv.user?.name ?? "Cliente"}</p>
-                              <Stars rating={rv.rating} size={9} />
+                    <RevealItem>
+                      <div className="mt-4">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Ce que disent les clientes</p>
+                        <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
+                          {reviews.slice(0, 5).map((rv) => (
+                            <div key={rv.id} className="k-card shrink-0 w-56 rounded-[18px] p-3">
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs font-semibold">{rv.user?.name ?? "Cliente"}</p>
+                                <Stars rating={rv.rating} size={9} />
+                              </div>
+                              <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug line-clamp-3">{rv.comment ?? "Expérience agréable."}</p>
                             </div>
-                            <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug line-clamp-3">{rv.comment ?? "Expérience agréable."}</p>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    </RevealItem>
                   )}
 
-                  {/* Services */}
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-5 mb-2">Soins & tarifs</p>
-                  <div className="space-y-2">
-                    {services.map((s) => (
-                      <div key={s.id} className={`rounded-2xl border p-3.5 transition-colors ${service?.id === s.id ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold">{s.name}</p>
-                            <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2">
-                              <span className="flex items-center gap-1"><Clock size={11} /> {s.durationMin} min</span>
-                              {s.botanicals && <span className="text-terre truncate">{s.botanicals}</span>}
-                            </p>
+                  {/* Services — cartes radio : k-card + état sélectionné or (ring + teinte) */}
+                  <RevealItem>
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-5 mb-2">Soins & tarifs</p>
+                  </RevealItem>
+                  {services.map((s) => {
+                    const sel = service?.id === s.id;
+                    return (
+                      <RevealItem key={s.id}>
+                        <div className="k-card rounded-[24px] p-2">
+                          <div className={`flex items-start gap-3 rounded-[18px] p-3 transition-all duration-300 ${sel ? "bg-primary/8 ring-2 ring-primary/60" : ""}`}>
+                            <IconBadge icon={sel ? <Check size={17} /> : <Clock size={17} />} tone={sel ? "gold" : "terre"} className="mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <p className="min-w-0 text-sm font-semibold">{s.name}</p>
+                                <p className="shrink-0 font-mono text-sm font-bold tabular-nums">{xof(s.price)}</p>
+                              </div>
+                              <p className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                                <span className="flex shrink-0 items-center gap-1">{s.durationMin} min</span>
+                                {s.botanicals && <span className="truncate text-terre">{s.botanicals}</span>}
+                              </p>
+                              <button onClick={() => chooseService(s)} className={`mt-2.5 h-11 w-full rounded-full text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${sel ? "k-btn-gold text-primary-foreground" : "k-chip text-primary"}`}>
+                                {sel ? "Choisi" : "Choisir"}
+                              </button>
+                            </div>
                           </div>
-                          <p className="font-mono text-sm font-bold shrink-0">{xof(s.price)}</p>
                         </div>
-                        <button onClick={() => chooseService(s)} className={`mt-2.5 h-10 w-full rounded-xl text-xs font-bold active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${service?.id === s.id ? "bg-primary text-primary-foreground" : "border border-primary/50 text-primary"}`}>
-                          {service?.id === s.id ? "Choisi" : "Choisir"}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                      </RevealItem>
+                    );
+                  })}
 
                   {/* Jours + créneaux */}
                   {service && (
-                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
+                    <Reveal className="mt-6">
                       <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Choisis ton jour</p>
                       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
                         {days.map((d) => {
                           const sel = isoDate(d) === isoDate(day);
                           return (
-                            <button key={d.toISOString()} onClick={() => pickDay(d)} aria-pressed={sel} className={`shrink-0 rounded-2xl border px-3.5 py-2 text-center transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${sel ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"}`}>
+                            <button key={d.toISOString()} onClick={() => pickDay(d)} aria-pressed={sel} className={`shrink-0 rounded-[18px] border px-3.5 py-2 text-center transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${sel ? "k-btn-gold border-transparent text-primary-foreground" : "border-border bg-card text-foreground"}`}>
                               <span className="block text-[9px] uppercase font-bold opacity-70">{formatDate(d, { weekday: "short" })}</span>
                               <span className="block font-mono text-sm font-bold mt-0.5">{d.getDate()}</span>
                             </button>
@@ -400,34 +443,34 @@ export function BookingScreen() {
                         <p className="text-xs text-muted-foreground text-center py-4">Aucun créneau affiché — choisis un autre jour.</p>
                       ) : (
                         <div className="grid grid-cols-4 gap-2">
-                          {slots.map((s) => (
-                            <button
-                              key={s.time}
-                              disabled={!s.available}
-                              onClick={() => setSlot(s)}
-                              aria-pressed={slot?.time === s.time}
-                              className={`h-11 rounded-xl font-mono text-xs font-bold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${
-                                !s.available ? "bg-muted text-muted-foreground/40 line-through" : slot?.time === s.time ? "bg-primary text-primary-foreground shadow" : "border border-border bg-card"
-                              }`}
-                            >
-                              {s.time}
-                            </button>
-                          ))}
+                          {slots.map((s) =>
+                            s.available ? (
+                              <Chip key={s.time} selected={slot?.time === s.time} onClick={() => setSlot(s)} className="min-h-11 w-full justify-center font-mono font-bold">
+                                {s.time}
+                              </Chip>
+                            ) : (
+                              <span key={s.time} aria-disabled="true" className="grid min-h-11 w-full place-items-center rounded-full bg-muted font-mono text-xs font-semibold text-muted-foreground/40 line-through">
+                                {s.time}
+                              </span>
+                            ),
+                          )}
                         </div>
                       )}
-                    </motion.div>
+                    </Reveal>
                   )}
 
                   {/* Récap + paiement */}
                   {service && slot && (
-                    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 rounded-3xl border-2 border-primary/40 bg-card p-4 shadow-md">
-                      <p className="font-heading font-bold text-sm mb-3 flex items-center gap-2"><CalendarPlus size={16} className="text-primary" /> Récapitulatif</p>
+                    <Reveal className="k-card k-card-hero mt-6 rounded-[24px] p-4">
+                      <p className="font-heading font-bold text-sm mb-3 flex items-center gap-2.5">
+                        <IconBadge icon={<CalendarPlus size={15} />} size="sm" /> Récapitulatif
+                      </p>
                       <div className="space-y-1.5 text-xs">
                         <p className="flex justify-between"><span className="text-muted-foreground">Soin</span><span className="font-semibold">{service.name}</span></p>
-                        <p className="flex justify-between"><span className="text-muted-foreground">Quand</span><span className="font-semibold font-mono">{formatDate(day, { weekday: "short", day: "numeric", month: "short" })} {slot.time}</span></p>
+                        <p className="flex justify-between"><span className="text-muted-foreground">Quand</span><span className="font-semibold font-mono tabular-nums">{formatDate(day, { weekday: "short", day: "numeric", month: "short" })} {slot.time}</span></p>
                         <p className="flex justify-between"><span className="text-muted-foreground">Praticienne</span><span className="font-semibold">{practitioner?.name ?? "Assignée à l'arrivée"}</span></p>
-                        <p className="flex justify-between"><span className="text-muted-foreground">Prix du soin</span><span className="font-mono font-semibold">{xof(service.price)}</span></p>
-                        <p className="flex justify-between border-t border-dashed border-border pt-1.5"><span className="font-semibold">Acompte 30 % (aujourd&apos;hui)</span><span className="font-mono font-black text-primary">{xof(deposit)}</span></p>
+                        <p className="flex justify-between"><span className="text-muted-foreground">Prix du soin</span><span className="font-mono font-semibold tabular-nums">{xof(service.price)}</span></p>
+                        <p className="flex justify-between border-t border-dashed border-border pt-1.5"><span className="font-semibold">Acompte 30 % (aujourd&apos;hui)</span><span className="font-mono font-black tabular-nums text-primary">{xof(deposit)}</span></p>
                         <p className="text-[10px] text-muted-foreground">Solde de {xof(service.price - deposit)} à régler sur place. Annulation gratuite &gt; 72 h.</p>
                       </div>
 
@@ -455,19 +498,20 @@ export function BookingScreen() {
                         <div role="alert" className="mt-1.5 rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 flex items-center gap-2.5">
                           <TriangleAlert size={14} className="text-terre shrink-0" aria-hidden="true" />
                           <p className="flex-1 min-w-0 text-[11px] text-muted-foreground leading-snug">Solde indisponible — réessaie</p>
-                          <button onClick={loadWallet} className="h-11 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold active:scale-95 transition-transform shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+                          <button onClick={loadWallet} className="k-btn-gold h-11 shrink-0 rounded-xl px-3.5 text-xs font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary">
                             Réessayer
                           </button>
                         </div>
                       )}
 
-                      <button onClick={startBook} disabled={paying} className="mt-3 h-12 w-full rounded-xl bg-primary text-primary-foreground font-heading font-black text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                        {paying ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />} Confirmer pour {xof(deposit)}
-                      </button>
-                    </motion.div>
+                      <PrimaryCTA onClick={startBook} disabled={paying} className="mt-3 w-full">
+                        {paying ? <Loader2 size={17} className="animate-spin" aria-hidden="true" /> : <Check size={17} aria-hidden="true" />} Confirmer pour {xof(deposit)}
+                      </PrimaryCTA>
+                    </Reveal>
                   )}
                 </>
               )}
+              </Reveal>
             </motion.div>
           )}
         </AnimatePresence>
@@ -479,60 +523,64 @@ export function BookingScreen() {
           <section aria-labelledby="up-t">
             <SectionTitle icon={<CalendarDays size={16} />}><span id="up-t">À venir</span></SectionTitle>
             {mine === null ? (
-              <div className="space-y-2">{[0, 1].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+              <div className="space-y-2">{[0, 1].map((i) => <Shimmer key={i} className="h-24 rounded-[24px]" />)}</div>
             ) : upcoming.length === 0 ? (
               <EmptyBlock icon={<CalendarDays size={22} />} title="Aucun RDV à venir" text="Réserve un soin chez un institut partenaire en 2 minutes." />
             ) : (
-              <div className="space-y-2.5">
+              <Reveal className="space-y-2.5">
                 {upcoming.map((a) => (
-                  <div key={a.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm">{a.service?.name ?? "Soin"}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{a.tenant?.name} · {a.resource?.name}</p>
-                        <p className="text-xs font-mono mt-1 text-primary">{formatDate(a.startAt, { weekday: "short", day: "numeric", month: "short" })} · {formatTime(a.startAt)}</p>
+                  <RevealItem key={a.id}>
+                    <div className="k-card rounded-[24px] p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm">{a.service?.name ?? "Soin"}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{a.tenant?.name} · {a.resource?.name}</p>
+                          <p className="text-xs font-mono mt-1 text-primary">{formatDate(a.startAt, { weekday: "short", day: "numeric", month: "short" })} · {formatTime(a.startAt)}</p>
+                        </div>
+                        <ApptBadge status={a.status} />
                       </div>
-                      <ApptBadge status={a.status} />
+                      {a.depositAmount > 0 && <p className="text-[10px] text-muted-foreground mt-2 font-mono">Acompte {xof(a.depositAmount)} réglé</p>}
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={() => setCancelFor(a)}
+                          disabled={a.status === "cancelled"}
+                          className="h-10 px-4 rounded-xl border border-destructive/40 text-destructive text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-destructive"
+                        >
+                          <X size={14} /> Annuler
+                        </button>
+                      </div>
                     </div>
-                    {a.depositAmount > 0 && <p className="text-[10px] text-muted-foreground mt-2 font-mono">Acompte {xof(a.depositAmount)} réglé</p>}
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        onClick={() => setCancelFor(a)}
-                        disabled={a.status === "cancelled"}
-                        className="h-10 px-4 rounded-xl border border-destructive/40 text-destructive text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-destructive"
-                      >
-                        <X size={14} /> Annuler
-                      </button>
-                    </div>
-                  </div>
+                  </RevealItem>
                 ))}
-              </div>
+              </Reveal>
             )}
           </section>
 
           <section aria-labelledby="past-t" className="pb-2">
             <SectionTitle icon={<MessageSquareQuote size={16} />}><span id="past-t">Passés</span></SectionTitle>
             {mine === null ? (
-              <Skeleton className="h-20 rounded-2xl" />
+              <Shimmer className="h-20 rounded-[24px]" />
             ) : past.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-3">Tes RDV passés apparaîtront ici.</p>
             ) : (
-              <div className="space-y-2.5">
+              <Reveal className="space-y-2.5">
                 {past.map((a) => (
-                  <div key={a.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold truncate">{a.service?.name ?? "Soin"}</p>
-                      <p className="text-[11px] text-muted-foreground">{a.tenant?.name} · {formatDate(a.startAt)}</p>
+                  <RevealItem key={a.id}>
+                    <div className="k-card flex items-center gap-3 rounded-[24px] p-3.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold truncate">{a.service?.name ?? "Soin"}</p>
+                        <p className="text-[11px] text-muted-foreground">{a.tenant?.name} · {formatDate(a.startAt)}</p>
+                      </div>
+                      <ApptBadge status={a.status} />
+                      {a.status === "completed" && (
+                        <button onClick={() => { setReviewFor(a); setRating(5); setComment(""); }} className="h-9 px-3 rounded-full bg-primary/10 text-primary text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+                          <Star size={12} aria-hidden="true" /> Avis
+                        </button>
+                      )}
                     </div>
-                    <ApptBadge status={a.status} />
-                    {a.status === "completed" && (
-                      <button onClick={() => { setReviewFor(a); setRating(5); setComment(""); }} className="h-9 px-3 rounded-full bg-primary/10 text-primary text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
-                        <Star size={12} /> Avis
-                      </button>
-                    )}
-                  </div>
+                  </RevealItem>
                 ))}
-              </div>
+              </Reveal>
             )}
           </section>
         </div>
@@ -558,9 +606,9 @@ export function BookingScreen() {
             rows={3}
             placeholder="Partage ton expérience (accueil, résultat du soin…)"
             aria-label="Commentaire"
-            className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm focus-visible:outline-2 focus-visible:outline-primary"
+            className="k-input w-full rounded-xl px-3 py-2.5 text-sm"
           />
-          <button onClick={submitReview} className="h-12 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          <button onClick={submitReview} className="k-btn-gold h-12 rounded-xl text-primary-foreground font-semibold text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
             Publier mon avis
           </button>
         </DialogContent>

@@ -1,5 +1,8 @@
 "use client";
 // Kènè Cliente — Chat Dr. Kènè : WhatsApp-like, STT fr-FR, triage photo IA, TTS.
+// ÉCLAT 2026 : bulles verre (IA) / dégradé terre-bissap (cliente), avatar
+// NeaOnnim à halo doré, chips verre — présentation seule, logique chat
+// (store persist, STT, triage photo, TTS) inchangée.
 // La conversation vit dans le store persist « kene-chat » (src/store/chat.ts) :
 // elle survit au changement d'onglet et au rechargement, sans les photos
 // (base64 — mémoire de session uniquement, jamais dans localStorage).
@@ -8,7 +11,8 @@ import { motion } from "framer-motion";
 import { Camera, CircleCheck, ImagePlus, Mic, OctagonAlert, Send, ShieldCheck, TriangleAlert, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, resizeImage } from "@/lib/kene/api";
-import { DuafeIcon } from "@/components/kene/icons";
+import { NeaOnnimIcon } from "@/components/kene/icons";
+import { Chip, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
 import { useChat } from "@/store/chat";
 import type { ChatMsg } from "./types";
@@ -169,9 +173,11 @@ export function ChatScreen() {
   return (
     <div className="flex flex-col min-h-[68vh] pt-4">
       <header className="flex items-center gap-3 pb-3 border-b border-border">
-        <span className="relative grid place-items-center h-11 w-11 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] shadow shrink-0">
-          <DuafeIcon size={22} />
-          <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#3F7D3F] border-2 border-background" aria-hidden="true" />
+        <span className="relative shrink-0">
+          <span className="k-glow-gold inline-grid rounded-[14px]">
+            <IconBadge icon={<NeaOnnimIcon size={22} />} size="md" tone="gold" />
+          </span>
+          <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#346834] border-2 border-background" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-heading font-bold text-sm">Dr. Kènè</p>
@@ -200,8 +206,8 @@ export function ChatScreen() {
             if (m.role === "user") {
               return (
                 <motion.div key={m.id} initial={{ opacity: 0, y: 8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="self-end max-w-[82%]">
-                  {m.photo && <img src={m.photo} alt="Photo envoyée" className="rounded-2xl rounded-br-md mb-1.5 max-h-52 object-cover border border-border" />}
-                  <div className="rounded-2xl rounded-br-md bg-primary/90 text-primary-foreground px-3.5 py-2.5 shadow">
+                  {m.photo && <img src={m.photo} alt="Photo envoyée" className="rounded-[20px] rounded-br-[6px] mb-1.5 max-h-52 object-cover border border-border" />}
+                  <div className="k-cta rounded-[20px] rounded-br-[6px] px-3.5 py-2.5 text-[#FFF9EC]">
                     <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
                   </div>
                   <p className="text-[9px] text-muted-foreground text-right mt-1">{new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
@@ -211,23 +217,26 @@ export function ChatScreen() {
             const tri = m.niveau ? TRIAGE[m.niveau] : null;
             return (
               <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="self-start max-w-[86%] flex items-end gap-2">
-                <span className="grid place-items-center h-8 w-8 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] shrink-0 mb-4">
-                  <DuafeIcon size={15} />
-                </span>
+                <IconBadge icon={<NeaOnnimIcon size={14} />} size="sm" tone="gold" className="mb-4 h-8 w-8 rounded-[10px]" />
                 <div>
-                  <div className={`rounded-2xl rounded-bl-md border border-border bg-card px-3.5 py-2.5 shadow-sm ${tri ? `${tri.border} ${tri.bg}` : ""}`}>
+                  <div className="relative k-card rounded-[20px] rounded-bl-[6px] px-3.5 py-2.5">
                     {tri && (
-                      <p className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide ${tri.text} mb-1.5`}>
-                        <tri.Icon size={13} />
-                        {m.niveau === "vert" ? "Rassurant" : m.niveau === "jaune" ? "À surveiller" : "Consultation conseillée"}
-                      </p>
+                      <span aria-hidden="true" className={`pointer-events-none absolute inset-0 rounded-[20px] rounded-bl-[6px] ${tri.border} ${tri.bg}`} />
                     )}
-                    <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                    <div className="relative">
+                      {tri && (
+                        <p className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide ${tri.text} mb-1.5`}>
+                          <tri.Icon size={13} />
+                          {m.niveau === "vert" ? "Rassurant" : m.niveau === "jaune" ? "À surveiller" : "Consultation conseillée"}
+                        </p>
+                      )}
+                      <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                    </div>
                   </div>
                   {tri && (
                     <button
                       onClick={() => setClientTab(tri.tab)}
-                      className={`mt-1.5 h-9 px-3.5 rounded-full ${tri.text} border ${m.niveau === "vert" ? "border-[#3F7D3F]/50 bg-[#3F7D3F]/10" : m.niveau === "jaune" ? "border-[#C8951E]/50 bg-[#C8951E]/10" : "border-[#8B1A3B]/50 bg-[#8B1A3B]/10"} text-[11px] font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary`}
+                      className={`mt-1.5 h-9 px-3.5 rounded-full ${tri.text} border ${m.niveau === "vert" ? "border-[#346834]/50 bg-[#346834]/10" : m.niveau === "jaune" ? "border-[#C8951E]/50 bg-[#C8951E]/10" : "border-[#8B1A3B]/50 bg-[#8B1A3B]/10"} text-[11px] font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary`}
                     >
                       {tri.cta} →
                     </button>
@@ -240,10 +249,8 @@ export function ChatScreen() {
 
           {sending && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="self-start flex items-end gap-2">
-              <span className="grid place-items-center h-8 w-8 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] shrink-0">
-                <DuafeIcon size={15} />
-              </span>
-              <div className="rounded-2xl rounded-bl-md border border-border bg-card px-4 py-3 shadow-sm flex gap-1.5" aria-label="Dr. Kènè écrit">
+              <IconBadge icon={<NeaOnnimIcon size={14} />} size="sm" tone="gold" className="h-8 w-8 rounded-[10px]" />
+              <div className="k-card rounded-[20px] rounded-bl-[6px] px-4 py-3 flex gap-1.5" aria-label="Dr. Kènè écrit">
                 {[0, 1, 2].map((i) => (
                   <motion.span key={i} className="h-1.5 w-1.5 rounded-full bg-primary" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.15 }} />
                 ))}
@@ -258,22 +265,22 @@ export function ChatScreen() {
       {messages.length <= 1 && !sending && (
         <div className="flex flex-col gap-2 py-3">
           {SUGGESTIONS.map((s) => (
-            <button key={s} onClick={() => send(s)} className="self-start rounded-full border border-primary/40 bg-primary/5 px-4 py-2.5 text-xs font-medium text-left text-primary active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+            <Chip key={s} selected={false} onClick={() => send(s)} className="self-start text-left">
               {s}
-            </button>
+            </Chip>
           ))}
         </div>
       )}
 
       {/* Saisie */}
       <div className="sticky bottom-0 pt-2">
-        <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 shadow-lg">
+        <div className="k-card flex items-center gap-2 rounded-[20px] p-2">
           <button
             onClick={toggleMic}
             aria-pressed={listening}
             aria-label="Dicter mon message"
             title={srSupported.current ? "Dictée vocale" : "Dictée non supportée par ce navigateur"}
-            className={`h-11 w-11 grid place-items-center rounded-full shrink-0 active:scale-90 transition-all focus-visible:outline-2 focus-visible:outline-primary ${listening ? "bg-destructive text-white animate-pulse" : "text-muted-foreground hover:bg-muted"}`}
+            className={`h-12 w-12 grid place-items-center rounded-full shrink-0 active:scale-90 transition-all focus-visible:outline-2 focus-visible:outline-primary ${listening ? "bg-destructive text-[#FFF9EC] animate-pulse" : "text-muted-foreground hover:bg-muted"}`}
           >
             <Mic size={19} />
           </button>
@@ -283,12 +290,12 @@ export function ChatScreen() {
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); send(); } }}
             placeholder={listening ? "Je t'écoute…" : "Écris à Dr. Kènè…"}
             aria-label="Message pour Dr. Kènè"
-            className="flex-1 min-w-0 bg-transparent px-1 py-2.5 text-sm rounded-lg outline-none placeholder:text-muted-foreground/70 focus-visible:outline-2 focus-visible:outline-primary"
+            className="k-input h-12 min-w-0 flex-1 rounded-2xl px-3.5 text-sm outline-none placeholder:text-muted-foreground/70"
           />
-          <button onClick={() => fileRef.current?.click()} disabled={photoBusy} aria-label="Envoyer une photo" className="h-11 w-11 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+          <button onClick={() => fileRef.current?.click()} disabled={photoBusy} aria-label="Envoyer une photo" className="h-12 w-12 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
             {photoBusy ? <ImagePlus size={19} className="animate-pulse text-primary" /> : <Camera size={19} />}
           </button>
-          <button onClick={() => send()} disabled={!input.trim() || sending} aria-label="Envoyer" className="h-11 w-11 grid place-items-center rounded-full bg-primary text-primary-foreground shadow active:scale-90 transition-all disabled:opacity-50 shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+          <button onClick={() => send()} disabled={!input.trim() || sending} aria-label="Envoyer" className="k-btn-gold h-12 w-12 grid place-items-center rounded-full text-primary-foreground active:scale-90 transition-all disabled:opacity-50 shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
             <Send size={18} />
           </button>
         </div>

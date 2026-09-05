@@ -10,7 +10,7 @@ import { xof, CASHBACK_RATE, formatDate, formatTime } from "@/lib/kene/format";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { MOMO_OPERATORS } from "@/lib/kene/rfm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Chip, PrimaryCTA, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
 import { useFavorites } from "@/store/favorites";
 import { useSecurity } from "@/store/security";
@@ -232,84 +232,92 @@ export function ShopScreen() {
 
   return (
     <div className="pt-4 pb-2">
-      <header className="flex items-center justify-between">
-        <h1 className="font-heading font-black text-xl">Boutique Kènè</h1>
-        <span className="rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1 uppercase tracking-wide">Cashback {Math.round(cashbackRate * 100)} %</span>
-      </header>
-
-      {/* Bascule Catalogue ↔ Mes commandes — la cliente consulte ses données */}
-      <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl border border-border bg-card p-1" role="tablist" aria-label="Vues boutique">
-        <button
-          role="tab"
-          aria-selected={view === "catalogue"}
-          onClick={() => setView("catalogue")}
-          className={`h-10 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-primary ${view === "catalogue" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          <ShoppingBag size={14} aria-hidden="true" /> Catalogue
-        </button>
-        <button
-          role="tab"
-          aria-selected={view === "commandes"}
-          onClick={() => setView("commandes")}
-          className={`h-10 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-primary ${view === "commandes" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          <History size={14} aria-hidden="true" /> Mes commandes{orders !== null && orders.length > 0 ? ` (${orders.length})` : ""}
-        </button>
-      </div>
+      <Reveal>
+        <RevealItem>
+          <header className="flex items-center justify-between">
+            <h1 className="font-heading font-black text-xl tracking-tight">Boutique Kènè</h1>
+            <span className="k-chip rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-gold-text">Cashback {Math.round(cashbackRate * 100)} %</span>
+          </header>
+        </RevealItem>
+        <RevealItem>
+          {/* Bascule Catalogue ↔ Mes commandes — la cliente consulte ses données */}
+          <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl k-card p-1" role="tablist" aria-label="Vues boutique">
+            <button
+              role="tab"
+              aria-selected={view === "catalogue"}
+              onClick={() => setView("catalogue")}
+              className={`h-10 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-primary ${view === "catalogue" ? "k-btn-gold text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <ShoppingBag size={14} aria-hidden="true" /> Catalogue
+            </button>
+            <button
+              role="tab"
+              aria-selected={view === "commandes"}
+              onClick={() => setView("commandes")}
+              className={`h-10 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-primary ${view === "commandes" ? "k-btn-gold text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <History size={14} aria-hidden="true" /> Mes commandes{orders !== null && orders.length > 0 ? ` (${orders.length})` : ""}
+            </button>
+          </div>
+        </RevealItem>
+      </Reveal>
 
       {view === "commandes" ? (
         <OrdersView orders={orders} onRefresh={refreshOrders} onShop={() => setView("catalogue")} />
       ) : (
         <>
-      {/* Le Fil de Kente — hero tissé, le fil de la catégorie s'illumine */}
-      <div className="mt-4">
-        <KenteWeaveCard highlightIndex={cat ? categoryThread(cat) : -1} caption={weaveCaption} />
-      </div>
+      <Reveal>
+        <RevealItem>
+          {/* Le Fil de Kente — hero tissé, le fil de la catégorie s'illumine */}
+          <div className="mt-4">
+            <KenteWeaveCard highlightIndex={cat ? categoryThread(cat) : -1} caption={weaveCaption} />
+          </div>
+        </RevealItem>
 
-      {/* Recherche */}
-      <div className="mt-3 relative">
-        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-        <input
-          ref={inputRef}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Rechercher un soin, un botanique…"
-          aria-label="Rechercher un produit"
-          className="h-12 w-full rounded-2xl border border-border bg-card pl-10 pr-4 text-sm focus-visible:outline-2 focus-visible:outline-primary"
-        />
-      </div>
+        <RevealItem>
+          {/* Recherche */}
+          <div className="mt-3 relative">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <input
+              ref={inputRef}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Rechercher un soin, un botanique…"
+              aria-label="Rechercher un produit"
+              className="k-input h-12 w-full rounded-2xl pl-10 pr-4 text-sm"
+            />
+          </div>
+        </RevealItem>
 
-      {/* Filtres : catégories + favoris (bascules aria-pressed, cumulables) */}
-      <div className="flex gap-2 overflow-x-auto py-3 scrollbar-thin -mx-1 px-1" role="group" aria-label="Filtres de la boutique">
-        {SHOP_CATEGORIES.map((c) => (
-          <button
-            key={c.id}
-            aria-pressed={cat === c.id}
-            onClick={() => setCat(c.id)}
-            className={`shrink-0 rounded-full px-3.5 min-h-10 text-xs font-semibold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${cat === c.id ? "bg-primary text-primary-foreground shadow" : "border border-border bg-card text-foreground/80"}`}
-          >
-            {c.label}
-          </button>
-        ))}
-        {/* ♥ Favoris — filtre cumulable, badge count si ≥ 1 */}
-        <button
-          aria-pressed={favOnly}
-          onClick={() => { setFavOnly((v) => !v); haptic(HAPTIC.tap); }}
-          className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 min-h-10 text-xs font-semibold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${favOnly ? "bg-primary text-primary-foreground shadow" : "border border-border bg-card text-foreground/80"}`}
-        >
-          <Heart size={13} fill={favOnly ? "currentColor" : "none"} aria-hidden="true" />
-          Favoris{favs.length > 0 ? ` · ${favs.length}` : ""}
-        </button>
-      </div>
+        <RevealItem>
+          {/* Filtres : catégories + favoris (bascules aria-pressed, cumulables) — Chip verre→or 2026 */}
+          <div className="flex gap-2 overflow-x-auto py-3 scrollbar-thin -mx-1 px-1" role="group" aria-label="Filtres de la boutique">
+            {SHOP_CATEGORIES.map((c) => (
+              <Chip key={c.id} selected={cat === c.id} onClick={() => setCat(c.id)} className="min-h-11 shrink-0">
+                {c.label}
+              </Chip>
+            ))}
+            {/* ♥ Favoris — filtre cumulable, badge count si ≥ 1 */}
+            <Chip
+              selected={favOnly}
+              onClick={() => { setFavOnly((v) => !v); haptic(HAPTIC.tap); }}
+              className="min-h-11 shrink-0"
+            >
+              <Heart size={13} fill={favOnly ? "currentColor" : "none"} aria-hidden="true" />
+              Favoris{favs.length > 0 ? ` · ${favs.length}` : ""}
+            </Chip>
+          </div>
+        </RevealItem>
+      </Reveal>
 
       {/* Grille produits */}
       {products === null ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="space-y-2">
-              <Skeleton className="aspect-square rounded-2xl" />
-              <Skeleton className="h-3.5 w-4/5" />
-              <Skeleton className="h-3 w-2/3" />
+              <Shimmer className="aspect-square rounded-[18px]" />
+              <Shimmer className="h-3.5 w-4/5 rounded" />
+              <Shimmer className="h-3 w-2/3 rounded" />
             </div>
           ))}
         </div>
@@ -328,7 +336,7 @@ export function ShopScreen() {
             cta={
               <button
                 onClick={() => { setCat(""); setQ(""); }}
-                className="h-11 px-6 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+                className="k-btn-gold h-11 rounded-xl px-6 text-sm font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary"
               >
                 Voir tous mes favoris
               </button>
@@ -338,47 +346,68 @@ export function ShopScreen() {
           <EmptyBlock icon={<Search size={22} />} title="Aucun produit trouvé" text="Essaie un autre mot-clé ou une autre catégorie." />
         )
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <Reveal className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
           {filtered.map((p) => (
             /* Wrapper relatif : le cœur est un FRÈRE de la carte (jamais de <button>
                imbriqué — HTML valide, focus/a11y propres), posé sur l'image en absolu. */
-            <div key={p.id} className="relative">
-              <button
-                onClick={(e) => onCardTap(p, e)}
-                className="relative block w-full text-left rounded-2xl border border-border bg-card overflow-hidden shadow-sm active:scale-[0.98] transition-transform hover:border-primary/40 touch-manipulation focus-visible:outline-2 focus-visible:outline-primary"
-                aria-label={`${p.name}, ${xof(p.price)} — appuie une fois pour la fiche, deux fois pour l'ajouter au panier`}
-              >
-                {/* Burst double-tap — panier kente qui jaillit sous le doigt */}
-                {burst?.id === p.id && (
-                  <motion.span
-                    aria-hidden="true"
-                    initial={{ scale: 0.3, opacity: 0.95 }}
-                    animate={{ scale: 1.7, opacity: 0 }}
-                    transition={{ duration: 0.65, ease: "easeOut" }}
-                    className="pointer-events-none absolute z-20"
-                    style={{ left: burst.x, top: burst.y }}
-                  >
-                    <span className="grid place-items-center h-20 w-20 -ml-10 -mt-10 rounded-full bg-[#FFF9EC]/30 backdrop-blur-[2px] shadow-xl">
-                      <span className="grid place-items-center h-12 w-12 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] shadow-lg">
-                        <ShoppingBag size={22} className="text-[#FFF9EC]" />
-                      </span>
-                    </span>
-                  </motion.span>
-                )}
-                <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full object-cover" />
-                <div className="p-2.5">
-                  <p className="text-[13px] font-semibold leading-tight line-clamp-2 min-h-9">{p.name}</p>
-                  <p className="text-[10px] text-terre mt-1 truncate">{p.botanicals}</p>
-                  <div className="flex items-center justify-between mt-1.5">
-                    <span className="font-mono text-[13px] font-bold">{xof(p.price)}</span>
-                    <Stars rating={p.rating} size={9} />
+            <RevealItem key={p.id} className="relative">
+              <div className="k-card k-card-hover rounded-[24px] p-2.5 pb-2">
+                <button
+                  onClick={(e) => onCardTap(p, e)}
+                  className="block w-full touch-manipulation rounded-[18px] text-left transition-transform focus-visible:outline-2 focus-visible:outline-primary active:scale-[0.98]"
+                  aria-label={`${p.name}, ${xof(p.price)} — appuie une fois pour la fiche, deux fois pour l'ajouter au panier`}
+                >
+                  <div className="relative">
+                    <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full rounded-[18px] object-cover" />
+                    {/* Dégradé bas subtil — profondeur derrière le badge prix flottant */}
+                    <div aria-hidden="true" className="absolute inset-0 rounded-[18px] bg-gradient-to-t from-black/25 via-transparent to-transparent" />
+                    {/* Burst double-tap — panier kente qui jaillit sous le doigt */}
+                    {burst?.id === p.id && (
+                      <motion.span
+                        aria-hidden="true"
+                        initial={{ scale: 0.3, opacity: 0.95 }}
+                        animate={{ scale: 1.7, opacity: 0 }}
+                        transition={{ duration: 0.65, ease: "easeOut" }}
+                        className="pointer-events-none absolute z-20"
+                        style={{ left: burst.x, top: burst.y }}
+                      >
+                        <span className="grid place-items-center h-20 w-20 -ml-10 -mt-10 rounded-full bg-[#FFF9EC]/30 backdrop-blur-[2px] shadow-xl">
+                          <span className="grid place-items-center h-12 w-12 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] shadow-lg">
+                            <ShoppingBag size={22} className="text-[#FFF9EC]" />
+                          </span>
+                        </span>
+                      </motion.span>
+                    )}
+                    {/* Badge prix — pilule de verre flottant sur l'image */}
+                    <span className="k-chip absolute bottom-2.5 left-2.5 rounded-full px-2.5 py-1 font-mono text-[11px] font-bold text-gold-text">{xof(p.price)}</span>
                   </div>
+                  <div className="pt-2">
+                    <p className="font-heading text-sm font-bold leading-tight tracking-tight line-clamp-2 min-h-9">{p.name}</p>
+                    <p className="text-[10px] text-terre mt-1 truncate">{p.botanicals}</p>
+                  </div>
+                </button>
+                <div className="mt-1.5 flex items-center justify-between gap-2 px-0.5">
+                  <Stars rating={p.rating} size={9} />
+                  {/* Ajout express — même store addToCart que le double-tap, affordance dédiée */}
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                      addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image });
+                      haptic(HAPTIC.light);
+                      toast.success(`${p.name} ajouté au panier`);
+                    }}
+                    aria-label={`Ajouter ${p.name} au panier`}
+                    className="k-btn-gold grid h-11 w-11 place-items-center rounded-full text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary"
+                  >
+                    <Plus size={18} aria-hidden="true" />
+                  </motion.button>
                 </div>
-              </button>
+              </div>
               <FavButton variant="card" productId={p.id} productName={p.name} />
-            </div>
+            </RevealItem>
           ))}
-        </div>
+        </Reveal>
       )}
         </>
       )}
@@ -389,7 +418,7 @@ export function ShopScreen() {
           <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="sticky bottom-[84px] z-20 mt-4">
             <button
               onClick={() => { setCheckout(true); haptic(HAPTIC.tap); }}
-              className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] shadow-xl flex items-center justify-between px-4 active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="k-cta flex h-14 w-full items-center justify-between rounded-2xl px-4 text-[#FFF9EC] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               aria-label={`Panier ${cart.length} articles, total ${xof(subtotal)} — commander`}
             >
               <span className="flex items-center gap-2 text-sm font-semibold">
@@ -430,7 +459,7 @@ export function ShopScreen() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-mono text-xl font-black text-primary">{xof(detail.price)}</p>
+                    <p className="font-mono text-xl font-black tabular-nums text-primary">{xof(detail.price)}</p>
                     {detail.compareAt && detail.compareAt > detail.price && <p className="text-[11px] text-muted-foreground line-through">{xof(detail.compareAt)}</p>}
                   </div>
                   <div className="flex items-center gap-3 rounded-full border border-border px-2 py-1.5">
@@ -439,12 +468,12 @@ export function ShopScreen() {
                     <button onClick={() => setQty((n) => Math.min(detail.stock, n + 1))} className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted active:scale-90 transition-all" aria-label="Augmenter la quantité"><Plus size={16} /></button>
                   </div>
                 </div>
-                <button
+                <PrimaryCTA
                   onClick={() => { addToCart({ productId: detail.id, name: detail.name, price: detail.price, qty, image: detail.image }); toast.success(`${qty} × ${detail.name} ajouté au panier`); setDetail(null); }}
-                  className="h-12 w-full rounded-xl bg-primary text-primary-foreground font-semibold text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  className="h-12 w-full"
                 >
-                  <Plus size={17} /> Ajouter au panier — {xof(detail.price * qty)}
-                </button>
+                  <Plus size={17} aria-hidden="true" /> Ajouter au panier — {xof(detail.price * qty)}
+                </PrimaryCTA>
                 {/* Favori — action secondaire de la fiche produit (persistante, par appareil) */}
                 <FavButton variant="inline" productId={detail.id} productName={detail.name} />
               </div>
@@ -462,7 +491,7 @@ export function ShopScreen() {
           <div className="px-4 pb-6 space-y-4">
             <div className="space-y-2">
               {cart.map((l) => (
-                <div key={l.productId} className="flex items-center gap-3 rounded-xl border border-border bg-card p-2">
+                <div key={l.productId} className="k-card flex items-center gap-3 rounded-[18px] p-2">
                   <img src={l.image} alt={l.name} className="h-12 w-12 rounded-lg object-cover" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold leading-tight line-clamp-2">{l.name}</p>
@@ -510,29 +539,29 @@ export function ShopScreen() {
                     aria-label="Code promo"
                     autoComplete="off"
                     maxLength={24}
-                    className="h-12 w-full rounded-2xl border border-border bg-card pl-10 pr-3 text-sm font-mono uppercase tracking-wide placeholder:font-sans placeholder:normal-case placeholder:tracking-normal focus-visible:outline-2 focus-visible:outline-primary"
+                    className="k-input h-12 w-full rounded-2xl pl-10 pr-3 text-sm font-mono uppercase tracking-wide placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
                   />
                 </div>
                 <button
                   onClick={() => void applyPromo()}
                   disabled={!promoInput.trim() || promoChecking}
-                  className="h-12 px-5 rounded-2xl border border-border bg-card text-xs font-bold disabled:opacity-50 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
+                  className="k-chip h-12 rounded-2xl px-5 text-xs font-bold disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-primary"
                 >
                   {promoChecking ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : "Appliquer"}
                 </button>
               </div>
             )}
 
-            <div className="rounded-2xl bg-muted/60 p-4 space-y-1.5 text-xs">
-              <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span className="font-mono font-semibold">{xof(subtotal)}</span></div>
+            <div className="k-card k-card-hero space-y-1.5 rounded-[24px] p-4 text-xs">
+              <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span className="font-mono font-semibold tabular-nums">{xof(subtotal)}</span></div>
               {discount > 0 && (
                 <div className="flex justify-between text-[#3F7D3F]">
                   <span className="font-semibold">Remise {livePromo?.code}</span>
-                  <span className="font-mono font-semibold">−{xof(discount)}</span>
+                  <span className="font-mono font-semibold tabular-nums">−{xof(discount)}</span>
                 </div>
               )}
-              <div className="flex justify-between"><span className="text-muted-foreground">Cashback estimé ({Math.round(cashbackRate * 100)} %)</span><span className="font-mono font-semibold text-[#3F7D3F]">+{xof(Math.round(total * cashbackRate))}</span></div>
-              <div className="flex justify-between border-t border-border pt-1.5 text-sm"><span className="font-semibold">Total à payer</span><span className="font-mono font-black text-primary">{xof(total)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Cashback estimé ({Math.round(cashbackRate * 100)} %)</span><span className="font-mono font-semibold tabular-nums text-[#3F7D3F]">+{xof(Math.round(total * cashbackRate))}</span></div>
+              <div className="flex justify-between border-t border-border pt-1.5 text-sm"><span className="font-semibold">Total à payer</span><span className="font-mono font-black tabular-nums text-primary">{xof(total)}</span></div>
             </div>
 
             <div>
@@ -567,7 +596,7 @@ export function ShopScreen() {
                   <div role="alert" className="rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 flex items-center gap-2.5">
                     <TriangleAlert size={14} className="text-terre shrink-0" aria-hidden="true" />
                     <p className="flex-1 min-w-0 text-[11px] text-muted-foreground leading-snug">Solde indisponible — réessaie</p>
-                    <button onClick={loadWallet} className="h-11 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold active:scale-95 transition-transform shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+                    <button onClick={loadWallet} className="k-btn-gold h-11 shrink-0 rounded-xl px-3.5 text-xs font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary">
                       Réessayer
                     </button>
                   </div>
@@ -655,7 +684,7 @@ function OrdersView({ orders, onRefresh, onShop }: { orders: ApiOrder[] | null; 
     return (
       <div className="mt-4 space-y-3">
         {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-36 rounded-2xl" />
+          <Shimmer key={i} className="h-36 rounded-[24px]" />
         ))}
       </div>
     );
@@ -669,7 +698,7 @@ function OrdersView({ orders, onRefresh, onShop }: { orders: ApiOrder[] | null; 
           title="Aucune commande pour l'instant"
           text="Tes commandes boutique s'enregistrent ici — articles, remises et cashback."
           cta={
-            <button onClick={onShop} className="h-11 px-6 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+            <button onClick={onShop} className="k-btn-gold h-11 rounded-xl px-6 text-sm font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary">
               Découvrir le catalogue
             </button>
           }
@@ -680,10 +709,12 @@ function OrdersView({ orders, onRefresh, onShop }: { orders: ApiOrder[] | null; 
 
   return (
     <div className="mt-4 space-y-3" aria-live="polite">
+      <Reveal className="space-y-3">
       {orders.map((o) => {
         const st = ORDER_STATUS[o.status] ?? { label: o.status, cls: "bg-muted text-muted-foreground border-border" };
         return (
-          <article key={o.id} aria-label={`Commande N° ${o.id.slice(-6).toUpperCase()}`} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <RevealItem key={o.id}>
+          <article aria-label={`Commande N° ${o.id.slice(-6).toUpperCase()}`} className="k-card overflow-hidden rounded-[24px]">
             <div className="kente-band-soft h-1 w-full" aria-hidden="true" />
             <div className="p-4 space-y-3">
               <div className="flex items-start justify-between gap-2">
@@ -721,7 +752,7 @@ function OrdersView({ orders, onRefresh, onShop }: { orders: ApiOrder[] | null; 
                 )}
                 <div className="flex justify-between border-t border-border pt-1 text-xs">
                   <span className="font-semibold">Total</span>
-                  <span className="font-mono font-black text-primary">{xof(o.total)}</span>
+                  <span className="font-mono font-black tabular-nums text-primary">{xof(o.total)}</span>
                 </div>
               </div>
 
@@ -730,9 +761,11 @@ function OrdersView({ orders, onRefresh, onShop }: { orders: ApiOrder[] | null; 
               )}
             </div>
           </article>
+          </RevealItem>
         );
       })}
-      <button onClick={onRefresh} className="h-11 w-full rounded-xl border border-border bg-card text-xs font-bold text-muted-foreground hover:text-foreground active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-primary">
+      </Reveal>
+      <button onClick={onRefresh} className="k-chip h-11 w-full rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
         Rafraîchir
       </button>
     </div>

@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, LayoutDashboard, MapPin, ChevronDown, Stethoscope, TicketPercent } from "lucide-react";
+import { BellRing, LayoutDashboard, MapPin, Stethoscope, TicketPercent } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -16,7 +16,7 @@ import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AuroraBackdrop, Eyebrow, Shimmer } from "@/components/kene/ui2026";
 import { cn } from "@/lib/utils";
 import { useApi } from "./useApi";
 import type { ProOverview, ProLive } from "./types";
@@ -49,9 +49,9 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
 ];
 
 const PLAN_STYLES: Record<string, string> = {
-  pro: "bg-gold/15 text-gold-text border-gold/30",
-  business: "bg-success/15 text-success border-success/30",
-  trial: "bg-muted text-muted-foreground border-border",
+  pro: "bg-gold/15 text-gold-text border-transparent ring-1 ring-inset ring-gold/30",
+  business: "bg-success/15 text-success border-transparent ring-1 ring-inset ring-success/30",
+  trial: "bg-muted text-muted-foreground border-transparent ring-1 ring-inset ring-border",
 };
 
 const NOTIFY_PORT = 3004;
@@ -199,21 +199,28 @@ export function ProApp() {
 
   return (
     <div className="w-full min-h-screen flex flex-col md:flex-row">
-      {/* ───────── Rail sidebar tablette (md→lg icônes) / desktop (lg+ libellés) ───────── */}
-      <aside className="hidden md:flex w-[76px] lg:w-[240px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground sticky top-0 self-start max-h-screen overflow-y-auto pretty-scroll">
+      {/* Atmosphère ÉCLAT 2026 — lueurs aurora derrière tout l'espace Pro
+          (sobriété back-office : le fond de page reste --background). */}
+      <AuroraBackdrop />
+
+      {/* ───────── Rail sidebar tablette (md→lg icônes) / desktop (lg+ libellés) — chrome verre ───────── */}
+      <aside className="hidden md:flex w-[76px] lg:w-[240px] shrink-0 flex-col k-chrome text-foreground sticky top-0 self-start max-h-screen overflow-y-auto pretty-scroll">
         <div className="p-2.5 lg:p-4 lg:pb-3">
           <div className="flex items-center justify-center lg:justify-start lg:gap-2.5">
-            <KeneLogo size={36} withText={false} />
+            <KeneLogo size={34} withText={false} />
             <div className="hidden lg:block leading-tight">
-              <p className="font-heading font-bold text-lg">Kènè <span className="text-sidebar-primary">Pro</span></p>
-              <p className="text-[10px] uppercase tracking-[0.16em] text-sidebar-foreground/60">Gestion institut</p>
+              <p className="font-heading font-bold text-lg tracking-tight">Kènè <span className="text-gold-text">Pro</span></p>
+              <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Gestion institut</p>
             </div>
           </div>
         </div>
 
         <div className="hidden lg:block px-4 pb-3">
           <Select value={tid || undefined} onValueChange={(v) => setProTenantId(v)} disabled={tenantOptions.length <= 1}>
-            <SelectTrigger className="w-full bg-sidebar-accent border-sidebar-border text-sidebar-foreground h-auto py-2" aria-label="Institut actif">
+            <SelectTrigger
+              className="k-chip h-auto w-full rounded-xl py-2.5 text-[13px] font-medium text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+              aria-label="Institut actif"
+            >
               <SelectValue placeholder="Institut…" />
             </SelectTrigger>
             <SelectContent>
@@ -230,13 +237,13 @@ export function ProApp() {
                 <Badge variant="outline" className={cn("text-[10px]", PLAN_STYLES[tenant.plan] ?? PLAN_STYLES.trial)}>
                   {tenant.plan === "business" ? "Business" : tenant.plan === "pro" ? "Pro" : "Essai"}
                 </Badge>
-                <span className="inline-flex items-center gap-1 text-[11px] text-sidebar-foreground/60">
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                   <MapPin className="size-3" aria-hidden="true" />
                   {tenant.city} · {tenant.country}
                 </span>
               </>
             ) : (
-              <Skeleton className="h-4 w-24 bg-sidebar-accent" />
+              <Shimmer className="h-4 w-24" />
             )}
             {liveConnected && (
               <span
@@ -255,21 +262,30 @@ export function ProApp() {
 
         <nav aria-label="Navigation App Pro" className="flex-1 px-1.5 lg:px-3 py-2 space-y-1">
           {NAV.map((item) => {
+            const active = section === item.id;
             const badge = navBadges[item.id];
             return (
               <button
                 key={item.id}
                 onClick={() => openSection(item.id)}
-                aria-current={section === item.id ? "page" : undefined}
+                aria-current={active ? "page" : undefined}
                 aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
                 title={item.label}
                 className={cn(
-                  "w-full flex items-center justify-center lg:justify-start gap-3 rounded-xl px-2 py-2.5 lg:px-3 lg:py-2.5 text-sm text-left transition-colors",
-                  section === item.id
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold shadow-sm"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                  "relative w-full flex items-center justify-center lg:justify-start gap-3 rounded-2xl px-2 py-2.5 lg:px-3.5 text-sm text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+                  active
+                    ? "bg-primary/12 text-primary font-semibold"
+                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                 )}
               >
+                {active && (
+                  <motion.span
+                    layoutId="pro-nav-rail"
+                    aria-hidden="true"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    className="k-rail-line absolute left-0 top-1/2 -translate-y-1/2 h-[26px] w-[3px] rounded-full"
+                  />
+                )}
                 <item.icon className="size-4.5 shrink-0" />
                 <span className="hidden lg:block min-w-0 truncate">{item.label}</span>
                 {badge ? (
@@ -279,34 +295,36 @@ export function ProApp() {
                   >
                     {badge}
                   </span>
-                ) : (
-                  section === item.id && <ChevronDown className="hidden lg:block size-3.5 -rotate-90 opacity-70" aria-hidden="true" />
-                )}
+                ) : null}
               </button>
             );
           })}
         </nav>
 
-        <div className="border-t border-sidebar-border p-2.5 lg:p-4">
-          <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-3">
-            <span
-              aria-hidden="true"
-              className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[11px] font-semibold text-[#FFF9EC]"
-            >
-              {chipInitials}
-            </span>
-            <div className="hidden lg:block min-w-0 leading-tight">
-              <p className="truncate text-sm font-medium">{chipName}</p>
-              <p className="text-[11px] text-sidebar-foreground/60">{chipRole}</p>
-            </div>
-            <div className="lg:ml-auto flex items-center gap-1.5">
-              <ThemeToggle />
+        {/* Chip gérante (t. 66-b) — carte verre : la gérante de session si le
+            compte est pro, sinon la démo « Fatou Koné » (POC sans session pro). */}
+        <div className="p-2.5 lg:p-4">
+          <div className="k-card rounded-[20px] p-2 lg:p-3">
+            <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-2.5">
+              <span
+                aria-hidden="true"
+                className="k-glow-gold grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[11px] font-semibold text-[#FFF9EC]"
+              >
+                {chipInitials}
+              </span>
+              <div className="hidden w-full min-w-0 leading-tight lg:block">
+                <p className="truncate font-heading text-[13px] font-bold">{chipName}</p>
+                <Eyebrow className="mt-0.5 text-[9px]">{chipRole}</Eyebrow>
+              </div>
+              <div className="lg:ml-auto flex items-center gap-1.5">
+                <ThemeToggle />
+              </div>
             </div>
           </div>
-          <div className="hidden lg:block px-4 pt-3">
+          <div className="hidden lg:block px-1 pt-3">
             <SpaceSwitcher />
           </div>
-          <p className="hidden lg:block px-4 pt-3 pb-4 text-[10px] leading-relaxed text-sidebar-foreground/50">
+          <p className="hidden lg:block px-1 pt-2 pb-1 text-[10px] leading-relaxed text-muted-foreground/60">
             Kènè POC — paiements simulés · CNPS CI / IPM SN / SYSCOHADA
           </p>
         </div>
@@ -314,8 +332,8 @@ export function ProApp() {
 
       {/* ───────── Zone contenu ───────── */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Nav mobile — chips scrollables (uniquement <md) */}
-        <div className="md:hidden border-b border-border bg-card/70">
+        {/* Nav mobile — chips verre scrollables (uniquement <md), chrome collant */}
+        <div className="md:hidden sticky top-0 z-30 k-chrome">
           <nav aria-label="Navigation App Pro (mobile)" className="flex gap-1.5 overflow-x-auto no-scrollbar px-3 py-2.5">
             {NAV.map((item) => {
               const badge = navBadges[item.id];
@@ -326,8 +344,10 @@ export function ProApp() {
                   aria-current={section === item.id ? "page" : undefined}
                   aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
                   className={cn(
-                    "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 min-h-11 text-xs font-medium transition-colors",
-                    section === item.id ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground hover:text-foreground"
+                    "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 min-h-11 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+                    section === item.id
+                      ? "k-btn-gold text-primary-foreground font-semibold"
+                      : "k-chip text-muted-foreground hover:text-foreground"
                   )}
                 >
                   <item.icon className="size-3.5" />
@@ -343,11 +363,22 @@ export function ProApp() {
           </nav>
         </div>
 
+        {/* En-tête pro (desktop lg+) — chrome verre collant. Le h1 UNIQUE de
+            l'espace Pro vit ici, rendu en permanence (sr-only <lg où l'en-tête
+            compact + la chip active de la nav portent déjà la section courante). */}
+        <header className="lg:sticky lg:top-0 lg:z-30 lg:pt-6">
+          <div className="sr-only lg:not-sr-only">
+            <div className="k-chrome mx-6 rounded-[20px]">
+              <div className="flex min-h-16 items-center px-7">
+                <h1 className="font-heading text-xl font-bold tracking-tight truncate">{activeLabel}</h1>
+              </div>
+            </div>
+          </div>
+        </header>
+
         <div className="p-3 sm:p-5 lg:p-6 flex-1 min-w-0">
           {/* En-tête compact mobile + tablette (rail icônes md→lg sans libellés) —
-              sans le h1 : celui-ci vit ci-dessous, unique et rendu en permanence
-              (visible desktop, sr-only en mobile où l'en-tête + la chip active
-              de la nav portent déjà la section courante). */}
+              sans le h1 : celui-ci vit dans l'en-tête pro chrome ci-dessus. */}
           <div className="lg:hidden mb-4 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground truncate flex items-center gap-1.5">
@@ -372,14 +403,8 @@ export function ProApp() {
             </div>
           </div>
 
-          {/* Titre de vue — h1 UNIQUE de l'espace Pro, rendu en permanence
-              (accessible aux lecteurs d'écran sur tous les écrans) : visible
-              sur desktop lg+ où aucun en-tête n'existe, masqué en visuel sur
-              mobile/tablette. */}
-          <h1 className="sr-only lg:not-sr-only font-heading text-lg font-bold truncate mb-4">{activeLabel}</h1>
-
           {overview.error && section === "dashboard" && (
-            <div className="mb-4 rounded-lg border border-bissap/30 bg-bissap/5 px-4 py-2.5 text-sm text-bissap">
+            <div className="mb-4 rounded-2xl border border-bissap/30 bg-bissap/5 px-4 py-2.5 text-sm text-bissap">
               Impossible de charger l&apos;institut : {overview.error}
             </div>
           )}

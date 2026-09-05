@@ -4,8 +4,11 @@
 // chargement des espaces Pro/Admin (next/dynamic, t. 63-a).
 // min-h-dvh + bg-background : même fond que la racine → l'app qui remplace
 // le squelette ne provoque aucun décalage de mise en page.
+// ÉCLAT 2026 : flash volontairement sobre — badge KeneMark, wordmark resserré
+// et barre Shimmer vivante (aucune durée ni logique modifiées, aucun blur).
 
-import { Loader2 } from "lucide-react";
+import { KeneMark } from "@/components/kene/icons";
+import { Shimmer } from "@/components/kene/ui2026";
 
 export function BootSkeleton() {
   return (
@@ -14,12 +17,15 @@ export function BootSkeleton() {
       aria-busy="true"
       className="min-h-dvh bg-background grid place-items-center px-4"
     >
-      <div className="flex flex-col items-center gap-4">
-        {/* Wordmark — Ojuju via font-heading, or Kènè */}
-        <p className="font-heading font-bold text-3xl tracking-wide text-primary">
+      <div className="flex flex-col items-center gap-3.5">
+        {/* Badge signature — le lockup complet attend l'app montée */}
+        <KeneMark size={40} />
+        {/* Wordmark éditorial — écho de la devise du KeneLogo (11px, très espacé) */}
+        <p className="font-heading font-bold text-[11px] tracking-[0.24em] text-muted-foreground">
           Kènè
         </p>
-        <Loader2 size={22} className="animate-spin text-muted-foreground" aria-hidden="true" />
+        {/* Indicateur de chargement — remplace le spinner plat, même rôle */}
+        <Shimmer className="h-1.5 w-24 rounded-full" />
         <span className="sr-only">Kènè démarre…</span>
       </div>
     </div>

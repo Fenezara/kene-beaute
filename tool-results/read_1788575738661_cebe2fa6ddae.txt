@@ -1,0 +1,741 @@
+     1→     1→"use client";
+     2→     2→// Kènè Cliente — Boutique : catalogue, fiche produit, panier, checkout Wave/Orange/Wallet simulé
+     3→     3→// + « Mes commandes » : historique des commandes enregistrées (consultation par la cliente).
+     4→     4→import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+     5→     5→import { AnimatePresence, motion } from "framer-motion";
+     6→     6→import { BadgeCheck, Heart, History, Loader2, Lock, Minus, Plus, Search, ShoppingBag, Tag, Trash2, TriangleAlert, X } from "lucide-react";
+     7→     7→import { toast } from "sonner";
+     8→     8→import { apiGet, apiPost } from "@/lib/kene/api";
+     9→     9→import { xof, CASHBACK_RATE, formatDate, formatTime } from "@/lib/kene/format";
+    10→    10→import { HAPTIC, haptic } from "@/lib/kene/ux";
+    11→    11→import { MOMO_OPERATORS } from "@/lib/kene/rfm";
+    12→    12→import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+    13→    13→import { Skeleton } from "@/components/ui/skeleton";
+    14→    14→import { useKene } from "@/store/kene";
+    15→    15→import { useFavorites } from "@/store/favorites";
+    16→    16→import { useSecurity } from "@/store/security";
+    17→    17→import { KenteWeaveCard } from "@/components/kene/weave/KenteWeaveCard";
+    18→    18→import { categoryThread } from "@/components/kene/weave/threads";
+    19→    19→import type { ApiOrder, ApiPayment, ApiProduct, ApiWallet } from "./types";
+    20→    20→import { SHOP_CATEGORIES } from "./types";
+    21→    21→import { EmptyBlock, Stars, SuccessBurst } from "./bits";
+    22→    22→import { FavButton } from "./FavButton";
+    23→    23→import { SecureVerify } from "./SecureVerify";
+    24→    24→
+    25→    25→type PayMethod = "wave" | "orange" | "wallet";
+    26→    26→
+    27→    27→/* Coupon validé au checkout (aperçu local — la consommation a lieu à la commande) */
+    28→    28→interface AppliedPromo {
+    29→    29→  code: string;
+    30→    30→  label: string | null;
+    31→    31→  discount: number;
+    32→    32→  subtotal: number; // panier au moment de la validation (invalidation si changement)
+    33→    33→}
+    34→    34→
+    35→    35→export function ShopScreen() {
+    36→    36→  const user = useKene((s) => s.user)!;
+    37→    37→  const cart = useKene((s) => s.cart);
+    38→    38→  const addToCart = useKene((s) => s.addToCart);
+    39→    39→  const setCartQty = useKene((s) => s.setCartQty);
+    40→    40→  const clearCart = useKene((s) => s.clearCart);
+    41→    41→
+    42→    42→  const [products, setProducts] = useState<ApiProduct[] | null>(null);
+    43→    43→  const [cat, setCat] = useState("");
+    44→    44→  const [q, setQ] = useState("");
+    45→    45→  const [favOnly, setFavOnly] = useState(false); // filtre « ♥ Favoris » (cumulable avec catégorie + recherche)
+    46→    46→  const favs = useFavorites((s) => s.favs);
+    47→    47→  const [detail, setDetail] = useState<ApiProduct | null>(null);
+    48→    48→  const [qty, setQty] = useState(1);
+    49→    49→  const [checkout, setCheckout] = useState(false);
+    50→    50→  const [wallet, setWallet] = useState<ApiWallet | null>(null);
+    51→    51→  // Fin des échecs silencieux : solde inconnu → encart discret + Réessayer
+    52→    52→  // (plus jamais un « … » éternel sur le bouton Wallet du checkout).
+    53→    53→  const [walletError, setWalletError] = useState(false);
+    54→    54→  const [payState, setPayState] = useState<{ phase: "processing" | "success"; method: PayMethod; amount: number } | null>(null);
+    55→    55→  const [paying, setPaying] = useState(false);
+    56→    56→
+    57→    57→  // Sécurité renforcée (2FA-lite) : si activée, la cliente re-vérifie son code
+    58→    58→  // AVANT que le moindre appel de paiement ne parte (voir startPay + SecureVerify).
+    59→    59→  const securityEnabled = useSecurity((s) => s.enabled);
+    60→    60→  const [pendingPay, setPendingPay] = useState<PayMethod | null>(null);
+    61→    61→
+    62→    62→  // ─── Double-tap « ajout rapide » (TikTok Shop / Instagram) ───
+    63→    63→  // 1er tap = ouvre la fiche (avec un délai court annulable) ; 2e tap < 320 ms
+    64→    64→  // = ajoute directement au panier + burst animé sur la carte.
+    65→    65→  const lastTap = useRef<{ id: string; t: number; timer: number | null }>({ id: "", t: 0, timer: null });
+    66→    66→  const [burst, setBurst] = useState<{ id: string; x: number; y: number } | null>(null);
+    67→    67→
+    68→    68→  const onCardTap = (p: ApiProduct, e: React.MouseEvent<HTMLButtonElement>) => {
+    69→    69→    const now = Date.now();
+    70→    70→    const s = lastTap.current;
+    71→    71→    if (s.id === p.id && now - s.t < 320 && s.timer) {
+    72→    72→      window.clearTimeout(s.timer);
+    73→    73→      lastTap.current = { id: "", t: 0, timer: null };
+    74→    74→      addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image });
+    75→    75→      haptic(HAPTIC.light);
+    76→    76→      const rect = e.currentTarget.getBoundingClientRect();
+    77→    77→      setBurst({ id: p.id, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    78→    78→      window.setTimeout(() => setBurst(null), 700);
+    79→    79→      toast.success(`${p.name} ajouté au panier`, { description: "Astuce : double-tape une carte pour l'ajouter en 1 geste" });
+    80→    80→    } else {
+    81→    81→      if (s.timer) window.clearTimeout(s.timer);
+    82→    82→      const timer = window.setTimeout(() => {
+    83→    83→        setDetail(p);
+    84→    84→        setQty(1);
+    85→    85→      }, 240);
+    86→    86→      lastTap.current = { id: p.id, t: now, timer };
+    87→    87→    }
+    88→    88→  };
+    89→    89→  const [promoInput, setPromoInput] = useState("");
+    90→    90→  const [promoChecking, setPromoChecking] = useState(false);
+    91→    91→  const [promo, setPromo] = useState<AppliedPromo | null>(null);
+    92→    92→  const inputRef = useRef<HTMLInputElement>(null);
+    93→    93→
+    94→    94→  /* « Mes commandes » — historique consultable (chargé au montage, rafraîchi
+    95→    95→   * après chaque commande réussie : la cliente suit ses données enregistrées). */
+    96→    96→  const [view, setView] = useState<"catalogue" | "commandes">("catalogue");
+    97→    97→  const [orders, setOrders] = useState<ApiOrder[] | null>(null);
+    98→    98→  const refreshOrders = useCallback(() => {
+    99→    99→    apiGet<{ orders: ApiOrder[] }>(`/api/orders?userId=${user.id}`)
+   100→   100→      .then((r) => setOrders(r.orders ?? []))
+   101→   101→      .catch(() => setOrders((prev) => prev ?? []));
+   102→   102→  }, [user.id]);
+   103→   103→
+   104→   104→  const subtotal = cart.reduce((s, l) => s + l.price * l.qty, 0);
+   105→   105→  /* Coupon invalidé si le panier a changé depuis la validation (remise recalculée
+   106→   106→   * sur un autre sous-total) — la cliente re-valide, jamais de surprise serveur. */
+   107→   107→  const livePromo = promo && promo.subtotal === subtotal ? promo : null;
+   108→   108→  const discount = livePromo?.discount ?? 0;
+   109→   109→  const total = subtotal - discount;
+   110→   110→  /* taux de cashback réellement appliqué (wallet de la cliente, sinon défaut) */
+   111→   111→  const cashbackRate = wallet?.cashbackRate ?? CASHBACK_RATE;
+   112→   112→
+   113→   113→  /* Solde wallet — échec explicite (walletError) plutôt que silence : le
+   114→   114→   * bouton Wallet reste désactivé tant que le solde est inconnu. */
+   115→   115→  const loadWallet = useCallback(() => {
+   116→   116→    apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`)
+   117→   117→      .then((r) => { setWallet(r.wallet); setWalletError(false); })
+   118→   118→      .catch(() => setWalletError(true));
+   119→   119→  }, [user.id]);
+   120→   120→
+   121→   121→  useEffect(() => {
+   122→   122→    apiGet<{ products: ApiProduct[] }>("/api/shop/products")
+   123→   123→      .then((r) => setProducts(r.products ?? []))
+   124→   124→      .catch(() => setProducts([]));
+   125→   125→    loadWallet();
+   126→   126→    refreshOrders();
+   127→   127→  }, [user.id, refreshOrders, loadWallet]);
+   128→   128→
+   129→   129→  const filtered = useMemo(() => {
+   130→   130→    const nq = q.trim().toLowerCase();
+   131→   131→    return (products ?? []).filter(
+   132→   132→      (p) =>
+   133→   133→        (!cat || p.category === cat) &&
+   134→   134→        (!favOnly || favs.includes(p.id)) &&
+   135→   135→        (!nq || `${p.name} ${p.botanicals} ${p.description}`.toLowerCase().includes(nq))
+   136→   136→    );
+   137→   137→  }, [products, cat, q, favOnly, favs]);
+   138→   138→
+   139→   139→  /* le fil de la catégorie — la navette l'illumine dans la bande tissée */
+   140→   140→  const weaveCaption =
+   141→   141→    products === null
+   142→   142→      ? "La navette monte le métier…"
+   143→   143→      : `${filtered.length} soin${filtered.length > 1 ? "s" : ""}${
+   144→   144→          cat ? ` · ${SHOP_CATEGORIES.find((c) => c.id === cat)?.label.toLowerCase() ?? cat}` : " au catalogue"
+   145→   145→        }${favOnly ? " · favoris" : ""}`;
+   146→   146→
+   147→   147→  /* Applique un code promo : aperçu de remise sans consommer le coupon
+   148→   148→   * (la consommation a lieu à la commande — toutes les gardes côté serveur). */
+   149→   149→  async function applyPromo() {
+   150→   150→    const code = promoInput.trim().toUpperCase();
+   151→   151→    if (!code || promoChecking) return;
+   152→   152→    setPromoChecking(true);
+   153→   153→    try {
+   154→   154→      const r = await apiPost<{ ok: true; coupon: { code: string; label: string | null }; discount: number; total: number }>(
+   155→   155→        "/api/coupons/validate",
+   156→   156→        { code, userId: user.id, subtotal }
+   157→   157→      );
+   158→   158→      setPromo({ code: r.coupon.code, label: r.coupon.label, discount: r.discount, subtotal });
+   159→   159→      setPromoInput("");
+   160→   160→      toast.success(`Code ${r.coupon.code} appliqué`, { description: `Remise de ${xof(r.discount)} déduite du total.` });
+   161→   161→    } catch (e) {
+   162→   162→      setPromo(null);
+   163→   163→      toast.error(e instanceof Error ? e.message : "Code promo invalide");
+   164→   164→    } finally {
+   165→   165→      setPromoChecking(false);
+   166→   166→    }
+   167→   167→  }
+   168→   168→
+   169→   169→  /** Passerelle paiement : vérification d'identité par code si la sécurité
+   170→   170→   *  renforcée est active — le paiement initialement prévu (pay) n'est lancé
+   171→   171→   *  qu'une fois le code confirmé ; annulé sinon, rien n'est engagé. */
+   172→   172→  function startPay(method: PayMethod) {
+   173→   173→    if (securityEnabled) {
+   174→   174→      haptic(HAPTIC.tap);
+   175→   175→      setPendingPay(method);
+   176→   176→      return;
+   177→   177→    }
+   178→   178→    void pay(method);
+   179→   179→  }
+   180→   180→
+   181→   181→  async function pay(method: PayMethod) {
+   182→   182→    setPaying(true);
+   183→   183→    try {
+   184→   184→      const items = cart.map((l) => ({ productId: l.productId, qty: l.qty }));
+   185→   185→      const r = await apiPost<{ order: ApiOrder; payment: ApiPayment | null; paid: boolean }>("/api/orders", {
+   186→   186→        userId: user.id,
+   187→   187→        items,
+   188→   188→        paymentMethod: method,
+   189→   189→        ...(livePromo ? { couponCode: livePromo.code } : {}),
+   190→   190→      });
+   191→   191→      const amount = r.order.total;
+   192→   192→      if (method !== "wallet" && r.payment) {
+   193→   193→        // Contrat confirmToken (63-b/63-c) : un paiement mobile money en attente
+   194→   194→        // porte son jeton — absent, on n'appelle JAMAIS confirm et on rollback
+   195→   195→        // l'état UI comme un échec de paiement (panier intact, aucun overlay).
+   196→   196→        const confirmToken = r.payment.confirmToken;
+   197→   197→        if (!confirmToken) {
+   198→   198→          setCheckout(false);
+   199→   199→          toast.error("Paiement impossible — réessaie dans quelques instants");
+   200→   200→          return;
+   201→   201→        }
+   202→   202→        setCheckout(false);
+   203→   203→        setPayState({ phase: "processing", method, amount });
+   204→   204→        await new Promise((res) => setTimeout(res, 3000));
+   205→   205→        const c = await apiPost<{ payment: ApiPayment; order?: ApiOrder; wallet?: ApiWallet }>("/api/payments/confirm", { paymentId: r.payment.id, confirmToken });
+   206→   206→        if (c.wallet) { setWallet(c.wallet); setWalletError(false); }
+   207→   207→      } else {
+   208→   208→        setCheckout(false);
+   209→   209→        setPayState({ phase: "processing", method: "wallet", amount });
+   210→   210→        await new Promise((res) => setTimeout(res, 1200));
+   211→   211→      }
+   212→   212→      setPayState({ phase: "success", method, amount });
+   213→   213→      haptic(HAPTIC.success);
+   214→   214→      clearCart();
+   215→   215→      setPromo(null); // le coupon est consommé : remise à zéro pour la prochaine commande
+   216→   216→      void refreshOrders(); // la nouvelle commande apparaît dans « Mes commandes »
+   217→   217→      const cb = r.order.cashback;
+   218→   218→      toast.success(cb > 0 ? `Commande confirmée — cashback ${xof(cb)} crédité sur ton wallet` : "Commande confirmée et payée");
+   219→   219→      if (method === "wallet") {
+   220→   220→        const w = await apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).catch(() => null);
+   221→   221→        if (w) setWallet(w.wallet);
+   222→   222→      }
+   223→   223→    } catch (e) {
+   224→   224→      setPayState(null);
+   225→   225→      toast.error(e instanceof Error ? e.message : "Paiement impossible");
+   226→   226→    } finally {
+   227→   227→      setPaying(false);
+   228→   228→    }
+   229→   229→  }
+   230→   230→
+   231→   231→  const op = (m: PayMethod) => MOMO_OPERATORS.find((o) => o.code === m);
+   232→   232→
+   233→   233→  return (
+   234→   234→    <div className="pt-4 pb-2">
+   235→   235→      <header className="flex items-center justify-between">
+   236→   236→        <h1 className="font-heading font-black text-xl">Boutique Kènè</h1>
+   237→   237→        <span className="rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1 uppercase tracking-wide">Cashback {Math.round(cashbackRate * 100)} %</span>
+   238→   238→      </header>
+   239→   239→
+   240→   240→      {/* Bascule Catalogue ↔ Mes commandes — la cliente consulte ses données */}
+   241→   241→      <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl border border-border bg-card p-1" role="tablist" aria-label="Vues boutique">
+   242→   242→        <button
+   243→   243→          role="tab"
+   244→   244→          aria-selected={view === "catalogue"}
+   245→   245→          onClick={() => setView("catalogue")}
+   246→   246→          className={`h-10 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-primary ${view === "catalogue" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+   247→   247→        >
+   248→   248→          <ShoppingBag size={14} aria-hidden="true" /> Catalogue
+   249→   249→        </button>
+   250→   250→        <button
+   251→   251→          role="tab"
+   252→   252→          aria-selected={view === "commandes"}
+   253→   253→          onClick={() => setView("commandes")}
+   254→   254→          className={`h-10 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-primary ${view === "commandes" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+   255→   255→        >
+   256→   256→          <History size={14} aria-hidden="true" /> Mes commandes{orders !== null && orders.length > 0 ? ` (${orders.length})` : ""}
+   257→   257→        </button>
+   258→   258→      </div>
+   259→   259→
+   260→   260→      {view === "commandes" ? (
+   261→   261→        <OrdersView orders={orders} onRefresh={refreshOrders} onShop={() => setView("catalogue")} />
+   262→   262→      ) : (
+   263→   263→        <>
+   264→   264→      {/* Le Fil de Kente — hero tissé, le fil de la catégorie s'illumine */}
+   265→   265→      <div className="mt-4">
+   266→   266→        <KenteWeaveCard highlightIndex={cat ? categoryThread(cat) : -1} caption={weaveCaption} />
+   267→   267→      </div>
+   268→   268→
+   269→   269→      {/* Recherche */}
+   270→   270→      <div className="mt-3 relative">
+   271→   271→        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+   272→   272→        <input
+   273→   273→          ref={inputRef}
+   274→   274→          value={q}
+   275→   275→          onChange={(e) => setQ(e.target.value)}
+   276→   276→          placeholder="Rechercher un soin, un botanique…"
+   277→   277→          aria-label="Rechercher un produit"
+   278→   278→          className="h-12 w-full rounded-2xl border border-border bg-card pl-10 pr-4 text-sm focus-visible:outline-2 focus-visible:outline-primary"
+   279→   279→        />
+   280→   280→      </div>
+   281→   281→
+   282→   282→      {/* Filtres : catégories + favoris (bascules aria-pressed, cumulables) */}
+   283→   283→      <div className="flex gap-2 overflow-x-auto py-3 scrollbar-thin -mx-1 px-1" role="group" aria-label="Filtres de la boutique">
+   284→   284→        {SHOP_CATEGORIES.map((c) => (
+   285→   285→          <button
+   286→   286→            key={c.id}
+   287→   287→            aria-pressed={cat === c.id}
+   288→   288→            onClick={() => setCat(c.id)}
+   289→   289→            className={`shrink-0 rounded-full px-3.5 min-h-10 text-xs font-semibold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${cat === c.id ? "bg-primary text-primary-foreground shadow" : "border border-border bg-card text-foreground/80"}`}
+   290→   290→          >
+   291→   291→            {c.label}
+   292→   292→          </button>
+   293→   293→        ))}
+   294→   294→        {/* ♥ Favoris — filtre cumulable, badge count si ≥ 1 */}
+   295→   295→        <button
+   296→   296→          aria-pressed={favOnly}
+   297→   297→          onClick={() => { setFavOnly((v) => !v); haptic(HAPTIC.tap); }}
+   298→   298→          className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 min-h-10 text-xs font-semibold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${favOnly ? "bg-primary text-primary-foreground shadow" : "border border-border bg-card text-foreground/80"}`}
+   299→   299→        >
+   300→   300→          <Heart size={13} fill={favOnly ? "currentColor" : "none"} aria-hidden="true" />
+   301→   301→          Favoris{favs.length > 0 ? ` · ${favs.length}` : ""}
+   302→   302→        </button>
+   303→   303→      </div>
+   304→   304→
+   305→   305→      {/* Grille produits */}
+   306→   306→      {products === null ? (
+   307→   307→        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+   308→   308→          {[0, 1, 2, 3].map((i) => (
+   309→   309→            <div key={i} className="space-y-2">
+   310→   310→              <Skeleton className="aspect-square rounded-2xl" />
+   311→   311→              <Skeleton className="h-3.5 w-4/5" />
+   312→   312→              <Skeleton className="h-3 w-2/3" />
+   313→   313→            </div>
+   314→   314→          ))}
+   315→   315→        </div>
+   316→   316→      ) : filtered.length === 0 ? (
+   317→   317→        favOnly && favs.length === 0 ? (
+   318→   318→          <EmptyBlock
+   319→   319→            icon={<Heart size={22} />}
+   320→   320→            title="Aucun favori pour l'instant"
+   321→   321→            text="Touche le cœur sur un soin pour le retrouver ici."
+   322→   322→          />
+   323→   323→        ) : favOnly ? (
+   324→   324→          <EmptyBlock
+   325→   325→            icon={<Heart size={22} />}
+   326→   326→            title="Aucun favori dans cette sélection"
+   327→   327→            text="Tes favoris ne passent pas ce filtre — essaie une autre catégorie ou efface la recherche."
+   328→   328→            cta={
+   329→   329→              <button
+   330→   330→                onClick={() => { setCat(""); setQ(""); }}
+   331→   331→                className="h-11 px-6 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+   332→   332→              >
+   333→   333→                Voir tous mes favoris
+   334→   334→              </button>
+   335→   335→            }
+   336→   336→          />
+   337→   337→        ) : (
+   338→   338→          <EmptyBlock icon={<Search size={22} />} title="Aucun produit trouvé" text="Essaie un autre mot-clé ou une autre catégorie." />
+   339→   339→        )
+   340→   340→      ) : (
+   341→   341→        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+   342→   342→          {filtered.map((p) => (
+   343→   343→            /* Wrapper relatif : le cœur est un FRÈRE de la carte (jamais de <button>
+   344→   344→               imbriqué — HTML valide, focus/a11y propres), posé sur l'image en absolu. */
+   345→   345→            <div key={p.id} className="relative">
+   346→   346→              <button
+   347→   347→                onClick={(e) => onCardTap(p, e)}
+   348→   348→                className="relative block w-full text-left rounded-2xl border border-border bg-card overflow-hidden shadow-sm active:scale-[0.98] transition-transform hover:border-primary/40 touch-manipulation focus-visible:outline-2 focus-visible:outline-primary"
+   349→   349→                aria-label={`${p.name}, ${xof(p.price)} — appuie une fois pour la fiche, deux fois pour l'ajouter au panier`}
+   350→   350→              >
+   351→   351→                {/* Burst double-tap — panier kente qui jaillit sous le doigt */}
+   352→   352→                {burst?.id === p.id && (
+   353→   353→                  <motion.span
+   354→   354→                    aria-hidden="true"
+   355→   355→                    initial={{ scale: 0.3, opacity: 0.95 }}
+   356→   356→                    animate={{ scale: 1.7, opacity: 0 }}
+   357→   357→                    transition={{ duration: 0.65, ease: "easeOut" }}
+   358→   358→                    className="pointer-events-none absolute z-20"
+   359→   359→                    style={{ left: burst.x, top: burst.y }}
+   360→   360→                  >
+   361→   361→                    <span className="grid place-items-center h-20 w-20 -ml-10 -mt-10 rounded-full bg-[#FFF9EC]/30 backdrop-blur-[2px] shadow-xl">
+   362→   362→                      <span className="grid place-items-center h-12 w-12 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] shadow-lg">
+   363→   363→                        <ShoppingBag size={22} className="text-[#FFF9EC]" />
+   364→   364→                      </span>
+   365→   365→                    </span>
+   366→   366→                  </motion.span>
+   367→   367→                )}
+   368→   368→                <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full object-cover" />
+   369→   369→                <div className="p-2.5">
+   370→   370→                  <p className="text-[13px] font-semibold leading-tight line-clamp-2 min-h-9">{p.name}</p>
+   371→   371→                  <p className="text-[10px] text-terre mt-1 truncate">{p.botanicals}</p>
+   372→   372→                  <div className="flex items-center justify-between mt-1.5">
+   373→   373→                    <span className="font-mono text-[13px] font-bold">{xof(p.price)}</span>
+   374→   374→                    <Stars rating={p.rating} size={9} />
+   375→   375→                  </div>
+   376→   376→                </div>
+   377→   377→              </button>
+   378→   378→              <FavButton variant="card" productId={p.id} productName={p.name} />
+   379→   379→            </div>
+   380→   380→          ))}
+   381→   381→        </div>
+   382→   382→      )}
+   383→   383→        </>
+   384→   384→      )}
+   385→   385→
+   386→   386→      {/* Barre panier sticky au-dessus de la nav */}
+   387→   387→      <AnimatePresence>
+   388→   388→        {cart.length > 0 && !payState && (
+   389→   389→          <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="sticky bottom-[84px] z-20 mt-4">
+   390→   390→            <button
+   391→   391→              onClick={() => { setCheckout(true); haptic(HAPTIC.tap); }}
+   392→   392→              className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] shadow-xl flex items-center justify-between px-4 active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   393→   393→              aria-label={`Panier ${cart.length} articles, total ${xof(subtotal)} — commander`}
+   394→   394→            >
+   395→   395→              <span className="flex items-center gap-2 text-sm font-semibold">
+   396→   396→                <span className="relative" aria-hidden="true">
+   397→   397→                  <ShoppingBag size={20} />
+   398→   398→                  <span className="absolute -top-1.5 -right-2 h-4 min-w-4 px-0.5 rounded-full bg-[#FFF9EC] text-[#A0520F] text-[9px] font-black grid place-items-center">{cart.reduce((s, l) => s + l.qty, 0)}</span>
+   399→   399→                </span>
+   400→   400→                <span aria-hidden="true">{cart.length} article{cart.length > 1 ? "s" : ""}</span>
+   401→   401→              </span>
+   402→   402→              <span className="font-mono font-black text-base" aria-hidden="true">{xof(subtotal)}</span>
+   403→   403→            </button>
+   404→   404→          </motion.div>
+   405→   405→        )}
+   406→   406→      </AnimatePresence>
+   407→   407→
+   408→   408→      {/* Sheet fiche produit */}
+   409→   409→      <Sheet open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+   410→   410→        <SheetContent side="bottom" className="max-h-[88vh] rounded-t-3xl px-0 overflow-y-auto max-w-[560px] mx-auto">
+   411→   411→          {detail && (
+   412→   412→            <>
+   413→   413→              <div className="mx-auto sticky top-0 z-10 bg-card/95 backdrop-blur pt-2 pb-1">
+   414→   414→                <div className="h-1 w-10 rounded-full bg-muted mx-auto" aria-hidden="true" />
+   415→   415→              </div>
+   416→   416→              <img src={detail.image} alt={detail.name} className="aspect-square w-full object-cover px-0" />
+   417→   417→              <SheetHeader className="px-5 pt-4 text-left">
+   418→   418→                <SheetTitle className="font-heading font-black text-lg leading-tight">{detail.name}</SheetTitle>
+   419→   419→                <div className="flex items-center gap-2">
+   420→   420→                  <Stars rating={detail.rating} />
+   421→   421→                  <span className="text-[11px] text-muted-foreground">{detail.rating.toFixed(1)} ({detail.reviewCount} avis)</span>
+   422→   422→                </div>
+   423→   423→              </SheetHeader>
+   424→   424→              <div className="px-5 pb-6 space-y-4">
+   425→   425→                <p className="text-xs text-muted-foreground leading-relaxed">{detail.description}</p>
+   426→   426→                <div className="flex flex-wrap gap-1.5">
+   427→   427→                  {detail.botanicals.split(/[,;]/).map((b, i) => (
+   428→   428→                    <span key={i} className="rounded-full bg-karite border border-[#C8951E]/30 px-2.5 py-1 text-[10px] font-semibold text-terre">{b.trim()}</span>
+   429→   429→                  ))}
+   430→   430→                </div>
+   431→   431→                <div className="flex items-center justify-between">
+   432→   432→                  <div>
+   433→   433→                    <p className="font-mono text-xl font-black text-primary">{xof(detail.price)}</p>
+   434→   434→                    {detail.compareAt && detail.compareAt > detail.price && <p className="text-[11px] text-muted-foreground line-through">{xof(detail.compareAt)}</p>}
+   435→   435→                  </div>
+   436→   436→                  <div className="flex items-center gap-3 rounded-full border border-border px-2 py-1.5">
+   437→   437→                    <button onClick={() => setQty((n) => Math.max(1, n - 1))} className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted active:scale-90 transition-all" aria-label="Diminuer la quantité"><Minus size={16} /></button>
+   438→   438→                    <span className="font-mono font-bold w-5 text-center" aria-live="polite">{qty}</span>
+   439→   439→                    <button onClick={() => setQty((n) => Math.min(detail.stock, n + 1))} className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted active:scale-90 transition-all" aria-label="Augmenter la quantité"><Plus size={16} /></button>
+   440→   440→                  </div>
+   441→   441→                </div>
+   442→   442→                <button
+   443→   443→                  onClick={() => { addToCart({ productId: detail.id, name: detail.name, price: detail.price, qty, image: detail.image }); toast.success(`${qty} × ${detail.name} ajouté au panier`); setDetail(null); }}
+   444→   444→                  className="h-12 w-full rounded-xl bg-primary text-primary-foreground font-semibold text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   445→   445→                >
+   446→   446→                  <Plus size={17} /> Ajouter au panier — {xof(detail.price * qty)}
+   447→   447→                </button>
+   448→   448→                {/* Favori — action secondaire de la fiche produit (persistante, par appareil) */}
+   449→   449→                <FavButton variant="inline" productId={detail.id} productName={detail.name} />
+   450→   450→              </div>
+   451→   451→            </>
+   452→   452→          )}
+   453→   453→        </SheetContent>
+   454→   454→      </Sheet>
+   455→   455→
+   456→   456→      {/* Sheet checkout */}
+   457→   457→      <Sheet open={checkout} onOpenChange={(o) => !o && setCheckout(false)}>
+   458→   458→        <SheetContent side="bottom" className="max-h-[90vh] rounded-t-3xl overflow-y-auto max-w-[560px] mx-auto">
+   459→   459→          <SheetHeader className="text-left">
+   460→   460→            <SheetTitle className="font-heading font-black">Ma commande</SheetTitle>
+   461→   461→          </SheetHeader>
+   462→   462→          <div className="px-4 pb-6 space-y-4">
+   463→   463→            <div className="space-y-2">
+   464→   464→              {cart.map((l) => (
+   465→   465→                <div key={l.productId} className="flex items-center gap-3 rounded-xl border border-border bg-card p-2">
+   466→   466→                  <img src={l.image} alt={l.name} className="h-12 w-12 rounded-lg object-cover" />
+   467→   467→                  <div className="min-w-0 flex-1">
+   468→   468→                    <p className="text-xs font-semibold leading-tight line-clamp-2">{l.name}</p>
+   469→   469→                    <p className="font-mono text-[11px] text-muted-foreground mt-0.5">{xof(l.price)} × {l.qty}</p>
+   470→   470→                  </div>
+   471→   471→                  <div className="flex items-center gap-1.5">
+   472→   472→                    <button onClick={() => setCartQty(l.productId, l.qty - 1)} className="h-8 w-8 grid place-items-center rounded-full border border-border active:scale-90 transition-transform" aria-label={`Retirer un ${l.name}`}><Minus size={13} /></button>
+   473→   473→                    <span className="font-mono text-xs font-bold w-4 text-center">{l.qty}</span>
+   474→   474→                    <button onClick={() => setCartQty(l.productId, l.qty + 1)} className="h-8 w-8 grid place-items-center rounded-full border border-border active:scale-90 transition-transform" aria-label={`Ajouter un ${l.name}`}><Plus size={13} /></button>
+   475→   475→                    <button onClick={() => setCartQty(l.productId, 0)} className="h-8 w-8 grid place-items-center rounded-full text-destructive hover:bg-destructive/10 active:scale-90 transition-all" aria-label={`Supprimer ${l.name}`}><Trash2 size={14} /></button>
+   476→   476→                  </div>
+   477→   477→                </div>
+   478→   478→              ))}
+   479→   479→            </div>
+   480→   480→
+   481→   481→            {/* Code promo — l'aperçu vit côté serveur (lib/kene/coupons) */}
+   482→   482→            {livePromo ? (
+   483→   483→              <div className="rounded-2xl border border-[#3F7D3F]/30 bg-[#3F7D3F]/[0.06] p-3.5 flex items-center gap-3" aria-live="polite">
+   484→   484→                <span className="grid place-items-center h-9 w-9 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] shrink-0">
+   485→   485→                  <Tag size={16} aria-hidden="true" />
+   486→   486→                </span>
+   487→   487→                <div className="min-w-0 flex-1">
+   488→   488→                  <p className="text-xs font-bold font-mono tracking-wide">{livePromo.code}</p>
+   489→   489→                  <p className="text-[11px] text-[#3F7D3F] leading-tight">
+   490→   490→                    {livePromo.label ? `${livePromo.label} · ` : ""}−{xof(livePromo.discount)}
+   491→   491→                  </p>
+   492→   492→                </div>
+   493→   493→                <button
+   494→   494→                  onClick={() => setPromo(null)}
+   495→   495→                  aria-label={`Retirer le code ${livePromo.code}`}
+   496→   496→                  className="h-8 w-8 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all"
+   497→   497→                >
+   498→   498→                  <X size={15} />
+   499→   499→                </button>
+   500→   500→              </div>
+   501→   501→            ) : (
+   502→   502→              <div className="flex gap-2">
+   503→   503→                <div className="relative flex-1">
+   504→   504→                  <Tag size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+   505→   505→                  <input
+   506→   506→                    value={promoInput}
+   507→   507→                    onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+   508→   508→                    onKeyDown={(e) => e.key === "Enter" && void applyPromo()}
+   509→   509→                    placeholder="CODE PROMO"
+   510→   510→                    aria-label="Code promo"
+   511→   511→                    autoComplete="off"
+   512→   512→                    maxLength={24}
+   513→   513→                    className="h-12 w-full rounded-2xl border border-border bg-card pl-10 pr-3 text-sm font-mono uppercase tracking-wide placeholder:font-sans placeholder:normal-case placeholder:tracking-normal focus-visible:outline-2 focus-visible:outline-primary"
+   514→   514→                  />
+   515→   515→                </div>
+   516→   516→                <button
+   517→   517→                  onClick={() => void applyPromo()}
+   518→   518→                  disabled={!promoInput.trim() || promoChecking}
+   519→   519→                  className="h-12 px-5 rounded-2xl border border-border bg-card text-xs font-bold disabled:opacity-50 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
+   520→   520→                >
+   521→   521→                  {promoChecking ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : "Appliquer"}
+   522→   522→                </button>
+   523→   523→              </div>
+   524→   524→            )}
+   525→   525→
+   526→   526→            <div className="rounded-2xl bg-muted/60 p-4 space-y-1.5 text-xs">
+   527→   527→              <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span className="font-mono font-semibold">{xof(subtotal)}</span></div>
+   528→   528→              {discount > 0 && (
+   529→   529→                <div className="flex justify-between text-[#3F7D3F]">
+   530→   530→                  <span className="font-semibold">Remise {livePromo?.code}</span>
+   531→   531→                  <span className="font-mono font-semibold">−{xof(discount)}</span>
+   532→   532→                </div>
+   533→   533→              )}
+   534→   534→              <div className="flex justify-between"><span className="text-muted-foreground">Cashback estimé ({Math.round(cashbackRate * 100)} %)</span><span className="font-mono font-semibold text-[#3F7D3F]">+{xof(Math.round(total * cashbackRate))}</span></div>
+   535→   535→              <div className="flex justify-between border-t border-border pt-1.5 text-sm"><span className="font-semibold">Total à payer</span><span className="font-mono font-black text-primary">{xof(total)}</span></div>
+   536→   536→            </div>
+   537→   537→
+   538→   538→            <div>
+   539→   539→              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Mode de paiement</p>
+   540→   540→              {securityEnabled && (
+   541→   541→                <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1">
+   542→   542→                  <Lock size={10} aria-hidden="true" /> Vérification par code activée
+   543→   543→                </p>
+   544→   544→              )}
+   545→   545→              <div className="space-y-2">
+   546→   546→                {(["wave", "orange"] as const).map((m) => {
+   547→   547→                  const o = op(m)!;
+   548→   548→                  return (
+   549→   549→                    <button key={m} onClick={() => startPay(m)} disabled={paying} className="w-full h-12 rounded-xl border-2 bg-card flex items-center gap-3 px-4 font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" style={{ borderColor: o.color }}>
+   550→   550→                      <span className="h-7 w-7 rounded-full grid place-items-center font-heading font-black text-[#1A1410] text-xs shrink-0" style={{ backgroundColor: o.color }}>{o.name.charAt(0)}</span>
+   551→   551→                      {o.name}
+   552→   552→                      <span className="ml-auto text-[10px] font-normal text-muted-foreground">{o.hint}</span>
+   553→   553→                    </button>
+   554→   554→                  );
+   555→   555→                })}
+   556→   556→                <button
+   557→   557→                  onClick={() => startPay("wallet")}
+   558→   558→                  disabled={paying || (wallet?.balance ?? 0) < total}
+   559→   559→                  className="w-full h-12 rounded-xl border-2 border-melanine bg-card flex items-center gap-3 px-4 font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   560→   560→                >
+   561→   561→                  <span className="h-7 w-7 rounded-full grid place-items-center bg-melanine text-[#C8951E] shrink-0 font-heading font-black text-xs">K</span>
+   562→   562→                  Wallet Kènè
+   563→   563→                  <span className="ml-auto font-mono text-[11px] text-muted-foreground">{wallet ? xof(wallet.balance) : walletError ? "indisponible" : "…"}</span>
+   564→   564→                </button>
+   565→   565→                {wallet && wallet.balance < total && <p className="text-[10px] text-destructive text-center">Solde insuffisant — approvisionne ton wallet depuis ton profil.</p>}
+   566→   566→                {walletError && (
+   567→   567→                  <div role="alert" className="rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 flex items-center gap-2.5">
+   568→   568→                    <TriangleAlert size={14} className="text-terre shrink-0" aria-hidden="true" />
+   569→   569→                    <p className="flex-1 min-w-0 text-[11px] text-muted-foreground leading-snug">Solde indisponible — réessaie</p>
+   570→   570→                    <button onClick={loadWallet} className="h-11 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold active:scale-95 transition-transform shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+   571→   571→                      Réessayer
+   572→   572→                    </button>
+   573→   573→                  </div>
+   574→   574→                )}
+   575→   575→              </div>
+   576→   576→            </div>
+   577→   577→          </div>
+   578→   578→        </SheetContent>
+   579→   579→      </Sheet>
+   580→   580→
+   581→   581→      {/* Sécurité renforcée — code OTP exigé avant de lancer le paiement */}
+   582→   582→      <SecureVerify
+   583→   583→        open={pendingPay !== null}
+   584→   584→        phone={user.phone}
+   585→   585→        amount={total}
+   586→   586→        onVerified={() => {
+   587→   587→          const method = pendingPay;
+   588→   588→          setPendingPay(null);
+   589→   589→          if (method) void pay(method);
+   590→   590→        }}
+   591→   591→        onCancel={() => setPendingPay(null)}
+   592→   592→      />
+   593→   593→
+   594→   594→      {/* Overlay paiement simulé plein écran — dialog accessible (pattern RitualJourney) */}
+   595→   595→      <AnimatePresence>
+   596→   596→        {payState && (
+   597→   597→          <motion.div
+   598→   598→            initial={{ opacity: 0 }}
+   599→   599→            animate={{ opacity: 1 }}
+   600→   600→            exit={{ opacity: 0 }}
+   601→   601→            role="dialog"
+   602→   602→            aria-modal="true"
+   603→   603→            aria-label={payState.phase === "processing" ? `Paiement en cours, ${xof(payState.amount)}` : "Paiement réussi"}
+   604→   604→            onKeyDown={(e) => {
+   605→   605→              if (e.key === "Escape" && payState.phase === "success") setPayState(null);
+   606→   606→            }}
+   607→   607→            className="fixed inset-0 z-[70] bg-[#1A1410]/97 backdrop-blur-sm grid place-items-center"
+   608→   608→          >
+   609→   609→            <div className="w-full max-w-[560px] mx-auto px-6">
+   610→   610→              {payState.phase === "processing" ? (
+   611→   611→                <div className="flex flex-col items-center gap-5 text-center" aria-live="polite">
+   612→   612→                  <div className="grid place-items-center w-20 h-20 rounded-3xl font-heading font-black text-3xl text-[#1A1410] shadow-lg" style={{ backgroundColor: op(payState.method)?.color ?? "#C8951E" }}>
+   613→   613→                    {(op(payState.method)?.name ?? "K").charAt(0)}
+   614→   614→                  </div>
+   615→   615→                  <p className="font-heading font-bold text-lg text-[#F8F1E4]">{op(payState.method)?.name ?? "Wallet Kènè"}</p>
+   616→   616→                  <p className="font-mono text-3xl font-black text-[#F8F1E4]">{xof(payState.amount)}</p>
+   617→   617→                  <p className="text-[11px] text-[#F8F1E4]/70 font-mono">+{user.phone.slice(0, 9)}···</p>
+   618→   618→                  <div className="flex items-center gap-2 text-sm text-[#F8F1E4]/80">
+   619→   619→                    <Loader2 size={16} className="animate-spin" aria-hidden="true" /> Traitement en cours…
+   620→   620→                  </div>
+   621→   621→                  <p className="text-[10px] text-[#F8F1E4]/60">Paiement mobile money simulé — POC</p>
+   622→   622→                </div>
+   623→   623→              ) : (
+   624→   624→                <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 18 }} className="flex flex-col items-center gap-4 text-center py-6">
+   625→   625→                  <SuccessBurst />
+   626→   626→                  <p className="font-heading font-black text-xl text-[#F8F1E4]">Paiement réussi</p>
+   627→   627→                  <p className="font-mono text-sm font-bold text-[#F8F1E4]/90">{xof(payState.amount)}</p>
+   628→   628→                  <p className="text-xs text-[#F8F1E4]/70 max-w-[300px] leading-relaxed">
+   629→   629→                    Commande confirmée. <span className="flex items-center gap-1 justify-center mt-1 text-gold-text dark:text-[#E3B454] font-semibold"><BadgeCheck size={13} aria-hidden="true" /> Cashback {xof(Math.round(payState.amount * cashbackRate))} crédité sur ton wallet Kènè</span>
+   630→   630→                  </p>
+   631→   631→                  <button autoFocus onClick={() => setPayState(null)} className="mt-2 h-12 px-8 rounded-xl bg-primary text-primary-foreground font-semibold shadow active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   632→   632→                    Continuer mes achats
+   633→   633→                  </button>
+   634→   634→                </motion.div>
+   635→   635→              )}
+   636→   636→            </div>
+   637→   637→          </motion.div>
+   638→   638→        )}
+   639→   639→      </AnimatePresence>
+   640→   640→    </div>
+   641→   641→  );
+   642→   642→}
+   643→   643→
+   644→   644→/* ══════════════ Mes commandes — historique consultable ══════════════ */
+   645→   645→
+   646→   646→const ORDER_STATUS: Record<string, { label: string; cls: string }> = {
+   647→   647→  pending: { label: "En attente", cls: "bg-gold/12 text-terre border-gold/30" },
+   648→   648→  paid: { label: "Payée", cls: "bg-[#3F7D3F]/12 text-[#3F7D3F] border-[#3F7D3F]/30" },
+   649→   649→  delivered: { label: "Livrée", cls: "bg-primary/12 text-primary border-primary/30" },
+   650→   650→  cancelled: { label: "Annulée", cls: "bg-destructive/10 text-destructive border-destructive/30" },
+   651→   651→};
+   652→   652→
+   653→   653→function OrdersView({ orders, onRefresh, onShop }: { orders: ApiOrder[] | null; onRefresh: () => void; onShop: () => void }) {
+   654→   654→  if (orders === null) {
+   655→   655→    return (
+   656→   656→      <div className="mt-4 space-y-3">
+   657→   657→        {[0, 1, 2].map((i) => (
+   658→   658→          <Skeleton key={i} className="h-36 rounded-2xl" />
+   659→   659→        ))}
+   660→   660→      </div>
+   661→   661→    );
+   662→   662→  }
+   663→   663→
+   664→   664→  if (orders.length === 0) {
+   665→   665→    return (
+   666→   666→      <div className="mt-4">
+   667→   667→        <EmptyBlock
+   668→   668→          icon={<History size={22} />}
+   669→   669→          title="Aucune commande pour l'instant"
+   670→   670→          text="Tes commandes boutique s'enregistrent ici — articles, remises et cashback."
+   671→   671→          cta={
+   672→   672→            <button onClick={onShop} className="h-11 px-6 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   673→   673→              Découvrir le catalogue
+   674→   674→            </button>
+   675→   675→          }
+   676→   676→        />
+   677→   677→      </div>
+   678→   678→    );
+   679→   679→  }
+   680→   680→
+   681→   681→  return (
+   682→   682→    <div className="mt-4 space-y-3" aria-live="polite">
+   683→   683→      {orders.map((o) => {
+   684→   684→        const st = ORDER_STATUS[o.status] ?? { label: o.status, cls: "bg-muted text-muted-foreground border-border" };
+   685→   685→        return (
+   686→   686→          <article key={o.id} aria-label={`Commande N° ${o.id.slice(-6).toUpperCase()}`} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+   687→   687→            <div className="kente-band-soft h-1 w-full" aria-hidden="true" />
+   688→   688→            <div className="p-4 space-y-3">
+   689→   689→              <div className="flex items-start justify-between gap-2">
+   690→   690→                <div className="min-w-0">
+   691→   691→                  <p className="font-mono text-xs font-bold tracking-wide">N° {o.id.slice(-6).toUpperCase()}</p>
+   692→   692→                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{formatDate(o.createdAt)} · {formatTime(o.createdAt)}</p>
+   693→   693→                </div>
+   694→   694→                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${st.cls}`}>{st.label}</span>
+   695→   695→              </div>
+   696→   696→
+   697→   697→              <ul className="space-y-1.5">
+   698→   698→                {(o.items ?? []).map((it) => (
+   699→   699→                  <li key={it.id} className="flex items-baseline justify-between gap-2 text-xs">
+   700→   700→                    <span className="min-w-0 truncate">
+   701→   701→                      <span className="font-mono text-muted-foreground">{it.qty}×</span> {it.label}
+   702→   702→                    </span>
+   703→   703→                    <span className="shrink-0 font-mono font-semibold">{xof(it.total)}</span>
+   704→   704→                  </li>
+   705→   705→                ))}
+   706→   706→              </ul>
+   707→   707→
+   708→   708→              <div className="rounded-xl bg-muted/50 px-3 py-2.5 space-y-1 text-[11px]">
+   709→   709→                <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span className="font-mono">{xof(o.subtotal)}</span></div>
+   710→   710→                {!!o.discount && (
+   711→   711→                  <div className="flex justify-between text-terre">
+   712→   712→                    <span className="font-semibold">Remise {o.couponCode ?? ""}</span>
+   713→   713→                    <span className="font-mono">−{xof(o.discount)}</span>
+   714→   714→                  </div>
+   715→   715→                )}
+   716→   716→                {!!o.cashback && o.status !== "pending" && (
+   717→   717→                  <div className="flex justify-between text-[#3F7D3F]">
+   718→   718→                    <span>Cashback crédité</span>
+   719→   719→                    <span className="font-mono">+{xof(o.cashback)}</span>
+   720→   720→                  </div>
+   721→   721→                )}
+   722→   722→                <div className="flex justify-between border-t border-border pt-1 text-xs">
+   723→   723→                  <span className="font-semibold">Total</span>
+   724→   724→                  <span className="font-mono font-black text-primary">{xof(o.total)}</span>
+   725→   725→                </div>
+   726→   726→              </div>
+   727→   727→
+   728→   728→              {o.status === "pending" && (
+   729→   729→                <p className="text-[10px] text-muted-foreground leading-snug">Paiement mobile money à confirmer — la commande passera à « Payée » dès réception.</p>
+   730→   730→              )}
+   731→   731→            </div>
+   732→   732→          </article>
+   733→   733→        );
+   734→   734→      })}
+   735→   735→      <button onClick={onRefresh} className="h-11 w-full rounded-xl border border-border bg-card text-xs font-bold text-muted-foreground hover:text-foreground active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-primary">
+   736→   736→        Rafraîchir
+   737→   737→      </button>
+   738→   738→    </div>
+   739→   739→  );
+   740→   740→}
+   741→   741→

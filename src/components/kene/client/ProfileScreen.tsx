@@ -1,5 +1,5 @@
 "use client";
-// Kènè Cliente — Profil : identité, profil peau rééditable, wallet complet, consentement, espace pro
+// Kènè Cliente — Profil : identité, profil peau rééditable, wallet complet, consentement, espace pro — ÉCLAT 2026
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -13,8 +13,7 @@ import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
 import { MOMO_OPERATORS } from "@/lib/kene/rfm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
+import { IconBadge, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import { useKene, type SessionUser } from "@/store/kene";
 import { useSecurity } from "@/store/security";
 import type { ApiUser, ApiWallet, ApiWalletTx } from "./types";
@@ -208,112 +207,118 @@ export function ProfileScreen() {
   }
 
   return (
-    <div className="pt-4 pb-2 flex flex-col gap-6">
-      <button onClick={() => setClientTab("accueil")} className="self-start inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label={t("profile.back.aria")}>
-        <ArrowLeft size={15} /> {t("tab.home")}
-      </button>
+    <>
+      <Reveal className="pt-4 pb-2 flex flex-col gap-6" stagger={0.07}>
+        <RevealItem className="self-start">
+          <button onClick={() => setClientTab("accueil")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label={t("profile.back.aria")}>
+            <ArrowLeft size={15} /> {t("tab.home")}
+          </button>
+        </RevealItem>
 
       {/* Identité */}
-      <section aria-labelledby="me-t" className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
-        <div className="kente-band h-1.5 w-full" aria-hidden="true" />
-        <div id="me-t" className="p-5">
-          <div className="flex items-center gap-4">
-            <span className="grid place-items-center h-16 w-16 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] font-heading font-black text-2xl shadow">
-              {user.name.charAt(0)}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-heading font-black text-lg leading-tight truncate">{user.name}</p>
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-mono"><Phone size={12} /> {user.phone}</p>
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5"><MapPin size={12} /> {user.city || "Ville non renseignée"}</p>
-            </div>
-            <button onClick={() => setEdit((v) => !v)} aria-label="Modifier mon profil" className="h-10 w-10 grid place-items-center rounded-full border border-border text-muted-foreground hover:text-primary active:scale-90 transition-all focus-visible:outline-2 focus-visible:outline-primary">
-              <Pencil size={16} />
-            </button>
-          </div>
-          {edit && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden">
-              <div className="mt-4 space-y-3">
-                <div>
-                  <label htmlFor="p-name" className="text-[11px] font-semibold text-muted-foreground">Prénom & nom</label>
-                  <input id="p-name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
-                </div>
-                <div>
-                  <label htmlFor="p-city" className="text-[11px] font-semibold text-muted-foreground">Ville</label>
-                  <input id="p-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Abidjan" className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
-                </div>
-                <button onClick={saveIdentity} disabled={savingId} className="h-11 w-full rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                  {savingId ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Enregistrer
-                </button>
+      <RevealItem>
+        <section aria-labelledby="me-t" className="k-card overflow-hidden rounded-[24px]">
+          <div className="kente-band h-1.5 w-full" aria-hidden="true" />
+          <div id="me-t" className="p-5">
+            <div className="flex items-center gap-4">
+              <span className="k-glow-gold grid place-items-center h-16 w-16 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] font-heading font-black text-2xl">
+                {user.name.charAt(0)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-heading font-black text-[22px] leading-tight truncate">{user.name}</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-mono"><Phone size={12} /> {user.phone}</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5"><MapPin size={12} /> {user.city || "Ville non renseignée"}</p>
               </div>
-            </motion.div>
-          )}
-        </div>
-      </section>
+              <button onClick={() => setEdit((v) => !v)} aria-label="Modifier mon profil" className="k-chip h-10 w-10 grid place-items-center rounded-full text-muted-foreground hover:text-primary transition-all focus-visible:outline-2 focus-visible:outline-primary">
+                <Pencil size={16} />
+              </button>
+            </div>
+            {edit && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden">
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <label htmlFor="p-name" className="text-[11px] font-semibold text-muted-foreground">Prénom & nom</label>
+                    <input id="p-name" value={name} onChange={(e) => setName(e.target.value)} className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+                  </div>
+                  <div>
+                    <label htmlFor="p-city" className="text-[11px] font-semibold text-muted-foreground">Ville</label>
+                    <input id="p-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Abidjan" className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+                  </div>
+                  <button onClick={saveIdentity} disabled={savingId} className="k-btn-gold h-11 w-full rounded-xl text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                    {savingId ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Enregistrer
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </section>
+      </RevealItem>
 
       {/* Profil peau */}
-      <section aria-labelledby="skin-t">
-        <SectionTitle icon={<Sparkles size={16} />}><span id="skin-t">Mon profil peau</span></SectionTitle>
-        <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
-          <div>
-            <p className="text-[11px] font-semibold text-muted-foreground mb-2">Phototype Fitzpatrick</p>
-            <div className="grid grid-cols-3 gap-2">
-              {FITZPATRICK_CARDS.map((f) => (
-                <button key={f.id} onClick={() => setFitz(f.id)} aria-pressed={fitz === f.id} className={`rounded-xl p-1.5 border-2 text-left active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${fitz === f.id ? "border-primary" : "border-transparent"}`}>
-                  <div className="h-8 rounded-lg mb-1" style={{ background: f.gradient }} aria-hidden="true" />
-                  <p className="text-[11px] font-bold">{f.id}</p>
-                </button>
-              ))}
+      <RevealItem>
+        <section aria-labelledby="skin-t">
+          <SectionTitle icon={<Sparkles size={16} />}><span id="skin-t">Mon profil peau</span></SectionTitle>
+          <div className="k-card rounded-[24px] p-4 space-y-4">
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Phototype Fitzpatrick</p>
+              <div className="grid grid-cols-3 gap-2">
+                {FITZPATRICK_CARDS.map((f) => (
+                  <button key={f.id} onClick={() => setFitz(f.id)} aria-pressed={fitz === f.id} className={`rounded-[14px] p-1.5 border-2 text-left active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${fitz === f.id ? "border-primary" : "border-transparent"}`}>
+                    <div className="h-8 rounded-lg mb-1" style={{ background: f.gradient }} aria-hidden="true" />
+                    <p className="text-[11px] font-bold">{f.id}</p>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          <div>
-            <p className="text-[11px] font-semibold text-muted-foreground mb-2">Type de peau</p>
-            <div className="flex flex-wrap gap-1.5">
-              {SKIN_TYPES.map((t) => (
-                <button key={t.id} onClick={() => setSkinType(t.id)} aria-pressed={skinType === t.id} className={`rounded-full px-3 min-h-10 text-xs font-medium active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${skinType === t.id ? "bg-primary text-primary-foreground" : "border border-border"}`}>{t.label}</button>
-              ))}
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Type de peau</p>
+              <div className="flex flex-wrap gap-1.5">
+                {SKIN_TYPES.map((t) => (
+                  <button key={t.id} onClick={() => setSkinType(t.id)} aria-pressed={skinType === t.id} className={`rounded-full px-3 min-h-10 text-xs font-medium transition-all focus-visible:outline-2 focus-visible:outline-primary ${skinType === t.id ? "k-btn-gold text-primary-foreground" : "k-chip"}`}>{t.label}</button>
+                ))}
+              </div>
             </div>
-          </div>
-          <div>
-            <p className="text-[11px] font-semibold text-muted-foreground mb-2">Objectifs</p>
-            <div className="flex flex-wrap gap-1.5">
-              {SKIN_GOALS.map((g) => (
-                <button key={g.id} onClick={() => setGoals((s) => (s.includes(g.id) ? s.filter((x) => x !== g.id) : [...s, g.id]))} aria-pressed={goals.includes(g.id)} className={`rounded-full px-3 min-h-10 text-xs font-medium active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${goals.includes(g.id) ? "bg-primary text-primary-foreground" : "border border-border"}`}>{g.label}</button>
-              ))}
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Objectifs</p>
+              <div className="flex flex-wrap gap-1.5">
+                {SKIN_GOALS.map((g) => (
+                  <button key={g.id} onClick={() => setGoals((s) => (s.includes(g.id) ? s.filter((x) => x !== g.id) : [...s, g.id]))} aria-pressed={goals.includes(g.id)} className={`rounded-full px-3 min-h-10 text-xs font-medium transition-all focus-visible:outline-2 focus-visible:outline-primary ${goals.includes(g.id) ? "k-btn-gold text-primary-foreground" : "k-chip"}`}>{g.label}</button>
+                ))}
+              </div>
             </div>
+            <div>
+              <label htmlFor="p-all" className="text-[11px] font-semibold text-muted-foreground">Allergies</label>
+              <textarea id="p-all" value={allergies} onChange={(e) => setAllergies(e.target.value)} rows={2} placeholder="Ex. huile de coco…" className="k-input mt-1 w-full rounded-xl px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+            </div>
+            <button onClick={saveSkin} disabled={savingSkin} className="k-btn-gold h-11 w-full rounded-xl text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              {savingSkin ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Mettre à jour mon profil peau
+            </button>
           </div>
-          <div>
-            <label htmlFor="p-all" className="text-[11px] font-semibold text-muted-foreground">Allergies</label>
-            <textarea id="p-all" value={allergies} onChange={(e) => setAllergies(e.target.value)} rows={2} placeholder="Ex. huile de coco…" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
-          </div>
-          <button onClick={saveSkin} disabled={savingSkin} className="h-11 w-full rounded-xl border border-primary/60 text-primary text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary">
-            {savingSkin ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Mettre à jour mon profil peau
-          </button>
-        </div>
-      </section>
+        </section>
+      </RevealItem>
 
       {/* Langue de l'interface — i18n UI, indépendante de la lecture vocale
           (la langue TTS se règle dans les pilules du résumé vocal, accueil) */}
-      <section aria-labelledby="lang-t" className="rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center gap-3">
-          <span className="grid place-items-center h-10 w-10 rounded-xl bg-primary/15 text-primary shrink-0">
-            <Languages size={19} />
-          </span>
-          <div className="flex-1 min-w-0">
-            <p id="lang-t" className="text-xs font-bold">{t("lang.selector.label")}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{t("lang.selector.note")}</p>
+      <RevealItem>
+        <section aria-labelledby="lang-t" className="k-card rounded-[24px] p-4">
+          <div className="flex items-center gap-3">
+            <IconBadge icon={<Languages size={19} />} tone="gold" />
+            <div className="flex-1 min-w-0">
+              <p id="lang-t" className="text-xs font-bold">{t("lang.selector.label")}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{t("lang.selector.note")}</p>
+            </div>
           </div>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {LANGS.map((l) => {
-            const active = lang === l.id;
-            return (
-              <button
-                key={l.id}
-                onClick={() => selectLang(l.id)}
-                aria-pressed={active}
-                className={`rounded-xl border p-3 min-h-12 text-left active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-                  active ? "border-primary bg-primary/10" : "border-border hover:border-primary/40"
-                }`}
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {LANGS.map((l) => {
+              const active = lang === l.id;
+              return (
+                <button
+                  key={l.id}
+                  onClick={() => selectLang(l.id)}
+                  aria-pressed={active}
+                  className={`k-chip rounded-[14px] border p-3 min-h-12 text-left active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                    active ? "border-primary bg-primary/10" : "hover:border-primary/40"
+                  }`}
               >
                 <span className="flex items-center justify-between gap-1.5">
                   <span className={`text-xs font-bold ${active ? "text-primary" : "text-foreground"}`}>{l.label}</span>
@@ -327,121 +332,126 @@ export function ProfileScreen() {
               </button>
             );
           })}
-        </div>
-      </section>
+          </div>
+        </section>
+      </RevealItem>
 
       {/* Wallet */}
-      <section aria-labelledby="wa-t">
-        <SectionTitle icon={<WalletIcon size={16} />}><span id="wa-t">Mon wallet Kènè</span></SectionTitle>
-        <div className="rounded-3xl bg-[#1A1410] text-[#F8F1E4] p-5 shadow-md relative overflow-hidden">
-          <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-20" />
-          <div className="relative">
-            <p className="text-[10px] uppercase tracking-[0.18em] opacity-70">Solde disponible</p>
-            <p className="font-mono font-black text-3xl mt-1">{wallet ? xof(wallet.balance) : "···"}</p>
-            <div className="flex items-center gap-2 mt-2 text-[11px] opacity-80">
-              <BadgeCheck size={13} className="text-[#C8951E]" /> Cashback {Math.round((wallet?.cashbackRate ?? CASHBACK_RATE) * 100)} % sur chaque commande
+      <RevealItem>
+        <section aria-labelledby="wa-t">
+          <SectionTitle icon={<WalletIcon size={16} />}><span id="wa-t">Mon wallet Kènè</span></SectionTitle>
+          <div className="k-glow-gold relative rounded-[24px] bg-[#1A1410] text-[#F8F1E4] p-5 overflow-hidden">
+            <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-20" />
+            <div className="relative">
+              <p className="text-[10px] uppercase tracking-[0.18em] opacity-70">Solde disponible</p>
+              <p className="font-mono font-black text-3xl mt-1 tabular-nums">{wallet ? xof(wallet.balance) : "···"}</p>
+              <div className="flex items-center gap-2 mt-2 text-[11px] opacity-80">
+                <BadgeCheck size={13} className="text-[#C8951E]" /> Cashback {Math.round((wallet?.cashbackRate ?? CASHBACK_RATE) * 100)} % sur chaque commande
+              </div>
+              <button onClick={() => { setTopup(true); setTopupState("idle"); }} className="k-btn-gold mt-4 h-11 w-full rounded-xl text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-[#C8951E]">
+                <Plus size={16} /> Approvisionner
+              </button>
             </div>
-            <button onClick={() => { setTopup(true); setTopupState("idle"); }} className="mt-4 h-11 w-full rounded-xl bg-[#C8951E] text-[#1A1410] font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#C8951E]">
-              <Plus size={16} /> Approvisionner
-            </button>
           </div>
-        </div>
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">Dernières transactions</p>
-        {txs === null ? (
-          <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-12 rounded-xl" />)}</div>
-        ) : txs.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-3">Aucune transaction pour l&apos;instant.</p>
-        ) : (
-          <div className="rounded-2xl border border-border bg-card divide-y divide-border max-h-72 overflow-y-auto scrollbar-thin">
-            {txs.map((t) => {
-              const credit = t.type === "credit";
-              return (
-                <div key={t.id} className="flex items-center gap-3 px-4 py-3">
-                  <span className={`grid place-items-center h-8 w-8 rounded-full shrink-0 ${credit ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
-                    {credit ? <ArrowDownLeft size={15} /> : <ArrowUpRight size={15} />}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold">{REASON_LABELS[t.reason] ?? t.reason}</p>
-                    <p className="text-[10px] text-muted-foreground">{formatDate(t.createdAt, { day: "numeric", month: "short", year: "2-digit" })}</p>
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">Dernières transactions</p>
+          {txs === null ? (
+            <div className="space-y-2">{[0, 1, 2].map((i) => <Shimmer key={i} className="h-12 rounded-[14px]" />)}</div>
+          ) : txs.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-3">Aucune transaction pour l&apos;instant.</p>
+          ) : (
+            <div className="k-card divide-y divide-border max-h-72 overflow-y-auto scrollbar-thin rounded-[24px]">
+              {txs.map((t) => {
+                const credit = t.type === "credit";
+                return (
+                  <div key={t.id} className="flex items-center gap-3 px-4 py-3">
+                    <span className={`grid place-items-center h-8 w-8 rounded-[10px] shrink-0 ${credit ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
+                      {credit ? <ArrowDownLeft size={15} /> : <ArrowUpRight size={15} />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold">{REASON_LABELS[t.reason] ?? t.reason}</p>
+                      <p className="text-[10px] text-muted-foreground">{formatDate(t.createdAt, { day: "numeric", month: "short", year: "2-digit" })}</p>
+                    </div>
+                    <span className={`font-mono text-sm font-bold tabular-nums ${credit ? "text-success" : "text-destructive"}`}>
+                      {credit ? "+" : "−"}{xof(t.amount)}
+                    </span>
                   </div>
-                  <span className={`font-mono text-sm font-bold ${credit ? "text-success" : "text-destructive"}`}>
-                    {credit ? "+" : "−"}{xof(t.amount)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </RevealItem>
 
       {/* Parrainage — le fil qui relie les amies */}
       <ParrainageCard userId={user.id} userName={user.name} onRedeemed={loadWallet} />
 
       {/* Consentement */}
-      <section aria-labelledby="cons-t" className="rounded-2xl border border-border bg-card p-4 flex items-center gap-3">
-        <ShieldCheck size={20} className={user.consentHealth ? "text-success" : "text-destructive"} />
-        <div className="flex-1">
-          <p className="text-xs font-semibold">Consentement données santé</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">{user.consentHealth ? "Accordé — photos et diagnostics utilisés uniquement pour tes analyses." : "Non accordé — requis pour le diagnostic IA."}</p>
-        </div>
-        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${user.consentHealth ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
-          {user.consentHealth ? "Actif" : "Inactif"}
-        </span>
-      </section>
+      <RevealItem>
+        <section aria-labelledby="cons-t" className="k-card rounded-[24px] p-4 flex items-center gap-3">
+          <IconBadge icon={<ShieldCheck size={19} />} tone={user.consentHealth ? "success" : "bissap"} />
+          <div className="flex-1">
+            <p className="text-xs font-semibold">Consentement données santé</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{user.consentHealth ? "Accordé — photos et diagnostics utilisés uniquement pour tes analyses." : "Non accordé — requis pour le diagnostic IA."}</p>
+          </div>
+          <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${user.consentHealth ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
+            {user.consentHealth ? "Actif" : "Inactif"}
+          </span>
+        </section>
+      </RevealItem>
 
       {/* Mes données — portabilité RGPD (art. 20) */}
-      <section aria-labelledby="rgpd-t" className="rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center gap-3">
-          <span className="grid place-items-center h-10 w-10 rounded-xl bg-terre/15 text-terre shrink-0">
-            <Download size={19} />
-          </span>
-          <div className="flex-1 min-w-0">
-            <p id="rgpd-t" className="text-xs font-bold flex items-center gap-1.5">Mes données <span className="rounded-full bg-muted px-1.5 py-px text-[9px] font-semibold text-muted-foreground">RGPD</span></p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Ton dossier complet en un fichier : diagnostics, rendez-vous, commandes, wallet, parrainage, notifications.</p>
+      <RevealItem>
+        <section aria-labelledby="rgpd-t" className="k-card rounded-[24px] p-4">
+          <div className="flex items-center gap-3">
+            <IconBadge icon={<Download size={19} />} tone="terre" />
+            <div className="flex-1 min-w-0">
+              <p id="rgpd-t" className="text-xs font-bold flex items-center gap-1.5">Mes données <span className="rounded-full bg-muted px-1.5 py-px text-[9px] font-semibold text-muted-foreground">RGPD</span></p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Ton dossier complet en un fichier : diagnostics, rendez-vous, commandes, wallet, parrainage, notifications.</p>
+            </div>
           </div>
-        </div>
-        <button
-          onClick={downloadMyData}
-          disabled={exportBusy}
-          className="mt-3 h-11 w-full rounded-xl border-2 border-terre/50 bg-terre/10 text-terre text-xs font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-terre"
-        >
-          {exportBusy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
-          {exportBusy ? "Préparation…" : "Télécharger mes données (JSON)"}
-        </button>
-        <p className="mt-2 text-[10px] text-muted-foreground">Art. 20 RGPD — droit à la portabilité. Les photos ne sont pas incluses (poids) ; les résultats complets oui.</p>
-      </section>
+          <button
+            onClick={downloadMyData}
+            disabled={exportBusy}
+            className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            {exportBusy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+            {exportBusy ? "Préparation…" : "Télécharger mes données (JSON)"}
+          </button>
+          <p className="mt-2 text-[10px] text-muted-foreground">Art. 20 RGPD — droit à la portabilité. Les photos ne sont pas incluses (poids) ; les résultats complets oui.</p>
+        </section>
+      </RevealItem>
 
       {/* Sécurité renforcée — 2FA-lite : code SMS avant chaque paiement.
-          Toute la rangée est le bouton (cible ≥ 40 px), le Switch shadcn est
-          l'indicateur visuel (pointer-events-none, hors focus). */}
-      <section aria-labelledby="sec-t" className="rounded-2xl border border-border bg-card p-4">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={secureEnabled}
-          aria-label="Sécurité renforcée avant paiement"
-          onClick={toggleSecure}
-          className="w-full flex items-center gap-3 rounded-xl text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
-        >
-          <span className="grid place-items-center h-10 w-10 rounded-xl bg-primary/15 text-primary shrink-0" aria-hidden="true">
-            <ShieldCheck size={19} />
-          </span>
+          Toute la rangée est le bouton (cible ≥ 40 px) ; l'indicateur est un
+          pseudo-switch purement décoratif (un vrai Switch shadcn rendrait un
+          <button> imbriqué — HTML invalide + erreur d'hydratation). */}
+      <RevealItem>
+        <section aria-labelledby="sec-t" className="k-card rounded-[24px] p-4">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={secureEnabled}
+            aria-label="Sécurité renforcée avant paiement"
+            onClick={toggleSecure}
+            className="w-full flex items-center gap-3 rounded-xl text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            <IconBadge icon={<ShieldCheck size={19} />} tone="gold" />
           <span className="flex-1 min-w-0 py-1.5">
             <span id="sec-t" className="block text-xs font-bold">Sécurité renforcée</span>
             <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">Exige un code par SMS avant chaque paiement — même si quelqu&apos;un a ton téléphone.</span>
           </span>
-          <span className="pointer-events-none shrink-0 grid place-items-center min-h-10 min-w-10" aria-hidden="true">
-            <Switch checked={secureEnabled} tabIndex={-1} />
+          <span aria-hidden="true" className={`pointer-events-none ml-auto inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${secureEnabled ? "bg-primary" : "bg-input"}`}>
+            <span className={`block size-5 rounded-full bg-[#FFF9EC] shadow transition-transform duration-200 ${secureEnabled ? "translate-x-5" : "translate-x-0"}`} />
           </span>
-        </button>
-      </section>
+          </button>
+        </section>
+      </RevealItem>
 
       {/* Application — installation PWA sur l'écran d'accueil */}
-      <section aria-labelledby="app-t" className="rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center gap-3">
-          <span className="grid place-items-center h-10 w-10 rounded-xl bg-primary/15 text-primary shrink-0">
-            <Smartphone size={19} />
-          </span>
+      <RevealItem>
+        <section aria-labelledby="app-t" className="k-card rounded-[24px] p-4">
+          <div className="flex items-center gap-3">
+            <IconBadge icon={<Smartphone size={19} />} tone="gold" />
           <div className="flex-1 min-w-0">
             <p id="app-t" className="text-xs font-bold">Application</p>
             <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Installe Kènè sur ton écran d&apos;accueil : un tap pour ouvrir, et tes diagnostics restent consultables même hors-ligne.</p>
@@ -452,29 +462,35 @@ export function ProfileScreen() {
             <BadgeCheck size={15} className="shrink-0" /> Kènè est déjà installée sur ton téléphone
           </p>
         ) : (
-          <button
-            onClick={() => void installApp()}
-            className="mt-3 h-11 w-full rounded-xl bg-primary text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
-            <Download size={15} /> Installer Kènè
-          </button>
-        )}
-      </section>
+            <button
+              onClick={() => void installApp()}
+              className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <Download size={15} /> Installer Kènè
+            </button>
+          )}
+        </section>
+      </RevealItem>
 
       {/* Espace pro */}
-      <button onClick={() => setSpace("pro")} className="rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
-        <p className="flex items-center gap-2 font-heading font-bold text-sm text-primary"><Building2 size={17} /> Vous êtes gérante d&apos;institut ?</p>
-        <p className="text-xs text-muted-foreground mt-1">Découvrir l&apos;Espace Pro Kènè : agenda, caisse, CRM, stock, paie, comptabilité.</p>
-      </button>
+      <RevealItem>
+        <button onClick={() => setSpace("pro")} className="rounded-[24px] border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+          <p className="flex items-center gap-2 font-heading font-bold text-sm text-primary"><Building2 size={17} /> Vous êtes gérante d&apos;institut ?</p>
+          <p className="text-xs text-muted-foreground mt-1">Découvrir l&apos;Espace Pro Kènè : agenda, caisse, CRM, stock, paie, comptabilité.</p>
+        </button>
+      </RevealItem>
 
       {/* Déconnexion — le panier est vidé AVANT de perdre la session : la
           prochaine utilisatrice du téléphone n'hérite de rien. */}
-      <button
-        onClick={() => { clearCart(); setUser(null); toast.info("À bientôt sur Kènè"); }}
-        className="h-12 rounded-xl border border-destructive/40 text-destructive text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive"
-      >
-        <LogOut size={16} /> Déconnexion
-      </button>
+      <RevealItem>
+        <button
+          onClick={() => { clearCart(); setUser(null); toast.info("À bientôt sur Kènè"); }}
+          className="h-12 rounded-2xl border border-destructive/40 bg-destructive/10 text-destructive text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive"
+        >
+          <LogOut size={16} /> Déconnexion
+        </button>
+      </RevealItem>
+      </Reveal>
 
       {/* Sheet approvisionnement */}
       <Sheet open={topup} onOpenChange={(o) => { setTopup(o); if (!o) setTopupState("idle"); }}>
@@ -489,7 +505,7 @@ export function ProfileScreen() {
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Montant</p>
                   <div className="grid grid-cols-3 gap-2">
                     {[2000, 5000, 10000].map((a) => (
-                      <button key={a} onClick={() => setAmount(a)} aria-pressed={amount === a} className={`h-12 rounded-xl font-mono text-sm font-bold active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${amount === a ? "bg-primary text-primary-foreground" : "border border-border bg-card"}`}>
+                      <button key={a} onClick={() => setAmount(a)} aria-pressed={amount === a} className={`h-12 rounded-xl font-mono text-sm font-bold tabular-nums transition-all focus-visible:outline-2 focus-visible:outline-primary ${amount === a ? "k-btn-gold text-primary-foreground" : "k-chip"}`}>
                         {a.toLocaleString("fr-FR")}
                       </button>
                     ))}
@@ -506,7 +522,7 @@ export function ProfileScreen() {
                     ))}
                   </div>
                 </div>
-                <button onClick={runTopup} disabled={topupBusy} className="h-12 w-full rounded-xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                <button onClick={runTopup} disabled={topupBusy} className="k-btn-gold h-12 w-full rounded-xl text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                   {topupBusy ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Créditer {xof(amount)}
                 </button>
               </div>
@@ -516,24 +532,24 @@ export function ProfileScreen() {
                 <div className="grid place-items-center w-16 h-16 rounded-3xl font-heading font-black text-2xl text-[#1A1410]" style={{ backgroundColor: MOMO_OPERATORS.find((o) => o.code === method)?.color }}>
                   {MOMO_OPERATORS.find((o) => o.code === method)?.name.charAt(0)}
                 </div>
-                <p className="font-mono text-2xl font-black">{xof(amount)}</p>
+                <p className="font-mono text-2xl font-black tabular-nums">{xof(amount)}</p>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Traitement en cours…</div>
                 <p className="text-[10px] text-muted-foreground font-mono">{user.phone}</p>
               </div>
             )}
             {topupState === "done" && (
               <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center gap-3 py-8 text-center">
-                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 15 }} className="grid place-items-center h-16 w-16 rounded-full bg-[#3F7D3F]">
+                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 15 }} className="grid place-items-center h-16 w-16 rounded-full bg-[#346834]">
                   <Check size={32} className="text-white" strokeWidth={3} />
                 </motion.span>
                 <p className="font-heading font-black text-lg">Wallet crédité</p>
                 <p className="text-xs text-muted-foreground">Nouveau solde mis à disposition immédiatement.</p>
-                <button onClick={() => setTopup(false)} className="mt-2 h-11 px-6 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">Fermer</button>
+                <button onClick={() => setTopup(false)} className="k-btn-gold mt-2 h-11 px-6 rounded-xl text-primary-foreground font-semibold text-sm focus-visible:outline-2 focus-visible:outline-primary">Fermer</button>
               </motion.div>
             )}
           </div>
         </SheetContent>
       </Sheet>
-    </div>
+    </>
   );
 }
