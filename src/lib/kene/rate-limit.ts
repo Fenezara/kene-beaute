@@ -19,6 +19,7 @@ export const APPOINTMENTS_CREATE = { limit: 12, windowMs: 60_000 } as const; // 
 export const APPOINTMENT_CANCEL = { limit: 12, windowMs: 60_000 } as const; // annulation RDV (t. 63-c)
 export const REFERRAL_REDEEM = { limit: 5, windowMs: 3_600_000 } as const;
 export const TTS = { limit: 12, windowMs: 60_000 } as const;
+export const ASR = { limit: 10, windowMs: 60_000 } as const; // transcription vocale chat (t. 71-d)
 export const AUTH_MUTATION = { limit: 20, windowMs: 60_000 } as const;
 
 // ── Routes coûteuses (t. 63-d) ──

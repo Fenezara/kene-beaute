@@ -22,7 +22,7 @@ import { persist } from "zustand/middleware";
 import type { CartLine } from "@/lib/kene/types";
 
 export type Space = "client" | "pro" | "admin";
-export type ClientTab = "accueil" | "diagnostic" | "boutique" | "rdv" | "chat" | "profil" | "parametres";
+export type ClientTab = "accueil" | "diagnostic" | "boutique" | "rdv" | "chat" | "profil" | "parametres" | "abonnement" | "legal";
 
 export interface SessionUser {
   id: string;
@@ -60,7 +60,7 @@ interface KeneState extends PersistedKene {
   setProTenantId: (id: string | null) => void;
 }
 
-const TABS: readonly ClientTab[] = ["accueil", "diagnostic", "boutique", "rdv", "chat", "profil", "parametres"];
+const TABS: readonly ClientTab[] = ["accueil", "diagnostic", "boutique", "rdv", "chat", "profil", "parametres", "abonnement", "legal"];
 
 /** Espace autorisé pour un rôle de session (t. 69-a) — source de vérité
  *  unique de l'isolation des comptes : « pro » → espace entreprise, « admin »

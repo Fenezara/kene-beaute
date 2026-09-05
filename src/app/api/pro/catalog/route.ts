@@ -3,9 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
+import { guardProRole } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:catalog:get");
+    if (guard) return guard;
+
     const tenant = await resolveTenant(req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
@@ -38,6 +44,11 @@ const CreateBody = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, la création
+    // service/produit exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:catalog:post");
+    if (guard) return guard;
+
     const parsed = CreateBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide (name + price requis)", 400);
     const { tenantId, type, data } = parsed.data;
@@ -92,6 +103,11 @@ const PRODUCT_FIELDS = ["name", "category", "price", "stock", "stockAlert", "des
 
 export async function PATCH(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, la mise à jour
+    // catalogue exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:catalog:patch");
+    if (guard) return guard;
+
     const parsed = PatchBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, type, id, data } = parsed.data;

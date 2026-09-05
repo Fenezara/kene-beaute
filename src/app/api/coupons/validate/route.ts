@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
+import { guardUserClaim } from "@/lib/kene/session";
 import { checkCoupon } from "@/lib/kene/coupons";
 
 const Body = z.object({
@@ -18,6 +19,12 @@ export async function POST(req: NextRequest) {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("code et subtotal requis", 400);
     const { code, userId, subtotal } = parsed.data;
+
+    // Session signée (t. 71-b, migration douce) : avec cookie, l'aperçu de
+    // remise se calcule pour le compte de la session ; sans userId dans le
+    // corps (invitée) ou sans cookie → legacy (comportement conservé).
+    const guard = guardUserClaim(req, "coupons:validate", userId);
+    if (guard) return guard;
 
     if (userId) {
       const user = await db.user.findUnique({ where: { id: userId }, select: { id: true } });

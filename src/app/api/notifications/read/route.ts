@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
+import { guardUserClaim } from "@/lib/kene/session";
 
 export const runtime = "nodejs";
 
@@ -19,6 +20,12 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return jsonError("userId requis", 400);
 
     const { userId, ids } = parsed.data;
+
+    // Session signée (t. 71-b, migration douce) : avec cookie, seules les
+    // notifications de la session peuvent être marquées lues ; sans cookie → legacy.
+    const guard = guardUserClaim(req, "notifications:read", userId);
+    if (guard) return guard;
+
     const user = await db.user.findUnique({ where: { id: userId }, select: { id: true } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);
 

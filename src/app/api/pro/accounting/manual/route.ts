@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, genRef } from "@/lib/kene/server";
+import { guardProRole } from "@/lib/kene/session";
 
 const Body = z.object({
   tenantId: z.string().min(1),
@@ -22,6 +23,11 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, l'écriture
+    // comptable exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:accounting:manual");
+    if (guard) return guard;
+
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, journalCode, description, lines } = parsed.data;

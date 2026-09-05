@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, genRef } from "@/lib/kene/server";
 import { newConfirmToken, paymentWithConfirmToken } from "@/lib/kene/confirm-token";
+import { guardUserClaim } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, WALLET_TOPUP } from "@/lib/kene/rate-limit";
 
 const Body = z.object({
@@ -24,6 +25,11 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide (amount ≥ 100, method wave|orange)", 400);
+
+    // Session signée (t. 71-b, migration douce) : avec cookie, la recharge ne
+    // peut créer un paiement que pour le compte de la session.
+    const guard = guardUserClaim(req, "wallet:topup", parsed.data.userId);
+    if (guard) return guard;
 
     const user = await db.user.findUnique({ where: { id: parsed.data.userId } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);

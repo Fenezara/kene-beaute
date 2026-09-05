@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, LayoutDashboard, MapPin, Settings, Stethoscope, TicketPercent } from "lucide-react";
+import { BellRing, Crown, LayoutDashboard, MapPin, Settings, Stethoscope, TicketPercent } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -31,8 +31,9 @@ import { AccountingSection } from "./AccountingSection";
 import { CouponsSection } from "./CouponsSection";
 import { DiagnosticsSection } from "./DiagnosticsSection";
 import { SettingsSection } from "./SettingsSection";
+import { ProPlanSection } from "./ProPlanSection";
 
-export type ProSectionId = "dashboard" | "agenda" | "diagnostic" | "caisse" | "crm" | "relances" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres";
+export type ProSectionId = "dashboard" | "agenda" | "diagnostic" | "caisse" | "crm" | "relances" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
@@ -47,6 +48,7 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
   { id: "paie", label: "Paie", icon: FihankraIcon, hint: "CNPS · IPRES" },
   { id: "compta", label: "Compta", icon: BaouleIcon, hint: "SYSCOHADA" },
   { id: "parametres", label: "Paramètres", icon: Settings, hint: "Compte · affichage · session" },
+  { id: "abonnement", label: "Abonnement", icon: Crown, hint: "Offres & facturation" },
 ];
 
 const PLAN_STYLES: Record<string, string> = {
@@ -437,7 +439,8 @@ export function ProApp() {
             {section === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
             {section === "paie" && <PayrollSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} tenantName={tenant?.name ?? "Institut"} />}
             {section === "compta" && <AccountingSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
-            {section === "parametres" && <SettingsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} tenantCity={tenant?.city} />}
+            {section === "parametres" && <SettingsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} tenantCity={tenant?.city} onNavigate={openSection} />}
+            {section === "abonnement" && <ProPlanSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
           </motion.div>
         </div>
       </div>

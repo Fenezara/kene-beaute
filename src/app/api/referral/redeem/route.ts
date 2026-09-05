@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, ensureWallet, creditWallet, notify } from "@/lib/kene/server";
 import { FILLEUL_GIFT, PARRAIN_REWARD, filleulGiftRefId } from "@/lib/kene/referral";
+import { guardUserClaim } from "@/lib/kene/session";
 import { xof } from "@/lib/kene/format";
 import { rateLimit, rlKey, rateLimitResponse, REFERRAL_REDEEM } from "@/lib/kene/rate-limit";
 
@@ -27,6 +28,11 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return jsonError("userId et code requis (4 à 40 caractères)", 400);
     const { userId, code: rawCode } = parsed.data;
     const code = rawCode.toUpperCase().trim();
+
+    // Session signée (t. 71-b, migration douce) : avec cookie, le code ne
+    // s'échange que pour le compte de la session ; sans cookie → legacy.
+    const guard = guardUserClaim(req, "referral:redeem", userId);
+    if (guard) return guard;
 
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);

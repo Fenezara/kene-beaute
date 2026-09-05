@@ -17,6 +17,7 @@ import { CASHBACK_RATE, xof } from "@/lib/kene/format";
 import { checkCoupon, redeemCoupon } from "@/lib/kene/coupons";
 import { newConfirmToken, paymentWithConfirmToken } from "@/lib/kene/confirm-token";
 import { pushTenantFeed } from "@/lib/kene/realtime";
+import { guardUserClaim } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, ORDERS_CREATE } from "@/lib/kene/rate-limit";
 
 const Body = z.object({
@@ -57,6 +58,11 @@ export async function POST(req: NextRequest) {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { userId, items, paymentMethod, couponCode } = parsed.data;
+
+    // Session signée (t. 71-b, migration douce) : avec cookie, la commande ne
+    // peut passer que pour le compte de la session ; sans cookie → legacy.
+    const guard = guardUserClaim(req, "orders:post", userId);
+    if (guard) return guard;
 
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);

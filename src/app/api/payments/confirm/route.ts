@@ -15,6 +15,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, ensureWallet, creditWallet, notify, rewardReferrerIfNeeded } from "@/lib/kene/server";
 import { xof } from "@/lib/kene/format";
 import { confirmTokenMatches, serializePayment } from "@/lib/kene/confirm-token";
+import { guardUserClaim } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, PAYMENTS_CONFIRM } from "@/lib/kene/rate-limit";
 
 const Body = z.object({
@@ -41,6 +42,13 @@ export async function POST(req: NextRequest) {
 
     const payment = await db.payment.findUnique({ where: { id: paymentId } });
     if (!payment) return jsonError("Paiement introuvable", 404);
+
+    // Session signée (t. 71-b) : avec cookie, seul le compte propriétaire du
+    // paiement (payment.userId) peut le confirmer ; sans cookie → legacy
+    // (le code de confirmation reste la barrière anti-mint de t. 63-c).
+    const guard = guardUserClaim(req, "payments:confirm", payment.userId ?? undefined);
+    if (guard) return guard;
+
     if (!payment.confirmTokenHash) {
       return jsonError("Paiement sans code de confirmation — recommence l'opération", 400);
     }

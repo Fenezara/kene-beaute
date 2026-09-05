@@ -3,9 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rfmScore } from "@/lib/kene/rfm";
 import { jsonError, serverError } from "@/lib/kene/server";
+import { guardProRole } from "@/lib/kene/session";
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:clients:[id]:get");
+    if (guard) return guard;
+
     const { id } = await params;
     const client = await db.clientProfile.findUnique({ where: { id } });
     if (!client) return jsonError("Fiche cliente introuvable", 404);

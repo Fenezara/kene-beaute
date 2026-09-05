@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { splitTVA, saleJournalLines } from "@/lib/accounting/syscohada";
 import { jsonError, serverError, overlaps, dayEnd, createJournalEntry, recomputeClientRfm, genRef, notify } from "@/lib/kene/server";
 import { pushTenantFeed } from "@/lib/kene/realtime";
+import { guardProRole } from "@/lib/kene/session";
 
 const Body = z.object({
   action: z.enum(["confirm", "complete", "cancel", "no_show", "reschedule"]),
@@ -15,6 +16,11 @@ const Body = z.object({
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, la gestion du
+    // RDV (confirm/complete/cancel/reschedule) exige un compte pro/admin.
+    const guard = guardProRole(req, "pro:appointments:[id]:patch");
+    if (guard) return guard;
+
     const { id } = await params;
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("action invalide", 400);

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { COUPON_CODE_RE, normalizeCouponCode } from "@/lib/kene/coupons";
+import { guardProRole } from "@/lib/kene/session";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,11 @@ function statusOf(c: { active: boolean; startsAt: Date; expiresAt: Date | null; 
 
 export async function GET(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:coupons:get");
+    if (guard) return guard;
+
     const tenant = await resolveTenant(req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
@@ -74,6 +80,11 @@ function genCode(): string {
 
 export async function POST(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, la création de
+    // coupon exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:coupons:post");
+    if (guard) return guard;
+
     const parsed = CreateBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, label, kind, value, minOrder, maxUses, expiresAt } = parsed.data;
@@ -140,6 +151,11 @@ const PatchBody = z.object({
 
 export async function PATCH(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, l'activation/
+    // désactivation exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:coupons:patch");
+    if (guard) return guard;
+
     const parsed = PatchBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, id, active } = parsed.data;

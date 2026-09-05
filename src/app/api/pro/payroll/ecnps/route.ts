@@ -3,9 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildECnpsXml } from "@/lib/payroll";
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
+import { guardProRole } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : export navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:payroll:ecnps");
+    if (guard) return guard;
+
     const period = req.nextUrl.searchParams.get("period");
     if (!period || !/^\d{4}-\d{2}$/.test(period)) return jsonError("Paramètre period (YYYY-MM) requis", 400);
 

@@ -19,6 +19,7 @@ import {
   type ExportType,
 } from "@/lib/accounting/csv";
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
+import { guardProRole } from "@/lib/kene/session";
 
 /** "2026-08-01" | ISO → Date ; undefined si absent, null si présent mais invalide */
 function parseDay(v: string | null): Date | undefined | null {
@@ -35,6 +36,11 @@ function endOfDay(d: Date): Date {
 
 export async function GET(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : export navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:accounting:export");
+    if (guard) return guard;
+
     const sp = req.nextUrl.searchParams;
     const tenant = await resolveTenant(sp.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);

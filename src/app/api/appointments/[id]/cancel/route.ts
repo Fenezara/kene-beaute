@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { cancellationRefund } from "@/lib/kene/rfm";
 import { jsonError, serverError, ensureWallet, creditWallet, notify } from "@/lib/kene/server";
+import { guardUserClaim } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, APPOINTMENT_CANCEL } from "@/lib/kene/rate-limit";
 
 const Body = z.object({ userId: z.string().optional() });
@@ -21,6 +22,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
+
+    // Session signée (t. 71-b, migration douce) : avec cookie, le userId du
+    // corps doit être celui de la session — la garde propriétaire (403 juste
+    // après) reste la barrière métier ; sans cookie → legacy.
+    const guard = guardUserClaim(req, "appointments:cancel", parsed.data.userId);
+    if (guard) return guard;
 
     const appointment = await db.appointment.findUnique({
       where: { id },

@@ -13,6 +13,7 @@ import type { BodyZone } from "@/lib/kene/types";
 import { scoreQuestionnaire, mergeResults, missingRequired, QUESTIONS } from "@/lib/kene/questionnaire";
 import type { QAnswers } from "@/lib/kene/questionnaire";
 import { jsonError, serverError, notify, resolveTenant } from "@/lib/kene/server";
+import { guardProRole } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, PRO_DIAGNOSES } from "@/lib/kene/rate-limit";
 
 export const runtime = "nodejs";
@@ -51,6 +52,11 @@ export async function POST(req: NextRequest) {
     return rateLimitResponse(rl.retryAfterSec, "Diagnostic en institut très sollicité — reprends dans quelques secondes");
   }
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, le diagnostic
+    // en institut exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:diagnoses:post");
+    if (guard) return guard;
+
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
@@ -185,6 +191,11 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:diagnoses:get");
+    if (guard) return guard;
+
     const tenant = await resolveTenant(req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
     const clientId = req.nextUrl.searchParams.get("clientId");

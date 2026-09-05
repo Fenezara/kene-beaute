@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, COUPONS_DIFFUSE } from "@/lib/kene/rate-limit";
 import { diffuseCoupon } from "@/lib/kene/coupons";
+import { guardProRole } from "@/lib/kene/session";
 
 const Body = z.object({
   tenantId: z.string().min(1),
@@ -21,6 +22,11 @@ export async function POST(req: NextRequest) {
     return rateLimitResponse(rl.retryAfterSec, "Diffusion trop fréquente — reprends dans quelques secondes");
   }
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, la diffusion
+    // mass-notification exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:coupons:diffuse");
+    if (guard) return guard;
+
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("tenantId et couponId requis", 400);
     const { tenantId, couponId } = parsed.data;

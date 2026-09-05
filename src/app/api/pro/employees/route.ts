@@ -3,9 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, dayStart, dayEnd } from "@/lib/kene/server";
+import { guardProRole } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:employees:get");
+    if (guard) return guard;
+
     const tenant = await resolveTenant(req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
@@ -38,6 +44,11 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, l'embauche
+    // exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:employees:post");
+    if (guard) return guard;
+
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
 

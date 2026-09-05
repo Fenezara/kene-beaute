@@ -11,6 +11,7 @@ import { jsonError, serverError, overlaps, genRef, notify, dayEnd, ensureWallet,
 import { DEPOSIT_RATE } from "@/lib/kene/format";
 import { newConfirmToken, paymentWithConfirmToken, serializePayment } from "@/lib/kene/confirm-token";
 import type { Appointment, Payment } from "@prisma/client";
+import { guardUserClaim } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, APPOINTMENTS_CREATE } from "@/lib/kene/rate-limit";
 
 const CreateBody = z.object({
@@ -36,6 +37,11 @@ export async function GET(req: NextRequest) {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
 
+    // Session signée (t. 71-b, migration douce) : avec cookie, la session ne
+    // lit que SES rendez-vous ; sans cookie → legacy (comportement conservé).
+    const guard = guardUserClaim(req, "appointments:get", userId);
+    if (guard) return guard;
+
     const since = new Date();
     since.setDate(since.getDate() - 30);
 
@@ -59,6 +65,12 @@ export async function POST(req: NextRequest) {
     const parsed = CreateBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, serviceId, resourceId, startAt, clientName, clientPhone, userId, paymentMethod } = parsed.data;
+
+    // Session signée (t. 71-b, migration douce) : avec cookie, le userId
+    // éventuel du corps doit être celui de la session (réservation pour soi) ;
+    // sans cookie → legacy (walk-in sans compte : userId facultatif, inchangé).
+    const guard = guardUserClaim(req, "appointments:post", userId);
+    if (guard) return guard;
 
     const start = new Date(startAt);
     if (Number.isNaN(start.getTime())) return jsonError("Date de début invalide", 400);

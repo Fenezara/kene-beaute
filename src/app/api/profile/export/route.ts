@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, ensureWallet } from "@/lib/kene/server";
+import { guardUserClaim } from "@/lib/kene/session";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,11 @@ export async function GET(req: NextRequest) {
   try {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
+
+    // Session signée (t. 71-b, migration douce) : avec cookie, l'export RGPD
+    // ne sort que pour le compte de la session ; sans cookie → legacy.
+    const guard = guardUserClaim(req, "profile:export", userId);
+    if (guard) return guard;
 
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);

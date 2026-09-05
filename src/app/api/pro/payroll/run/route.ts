@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { computePayroll } from "@/lib/payroll";
 import { payrollJournalLines } from "@/lib/accounting/syscohada";
 import { jsonError, serverError, genRef, createJournalEntry } from "@/lib/kene/server";
+import { guardProRole } from "@/lib/kene/session";
 
 const Body = z.object({
   tenantId: z.string().min(1),
@@ -13,6 +14,11 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, la validation
+    // de paie exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:payroll:run");
+    if (guard) return guard;
+
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide (period YYYY-MM)", 400);
     const { tenantId, period } = parsed.data;

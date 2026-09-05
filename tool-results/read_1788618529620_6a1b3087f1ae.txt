@@ -1,0 +1,979 @@
+     1→"use client";
+     2→// Kènè Cliente — Diagnostic IA : wizard zone → capture → analyse → résultats VISIA-like → historique — ÉCLAT 2026
+     3→import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+     4→import { AnimatePresence, motion } from "framer-motion";
+     5→import {
+     6→  ArrowLeft, Brush, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, GitCompareArrows, Hand, History,
+     7→  ImagePlus, Loader2, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Sparkles, Sunrise, TriangleAlert, X,
+     8→} from "lucide-react";
+     9→import { toast } from "sonner";
+    10→import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
+    11→import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
+    12→import { BODY_ZONES, SPECTRAL_VIEWS, type BodyZone, type DiagnosisResult, type Indicator } from "@/lib/kene/types";
+    13→import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
+    14→import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
+    15→import { EvolutionCard } from "@/components/kene/evolution/EvolutionCard";
+    16→import { VoiceNarration } from "./VoiceNarration";
+    17→import { PictoSummary } from "./PictoSummary";
+    18→import { GlossaryDialog } from "./GlossaryDialog";
+    19→import { glossaryFor, type GlossaryEntry } from "@/lib/kene/glossary";
+    20→import { matchProduct, norm } from "@/components/kene/route/ritual";
+    21→import { RitualJourney } from "@/components/kene/route/RitualJourney";
+    22→import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+    23→import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    24→import { useKene } from "@/store/kene";
+    25→import { Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
+    26→import type { ApiDiagnosis, ApiProduct } from "./types";
+    27→import { diagImgSrc, parseDiagnosis } from "./types";
+    28→import { EmptyBlock, ScoreChip, ScoreGauge } from "./bits";
+    29→
+    30→const ZONE_ICONS: Record<BodyZone, React.ComponentType<{ size?: number; className?: string }>> = {
+    31→  visage: ScanFace,
+    32→  dos: PersonStanding,
+    33→  cuir_chevelu: Sparkles,
+    34→  mains: Hand,
+    35→  barbe: Brush,
+    36→  naevi: Cross,
+    37→};
+    38→
+    39→// ÉCLAT 2026 — badges teintés alternés (or / terre / bissap / vert baobab) pour
+    40→// donner de la vie à la grille des zones.
+    41→const ZONE_TONES: Record<BodyZone, "gold" | "terre" | "bissap" | "success"> = {
+    42→  visage: "gold",
+    43→  dos: "terre",
+    44→  cuir_chevelu: "bissap",
+    45→  mains: "success",
+    46→  barbe: "gold",
+    47→  naevi: "terre",
+    48→};
+    49→
+    50→const ANALYSIS_STEPS = [
+    51→  "Détection des zones de pigmentation…",
+    52→  "Analyse PIH & mélasma…",
+    53→  "Cartographie inflammatoire…",
+    54→  "Score mélanoderme…",
+    55→];
+    56→
+    57→export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone: BodyZone | null; onZoneConsumed: () => void }) {
+    58→  const user = useKene((s) => s.user)!;
+    59→  const setClientTab = useKene((s) => s.setClientTab);
+    60→  const addToCart = useKene((s) => s.addToCart);
+    61→
+    62→  const [step, setStep] = useState(0);
+    63→  const [zone, setZone] = useState<BodyZone>("visage");
+    64→  const [image, setImage] = useState<string>("");
+    65→  const [analyzing, setAnalyzing] = useState(false);
+    66→  const [progress, setProgress] = useState(0);
+    67→  const [checkedSteps, setCheckedSteps] = useState(0);
+    68→  const [diag, setDiag] = useState<{ id: string; result: DiagnosisResult; imageData: string; createdAt: string } | null>(null);
+    69→  const fileRef = useRef<HTMLInputElement>(null);
+    70→
+    71→  // Résilience 502 (t. 66-b) : message discret sous la barre de progression
+    72→  // pendant un retry / une récupération (annoncé aux lecteurs d'écran).
+    73→  const [netNotice, setNetNotice] = useState<string | null>(null);
+    74→  // Filet de sécurité : AUCUN interval/timeout de launch() ne survit au
+    75→  // démontage (changement d'onglet pendant une analyse — les setState
+    76→  // deviendraient des no-ops mais on rend les minuteurs morts de façon
+    77→  // déterministe, quel que soit le chemin pris dans launch()).
+    78→  const timersRef = useRef<{
+    79→    timer?: ReturnType<typeof setInterval>;
+    80→    steps?: ReturnType<typeof setInterval>;
+    81→    timeouts: ReturnType<typeof setTimeout>[];
+    82→  }>({ timeouts: [] });
+    83→
+    84→  const clearTimers = useCallback(() => {
+    85→    const t = timersRef.current;
+    86→    if (t.timer) { clearInterval(t.timer); t.timer = undefined; }
+    87→    if (t.steps) { clearInterval(t.steps); t.steps = undefined; }
+    88→    t.timeouts.forEach(clearTimeout);
+    89→    t.timeouts = [];
+    90→  }, []);
+    91→
+    92→  useEffect(() => clearTimers, [clearTimers]);
+    93→
+    94→  const [products, setProducts] = useState<ApiProduct[]>([]);
+    95→  // Fin des échecs silencieux : produits indisponibles → encart discret +
+    96→  // Réessayer sur la section recommandations (plus de section muette).
+    97→  const [productsError, setProductsError] = useState(false);
+    98→  const [history, setHistory] = useState<ApiDiagnosis[] | null>(null);
+    99→  const [compareMode, setCompareMode] = useState(false);
+   100→  const [compareSel, setCompareSel] = useState<string[]>([]);
+   101→
+   102→  // zone pré-sélectionnée depuis l'accueil
+   103→  useEffect(() => {
+   104→    if (pendingZone) {
+   105→      setZone(pendingZone);
+   106→      setStep(1);
+   107→      setDiag(null);
+   108→      setImage("");
+   109→      onZoneConsumed();
+   110→    }
+   111→  }, [pendingZone, onZoneConsumed]);
+   112→
+   113→  // produits pour les recommandations — échec explicite + re-fetch possible
+   114→  const loadProducts = useCallback(() => {
+   115→    apiGet<{ products: ApiProduct[] }>("/api/shop/products")
+   116→      .then((r) => { setProducts(r.products ?? []); setProductsError(false); })
+   117→      .catch(() => setProductsError(true));
+   118→  }, []);
+   119→
+   120→  useEffect(() => {
+   121→    loadProducts();
+   122→  }, [loadProducts]);
+   123→
+   124→  async function loadHistory() {
+   125→    setHistory(null);
+   126→    try {
+   127→      const r = await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`);
+   128→      setHistory(r.diagnoses ?? []);
+   129→    } catch {
+   130→      setHistory([]);
+   131→    }
+   132→  }
+   133→
+   134→  function goHistory() {
+   135→    setStep(4);
+   136→    setCompareSel([]);
+   137→    setCompareMode(false);
+   138→    loadHistory();
+   139→  }
+   140→
+   141→  async function onFile(f: File | undefined) {
+   142→    if (!f) return;
+   143→    try {
+   144→      const dataUrl = await resizeImage(f);
+   145→      setImage(dataUrl);
+   146→      // Transparence « petite data » : montrer le poids réel envoyé (compressé côté client)
+   147→      const origKo = Math.round(f.size / 1024);
+   148→      const sentKo = Math.max(1, Math.round((dataUrl.length * 0.75) / 1024)); // base64 ≈ 4/3
+   149→      if (origKo > 250 && origKo > sentKo * 2) {
+   150→        toast.success(`Photo compressée : ${origKo.toLocaleString("fr-FR")} Ko → ${sentKo.toLocaleString("fr-FR")} Ko — léger pour ta connexion`);
+   151→      }
+   152→    } catch (e) {
+   153→      toast.error(e instanceof Error ? e.message : "Photo illisible");
+   154→    }
+   155→  }
+   156→
+   157→  async function useDemoPhoto() {
+   158→    const demo = zone === "mains" ? "demo-mains-1" : zone === "dos" ? "demo-dos-1" : zone === "naevi" ? "demo-visage-2" : "demo-visage-1";
+   159→    try {
+   160→      const blob = await (await fetch(`/skin/${demo}.webp`)).blob();
+   161→      const file = new File([blob], `${demo}.webp`, { type: "image/webp" });
+   162→      await onFile(file);
+   163→      toast.success("Photo démo chargée");
+   164→    } catch {
+   165→      toast.error("Photo démo indisponible");
+   166→    }
+   167→  }
+   168→
+   169→  async function launch() {
+   170→    if (!image) return;
+   171→    setStep(2);
+   172→    setAnalyzing(true);
+   173→    setProgress(0);
+   174→    setCheckedSteps(0);
+   175→    setNetNotice(null);
+   176→    const t0 = Date.now();
+   177→    const timer = setInterval(() => {
+   178→      setProgress((p) => Math.min(96, p + Math.random() * 7 + 2));
+   179→    }, 420);
+   180→    const steps = setInterval(() => {
+   181→      setCheckedSteps((c) => Math.min(ANALYSIS_STEPS.length, c + 1));
+   182→    }, 1150);
+   183→    timersRef.current.timer = timer;
+   184→    timersRef.current.steps = steps;
+   185→
+   186→    // Résultat acquis (POST direct ou récupéré après un 502) : même animation,
+   187→    // durée minimale ~3,4 s, minuteurs suivis et nettoyés dans tous les cas.
+   188→    function showResult(d: { id: string; result: DiagnosisResult; imageData: string; createdAt: string }, recovered = false) {
+   189→      const wait = Math.max(0, 3400 - (Date.now() - t0));
+   190→      const to1 = setTimeout(() => {
+   191→        setProgress(100);
+   192→        setCheckedSteps(ANALYSIS_STEPS.length);
+   193→        const to2 = setTimeout(() => {
+   194→          setDiag(d);
+   195→          setAnalyzing(false);
+   196→          setNetNotice(null);
+   197→          setStep(3);
+   198→          clearTimers();
+   199→          if (recovered) {
+   200→            toast.success("Analyse retrouvée — voici tes résultats", {
+   201→              description: "Le réseau a été instable une seconde, mais ton diagnostic était bien enregistré.",
+   202→            });
+   203→          }
+   204→        }, 450);
+   205→        timersRef.current.timeouts.push(to2);
+   206→      }, wait);
+   207→      timersRef.current.timeouts.push(to1);
+   208→    }
+   209→
+   210→    // Récupération après échec réseau : le diagnostic a très bien pu être
+   211→    // ENREGISTRÉ avant le redémarrage du serveur (le back crée la ligne
+   212→    // « pending » puis la passe à « done » avant de répondre). On va le
+   213→    // chercher : done récent (< 4 min) → résultats ; pending → re-poll 3 s
+   214→    // × 10 max. Retourne true si les résultats sont affichés.
+   215→    async function tryRecover(): Promise<boolean> {
+   216→      const RECENT_MS = 4 * 60 * 1000;
+   217→      const findRecent = (list: ApiDiagnosis[] | undefined): ApiDiagnosis | undefined =>
+   218→        (list ?? [])
+   219→          .filter(
+   220→            (d) =>
+   221→              d.zone === zone &&
+   222→              (d.status === "done" || d.status === "pending") &&
+   223→              Date.now() - new Date(d.createdAt).getTime() < RECENT_MS,
+   224→          )
+   225→          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+   226→      try {
+   227→        const first = findRecent((await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`)).diagnoses);
+   228→        let found = first;
+   229→        let polls = 0;
+   230→        while (found?.status === "pending" && polls < 10) {
+   231→          polls += 1;
+   232→          setNetNotice("Récupération de ton analyse…");
+   233→          await new Promise((res) => setTimeout(res, 3000));
+   234→          const again = await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`);
+   235→          found = findRecent(again.diagnoses);
+   236→        }
+   237→        if (!found || found.status !== "done") return false;
+   238→        const result = parseDiagnosis(found.resultJson);
+   239→        if (!result) return false;
+   240→        showResult(
+   241→          { id: found.id, result, imageData: diagImgSrc(found.imageData), createdAt: found.createdAt },
+   242→          true,
+   243→        );
+   244→        return true;
+   245→      } catch {
+   246→        // Le GET lui-même est injoignable (serveur toujours au redémarrage) :
+   247→        // échec final honnête, sans crash.
+   248→        return false;
+   249→      }
+   250→    }
+   251→
+   252→    try {
+   253→      // POST /api/diagnoses : 3 tentatives quand la gateway renvoie 502/503/504
+   254→      // (fenêtre transitoire de redémarrage du serveur Next) — backoff 1,5 s
+   255→      // puis 4 s. Les autres erreurs (400/404/429…) ne sont JAMAIS rejouées.
+   256→      let r: { diagnosis: ApiDiagnosis } | undefined;
+   257→      let fatal: unknown = new Error("Analyse impossible");
+   258→      const backoffs = [1500, 4000];
+   259→      for (let attempt = 0; attempt < 3; attempt += 1) {
+   260→        try {
+   261→          r = await apiPost<{ diagnosis: ApiDiagnosis }>("/api/diagnoses", {
+   262→            userId: user.id,
+   263→            zone,
+   264→            image,
+   265→            fitzpatrick: user.fitzpatrick ?? undefined,
+   266→            allergies: user.allergies ?? undefined,
+   267→          });
+   268→          break;
+   269→        } catch (e) {
+   270→          fatal = e;
+   271→          const retryable = e instanceof ApiError && [502, 503, 504].includes(e.status);
+   272→          if (!retryable || attempt === 2) break;
+   273→          setNetNotice("Rétablissement de la connexion…");
+   274→          await new Promise((res) => setTimeout(res, backoffs[attempt]));
+   275→          setNetNotice(null);
+   276→        }
+   277→      }
+   278→      if (!r) throw fatal;
+   279→      const result = parseDiagnosis(r.diagnosis.resultJson);
+   280→      if (!result) throw new Error("Résultat IA illisible");
+   281→      showResult({ id: r.diagnosis.id, result, imageData: image, createdAt: r.diagnosis.createdAt });
+   282→    } catch (e) {
+   283→      // 502/503/504 après 3 tentatives : tenter la récupération AVANT l'erreur.
+   284→      const gatewayish = e instanceof ApiError && [502, 503, 504].includes(e.status);
+   285→      if (gatewayish && (await tryRecover())) return;
+   286→      clearTimers();
+   287→      setAnalyzing(false);
+   288→      setNetNotice(null);
+   289→      toast.error(
+   290→        gatewayish
+   291→          ? "Moteur d'analyse momentanément injoignable — tes photos restent prêtes, retente dans un instant."
+   292→          : e instanceof Error
+   293→            ? e.message
+   294→            : "Analyse impossible",
+   295→      );
+   296→      setStep(1); // retour capture : la photo est conservée
+   297→    }
+   298→  }
+   299→
+   300→  /* ─────────── Étape 0 — Choix de zone ─────────── */
+   301→  if (step === 0) {
+   302→    return (
+   303→      <div className="pt-4">
+   304→        <button onClick={() => setClientTab("accueil")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label="Retour accueil">
+   305→          <ArrowLeft size={15} /> Accueil
+   306→        </button>
+   307→        <h2 className="font-heading font-black text-xl">Quelle zone analysons-nous ?</h2>
+   308→        <p className="text-xs text-muted-foreground mt-1 mb-5">Chaque zone est pondérée dans ton score global (PRD §8.8).</p>
+   309→        <Reveal className="grid grid-cols-2 gap-3" stagger={0.07}>
+   310→          {BODY_ZONES.map((z) => {
+   311→            const Icon = ZONE_ICONS[z.id];
+   312→            return (
+   313→              <RevealItem key={z.id}>
+   314→                <motion.button
+   315→                  whileTap={{ scale: 0.96 }}
+   316→                  onClick={() => { setZone(z.id); setStep(1); setImage(""); setDiag(null); }}
+   317→                  className={`k-card k-card-hover rounded-[22px] p-4 text-left focus-visible:outline-2 focus-visible:outline-primary ${zone === z.id ? "ring-2 ring-primary/60" : ""}`}
+   318→                >
+   319→                  <div className="flex items-start justify-between">
+   320→                    <IconBadge icon={<Icon size={20} />} tone={ZONE_TONES[z.id]} />
+   321→                    <span className="k-chip rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums text-muted-foreground">{Math.round(z.weight * 100)} %</span>
+   322→                  </div>
+   323→                  <p className="font-heading font-bold text-sm mt-3">{z.label}</p>
+   324→                  <p className="text-[11px] text-muted-foreground mt-1 leading-snug line-clamp-2">{z.hint}</p>
+   325→                </motion.button>
+   326→              </RevealItem>
+   327→            );
+   328→          })}
+   329→        </Reveal>
+   330→        <button onClick={goHistory} className="k-card k-card-hover mt-5 w-full h-11 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-primary">
+   331→          <History size={16} className="text-primary" /> Voir mon historique
+   332→        </button>
+   333→      </div>
+   334→    );
+   335→  }
+   336→
+   337→  /* ─────────── Étape 1 — Capture ─────────── */
+   338→  if (step === 1) {
+   339→    const zoneDef = BODY_ZONES.find((z) => z.id === zone)!;
+   340→    return (
+   341→      <div className="pt-4">
+   342→        <button onClick={() => setStep(0)} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour">
+   343→          <ArrowLeft size={15} /> Changer de zone
+   344→        </button>
+   345→        <span className="k-chip rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-gold-text">{zoneDef.label} · {Math.round(zoneDef.weight * 100)} %</span>
+   346→        <h2 className="font-heading font-black text-xl mt-3">Prends ta photo</h2>
+   347→
+   348→        <ul className="mt-4 space-y-2">
+   349→          {[
+   350→            "Lumière naturelle de préférence, sans ombre directe",
+   351→            "Distance ~30 cm, cadre serré sur la zone",
+   352→            "Cheveux dégagés, visage net (pas de maquillage)",
+   353→          ].map((t, i) => (
+   354→            <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+   355→              <span className="mt-0.5 grid place-items-center h-4 w-4 rounded-full bg-primary/15 text-primary font-mono text-[9px] font-bold shrink-0">{i + 1}</span>
+   356→              {t}
+   357→            </li>
+   358→          ))}
+   359→        </ul>
+   360→
+   361→        <div className="mt-5">
+   362→          {image ? (
+   363→            <div className="grain-kene relative rounded-[24px] overflow-hidden ring-4 ring-[#C8951E]/30 shadow-xl">
+   364→              <img src={image} alt={`Aperçu zone ${zoneDef.label}`} className="aspect-square w-full object-cover" />
+   365→              <button onClick={() => setImage("")} className="absolute top-2 right-2 h-10 w-10 grid place-items-center rounded-full bg-[#1A1410]/85 text-white active:scale-90 transition-transform" aria-label="Retirer la photo">
+   366→                <X size={16} />
+   367→              </button>
+   368→            </div>
+   369→          ) : (
+   370→            <button
+   371→              onClick={() => fileRef.current?.click()}
+   372→              className="w-full aspect-square rounded-[24px] border-2 border-dashed border-primary/45 bg-primary/5 grid place-items-center gap-3 active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+   373→            >
+   374→              <span className="flex flex-col items-center gap-3 text-primary">
+   375→                <Camera size={44} />
+   376→                <span className="text-sm font-semibold">Ouvrir l&apos;appareil photo</span>
+   377→                <span className="text-[11px] text-muted-foreground font-normal text-center px-6">{zoneDef.hint}</span>
+   378→              </span>
+   379→            </button>
+   380→          )}
+   381→          <input ref={fileRef} type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} aria-label="Photo de la zone" />
+   382→        </div>
+   383→
+   384→        <div className="mt-4 flex gap-2">
+   385→          <button onClick={useDemoPhoto} className="k-chip h-11 flex-1 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
+   386→            <ImagePlus size={15} className="text-primary" /> Photo démo
+   387→          </button>
+   388→          {image && (
+   389→            <button onClick={() => fileRef.current?.click()} className="k-chip h-11 px-4 rounded-2xl text-xs font-semibold flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
+   390→              <RotateCcw size={15} /> Reprendre
+   391→            </button>
+   392→          )}
+   393→        </div>
+   394→
+   395→        <PrimaryCTA
+   396→          onClick={launch}
+   397→          disabled={!image}
+   398→          className="mt-5 h-14 w-full rounded-[20px] font-heading font-black text-base"
+   399→        >
+   400→          <NeaOnnimIcon size={22} /> Lancer l&apos;analyse IA
+   401→        </PrimaryCTA>
+   402→      </div>
+   403→    );
+   404→  }
+   405→
+   406→  /* ─────────── Étape 2 — Analyse en cours ─────────── */
+   407→  if (step === 2 && analyzing) {
+   408→    return (
+   409→      <Reveal className="pt-6 flex flex-col items-center" stagger={0.07}>
+   410→        <RevealItem className="grain-kene relative w-full max-w-[320px] rounded-[24px] overflow-hidden ring-4 ring-[#C8951E]/30 shadow-xl">
+   411→          <img src={image} alt="Photo en cours d'analyse" className="aspect-square w-full object-cover" />
+   412→          <motion.div
+   413→            className="absolute left-0 right-0 h-16 bg-gradient-to-b from-transparent via-[#C8951E]/50 to-transparent border-y-2 border-[#C8951E]"
+   414→            animate={{ top: ["8%", "78%", "8%"] }}
+   415→            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+   416→            aria-hidden="true"
+   417→          />
+   418→        </RevealItem>
+   419→        <RevealItem className="mt-6 w-full max-w-[320px]">
+   420→          <GlassCard hero>
+   421→            <div className="divide-y divide-border/60">
+   422→              {ANALYSIS_STEPS.map((label, i) => {
+   423→                const done = i < checkedSteps;
+   424→                const active = i === checkedSteps;
+   425→                return (
+   426→                  <div key={i} className={`flex items-center gap-3 p-3 transition-colors ${done ? "bg-success/5" : active ? "bg-primary/5" : "opacity-50"}`}>
+   427→                    <span className={`grid place-items-center h-6 w-6 rounded-full shrink-0 ${done ? "bg-success text-white" : active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
+   428→                      {done ? <Check size={13} /> : active ? <Loader2 size={13} className="animate-spin" /> : <span className="font-mono text-[10px] font-bold">{i + 1}</span>}
+   429→                    </span>
+   430→                    <span className={`text-xs ${done ? "text-success font-semibold" : "text-muted-foreground"}`}>{label}</span>
+   431→                  </div>
+   432→                );
+   433→              })}
+   434→            </div>
+   435→          </GlassCard>
+   436→        </RevealItem>
+   437→        <RevealItem className="w-full max-w-[320px] mt-5">
+   438→          <div role="group" aria-label="Progression de l'analyse">
+   439→            <ProgressBar value={progress} />
+   440→            <p className="text-center text-[11px] text-muted-foreground mt-2">Vision par ordinateur spécialisée mélanoderme — 5 à 30 s</p>
+   441→            {netNotice && (
+   442→              <p role="status" className="mt-1.5 flex min-h-11 items-center justify-center gap-1.5 text-center text-[11px] font-medium text-primary">
+   443→                <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+   444→                <span aria-live="polite">{netNotice}</span>
+   445→              </p>
+   446→            )}
+   447→          </div>
+   448→        </RevealItem>
+   449→      </Reveal>
+   450→    );
+   451→  }
+   452→
+   453→  /* ─────────── Étape 4 — Historique ─────────── */
+   454→  if (step === 4) return <HistoryView userId={user.id} history={history} compareMode={compareMode} setCompareMode={setCompareMode} compareSel={compareSel} setCompareSel={setCompareSel} onBack={() => setStep(0)} onOpen={(d) => { const r = parseDiagnosis(d.resultJson); if (r) { setDiag({ id: d.id, result: r, imageData: diagImgSrc(d.imageData), createdAt: d.createdAt }); setStep(3); } }} />;
+   455→
+   456→  /* ─────────── Étape 3 — Résultats ─────────── */
+   457→  if (step === 3 && diag) {
+   458→    return <ResultView diag={diag} products={products} productsError={productsError} onRetryProducts={loadProducts} onNewZone={() => { setStep(0); setImage(""); setDiag(null); }} onHistory={goHistory} />;
+   459→  }
+   460→
+   461→  return null;
+   462→}
+   463→
+   464→/* ══════════════ Résultat VISIA-like ══════════════ */
+   465→function ResultView({ diag, products, productsError, onRetryProducts, onNewZone, onHistory }: { diag: { id: string; result: DiagnosisResult; imageData: string; createdAt: string }; products: ApiProduct[]; productsError: boolean; onRetryProducts: () => void; onNewZone: () => void; onHistory: () => void }) {
+   466→  const user = useKene((s) => s.user)!;
+   467→  const setClientTab = useKene((s) => s.setClientTab);
+   468→  const addToCart = useKene((s) => s.addToCart);
+   469→  const [view, setView] = useState<string>("standard");
+   470→  const [ritualOpen, setRitualOpen] = useState(false);
+   471→  const [glossary, setGlossary] = useState<GlossaryEntry | null>(null);
+   472→  const r = diag.result;
+   473→  const weakest = useMemo(() => [...r.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage).slice(0, 8), [r.indicateurs]);
+   474→  const viewDef = SPECTRAL_VIEWS.find((v) => v.id === view) ?? SPECTRAL_VIEWS[0];
+   475→  const heatmapCls = view === "pigment" ? "heatmap-pigment" : view === "inflammation" ? "heatmap-inflammation" : view === "acne" ? "heatmap-acne" : "";
+   476→
+   477→  const botanicIcon = (name: string): React.ReactNode => {
+   478→    const n = norm(name);
+   479→    if (n.includes("moringa")) return <MoringaIcon size={13} />;
+   480→    if (n.includes("karite")) return <KariteIcon size={13} />;
+   481→    if (n.includes("baobab")) return <BaobabIcon size={13} />;
+   482→    return <Sparkles size={13} />;
+   483→  };
+   484→
+   485→  function askGlossary(term: string) {
+   486→    const entry = glossaryFor(term);
+   487→    if (entry) setGlossary(entry);
+   488→  }
+   489→
+   490→  return (
+   491→    <div className="pt-4 pb-2">
+   492→      <Reveal stagger={0.07}>
+   493→      {/* Header score — carte héro : verre + lueurs internes + filet kente 3px */}
+   494→      <RevealItem>
+   495→        <GlassCard hero className="overflow-hidden rounded-[26px]">
+   496→          <div className="kente-band h-[3px] w-full" aria-hidden="true" />
+   497→          <div className="p-5 flex items-center gap-4">
+   498→            <ScoreGauge score={r.score_global} label="Zone" size={110} />
+   499→            <div className="min-w-0">
+   500→              <div className="flex items-center gap-2 flex-wrap">
+   501→                <h2 className="font-heading font-black text-lg">{BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone}</h2>
+   502→                {r.fitzpatrick_estime && <span className="rounded-full bg-melanine text-[#F8F1E4] px-2 py-0.5 text-[10px] font-bold">Fitz {r.fitzpatrick_estime}</span>}
+   503→              </div>
+   504→              <p className="text-[11px] text-muted-foreground mt-1">{formatDate(diag.createdAt)} · {r.source === "vlm" ? "Analyse VLM" : "Analyse heuristique"} · {r.indicateurs.length} indicateurs</p>
+   505→              <div className="flex gap-1.5 mt-2">
+   506→                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: scoreColor(r.score_global), color: readableTextColor(scoreColor(r.score_global)) }}>
+   507→                  {r.score_global >= 80 ? "Excellente santé" : r.score_global >= 60 ? "Bon équilibre" : r.score_global >= 40 ? "Points à surveiller" : "Besoin de soin"}
+   508→                </span>
+   509→              </div>
+   510→            </div>
+   511→          </div>
+   512→        </GlassCard>
+   513→      </RevealItem>
+   514→
+   515→      {/* Lecture vocale — accès non-lectrices & confort audio (TTS) */}
+   516→      <RevealItem>
+   517→        <VoiceNarration result={r} userName={user.name} />
+   518→      </RevealItem>
+   519→
+   520→      {/* Résumé en pictos — tuiles tapables lues à voix haute (non-lectrices) */}
+   521→      <RevealItem className="mt-4">
+   522→        <PictoSummary result={r} zoneLabel={BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone} />
+   523→      </RevealItem>
+   524→
+   525→      {/* Alerte orientation dermato */}
+   526→      {r.orientation_dermato && (
+   527→        <RevealItem className="mt-4">
+   528→          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-[22px] border-2 border-[#8B1A3B]/60 bg-[#8B1A3B]/5 p-4" role="alert">
+   529→            <p className="flex items-center gap-2 font-heading font-bold text-sm text-[#8B1A3B]">
+   530→              <TriangleAlert size={17} /> Consultation dermatologique conseillée
+   531→            </p>
+   532→            <p className="text-xs mt-1.5 leading-relaxed">{r.raison_orientation ?? "Une lésion présente des signes justifiant un avis médical."}</p>
+   533→            {r.abcde && r.abcde.length > 0 && (
+   534→              <div className="flex gap-1.5 flex-wrap mt-3">
+   535→                {r.abcde.map((a) => (
+   536→                  <span key={a.critere} className={`rounded-full px-2.5 py-1 text-[10px] font-bold border ${a.alerte ? "bg-[#8B1A3B] text-white border-[#8B1A3B]" : "border-[#346834]/50 text-[#346834] bg-[#346834]/10"}`}>
+   537→                    {a.critere} · {a.intitule}
+   538→                  </span>
+   539→                ))}
+   540→              </div>
+   541→            )}
+   542→            <button onClick={() => setClientTab("rdv")} className="mt-3 h-11 w-full rounded-xl bg-[#8B1A3B] text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#8B1A3B]">
+   543→              <CalendarPlus size={16} /> Prendre RDV avec un institut partenaire
+   544→            </button>
+   545→          </motion.div>
+   546→        </RevealItem>
+   547→      )}
+   548→
+   549→      {/* Jumeau de Peau — Skin Twin 3D + Fil du Temps (projection S+12) */}
+   550→      <RevealItem>
+   551→        <SkinTwinCard
+   552→          projection
+   553→          entries={[
+   554→            {
+   555→              id: diag.id,
+   556→              zone: r.zone,
+   557→              score: r.score_global,
+   558→              fitz: r.fitzpatrick_estime,
+   559→              marks: r.zones_marquages,
+   560→              date: diag.createdAt,
+   561→              indicators: r.indicateurs,
+   562→            },
+   563→          ]}
+   564→        />
+   565→      </RevealItem>
+   566→
+   567→      {/* Tabs spectraux */}
+   568→      <RevealItem className="mt-5">
+   569→        <section aria-label="Vues spectrales de la photo">
+   570→          <Tabs value={view} onValueChange={setView}>
+   571→            <TabsList className="w-full h-auto grid grid-cols-4 gap-1 bg-muted/60 p-1 rounded-2xl">
+   572→              {SPECTRAL_VIEWS.map((v) => (
+   573→                <TabsTrigger key={v.id} value={v.id} className="text-[10.5px] leading-tight px-1 py-2 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-semibold transition-colors">
+   574→                  {v.label.split(" ")[0]}
+   575→                </TabsTrigger>
+   576→              ))}
+   577→            </TabsList>
+   578→          </Tabs>
+   579→          <p className="text-[11px] text-muted-foreground mt-2 mb-2">{viewDef.label}{view !== "standard" ? " — filtre spectral + cartographie chaleur" : ""}</p>
+   580→          <div className="relative k-card rounded-[24px] overflow-hidden">
+   581→            <img src={diag.imageData} alt={`Vue ${viewDef.label} de la zone analysée`} className={`aspect-square w-full object-cover ${view !== "standard" ? viewDef.filter : ""}`} />
+   582→            {heatmapCls && <div aria-hidden="true" className={`absolute inset-0 ${heatmapCls} opacity-60 mix-blend-screen pointer-events-none`} />}
+   583→            {/* cadres zones détectées */}
+   584→            {r.zones_marquages.map((z, i) => (
+   585→              <div key={i} className="absolute border-2 border-dashed border-[#FFF9EC]/90 rounded-lg pointer-events-none" style={{ left: `${z.x}%`, top: `${z.y}%`, width: `${z.w}%`, height: `${z.h}%` }}>
+   586→                <span className="absolute -top-0.5 -left-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#FFF9EC]" style={{ backgroundColor: ["#346834", "#C8951E", "#E07A2B", "#8B1A3B"][Math.min(3, Math.max(0, z.severite))] }} aria-hidden="true" />
+   587→                <span className="absolute -bottom-5 left-0 whitespace-nowrap rounded-full bg-[#1A1410]/90 text-[#F8F1E4] px-1.5 py-0.5 text-[9px] font-semibold">{z.label}</span>
+   588→              </div>
+   589→            ))}
+   590→            <div className="absolute bottom-2 right-2 flex gap-1">
+   591→              {SEVERITY_STYLES.map((s, i) => (
+   592→                <span key={i} className="flex items-center gap-1 rounded-full bg-[#1A1410]/90 px-1.5 py-0.5 text-[11px] text-[#F8F1E4]">
+   593→                  <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} aria-hidden="true" />
+   594→                  {s.label}
+   595→                </span>
+   596→              ))}
+   597→            </div>
+   598→          </div>
+   599→        </section>
+   600→      </RevealItem>
+   601→
+   602→      {/* Indicateurs les plus faibles */}
+   603→      <RevealItem className="mt-6">
+   604→        <section aria-labelledby="ind-t">
+   605→          <h2 id="ind-t" className="font-heading font-bold text-base mb-3">Priorités de soin</h2>
+   606→          <div className="space-y-2.5">
+   607→            {weakest.map((ind) => (
+   608→              <IndicatorBar key={ind.nom} ind={ind} onAsk={askGlossary} />
+   609→            ))}
+   610→          </div>
+   611→          {r.indicateurs.length > 8 && (
+   612→            <Accordion type="single" collapsible className="mt-3">
+   613→              <AccordionItem value="all" className="border-border">
+   614→                <AccordionTrigger className="text-xs font-semibold py-3">Les {r.indicateurs.length} indicateurs détaillés</AccordionTrigger>
+   615→                <AccordionContent className="space-y-2.5 pb-2">
+   616→                  {r.indicateurs.map((ind) => (
+   617→                    <div key={ind.nom}>
+   618→                      <IndicatorBar ind={ind} onAsk={askGlossary} />
+   619→                      {ind.note && <p className="text-[10.5px] text-muted-foreground mt-1 leading-snug">{ind.note}</p>}
+   620→                    </div>
+   621→                  ))}
+   622→                </AccordionContent>
+   623→              </AccordionItem>
+   624→            </Accordion>
+   625→          )}
+   626→        </section>
+   627→      </RevealItem>
+   628→
+   629→      {/* Recommandations */}
+   630→      <RevealItem className="mt-6">
+   631→        <section aria-labelledby="reco-t">
+   632→          <h2 id="reco-t" className="font-heading font-bold text-base mb-3">Ta routine personnalisée</h2>
+   633→
+   634→          {/* Route de l'Or — parcours narratif (CTA signature terre→bissap) */}
+   635→          <PrimaryCTA
+   636→            onClick={() => setRitualOpen(true)}
+   637→            ariaLabel="Ouvrir la Route de l'Or — tisser ma routine en 4 stations"
+   638→            className="relative w-full min-h-0 overflow-hidden rounded-[24px] px-0 py-0"
+   639→          >
+   640→            <span aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-25" />
+   641→            <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1.5 w-full" style={{ backgroundImage: "repeating-linear-gradient(90deg,#8B1A3B 0 12px,#346834 12px 20px,#C8951E 20px 28px,#E07A2B 28px 36px,#A0522D 36px 46px)" }} />
+   642→            <span className="relative flex w-full items-center gap-3 px-4 py-3.5">
+   643→              <span className="grid place-items-center h-12 w-12 rounded-2xl bg-[#FFF9EC]/20 border border-[#FFF9EC]/30 shrink-0">
+   644→                <NeaOnnimIcon size={26} />
+   645→              </span>
+   646→              <span className="text-left min-w-0 flex-1">
+   647→                <span className="block font-heading font-black text-base leading-tight">La Route de l&apos;Or</span>
+   648→                <span className="block text-[11px] opacity-90">Tisse ta routine en 4 stations — ton kente de soin à la fin</span>
+   649→              </span>
+   650→              <ChevronRight size={20} className="ml-auto opacity-80 shrink-0" />
+   651→            </span>
+   652→          </PrimaryCTA>
+   653→
+   654→          <div className="k-card relative mt-4 rounded-[20px] p-4 pl-5">
+   655→            <span aria-hidden="true" className="k-rail-line absolute left-0 top-3.5 bottom-3.5 w-1 rounded-full" />
+   656→            <p className="text-xs leading-relaxed">{r.recommandations.resume}</p>
+   657→          </div>
+   658→
+   659→          <div className="grid grid-cols-2 gap-3 mt-4">
+   660→            <div className="k-card k-card-hover rounded-[20px] p-3.5">
+   661→              <p className="flex items-center gap-1.5 text-[11px] font-bold text-gold-text uppercase tracking-wide"><Sunrise size={13} /> Matin</p>
+   662→              <ul className="mt-2 space-y-1.5">
+   663→                {r.recommandations.routine_matin.slice(0, 4).map((s, i) => (
+   664→                  <li key={i} className="text-[11px] leading-snug flex gap-1.5"><span className="text-primary font-mono">{i + 1}.</span> {s}</li>
+   665→                ))}
+   666→              </ul>
+   667→            </div>
+   668→            <div className="k-card k-card-hover rounded-[20px] p-3.5">
+   669→              <p className="flex items-center gap-1.5 text-[11px] font-bold text-terre uppercase tracking-wide"><Moon size={13} /> Soir</p>
+   670→              <ul className="mt-2 space-y-1.5">
+   671→                {r.recommandations.routine_soir.slice(0, 4).map((s, i) => (
+   672→                  <li key={i} className="text-[11px] leading-snug flex gap-1.5"><span className="text-terre font-mono">{i + 1}.</span> {s}</li>
+   673→                ))}
+   674→              </ul>
+   675→            </div>
+   676→          </div>
+   677→
+   678→          {r.recommandations.botaniques_conseillees.length > 0 && (
+   679→            <div className="mt-4">
+   680→              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Botaniques africaines pour toi</p>
+   681→              <div className="flex flex-wrap gap-2">
+   682→                {r.recommandations.botaniques_conseillees.map((b, i) => (
+   683→                  <span key={i} className="k-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold text-terre">
+   684→                    {botanicIcon(b)} {b}
+   685→                  </span>
+   686→                ))}
+   687→              </div>
+   688→            </div>
+   689→          )}
+   690→
+   691→          {r.recommandations.produits.length > 0 && (
+   692→            <div className="mt-4 space-y-2">
+   693→              <p className="text-[11px] font-semibold text-muted-foreground">Produits recommandés</p>
+   694→              {productsError && (
+   695→                <div role="alert" className="rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 flex items-center gap-2.5">
+   696→                  <TriangleAlert size={14} className="text-terre shrink-0" aria-hidden="true" />
+   697→                  <p className="flex-1 min-w-0 text-[11px] text-muted-foreground leading-snug">Boutique indisponible — réessaie</p>
+   698→                  <button onClick={onRetryProducts} className="k-btn-gold h-11 px-3.5 rounded-xl text-primary-foreground text-xs font-bold shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+   699→                    Réessayer
+   700→                  </button>
+   701→                </div>
+   702→              )}
+   703→              {r.recommandations.produits.map((rec, i) => {
+   704→                const p = matchProduct(rec, products);
+   705→                return (
+   706→                  <div key={i} className="k-card flex items-center gap-3 rounded-[18px] p-2.5">
+   707→                    {p ? (
+   708→                      <img src={p.image} alt={p.name} loading="lazy" className="h-12 w-12 rounded-xl object-cover shrink-0" />
+   709→                    ) : (
+   710→                      <span className="k-chip h-12 w-12 rounded-[14px] text-primary grid place-items-center shrink-0"><Sparkles size={18} /></span>
+   711→                    )}
+   712→                    <div className="min-w-0 flex-1">
+   713→                      <p className="text-xs font-semibold leading-tight">{rec}</p>
+   714→                      {p && <p className="font-mono text-[11px] text-primary font-bold tabular-nums mt-0.5">{xof(p.price)}</p>}
+   715→                    </div>
+   716→                    {p ? (
+   717→                      <button
+   718→                        onClick={() => { addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image }); toast.success(`${p.name} ajouté au panier`); }}
+   719→                        className="k-btn-gold h-10 px-3 rounded-full text-primary-foreground text-[11px] font-bold flex items-center gap-1 shrink-0 focus-visible:outline-2 focus-visible:outline-primary"
+   720→                      >
+   721→                        <Plus size={13} /> Panier
+   722→                      </button>
+   723→                    ) : (
+   724→                      <button onClick={() => setClientTab("boutique")} className="k-chip h-10 px-3 rounded-full border-primary/40 text-primary text-[11px] font-bold shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+   725→                        Boutique
+   726→                      </button>
+   727→                    )}
+   728→                  </div>
+   729→                );
+   730→              })}
+   731→            </div>
+   732→          )}
+   733→
+   734→          {r.recommandations.soins_conseilles.length > 0 && (
+   735→            <div className="mt-4">
+   736→              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Soins en institut</p>
+   737→              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+   738→                {r.recommandations.soins_conseilles.map((s, i) => (
+   739→                  <button key={i} onClick={() => setClientTab("rdv")} className="k-chip shrink-0 rounded-full border-success/50 bg-success/10 px-3.5 py-2 text-[11px] font-semibold text-success flex items-center gap-1 focus-visible:outline-2 focus-visible:outline-[#346834]">
+   740→                    <CalendarPlus size={13} /> {s} · Réserver
+   741→                  </button>
+   742→                ))}
+   743→              </div>
+   744→            </div>
+   745→          )}
+   746→
+   747→          {r.recommandations.conseils_hygiene_vie.length > 0 && (
+   748→            <div className="k-card mt-4 rounded-[20px] p-4">
+   749→              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Hygiène de vie</p>
+   750→              <ul className="space-y-1.5">
+   751→                {r.recommandations.conseils_hygiene_vie.map((c, i) => (
+   752→                  <li key={i} className="text-[11px] leading-snug flex gap-2">
+   753→                    <Check size={12} className="text-success mt-0.5 shrink-0" /> {c}
+   754→                  </li>
+   755→                ))}
+   756→              </ul>
+   757→            </div>
+   758→          )}
+   759→        </section>
+   760→      </RevealItem>
+   761→
+   762→      <RevealItem className="mt-5">
+   763→        <p className="rounded-[14px] bg-muted/70 p-3 text-[10px] leading-relaxed text-muted-foreground">{r.avertissement} Kènè est un outil d&apos;éducation beauté assisté par IA — les estimations ne constituent pas un diagnostic médical.</p>
+   764→      </RevealItem>
+   765→
+   766→      <RevealItem className="mt-4 pb-2">
+   767→        <div className="grid grid-cols-2 gap-3">
+   768→          <button onClick={onNewZone} className="k-chip h-12 rounded-2xl text-primary text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
+   769→            <ScanFace size={16} /> Nouvelle zone
+   770→          </button>
+   771→          <button onClick={onHistory} className="k-chip h-12 rounded-2xl text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
+   772→            <History size={16} /> Historique
+   773→          </button>
+   774→        </div>
+   775→      </RevealItem>
+   776→      </Reveal>
+   777→
+   778→      {ritualOpen && (
+   779→        <RitualJourney
+   780→          diag={{ id: diag.id, result: diag.result, createdAt: diag.createdAt }}
+   781→          products={products}
+   782→          userName={user.name}
+   783→          onClose={() => setRitualOpen(false)}
+   784→        />
+   785→      )}
+   786→
+   787→      {/* Glossaire 1 tap — « ? » sur un indicateur ouvre sa définition simple */}
+   788→      <GlossaryDialog entry={glossary} onClose={() => setGlossary(null)} />
+   789→    </div>
+   790→  );
+   791→}
+   792→
+   793→function IndicatorBar({ ind, onAsk }: { ind: Indicator; onAsk?: (term: string) => void }) {
+   794→  // Garde double : severite absente (anciens resultJson) → NaN index → 0 ;
+   795→  // index hors bornes → clamp 0..3 ; SEVERITY_STYLES[i] résolu UNE fois.
+   796→  const sevIdx = Number.isFinite(ind.severite) ? Math.min(3, Math.max(0, Math.trunc(ind.severite))) : 0;
+   797→  const sev = SEVERITY_STYLES[sevIdx] ?? SEVERITY_STYLES[0];
+   798→  const explainable = onAsk && glossaryFor(ind.nom) !== null;
+   799→  return (
+   800→    <div className="k-card rounded-[16px] p-3">
+   801→      <div className="flex items-start justify-between gap-2">
+   802→        {explainable ? (
+   803→          <button
+   804→            onClick={() => onAsk?.(ind.nom)}
+   805→            aria-label={`Expliquer le mot : ${ind.nom}`}
+   806→            className="min-w-0 text-left flex items-start gap-1 rounded-md focus-visible:outline-2 focus-visible:outline-primary transition-colors hover:text-primary"
+   807→          >
+   808→            <p className="text-xs font-semibold leading-tight line-clamp-2">{ind.nom}</p>
+   809→            <CircleHelp size={13} className="text-primary shrink-0 mt-px" aria-hidden="true" />
+   810→          </button>
+   811→        ) : (
+   812→          <p className="text-xs font-semibold leading-tight line-clamp-2">{ind.nom}</p>
+   813→        )}
+   814→        <span className="flex shrink-0 items-center gap-1.5">
+   815→          <span className={`h-1.5 w-1.5 rounded-full ${sev.dot}`} aria-hidden="true" />
+   816→          <span className="sr-only">{sev.label}</span>
+   817→          <span className="font-mono text-xs font-bold tabular-nums text-gold-text">{ind.pourcentage}%</span>
+   818→        </span>
+   819→      </div>
+   820→      <ProgressBar value={ind.pourcentage} className="mt-2 h-1.5" />
+   821→    </div>
+   822→  );
+   823→}
+   824→
+   825→/* ══════════════ Historique + comparaison ══════════════ */
+   826→function HistoryView({
+   827→  userId, history, compareMode, setCompareMode, compareSel, setCompareSel, onBack, onOpen,
+   828→}: {
+   829→  userId: string;
+   830→  history: ApiDiagnosis[] | null;
+   831→  compareMode: boolean;
+   832→  setCompareMode: (v: boolean) => void;
+   833→  compareSel: string[];
+   834→  setCompareSel: (v: string[]) => void;
+   835→  onBack: () => void;
+   836→  onOpen: (d: ApiDiagnosis) => void;
+   837→}) {
+   838→  const list = useMemo(
+   839→    () => [...(history ?? [])].filter((d) => d.status === "done").sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
+   840→    [history]
+   841→  );
+   842→  const sameZoneSel = compareSel.length === 2 && list.find((d) => d.id === compareSel[0])?.zone === list.find((d) => d.id === compareSel[1])?.zone;
+   843→  const a = list.find((d) => d.id === compareSel[0]);
+   844→  const b = list.find((d) => d.id === compareSel[1]);
+   845→  const ra = a ? parseDiagnosis(a.resultJson) : null;
+   846→  const rb = b ? parseDiagnosis(b.resultJson) : null;
+   847→
+   848→  const evolutions =
+   849→    ra && rb
+   850→      ? rb.indicateurs
+   851→          .map((ib) => {
+   852→            const ia = ra.indicateurs.find((x) => x.nom === ib.nom);
+   853→            return ia ? { nom: ib.nom, delta: ib.pourcentage - ia.pourcentage } : null;
+   854→          })
+   855→          .filter((x): x is { nom: string; delta: number } => x !== null)
+   856→          .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta))
+   857→          .slice(0, 3)
+   858→      : [];
+   859→
+   860→  return (
+   861→    <div className="pt-4 pb-2">
+   862→      <button onClick={onBack} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour">
+   863→        <ArrowLeft size={15} /> Nouveau diagnostic
+   864→      </button>
+   865→      <div className="flex items-center justify-between gap-2">
+   866→        <h2 className="font-heading font-black text-xl">Mon historique</h2>
+   867→        <Chip selected={compareMode} onClick={() => { setCompareMode(!compareMode); setCompareSel([]); }}>
+   868→          <GitCompareArrows size={14} /> Comparer
+   869→        </Chip>
+   870→      </div>
+   871→
+   872→      {history === null ? (
+   873→        <div className="space-y-3 mt-5">
+   874→          {[0, 1, 2].map((i) => (
+   875→            <Shimmer key={i} className="h-20 rounded-[18px]" />
+   876→          ))}
+   877→        </div>
+   878→      ) : list.length === 0 ? (
+   879→        <div className="mt-6">
+   880→          <EmptyBlock
+   881→            icon={<NeaOnnimIcon size={30} />}
+   882→            title="Aucun diagnostic pour l'instant"
+   883→            text="Ton premier scan débloquera le suivi d'évolution."
+   884→          />
+   885→        </div>
+   886→      ) : (
+   887→        <>
+   888→          {/* Le Fil du Temps — courbes d'évolution */}
+   889→          <EvolutionCard userId={userId} className="mt-4" />
+   890→
+   891→          <Reveal className="space-y-2.5 mt-4" stagger={0.07}>
+   892→            {list.map((d) => {
+   893→              const sel = compareSel.includes(d.id);
+   894→              return (
+   895→                <RevealItem key={d.id}>
+   896→                <div className={`k-card flex items-center gap-3 rounded-[18px] p-2.5 ${sel ? "ring-2 ring-primary/60" : ""}`}>
+   897→                  <button
+   898→                    onClick={() => {
+   899→                      if (compareMode) {
+   900→                        setCompareSel(sel ? compareSel.filter((x) => x !== d.id) : compareSel.length < 2 ? [...compareSel, d.id] : [compareSel[1], d.id]);
+   901→                      } else onOpen(d);
+   902→                    }}
+   903→                    className="flex items-center gap-3 flex-1 min-w-0 text-left focus-visible:outline-2 focus-visible:outline-primary rounded-xl"
+   904→                    aria-label={`Diagnostic ${d.zone} du ${formatDate(d.createdAt)}, score ${d.scoreGlobal}`}
+   905→                  >
+   906→                    <img src={diagImgSrc(d.imageData)} alt={`Diagnostic ${d.zone}`} loading="lazy" className="h-14 w-14 rounded-xl object-cover shrink-0" />
+   907→                    <div className="min-w-0">
+   908→                      <p className="text-sm font-semibold">{BODY_ZONES.find((z) => z.id === d.zone)?.label ?? d.zone}</p>
+   909→                      <p className="text-[11px] text-muted-foreground">{formatDate(d.createdAt)}</p>
+   910→                    </div>
+   911→                    <div className="ml-auto"><ScoreChip score={d.scoreGlobal} /></div>
+   912→                  </button>
+   913→                  {compareMode && (
+   914→                    <button
+   915→                      onClick={() => setCompareSel(sel ? compareSel.filter((x) => x !== d.id) : compareSel.length < 2 ? [...compareSel, d.id] : [compareSel[1], d.id])}
+   916→                      aria-pressed={sel}
+   917→                      aria-label="Sélectionner pour comparaison"
+   918→                      className={`h-9 w-9 grid place-items-center rounded-full border-2 shrink-0 transition-colors ${sel ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}
+   919→                    >
+   920→                      {sel && <Check size={14} />}
+   921→                    </button>
+   922→                  )}
+   923→                </div>
+   924→                </RevealItem>
+   925→              );
+   926→            })}
+   927→          </Reveal>
+   928→
+   929→          {compareMode && (
+   930→            <AnimatePresence>
+   931→              {compareSel.length === 2 && sameZoneSel && ra && rb && a && b ? (
+   932→                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 overflow-hidden">
+   933→                  <div className="k-card rounded-[24px] p-4">
+   934→                    <p className="font-heading font-bold text-sm mb-3 flex items-center gap-2">
+   935→                      <GitCompareArrows size={15} className="text-primary" /> Avant / Après — {BODY_ZONES.find((z) => z.id === a.zone)?.label}
+   936→                    </p>
+   937→                    <div className="grid grid-cols-2 gap-3">
+   938→                      {[{ d: a, r: ra, tag: "Avant" }, { d: b, r: rb, tag: "Après" }].map(({ d, r, tag }) => (
+   939→                        <div key={tag}>
+   940→                          <img src={diagImgSrc(d.imageData)} alt={`${tag} — ${d.zone}`} loading="lazy" className="aspect-square w-full rounded-2xl object-cover border border-border" />
+   941→                          <div className="flex items-center justify-between mt-1.5">
+   942→                            <span className="text-[10px] uppercase tracking-wide font-bold text-muted-foreground">{tag} · {formatDate(d.createdAt, { day: "numeric", month: "short" })}</span>
+   943→                            <ScoreChip score={r.score_global} />
+   944→                          </div>
+   945→                        </div>
+   946→                      ))}
+   947→                    </div>
+   948→                    <div className="mt-3 rounded-xl bg-muted/60 p-3 flex items-center justify-between">
+   949→                      <span className="text-xs font-semibold">Évolution du score</span>
+   950→                      <span className="font-mono text-lg font-black tabular-nums" style={{ color: rb.score_global >= ra.score_global ? "#346834" : "#8B1A3B" }}>
+   951→                        {rb.score_global >= ra.score_global ? "+" : ""}{rb.score_global - ra.score_global} pts
+   952→                      </span>
+   953→                    </div>
+   954→                    {evolutions.length > 0 && (
+   955→                      <div className="mt-3 space-y-1.5">
+   956→                        {evolutions.map((e) => (
+   957→                          <div key={e.nom} className="flex items-center justify-between text-[11px]">
+   958→                            <span className="text-muted-foreground">{e.nom}</span>
+   959→                            <span className="font-mono font-bold tabular-nums" style={{ color: e.delta >= 0 ? "#346834" : "#8B1A3B" }}>
+   960→                              {e.delta >= 0 ? "+" : ""}{e.delta} %
+   961→                            </span>
+   962→                          </div>
+   963→                        ))}
+   964→                      </div>
+   965→                    )}
+   966→                  </div>
+   967→                </motion.div>
+   968→              ) : (
+   969→                <p className="mt-4 text-center text-[11px] text-muted-foreground">Sélectionne 2 diagnostics de la même zone pour comparer l&apos;évolution.</p>
+   970→              )}
+   971→            </AnimatePresence>
+   972→          )}
+   973→        </>
+   974→      )}
+   975→      <div className="h-2" />
+   976→    </div>
+   977→  );
+   978→}
+   979→

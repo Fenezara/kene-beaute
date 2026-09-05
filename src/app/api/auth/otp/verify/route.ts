@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, genRef } from "@/lib/kene/server";
+import { setSessionCookie } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, OTP_VERIFY } from "@/lib/kene/rate-limit";
 
 const Body = z.object({
@@ -49,7 +50,11 @@ export async function POST(req: NextRequest) {
       user = await db.user.update({ where: { id: user.id }, data: { name } });
     }
 
-    return NextResponse.json({ user });
+    // Session signée (t. 71-b) : cookie httpOnly 90 j posé à la connexion —
+    // le payload JSON reste STRICTEMENT identique (zéro casse SessionKeeper).
+    const response = NextResponse.json({ user });
+    setSessionCookie(response, user);
+    return response;
   } catch (err) {
     return serverError("otp/verify", err);
   }

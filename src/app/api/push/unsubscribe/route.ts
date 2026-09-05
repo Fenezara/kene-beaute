@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
+import { requireUser, warnLegacyNoCookie } from "@/lib/kene/session";
 import { rateLimit, rateLimitResponse, rlKey } from "@/lib/kene/rate-limit";
 
 export const runtime = "nodejs";
@@ -25,6 +26,21 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("endpoint https requis", 400);
+
+    // Session signée (t. 71-b, migration douce) : le corps ne porte pas de
+    // userId → l'appartenance se lit sur l'abonnement lui-même. Avec cookie,
+    // seul le compte propriétaire de l'endpoint peut le retirer ; sans cookie
+    // → legacy (comportement conservé).
+    const sess = requireUser(req);
+    if (sess) {
+      const sub = await db.pushSubscription.findFirst({
+        where: { endpoint: parsed.data.endpoint },
+        select: { userId: true },
+      });
+      if (sub && sub.userId !== sess.userId) return jsonError("Session invalide pour ce compte", 401);
+    } else {
+      warnLegacyNoCookie("push:unsubscribe");
+    }
 
     await db.pushSubscription.deleteMany({ where: { endpoint: parsed.data.endpoint } });
     return NextResponse.json({ ok: true });

@@ -54,7 +54,16 @@ const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
-const TITLES: Record<ClientTab, string> = {
+/** Onglets d'écran (t. 71-c) — « abonnement » et « legal » sont des écrans
+ *  CACHÉS façon « parametres » (t. 69-c) : hors tab-bar, hors balayage, accès
+ *  depuis Paramètres (cartes Abonnement / Mentions légales). Ils ne sont PAS
+ *  ajoutés au type persistable du store (fichier hors périmètre ce sprint) :
+ *  sanitizePersisted ne restaure que les onglets connus → un écran caché ne
+ *  survit jamais à un rechargement (retour accueil, c'est voulu) — les casts
+ *  ci-dessous sont purement typés, le runtime est identique. */
+type ScreenTab = ClientTab | "abonnement" | "legal";
+
+const TITLES: Record<ScreenTab, string> = {
   accueil: "title.home",
   diagnostic: "title.diag",
   boutique: "title.shop",
@@ -62,6 +71,10 @@ const TITLES: Record<ClientTab, string> = {
   chat: "title.chat",
   profil: "title.profile",
   parametres: "title.parametres",
+  // FR direct (i18n hors périmètre ce sprint) : t() replie sur la clé brute →
+  // la chaîne est affichée telle quelle.
+  abonnement: "Abonnement",
+  legal: "Mentions légales",
 };
 
 /** Ordre de balayage mobile (swipe horizontal gauche/droite — TikTok-like) */
@@ -79,6 +92,10 @@ const ChatScreen = lazy(() => import("./ChatScreen").then((m) => ({ default: m.C
 // Paramètres : écran de réglages standard (t. 69-c) — lazy comme les autres
 // écrans lourds, chunk dédié au premier clic sur l'engrenage du header.
 const SettingsScreen = lazy(() => import("./SettingsScreen").then((m) => ({ default: m.SettingsScreen })));
+// Abonnement & Mentions légales (t. 71-c) : écrans cachés (même pattern que
+// Paramètres), chunks dédiés au premier clic depuis l'écran Paramètres.
+const PlanScreen = lazy(() => import("./PlanScreen").then((m) => ({ default: m.PlanScreen })));
+const LegalScreen = lazy(() => import("./LegalScreen").then((m) => ({ default: m.LegalScreen })));
 // Cloche + Sheet notifications : lazy aussi (socket.io du header sort du premier rendu)
 const NotificationCenter = lazy(() => import("./NotificationCenter").then((m) => ({ default: m.NotificationCenter })));
 
@@ -107,7 +124,8 @@ function BellLoading() {
 export function ClientApp() {
   const { t } = useT();
   const user = useKene((s) => s.user);
-  const tab = useKene((s) => s.clientTab);
+  // Écran courant étendu aux onglets cachés 71-c (cast typé, cf. ScreenTab).
+  const tab = useKene((s) => s.clientTab) as ScreenTab;
   const setClientTab = useKene((s) => s.setClientTab);
   const cartCount = useKene((s) => s.cart.reduce((n, l) => n + l.qty, 0));
   // Gate d'hydratation kene-store (contrat t. 63-b) : _keneHydrated passe à
@@ -182,15 +200,17 @@ export function ClientApp() {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [tab]);
 
-  function goTab(t: ClientTab) {
+  function goTab(t: ScreenTab) {
     if (t !== tab) {
-      const from = SWIPE_ORDER.indexOf(tab);
-      const to = SWIPE_ORDER.indexOf(t);
+      // Hors SWIPE_ORDER (écrans cachés) → pas de direction de transition,
+      // la motion.div du flux joue son fade par défaut.
+      const from = SWIPE_ORDER.indexOf(tab as ClientTab);
+      const to = SWIPE_ORDER.indexOf(t as ClientTab);
       if (from >= 0 && to >= 0) setNavDir(to > from ? 1 : -1);
       haptic(HAPTIC.tap);
     }
     if (t === "chat") setChatUnread(false);
-    setClientTab(t);
+    setClientTab(t as ClientTab);
   }
 
   // ─── Gestes tactiles du conteneur de flux ───
@@ -236,7 +256,7 @@ export function ClientApp() {
     const dx = t.clientX - s.x;
     const dy = t.clientY - s.y;
     if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
-    const idx = SWIPE_ORDER.indexOf(tab);
+    const idx = SWIPE_ORDER.indexOf(tab as ClientTab);
     if (idx < 0) return;
     const next = dx < 0 ? SWIPE_ORDER[idx + 1] : SWIPE_ORDER[idx - 1];
     if (next) {
@@ -493,6 +513,16 @@ export function ClientApp() {
                   {tab === "parametres" && (
                     <ScreenBoundary name="Paramètres">
                       <SettingsScreen />
+                    </ScreenBoundary>
+                  )}
+                  {tab === "abonnement" && (
+                    <ScreenBoundary name="Abonnement">
+                      <PlanScreen />
+                    </ScreenBoundary>
+                  )}
+                  {tab === "legal" && (
+                    <ScreenBoundary name="Mentions légales">
+                      <LegalScreen />
                     </ScreenBoundary>
                   )}
                 </Suspense>

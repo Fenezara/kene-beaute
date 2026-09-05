@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, daysAgo, ddMM } from "@/lib/kene/server";
+import { guardAdminRole } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 
 const CACHE_TTL_MS = 60_000;
@@ -34,6 +35,11 @@ export async function GET(req: NextRequest) {
     return rateLimitResponse(rl.retryAfterSec, "Statistiques très sollicitées — reprends dans quelques secondes");
   }
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, la console
+    // exige un compte admin ; sans cookie → legacy (route publique + rate-limit).
+    const guard = guardAdminRole(req, "admin:stats");
+    if (guard) return guard;
+
     const cached = g.__keneAdminStatsCache;
     if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
       return NextResponse.json(cached.data);

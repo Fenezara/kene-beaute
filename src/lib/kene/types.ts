@@ -56,6 +56,10 @@ export interface DiagnosisResult {
   abcde?: AbcdeCriteria[];
   avertissement: string;
   source: "vlm" | "fallback";
+  /** Fiabilité affichée (t. 71) : "haute" = analyse IA vision (VLM),
+   *  "indicative" = fallback déterministe (mode secours). Optionnel : les
+   *  anciens resultJson ne l'ont pas → le front le dérive de `source`. */
+  confidence?: "haute" | "indicative";
 }
 
 export const FACE_INDICATORS = [

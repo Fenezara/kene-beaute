@@ -1,14 +1,21 @@
 "use client";
-// Kènè Cliente — Chat Dr. Kènè : WhatsApp-like, STT fr-FR, triage photo IA, TTS.
-// ÉCLAT 2026 : bulles verre (IA) / dégradé terre-bissap (cliente), avatar
-// NeaOnnim à halo doré, chips verre — présentation seule, logique chat
-// (store persist, STT, triage photo, TTS) inchangée.
+// Kènè Cliente — Chat Dr. Kènè : WhatsApp-like, micro serveur (ASR), triage
+// photo IA, TTS. ÉCLAT 2026 : bulles verre (IA) / dégradé terre-bissap
+// (cliente), avatar NeaOnnim à halo doré, chips verre — présentation seule,
+// logique chat (store persist, triage photo, TTS) inchangée.
 // La conversation vit dans le store persist « kene-chat » (src/store/chat.ts) :
 // elle survit au changement d'onglet et au rechargement, sans les photos
 // (base64 — mémoire de session uniquement, jamais dans localStorage).
+//
+// MICRO SERVEUR (t. 71-d) : la cliente parle → MediaRecorder (webm/opus,
+// 12 s max, annulable) → POST /api/asr → la transcription arrive DANS LE
+// CHAMP DE SAISIE — jamais d'envoi automatique, elle relit et valide.
+// Safari (mp4/aac non supporté par le moteur) → ré-encodage WAV mono via
+// WebAudio avant l'envoi (toAsrBlob). Remplace la dictée webkitSpeechRecognition
+// (Chrome-only, navigateur) par l'ASR serveur — disponible partout.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Camera, CircleCheck, ImagePlus, Mic, OctagonAlert, Send, ShieldCheck, TriangleAlert, Volume2, VolumeX } from "lucide-react";
+import { Camera, CircleCheck, ImagePlus, Loader2, Mic, OctagonAlert, Send, ShieldCheck, Square, TriangleAlert, Volume2, VolumeX, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, resizeImage } from "@/lib/kene/api";
 import { NeaOnnimIcon } from "@/components/kene/icons";
@@ -31,20 +38,79 @@ function notifyChatNew() {
   }
 }
 
-/* ── SpeechRecognition (webkit) typé maison ── */
-interface SRResult { 0: { transcript: string }; isFinal: boolean }
-interface SREvent { resultIndex: number; results: { length: number; [i: number]: SRResult } }
-interface SRLike {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  onresult: ((e: SREvent) => void) | null;
-  onend: (() => void) | null;
-  onerror: (() => void) | null;
-  start: () => void;
-  stop: () => void;
+/* ── Micro serveur (t. 71-d) — types & helpers purs ── */
+type MicState = "idle" | "recording" | "transcribing" | "unavailable";
+
+/** 12 s max d'enregistrement (couvre une question beauté posée à l'oral). */
+const MAX_RECORD_MS = 12_000;
+
+function mmss(sec: number): string {
+  return `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
 }
-type SRCtor = new () => SRLike;
+
+/** webm/opus si supporté (Chrome/Android/Firefox) ; undefined sinon → Safari
+ *  enregistre en mp4/aac, converti en WAV par toAsrBlob avant l'envoi. */
+function pickRecorderMime(): string | undefined {
+  if (typeof MediaRecorder === "undefined") return undefined;
+  for (const m of ["audio/webm;codecs=opus", "audio/webm"]) {
+    if (MediaRecorder.isTypeSupported(m)) return m;
+  }
+  return undefined;
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = () => reject(new Error("Audio illisible"));
+    fr.onload = () => {
+      const s = String(fr.result ?? "");
+      const comma = s.indexOf(",");
+      resolve(comma >= 0 ? s.slice(comma + 1) : s);
+    };
+    fr.readAsDataURL(blob);
+  });
+}
+
+/** Le moteur ASR n'accepte QUE WAV et WebM (erreur amont explicite) : tout
+ *  autre conteneur (mp4/aac Safari) est ré-encodé en WAV mono 16 bits via
+ *  WebAudio — conversion minimale côté client, documentée dans la route. */
+async function toAsrBlob(blob: Blob): Promise<Blob> {
+  const t = blob.type.toLowerCase();
+  if (t.includes("webm") || t.includes("wav")) return blob;
+  const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctx) return blob; // dernier recours : tenter l'envoi tel quel
+  const ctx = new Ctx();
+  try {
+    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+    const len = decoded.length;
+    const view = new DataView(new ArrayBuffer(44 + len * 2));
+    const w = (off: number, s: string) => {
+      for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+    };
+    w(0, "RIFF");
+    view.setUint32(4, 36 + len * 2, true);
+    w(8, "WAVE");
+    w(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // mono
+    view.setUint32(24, decoded.sampleRate, true);
+    view.setUint32(28, decoded.sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    w(36, "data");
+    view.setUint32(40, len * 2, true);
+    const chans = decoded.numberOfChannels;
+    for (let i = 0; i < len; i++) {
+      let mono = 0;
+      for (let c = 0; c < chans; c++) mono += (decoded.getChannelData(c)?.[i] ?? 0) / chans;
+      view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, mono)) * 0x7fff, true);
+    }
+    return new Blob([view], { type: "audio/wav" });
+  } finally {
+    void ctx.close();
+  }
+}
 
 const TRIAGE = {
   vert: { border: "border-l-4 border-success", bg: "bg-success/5", text: "text-success", Icon: CircleCheck, cta: "Voir la boutique", tab: "boutique" as const },
@@ -65,18 +131,18 @@ export function ChatScreen() {
   const add = useChat((s) => s.add);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [listening, setListening] = useState(false);
   const [ttsOn, setTtsOn] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [micState, setMicState] = useState<MicState>("idle");
+  const [micElapsed, setMicElapsed] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const recRef = useRef<SRLike | null>(null);
-  const srSupported = useRef<boolean>(false);
-
-  useEffect(() => {
-    const w = window as unknown as { SpeechRecognition?: SRCtor; webkitSpeechRecognition?: SRCtor };
-    srSupported.current = Boolean(w.SpeechRecognition ?? w.webkitSpeechRecognition);
-  }, []);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const cancelledRef = useRef(false);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Rehydratation paresseuse et idempotente (pattern use-t.ts) : le premier
   // montage relit le localStorage persisté ; les montages suivants ne
@@ -89,6 +155,144 @@ export function ChatScreen() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, sending]);
+
+  /* ── Micro serveur : machine à états idle → recording → transcribing ── */
+
+  function clearMicTimers() {
+    if (tickRef.current) {
+      clearInterval(tickRef.current);
+      tickRef.current = null;
+    }
+    if (autoStopRef.current) {
+      clearTimeout(autoStopRef.current);
+      autoStopRef.current = null;
+    }
+  }
+
+  /** Rendu du flux : le micro s'éteint réellement (getUserMedia +
+   *  recorder.stream, tous deux référencés — même objet en pratique). */
+  function releaseStream() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
+  }
+
+  function resetMic() {
+    setMicState("idle");
+    setMicElapsed(0);
+    chunksRef.current = [];
+  }
+
+  // Démontage (changement d'onglet) : plus aucune piste/timer ne survit,
+  // et aucun setState post-démontage (onstop neutralisé).
+  useEffect(
+    () => () => {
+      cancelledRef.current = true;
+      clearMicTimers();
+      const rec = recorderRef.current;
+      if (rec) {
+        rec.onstop = null;
+        if (rec.state === "recording") rec.stop();
+      }
+      recorderRef.current = null;
+      releaseStream();
+    },
+    [],
+  );
+
+  async function startRecording() {
+    if (micState !== "idle") return;
+    if (
+      typeof window === "undefined" ||
+      typeof window.MediaRecorder === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      setMicState("unavailable");
+      toast.info("Micro indisponible sur cet appareil");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mime = pickRecorderMime();
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      recorderRef.current = rec;
+      chunksRef.current = [];
+      cancelledRef.current = false;
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      rec.onstop = () => {
+        void transcribeRecording();
+      };
+      rec.start(250); // segments réguliers → robuste à un stop à tout instant
+      setMicState("recording");
+      setMicElapsed(0);
+      tickRef.current = setInterval(() => setMicElapsed((s) => s + 1), 1000);
+      autoStopRef.current = setTimeout(() => {
+        if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+      }, MAX_RECORD_MS);
+    } catch {
+      // Permission refusée / micro absent → bouton grisé, aucun crash.
+      releaseStream();
+      setMicState("unavailable");
+      toast.info("Micro indisponible sur cet appareil");
+    }
+  }
+
+  function stopRecording() {
+    if (micState !== "recording") return;
+    clearMicTimers();
+    const rec = recorderRef.current;
+    if (rec?.state === "recording") rec.stop(); // → onstop → transcribeRecording
+  }
+
+  function cancelRecording() {
+    if (micState !== "recording") return;
+    cancelledRef.current = true;
+    clearMicTimers();
+    const rec = recorderRef.current;
+    if (rec?.state === "recording") {
+      rec.stop(); // onstop → annulé, aucune transcription
+    } else {
+      releaseStream();
+      resetMic();
+    }
+  }
+
+  async function transcribeRecording() {
+    releaseStream();
+    clearMicTimers();
+    if (cancelledRef.current) {
+      resetMic();
+      return;
+    }
+    const type = recorderRef.current?.mimeType || "audio/webm";
+    const blob = new Blob(chunksRef.current, { type });
+    if (blob.size < 2000) {
+      resetMic();
+      toast.info("Aucun son capté — réessaie");
+      return;
+    }
+    setMicState("transcribing");
+    try {
+      const payload = await toAsrBlob(blob);
+      const audio = await blobToBase64(payload);
+      const r = await apiPost<{ text: string }>("/api/asr", { audio, mimeType: payload.type });
+      const text = (r?.text ?? "").trim();
+      if (!text) {
+        toast.info("Je n'ai pas bien entendu — réessaie");
+        return;
+      }
+      // Le texte arrive dans le champ : replace si vide, append sinon.
+      // JAMAIS d'envoi automatique — la cliente relit et valide.
+      setInput((prev) => (prev ? `${prev} ${text}` : text));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Transcription impossible");
+    } finally {
+      resetMic();
+    }
+  }
 
   const speak = useCallback((text: string) => {
     if (!ttsOn || typeof window === "undefined" || !window.speechSynthesis) return;
@@ -139,34 +343,6 @@ export function ChatScreen() {
     } finally {
       setSending(false);
       setPhotoBusy(false);
-    }
-  }
-
-  function toggleMic() {
-    if (listening) {
-      recRef.current?.stop();
-      return;
-    }
-    const w = window as unknown as { SpeechRecognition?: SRCtor; webkitSpeechRecognition?: SRCtor };
-    const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
-    if (!Ctor) return toast.info("Dictée vocale non supportée par ce navigateur — essaie Chrome.");
-    try {
-      const rec = new Ctor();
-      recRef.current = rec;
-      rec.lang = "fr-FR";
-      rec.continuous = false;
-      rec.interimResults = false;
-      rec.onresult = (e: SREvent) => {
-        const res = e.results[e.results.length - 1];
-        const t = res?.[0]?.transcript ?? "";
-        if (t) setInput((prev) => (prev ? `${prev} ${t}` : t));
-      };
-      rec.onend = () => setListening(false);
-      rec.onerror = () => setListening(false);
-      rec.start();
-      setListening(true);
-    } catch {
-      toast.error("Micro indisponible");
     }
   }
 
@@ -275,29 +451,81 @@ export function ChatScreen() {
       {/* Saisie */}
       <div className="sticky bottom-0 pt-2">
         <div className="k-card flex items-center gap-2 rounded-[20px] p-2">
-          <button
-            onClick={toggleMic}
-            aria-pressed={listening}
-            aria-label="Dicter mon message"
-            title={srSupported.current ? "Dictée vocale" : "Dictée non supportée par ce navigateur"}
-            className={`h-12 w-12 grid place-items-center rounded-full shrink-0 active:scale-90 transition-all focus-visible:outline-2 focus-visible:outline-primary ${listening ? "bg-destructive text-[#FFF9EC] animate-pulse" : "text-muted-foreground hover:bg-muted"}`}
-          >
-            <Mic size={19} />
-          </button>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); send(); } }}
-            placeholder={listening ? "Je t'écoute…" : "Écris à Dr. Kènè…"}
-            aria-label="Message pour Dr. Kènè"
-            className="k-input h-12 min-w-0 flex-1 rounded-2xl px-3.5 text-sm outline-none placeholder:text-muted-foreground/70"
-          />
-          <button onClick={() => fileRef.current?.click()} disabled={photoBusy} aria-label="Envoyer une photo" className="h-12 w-12 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
-            {photoBusy ? <ImagePlus size={19} className="animate-pulse text-primary" /> : <Camera size={19} />}
-          </button>
-          <button onClick={() => send()} disabled={!input.trim() || sending} aria-label="Envoyer" className="k-btn-gold h-12 w-12 grid place-items-center rounded-full text-primary-foreground active:scale-90 transition-all disabled:opacity-50 shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
-            <Send size={18} />
-          </button>
+          {micState === "recording" ? (
+            <>
+              {/* Le micro devient pastille STOP bissap à halo pulse */}
+              <button
+                onClick={stopRecording}
+                aria-label="Arrêter l'enregistrement et transcrire"
+                className="relative h-11 w-11 grid place-items-center rounded-full shrink-0 bg-bissap text-[#FFF9EC] active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
+              >
+                <motion.span
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-full bg-bissap/50"
+                  animate={{ scale: [1, 1.4, 1], opacity: [0.55, 0, 0.55] }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
+                />
+                <Square size={13} fill="currentColor" className="relative" aria-hidden="true" />
+              </button>
+              {/* Timer + onde — remplacent le champ le temps de parler */}
+              <div className="h-12 min-w-0 flex-1 flex items-center gap-3 rounded-2xl bg-bissap/8 border border-bissap/25 px-4" role="status">
+                <span className="sr-only">Enregistrement en cours — 12 secondes maximum</span>
+                <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-bissap opacity-60" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-bissap" />
+                </span>
+                <span className="font-mono text-sm font-bold tabular-nums text-bissap" aria-hidden="true">{mmss(micElapsed)}</span>
+                <span className="flex items-end gap-[3px] h-3.5" aria-hidden="true">
+                  {[0, 1, 2, 3].map((i) => (
+                    <motion.span
+                      key={i}
+                      className="w-[3px] h-full rounded-full bg-bissap/70"
+                      animate={{ scaleY: [0.4, 1, 0.55, 0.85, 0.4] }}
+                      transition={{ duration: 1.05, repeat: Infinity, delay: i * 0.13, ease: "easeInOut" }}
+                    />
+                  ))}
+                </span>
+                <span className="ml-auto text-[10px] text-muted-foreground shrink-0" aria-hidden="true">max 12 s</span>
+              </div>
+              {/* Annulation : jette l'enregistrement, rien n'est transcrit */}
+              <button
+                onClick={cancelRecording}
+                aria-label="Annuler l'enregistrement"
+                title="Annuler l'enregistrement"
+                className="h-11 w-11 grid place-items-center rounded-full shrink-0 text-muted-foreground hover:bg-muted active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
+              >
+                <X size={18} />
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Micro serveur : parler → transcription ASR dans le champ */}
+              <button
+                onClick={startRecording}
+                disabled={micState === "unavailable" || micState === "transcribing"}
+                aria-disabled={micState === "unavailable"}
+                aria-label="Parler à Dr. Kènè"
+                title={micState === "unavailable" ? "Micro indisponible sur cet appareil" : "Parler à Dr. Kènè — 12 secondes max"}
+                className="h-11 w-11 grid place-items-center rounded-full shrink-0 text-muted-foreground hover:bg-muted active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40 disabled:pointer-events-none"
+              >
+                {micState === "transcribing" ? <Loader2 size={18} className="animate-spin text-primary" aria-hidden="true" /> : <Mic size={19} />}
+              </button>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); send(); } }}
+                placeholder={micState === "transcribing" ? "Transcription en cours…" : "Écris à Dr. Kènè…"}
+                aria-label="Message pour Dr. Kènè"
+                className="k-input h-12 min-w-0 flex-1 rounded-2xl px-3.5 text-sm outline-none placeholder:text-muted-foreground/70"
+              />
+              <button onClick={() => fileRef.current?.click()} disabled={photoBusy} aria-label="Envoyer une photo" className="h-12 w-12 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+                {photoBusy ? <ImagePlus size={19} className="animate-pulse text-primary" /> : <Camera size={19} />}
+              </button>
+              <button onClick={() => send()} disabled={!input.trim() || sending} aria-label="Envoyer" className="k-btn-gold h-12 w-12 grid place-items-center rounded-full text-primary-foreground active:scale-90 transition-all disabled:opacity-50 shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+                <Send size={18} />
+              </button>
+            </>
+          )}
         </div>
         <input ref={fileRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => onPhoto(e.target.files?.[0])} aria-label="Photo à analyser" />
         <p className="mt-2 mb-1 flex items-center justify-center gap-1.5 text-[9.5px] text-muted-foreground">

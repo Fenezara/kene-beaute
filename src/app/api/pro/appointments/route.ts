@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, overlaps, dayEnd, notify } from "@/lib/kene/server";
+import { guardProRole } from "@/lib/kene/session";
 
 const include = {
   service: { select: { name: true, durationMin: true, price: true } },
@@ -12,6 +13,11 @@ const include = {
 
 export async function GET(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:appointments:get");
+    if (guard) return guard;
+
     const tenant = await resolveTenant(req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
@@ -59,6 +65,11 @@ const CreateBody = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, la création de
+    // RDV côté institut exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:appointments:post");
+    if (guard) return guard;
+
     const parsed = CreateBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, clientName, clientPhone, clientProfileId, serviceId, resourceId, notes } = parsed.data;

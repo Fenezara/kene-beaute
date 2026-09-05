@@ -7,7 +7,7 @@
 // (pattern ThemeToggle / use-install) — zéro setState-in-effect, zéro flash.
 import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
-import { Building2, Check, Languages, LogOut, Moon, Phone, SunMedium } from "lucide-react";
+import { Building2, Check, ChevronRight, Crown, Languages, LogOut, Moon, Phone, SunMedium } from "lucide-react";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Eyebrow, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
 import { InitialAvatar, SectionHeader } from "./ui-bits";
+import type { ProSectionId } from "./ProApp";
 
 /* Porte d'hydratation : false pendant le rendu serveur + l'hydratation, true
  * ensuite — l'état actif Clair/Sombre ne s'affiche qu'une fois le thème
@@ -25,7 +26,7 @@ function useHydrated(): boolean {
   return useSyncExternalStore(subscribeNothing, () => true, () => false);
 }
 
-export function SettingsSection({ tenantName, tenantCity }: { tenantId: string; tenantName: string; tenantCity?: string }) {
+export function SettingsSection({ tenantName, tenantCity, onNavigate }: { tenantId: string; tenantName: string; tenantCity?: string; onNavigate?: (s: ProSectionId) => void }) {
   const sessionUser = useKene((s) => s.user);
   const setUser = useKene((s) => s.setUser);
   const clearCart = useKene((s) => s.clearCart);
@@ -51,8 +52,10 @@ export function SettingsSection({ tenantName, tenantCity }: { tenantId: string; 
   }
 
   /** Ferme la session : le clamp du store ramène à l'accueil cliente
-   *  (setUser(null) → espace "client" sans session → onboarding). */
+   *  (setUser(null) → espace "client" sans session → onboarding). La session
+   *  SERVEUR (cookie httpOnly signé, t. 71-b) est fermée dans la foulée. */
   function closeSession() {
+    void fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     clearCart();
     setUser(null);
     toast.info("Session fermée");
@@ -150,6 +153,22 @@ export function SettingsSection({ tenantName, tenantCity }: { tenantId: string; 
             );
           })}
         </div>
+      </div>
+
+      {/* Abonnement & facturation (t. 71-c) — lien vers la section dédiée
+          (même pattern de navigation que les autres sections). */}
+      <div className="k-card rounded-[20px] p-2">
+        <button
+          onClick={() => onNavigate?.("abonnement")}
+          className="w-full flex items-center gap-3 rounded-[14px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          <IconBadge icon={<Crown size={18} />} tone="gold" />
+          <span className="flex-1 min-w-0">
+            <span className="block text-xs font-bold">Abonnement &amp; facturation</span>
+            <span className="block text-[11px] text-muted-foreground mt-0.5">Offres Essentiel / Complexe · paiement simulé</span>
+          </span>
+          <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
+        </button>
       </div>
 
       {/* Session — destructif sobre (jamais de setSpace : le clamp store

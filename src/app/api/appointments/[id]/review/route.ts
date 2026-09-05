@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
+import { guardUserClaim } from "@/lib/kene/session";
 
 const Body = z.object({
   userId: z.string().min(1),
@@ -15,6 +16,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Note (1-5) requise", 400);
+
+    // Session signée (t. 71-b, migration douce) : avec cookie, l'avis est
+    // déposé pour le compte de la session ; sans cookie → legacy.
+    const guard = guardUserClaim(req, "appointments:review", parsed.data.userId);
+    if (guard) return guard;
 
     const appointment = await db.appointment.findUnique({ where: { id } });
     if (!appointment) return jsonError("Rendez-vous introuvable", 404);

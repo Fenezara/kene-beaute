@@ -13,6 +13,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, notify } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
+import { setSessionCookie } from "@/lib/kene/session";
 
 export const runtime = "nodejs";
 
@@ -254,7 +255,11 @@ export async function POST(req: NextRequest) {
 
     // User rechargé (objet Prisma complet, role=pro) pour la réponse 201
     const freshUser = await db.user.findUnique({ where: { id: user.id } });
-    return NextResponse.json(
+    // Re-signature de la session (t. 71-e) : le rôle vient de passer
+    // « client » → « pro » — le cookie posé à la vérification OTP porterait
+    // un rôle périmé et les gardes pro (403) bloqueraient l'espace fraîchement
+    // créé. On re-pose le cookie signé avec le rôle ACTUEL.
+    const res = NextResponse.json(
       {
         ok: true,
         tenant: {
@@ -269,6 +274,10 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 },
     );
+    if (freshUser) {
+      setSessionCookie(res, { id: freshUser.id, phone: freshUser.phone, role: freshUser.role });
+    }
+    return res;
   } catch (err) {
     return serverError("auth/pro/register", err);
   }

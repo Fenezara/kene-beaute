@@ -152,6 +152,9 @@ export function normalizeVlmResult(raw: unknown, zone: BodyZone): DiagnosisResul
     avertissement:
       "Estimation IA éducative — ne constitue pas un diagnostic médical. En cas de lésion évolutive, consultez un dermatologue.",
     source: "vlm",
+    // Champ confiance (t. 71) : présent dès la normalisation si absent de
+    // la réponse brute — « haute » = analyse IA vision réellement exécutée.
+    confidence: "haute",
   };
 }
 
@@ -193,6 +196,8 @@ export function fallbackResult(zone: BodyZone, seed: number): DiagnosisResult {
     orientation_dermato: false,
     avertissement: "Mode secours : résultat simulé car le moteur IA est momentanément indisponible.",
     source: "fallback",
+    // Champ confiance (t. 71) : mode secours déterministe → « indicative ».
+    confidence: "indicative",
   };
 }
 

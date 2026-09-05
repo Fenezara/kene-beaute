@@ -13,8 +13,8 @@
 import { useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import {
-  ArrowLeft, Bell, Building2, Check, Download, Languages, Loader2, LogOut, MapPin,
-  Moon, Pencil, Phone, ShieldCheck, Smartphone, SunMedium,
+  ArrowLeft, Bell, Building2, Check, ChevronRight, Crown, Download, Languages, Loader2, LogOut, MapPin,
+  Moon, Pencil, Phone, Scale, ShieldCheck, Smartphone, SunMedium,
 } from "lucide-react";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
@@ -23,7 +23,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { IconBadge, Reveal, RevealItem } from "@/components/kene/ui2026";
-import { useKene, type SessionUser } from "@/store/kene";
+import { useKene, type ClientTab, type SessionUser } from "@/store/kene";
 import { useSecurity } from "@/store/security";
 import { useInstallPrompt } from "@/components/kene/pwa/use-install";
 
@@ -134,6 +134,10 @@ export function SettingsScreen() {
     } catch {
       /* stockage indisponible : l'onboarding démarrera simplement en mode cliente */
     }
+    // Session serveur fermée aussi (t. 71-e) : le cookie httpOnly signé est
+    // effacé pour ne pas laisser traîner une session cliente pendant le
+    // parcours d'inscription entreprise.
+    void fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     clearCart();
     setUser(null);
     toast.info("À très vite — bienvenue dans l'aventure entreprise");
@@ -429,11 +433,53 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
+        {/* Abonnement (t. 71-c) — offres Kènè+ et quota diagnostics : écran
+            caché « abonnement » (même porte que Paramètres, depuis ici). */}
+        <RevealItem>
+          <section aria-labelledby="sub-t" className="k-card rounded-[24px] p-2">
+            <button
+              onClick={() => setClientTab("abonnement" as ClientTab)}
+              className="w-full flex items-center gap-3 rounded-[18px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <IconBadge icon={<Crown size={19} />} tone="gold" />
+              <span className="flex-1 min-w-0">
+                <span id="sub-t" className="block text-xs font-bold">Abonnement</span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">Offres, quota diagnostics</span>
+              </span>
+              <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
+            </button>
+          </section>
+        </RevealItem>
+
+        {/* Mentions légales (t. 71-c) — éditeur POC, santé, RGPD, cadre CI/SN,
+            paiements simulés : écran caché « legal ». */}
+        <RevealItem>
+          <section aria-labelledby="legal-t" className="k-card rounded-[24px] p-2">
+            <button
+              onClick={() => setClientTab("legal" as ClientTab)}
+              className="w-full flex items-center gap-3 rounded-[18px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <IconBadge icon={<Scale size={19} />} tone="terre" />
+              <span className="flex-1 min-w-0">
+                <span id="legal-t" className="block text-xs font-bold">Mentions légales</span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">RGPD, santé, paiements</span>
+              </span>
+              <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
+            </button>
+          </section>
+        </RevealItem>
+
         {/* Déconnexion — le panier est vidé AVANT de perdre la session : la
-            prochaine utilisatrice du téléphone n'hérite de rien. */}
+            prochaine utilisatrice du téléphone n'hérite de rien. La session
+            SERVEUR (cookie httpOnly signé, t. 71-b) est fermée dans la foulée. */}
         <RevealItem>
           <button
-            onClick={() => { clearCart(); setUser(null); toast.info("À bientôt sur Kènè"); }}
+            onClick={() => {
+              void fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+              clearCart();
+              setUser(null);
+              toast.info("À bientôt sur Kènè");
+            }}
             className="h-12 rounded-2xl border border-destructive/40 bg-destructive/10 text-destructive text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive"
           >
             <LogOut size={16} /> Déconnexion

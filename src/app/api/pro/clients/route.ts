@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, slugify } from "@/lib/kene/server";
+import { guardProRole } from "@/lib/kene/session";
 
 // Validation zod (t. 63-d, remplace le cast manuel) : bornes calquées sur
 // l'ancien contrat (nom ≤ 80, téléphone raisonnablement borné en longueur —
@@ -16,6 +17,11 @@ const Body = z.object({
 
 export async function GET(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:clients:get");
+    if (guard) return guard;
+
     const tenant = await resolveTenant(req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
@@ -39,6 +45,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Session signée (t. 71-b, migration douce) : avec cookie, la fiche
+    // express exige un compte pro/admin ; sans cookie → legacy.
+    const guard = guardProRole(req, "pro:clients:post");
+    if (guard) return guard;
+
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {
       const field = parsed.error.issues[0]?.path?.[0];

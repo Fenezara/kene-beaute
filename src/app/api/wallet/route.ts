@@ -2,11 +2,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, ensureWallet } from "@/lib/kene/server";
+import { guardUserClaim } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
   try {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
+
+    // Session signée (t. 71-b, migration douce) : avec cookie, la session ne
+    // peut lire que SON wallet ; sans cookie → legacy (comportement conservé).
+    const guard = guardUserClaim(req, "wallet:get", userId);
+    if (guard) return guard;
 
     const wallet = await ensureWallet(userId);
     if (!wallet) return jsonError("Utilisatrice introuvable", 404);
