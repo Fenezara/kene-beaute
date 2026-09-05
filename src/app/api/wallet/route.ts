@@ -11,9 +11,12 @@ export async function GET(req: NextRequest) {
     const wallet = await ensureWallet(userId);
     if (!wallet) return jsonError("Utilisatrice introuvable", 404);
 
+    // Transactions bornées (POC : 20 dernières — le Profil liste tout, sans
+    // « charger plus ») ; le solde du wallet reste exact, lui.
     const transactions = await db.walletTransaction.findMany({
       where: { walletId: wallet.id },
       orderBy: { createdAt: "desc" },
+      take: 20,
     });
 
     return NextResponse.json({ wallet, transactions });

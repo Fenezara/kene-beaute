@@ -5,6 +5,16 @@ import type { VisionMessage } from "z-ai-web-dev-sdk";
 import type { BodyZone, DiagnosisResult, Indicator, ZoneMark } from "@/lib/kene/types";
 import { ZONE_INDICATORS } from "@/lib/kene/types";
 import { severityFromPercent } from "@/lib/kene/format";
+import { withTimeout } from "@/lib/kene/with-timeout";
+
+/** Délai de garde des appels VLM (45 s) : un SDK qui hang bascule sur le
+ *  chemin de fallback existant au lieu de laisser le diagnostic en pending. */
+const VLM_TIMEOUT_MS = 45_000;
+
+/** Garde de type minimale (runtime safe) pour les réponses JSON du VLM. */
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
 
 /** Prompt VLM spécialisé peaux mélanodermes (Fitzpatrick IV–VI) — PRD §7.5 */
 function buildPrompt(zone: BodyZone, knownFitz?: string, allergies?: string): string {
@@ -81,10 +91,10 @@ function coerceArray<T>(v: unknown): T[] {
 
 /** Transforme la réponse brute du VLM en DiagnosisResult validé */
 export function normalizeVlmResult(raw: unknown, zone: BodyZone): DiagnosisResult | null {
-  if (!raw || typeof raw !== "object") return null;
-  const o = raw as Record<string, any>;
+  if (!isRecord(raw)) return null;
+  const o: Record<string, unknown> = raw;
   const indicateursList = ZONE_INDICATORS[zone];
-  const indicateursIn = coerceArray<Record<string, any>>(o.indicateurs);
+  const indicateursIn = coerceArray<Record<string, unknown>>(o.indicateurs);
   const indicateurs: Indicator[] = indicateursList.map((nom) => {
     const found = indicateursIn.find((i) => i && String(i.nom).toLowerCase().includes(nom.toLowerCase().slice(0, 10)));
     const pct = clamp(found?.pourcentage, 0, 100, 70);
@@ -97,7 +107,7 @@ export function normalizeVlmResult(raw: unknown, zone: BodyZone): DiagnosisResul
   });
   if (indicateurs.length === 0) return null;
 
-  const marquages: ZoneMark[] = coerceArray<Record<string, any>>(o.zones_marquages)
+  const marquages: ZoneMark[] = coerceArray<Record<string, unknown>>(o.zones_marquages)
     .slice(0, 8)
     .map((m) => ({
       label: String(m?.label ?? "zone").slice(0, 40),
@@ -108,7 +118,7 @@ export function normalizeVlmResult(raw: unknown, zone: BodyZone): DiagnosisResul
       severite: clamp(m?.severite, 0, 3, 1),
     }));
 
-  const recIn = (o.recommandations ?? {}) as Record<string, any>;
+  const recIn: Record<string, unknown> = isRecord(o.recommandations) ? o.recommandations : {};
   const recommandations = {
     resume: String(recIn.resume ?? "Analyse terminée. Votre peau présente un équilibre général correct avec des zones d'attention détaillées ci-dessous."),
     routine_matin: coerceArray<string>(recIn.routine_matin).slice(0, 6).map(String),
@@ -119,7 +129,7 @@ export function normalizeVlmResult(raw: unknown, zone: BodyZone): DiagnosisResul
     conseils_hygiene_vie: coerceArray<string>(recIn.conseils_hygiene_vie).slice(0, 6).map(String),
   };
 
-  const abcde = coerceArray<Record<string, any>>(o.abcde).map((c) => ({
+  const abcde = coerceArray<Record<string, unknown>>(o.abcde).map((c) => ({
     critere: String(c?.critere ?? "").slice(0, 1),
     intitule: String(c?.intitule ?? ""),
     alerte: Boolean(c?.alerte),
@@ -206,11 +216,15 @@ export async function runDiagnosis(opts: {
         ],
       },
     ];
-    const response = await zai.chat.completions.createVision({
-      model: "glm-4.6v",
-      messages,
-      thinking: { type: "disabled" },
-    });
+    const response = await withTimeout(
+      zai.chat.completions.createVision({
+        model: "glm-4.6v",
+        messages,
+        thinking: { type: "disabled" },
+      }),
+      VLM_TIMEOUT_MS,
+      "vlm:vision",
+    );
     const raw = response.choices[0]?.message?.content ?? "";
     const json = extractJson(raw);
     const normalized = normalizeVlmResult(json, zone);
@@ -240,15 +254,24 @@ export async function triageLesion(imageBase64: string): Promise<{ niveau: "vert
         ],
       },
     ];
-    const response = await zai.chat.completions.createVision({
-      model: "glm-4.6v",
-      messages,
-      thinking: { type: "disabled" },
-    });
+    const response = await withTimeout(
+      zai.chat.completions.createVision({
+        model: "glm-4.6v",
+        messages,
+        thinking: { type: "disabled" },
+      }),
+      VLM_TIMEOUT_MS,
+      "vlm:triage",
+    );
     const raw = response.choices[0]?.message?.content ?? "{}";
-    const json = extractJson(raw) as { niveau?: string; message?: string } | null;
-    const niveau = ["vert", "jaune", "rouge"].includes(String(json?.niveau)) ? (json!.niveau as "vert" | "jaune" | "rouge") : "jaune";
-    return { niveau, message: String(json?.message ?? "Photo reçue. Un examen plus approfondi est recommandé : je vous oriente vers une dermo-conseillère Kènè.") };
+    const json = extractJson(raw);
+    const niveauRaw = isRecord(json) ? String(json.niveau ?? "") : "";
+    const niveau: "vert" | "jaune" | "rouge" = niveauRaw === "vert" || niveauRaw === "rouge" ? niveauRaw : "jaune";
+    const message =
+      isRecord(json) && typeof json.message === "string" && json.message.trim()
+        ? json.message
+        : "Photo reçue. Un examen plus approfondi est recommandé : je vous oriente vers une dermo-conseillère Kènè.";
+    return { niveau, message };
   } catch {
     return {
       niveau: "jaune",

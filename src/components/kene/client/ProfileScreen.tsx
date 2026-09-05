@@ -39,6 +39,7 @@ export function ProfileScreen() {
   const setUser = useKene((s) => s.setUser);
   const setSpace = useKene((s) => s.setSpace);
   const setClientTab = useKene((s) => s.setClientTab);
+  const clearCart = useKene((s) => s.clearCart);
   const { t, lang, setLang } = useT();
 
   const [edit, setEdit] = useState(false);
@@ -183,9 +184,18 @@ export function ProfileScreen() {
     setTopupBusy(true);
     setTopupState("processing");
     try {
-      const r = await apiPost<{ payment: { id: string } }>("/api/wallet/topup", { userId: user.id, amount, method });
+      const r = await apiPost<{ payment: { id: string; confirmToken?: string } }>("/api/wallet/topup", { userId: user.id, amount, method });
+      // Contrat confirmToken (63-b/63-c) : un approvisionnement mobile money en
+      // attente porte son jeton — absent, on n'appelle JAMAIS confirm et on
+      // revient au formulaire comme après un échec (aucun crédit fantôme).
+      const confirmToken = r.payment.confirmToken;
+      if (!confirmToken) {
+        setTopupState("idle");
+        toast.error("Paiement impossible — réessaie dans quelques instants");
+        return;
+      }
       await new Promise((res) => setTimeout(res, 2600));
-      await apiPost("/api/payments/confirm", { paymentId: r.payment.id });
+      await apiPost("/api/payments/confirm", { paymentId: r.payment.id, confirmToken });
       setTopupState("done");
       toast.success(`${xof(amount)} crédités sur ton wallet`);
       loadWallet();
@@ -457,9 +467,10 @@ export function ProfileScreen() {
         <p className="text-xs text-muted-foreground mt-1">Découvrir l&apos;Espace Pro Kènè : agenda, caisse, CRM, stock, paie, comptabilité.</p>
       </button>
 
-      {/* Déconnexion */}
+      {/* Déconnexion — le panier est vidé AVANT de perdre la session : la
+          prochaine utilisatrice du téléphone n'hérite de rien. */}
       <button
-        onClick={() => { setUser(null); toast.info("À bientôt sur Kènè"); }}
+        onClick={() => { clearCart(); setUser(null); toast.info("À bientôt sur Kènè"); }}
         className="h-12 rounded-xl border border-destructive/40 text-destructive text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive"
       >
         <LogOut size={16} /> Déconnexion

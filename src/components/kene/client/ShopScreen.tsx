@@ -3,7 +3,7 @@
 // + « Mes commandes » : historique des commandes enregistrées (consultation par la cliente).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, Heart, History, Loader2, Lock, Minus, Plus, Search, ShoppingBag, Tag, Trash2, X } from "lucide-react";
+import { BadgeCheck, Heart, History, Loader2, Lock, Minus, Plus, Search, ShoppingBag, Tag, Trash2, TriangleAlert, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof, CASHBACK_RATE, formatDate, formatTime } from "@/lib/kene/format";
@@ -48,6 +48,9 @@ export function ShopScreen() {
   const [qty, setQty] = useState(1);
   const [checkout, setCheckout] = useState(false);
   const [wallet, setWallet] = useState<ApiWallet | null>(null);
+  // Fin des échecs silencieux : solde inconnu → encart discret + Réessayer
+  // (plus jamais un « … » éternel sur le bouton Wallet du checkout).
+  const [walletError, setWalletError] = useState(false);
   const [payState, setPayState] = useState<{ phase: "processing" | "success"; method: PayMethod; amount: number } | null>(null);
   const [paying, setPaying] = useState(false);
 
@@ -107,13 +110,21 @@ export function ShopScreen() {
   /* taux de cashback réellement appliqué (wallet de la cliente, sinon défaut) */
   const cashbackRate = wallet?.cashbackRate ?? CASHBACK_RATE;
 
+  /* Solde wallet — échec explicite (walletError) plutôt que silence : le
+   * bouton Wallet reste désactivé tant que le solde est inconnu. */
+  const loadWallet = useCallback(() => {
+    apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`)
+      .then((r) => { setWallet(r.wallet); setWalletError(false); })
+      .catch(() => setWalletError(true));
+  }, [user.id]);
+
   useEffect(() => {
     apiGet<{ products: ApiProduct[] }>("/api/shop/products")
       .then((r) => setProducts(r.products ?? []))
       .catch(() => setProducts([]));
-    apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).then((r) => setWallet(r.wallet)).catch(() => {});
+    loadWallet();
     refreshOrders();
-  }, [user.id, refreshOrders]);
+  }, [user.id, refreshOrders, loadWallet]);
 
   const filtered = useMemo(() => {
     const nq = q.trim().toLowerCase();
@@ -179,11 +190,20 @@ export function ShopScreen() {
       });
       const amount = r.order.total;
       if (method !== "wallet" && r.payment) {
+        // Contrat confirmToken (63-b/63-c) : un paiement mobile money en attente
+        // porte son jeton — absent, on n'appelle JAMAIS confirm et on rollback
+        // l'état UI comme un échec de paiement (panier intact, aucun overlay).
+        const confirmToken = r.payment.confirmToken;
+        if (!confirmToken) {
+          setCheckout(false);
+          toast.error("Paiement impossible — réessaie dans quelques instants");
+          return;
+        }
         setCheckout(false);
         setPayState({ phase: "processing", method, amount });
         await new Promise((res) => setTimeout(res, 3000));
-        const c = await apiPost<{ payment: ApiPayment; order?: ApiOrder; wallet?: ApiWallet }>("/api/payments/confirm", { paymentId: r.payment.id });
-        if (c.wallet) setWallet(c.wallet);
+        const c = await apiPost<{ payment: ApiPayment; order?: ApiOrder; wallet?: ApiWallet }>("/api/payments/confirm", { paymentId: r.payment.id, confirmToken });
+        if (c.wallet) { setWallet(c.wallet); setWalletError(false); }
       } else {
         setCheckout(false);
         setPayState({ phase: "processing", method: "wallet", amount });
@@ -540,9 +560,18 @@ export function ShopScreen() {
                 >
                   <span className="h-7 w-7 rounded-full grid place-items-center bg-melanine text-[#C8951E] shrink-0 font-heading font-black text-xs">K</span>
                   Wallet Kènè
-                  <span className="ml-auto font-mono text-[11px] text-muted-foreground">{wallet ? xof(wallet.balance) : "…"}</span>
+                  <span className="ml-auto font-mono text-[11px] text-muted-foreground">{wallet ? xof(wallet.balance) : walletError ? "indisponible" : "…"}</span>
                 </button>
                 {wallet && wallet.balance < total && <p className="text-[10px] text-destructive text-center">Solde insuffisant — approvisionne ton wallet depuis ton profil.</p>}
+                {walletError && (
+                  <div role="alert" className="rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 flex items-center gap-2.5">
+                    <TriangleAlert size={14} className="text-terre shrink-0" aria-hidden="true" />
+                    <p className="flex-1 min-w-0 text-[11px] text-muted-foreground leading-snug">Solde indisponible — réessaie</p>
+                    <button onClick={loadWallet} className="h-11 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold active:scale-95 transition-transform shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+                      Réessayer
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

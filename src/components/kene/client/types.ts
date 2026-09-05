@@ -125,6 +125,11 @@ export interface ApiPayment {
   status: string;
   ref: string;
   createdAt?: string;
+  /** Jeton de confirmation des paiements mobile money en attente (wave/orange) :
+   *  fourni par la création (orders / appointments / wallet topup), exigé par
+   *  POST /api/payments/confirm. Absent sur un paiement pending → la cliente
+   *  ne doit PAS tenter le confirm (contrat 63-b/63-c). */
+  confirmToken?: string;
 }
 
 export interface ApiWallet {

@@ -8,8 +8,12 @@
 //   • Desktop  (xl) : sidebar complète libellée + feed centré max 640 px + rail droit
 //               (mini-profil, actions rapides, mentions légales) — zéro espace perdu.
 // Le Fil de Kente (intro) et l'onboarding restent plein cadre, hors shell.
+// Résilience + code splitting (t. 63-a) : chaque écran d'onglet vit derrière une
+// ScreenBoundary (erreur locale = carte inline, l'app reste vivante) et les écrans
+// lourds sont lazy (chunk dédié au premier clic — HomeScreen/Onboarding eager).
+// Gate d'hydratation : BootSkeleton tant que le store persisté n'est pas relu.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BriefcaseBusiness, CalendarDays, Home, Loader2, MessageCircle, ShieldCheck, ShoppingBag, User, WifiOff } from "lucide-react";
 import { toast } from "sonner";
@@ -24,12 +28,9 @@ import { KenteIntro } from "@/components/kene/intro/KenteIntro";
 import { useIntroDone } from "@/components/kene/intro/introState";
 import { Onboarding } from "./Onboarding";
 import { HomeScreen } from "./HomeScreen";
-import { DiagnosticScreen } from "./DiagnosticScreen";
-import { ShopScreen } from "./ShopScreen";
-import { BookingScreen } from "./BookingScreen";
-import { ChatScreen } from "./ChatScreen";
 import { ProfileScreen } from "./ProfileScreen";
-import { NotificationCenter } from "./NotificationCenter";
+import { ScreenBoundary } from "./ScreenBoundary";
+import { BootSkeleton } from "./BootSkeleton";
 import { cn } from "@/lib/utils";
 
 /** Navigation latérale (desktop) — libellés façon Instagram web.
@@ -64,6 +65,40 @@ const TITLES: Record<ClientTab, string> = {
 /** Ordre de balayage mobile (swipe horizontal gauche/droite — TikTok-like) */
 const SWIPE_ORDER: ClientTab[] = ["accueil", "boutique", "diagnostic", "rdv", "profil"];
 
+// ─── Code splitting par onglet (t. 63-a) ───
+// Les écrans lourds rejoignent le bundle uniquement à la demande : le premier
+// clic Diagnostic / Boutique / RDV / Chat télécharge le chunk dédié (visible
+// dans l'onglet Network du navigateur). HomeScreen et Onboarding restent
+// eager (premier rendu complet). Exports nommés → default attendu par lazy.
+const DiagnosticScreen = lazy(() => import("./DiagnosticScreen").then((m) => ({ default: m.DiagnosticScreen })));
+const ShopScreen = lazy(() => import("./ShopScreen").then((m) => ({ default: m.ShopScreen })));
+const BookingScreen = lazy(() => import("./BookingScreen").then((m) => ({ default: m.BookingScreen })));
+const ChatScreen = lazy(() => import("./ChatScreen").then((m) => ({ default: m.ChatScreen })));
+// Cloche + Sheet notifications : lazy aussi (socket.io du header sort du premier rendu)
+const NotificationCenter = lazy(() => import("./NotificationCenter").then((m) => ({ default: m.NotificationCenter })));
+
+/** Squelette d'attente d'onglet — spinner discret pendant le chargement du chunk */
+function TabLoading() {
+  return (
+    <div role="status" aria-busy="true" className="grid place-items-center py-24">
+      <span className="flex flex-col items-center gap-3">
+        <Loader2 size={22} className="animate-spin text-muted-foreground" aria-hidden="true" />
+        <span className="sr-only">Chargement…</span>
+      </span>
+    </div>
+  );
+}
+
+/** Cloche en attente — même empreinte (h-11 w-11) que le bouton final : zéro décalage du header */
+function BellLoading() {
+  return (
+    <span role="status" aria-busy="true" className="grid place-items-center h-11 w-11">
+      <Loader2 size={20} className="animate-spin text-muted-foreground" aria-hidden="true" />
+      <span className="sr-only">Chargement…</span>
+    </span>
+  );
+}
+
 export function ClientApp() {
   const { t } = useT();
   const user = useKene((s) => s.user);
@@ -71,7 +106,14 @@ export function ClientApp() {
   const setClientTab = useKene((s) => s.setClientTab);
   const setSpace = useKene((s) => s.setSpace);
   const cartCount = useKene((s) => s.cart.reduce((n, l) => n + l.qty, 0));
-  const [chatUnread, setChatUnread] = useState(true);
+  // Gate d'hydratation kene-store (contrat t. 63-b) : _keneHydrated passe à
+  // true quand la relecture localStorage est finie (onRehydrateStorage, même
+  // en cas d'erreur — la porte ne se verrouille jamais). Typage tolérant : si
+  // 63-b était absent, fallback true = comportement d'avant (zéro régression).
+  const hydrated = useKene((s) => (s as { _keneHydrated?: boolean })._keneHydrated ?? true);
+  // Badge chat honnête : faux par défaut — seul un message ENTRANT (événement
+  // « kene:chat:new » dispatché par ChatScreen) l'allume, voir l'effet plus bas
+  const [chatUnread, setChatUnread] = useState(false);
   const [pendingZone, setPendingZone] = useState<BodyZone | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // Fil de Kente : l'introduction immersive ne se montre qu'une fois
@@ -102,6 +144,26 @@ export function ClientApp() {
       window.removeEventListener("online", update);
       window.removeEventListener("offline", update);
     };
+  }, []);
+
+  // Relecture du store persisté (kene-store, skipHydration t. 63-b) — UNE fois
+  // au montage, idempotente (le store a aussi son propre filet « load ») :
+  // c'est ceci qui restaure l'état persisté (space/user/panier/onglet) après
+  // le premier rendu client — le BootSkeleton couvre exactement cette fenêtre.
+  useEffect(() => {
+    void useKene.persist.rehydrate();
+  }, []);
+
+  // Badge chat honnête : l'événement « kene:chat:new » (CustomEvent, détail
+  // { at } — dispatché par ChatScreen, contrat figé t. 63) n'allume le point
+  // QUE si tu n'es pas déjà sur l'onglet chat (lecture fraîche via getState,
+  // l'effet ne se réabonne jamais). Aller sur l'onglet chat → goTab éteint.
+  useEffect(() => {
+    const onNewChatMessage = () => {
+      if (useKene.getState().clientTab !== "chat") setChatUnread(true);
+    };
+    window.addEventListener("kene:chat:new", onNewChatMessage);
+    return () => window.removeEventListener("kene:chat:new", onNewChatMessage);
   }, []);
 
   // Remonte en haut du flux à chaque changement d'onglet (le tirage est
@@ -192,6 +254,10 @@ export function ClientApp() {
   );
 
   const onZoneConsumed = useCallback(() => setPendingZone(null), []);
+
+  // Store persisté pas encore relu → squelette d'amorçage (évite le flash
+  // d'onboarding avant la restauration de la session — t. 63)
+  if (!hydrated) return <BootSkeleton />;
 
   if (!user) {
     if (!introDone) return <KenteIntro />;
@@ -317,8 +383,11 @@ export function ClientApp() {
               </p>
             </div>
             <div className="flex items-center gap-1">
-              {/* Cloche notifications : flux temps réel (notify-service) */}
-              <NotificationCenter userId={user.id} />
+              {/* Cloche notifications : flux temps réel (notify-service) —
+                  lazy : socket.io + Sheet chargés dans leur propre chunk */}
+              <Suspense fallback={<BellLoading />}>
+                <NotificationCenter userId={user.id} />
+              </Suspense>
               <button
                 onClick={() => goTab("chat")}
                 aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
@@ -378,12 +447,40 @@ export function ClientApp() {
                 exit={{ opacity: 0, x: -12 * navDir, y: -4 }}
                 transition={{ duration: 0.22, ease: "easeOut" }}
               >
-                {tab === "accueil" && <HomeScreen onScanZone={onScanZone} refreshKey={refreshKey} onRefreshed={onRefreshed} />}
-                {tab === "diagnostic" && <DiagnosticScreen pendingZone={pendingZone} onZoneConsumed={onZoneConsumed} />}
-                {tab === "boutique" && <ShopScreen />}
-                {tab === "rdv" && <BookingScreen />}
-                {tab === "chat" && <ChatScreen />}
-                {tab === "profil" && <ProfileScreen />}
+                {/* Suspense DANS le motion.div : le squelette d'attente participe
+                    à la transition d'onglet pendant le chargement du chunk */}
+                <Suspense fallback={<TabLoading />}>
+                  {tab === "accueil" && (
+                    <ScreenBoundary name="Accueil">
+                      <HomeScreen onScanZone={onScanZone} refreshKey={refreshKey} onRefreshed={onRefreshed} />
+                    </ScreenBoundary>
+                  )}
+                  {tab === "diagnostic" && (
+                    <ScreenBoundary name="Diagnostic">
+                      <DiagnosticScreen pendingZone={pendingZone} onZoneConsumed={onZoneConsumed} />
+                    </ScreenBoundary>
+                  )}
+                  {tab === "boutique" && (
+                    <ScreenBoundary name="Boutique">
+                      <ShopScreen />
+                    </ScreenBoundary>
+                  )}
+                  {tab === "rdv" && (
+                    <ScreenBoundary name="Rendez-vous">
+                      <BookingScreen />
+                    </ScreenBoundary>
+                  )}
+                  {tab === "chat" && (
+                    <ScreenBoundary name="Chat">
+                      <ChatScreen />
+                    </ScreenBoundary>
+                  )}
+                  {tab === "profil" && (
+                    <ScreenBoundary name="Profil">
+                      <ProfileScreen />
+                    </ScreenBoundary>
+                  )}
+                </Suspense>
               </motion.div>
             </AnimatePresence>
           </div>

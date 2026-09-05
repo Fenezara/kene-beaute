@@ -1,10 +1,44 @@
 // GET /api/admin/stats — KPIs plateforme (espace Admin)
-import { NextResponse } from "next/server";
+// Deux gardes (t. 63-d) :
+//  • rate-limit 30/min par IP : la route est publique côté front, un scan
+//    coûteux ne doit pas être martelé ;
+//  • cache mémoire globalThis TTL 60 s (pattern singleton du rate-limit) :
+//    la route scanne toute la base (orders + items, ventes 30 j, diagnostics
+//    14 j) — les hits répétés servent le snapshot au lieu de re-scanner.
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, daysAgo, ddMM } from "@/lib/kene/server";
+import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 
-export async function GET() {
+const CACHE_TTL_MS = 60_000;
+
+type StatsPayload = {
+  users: number;
+  tenants: number;
+  diagnoses: number;
+  orders: number;
+  gmvBoutique: number;
+  commissionTotal: number;
+  referrals: number;
+  chart: { date: string; count: number }[];
+  topTenants: { name: string; city: string; ca30: number }[];
+};
+
+// Singleton sur globalThis : survit aux rechargements de modules en dev (HMR)
+// et reste unique même si la route est bundlée plusieurs fois.
+const g = globalThis as typeof globalThis & { __keneAdminStatsCache?: { data: StatsPayload; at: number } };
+
+export async function GET(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "admin:stats"), ADMIN_STATS);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Statistiques très sollicitées — reprends dans quelques secondes");
+  }
   try {
+    const cached = g.__keneAdminStatsCache;
+    if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+      return NextResponse.json(cached.data);
+    }
+
     const now = new Date();
     const since30 = new Date(now.getTime() - 30 * 86_400_000);
 
@@ -55,7 +89,7 @@ export async function GET() {
       .sort((a, b) => b.ca30 - a.ca30)
       .slice(0, 5);
 
-    return NextResponse.json({
+    const payload: StatsPayload = {
       users,
       tenants,
       diagnoses,
@@ -65,7 +99,9 @@ export async function GET() {
       referrals,
       chart,
       topTenants,
-    });
+    };
+    g.__keneAdminStatsCache = { data: payload, at: Date.now() };
+    return NextResponse.json(payload);
   } catch (err) {
     return serverError("admin/stats", err);
   }

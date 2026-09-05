@@ -4,9 +4,14 @@ import { z } from "zod";
 import ZAI from "z-ai-web-dev-sdk";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, DERMATO } from "@/lib/kene/rate-limit";
+import { withTimeout, TimeoutError } from "@/lib/kene/with-timeout";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+/** Garde temporelle : un LLM qui hang répond 502 FR au lieu de laisser la
+ *  conversation cliente en attente indéfinie. */
+const CHAT_TIMEOUT_MS = 30_000;
 
 const Body = z.object({
   messages: z
@@ -30,18 +35,23 @@ export async function POST(req: NextRequest) {
     const history = parsed.data.messages.slice(-20);
 
     const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-      ],
-      thinking: { type: "disabled" },
-    });
+    const completion = await withTimeout(
+      zai.chat.completions.create({
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+        ],
+        thinking: { type: "disabled" },
+      }),
+      CHAT_TIMEOUT_MS,
+      "dermato:chat",
+    );
     const reply = completion.choices[0]?.message?.content;
     if (!reply) return jsonError("Assistant momentanément indisponible", 502);
 
     return NextResponse.json({ reply });
   } catch (err) {
+    if (err instanceof TimeoutError) return jsonError("Assistant momentanément indisponible", 502);
     console.error("[kene:api:dermato/chat]", err instanceof Error ? err.message : err);
     return serverError("dermato/chat", err);
   }

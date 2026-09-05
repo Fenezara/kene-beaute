@@ -1,8 +1,18 @@
 // GET /api/pro/clients?tenantId=&q= — annuaire CRM trié par CA
 // POST /api/pro/clients — « Cliente express » (mode saisie allégée, 2 champs)
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, slugify } from "@/lib/kene/server";
+
+// Validation zod (t. 63-d, remplace le cast manuel) : bornes calquées sur
+// l'ancien contrat (nom ≤ 80, téléphone raisonnablement borné en longueur —
+// la sémantique 8-15 chiffres reste vérifiée après normalisation, messages FR inchangés).
+const Body = z.object({
+  tenantId: z.string().min(1),
+  name: z.string().min(1).max(80),
+  phone: z.string().min(6).max(30),
+});
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,14 +39,26 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const body: unknown = await req.json().catch(() => null);
-    const b = (body ?? {}) as { tenantId?: unknown; name?: unknown; phone?: unknown };
+    const parsed = Body.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      const field = parsed.error.issues[0]?.path?.[0];
+      return jsonError(
+        field === "name"
+          ? "Nom invalide (2 à 80 caractères)"
+          : field === "phone"
+            ? "Téléphone invalide (8 à 15 chiffres)"
+            : "Corps de requête invalide",
+        400
+      );
+    }
 
-    const tenant = await resolveTenant(typeof b.tenantId === "string" ? b.tenantId : null);
+    const tenant = await resolveTenant(parsed.data.tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    const name = typeof b.name === "string" ? b.name.trim().replace(/\s+/g, " ") : "";
-    const phone = typeof b.phone === "string" ? b.phone.trim() : "";
+    // Normalisation conservée (trim + espaces multiples) : zod garantit la
+    // forme, ces sémantiques restent la source des messages FR ci-dessous.
+    const name = parsed.data.name.trim().replace(/\s+/g, " ");
+    const phone = parsed.data.phone.trim();
     const digits = phone.replace(/\D/g, "");
 
     if (name.length < 2 || name.length > 80) return jsonError("Nom invalide (2 à 80 caractères)");

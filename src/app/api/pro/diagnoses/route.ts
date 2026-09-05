@@ -13,6 +13,7 @@ import type { BodyZone } from "@/lib/kene/types";
 import { scoreQuestionnaire, mergeResults, missingRequired, QUESTIONS } from "@/lib/kene/questionnaire";
 import type { QAnswers } from "@/lib/kene/questionnaire";
 import { jsonError, serverError, notify, resolveTenant } from "@/lib/kene/server";
+import { rateLimit, rlKey, rateLimitResponse, PRO_DIAGNOSES } from "@/lib/kene/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -44,6 +45,11 @@ function sanitizeAnswers(answers: QAnswers): QAnswers {
 }
 
 export async function POST(req: NextRequest) {
+  // Route coûteuse (questionnaire ± photo VLM en cabine) : 10/min par IP.
+  const rl = rateLimit(rlKey(req, "pro:diagnoses"), PRO_DIAGNOSES);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Diagnostic en institut très sollicité — reprends dans quelques secondes");
+  }
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {

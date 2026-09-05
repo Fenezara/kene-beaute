@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
+import { rateLimit, rlKey, rateLimitResponse, COUPONS_DIFFUSE } from "@/lib/kene/rate-limit";
 import { diffuseCoupon } from "@/lib/kene/coupons";
 
 const Body = z.object({
@@ -14,6 +15,11 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // Mass-notification (une diffusion notifie TOUTES les clientes) : 4/min.
+  const rl = rateLimit(rlKey(req, "pro:coupons:diffuse"), COUPONS_DIFFUSE);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Diffusion trop fréquente — reprends dans quelques secondes");
+  }
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("tenantId et couponId requis", 400);

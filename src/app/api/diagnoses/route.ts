@@ -6,6 +6,7 @@ import { runDiagnosis } from "@/lib/ai/vlm";
 import { BODY_ZONES } from "@/lib/kene/types";
 import type { BodyZone } from "@/lib/kene/types";
 import { jsonError, serverError, notify } from "@/lib/kene/server";
+import { rateLimit, rlKey, rateLimitResponse, DIAGNOSES_CREATE } from "@/lib/kene/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -21,6 +22,11 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // Route coûteuse (photo → VLM) : 6/min par IP, AVANT toute désérialisation.
+  const rl = rateLimit(rlKey(req, "diagnoses:create"), DIAGNOSES_CREATE);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Le moteur d'analyse est très sollicité — reprends dans quelques secondes");
+  }
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) {
@@ -101,9 +107,12 @@ export async function GET(req: NextRequest) {
   try {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
+    // Historique borné (POC : 20 derniers — le front liste tout, sans
+    // « charger plus » ; imageData conservé pour l'historique photos).
     const diagnoses = await db.diagnosis.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
+      take: 20,
     });
     return NextResponse.json({ diagnoses });
   } catch (err) {

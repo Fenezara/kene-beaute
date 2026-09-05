@@ -1,7 +1,25 @@
-// GET /api/institutes?city=&q= — instituts partenaires actifs
+// GET /api/institutes?city=&q= — instituts partenaires actifs (annuaire public)
+// Sécurité (t. 63-d) : select explicite — la réponse publique ne contient
+// UNIQUEMENT que ce que le front consomme (BookingScreen : nom, ville, pays,
+// note, nb d'avis, description, horaires + visuel calculé + compteurs).
+// Jamais de ownerName/ownerPhone/phone/address/plan/commissionRate/active.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, instituteImage, slugify } from "@/lib/kene/server";
+
+/** Champs publics d'un institut (contrat = ApiInstitute côté cliente). */
+const PUBLIC_TENANT_SELECT = {
+  id: true,
+  name: true,
+  city: true,
+  country: true,
+  rating: true,
+  reviewCount: true,
+  description: true,
+  openingHour: true,
+  closingHour: true,
+  _count: { select: { services: true, reviews: true } },
+} as const;
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,7 +28,7 @@ export async function GET(req: NextRequest) {
 
     const tenants = await db.tenant.findMany({
       where: { active: true },
-      include: { _count: { select: { services: true, reviews: true } } },
+      select: PUBLIC_TENANT_SELECT,
       orderBy: { rating: "desc" },
     });
 

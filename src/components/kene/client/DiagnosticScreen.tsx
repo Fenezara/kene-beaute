@@ -1,6 +1,6 @@
 "use client";
 // Kènè Cliente — Diagnostic IA : wizard zone → capture → analyse → résultats VISIA-like → historique
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, Brush, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, GitCompareArrows, Hand, History,
@@ -59,6 +59,9 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [products, setProducts] = useState<ApiProduct[]>([]);
+  // Fin des échecs silencieux : produits indisponibles → encart discret +
+  // Réessayer sur la section recommandations (plus de section muette).
+  const [productsError, setProductsError] = useState(false);
   const [history, setHistory] = useState<ApiDiagnosis[] | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareSel, setCompareSel] = useState<string[]>([]);
@@ -74,10 +77,16 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     }
   }, [pendingZone, onZoneConsumed]);
 
-  // produits pour les recommandations
-  useEffect(() => {
-    apiGet<{ products: ApiProduct[] }>("/api/shop/products").then((r) => setProducts(r.products ?? [])).catch(() => {});
+  // produits pour les recommandations — échec explicite + re-fetch possible
+  const loadProducts = useCallback(() => {
+    apiGet<{ products: ApiProduct[] }>("/api/shop/products")
+      .then((r) => { setProducts(r.products ?? []); setProductsError(false); })
+      .catch(() => setProductsError(true));
   }, []);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
   async function loadHistory() {
     setHistory(null);
@@ -317,14 +326,14 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
 
   /* ─────────── Étape 3 — Résultats ─────────── */
   if (step === 3 && diag) {
-    return <ResultView diag={diag} products={products} onNewZone={() => { setStep(0); setImage(""); setDiag(null); }} onHistory={goHistory} />;
+    return <ResultView diag={diag} products={products} productsError={productsError} onRetryProducts={loadProducts} onNewZone={() => { setStep(0); setImage(""); setDiag(null); }} onHistory={goHistory} />;
   }
 
   return null;
 }
 
 /* ══════════════ Résultat VISIA-like ══════════════ */
-function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: string; result: DiagnosisResult; imageData: string; createdAt: string }; products: ApiProduct[]; onNewZone: () => void; onHistory: () => void }) {
+function ResultView({ diag, products, productsError, onRetryProducts, onNewZone, onHistory }: { diag: { id: string; result: DiagnosisResult; imageData: string; createdAt: string }; products: ApiProduct[]; productsError: boolean; onRetryProducts: () => void; onNewZone: () => void; onHistory: () => void }) {
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
   const addToCart = useKene((s) => s.addToCart);
@@ -539,6 +548,15 @@ function ResultView({ diag, products, onNewZone, onHistory }: { diag: { id: stri
         {r.recommandations.produits.length > 0 && (
           <div className="mt-4 space-y-2">
             <p className="text-[11px] font-semibold text-muted-foreground">Produits recommandés</p>
+            {productsError && (
+              <div role="alert" className="rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 flex items-center gap-2.5">
+                <TriangleAlert size={14} className="text-terre shrink-0" aria-hidden="true" />
+                <p className="flex-1 min-w-0 text-[11px] text-muted-foreground leading-snug">Boutique indisponible — réessaie</p>
+                <button onClick={onRetryProducts} className="h-11 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold active:scale-95 transition-transform shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+                  Réessayer
+                </button>
+              </div>
+            )}
             {r.recommandations.produits.map((rec, i) => {
               const p = matchProduct(rec, products);
               return (

@@ -12,9 +12,25 @@ export const OTP_REQUEST = { limit: 10, windowMs: 15 * 60_000 } as const;
 export const OTP_VERIFY = { limit: 12, windowMs: 15 * 60_000 } as const;
 export const DERMATO = { limit: 30, windowMs: 60_000 } as const;
 export const PAYMENTS = { limit: 12, windowMs: 60_000 } as const;
+export const PAYMENTS_CONFIRM = { limit: 20, windowMs: 60_000 } as const; // confirm MoMo (t. 63-c)
+export const ORDERS_CREATE = { limit: 12, windowMs: 60_000 } as const; // commande boutique (t. 63-c)
+export const WALLET_TOPUP = { limit: 8, windowMs: 60_000 } as const; // recharge wallet (t. 63-c)
+export const APPOINTMENTS_CREATE = { limit: 12, windowMs: 60_000 } as const; // réservation RDV (t. 63-c)
+export const APPOINTMENT_CANCEL = { limit: 12, windowMs: 60_000 } as const; // annulation RDV (t. 63-c)
 export const REFERRAL_REDEEM = { limit: 5, windowMs: 3_600_000 } as const;
 export const TTS = { limit: 12, windowMs: 60_000 } as const;
 export const AUTH_MUTATION = { limit: 20, windowMs: 60_000 } as const;
+
+// ── Routes coûteuses (t. 63-d) ──
+// VLM client : un scan = une photo analysée par le moteur vision → 6/min
+// couvre largement un parcours humain et protège le coût IA.
+export const DIAGNOSES_CREATE = { limit: 6, windowMs: 60_000 } as const;
+// Diagnostic en institut : praticienne en cabine, rythme humain → 10/min.
+export const PRO_DIAGNOSES = { limit: 10, windowMs: 60_000 } as const;
+// Diffusion coupon = mass-notification vers TOUTES les clientes → très strict.
+export const COUPONS_DIFFUSE = { limit: 4, windowMs: 60_000 } as const;
+// Stats admin : scan complet de la base (cachées TTL 60 s côté route) → 30/min.
+export const ADMIN_STATS = { limit: 30, windowMs: 60_000 } as const;
 
 export type RateLimitOpts = { limit?: number; windowMs?: number };
 export type RateLimitResult = { ok: boolean; remaining: number; retryAfterSec: number };

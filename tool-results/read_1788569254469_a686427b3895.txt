@@ -1,0 +1,632 @@
+     1→"use client";
+     2→// Kènè Cliente — RDV : réservation instituts (services, créneaux, acompte MoMo/wallet) + mes RDV (avis, annulation)
+     3→import { useCallback, useEffect, useMemo, useState } from "react";
+     4→import { AnimatePresence, motion } from "framer-motion";
+     5→import {
+     6→  ArrowLeft, BadgeCheck, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Loader2, Lock, MapPin,
+     7→  MessageSquareQuote, Star, TriangleAlert, Users, X,
+     8→} from "lucide-react";
+     9→import { toast } from "sonner";
+    10→import { apiGet, apiPost } from "@/lib/kene/api";
+    11→import { addDays, formatDate, formatTime, xof, DEPOSIT_RATE } from "@/lib/kene/format";
+    12→import { cancellationRefund } from "@/lib/kene/rfm";
+    13→import { SankofaIcon } from "@/components/kene/icons";
+    14→import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+    15→import { Skeleton } from "@/components/ui/skeleton";
+    16→import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    17→import { useKene } from "@/store/kene";
+    18→import { useSecurity } from "@/store/security";
+    19→import type { ApiAppointment, ApiInstitute, ApiPayment, ApiResource, ApiReview, ApiService, ApiSlot, ApiWallet } from "./types";
+    20→import { ApptBadge, EmptyBlock, MomoProcessing, SectionTitle, Stars, SuccessBurst } from "./bits";
+    21→import { SecureVerify } from "./SecureVerify";
+    22→import { HAPTIC, haptic } from "@/lib/kene/ux";
+    23→
+    24→type PayMethod = "wave" | "wallet";
+    25→
+    26→function isoDate(d: Date): string {
+    27→  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    28→}
+    29→
+    30→export function BookingScreen() {
+    31→  const user = useKene((s) => s.user)!;
+    32→  const [tab, setTab] = useState<"book" | "mine">("book");
+    33→
+    34→  // ── Réserver ──
+    35→  const [institutes, setInstitutes] = useState<ApiInstitute[] | null>(null);
+    36→  const [inst, setInst] = useState<ApiInstitute | null>(null);
+    37→  const [services, setServices] = useState<ApiService[]>([]);
+    38→  const [resources, setResources] = useState<ApiResource[]>([]);
+    39→  const [reviews, setReviews] = useState<ApiReview[]>([]);
+    40→  const [detailLoading, setDetailLoading] = useState(false);
+    41→  const [service, setService] = useState<ApiService | null>(null);
+    42→  const [day, setDay] = useState<Date>(new Date());
+    43→  const [slots, setSlots] = useState<ApiSlot[] | null>(null);
+    44→  const [slot, setSlot] = useState<ApiSlot | null>(null);
+    45→  const [wallet, setWallet] = useState<ApiWallet | null>(null);
+    46→  const [payMethod, setPayMethod] = useState<PayMethod>("wave");
+    47→  const [paying, setPaying] = useState(false);
+    48→  const [payOverlay, setPayOverlay] = useState<{ phase: "processing" | "done"; amount: number } | null>(null);
+    49→  const [confirmed, setConfirmed] = useState<ApiAppointment | null>(null);
+    50→
+    51→  // Sécurité renforcée (2FA-lite) : si activée ET acompte payant, la cliente
+    52→  // re-vérifie son code AVANT la confirmation du RDV (voir startBook + SecureVerify).
+    53→  const securityEnabled = useSecurity((s) => s.enabled);
+    54→  const [pendingBook, setPendingBook] = useState(false);
+    55→
+    56→  // ── Mes RDV ──
+    57→  const [mine, setMine] = useState<ApiAppointment[] | null>(null);
+    58→  const [reviewFor, setReviewFor] = useState<ApiAppointment | null>(null);
+    59→  const [rating, setRating] = useState(5);
+    60→  const [comment, setComment] = useState("");
+    61→  const [cancelFor, setCancelFor] = useState<ApiAppointment | null>(null);
+    62→
+    63→  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(new Date(), i)), []);
+    64→  const deposit = service ? Math.round(service.price * DEPOSIT_RATE) : 0;
+    65→  const practitioner = useMemo(() => (slot?.resourceIds?.length ? resources.find((r) => r.id === slot.resourceIds![0]) ?? null : null), [slot, resources]);
+    66→
+    67→  const loadInstitutes = useCallback(async () => {
+    68→    setInstitutes(null);
+    69→    try {
+    70→      const r = await apiGet<{ institutes: ApiInstitute[] }>("/api/institutes");
+    71→      setInstitutes(r.institutes ?? []);
+    72→    } catch {
+    73→      setInstitutes([]);
+    74→    }
+    75→  }, []);
+    76→
+    77→  const loadMine = useCallback(async () => {
+    78→    setMine(null);
+    79→    try {
+    80→      const r = await apiGet<{ appointments: ApiAppointment[] }>(`/api/appointments?userId=${user.id}`);
+    81→      setMine(r.appointments ?? []);
+    82→    } catch {
+    83→      setMine([]);
+    84→    }
+    85→  }, [user.id]);
+    86→
+    87→  useEffect(() => {
+    88→    loadInstitutes();
+    89→    apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).then((r) => setWallet(r.wallet)).catch(() => {});
+    90→  }, [loadInstitutes, user.id]);
+    91→
+    92→  useEffect(() => {
+    93→    if (tab === "mine") loadMine();
+    94→  }, [tab, loadMine]);
+    95→
+    96→  async function openInstitute(i: ApiInstitute) {
+    97→    setInst(i);
+    98→    setService(null);
+    99→    setSlot(null);
+   100→    setSlots(null);
+   101→    setDetailLoading(true);
+   102→    try {
+   103→      const r = await apiGet<{ institute: ApiInstitute; services: ApiService[]; resources: ApiResource[]; reviews: ApiReview[] }>(`/api/institutes/${i.id}`);
+   104→      setServices(r.services ?? []);
+   105→      setResources(r.resources ?? []);
+   106→      setReviews(r.reviews ?? []);
+   107→    } catch {
+   108→      toast.error("Institut indisponible");
+   109→      setInst(null);
+   110→    } finally {
+   111→      setDetailLoading(false);
+   112→    }
+   113→  }
+   114→
+   115→  async function pickDay(d: Date) {
+   116→    setDay(d);
+   117→    setSlot(null);
+   118→    setSlots(null);
+   119→    if (!service || !inst) return;
+   120→    try {
+   121→      const r = await apiGet<{ slots: ApiSlot[] }>(`/api/institutes/${inst.id}/availability?date=${isoDate(d)}&serviceId=${service.id}`);
+   122→      setSlots(r.slots ?? []);
+   123→    } catch {
+   124→      setSlots([]);
+   125→    }
+   126→  }
+   127→
+   128→  async function chooseService(s: ApiService) {
+   129→    setService(s);
+   130→    setSlot(null);
+   131→    setSlots(null);
+   132→    if (!inst) return;
+   133→    try {
+   134→      const r = await apiGet<{ slots: ApiSlot[] }>(`/api/institutes/${inst.id}/availability?date=${isoDate(day)}&serviceId=${s.id}`);
+   135→      setSlots(r.slots ?? []);
+   136→    } catch {
+   137→      setSlots([]);
+   138→    }
+   139→  }
+   140→
+   141→  /** Passerelle confirmation : vérification d'identité par code si la
+   142→   *  sécurité renforcée est active et qu'un acompte est réglé — la
+   143→   *  réservation (book) ne part qu'une fois le code confirmé. */
+   144→  function startBook() {
+   145→    if (securityEnabled && deposit > 0) {
+   146→      haptic(HAPTIC.tap);
+   147→      setPendingBook(true);
+   148→      return;
+   149→    }
+   150→    void book();
+   151→  }
+   152→
+   153→  async function book() {
+   154→    if (!inst || !service || !slot) return;
+   155→    setPaying(true);
+   156→    try {
+   157→      const [h, m] = slot.time.split(":").map(Number);
+   158→      const startAt = new Date(day);
+   159→      startAt.setHours(h, m, 0, 0);
+   160→      const r = await apiPost<{ appointment: ApiAppointment; payment?: ApiPayment }>("/api/appointments", {
+   161→        tenantId: inst.id,
+   162→        serviceId: service.id,
+   163→        resourceId: slot.resourceIds?.[0] ?? resources[0]?.id,
+   164→        startAt: startAt.toISOString(),
+   165→        clientName: user.name,
+   166→        clientPhone: user.phone,
+   167→        userId: user.id,
+   168→        depositAmount: deposit,
+   169→        paymentMethod: payMethod,
+   170→      });
+   171→      if (payMethod === "wave" && r.payment) {
+   172→        setPayOverlay({ phase: "processing", amount: deposit });
+   173→        await new Promise((res) => setTimeout(res, 3000));
+   174→        await apiPost("/api/payments/confirm", { paymentId: r.payment.id });
+   175→      } else {
+   176→        setPayOverlay({ phase: "processing", amount: deposit });
+   177→        await new Promise((res) => setTimeout(res, 1200));
+   178→      }
+   179→      setPayOverlay({ phase: "done", amount: deposit });
+   180→      haptic(HAPTIC.success);
+   181→      setTimeout(() => setPayOverlay(null), 1400);
+   182→      setConfirmed(r.appointment);
+   183→      const w = await apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).catch(() => null);
+   184→      if (w) setWallet(w.wallet);
+   185→    } catch (e) {
+   186→      setPayOverlay(null);
+   187→      toast.error(e instanceof Error ? e.message : "Réservation impossible");
+   188→    } finally {
+   189→      setPaying(false);
+   190→    }
+   191→  }
+   192→
+   193→  async function submitReview() {
+   194→    if (!reviewFor) return;
+   195→    try {
+   196→      await apiPost(`/api/appointments/${reviewFor.id}/review`, { userId: user.id, rating, comment: comment.trim() || undefined });
+   197→      toast.success("Merci pour ton avis");
+   198→      setReviewFor(null);
+   199→      setComment("");
+   200→      setRating(5);
+   201→      loadMine();
+   202→    } catch (e) {
+   203→      toast.error(e instanceof Error ? e.message : "Envoi impossible");
+   204→    }
+   205→  }
+   206→
+   207→  async function doCancel() {
+   208→    if (!cancelFor) return;
+   209→    try {
+   210→      const r = await apiPost<{ appointment: ApiAppointment; refund: { amount: number; label: string } }>(`/api/appointments/${cancelFor.id}/cancel`, { userId: user.id });
+   211→      toast.success(r.refund.amount > 0 ? `RDV annulé — ${xof(r.refund.amount)} remboursés sur ton wallet` : "RDV annulé");
+   212→      setCancelFor(null);
+   213→      loadMine();
+   214→    } catch (e) {
+   215→      toast.error(e instanceof Error ? e.message : "Annulation impossible");
+   216→    }
+   217→  }
+   218→
+   219→  const now = Date.now();
+   220→  const upcoming = (mine ?? []).filter((a) => new Date(a.startAt).getTime() >= now && a.status !== "cancelled").sort((x, y) => +new Date(x.startAt) - +new Date(y.startAt));
+   221→  const past = (mine ?? []).filter((a) => new Date(a.startAt).getTime() < now || a.status === "cancelled" || a.status === "completed").sort((x, y) => +new Date(y.startAt) - +new Date(x.startAt));
+   222→
+   223→  return (
+   224→    <div className="pt-4 pb-2">
+   225→      <Tabs value={tab} onValueChange={(v) => setTab(v as "book" | "mine")}>
+   226→        <TabsList className="w-full grid grid-cols-2 bg-muted/60 rounded-2xl p-1">
+   227→          <TabsTrigger value="book" className="rounded-xl data-[state=active]:bg-card data-[state=active]:text-primary font-semibold text-sm py-2.5">Réserver</TabsTrigger>
+   228→          <TabsTrigger value="mine" className="rounded-xl data-[state=active]:bg-card data-[state=active]:text-primary font-semibold text-sm py-2.5">Mes RDV</TabsTrigger>
+   229→        </TabsList>
+   230→      </Tabs>
+   231→
+   232→      {/* ═══════ RÉSERVER ═══════ */}
+   233→      {tab === "book" && (
+   234→        <AnimatePresence mode="wait">
+   235→          {confirmed ? (
+   236→            /* — Confirmation — */
+   237→            <motion.div key="ok" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="pt-8 flex flex-col items-center text-center">
+   238→              <span className="grid place-items-center h-20 w-20 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3D]">
+   239→                <SankofaIcon size={38} />
+   240→              </span>
+   241→              <h2 className="font-heading font-black text-xl mt-4">Rendez-vous confirmé</h2>
+   242→              <div className="mt-4 w-full rounded-2xl border border-border bg-card p-4 text-left space-y-1.5">
+   243→                <p className="font-semibold text-sm">{confirmed.service?.name ?? "Soin"}</p>
+   244→                <p className="text-xs text-muted-foreground">{confirmed.tenant?.name}</p>
+   245→                <p className="text-xs text-muted-foreground flex items-center gap-1.5"><CalendarDays size={13} /> {formatDate(confirmed.startAt)} · <Clock size={13} /> {formatTime(confirmed.startAt)}</p>
+   246→                {confirmed.resource?.name && <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Users size={13} /> {confirmed.resource.name}</p>}
+   247→                {confirmed.depositAmount > 0 && <p className="text-xs font-mono text-primary font-bold pt-1 border-t border-dashed border-border">Acompte réglé : {xof(confirmed.depositAmount)}</p>}
+   248→              </div>
+   249→              <p className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#3F7D3F]/10 text-[#3F7D3D] px-3 py-1.5 text-[11px] font-semibold">
+   250→                <MessageSquareQuote size={13} /> Rappel SMS J-1 programmé (simulé)
+   251→              </p>
+   252→              <div className="mt-6 grid grid-cols-2 gap-3 w-full">
+   253→                <button onClick={() => { setConfirmed(null); setInst(null); setService(null); loadInstitutes(); }} className="h-12 rounded-xl border border-primary/60 text-primary text-sm font-bold active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   254→                  Autre RDV
+   255→                </button>
+   256→                <button onClick={() => setTab("mine")} className="h-12 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   257→                  Mes RDV
+   258→                </button>
+   259→              </div>
+   260→            </motion.div>
+   261→          ) : !inst ? (
+   262→            /* — Liste instituts — */
+   263→            <motion.div key="list" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
+   264→              <SectionTitle icon={<MapPin size={16} />}>Instituts partenaires</SectionTitle>
+   265→              {institutes === null ? (
+   266→                <div className="space-y-3">
+   267→                  {[0, 1].map((i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
+   268→                </div>
+   269→              ) : institutes.length === 0 ? (
+   270→                <EmptyBlock icon={<MapPin size={22} />} title="Aucun institut pour l'instant" text="De nouveaux instituts Kènè arrivent à Abidjan et Dakar." />
+   271→              ) : (
+   272→                <div className="space-y-3">
+   273→                  {institutes.map((i) => (
+   274→                    <button key={i.id} onClick={() => openInstitute(i)} className="w-full text-left rounded-2xl border border-border bg-card overflow-hidden shadow-sm active:scale-[0.99] transition-transform hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-primary">
+   275→                      <div className="relative">
+   276→                        <img src={i.image} alt={i.name} loading="lazy" className="h-32 w-full object-cover" />
+   277→                        <div className="absolute inset-0 bg-gradient-to-t from-[#1A1410]/70 to-transparent" />
+   278→                        <div className="absolute bottom-2 left-3 right-3 flex items-end justify-between gap-2 text-[#F8F1E4]">
+   279→                          <div>
+   280→                            <p className="font-heading font-bold text-sm leading-tight">{i.name}</p>
+   281→                            <p className="text-[10px] opacity-85 flex items-center gap-1"><MapPin size={10} /> {i.city}, {i.country}</p>
+   282→                          </div>
+   283→                          <span className="flex items-center gap-1 rounded-full bg-[#1A1410]/60 backdrop-blur px-2 py-0.5 text-[10px] font-bold">
+   284→                            <Star size={10} className="fill-[#C8951E] text-[#C8951E]" /> {i.rating.toFixed(1)} ({i.reviewCount})
+   285→                          </span>
+   286→                        </div>
+   287→                      </div>
+   288→                      <div className="px-3 py-2.5 flex items-center justify-between text-[11px] text-muted-foreground">
+   289→                        <span>{i._count?.services ?? 0} soins · {i._count?.reviews ?? 0} avis</span>
+   290→                        <span className="flex items-center gap-0.5 text-primary font-semibold">Réserver <ChevronRight size={13} /></span>
+   291→                      </div>
+   292→                    </button>
+   293→                  ))}
+   294→                </div>
+   295→              )}
+   296→            </motion.div>
+   297→          ) : (
+   298→            /* — Détail institut — */
+   299→            <motion.div key="detail" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
+   300→              <button onClick={() => setInst(null)} className="mt-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour aux instituts">
+   301→                <ArrowLeft size={15} /> Tous les instituts
+   302→              </button>
+   303→              <div className="relative mt-3 rounded-2xl overflow-hidden">
+   304→                <img src={inst.image} alt={inst.name} className="h-44 w-full object-cover" />
+   305→                <div className="absolute inset-0 bg-gradient-to-t from-[#1A1410]/80 to-transparent" />
+   306→                <div className="absolute bottom-3 left-4 right-4 text-[#F8F1E4]">
+   307→                  <h2 className="font-heading font-black text-lg">{inst.name}</h2>
+   308→                  <p className="text-[11px] opacity-90 flex items-center gap-2">
+   309→                    <span className="flex items-center gap-1"><Star size={11} className="fill-[#C8951E] text-[#C8951E]" /> {inst.rating.toFixed(1)}</span>
+   310→                    <span className="flex items-center gap-1"><MapPin size={11} /> {inst.city}</span>
+   311→                    <span className="flex items-center gap-1"><Clock size={11} /> {inst.openingHour}h–{inst.closingHour}h</span>
+   312→                  </p>
+   313→                </div>
+   314→              </div>
+   315→              {inst.description && <p className="text-xs text-muted-foreground leading-relaxed mt-3">{inst.description}</p>}
+   316→
+   317→              {detailLoading ? (
+   318→                <div className="space-y-2 mt-4">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
+   319→              ) : (
+   320→                <>
+   321→                  {/* Avis */}
+   322→                  {reviews.length > 0 && (
+   323→                    <div className="mt-4">
+   324→                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Ce que disent les clientes</p>
+   325→                      <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
+   326→                        {reviews.slice(0, 5).map((rv) => (
+   327→                          <div key={rv.id} className="shrink-0 w-56 rounded-2xl border border-border bg-card p-3">
+   328→                            <div className="flex items-center justify-between">
+   329→                              <p className="text-xs font-semibold">{rv.user?.name ?? "Cliente"}</p>
+   330→                              <Stars rating={rv.rating} size={9} />
+   331→                            </div>
+   332→                            <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug line-clamp-3">{rv.comment ?? "Expérience agréable."}</p>
+   333→                          </div>
+   334→                        ))}
+   335→                      </div>
+   336→                    </div>
+   337→                  )}
+   338→
+   339→                  {/* Services */}
+   340→                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-5 mb-2">Soins & tarifs</p>
+   341→                  <div className="space-y-2">
+   342→                    {services.map((s) => (
+   343→                      <div key={s.id} className={`rounded-2xl border p-3.5 transition-colors ${service?.id === s.id ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+   344→                        <div className="flex items-start justify-between gap-2">
+   345→                          <div className="min-w-0">
+   346→                            <p className="text-sm font-semibold">{s.name}</p>
+   347→                            <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2">
+   348→                              <span className="flex items-center gap-1"><Clock size={11} /> {s.durationMin} min</span>
+   349→                              {s.botanicals && <span className="text-terre truncate">{s.botanicals}</span>}
+   350→                            </p>
+   351→                          </div>
+   352→                          <p className="font-mono text-sm font-bold shrink-0">{xof(s.price)}</p>
+   353→                        </div>
+   354→                        <button onClick={() => chooseService(s)} className={`mt-2.5 h-10 w-full rounded-xl text-xs font-bold active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${service?.id === s.id ? "bg-primary text-primary-foreground" : "border border-primary/50 text-primary"}`}>
+   355→                          {service?.id === s.id ? "Choisi" : "Choisir"}
+   356→                        </button>
+   357→                      </div>
+   358→                    ))}
+   359→                  </div>
+   360→
+   361→                  {/* Jours + créneaux */}
+   362→                  {service && (
+   363→                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
+   364→                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Choisis ton jour</p>
+   365→                      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+   366→                        {days.map((d) => {
+   367→                          const sel = isoDate(d) === isoDate(day);
+   368→                          return (
+   369→                            <button key={d.toISOString()} onClick={() => pickDay(d)} aria-pressed={sel} className={`shrink-0 rounded-2xl border px-3.5 py-2 text-center transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${sel ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"}`}>
+   370→                              <span className="block text-[9px] uppercase font-bold opacity-70">{formatDate(d, { weekday: "short" })}</span>
+   371→                              <span className="block font-mono text-sm font-bold mt-0.5">{d.getDate()}</span>
+   372→                            </button>
+   373→                          );
+   374→                        })}
+   375→                      </div>
+   376→
+   377→                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-5 mb-2">Créneaux — {formatDate(day, { weekday: "long", day: "numeric", month: "long" })}</p>
+   378→                      {slots === null ? (
+   379→                        <div className="flex justify-center py-6"><Loader2 size={22} className="animate-spin text-primary" /></div>
+   380→                      ) : slots.length === 0 ? (
+   381→                        <p className="text-xs text-muted-foreground text-center py-4">Aucun créneau affiché — choisis un autre jour.</p>
+   382→                      ) : (
+   383→                        <div className="grid grid-cols-4 gap-2">
+   384→                          {slots.map((s) => (
+   385→                            <button
+   386→                              key={s.time}
+   387→                              disabled={!s.available}
+   388→                              onClick={() => setSlot(s)}
+   389→                              aria-pressed={slot?.time === s.time}
+   390→                              className={`h-11 rounded-xl font-mono text-xs font-bold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${
+   391→                                !s.available ? "bg-muted text-muted-foreground/40 line-through" : slot?.time === s.time ? "bg-primary text-primary-foreground shadow" : "border border-border bg-card"
+   392→                              }`}
+   393→                            >
+   394→                              {s.time}
+   395→                            </button>
+   396→                          ))}
+   397→                        </div>
+   398→                      )}
+   399→                    </motion.div>
+   400→                  )}
+   401→
+   402→                  {/* Récap + paiement */}
+   403→                  {service && slot && (
+   404→                    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 rounded-3xl border-2 border-primary/40 bg-card p-4 shadow-md">
+   405→                      <p className="font-heading font-bold text-sm mb-3 flex items-center gap-2"><CalendarPlus size={16} className="text-primary" /> Récapitulatif</p>
+   406→                      <div className="space-y-1.5 text-xs">
+   407→                        <p className="flex justify-between"><span className="text-muted-foreground">Soin</span><span className="font-semibold">{service.name}</span></p>
+   408→                        <p className="flex justify-between"><span className="text-muted-foreground">Quand</span><span className="font-semibold font-mono">{formatDate(day, { weekday: "short", day: "numeric", month: "short" })} {slot.time}</span></p>
+   409→                        <p className="flex justify-between"><span className="text-muted-foreground">Praticienne</span><span className="font-semibold">{practitioner?.name ?? "Assignée à l'arrivée"}</span></p>
+   410→                        <p className="flex justify-between"><span className="text-muted-foreground">Prix du soin</span><span className="font-mono font-semibold">{xof(service.price)}</span></p>
+   411→                        <p className="flex justify-between border-t border-dashed border-border pt-1.5"><span className="font-semibold">Acompte 30 % (aujourd&apos;hui)</span><span className="font-mono font-black text-primary">{xof(deposit)}</span></p>
+   412→                        <p className="text-[10px] text-muted-foreground">Solde de {xof(service.price - deposit)} à régler sur place. Annulation gratuite &gt; 72 h.</p>
+   413→                      </div>
+   414→
+   415→                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">Payer l&apos;acompte avec</p>
+   416→                      {securityEnabled && deposit > 0 && (
+   417→                        <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1">
+   418→                          <Lock size={10} aria-hidden="true" /> Vérification par code activée
+   419→                        </p>
+   420→                      )}
+   421→                      <div className="grid grid-cols-2 gap-2">
+   422→                        <button onClick={() => setPayMethod("wave")} aria-pressed={payMethod === "wave"} className={`h-11 rounded-xl border-2 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${payMethod === "wave" ? "border-[#1DC8FF] bg-[#1DC8FF]/10" : "border-border bg-card"}`}>
+   423→                          <span className="h-5 w-5 rounded-full grid place-items-center text-[#1A1410] text-[10px] font-black" style={{ backgroundColor: "#1DC8FF" }}>W</span> Wave
+   424→                        </button>
+   425→                        <button
+   426→                          onClick={() => setPayMethod("wallet")}
+   427→                          aria-pressed={payMethod === "wallet"}
+   428→                          disabled={(wallet?.balance ?? 0) < deposit}
+   429→                          className={`h-11 rounded-xl border-2 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${payMethod === "wallet" ? "border-melanine bg-melanine/10" : "border-border bg-card"}`}
+   430→                        >
+   431→                          <span className="h-5 w-5 rounded-full grid place-items-center bg-melanine text-[#C8951E] text-[10px] font-black">K</span> Wallet {wallet ? `(${xof(wallet.balance, { compact: true })})` : ""}
+   432→                        </button>
+   433→                      </div>
+   434→                      {wallet && wallet.balance < deposit && <p className="text-[10px] text-destructive mt-1.5">Solde wallet insuffisant pour l&apos;acompte.</p>}
+   435→
+   436→                      <button onClick={startBook} disabled={paying} className="mt-3 h-12 w-full rounded-xl bg-primary text-primary-foreground font-heading font-black text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+   437→                        {paying ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />} Confirmer pour {xof(deposit)}
+   438→                      </button>
+   439→                    </motion.div>
+   440→                  )}
+   441→                </>
+   442→              )}
+   443→            </motion.div>
+   444→          )}
+   445→        </AnimatePresence>
+   446→      )}
+   447→
+   448→      {/* ═══════ MES RDV ═══════ */}
+   449→      {tab === "mine" && (
+   450→        <div className="mt-4 space-y-6">
+   451→          <section aria-labelledby="up-t">
+   452→            <SectionTitle icon={<CalendarDays size={16} />}><span id="up-t">À venir</span></SectionTitle>
+   453→            {mine === null ? (
+   454→              <div className="space-y-2">{[0, 1].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+   455→            ) : upcoming.length === 0 ? (
+   456→              <EmptyBlock icon={<CalendarDays size={22} />} title="Aucun RDV à venir" text="Réserve un soin chez un institut partenaire en 2 minutes." />
+   457→            ) : (
+   458→              <div className="space-y-2.5">
+   459→                {upcoming.map((a) => (
+   460→                  <div key={a.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+   461→                    <div className="flex items-start justify-between gap-2">
+   462→                      <div className="min-w-0">
+   463→                        <p className="font-semibold text-sm">{a.service?.name ?? "Soin"}</p>
+   464→                        <p className="text-xs text-muted-foreground mt-0.5">{a.tenant?.name} · {a.resource?.name}</p>
+   465→                        <p className="text-xs font-mono mt-1 text-primary">{formatDate(a.startAt, { weekday: "short", day: "numeric", month: "short" })} · {formatTime(a.startAt)}</p>
+   466→                      </div>
+   467→                      <ApptBadge status={a.status} />
+   468→                    </div>
+   469→                    {a.depositAmount > 0 && <p className="text-[10px] text-muted-foreground mt-2 font-mono">Acompte {xof(a.depositAmount)} réglé</p>}
+   470→                    <div className="mt-3 flex gap-2">
+   471→                      <button
+   472→                        onClick={() => setCancelFor(a)}
+   473→                        disabled={a.status === "cancelled"}
+   474→                        className="h-10 px-4 rounded-xl border border-destructive/40 text-destructive text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-destructive"
+   475→                      >
+   476→                        <X size={14} /> Annuler
+   477→                      </button>
+   478→                    </div>
+   479→                  </div>
+   480→                ))}
+   481→              </div>
+   482→            )}
+   483→          </section>
+   484→
+   485→          <section aria-labelledby="past-t" className="pb-2">
+   486→            <SectionTitle icon={<MessageSquareQuote size={16} />}><span id="past-t">Passés</span></SectionTitle>
+   487→            {mine === null ? (
+   488→              <Skeleton className="h-20 rounded-2xl" />
+   489→            ) : past.length === 0 ? (
+   490→              <p className="text-xs text-muted-foreground text-center py-3">Tes RDV passés apparaîtront ici.</p>
+   491→            ) : (
+   492→              <div className="space-y-2.5">
+   493→                {past.map((a) => (
+   494→                  <div key={a.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5">
+   495→                    <div className="min-w-0 flex-1">
+   496→                      <p className="text-sm font-semibold truncate">{a.service?.name ?? "Soin"}</p>
+   497→                      <p className="text-[11px] text-muted-foreground">{a.tenant?.name} · {formatDate(a.startAt)}</p>
+   498→                    </div>
+   499→                    <ApptBadge status={a.status} />
+   500→                    {a.status === "completed" && (
+   501→                      <button onClick={() => { setReviewFor(a); setRating(5); setComment(""); }} className="h-9 px-3 rounded-full bg-primary/10 text-primary text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   502→                        <Star size={12} /> Avis
+   503→                      </button>
+   504→                    )}
+   505→                  </div>
+   506→                ))}
+   507→              </div>
+   508→            )}
+   509→          </section>
+   510→        </div>
+   511→      )}
+   512→
+   513→      {/* Dialog avis */}
+   514→      <Dialog open={!!reviewFor} onOpenChange={(o) => !o && setReviewFor(null)}>
+   515→        <DialogContent className="max-w-[380px] rounded-3xl">
+   516→          <DialogHeader>
+   517→            <DialogTitle className="font-heading font-black">Ton avis compte</DialogTitle>
+   518→          </DialogHeader>
+   519→          <p className="text-xs text-muted-foreground -mt-1">{reviewFor?.service?.name} · {reviewFor?.tenant?.name}</p>
+   520→          <div className="flex justify-center gap-2 py-2" role="radiogroup" aria-label="Note sur 5">
+   521→            {[1, 2, 3, 4, 5].map((i) => (
+   522→              <button key={i} onClick={() => setRating(i)} role="radio" aria-checked={rating === i} aria-label={`${i} étoile${i > 1 ? "s" : ""}`} className="active:scale-90 transition-transform focus-visible:outline-2 focus-visible:outline-primary rounded">
+   523→                <Star size={32} className={i <= rating ? "fill-[#C8951E] text-[#C8951E]" : "text-muted-foreground/40"} />
+   524→              </button>
+   525→            ))}
+   526→          </div>
+   527→          <textarea
+   528→            value={comment}
+   529→            onChange={(e) => setComment(e.target.value)}
+   530→            rows={3}
+   531→            placeholder="Partage ton expérience (accueil, résultat du soin…)"
+   532→            aria-label="Commentaire"
+   533→            className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm focus-visible:outline-2 focus-visible:outline-primary"
+   534→          />
+   535→          <button onClick={submitReview} className="h-12 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+   536→            Publier mon avis
+   537→          </button>
+   538→        </DialogContent>
+   539→      </Dialog>
+   540→
+   541→      {/* Dialog annulation */}
+   542→      <Dialog open={!!cancelFor} onOpenChange={(o) => !o && setCancelFor(null)}>
+   543→        <DialogContent className="max-w-[380px] rounded-3xl">
+   544→          <DialogHeader>
+   545→            <DialogTitle className="font-heading font-black flex items-center gap-2"><TriangleAlert size={18} className="text-destructive" /> Annuler ce RDV ?</DialogTitle>
+   546→          </DialogHeader>
+   547→          {cancelFor && (
+   548→            <div className="space-y-3">
+   549→              <p className="text-xs text-muted-foreground">{cancelFor.service?.name} · {formatDate(cancelFor.startAt)} {formatTime(cancelFor.startAt)}</p>
+   550→              <div className="rounded-xl bg-muted/60 p-3 space-y-1.5">
+   551→                {[100, 48, 12, 1].map((h) => {
+   552→                  const { label } = cancellationRefund(h);
+   553→                  return (
+   554→                    <p key={h} className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+   555→                      <span className="text-primary" aria-hidden>›</span> {label}
+   556→                    </p>
+   557→                  );
+   558→                })}
+   559→              </div>
+   560→              {(() => {
+   561→                const hours = Math.max(0, (new Date(cancelFor.startAt).getTime() - Date.now()) / 3.6e6);
+   562→                const { rate, label } = cancellationRefund(hours);
+   563→                const refund = Math.round((cancelFor.depositAmount ?? 0) * rate);
+   564→                return (
+   565→                  <div className={`rounded-xl p-3 text-xs font-semibold flex items-center justify-between ${refund > 0 ? "bg-[#3F7D3F]/10 text-[#3F7D3F]" : "bg-destructive/10 text-destructive"}`}>
+   566→                    <span>{label}</span>
+   567→                    <span className="font-mono">{refund > 0 ? `+${xof(refund)}` : "0 FCFA"}</span>
+   568→                  </div>
+   569→                );
+   570→              })()}
+   571→              <p className="text-[10px] text-muted-foreground flex items-center gap-1"><BadgeCheck size={12} className="text-primary" /> Le remboursement est crédité sur ton wallet Kènè.</p>
+   572→              <div className="grid grid-cols-2 gap-2">
+   573→                <button onClick={() => setCancelFor(null)} className="h-11 rounded-xl border border-border text-sm font-semibold active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">Garder</button>
+   574→                <button onClick={doCancel} className="h-11 rounded-xl bg-destructive text-white text-sm font-bold active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive">Annuler le RDV</button>
+   575→              </div>
+   576→            </div>
+   577→          )}
+   578→        </DialogContent>
+   579→      </Dialog>
+   580→
+   581→      {/* Sécurité renforcée — code OTP exigé avant de confirmer l'acompte */}
+   582→      <SecureVerify
+   583→        open={pendingBook}
+   584→        phone={user.phone}
+   585→        amount={deposit > 0 ? deposit : undefined}
+   586→        onVerified={() => {
+   587→          setPendingBook(false);
+   588→          void book();
+   589→        }}
+   590→        onCancel={() => setPendingBook(false)}
+   591→      />
+   592→
+   593→      {/* Overlay paiement acompte simulé — dialog accessible (pattern RitualJourney) */}
+   594→      <AnimatePresence>
+   595→        {payOverlay && (
+   596→          <motion.div
+   597→            initial={{ opacity: 0 }}
+   598→            animate={{ opacity: 1 }}
+   599→            exit={{ opacity: 0 }}
+   600→            role="dialog"
+   601→            aria-modal="true"
+   602→            aria-label={payOverlay.phase === "processing" ? `Paiement de l'acompte en cours, ${xof(payOverlay.amount)}` : "Acompte confirmé"}
+   603→            aria-live="polite"
+   604→            className="fixed inset-0 z-[70] bg-[#1A1410]/97 grid place-items-center"
+   605→          >
+   606→            <div className="w-full max-w-[560px] mx-auto px-6">
+   607→              {payOverlay.phase === "processing" ? (
+   608→                payMethod === "wave" ? (
+   609→                  <MomoProcessing operator="Wave" color="#1DC8FF" amount={payOverlay.amount} phone={user.phone} />
+   610→                ) : (
+   611→                  <div className="flex flex-col items-center gap-4 text-center">
+   612→                    <span className="grid place-items-center h-20 w-20 rounded-3xl bg-melanine text-[#C8951E] font-heading font-black text-2xl">K</span>
+   613→                    <p className="font-heading font-bold text-lg text-[#F8F1E4]">Wallet Kènè</p>
+   614→                    <p className="font-mono text-3xl font-black text-[#F8F1E4]">{xof(payOverlay.amount)}</p>
+   615→                    <div className="flex items-center gap-2 text-sm text-[#F8F1E4]/80"><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Débit du wallet…</div>
+   616→                  </div>
+   617→                )
+   618→              ) : (
+   619→                <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 18 }} className="flex flex-col items-center gap-4 text-center py-6">
+   620→                  <SuccessBurst />
+   621→                  <p className="font-heading font-black text-xl text-[#F8F1E4]">Acompte confirmé</p>
+   622→                  <p className="font-mono text-sm font-bold text-[#F8F1E4]/90">{xof(payOverlay.amount)}</p>
+   623→                </motion.div>
+   624→              )}
+   625→            </div>
+   626→          </motion.div>
+   627→        )}
+   628→      </AnimatePresence>
+   629→    </div>
+   630→  );
+   631→}
+   632→

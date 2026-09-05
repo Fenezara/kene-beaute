@@ -1,5 +1,6 @@
 // Kènè — Helpers serveur pour les routes API (backend uniquement)
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { genRef, xof } from "./format";
 import { rfmScore } from "./rfm";
@@ -78,31 +79,39 @@ export function overlaps(startA: Date, durA: number, startB: Date, durB: number)
 }
 
 // ─────────────── Wallet ───────────────
-export async function ensureWallet(userId: string) {
-  const existing = await db.wallet.findUnique({ where: { userId } });
+// t. 63-c : ces helpers acceptent un client de transaction optionnel.
+// À l'intérieur d'un prisma.$transaction, passer le `tx` reçu → toutes les
+// écritures de la route partagent la même transaction atomique. Sans
+// paramètre (comportement historique), ils utilisent le client global —
+// les autres appelants (refund, cancel, cashback…) restent identiques.
+export async function ensureWallet(userId: string, tx?: Prisma.TransactionClient) {
+  const client = tx ?? db;
+  const existing = await client.wallet.findUnique({ where: { userId } });
   if (existing) return existing;
-  const user = await db.user.findUnique({ where: { id: userId } });
+  const user = await client.user.findUnique({ where: { id: userId } });
   if (!user) return null;
   const code = "KENE-" + userId.slice(-6).toUpperCase();
   try {
-    return await db.wallet.create({ data: { userId, referralCode: code } });
+    return await client.wallet.create({ data: { userId, referralCode: code } });
   } catch {
     // collision de referralCode (unique) → suffixe aléatoire
-    return db.wallet.create({ data: { userId, referralCode: code + "-" + Math.random().toString(36).slice(2, 5).toUpperCase() } });
+    return client.wallet.create({ data: { userId, referralCode: code + "-" + Math.random().toString(36).slice(2, 5).toUpperCase() } });
   }
 }
 
-export async function creditWallet(walletId: string, amount: number, reason: string, refId?: string) {
+export async function creditWallet(walletId: string, amount: number, reason: string, refId?: string, tx?: Prisma.TransactionClient) {
   if (amount <= 0) return null;
-  const wallet = await db.wallet.update({ where: { id: walletId }, data: { balance: { increment: amount } } });
-  await db.walletTransaction.create({ data: { walletId, type: "credit", amount, reason, refId: refId ?? null } });
+  const client = tx ?? db;
+  const wallet = await client.wallet.update({ where: { id: walletId }, data: { balance: { increment: amount } } });
+  await client.walletTransaction.create({ data: { walletId, type: "credit", amount, reason, refId: refId ?? null } });
   return wallet;
 }
 
-export async function debitWallet(walletId: string, amount: number, reason: string, refId?: string) {
+export async function debitWallet(walletId: string, amount: number, reason: string, refId?: string, tx?: Prisma.TransactionClient) {
   if (amount <= 0) return null;
-  const wallet = await db.wallet.update({ where: { id: walletId }, data: { balance: { decrement: amount } } });
-  await db.walletTransaction.create({ data: { walletId, type: "debit", amount, reason, refId: refId ?? null } });
+  const client = tx ?? db;
+  const wallet = await client.wallet.update({ where: { id: walletId }, data: { balance: { decrement: amount } } });
+  await client.walletTransaction.create({ data: { walletId, type: "debit", amount, reason, refId: refId ?? null } });
   return wallet;
 }
 
@@ -111,38 +120,39 @@ export async function debitWallet(walletId: string, amount: number, reason: stri
  * Récompense le parrain à la PREMIÈRE commande payée de sa filleule (idempotent).
  * À appeler dès qu'une commande passe au statut "paid" (wallet direct ou confirmation MoMo).
  */
-export async function rewardReferrerIfNeeded(filleulUserId: string) {
-  const filleul = await db.user.findUnique({ where: { id: filleulUserId } });
+export async function rewardReferrerIfNeeded(filleulUserId: string, tx?: Prisma.TransactionClient) {
+  const client = tx ?? db;
+  const filleul = await client.user.findUnique({ where: { id: filleulUserId } });
   if (!filleul?.referredBy) return null; // pas parrainée → rien à faire
 
   const dedupRefId = `parrain:${filleulUserId}`;
-  const existing = await db.walletTransaction.findFirst({
+  const existing = await client.walletTransaction.findFirst({
     where: { reason: "referral", refId: dedupRefId },
     select: { id: true },
   });
   if (existing) return null; // déjà récompensé pour cette filleule
 
-  const parrainWallet = await ensureWallet(filleul.referredBy);
+  const parrainWallet = await ensureWallet(filleul.referredBy, tx);
   if (!parrainWallet) return null;
 
-  const wallet = await creditWallet(parrainWallet.id, PARRAIN_REWARD, "referral", dedupRefId);
+  const wallet = await creditWallet(parrainWallet.id, PARRAIN_REWARD, "referral", dedupRefId, tx);
 
-  const parrain = await db.user.findUnique({ where: { id: filleul.referredBy } });
+  const parrain = await client.user.findUnique({ where: { id: filleul.referredBy } });
   if (parrain) {
     await notify({
       userId: parrain.id,
       channel: "whatsapp",
       toPhone: parrain.phone,
       message: `Kènè : ${filleul.name} a passé sa première commande 🎉 Ton bonus parrainage de ${xof(PARRAIN_REWARD)} est crédité sur ton wallet !`,
-    });
+    }, tx);
   }
   await notify({
     userId: filleul.id,
     channel: "whatsapp",
     toPhone: filleul.phone,
     message: `Kènè : ta première commande est confirmée ✅ Ton parrain${parrain ? ` ${parrain.name}` : ""} a reçu son bonus grâce à toi 💛`,
-  });
-  await db.auditLog.create({
+  }, tx);
+  await client.auditLog.create({
     data: {
       userId: filleul.id,
       action: "referral_reward",
@@ -155,17 +165,23 @@ export async function rewardReferrerIfNeeded(filleulUserId: string) {
 }
 
 // ─────────────── Notifications (SMS/WhatsApp simulés) ───────────────
-export function notify(data: {
-  userId?: string | null;
-  tenantId?: string | null;
-  channel: string;
-  toPhone: string;
-  message: string;
-  status?: string;
-  scheduledAt?: Date | null; // déclenchement prévu (rappel auto)
-  metaJson?: string | null; // contexte {diagId} | {apptId} | {dedupKey}
-}) {
-  const created = db.notification.create({
+// `tx` facultatif (t. 63-c) : la ligne Notification est créée DANS la
+// transaction de la route appelante quand il y en a une ; sans tx, le
+// comportement historique est conservé à l'identique.
+export function notify(
+  data: {
+    userId?: string | null;
+    tenantId?: string | null;
+    channel: string;
+    toPhone: string;
+    message: string;
+    status?: string;
+    scheduledAt?: Date | null; // déclenchement prévu (rappel auto)
+    metaJson?: string | null; // contexte {diagId} | {apptId} | {dedupKey}
+  },
+  tx?: Prisma.TransactionClient
+) {
+  const created = (tx ?? db).notification.create({
     data: {
       userId: data.userId ?? null,
       tenantId: data.tenantId ?? null,

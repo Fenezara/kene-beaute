@@ -1,5 +1,8 @@
 "use client";
-// Kènè Cliente — Chat Dr. Kènè : WhatsApp-like, STT fr-FR, triage photo IA, TTS
+// Kènè Cliente — Chat Dr. Kènè : WhatsApp-like, STT fr-FR, triage photo IA, TTS.
+// La conversation vit dans le store persist « kene-chat » (src/store/chat.ts) :
+// elle survit au changement d'onglet et au rechargement, sans les photos
+// (base64 — mémoire de session uniquement, jamais dans localStorage).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Camera, CircleCheck, ImagePlus, Mic, OctagonAlert, Send, ShieldCheck, TriangleAlert, Volume2, VolumeX } from "lucide-react";
@@ -7,6 +10,7 @@ import { toast } from "sonner";
 import { apiPost, resizeImage } from "@/lib/kene/api";
 import { DuafeIcon } from "@/components/kene/icons";
 import { useKene } from "@/store/kene";
+import { useChat } from "@/store/chat";
 import type { ChatMsg } from "./types";
 
 const SUGGESTIONS = [
@@ -15,14 +19,13 @@ const SUGGESTIONS = [
   "Routine minimaliste matin/soir ?",
 ];
 
-const WELCOME: ChatMsg = {
-  id: "w1",
-  role: "assistant",
-  content:
-    "Bonjour ! Je suis Dr. Kènè, ton éducatrice cutanée. Pose-moi tes questions sur les peaux mélanodermes — taches, acné, hydratation, cheveux — ou envoie-moi une photo pour un premier avis orienté.",
-  kind: "text",
-  time: Date.now(),
-};
+/** Contrat badge cloche chat (63-a) : un message de Dr. Kènè vient d'arriver
+ *  — c'est le SEUL point de couplage, l'événement est figé. */
+function notifyChatNew() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("kene:chat:new", { detail: { at: Date.now() } }));
+  }
+}
 
 /* ── SpeechRecognition (webkit) typé maison ── */
 interface SRResult { 0: { transcript: string }; isFinal: boolean }
@@ -45,13 +48,17 @@ const TRIAGE = {
   rouge: { border: "border-l-4 border-bissap", bg: "bg-bissap/5", text: "text-destructive", Icon: OctagonAlert, cta: "Voir les instituts", tab: "rdv" as const },
 };
 
-let idCounter = 1;
-const nid = () => `m${idCounter++}`;
+/* Ids uniques entre sessions : un simple compteur entrerait en collision avec
+   les ids persistés ("m1" déjà pris par un ancien message) → préfixe horodaté. */
+let idCounter = 0;
+const nid = () => `m${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 
 export function ChatScreen() {
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
-  const [messages, setMessages] = useState<ChatMsg[]>([WELCOME]);
+  // Fil persisté (survit au changement d'onglet) — voir src/store/chat.ts.
+  const messages = useChat((s) => s.messages);
+  const add = useChat((s) => s.add);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [listening, setListening] = useState(false);
@@ -65,6 +72,14 @@ export function ChatScreen() {
   useEffect(() => {
     const w = window as unknown as { SpeechRecognition?: SRCtor; webkitSpeechRecognition?: SRCtor };
     srSupported.current = Boolean(w.SpeechRecognition ?? w.webkitSpeechRecognition);
+  }, []);
+
+  // Rehydratation paresseuse et idempotente (pattern use-t.ts) : le premier
+  // montage relit le localStorage persisté ; les montages suivants ne
+  // relisent PAS — les photos de session restent en mémoire (hasHydrated
+  // évite qu'une relecture n'écrase le fil courant sans ses photos).
+  useEffect(() => {
+    if (!useChat.persist.hasHydrated()) void useChat.persist.rehydrate();
   }, []);
 
   useEffect(() => {
@@ -85,16 +100,18 @@ export function ChatScreen() {
     if (!content || sending) return;
     setInput("");
     const mine: ChatMsg = { id: nid(), role: "user", content, kind: "text", time: Date.now() };
-    setMessages((m) => [...m, mine]);
+    add(mine); // le store re-sème le message d'accueil si le fil est vide
     setSending(true);
     try {
       const history = [...messages, mine].slice(-12).map((m) => ({ role: m.role, content: m.content }));
       const r = await apiPost<{ reply: string }>("/api/dermato/chat", { messages: history, userId: user.id });
-      setMessages((m) => [...m, { id: nid(), role: "assistant", content: r.reply, kind: "text", time: Date.now() }]);
+      add({ id: nid(), role: "assistant", content: r.reply, kind: "text", time: Date.now() });
+      notifyChatNew();
       speak(r.reply);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Réponse impossible");
-      setMessages((m) => [...m, { id: nid(), role: "assistant", content: "Pardon, une erreur est survenue. Reformule ta question dans un instant.", kind: "text", time: Date.now() }]);
+      add({ id: nid(), role: "assistant", content: "Pardon, une erreur est survenue. Reformule ta question dans un instant.", kind: "text", time: Date.now() });
+      notifyChatNew();
     } finally {
       setSending(false);
     }
@@ -105,10 +122,13 @@ export function ChatScreen() {
     setPhotoBusy(true);
     try {
       const dataUrl = await resizeImage(f);
-      setMessages((m) => [...m, { id: nid(), role: "user", content: "Regarde cette zone, stp.", kind: "photo", photo: dataUrl, time: Date.now() }]);
+      // La photo vit en mémoire de session : jamais persistée (partialize du
+      // store la retire), le fil texte lui survit.
+      add({ id: nid(), role: "user", content: "Regarde cette zone, stp.", kind: "photo", photo: dataUrl, time: Date.now() });
       setSending(true);
       const r = await apiPost<{ niveau: "vert" | "jaune" | "rouge"; message: string }>("/api/dermato/photo", { image: dataUrl, userId: user.id });
-      setMessages((m) => [...m, { id: nid(), role: "assistant", content: r.message, kind: "photo", niveau: r.niveau, time: Date.now() }]);
+      add({ id: nid(), role: "assistant", content: r.message, kind: "photo", niveau: r.niveau, time: Date.now() });
+      notifyChatNew();
       speak(r.message);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Analyse photo impossible");

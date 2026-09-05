@@ -22,6 +22,11 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return jsonError("Numéro de téléphone requis", 400);
     const phone = normalizePhone(parsed.data.phone);
 
+    // Hygiène (t. 63-d) : purge des codes expirés de TOUS les numéros avant
+    // toute création — la table OtpCode grossissait sinon indéfiniment (41
+    // codes morts relevés en base). deleteMany ciblé, aucune erreur bloquante.
+    await db.otpCode.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+
     // Invalide les anciens codes non utilisés pour ce numéro
     await db.otpCode.updateMany({ where: { phone, used: false }, data: { used: true } });
 

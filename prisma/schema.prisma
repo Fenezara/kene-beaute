@@ -213,6 +213,8 @@ model Appointment {
   createdAt      DateTime @default(now())
 
   review Review?
+
+  @@index([tenantId, startAt]) // agenda : RDV d'un institut par plage de dates
 }
 
 // ─────────────────────────── Diagnostic IA ───────────────────────────
@@ -228,6 +230,8 @@ model Diagnosis {
   status       String   @default("pending") // pending | done | error
   vlmUsed      Boolean  @default(true)
   createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt]) // historique diagnostic par cliente
 }
 
 // ─────────────────────────── Boutique / Produits / Stock ───────────────────────────
@@ -271,6 +275,8 @@ model Sale {
   cashierName    String   @default("Caisse 1")
   status         String   @default("completed") // pending | completed | refunded
   createdAt      DateTime @default(now())
+
+  @@index([tenantId, createdAt]) // KPIs ventes + compta par période
 }
 
 model SaleItem {
@@ -323,6 +329,8 @@ model WalletTransaction {
   reason    String // cashback | referral | topup | payment | refund
   refId     String?
   createdAt DateTime @default(now())
+
+  @@index([walletId, createdAt]) // relevé wallet par cliente (dédup parrainage)
 }
 
 model Payment {
@@ -334,6 +342,7 @@ model Payment {
   status      String    @default("pending") // pending | success | failed
   ref         String    @unique
   metaJson    String?   // contexte (orderId, appointmentId…)
+  confirmTokenHash String? // sha256 du code de confirmation (t. 63-c) — null = paiement sans code (wallet/POS)
   createdAt   DateTime  @default(now())
   confirmedAt DateTime?
 
@@ -354,6 +363,8 @@ model Order {
   payment   Payment? @relation(fields: [paymentId], references: [id])
   status    String   @default("pending") // pending | paid | delivered | cancelled
   createdAt DateTime @default(now())
+
+  @@index([userId, createdAt]) // « Mes commandes » par cliente
 }
 
 model OrderItem {
@@ -429,6 +440,8 @@ model Notification {
   metaJson     String?   // contexte {diagId} | {apptId} | {dedupKey} — annulation intelligente
   readAt       DateTime? // lecture cliente (status sent) — null = non lue
   createdAt    DateTime  @default(now())
+
+  @@index([userId, createdAt]) // badge non-lues + fil client
 }
 
 // ─────────────────────────── Web Push VAPID (t. 60-e) ───────────────────────────
@@ -590,4 +603,6 @@ model OtpCode {
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([phone]) // vérification OTP par téléphone
 }

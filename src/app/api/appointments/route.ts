@@ -1,9 +1,17 @@
 // GET /api/appointments?userId= — RDV de la cliente | POST — nouveau RDV (côté cliente)
+// t. 63-c : les écritures de booking (appointment + payment) passent dans UNE
+// prisma.$transaction. L'acompte MoMo (wave/orange) crée un Payment pending
+// porteur d'un code de confirmation (token BRUT renvoyé au front — contrat 63-b,
+// hash sha256 stocké) ; le paiement wallet reste instantané (succès, sans code).
+// Les notifications/rappels restent best-effort, APRÈS le commit.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, overlaps, genRef, notify, dayEnd, ensureWallet, debitWallet } from "@/lib/kene/server";
 import { DEPOSIT_RATE } from "@/lib/kene/format";
+import { newConfirmToken, paymentWithConfirmToken, serializePayment } from "@/lib/kene/confirm-token";
+import type { Appointment, Payment } from "@prisma/client";
+import { rateLimit, rlKey, rateLimitResponse, APPOINTMENTS_CREATE } from "@/lib/kene/rate-limit";
 
 const CreateBody = z.object({
   tenantId: z.string().min(1),
@@ -17,6 +25,12 @@ const CreateBody = z.object({
   paymentMethod: z.enum(["wave", "orange", "wallet"]).optional(),
 });
 
+const APPT_INCLUDE = {
+  tenant: { select: { name: true, city: true, country: true } },
+  service: { select: { name: true, durationMin: true, price: true } },
+  resource: { select: { name: true } },
+} as const;
+
 export async function GET(req: NextRequest) {
   try {
     const userId = req.nextUrl.searchParams.get("userId");
@@ -27,11 +41,7 @@ export async function GET(req: NextRequest) {
 
     const appointments = await db.appointment.findMany({
       where: { userId, startAt: { gte: since } },
-      include: {
-        tenant: { select: { name: true, city: true, country: true } },
-        service: { select: { name: true, durationMin: true, price: true } },
-        resource: { select: { name: true } },
-      },
+      include: APPT_INCLUDE,
       orderBy: { startAt: "asc" },
     });
     return NextResponse.json({ appointments });
@@ -41,6 +51,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "appointments:create"), APPOINTMENTS_CREATE);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Trop de demandes de RDV — patiente quelques secondes");
+  }
   try {
     const parsed = CreateBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
@@ -67,6 +81,14 @@ export async function POST(req: NextRequest) {
       if (!user) return jsonError("Utilisatrice introuvable", 404);
     }
 
+    // Paiement wallet immédiat : garde AVANT toute écriture (userId + solde).
+    if (depositAmount > 0 && paymentMethod === "wallet") {
+      if (!userId) return jsonError("Wallet : userId requis", 400);
+      const w = await ensureWallet(userId);
+      if (!w) return jsonError("Wallet indisponible", 400);
+      if (w.balance < depositAmount) return jsonError("Solde wallet insuffisant", 400);
+    }
+
     // Pas de chevauchement pour cette praticienne (hors annulés / no-show)
     const sameDay = await db.appointment.findMany({
       where: {
@@ -80,80 +102,82 @@ export async function POST(req: NextRequest) {
       return jsonError("Ce créneau est déjà réservé pour cette praticienne", 409);
     }
 
-    let appointment = await db.appointment.create({
-      data: {
-        tenantId,
-        serviceId,
-        resourceId,
-        userId: userId ?? null,
-        clientName,
-        clientPhone,
-        startAt: start,
-        durationMin: service.durationMin,
-        status: "pending",
-        price: service.price,
-        depositAmount: 0,
-      },
-      include: {
-        tenant: { select: { name: true, city: true, country: true } },
-        service: { select: { name: true, durationMin: true, price: true } },
-        resource: { select: { name: true } },
-      },
-    });
-
-    // Acompte (simulation MoMo) → Payment en attente de confirmation
-    let payment: Awaited<ReturnType<typeof db.payment.create>> | null = null;
-    if (depositAmount > 0) {
-      if (paymentMethod === "wallet") {
-        // Paiement wallet immédiat : débit direct + confirmation du RDV
-        if (!userId) return jsonError("Wallet : userId requis", 400);
-        const w = await ensureWallet(userId);
-        if (!w) return jsonError("Wallet indisponible", 400);
-        if (w.balance < depositAmount) return jsonError("Solde wallet insuffisant", 400);
-        const wtx = await debitWallet(w.id, depositAmount, "payment", appointment.id);
-        payment = await db.payment.create({
+    // ─── Booking atomique : RDV + paiement dans la même transaction ───
+    const created: { appointment: Appointment; payment: Payment | null; confirmToken: string | null } =
+      await db.$transaction(async (tx) => {
+        let appointment = await tx.appointment.create({
           data: {
-            userId,
-            purpose: "appointment_deposit",
-            method: "wallet",
-            amount: depositAmount,
-            ref: genRef("PAY"),
-            status: "success",
-            confirmedAt: new Date(),
-            metaJson: JSON.stringify({ appointmentId: appointment.id, walletTxId: wtx?.id ?? null }),
-          },
-        });
-        appointment = await db.appointment.update({
-          where: { id: appointment.id },
-          data: { paymentId: payment.id, status: "confirmed", depositAmount },
-          include: {
-            tenant: { select: { name: true, city: true, country: true } },
-            service: { select: { name: true, durationMin: true, price: true } },
-            resource: { select: { name: true } },
-          },
-        });
-      } else {
-        payment = await db.payment.create({
-          data: {
+            tenantId,
+            serviceId,
+            resourceId,
             userId: userId ?? null,
-            purpose: "appointment_deposit",
-            method: paymentMethod ?? "wave",
-            amount: depositAmount,
-            ref: genRef("PAY"),
-            metaJson: JSON.stringify({ appointmentId: appointment.id }),
+            clientName,
+            clientPhone,
+            startAt: start,
+            durationMin: service.durationMin,
+            status: "pending",
+            price: service.price,
+            depositAmount: 0,
           },
+          include: APPT_INCLUDE,
         });
-        appointment = await db.appointment.update({
-          where: { id: appointment.id },
-          data: { paymentId: payment.id },
-          include: {
-            tenant: { select: { name: true, city: true, country: true } },
-            service: { select: { name: true, durationMin: true, price: true } },
-            resource: { select: { name: true } },
-          },
-        });
-      }
-    }
+
+        // Acompte (simulation MoMo) → Payment en attente de confirmation
+        let payment: Payment | null = null;
+        let confirmToken: string | null = null;
+        if (depositAmount > 0) {
+          if (paymentMethod === "wallet") {
+            // Paiement wallet immédiat : débit direct + confirmation du RDV
+            // (pas de code de confirmation — succès instantané).
+            const w = await ensureWallet(userId!, tx);
+            if (!w) throw new Error("Wallet indisponible");
+            const wtx = await debitWallet(w.id, depositAmount, "payment", appointment.id, tx);
+            payment = await tx.payment.create({
+              data: {
+                userId,
+                purpose: "appointment_deposit",
+                method: "wallet",
+                amount: depositAmount,
+                ref: genRef("PAY"),
+                status: "success",
+                confirmedAt: new Date(),
+                metaJson: JSON.stringify({ appointmentId: appointment.id, walletTxId: wtx?.id ?? null }),
+              },
+            });
+            appointment = await tx.appointment.update({
+              where: { id: appointment.id },
+              data: { paymentId: payment.id, status: "confirmed", depositAmount },
+              include: APPT_INCLUDE,
+            });
+          } else {
+            // MoMo (wave/orange) : Payment pending porteur du code de
+            // confirmation (contrat 63-b : token brut renvoyé, hash stocké).
+            const { token, tokenHash } = newConfirmToken();
+            confirmToken = token;
+            payment = await tx.payment.create({
+              data: {
+                userId: userId ?? null,
+                purpose: "appointment_deposit",
+                method: paymentMethod ?? "wave",
+                amount: depositAmount,
+                ref: genRef("PAY"),
+                metaJson: JSON.stringify({ appointmentId: appointment.id }),
+                confirmTokenHash: tokenHash,
+              },
+            });
+            appointment = await tx.appointment.update({
+              where: { id: appointment.id },
+              data: { paymentId: payment.id },
+              include: APPT_INCLUDE,
+            });
+          }
+        }
+
+        return { appointment, payment, confirmToken };
+      });
+
+    const appointment = created.appointment;
+    const payment = created.payment;
 
     await notify({
       userId: userId ?? null,
@@ -183,7 +207,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ appointment, payment: payment ?? undefined }, { status: 201 });
+    const paymentOut = payment
+      ? created.confirmToken
+        ? paymentWithConfirmToken(payment, created.confirmToken)
+        : serializePayment(payment)
+      : undefined;
+    return NextResponse.json({ appointment, payment: paymentOut }, { status: 201 });
   } catch (err) {
     return serverError("appointments:post", err);
   }

@@ -131,17 +131,20 @@ export async function GET(req: NextRequest) {
     });
 
     /* ── 3) Lecture du fil (sent 30 j + scheduled pertinents) ── */
+    // Fil borné (t. 63-d) : 30 entrées max par section, orderBy conservé
+    // (sent: createdAt desc ; scheduled: scheduledAt asc) — le backfill et le
+    // due-runner ci-dessus restent inchangés et non déplacés.
 
     const [sentRaw, scheduledRaw, allDiags, futureAppts, unreadCount] = await Promise.all([
       db.notification.findMany({
         where: { userId, status: "sent", createdAt: { gte: new Date(now.getTime() - 30 * DAY) } },
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: 30,
       }),
       db.notification.findMany({
         where: { userId, status: "scheduled" },
         orderBy: { scheduledAt: "asc" },
-        take: 10,
+        take: 30,
       }),
       db.diagnosis.findMany({
         where: { userId, status: "done" },

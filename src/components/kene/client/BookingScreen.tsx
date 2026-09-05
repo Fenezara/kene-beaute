@@ -43,6 +43,9 @@ export function BookingScreen() {
   const [slots, setSlots] = useState<ApiSlot[] | null>(null);
   const [slot, setSlot] = useState<ApiSlot | null>(null);
   const [wallet, setWallet] = useState<ApiWallet | null>(null);
+  // Fin des échecs silencieux : solde inconnu → encart discret + Réessayer
+  // (le bouton Wallet reste désactivé tant que le solde est inconnu).
+  const [walletError, setWalletError] = useState(false);
   const [payMethod, setPayMethod] = useState<PayMethod>("wave");
   const [paying, setPaying] = useState(false);
   const [payOverlay, setPayOverlay] = useState<{ phase: "processing" | "done"; amount: number } | null>(null);
@@ -84,10 +87,17 @@ export function BookingScreen() {
     }
   }, [user.id]);
 
+  /* Solde wallet — échec explicite (walletError) plutôt que « … » éternel. */
+  const loadWallet = useCallback(() => {
+    apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`)
+      .then((r) => { setWallet(r.wallet); setWalletError(false); })
+      .catch(() => setWalletError(true));
+  }, [user.id]);
+
   useEffect(() => {
     loadInstitutes();
-    apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).then((r) => setWallet(r.wallet)).catch(() => {});
-  }, [loadInstitutes, user.id]);
+    loadWallet();
+  }, [loadInstitutes, loadWallet]);
 
   useEffect(() => {
     if (tab === "mine") loadMine();
@@ -169,9 +179,18 @@ export function BookingScreen() {
         paymentMethod: payMethod,
       });
       if (payMethod === "wave" && r.payment) {
+        // Contrat confirmToken (63-b/63-c) : un acompte mobile money en attente
+        // porte son jeton — absent, on n'appelle JAMAIS confirm et on rollback
+        // l'état UI comme un échec de réservation (aucun overlay, récap intact).
+        const confirmToken = r.payment.confirmToken;
+        if (!confirmToken) {
+          setPayOverlay(null);
+          toast.error("Paiement impossible — réessaie dans quelques instants");
+          return;
+        }
         setPayOverlay({ phase: "processing", amount: deposit });
         await new Promise((res) => setTimeout(res, 3000));
-        await apiPost("/api/payments/confirm", { paymentId: r.payment.id });
+        await apiPost("/api/payments/confirm", { paymentId: r.payment.id, confirmToken });
       } else {
         setPayOverlay({ phase: "processing", amount: deposit });
         await new Promise((res) => setTimeout(res, 1200));
@@ -428,10 +447,19 @@ export function BookingScreen() {
                           disabled={(wallet?.balance ?? 0) < deposit}
                           className={`h-11 rounded-xl border-2 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${payMethod === "wallet" ? "border-melanine bg-melanine/10" : "border-border bg-card"}`}
                         >
-                          <span className="h-5 w-5 rounded-full grid place-items-center bg-melanine text-[#C8951E] text-[10px] font-black">K</span> Wallet {wallet ? `(${xof(wallet.balance, { compact: true })})` : ""}
+                          <span className="h-5 w-5 rounded-full grid place-items-center bg-melanine text-[#C8951E] text-[10px] font-black">K</span> Wallet {wallet ? `(${xof(wallet.balance, { compact: true })})` : walletError ? "(indisponible)" : ""}
                         </button>
                       </div>
                       {wallet && wallet.balance < deposit && <p className="text-[10px] text-destructive mt-1.5">Solde wallet insuffisant pour l&apos;acompte.</p>}
+                      {walletError && (
+                        <div role="alert" className="mt-1.5 rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 flex items-center gap-2.5">
+                          <TriangleAlert size={14} className="text-terre shrink-0" aria-hidden="true" />
+                          <p className="flex-1 min-w-0 text-[11px] text-muted-foreground leading-snug">Solde indisponible — réessaie</p>
+                          <button onClick={loadWallet} className="h-11 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold active:scale-95 transition-transform shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+                            Réessayer
+                          </button>
+                        </div>
+                      )}
 
                       <button onClick={startBook} disabled={paying} className="mt-3 h-12 w-full rounded-xl bg-primary text-primary-foreground font-heading font-black text-sm shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                         {paying ? <Loader2 size={17} className="animate-spin" /> : <Check size={17} />} Confirmer pour {xof(deposit)}

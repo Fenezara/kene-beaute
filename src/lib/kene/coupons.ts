@@ -12,6 +12,7 @@
 //  • percent : round(subtotal × value / 100), value 5..90 %
 //  • fixed   : min(value, subtotal), value 500..500 000 FCFA
 import { db } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import { xof } from "./format";
 import { pushFeed } from "./realtime";
 
@@ -91,14 +92,17 @@ export async function checkCoupon(rawCode: string, subtotal: number, userId?: st
  * validation complète (course-safe) + création de la rédemption +
  * incrément du compteur. En cas de course (2 commandes simultanées), la
  * contrainte @@unique [couponId, userId] fait échouer la 2ᵉ → erreur propre.
+ * `tx` facultatif (t. 63-c) : consommé dans la transaction de la commande.
  */
 export async function redeemCoupon(
   couponId: string,
   userId: string,
   subtotal: number,
-  orderId: string
+  orderId: string,
+  tx?: Prisma.TransactionClient
 ): Promise<{ ok: true; discount: number } | { ok: false; error: string }> {
-  const coupon = await db.coupon.findUnique({ where: { id: couponId } });
+  const client = tx ?? db;
+  const coupon = await client.coupon.findUnique({ where: { id: couponId } });
   if (!coupon) return { ok: false, error: "Code promo inconnu" };
   if (!coupon.active) return { ok: false, error: "Ce code promo n'est plus actif" };
   const now = new Date();
@@ -114,12 +118,12 @@ export async function redeemCoupon(
   if (discount <= 0) return { ok: false, error: "Remise nulle sur ce panier" };
 
   try {
-    await db.couponRedemption.create({ data: { couponId, userId, orderId, discount } });
+    await client.couponRedemption.create({ data: { couponId, userId, orderId, discount } });
   } catch {
     // contrainte unique → déjà utilisée par cette cliente
     return { ok: false, error: "Tu as déjà utilisé ce code promo 😉" };
   }
-  await db.coupon.update({ where: { id: couponId }, data: { usedCount: { increment: 1 } } });
+  await client.coupon.update({ where: { id: couponId }, data: { usedCount: { increment: 1 } } });
   return { ok: true, discount };
 }
 
