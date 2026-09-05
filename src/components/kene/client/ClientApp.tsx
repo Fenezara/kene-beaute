@@ -601,7 +601,7 @@ export function ClientApp() {
             <p className="font-heading font-bold text-xs text-foreground/80 mb-1.5">Kènè — POC</p>
             <p>Paiements Wave / Orange Money simulés · estimations IA non médicales.</p>
             <p className="mt-1">Conforme CNPS CI / IPM SN / SYSCOHADA.</p>
-            <p className="mt-2 font-heading text-primary">« La beauté mélanoderme, de A à Z. »</p>
+            <p className="mt-2 font-heading text-primary">« La beauté mélanoderme, enfin comprise. »</p>
           </div>
         </aside>
       )}

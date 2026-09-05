@@ -565,7 +565,7 @@ export function HomeScreen({
       <footer className="pt-4 pb-2 text-center">
         <div aria-hidden="true" className="kente-band-soft h-[3px] w-24 mx-auto rounded-full mb-3" />
         <p suppressHydrationWarning className="text-[10px] text-muted-foreground">
-          © {new Date().getFullYear()} Kènè — « La beauté mélanoderme, de A à Z. »
+          © {new Date().getFullYear()} Kènè — « La beauté mélanoderme, enfin comprise. »
         </p>
         <p className="text-[10px] text-muted-foreground/70 mt-1">
           POC — Paiements Wave / Orange Money simulés · Estimations IA non médicales · CNPS CI / IPM SN / SYSCOHADA

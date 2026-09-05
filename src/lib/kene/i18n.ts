@@ -79,7 +79,7 @@ const FR: Dict = {
   "home.missing.title": "Zones à scanner pour compléter ton score",
 
   // Onboarding — écran 1 (téléphone)
-  "onboarding.title": "La beauté mélanoderme, de A à Z.",
+  "onboarding.title": "La beauté mélanoderme, enfin comprise.",
   "onboarding.subtitle": "Diagnostic IA multi-zones, boutique botaniques, instituts partenaires et coach Dr. Kènè — pensés pour les peaux Fitzpatrick IV–VI.",
   "onboarding.phone.label": "Mon numéro",
   "onboarding.cta": "Recevoir mon code",

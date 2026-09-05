@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
     const payload = {
       formatVersion: 1,
       generatedAt: new Date().toISOString(),
-      application: "Kènè — la beauté mélanoderme, de A à Z",
+      application: "Kènè — la beauté mélanoderme, enfin comprise",
       rgpd: {
         droit: "Portabilité des données (art. 20 RGPD)",
         note: "Export généré à ta demande. Les photos envoyées pour les diagnostics ne sont pas incluses (volumétrie) ; les résultats complets le sont.",

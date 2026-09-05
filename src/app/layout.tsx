@@ -1,18 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { Ojuju, Questrial, IBM_Plex_Mono } from "next/font/google";
+import { Fraunces, Plus_Jakarta_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 
-const ojuju = Ojuju({
-  variable: "--font-ojuju",
+// Typographie Kènè : Fraunces (serif éditorial chaleureux) pour l'identité,
+// Plus Jakarta Sans (sans moderne très lisible) pour le corps de texte.
+const fraunces = Fraunces({
+  variable: "--font-display",
   subsets: ["latin"],
-  weight: ["200", "300", "400", "500", "600", "700", "800"],
+  axes: ["SOFT", "WONK", "opsz"],
 });
 
-const questrial = Questrial({
-  variable: "--font-questrial",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-body",
   subsets: ["latin"],
-  weight: "400",
 });
 
 const plexMono = IBM_Plex_Mono({
@@ -22,7 +23,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kènè — La beauté mélanoderme, de A à Z.",
+  title: "Kènè — La beauté mélanoderme, enfin comprise.",
   description:
     "Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibrée peaux mélanodermes, instituts partenaires, boutique cosmétique aux botaniques africains, et gestion complète d'institut (RDV, caisse, paie CNPS/IPM, compta SYSCOHADA).",
   keywords: ["Kènè", "beauté", "mélanoderme", "peau noire", "diagnostic IA", "institut", "Afrique", "Wave", "Orange Money", "CNPS", "SYSCOHADA"],
@@ -53,7 +54,7 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body
-        className={`${ojuju.variable} ${questrial.variable} ${plexMono.variable} antialiased bg-background text-foreground min-h-screen`}
+        className={`${fraunces.variable} ${jakarta.variable} ${plexMono.variable} antialiased bg-background text-foreground min-h-screen`}
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           {children}

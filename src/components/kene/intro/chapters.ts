@@ -22,7 +22,7 @@ export const CHAPTERS: ChapterDef[] = [
     from: 0.0,
     to: 0.12,
     overline: "Rituel d'accueil",
-    title: "La beauté mélanoderme, de A à Z.",
+    title: "La beauté mélanoderme, enfin comprise.",
     sub: "Laisse-toi porter. Six chapitres, un fil : le tien.",
     pos: "center",
   },
