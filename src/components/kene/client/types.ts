@@ -132,6 +132,51 @@ export interface ApiPayment {
   confirmToken?: string;
 }
 
+/* ── Compte entreprise (POST /api/auth/pro/register — contrat figé t. 66) ── */
+export interface ApiProTenant {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+  type: string; // institut | spa | dermo_conseil
+  plan: string;
+}
+
+export interface ApiProRegisterResponse {
+  ok: boolean;
+  tenant: ApiProTenant;
+  user: ApiUser; // objet User Prisma (mêmes champs qu'ApiUser)
+}
+
+/* ── Session (GET /api/auth/session?userId=) ──
+ *  Le contrat exact n'est pas figé côté front : la réponse peut être
+ *  { user, tenant? } ou l'utilisateur nu — readSession() accepte les deux. */
+interface ApiSessionShape {
+  user?: unknown;
+  tenant?: { id?: unknown; name?: unknown } | null;
+  proTenantId?: unknown;
+  id?: unknown;
+  phone?: unknown;
+}
+
+export interface ApiSession {
+  user: ApiUser | null;
+  tenantId: string | null;
+  tenantName: string | null;
+}
+
+/** Lecture tolérante d'une réponse /api/auth/session : normalise
+ *  { user, tenant? } comme l'utilisateur brut en ApiSession. */
+export function readSession(payload: unknown): ApiSession {
+  const o = (payload && typeof payload === "object" ? payload : {}) as ApiSessionShape;
+  const raw = (o.user && typeof o.user === "object" ? o.user : o) as Partial<ApiUser> | null;
+  const user = raw && typeof raw.id === "string" && typeof raw.phone === "string" ? (raw as ApiUser) : null;
+  const tenant = o.tenant && typeof o.tenant === "object" ? o.tenant : null;
+  const tenantId = typeof tenant?.id === "string" ? tenant.id : typeof o.proTenantId === "string" ? o.proTenantId : null;
+  const tenantName = typeof tenant?.name === "string" ? tenant.name : null;
+  return { user, tenantId, tenantName };
+}
+
 export interface ApiWallet {
   id: string;
   userId: string;

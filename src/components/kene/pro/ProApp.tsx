@@ -64,6 +64,9 @@ function looksLikeLive(f: unknown): f is ProLive {
 export function ProApp() {
   const proTenantId = useKene((s) => s.proTenantId);
   const setProTenantId = useKene((s) => s.setProTenantId);
+  // Compte de session (t. 66-b) : alimente le chip de la sidebar quand le
+  // user connecté est une gérante (rôle « pro ») — sinon démo Fatou Koné.
+  const sessionUser = useKene((s) => s.user);
   const [section, setSection] = useState<ProSectionId>("dashboard");
   // Commande « Lancer un diagnostic » depuis la fiche CRM (objet neuf à chaque
   // clic → rouvre l'assistant même pour la même cliente)
@@ -180,6 +183,20 @@ export function ProApp() {
   const tenant = overview.data?.tenant;
   const activeLabel = NAV.find((n) => n.id === section)?.label ?? "";
 
+  // Chip compte (t. 66-b) : nom de la gérante de session si le compte est
+  // pro, sinon la démo « Fatou Koné » (POC sans session pro ouverte).
+  const proOwner = sessionUser?.role === "pro" ? sessionUser : null;
+  const chipName =
+    proOwner?.name && proOwner.name !== "Nouvelle cliente" && proOwner.name.trim() ? proOwner.name.trim() : "Fatou Koné";
+  const chipRole = proOwner ? "Fondatrice / Gérante" : "Gérante — démo";
+  const chipInitials =
+    chipName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]!.toUpperCase())
+      .join("") || "FK";
+
   return (
     <div className="w-full min-h-screen flex flex-col md:flex-row">
       {/* ───────── Rail sidebar tablette (md→lg icônes) / desktop (lg+ libellés) ───────── */}
@@ -276,11 +293,11 @@ export function ProApp() {
               aria-hidden="true"
               className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[11px] font-semibold text-[#FFF9EC]"
             >
-              FK
+              {chipInitials}
             </span>
             <div className="hidden lg:block min-w-0 leading-tight">
-              <p className="truncate text-sm font-medium">Fatou Koné</p>
-              <p className="text-[11px] text-sidebar-foreground/60">Gérante — démo</p>
+              <p className="truncate text-sm font-medium">{chipName}</p>
+              <p className="text-[11px] text-sidebar-foreground/60">{chipRole}</p>
             </div>
             <div className="lg:ml-auto flex items-center gap-1.5">
               <ThemeToggle />

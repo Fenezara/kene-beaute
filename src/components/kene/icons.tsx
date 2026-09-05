@@ -185,23 +185,47 @@ export function MoringaIcon(props: IconProps) {
   );
 }
 
-/** Logo complet Kènè */
+/** Badge Kènè seul — Duafe sur or fondu terre, coins doux 26 %, fine bordure
+ *  intérieure claire (relief orfèvrerie). Pour usages sans wordmark. */
+export function KeneMark({ size = 40, className = "" }: { size?: number; className?: string }) {
+  return (
+    <span
+      className={`grid shrink-0 select-none place-items-center rounded-[26%] bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] shadow-md inset-ring-1 inset-ring-[#FFF9EC]/25 ${className}`}
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+    >
+      <DuafeIcon size={size * 0.62} strokeWidth={1.8} />
+    </span>
+  );
+}
+
+/** Logo complet Kènè — lockup signature : badge Duafe or→terre, wordmark
+ *  « Kènè » Fraunces (0.62×size), filet kente 3 segments or/terre/baobab,
+ *  devise « Beauté mélanoderme ». Texte en var(--foreground/-muted-foreground). */
 export function KeneLogo({ size = 40, withText = true }: { size?: number; withText?: boolean }) {
   return (
     <span className="inline-flex items-center gap-2.5 select-none">
-      <span
-        className="grid place-items-center rounded-2xl bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] shadow-md shrink-0"
-        style={{ width: size, height: size }}
-        aria-hidden="true"
-      >
-        <DuafeIcon size={size * 0.62} strokeWidth={1.7} />
-      </span>
+      <KeneMark size={size} />
       {withText && (
-        <span className="flex flex-col leading-none">
-          <span className="font-heading font-bold tracking-wide text-xl" style={{ color: "var(--foreground)" }}>
-            Kènè
+        <span className="flex min-w-0 flex-col items-start leading-none">
+          <span className="inline-flex w-fit flex-col items-start">
+            <span
+              className="font-heading font-bold leading-[1.05] tracking-[0.02em]"
+              style={{ color: "var(--foreground)", fontSize: `${(Math.round(size * 0.62 * 100) / 100).toFixed(2)}px` }}
+            >
+              Kènè
+            </span>
+            {/* Mini filet kente : or / terre / baobab, largeur du wordmark */}
+            <span aria-hidden="true" className="mt-[3px] flex h-[2px] w-full overflow-hidden rounded-full">
+              <span className="h-full flex-1 bg-[#C8951E]" />
+              <span className="h-full flex-1 bg-[#A0522D]" />
+              <span className="h-full flex-1 bg-[#3F7D3F]" />
+            </span>
           </span>
-          <span className="text-[10px] tracking-[0.18em] uppercase" style={{ color: "var(--muted-foreground)" }}>
+          <span
+            className="mt-[5px] text-[8.5px] font-semibold uppercase tracking-[0.24em] whitespace-nowrap"
+            style={{ color: "var(--muted-foreground)" }}
+          >
             Beauté mélanoderme
           </span>
         </span>

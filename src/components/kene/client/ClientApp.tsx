@@ -154,6 +154,12 @@ export function ClientApp() {
     void useKene.persist.rehydrate();
   }, []);
 
+  // ── Validation silencieuse de la session au boot ── DÉPLACÉE à la racine
+  // (t. 66-d) : le check vivait ici, or ClientApp n'est PAS monté quand
+  // l'espace persisté est pro/admin → une session invalidée n'était pas
+  // purgée au retour dans ces espaces. Voir src/components/kene/SessionKeeper.tsx
+  // (monté dans page.tsx, couvre les 3 espaces).
+
   // Badge chat honnête : l'événement « kene:chat:new » (CustomEvent, détail
   // { at } — dispatché par ChatScreen, contrat figé t. 63) n'allume le point
   // QUE si tu n'es pas déjà sur l'onglet chat (lecture fraîche via getState,

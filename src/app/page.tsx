@@ -16,6 +16,7 @@ import { MotionConfig } from "framer-motion";
 import { useKene } from "@/store/kene";
 import { ClientApp } from "@/components/kene/client/ClientApp";
 import { BootSkeleton } from "@/components/kene/client/BootSkeleton";
+import { SessionKeeper } from "@/components/kene/SessionKeeper";
 import { PwaProvider } from "@/components/kene/pwa/PwaProvider";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -48,6 +49,9 @@ export default function Page() {
           {space === "pro" && <ProApp />}
           {space === "admin" && <AdminApp />}
         </main>
+
+        {/* Validation de session au boot — TOUS espaces (voir SessionKeeper) */}
+        <SessionKeeper />
 
         {/* PWA : enregistrement du service worker + mise à jour offline (aucun rendu) */}
         <PwaProvider />

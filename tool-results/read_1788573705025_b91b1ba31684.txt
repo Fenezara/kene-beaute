@@ -1,0 +1,611 @@
+     1→"use client";
+     2→// Kènè Cliente — Shell applicatif plein écran, expérience type réseaux sociaux 2026
+     3→// (Instagram / TikTok / Facebook) :
+     4→//   • Mobile (<md)  : header glass (logo · cloche · chat) + flux plein cadre + tab-bar bas
+     5→//               5 onglets avec CTA « Scanner » central surélevé.
+     6→//   • Tablette (md+) : rail d'icônes 84 px (façon TikTok iPad / Instagram web compacte)
+     7→//               + colonne centrée — l'écran large est exploité dès 768 px.
+     8→//   • Desktop  (xl) : sidebar complète libellée + feed centré max 640 px + rail droit
+     9→//               (mini-profil, actions rapides, mentions légales) — zéro espace perdu.
+    10→// Le Fil de Kente (intro) et l'onboarding restent plein cadre, hors shell.
+    11→// Résilience + code splitting (t. 63-a) : chaque écran d'onglet vit derrière une
+    12→// ScreenBoundary (erreur locale = carte inline, l'app reste vivante) et les écrans
+    13→// lourds sont lazy (chunk dédié au premier clic — HomeScreen/Onboarding eager).
+    14→// Gate d'hydratation : BootSkeleton tant que le store persisté n'est pas relu.
+    15→
+    16→import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+    17→import { AnimatePresence, motion } from "framer-motion";
+    18→import { BriefcaseBusiness, CalendarDays, Home, Loader2, MessageCircle, ShieldCheck, ShoppingBag, User, WifiOff } from "lucide-react";
+    19→import { toast } from "sonner";
+    20→import type { BodyZone } from "@/lib/kene/types";
+    21→import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
+    22→import { formatTime } from "@/lib/kene/format";
+    23→import { KeneLogo, NeaOnnimIcon } from "@/components/kene/icons";
+    24→import { ThemeToggle } from "@/components/kene/ThemeToggle";
+    25→import { useKene, type ClientTab } from "@/store/kene";
+    26→import { useT } from "@/lib/kene/use-t";
+    27→import { KenteIntro } from "@/components/kene/intro/KenteIntro";
+    28→import { useIntroDone } from "@/components/kene/intro/introState";
+    29→import { Onboarding } from "./Onboarding";
+    30→import { HomeScreen } from "./HomeScreen";
+    31→import { ProfileScreen } from "./ProfileScreen";
+    32→import { ScreenBoundary } from "./ScreenBoundary";
+    33→import { BootSkeleton } from "./BootSkeleton";
+    34→import { cn } from "@/lib/utils";
+    35→
+    36→/** Navigation latérale (desktop) — libellés façon Instagram web.
+    37→ *  labelKey = clé i18n (repli français) — t() résout à l'affichage. */
+    38→const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
+    39→  { tab: "accueil", labelKey: "tab.home", icon: Home },
+    40→  { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
+    41→  { tab: "boutique", labelKey: "tab.shop", icon: ShoppingBag },
+    42→  { tab: "rdv", labelKey: "tab.rdv", icon: CalendarDays },
+    43→  { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
+    44→  { tab: "profil", labelKey: "tab.profile", icon: User },
+    45→];
+    46→
+    47→/** Tab-bar mobile — 5 emplacements, CTA scan central surélevé (TikTok-like) */
+    48→const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
+    49→  { tab: "accueil", labelKey: "tab.home", icon: Home },
+    50→  { tab: "boutique", labelKey: "tab.shop.short", icon: ShoppingBag },
+    51→  { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
+    52→  { tab: "rdv", labelKey: "tab.rdv.short", icon: CalendarDays },
+    53→  { tab: "profil", labelKey: "tab.profile", icon: User },
+    54→];
+    55→
+    56→const TITLES: Record<ClientTab, string> = {
+    57→  accueil: "title.home",
+    58→  diagnostic: "title.diag",
+    59→  boutique: "title.shop",
+    60→  rdv: "title.rdv",
+    61→  chat: "title.chat",
+    62→  profil: "title.profile",
+    63→};
+    64→
+    65→/** Ordre de balayage mobile (swipe horizontal gauche/droite — TikTok-like) */
+    66→const SWIPE_ORDER: ClientTab[] = ["accueil", "boutique", "diagnostic", "rdv", "profil"];
+    67→
+    68→// ─── Code splitting par onglet (t. 63-a) ───
+    69→// Les écrans lourds rejoignent le bundle uniquement à la demande : le premier
+    70→// clic Diagnostic / Boutique / RDV / Chat télécharge le chunk dédié (visible
+    71→// dans l'onglet Network du navigateur). HomeScreen et Onboarding restent
+    72→// eager (premier rendu complet). Exports nommés → default attendu par lazy.
+    73→const DiagnosticScreen = lazy(() => import("./DiagnosticScreen").then((m) => ({ default: m.DiagnosticScreen })));
+    74→const ShopScreen = lazy(() => import("./ShopScreen").then((m) => ({ default: m.ShopScreen })));
+    75→const BookingScreen = lazy(() => import("./BookingScreen").then((m) => ({ default: m.BookingScreen })));
+    76→const ChatScreen = lazy(() => import("./ChatScreen").then((m) => ({ default: m.ChatScreen })));
+    77→// Cloche + Sheet notifications : lazy aussi (socket.io du header sort du premier rendu)
+    78→const NotificationCenter = lazy(() => import("./NotificationCenter").then((m) => ({ default: m.NotificationCenter })));
+    79→
+    80→/** Squelette d'attente d'onglet — spinner discret pendant le chargement du chunk */
+    81→function TabLoading() {
+    82→  return (
+    83→    <div role="status" aria-busy="true" className="grid place-items-center py-24">
+    84→      <span className="flex flex-col items-center gap-3">
+    85→        <Loader2 size={22} className="animate-spin text-muted-foreground" aria-hidden="true" />
+    86→        <span className="sr-only">Chargement…</span>
+    87→      </span>
+    88→    </div>
+    89→  );
+    90→}
+    91→
+    92→/** Cloche en attente — même empreinte (h-11 w-11) que le bouton final : zéro décalage du header */
+    93→function BellLoading() {
+    94→  return (
+    95→    <span role="status" aria-busy="true" className="grid place-items-center h-11 w-11">
+    96→      <Loader2 size={20} className="animate-spin text-muted-foreground" aria-hidden="true" />
+    97→      <span className="sr-only">Chargement…</span>
+    98→    </span>
+    99→  );
+   100→}
+   101→
+   102→export function ClientApp() {
+   103→  const { t } = useT();
+   104→  const user = useKene((s) => s.user);
+   105→  const tab = useKene((s) => s.clientTab);
+   106→  const setClientTab = useKene((s) => s.setClientTab);
+   107→  const setSpace = useKene((s) => s.setSpace);
+   108→  const cartCount = useKene((s) => s.cart.reduce((n, l) => n + l.qty, 0));
+   109→  // Gate d'hydratation kene-store (contrat t. 63-b) : _keneHydrated passe à
+   110→  // true quand la relecture localStorage est finie (onRehydrateStorage, même
+   111→  // en cas d'erreur — la porte ne se verrouille jamais). Typage tolérant : si
+   112→  // 63-b était absent, fallback true = comportement d'avant (zéro régression).
+   113→  const hydrated = useKene((s) => (s as { _keneHydrated?: boolean })._keneHydrated ?? true);
+   114→  // Badge chat honnête : faux par défaut — seul un message ENTRANT (événement
+   115→  // « kene:chat:new » dispatché par ChatScreen) l'allume, voir l'effet plus bas
+   116→  const [chatUnread, setChatUnread] = useState(false);
+   117→  const [pendingZone, setPendingZone] = useState<BodyZone | null>(null);
+   118→  const scrollRef = useRef<HTMLDivElement | null>(null);
+   119→  // Fil de Kente : l'introduction immersive ne se montre qu'une fois
+   120→  // (useSyncExternalStore sur localStorage — sans mismatch d'hydratation)
+   121→  const introDone = useIntroDone();
+   122→
+   123→  // ─── Pull-to-refresh (Instagram / Wave) ───
+   124→  const [pull, setPull] = useState(0);          // distance d'étirement (px, résistive)
+   125→  const [refreshing, setRefreshing] = useState(false);
+   126→  const [refreshKey, setRefreshKey] = useState(0);
+   127→  const pullStart = useRef<{ y: number; x: number; atTop: boolean } | null>(null);
+   128→  const wasRefreshing = useRef(false);
+   129→
+   130→  // ─── Swipe horizontal entre onglets (TikTok) ───
+   131→  const swipeStart = useRef<{ x: number; y: number; ok: boolean } | null>(null);
+   132→
+   133→  // ─── Direction de transition (sens de navigation) + connectivité ───
+   134→  const [navDir, setNavDir] = useState<1 | -1>(1);
+   135→  const [online, setOnline] = useState(true);
+   136→
+   137→  // Bandeau hors-ligne — résilience réseau façon Wave
+   138→  useEffect(() => {
+   139→    const update = () => setOnline(isOnline());
+   140→    update();
+   141→    window.addEventListener("online", update);
+   142→    window.addEventListener("offline", update);
+   143→    return () => {
+   144→      window.removeEventListener("online", update);
+   145→      window.removeEventListener("offline", update);
+   146→    };
+   147→  }, []);
+   148→
+   149→  // Relecture du store persisté (kene-store, skipHydration t. 63-b) — UNE fois
+   150→  // au montage, idempotente (le store a aussi son propre filet « load ») :
+   151→  // c'est ceci qui restaure l'état persisté (space/user/panier/onglet) après
+   152→  // le premier rendu client — le BootSkeleton couvre exactement cette fenêtre.
+   153→  useEffect(() => {
+   154→    void useKene.persist.rehydrate();
+   155→  }, []);
+   156→
+   157→  // Badge chat honnête : l'événement « kene:chat:new » (CustomEvent, détail
+   158→  // { at } — dispatché par ChatScreen, contrat figé t. 63) n'allume le point
+   159→  // QUE si tu n'es pas déjà sur l'onglet chat (lecture fraîche via getState,
+   160→  // l'effet ne se réabonne jamais). Aller sur l'onglet chat → goTab éteint.
+   161→  useEffect(() => {
+   162→    const onNewChatMessage = () => {
+   163→      if (useKene.getState().clientTab !== "chat") setChatUnread(true);
+   164→    };
+   165→    window.addEventListener("kene:chat:new", onNewChatMessage);
+   166→    return () => window.removeEventListener("kene:chat:new", onNewChatMessage);
+   167→  }, []);
+   168→
+   169→  // Remonte en haut du flux à chaque changement d'onglet (le tirage est
+   170→  // réinitialisé par les gestionnaires tactiles, jamais par cet effet)
+   171→  useEffect(() => {
+   172→    scrollRef.current?.scrollTo({ top: 0 });
+   173→  }, [tab]);
+   174→
+   175→  function goTab(t: ClientTab) {
+   176→    if (t !== tab) {
+   177→      const from = SWIPE_ORDER.indexOf(tab);
+   178→      const to = SWIPE_ORDER.indexOf(t);
+   179→      if (from >= 0 && to >= 0) setNavDir(to > from ? 1 : -1);
+   180→      haptic(HAPTIC.tap);
+   181→    }
+   182→    if (t === "chat") setChatUnread(false);
+   183→    setClientTab(t);
+   184→  }
+   185→
+   186→  // ─── Gestes tactiles du conteneur de flux ───
+   187→  const onTouchStart = (e: React.TouchEvent) => {
+   188→    const el = scrollRef.current;
+   189→    const t = e.touches[0];
+   190→    pullStart.current = { y: t.clientY, x: t.clientX, atTop: !el || el.scrollTop <= 0 };
+   191→    // le swipe est ignoré s'il démarre dans une rangée horizontale scrollable
+   192→    const target = e.target as HTMLElement;
+   193→    const inScrollRow = !!target.closest("[data-scroll-row]");
+   194→    swipeStart.current = { x: t.clientX, y: t.clientY, ok: !inScrollRow };
+   195→  };
+   196→
+   197→  const onTouchMove = (e: React.TouchEvent) => {
+   198→    if (refreshing) return;
+   199→    const s = pullStart.current;
+   200→    if (!s || !s.atTop) return;
+   201→    const t = e.touches[0];
+   202→    const dy = t.clientY - s.y;
+   203→    const dx = t.clientX - s.x;
+   204→    if (dy <= 0 || Math.abs(dx) > Math.abs(dy)) return; // tirage vertical uniquement
+   205→    setPull(Math.min(dy / 2.2, 96)); // résistif : l'icône s'alourdit en fin de course
+   206→  };
+   207→
+   208→  const onTouchEnd = (e: React.TouchEvent) => {
+   209→    // 1) fin de tirage → actualisation si seuil franchi
+   210→    const dist = pull;
+   211→    pullStart.current = null;
+   212→    if (dist > 56) {
+   213→      haptic(HAPTIC.medium);
+   214→      setRefreshing(true);
+   215→      setPull(0);
+   216→      wasRefreshing.current = true;
+   217→      setRefreshKey((k) => k + 1);
+   218→    } else {
+   219→      setPull(0);
+   220→    }
+   221→    // 2) swipe horizontal → onglet voisin
+   222→    const s = swipeStart.current;
+   223→    swipeStart.current = null;
+   224→    if (!s || !s.ok || refreshing) return;
+   225→    const t = e.changedTouches[0];
+   226→    const dx = t.clientX - s.x;
+   227→    const dy = t.clientY - s.y;
+   228→    if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+   229→    const idx = SWIPE_ORDER.indexOf(tab);
+   230→    if (idx < 0) return;
+   231→    const next = dx < 0 ? SWIPE_ORDER[idx + 1] : SWIPE_ORDER[idx - 1];
+   232→    if (next) {
+   233→      setNavDir(dx < 0 ? 1 : -1);
+   234→      haptic(HAPTIC.tap);
+   235→      setClientTab(next);
+   236→    }
+   237→  };
+   238→
+   239→  // Le fil signale la fin de son rechargement (déclenché par refreshKey)
+   240→  const onRefreshed = useCallback(() => {
+   241→    if (!wasRefreshing.current) return;
+   242→    wasRefreshing.current = false;
+   243→    setRefreshing(false);
+   244→    haptic(HAPTIC.success);
+   245→    toast.success("Fil actualisé", { description: `Mis à jour à ${formatTime(new Date())}` });
+   246→  }, []);
+   247→
+   248→  const onScanZone = useCallback(
+   249→    (z: BodyZone) => {
+   250→      setPendingZone(z);
+   251→      setClientTab("diagnostic");
+   252→    },
+   253→    [setClientTab],
+   254→  );
+   255→
+   256→  const onZoneConsumed = useCallback(() => setPendingZone(null), []);
+   257→
+   258→  // Store persisté pas encore relu → squelette d'amorçage (évite le flash
+   259→  // d'onboarding avant la restauration de la session — t. 63)
+   260→  if (!hydrated) return <BootSkeleton />;
+   261→
+   262→  if (!user) {
+   263→    if (!introDone) return <KenteIntro />;
+   264→    return <Onboarding />;
+   265→  }
+   266→
+   267→  const first = user.name.split(" ")[0];
+   268→
+   269→  return (
+   270→    <div className="h-dvh flex overflow-hidden bg-background">
+   271→      {/* ───────── Rail latéral tablette + desktop (md+) ───────── */}
+   272→      <aside
+   273→        aria-label="Navigation principale"
+   274→        className="hidden md:flex w-[84px] xl:w-[248px] shrink-0 flex-col border-r border-border bg-card/60 backdrop-blur"
+   275→      >
+   276→        <div className="h-16 flex items-center px-4 xl:px-5 border-b border-border/60">
+   277→          <span className="hidden xl:block">
+   278→            <KeneLogo size={34} withText />
+   279→          </span>
+   280→          <span className="xl:hidden mx-auto">
+   281→            <KeneLogo size={34} />
+   282→          </span>
+   283→        </div>
+   284→
+   285→        <nav className="flex-1 overflow-y-auto pretty-scroll px-2.5 xl:px-4 py-4 flex flex-col gap-1.5">
+   286→          {NAV_DESKTOP.map((n) => {
+   287→            const active = tab === n.tab;
+   288→            const Icon = n.icon;
+   289→            if (n.scan) {
+   290→              return (
+   291→                <button
+   292→                  key={n.tab}
+   293→                  onClick={() => goTab(n.tab)}
+   294→                  aria-current={active ? "page" : undefined}
+   295→                  className={cn(
+   296→                    "group rounded-2xl transition-all focus-visible:outline-2 focus-visible:outline-primary",
+   297→                    "xl:flex xl:flex-row xl:items-center xl:justify-start xl:gap-3 xl:px-3 xl:h-12 xl:bg-gradient-to-r xl:from-[#A0522D] xl:to-[#8B1A3B] xl:text-[#FFF9EC] xl:shadow-md xl:hover:shadow-lg",
+   298→                    "flex flex-col items-center gap-1 py-2.5",
+   299→                    active && "ring-2 ring-[#C8951E]/40 xl:ring-[#FFF9EC]/60",
+   300→                  )}
+   301→                >
+   302→                  <span className="grid place-items-center h-11 w-11 xl:h-6 xl:w-6 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] xl:bg-transparent xl:shadow-none shadow-md group-hover:scale-105 transition-transform">
+   303→                    <NeaOnnimIcon size={22} className="xl:hidden" />
+   304→                    <NeaOnnimIcon size={19} className="hidden xl:block" />
+   305→                  </span>
+   306→                  <span className={cn("text-[10px] xl:text-sm font-semibold xl:font-bold tracking-wide", active ? "text-primary xl:text-inherit" : "text-muted-foreground xl:text-inherit")}>
+   307→                    {t(n.labelKey)}
+   308→                  </span>
+   309→                </button>
+   310→              );
+   311→            }
+   312→            return (
+   313→              <button
+   314→                key={n.tab}
+   315→                onClick={() => goTab(n.tab)}
+   316→                aria-current={active ? "page" : undefined}
+   317→                aria-label={`${t(n.labelKey)}${n.tab === "chat" && chatUnread ? " — 1 nouveau message" : ""}${n.tab === "boutique" && cartCount > 0 ? ` — ${cartCount} article${cartCount > 1 ? "s" : ""} au panier` : ""}`}
+   318→                className={cn(
+   319→                  "relative flex flex-col xl:flex-row items-center justify-center xl:justify-start gap-1 xl:gap-3.5 py-2.5 xl:py-0 xl:h-12 xl:px-3 rounded-2xl transition-colors focus-visible:outline-2 focus-visible:outline-primary",
+   320→                  active ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+   321→                )}
+   322→              >
+   323→                <span className="relative">
+   324→                  <Icon className={active ? "size-[22px] font-bold" : "size-[22px]"} />
+   325→                  {n.tab === "chat" && chatUnread && (
+   326→                    <span className="absolute -top-1 -right-1.5 h-2.5 w-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-card" aria-hidden="true" />
+   327→                  )}
+   328→                  {n.tab === "boutique" && cartCount > 0 && (
+   329→                    <motion.span
+   330→                      key={cartCount}
+   331→                      initial={{ scale: 0.4 }}
+   332→                      animate={{ scale: 1 }}
+   333→                      transition={{ type: "spring", stiffness: 500, damping: 18 }}
+   334→                      className="absolute -top-1.5 -right-2 h-4 min-w-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-black grid place-items-center ring-2 ring-card" aria-hidden="true"
+   335→                    >
+   336→                      {cartCount}
+   337→                    </motion.span>
+   338→                  )}
+   339→                </span>
+   340→                <span className={cn("text-[10px] xl:text-[15px]", active ? "font-bold" : "font-medium")}>{t(n.labelKey)}</span>
+   341→                {active && <motion.span layoutId="side-indicator" className="hidden xl:block absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-full bg-primary" aria-hidden="true" />}
+   342→              </button>
+   343→            );
+   344→          })}
+   345→        </nav>
+   346→
+   347→        {/* Bas de sidebar : bascule d'espaces + micro légal */}
+   348→        <div className="border-t border-border/60 p-2.5 xl:p-4 flex flex-col gap-1.5">
+   349→          <button
+   350→            onClick={() => setSpace("pro")}
+   351→            className="flex flex-col xl:flex-row items-center justify-center xl:justify-start gap-1 xl:gap-3.5 py-2.5 xl:py-0 xl:h-11 xl:px-3 rounded-2xl text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+   352→          >
+   353→            <BriefcaseBusiness className="size-[18px]" />
+   354→            <span className="text-[9px] xl:text-[13px] font-medium">{t("space.pro")}</span>
+   355→          </button>
+   356→          <button
+   357→            onClick={() => setSpace("admin")}
+   358→            className="flex flex-col xl:flex-row items-center justify-center xl:justify-start gap-1 xl:gap-3.5 py-2.5 xl:py-0 xl:h-11 xl:px-3 rounded-2xl text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+   359→          >
+   360→            <ShieldCheck className="size-[18px]" />
+   361→            <span className="text-[9px] xl:text-[13px] font-medium">{t("space.admin")}</span>
+   362→          </button>
+   363→          <p className="hidden xl:block px-3 pt-2 text-[10px] leading-relaxed text-muted-foreground/70">
+   364→            Kènè POC — paiements simulés · estimations IA non médicales
+   365→          </p>
+   366→        </div>
+   367→      </aside>
+   368→
+   369→      {/* ───────── Colonne principale ───────── */}
+   370→      <div className="relative flex-1 min-w-0 flex flex-col h-full">
+   371→        {/* Header unique responsive : mobile = logo + actions ; desktop = titre + actions */}
+   372→        <header className="shrink-0 z-40 glass-kene backdrop-blur-[16px] border-b border-border/70">
+   373→          <div className="h-14 sm:h-16 flex items-center justify-between gap-2 px-3 sm:px-5">
+   374→            <div className="md:hidden">
+   375→              <KeneLogo size={32} withText />
+   376→            </div>
+   377→            {/* h1 de vue : présent pour les lecteurs d'écran à TOUS les formats
+   378→                (sr-only mobile, visible md+ — un seul h1 par vue) */}
+   379→            <div className="flex items-baseline gap-2.5 min-w-0">
+   380→              <h1 className="sr-only md:not-sr-only md:font-heading md:font-bold md:text-lg xl:text-xl truncate">{t(TITLES[tab])}</h1>
+   381→              <p className="hidden xl:block text-[11px] text-muted-foreground truncate">
+   382→                {tab === "accueil" ? `${t("home.greeting")} ${first} ✨` : tab === "chat" ? "Éducation cutanée · en ligne" : "Kènè — la beauté mélanoderme"}
+   383→              </p>
+   384→            </div>
+   385→            <div className="flex items-center gap-1">
+   386→              {/* Cloche notifications : flux temps réel (notify-service) —
+   387→                  lazy : socket.io + Sheet chargés dans leur propre chunk */}
+   388→              <Suspense fallback={<BellLoading />}>
+   389→                <NotificationCenter userId={user.id} />
+   390→              </Suspense>
+   391→              <button
+   392→                onClick={() => goTab("chat")}
+   393→                aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
+   394→                className="md:hidden relative grid place-items-center h-11 w-11 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition focus-visible:outline-2 focus-visible:outline-primary"
+   395→              >
+   396→                <MessageCircle size={21} />
+   397→                {chatUnread && <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-background" aria-hidden="true" />}
+   398→              </button>
+   399→              <ThemeToggle />
+   400→            </div>
+   401→          </div>
+   402→          <div aria-hidden="true" className="kente-band-soft h-[3px] w-full" />
+   403→          {/* Bandeau hors-ligne — le contenu affiché reste disponible (façon Wave) */}
+   404→          {!online && (
+   405→            <div role="status" className="flex items-center justify-center gap-2 bg-gold/15 text-gold-text text-[11px] font-semibold py-1.5 border-b border-gold/30">
+   406→              <WifiOff size={13} aria-hidden="true" />
+   407→              {t("common.offline")}
+   408→            </div>
+   409→          )}
+   410→        </header>
+   411→
+   412→        {/* Zone de flux — scroll interne (l'app ne scrolle jamais le document)
+   413→            Gestes : tirer-actualiser + balayage horizontal entre onglets (tactile) */}
+   414→        <div
+   415→          ref={scrollRef}
+   416→          onTouchStart={onTouchStart}
+   417→          onTouchMove={onTouchMove}
+   418→          onTouchEnd={onTouchEnd}
+   419→          className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pretty-scroll"
+   420→        >
+   421→          {/* Indicateur pull-to-refresh (Instagram) — icône qui descend avec le doigt */}
+   422→          {(pull > 0 || refreshing) && (
+   423→            <div
+   424→              aria-hidden="true"
+   425→              className="pointer-events-none absolute top-0 inset-x-0 z-30 flex flex-col items-center pt-2"
+   426→              style={{
+   427→                transform: `translateY(${refreshing ? 0 : Math.min(Math.max(pull - 44, 0), 52)}px)`,
+   428→                transition: pull > 0 ? "none" : "transform .3s ease",
+   429→              }}
+   430→            >
+   431→              <span className="grid place-items-center h-11 w-11 rounded-full glass-kene backdrop-blur-[16px] border border-border shadow-md">
+   432→                {refreshing ? (
+   433→                  <Loader2 size={20} className="animate-spin text-primary" />
+   434→                ) : (
+   435→                  <NeaOnnimIcon size={20} className="text-primary" />
+   436→                )}
+   437→              </span>
+   438→            </div>
+   439→          )}
+   440→          {refreshing && <span role="status" className="sr-only">Actualisation du fil en cours</span>}
+   441→          <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-36 md:pb-10">
+   442→            <AnimatePresence mode="wait" initial={false}>
+   443→              <motion.div
+   444→                key={tab}
+   445→                initial={{ opacity: 0, x: 16 * navDir, y: 6 }}
+   446→                animate={{ opacity: 1, x: 0, y: 0 }}
+   447→                exit={{ opacity: 0, x: -12 * navDir, y: -4 }}
+   448→                transition={{ duration: 0.22, ease: "easeOut" }}
+   449→              >
+   450→                {/* Suspense DANS le motion.div : le squelette d'attente participe
+   451→                    à la transition d'onglet pendant le chargement du chunk */}
+   452→                <Suspense fallback={<TabLoading />}>
+   453→                  {tab === "accueil" && (
+   454→                    <ScreenBoundary name="Accueil">
+   455→                      <HomeScreen onScanZone={onScanZone} refreshKey={refreshKey} onRefreshed={onRefreshed} />
+   456→                    </ScreenBoundary>
+   457→                  )}
+   458→                  {tab === "diagnostic" && (
+   459→                    <ScreenBoundary name="Diagnostic">
+   460→                      <DiagnosticScreen pendingZone={pendingZone} onZoneConsumed={onZoneConsumed} />
+   461→                    </ScreenBoundary>
+   462→                  )}
+   463→                  {tab === "boutique" && (
+   464→                    <ScreenBoundary name="Boutique">
+   465→                      <ShopScreen />
+   466→                    </ScreenBoundary>
+   467→                  )}
+   468→                  {tab === "rdv" && (
+   469→                    <ScreenBoundary name="Rendez-vous">
+   470→                      <BookingScreen />
+   471→                    </ScreenBoundary>
+   472→                  )}
+   473→                  {tab === "chat" && (
+   474→                    <ScreenBoundary name="Chat">
+   475→                      <ChatScreen />
+   476→                    </ScreenBoundary>
+   477→                  )}
+   478→                  {tab === "profil" && (
+   479→                    <ScreenBoundary name="Profil">
+   480→                      <ProfileScreen />
+   481→                    </ScreenBoundary>
+   482→                  )}
+   483→                </Suspense>
+   484→              </motion.div>
+   485→            </AnimatePresence>
+   486→          </div>
+   487→        </div>
+   488→
+   489→        {/* ───────── Tab-bar mobile flottante — pilule de verre 2026 (façon Instagram/TikTok) ───────── */}
+   490→        <nav
+   491→          aria-label="Navigation principale mobile"
+   492→          className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom)]"
+   493→        >
+   494→          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-5 h-[64px] rounded-[26px] glass-kene backdrop-blur-[16px] border border-border/60 shadow-[0_14px_38px_-10px_rgba(28,17,9,0.42)]">
+   495→            {NAV_MOBILE.map((n) => {
+   496→              const active = tab === n.tab;
+   497→              const Icon = n.icon;
+   498→              if (n.scan) {
+   499→                return (
+   500→                  <button
+   501→                    key={n.tab}
+   502→                    onClick={() => goTab(n.tab)}
+   503→                    aria-current={active ? "page" : undefined}
+   504→                    aria-label={t("nav.scan.aria")}
+   505→                    className="relative flex flex-col items-center justify-end pb-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+   506→                  >
+   507→                    <span
+   508→                      className={cn(
+   509→                        "grid place-items-center h-[50px] w-[50px] -mt-7 rounded-full border-4 border-background shadow-lg transition-all active:scale-95",
+   510→                        "bg-gradient-to-br from-[#A0522D] to-[#8B1A3B]",
+   511→                      )}
+   512→                    >
+   513→                      <NeaOnnimIcon size={23} />
+   514→                    </span>
+   515→                    <span className={cn("text-[10px] font-semibold mt-0.5", active ? "text-primary" : "text-muted-foreground")}>{t(n.labelKey)}</span>
+   516→                  </button>
+   517→                );
+   518→              }
+   519→              return (
+   520→                <button
+   521→                  key={n.tab}
+   522→                  onClick={() => goTab(n.tab)}
+   523→                  aria-current={active ? "page" : undefined}
+   524→                  aria-label={t(n.labelKey) + (n.tab === "boutique" && cartCount > 0 ? ` — ${cartCount} article${cartCount > 1 ? "s" : ""} au panier` : "")}
+   525→                  className={cn(
+   526→                    "relative flex flex-col items-center justify-center gap-1 h-full transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+   527→                    active ? "text-primary" : "text-muted-foreground",
+   528→                  )}
+   529→                >
+   530→                  <motion.span
+   531→                    animate={active ? { scale: 1.12 } : { scale: 1 }}
+   532→                    transition={{ type: "spring", stiffness: 400, damping: 22 }}
+   533→                    className={cn("relative grid place-items-center rounded-full p-1.5 transition-colors", active && "bg-primary/15")}
+   534→                  >
+   535→                    <Icon className="size-[22px]" />
+   536→                    {n.tab === "boutique" && cartCount > 0 && (
+   537→                      <motion.span
+   538→                        key={cartCount}
+   539→                        initial={{ scale: 0.4 }}
+   540→                        animate={{ scale: 1 }}
+   541→                        transition={{ type: "spring", stiffness: 500, damping: 18 }}
+   542→                        className="absolute -top-1 -right-1.5 h-4 min-w-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-black grid place-items-center ring-2 ring-background" aria-hidden="true"
+   543→                      >
+   544→                        {cartCount}
+   545→                      </motion.span>
+   546→                    )}
+   547→                  </motion.span>
+   548→                  <span className={cn("text-[10px]", active ? "font-bold" : "font-semibold")}>{t(n.labelKey)}</span>
+   549→                </button>
+   550→              );
+   551→            })}
+   552→          </div>
+   553→        </nav>
+   554→      </div>
+   555→
+   556→      {/* ───────── Rail droit desktop (xl+, accueil) — façon Instagram web ───────── */}
+   557→      {tab === "accueil" && (
+   558→        <aside aria-label="Informations et raccourcis" className="hidden xl:flex w-[320px] shrink-0 flex-col gap-4 border-l border-border bg-card/40 backdrop-blur p-5 overflow-y-auto pretty-scroll">
+   559→          {/* Mini-profil */}
+   560→          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+   561→            <div className="flex items-center gap-3.5">
+   562→              <span className="grid place-items-center h-14 w-14 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] font-heading font-bold text-xl shadow">
+   563→                {first.charAt(0)}
+   564→              </span>
+   565→              <div className="min-w-0">
+   566→                <p className="font-heading font-bold truncate">{user.name}</p>
+   567→                <p className="text-[11px] text-muted-foreground truncate">{user.phone}</p>
+   568→                <p className="text-[11px] text-muted-foreground truncate">{user.city || "Abidjan"} · {user.fitzpatrick ? `Fitzpatrick ${user.fitzpatrick}` : "phototype à définir"}</p>
+   569→              </div>
+   570→            </div>
+   571→            <button
+   572→              onClick={() => goTab("profil")}
+   573→              className="mt-3.5 h-10 w-full rounded-xl border border-primary/40 bg-primary/10 text-primary text-xs font-bold active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+   574→            >
+   575→              {t("rail.view.profile")}
+   576→            </button>
+   577→          </div>
+   578→
+   579→          {/* Actions rapides */}
+   580→          <div className="grid grid-cols-2 gap-3">
+   581→            <button onClick={() => goTab("diagnostic")} className="rounded-2xl bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] text-[#FFF9EC] p-3.5 text-left shadow-md active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label={t("home.scan.cta")}>
+   582→              <NeaOnnimIcon size={20} />
+   583→              <p className="text-xs font-bold mt-1.5 leading-tight">Scanner<br />ma peau</p>
+   584→            </button>
+   585→            <button onClick={() => goTab("boutique")} className="rounded-2xl border border-border bg-card p-3.5 text-left shadow-sm active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Boutique">
+   586→              <ShoppingBag size={20} className="text-primary" />
+   587→              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Boutique<br />botaniques</p>
+   588→            </button>
+   589→            <button onClick={() => goTab("rdv")} className="rounded-2xl border border-border bg-card p-3.5 text-left shadow-sm active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Rendez-vous">
+   590→              <CalendarDays size={20} className="text-primary" />
+   591→              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Prendre<br />RDV</p>
+   592→            </button>
+   593→            <button onClick={() => goTab("chat")} className="rounded-2xl border border-border bg-card p-3.5 text-left shadow-sm active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Dr. Kènè — chat">
+   594→              <MessageCircle size={20} className="text-primary" />
+   595→              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Dr. Kènè<br />chat IA</p>
+   596→            </button>
+   597→          </div>
+   598→
+   599→          {/* Mentions légales */}
+   600→          <div className="mt-auto rounded-2xl border border-dashed border-border bg-card/60 p-4 text-[11px] leading-relaxed text-muted-foreground">
+   601→            <p className="font-heading font-bold text-xs text-foreground/80 mb-1.5">Kènè — POC</p>
+   602→            <p>Paiements Wave / Orange Money simulés · estimations IA non médicales.</p>
+   603→            <p className="mt-1">Conforme CNPS CI / IPM SN / SYSCOHADA.</p>
+   604→            <p className="mt-2 font-heading text-primary">« La beauté mélanoderme, enfin comprise. »</p>
+   605→          </div>
+   606→        </aside>
+   607→      )}
+   608→    </div>
+   609→  );
+   610→}
+   611→

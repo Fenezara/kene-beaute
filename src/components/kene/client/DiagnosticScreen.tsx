@@ -7,7 +7,7 @@ import {
   ImagePlus, Loader2, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Sparkles, Sunrise, TriangleAlert, X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiGet, apiPost, resizeImage } from "@/lib/kene/api";
+import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
 import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
 import { BODY_ZONES, SPECTRAL_VIEWS, type BodyZone, type DiagnosisResult, type Indicator } from "@/lib/kene/types";
 import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
@@ -57,6 +57,29 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const [checkedSteps, setCheckedSteps] = useState(0);
   const [diag, setDiag] = useState<{ id: string; result: DiagnosisResult; imageData: string; createdAt: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Résilience 502 (t. 66-b) : message discret sous la barre de progression
+  // pendant un retry / une récupération (annoncé aux lecteurs d'écran).
+  const [netNotice, setNetNotice] = useState<string | null>(null);
+  // Filet de sécurité : AUCUN interval/timeout de launch() ne survit au
+  // démontage (changement d'onglet pendant une analyse — les setState
+  // deviendraient des no-ops mais on rend les minuteurs morts de façon
+  // déterministe, quel que soit le chemin pris dans launch()).
+  const timersRef = useRef<{
+    timer?: ReturnType<typeof setInterval>;
+    steps?: ReturnType<typeof setInterval>;
+    timeouts: ReturnType<typeof setTimeout>[];
+  }>({ timeouts: [] });
+
+  const clearTimers = useCallback(() => {
+    const t = timersRef.current;
+    if (t.timer) { clearInterval(t.timer); t.timer = undefined; }
+    if (t.steps) { clearInterval(t.steps); t.steps = undefined; }
+    t.timeouts.forEach(clearTimeout);
+    t.timeouts = [];
+  }, []);
+
+  useEffect(() => clearTimers, [clearTimers]);
 
   const [products, setProducts] = useState<ApiProduct[]>([]);
   // Fin des échecs silencieux : produits indisponibles → encart discret +
@@ -139,6 +162,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     setAnalyzing(true);
     setProgress(0);
     setCheckedSteps(0);
+    setNetNotice(null);
     const t0 = Date.now();
     const timer = setInterval(() => {
       setProgress((p) => Math.min(96, p + Math.random() * 7 + 2));
@@ -146,36 +170,120 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     const steps = setInterval(() => {
       setCheckedSteps((c) => Math.min(ANALYSIS_STEPS.length, c + 1));
     }, 1150);
+    timersRef.current.timer = timer;
+    timersRef.current.steps = steps;
 
-    try {
-      const r = await apiPost<{ diagnosis: ApiDiagnosis }>("/api/diagnoses", {
-        userId: user.id,
-        zone,
-        image,
-        fitzpatrick: user.fitzpatrick ?? undefined,
-        allergies: user.allergies ?? undefined,
-      });
-      const result = parseDiagnosis(r.diagnosis.resultJson);
-      if (!result) throw new Error("Résultat IA illisible");
-      // garantir une durée d'animation minimale (~3.4 s)
+    // Résultat acquis (POST direct ou récupéré après un 502) : même animation,
+    // durée minimale ~3,4 s, minuteurs suivis et nettoyés dans tous les cas.
+    function showResult(d: { id: string; result: DiagnosisResult; imageData: string; createdAt: string }, recovered = false) {
       const wait = Math.max(0, 3400 - (Date.now() - t0));
-      setTimeout(() => {
+      const to1 = setTimeout(() => {
         setProgress(100);
         setCheckedSteps(ANALYSIS_STEPS.length);
-        setTimeout(() => {
-          setDiag({ id: r.diagnosis.id, result, imageData: image, createdAt: r.diagnosis.createdAt });
+        const to2 = setTimeout(() => {
+          setDiag(d);
           setAnalyzing(false);
+          setNetNotice(null);
           setStep(3);
-          clearInterval(timer);
-          clearInterval(steps);
+          clearTimers();
+          if (recovered) {
+            toast.success("Analyse retrouvée — voici tes résultats", {
+              description: "Le réseau a été instable une seconde, mais ton diagnostic était bien enregistré.",
+            });
+          }
         }, 450);
+        timersRef.current.timeouts.push(to2);
       }, wait);
+      timersRef.current.timeouts.push(to1);
+    }
+
+    // Récupération après échec réseau : le diagnostic a très bien pu être
+    // ENREGISTRÉ avant le redémarrage du serveur (le back crée la ligne
+    // « pending » puis la passe à « done » avant de répondre). On va le
+    // chercher : done récent (< 4 min) → résultats ; pending → re-poll 3 s
+    // × 10 max. Retourne true si les résultats sont affichés.
+    async function tryRecover(): Promise<boolean> {
+      const RECENT_MS = 4 * 60 * 1000;
+      const findRecent = (list: ApiDiagnosis[] | undefined): ApiDiagnosis | undefined =>
+        (list ?? [])
+          .filter(
+            (d) =>
+              d.zone === zone &&
+              (d.status === "done" || d.status === "pending") &&
+              Date.now() - new Date(d.createdAt).getTime() < RECENT_MS,
+          )
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      try {
+        const first = findRecent((await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`)).diagnoses);
+        let found = first;
+        let polls = 0;
+        while (found?.status === "pending" && polls < 10) {
+          polls += 1;
+          setNetNotice("Récupération de ton analyse…");
+          await new Promise((res) => setTimeout(res, 3000));
+          const again = await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`);
+          found = findRecent(again.diagnoses);
+        }
+        if (!found || found.status !== "done") return false;
+        const result = parseDiagnosis(found.resultJson);
+        if (!result) return false;
+        showResult(
+          { id: found.id, result, imageData: diagImgSrc(found.imageData), createdAt: found.createdAt },
+          true,
+        );
+        return true;
+      } catch {
+        // Le GET lui-même est injoignable (serveur toujours au redémarrage) :
+        // échec final honnête, sans crash.
+        return false;
+      }
+    }
+
+    try {
+      // POST /api/diagnoses : 3 tentatives quand la gateway renvoie 502/503/504
+      // (fenêtre transitoire de redémarrage du serveur Next) — backoff 1,5 s
+      // puis 4 s. Les autres erreurs (400/404/429…) ne sont JAMAIS rejouées.
+      let r: { diagnosis: ApiDiagnosis } | undefined;
+      let fatal: unknown = new Error("Analyse impossible");
+      const backoffs = [1500, 4000];
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          r = await apiPost<{ diagnosis: ApiDiagnosis }>("/api/diagnoses", {
+            userId: user.id,
+            zone,
+            image,
+            fitzpatrick: user.fitzpatrick ?? undefined,
+            allergies: user.allergies ?? undefined,
+          });
+          break;
+        } catch (e) {
+          fatal = e;
+          const retryable = e instanceof ApiError && [502, 503, 504].includes(e.status);
+          if (!retryable || attempt === 2) break;
+          setNetNotice("Rétablissement de la connexion…");
+          await new Promise((res) => setTimeout(res, backoffs[attempt]));
+          setNetNotice(null);
+        }
+      }
+      if (!r) throw fatal;
+      const result = parseDiagnosis(r.diagnosis.resultJson);
+      if (!result) throw new Error("Résultat IA illisible");
+      showResult({ id: r.diagnosis.id, result, imageData: image, createdAt: r.diagnosis.createdAt });
     } catch (e) {
-      clearInterval(timer);
-      clearInterval(steps);
+      // 502/503/504 après 3 tentatives : tenter la récupération AVANT l'erreur.
+      const gatewayish = e instanceof ApiError && [502, 503, 504].includes(e.status);
+      if (gatewayish && (await tryRecover())) return;
+      clearTimers();
       setAnalyzing(false);
-      toast.error(e instanceof Error ? e.message : "Analyse impossible");
-      setStep(1);
+      setNetNotice(null);
+      toast.error(
+        gatewayish
+          ? "Moteur d'analyse momentanément injoignable — tes photos restent prêtes, retente dans un instant."
+          : e instanceof Error
+            ? e.message
+            : "Analyse impossible",
+      );
+      setStep(1); // retour capture : la photo est conservée
     }
   }
 
@@ -316,6 +424,12 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         <div className="w-full max-w-[320px] mt-5">
           <Progress value={progress} className="h-2" aria-label="Progression de l'analyse" />
           <p className="text-center text-[11px] text-muted-foreground mt-2">Vision par ordinateur spécialisée mélanoderme — 5 à 30 s</p>
+          {netNotice && (
+            <p role="status" className="mt-1.5 flex min-h-11 items-center justify-center gap-1.5 text-center text-[11px] font-medium text-primary">
+              <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+              <span aria-live="polite">{netNotice}</span>
+            </p>
+          )}
         </div>
       </div>
     );

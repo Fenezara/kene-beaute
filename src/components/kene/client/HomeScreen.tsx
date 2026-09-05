@@ -175,13 +175,27 @@ export function HomeScreen({
       {/* ───── Salutation ───── */}
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
+          {/* Filet kente — signature du bloc (décoratif) */}
+          <span
+            aria-hidden="true"
+            className="mb-1.5 block h-[3px] w-10 rounded-full bg-gradient-to-r from-[#C8951E] via-[#A0522D] to-[#3F7D3F] opacity-80"
+          />
           <p className="text-[11px] uppercase tracking-[0.16em] text-primary font-semibold">{t("home.greeting")}</p>
-          <h2 className="font-black text-[26px] leading-tight tracking-tight truncate"><span className="kente-text">{first}</span> ✨</h2>
+          <h2 className="font-heading font-black text-[29px] leading-tight tracking-tight truncate"><span className="kente-text">{first}</span> ✨</h2>
           <p className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
             <MapPin size={11} /> {user.city || "Abidjan"} · {user.fitzpatrick ? `Fitzpatrick ${user.fitzpatrick}` : "Phototype à définir"}
           </p>
         </div>
-        {data?.wallet && <WalletPill balance={data.wallet.balance} onClick={() => setClientTab("profil")} />}
+        <div className="flex shrink-0 items-center gap-2">
+          {data?.wallet && <WalletPill balance={data.wallet.balance} onClick={() => setClientTab("profil")} />}
+          {/* Avatar initiale — décoratif (le prénom est dans le h2) */}
+          <span
+            aria-hidden="true"
+            className="grid h-9 w-9 shrink-0 select-none place-items-center rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] font-heading text-sm font-bold text-[#FFF9EC] ring-2 ring-[#C8951E]/40"
+          >
+            {(first.charAt(0) || "K").toUpperCase()}
+          </span>
+        </div>
       </header>
 
       {/* ───── Bannière d'installation PWA (auto-masquée : installée / fermée / standalone) ───── */}
