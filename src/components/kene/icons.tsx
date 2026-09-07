@@ -260,6 +260,45 @@ export function KeneMark({ size = 40, className = "" }: { size?: number; classNa
   );
 }
 
+/** Emblème de marque Kènè — « le Sceau Kènè » : profil de visage en une seule
+ *  ligne d'or fusionnée au peigne Duafe (concept retenu par audit de marque
+ *  t. 75 — note 9/10). Double livraison claire/sombre : raster 1024 dont le
+ *  fond est calé au pixel près sur les tokens de page (#F8F1E4 / #14100B) →
+ *  l'art se pose sur la page SANS couture. Coins squircle 26 % (écho du
+ *  KeneMark). Réservé aux grands usages (≥ 56 px : splash, héro d'entrée,
+ *  communication) ; pour les petites tailles préférer KeneMark (SVG vectoriel,
+ *  crisp à toute échelle). next-themes attribute="class" → dark: variants. */
+export function KeneEmblem({ size = 96, className = "" }: { size?: number; className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`relative inline-block shrink-0 select-none overflow-hidden rounded-[26%] ${className}`}
+      style={{ width: size, height: size }}
+    >
+      {/* Livraison claire — fond exact du thème clair */}
+      <img
+        src="/brand/kene-emblem-light.png"
+        alt=""
+        width={size}
+        height={size}
+        decoding="async"
+        draggable={false}
+        className="absolute inset-0 h-full w-full object-cover dark:hidden"
+      />
+      {/* Livraison sombre — fond exact du thème sombre */}
+      <img
+        src="/brand/kene-emblem-dark.png"
+        alt=""
+        width={size}
+        height={size}
+        decoding="async"
+        draggable={false}
+        className="absolute inset-0 h-full w-full object-cover hidden dark:block"
+      />
+    </span>
+  );
+}
+
 /** Logo complet Kènè — lockup signature : badge Duafe or→terre, wordmark
  *  « Kènè » Fraunces (0.62×size), filet kente 3 segments or/terre/baobab,
  *  devise « Beauté mélanoderme ». Texte en var(--foreground/-muted-foreground). */

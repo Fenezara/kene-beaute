@@ -25,7 +25,7 @@ import {
   firstNameOf, forgetAccount, maskPhone, readLastAccount, type LastAccount,
 } from "@/lib/kene/last-account";
 import { AuroraBackdrop, Eyebrow, GlassCard, PrimaryCTA, Reveal, RevealItem } from "@/components/kene/ui2026";
-import { DuafeIcon, KeneLogo, KeneMark } from "@/components/kene/icons";
+import { DuafeIcon, KeneEmblem, KeneMark } from "@/components/kene/icons";
 import { useKene, type SessionUser } from "@/store/kene";
 import { Onboarding } from "./Onboarding";
 import { PhoneKeypad, otpErrorToast, requestOtp } from "./PhoneKeypad";
@@ -275,10 +275,21 @@ export function WelcomeThreshold() {
         {stage.phase === "landing" && (
           <motion.div key="landing" {...pageSlide} transition={{ duration: 0.3 }}
             className="mx-auto flex w-full max-w-[560px] flex-col px-5 pb-6 pt-6 sm:px-6 sm:pt-9">
-            {/* ── Marque ── */}
+            {/* ── Marque ── Sceau Kènè (t. 75) : l'art d'or se pose sans
+                couture sur le fond de page + wordmark éditorial serré ── */}
             <Reveal y={12}>
               <div className="flex items-center justify-between">
-                <KeneLogo size={40} withText />
+                <span className="flex items-center gap-3">
+                  <KeneEmblem size={56} className="drop-shadow-[0_2px_10px_rgba(200,149,30,0.18)]" />
+                  <span className="flex min-w-0 flex-col items-start leading-none">
+                    <span className="font-heading text-[21px] font-black leading-[1.05] tracking-[0.02em] text-foreground">
+                      Kènè
+                    </span>
+                    <span className="mt-[7px] text-[8px] font-semibold uppercase tracking-[0.24em] whitespace-nowrap text-muted-foreground">
+                      Beauté mélanoderme
+                    </span>
+                  </span>
+                </span>
                 <span className="rounded-full bg-[#6B2416]/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#FFF9EC]">
                   POC démo
                 </span>
