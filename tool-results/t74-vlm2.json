@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Voici le résultat de la vérification de la capture mobile :\n\n*   **Lignes décoratives :** Oui, les lignes ondulées (dorée et rose) traversent toujours le texte du grand titre (\"Ta peau, mélanoderme...\"). Cela semble être un choix stylistique délibéré pour créer un effet de superposition.\n*   **Badges (Espace Cliente/Entreprise) :** Oui, les badges sont parfaitement nets. Le texte et l'icône (\"ESPACE CLIENTE\" et \"ESPACE ENTREPRISE\") sont lisibles, bien contrastés par rapport aux photos d'arrière-plan et correctement positionnés dans le coin supérieur gauche de chaque carte.\n*   **Défauts visuels :** Aucun défaut majeur n'est visible. Il n'y a pas de coupure de texte inattendue ni de chevauchement gênant entre les éléments. Les boutons \"Entrer\" sont bien placés et la mise en page est fluide.\n*   **Général :** La mise en page est propre, l'espacement est cohérent et la hiérarchie visuelle est claire sur cette version mobile.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1788804540,
+  "id": "20260908020852727665829a304263",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "20260908020852727665829a304263",
+  "usage": {
+    "completion_tokens": 258,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 3772,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 4030
+  }
+}

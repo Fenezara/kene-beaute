@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "1) Non, les lignes dorées ne traversent pas le grand titre. Elles sont situées en dessous.\n2) Le tissage de lignes dorées se trouve juste au-dessus de la carte \"Espace Client\", séparant la section d'introduction des cartes d'action.\n3) Aucun défaut visuel majeur n'est visible sur cette capture.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1788804779,
+  "id": "202609080212557d746abd2e314555",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202609080212557d746abd2e314555",
+  "usage": {
+    "completion_tokens": 79,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 3745,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 3824
+  }
+}

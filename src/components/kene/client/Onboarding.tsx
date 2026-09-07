@@ -53,17 +53,22 @@ const PRO_COUNTRIES = [
 export function Onboarding({
   initialMode,
   initialPhone,
+  initialDevCode,
+  initialStep,
   onBack,
 }: {
   initialMode?: "client" | "pro";
   initialPhone?: string;
+  /** Pont pavé numérique (t. 74) : code déjà demandé → étape OTP directe. */
+  initialDevCode?: string;
+  initialStep?: 0 | 1;
   onBack?: () => void;
 } = {}) {
   const setUser = useKene((s) => s.setUser);
   const setProTenantId = useKene((s) => s.setProTenantId);
   const setSpace = useKene((s) => s.setSpace);
   const { t } = useT();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState<0 | 1 | 2>(initialStep ?? 0);
   // Reconnexion express : le numéro mémorisé arrive en E.164 → on retire le
   // préfixe +225 affiché séparément (les autres préfixes resteraient tels
   // quels — cas théorique POC mono-opérateur, garde-fou slice(0,14) intact).
@@ -73,7 +78,7 @@ export function Onboarding({
     return d.startsWith("225") ? d.slice(3) : raw;
   });
   const [name, setName] = useState("");
-  const [devCode, setDevCode] = useState("");
+  const [devCode, setDevCode] = useState(initialDevCode ?? "");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [isNew, setIsNew] = useState(false);

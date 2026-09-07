@@ -25,9 +25,7 @@ import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { AuroraBackdrop, IconBadge } from "@/components/kene/ui2026";
 import { useKene, type ClientTab } from "@/store/kene";
 import { useT } from "@/lib/kene/use-t";
-import { KenteIntro } from "@/components/kene/intro/KenteIntro";
-import { useIntroDone } from "@/components/kene/intro/introState";
-import { WelcomeDoors } from "./WelcomeDoors";
+import { WelcomeThreshold } from "./WelcomeThreshold";
 import { HomeScreen } from "./HomeScreen";
 import { ProfileScreen } from "./ProfileScreen";
 import { ScreenBoundary } from "./ScreenBoundary";
@@ -138,9 +136,6 @@ export function ClientApp() {
   const [chatUnread, setChatUnread] = useState(false);
   const [pendingZone, setPendingZone] = useState<BodyZone | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  // Fil de Kente : l'introduction immersive ne se montre qu'une fois
-  // (useSyncExternalStore sur localStorage — sans mismatch d'hydratation)
-  const introDone = useIntroDone();
 
   // ─── Pull-to-refresh (Instagram / Wave) ───
   const [pull, setPull] = useState(0);          // distance d'étirement (px, résistive)
@@ -290,12 +285,11 @@ export function ClientApp() {
   if (!hydrated) return <BootSkeleton />;
 
   if (!user) {
-    if (!introDone) return <KenteIntro />;
-    // Page d'accueil hors session (t. 73) : promesse + deux Portes
-    // (cliente / entreprise) + carte de reconnexion express pour celle qui
-    // revient — l'écran de connexion vit DANS les Portes ( WelcomeDoors →
-    // Onboarding) et garde son bouton retour.
-    return <WelcomeDoors />;
+    // LE SEUIL (t. 74) — une seule page avant les portails : hero cinématique,
+    // stories opt-in, portails image, reconnexion express, pavé numérique
+    // natif puis OTP. L'ancienne chaîne (intro forcée → portes → saisie
+    // classique) est retirée : plus AUCUN écran obligatoire avant le choix.
+    return <WelcomeThreshold />;
   }
 
   const first = user.name.split(" ")[0];

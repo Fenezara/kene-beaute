@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "Voici une description de l'interface **Stories** observée sur la capture mobile :\n\n*   **Barres de progression et navigation :** En haut de l'écran, on distingue trois barres horizontales fines ; la première est remplie d'une couleur dorée/orangée (indiquant que la story est active), tandis que les deux suivantes sont encore vides (gris clair). À droite, un bouton circulaire avec une croix permet de fermer l'overlay.\n*   **Typographie et informations contextuelles :** Le texte est élégant et hiérarchisé. On remarque un en-tête en capitales (« KÉNÉ • 30 SECONDES »), un numéro de séquence stylisé (« 01 ») en or, un titre principal audacieux en serif (« Ton visage, écouté ») et un sous-titre descriptif plus petit expliquant le diagnostic IA.\n*   **Mise en page visuelle et fond :** L'arrière-plan est une photographie plein écran (gros plan sur un visage/yeux) assombrie par un dégradé radial ou un overlay sombre pour garantir la lisibilité du texte blanc. Les éléments sont alignés à gauche en bas de l'écran, créant une composition épurée et moderne.\n\n**Verdict sur la carte :** Oui, elle est **très lisible et élégante**. L'utilisation d'une typographie serif forte (style éditorial), associée à des accents dorés et un contraste élevé sur l'image, confère à l'interface un aspect premium et sophistiqué, tout en restant parfaitement fonctionnelle.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1788804803,
+  "id": "202609080213139a9d719af30a4556",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202609080213139a9d719af30a4556",
+  "usage": {
+    "completion_tokens": 363,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 3736,
+    "prompt_tokens_details": {
+      "cached_tokens": 2
+    },
+    "total_tokens": 4099
+  }
+}
