@@ -260,22 +260,23 @@ export function KeneMark({ size = 40, className = "" }: { size?: number; classNa
   );
 }
 
-/** Emblème de marque Kènè — « le Sceau Kènè » : profil de visage en une seule
- *  ligne d'or fusionnée au peigne Duafe (concept retenu par audit de marque
- *  t. 75 — note 9/10). Double livraison claire/sombre : raster 1024 dont le
- *  fond est calé au pixel près sur les tokens de page (#F8F1E4 / #14100B) →
- *  l'art se pose sur la page SANS couture. Coins squircle 26 % (écho du
- *  KeneMark). Réservé aux grands usages (≥ 56 px : splash, héro d'entrée,
- *  communication) ; pour les petites tailles préférer KeneMark (SVG vectoriel,
- *  crisp à toute échelle). next-themes attribute="class" → dark: variants. */
+/** Emblème de marque Kènè — « le Médaillon Kènè » : portrait de femme en
+ *  profil, spirales de cheveux et peigne Duafe massif, illustration riche
+ *  aux ors antiques (concept 04b retenu par la fondatrice, t. 76 ; variante
+ *  claire assortie générée et validée 9/10). Double livraison claire/sombre
+ *  sur fond chaud propre : présentation MÉDAILLON (plaque orfévrée) — filet
+ *  or hairline + coins squircle 26 %, écho du filet crème du KeneMark.
+ *  Réservé aux grands usages (≥ 56 px : splash, héro d'entrée, com.) ; pour
+ *  les petites tailles préférer KeneMark (SVG vectoriel, crisp à toute
+ *  échelle). next-themes attribute="class" → dark: variants. */
 export function KeneEmblem({ size = 96, className = "" }: { size?: number; className?: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`relative inline-block shrink-0 select-none overflow-hidden rounded-[26%] ${className}`}
+      className={`relative inline-block shrink-0 select-none overflow-hidden rounded-[26%] ring-1 ring-[#C8951E]/35 dark:ring-[#E3B04B]/30 ${className}`}
       style={{ width: size, height: size }}
     >
-      {/* Livraison claire — fond exact du thème clair */}
+      {/* Livraison claire — portrait riche sur crème chaud */}
       <img
         src="/brand/kene-emblem-light.png"
         alt=""
@@ -285,7 +286,7 @@ export function KeneEmblem({ size = 96, className = "" }: { size?: number; class
         draggable={false}
         className="absolute inset-0 h-full w-full object-cover dark:hidden"
       />
-      {/* Livraison sombre — fond exact du thème sombre */}
+      {/* Livraison sombre — portrait riche sur espresso rayonnant */}
       <img
         src="/brand/kene-emblem-dark.png"
         alt=""
