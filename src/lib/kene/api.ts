@@ -53,7 +53,13 @@ async function handle<T>(res: Response): Promise<T> {
         description: sec > 0 ? `Réessaie dans ${formatDelay(sec)}` : "Réessaie dans un instant",
       });
     }
-    const msg = body?.error ?? `Erreur ${res.status}`;
+    // 502/503/504 : la gateway renvoie du HTML (pas de body.error) — un message
+    // humain plutôt qu'un « Erreur 502 » brut qui fait croire à un bug applicatif
+    // (t. 77 : la fondatrice a lu ce code tel quel sur la carte score de l'accueil).
+    const gatewayish = res.status === 502 || res.status === 503 || res.status === 504;
+    const msg =
+      body?.error ??
+      (gatewayish ? "Connexion au serveur instable — réessaie dans un instant" : `Erreur ${res.status}`);
     throw new ApiError(msg, res.status);
   }
   return data as T;
