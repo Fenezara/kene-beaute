@@ -49,15 +49,20 @@ const smooth01 = (t: number): number => {
 export function headRadius(d: THREE.Vector3): number {
   let r = 0.5;
   r *= 1 + 0.05 * smooth01(d.y + 0.15) * smooth01((1 - d.z) * 0.9); // occiput plein
+  r *= 1 + 0.02 * smooth01((d.y - 0.35) / 0.45) * smooth01(d.z * 0.9); // front bombé (t. 77)
   const jaw = smooth01((-d.y - 0.05) / 0.7); // effilement mandibulaire
   r *= 1 - 0.2 * jaw * (0.5 + 0.5 * Math.abs(d.x));
   r += 0.055 * bump(d, 0, -0.88, 0.48, 0.1); // menton
+  r += 0.012 * bump(d, 0, -0.84, 0.5, 0.05); // bout du menton (t. 77)
   r += 0.026 * bump(d, 0, 0.3, 0.95, 0.16); // arcade sourcilière
   r -= 0.03 * (bump(d, 0.36, 0.18, 0.91, 0.075) + bump(d, -0.36, 0.18, 0.91, 0.075)); // orbites
+  r += 0.016 * (bump(d, 0.3, 0.19, 0.94, 0.05) + bump(d, -0.3, 0.19, 0.94, 0.05)); // globes oculaires (t. 77)
   r += 0.06 * bump(d, 0, 0.03, 1, 0.055); // arête nasale
   r += 0.03 * (bump(d, 0.56, -0.16, 0.6, 0.1) + bump(d, -0.56, -0.16, 0.6, 0.1)); // pommettes
+  r -= 0.014 * (bump(d, 0.16, -0.2, 0.92, 0.045) + bump(d, -0.16, -0.2, 0.92, 0.045)); // sillons nasogéniens (t. 77)
   r += 0.045 * (bump(d, 1, -0.06, 0.06, 0.075) + bump(d, -1, -0.06, 0.06, 0.075)); // oreilles
   r += 0.022 * bump(d, 0, -0.55, 0.83, 0.07); // lèvres
+  r -= 0.01 * bump(d, 0, -0.48, 0.86, 0.035); // sillon sous-nasal (t. 77)
   return r;
 }
 

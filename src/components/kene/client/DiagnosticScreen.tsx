@@ -370,15 +370,16 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     const t0 = Date.now();
     try {
       // POST /api/diagnoses : répond 202 en < 1 s avec la ligne "pending"
-      // (pipeline asynchrone t. 71). 3 tentatives conservées (66-b) quand la
-      // gateway renvoie 502/503/504 (fenêtre transitoire de redémarrage du
-      // serveur Next) — backoff 1,5 s puis 4 s. Les autres erreurs
-      // (400/404/429…) ne sont JAMAIS rejouées ; chaque retry crée une
-      // NOUVELLE ligne côté serveur (comportement 66-b conservé).
+      // (pipeline asynchrone t. 71). 4 tentatives (t. 77 : 3 → 4, backoff
+      // jusqu'à 8 s ≈ ~13,5 s de fenêtre) quand la gateway renvoie
+      // 502/503/504 (recompilation/restart du serveur Next en dev) — backoff
+      // 1,5 s → 4 s → 8 s. Les autres erreurs (400/404/429…) ne sont JAMAIS
+      // rejouées ; chaque retry crée une NOUVELLE ligne côté serveur si le
+      // POST a échoué AVANT d'atteindre l'app (échec réseau = rien reçu).
       let r: { diagnosis: ApiDiagnosis } | undefined;
       let fatal: unknown = new Error("Analyse impossible");
-      const backoffs = [1500, 4000];
-      for (let attempt = 0; attempt < 3; attempt += 1) {
+      const backoffs = [1500, 4000, 8000];
+      for (let attempt = 0; attempt < 4; attempt += 1) {
         try {
           r = await apiPost<{ diagnosis: ApiDiagnosis }>("/api/diagnoses", {
             userId: user.id,
@@ -391,7 +392,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         } catch (e) {
           fatal = e;
           const retryable = e instanceof ApiError && [502, 503, 504].includes(e.status);
-          if (!retryable || attempt === 2) break;
+          if (!retryable || attempt === 3) break;
           setNetNotice("Rétablissement de la connexion…");
           await new Promise((res) => setTimeout(res, backoffs[attempt]));
           setNetNotice(null);

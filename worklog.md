@@ -2082,3 +2082,32 @@ Stage Summary:
 - Le logo de Kènè est désormais le MÉDAILLON 04b choisi par la fondatrice : portrait de femme aux spirales d'or et peigne Duafe massif, double livraison claire (générée assortie, 9/10) / sombre (artefact texte chirurgical par recadrage y=144), présenté en plaque orfévrée à filet or — système de marque 3 étages inchangé (Médaillon ≥ 56 px, KeneMark SVG < 56 px, wordmark typographique).
 - Swap transparent : composant et intégrations (splash + Seuil) inchangés, seuls les 2 PNG ont changé — validation E2E complète des 3 modes.
 - Leçons : (1) l'analyse de luminance par ligne à 1 px près localise un artefact mieux qu'un seuil global ; (2) un fond en dégradé interdit l'intégration « sans couture » → assumer une présentation d'objet (médaillon/plaque) plutôt que forcer un fond plat ; (3) générer la variante manquante DANS LE MÊME STYLE avec un brief descriptif complet (composition + couleurs en mots) donne une paire cohérente du premier coup.
+
+---
+Task ID: 77
+Agent: main (Z.ai Code)
+Task: Trois problèmes signalés par la fondatrice : (1) logo 04b invisible, (2) « Ton Jumeau de Peau » pas assez réel, (3) erreur 502 sur l'analyse de peau. + question monétisation.
+
+Work Log:
+- Diagnostic des 3 problèmes en parallèle : services tous actifs (3000/81/3004), emblèmes bien servis via :81 (200, ~105 Ko) → le « logo invisible » = le médaillon n'apparaissait QUE sur splash + Seuil (jamais dans l'app pour une utilisatrice connectée).
+- 502 : POST /api/diagnoses répondait 202 en 17 ms mais dev.log montrait 2× `[kene:vlm] diagnostic fallback: Délai dépassé (45 s)` → le VLM vision glm-4.6v mettait 39-77 s (latence dominée par la GÉNÉRATION de tokens, pas l'image : tests 1×1 px 885 ms, 512 px 5 s, prompt détaillé 31-50 s, prompt minimal 12-18 s, variance jusqu'à 77 s).
+- Mesures root cause supplémentaires : le 03:08 le next-server a été OOM-tué (dmesg : anon-rss 2,25 Go) au compile de la route /api/diagnoses après l'ajout de `import sharp` pour un downscale serveur — même en lazy import + serverExternalPackages → sharp BANNI des routes API, downscale supprimé (le client compresse déjà à 820 px JPEG q0.8 ~86 Ko).
+- Redécouverte environnement : tout process lancé depuis une commande Bash est tué à la fin de la commande (même setsid+nohup+disown) → pattern double-fork orphelin `( setsid ... & )` qui reparente à PID 1 PENDANT la commande → le dev server survit désormais entre les commandes.
+- REFACTOR vlm.ts en PIPELINE 2 PHASES : phase 1 = vision au FORMAT COMPACT (indicateurs en map {nom:score}, notes uniquement pour les 3 plus faibles via champ focus, marquages en tableaux courts → sortie ~600 chars vs ~1800) ; phase 2 = LLM texte glm-4.6 pour les recommandations personnalisées (~4 s) avec fallback ruleRecommendations() dérivé de l'analyse réelle (indicateurs les plus faibles → routines ciblées). Gardes : 40 s + 25 s retry + 15 s = 80 s < 100 s du poll front.
+- Réparateur extractJson en cascade : parse direct → clés nues quotées → ÉTIQUETTES NUES DANS LES TABLEAUX quotées (variante réelle mesurée : `[Joue G,25,55,...]` et `[Joue_gauche,220,550,...]` — underscore ajouté au pattern) → fermeture des crochets/accolades si troncature. Unit-testé sur 3 réponses fautives réelles capturées dans dev.log : toutes réparées.
+- Échelle auto ×10 des marquages : le modèle émet parfois une grille 0-1000 (500/850/220…) → division par 10 détectée si x/y > 100.
+- Retry phase 1 (2 tentatives) + DiagnosticScreen : échelle 502 passée de 3 tentatives (1,5/4 s) à 4 tentatives (1,5/4/8 s ≈ 13,5 s de fenêtre recompile).
+- JUMEAU RÉALISTE (SkinTwinScene) : matériau Phong (spéculaire chaud #6B4630, shininess 14-16 — le Lambert mat rendait « argile »), micro-texture de peau procédurale (canvas 128² : 900 pores clairs/sombres + 26 taches diffuses, RepeatWrapping ×3, contraste ±5 %), AO cuite par sommets (creux et sous-maxillaire assombris, facteur 0,82-1), géométries LISSES (SphereGeometry indexée + computeVertexNormals lisses vs Icosahedron non-indexée facettée — torse/cou/mains aussi, socle reste facetté), éclairage sculptural (hemisphereLight ciel-crème/sol-umber + clé dorée + contre ember + fill frontal).
+- Sculpture faciale raffinée (twinMath.headRadius) : front bombé, bout de menton, globes oculaires, sillons nasogéniens, sillon sous-nasal.
+- MÉDAILLON DANS L'APP (HomeScreen) : l'avatar initiale décoratif est remplacé par KeneEmblem 56 px (≥ 56 px conforme au système de marque 3 étages) avec drop-shadow doré.
+- E2E complet via :81 (session démo Mariam, quota purgé via bunx tsx + DATABASE_URL) : POST 202 en 238 ms → done t+36 s avec vlmUsed=true, score 78, 5 marquages réels (Front/Joue G/Joue D/Nez/Menton), 2 notes de focus, recommandations LLM personnalisées, badge « Fiabilité : Haute (analyse IA vision) ».
+- Audits VLM : médaillon « round golden-framed portrait medallion, ornate gold-toned border » dans l'en-tête accueil ; jumeau AVANT « low-poly, matte clay-like, visible geometric facets » → APRÈS « SMOOTH with organic rounded forms, subtle highlights and realistic sheen, features naturalistic ».
+- Console navigateur 0 erreur après clear (warning THREE.Clock déprécié inoffensif), agent-browser errors vide, dev.log sans ⨯, drag rotation du jumeau fonctionnel, lint 0 erreur, tsc propre (2 préexistantes examples/skills hors périmètre).
+- Serveur relancé en orphelin PID 1 (survit aux fins de commandes Bash) — plus de 502 de fenêtre de crash.
+
+Stage Summary:
+- 502 STRUCTURELLEMENT résolu : double cause (OOM sharp au compile + latence VLM > timeout) corrigée ; l'analyse retourne du VLM RÉEL en médiane ~17-36 s.
+- Jumeau de Peau : peau Phong + texture + AO + formes lisses → « réaliste » confirmé par audit VLM indépendant ; les données du jumeau sont maintenant de vraies zones détectées par vision (plus de marqueurs simulés en nominal).
+- Le médaillon 04b est visible dans l'app (en-tête accueil) en plus du splash et du Seuil.
+- Fichiers clés modifiés : src/lib/ai/vlm.ts (pipeline 2 phases), src/components/kene/client/DiagnosticScreen.tsx (retries 502), src/components/kene/skintwin/SkinTwinScene.tsx (réalisme), src/components/kene/skintwin/twinMath.ts (sculpture), src/components/kene/client/HomeScreen.tsx (médaillon), next.config.ts (serverExternalPackages sharp, défense).
+- Leçon clé : sharp ne doit JAMAIS être importé dans une route API Next (OOM-kill du next-server au compile Turbopack, 502 silencieux) ; le lancement de process persistants passe par le pattern double-fork orphelin.

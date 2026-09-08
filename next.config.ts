@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // sharp = module natif (.node) : à NE JAMAIS bundler par Turbopack dans une
+  // route API (t. 77 — même en import lazy, le next-server a été OOM-tué au
+  // compile : 502 gateway silencieux). Déclaré externe serveur en défense ;
+  // les routes API n'y font plus référence du tout (cf. lib/ai/vlm.ts).
+  serverExternalPackages: ["sharp"],
   /* config options here */
   typescript: {
     // Laissé à true : examples/ et skills/ restent INCLUS dans le tsconfig

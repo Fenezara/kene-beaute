@@ -28,7 +28,7 @@ import { formatDate, formatTime, scoreColor, readableTextColor, xof, CASHBACK_RA
 import { nextClientStep } from "@/lib/kene/followups";
 import { channelLabel, humanWhen } from "@/lib/kene/reminders";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
-import { NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
+import { KeneEmblem, NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
 import { InstallBanner } from "@/components/kene/pwa/InstallBanner";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
 import { GlassCard, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
@@ -192,12 +192,12 @@ export function HomeScreen({
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {data?.wallet && <WalletPill balance={data.wallet.balance} onClick={() => setClientTab("profil")} />}
-            {/* Avatar initiale — décoratif (le prénom est dans le h2) */}
-            <span
-              aria-hidden="true"
-              className="grid h-9 w-9 shrink-0 select-none place-items-center rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] k-glow-gold font-heading text-sm font-bold text-[#FFF9EC]"
-            >
-              {(first.charAt(0) || "K").toUpperCase()}
+            {/* Médaillon de marque (t. 77) — le 04b choisi par la fondatrice vit
+                AUSSI dans l'app (splash + Seuil ne suffisaient pas : une cliente
+                connectée ne les voit jamais). ≥ 56 px conformément au système
+                de marque 3 étages ; décoratif — le prénom est dans le h2. */}
+            <span aria-hidden="true" className="shrink-0 select-none">
+              <KeneEmblem size={56} className="drop-shadow-[0_2px_8px_rgba(200,149,30,0.22)]" />
             </span>
           </div>
         </header>
