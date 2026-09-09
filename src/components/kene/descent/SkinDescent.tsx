@@ -12,6 +12,7 @@ import { motion } from "framer-motion";
 import { ChevronDown, Layers, X } from "lucide-react";
 import type { Indicator } from "@/lib/kene/types";
 import { scoreColor } from "@/lib/kene/format";
+import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { useLoomMode } from "@/components/kene/loom/useLoomMode";
 
 const Descent3D = dynamic(() => import("./Descent3D"), { ssr: false, loading: () => null });
@@ -120,11 +121,19 @@ export function SkinDescent({
     const io = new IntersectionObserver((entries) => setActive(entries[0]?.isIntersecting ?? false), { threshold: 0.05 });
     io.observe(section);
     let raf = 0;
+    // Haptique des couches (t. 83-f) : chaque franchissement de couche
+    // (épiderme → derme → hypoderme) vibre doucement (no-op iOS).
+    let lastLayer = -1;
     const loop = () => {
       const rect = section.getBoundingClientRect();
       const total = Math.max(rect.height - window.innerHeight, 1);
       const p = Math.min(1, Math.max(0, -rect.top / total));
       progressRef.current = p;
+      const layer = p < 1 / 3 ? 0 : p < 2 / 3 ? 1 : 2;
+      if (layer !== lastLayer) {
+        if (lastLayer !== -1 && p > 0.05) haptic(HAPTIC.light);
+        lastLayer = layer;
+      }
       captionRefs.current.forEach((c) => {
         if (!c) return;
         const from = Number(c.dataset.from);

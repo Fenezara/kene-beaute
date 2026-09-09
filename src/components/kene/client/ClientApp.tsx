@@ -24,8 +24,10 @@ import { KeneLogo, NeaOnnimIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { AuroraBackdrop, IconBadge } from "@/components/kene/ui2026";
 import { useKene, type ClientTab } from "@/store/kene";
+import { replayDiagQueue } from "@/lib/kene/diag-queue";
 import { useT } from "@/lib/kene/use-t";
 import { WelcomeThreshold } from "./WelcomeThreshold";
+import { ThumbBar } from "./ThumbBar";
 import { HomeScreen } from "./HomeScreen";
 import { ProfileScreen } from "./ProfileScreen";
 import { ScreenBoundary } from "./ScreenBoundary";
@@ -160,6 +162,31 @@ export function ClientApp() {
     return () => {
       window.removeEventListener("online", update);
       window.removeEventListener("offline", update);
+    };
+  }, []);
+
+  // File d'attente offline du diagnostic (t. 83-f) : les photos mises en
+  // attente partent TOUTES SEULES au retour du réseau — peu importe l'écran
+  // courant (la replay vit ici, toujours montée). Au boot : si la file n'est
+  // pas vide et qu'on est en ligne, elle part après 2,5 s (reprise d'app).
+  useEffect(() => {
+    let alive = true;
+    const flush = async () => {
+      const n = await replayDiagQueue();
+      if (!alive || n === 0) return;
+      haptic(HAPTIC.success);
+      toast.success(
+        n === 1 ? "Ta photo est partie — l'analyse suit son cours" : `${n} photos parties — les analyses suivent leur cours`,
+        { description: "Le résultat arrivera dans tes notifications." },
+      );
+    };
+    const onOnline = () => void flush();
+    window.addEventListener("online", onOnline);
+    const t = window.setTimeout(() => void flush(), 2500);
+    return () => {
+      alive = false;
+      window.removeEventListener("online", onOnline);
+      window.clearTimeout(t);
     };
   }, []);
 
@@ -526,6 +553,10 @@ export function ClientApp() {
                 </Suspense>
               </motion.div>
             </AnimatePresence>
+            {/* Pouce d'Or (t. 83-f) — actions primaires de l'écran sous le pouce,
+                collées au-dessus de la nav mobile (accueil + profil ; la boutique
+                a sa propre barre panier, les autres écrans ont leurs CTAs en bas). */}
+            <ThumbBar tab={tab} />
           </div>
         </div>
 

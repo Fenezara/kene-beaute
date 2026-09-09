@@ -339,8 +339,11 @@ export function ProfileScreen() {
       {/* Parrainage — le fil qui relie les amies */}
       <ParrainageCard userId={user.id} userName={user.name} onRedeemed={loadWallet} />
 
-      {/* Passeport de Peau (t. 82) — QR partageable vers les instituts */}
-      <PassportCard userId={user.id} />
+      {/* Passeport de Peau (t. 82) — QR partageable vers les instituts.
+          id kene-passport : destination du Pouce d'Or (t. 83-f). */}
+      <div id="kene-passport" className="scroll-mt-20">
+        <PassportCard userId={user.id} />
+      </div>
 
       {/* Passerelle Paramètres (t. 69-c) — les réglages de l'application
           (apparence, langue, notifications, sécurité, RGPD, PWA, session)

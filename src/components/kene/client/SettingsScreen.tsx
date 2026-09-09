@@ -13,7 +13,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import {
-  ArrowLeft, Bell, Building2, Check, ChevronRight, Crown, Download, Languages, Loader2, LogOut, MapPin,
+  ArrowLeft, Bell, Building2, Check, ChevronRight, Crown, Download, Hand, Languages, Loader2, LogOut, MapPin,
   Moon, Pencil, Phone, Scale, ShieldCheck, Smartphone, SunMedium,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,6 +26,8 @@ import { IconBadge, Reveal, RevealItem } from "@/components/kene/ui2026";
 import { useKene, type ClientTab, type SessionUser } from "@/store/kene";
 import { useSecurity } from "@/store/security";
 import { useInstallPrompt } from "@/components/kene/pwa/use-install";
+import { getThumbMode, setThumbMode, subscribeThumbMode } from "@/lib/kene/thumb-mode";
+import { HAPTIC, haptic } from "@/lib/kene/ux";
 
 /* ─── Porte d'hydratation (thème) ───
  * false pendant le rendu serveur + l'hydratation, true ensuite : l'état actif
@@ -96,6 +98,9 @@ export function SettingsScreen() {
 
   // Sécurité renforcée (2FA-lite) : code SMS exigé avant chaque paiement.
   const secureEnabled = useSecurity((s) => s.enabled);
+  // Pouce d'Or (t. 83-f) — préférence appareil (localStorage), lue via
+  // useSyncExternalStore : aucune API web pendant le rendu, zéro mismatch.
+  const thumbOn = useSyncExternalStore(subscribeThumbMode, getThumbMode, () => false);
   const setSecureEnabled = useSecurity((s) => s.setEnabled);
 
   /** Portabilité RGPD — télécharge « mes données » en JSON via blob */
@@ -348,6 +353,39 @@ export function SettingsScreen() {
           <span aria-hidden="true" className={`pointer-events-none ml-auto inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${secureEnabled ? "bg-primary" : "bg-input"}`}>
             <span className={`block size-5 rounded-full bg-[#FFF9EC] shadow transition-transform duration-200 ${secureEnabled ? "translate-x-5" : "translate-x-0"}`} />
           </span>
+            </button>
+          </section>
+        </RevealItem>
+
+        {/* Pouce d'Or (t. 83-f) — mode une main : les actions primaires de
+            l'écran restent sous le pouce (barre collante au-dessus de la nav).
+            Même pattern accessibilité que la sécurité : rangée-bouton entière. */}
+        <RevealItem>
+          <section aria-labelledby="thumb-t" className="k-card rounded-[24px] p-4">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={thumbOn}
+              aria-label="Mode une main Pouce d'Or"
+              onClick={() => {
+                setThumbMode(!thumbOn);
+                haptic(HAPTIC.light);
+                toast(!thumbOn ? "Pouce d'Or activé" : "Pouce d'Or désactivé", {
+                  description: !thumbOn
+                    ? "Les actions essentielles de chaque écran descendent à portée de pouce."
+                    : "Les écrans retrouvent leurs actions d'origine.",
+                });
+              }}
+              className="w-full flex items-center gap-3 rounded-xl text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <IconBadge icon={<Hand size={19} />} tone="gold" />
+              <span className="flex-1 min-w-0 py-1.5">
+                <span id="thumb-t" className="block text-xs font-bold">Pouce d&apos;Or — mode une main</span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">Les actions essentielles de chaque écran restent sous ton pouce, dans une barre collante au-dessus de la navigation.</span>
+              </span>
+              <span aria-hidden="true" className={`pointer-events-none ml-auto inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${thumbOn ? "bg-primary" : "bg-input"}`}>
+                <span className={`block size-5 rounded-full bg-[#FFF9EC] shadow transition-transform duration-200 ${thumbOn ? "translate-x-5" : "translate-x-0"}`} />
+              </span>
             </button>
           </section>
         </RevealItem>

@@ -11,6 +11,9 @@ import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
 import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
 import { BODY_ZONES, SPECTRAL_VIEWS, type BodyZone, type DiagnosisResult, type Indicator } from "@/lib/kene/types";
 import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
+import { AdinkraSky } from "@/components/kene/constellation/AdinkraSky";
+import { diagQueueCount, enqueueDiag, subscribeDiagQueue } from "@/lib/kene/diag-queue";
+import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
 import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
 import { SkinDescent } from "@/components/kene/descent/SkinDescent";
 import { EvolutionCard } from "@/components/kene/evolution/EvolutionCard";
@@ -68,6 +71,9 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const [progress, setProgress] = useState(0);
   const [checkedSteps, setCheckedSteps] = useState(0);
   const [diag, setDiag] = useState<{ id: string; result: DiagnosisResult; imageData: string; createdAt: string } | null>(null);
+  // File d'attente offline (t. 83-f) : compteur vivant — la REPLAY vit dans
+  // ClientApp (elle marche quel que soit l'écran courant), ici on AFFICHE.
+  const [queuedCount, setQueuedCount] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Résilience 502 (t. 66-b) : message discret sous la barre de progression
@@ -112,6 +118,24 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const [history, setHistory] = useState<ApiDiagnosis[] | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareSel, setCompareSel] = useState<string[]>([]);
+
+  // File d'attente offline (t. 83-f) : compteur vivant — la REPLAY vit dans
+  // ClientApp (elle marche quel que soit l'écran courant), ici on AFFICHE.
+  useEffect(() => {
+    const update = () => setQueuedCount(diagQueueCount());
+    update();
+    return subscribeDiagQueue(update);
+  }, []);
+
+  // Haptique du rituel (t. 83-f) : chaque étape franchie vibre doucement, la
+  // constellation complète sonne la réussite (no-op silencieux sur iOS).
+  const prevCheckedRef = useRef(0);
+  useEffect(() => {
+    if (checkedSteps > prevCheckedRef.current) {
+      haptic(checkedSteps >= ANALYSIS_STEPS.length ? HAPTIC.success : HAPTIC.light);
+    }
+    prevCheckedRef.current = checkedSteps;
+  }, [checkedSteps]);
 
   // zone pré-sélectionnée depuis l'accueil
   useEffect(() => {
@@ -202,6 +226,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           setAnalyzing(false);
           setNetNotice(null);
           setStep(3);
+          haptic(HAPTIC.success); // le rituel s'achève (no-op iOS)
           clearTimers();
           if (recovered) {
             toast.success("Analyse retrouvée — voici tes résultats", {
@@ -369,6 +394,21 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     setNetNotice(null);
     setQuotaUpsell(false);
     const t0 = Date.now();
+    // Hors-ligne dès le départ (t. 83-f) : la photo part en file d'attente —
+    // envoyée toute seule au retour du réseau (la replay vit dans ClientApp,
+    // elle prévient par toast). Jamais d'échec sec pour une photo déjà cadrée.
+    if (!isOnline()) {
+      const q = enqueueDiag({ userId: user.id, zone, image, fitzpatrick: user.fitzpatrick ?? undefined, allergies: user.allergies ?? undefined });
+      haptic(HAPTIC.light);
+      setAnalyzing(false);
+      setStep(1); // la photo reste affichée : la cliente voit qu'elle est gardée
+      toast.success("Diagnostic mis en attente", {
+        description: q.ok
+          ? "Ta photo partira toute seule dès que le réseau revient — tu peux même quitter l’app."
+          : "File indisponible sur cet appareil — retente quand le réseau revient.",
+      });
+      return;
+    }
     try {
       // POST /api/diagnoses : répond 202 en < 1 s avec la ligne "pending"
       // (pipeline asynchrone t. 71). 4 tentatives (t. 77 : 3 → 4, backoff
@@ -419,6 +459,19 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       clearTimers();
       setAnalyzing(false);
       setNetNotice(null);
+      // Échec RÉSEAU pur (fetch avorté — pas de réponse serveur) : file
+      // d'attente offline (t. 83-f). La photo reste cadrée, elle partira seule.
+      if (!(e instanceof ApiError)) {
+        const q = enqueueDiag({ userId: user.id, zone, image, fitzpatrick: user.fitzpatrick ?? undefined, allergies: user.allergies ?? undefined });
+        haptic(HAPTIC.light);
+        toast.success("Réseau perdu — diagnostic gardé", {
+          description: q.ok
+            ? "Ta photo partira toute seule dès le retour du réseau, sans rien retaper."
+            : undefined,
+        });
+        setStep(1); // retour capture : la photo est conservée
+        return;
+      }
       // 403 = quota gratuit atteint (le garde session renvoie 401, jamais
       // 403 sur cette route) → carte upsell plutôt qu'un échec sec.
       if (e instanceof ApiError && e.status === 403) setQuotaUpsell(true);
@@ -555,6 +608,23 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             </button>
           </GlassCard>
         )}
+
+        {/* File d'attente offline (t. 83-f) : photos gardées, départ auto. */}
+        {queuedCount > 0 && (
+          <div role="status" className="mt-4 flex items-center gap-3 rounded-[20px] p-3.5 k-card">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+              <WifiOff size={16} aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold">
+                {queuedCount} diagnostic{queuedCount > 1 ? "s" : ""} en attente du réseau
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                Envoyé{queuedCount > 1 ? "s" : ""} automatiquement dès le retour de la connexion — rien à refaire, tu peux même quitter l&apos;app.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -572,8 +642,15 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             aria-hidden="true"
           />
         </RevealItem>
-        <RevealItem className="mt-6 w-full max-w-[320px]">
-          <GlassCard hero>
+
+      {/* Constellation Adinkra (t. 83-e) : le ciel du rituel s'assemble
+          pendant l'analyse — décoratif, la liste d'étapes reste le contrat. */}
+      <RevealItem className="mt-5 w-full max-w-[320px]">
+        <AdinkraSky checked={checkedSteps} total={ANALYSIS_STEPS.length} />
+      </RevealItem>
+
+      <RevealItem className="mt-6 w-full max-w-[320px]">
+        <GlassCard hero>
             <div className="divide-y divide-border/60">
               {ANALYSIS_STEPS.map((label, i) => {
                 const done = i < checkedSteps;

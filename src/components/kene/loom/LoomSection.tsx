@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
+import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { useLoomMode } from "./useLoomMode";
 
 const GoldenLoom = dynamic(() => import("./GoldenLoom"), { ssr: false, loading: () => null });
@@ -148,11 +149,18 @@ export function LoomSection({ first }: { first: boolean }) {
     io.observe(section);
 
     let raf = 0;
+    // Haptique de la navette (t. 83-f) : le passage du rideau (p ≈ 0,42) et
+    // l'apparition du médaillon (p ≈ 0,85) vibrent doucement (no-op iOS) ;
+    // remontée sous 0,3 → les signaux redeviennent armables.
+    let lastBeacon = 0;
     const loop = () => {
       const rect = section.getBoundingClientRect();
       const total = Math.max(rect.height - window.innerHeight, 1);
       const p = Math.min(1, Math.max(0, -rect.top / total));
       progressRef.current = p;
+      if (p >= 0.42 && lastBeacon < 1) { lastBeacon = 1; haptic(HAPTIC.light); }
+      if (p >= 0.85 && lastBeacon < 2) { lastBeacon = 2; haptic(HAPTIC.medium); }
+      if (p < 0.3 && lastBeacon > 0) lastBeacon = 0;
       for (const c of captionRefs.current) {
         if (!c) continue;
         const from = Number(c.dataset.from);

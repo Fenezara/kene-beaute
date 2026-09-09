@@ -641,3 +641,22 @@ model OtpCode {
 
   @@index([phone]) // vérification OTP par téléphone
 }
+
+// ─────────────────────────── Cercle Kènè (t. 83-b) ───────────────────────────
+// Le cercle des témoignages : les voix de celles qui tissent avant. Contenu
+// public de démonstration (POC) — prénom + initiale, jamais de nom complet,
+// aucune donnée personnelle réelle, aucune relation : la carte est servie
+// telle quelle par GET /api/testimonials (seed paresseux au premier appel).
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  author    String // « Aminata K. » — prénom + initiale, jamais le nom complet
+  city      String // « Cocody », « Yamoussoukro »…
+  zone      String? // zone concernée (visage, dos, cuir chevelu…)
+  text      String // 140-260 caractères, vécu concret
+  months    Int // durée du parcours en mois (« 4 mois avec Kènè »)
+  rating    Int // 4 ou 5
+  threads   Int? // fils d'or de l'utilisatrice si connue
+  featured  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

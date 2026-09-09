@@ -17,6 +17,7 @@ import { useKene } from "@/store/kene";
 import { ClientApp } from "@/components/kene/client/ClientApp";
 import { BootSkeleton } from "@/components/kene/client/BootSkeleton";
 import { PassportGate } from "@/components/kene/client/PassportView";
+import { HerbierGate } from "@/components/kene/herbier/Herbier";
 import { SessionKeeper } from "@/components/kene/SessionKeeper";
 import { PwaProvider } from "@/components/kene/pwa/PwaProvider";
 import { Toaster } from "@/components/ui/sonner";
@@ -55,6 +56,12 @@ export default function Page() {
             ?passport=<jeton> (QR scanné en institut). Au-dessus de TOUT :
             même le Seuil s'efface derrière lui. */}
         <PassportGate />
+
+        {/* Herbier des Grandes-Mères (t. 83-d) — jardin des plantes quand
+            l'URL porte #herbier (liens profonds + ouverture depuis le
+            glossaire). Frère du PassportGate : hash dédié, aucune collision
+            avec ?passport=… ni #moonlight ; fermeture = replaceState. */}
+        <HerbierGate />
 
         {/* Validation de session au boot — TOUS espaces (voir SessionKeeper) */}
         <SessionKeeper />

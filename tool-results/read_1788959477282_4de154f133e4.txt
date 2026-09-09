@@ -1,0 +1,669 @@
+     1→// Kènè — Questionnaire dermatologique « Diagnostic en institut »
+     2→// Lib PURE (aucune dépendance React/serveur) : définition des questions,
+     3→// moteur de scoring par indicateur, drapeaux de vigilance, recommandations
+     4→// et fusion questionnaire ± analyse VLM (photo de cabine).
+     5→// L'entreprise réalise le diagnostic au sein de sa structure : la praticienne
+     6→// mène l'entretien (les réponses sont déclarées par la cliente), la photo
+     7→// apporte l'observation — les deux se combinent en un score unique.
+     8→
+     9→import { severityFromPercent } from "@/lib/kene/format";
+    10→import type { BodyZone, DiagnosisResult, Indicator, RecommendationSet } from "@/lib/kene/types";
+    11→import { ZONE_INDICATORS } from "@/lib/kene/types";
+    12→
+    13→// ─────────────────────────── Types ───────────────────────────
+    14→
+    15→export type QFlagLevel = "info" | "warn" | "danger";
+    16→
+    17→export interface QFlag {
+    18→  level: QFlagLevel;
+    19→  label: string;
+    20→  detail?: string;
+    21→}
+    22→
+    23→/** Effets d'une option : clé mot-clé d'indicateur → delta de score santé. */
+    24→type Effects = Record<string, number>;
+    25→
+    26→export interface QOption {
+    27→  value: string;
+    28→  label: string;
+    29→  effects?: Effects;
+    30→  flag?: Omit<QFlag, "level"> & { level?: QFlagLevel };
+    31→}
+    32→
+    33→export interface Question {
+    34→  id: string;
+    35→  section: string;
+    36→  label: string;
+    37→  help?: string;
+    38→  type: "single" | "multi" | "text";
+    39→  options: QOption[];
+    40→  required?: boolean; // single : une option · multi : ≥ 1 · text : jamais requis
+    41→  placeholder?: string;
+    42→  /** sensible : entouré visuellement (dépigmentation, grossesse…) */
+    43→  sensitive?: boolean;
+    44→}
+    45→
+    46→export interface QSection {
+    47→  id: string;
+    48→  label: string;
+    49→  description: string;
+    50→}
+    51→
+    52→export type QAnswers = Record<string, string | string[]>;
+    53→
+    54→export interface QuestionnaireResult {
+    55→  scoreGlobal: number;
+    56→  indicateurs: Indicator[];
+    57→  flags: QFlag[];
+    58→  recommandations: RecommendationSet;
+    59→  answered: number;
+    60→  total: number;
+    61→}
+    62→
+    63→export type ProDiagSource = "questionnaire" | "vlm+questionnaire" | "vlm" | "fallback";
+    64→
+    65→export interface ProDiagnosisResult extends Omit<DiagnosisResult, "source"> {
+    66→  source: ProDiagSource;
+    67→  questionnaire: {
+    68→    score: number; // score du questionnaire seul
+    69→    flags: QFlag[];
+    70→    answered: number;
+    71→    total: number;
+    72→    photoUsed: boolean;
+    73→  };
+    74→}
+    75→
+    76→// ─────────────────────────── Définition du questionnaire ───────────────────────────
+    77→
+    78→export const QUESTIONNAIRE_SECTIONS: QSection[] = [
+    79→  { id: "peau", label: "La peau", description: "Type, phototype et inquiétudes déclarées" },
+    80→  { id: "routine", label: "Routine actuelle", description: "Habitudes de soin au quotidien" },
+    81→  { id: "vie", label: "Mode de vie", description: "Soleil, sommeil, stress, hydratation" },
+    82→  { id: "sante", label: "Santé & antécédents", description: "Vigilances avant tout protocole" },
+    83→];
+    84→
+    85→export const QUESTIONS: Question[] = [
+    86→  // ── La peau ──
+    87→  {
+    88→    id: "skin_type",
+    89→    section: "peau",
+    90→    label: "Type de peau",
+    91→    help: "Au toucher, 2 h après le nettoyage",
+    92→    type: "single",
+    93→    required: true,
+    94→    options: [
+    95→      { value: "grasse", label: "Grasse — brille vite", effects: { sebum: -10, pores: -6, acne: -4, texture: -4 } },
+    96→      { value: "seche", label: "Sèche — tire", effects: { secheresse: -14, hydrat: -10, barriere: -6 } },
+    97→      { value: "mixte", label: "Mixte — zone T grasse", effects: { sebum: -6, hydrat: -4 } },
+    98→      { value: "normale", label: "Normale" },
+    99→      { value: "sensible", label: "Sensible — réagit vite", effects: { barriere: -12, rougeur: -8, irrit: -8 } },
+   100→    ],
+   101→  },
+   102→  {
+   103→    id: "fitz",
+   104→    section: "peau",
+   105→    label: "Phototype Fitzpatrick",
+   106→    help: "Réaction de la peau au soleil",
+   107→    type: "single",
+   108→    required: true,
+   109→    options: [
+   110→      { value: "III", label: "III — clair brun" },
+   111→      { value: "IV", label: "IV — brun" },
+   112→      { value: "V", label: "V — brun foncé" },
+   113→      { value: "VI", label: "VI — très foncé" },
+   114→    ],
+   115→  },
+   116→  {
+   117→    id: "age",
+   118→    section: "peau",
+   119→    label: "Tranche d'âge",
+   120→    type: "single",
+   121→    required: true,
+   122→    options: [
+   123→      { value: "18-25", label: "18-25 ans" },
+   124→      { value: "26-35", label: "26-35 ans" },
+   125→      { value: "36-45", label: "36-45 ans", effects: { elastic: -6, cerne: -4 } },
+   126→      { value: "46+", label: "46 ans et +", effects: { elastic: -10, cerne: -6, keratose: -4 } },
+   127→    ],
+   128→  },
+   129→  {
+   130→    id: "concerns",
+   131→    section: "peau",
+   132→    label: "Inquiétudes principales",
+   133→    help: "Tout ce qui préoccupe la cliente aujourd'hui",
+   134→    type: "multi",
+   135→    required: true,
+   136→    options: [
+   137→      { value: "acne", label: "Acné / boutons", effects: { acne: -13, noirs: -6 } },
+   138→      { value: "taches", label: "Taches / pigmentation", effects: { pih: -13, hyperpigment: -8, pigmentaire: -8, melasma: -6 } },
+   139→      { value: "secheresse", label: "Sécheresse / tiraillements", effects: { hydrat: -13, secheresse: -10 } },
+   140→      { value: "terne", label: "Teint terne", effects: { eclat: -12 } },
+   141→      { value: "incarnes", label: "Poils incarnés / folliculite", effects: { incarne: -13, follicul: -10 } },
+   142→      { value: "cernes", label: "Cernes / poches", effects: { cerne: -11 } },
+   143→      { value: "rides", label: "Rides / perte de fermeté", effects: { elastic: -12 } },
+   144→      { value: "rougeurs", label: "Rougeurs / irritations", effects: { rougeur: -12, irrit: -8, barriere: -6 } },
+   145→      { value: "pores", label: "Pores dilatés / texture", effects: { pores: -10, texture: -8 } },
+   146→      { value: "pellicules", label: "Pellicules / cuir chevelu", effects: { desquamation: -13, irrit: -4 } },
+   147→    ],
+   148→  },
+   149→
+   150→  // ── Routine actuelle ──
+   151→  {
+   152→    id: "cleansing",
+   153→    section: "routine",
+   154→    label: "Nettoyage du visage",
+   155→    type: "single",
+   156→    required: true,
+   157→    options: [
+   158→      { value: "2j", label: "2× par jour" },
+   159→      { value: "1j", label: "1× par jour", effects: { pores: -4, sebum: -3 } },
+   160→      { value: "irregulier", label: "Irrégulier", effects: { pores: -8, sebum: -6, acne: -4 } },
+   161→      { value: "jamais", label: "Jamais / eau seule", effects: { pores: -12, noirs: -6, texture: -5 } },
+   162→    ],
+   163→  },
+   164→  {
+   165→    id: "moisturize",
+   166→    section: "routine",
+   167→    label: "Hydratation (crème)",
+   168→    type: "single",
+   169→    required: true,
+   170→    options: [
+   171→      { value: "2j", label: "Matin et soir" },
+   172→      { value: "1j", label: "1× par jour", effects: { hydrat: -6 } },
+   173→      { value: "parfois", label: "Quelquefois", effects: { hydrat: -12, secheresse: -8, barriere: -5 } },
+   174→      { value: "jamais", label: "Jamais", effects: { hydrat: -18, secheresse: -12, barriere: -8 } },
+   175→    ],
+   176→  },
+   177→  {
+   178→    id: "exfoliation",
+   179→    section: "routine",
+   180→    label: "Gommage / exfoliation",
+   181→    type: "single",
+   182→    required: true,
+   183→    options: [
+   184→      { value: "1s", label: "1× par semaine" },
+   185→      { value: "2-3s", label: "2-3× par semaine", effects: { barriere: -5, irrit: -3 } },
+   186→      { value: "3plus", label: "Plus de 3× par semaine", effects: { barriere: -12, irrit: -8, rougeur: -6 } },
+   187→      { value: "jamais", label: "Jamais", effects: { texture: -5, eclat: -4 } },
+   188→    ],
+   189→  },
+   190→  {
+   191→    id: "sun",
+   192→    section: "routine",
+   193→    label: "Protection solaire",
+   194→    help: "Le soleil abîme aussi les peaux mélanodermes (taches, mélasma)",
+   195→    type: "single",
+   196→    required: true,
+   197→    options: [
+   198→      { value: "quotidien", label: "Quotidienne (SPF)" },
+   199→      { value: "parfois", label: "Parfois", effects: { pih: -5, hyperpigment: -4, pigmentaire: -4 } },
+   200→      { value: "occasions", label: "Plage / occasions seulement", effects: { pih: -9, hyperpigment: -7, melasma: -5, pigmentaire: -7 } },
+   201→      {
+   202→        value: "jamais",
+   203→        label: "Jamais",
+   204→        effects: { pih: -14, hyperpigment: -11, melasma: -8, pigmentaire: -10, eclat: -5 },
+   205→        flag: { label: "Aucune protection solaire", detail: "Premier facteur de taches sur peau mélanoderme — introduire un SPF 50 teinté dès aujourd'hui.", level: "warn" },
+   206→      },
+   207→    ],
+   208→  },
+   209→  {
+   210→    id: "makeup_removal",
+   211→    section: "routine",
+   212→    label: "Démaquillage le soir",
+   213→    type: "single",
+   214→    required: true,
+   215→    options: [
+   216→      { value: "toujours", label: "Chaque soir" },
+   217→      { value: "oublie", label: "Souvent oublié", effects: { pores: -8, noirs: -5, acne: -4, irrit: -3 } },
+   218→      { value: "aucun", label: "Pas de maquillage" },
+   219→    ],
+   220→  },
+   221→  {
+   222→    id: "lightening",
+   223→    section: "routine",
+   224→    label: "Produits éclaircissants / dépigérants",
+   225→    help: "Crèmes clarifiantes, mixtures maison, corticoïdes topiques — passé ou présent",
+   226→    type: "single",
+   227→    required: true,
+   228→    sensitive: true,
+   229→    options: [
+   230→      { value: "jamais", label: "Jamais" },
+   231→      {
+   232→        value: "passe",
+   233→        label: "Par le passé, arrêté",
+   234→        effects: { pih: -12, hyperpigment: -10, barriere: -8, pigmentaire: -8 },
+   235→        flag: { label: "Antécédent de dépigmentation", detail: "Peau fragilisée : protocole réparateur doux obligatoire, jamais d'actifs forts avant réparation de la barrière.", level: "warn" },
+   236→      },
+   237→      {
+   238→        value: "cours",
+   239→        label: "En cours",
+   240→        effects: { pih: -18, hyperpigment: -15, barriere: -14, irrit: -8, pigmentaire: -12, melasma: -6 },
+   241→        flag: { label: "Dépigération active", detail: "Risque dermatologique réel (ochronose, infections, cicatrices). Accompagnement de sevrage progressif + orientation dermatologique recommandée.", level: "danger" },
+   242→      },
+   243→    ],
+   244→  },
+   245→
+   246→  // ── Mode de vie ──
+   247→  {
+   248→    id: "water",
+   249→    section: "vie",
+   250→    label: "Eau bue par jour",
+   251→    type: "single",
+   252→    required: true,
+   253→    options: [
+   254→      { value: "1l5", label: "1,5 L et plus" },
+   255→      { value: "1l", label: "~ 1 L", effects: { hydrat: -7, secheresse: -5, eclat: -3 } },
+   256→      { value: "peu", label: "Très peu", effects: { hydrat: -14, secheresse: -9, eclat: -6 } },
+   257→    ],
+   258→  },
+   259→  {
+   260→    id: "sleep",
+   261→    section: "vie",
+   262→    label: "Sommeil",
+   263→    type: "single",
+   264→    required: true,
+   265→    options: [
+   266→      { value: "7-8", label: "7-8 h" },
+   267→      { value: "5-6", label: "5-6 h", effects: { eclat: -6, cerne: -8, barriere: -4 } },
+   268→      { value: "5-", label: "Moins de 5 h", effects: { eclat: -10, cerne: -12, barriere: -6, acne: -4 } },
+   269→    ],
+   270→  },
+   271→  {
+   272→    id: "stress",
+   273→    section: "vie",
+   274→    label: "Stress actuel",
+   275→    type: "single",
+   276→    required: true,
+   277→    options: [
+   278→      { value: "faible", label: "Faible" },
+   279→      { value: "moyen", label: "Modéré", effects: { acne: -5, rougeur: -4, sebum: -4 } },
+   280→      { value: "eleve", label: "Élevé", effects: { acne: -10, rougeur: -8, sebum: -7, elastic: -4 } },
+   281→    ],
+   282→  },
+   283→  {
+   284→    id: "sun_exposure",
+   285→    section: "vie",
+   286→    label: "Exposition au soleil",
+   287→    type: "single",
+   288→    required: true,
+   289→    options: [
+   290→      { value: "faible", label: "Faible — intérieur" },
+   291→      { value: "moyenne", label: "Modérée — déplacements", effects: { pih: -5, hyperpigment: -4 } },
+   292→      { value: "quotidienne", label: "Quotidienne — marché, dehors", effects: { pih: -10, hyperpigment: -8, melasma: -5, pigmentaire: -7 } },
+   293→    ],
+   294→  },
+   295→  {
+   296→    id: "tobacco",
+   297→    section: "vie",
+   298→    label: "Tabac",
+   299→    type: "single",
+   300→    required: true,
+   301→    options: [
+   302→      { value: "non", label: "Non" },
+   303→      { value: "parfois", label: "Oui, parfois", effects: { eclat: -5, elastic: -4 } },
+   304→      { value: "quotidien", label: "Oui, tous les jours", effects: { eclat: -10, elastic: -7, barriere: -5 } },
+   305→    ],
+   306→  },
+   307→
+   308→  // ── Santé & antécédents ──
+   309→  {
+   310→    id: "reactions",
+   311→    section: "sante",
+   312→    label: "Réactions aux produits cosmétiques",
+   313→    type: "single",
+   314→    required: true,
+   315→    options: [
+   316→      { value: "jamais", label: "Jamais eu" },
+   317→      {
+   318→        value: "parfois",
+   319→        label: "Parfois — rougeurs, démangeaisons",
+   320→        effects: { barriere: -8, rougeur: -7, irrit: -6 },
+   321→      },
+   322→      {
+   323→        value: "souvent",
+   324→        label: "Souvent — à chaque nouveau produit",
+   325→        effects: { barriere: -14, rougeur: -11, irrit: -10 },
+   326→        flag: { label: "Hypersensibilité déclarée", detail: "Tests de tolérance systématiques (plis du coude, 48 h) avant tout nouveau soin en cabine.", level: "warn" },
+   327→      },
+   328→    ],
+   329→  },
+   330→  {
+   331→    id: "treatment",
+   332→    section: "sante",
+   333→    label: "Traitement dermatologique en cours",
+   334→    help: "Isotrétinoïne, corticoïdes, acides prescrits…",
+   335→    type: "single",
+   336→    required: true,
+   337→    options: [
+   338→      { value: "non", label: "Non" },
+   339→      {
+   340→        value: "oui",
+   341→        label: "Oui",
+   342→        flag: { label: "Traitement dermatologique en cours", detail: "Vérifier compatibilité avant tout protocole en cabine (pas d'actifs exfoliants ni d'appareils chauffants sans avis prescripteur).", level: "warn" },
+   343→      },
+   344→    ],
+   345→  },
+   346→  {
+   347→    id: "pregnancy",
+   348→    section: "sante",
+   349→    label: "Grossesse ou allaitement",
+   350→    type: "single",
+   351→    required: true,
+   352→    sensitive: true,
+   353→    options: [
+   354→      { value: "non", label: "Non" },
+   355→      {
+   356→        value: "oui",
+   357→        label: "Oui",
+   358→        flag: { label: "Grossesse / allaitement", detail: "Contre-indications actifs : pas de rétinoides ni d'acides forts — protocole hydratant et apaisant uniquement.", level: "warn" },
+   359→      },
+   360→    ],
+   361→  },
+   362→  {
+   363→    id: "allergies",
+   364→    section: "sante",
+   365→    label: "Allergies connues",
+   366→    type: "text",
+   367→    options: [],
+   368→    placeholder: "Produits, plantes, aliments… (laisser vide si aucune)",
+   369→  },
+   370→  {
+   371→    id: "notes",
+   372→    section: "sante",
+   373→    label: "Observation de la praticienne",
+   374→    type: "text",
+   375→    options: [],
+   376→    placeholder: "Notes libres de l'entretien (optionnel)",
+   377→  },
+   378→];
+   379→
+   380→const REQUIRED_QUESTIONS = QUESTIONS.filter((q) => q.required);
+   381→
+   382→/** Réponses vierges pour l'assistant. */
+   383→export function defaultAnswers(): QAnswers {
+   384→  return {};
+   385→}
+   386→
+   387→/** Une question est-elle renseignée ? (texte = jamais requis) */
+   388→export function isAnswered(q: Question, answers: QAnswers): boolean {
+   389→  const v = answers[q.id];
+   390→  if (q.type === "multi") return Array.isArray(v) && v.length > 0;
+   391→  if (q.type === "single") return typeof v === "string" && v.length > 0;
+   392→  return true;
+   393→}
+   394→
+   395→/** Progression 0-1 sur les questions requises. */
+   396→export function questionnaireProgress(answers: QAnswers): number {
+   397→  const done = REQUIRED_QUESTIONS.filter((q) => isAnswered(q, answers)).length;
+   398→  return REQUIRED_QUESTIONS.length === 0 ? 1 : done / REQUIRED_QUESTIONS.length;
+   399→}
+   400→
+   401→/** Validation serveur : ids des questions requises manquantes. */
+   402→export function missingRequired(answers: QAnswers): string[] {
+   403→  return REQUIRED_QUESTIONS.filter((q) => !isAnswered(q, answers)).map((q) => q.id);
+   404→}
+   405→
+   406→// ─────────────────────────── Moteur de scoring ───────────────────────────
+   407→
+   408→const norm = (s: string) =>
+   409→  s
+   410→    .normalize("NFD")
+   411→    .replace(/[\u0300-\u036f]/g, "")
+   412→    .toLowerCase();
+   413→
+   414→const BASE_SCORE = 78;
+   415→
+   416→/** Applique un delta à l'indicateur dont le nom (normalisé) contient la clé. */
+   417→function applyEffects(scores: Map<string, number>, effects: Effects | undefined, zoneIndicators: string[]) {
+   418→  if (!effects) return;
+   419→  for (const [key, delta] of Object.entries(effects)) {
+   420→    const k = norm(key);
+   421→    for (const name of zoneIndicators) {
+   422→      if (norm(name).includes(k)) scores.set(name, (scores.get(name) ?? BASE_SCORE) + delta);
+   423→    }
+   424→  }
+   425→}
+   426→
+   427→const clampScore = (n: number) => Math.max(5, Math.min(98, Math.round(n)));
+   428→
+   429→/** Construit le jeu de recommandations ciblées à partir des indicateurs faibles + drapeaux. */
+   430→function buildRecommendations(indicators: Indicator[], flags: QFlag[], zone: BodyZone): RecommendationSet {
+   431→  // Indicateurs les plus faibles d'abord (hors zone nævi — pas de conseil questionnaire)
+   432→  const weakest = indicators
+   433→    .filter((i) => i.pourcentage < 80)
+   434→    .sort((a, b) => a.pourcentage - b.pourcentage)
+   435→    .slice(0, 4);
+   436→
+   437→  const matin: string[] = [];
+   438→  const soir: string[] = [];
+   439→  const botaniques: string[] = [];
+   440→  const produits: string[] = [];
+   441→  const soins: string[] = [];
+   442→  const hygiene: string[] = [];
+   443→
+   444→  for (const ind of weakest) {
+   445→    const n = norm(ind.nom);
+   446→    const has = (...keys: string[]) => keys.some((k) => n.includes(k));
+   447→    if (has("hydrat", "secheresse")) {
+   448→      matin.push("Brume hydratante aloka avant la crème");
+   449→      soir.push("Baume réparateur karité en couche généreuse");
+   450→      botaniques.push("Karité", "Aloka");
+   451→      produits.push("Baume Nuit Karité", "Sérum Hydratation Aloka");
+   452→      soins.push("Soin hydratant profond karité");
+   453→    } else if (has("barriere")) {
+   454→      matin.push("Nettoyant doux sans savon (pH 5,5)");
+   455→      soir.push("Cérat apaisant en fin de routine");
+   456→      botaniques.push("Karité");
+   457→      produits.push("Cérat Réparateur Kènè");
+   458→      soins.push("Soin apaisant barrière");
+   459→    } else if (has("pih", "pigment", "melasma")) {
+   460→      matin.push("Sérum vitamine C stabilisé");
+   461→      soir.push("Sérum niacinamide 5 % sur les taches");
+   462→      botaniques.push("Moringa");
+   463→      produits.push("Sérum Éclat Moringa", "SPF 50 teinté minéral");
+   464→      soins.push("Soin éclat mélanoderme");
+   465→    } else if (has("eclat")) {
+   466→      matin.push("Sérum éclat vitamine C");
+   467→      botaniques.push("Moringa", "Bissap");
+   468→      produits.push("Sérum Éclat Moringa");
+   469→      soins.push("Gommage éclat doux 1×/semaine");
+   470→    } else if (has("sebum", "pores", "texture", "noirs")) {
+   471→      matin.push("Nettoyant doux moussant");
+   472→      soir.push("Masque argile bissap 2×/semaine");
+   473→      botaniques.push("Bissap");
+   474→      produits.push("Masque Argile Bissap", "Sérum Niacinamide 5 %");
+   475→      soins.push("Soin purifiant matifiant");
+   476→    } else if (has("acne")) {
+   477→      soir.push("Soin local niacinamide sur les imperfections");
+   478→      botaniques.push("Bissap", "Moringa");
+   479→      produits.push("Sérum Niacinamide 5 %");
+   480→      soins.push("Soin purifiant anti-imperfections");
+   481→    } else if (has("rougeur", "irrit", "follicul", "incarne")) {
+   482→      matin.push("Brume apaisante aloka");
+   483→      soir.push("Gel apaisant sans alcool");
+   484→      botaniques.push("Aloka");
+   485→      produits.push("Gel Apaisant Aloka");
+   486→      soins.push("Soin apaisant anti-rougeurs");
+   487→    } else if (has("cerne")) {
+   488→      matin.push("Tapotement léger de gel contour froid");
+   489→      botaniques.push("Baobab");
+   490→      produits.push("Gel Contour des Yeux Baobab");
+   491→      soins.push("Massage drainant contour des yeux");
+   492→    } else if (has("elastic")) {
+   493→      matin.push("Sérum fermeté au baobab");
+   494→      soir.push("Massage lifting 3 min (huiles baobab)");
+   495→      botaniques.push("Baobab");
+   496→      produits.push("Huile Fermeté Baobab");
+   497→      soins.push("Soin remodelant visage");
+   498→    } else if (has("keratose")) {
+   499→      soins.push("Évaluation des lésions par dermo-conseillère");
+   500→      produits.push("Écran solaire quotidien");
+   501→    } else if (has("desquamation")) {
+   502→      soir.push("Lotion cuir chevelu apaisante");
+   503→      produits.push("Sérum Cuir Chevelu Bissap");
+   504→      soins.push("Soin detox cuir chevelu");
+   505→    }
+   506→  }
+   507→
+   508→  // Base commune (toujours)
+   509→  if (matin.length === 0) matin.push("Nettoyant doux + hydratation légère");
+   510→  if (soir.length === 0) soir.push("Nettoyant doux + soin de nuit");
+   511→  if (botaniques.length === 0) botaniques.push("Karité", "Moringa");
+   512→  if (produits.length === 0) produits.push("Sérum Éclat Moringa");
+   513→  if (soins.length === 0) soins.push("Soin signature de l'institut");
+   514→
+   515→  // Drapeaux → conseils dédiés
+   516→  for (const f of flags) {
+   517→    if (f.label.includes("Dépigération")) hygiene.push("Accompagnement de sevrage : arrêt progressif, jamais brutal, sous suivi");
+   518→    if (f.label.includes("protection solaire")) hygiene.push("SPF 50 teinté chaque matin, même en saison des pluies");
+   519→    if (f.label.includes("Grossesse")) hygiene.push("Protocole hydratant/apaisant uniquement — actifs proscrits");
+   520→    if (f.label.includes("Hypersensibilité")) hygiene.push("Test de tolérance 48 h au pli du coude avant chaque nouveauté");
+   521→    if (f.label.includes("Traitement")) hygiene.push("Coordination avec le prescripteur avant protocole cabine");
+   522→  }
+   523→  if (hygiene.length === 0) hygiene.push("Boire 1,5 L d'eau par jour", "Dormir 7-8 h");
+   524→
+   525→  const uniq = (a: string[]) => Array.from(new Set(a)).slice(0, 6);
+   526→
+   527→  return {
+   528→    resume: "",
+   529→    routine_matin: uniq(matin),
+   530→    routine_soir: uniq(soir),
+   531→    botaniques_conseillees: uniq(botaniques),
+   532→    produits: uniq(produits),
+   533→    soins_conseilles: uniq(soins),
+   534→    conseils_hygiene_vie: uniq(hygiene),
+   535→  };
+   536→}
+   537→
+   538→/** Scoring complet du questionnaire pour une zone. */
+   539→export function scoreQuestionnaire(answers: QAnswers, zone: BodyZone): QuestionnaireResult {
+   540→  const zoneIndicators = zone === "naevi" ? ZONE_INDICATORS.visage : ZONE_INDICATORS[zone];
+   541→  const scores = new Map<string, number>(zoneIndicators.map((n) => [n, BASE_SCORE]));
+   542→  const flags: QFlag[] = [];
+   543→
+   544→  let answered = 0;
+   545→  for (const q of QUESTIONS) {
+   546→    const v = answers[q.id];
+   547→    if (q.type === "single" && typeof v === "string" && v.length > 0) {
+   548→      answered++;
+   549→      const opt = q.options.find((o) => o.value === v);
+   550→      if (opt) {
+   551→        applyEffects(scores, opt.effects, zoneIndicators);
+   552→        if (opt.flag) flags.push({ level: opt.flag.level ?? "warn", label: opt.flag.label, detail: opt.flag.detail });
+   553→      }
+   554→    } else if (q.type === "multi" && Array.isArray(v) && v.length > 0) {
+   555→      answered++;
+   556→      for (const sel of v) {
+   557→        const opt = q.options.find((o) => o.value === sel);
+   558→        if (opt) applyEffects(scores, opt.effects, zoneIndicators);
+   559→      }
+   560→    }
+   561→  }
+   562→  const total = REQUIRED_QUESTIONS.length;
+   563→
+   564→  // Allergies déclarées → drapeau info
+   565→  const allergies = typeof answers.allergies === "string" ? answers.allergies.trim() : "";
+   566→  if (allergies) {
+   567→    flags.unshift({ level: "info", label: "Allergies déclarées", detail: allergies.slice(0, 200) });
+   568→  }
+   569→
+   570→  // Nævi : le questionnaire ne peut pas évaluer ABCDE — honnêteté clinique
+   571→  if (zone === "naevi") {
+   572→    flags.push({
+   573→      level: "info",
+   574→      label: "Nævi : photo indispensable",
+   575→      detail: "L'évaluation ABCDE repose sur l'observation — joindre une photo rapprochée pour l'analyse IA (le questionnaire seul ne note pas ces critères).",
+   576→    });
+   577→  }
+   578→
+   579→  const indicateurs: Indicator[] = zoneIndicators.map((nom) => {
+   580→    const pct = clampScore(scores.get(nom) ?? BASE_SCORE);
+   581→    return { nom, pourcentage: pct, severite: severityFromPercent(pct) };
+   582→  });
+   583→  const scoreGlobal = Math.round(indicateurs.reduce((s, i) => s + i.pourcentage, 0) / Math.max(1, indicateurs.length));
+   584→
+   585→  const recommandations = buildRecommendations(indicateurs, flags, zone);
+   586→  const verdict =
+   587→    scoreGlobal >= 80
+   588→      ? "la peau déclarée est équilibrée — consolider les bonnes habitudes"
+   589→      : scoreGlobal >= 65
+   590→        ? "l'équilibre est correct avec des zones d'attention ciblées"
+   591→        : scoreGlobal >= 50
+   592→          ? "des déséquilibres identifiés méritent un protocole structuré"
+   593→          : "un protocole de fond sur plusieurs semaines est recommandé";
+   594→  const worst = indicateurs.slice().sort((a, b) => a.pourcentage - b.pourcentage)[0];
+   595→  recommandations.resume = `Entretien mené en institut : ${verdict}${worst ? ` — priorité n°1 : ${worst.nom.toLowerCase()} (${worst.pourcentage}/100)` : ""}.`;
+   596→
+   597→  return { scoreGlobal, indicateurs, flags, recommandations, answered, total };
+   598→}
+   599→
+   600→// ─────────────────────────── Fusion questionnaire ± VLM ───────────────────────────
+   601→
+   602→const PHOTO_WEIGHT = 0.62; // l'observation (photo) pèse plus que le déclaratif
+   603→const Q_WEIGHT = 0.38;
+   604→
+   605→/** Fusionne le résultat questionnaire avec l'analyse VLM de la photo (si fournie). */
+   606→export function mergeResults(qr: QuestionnaireResult, vlm: DiagnosisResult | null, zone: BodyZone, photoUsed: boolean): ProDiagnosisResult {
+   607→  if (!vlm) {
+   608→    return {
+   609→      score_global: qr.scoreGlobal,
+   610→      zone,
+   611→      indicateurs: qr.indicateurs,
+   612→      zones_marquages: [],
+   613→      recommandations: qr.recommandations,
+   614→      orientation_dermato: qr.flags.some((f) => f.level === "danger"),
+   615→      raison_orientation: qr.flags.find((f) => f.level === "danger")?.label,
+   616→      avertissement:
+   617→        "Évaluation issue de l'entretien (questionnaire) réalisée en institut — ne constitue pas un diagnostic médical. Joindre une photo à un prochain passage pour une analyse visuelle.",
+   618→      source: "questionnaire",
+   619→      questionnaire: { score: qr.scoreGlobal, flags: qr.flags, answered: qr.answered, total: qr.total, photoUsed },
+   620→    };
+   621→  }
+   622→
+   623→  // Fusion par indicateur de la zone VLM (les noms font autorité côté photo)
+   624→  const merged: Indicator[] = vlm.indicateurs.map((ind) => {
+   625→    const q = qr.indicateurs.find((qi) => norm(qi.nom).slice(0, 8) === norm(ind.nom).slice(0, 8));
+   626→    const pct = q ? Math.round(ind.pourcentage * PHOTO_WEIGHT + q.pourcentage * Q_WEIGHT) : ind.pourcentage;
+   627→    return { ...ind, pourcentage: pct, severite: severityFromPercent(pct) };
+   628→  });
+   629→  const scoreGlobal = Math.round(vlm.score_global * PHOTO_WEIGHT + qr.scoreGlobal * Q_WEIGHT);
+   630→
+   631→  // Recommandations : base observation VLM + vigilances questionnaire
+   632→  const rec: RecommendationSet = {
+   633→    ...vlm.recommandations,
+   634→    conseils_hygiene_vie: Array.from(
+   635→      new Set([...(vlm.recommandations?.conseils_hygiene_vie ?? []), ...qr.recommandations.conseils_hygiene_vie])
+   636→    ).slice(0, 6),
+   637→    soins_conseilles: Array.from(
+   638→      new Set([...(vlm.recommandations?.soins_conseilles ?? []), ...qr.recommandations.soins_conseilles])
+   639→    ).slice(0, 6),
+   640→  };
+   641→
+   642→  return {
+   643→    score_global: scoreGlobal,
+   644→    fitzpatrick_estime: vlm.fitzpatrick_estime,
+   645→    zone,
+   646→    indicateurs: merged,
+   647→    zones_marquages: vlm.zones_marquages ?? [],
+   648→    recommandations: rec,
+   649→    orientation_dermato: vlm.orientation_dermato,
+   650→    raison_orientation: vlm.raison_orientation,
+   651→    abcde: vlm.abcde,
+   652→    avertissement:
+   653→      "Diagnostic réalisé en institut (entretien + analyse IA photo) — estimation éducative, ne constitue pas un diagnostic médical. En cas de lésion évolutive, consultez un dermatologue.",
+   654→    source: "vlm+questionnaire",
+   655→    questionnaire: { score: qr.scoreGlobal, flags: qr.flags, answered: qr.answered, total: qr.total, photoUsed },
+   656→  };
+   657→}
+   658→
+   659→/** Parse défensif d'un resultJson côté front. */
+   660→export function parseProDiagnosis(json: string): ProDiagnosisResult | null {
+   661→  try {
+   662→    const o = JSON.parse(json) as ProDiagnosisResult;
+   663→    if (!o || typeof o.score_global !== "number" || !Array.isArray(o.indicateurs)) return null;
+   664→    return o;
+   665→  } catch {
+   666→    return null;
+   667→  }
+   668→}
+   669→

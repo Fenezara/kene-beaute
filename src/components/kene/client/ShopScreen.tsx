@@ -16,6 +16,7 @@ import { useFavorites } from "@/store/favorites";
 import { useSecurity } from "@/store/security";
 import { KenteWeaveCard } from "@/components/kene/weave/KenteWeaveCard";
 import { categoryThread } from "@/components/kene/weave/threads";
+import { MarcheVivant } from "@/components/kene/market/MarcheVivant";
 import type { ApiOrder, ApiPayment, ApiProduct, ApiWallet } from "./types";
 import { SHOP_CATEGORIES } from "./types";
 import { EmptyBlock, Stars, SuccessBurst } from "./bits";
@@ -95,6 +96,9 @@ export function ShopScreen() {
    * après chaque commande réussie : la cliente suit ses données enregistrées). */
   const [view, setView] = useState<"catalogue" | "commandes">("catalogue");
   const [orders, setOrders] = useState<ApiOrder[] | null>(null);
+  /* La grille produits — destination du Marché vivant (tap échoppe → filtre +
+   * descente douce du catalogue vers la famille choisie). */
+  const gridRef = useRef<HTMLDivElement>(null);
   const refreshOrders = useCallback(() => {
     apiGet<{ orders: ApiOrder[] }>(`/api/orders?userId=${user.id}`)
       .then((r) => setOrders(r.orders ?? []))
@@ -266,6 +270,18 @@ export function ShopScreen() {
         <OrdersView orders={orders} onRefresh={refreshOrders} onShop={() => setView("catalogue")} />
       ) : (
         <>
+      {/* Le Marché vivant (t. 83-c) — le marché 3D coiffe la boutique ; le tap
+          sur une échoppe pose le filtre réel et descend vers la grille. Clair
+          de Lune : bande SVG cliquable (jamais bloquant). */}
+      <MarcheVivant
+        onSelectCategory={(category) => {
+          setCat(category);
+          setQ(""); // saut exploratoire : la recherche ne masque pas l'échoppe
+          setFavOnly(false);
+          gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+      />
+
       <Reveal>
         <RevealItem>
           {/* Le Fil de Kente — hero tissé, le fil de la catégorie s'illumine */}
@@ -310,6 +326,7 @@ export function ShopScreen() {
         </RevealItem>
       </Reveal>
 
+      <div ref={gridRef} className="scroll-mt-4">
       {/* Grille produits */}
       {products === null ? (
         <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
@@ -409,6 +426,7 @@ export function ShopScreen() {
           ))}
         </Reveal>
       )}
+      </div>
         </>
       )}
 

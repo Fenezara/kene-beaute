@@ -29,6 +29,7 @@ import { nextClientStep } from "@/lib/kene/followups";
 import type { GoldThreads } from "@/lib/kene/gold-threads";
 import { channelLabel, humanWhen } from "@/lib/kene/reminders";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
+import { CercleKene } from "@/components/kene/cercle/CercleKene";
 import { KeneEmblem, NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
 import { KenteIdentity } from "@/components/kene/loom/KenteIdentity";
 import { WovenDivider } from "@/components/kene/loom/WovenDivider";
@@ -459,6 +460,12 @@ export function HomeScreen({
           </button>
         </RevealItem>
       )}
+
+      {/* ───── Cercle Kènè — les voix de celles qui tissent avant (t. 83-b) ───── */}
+      <WovenDivider label="Le cercle chuchote" />
+      <RevealItem>
+        <CercleKene />
+      </RevealItem>
 
       <WovenDivider label="Le fil continue" />
 
