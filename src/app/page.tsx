@@ -16,6 +16,7 @@ import { MotionConfig } from "framer-motion";
 import { useKene } from "@/store/kene";
 import { ClientApp } from "@/components/kene/client/ClientApp";
 import { BootSkeleton } from "@/components/kene/client/BootSkeleton";
+import { PassportGate } from "@/components/kene/client/PassportView";
 import { SessionKeeper } from "@/components/kene/SessionKeeper";
 import { PwaProvider } from "@/components/kene/pwa/PwaProvider";
 import { Toaster } from "@/components/ui/sonner";
@@ -49,6 +50,11 @@ export default function Page() {
           {space === "pro" && <ProApp />}
           {space === "admin" && <AdminApp />}
         </main>
+
+        {/* Passeport de Peau (t. 82) — vue publique quand l'URL porte
+            ?passport=<jeton> (QR scanné en institut). Au-dessus de TOUT :
+            même le Seuil s'efface derrière lui. */}
+        <PassportGate />
 
         {/* Validation de session au boot — TOUS espaces (voir SessionKeeper) */}
         <SessionKeeper />

@@ -57,6 +57,7 @@ model User {
   wallet       Wallet?
   couponRedemptions CouponRedemption[]
   subscriptions Subscription[] // abonnements Kènè+ / Pro (t. 71-c)
+  passport     SkinPassport? // Passeport de Peau partageable (t. 82)
 }
 
 // ─────────────────────────── Tenants (entreprises) ───────────────────────────
@@ -462,6 +463,20 @@ model Subscription {
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId, status]) // plan actif + quota diagnostics par cliente
+}
+
+// ─────────────────────────── Passeport de Peau (t. 82) ───────────────────────────
+// QR partageable vers les instituts partenaires : un jeton stable par
+// cliente, lisible SANS compte (vue publique /?passport=<token>). Pas de
+// photo — profil peau uniquement (phototype, type, allergies, objectifs,
+// dernier score, fils d'or). rotatable : régénérer le jeton révoque l'ancien.
+model SkinPassport {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  createdAt DateTime @default(now())
+  rotatedAt DateTime?
 }
 
 // ─────────────────────────── Web Push VAPID (t. 60-e) ───────────────────────────

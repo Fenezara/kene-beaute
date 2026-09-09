@@ -26,9 +26,12 @@ import {
 import { apiGet } from "@/lib/kene/api";
 import { formatDate, formatTime, scoreColor, readableTextColor, xof, CASHBACK_RATE } from "@/lib/kene/format";
 import { nextClientStep } from "@/lib/kene/followups";
+import type { GoldThreads } from "@/lib/kene/gold-threads";
 import { channelLabel, humanWhen } from "@/lib/kene/reminders";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 import { KeneEmblem, NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
+import { KenteIdentity } from "@/components/kene/loom/KenteIdentity";
+import { WovenDivider } from "@/components/kene/loom/WovenDivider";
 import { InstallBanner } from "@/components/kene/pwa/InstallBanner";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
 import { GlassCard, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
@@ -46,6 +49,7 @@ interface HomeData {
   wallet: ApiWallet | null;
   products: ApiProduct[];
   reminders: ApiReminderFeed | null;
+  gold?: GoldThreads | null;
 }
 
 /** Icône par zone de scan (stories du feed) */
@@ -90,12 +94,15 @@ export function HomeScreen({
     let alive = true;
     (async () => {
       try {
-        const [d, a, w, p, r] = await Promise.all([
+        const [d, a, w, p, r, g] = await Promise.all([
           apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`),
           apiGet<{ appointments: ApiAppointment[] }>(`/api/appointments?userId=${user.id}`),
           apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).catch(() => null),
           apiGet<{ products: ApiProduct[] }>("/api/shop/products"),
           apiGet<ApiReminderFeed>(`/api/notifications?userId=${user.id}`).catch(() => null),
+          // Fils d'Or (t. 82) — non bloquant : la carte ne s'affiche pas si
+          // l'API ne répond pas (le feed reste vivant avant tout).
+          apiGet<GoldThreads>(`/api/gold-threads?userId=${user.id}`).catch(() => null),
         ]);
         if (alive) {
           setData({
@@ -104,6 +111,7 @@ export function HomeScreen({
             wallet: w?.wallet ?? null,
             products: p.products ?? [],
             reminders: r ?? null,
+            gold: g,
           });
           if (alive) onRefreshed?.();
         }
@@ -282,6 +290,9 @@ export function HomeScreen({
 
       {err && <p className="rounded-xl bg-destructive/10 text-destructive text-xs p-3">{err}</p>}
 
+      {/* ───── Fil conducteur d'or (t. 82) — le fil qui relie les sections ───── */}
+      <WovenDivider label="Ton score se tisse" />
+
       {/* ───── Carte score multi-zones (avec lecture vocale) — héro verre ───── */}
       <RevealItem>
         <section aria-labelledby="sc-t">
@@ -412,6 +423,45 @@ export function HomeScreen({
         </RevealItem>
       )}
 
+      {/* ───── Fils d'Or — la fidélité tissée (t. 82) ───── */}
+      {data?.gold && data.gold.threads >= 0 && (
+        <RevealItem>
+          <button
+            onClick={() => setClientTab("profil")}
+            className="w-full text-left k-card k-card-hover rounded-[24px] p-4 active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-label={`Mes Fils d'Or — ${data.gold.threads} fils, rang ${data.gold.rank}. Voir mon kente identitaire dans le profil`}
+          >
+            <div className="flex items-center gap-3.5">
+              <span className="w-[92px] shrink-0 overflow-hidden rounded-[10px] ring-1 ring-border/80">
+                <KenteIdentity seed={data.gold.seed} threads={data.gold.threads} compact height={44} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="font-heading font-bold text-sm text-foreground">{data.gold.threads} fil{data.gold.threads > 1 ? "s" : ""} d&apos;or</span>
+                  <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-gold-text">{data.gold.rank}</span>
+                </span>
+                <span className="mt-2 block h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <span
+                    className="block h-full rounded-full bg-gradient-to-r from-[#A0522D] to-[#E3B04B] transition-[width] duration-700"
+                    style={{ width: `${Math.min(100, Math.round(data.gold.milestone.progress * 100))}%` }}
+                  />
+                </span>
+                <span className="mt-1.5 block text-[11px] leading-snug text-muted-foreground">
+                  {data.gold.threads === 0
+                    ? "Ton premier scan tissera ton premier fil"
+                    : data.gold.milestone.remaining > 0
+                      ? `Encore ${data.gold.milestone.remaining} action${data.gold.milestone.remaining > 1 ? "s" : ""} pour le palier des ${data.gold.milestone.next} fils`
+                      : `Palier des ${data.gold.milestone.next} fils atteint — ton pagne continue de grandir`}
+                </span>
+              </span>
+              <ChevronRight size={16} className="text-primary shrink-0" aria-hidden="true" />
+            </div>
+          </button>
+        </RevealItem>
+      )}
+
+      <WovenDivider label="Le fil continue" />
+
       {/* ───── Le Fil du Retour — ta prochaine étape ───── */}
       {nextStep && (
         <RevealItem>
@@ -505,6 +555,8 @@ export function HomeScreen({
           </section>
         </RevealItem>
       )}
+
+      <WovenDivider label="Ta trame boutique" />
 
       {/* ───── Recommandé pour ta peau ───── */}
       <RevealItem>

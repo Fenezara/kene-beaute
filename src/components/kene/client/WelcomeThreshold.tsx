@@ -27,84 +27,11 @@ import {
 import { AuroraBackdrop, Eyebrow, GlassCard, PrimaryCTA, Reveal, RevealItem } from "@/components/kene/ui2026";
 import { DuafeIcon, KeneEmblem, KeneMark } from "@/components/kene/icons";
 import { useKene, type SessionUser } from "@/store/kene";
+import { LoomSection } from "@/components/kene/loom/LoomSection";
 import { Onboarding } from "./Onboarding";
 import { PhoneKeypad, otpErrorToast, requestOtp } from "./PhoneKeypad";
 import { ThresholdStories } from "./ThresholdStories";
 import { type ApiUser } from "./types";
-
-/* ───────────────────────── Fils de kente vivants (hero) ─────────────────────────
-   3 courbes Bézier or/terre/bissap qui se DESSINENT à l'arrivée (pathLength),
-   puis respirent (dérive lente). Parallaxe pointeur douce sur desktop. */
-const THREADS = [
-  { d: "M -20 62 C 120 18, 260 108, 430 66", stroke: "#C8951E", w: 2 },
-  { d: "M -20 132 C 140 92, 250 168, 430 122", stroke: "#A0522D", w: 1.6 },
-  { d: "M -20 202 C 110 162, 280 228, 430 188", stroke: "#8B1A3B", w: 1.6 },
-];
-
-function KenteThreads({ first }: { first: boolean }) {
-  const parallax = useRef<HTMLDivElement>(null);
-  const raf = useRef(0);
-
-  useEffect(() => {
-    const zone = parallax.current?.parentElement;
-    if (!zone) return;
-    const onMove = (e: MouseEvent) => {
-      if (raf.current) return;
-      raf.current = window.requestAnimationFrame(() => {
-        raf.current = 0;
-        const el = parallax.current;
-        if (!el) return;
-        const r = zone.getBoundingClientRect();
-        const nx = (e.clientX - r.left) / r.width - 0.5;
-        const ny = (e.clientY - r.top) / r.height - 0.5;
-        el.style.transform = `translate(${nx * 10}px, ${ny * 8}px)`;
-      });
-    };
-    zone.addEventListener("mousemove", onMove);
-    return () => {
-      zone.removeEventListener("mousemove", onMove);
-      if (raf.current) window.cancelAnimationFrame(raf.current);
-    };
-  }, []);
-
-  return (
-    <div ref={parallax} className="pointer-events-none absolute inset-0 transition-transform duration-500 ease-out" aria-hidden="true">
-      <svg viewBox="0 0 400 240" preserveAspectRatio="none" className="h-full w-full">
-        {THREADS.map((t, i) => (
-          <motion.path
-            key={i}
-            d={t.d}
-            fill="none"
-            stroke={t.stroke}
-            strokeWidth={t.w}
-            strokeLinecap="round"
-            opacity={0.45}
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: 1 }}
-            transition={{ duration: first ? 1.1 : 0.5, delay: (first ? 0.15 : 0) + i * 0.16, ease: [0.22, 1, 0.36, 1] }}
-          />
-        ))}
-        {/* Nœuds — perles aux extrémités des fils */}
-        {THREADS.map((t, i) => {
-          const m = / ([\d.]+) ([\d.]+)$/.exec(t.d);
-          if (!m) return null;
-          return (
-            <motion.circle
-              key={`n${i}`}
-              cx={parseFloat(m[1])}
-              cy={parseFloat(m[2])}
-              r={3.2}
-              fill={t.stroke}
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: 0.9, scale: 1 }}
-              transition={{ delay: (first ? 1 : 0.4) + i * 0.16, type: "spring", stiffness: 300, damping: 18 }}
-            />
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
 
 /* ───────────────────────── Portail image plein cadre ───────────────────────── */
 function PortalCard({
@@ -364,12 +291,12 @@ export function WelcomeThreshold() {
               </motion.button>
             </section>
 
-            {/* ── Tissage séparateur — les fils vivent ICI, dans leur propre
-                bande (jamais derrière un texte : la promesse au-dessus, le
-                choix en dessous — croisement impossible par construction) ── */}
-            <div className="relative mt-5 h-[56px] sm:h-[64px]" aria-hidden="true">
-              <KenteThreads first={first} />
-            </div>
+            {/* ── La Navette d'Or (t. 82) — le métier à tisser du Seuil :
+                chaîne, navette, pagne… puis rideau qui se lève sur le
+                médaillon de particules. Clair de Lune (reduced-motion /
+                2G-3G) : bande de fils SVG élégante, même place. Le tissage
+                vit dans sa PROPRE bande collante — jamais derrière un texte. ── */}
+            <LoomSection first={first} />
 
             {/* ── Reconnexion express ── */}
             <AnimatePresence initial={false}>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, Brush, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, GitCompareArrows, Hand, History,
-  ImagePlus, Loader2, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Sparkles, Sunrise, TriangleAlert, WifiOff, X,
+  ImagePlus, Layers, Loader2, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Sparkles, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
@@ -12,6 +12,7 @@ import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from 
 import { BODY_ZONES, SPECTRAL_VIEWS, type BodyZone, type DiagnosisResult, type Indicator } from "@/lib/kene/types";
 import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
 import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
+import { SkinDescent } from "@/components/kene/descent/SkinDescent";
 import { EvolutionCard } from "@/components/kene/evolution/EvolutionCard";
 import { VoiceNarration } from "./VoiceNarration";
 import { PictoSummary } from "./PictoSummary";
@@ -625,6 +626,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
   const addToCart = useKene((s) => s.addToCart);
   const [view, setView] = useState<string>("standard");
   const [ritualOpen, setRitualOpen] = useState(false);
+  const [descentOpen, setDescentOpen] = useState(false);
   const [glossary, setGlossary] = useState<GlossaryEntry | null>(null);
   const r = diag.result;
   // Fiabilité (t. 71) : champ posé par le worker dans resultJson ; les
@@ -690,6 +692,31 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
       {/* Résumé en pictos — tuiles tapables lues à voix haute (non-lectrices) */}
       <RevealItem className="mt-4">
         <PictoSummary result={r} zoneLabel={BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone} />
+      </RevealItem>
+
+      {/* Descente de Peau (t. 82) — voyage 3D dans les couches, éclairé par
+          les indicateurs réels. Plein cadre opt-in, se ferme à la remontée. */}
+      <RevealItem className="mt-4">
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setDescentOpen(true)}
+          className="relative w-full overflow-hidden rounded-[24px] bg-gradient-to-br from-[#241A10] to-[#1A1410] text-left ring-1 ring-[#C8951E]/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          aria-label="Ouvrir la Descente de Peau — traverser les trois couches de ma peau en 3D"
+        >
+          <div aria-hidden="true" className="h-1.5 w-full" style={{ backgroundImage: "linear-gradient(90deg, #8D5524 0 33%, #C99B6E 33% 66%, #F0DFC2 66% 100%)" }} />
+          <div className="flex items-center gap-3 p-4">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#C8951E]/15 text-[#E3B04B]">
+              <Layers size={24} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-heading font-bold text-sm text-[#F8F1E4]">Voyage dans ma peau</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-[#F8F1E4]/65">
+                Descends à travers l’épiderme, le derme et l’hypoderme — éclairés par tes {r.indicateurs.length} indicateurs.
+              </p>
+            </div>
+            <ChevronRight size={18} className="shrink-0 text-[#E3B04B]" aria-hidden="true" />
+          </div>
+        </motion.button>
       </RevealItem>
 
       {/* Alerte orientation dermato */}
@@ -951,6 +978,17 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
           products={products}
           userName={user.name}
           onClose={() => setRitualOpen(false)}
+        />
+      )}
+
+      {/* Descente de Peau (t. 82) — overlay plein cadre, se referme à la
+          remontée (Échap inclus). */}
+      {descentOpen && (
+        <SkinDescent
+          indicators={r.indicateurs}
+          score={r.score_global}
+          zoneLabel={BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone}
+          onClose={() => setDescentOpen(false)}
         />
       )}
 

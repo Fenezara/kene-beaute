@@ -13,14 +13,17 @@ import { toast } from "sonner";
 import { apiGet, apiPatch, apiPost } from "@/lib/kene/api";
 import { formatDate, xof, CASHBACK_RATE } from "@/lib/kene/format";
 import { useT } from "@/lib/kene/use-t";
+import type { GoldThreads } from "@/lib/kene/gold-threads";
 import { MOMO_OPERATORS } from "@/lib/kene/rfm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { KenteIdentity } from "@/components/kene/loom/KenteIdentity";
 import { Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import { useKene, type SessionUser } from "@/store/kene";
 import type { ApiUser, ApiWallet, ApiWalletTx } from "./types";
 import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES } from "./types";
 import { SectionTitle } from "./bits";
 import { ParrainageCard } from "./ParrainageCard";
+import { PassportCard } from "./PassportCard";
 
 /** SessionUser + goals (string JSON) renvoyé par PATCH profile */
 type ClientUser = SessionUser & { goals?: string | null };
@@ -58,6 +61,7 @@ export function ProfileScreen() {
 
   const [wallet, setWallet] = useState<ApiWallet | null>(null);
   const [txs, setTxs] = useState<ApiWalletTx[] | null>(null);
+  const [gold, setGold] = useState<GoldThreads | null>(null);
   const [topup, setTopup] = useState(false);
   const [amount, setAmount] = useState(5000);
   const [method, setMethod] = useState<"wave" | "orange">("wave");
@@ -68,6 +72,15 @@ export function ProfileScreen() {
     apiGet<{ wallet: ApiWallet; transactions: ApiWalletTx[] }>(`/api/wallet?userId=${user.id}`)
       .then((r) => { setWallet(r.wallet); setTxs(r.transactions ?? []); })
       .catch(() => setTxs([]));
+  }, [user.id]);
+
+  // Fils d'Or (t. 82) — non bloquant : la section s'efface si indisponible.
+  useEffect(() => {
+    let alive = true;
+    apiGet<GoldThreads>(`/api/gold-threads?userId=${user.id}`)
+      .then((g) => { if (alive) setGold(g); })
+      .catch(() => {});
+    return () => { alive = false; };
   }, [user.id]);
 
   useEffect(() => {
@@ -182,6 +195,58 @@ export function ProfileScreen() {
         </section>
       </RevealItem>
 
+      {/* ── Mon kente identitaire (t. 82) — Fils d'Or ── */}
+      {gold && (
+        <RevealItem>
+          <section aria-labelledby="kt-t">
+            <SectionTitle icon={<Sparkles size={16} />}><span id="kt-t">Mon kente identitaire</span></SectionTitle>
+            <div className="k-card overflow-hidden rounded-[24px]">
+              <div className="p-4 pb-3">
+                <div className="rounded-[12px] ring-1 ring-border/80">
+                  <KenteIdentity seed={gold.seed} threads={gold.threads} height={110} />
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-heading font-black text-lg leading-tight">
+                      {gold.threads} fil{gold.threads > 1 ? "s" : ""} d&apos;or
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">Rang : {gold.rank}</p>
+                  </div>
+                  <div className="min-w-[140px] flex-1">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-[#A0522D] to-[#E3B04B]"
+                        style={{ width: `${Math.min(100, Math.round(gold.milestone.progress * 100))}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-right text-[10px] text-muted-foreground">
+                      {gold.milestone.remaining > 0 ? `palier ${gold.milestone.next} fils` : `palier ${gold.milestone.next} atteint`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-dashed border-border px-4 py-3">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">D’où viennent tes fils</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {gold.items.filter((it) => it.count > 0).map((it) => (
+                    <span key={it.kind} className="rounded-full bg-gold/12 px-2.5 py-1 text-[10.5px] font-semibold text-gold-text">
+                      {it.label} · {it.count}
+                    </span>
+                  ))}
+                  {gold.items.every((it) => it.count === 0) && (
+                    <span className="text-[11px] text-muted-foreground">Ton premier scan tissera ton premier fil.</span>
+                  )}
+                </div>
+                <p className="mt-2.5 text-[10.5px] leading-relaxed text-muted-foreground">
+                  Chaque action vraie — scan, commande, soin en institut, avis, parrainage — ajoute un fil d&apos;or à TON pagne.
+                  Le motif est unique : il est tissé depuis ton histoire, il ne se gagne pas, il se vit.
+                </p>
+              </div>
+            </div>
+          </section>
+        </RevealItem>
+      )}
+
       {/* Profil peau */}
       <RevealItem>
         <section aria-labelledby="skin-t">
@@ -273,6 +338,9 @@ export function ProfileScreen() {
 
       {/* Parrainage — le fil qui relie les amies */}
       <ParrainageCard userId={user.id} userName={user.name} onRedeemed={loadWallet} />
+
+      {/* Passeport de Peau (t. 82) — QR partageable vers les instituts */}
+      <PassportCard userId={user.id} />
 
       {/* Passerelle Paramètres (t. 69-c) — les réglages de l'application
           (apparence, langue, notifications, sécurité, RGPD, PWA, session)
