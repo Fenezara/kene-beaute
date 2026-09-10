@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const guard = guardProRole(req, "pro:clients:get");
     if (guard) return guard;
 
-    const tenant = await resolveTenant(req.nextUrl.searchParams.get("tenantId"));
+    const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
     const q = req.nextUrl.searchParams.get("q")?.trim().toLowerCase() ?? "";
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const tenant = await resolveTenant(parsed.data.tenantId);
+    const tenant = await resolveTenant(req, parsed.data.tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
 
     // Normalisation conservée (trim + espaces multiples) : zod garantit la

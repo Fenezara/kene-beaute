@@ -17,7 +17,7 @@ interface LiveEvent {
 
 export async function GET(req: NextRequest) {
   try {
-    const tenant = await resolveTenant(req.nextUrl.searchParams.get("tenantId"));
+    const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
     const now = new Date();
 

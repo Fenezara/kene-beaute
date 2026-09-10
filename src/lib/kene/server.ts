@@ -1,7 +1,9 @@
 // Kènè — Helpers serveur pour les routes API (backend uniquement)
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { sessionFromRequest } from "./session";
 import { genRef, xof } from "./format";
 import { rfmScore } from "./rfm";
 import { PARRAIN_REWARD } from "./referral";
@@ -23,8 +25,27 @@ export function defaultTenant() {
   return db.tenant.findFirst({ orderBy: { createdAt: "asc" } });
 }
 
-/** Résout un tenant par id, sinon le tenant par défaut ; null si l'id n'existe pas */
-export async function resolveTenant(tenantId?: string | null) {
+/** Résout un tenant pour UNE requête, en liant l'accès au propriétaire de
+ * session (t. 89 — incident « La Dermo ne passe pas ») :
+ *  • gérante pro connectée (cookie signé) : elle n'accède QU'À SON institut —
+ *    sans tenantId → SON tenant (plus jamais le « premier de la base », qui
+ *    faisait atterrir une gérante qui se reconnecte sur le dashboard d'un
+ *    autre institut) ; avec un tenantId ÉTRANGER → null (404) — ferme au
+ *    passage l'IDOR qui laissait toute pro lire les données d'un autre ;
+ *  • admin connecté : accès à tout tenant (console) ;
+ *  • sans cookie : comportement historique POC (résolution libre) — les
+ *    parcours front posent tous le cookie depuis t. 71-b.
+ * Signature enrichie de la requête : les 17 routes pro passent par CE point
+ * unique (overview, agenda, CRM, caisse, stock, payroll, compta, relances,
+ * catalogue, diagnostics, live, employées, coupons…). */
+export async function resolveTenant(req: NextRequest, tenantId?: string | null) {
+  const sess = sessionFromRequest(req);
+  if (sess && sess.role === "pro") {
+    const mine = await db.tenant.findFirst({ where: { ownerPhone: sess.phone } });
+    if (!mine) return null; // pro sans institut : 404 franc, pas de repli
+    if (tenantId && tenantId !== mine.id) return null; // institut d'une autre → refus
+    return mine;
+  }
   if (tenantId) return db.tenant.findUnique({ where: { id: tenantId } });
   return defaultTenant();
 }

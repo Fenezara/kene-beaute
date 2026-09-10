@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const guard = guardProRole(req, "pro:followups:get");
     if (guard) return guard;
 
-    const tenant = await resolveTenant(req.nextUrl.searchParams.get("tenantId"));
+    const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
     const since90 = new Date(Date.now() - 90 * 86_400_000);

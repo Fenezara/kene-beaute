@@ -30,6 +30,7 @@ export function SessionKeeper() {
   const hydrated = useKene((s) => (s as { _keneHydrated?: boolean })._keneHydrated ?? true);
   const setUser = useKene((s) => s.setUser);
   const setSpace = useKene((s) => s.setSpace);
+  const setProTenantId = useKene((s) => s.setProTenantId);
   const clearCart = useKene((s) => s.clearCart);
   const validatedUserIdRef = useRef<string | null>(null);
   const userId = user?.id;
@@ -46,6 +47,15 @@ export function SessionKeeper() {
         // session locale (ne jamais déconnecter sur une réponse inattendue).
         if (s.user) {
           setUser(s.user as SessionUser);
+          // t. 89 — incident « La Dermo ne passe pas » : GUÉRISON au boot du
+          // proTenantId persisté. L'ancien bug faisait persister l'id du
+          // « premier institut de la base » (Éclat d'Abidjan) chez une gérante
+          // reconnectée sans son id — la session serveur dit aujourd'hui
+          // VÉRITÉ (son institut à elle) : on ré-aligne le store AVANT que
+          // ProApp ne charge, plus aucun aller-retour 404→auto-guérison.
+          if (s.user.role === "pro" && s.tenantId) {
+            setProTenantId(s.tenantId);
+          }
           // Mémoire de reconnexion (t. 73) : rafraîchie depuis la base —
           // cookie 90 j = « rester connectée », la carte « Contente de te
           // revoir » des Portes garde ainsi prénom/rôle à jour.
@@ -69,7 +79,7 @@ export function SessionKeeper() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, userId, setUser, setSpace, clearCart]);
+  }, [hydrated, userId, setUser, setSpace, setProTenantId, clearCart]);
 
   return null;
 }

@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const period = req.nextUrl.searchParams.get("period");
     if (!period || !/^\d{4}-\d{2}$/.test(period)) return jsonError("Paramètre period (YYYY-MM) requis", 400);
 
-    const tenant = await resolveTenant(req.nextUrl.searchParams.get("tenantId"));
+    const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
     const payPeriod = await db.payPeriod.findFirst({

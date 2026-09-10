@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const { zone, photo, practitioner } = parsed.data;
     const answers = sanitizeAnswers(parsed.data.answers as QAnswers);
 
-    const tenant = await resolveTenant(parsed.data.tenantId);
+    const tenant = await resolveTenant(req, parsed.data.tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
 
     // 1. Cliente : fiche CRM existante OU création express (anti-doublon téléphones)
@@ -196,7 +196,7 @@ export async function GET(req: NextRequest) {
     const guard = guardProRole(req, "pro:diagnoses:get");
     if (guard) return guard;
 
-    const tenant = await resolveTenant(req.nextUrl.searchParams.get("tenantId"));
+    const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
     const clientId = req.nextUrl.searchParams.get("clientId");
 

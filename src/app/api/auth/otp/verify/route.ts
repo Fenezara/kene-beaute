@@ -127,7 +127,15 @@ export async function POST(req: NextRequest) {
 
     // Session signée (t. 71-b) : cookie httpOnly 90 j posé à la connexion —
     // le payload JSON reste STRICTEMENT identique (zéro casse SessionKeeper).
-    const response = NextResponse.json({ user });
+    // t. 89 — incident « La Dermo ne passe pas » : la réponse embarque
+    // `tenant { id, name }` pour une gérante (l'onboarding entre DIRECTEMENT
+    // dans son espace avec le bon institut — plus de « premier tenant de la
+    // base » sur le dashboard d'une autre). Additif : les fronts qui l'ignorent
+    // ne changent pas de comportement.
+    const response = NextResponse.json({
+      user,
+      tenant: ownerTenant ? { id: ownerTenant.id, name: ownerTenant.name } : null,
+    });
     setSessionCookie(response, user);
     return response;
   } catch (err) {

@@ -82,19 +82,22 @@ export function ProApp() {
     [proTenantId]
   );
 
-  // Mémorise le tenant par défaut au premier chargement
+  // Première résolution serveur : le tenant de la session est mémorisé
+  // (t. 89 : le serveur renvoie l'institut de LA GÉRANTE, pas un « défaut »)
   useEffect(() => {
     if (!proTenantId && overview.data?.tenant?.id) setProTenantId(overview.data.tenant.id);
   }, [proTenantId, overview.data, setProTenantId]);
 
-  // AUTO-GUÉRISON : un institut mémorisé (localStorage) disparu de la base ne doit jamais bloquer
-  // l'espace Pro — on oublie la préférence périmée et on retombe sur l'institut par défaut.
+  // AUTO-GUÉRISON : un institut mémorisé (localStorage) disparu ou ÉTRANGER
+  // (t. 89 : l'ancien bug pouvait y persister l'id du « premier institut de
+  // la base ») ne doit jamais bloquer l'espace Pro — on oublie la préférence
+  // périmée : la résolution sans id renvoie désormais l'institut de la gérante.
   const healedRef = useRef(false);
   useEffect(() => {
     if (overview.error && proTenantId && !healedRef.current) {
       healedRef.current = true;
       setProTenantId(null);
-      toast.info("Institut mémorisé indisponible — institut par défaut chargé");
+      toast.info("Institut mémorisé périmé — ton institut est rechargé");
     }
   }, [overview.error, proTenantId, setProTenantId]);
 

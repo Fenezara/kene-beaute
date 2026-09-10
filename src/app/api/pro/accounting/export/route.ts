@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     if (guard) return guard;
 
     const sp = req.nextUrl.searchParams;
-    const tenant = await resolveTenant(sp.get("tenantId"));
+    const tenant = await resolveTenant(req, sp.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
     const typeParam = sp.get("type") ?? "journal";

@@ -7,6 +7,13 @@
 // au boot, même localStorage vidé, le SessionKeeper repart du cookie (90 j,
 // « rester connectée comme TikTok »). Le repli query userId conserve les
 // sessions POC ouvertes avant ce sprint (pas encore de cookie).
+//
+// t. 89 — incident « La Dermo ne passe pas » : une gérante pro qui se
+// reconnecte (nouvel appareil, storage vidé, repli 409 de l'onboarding)
+// n'avait AUCUN moyen de retrouver SON institut — l'espace Pro tombait sur le
+// « premier tenant de la base ». La réponse embarque désormais `tenant
+// { id, name }` pour les comptes pro propriétaires (shape lue par readSession
+// depuis t. 66 : additive, aucun front cassé).
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
@@ -28,7 +35,12 @@ export async function GET(req: NextRequest) {
     if (sess) {
       const user = await db.user.findUnique({ where: { id: sess.userId } });
       if (!user) return jsonError("Session expirée", 404);
-      return NextResponse.json({ user });
+      // t. 89 : l'institut de la gérante suit la session — le front peut
+      // re-poser proTenantId au boot sans requête supplémentaire.
+      const tenant = user.role === "pro"
+        ? await db.tenant.findFirst({ where: { ownerPhone: user.phone } })
+        : null;
+      return NextResponse.json({ user, tenant: tenant ? { id: tenant.id, name: tenant.name } : null });
     }
 
     // 2) Legacy (session POC d'avant ce sprint, sans cookie) : repli query userId.
@@ -38,7 +50,12 @@ export async function GET(req: NextRequest) {
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) return jsonError("Session expirée", 404);
 
-    return NextResponse.json({ user });
+    // t. 89 : même enrichissement sur le repli legacy (le repli 409 de
+    // l'onboarding pro passe par ici).
+    const tenant = user.role === "pro"
+      ? await db.tenant.findFirst({ where: { ownerPhone: user.phone } })
+      : null;
+    return NextResponse.json({ user, tenant: tenant ? { id: tenant.id, name: tenant.name } : null });
   } catch (err) {
     return serverError("auth/session", err);
   }

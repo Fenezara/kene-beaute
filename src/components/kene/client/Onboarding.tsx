@@ -164,7 +164,7 @@ export function Onboarding({
     if (code.length !== 6) return;
     setLoading(true);
     try {
-      const v = await apiPost<{ user: ApiUser }>("/api/auth/otp/verify", { phone: `+225${digits}`, code, name: name.trim() || undefined });
+      const v = await apiPost<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/otp/verify", { phone: `+225${digits}`, code, name: name.trim() || undefined });
       // Mémoire du dernier compte (t. 73) : clé dédiée kene-last-account,
       // locale à l'appareil, survit à la déconnexion → carte « Contente de
       // te revoir » sur la page d'accueil. Aucun effet si le stockage refuse.
@@ -172,6 +172,19 @@ export function Onboarding({
       setAuthId(v.user.id);
       if (!v.user.name || v.user.name === "Nouvelle cliente") setIsNew(true);
       if (mode === "pro") {
+        // t. 89 — incident « La Dermo ne passe pas » : une GÉRANTE EXISTANTE
+        // (rôle pro + institut) entre DIRECTEMENT dans son espace avec SON
+        // institut. Avant : elle tombait sur le formulaire « Crée ton espace
+        // entreprise » comme une nouvelle inscrite — son institut existant
+        // n'aboutissait nulle part. Le formulaire ne reste désormais QUE pour
+        // les VÉRITABLES nouvelles inscriptions.
+        if (v.user.role === "pro" && v.tenant?.id) {
+          setUser(v.user as SessionUser);
+          setProTenantId(v.tenant.id);
+          setSpace("pro");
+          toast.success(`Bienvenue ${v.user.name.split(" ")[0]} — « ${v.tenant.name} » t'attend`);
+          return;
+        }
         // Mode entreprise : JAMAIS de questionnaire peau (phototype/objectifs/
         // consent santé = diagnostic IA cliente uniquement) — directement le
         // formulaire institut après l'OTP. Le prénom connu pré-remplit la

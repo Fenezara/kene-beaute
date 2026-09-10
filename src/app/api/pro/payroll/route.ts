@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const guard = guardProRole(req, "pro:payroll:get");
     if (guard) return guard;
 
-    const tenant = await resolveTenant(req.nextUrl.searchParams.get("tenantId"));
+    const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
     const payPeriods = await db.payPeriod.findMany({
