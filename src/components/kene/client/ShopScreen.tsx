@@ -15,6 +15,7 @@ import { useKene } from "@/store/kene";
 import { useFavorites } from "@/store/favorites";
 import { useSecurity } from "@/store/security";
 import { KenteWeaveCard } from "@/components/kene/weave/KenteWeaveCard";
+import { KeneMark } from "@/components/kene/icons";
 import { categoryThread } from "@/components/kene/weave/threads";
 import { MarcheVivant } from "@/components/kene/market/MarcheVivant";
 import type { ApiOrder, ApiPayment, ApiProduct, ApiWallet } from "./types";
@@ -239,7 +240,13 @@ export function ShopScreen() {
       <Reveal>
         <RevealItem>
           <header className="flex items-center justify-between">
-            <h1 className="font-heading font-black text-xl tracking-tight">Boutique Kènè</h1>
+            <h1 className="flex items-center gap-2 font-heading font-black text-xl tracking-tight">
+              {/* Mark de marque (t. 86) — signature vectorielle de la boutique */}
+              <span aria-hidden="true">
+                <KeneMark size={26} />
+              </span>
+              Boutique Kènè
+            </h1>
             <span className="k-chip rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-gold-text">Cashback {Math.round(cashbackRate * 100)} %</span>
           </header>
         </RevealItem>

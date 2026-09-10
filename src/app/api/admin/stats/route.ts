@@ -8,8 +8,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, daysAgo, ddMM } from "@/lib/kene/server";
-import { guardAdminRole } from "@/lib/kene/session";
+import { guardAdminRole, sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
+import { audit, clientIp } from "@/lib/kene/audit";
 
 const CACHE_TTL_MS = 60_000;
 
@@ -39,6 +40,14 @@ export async function GET(req: NextRequest) {
     // exige un compte admin ; sans cookie → legacy (route publique + rate-limit).
     const guard = guardAdminRole(req, "admin:stats");
     if (guard) return guard;
+
+    // t. 86-d : chaque passage de la garde (session admin vérifiée) est
+    // journalisé — userId + IP. Legacy sans cookie : pas d'événement (rien
+    // n'est authentifiable) — c'est la trace des ACCÈS réels qui compte.
+    const sess = sessionFromRequest(req);
+    if (sess) {
+      void audit({ kind: "admin_access", userId: sess.userId, ip: clientIp(req) });
+    }
 
     const cached = g.__keneAdminStatsCache;
     if (cached && Date.now() - cached.at < CACHE_TTL_MS) {

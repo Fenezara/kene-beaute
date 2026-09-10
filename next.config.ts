@@ -16,20 +16,13 @@ const nextConfig: NextConfig = {
   reactStrictMode: false,
   // Le badge/dev-tools flottant Next.js couvre la tab-bar mobile en préview — on le retire
   devIndicators: false,
-  // En-têtes de sécurité (t. 63-d). ⚠️ AUCUN X-Frame-Options / CSP
-  // frame-ancestors / frame-ancestors ici : l'app vit dans une iframe de
-  // préview sandbox — tout frame-blocking casserait la préview.
-  async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-        ],
-      },
-    ];
-  },
+  // En-têtes de sécurité (t. 86-c) : la SOURCE UNIQUE est src/middleware.ts
+  // (CSP, HSTS, nosniff, Referrer-Policy, Permissions-Policy, COOP + garde
+  // CSRF/Origin sur /api/*). L'ancien bloc headers() a été retiré d'ici pour
+  // éviter les doublons. ⚠️ AUCUN X-Frame-Options / frame-ancestors
+  // restrictif nulle part : l'app vit dans une iframe de préview sandbox —
+  // tout frame-blocking casserait la préview (la CSP du middleware pose
+  // délibérément frame-ancestors *).
 };
 
 export default nextConfig;

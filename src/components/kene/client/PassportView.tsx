@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, BadgeCheck, Loader2, MapPin, ShieldCheck, Sparkles, TriangleAlert } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
 import { formatDate } from "@/lib/kene/format";
+import { KeneEmblem } from "@/components/kene/icons";
 import { KenteIdentity } from "@/components/kene/loom/KenteIdentity";
 
 interface PassportData {
@@ -97,11 +98,18 @@ export function PassportGate() {
       />
 
       <div className="relative mx-auto flex min-h-dvh w-full max-w-[520px] flex-col px-5 py-8">
-        {/* En-tête de marque */}
-        <div className="flex items-center justify-between">
-          <p className="font-heading text-[19px] font-black tracking-[0.02em]">
-            Kènè<span className="ml-2 align-middle text-[9px] font-semibold uppercase tracking-[0.22em] text-[#C8951E]">Beauté mélanoderme</span>
-          </p>
+        {/* En-tête de marque — sceau officiel + wordmark */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            {/* Sceau 2026 (t. 86) — variante sombre FORCÉE (classe `dark` locale)
+                pour fondre dans l’espresso du passeport public. */}
+            <span className="dark" aria-hidden="true">
+              <KeneEmblem size={40} className="drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]" />
+            </span>
+            <p className="font-heading text-[19px] font-black tracking-[0.02em]">
+              Kènè
+            </p>
+          </div>
           <span className="rounded-full bg-[#6B2416]/70 px-3 py-1 text-[9px] font-bold uppercase tracking-[0.14em]">Lecture publique</span>
         </div>
 

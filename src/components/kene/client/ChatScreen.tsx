@@ -18,7 +18,7 @@ import { motion } from "framer-motion";
 import { Camera, CircleCheck, ImagePlus, Loader2, Mic, OctagonAlert, Send, ShieldCheck, Square, TriangleAlert, Volume2, VolumeX, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, resizeImage } from "@/lib/kene/api";
-import { NeaOnnimIcon } from "@/components/kene/icons";
+import { KeneEmblem, NeaOnnimIcon } from "@/components/kene/icons";
 import { Chip, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
 import { useChat } from "@/store/chat";
@@ -350,8 +350,9 @@ export function ChatScreen() {
     <div className="flex flex-col min-h-[68vh] pt-4">
       <header className="flex items-center gap-3 pb-3 border-b border-border">
         <span className="relative shrink-0">
+          {/* Sceau 2026 (t. 86) — le Médaillon Kènè est l'avatar du Dr. Kènè */}
           <span className="k-glow-gold inline-grid rounded-[14px]">
-            <IconBadge icon={<NeaOnnimIcon size={22} />} size="md" tone="gold" />
+            <KeneEmblem size={40} />
           </span>
           <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#346834] border-2 border-background" aria-hidden="true" />
         </span>

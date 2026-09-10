@@ -334,3 +334,49 @@ export function KeneLogo({ size = 40, withText = true }: { size?: number; withTe
     </span>
   );
 }
+
+/** Lockup Sceau 2026 (t. 86) — le Médaillon Kènè (KeneEmblem) accompagné du
+ *  wordmark : c'est LE logo officiel de l'app dans les en-têtes et sidebars
+ *  (cliente, Pro, admin). L'emblème raster vit en double livraison claire/
+ *  sombre ; le wordmark reste en tokens (var(--foreground)) pour s'inverser.
+ *  `label` accepte un ReactNode (ex. « Kènè <span or>Pro</span> »).
+ *  `sublabel` = ligne éditoriale optionnelle sous le wordmark. */
+export function KeneEmblemLockup({
+  size = 44,
+  label = "Kènè",
+  sublabel,
+  className = "",
+  labelSize,
+}: {
+  size?: number;
+  label?: React.ReactNode;
+  sublabel?: React.ReactNode;
+  className?: string;
+  labelSize?: number;
+}) {
+  const fontSize = labelSize ?? Math.round(size * 0.46 * 100) / 100;
+  return (
+    <span className={`inline-flex min-w-0 items-center gap-2.5 select-none ${className}`}>
+      <KeneEmblem
+        size={size}
+        className="drop-shadow-[0_2px_10px_rgba(200,149,30,0.20)]"
+      />
+      <span className="flex min-w-0 flex-col items-start leading-none">
+        <span
+          className="font-heading font-bold leading-[1.05] tracking-[0.02em] truncate"
+          style={{ color: "var(--foreground)", fontSize: `${fontSize.toFixed(2)}px` }}
+        >
+          {label}
+        </span>
+        {sublabel != null && (
+          <span
+            className="mt-[5px] max-w-full truncate text-[8.5px] font-semibold uppercase tracking-[0.24em] whitespace-nowrap"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            {sublabel}
+          </span>
+        )}
+      </span>
+    </span>
+  );
+}

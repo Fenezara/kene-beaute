@@ -17,6 +17,7 @@ import { xof } from "@/lib/kene/format";
 import { confirmTokenMatches, serializePayment } from "@/lib/kene/confirm-token";
 import { guardUserClaim } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, PAYMENTS_CONFIRM } from "@/lib/kene/rate-limit";
+import { audit, clientIp } from "@/lib/kene/audit";
 
 const Body = z.object({
   paymentId: z.string().min(1),
@@ -159,6 +160,14 @@ export async function POST(req: NextRequest) {
       if (again?.status === "success") return jsonError("Paiement déjà confirmé", 400);
       return jsonError("Paiement introuvable", 404);
     }
+
+    // t. 86-d : journal d'audit — userId + montant dans le détail (court).
+    void audit({
+      kind: "payment_confirm",
+      userId: outcome.payment.userId ?? undefined,
+      ip: clientIp(req),
+      detail: `${outcome.payment.purpose} · ${xof(outcome.payment.amount)}`,
+    });
 
     return NextResponse.json({
       payment: serializePayment(outcome.payment),

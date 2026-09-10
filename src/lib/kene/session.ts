@@ -11,7 +11,9 @@
 // Persistance « comme TikTok » : 90 jours — la cliente reste connectée sur
 // son appareil, même après avoir vidé le localStorage (le SessionKeeper
 // interroge /api/auth/session, qui lit le cookie en priorité).
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -19,10 +21,34 @@ export const SESSION_COOKIE = "kene_session";
 export const SESSION_TTL_SEC = 90 * 24 * 3600; // 90 jours
 const SESSION_TTL_MS = SESSION_TTL_SEC * 1000;
 
-// POC : secret de développement par défaut — À SURCHARGER EN PROD via la
-// variable d'environnement KENE_SESSION_SECRET (valeur longue et aléatoire,
-// jamais commitée, unique par environnement).
-const SECRET = process.env.KENE_SESSION_SECRET ?? "kene-session-secret-poc";
+// Secret de signature (t. 86-e — durcissement 2026) :
+//   1) KENE_SESSION_SECRET (env) prime TOUJOURS si fourni (≥ 16 chars) ;
+//   2) sinon : secret aléatoire de 48 octets, généré au premier démarrage et
+//      persisté dans db/.kene-session-secret (mode 0600, hors public/) — il
+//      survit aux redéploiements (sessions 90 j préservées) et reste UNIQUE
+//      par environnement, contrairement à l'ancienne constante partagée ;
+//   3) repli déterministe POC UNIQUEMENT si le fs est indisponible (théorique).
+// Effet de bord documenté : la migration depuis l'ancien secret POC invalide
+// les cookies d'avant ce sprint — les clientes se reconnectent une fois.
+function loadSessionSecret(): string {
+  const env = process.env.KENE_SESSION_SECRET;
+  if (env && env.length >= 16) return env;
+  try {
+    const file = join(process.cwd(), "db", ".kene-session-secret");
+    if (existsSync(file)) {
+      const v = readFileSync(file, "utf8").trim();
+      if (v.length >= 32) return v;
+    }
+    const fresh = randomBytes(48).toString("base64url");
+    mkdirSync(join(process.cwd(), "db"), { recursive: true });
+    writeFileSync(file, `${fresh}\n`, { mode: 0o600 });
+    return fresh;
+  } catch {
+    console.warn("[kene:session] fs indisponible — repli secret POC (sessions non persistantes)");
+    return "kene-session-secret-poc";
+  }
+}
+const SECRET = loadSessionSecret();
 
 /** Ce que signe la route de connexion (colonnes User minimales). */
 export type SessionUserInput = { id: string; phone: string; role: string };

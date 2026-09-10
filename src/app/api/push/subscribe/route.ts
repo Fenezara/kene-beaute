@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { guardUserClaim } from "@/lib/kene/session";
 import { rateLimit, rateLimitResponse, rlKey } from "@/lib/kene/rate-limit";
+import { audit, clientIp } from "@/lib/kene/audit";
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,10 @@ export async function POST(req: NextRequest) {
         auth: subscription.keys.auth,
       },
     });
+
+    // t. 86-d : journal d'audit — l'endpoint push (secret navigateur) ne va
+    // JAMAIS dans le journal, seulement le compte concerné.
+    void audit({ kind: "push_subscribe", userId, ip: clientIp(req) });
 
     return NextResponse.json({ ok: true });
   } catch (err) {

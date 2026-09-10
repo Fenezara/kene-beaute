@@ -17,7 +17,7 @@ import { rememberAccount } from "@/lib/kene/last-account";
 import { xof } from "@/lib/kene/format";
 import { FILLEUL_GIFT } from "@/lib/kene/referral";
 import { AuroraBackdrop, Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Reveal, RevealItem } from "@/components/kene/ui2026";
-import { KeneLogo } from "@/components/kene/icons";
+import { KeneEmblemLockup } from "@/components/kene/icons";
 import { useT } from "@/lib/kene/use-t";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useKene, type SessionUser } from "@/store/kene";
@@ -362,7 +362,8 @@ export function Onboarding({
                 <img src="/hero/hero-client.webp" alt="Portrait d'une femme africaine au teint lumineux" className="absolute inset-0 h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/25 to-transparent" />
                 <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
-                  <KeneLogo size={42} />
+                  {/* Sceau 2026 (t. 86) — emblème officiel + wordmark sur l'accueil à compte */}
+                  <KeneEmblemLockup size={48} sublabel="Beauté mélanoderme" />
                   <span className="rounded-full bg-[#6B2416]/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#FFF9EC]">POC démo</span>
                 </div>
               </div>

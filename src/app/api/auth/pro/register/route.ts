@@ -14,6 +14,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, notify } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { setSessionCookie } from "@/lib/kene/session";
+import { audit, clientIp } from "@/lib/kene/audit";
 
 export const runtime = "nodejs";
 
@@ -251,6 +252,15 @@ export async function POST(req: NextRequest) {
       await tx.user.update({ where: { id: user.id }, data: userData });
 
       return t;
+    });
+
+    // t. 86-d : journal d'audit — nom d'institut tronqué (fait aussi par audit(),
+    // 64 chars), ville, aucun secret.
+    void audit({
+      kind: "pro_register",
+      userId: user.id,
+      ip: clientIp(req),
+      detail: `${tenant.name} · ${tenant.city} · ${tenant.type}`,
     });
 
     // User rechargé (objet Prisma complet, role=pro) pour la réponse 201

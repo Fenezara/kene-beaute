@@ -4,6 +4,8 @@ import { z } from "zod";
 import { triageLesion } from "@/lib/ai/vlm";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, DERMATO } from "@/lib/kene/rate-limit";
+import { checkImageDataUrl } from "@/lib/kene/upload";
+import { audit, clientIp } from "@/lib/kene/audit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -21,6 +23,13 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Image invalide (dataURL attendu)", 400);
+
+    // Validation d'upload 2026 (t. 86-e) : MIME + taille + magic bytes.
+    const upload = checkImageDataUrl(parsed.data.image);
+    if (!upload.ok) {
+      void audit({ kind: "upload_reject", ip: clientIp(req), detail: upload.reason });
+      return jsonError(`Photo refusée — ${upload.reason}`, 415);
+    }
 
     const triage = await triageLesion(parsed.data.image);
     return NextResponse.json({ niveau: triage.niveau, message: triage.message });

@@ -1,9 +1,14 @@
 // POST /api/auth/otp/request — {phone} → envoie (simule) un code OTP 6 chiffres
+// Durcissement t. 86-d : le code est stocké HACHÉ (sha256 hex) dans OtpCode.code
+// — plus jamais de code en clair en base. La réponse renvoie `devCode` (le code
+// brut) UNIQUEMENT hors production : en development, le flux démo « Entrer comme
+// Mariam » et les E2E continuent de fonctionner à l'identique.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, OTP_REQUEST } from "@/lib/kene/rate-limit";
+import { audit, clientIp, sha256Hex } from "@/lib/kene/audit";
 
 const Body = z.object({ phone: z.string().min(5) });
 
@@ -34,13 +39,20 @@ export async function POST(req: NextRequest) {
     await db.otpCode.create({
       data: {
         phone,
-        code,
+        code: sha256Hex(code), // t. 86-d : seul le hash touche la base
         expiresAt: new Date(Date.now() + 5 * 60_000),
       },
     });
 
-    // OTP simulé : le code est renvoyé pour affichage « SMS simulé » dans l'UI
-    return NextResponse.json({ ok: true, devCode: code });
+    // Journal d'audit : numéro MASQUÉ (le masquage vit dans audit()), + IP
+    void audit({ kind: "otp_request", phone, ip: clientIp(req) });
+
+    // OTP simulé : le code brut n'existe qu'en mémoire de réponse, et
+    // UNIQUEMENT hors production — en prod, il part par SMS et ne revient
+    // jamais dans le body (le front affiche alors la zone de saisie seule).
+    const payload: { ok: true; devCode?: string } = { ok: true };
+    if (process.env.NODE_ENV !== "production") payload.devCode = code;
+    return NextResponse.json(payload);
   } catch (err) {
     return serverError("otp/request", err);
   }

@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
 import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
 import { formatTime } from "@/lib/kene/format";
-import { KeneLogo, NeaOnnimIcon } from "@/components/kene/icons";
+import { KeneEmblem, KeneEmblemLockup, NeaOnnimIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { AuroraBackdrop, IconBadge } from "@/components/kene/ui2026";
 import { useKene, type ClientTab } from "@/store/kene";
@@ -333,11 +333,12 @@ export function ClientApp() {
         className="hidden md:flex w-[84px] xl:w-[248px] shrink-0 flex-col k-chrome"
       >
         <div className="h-16 flex items-center px-4 xl:px-5 border-b border-border/60">
+          {/* Lockup Sceau 2026 (t. 86) — emblème + wordmark en xl, emblème seul en md */}
           <span className="hidden xl:block">
-            <KeneLogo size={34} withText />
+            <KeneEmblemLockup size={44} sublabel="Beauté mélanoderme" />
           </span>
           <span className="xl:hidden mx-auto">
-            <KeneLogo size={34} />
+            <KeneEmblem size={44} />
           </span>
         </div>
 
@@ -417,7 +418,8 @@ export function ClientApp() {
         <header className="shrink-0 z-40 k-chrome">
           <div className="h-14 sm:h-16 flex items-center justify-between gap-2 px-3 sm:px-5">
             <div className="md:hidden">
-              <KeneLogo size={32} withText />
+              {/* Lockup Sceau 2026 (t. 86) — le Médaillon Kènè sur chaque écran mobile */}
+              <KeneEmblemLockup size={36} labelSize={19} />
             </div>
             {/* h1 de vue : présent pour les lecteurs d'écran à TOUS les formats
                 (sr-only mobile, visible md+ — un seul h1 par vue) */}

@@ -10,7 +10,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { motion } from "framer-motion";
 import { Share, X } from "lucide-react";
 import { toast } from "sonner";
-import { KeneLogo } from "@/components/kene/icons";
+import { KeneEmblem } from "@/components/kene/icons";
 import { Button } from "@/components/ui/button";
 import { useInstallPrompt } from "./use-install";
 
@@ -94,7 +94,8 @@ export function InstallBanner() {
       className="rounded-2xl border border-border bg-card p-4 shadow-sm"
     >
       <div className="flex items-center gap-3">
-        <KeneLogo size={40} withText={false} />
+        {/* Sceau 2026 (t. 86) — le Médaillon Kènè sur la carte d'installation */}
+        <KeneEmblem size={56} />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold leading-tight">Installe Kènè sur ton téléphone</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">Accès en un tap, même hors-ligne</p>

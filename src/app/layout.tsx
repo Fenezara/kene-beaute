@@ -41,6 +41,28 @@ export const metadata: Metadata = {
     ],
     apple: "/icons/apple-touch-icon.png",
   },
+  // Sceau Kènè (t. 86) — identité visuelle des partages réseaux sociaux
+  openGraph: {
+    title: "Kènè — La beauté mélanoderme, enfin comprise.",
+    description:
+      "Diagnostic de peau par IA calibrée peaux mélanodermes, instituts partenaires, boutique aux botaniques africains.",
+    type: "website",
+    locale: "fr_FR",
+    siteName: "Kènè",
+    images: [
+      {
+        url: "/brand/kene-emblem-light.png",
+        width: 512,
+        height: 512,
+        alt: "Le Sceau Kènè — portrait aux ors antiques et peigne Duafe",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Kènè — La beauté mélanoderme, enfin comprise.",
+    images: ["/brand/kene-emblem-light.png"],
+  },
 };
 
 export const viewport: Viewport = {

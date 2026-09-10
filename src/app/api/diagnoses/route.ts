@@ -11,6 +11,8 @@ import { rateLimit, rlKey, rateLimitResponse, DIAGNOSES_CREATE } from "@/lib/ken
 import { processDiagnosisJob } from "@/lib/kene/diag-jobs";
 import { guardUserClaim } from "@/lib/kene/session";
 import { diagQuotaFor, planDefById } from "@/lib/kene/plans";
+import { checkImageDataUrl } from "@/lib/kene/upload";
+import { audit, clientIp } from "@/lib/kene/audit";
 
 export const runtime = "nodejs";
 // La route ne fait plus tourner le VLM (worker de fond) → 10 s suffit large.
@@ -46,6 +48,14 @@ export async function POST(req: NextRequest) {
       );
     }
     const { userId, zone, image } = parsed.data;
+
+    // Validation d'upload 2026 (t. 86-e) : MIME + taille + magic bytes —
+    // une dataURL hostile ne rentre JAMAIS en base ni dans le moteur VLM.
+    const upload = checkImageDataUrl(image);
+    if (!upload.ok) {
+      void audit({ kind: "upload_reject", userId, ip: clientIp(req), detail: upload.reason });
+      return jsonError(`Photo refusée — ${upload.reason}`, 415);
+    }
     // (fitzpatrick/allergies restent validés par le contrat zod — le worker
     // les relit depuis le profil de la cliente côté serveur.)
 

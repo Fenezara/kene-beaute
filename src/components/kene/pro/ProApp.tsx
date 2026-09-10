@@ -11,7 +11,7 @@ import { BellRing, Crown, LayoutDashboard, MapPin, Settings, Stethoscope, Ticket
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
-import { KeneLogo, DuafeIcon, SankofaIcon, AbanIcon, OsramIcon, KenteIcon, FihankraIcon, BaouleIcon } from "@/components/kene/icons";
+import { KeneEmblem, KeneEmblemLockup, DuafeIcon, SankofaIcon, AbanIcon, OsramIcon, KenteIcon, FihankraIcon, BaouleIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -212,12 +212,18 @@ export function ProApp() {
       {/* ───────── Rail sidebar tablette (md→lg icônes) / desktop (lg+ libellés) — chrome verre ───────── */}
       <aside className="hidden md:flex w-[76px] lg:w-[240px] shrink-0 flex-col k-chrome text-foreground sticky top-0 self-start max-h-screen overflow-y-auto pretty-scroll">
         <div className="p-2.5 lg:p-4 lg:pb-3">
-          <div className="flex items-center justify-center lg:justify-start lg:gap-2.5">
-            <KeneLogo size={34} withText={false} />
-            <div className="hidden lg:block leading-tight">
-              <p className="font-heading font-bold text-lg tracking-tight">Kènè <span className="text-gold-text">Pro</span></p>
-              <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Gestion institut</p>
-            </div>
+          {/* Lockup Sceau 2026 (t. 86) — l'espace Pro porte le Médaillon Kènè */}
+          <div className="flex items-center justify-center lg:justify-start">
+            <KeneEmblemLockup
+              size={44}
+              labelSize={19}
+              label={<>Kènè <span className="text-gold-text">Pro</span></>}
+              sublabel="Gestion institut"
+              className="hidden lg:inline-flex"
+            />
+            <span className="lg:hidden" aria-hidden="true">
+              <KeneEmblem size={44} />
+            </span>
           </div>
         </div>
 
@@ -399,7 +405,7 @@ export function ProApp() {
                 )}
               </p>
             </div>
-            <KeneLogo size={30} withText={false} />
+            <KeneEmblem size={38} />
             <div className="flex items-center gap-1.5">
               <ThemeToggle />
             </div>

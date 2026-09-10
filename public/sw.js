@@ -273,7 +273,10 @@ async function networkFirstNavigation(req) {
   let networkRes = null;
   try {
     networkRes = await fetch(req);
-    if (networkRes && networkRes.ok) return networkRes;
+    // 200 → page normale. 404 → page brandée t. 86 (« égarée dans le
+    // tissage ») : on la MONTRE au lieu de la masquer derrière la coquille.
+    // Autres statuts (5xx, 502 gateway) → coquille précachée.
+    if (networkRes && (networkRes.ok || networkRes.status === 404)) return networkRes;
   } catch {
     /* réseau injoignable → coquille ci-dessous */
   }

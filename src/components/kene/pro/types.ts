@@ -399,3 +399,27 @@ export interface AdminStats {
   chart: { date: string; count: number }[];
   topTenants: { name: string; city: string; country?: string; ca30: number }[];
 }
+
+// ─────────────── Admin — visionneuse Sécurité (t. 86-d) ───────────────
+// GET /api/admin/security : journal d'audit (80 plus récents, ts desc) +
+// compteurs. `phone` est déjà masqué côté serveur (ex. « +225 07•••••04 »).
+export interface AdminSecurityEvent {
+  id: string;
+  ts: string; // ISO
+  kind: string; // otp_request | login_success | login_failed | login_locked | logout | pro_register | payment_confirm | admin_access | push_subscribe | upload_reject
+  phone?: string | null;
+  ip?: string | null;
+  detail?: string | null;
+}
+
+export interface AdminSecurityStats {
+  total: number;
+  last24h: number;
+  failedLogins24h: number;
+  locked24h: number;
+}
+
+export interface AdminSecurity {
+  events: AdminSecurityEvent[];
+  stats: AdminSecurityStats;
+}
