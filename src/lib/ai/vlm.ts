@@ -18,7 +18,7 @@ import type { BodyZone, DiagnosisResult, Indicator, RecommendationSet, Suspected
 import { ZONE_INDICATORS } from "@/lib/kene/types";
 import { hypothesesFromVlm, vlmCatalogForZone } from "@/lib/kene/conditions";
 import { severityFromPercent } from "@/lib/kene/format";
-import { withTimeout } from "@/lib/kene/with-timeout";
+import { zaiCall } from "@/lib/ai/zai-retry";
 
 /** Gardes par phase (t. 77) : 40 s vision (variance de service mesurée
  *  18-77 s — au-delà, le fallback déterministe est plus utile qu'une
@@ -398,14 +398,17 @@ export async function runDiagnosis(opts: {
           ],
         },
       ];
-      const response = await withTimeout(
-        zai.chat.completions.createVision({
-          model: "glm-4.6v",
-          messages,
-          thinking: { type: "disabled" },
-        }),
-        attempt === 0 ? VLM_TIMEOUT_MS : VLM_RETRY_TIMEOUT_MS,
-        "vlm:vision",
+      // t. 87 — zaiCall : retry backoff sur 429 amont (quota machine partagé)
+      // EN PLUS du retry de format existant : un refus de quota ne doit plus
+      // jeter un diagnostic en mode secours simulé.
+      const response = await zaiCall(
+        () =>
+          zai.chat.completions.createVision({
+            model: "glm-4.6v",
+            messages,
+            thinking: { type: "disabled" },
+          }),
+        { label: "vlm:vision", timeoutMs: attempt === 0 ? VLM_TIMEOUT_MS : VLM_RETRY_TIMEOUT_MS, busyRetries: 2 },
       );
       lastRaw = response.choices[0]?.message?.content ?? "";
       analysis = normalizeAnalysis(extractJson(lastRaw), zone);
@@ -421,27 +424,27 @@ export async function runDiagnosis(opts: {
     // ── Phase 2 : recommandations rédigées (LLM texte rapide) ──────────
     let recommandations: RecommendationSet | null = null;
     try {
-      const recResponse = await withTimeout(
-        zai.chat.completions.create({
-          model: "glm-4.6",
-          messages: [
-            {
-              role: "user",
-              content: buildRecommendationsPrompt(
-                JSON.stringify({
-                  score_global: analysis.score_global,
-                  indicateurs: analysis.indicateurs.map((i) => ({ nom: i.nom, pourcentage: i.pourcentage, note: i.note ?? "" })),
-                  zones_marquages: analysis.zones_marquages.map((m) => ({ label: m.label, severite: m.severite })),
-                  fitzpatrick_estime: analysis.fitzpatrick_estime ?? null,
-                }),
-                zone,
-              ),
-            },
-          ],
-          thinking: { type: "disabled" },
-        }),
-        LLM_TIMEOUT_MS,
-        "vlm:reco",
+      const recResponse = await zaiCall(
+        () =>
+          zai.chat.completions.create({
+            model: "glm-4.6",
+            messages: [
+              {
+                role: "user",
+                content: buildRecommendationsPrompt(
+                  JSON.stringify({
+                    score_global: analysis.score_global,
+                    indicateurs: analysis.indicateurs.map((i) => ({ nom: i.nom, pourcentage: i.pourcentage, note: i.note ?? "" })),
+                    zones_marquages: analysis.zones_marquages.map((m) => ({ label: m.label, severite: m.severite })),
+                    fitzpatrick_estime: analysis.fitzpatrick_estime ?? null,
+                  }),
+                  zone,
+                ),
+              },
+            ],
+            thinking: { type: "disabled" },
+          }),
+        { label: "vlm:reco", timeoutMs: LLM_TIMEOUT_MS, busyRetries: 1 },
       );
       recommandations = normalizeRecommendations(extractJson(recResponse.choices[0]?.message?.content ?? ""));
     } catch (err) {
@@ -479,14 +482,14 @@ export async function triageLesion(imageBase64: string): Promise<{ niveau: "vert
         ],
       },
     ];
-    const response = await withTimeout(
-      zai.chat.completions.createVision({
-        model: "glm-4.6v",
-        messages,
-        thinking: { type: "disabled" },
-      }),
-      VLM_TIMEOUT_MS,
-      "vlm:triage",
+    const response = await zaiCall(
+      () =>
+        zai.chat.completions.createVision({
+          model: "glm-4.6v",
+          messages,
+          thinking: { type: "disabled" },
+        }),
+      { label: "vlm:triage", timeoutMs: VLM_TIMEOUT_MS, busyRetries: 2 },
     );
     const raw = response.choices[0]?.message?.content ?? "{}";
     const json = extractJson(raw);

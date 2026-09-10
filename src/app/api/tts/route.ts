@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import ZAI from "z-ai-web-dev-sdk";
 import { rateLimit, rlKey, rateLimitResponse, TTS } from "@/lib/kene/rate-limit";
-import { withTimeout, TimeoutError } from "@/lib/kene/with-timeout";
+import { zaiCall, UpstreamBusyError } from "@/lib/ai/zai-retry";
 
 export const runtime = "nodejs";
 
@@ -56,23 +56,25 @@ async function translateLocal(zai: Awaited<ReturnType<typeof ZAI.create>>, text:
   const hit = trCache.get(key);
   if (hit) return hit;
 
-  const completion = await withTimeout(
-    zai.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content:
-            `Tu traduis des phrases orales d'une application de beauté (diagnostic de peau) du français vers le ${LANG_NAME[lang]}. ` +
-            "Règles : phrases très courtes et parlées ; orthographe latine simple lisible par un moteur de synthèse vocale français ; " +
-            "garde les nombres en toutes lettres ; garde les noms propres tels quels ; ne traduis pas le nom « Kènè ». " +
-            "Réponds UNIQUEMENT avec la traduction, sans guillemets ni commentaire.",
-        },
-        { role: "user", content: text },
-      ],
-      thinking: { type: "disabled" },
-    }),
-    TTS_TIMEOUT_MS,
-    "tts:traduction",
+  // t. 87 — zaiCall : retry backoff sur 429 amont avant d'abandonner la
+  // traduction (le cache absorbe le reste).
+  const completion = await zaiCall(
+    () =>
+      zai.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content:
+              `Tu traduis des phrases orales d'une application de beauté (diagnostic de peau) du français vers le ${LANG_NAME[lang]}. ` +
+              "Règles : phrases très courtes et parlées ; orthographe latine simple lisible par un moteur de synthèse vocale français ; " +
+              "garde les nombres en toutes lettres ; garde les noms propres tels quels ; ne traduis pas le nom « Kènè ». " +
+              "Réponds UNIQUEMENT avec la traduction, sans guillemets ni commentaire.",
+          },
+          { role: "user", content: text },
+        ],
+        thinking: { type: "disabled" },
+      }),
+    { label: "tts:traduction", timeoutMs: TTS_TIMEOUT_MS, busyRetries: 1 },
   );
   const out = (completion.choices[0]?.message?.content ?? "").trim().replace(/^["'«»]+|["'«»]+$/g, "");
   if (!out) throw new Error("Traduction vide");
@@ -150,20 +152,20 @@ export async function POST(req: NextRequest) {
     const hit = cache.get(key);
     if (hit) return audioResponse(hit.buf);
 
-    const buf = await withTimeout(
-      (async () => {
-        const response = await zai.audio.tts.create({
-          input: text,
-          voice,
-          speed,
-          response_format: "wav",
-          stream: false,
-        });
-        const arrayBuffer = await response.arrayBuffer();
-        return Buffer.from(new Uint8Array(arrayBuffer));
-      })(),
-      TTS_TIMEOUT_MS,
-      "tts:synthese",
+    const buf = await zaiCall(
+      () =>
+        (async () => {
+          const response = await zai.audio.tts.create({
+            input: text,
+            voice,
+            speed,
+            response_format: "wav",
+            stream: false,
+          });
+          const arrayBuffer = await response.arrayBuffer();
+          return Buffer.from(new Uint8Array(arrayBuffer));
+        })(),
+      { label: "tts:synthese", timeoutMs: TTS_TIMEOUT_MS, busyRetries: 2 },
     );
     if (buf.length < 100) {
       return NextResponse.json({ error: "Audio vide renvoyé par le moteur" }, { status: 502 });
@@ -181,11 +183,12 @@ export async function POST(req: NextRequest) {
     }
     return audioResponse(buf);
   } catch (e) {
-    if (e instanceof TimeoutError) {
-      // Moteur hangé → 502 (erreur amont), pas 500 : réessayable immédiatement.
-      return NextResponse.json({ error: "Synthèse vocale indisponible, réessaie dans un instant" }, { status: 502 });
+    if (e instanceof UpstreamBusyError) {
+      // Quota amont saturé même après retries → 502 honnête (réessayable),
+      // jamais un 500 « erreur interne » pour un refus temporaire.
+      return NextResponse.json({ error: "Synthèse vocale très sollicitée — réessaie dans quelques secondes" }, { status: 502 });
     }
     console.error("[api/tts]", e);
-    return NextResponse.json({ error: "Synthèse vocale indisponible, réessaie dans un instant" }, { status: 500 });
+    return NextResponse.json({ error: "Synthèse vocale indisponible, réessaie dans un instant" }, { status: 502 });
   }
 }

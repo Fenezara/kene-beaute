@@ -2331,3 +2331,25 @@ Stage Summary:
 - LE LOGO EST PARTOUT : 11 nouvelles zones + les 3 existantes — splash, Seuil, header mobile (chaque écran), sidebars cliente/Pro (xl lockup + md emblème), en-tête accueil, avatar Dr. Kènè, onboarding, bannière PWA, sceau du Passeport public (variante sombre), Boutique, Console admin, 404 brandée, favicon/PWA/og-image — chacune validée par audit VLM indépendant ou DOM, le SW ne masque plus les 404.
 - SÉCURITÉ 2026 (defense in depth, vérifiée par preuves) : en-têtes durcis sur toutes les réponses (CSP/HSTS/Permissions-Policy/COOP/nosniff/Referrer-Policy), CSRF par Origin sur les mutations, uploads photo à 3 couches (magic bytes), OTP haché + timing-safe + verrouillage anti-force-brute, secret de session aléatoire persisté unique par environnement, journal d'audit visible dans la console admin (Posture sécurité + 80 événements), rate limits inchangés et actifs.
 - Leçons : (1) un SW network-first navigation DOIT laisser passer les 404 brandées sinon elles sont invisibles pour l'utilisatrice ; (2) forcer la variante sombre d'un composant next-thèmes dans un contexte sombre = wrapper local className="dark" ; (3) le pavé +225 fixe du POC impose un swap DB temporaire (restauré) pour tester les comptes seedés étrangers.
+
+---
+Task ID: t.87
+Agent: agent principal (Z.ai Code)
+Task: « Erreur de réponse au niveau du Dr Kènè » — diagnostic + correctif résilience IA
+
+Work Log:
+- REPRODUCTION IMMÉDIATE : l'API /api/dermato/chat répondait 200 en direct, E2E navigateur OK — le stress-test (6 requêtes parallèles) a fait tomber le masque : 4/6 en 500 « Erreur interne du serveur ».
+- CAUSE RACINE (log serveur) : le moteur IA amont renvoie des 429 « Too many requests » (quota machine PARTAGÉ chat/VLM/ASR/TTS + agents/audits) ; aucune route ne réessayait et le chat convertissait ce refus TEMPORAIRE en 500 mensonger. Défaut secondaire relevé : réponses LLM en markdown brut (« **Conseils :** », puces « - ») affiché tel quel dans les bulles — réponse qui paraissait cassée.
+- NOUVEAU src/lib/ai/zai-retry.ts : zaiCall (timeout par tentative via withTimeout + retry 429 avec backoff exponentiel 700 ms ×2^i + jitter ≤ 250 ms, 2 retries par défaut ; timeout JAMAIS retenté — la cliente attend déjà) ; isUpstreamBusy (matching « status 429 | Too many requests ») ; UpstreamBusyError après épuisement.
+- Route /api/dermato/chat : zaiCall (busyRetries 2) ; UpstreamBusyError → 502 « Dr. Kènè est très sollicitée — reformule dans quelques secondes » ; TOUTE autre défaillance amont → 502 FR (plus jamais serverError 500) ; tidyReply (nettoyage serveur : **gras**→gras, titres #→texte, puces -/* → « • », collapse \n{3,}) + instruction « TEXTE BRUT UNIQUEMENT » dans le prompt système (double filet).
+- src/lib/ai/vlm.ts : runDiagnosis phase 1 (zaiCall busyRetries 2 en plus du retry de format existant) + phase 2 (busyRetries 1) + triageLesion (busyRetries 2, avant le fallback jaune) — import withTimeout retiré (plus utilisé).
+- Routes /api/asr et /api/tts : zaiCall sur transcription/traduction/synthèse ; UpstreamBusyError → 502 dédié ; derniers 500 → 502 (erreur amont réessayable).
+- VÉRIFS : lint 0 erreur ; tsc 0 erreur src/ (skills/ préexistantes hors périmètre) ; dev.log 0 ⨯.
+- PREUVES POST-FIX (curl :3000 + gateway navigateur :81) : stress-test 6 parallèles → 6/6 × 200 (2,7-5,6 s, délais = backoff absorbé) contre 2/6 avant ; question « taches noires » → réponse PROPRE (• puces, zéro astérisque, détecteur automatique « NON — réponse propre ») ; TTS 200 (audio wav 150 Ko) ; photo triage 200 (vert) ; E2E navigateur login démo Mariam → chat : question PIH → réponse nettoyée rendue en bulle, VLM audit capture : « texte propre et lisible, sans astérisques, puces bien alignées » ; rafale 3 messages rapprochés → 3 × 200, 11 bulles Dr. Kènè, 0 message d'erreur, 0 erreur console ; session fermée proprement.
+
+Stage Summary:
+- L'« erreur de réponse du Dr Kènè » est éliminée à la racine : les refus de quota amont (429) sont maintenant retentés avec backoff (6/6 requêtes passent sous charge, contre 2/6 avant), et un échec résiduel répond 502 honnête et actionnable — jamais plus de 500 « erreur interne » mensonger.
+- Toute la surface IA (chat Dr Kènè, triage photo, diagnostics VLM, ASR vocal, TTS + traduction locale) partage désormais le même wrapper résilient zaiCall — un seul endroit pour régler les défaillances amont.
+- Bonus UX réparé : les réponses du Dr Kènè s'affichent en texte brut propre (puces •, zéro markdown visible), validé par capture + audit VLM indépendant.
+- Leçon : un 500 générique devant une erreur amont réessayable est un bug UX autant qu'un bug technique — la hiérarchie correcte est retry silencieux (backoff+jitter) → 502 message FR orienté réessai.
+- Périmètre : src/lib/ai/zai-retry.ts (nouveau), routes dermato/chat + dermato/photo (via vlm.ts) + asr + tts, prompt système chat enrichi ; aucun composant client modifié (le formatage serveur suffit) ; zéro dépendance ajoutée ; serveur jamais relancé.

@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import ZAI from "z-ai-web-dev-sdk";
 import { rateLimit, rlKey, rateLimitResponse, ASR } from "@/lib/kene/rate-limit";
-import { withTimeout, TimeoutError } from "@/lib/kene/with-timeout";
+import { zaiCall, UpstreamBusyError } from "@/lib/ai/zai-retry";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -61,17 +61,19 @@ export async function POST(req: NextRequest) {
     }
 
     const zai = await ZAI.create();
-    const r = await withTimeout(
-      zai.audio.asr.create({ file_base64: buf.toString("base64") }),
-      ASR_TIMEOUT_MS,
-      "asr:transcription",
+    // t. 87 — zaiCall : retry backoff sur 429 amont (quota machine partagé
+    // chat/VLM/ASR/TTS) — le vocal ne meurt plus sur un refus temporaire.
+    const r = await zaiCall(
+      () => zai.audio.asr.create({ file_base64: buf.toString("base64") }),
+      { label: "asr:transcription", timeoutMs: ASR_TIMEOUT_MS, busyRetries: 2 },
     );
     const text = typeof r?.text === "string" ? r.text.trim() : "";
     return NextResponse.json({ text });
   } catch (e) {
-    if (e instanceof TimeoutError) {
-      // Moteur hangé → 502 (erreur amont réessayable), pas 500.
-      return NextResponse.json({ error: "Transcription indisponible — réessaie dans un instant" }, { status: 502 });
+    if (e instanceof UpstreamBusyError) {
+      // Quota amont saturé même après retries → 502 honnête (réessayable),
+      // JAMAIS un 500 « erreur interne » pour un refus temporaire.
+      return NextResponse.json({ error: "Transcription très sollicitée — réessaie dans quelques secondes" }, { status: 502 });
     }
     // Le moteur rejette en 400 les formats non supportés (ex. mp4/aac non
     // converti côté client) → 400 propre plutôt qu'un 500 générique.
@@ -80,6 +82,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Audio illisible — réenregistre ton message" }, { status: 400 });
     }
     console.error("[kene:api:asr]", e);
-    return NextResponse.json({ error: "Transcription indisponible — réessaie dans un instant" }, { status: 500 });
+    return NextResponse.json({ error: "Transcription indisponible — réessaie dans un instant" }, { status: 502 });
   }
 }

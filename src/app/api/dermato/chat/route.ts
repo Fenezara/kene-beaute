@@ -2,9 +2,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import ZAI from "z-ai-web-dev-sdk";
-import { jsonError, serverError } from "@/lib/kene/server";
+import { jsonError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, DERMATO } from "@/lib/kene/rate-limit";
-import { withTimeout, TimeoutError } from "@/lib/kene/with-timeout";
+import { zaiCall, UpstreamBusyError } from "@/lib/ai/zai-retry";
 import { KNOWLEDGE_DIGEST } from "@/lib/kene/knowledge";
 import { ATLAS_DIGEST } from "@/lib/kene/conditions";
 
@@ -14,6 +14,22 @@ export const maxDuration = 60;
 /** Garde temporelle : un LLM qui hang répond 502 FR au lieu de laisser la
  *  conversation cliente en attente indéfinie. */
 const CHAT_TIMEOUT_MS = 30_000;
+
+/** Nettoyage d'affichage (t. 87) : le modèle répond parfois en markdown
+ *  (\`\`\`**gras**\`\`\`, puces « - », titres « ## ») alors que la bulle chat
+ *  affiche du TEXTE BRUT (whitespace-pre-wrap) — l'utilisatrice voyait des
+ *  astérisques littéraux, réponse qui paraissait cassée. On normalise en
+ *  texte lisible sans jamais perdre d'information. Filet de sécurité APRÈS
+ *  l'instruction « texte brut » du prompt (le modèle reste faillible). */
+function tidyReply(raw: string): string {
+  return raw
+    .replace(/```/g, "")                    // clôtures de code résiduelles
+    .replace(/(\*\*|__)(.*?)\1/g, "$2")      // **gras** / __gras__ → gras
+    .replace(/^#{1,6}\s*/gm, "")             // titres markdown → texte
+    .replace(/^[-*•·]\s+/gm, "• ")           // puces - * • · → « • »
+    .replace(/\n{3,}/g, "\n\n")              // espacements
+    .trim();
+}
 
 const Body = z.object({
   messages: z
@@ -41,6 +57,7 @@ ${ATLAS_DIGEST}
 
 ═══ FORMAT DE RÉPONSE ═══
 - Maximum 150 mots, 1 à 2 emojis maximum, français simple.
+- TEXTE BRUT UNIQUEMENT — jamais de markdown : pas d'astérisques (pas de **), pas de ##, pas de listes à tirets « - ». Si tu listes, mets « • » en début de ligne.
 - Structure : 1 phrase rassurante/constat → 2-3 conseils concrets et réalistes (climat, budget, produits trouvables en Côte d'Ivoire) → 1 orientation si utile (dermatologue, médecin, ou institut partenaire dans l'app).
 - Rappelle l'écran solaire quand c'est pertinent (taches, teint, boutons) — une fois, sans sermon.
 - Si la question dépasse la peau (fièvre, douleur, urgence) : oriente d'abord, les cosmétiques passent après.
@@ -57,24 +74,34 @@ export async function POST(req: NextRequest) {
     const history = parsed.data.messages.slice(-20);
 
     const zai = await ZAI.create();
-    const completion = await withTimeout(
-      zai.chat.completions.create({
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-        ],
-        thinking: { type: "disabled" },
-      }),
-      CHAT_TIMEOUT_MS,
-      "dermato:chat",
+    // t. 87 — zaiCall : retry avec backoff sur les 429 amont (quota machine
+    // partagé chat/VLM/ASR/TTS) : la conversation ne meurt plus sur un refus
+    // TEMPORAIRE de quota. Timeout sans retry (la cliente attend déjà).
+    const completion = await zaiCall(
+      () =>
+        zai.chat.completions.create({
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+          ],
+          thinking: { type: "disabled" },
+        }),
+      { label: "dermato:chat", timeoutMs: CHAT_TIMEOUT_MS, busyRetries: 2 },
     );
     const reply = completion.choices[0]?.message?.content;
     if (!reply) return jsonError("Assistant momentanément indisponible", 502);
 
-    return NextResponse.json({ reply });
+    return NextResponse.json({ reply: tidyReply(reply) });
   } catch (err) {
-    if (err instanceof TimeoutError) return jsonError("Assistant momentanément indisponible", 502);
+    // Un refus de quota amont, même après retries, n'est PAS une erreur
+    // interne : 502 + message honnête et actionnable (une seule toast côté
+    // client — pas de 429 qui doublerait le toast de handle()).
+    if (err instanceof UpstreamBusyError) {
+      return jsonError("Dr. Kènè est très sollicitée — reformule dans quelques secondes", 502);
+    }
     console.error("[kene:api:dermato/chat]", err instanceof Error ? err.message : err);
-    return serverError("dermato/chat", err);
+    // Toute autre défaillance amont est RÉESSAYABLE côté cliente → 502 avec
+    // message FR, jamais un 500 « Erreur interne » mensonger.
+    return jsonError("Assistant momentanément indisponible — réessaie dans un instant", 502);
   }
 }
