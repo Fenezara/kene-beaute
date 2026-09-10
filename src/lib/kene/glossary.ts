@@ -306,6 +306,128 @@ const G: Record<string, GlossaryEntry> = {
     simple:
       "Un grain de beauté dangereux qui pousse sur les PAUMES, les PLANTES ou les ONGLES. Signe à montrer vite : une ligne sombre verticale sur UN SEUL ongle qui s'élargit, ou une tache sombre qui change. Dermatologue sans attendre.",
   },
+
+  // ——— t. 84-b : dermatoses spécifiquement africaines (24 entrées) ———
+  tungose: {
+    title: "Chiques (tungose)",
+    simple:
+      "Une minuscule puce qui s'enfouit dans la peau des pieds, surtout entre les orteils, après une marche pieds nus sur le sable ou la terre. Tu vois un point noir douloureux avec un petit gonflement autour. Ne creuse JAMAIS avec un instrument sale : tu risques le tétanos. Fais-la extraire proprement au centre de santé, et protège tes pieds en portant des chaussures.",
+  },
+  myiase_tumbu: {
+    title: "Ver de Cayor (myiase)",
+    simple:
+      "La mouche tumbu pond ses œufs sur les habits qui sèchent dehors ou par terre. Une larve grandit alors SOUS ta peau, comme un furoncle, avec un petit trou au centre par lequel elle respire. Repasse ton linge au fer avant de le porter : la chaleur tue les œufs. Pour faire partir la larve, on l'étouffe (vaseline) puis on l'extrait proprement — ne l'arrache jamais avec une aiguille sale.",
+  },
+  larbish: {
+    title: "Larbish (larva migrans)",
+    simple:
+      "Des larves de vers de chiens et de chats, présentes dans la terre, entrent par la peau de tes pieds. Elles dessinent un sillon qui AVANCE sous la peau et qui gratte — pieds, fesses. Protège-toi : marche pieds couverts sur la terre et le sable. Ça part souvent tout seul en quelques semaines, mais un traitement du médecin l'accélère.",
+  },
+  pediculose: {
+    title: "Poux de tête (pédiculose)",
+    simple:
+      "Des poux vivent dans les cheveux et pondent des lentes : des petits œufs blancs collés aux cheveux. Ça gratte surtout derrière les oreilles et sur la nuque. Traite avec un produit adapté, puis passe un peigne fin mèche par mèche. Ne partage ni bonnets, ni peignes, ni taies d'oreiller — à l'école, la recontamination est fréquente.",
+  },
+  onchocercose: {
+    title: "Onchocercose (peau de léopard)",
+    simple:
+      "Un ver transmis par les piqûres de mouches noires qui vivent près des rivières. Après des années de fortes démangeaisons, la peau s'amincit et change de couleur par plaques : la « peau de léopard ». Des programmes distribuent gratuitement le médicament (ivermectine) dans les zones concernées. Le ver peut aussi atteindre les yeux : consulte sans attendre.",
+  },
+  loase: {
+    title: "Loase",
+    simple:
+      "Un petit ver transmis par la piqûre de la mouche mangouste (chrysops), en zone de forêt. Il provoque des gonflements qui se DÉPLACENT — un jour l'avant-bras, le lendemain le poignet — puis qui partent. Parfois le ver traverse l'œil : c'est impressionnant mais ça se soigne. Demande un avis médical, et évite de te gratter.",
+  },
+  leishmaniose: {
+    title: "Leishmaniose cutanée",
+    simple:
+      "Un parasite transmis par la piqûre d'un tout petit moucheron (le phlébotome). Sur la zone piquée, une plaie ronde qui creuse au centre, « en volcan », s'installe et dure des mois. Aucune crème cosmétique ne la ferme : il faut un vrai traitement médical. Si une plaie traîne, montre-la à un médecin.",
+  },
+  mpox: {
+    title: "Mpox (variole du singe)",
+    simple:
+      "Un virus très contagieux. Ça commence par de la fièvre, puis des boutons remplis de liquide (vésicules, pustules) sur les mains, le visage et les organes génitaux, avec de gros ganglions. Isole-toi et évite tout contact proche. Consulte VITE : plus c'est pris tôt, mieux c'est soigné.",
+  },
+  lepre: {
+    title: "Lèpre",
+    simple:
+      "Une plaque de peau plus pâle où tu ne sens PLUS rien : ni le toucher, ni la douleur. Tu peux te brûler sans t'en rendre compte, et un nerf du coude ou du poignet peut s'épaissir. La lèpre se GUÉRIT : le traitement est gratuit (programmes OMS). Plus c'est pris tôt, moins il reste de séquelles — montre la plaque à un soignant.",
+  },
+  buruli: {
+    title: "Ulcère de Buruli",
+    simple:
+      "Un bouton ou un nodule indolore qui devient un ulcère profond aux bords creusés. Surtout les enfants, en zones rurales et humides : la maladie est présente en Côte d'Ivoire. Les médicaments marchent bien SI le traitement commence tôt. Ne laisse pas ce bouton tranquille traîner : consulte VITE.",
+  },
+  erysipele: {
+    title: "Érysipèle / cellulite",
+    simple:
+      "Une infection profonde de la peau. La zone devient chaude, gonflée, luisante et douloureuse, souvent avec de la fièvre. C'est une URGENCE : va à l'hôpital, ça se soigne avec des antibiotiques. Ça entre souvent par une mycose entre les orteils : soigne-la bien pour éviter que ça revienne.",
+  },
+  pityriasis_alba: {
+    title: "Pityriasis alba",
+    simple:
+      "Des plaques sèches et un peu pâles, surtout sur les joues des enfants. C'est une forme légère d'eczéma — ce n'est NI la lèpre NI le vitiligo. Hydrate bien le visage chaque jour avec une crème simple. La couleur revient lentement : sois patiente.",
+  },
+  dermite_cortisonique: {
+    title: "Dermites des corticoïdes",
+    simple:
+      "Des crèmes à cortisone trop fortes, ou utilisées trop longtemps, abîment la peau : elle s'amincit, rougit puis fonce, avec des vergetures violettes dans les plis et de petits poils. Si tu en utilises depuis longtemps, arrête PROGRESSIVEMENT, jamais d'un coup. Demande conseil à un médecin ou un dermatologue pour un arrêt en douceur.",
+  },
+  hidrosadenite: {
+    title: "Hidrosadénite (acné inversée)",
+    simple:
+      "Des furoncles très douloureux qui reviennent et cicatrisent, dans les aisselles, l'aine ou sous les seins. C'est une vraie maladie chronique : ce n'est pas un manque d'hygiène, ce n'est pas ta faute. Consulte un dermatologue tôt — il existe des traitements qui calment les poussées et évitent les grosses cicatrices.",
+  },
+  dle: {
+    title: "Lupus discoïde (DLE)",
+    simple:
+      "Des plaques en disque qui cicatrisent en laissant du plus clair, sur le visage et le cuir chevelu — surtout chez les jeunes femmes. Le soleil les empire : protège-toi. Ce n'est pas une simple tache : consulte un dermatologue, un bilan est nécessaire pour bien suivre la maladie.",
+  },
+  pellagre: {
+    title: "Pellagre",
+    simple:
+      "Un manque en vitamine B3 (niacine), quand l'alimentation est trop pauvre. La peau pèle et rougit là où le soleil tape, comme un « collier » autour du cou, avec des troubles digestifs. Mange plus varié : légumineuses, arachides, œufs, viande. Et vois un médecin : ça se corrige bien.",
+  },
+  phrynoderme: {
+    title: "Phrynoderme (peau de crapaud)",
+    simple:
+      "Des petits boutons rugueux, comme une peau de crapaud, sur les coudes et les genoux. C'est un manque de vitamine A. Ajoute à tes repas : mangue, papaye, patate douce, feuilles vertes, huile rouge. Avec une alimentation plus riche, ça s'améliore.",
+  },
+  kerion: {
+    title: "Kerion",
+    simple:
+      "Sur la tête de l'enfant : une plaque gonflée, rouge, chaude et douloureuse, parfois avec du pus. C'est une teigne très aggravée — une urgence médicale. Si on tarde, la zone peut rester chauve définitivement. Emmène l'enfant consulter VITE.",
+  },
+  miliaria: {
+    title: "Sudamina (miliaria)",
+    simple:
+      "Des minuscules petites bulles d'eau dans les plis (cou, jambes) des bébés, quand il fait très chaud. Ce n'est pas grave. Garde bébé au frais, habille-le en coton ample, et séche bien les plis après le bain.",
+  },
+  akn: {
+    title: "Acné keloidalis nuchae (AKN)",
+    simple:
+      "Des boutons durs, en bosses, à la NUQUE du jeune homme — souvent après des tontes très serrées. Ils cicatrisent en grosses bosses dures. Évite de raser trop court et de frotter la nuque, et consulte un dermatologue : plus c'est tôt, plus on évite que ça s'étende.",
+  },
+  ppd_allergie: {
+    title: "Allergie à la teinture noire (PPD)",
+    simple:
+      "Le PPD est une teinture chimique noire, cachée dans le henné noir, les tatouages temporaires et certaines teintures capillaires. Ça peut déclencher un eczéma violent avec gonflement des paupières, quelques jours après le contact. Si ça gêne pour respirer ou avaler : URGENCE hôpital. La seule vraie protection : éviter les produits qui contiennent du PPD.",
+  },
+  defrisage_brulure: {
+    title: "Brûlure du défrisage",
+    simple:
+      "Les produits défrisants sont puissants et alcalins : appliqués trop longtemps, ils BRÛLENT le cuir chevelu. Si tu sens le feu pendant l'application, rince immédiatement, et ne gratte pas les croûtes ensuite. Espace tes défrisages et fais-les poser par des professionnels plutôt qu'avec des produits du marché. Les brûlures répétées peuvent laisser des zones chauves.",
+  },
+  kwashiorkor: {
+    title: "Dermatose du kwashiorkor",
+    simple:
+      "Chez le petit enfant : la peau pèle par grandes plaques, comme une peinture écaillée, avec des gonflements des pieds et du visage, et des cheveux qui décolorent. C'est un signal grave : l'enfant manque de nourriture. URGENCE nutritionnelle : emmène-le tout de suite au centre de santé.",
+  },
+  cholestase_gravidique: {
+    title: "Prurit de grossesse (cholestase)",
+    simple:
+      "En fin de grossesse : des démangeaisons INTENSES dans les paumes des mains et les plantes des pieds, SANS bouton ni plaque. Ce n'est pas anodin : le bébé peut en souffrir. Préviens ta maternité VITE — une prise de sang le confirme, et le médecin peut avancer l'accouchement pour protéger le bébé.",
+  },
 };
 
 /** Alias nom complet → clé canonique (variantes de zones). */
@@ -416,10 +538,170 @@ const EXACT: Record<string, string> = {
   "insulinorésistance": "insulinoresistance",
   "melanome acral": "melanome_acral",
   "ligne sombre sur l ongle": "melanome_acral",
+
+  // ——— t. 84-b : alias des dermatoses africaines (avec/sans accents) ———
+  "tungose": "tungose",
+  "chique": "tungose",
+  "chiques": "tungose",
+  "tunga penetrans": "tungose",
+  "puce des pieds": "tungose",
+  "myiase": "myiase_tumbu",
+  "myiase tumbu": "myiase_tumbu",
+  "ver de cayor": "myiase_tumbu",
+  "tumbu": "myiase_tumbu",
+  "tumba": "myiase_tumbu",
+  "mouche tumbu": "myiase_tumbu",
+  "larbish": "larbish",
+  "larva migrans": "larbish",
+  "poux": "pediculose",
+  "poux de tete": "pediculose",
+  "poux de tête": "pediculose",
+  "pediculose": "pediculose",
+  "lentes": "pediculose",
+  "onchocercose": "onchocercose",
+  "peau de leopard": "onchocercose",
+  "peau de léopard": "onchocercose",
+  "peau de lezard": "onchocercose",
+  "peau de lézard": "onchocercose",
+  "loase": "loase",
+  "loa loa": "loase",
+  "leishmaniose": "leishmaniose",
+  "leishmaniose cutanee": "leishmaniose",
+  "leishmaniose cutanée": "leishmaniose",
+  "mpox": "mpox",
+  "variole du singe": "mpox",
+  "monkeypox": "mpox",
+  "lepre": "lepre",
+  "lèpre": "lepre",
+  "maladie de hansen": "lepre",
+  "plaque anesthesique": "lepre",
+  "plaque anesthésique": "lepre",
+  "buruli": "buruli",
+  "ulcere de buruli": "buruli",
+  "ulcère de buruli": "buruli",
+  "erysipele": "erysipele",
+  "érysipèle": "erysipele",
+  "cellulite": "erysipele",
+  "pityriasis alba": "pityriasis_alba",
+  "taches blanches enfant": "pityriasis_alba",
+  "cortisone": "dermite_cortisonique",
+  "dermite cortisonique": "dermite_cortisonique",
+  "dermite aux corticoides": "dermite_cortisonique",
+  "dermite aux corticoïdes": "dermite_cortisonique",
+  "abus de corticoides": "dermite_cortisonique",
+  "hidrosadenite": "hidrosadenite",
+  "hidrosadénite": "hidrosadenite",
+  "acne inversee": "hidrosadenite",
+  "acné inversée": "hidrosadenite",
+  "lupus": "dle",
+  "lupus discoide": "dle",
+  "lupus discoïde": "dle",
+  "dle": "dle",
+  "pellagre": "pellagre",
+  "vitamine b3": "pellagre",
+  "niacine": "pellagre",
+  "phrynoderme": "phrynoderme",
+  "peau de crapaud": "phrynoderme",
+  "vitamine a": "phrynoderme",
+  "kerion": "kerion",
+  "teigne aggravee": "kerion",
+  "teigne aggravée": "kerion",
+  "teigne kerion": "kerion",
+  "miliaria": "miliaria",
+  "sudamina": "miliaria",
+  "chaleur bebe": "miliaria",
+  "boutons de chaleur": "miliaria",
+  "akn": "akn",
+  "acne keloidalis nuchae": "akn",
+  "boutons nuque": "akn",
+  "nuque": "akn",
+  "ppd": "ppd_allergie",
+  "teinture noire": "ppd_allergie",
+  "henne noir": "ppd_allergie",
+  "henné noir": "ppd_allergie",
+  "henne": "ppd_allergie",
+  "henné": "ppd_allergie",
+  "paraphenylene diamine": "ppd_allergie",
+  "defrisage": "defrisage_brulure",
+  "défrisage": "defrisage_brulure",
+  "brulure defrisage": "defrisage_brulure",
+  "brûlure défrisage": "defrisage_brulure",
+  "brulure du defrisage": "defrisage_brulure",
+  "brulure du cuir chevelu": "defrisage_brulure",
+  "kwashiorkor": "kwashiorkor",
+  "dermatose du kwashiorkor": "kwashiorkor",
+  "cholestase": "cholestase_gravidique",
+  "cholestase gravidique": "cholestase_gravidique",
+  "prurit gravidique": "cholestase_gravidique",
+  "demangeaison grossesse": "cholestase_gravidique",
+  "demangeaisons grossesse": "cholestase_gravidique",
 };
 
 /** Recherche par mots-clés (repli : libellés proches venus du VLM). */
 const KEYWORDS: [string, string][] = [
+  // ——— t. 84-b : mots-clés SPÉCIFIQUES (dermatoses africaines) — AVANT les génériques ———
+  ["taches blanches enfant", "pityriasis_alba"],
+  ["ver de cayor", "myiase_tumbu"],
+  ["variole du singe", "mpox"],
+  ["peau de leopard", "onchocercose"],
+  ["peau de lezard", "onchocercose"],
+  ["acne keloidalis", "akn"],
+  ["acne inversee", "hidrosadenite"],
+  ["maladie de hansen", "lepre"],
+  ["plaque anesthesique", "lepre"],
+  ["teigne aggravee", "kerion"],
+  ["brulure defrisage", "defrisage_brulure"],
+  ["demangeaison grossesse", "cholestase_gravidique"],
+  ["demangeaisons grossesse", "cholestase_gravidique"],
+  ["prurit gravidique", "cholestase_gravidique"],
+  ["cholestase", "cholestase_gravidique"],
+  ["tungose", "tungose"],
+  ["tunga", "tungose"],
+  ["chique", "tungose"],
+  ["myiase", "myiase_tumbu"],
+  ["tumbu", "myiase_tumbu"],
+  ["tumba", "myiase_tumbu"],
+  ["larbish", "larbish"],
+  ["larva migrans", "larbish"],
+  ["poux", "pediculose"],
+  ["lentes", "pediculose"],
+  ["pediculose", "pediculose"],
+  ["onchocercose", "onchocercose"],
+  ["loase", "loase"],
+  ["loa loa", "loase"],
+  ["leishmaniose", "leishmaniose"],
+  ["mpox", "mpox"],
+  ["monkeypox", "mpox"],
+  ["lepre", "lepre"],
+  ["hansen", "lepre"],
+  ["buruli", "buruli"],
+  ["erysipele", "erysipele"],
+  ["cellulite", "erysipele"],
+  ["pityriasis alba", "pityriasis_alba"],
+  ["cortisone", "dermite_cortisonique"],
+  ["corticoid", "dermite_cortisonique"],
+  ["hidrosadenite", "hidrosadenite"],
+  ["lupus", "dle"],
+  ["discoide", "dle"],
+  ["pellagre", "pellagre"],
+  ["vitamine b3", "pellagre"],
+  ["phrynoderme", "phrynoderme"],
+  ["peau de crapaud", "phrynoderme"],
+  ["kerion", "kerion"],
+  ["sudamina", "miliaria"],
+  ["miliaria", "miliaria"],
+  ["chaleur bebe", "miliaria"],
+  ["boutons de chaleur", "miliaria"],
+  ["akn", "akn"],
+  ["keloidalis", "akn"],
+  ["nuque", "akn"],
+  ["ppd", "ppd_allergie"],
+  ["teinture noire", "ppd_allergie"],
+  ["henne noir", "ppd_allergie"],
+  ["henne", "ppd_allergie"],
+  ["defrisage", "defrisage_brulure"],
+  ["kwashiorkor", "kwashiorkor"],
+
   ["pih", "taches_pih"],
   ["sebum", "sebum"],
   ["hydrat", "hydratation"],

@@ -1,0 +1,747 @@
+     1→// Kènè — « cerveau » du Dr Kènè : base de connaissances structurée.
+     2→// Lib PURE (aucune dépendance React/serveur). Deux usages :
+     3→//  1. Les données typées ci-dessous (conditions, dépigmentation, botaniques,
+     4→//     actifs, signes rouges, contexte ivoirien) : richesse pour l'app
+     5→//     (futurs écrans pédagogiques, croissements questionnaire/glossaire).
+     6→//  2. KNOWLEDGE_DIGEST : version CONDENSÉE (≤ ~900 mots) assemblée par code
+     7→//     depuis ces données — injectée dans le prompt système du chat LLM
+     8→//     (POST /api/dermato/chat).
+     9→// Positionnement : le Dr Kènè ÉDUQUE et ORIENTE. Elle ne pose JAMAIS de
+    10→// diagnostic formel et ne prescrit JAMAIS de médicament (voir CHARACTER_RULES).
+    11→
+    12→// ─────────────────────────── Types ───────────────────────────
+    13→
+    14→/** Niveau d'une condition : « éducatif » (conseils doux possibles) ou
+    15→ *  « référer » (orientation professionnelle immédiate). */
+    16→export type KnowledgeLevel = "educatif" | "referer";
+    17→
+    18→export interface KnowledgeCondition {
+    19→  id: string;
+    20→  name: string;
+    21→  level: KnowledgeLevel;
+    22→  /** Résumé 2-3 phrases, niveau patiente (mots du quotidien). */
+    23→  summary: string;
+    24→  /** Signes d'alerte : ce qui doit faire sortir du cadre « éducatif ». */
+    25→  redFlags: string[];
+    26→  /** Conduite à tenir par Kènè (hygiène, soins doux, prévention). */
+    27→  action: string;
+    28→  /** Quand référer (dermatologue / médecin / urgence). */
+    29→  refer: string;
+    30→  /** Ligne ultra-compacte (≈ 15-20 mots) pour le digest LLM. */
+    31→  digest: string;
+    32→}
+    33→
+    34→export interface KnowledgeBotanical {
+    35→  id: string;
+    36→  name: string;
+    37→  /** Vertus principales. */
+    38→  virtues: string;
+    39→  /** Forme d'usage. */
+    40→  usage: string;
+    41→  /** Précautions d'emploi. */
+    42→  caution: string;
+    43→  digest: string;
+    44→}
+    45→
+    46→export interface KnowledgeActive {
+    47→  id: string;
+    48→  name: string;
+    49→  /** Rôle sur peau foncée. */
+    50→  role: string;
+    51→  /** Conseil d'introduction. */
+    52→  advice: string;
+    53→  digest: string;
+    54→}
+    55→
+    56→export interface KnowledgeRedFlag {
+    57→  id: string;
+    58→  /** Le signe, décrit simplement. */
+    59→  sign: string;
+    60→  /** Conduite : qui voir, à quelle vitesse. */
+    61→  action: string;
+    62→  digest: string;
+    63→}
+    64→
+    65→export interface DepigmentationDanger {
+    66→  id: string;
+    67→  title: string;
+    68→  products: string;
+    69→  complications: string[];
+    70→  message: string;
+    71→  approach: string[];
+    72→  refer: string;
+    73→  digest: string;
+    74→}
+    75→
+    76→/** Entrée de contexte ivoirien : texte complet + version compacte (digest). */
+    77→export interface IvoryContextEntry {
+    78→  /** Version complète (app / futurs écrans). */
+    79→  text: string;
+    80→  /** Version compacte (digest LLM). */
+    81→  digest: string;
+    82→}
+    83→
+    84→export interface IvoryContext {
+    85→  climate: IvoryContextEntry;
+    86→  harmattan: IvoryContextEntry;
+    87→  sun: IvoryContextEntry;
+    88→  economy: IvoryContextEntry;
+    89→  institutes: IvoryContextEntry;
+    90→}
+    91→
+    92→// ─────────────────────────── A. Conditions ───────────────────────────
+    93→
+    94→export const CONDITIONS: KnowledgeCondition[] = [
+    95→  {
+    96→    id: "acne",
+    97→    name: "Acné & marques PIH",
+    98→    level: "educatif",
+    99→    summary:
+   100→      "L'acné bouche les pores : boutons rouges, points noirs, microkystes. Sur peau noire, chaque bouton guéri laisse souvent une tache brune (PIH) qui reste des mois. Le grattage et les produits agressifs font plus de taches, pas moins.",
+   101→    redFlags: [
+   102→      "Nodules profonds douloureux (acné sévère)",
+   103→      "Aggravation malgré une routine douce après 2-3 mois",
+   104→      "Boutons + fièvre ou gonflement du visage",
+   105→    ],
+   106→    action:
+   107→      "Nettoyage doux matin et soir, jamais percer ni gratter, soin non comédogène, écran solaire quotidien, UN actif à la fois (acide azélaïque ou niacinamide) introduit lentement.",
+   108→    refer:
+   109→      "Acné sévère, nodulaire, douloureuse ou très marquante → dermatologue : des traitements existent et le retard laisse des cicatrices définitives.",
+   110→    digest:
+   111→      "Boutons, points noirs ; chaque bouton laisse une tache brune (PIH) des mois sur peau noire. Douceur, écran, UN actif doux. Dermato si nodules.",
+   112→  },
+   113→  {
+   114→    id: "melasma",
+   115→    name: "Mélasma",
+   116→    level: "educatif",
+   117→    summary:
+   118→      "Taches brunes symétriques sur les joues, le front, la mâchoire. Liées aux hormones (grossesse, pilule) et au soleil. Bénignes mais tenaces : elles reviennent dès que la peau prend du soleil sans écran.",
+   119→    redFlags: ["Étalement rapide", "Doute avec une autre tache", "Grossesse + apparition récente (avis médical)"],
+   120→    action:
+   121→      "Écran solaire quotidien non négociable (même gris), niacinamide ou acide azélaïque en douceur, éviter la chaleur directe prolongée (feu de cuisine, vapeur).",
+   122→    refer: "Pas d'amélioration après 3 mois de routine douce, ou doute diagnostique → dermatologue.",
+   123→    digest:
+   124→      "Taches brunes symétriques (joues/front) : hormones + soleil, tenaces. Écran quotidien + niacinamide/azélaïque. Dermato si doute ou échec 3 mois.",
+   125→  },
+   126→  {
+   127→    id: "dpn",
+   128→    name: "DPN (dermatosis papulosa nigra)",
+   129→    level: "educatif",
+   130→    summary:
+   131→      "Petites excroissances noires, lisses et molles sur les joues et le cou. Très fréquentes et bénignes sur peau noire, souvent familiales. Elles apparaissent avec l'âge et ne partent pas avec les crèmes.",
+   132→    redFlags: ["Une excroissance qui change, saigne ou fait mal", "Poussée rapide", "Doute avec un grain de beauté"],
+   133→    action:
+   134→      "Aucun soin maison ne les efface. Ne jamais les couper, gratter ou brûler soi-même : risque de tache et de keloïde.",
+   135→    refer: "Si elles gênent esthétiquement, un dermatologue les retire proprement (le retrait se fait en cabinet).",
+   136→    digest:
+   137→      "Excroissances noires lisses (joues/cou), bénignes, familiales, avec l'âge. Aucun soin maison, jamais couper soi-même. Dermato pour retrait si gêne.",
+   138→  },
+   139→  {
+   140→    id: "keloides",
+   141→    name: "Keloïdes",
+   142→    level: "educatif",
+   143→    summary:
+   144→      "Une cicatrice qui déborde la blessure d'origine et continue de pousser, en bourrelet dur. Fréquent sur peau noire : le corps fabrique trop de cicatrice. Ce n'est pas cancéreux, mais ça peut démanger, faire mal et gêner.",
+   145→    redFlags: [
+   146→      "Keloïde qui continue de grandir",
+   147→      "Démangeaisons ou douleurs importantes",
+   148→      "Localisation visage, oreille, articulation",
+   149→    ],
+   150→    action:
+   151→      "Prévention : éviter piercings et tatouages si la famille fait des keloïdes, soigner proprement les petites plaies, ne pas exposer les cicatrices neuves au soleil ni les frotter (vêtements serrés).",
+   152→    refer:
+   153→      "Dermatologue pour toute keloïde établie (injections, pansements pressifs). Ne jamais la faire couper « simplement » : elle repousse souvent plus grosse.",
+   154→    digest:
+   155→      "Cicatrice qui déborde et pousse (peau noire). Prudence piercings/tatouages si antécédents. Dermato si croissance — jamais excision simple.",
+   156→  },
+   157→  {
+   158→    id: "vitiligo",
+   159→    name: "Vitiligo",
+   160→    level: "referer",
+   161→    summary:
+   162→      "Des taches blanches bien nettes qui apparaissent et s'étendent par zones : la peau perd son pigment. Ni contagieux, ni dangereux, souvent familial — mais visible et parfois difficile à vivre.",
+   163→    redFlags: ["Étalement rapide", "Taches autour des yeux ou de la bouche", "Retentissement moral fort"],
+   164→    action:
+   165→      "Rassurer : ça ne se attrape pas. Écran solaire sur les zones blanches (elles brûlent vite) et sur tout le corps (limite le contraste). Écouter et soutenir.",
+   166→    refer:
+   167→      "Dermatologue dès le doute ou l'extension : des traitements existent et marchent mieux pris tôt.",
+   168→    digest:
+   169→      "Taches blanches nettes qui s'étendent — ni contagieux ni grave. Écran sur zones blanches. Dermato tôt : traitements ; écouter le moral.",
+   170→  },
+   171→  {
+   172→    id: "eczema",
+   173→    name: "Eczéma / atopie & dermite de contact",
+   174→    level: "educatif",
+   175→    summary:
+   176→      "Plaques sèches qui démangent, par crises. Chez l'enfant : plis des coudes et genoux (atopie). Chez l'adulte : souvent après contact d'un produit — savon dur, teinture, bijou fantaisie, détergent (dermite de contact).",
+   177→    redFlags: [
+   178→      "Plaques suintantes ou croûtes jaunes (surinfection)",
+   179→      "Éruption très étendue",
+   180→      "Bébé de moins de 3 mois",
+   181→    ],
+   182→    action:
+   183→      "Savon sans savon, douches tièdes et courtes, crème grasse deux fois par jour sur tout le corps, repérer et éliminer le produit en cause. Coton ample, ongles courts.",
+   184→    refer:
+   185→      "Surinfection, extension, sommeil cassé par les démangeaisons → dermatologue. Bébé < 3 mois ou crise d'asthme associée → médecin.",
+   186→    digest:
+   187→      "Plaques sèches qui démangent : plis des enfants (atopie) ou après produit (contact). Savon sans savon, crème grasse 2×/j. Référer si suintement/bébé < 3 mois.",
+   188→  },
+   189→  {
+   190→    id: "mycoses_plis",
+   191→    name: "Mycose des plis et des pieds",
+   192→    level: "educatif",
+   193→    summary:
+   194→      "Un champignon qui adore la chaleur et l'humidité : démangeaisons entre les orteils, rougeur sombre à bord net dans les plis (aisselles, aine, sous les seins). Très fréquent sous notre climat.",
+   195→    redFlags: [
+   196→      "Plusieurs plis + ongles jaunis/épaissis",
+   197→      "Extension vers la cuisse ou le dos",
+   198→      "Diabète connu",
+   199→    ],
+   200→    action:
+   201→      "Sécher soigneusement tous les plis après la douche, coton ample, changer chaussettes et sous-vêtements quotidiennement, savon antifongique doux du commerce ; ne jamais gratter.",
+   202→    refer:
+   203→      "Mycose étendue, ongles atteints, diabète, ou qui persiste après 4 semaines → dermatologue (le traitement des ongles se prend par voie orale).",
+   204→    digest:
+   205→      "Démange orteils/plis (chaleur + humidité). Sécher, coton ample, antifongique doux du commerce. Référer si ongles/diabète/4 semaines.",
+   206→  },
+   207→  {
+   208→    id: "pityriasis",
+   209→    name: "Pityriasis versicolor (« taches blanches »)",
+   210→    level: "educatif",
+   211→    summary:
+   212→      "Petites taches plus claires (parfois plus foncées) qui pèlent très fin, sur le torse, les épaules, le cou. Un champignon de surface qui se déclenche avec la chaleur et la transpiration. Bénin, mais récidive souvent.",
+   213→    redFlags: ["Taches qui persistent après 4 semaines de soins doux", "Extension au visage", "Doute avec le vitiligo"],
+   214→    action:
+   215→      "Savon au soufre ou shampoing antifongique du commerce quelques semaines, bien sécher après la transpiration. Astuce d'orientation : ça pèle fin au doigt, le vitiligo non.",
+   216→    refer: "Si ça ne part pas, s'étend, ou si doute avec le vitiligo → dermatologue.",
+   217→    digest:
+   218→      "Taches claires fines qui PÈLENT (torse/épaules) — champignon bénin, récidivant. Savon soufre. Vitiligo ne pèle pas. Dermato si persiste.",
+   219→  },
+   220→  {
+   221→    id: "teigne",
+   222→    name: "Teigne du cuir chevelu (enfant)",
+   223→    level: "referer",
+   224→    summary:
+   225→      "Chez l'enfant : plaques sans cheveux avec petites croûtes et démangeaisons du cuir chevelu, parfois des ganglions dans le cou. Un champignon du cuir chevelu, très contagieux à l'école et en famille.",
+   226→    redFlags: [
+   227→      "Croûtes purulentes ou gonflement douloureux (kérion)",
+   228→      "Fièvre",
+   229→      "Plusieurs enfants atteints à la maison",
+   230→    ],
+   231→    action:
+   232→      "Ne pas appliquer seul une crème « anti-champignon » : le parasite vit DANS le cheveux, il faut un traitement par voie orale. Prévenir l'école, ne pas partager bonnets/peignes/brosses, laver la literie à l'eau chaude.",
+   233→    refer: "Médecin ou dermatologue rapidement — guérison rapide bien traitée, chute définitive si tard.",
+   234→    digest:
+   235→      "Plaques chauves/croûtes du cuir chez l'enfant, très contagieux. Crèmes insuffisantes (traitement oral) → médecin vite ; laver bonnets/literie.",
+   236→  },
+   237→  {
+   238→    id: "folliculite_barbe",
+   239→    name: "Folliculite & pseudofolliculose de la barbe (poils incarnés)",
+   240→    level: "educatif",
+   241→    summary:
+   242→      "Après le rasage ou l'épilation, les cheveux crépus recourbés et percent la peau : petites bosses dures, parfois rouges et infectées, avec le poil enroulé dedans. Ça laisse des taches et parfois des keloïdes.",
+   243→    redFlags: [
+   244→      "Abcès douloureux ou fièvre",
+   245→      "Folliculite du cuir chevelu qui s'étend (bactérienne)",
+   246→      "Bourrelet cicatriciel qui grossit",
+   247→    ],
+   248→    action:
+   249→      "Préférer la tondeuse courte au rasoir de lame, raser dans le sens du poil (jamais à contre-poil), exfoliation douce une fois par semaine, jamais déterger les poils avec l'ongle.",
+   250→    refer: "Infection, abcès, ou poils qui ne repoussent plus → dermatologue.",
+   251→    digest:
+   252→      "Poils incarnés du rasage : bosses qui marquent. Tondeuse > rasoir, exfoliation douce. Référer si abcès/fièvre.",
+   253→  },
+   254→  {
+   255→    id: "gale",
+   256→    name: "Gale",
+   257→    level: "referer",
+   258→    summary:
+   259→      "Des démangeaisons très fortes, surtout la NUIT, et souvent toute la famille en même temps, avec petits sillons entre les doigts, poignets, aisselles. Un tout petit parasite se transmet par contact et la literie.",
+   260→    redFlags: [
+   261→      "Toute la famille gratte",
+   262→      "Plaies de grattage infectées (croûtes)",
+   263→      "Nourrisson ou femme enceinte atteints",
+   264→    ],
+   265→    action:
+   266→      "C'est contagieux et très bien guérissable : consulter. Laver à l'eau chaude draps et vêtements de TOUTE la maison le même jour, traiter tous les membres ensemble — sinon ça revient.",
+   267→    refer: "Médecin ou dermatologue pour confirmer et traiter toute la famille en même temps.",
+   268→    digest:
+   269→      "Démangeaisons NOCTURNES, TOUTE la famille, sillons des doigts — parasite. Consulter, traiter tous ensemble, literie à chaud.",
+   270→  },
+   271→  {
+   272→    id: "impetigo",
+   273→    name: "Impétigo",
+   274→    level: "referer",
+   275→    summary:
+   276→      "Plaques rouges puis croûtes jaunes comme du miel, autour de la bouche, du nez ou sur une gratture — surtout chez l'enfant. Une bactérie, très contagieux, mais qui guérit vite avec le bon traitement.",
+   277→    redFlags: ["Fièvre", "Croûtes qui s'étendent vite", "Gonflement douloureux rouge"],
+   278→    action:
+   279→      "Ne pas gratter, laver doucement à l'eau et au savon doux, couper les ongles courts, ne pas partager serviettes. Éviter l'école/cantine jusqu'à 24 h de traitement médical commencé.",
+   280→    refer: "Médecin rapidement — le traitement (selon étendue) n'est jamais prescrit par Kènè.",
+   281→    digest:
+   282→      "Croûtes jaunes « miel » (enfant) : bactérie très contagieuse, guérit vite traitée. Laver doucement. Médecin vite.",
+   283→  },
+   284→  {
+   285→    id: "urticaire",
+   286→    name: "Urticaire",
+   287→    level: "educatif",
+   288→    summary:
+   289→      "Des plaques gonflées, rosées, qui démangent : elles apparaissent et partent en quelques heures, se déplacent sur le corps. Souvent une réaction allergique — aliment, médicament, piqûre, chaleur.",
+   290→    redFlags: [
+   291→      "Gonflement des lèvres, langue ou gorge, gêne à respirer → URGENCE",
+   292→      "Malaise, vomissements",
+   293→      "Éruption douloureuse avec fièvre",
+   294→    ],
+   295→    action:
+   296→      "Compresse fraîche, éviter la source suspectée, noter ce qui a été mangé/touché avant. Vêtements amples, frais.",
+   297→    refer: "Lèvres/gorge gonflés ou gêne respiratoire = hôpital IMMÉDIATEMENT. Urticaire qui dure > 6 semaines → médecin.",
+   298→    digest:
+   299→      "Plaques gonflées qui migrent en heures (allergie). Compresse fraîche. Lèvres/gorge gonflés = URGENCE hôpital ; > 6 semaines → médecin.",
+   300→  },
+   301→  {
+   302→    id: "acanthosis",
+   303→    name: "Acanthosis nigricans",
+   304→    level: "referer",
+   305→    summary:
+   306→      "La peau devient épaisse, sombre et douce comme du velours sur le cou, la nuque, les aisselles, les plis. Souvent le signe d'une résistance à l'insuline — un terrain de diabète. Ce n'est pas une saleté.",
+   307→    redFlags: [
+   308→      "Installation rapide",
+   309→      "Soif intense, fatigue, perte/gain de poids (signes de diabète)",
+   310→      "Enfant en surpoids atteint",
+   311→    ],
+   312→    action:
+   313→      "Ne pas frotter ni gommer : ça ne part pas et ça irrite. Douceur sur la zone ; c'est un signal du corps, pas un problème de toilette. Une perte de poids progressive, avec le médecin, l'atténue.",
+   314→    refer: "MÉDECIN pour bilan (glycémie, insuline) — dépister tôt évite le diabète déclaré.",
+   315→    digest:
+   316→      "Cou/nuque/aisselles épais, sombres, veloutés : insulinorésistance (terrain diabète). Ne pas frotter. MÉDECIN bilan sucre.",
+   317→  },
+   318→  {
+   319→    id: "alopecie_traction",
+   320→    name: "Alopécie de traction",
+   321→    level: "educatif",
+   322→    summary:
+   323→      "La chute de cheveux causée par des coiffures TROP serrées — tresses, tissages, extensions, chignons tirés. Ça commence aux tempes et devant le front. Le follicule fatigue des années puis meurt définitivement.",
+   324→    redFlags: [
+   325→      "Front qui se dégarnit de plus en plus",
+   326→      "Petits boutons/pustules le long de la ligne",
+   327→      "Zone chauve qui persiste",
+   328→    ],
+   329→    action:
+   330→      "Desserrer les tresses, varier les coiffures, couper les extensions quelques mois pour reposer la ligne frontale, ne jamais dormir avec des mèches tendues, huiler la ligne.",
+   331→    refer: "Zone chauve > 6 mois après l'arrêt de la traction → dermatologue.",
+   332→    digest:
+   333→      "Chute tempes/front : tresses/tissages trop serrés. Desserrer, varier, reposer. Dermato si chauve > 6 mois après arrêt.",
+   334→  },
+   335→  {
+   336→    id: "ccca",
+   337→    name: "CCCA (alopécie centrale cicatricielle)",
+   338→    level: "referer",
+   339→    summary:
+   340→      "Le SOMMET du crâne se dégarnit lentement chez la femme noire, souvent avec picotements, démangeaisons ou petites croûtes. Le follicule se détruit et se remplace par une cicatrice — la perte est définitive.",
+   341→    redFlags: [
+   342→      "Picotements ou douleurs du sommet",
+   343→      "Clairsemé central qui s'étend",
+   344→      "Croûtes ou pustules du vertex",
+   345→    ],
+   346→    action:
+   347→      "Arrêter relaxeurs, chaleur excessive et tensions sur le sommet : toute inflammation accélère la destruction. Coiffures douces, hydratation du cuir.",
+   348→    refer: "DERMATOLOGUE VITE : pris tôt on freine l'évolution ; les follicules morts ne repoussent jamais.",
+   349→    digest:
+   350→      "Sommet du crâne dégarni + picotements (femme noire) : cicatriciel. STOP relaxeurs/tension. DERMATOLOGUE VITE — tôt = freinable.",
+   351→  },
+   352→  {
+   353→    id: "alopecie_areata",
+   354→    name: "Alopécie areata (plaques)",
+   355→    level: "referer",
+   356→    summary:
+   357→      "Des plaques chauves rondes, lisses, sans croûtes ni douleur, qui apparaissent en quelques jours ou semaines. Le système immunitaire attaque les cheveux, souvent après un gros stress. La repousse spontanée est fréquente.",
+   358→    redFlags: [
+   359→      "Plusieurs plaques qui grandissent",
+   360→      "Ongles piquetés",
+   361→      "Perte des sourcils ou des cils",
+   362→    ],
+   363→    action:
+   364→      "Rassurer : repousse spontanée fréquente. Foulard/coiffures couvrantes en attendant ; éviter les tresses serrées sur la zone.",
+   365→    refer: "Dermatologue pour confirmer et proposer un traitement (plus efficace tôt).",
+   366→    digest:
+   367→      "Plaques chauves RONDES, lisses, sans croûte, en jours (souvent stress). Repousse fréquente : rassurer. Dermato si plaques multiples.",
+   368→  },
+   369→  {
+   370→    id: "pellicules",
+   371→    name: "Pellicules / desquamation du cuir",
+   372→    level: "educatif",
+   373→    summary:
+   374→      "Des peaux mortes blanches sur les épaules et des démangeaisons du cuir chevelu. Trois causes possibles : sécheresse, excès de sébum, ou un champignon. Ça répond bien aux shampoings adaptés.",
+   375→    redFlags: [
+   376→      "Croûtes épaisses jaunâtres qui suintent",
+   377→      "Chute de cheveux associée",
+   378→      "Enfant atteint (teigne possible)",
+   379→    ],
+   380→    action:
+   381→      "Shampoing antipelliculaire 2 fois/semaine, rincer TRÈS abondamment (les résidus aggravent), soin huileux pré-shampoing (karité, ricin) si le cuir est sec.",
+   382→    refer: "Croûtes épaisses, chute de cheveux, ou enfant → dermatologue (teigne à éliminer).",
+   383→    digest:
+   384→      "Cuir qui pèle/démange. Shampoing adapté 2×/semaine, bien rincer. Référer si croûtes/chute/enfant (teigne ?).",
+   385→  },
+   386→  {
+   387→    id: "hyperpigmentation_globale",
+   388→    name: "Hyperpigmentation globale",
+   389→    level: "educatif",
+   390→    summary:
+   391→      "Le teint fonce de façon large et irrégulière, sans taches nettes. Causes fréquentes : soleil, inflammation répétée, produits agressifs (citron, gommages à grains durs, brossage) ou éclaircissements à répétition.",
+   392→    redFlags: [
+   393→      "Foncé rapide du visage et du cou avec produits éclaircissants (voir dépigmentation)",
+   394→      "Teint qui devient gris-noir terne",
+   395→    ],
+   396→    action:
+   397→      "STOP aux agressions (citron, gommages durs, brossage), écran quotidien, niacinamide en douceur, patience 3-6 mois. Le foncé d'irritation part lentement.",
+   398→    refer: "Teint gris-noir terne après des années d'éclaircissement → dermatologue (ochronose possible).",
+   399→    digest:
+   400→      "Teint foncé global : soleil/inflammation/citron. STOP agressions, écran, niacinamide. Gris-noir après éclaircissement → dermato (ochronose).",
+   401→  },
+   402→  {
+   403→    id: "melanome_acral",
+   404→    name: "Mélanome acral (paumes, plantes, ongles)",
+   405→    level: "referer",
+   406→    summary:
+   407→      "Rare mais grave : un mélanome qui pousse sur les PAUMES, les PLANTES et les ONGLES. Signe clé : une bande foncée verticale sur UN SEUL ongle qui s'élargit vers la base, ou une tache sombre irrégulière d'une paume/plante qui change.",
+   408→    redFlags: [
+   409→      "Ligne sombre longitudinale d'un seul ongle qui s'élargit",
+   410→      "Tache sombre des paumes/plantes qui change (ABCDE)",
+   411→      "Tache qui saigne, gratte ou ne guérit pas",
+   412→    ],
+   413→    action:
+   414→      "Appliquer la règle ABCDE, montrer TOUTE tache nouvelle ou changeante des paumes/plantes/ongles. Pas d'attentisme, pas de « remède maison ».",
+   415→    refer: "DERMATOLOGUE sans délai : pris tôt, la guérison est très bonne.",
+   416→    digest:
+   417→      "GRAVE, rare : paumes/plantes/ongles. Ligne sombre d'UN ongle qui s'élargit, tache changeante (ABCDE) → dermato SANS délai.",
+   418→  },
+   419→  {
+   420→    id: "carcinome_cicatrice",
+   421→    name: "Cancer sur cicatrice ou ulcère chronique",
+   422→    level: "referer",
+   423→    summary:
+   424→      "Une vieille cicatrice (brûlure, plaie) ou une plaie chronique de la jambe qui se met à bourgeonner, saigner, ou ne guérit pas depuis plus d'un mois, peut cacher un cancer de peau. Rare sur peau noire, mais réel.",
+   425→    redFlags: [
+   426→      "Ulcère qui ne guérit pas > 1 mois",
+   427→      "Bourgeon qui saigne sur cicatrice ancienne",
+   428→      "Croûte qui revient toujours au même endroit",
+   429→    ],
+   430→    action: "Ne pas « re-soigner » à répétition sans avis : photo de suivi et avis médical rapide.",
+   431→    refer: "Médecin/dermatologue — une biopsie tranche ; guérison très bonne prise tôt.",
+   432→    digest:
+   433→      "Cicatrice/ulcère qui saigne, bourgeonne ou > 1 mois sans guérir : cancer possible. Pas de re-soins → médecin (biopsie).",
+   434→  },
+   435→];
+   436→
+   437→// ─────────────────────────── B. Danger dépigmentation ───────────────────────────
+   438→
+   439→export const DEPIGMENTATION: DepigmentationDanger = {
+   440→  id: "depigmentation",
+   441→  title: "Danger de la dépigmentation volontaire",
+   442→  products:
+   443→    "Sachets et crèmes éclaircissantes du marché informel : hydroquinone à haute dose, corticoïdes topiques puissants, mercure. Elles éclaircissent vite… et abîment profondément.",
+   444→  complications: [
+   445→    "Peau fine, fragile, qui se déchire au moindre choc",
+   446→    "Vergetures violacées larges (aisselles, aine)",
+   447→    "Infections à répétition : mycoses, impétigo",
+   448→    "Ochronose exogène : teint gris-noir terreux, souvent irréversible",
+   449→    "Photosensibilité sévère : coups de soleil violents",
+   450→    "Acné aggravée, foncé paradoxal des jointures (coudes, genoux, doigts)",
+   451→  ],
+   452→  message:
+   453→    "Zéro jugement : une femme qui éclaircit ne cherche pas à « devenir blanche », elle cherche une peau lisse, éclatante, sans taches. Kènè répond à ce besoin SAINEMENT.",
+   454→  approach: [
+   455→    "Arrêt PROGRESSIF et doux — jamais de stop brutal : rebond inflammatoire et taches",
+   456→    "Réparer la barrière : nettoyant doux, crème grasse riche, patience de plusieurs mois",
+   457→    "Photoprotection stricte : la peau est devenue très sensible au soleil",
+   458→    "Estomper les taches sainement : niacinamide/acide azélaïque en douceur",
+   459→  ],
+   460→  refer:
+   461→    "Toute lésion sur peau dépigmentée — plaie, infection, teint gris-noir, vergetures douloureuses — → dermatologue SANS délai, sans honte.",
+   462→  digest:
+   463→    "Sachets/crèmes éclaircissants (hydroquinone forte, corticoïdes, mercure) : peau fine, vergetures, infections, ochronose (gris-noir), photosensibilité. ZÉRO jugement — elle cherche lisse/éclat. Arrêt PROGRESSIF, réparer la barrière, écran strict. Lésion → dermato.",
+   464→};
+   465→
+   466→// ─────────────────────────── C. Botaniques africaines ───────────────────────────
+   467→
+   468→export const BOTANICALS: KnowledgeBotanical[] = [
+   469→  {
+   470→    id: "karite",
+   471→    name: "Karité",
+   472→    virtues: "Répare et nourrit intensément la peau sèche, apaise les irritations, protège du dessèchement.",
+   473→    usage: "Beurre pur sur le corps, les lèvres, les pieds gercés ; en masque capillaire pré-shampoing ; pour les bébés.",
+   474→    caution:
+   475→      "Trop riche pour un visage qui fait des boutons (comédogène en couche épaisse) — privilégier corps et cheveux. Choisir du beurre brut non raffiné.",
+   476→    digest: "nourrit/répare peau sèche (corps, lèvres, cheveux, bébés) ; trop riche visage acnéique.",
+   477→  },
+   478→  {
+   479→    id: "moringa",
+   480→    name: "Moringa",
+   481→    virtues: "Riche en vitamines A, C, E : antioxydant, éclat du teint, anti-âge doux ; fortifie cheveux et ongles.",
+   482→    usage: "Huile de moringa en soin visage/cheveux (légère) ; poudre de feuilles en masque ou en rinçage.",
+   483→    caution: "Huile légère mais éviter sur acné active du visage ; toujours tester avant l'usage régulier.",
+   484→    digest: "antioxydant éclat ; huile légère visage/cheveux, poudre en masque ; tester.",
+   485→  },
+   486→  {
+   487→    id: "baobab",
+   488→    name: "Baobab",
+   489→    virtues: "Huile « sèche » qui pénètre vite : régénère la peau sèche, assouplit les cicatrices anciennes, fortifie les cheveux cassants.",
+   490→    usage: "Huile de baobab en massage corps, sur les marques, en soin des pointes.",
+   491→    caution: "Usage corps et cheveux de préférence ; tester sur une petite zone.",
+   492→    digest: "huile sèche pénétrante : peaux sèches, marques, cheveux cassants.",
+   493→  },
+   494→  {
+   495→    id: "bissap",
+   496→    name: "Bissap (hibiscus)",
+   497→    virtues: "Riche en acides de fruits (AHA naturels) : affine le grain, unifie, ravive l'éclat.",
+   498→    usage: "Infusion refroidie en lotion finale, fleurs en poudre en masque court ; les fleurs séchées s'achètent au marché.",
+   499→    caution:
+   500→      "AHA = photosensibilisant : jamais d'application pure prolongée sur le visage, toujours rincer, écran solaire ensuite. Pas sur peau lésée.",
+   501→    digest: "AHA éclat/unification ; rinçage ou masque court ; photosensibilisant → rincer + écran.",
+   502→  },
+   503→  {
+   504→    id: "aloka",
+   505→    name: "Aloka (aloès)",
+   506→    virtues: "Apaise, hydrate, calme irritations et petits coups de soleil ; favorise la réparation.",
+   507→    usage: "Gel frais de la feuille coupée, appliqué au frais sur peau propre ; feuille conservée au réfrigérateur.",
+   508→    caution: "Des allergies à l'aloès existent : test au pli du coude 48 h ; jamais sur plaie ouverte profonde.",
+   509→    digest: "gel frais apaise irritations/coups de soleil ; test 48 h, jamais plaie ouverte.",
+   510→  },
+   511→  {
+   512→    id: "nere",
+   513→    name: "Néré",
+   514→    virtues: "Poudre et beurre traditionnels : apaisent la peau sèche, assouplissent la peau et les cheveux.",
+   515→    usage: "Poudre de néré en gommage mou/cataplasme, beurre sur corps et cheveux — tradition ouest-africaine.",
+   516→    caution: "Usage corps et cheveux ; rincer le cataplasme à l'eau claire ; tester.",
+   517→    digest: "poudre/beurre apaisant (tradition ouest-africaine) ; corps/cheveux, rincer.",
+   518→  },
+   519→  {
+   520→    id: "neem",
+   521→    name: "Neem (margousier)",
+   522→    virtues: "Antibactérien et antifongique naturel : aide sur boutons, pellicules, mycoses légères.",
+   523→    usage: "Décoction de feuilles en rinçage du cuir chevelu, savons au neem pour le corps.",
+   524→    caution:
+   525→      "Puissant et asséchant : pas d'usage quotidien du visage, jamais sur femme enceinte sans avis médical, et ne remplace JAMAIS un traitement médical d'une vraie infection.",
+   526→    digest: "antibactérien/antifongique (boutons, pellicules) ; asséchant, pas visage quotidien, pas traitement médical.",
+   527→  },
+   528→  {
+   529→    id: "savon_noir",
+   530→    name: "Savon noir (alata)",
+   531→    virtues: "Nettoyant traditionnel à base de cendres végétales (cacao, palmier, karité) : décape en douceur, affine la peau du corps.",
+   532→    usage: "Savon noir pour la douche du corps, 2-4 fois/semaine selon tolérance.",
+   533→    caution:
+   534→      "Peut assécher : bien rincer, hydrater juste après ; éviter le visage fragile en usage quotidien ; choisir sans additifs industriels.",
+   535→    digest: "nettoyant traditionnel ; corps/imperfections ; assèche → hydrater après.",
+   536→  },
+   537→  {
+   538→    id: "plantain",
+   539→    name: "Plantain (pulpe)",
+   540→    virtues: "La pulpe mûre apaise et adoucit la peau ; riche en amidon nourrissant.",
+   541→    usage: "Masque frais de pulpe écrasée, 10-15 minutes, une à deux fois par semaine.",
+   542→    caution: "Préparer frais et jeter le reste ; pas sur peau lésée ; rincer à l'eau claire.",
+   543→    digest: "pulpe mûre apaisante en masque frais ; rincer, pas sur peau lésée.",
+   544→  },
+   545→  {
+   546→    id: "tamanu",
+   547→    name: "Tamanu",
+   548→    virtues: "Huile réparatrice réputée sur les marques et cicatrices ; favorise la régénération.",
+   549→    usage: "Huile de tamanu en application localisée sur cicatrices et taches anciennes.",
+   550→    caution: "Odeur forte, allergie possible : test 48 h obligatoire ; application en touches, pas en couche sur acné active.",
+   551→    digest: "huile cicatrisante sur marques ; test 48 h, application localisée.",
+   552→  },
+   553→];
+   554→
+   555→// ─────────────────────────── D. Actifs cosmétiques ───────────────────────────
+   556→
+   557→export const ACTIVES: KnowledgeActive[] = [
+   558→  {
+   559→    id: "niacinamide",
+   560→    name: "Niacinamide (vitamine B3)",
+   561→    role: "Atténue les taches brunes ET renforce la barrière — double action très bien tolérée sur peau foncée.",
+   562→    advice: "5 % (parfois 10 %), matin et/ou soir, dès la fin de l'adolescence ; excellent premier actif.",
+   563→    digest: "taches + barrière, 5 %, très bien toléré — le meilleur premier actif.",
+   564→  },
+   565→  {
+   566→    id: "azelaic",
+   567→    name: "Acide azélaïque",
+   568→    role: "Calme l'acné ET estompe les taches PIH : double emploi idéal sur peau noire boutonneuse.",
+   569→    advice: "Commencer 1×/jour le soir, augmenter à 2×/jour si bien toléré ; patience 8-12 semaines.",
+   570→    digest: "acné + PIH, doux ; 1×/jour au début, résultats 8-12 semaines.",
+   571→  },
+   572→  {
+   573→    id: "aha_bha",
+   574→    name: "AHA / BHA doux",
+   575→    role: "Unifient le teint (AHA : acide lactique) et débouchent les pores (BHA : acide salicylique).",
+   576→    advice:
+   577→      "Basses concentrations, 1-2 fois/semaine, rincer les masques acides ; préférer les acides doux aux gommages à grains (grains durs = micro-coupures = taches).",
+   578→    digest: "unifient/débouchent ; 1-2×/semaine basse dose, préférables aux grains durs.",
+   579→  },
+   580→  {
+   581→    id: "retinol",
+   582→    name: "Rétinol (progressif)",
+   583→    role: "Anti-imperfections et anti-âge ; affine les marques en accélérant le renouvellement.",
+   584→    advice: "Commencer 0,3 %, 2 soirs/semaine, augmenter lentement ; toujours hydrater après. Rétinol mal dosé = irritation = PIH.",
+   585→    digest: "0,3 %, 2 soirs/semaine, augmenter lentement ; irritation = taches.",
+   586→  },
+   587→  {
+   588→    id: "vitamine_c",
+   589→    name: "Vitamine C stabilisée",
+   590→    role: "Éclat et atténuation des taches, antioxydant de jour.",
+   591→    advice: "Forme stabilisée (ascorbyl glucoside, phosphate), le matin sous l'écran ; commencer 3×/semaine.",
+   592→    digest: "éclat + taches, forme stabilisée, matin sous écran.",
+   593→  },
+   594→  {
+   595→    id: "spf",
+   596→    name: "Écran solaire (SPF)",
+   597→    role: "INDISPENSABLE même sur peau noire : prévient mélasma, PIH, foncé global — sans lui, rien ne tient.",
+   598→    advice: "SPF 30+ chaque matin, réappliqué si transpiration forte ; texture fluide non grasse pour les peaux mixtes.",
+   599→    digest: "indispensable même peau noire ; SPF 30+ quotidien, réappliqué si transpiration.",
+   600→  },
+   601→  {
+   602→    id: "hydratation",
+   603→    name: "Hydratation (sérum + crème)",
+   604→    role: "La base avant tout actif : une barrière solide pigmente moins et supporte mieux les soins.",
+   605→    advice: "Sérum hydratant (glycérine, acide hyaluronique) + crème scellante ; jamais de routine à 8 produits.",
+   606→    digest: "base avant tout actif ; barrière solide = moins de taches.",
+   607→  },
+   608→];
+   609→
+   610→export const GOLDEN_RULE_ACTIVES =
+   611→  "Règle d'or : UN actif à la fois, introduit toutes les 2-4 semaines — la peau noire réagit par la pigmentation à l'irritation.";
+   612→
+   613→// ─────────────────────────── E. Signes rouges + règles du personnage ───────────────────────────
+   614→
+   615→export const RED_FLAGS: KnowledgeRedFlag[] = [
+   616→  {
+   617→    id: "cellulite",
+   618→    sign: "Fièvre + rougeur douloureuse et chaude qui s'étend (jambe, visage, plaie)",
+   619→    action: "Médecin ou hôpital LE JOUR MÊME (cellulite/érysipèle : infection profonde qui avance vite).",
+   620→    digest: "Fièvre + rougeur douloureuse qui s'étend : médecin VITE (cellulite/érysipèle).",
+   621→  },
+   622→  {
+   623→    id: "plaie_chronique",
+   624→    sign: "Toute plaie, ulcère ou bouton qui ne guérit pas après 1 mois",
+   625→    action: "Consulter — jamais de « re-soins » à répétition sans avis.",
+   626→    digest: "Plaie/bouton qui ne guérit pas > 1 mois : consulter (cancer possible).",
+   627→  },
+   628→  {
+   629→    id: "tache_abcde",
+   630→    sign: "Une tache qui change : asymétrie, bords irréguliers, plusieurs couleurs, > 6 mm, évolution (ABCDE)",
+   631→    action: "Dermatologue sans délai — photo de comparaison tous les mois aide.",
+   632→    digest: "Tache qui change (ABCDE) : dermatologue sans délai.",
+   633→  },
+   634→  {
+   635→    id: "bulles",
+   636→    sign: "Bulles/ampoules étendues ou brûlure large",
+   637→    action: "Hôpital — jamais percer les bulles.",
+   638→    digest: "Bulles étendues ou brûlure large : hôpital, ne jamais percer.",
+   639→  },
+   640→  {
+   641→    id: "purpura",
+   642→    sign: "Purpura : points ou taches sombres/rouges qui ne s'effacent pas quand on appuie",
+   643→    action: "Urgence médicale — possible atteinte de la coagulation.",
+   644→    digest: "Taches qui ne s'effacent pas à la pression (purpura) : urgence.",
+   645→  },
+   646→  {
+   647→    id: "allergie_severe",
+   648→    sign: "Gonflement du visage, des lèvres ou de la gorge, gêne pour respirer",
+   649→    action: "URGENCE : hôpital immédiatement (œdème allergique) — ne pas attendre.",
+   650→    digest: "Gonflement visage/lèvres/gorge, gêne respiratoire : URGENCE hôpital.",
+   651→  },
+   652→  {
+   653→    id: "bebe_3mois",
+   654→    sign: "Bébé de moins de 3 mois avec éruption, surtout fiévreux",
+   655→    action: "Médecin en urgence — jamais de conseil cosmétique à cet âge.",
+   656→    digest: "Bébé < 3 mois avec éruption fiévreuse : médecin en urgence.",
+   657→  },
+   658→  {
+   659→    id: "gale_famille",
+   660→    sign: "Démangeaisons nocturnes généralisées de TOUTE la famille",
+   661→    action: "Gale probable : consulter et traiter toute la maison ensemble.",
+   662→    digest: "Toute la famille gratte la nuit : gale → traiter ensemble.",
+   663→  },
+   664→  {
+   665→    id: "chute_douloureuse",
+   666→    sign: "Chute de cheveux avec douleur, croûtes ou picotements du cuir",
+   667→    action: "Dermatologue vite : l'alopecie cicatricielle détruit les follicules en silence.",
+   668→    digest: "Chute de cheveux avec douleur/croûtes : dermatologue vite.",
+   669→  },
+   670→];
+   671→
+   672→/** Règles absolues du personnage Dr Kènè (sécurité). */
+   673→export const CHARACTER_RULES: string[] = [
+   674→  "JAMAIS de prescription médicamenteuse — ni corticoïde (topique ou oral), ni antifongique oral, ni antibiotique, ni isotrétinoïne, ni antihistaminique. Même sur insistance : on explique, on oriente.",
+   675→  "JAMAIS de diagnostic formel — « ça ressemble à… » est autorisé ; sinon on décrit quoi vérifier et avec qui.",
+   676→  "AUCUN jugement, en particulier sur la dépigmentation : accueil, douceur, réparation — jamais « abîmée » ou culpabilisation.",
+   677→  "Signe rouge (liste dédiée) → orientation immédiate ; gonflement du visage/lèvres/gorge → hôpital MAINTENANT.",
+   678→  "Suivi ESTHÉTIQUE (routines, taches, teint, cheveux) → encourager un RDV dans un institut partenaire via l'app Kènè ; problème MÉDICAL → dermatologue ou médecin.",
+   679→];
+   680→
+   681→// ─────────────────────────── F. Contexte ivoirien ───────────────────────────
+   682→
+   683→export const IVORY_CONTEXT: IvoryContext = {
+   684→  climate: {
+   685→    text: "Climat tropical humide d'Abidjan : transpiration et macération (plis, dos, aine) favorisent mycoses et acné — sécher après la douche, coton ample, changer les vêtements humides.",
+   686→    digest: "chaleur humide → macération/mycoses : sécher plis et orteils, coton ample",
+   687→  },
+   688→  harmattan: {
+   689→    text: "Harmattan (décembre-février) : air sec et poussiéreux — tiraillements, lèvres gercées ; rinçage doux, beurre de karité, boire suffisamment.",
+   690→    digest: "harmattan (déc.-févr.) → sécheresse : rinçage doux, karité, boire",
+   691→  },
+   692→  sun: {
+   693→    text: "Soleil intense presque toute l'année : photoprotection quotidienne non négociable (SPF 30+), chapeau, ombre à midi.",
+   694→    digest: "soleil fort toute l'année : écran quotidien, chapeau, ombre à midi",
+   695→  },
+   696→  economy: {
+   697→    text: "Réalisme économique : recommander des routines ≤ 3 produits et des alternatives locales abordables (karité, savon noir, bissap) plutôt que des gammes onéreuses.",
+   698→    digest: "budget : routines ≤ 3 produits, alternatives locales abordables",
+   699→  },
+   700→  institutes: {
+   701→    text: "Les instituts partenaires Kènè assurent le suivi personnalisé (diagnostic, protocoles, suivi des taches) — le RDV se prend directement dans l'app.",
+   702→    digest: "suivi personnalisé → RDV institut partenaire dans l'app",
+   703→  },
+   704→};
+   705→
+   706→// ─────────────────────────── Digest (prompt LLM) ───────────────────────────
+   707→// Version condensée, assemblée par code depuis les données ci-dessus.
+   708→// Contrainte : ≤ ~900 mots — compacte mais complète pour un LLM.
+   709→
+   710→const levelTag = (c: KnowledgeCondition): string => (c.level === "referer" ? "RÉFÉRER" : "éducatif");
+   711→
+   712→const digestConditions = CONDITIONS.map((c) => `- ${c.name} [${levelTag(c)}] : ${c.digest}`).join("\n");
+   713→
+   714→const digestBotanicals = BOTANICALS.map((b) => `- ${b.name} : ${b.digest}`).join("\n");
+   715→
+   716→const digestActives = ACTIVES.map((a) => `- ${a.name} : ${a.digest}`).join("\n");
+   717→
+   718→const digestRedFlags = RED_FLAGS.map((r) => `- ${r.digest}`).join("\n");
+   719→
+   720→export const KNOWLEDGE_DIGEST: string = [
+   721→  "════ CONNAISSANCES DR KÈNÈ — dermatologie des peaux noires (Afrique de l'Ouest) ════",
+   722→  "",
+   723→  "— CONDITIONS FRÉQUENTES (éducatif = conseils doux · RÉFÉRER = orientation pro) —",
+   724→  digestConditions,
+   725→  "",
+   726→  "— DANGER DÉPIGMENTATION VOLONTAIRE —",
+   727→  DEPIGMENTATION.digest,
+   728→  "",
+   729→  "— BOTANIQUES AFRICAINES —",
+   730→  digestBotanicals,
+   731→  "Précautions : jamais sur peau lésée · test pli du coude 48 h · pas d'huile pure sur acné active du visage.",
+   732→  "",
+   733→  "— ACTIFS COSMÉTIQUES peaux foncées —",
+   734→  digestActives,
+   735→  GOLDEN_RULE_ACTIVES,
+   736→  "",
+   737→  "— SIGNES ROUGES : référer sans délai —",
+   738→  digestRedFlags,
+   739→  "",
+   740→  "— CONTEXTE IVOIRIEN (Abidjan) —",
+   741→  `- ${IVORY_CONTEXT.climate.digest}`,
+   742→  `- ${IVORY_CONTEXT.harmattan.digest}`,
+   743→  `- ${IVORY_CONTEXT.sun.digest}`,
+   744→  `- ${IVORY_CONTEXT.economy.digest}`,
+   745→  `- ${IVORY_CONTEXT.institutes.digest}`,
+   746→].join("\n");
+   747→

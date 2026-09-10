@@ -14,8 +14,9 @@
 //   du next-server au compile, t. 77 — cf. worklog).
 import ZAI from "z-ai-web-dev-sdk";
 import type { VisionMessage } from "z-ai-web-dev-sdk";
-import type { BodyZone, DiagnosisResult, Indicator, RecommendationSet, ZoneMark } from "@/lib/kene/types";
+import type { BodyZone, DiagnosisResult, Indicator, RecommendationSet, SuspectedCondition, ZoneMark } from "@/lib/kene/types";
 import { ZONE_INDICATORS } from "@/lib/kene/types";
+import { hypothesesFromVlm, vlmCatalogForZone } from "@/lib/kene/conditions";
 import { severityFromPercent } from "@/lib/kene/format";
 import { withTimeout } from "@/lib/kene/with-timeout";
 
@@ -44,10 +45,11 @@ function buildAnalysisPrompt(zone: BodyZone, knownFitz?: string, allergies?: str
       ? `,"abcde":[["A","Asymétrie",<true|false>,"≤ 40 caractères"],...]`
       : "";
   return `Analyse cutanée de peau mélanoderme (Fitzpatrick IV-VI), zone « ${zone} ».${knownFitz ? ` Phototype déclaré : ${knownFitz}.` : ""}${allergies ? ` Allergies : ${allergies}.` : ""}
-Détecter : PIH, mélasma, acné mixte, DPN, kératose, poils incarnés, nævi suspects (ABCDE). Ne pas confondre pigmentation naturelle et pathologie.
-Réponds STRICTEMENT en JSON ultra-compact (≤ 600 caractères, sans markdown, sans texte autour) :
-{"score":<0-100>,"fitz":"IV"|"V"|"VI"|"III","ind":{${indicateurs.map((i) => `"${i}":<0-100>`).join(",")}},"marks":[["<zone>",<x 0-100>,<y 0-100>,<w 10-28>,<h 10-28>,<sev 0-3>],...],"focus":[["<indicateur le plus faible>","<note ≤ 40 caractères>"],...2-3 entrées],"derm":<bool>,"why":"<si derm, ≤ 80 caractères>"${abcdePart}}
-Règles : TOUS les indicateurs listés dans "ind" ; 4 à 6 marks ; sev 0=sain 1=léger 2=modéré 3=marqué ; si la photo ne montre pas de peau : score 0, derm false.`;
+Catalogue des affections africaines plausibles sur cette zone (id=signature visuelle sur peau noire) : ${vlmCatalogForZone(zone)}.
+Ne pas confondre pigmentation naturelle et pathologie. L'érythème est masqué sur peau foncée : chercher la teinte violacée-brune.
+Réponds STRICTEMENT en JSON ultra-compact (≤ 650 caractères, sans markdown, sans texte autour) :
+{"score":<0-100>,"fitz":"IV"|"V"|"VI"|"III","ind":{${indicateurs.map((i) => `"${i}":<0-100>`).join(",")}},"marks":[["<zone>",<x 0-100>,<y 0-100>,<w 10-28>,<h 10-28>,<sev 0-3>],...],"focus":[["<indicateur le plus faible>","<note ≤ 40 caractères>"],...2-3 entrées],"conds":[["<id du catalogue>",<confiance 0-100>],...0-2],"derm":<bool>,"why":"<si derm, ≤ 80 caractères>"${abcdePart}}
+Règles : TOUS les indicateurs listés dans "ind" ; 4 à 6 marks ; sev 0=sain 1=léger 2=modéré 3=marqué ; conds = UNIQUEMENT des ids du catalogue ci-dessus (la/les plus probables, 0-2, confiance ≥ 40 seulement) ; si la photo ne montre pas de peau : score 0, derm false, conds vide.`;
 }
 
 /** Phase 2 — prompt texte (glm-4.6) : recommandations personnalisées à partir
@@ -137,7 +139,9 @@ function coerceArray<T>(v: unknown): T[] {
  *  Accepte les DEUX formats (t. 77) : le compact ({ind:{nom:score},
  *  marks:[[label,x,y,w,h,sev]], focus:[[nom,note]], derm, why}) et l'ancien
  *  détaillé (indicateurs[], zones_marquages[], orientation_dermato) —
- *  rétrocompatibilité si le modèle répond à l'ancien format. */
+ *  rétrocompatibilité si le modèle répond à l'ancien format.
+ *  t. 84 : champ `conds` → hypothèses de l'atlas africain, validées par
+ *  hypothesesFromVlm (ids exacts + zone cohérente + confiance ≥ 25). */
 function normalizeAnalysis(
   raw: unknown,
   zone: BodyZone,
@@ -237,14 +241,28 @@ function normalizeAnalysis(
   const why = o.why ?? o.raison_orientation;
   const fitzRaw = o.fitz ?? o.fitzpatrick_estime;
 
+  // t. 84 — hypothèses de l'atlas africain : validation ANTI-HALLUCINATION
+  // (ids exacts du catalogue zone-filtré, confiance plancher, cap 2). Le
+  // champ peut être absent (ancien format / modèle silencieux) → [].
+  const hypotheses: SuspectedCondition[] = hypothesesFromVlm(o.conds, zone);
+  // Une hypothèse de niveau dermato/urgence force l'orientation médicale,
+  // même si le modèle a oublié de lever "derm" — la sécurité ne repose pas
+  // sur la seule discipline du modèle.
+  const hypotheseGrave = hypotheses.find((h) => h.niveau === "dermato" || h.niveau === "urgence");
+  const raisonAuto = hypotheseGrave
+    ? `${hypotheseGrave.nom} (${hypotheseGrave.categorie}) — ${hypotheseGrave.drapeau ?? hypotheseGrave.action}`
+    : undefined;
+
   return {
     score_global: scoreGlobal,
     fitzpatrick_estime: ["III", "IV", "V", "VI"].includes(String(fitzRaw)) ? String(fitzRaw) : undefined,
     zone,
     indicateurs,
     zones_marquages: marquages,
-    orientation_dermato: derm === true || derm === "true" || abcde.some((c) => c.alerte),
-    raison_orientation: why ? String(why).slice(0, 300) : undefined,
+    hypotheses: hypotheses.length ? hypotheses : undefined,
+    orientation_dermato:
+      derm === true || derm === "true" || Boolean(hypotheseGrave) || abcde.some((c) => c.alerte),
+    raison_orientation: why ? String(why).slice(0, 300) : raisonAuto?.slice(0, 300),
     abcde: abcde.length ? abcde : undefined,
   };
 }

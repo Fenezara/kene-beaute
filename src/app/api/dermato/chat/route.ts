@@ -6,6 +6,7 @@ import { jsonError, serverError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, DERMATO } from "@/lib/kene/rate-limit";
 import { withTimeout, TimeoutError } from "@/lib/kene/with-timeout";
 import { KNOWLEDGE_DIGEST } from "@/lib/kene/knowledge";
+import { ATLAS_DIGEST } from "@/lib/kene/conditions";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -35,6 +36,8 @@ const SYSTEM_PROMPT = `Tu es « Dr Kènè », l'assistante dermatologique de l'a
 5. Problème ESTHÉTIQUE (taches, routine, teint, cheveux) → propose aussi un RDV dans un institut partenaire via l'app Kènè. Problème MÉDICAL → dermatologue ou médecin. Les deux peuvent être cités dans la même réponse.
 
 ${KNOWLEDGE_DIGEST}
+
+${ATLAS_DIGEST}
 
 ═══ FORMAT DE RÉPONSE ═══
 - Maximum 150 mots, 1 à 2 emojis maximum, français simple.

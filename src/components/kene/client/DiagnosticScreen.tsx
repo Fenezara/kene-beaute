@@ -9,7 +9,7 @@ import {
 import { toast } from "sonner";
 import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
 import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
-import { BODY_ZONES, SPECTRAL_VIEWS, type BodyZone, type DiagnosisResult, type Indicator } from "@/lib/kene/types";
+import { BODY_ZONES, SPECTRAL_VIEWS, type AtlasLevel, type BodyZone, type DiagnosisResult, type Indicator, type SuspectedCondition } from "@/lib/kene/types";
 import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
 import { AdinkraSky } from "@/components/kene/constellation/AdinkraSky";
 import { diagQueueCount, enqueueDiag, subscribeDiagQueue } from "@/lib/kene/diag-queue";
@@ -771,6 +771,26 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
         <PictoSummary result={r} zoneLabel={BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone} />
       </RevealItem>
 
+      {/* Atlas africain (t. 84) — « Dr Kènè pense reconnaître… » : hypothèses
+          éducatives citées par le VLM puis VALIDÉES côté serveur (id exact de
+          l'atlas + zone cohérente + confiance ≥ 25). Jamais un diagnostic
+          formel — une piste à faire confirmer, avec le bon niveau de conduite. */}
+      {r.hypotheses && r.hypotheses.length > 0 && (
+        <RevealItem className="mt-4">
+          <section aria-labelledby="hyp-t">
+            <h2 id="hyp-t" className="font-heading font-bold text-base">Dr Kènè pense reconnaître…</h2>
+            <p className="mt-1 mb-3 text-[11px] leading-snug text-muted-foreground">
+              Ce que la photo lui rappelle, parmi {r.hypotheses.length === 1 ? "les affections de peau noire" : "2 affections de peau noire"} — une hypothèse à faire confirmer, pas un diagnostic.
+            </p>
+            <div className="space-y-3">
+              {r.hypotheses.map((h) => (
+                <HypothesisCard key={h.id} h={h} onAsk={askGlossary} onRdv={() => setClientTab("rdv")} />
+              ))}
+            </div>
+          </section>
+        </RevealItem>
+      )}
+
       {/* Descente de Peau (t. 82) — voyage 3D dans les couches, éclairé par
           les indicateurs réels. Plein cadre opt-in, se ferme à la remontée. */}
       <RevealItem className="mt-4">
@@ -1072,6 +1092,81 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
       {/* Glossaire 1 tap — « ? » sur un indicateur ouvre sa définition simple */}
       <GlossaryDialog entry={glossary} onClose={() => setGlossary(null)} />
     </div>
+  );
+}
+
+/* ══════════════ Hypothèse de l'atlas africain (t. 84) ══════════════ */
+const HYP_LEVEL: Record<AtlasLevel, { chip: string; label: string; icon: React.ReactNode }> = {
+  educatif: { chip: "border-success/45 bg-success/5 text-success", label: "Éducatif", icon: <Check size={12} /> },
+  institut: { chip: "border-primary/45 bg-primary/5 text-primary", label: "Institut partenaire", icon: <Sparkles size={12} /> },
+  dermato: { chip: "border-[#A0522D]/50 bg-[#A0522D]/5 text-[#A0522D]", label: "Avis dermatologique", icon: <PersonStanding size={12} /> },
+  urgence: { chip: "border-[#8B1A3B]/60 bg-[#8B1A3B]/10 text-[#8B1A3B]", label: "Urgence", icon: <TriangleAlert size={12} /> },
+};
+
+function HypothesisCard({ h, onAsk, onRdv }: { h: SuspectedCondition; onAsk: (term: string) => void; onRdv: () => void }) {
+  const lv = HYP_LEVEL[h.niveau];
+  const explainable = glossaryFor(h.nom) !== null;
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="k-card rounded-[20px] p-4"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${lv.chip}`}>
+          {lv.icon}{lv.label}
+        </span>
+        <span className="rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{h.categorie}</span>
+        <span className="ml-auto font-mono text-[11px] font-bold tabular-nums text-gold-text">{h.confiance} %</span>
+      </div>
+
+      {explainable ? (
+        <button
+          onClick={() => onAsk(h.nom)}
+          className="mt-2 flex items-start gap-1 text-left rounded-md focus-visible:outline-2 focus-visible:outline-primary transition-colors hover:text-primary"
+          aria-label={`Expliquer : ${h.nom}`}
+        >
+          <p className="font-heading font-bold text-sm leading-snug">{h.nom}</p>
+          <CircleHelp size={13} className="text-primary shrink-0 mt-0.5" aria-hidden="true" />
+        </button>
+      ) : (
+        <p className="mt-2 font-heading font-bold text-sm leading-snug">{h.nom}</p>
+      )}
+
+      <ProgressBar value={h.confiance} className="mt-1.5 h-1" />
+
+      <div className="mt-3 space-y-2">
+        <div className="flex gap-2">
+          <ScanFace size={13} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <p className="text-[11px] leading-relaxed text-muted-foreground"><span className="font-bold text-foreground/80">Sur peau noire :</span> {h.surPeauNoire}</p>
+        </div>
+        <div className="flex gap-2">
+          <Hand size={13} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <p className="text-[11px] leading-relaxed"><span className="font-bold">Conduite de Kènè :</span> {h.action}</p>
+        </div>
+        {h.drapeau && (
+          <div role="note" className="flex gap-2 rounded-xl bg-[#8B1A3B]/10 p-2.5">
+            <TriangleAlert size={13} className="mt-0.5 shrink-0 text-[#8B1A3B]" aria-hidden="true" />
+            <p className="text-[11px] leading-relaxed font-semibold text-[#8B1A3B]">{h.drapeau}</p>
+          </div>
+        )}
+      </div>
+
+      {(h.niveau === "institut" || h.niveau === "dermato" || h.niveau === "urgence") && (
+        <button
+          onClick={onRdv}
+          className={`mt-3 h-10 w-full rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 ${
+            h.niveau === "urgence"
+              ? "bg-[#8B1A3B] text-white focus-visible:outline-[#8B1A3B]"
+              : h.niveau === "dermato"
+                ? "bg-[#A0522D] text-white focus-visible:outline-[#A0522D]"
+                : "k-btn-gold text-primary-foreground focus-visible:outline-primary"
+          }`}
+        >
+          {h.niveau === "urgence" ? <>Voir un professionnel aujourd'hui</> : <><CalendarPlus size={14} /> {h.niveau === "dermato" ? "Prendre RDV — avis dermatologique" : "Prendre RDV en institut partenaire"}</>}
+        </button>
+      )}
+    </motion.article>
   );
 }
 
