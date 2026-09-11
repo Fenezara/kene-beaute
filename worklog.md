@@ -2407,3 +2407,31 @@ Stage Summary:
 - AUTO-GUÉRISSON : au prochain rechargement de sa préview, son navigateur télécharge le SW v4, le nouveau PwaProvider l'active automatiquement (plus JAMAIS de dépendance à un toast de 8 s), purge tous les anciens caches et recharge — elle obtient l'app courante avec la démo fonctionnelle et « Kènè » affiché sur chaque écran.
 - ACTION REQUISE CÔTÉ UTILISATRICE (unique) : recharger la préview (bouton rechargement du panneau ou rouvrir l'onglet).
 - Leçons : (1) un flux de mise à jour PWA qui dépend d'un toast éphémère est un piège — l'activation doit être automatique au boot et reportée seulement pendant l'activité ; (2) en iframe de préview (jamais de navigation), il faut POLLER registration.update() côté page ; (3) diagnostiquer « ça ne marche pas » sans reproduction = d'abord identifier l'ÉTAT du navigateur du plaignant (SW actif ? waiting ? cookie ? bundle servi ?) avant de toucher au code métier.
+
+---
+Task ID: t.90-bis
+Agent: agent principal (Z.ai Code)
+Task: « Impossible de se connecter en tant que client et entreprise » — la boucle de rechargement créée par le correctif t. 90
+
+Work Log:
+- REPRODUCTION PAR LES LOGS : la rafale de 23 chargements « GET / 200 » SANS AUCUNE autre requête (zéro POST otp, zéro appel session, zéro chunk) = le navigateur de l'utilisatrice rechargeait la page en boucle — chaque rechargement réinitialisait l'écran avant qu'elle puisse compléter une connexion → « impossible de se connecter en tant que client et entreprise ». La fréquence correspondait au filet de sécurité de 2 s du PwaProvider t. 90.
+- CAUSE RACINE (2 défauts composés dans mon correctif t. 90) :
+  1. le « filet de sécurité » rechargeait la page 2 s après CHAQUE tentative d'activation, MÊME si le nouveau Service Worker n'avait PAS pris le contrôle (rechargement « au cas où ») ;
+  2. la garde anti-boucle reposait sur sessionStorage — BLOQUÉ dans l'iframe de préview (même politique que ses cookies : les logs la montraient « sans cookie (legacy) ») → la garde échouait silencieusement → auto-guérison re-armée à chaque chargement → boucle infinie ~2 s.
+- PREUVE DE GUÉRISON IMMÉDIATE : la boucle s'est arrêtée À LA SECONDE où le nouveau code a été poussé par HMR dans sa page (0 GET / mesuré sur 20 s après recompilation).
+- CORRECTIF (PwaProvider réécrit, garanties formelles) :
+  1. UNE SEULE tentative d'auto-guérison PAR PAGE, sentinelle dans l'URL (`kene-sw-heal=1`, posée via location.replace, lue puis retirée par history.replaceState) — survit à TOUS les blocages de stockage (iframe partitionnée, navigation privée) : la page rechargée porte la sentinelle → plus jamais d'auto-guérison dans cet onglet ;
+  2. UN RECHARGEMENT UNIQUEMENT SI L'ACTIVATION EST PROUVÉE : événement controllerchange, OU filet de 3 s qui COMPARE le contrôleur (scriptURL) avant/après — si le nouveau SW ne prend pas le contrôle, AUCUN rechargement (le toast manuel reste le seul recours) ;
+  3. plus AUCUNE activation automatique « quand la cliente est calme » (le re-remplissage de la boucle t. 90) : après la tentative unique, seul le bouton « Appliquer » du toast agit (clic = consentement) ;
+  4. garde anti-spam : un seul toast par page (le poll 60 s re-détecte sans spammer).
+- public/sw.js : VERSION bumpée v4 → v5 (caches kene-*-v5) — un worker tout neuf remplace tout worker « waiting » zombifié chez les navigateurs en attente.
+- VÉRIFS : lint 0 ; tsc 0 erreur src/ ; sw.js servi via :81 = kene-sw-v5 ; SW activé, aucun worker en attente ; 3 rechargements successifs → 0 chargement parasite mesuré sur 12 s (boucle impossible) ; 0 erreur console ; dev.log 0 ⨯.
+- E2E COMPLET des deux flux incriminés (session login-t90 via :81) :
+  - CLIENTE : landing → « Espace cliente » → pavé 0701020304 → « Recevoir mon code par SMS » (POST otp/request 200) → « Code reçu, remplir automatiquement » (POST otp/verify 200) → ACCUEIL Mariam connectée (wallet, multi-zones, tab-bar complète) ✓ ;
+  - ENTREPRISE : landing → « Espace entreprise » → pavé 0707070707 (d2BORAH) → code auto (200) → ESPACE PRO « Cabinet LA DERMO » avec sidebar complète (Tableau de bord, Agenda, Diagnostic, Caisse, CRM, Relances…) ✓ — session persistante aux rechargements ;
+  - capture de preuve t90bis-espace-pro.png ; session fermée proprement.
+
+Stage Summary:
+- « IMPOSSIBLE DE SE CONNECTER (CLIENT + ENTREPRISE) » ÉLIMINÉ : les deux flux sont intégralement fonctionnels et vérifiés E2E — le seul obstacle était la boucle de rechargement introduite par mon correctif t. 90, désormais rendue mathématiquement impossible (1 tentative/page + preuve d'activation obligatoire + sentinelle URL insensible aux blocages de stockage).
+- Boucle éteinte EN DIRECT dans le navigateur de l'utilisatrice par le push HMR du code corrigé (0 requête parasite mesurée ensuite) ; SW v5 tout neuf proposé à tous les navigateurs en attente.
+- Leçons : (1) un « filet de sécurité » qui recharge sans PREUVER le changement de contrôleur est un moteur de boucle ; (2) sessionStorage n'est PAS fiable dans une iframe (cookies et stockage suivent la même politique de blocage) — toute garde anti-boucle doit vivre dans l'URL ou en mémoire, jamais dans un storage optionnel ; (3) un correctif de mise à jour automatique doit être borné « une fois par page » PAR CONSTRUCTION, pas par un mécanisme d'expiration.

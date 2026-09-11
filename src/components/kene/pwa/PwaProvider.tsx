@@ -1,46 +1,45 @@
 "use client";
-// Kènè — enregistrement du service worker (/sw.js) + MISE À JOUR AUTO-GUÉRISSONNE
-// (t. 90 — incident « La Demo ne passe pas / je ne vois pas le nom de l'app »).
+// Kènè — service worker (/sw.js) : enregistrement + mise à jour auto-guérissone.
 //
-// Diagnostic de l'incident : l'ancien flux posait un toast « Mise à jour
-// disponible » de 8 s ; si l'utilisatrice ne cliquait pas « Recharger » dans
-// cette fenêtre, le nouveau SW restait à JAMAIS à l'état « waiting » — le
-// navigateur continuait de servir l'ANCIEN bundle (pré-wordmark, pré-correctifs
-// démo), même après des dizaines de rechargements. Une cliente du preview ne
-// voyait donc jamais les correctifs : « la démo ne passe pas », « je ne vois
-// pas le nom de l'application ».
+// HISTORIQUE DE L'INCIDENT (t. 90 puis correctif t. 90-bis) :
+//   • t. 90 : la démo « ne passait pas » et le nom de l'app était invisible car
+//     un SW périmé servait un ancien bundle (toast de MAJ de 8 s manqué → SW
+//     « waiting » piégé à vie). Correctif : auto-activation au boot.
+//   • t. 90-bis : dans l'iframe de préview, sessionStorage EST BLOQUÉ (comme
+//     les cookies — preuve : requêtes « sans cookie (legacy) »). La garde
+//     anti-boucle sessionstorage échouait silencieusement + le filet de
+//     sécurité rechargeait la page 2 s après CHAQUE tentative même si
+//     l'activation n'avait PAS eu lieu → boucle de rechargement ~2 s : la page
+//     se réinitialisait avant toute connexion (« impossible de se connecter
+//     en tant que client et entreprise »).
 //
-// Nouveau contrat :
-//   • AU BOOT : registration.update() immédiat ; un worker déjà « waiting »
-//     (l'état piégé de l'incident) est activé SANS intervention — SKIP_WAITING
-//     puis reload sur controllerchange. Garde anti-boucle par sessionStorage
-//     (une seule auto-guérison par chargement, jamais deux de suite).
-//   • EN SESSION : vérification toutes les 60 s (l'iframe de préview reste
-//     ouverte des heures — les updates arrivent sans navigation) ; si un
-//     worker attend → toast informant + activation automatique REPORTÉE tant
-//     que l'utilisatrice interagit (événements pointer/clavier < 30 s) — on
-//     recharge dès qu'elle est calme, jamais au milieu d'une saisie.
-//   • Toast conservé mais NON bloquant : l'action « Recharger » force
-//     l'application immédiate ; sans clic, l'auto-guérison s'en charge.
+// CONTRAT CORRIGÉ (garanties formelles) :
+//   1. UNE SEULE tentative d'auto-guérison PAR PAGE — sentinelle dans l'URL
+//      (`kene-sw-heal=1`), SURVIT à tout blocage de localStorage/sessionStorage
+//      (partition iframe, navigation privée…) : la page rechargée porte la
+//      sentinelle → plus JAMAIS d'auto-guérison dans cet onglet. La sentinelle
+//      est retirée de l'URL (history.replaceState) juste après lecture.
+//   2. UN RECHARGEMENT NE SE PRODUIT QUE SI L'ACTIVATION EST PROUVÉE :
+//      controllerchange, OU filet qui compare le contrôleur AVANT/APRÈS
+//      (scriptURL) — si le nouveau SW ne prend pas le contrôle, AUCUN
+//      rechargement (le toast manuel reste le seul recours). Plus aucun
+//      rechargement « au cas où ».
+//   3. Détection continue (poll 60 s — l'iframe ne navigue jamais) → toast
+//      « Appliquer » manuel : un clic = consentement, activation + rechargement
+//      intentionnel unique.
 
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
-/** sessionStorage : horodatage de la dernière auto-guérison (garde anti-boucle). */
-const LAST_HEAL_KEY = "kene-sw-healed-at";
-/** Délai minimum entre deux auto-reloads (ms) — deux guérisons à moins de
- *  10 s l'une de l'autre = boucle, on refuse la seconde. */
-const HEAL_MIN_INTERVAL_MS = 10_000;
+/** Sentinelle URL : cette page a DÉJÀ tenté une auto-guérison. */
+const HEAL_PARAM = "kene-sw-heal";
 /** Période de vérification d'update en session (ms). */
 const UPDATE_POLL_MS = 60_000;
-/** Activité récente = on repousse l'activation (ms). */
-const RECENT_ACTIVITY_MS = 30_000;
-/** Repos prolongé = activation auto même sans interaction (ms). */
-const IDLE_FORCE_MS = 5 * 60_000;
 
 export function PwaProvider() {
-  const lastActivityRef = useRef<number>(Date.now());
-  const bootAtRef = useRef<number>(Date.now());
+  const initialControllerRef = useRef<string | null>(null);
+  const healAttemptedRef = useRef(false);
+  const toastShownRef = useRef(false);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
@@ -50,84 +49,94 @@ export function PwaProvider() {
     let pollTimer: number | undefined;
     const cleanups: Array<() => void> = [];
 
-    // ── Suivi d'activité : pointer/clavier/scroll rafraîchissent l'horodatage.
-    //    Une utilisatrice active ne doit JAMAIS être rechargée sous les doigts.
-    const markActivity = () => {
-      lastActivityRef.current = Date.now();
-    };
-    for (const type of ["pointerdown", "keydown", "wheel", "touchstart"] as const) {
-      window.addEventListener(type, markActivity, { passive: true });
-      cleanups.push(() => window.removeEventListener(type, markActivity));
+    // ── Garde 1 : sentinelle URL. Un onglet qui vient d'être auto-guéri (ou a
+    //    tenté) ne refera JAMAIS de tentative automatique — la boucle est
+    //    impossible même si tous les storages sont bloqués.
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has(HEAL_PARAM)) {
+        healAttemptedRef.current = true;
+        url.searchParams.delete(HEAL_PARAM);
+        window.history.replaceState(null, "", url.toString());
+      }
+    } catch {
+      /* URL imparsable : comportement par défaut (guérison autorisée) */
     }
 
-    /** True si un auto-reload a déjà eu lieu récemment (garde anti-boucle). */
-    function healedRecently(): boolean {
+    // ── Contrôleur initial : la PREUVE d'activation se fait par comparaison.
+    initialControllerRef.current = navigator.serviceWorker.controller?.scriptURL ?? null;
+
+    /** Rechargement unique : navigue vers la même URL + sentinelle. */
+    function healNavigate() {
       try {
-        const v = Number(sessionStorage.getItem(LAST_HEAL_KEY));
-        return Number.isFinite(v) && Date.now() - v < HEAL_MIN_INTERVAL_MS;
+        const url = new URL(window.location.href);
+        url.searchParams.set(HEAL_PARAM, "1");
+        window.location.replace(url.toString());
       } catch {
-        return false; // storage indisponible → on autorise (mieux vaut rafraîchir)
-      }
-    }
-
-    /** Active le worker en attente : SKIP_WAITING + reload sur controllerchange. */
-    function activateWorker(worker: ServiceWorker, why: "boot" | "idle" | "toast") {
-      if (disposed) return;
-      let reloaded = false;
-      const doReload = () => {
-        if (reloaded || disposed) return;
-        reloaded = true;
-        try {
-          sessionStorage.setItem(LAST_HEAL_KEY, String(Date.now()));
-        } catch { /* non bloquant */ }
         window.location.reload();
-      };
-      navigator.serviceWorker.addEventListener("controllerchange", doReload, { once: true });
-      worker.postMessage("SKIP_WAITING");
-      // Filet de sécurité si controllerchange tarde.
-      window.setTimeout(doReload, 2000);
-      if (why !== "toast") {
-        console.info("[kene-pwa] nouvelle version activée (" + why + ") — rechargement");
       }
     }
 
-    /** Décision d'activation pour un worker « waiting » trouvé EN SESSION :
-     *  toast + activation différée tant que l'utilisatrice est active. */
+    /** Garde 2 : un rechargement seulement si le contrôleur a VRAIMENT changé
+     *  (controllerchange) — et le filet compare les scriptURL avant de juger. */
+    function armActivationWatch(worker: ServiceWorker) {
+      if (disposed) return;
+      let navigated = false;
+      const go = () => {
+        if (navigated || disposed) return;
+        navigated = true;
+        healNavigate();
+      };
+      navigator.serviceWorker.addEventListener("controllerchange", go, { once: true });
+      // Filet de preuve (3 s) : rechargement SEULEMENT si le contrôleur actuel
+      // n'est plus celui du montage — si l'activation a échoué, on ne recharge
+      // PAS (l'ancien comportement rechargeait quand même → boucle t. 90-bis).
+      window.setTimeout(() => {
+        if (navigated || disposed) return;
+        const nowController = navigator.serviceWorker.controller?.scriptURL ?? null;
+        if (nowController !== initialControllerRef.current) go();
+      }, 3000);
+      void worker;
+    }
+
+    /** Tentative d'activation automatique — UNE fois par page (garde 1). */
+    function attemptAutoHeal(worker: ServiceWorker): boolean {
+      if (disposed || healAttemptedRef.current) return false;
+      healAttemptedRef.current = true; // une seule tentative, réussie ou non
+      armActivationWatch(worker);
+      worker.postMessage("SKIP_WAITING");
+      return true;
+    }
+
+    /** Worker en attente détecté : auto-guérison (1×/page) sinon toast manuel. */
     function handleWaiting(worker: ServiceWorker) {
       if (disposed) return;
-      // Guérison immédiate au boot : la page vient de charger, rien à perdre.
-      const sinceBoot = Date.now() - bootAtRef.current;
-      if (sinceBoot < 15_000 && !healedRecently()) {
-        activateWorker(worker, "boot");
+      if (attemptAutoHeal(worker)) {
+        console.info("[kene-pwa] nouvelle version détectée — activation automatique");
         return;
       }
-      // En session : on informe puis on attend le calme (jamais sous les doigts).
+      // Déjà tenté dans cette page (sentinelle) : la décision appartient à
+      // l'utilisatrice — action manuelle, jamais de rechargement spontané.
+      // Garde anti-spam : le poll 60 s peut re-détecter le worker en attente,
+      // un SEUL toast par page suffit.
+      if (toastShownRef.current) return;
+      toastShownRef.current = true;
       toast.info("Mise à jour de Kènè disponible", {
-        description: "Elle s'appliquera automatiquement dans un instant.",
+        description: "Recharge la page pour l'appliquer.",
         action: {
           label: "Appliquer",
-          onClick: () => activateWorker(worker, "toast"),
+          onClick: () => {
+            armActivationWatch(worker);
+            worker.postMessage("SKIP_WAITING");
+          },
         },
         duration: 10_000,
       });
-      const waitIdle = () => {
-        if (disposed) return;
-        const idleFor = Date.now() - lastActivityRef.current;
-        if (idleFor > RECENT_ACTIVITY_MS || Date.now() - bootAtRef.current > IDLE_FORCE_MS) {
-          if (!healedRecently()) activateWorker(worker, "idle");
-          return;
-        }
-        window.setTimeout(waitIdle, 5_000);
-      };
-      window.setTimeout(waitIdle, 5_000);
     }
 
-    /** Inspecte l'état d'un registration : worker « waiting » → décision. */
+    /** Inspecte le registration : worker « waiting » → décision ; sinon check. */
     function inspectRegistration() {
       if (!registration || disposed) return;
-      const waiting = registration.waiting ?? registration.installing ?? undefined;
-      // installing/waiting ne peuvent être activés que s'ils passent en
-      // « installed » ; on n'agit ici que sur un worker installé en attente.
       if (registration.waiting) {
         handleWaiting(registration.waiting);
         return;
@@ -135,17 +144,17 @@ export function PwaProvider() {
       void registration.update().catch(() => undefined);
     }
 
-    /** Toast legacy « updatefound » — conservé : couvre le cas d'un update qui
-     *  arrive entre deux polls (le poll suivant l'activera de toute façon). */
+    /** updatefound → quand le worker fraîchement téléchargé passe en
+     *  « installed » (état « waiting ») → même décision. */
     const notifyUpdate = (worker: ServiceWorker) => {
-      const maybeToast = () => {
+      const maybeInstall = () => {
         if (worker.state === "installed" && navigator.serviceWorker.controller) {
           handleWaiting(worker);
         }
       };
-      worker.addEventListener("statechange", maybeToast);
-      cleanups.push(() => worker.removeEventListener("statechange", maybeToast));
-      maybeToast();
+      worker.addEventListener("statechange", maybeInstall);
+      cleanups.push(() => worker.removeEventListener("statechange", maybeInstall));
+      maybeInstall();
     };
 
     const register = async () => {
@@ -156,12 +165,11 @@ export function PwaProvider() {
           const incoming = registration?.installing;
           if (incoming) notifyUpdate(incoming);
         });
-        // AU BOOT : guérison immédiate d'un worker piégé en « waiting »
-        // (l'état exact de l'incident t. 90) + check d'update sans navigation.
+        // AU BOOT : guérison d'un worker piégé en « waiting » (incident t. 90)
+        // — UNE tentative, preuve d'activation exigée (t. 90-bis).
         inspectRegistration();
         // EN SESSION : l'iframe de préview vit des heures sans navigation —
-        // le navigateur ne re-checke sw.js qu'à la navigation ou toutes les
-        // 24 h par défaut ; on poll nous-mêmes.
+        // on re-vérifie nous-mêmes (détection → toast manuel seulement).
         pollTimer = window.setInterval(inspectRegistration, UPDATE_POLL_MS);
       } catch (e) {
         console.debug("[kene-pwa] enregistrement du service worker impossible", e);
