@@ -148,8 +148,11 @@ export function Onboarding({
   async function startDemo() {
     setLoading(true);
     try {
-      const res = await apiPost<{ ok: boolean; devCode: string }>("/api/auth/otp/request", { phone: "+2250701020304" });
-      const v = await apiPost<{ user: ApiUser }>("/api/auth/otp/verify", { phone: "+2250701020304", code: res.devCode });
+      // t. 92 — UNE requête GET : la démo ne dépend plus d'AUCUN POST (les POST
+      // de la préview de l'utilisatrice sont bloqués/pendus en amont ; ses GET
+      // traversent toujours). /api/auth/demo = login complet côté serveur,
+      // réponse identique à otp/verify ({ user, tenant } + cookie).
+      const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/demo");
       rememberAccount({ phone: "+2250701020304", name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" });
       setUser(v.user as SessionUser);
       toast.success(`Bienvenue ${v.user.name.split(" ")[0]} — compte démo riche chargé`);

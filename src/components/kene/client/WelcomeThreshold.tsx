@@ -20,7 +20,7 @@ import {
   ArrowRight, BriefcaseBusiness, Loader2, LogIn, Play, Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiPost } from "@/lib/kene/api";
+import { apiGet } from "@/lib/kene/api";
 import {
   firstNameOf, forgetAccount, maskPhone, readLastAccount, type LastAccount,
 } from "@/lib/kene/last-account";
@@ -176,8 +176,12 @@ export function WelcomeThreshold() {
     if (demoLoading) return;
     setDemoLoading(true);
     try {
-      const res = await apiPost<{ ok: boolean; devCode: string }>("/api/auth/otp/request", { phone: "+2250701020304" });
-      const v = await apiPost<{ user: ApiUser }>("/api/auth/otp/verify", { phone: "+2250701020304", code: res.devCode });
+      // t. 92 — UNE requête GET : la démo ne dépend plus d'AUCUN POST. Chez
+      // l'utilisatrice réelle (préview iframe), les POST sortants sont bloqués
+      // ou pendus en amont du serveur — ses GET traversent toujours. La route
+      // /api/auth/demo fait le login complet côté serveur et répond exactement
+      // comme otp/verify ({ user, tenant } + cookie de session).
+      const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/demo");
       // Mémoire locale (t. 73) — survit à la déconnexion, jamais envoyée.
       try {
         localStorage.setItem("kene-last-account", JSON.stringify({ phone: "+2250701020304", name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" }));

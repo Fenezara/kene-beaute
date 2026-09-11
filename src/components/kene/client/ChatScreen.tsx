@@ -319,7 +319,12 @@ export function ChatScreen() {
       const history = [...messages, mine]
         .slice(-8)
         .map((m) => ({ role: m.role, content: m.content.slice(0, 400) }));
-      const r = await apiPost<{ reply: string }>("/api/dermato/chat", { messages: history, userId: user.id });
+      // Timeout long (t. 92) : la garde serveur du chat coupe à 30 s — un POST
+      // légitime ne doit jamais être préempté par le nôtre (35 s). En revanche
+      // un POST pendu (transport bloqué) tombe dans le pont GET après 35 s,
+      // puis la mémoire « POST mort » envoie les questions suivantes DROIT au
+      // pont, sans attente.
+      const r = await apiPost<{ reply: string }>("/api/dermato/chat", { messages: history, userId: user.id }, { timeoutMs: 35_000 });
       add({ id: nid(), role: "assistant", content: r.reply, kind: "text", time: Date.now() });
       notifyChatNew();
       speak(r.reply);
