@@ -11,11 +11,11 @@
  *    réseau direct, JAMAIS de cache (les écritures et secrets ne se mettent pas en cache).
  */
 
-const VERSION = "kene-sw-v3";
-const PRECACHE = "kene-precache-v3";
-const DATA_CACHE = "kene-data-v3";
-const IMG_CACHE = "kene-img-v3";
-const STATIC_CACHE = "kene-static-v3"; // chunks /_next/ (SWR t. 61)
+const VERSION = "kene-sw-v4";
+const PRECACHE = "kene-precache-v4";
+const DATA_CACHE = "kene-data-v4";
+const IMG_CACHE = "kene-img-v4";
+const STATIC_CACHE = "kene-static-v4"; // chunks /_next/ (SWR t. 61)
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 

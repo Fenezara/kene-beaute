@@ -2378,3 +2378,32 @@ Stage Summary:
 - BONUS SÉCURITÉ 2026 : l'IDOR tenant est fermé sur les 17 routes pro (une pro ne lit plus que SON institut ; tenantId étranger → 404) ; guérison automatique au boot des proTenantId empoisonnés par l'ancien bug.
 - Contrats enrichis de façon additive : verify et session renvoient tenant { id, name } pour les pros — aucun front cassé (readSession le lit depuis t. 66).
 - Preuves : captures t89-dermo-pro.png / t89-dermo-final.png / t89-chat-ok.png + audit VLM indépendant + 0 erreur console/dev.log + tsc 0 + lint 0.
+
+---
+Task ID: t.90
+Agent: agent principal (Z.ai Code)
+Task: « La Demo ne passe pas » + « je ne vois pas le nom de l'application » — diagnostic + correctif racine
+
+Work Log:
+- ENQUÊTE (l'utilisatrice réelle « Fenezara » +2250748894270 détectée EN DIRECT dans dev.log — 130 polls notifications, requêtes toutes « sans cookie (legacy) » = session POC d'avant les cookies, ouverte dans l'iframe de préview) :
+  - API démo testée en direct : otp/request 200 (devCode) + otp/verify 200 (Mariam Diallo complète) → l'API n'est PAS en cause.
+  - E2E session vierge via :81 : landing → bouton @e7 « Découvrir la démo — entrer comme Mariam » → app complète (wallet 11 525, multi-zones 87/100, Cercle Kènè), 0 erreur console → la démo PASSE en navigateur propre.
+  - Reproduction iframe même-origin (fichier public/test-iframe.html, même contexte que le panneau de préview) : démo OK aussi, 0 erreur.
+  - Audits VLM : splash ✓ « Kènè », landing ✓ wordmark « Kènè » + « BEAUTÉ MÉLANODERME » + médaillon, home ✓ lockup en-tête glass, profil ✓ « Kènè » à côté du médaillon → le nom est PARTOUT dans le bundle COURANT.
+  - Manifest PWA (name/short_name « Kènè »), layout.tsx (title/appleWebApp/OG), 0 requête en échec dans dev.log, rate-limits OTP 10/15 min non atteints.
+- CAUSE RACINE : SON NAVIGATEUR TOURNE SUR UN ANCIEN BUNDLE servi par un Service Worker PÉRIMÉ. Le flux de mise à jour historique posait un toast « Mise à jour disponible » de 8 s ; si l'utilisatrice ne cliquait pas « Recharger » dans cette fenêtre, le nouveau SW restait À JAMAIS « waiting » → l'ancien code (pré-t.86 : SANS le lockup wordmark dans l'en-tête glass, avec les anciens correctifs) continuait de tourner. Ses deux plaintes s'expliquent d'un coup : l'ancien bundle n'a pas le nom dans l'en-tête (« je ne vois pas le nom de l'application ») et ses vieux chunks mélangés aux nouveaux font dysfonctionner les interactions (« la démo ne passe pas »). PwaProvider n'appelait JAMAIS registration.update() : en iframe, le navigateur ne re-checke sw.js qu'à la navigation ou toutes les 24 h — une préview ouverte des heures ne voit AUCUNE mise à jour.
+- CORRECTIF 1 — src/components/kene/pwa/PwaProvider.tsx RÉÉCRIT (auto-guérison) :
+  - AU BOOT : registration.update() immédiat + lecture directe de registration.waiting (l'état piégé de l'incident) → SKIP_WAITING + reload sur controllerchange, SANS intervention ;
+  - garde anti-boucle sessionStorage (kene-sw-healed-at, 10 s min entre deux auto-reloads) ;
+  - EN SESSION : poll update() toutes les 60 s (l'iframe ne navigue jamais) ;
+  - respect de l'utilisatrice : un worker trouvé en session s'active seulement quand elle est calme (aucune activité pointer/clavier depuis 30 s, force à 5 min max) — jamais de rechargement au milieu d'une saisie ;
+  - toast conservé mais informatif (« Elle s'appliquera automatiquement dans un instant ») avec action « Appliquer » pour forcer.
+- CORRECTIF 2 — public/sw.js : VERSION/caches bumpés v3 → v4 (kene-sw-v4, precache/data/img/static) : chaque navigateur avec un vieux SW détecte le diff d'octets au prochain check → installe v4 → l'auto-guérison l'active → activation purge TOUS les caches non-v4 → bundle courant intégral (chaîne vérifiée : SKIP_WAITING → skipWaiting → activate → purge → clients.claim → controllerchange → reload).
+- VÉRIFS : lint 0 ; tsc 0 erreur src/ ; dev.log 0 ⨯ (uniquement des 200) ; sw.js servi via :81 = kene-sw-v4 ; E2E sous SW v4 contrôlant la page : landing → démo Mariam → app complète, 0 erreur ; iframe : idem ; rechargements répétés : AUCUNE boucle (garde sessionStorage confirmée « pas-de-guérison ») ; purges caches : seuls les caches v4 subsistent.
+- Nettoyage : public/test-iframe.html supprimé ; captures de preuve t90-home-demo.png / t90-iframe-demo-ok.png conservées ; 3 sessions navigateur fermées proprement (storage vidé).
+
+Stage Summary:
+- « LA DÉMO NE PASSE PAS » + « JE NE VOIS PAS LE NOM DE L'APPLICATION » = UN SEUL ET MÊME INCIDENT : un Service Worker piégé en état « waiting » servait à l'utilisatrice un ancien bundle (sans wordmark header, avec les vieux bugs) — l'app courante fonctionne parfaitement (démo + nom vérifiés partout, en direct ET en iframe).
+- AUTO-GUÉRISSON : au prochain rechargement de sa préview, son navigateur télécharge le SW v4, le nouveau PwaProvider l'active automatiquement (plus JAMAIS de dépendance à un toast de 8 s), purge tous les anciens caches et recharge — elle obtient l'app courante avec la démo fonctionnelle et « Kènè » affiché sur chaque écran.
+- ACTION REQUISE CÔTÉ UTILISATRICE (unique) : recharger la préview (bouton rechargement du panneau ou rouvrir l'onglet).
+- Leçons : (1) un flux de mise à jour PWA qui dépend d'un toast éphémère est un piège — l'activation doit être automatique au boot et reportée seulement pendant l'activité ; (2) en iframe de préview (jamais de navigation), il faut POLLER registration.update() côté page ; (3) diagnostiquer « ça ne marche pas » sans reproduction = d'abord identifier l'ÉTAT du navigateur du plaignant (SW actif ? waiting ? cookie ? bundle servi ?) avant de toucher au code métier.
