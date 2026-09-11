@@ -204,8 +204,12 @@ export function WelcomeThreshold() {
       <AuroraBackdrop />
       <AnimatePresence mode="wait" initial={false}>
         {stage.phase === "landing" && (
-          <motion.div key="landing" {...pageSlide} transition={{ duration: 0.3 }}
-            className="mx-auto flex w-full max-w-[560px] flex-col px-5 pb-6 pt-6 sm:px-6 sm:pt-9">
+          <motion.div key="landing" {...pageSlide} transition={{ duration: 0.3 }} className="w-full">
+            {/* Colonne éditoriale haute (t. 94) : marque + hero. Le tissage vit
+                désormais HORS de cette colonne — plein cadre — sinon la section
+                immersive se retrouve coincée dans un couloir de 520px au centre
+                de l'écran (fils coupés net, grands vides latéraux). */}
+            <div className="mx-auto flex w-full max-w-[560px] flex-col px-5 pt-6 sm:px-6 sm:pt-9">
             {/* ── Marque ── Sceau Kènè (t. 75) : l'art d'or se pose sans
                 couture sur le fond de page + wordmark éditorial serré ── */}
             <Reveal y={12}>
@@ -294,13 +298,19 @@ export function WelcomeThreshold() {
                 <span className="text-[10px] text-muted-foreground">· facultatif</span>
               </motion.button>
             </section>
+            </div>
 
             {/* ── La Navette d'Or (t. 82) — le métier à tisser du Seuil :
                 chaîne, navette, pagne… puis rideau qui se lève sur le
                 médaillon de particules. Clair de Lune (reduced-motion /
                 2G-3G) : bande de fils SVG élégante, même place. Le tissage
-                vit dans sa PROPRE bande collante — jamais derrière un texte. ── */}
+                vit dans sa PROPRE bande collante PLEIN CADRE (t. 94) — hors
+                colonne éditoriale, jamais derrière un texte. ── */}
             <LoomSection first={first} />
+
+            {/* Colonne éditoriale basse (t. 94) : reconnexion, portails,
+                confiance, démo, mentions. */}
+            <div className="mx-auto flex w-full max-w-[560px] flex-col px-5 pb-6 sm:px-6">
 
             {/* ── Reconnexion express ── */}
             <AnimatePresence initial={false}>
@@ -394,6 +404,7 @@ export function WelcomeThreshold() {
             <p className="mt-auto pt-7 text-center text-[11px] leading-relaxed text-muted-foreground">
               En continuant, tu acceptes les conditions Kènè.
             </p>
+            </div>
           </motion.div>
         )}
 

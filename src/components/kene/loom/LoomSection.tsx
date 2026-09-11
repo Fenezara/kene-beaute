@@ -212,7 +212,9 @@ export function LoomSection({ first }: { first: boolean }) {
           <GoldenLoom progressRef={progressRef} active={active} />
         </div>
 
-        {/* Légendes tissées — vrai HTML (lecteurs d'écran) */}
+        {/* Légendes tissées — vrai HTML (lecteurs d'écran). (t. 94) voile de
+            lecture translucide + blur léger : les fils 3D ne croisent plus
+            visuellement le texte (superposition lisibile, mobile compris). */}
         {CAPTIONS.map((c, i) => (
           <div
             key={c.overline}
@@ -224,9 +226,11 @@ export function LoomSection({ first }: { first: boolean }) {
             className={`pointer-events-none absolute z-10 ${POS_CLASS[c.pos]}`}
             style={{ opacity: 0, visibility: "hidden" }}
           >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#C8951E]">{c.overline}</p>
-            <h2 className="mt-2 font-heading font-black text-[24px] leading-[1.12] text-foreground sm:text-[28px]">{c.title}</h2>
-            <p className="mt-2.5 max-w-[38ch] text-[12.5px] leading-relaxed text-muted-foreground">{c.sub}</p>
+            <div className="relative max-w-[360px] rounded-[20px] bg-background/68 px-4 py-3.5 shadow-[0_10px_32px_-16px_rgba(20,14,8,0.4)] ring-1 ring-foreground/8 backdrop-blur-[3px]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#C8951E]">{c.overline}</p>
+              <h2 className="mt-2 font-heading font-black text-[24px] leading-[1.12] text-foreground sm:text-[28px]">{c.title}</h2>
+              <p className="mt-2.5 max-w-[38ch] text-[12.5px] leading-relaxed text-muted-foreground">{c.sub}</p>
+            </div>
           </div>
         ))}
 

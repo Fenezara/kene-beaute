@@ -44,7 +44,9 @@ function Warp({ progressRef, riseRef }: { progressRef: ProgressRef; riseRef: Rea
 
   useFrame((state) => {
     const p = progressRef.current ?? 0;
-    const reveal = seg(p, 0.02, 0.26);
+    // (t. 94) fenêtre décalée sous 0 : la chaîne est déjà entamée (~27 %)
+    // quand la bande collante arrive à l'écran — plus de premier plan vide.
+    const reveal = seg(p, -0.08, 0.22);
     meshes.current.forEach((m, i) => {
       if (!m) return;
       const d = clamp01((reveal - i * 0.06) / 0.6);
@@ -350,11 +352,27 @@ function Medallion({ progressRef }: { progressRef: ProgressRef }) {
   );
 }
 
-/* ───────────────────────── Caméra — respiration douce ───────────────────────── */
+/* ───────────────────────── Caméra — respiration + cadrage adaptatif ─────────────────────────
+   (t. 94) Le rig est calibré pour un cadre portrait (mobile). Sur écran large,
+   une caméra fixe à z=3.1 laissait le tissage au centre (≈46% de la largeur)
+   avec de grands vides latéraux. La distance s'adapte maintenant à l'aspect :
+   on vise une LARGEUR VISIBLE ≈ 3,2 unités (pagne 2,5 + marge, médaillon entier
+   en hauteur), bornée pour ne jamais coller (ultra-wide) ni s'éloigner (mobile
+   = comportement historique 3,1). Lissage lerp : aucune coupure au resize. */
+
+const LOOM_TARGET_WIDTH = 3.2;
+const LOOM_DIST_MIN = 1.7;
+const LOOM_DIST_MAX = 3.1;
 
 function LoomCamera() {
   useFrame((state) => {
     const t = state.clock.elapsedTime;
+    const aspect = Math.max(state.size.width / Math.max(state.size.height, 1), 0.42);
+    // fov vertical fixe 40° (props du Canvas racine) → demi-tangente constante
+    const halfTan = Math.tan((40 * Math.PI) / 180 / 2);
+    const target = LOOM_TARGET_WIDTH / (2 * halfTan * aspect);
+    const dist = Math.min(LOOM_DIST_MAX, Math.max(LOOM_DIST_MIN, target));
+    state.camera.position.z += (dist - state.camera.position.z) * 0.08;
     state.camera.position.x = Math.sin(t * 0.32) * 0.06;
     state.camera.position.y = Math.sin(t * 0.24) * 0.05;
     state.camera.lookAt(0, 0, 0);
