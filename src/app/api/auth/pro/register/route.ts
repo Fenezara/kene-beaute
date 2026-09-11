@@ -1,4 +1,7 @@
 // POST /api/auth/pro/register — inscription entreprise (institut | spa | dermo_conseil).
+// GET  /api/auth/pro/register?_g=… — pont t. 93 (même payload JSON en query) :
+// l'INSCRIPTION D'UNE ENTREPRISE doit passer même chez les préviews qui
+// bloquent les POST (chaîne mesurée chez l'utilisatrice — voir api.ts t. 92).
 // La gérante authentifiée (userId) crée son espace Pro : Tenant + 2 praticiennes
 // par défaut + catalogue de départ selon le type + notifications de bienvenue
 // (WhatsApp immédiat + astuce programmée J+2) + passage du compte en rôle pro.
@@ -15,6 +18,7 @@ import { jsonError, serverError, notify } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { setSessionCookie } from "@/lib/kene/session";
 import { audit, clientIp } from "@/lib/kene/audit";
+import { decodeBridge } from "@/lib/kene/get-bridge";
 
 export const runtime = "nodejs";
 
@@ -150,14 +154,33 @@ export async function POST(req: NextRequest) {
   if (!rl.ok) {
     return rateLimitResponse(rl.retryAfterSec, "Trop d'inscriptions d'affilée — réessaie dans quelques secondes");
   }
+  const parsed = Body.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    const first = parsed.error.issues[0]?.message ?? "Corps de requête invalide";
+    return jsonError(first, 400);
+  }
+  return runRegister(parsed.data, req);
+}
+
+// Pont GET (t. 93) — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous
+// (rate-limit, validation zod, audit, re-signature du cookie de session).
+export async function GET(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "auth:pro-register"), AUTH_MUTATION);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Trop d'inscriptions d'affilée — réessaie dans quelques secondes");
+  }
+  const bridged = decodeBridge(req, Body);
+  if (!bridged.ok) {
+    return jsonError(`Corps de requête invalide — ${bridged.error}`, 400);
+  }
+  return runRegister(bridged.data, req);
+}
+
+/** Cœur partagé POST/GET. */
+async function runRegister(data: z.infer<typeof Body>, req: NextRequest): Promise<NextResponse> {
   try {
-    const parsed = Body.safeParse(await req.json().catch(() => null));
-    if (!parsed.success) {
-      const first = parsed.error.issues[0]?.message ?? "Corps de requête invalide";
-      return jsonError(first, 400);
-    }
-    const { userId, instituteName, ownerName, city, country } = parsed.data;
-    const type: InstituteType = parsed.data.type ?? "institut";
+    const { userId, instituteName, ownerName, city, country } = data;
+    const type: InstituteType = data.type ?? "institut";
 
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) return jsonError("Compte introuvable — reconnecte-toi", 404);

@@ -112,6 +112,31 @@ class PostTimeoutError extends Error {
 /** Message FR unique pour « le serveur est injoignable par ce transport ». */
 const MSG_INSTABLE = "Connexion au serveur instable — réessaie dans un instant";
 
+/* ── Registre des routes pontées (t. 93) ──
+ * SEULES ces routes acceptent le paramètre `_g` côté serveur (handlers GET
+ * avec decodeBridge — voir src/lib/kene/get-bridge.ts). Le client ne tente
+ * le pont QUE sur ces chemins : les autres POST/PATCH échouent avec le
+ * message FR clair au lieu d'un 405 incompréhensible. Registre = le PARCOURS
+ * COMPLET d'inscription et les interactions critiques (login, chat, démo) ;
+ * les écritures pro quotidiennes (POS, stock, CRM) restent hors pont
+ * (payloads volumineux ou routes dynamiques — limitation documentée). */
+const BRIDGEABLE_ROUTES = new Set([
+  "/api/dermato/chat", // chat Dr Kènè (t. 91)
+  "/api/auth/otp/request", // login pavé (t. 91)
+  "/api/auth/otp/verify", // login pavé (t. 91)
+  "/api/auth/demo", // GET pur — jamais appelé en apiPost, documentation
+  "/api/auth/consent", // consentement santé — inscription cliente (t. 93)
+  "/api/auth/profile", // questionnaire d'inscription — PATCH (t. 93)
+  "/api/referral/redeem", // parrainage — inscription cliente (t. 93)
+  "/api/auth/pro/register", // inscription entreprise (t. 93)
+  "/api/subscriptions/activate", // activation plan (t. 93)
+]);
+
+/** La route expose-t-elle un handler GET ponté (`_g`) ? */
+function isBridgedRoute(url: string): boolean {
+  return BRIDGEABLE_ROUTES.has(url);
+}
+
 /* ── Mémoire « POST mort » (module + localStorage) ── */
 const POST_DEAD_KEY = "kene-post-dead";
 let postDeadCache: boolean | null = null; // null = pas encore lu
@@ -197,60 +222,65 @@ async function bridgeCall<T>(url: string, json: string): Promise<T> {
   return handle<T>(res);
 }
 
-export async function apiPost<T>(url: string, body?: unknown, opts: { timeoutMs?: number } = {}): Promise<T> {
-  const json = body === undefined ? undefined : JSON.stringify(body);
-  const canBridge = json !== undefined && json.length <= GET_BRIDGE_MAX_CHARS;
-  const timeoutMs = opts.timeoutMs ?? POST_TIMEOUT_MS;
+/** Pont + mémoire transport : si le pont RÉUSSIT (ou atteint le serveur avec
+ *  une erreur applicative), le POST/PATCH est déclaré mort chez cette
+ *  utilisatrice → les prochains appels iront droit au pont. */
+async function bridgedRetry<T>(url: string, json: string): Promise<T> {
+  try {
+    const out = await bridgeCall<T>(url, json);
+    markPostDead();
+    return out;
+  } catch (e) {
+    // Le pont a ATTEINT le serveur (erreur applicative réelle, statut ≠ 0) →
+    // POST mort quand même ; sinon (pont réseau muet) on ne conclut rien.
+    if (e instanceof ApiError && e.status !== 0) markPostDead();
+    throw e;
+  }
+}
 
-  // Transport POST connu mort → droit au pont (zéro attente). Un payload trop
-  // gros pour le pont n'a rien à perdre : on tente quand même le POST.
+/** Cœur transport partagé POST/PATCH (t. 92 + t. 93) : tentative HTTP
+ *  normale bornée dans le temps, puis pont GET si la route l'expose.
+ *  Comportement STRICTEMENT inchangé quand le POST/PATCH marche. */
+async function apiWrite<T>(
+  method: "POST" | "PATCH",
+  url: string,
+  body: unknown,
+  timeoutMs: number,
+): Promise<T> {
+  const json = body === undefined ? undefined : JSON.stringify(body);
+  // Pont possible uniquement si la route expose un GET ponté (registre t. 93)
+  // ET si le payload tient en query string.
+  const canBridge =
+    json !== undefined && json.length <= GET_BRIDGE_MAX_CHARS && isBridgedRoute(url);
+
+  // Transport POST connu mort → droit au pont (zéro attente). Un payload hors
+  // pont n'a rien à perdre : on tente quand même le POST/PATCH.
   if (isPostDead() && canBridge) {
-    return bridgeCall<T>(url, json!);
+    return bridgedRetry<T>(url, json!);
   }
 
   let res: Response;
   try {
-    res = await raceMethod(url, "POST", json, timeoutMs);
-  } catch (err) {
-    // Rejet réseau OU POST muet trop longtemps (pendu) : même remède — le pont
-    // GET, si le payload tient en query string. Une erreur HTTP (4xx/5xx) ne
-    // passe JAMAIS ici : elle a une réponse → traitée plus bas.
-    if (canBridge) {
-      try {
-        const out = await bridgeCall<T>(url, json!);
-        markPostDead(); // le pont marche, le POST non → mémoire transport
-        return out;
-      } catch (e) {
-        // Le pont a ATTEINT le serveur (erreur applicative réelle) → POST mort
-        // quand même ; sinon (pont réseau muet) on ne conclut rien.
-        if (e instanceof ApiError && e.status !== 0) markPostDead();
-        throw e;
-      }
-    }
-    // Payload trop volumineux (photo/audio base64) : pas de pont possible →
+    res = await raceMethod(url, method, json, timeoutMs);
+  } catch {
+    // Rejet réseau OU requête muette trop longtemps (pendue) : même remède —
+    // le pont GET, si la route l'expose. Une erreur HTTP (4xx/5xx) ne passe
+    // JAMAIS ici : elle a une réponse → traitée plus bas.
+    if (canBridge) return bridgedRetry<T>(url, json!);
+    // Route non pontée ou payload trop volumineux (photo/audio base64) :
     // message FR clair plutôt qu'un « TypeError: Failed to fetch » brut.
     throw new ApiError(MSG_INSTABLE, 0);
   }
 
-  // Le POST a répondu — mais une réponse « proxy » (HTML sur statut réseau)
+  // La requête a répondu — mais une réponse « proxy » (HTML sur statut réseau)
   // est un blocage transport déguisé : pont une fois, et mémoire si le pont
-  // passe (l'environnement bloque les POST mais laisse les GET).
-  if (looksProxyBlocked(res)) {
-    if (canBridge) {
-      try {
-        const out = await bridgeCall<T>(url, json!);
-        markPostDead();
-        return out;
-      } catch (e) {
-        if (e instanceof ApiError && e.status !== 0) markPostDead();
-        throw e;
-      }
-    }
-    // gros payload + proxy : le message FR arrive via handle() (gatewayish).
+  // passe (l'environnement bloque les écritures mais laisse les GET).
+  if (looksProxyBlocked(res) && canBridge) {
+    return bridgedRetry<T>(url, json!);
   }
 
   // Réponse normale (succès OU erreur applicative JSON de nos routes) : le
-  // transport POST fonctionne → on réanime la mémoire transport.
+  // transport fonctionne → on réanime la mémoire transport.
   try {
     return await handle<T>(res);
   } finally {
@@ -258,17 +288,14 @@ export async function apiPost<T>(url: string, body?: unknown, opts: { timeoutMs?
   }
 }
 
-export async function apiPatch<T>(url: string, body?: unknown): Promise<T> {
-  // PATCH sans pont (aucune route n'expose de GET équivalent) : borné dans le
-  // temps pour ne jamais geler un bouton si le transport est bloqué — l'erreur
-  // FR « connexion instable » remonte au bout de 8 s au lieu d'un pendu infini.
-  try {
-    const res = await raceMethod(url, "PATCH", body === undefined ? undefined : JSON.stringify(body), POST_TIMEOUT_MS);
-    return await handle<T>(res);
-  } catch (err) {
-    if (err instanceof ApiError) throw err;
-    throw new ApiError(MSG_INSTABLE, 0);
-  }
+export async function apiPost<T>(url: string, body?: unknown, opts: { timeoutMs?: number } = {}): Promise<T> {
+  return apiWrite<T>("POST", url, body, opts.timeoutMs ?? POST_TIMEOUT_MS);
+}
+
+export async function apiPatch<T>(url: string, body?: unknown, opts: { timeoutMs?: number } = {}): Promise<T> {
+  // PATCH ponté pour les routes du registre (auth/profile — questionnaire
+  // d'inscription, t. 93) ; borné 8 s pour les autres au lieu d'un pendu infini.
+  return apiWrite<T>("PATCH", url, body, opts.timeoutMs ?? POST_TIMEOUT_MS);
 }
 
 /** Redimensionne une photo côté client (max 820px, JPEG q0.8) → dataURL.

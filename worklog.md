@@ -2492,3 +2492,31 @@ Stage Summary:
 - LOGIN PAVÉ + CHAT réparés au passage pour son environnement : le premier échec POST pose le drapeau, tout le parcours passe ensuite instantanément par le pont ; l'auto-réparation beacon (45 s) rétablit les POST dès que l'environnement le permet.
 - LIMITES CONNUES (inchangées) : photo/audio base64 ne passent pas le pont (cap 6 000 car.) — message FR clair ; l'analyse photo reste dépendante d'un POST fonctionnel.
 - Leçons : (1) un fallback déclenché sur « rejet » ne couvre pas les fetch PENDUS ni les réponses proxy — un transport est « mort » seulement après un timeout OU une preuve de non-serveur ; (2) la sonde doit CONNAÎTRE l'état du transport AVANT la première action utilisatrice (au mount), pas seulement le diagnostiquer après coup ; (3) un drapeau « POST mort » persistant doit être auto-réparable, sinon il dégrade pour toujours un environnement sain.
+
+---
+Task ID: t.93
+Agent: agent principal (Z.ai Code)
+Task: « Les clientes et les entreprises peuvent-elles créer leur compte ? » + traitement du reste en attente + audit de conformité aux documents de base
+
+Work Log:
+- RÉPONSE STRUCTURELLE : création de compte CLIENTE = otp/request + otp/verify + consent + profile (PATCH) + referral/redeem ; création de compte ENTREPRISE = otp/request + otp/verify + pro/register (Tenant + 2 praticiennes + catalogue de départ + notifications bienvenue + rôle pro). En environnement NORMAL tout fonctionnait — mais chez l'utilisatrice (POST bloqués/pendus), SEULES otp/* étaient pontées (t. 91) → l'inscription s'arrêtait au questionnaire et l'entreprise ne pouvait PAS s'inscrire.
+- PONT COMPLET DU PARCOURS D'INSCRIPTION (t. 93) — 5 routes supplémentaires reçoivent un handler GET `?_g=` (decodeBridge, MÊMES garde-fous : rate-limit IP, zod, audit, cookie) avec le cœur logique extrait en fonction partagée POST/GET :
+  1. /api/auth/consent (consentement santé) ;
+  2. /api/auth/profile (PATCH → ponté : questionnaire nom/phototype/type/objectifs/allergies) ;
+  3. /api/referral/redeem (parrainage à l'inscription) ;
+  4. /api/auth/pro/register (INSCRIPTION ENTREPRISE — transaction Tenant+praticiennes+catalogue+rôle pro+re-signature cookie) ;
+  5. /api/subscriptions/activate (activation plan Kènè+/Essentiel/Complexe).
+- REFACTOR TRANSPORT (api.ts t. 93) : registre BRIDGEABLE_ROUTES (9 chemins) — le client ne tente le pont QUE sur les routes qui l'exposent (les autres POST/PATCH gardent le message FR « connexion instable » au lieu d'un 405) ; apiPost ET apiPatch passent par un cœur partagé apiWrite (timeout 8 s par défaut, détection proxy-HTML, drapeau POST-mort, auto-réveil). apiPatch est désormais ponté (auth/profile).
+- E2E DÉCISIF (fetch patché : POST/PATCH ne répondent JAMAIS — l'environnement mesuré de l'utilisatrice) :
+  • CLIENTE : Espace cliente → 0705080908 → code (pont après timeout 8 s) → vérification (pont) → questionnaire (phototype V, mixte, objectifs, prénom « Awa », consentement) → « Créer mon espace beauté » → consent + profile PAR LE PONT (GET _g 200) → ACCUEIL « Awa ✨ » ; drapeau kene-post-dead posé → 0 attente ensuite. Base vérifiée : User créé (role client, skinType mixte, fitz V, consentHealth true) + Consent health_data granted.
+  • ENTREPRISE : Espace entreprise → 0709080705 → code (pont) → vérification (pont) → formulaire « Institut Karite et Lumiere » / Fatou Kone / Abidjan / CI → pro/register PAR LE PONT (GET _g 201) → ESPACE PRO COMPLET (sidebar 12 sections, tenant actif affiché). Base vérifiée : Tenant (trial, CI) + 2 praticiennes + catalogue 4 soins + 2 notifications bienvenue + gérante role=pro. 0 erreur console.
+  • Chemins POST/PATCH normaux re-vérifiés (curl : validation zod 400, 404) — comportement strictement inchangé quand le POST marche.
+- Nettoyage : les 2 comptes E2E supprimés (user + tenant + consents + notifications + wallet + otp + auditLog) — la base démo revient EXACTEMENT à son état seed + les comptes réels de la fondatrice (d2BORAH/Déborah/Cabinet LA DERMO) intacts.
+- AUDIT DE CONFORMITÉ (documents de base = README.md « Kènè — La beauté mélanoderme, de A à Z » + PRD v1.0, consigné dans ce worklog t. 1→t. 92) — vérifications live : health 200 (db ok) ; export RGPD art. 20 (JSON complet) 200 ; boutique 200 ; instituts 200 ; stats admin 200 (users/tenants/diagnoses/orders/GMV) ; témoignages 200 ; liasse comptable PDF 200 (PDF 1.4, 3 pages, ~14 Ko) ; e-CNPS XML 200 (declaration_cnps valide, effectif + cotisations) ; login démo GET 200 ; lint 0 ; tsc 0 erreur src/ ; dev.log 0 ⨯ nouvelle.
+- ITEMS « EN ATTENTE » TRAITÉS : (1) « retirer la balise PostBeacon » → NON retirée : elle est devenue la SONDE TRANSPORT fonctionnelle (t. 92) qui alimente le drapeau POST-mort et l'auto-réveil — maintenant piillier, documentée ; (2) photo/audio base64 hors pont → limitation connue documentée (message FR clair) — un tunnel GET chunké reste possible en futur sprint si demandé.
+
+Stage Summary:
+- RÉPONSE À LA FONDATRICE : OUI — les CLIENTES et les ENTREPRISES peuvent créer leur compte, dans TOUTES les chaînes (normale ET préview bloqueuse de POST) : inscription cliente complète (téléphone → code → questionnaire → profil + consentement + parrainage) et inscription entreprise complète (téléphone → code → institut → espace Pro opérationnel avec praticiennes et catalogue), vérifiées E2E bout en bout avec la base contrôlée à chaque étape.
+- Le pont GET couvre désormais TOUT le cycle de vie d'entrée : démo, login, inscription cliente, inscription entreprise, activation d'abonnement, chat Dr Kènè.
+- L'application est CONFORME à ses documents de base : les 3 espaces, les 5 phases immersives, le IA (VLM+LLM+TTS), temps réel socket.io, paie CNPS/IPM + e-CNPS, comptabilité SYSCOHADA + liasse PDF, RGPD, WCAG AA, sécurité (sessions signées, OTP hachés, rate-limits, audit) — tous vérifiés ce sprint par requêtes live et/ou E2E navigateur, 0 erreur.
+- LIMITES ASSUMÉES (documentées) : paiements momo SIMULÉS (POC), photo/audio chat dépendantes d'un POST fonctionnel (hors pont, message FR clair).

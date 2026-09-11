@@ -1,9 +1,14 @@
 // PATCH /api/auth/profile — {userId, name?, city?, skinType?, fitzpatrick?, allergies?, goals?}
+// GET  /api/auth/profile?_g=… — pont t. 93 (même payload JSON en query) : la
+// sauvegarde du questionnaire d'inscription (nom, type de peau, phototype,
+// allergies, objectifs) fait partie de la CRÉATION DE COMPTE cliente — elle
+// doit passer même chez les préviews qui bloquent les POST/PATCH.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
+import { decodeBridge } from "@/lib/kene/get-bridge";
 
 const Body = z.object({
   userId: z.string().min(1),
@@ -23,20 +28,40 @@ export async function PATCH(req: NextRequest) {
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
-    const { userId, goals, ...rest } = parsed.data;
-
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) return jsonError("Utilisatrice introuvable", 404);
-
-    const data: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(rest)) {
-      if (value !== undefined) data[key] = value;
-    }
-    if (goals !== undefined) data.goals = JSON.stringify(goals);
-
-    const updated = await db.user.update({ where: { id: userId }, data });
-    return NextResponse.json({ user: updated });
+    return await runProfile(parsed.data);
   } catch (err) {
     return serverError("auth/profile", err);
   }
+}
+
+// Pont GET (t. 93) — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous.
+export async function GET(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "auth:profile"), AUTH_MUTATION);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Trop de mises à jour d'affilée — réessaie dans quelques secondes");
+  }
+  try {
+    const bridged = decodeBridge(req, Body);
+    if (!bridged.ok) return jsonError(`Corps de requête invalide — ${bridged.error}`, 400);
+    return await runProfile(bridged.data);
+  } catch (err) {
+    return serverError("auth/profile", err);
+  }
+}
+
+/** Cœur partagé PATCH/GET. */
+async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
+  const { userId, goals, ...rest } = data;
+
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user) return jsonError("Utilisatrice introuvable", 404);
+
+  const update: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(rest)) {
+    if (value !== undefined) update[key] = value;
+  }
+  if (goals !== undefined) update.goals = JSON.stringify(goals);
+
+  const updated = await db.user.update({ where: { id: userId }, data: update });
+  return NextResponse.json({ user: updated });
 }
