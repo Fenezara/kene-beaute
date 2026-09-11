@@ -1,10 +1,12 @@
 // POST /api/dermato/chat — chat LLM dermatologique (peaux mélanodermes)
+// GET  /api/dermato/chat?_g=… — pont t. 91 (même payload JSON en query)
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import ZAI from "z-ai-web-dev-sdk";
 import { jsonError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, DERMATO } from "@/lib/kene/rate-limit";
 import { zaiCall, UpstreamBusyError } from "@/lib/ai/zai-retry";
+import { decodeBridge } from "@/lib/kene/get-bridge";
 import { KNOWLEDGE_DIGEST } from "@/lib/kene/knowledge";
 import { ATLAS_DIGEST } from "@/lib/kene/conditions";
 
@@ -71,37 +73,65 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("messages (user|assistant) requis", 400);
-    const history = parsed.data.messages.slice(-20);
-
-    const zai = await ZAI.create();
-    // t. 87 — zaiCall : retry avec backoff sur les 429 amont (quota machine
-    // partagé chat/VLM/ASR/TTS) : la conversation ne meurt plus sur un refus
-    // TEMPORAIRE de quota. Timeout sans retry (la cliente attend déjà).
-    const completion = await zaiCall(
-      () =>
-        zai.chat.completions.create({
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-          ],
-          thinking: { type: "disabled" },
-        }),
-      { label: "dermato:chat", timeoutMs: CHAT_TIMEOUT_MS, busyRetries: 2 },
-    );
-    const reply = completion.choices[0]?.message?.content;
-    if (!reply) return jsonError("Assistant momentanément indisponible", 502);
-
-    return NextResponse.json({ reply: tidyReply(reply) });
+    return await runChat(parsed.data);
   } catch (err) {
-    // Un refus de quota amont, même après retries, n'est PAS une erreur
-    // interne : 502 + message honnête et actionnable (une seule toast côté
-    // client — pas de 429 qui doublerait le toast de handle()).
-    if (err instanceof UpstreamBusyError) {
-      return jsonError("Dr. Kènè est très sollicitée — reformule dans quelques secondes", 502);
-    }
-    console.error("[kene:api:dermato/chat]", err instanceof Error ? err.message : err);
-    // Toute autre défaillance amont est RÉESSAYABLE côté cliente → 502 avec
-    // message FR, jamais un 500 « Erreur interne » mensonger.
-    return jsonError("Assistant momentanément indisponible — réessaie dans un instant", 502);
+    return chatErrorResponse(err);
   }
+}
+
+// Pont GET (t. 91) — voir src/lib/kene/get-bridge.ts : certaines préviews
+// bloqueuses laissent passer les GET mais jamais les POST ; le front replie
+// automatiquement vers ce transport. MÊMES garde-fous que le POST (rate-limit
+// IP, validation zod, réponses au byte près).
+export async function GET(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "dermato:chat"), DERMATO);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Dr. Kènè est très sollicitée — reprends dans quelques secondes");
+  }
+  try {
+    const bridged = decodeBridge(req, Body);
+    if (!bridged.ok) return jsonError(`messages (user|assistant) requis — ${bridged.error}`, 400);
+    return await runChat(bridged.data);
+  } catch (err) {
+    return chatErrorResponse(err);
+  }
+}
+
+/** Cœur partagé POST/GET : appel LLM + normalisation de la réponse. */
+async function runChat(parsed: z.infer<typeof Body>): Promise<NextResponse> {
+  const history = parsed.messages.slice(-20);
+
+  const zai = await ZAI.create();
+  // t. 87 — zaiCall : retry avec backoff sur les 429 amont (quota machine
+  // partagé chat/VLM/ASR/TTS) : la conversation ne meurt plus sur un refus
+  // TEMPORAIRE de quota. Timeout sans retry (la cliente attend déjà).
+  const completion = await zaiCall(
+    () =>
+      zai.chat.completions.create({
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+        ],
+        thinking: { type: "disabled" },
+      }),
+    { label: "dermato:chat", timeoutMs: CHAT_TIMEOUT_MS, busyRetries: 2 },
+  );
+  const reply = completion.choices[0]?.message?.content;
+  if (!reply) return jsonError("Assistant momentanément indisponible", 502);
+
+  return NextResponse.json({ reply: tidyReply(reply) });
+}
+
+/** Réponses d'erreur partagées POST/GET (502 honnêtes, jamais de 500 faux). */
+function chatErrorResponse(err: unknown): NextResponse {
+  // Un refus de quota amont, même après retries, n'est PAS une erreur
+  // interne : 502 + message honnête et actionnable (une seule toast côté
+  // client — pas de 429 qui doublerait le toast de handle()).
+  if (err instanceof UpstreamBusyError) {
+    return jsonError("Dr. Kènè est très sollicitée — reformule dans quelques secondes", 502);
+  }
+  console.error("[kene:api:dermato/chat]", err instanceof Error ? err.message : err);
+  // Toute autre défaillance amont est RÉESSAYABLE côté cliente → 502 avec
+  // message FR, jamais un 500 « Erreur interne » mensonger.
+  return jsonError("Assistant momentanément indisponible — réessaie dans un instant", 502);
 }

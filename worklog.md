@@ -2435,3 +2435,32 @@ Stage Summary:
 - « IMPOSSIBLE DE SE CONNECTER (CLIENT + ENTREPRISE) » ÉLIMINÉ : les deux flux sont intégralement fonctionnels et vérifiés E2E — le seul obstacle était la boucle de rechargement introduite par mon correctif t. 90, désormais rendue mathématiquement impossible (1 tentative/page + preuve d'activation obligatoire + sentinelle URL insensible aux blocages de stockage).
 - Boucle éteinte EN DIRECT dans le navigateur de l'utilisatrice par le push HMR du code corrigé (0 requête parasite mesurée ensuite) ; SW v5 tout neuf proposé à tous les navigateurs en attente.
 - Leçons : (1) un « filet de sécurité » qui recharge sans PREUVER le changement de contrôleur est un moteur de boucle ; (2) sessionStorage n'est PAS fiable dans une iframe (cookies et stockage suivent la même politique de blocage) — toute garde anti-boucle doit vivre dans l'URL ou en mémoire, jamais dans un storage optionnel ; (3) un correctif de mise à jour automatique doit être borné « une fois par page » PAR CONSTRUCTION, pas par un mécanisme d'expiration.
+
+---
+Task ID: t.91
+Agent: agent principal (Z.ai Code)
+Task: « Pardon, une erreur est survenue. Reformule ta question dans un instant. C'est la réponse du Dr kènè pour chaque question posée » — diagnostic racine + correctif
+
+Work Log:
+- PREUVE PAR LES LOGS (génération entière du serveur) : zéro POST /api/dermato/chat de l'utilisatrice — ses questions n'ATTEIGNENT JAMAIS le serveur. Ses GET, eux, affluent (653 polls notifications, session, pro/live). Les seuls POST du log : mes curls/E2E + notify-service (push/dispatch interne).
+- API chat testée saine en direct ET via gateway :81 (curl : 200, réponse LLM propre). Reproduction navigateur complète (démo Mariam → chat → vraie réponse en bulle) : 0 erreur. Le problème n'est PAS côté serveur.
+- ENQUÊTE des pistes éliminées : SW (toutes versions v3/v4/v5 court-circuitent les POST — `if (req.method !== "GET") return;`), Caddyfile :81 (reverse_proxy passe toutes les méthodes), historique ChatScreen (l'endpoint /api/dermato/chat est stable depuis toujours), préflight CORS (same-origin), CSP.
+- PROOF PAR BALISE (décisive) : PostBeacon monté à la racine (page.tsx) + route /api/health/echo (GET+POST) → chaque onglet émet un couple marqueurs G/P toutes les 45 s. RÉSULTAT : navigateur réel de l'utilisatrice (UA Windows) = 8 beacons GET arrivés, 0 beacons POST. HYPOTHÈSE CONFIRMÉE : sa chaîne de préview (iframe plateforme) bloque TOUS les POST au niveau réseau ; les GET passent.
+- EXPLICATION UNIFIÉE des incidents en cascade : « impossible de se connecter client+entreprise » (t.90-bis) = login = 2 POST bloqués ; « Dr Kènè répond erreur à chaque question » = chat = 1 POST bloqué ; sa session legacy (localStorage validé par GET session?userId=) explique qu'elle restait DANS l'app sans jamais réussir un POST. La boucle de rechargement t.90-bis était un vrai bug mais SECONDAIRE.
+- CORRECTIF — pont GET↔POST (t. 91) :
+  1. src/lib/kene/api.ts : apiPost tente le POST normal ; sur échec réseau PUR (fetch rejeté, aucune réponse — pas une erreur HTTP), UNE relance GET `?_g=<JSON encodé>` ; cap 6 000 caractères (photo/audio base64 ne tentent jamais le pont, message FR clair « Connexion au serveur instable » via ApiError status 0).
+  2. src/lib/kene/get-bridge.ts : decodeBridge(req, schemaZod) — décode+valide le paramètre _g par le MÊME schéma que le POST.
+  3. Routes pontées (cœur métier du parcours) : /api/dermato/chat, /api/auth/otp/request, /api/auth/otp/verify — GET accepté avec les MÊMES garde-fous (rate-limit IP identique, validation zod, verrouillage par numéro, audit, cookie de session posé sur la réponse GET).
+  4. ChatScreen : historique transport compact (8 derniers messages × 400 car.) — tient toujours dans les deux transports.
+- VÉRIFICATIONS : lint 0 ; tsc 0 erreur src/ ; pont GET testé curl (chat 200 + réponse propre, login complet request→verify 200 via _g, 400 sur _g absent/illisible).
+- E2E DÉCISIF (simulation EXACTE de son environnement) : window.fetch patché pour rejeter tout POST en TypeError (réseau) → clic « Découvrir la démo » → CONNEXION RÉUSSIE via pont (GET _g otp/request + otp/verify dans dev.log) → app Mariam → question chat → VRAIE RÉPONSE de Dr Kènè via GET _g 200 ; 0 erreur console ; captures t91-chat-getbridge-ok.png. Chemin POST normal re-vérifié ensuite (fetch restauré) : 200 + réponse en bulle (t91-chat-post-ok.png).
+- INCIDENT ANNEXE : le next-server (RSS 2 Go = 49 % RAM) a été OOM-tué pendant l'enquête (navigateur de test + serveur) → redémarré proprement ; les navigateurs de test sont refermés systématiquement depuis.
+- Nettoyage : fetch patch retiré, storage navigateur de test vérifié vierge, sessions fermées.
+
+Stage Summary:
+- RACINE DE TOUS SES SYMPTÔMES : la chaîne de préview de l'utilisatrice bloque les POST au niveau réseau (preuve empirique par balise : 8 GET / 0 POST depuis son navigateur Windows). Le chat et le login échouaient AVANT d'atteindre le serveur — l'API a toujours été saine.
+- RÉPARÉ : pont GET↔POST transparent — quand un POST échoue sans réponse serveur, le même payload part en GET (?_g=) vers les routes critiques (chat, otp/request, otp/verify) avec les mêmes garde-fous. Son login ET son chat fonctionnent désormais dans son environnement (vérifié E2E avec POST bloqués). Comportement strictement inchangé quand le POST marche.
+- SON Navigateur a déjà le code corrigé (les beacons ne vivent que dans le nouveau bundle — HMR/rechargement) : sa prochaine question à Dr Kènè passera par le pont.
+- LIMITES CONNUES : l'analyse photo et la voix (base64 volumineux, hors pont) restent dépendantes des POST — en cas d'échec réseau elles affichent désormais un message FR clair ; un tunnel chunked GET reste possible en futur sprint si elle le demande.
+- La balise diagnostique (PostBeacon + /api/health/echo) reste ACTIVE ce sprint pour observer sa chaîne (2 requêtes légères / 45 s / onglet) — à retirer au prochain sprint de nettoyage.
+- Leçons : (1) « zéro requête de X dans les logs » = le bug est AVANT le serveur — chercher le transport, pas le code métier ; (2) un E2E depuis le sandbox ne prouve RIEN sur la chaîne de préview réelle : seuls des marqueurs émis par le navigateur du plaignant tranchent ; (3) un correctif de transport doit être transparent et additif (jamais de comportement différent quand le chemin normal marche).

@@ -70,12 +70,54 @@ export async function apiGet<T>(url: string): Promise<T> {
   return handle<T>(res);
 }
 
+/* ─────────────── Pont GET (t. 91) ───────────────
+ * INCIDENT MESURÉ : chez l'utilisatrice réelle (iframe de préview), TOUS les
+ * POST sortant de la page échouent au niveau réseau (fetch rejette, aucune
+ * requête n'atteint le serveur — zéro POST de sa part dans dev.log sur toute
+ * une génération) alors que ses GET traversent (polls notifications visibles).
+ * Conséquence vécue : « impossible de se connecter » (login = 2 POST) puis
+ * « Dr Kènè répond "une erreur est survenue" à chaque question » (chat = 1
+ * POST). Pont : quand le POST échoue SANS réponse serveur (échec réseau pur,
+ * pas une erreur HTTP), UNE relance en GET transporte le même payload via le
+ * paramètre `_g` — les routes critiques (chat, otp/request, otp/verify)
+ * acceptent ce paramètre côté serveur avec les MÊMES garde-fous (rate-limit
+ * IP, validation zod, audit). Cap 6 000 caractères : photo/audio (base64
+ * volumineux) ne tentent jamais le pont — échec réseau propagé tel quel.
+ * Comportement STRICTEMENT inchangé quand le POST marche. */
+
+/** Nom du paramètre de pont GET↔POST (contrat serveur, voir les routes). */
+const GET_BRIDGE_PARAM = "_g";
+
+/** Taille max d'un payload transportable en query string (URL safe). */
+const GET_BRIDGE_MAX_CHARS = 6_000;
+
 export async function apiPost<T>(url: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  const json = body === undefined ? undefined : JSON.stringify(body);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: json,
+    });
+  } catch {
+    // Échec réseau PUR (fetch rejeté, aucune réponse) → pont GET si le payload
+    // tient en query string. Une erreur HTTP (4xx/5xx) ne passe JAMAIS ici :
+    // elle a une réponse → relancer en GET doublerait le rate-limit pour rien.
+    // Payload trop volumineux (photo/audio base64) : pas de pont possible →
+    // message FR clair plutôt qu'un « TypeError: Failed to fetch » brut.
+    if (json === undefined || json.length > GET_BRIDGE_MAX_CHARS) {
+      throw new ApiError("Connexion au serveur instable — réessaie dans un instant", 0);
+    }
+    const sep = url.includes("?") ? "&" : "?";
+    try {
+      res = await fetch(`${url}${sep}${GET_BRIDGE_PARAM}=${encodeURIComponent(json)}`, { cache: "no-store" });
+    } catch {
+      // Le pont lui-même n'atteint pas le serveur : même message FR clair.
+      throw new ApiError("Connexion au serveur instable — réessaie dans un instant", 0);
+    }
+    return handle<T>(res);
+  }
   return handle<T>(res);
 }
 

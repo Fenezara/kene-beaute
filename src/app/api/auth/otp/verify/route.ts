@@ -1,4 +1,5 @@
 // POST /api/auth/otp/verify — {phone, code, name?} → { user }
+// GET  /api/auth/otp/verify?_g=… — pont t. 91 (même payload JSON en query)
 // Durcissement t. 86-d :
 //  • le code soumis est haché (sha256) puis comparé au hash stocké via
 //    timingSafeEqual — jamais de comparaison de clair, jamais d'oracle de
@@ -16,6 +17,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, genRef } from "@/lib/kene/server";
 import { setSessionCookie } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, OTP_VERIFY } from "@/lib/kene/rate-limit";
+import { decodeBridge } from "@/lib/kene/get-bridge";
 import { audit, clientIp, sha256Hex, hashEqual } from "@/lib/kene/audit";
 
 const Body = z.object({
@@ -60,85 +62,111 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("phone et code (6 chiffres) requis", 400);
-    const phone = parsed.data.phone.replace(/\s+/g, "").trim();
-    const { code, name } = parsed.data;
-    const ip = clientIp(req);
-
-    // Verrouillage t. 86-d : numéro bloqué par ses 5 échecs → 429 direct
-    const lockedUntil = phoneLocked(phone);
-    if (lockedUntil > 0) {
-      return rateLimitResponse(
-        Math.max(1, Math.ceil((lockedUntil - Date.now()) / 1000)),
-        "Trop de tentatives — réessaie dans quelques minutes",
-      );
-    }
-
-    const otp = await db.otpCode.findFirst({
-      where: { phone, used: false, expiresAt: { gte: new Date() } },
-      orderBy: { createdAt: "desc" },
-    });
-
-    // Comparaison hash-à-hash, à temps constant. Un code stocké avant t. 86-d
-    // (en clair, 6 chiffres) est haché à la volée — même chemin, même timing.
-    const submittedHash = sha256Hex(code);
-    const storedHash = otp ? (/^[0-9a-f]{64}$/.test(otp.code) ? otp.code : sha256Hex(otp.code)) : null;
-
-    if (!otp || !storedHash || !hashEqual(submittedHash, storedHash)) {
-      const entry = otpFails.get(phone) ?? { fails: 0, lockedUntil: 0, lastFail: Date.now() };
-      entry.fails += 1;
-      entry.lastFail = Date.now();
-      if (entry.fails >= OTP_MAX_FAILS) {
-        entry.lockedUntil = entry.lastFail + OTP_LOCK_MS;
-        entry.fails = 0; // après le verrou, 5 nouvelles chances
-        otpFails.set(phone, entry);
-        void audit({ kind: "login_locked", phone, ip, detail: "5 codes erronés — verrou 15 min" });
-        return rateLimitResponse(
-          Math.ceil(OTP_LOCK_MS / 1000),
-          "Trop de tentatives — réessaie dans quelques minutes",
-        );
-      }
-      otpFails.set(phone, entry);
-      void audit({ kind: "login_failed", phone, ip, detail: otp ? "code invalide" : "code expiré ou absent" });
-      return jsonError("Code invalide ou expiré", 400);
-    }
-
-    // Succès : compteur du numéro remis à zéro, code consommé
-    otpFails.delete(phone);
-    await db.otpCode.update({ where: { id: otp.id }, data: { used: true } });
-
-    // Le téléphone d'une propriétaire d'institut → rôle pro
-    const ownerTenant = await db.tenant.findFirst({ where: { ownerPhone: phone } });
-
-    let user = await db.user.findUnique({ where: { phone } });
-    if (!user) {
-      user = await db.user.create({
-        data: {
-          phone,
-          name: name || "Nouvelle cliente",
-          role: ownerTenant ? "pro" : "client",
-          referralCode: genRef("KENE"),
-        },
-      });
-    } else if (name && (!user.name || user.name === "Nouvelle cliente")) {
-      user = await db.user.update({ where: { id: user.id }, data: { name } });
-    }
-
-    void audit({ kind: "login_success", phone, userId: user.id, ip });
-
-    // Session signée (t. 71-b) : cookie httpOnly 90 j posé à la connexion —
-    // le payload JSON reste STRICTEMENT identique (zéro casse SessionKeeper).
-    // t. 89 — incident « La Dermo ne passe pas » : la réponse embarque
-    // `tenant { id, name }` pour une gérante (l'onboarding entre DIRECTEMENT
-    // dans son espace avec le bon institut — plus de « premier tenant de la
-    // base » sur le dashboard d'une autre). Additif : les fronts qui l'ignorent
-    // ne changent pas de comportement.
-    const response = NextResponse.json({
-      user,
-      tenant: ownerTenant ? { id: ownerTenant.id, name: ownerTenant.name } : null,
-    });
-    setSessionCookie(response, user);
-    return response;
+    return await runVerify(parsed.data, req);
   } catch (err) {
     return serverError("otp/verify", err);
   }
+}
+
+// Pont GET (t. 91) — voir src/lib/kene/get-bridge.ts : certaines préviews
+// bloqueuses laissent passer les GET mais jamais les POST (login impossible
+// chez l'utilisatrice). MÊMES garde-fous que le POST (rate-limit, verrouillage
+// par numéro, audit, cookie de session posé sur la réponse).
+export async function GET(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "otp:verify"), OTP_VERIFY);
+  if (!rl.ok) {
+    return rateLimitResponse(
+      rl.retryAfterSec,
+      `Trop de tentatives de code — réessaie dans ${Math.max(1, Math.ceil(rl.retryAfterSec / 60))} min`,
+    );
+  }
+  try {
+    const bridged = decodeBridge(req, Body);
+    if (!bridged.ok) return jsonError(`phone et code (6 chiffres) requis — ${bridged.error}`, 400);
+    return await runVerify(bridged.data, req);
+  } catch (err) {
+    return serverError("otp/verify", err);
+  }
+}
+
+/** Cœur partagé POST/GET. */
+async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<NextResponse> {
+  const phone = data.phone.replace(/\s+/g, "").trim();
+  const { code, name } = data;
+  const ip = clientIp(req);
+
+  // Verrouillage t. 86-d : numéro bloqué par ses 5 échecs → 429 direct
+  const lockedUntil = phoneLocked(phone);
+  if (lockedUntil > 0) {
+    return rateLimitResponse(
+      Math.max(1, Math.ceil((lockedUntil - Date.now()) / 1000)),
+      "Trop de tentatives — réessaie dans quelques minutes",
+    );
+  }
+
+  const otp = await db.otpCode.findFirst({
+    where: { phone, used: false, expiresAt: { gte: new Date() } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Comparaison hash-à-hash, à temps constant. Un code stocké avant t. 86-d
+  // (en clair, 6 chiffres) est haché à la volée — même chemin, même timing.
+  const submittedHash = sha256Hex(code);
+  const storedHash = otp ? (/^[0-9a-f]{64}$/.test(otp.code) ? otp.code : sha256Hex(otp.code)) : null;
+
+  if (!otp || !storedHash || !hashEqual(submittedHash, storedHash)) {
+    const entry = otpFails.get(phone) ?? { fails: 0, lockedUntil: 0, lastFail: Date.now() };
+    entry.fails += 1;
+    entry.lastFail = Date.now();
+    if (entry.fails >= OTP_MAX_FAILS) {
+      entry.lockedUntil = entry.lastFail + OTP_LOCK_MS;
+      entry.fails = 0; // après le verrou, 5 nouvelles chances
+      otpFails.set(phone, entry);
+      void audit({ kind: "login_locked", phone, ip, detail: "5 codes erronés — verrou 15 min" });
+      return rateLimitResponse(
+        Math.ceil(OTP_LOCK_MS / 1000),
+        "Trop de tentatives — réessaie dans quelques minutes",
+      );
+    }
+    otpFails.set(phone, entry);
+    void audit({ kind: "login_failed", phone, ip, detail: otp ? "code invalide" : "code expiré ou absent" });
+    return jsonError("Code invalide ou expiré", 400);
+  }
+
+  // Succès : compteur du numéro remis à zéro, code consommé
+  otpFails.delete(phone);
+  await db.otpCode.update({ where: { id: otp.id }, data: { used: true } });
+
+  // Le téléphone d'une propriétaire d'institut → rôle pro
+  const ownerTenant = await db.tenant.findFirst({ where: { ownerPhone: phone } });
+
+  let user = await db.user.findUnique({ where: { phone } });
+  if (!user) {
+    user = await db.user.create({
+      data: {
+        phone,
+        name: name || "Nouvelle cliente",
+        role: ownerTenant ? "pro" : "client",
+        referralCode: genRef("KENE"),
+      },
+    });
+  } else if (name && (!user.name || user.name === "Nouvelle cliente")) {
+    user = await db.user.update({ where: { id: user.id }, data: { name } });
+  }
+
+  void audit({ kind: "login_success", phone, userId: user.id, ip });
+
+  // Session signée (t. 71-b) : cookie httpOnly 90 j posé à la connexion —
+  // le payload JSON reste STRICTEMENT identique (zéro casse SessionKeeper).
+  // t. 89 — incident « La Dermo ne passe pas » : la réponse embarque
+  // `tenant { id, name }` pour une gérante (l'onboarding entre DIRECTEMENT
+  // dans son espace avec le bon institut — plus de « premier tenant de la
+  // base » sur le dashboard d'une autre). Additif : les fronts qui l'ignorent
+  // ne changent pas de comportement.
+  const response = NextResponse.json({
+    user,
+    tenant: ownerTenant ? { id: ownerTenant.id, name: ownerTenant.name } : null,
+  });
+  setSessionCookie(response, user);
+  return response;
 }

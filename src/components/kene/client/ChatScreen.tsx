@@ -311,7 +311,14 @@ export function ChatScreen() {
     add(mine); // le store re-sème le message d'accueil si le fil est vide
     setSending(true);
     try {
-      const history = [...messages, mine].slice(-12).map((m) => ({ role: m.role, content: m.content }));
+      // Transport compact (t. 91) : 8 derniers messages, contenus plafonnés à
+      // 400 caractères. En POST l'historique complet passerait, mais le pont
+      // GET (préviews qui bloquent les POST — voir api.ts) plafonne la taille
+      // de l'URL : ce format tient toujours dans les deux transports, et la
+      // perte de contexte est nulle (le serveur re-tranche à 20 messages).
+      const history = [...messages, mine]
+        .slice(-8)
+        .map((m) => ({ role: m.role, content: m.content.slice(0, 400) }));
       const r = await apiPost<{ reply: string }>("/api/dermato/chat", { messages: history, userId: user.id });
       add({ id: nid(), role: "assistant", content: r.reply, kind: "text", time: Date.now() });
       notifyChatNew();

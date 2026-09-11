@@ -1,0 +1,215 @@
+Caddyfile
+README.md
+agent-ctx
+boot.png
+bun.lock
+cercle.png
+chat-t87-fix.png
+chat.png
+components.json
+constellation.png
+dark-marche.png
+db
+dev.log
+diag-capture.png
+diag-result.png
+download
+eslint.config.mjs
+examples
+final-desktop.png
+final-home.png
+herbier.png
+herbier2.png
+kene71b_mariam_cookies.txt
+marche-tap.png
+marche.png
+mini-services
+moonlight-accueil.png
+moonlight-cercle.png
+moonlight-marche.png
+next-env.d.ts
+next.config.ts
+node_modules
+offline-queue.png
+package.json
+postcss.config.mjs
+pouce.png
+prisma
+public
+replay.png
+scripts
+skills
+src
+t86-404.png
+t86-admin.png
+t86-chat.png
+t86-desktop.png
+t86-home-mobile.png
+t86-passport.png
+t86-pro.png
+t86-seuil.png
+t86-shop.png
+t89-chat-ok.png
+t89-dermo-final.png
+t89-dermo-pro.png
+t90-home-demo.png
+t90-iframe-demo-ok.png
+t90bis-espace-pro.png
+tailwind.config.ts
+tests
+thumb-toggle.png
+tool-results
+tsconfig.json
+tsconfig.tsbuildinfo
+upload
+worklog.md
+- OTP verify (durci) : fetchFirst par phone (used:false, expiresAt gte, plus récent) PUIS comparaison hash-à-hash — sha256(code soumis) vs hash stocké en timingSafeEqual (jamais hash-à-clair) ; un code pré-86-d en clair en base est haché à la volée → même chemin constant (rétrocompatible). Verrouillage par numéro : Map globalThis __keneOtpFails { fails, lockedUntil, lastFail } (pattern rate-limit, survit au HMR) — 5 échecs → verrou 15 min de CE numéro (429 « Trop de tentatives — réessaie dans quelques minutes » + Retry-After), événements login_locked / login_failed (« code invalide » / « code expiré ou absent ») ; succès → otpFails.delete + login_success (userId, ip) ; purge paresseuse des entrées inactives/verrous expirés (lastFail ?? 0 tolère les entrées héritées d'un module antérieur HMR). Format des réponses SUCCÈS inchangé (payload user + cookie signé posé par setSessionCookie existant).
+- BUG rencontré et corrigé en live : 1re version de phoneLocked() supprimait l'entrée du compteur dès que lockedUntil <= now — vrai pour TOUTE entrée non verrouillée (lockedUntil: 0) → le compteur se réinitialisait à chaque requête, 5 échecs ne verrouillaient rien (tentatives #5/#6 en 400). Fix : purge seulement si inactif depuis > 15 min (lastFail), verrou actif = lockedUntil > now. Re-test immédiat : #1-4 → 400, #5 → 429 login_locked, #6 → 429 message du verrou.
+- Audits greffés sur les routes existantes (ajouts seuls, réponses inchangées) : logout → logout (userId lu via sessionFromRequest sur le cookie, ip) ; auth/pro/register → pro_register (userId, ip, detail « nom institut · ville · type » tronqué) ; payments/confirm → payment_confirm (userId, ip, detail « purpose · montant xof ») après la confirmation réelle (pas sur stale) ; push/subscribe → push_subscribe (userId, ip — l'endpoint/clés push JAMAIS dans le journal) ; admin/stats → admin_access (userId, ip) juste après le passage de garde, uniquement si session lisible (legacy sans cookie : rien d'authentifiable, pas d'événement).
+- NOUVELLE route GET /api/admin/security : runtime nodejs, rate limit ADMIN_STATS réutilisé (scope admin:security), garde de même mécanique que /api/admin/stats (cookie signé kene_session HMAC) mais STRICTE — route nouvelle exposant des IP, zéro consommateur antérieur → sans session admin valide : 403 « Console admin réservée aux comptes admin » (pas de mode legacy public). Réponse { events (80 plus récents, ts desc, ts → ISO), stats { total, last24h, failedLogins24h, locked24h } } (5 requêtes parallèles) + Cache-Control: no-store.
+- Console admin : type AdminSecurity (+ AdminSecurityEvent/AdminSecurityStats) dans pro/types.ts ; 2e useApi dédié dans AdminApp (la carte gère SES états sans toucher aux KPIs existants, ConsoleHeader/emblème intacts) ; carte « Posture sécurité » (KenteTop + ShieldCheck or + Badge outline « 2026 ») insérée SOUS la grille de KPIs : 4 indicateurs grille 2→4 (événements 24 h, échecs connexion 24 h, verrouillages 24 h, total journal — valeur mono, bordeaux si échecs/verrous > 0), puis « Journal sécurité » role=list/listitem max-h-80 overflow-y-auto pretty-scroll : pastille-kind colorée tokens (login_success bg-success/15 text-success, login_failed/login_locked bg-bissap/15 text-bissap, otp_request bg-primary/15 text-primary, autres muted) + libellé FR (Connexion réussie/Code erroné/Compte verrouillé/Code demandé/Déconnexion/Paiement confirmé/Accès console/Inscription pro/Abonnement push/Fichier rejeté) + phone masqué + ip + heure FR formatDate « 10/09 15:59 » ; état vide « Rien à signaler — le journal démarre avec la prochaine connexion » ; état erreur INLINE (AlertTriangle + message + Réessayer, la carte reste debout — gère aussi le 404 pré-push) ; skeleton en chargement ; zéro nouvelle dépendance.
+- VÉRIFS (toutes vertes) : (a) bun run lint → 0 erreur ; bunx tsc --noEmit → 0 erreur src/ (uniquement les 3 préexistantes examples/skills hors périmètre). (b) dev server vivant du début à la fin, 0 ⨯, 0 [kene:audit] en dev.log, uniquement des 200 (dont 3 × GET /api/admin/security 200). (c) preuves curl gateway :81 — OTP démo : POST otp/request {+2250701020304} → 200 {"ok":true,"devCode":"683876"} PUIS verify devCode → 200 payload user complet + cookie kene_session httpOnly posé ; verrouillage : 5 verify code faux sur numéro fictif +2250709997777 → #1-4 : 400 « Code invalide ou expiré » (login_failed ×4 en base), #5 : 429 + login_locked journalisé, #6e : 429 {"error":"Trop de tentatives — réessaie dans quelques minutes","retryAfterSec":808} avec bucket IP vierge (XFF custom) — contre-preuves : autre numéro même IP → 400 (verrou par TÉLÉPHONE), Mariam jamais verrouillée (login_success final) ; garde : GET /api/admin/security SANS cookie → 403, avec cookie CLIENT Mariam → 403, avec cookie ADMIN (login OTP de « Console Kènè » +2250700000000, devCode 618261) → 200 {"events":[…],"stats":{"total":23,"last24h":23,"failedLogins24h":11,"locked24h":1}} + Cache-Control: no-store ; dump base : tous les phone masqués « +225 07•••••04/••77/••00 », ip ::1/10.x, kind/detail conformes ; admin/stats avec cookie admin → 200 + événement admin_access en base. (d) flux démo Mariam re-prouvé de bout en bout (request devCode → verify 200 → cookie). (e) E2E navigateur (session isolée sec86) : login admin OTP via le pavé numérique de l'app → console admin rendue avec « Posture sécurité 2026 », 4 indicateurs (28/11/1/28), journal listant « Accès console · ::1 · 10/09 15:59 », « Code demandé +225 07•••••00 », « Connexion réussie +225 07•••••04 » ; GET /api/admin/security 200 en réseau, 0 erreur console, screenshot .proofs/task86d-posture-securite.png ; arbre a11y : list « Journal de sécurité — événements les plus récents » + listitems.
+- Écart assumé vs consigne : le numéro fictif du test de verrouillage demandé (+2250700000000) est le compte ADMIN seedé — le verrouiller 15 min aurait bloqué le login admin nécessaire pour prouver /api/admin/security → numéros ficitfs +2250709998888/+2250709997777 utilisés à la place (mêmes preuves, Mariam et l'admin intacts). Note : le bucket OTP_VERIFY par IP (::1 derrière le gateway) est partagé entre agents (E2E simultanés du chantier logo) — les preuves du verrou ont été faites sur bucket vierge via XFF dédié, sans polluer le flux des autres agents.
+- Nettoyage : scripts de vérification jetables et cookie jars /tmp retirés, session navigateur fermée.
+
+Stage Summary:
+- Kènè a désormais un journal d'audit vivant : chaque demande de code, connexion réussie/échouée, verrouillage, déconnexion, inscription pro, paiement confirmé, abonnement push et accès console laisse une trace SecurityEvent (téléphone TOUJOURS masqué « +225 07•••••04 », IP, détail court sans secret), auto-prunée à 90 jours, consultable dans la console admin (carte « Posture sécurité » : 4 compteurs 24 h + 80 derniers événements, pastilles tokens, état vide/erreur inline, a11y list/listitem).
+- L'OTP est durci en profondeur : codes stockés hachés sha256 (plus de clair en base), vérification en temps constant hash-à-hash (jamais de comparaison de clair), verrouillage 15 min par numéro après 5 échecs avec message FR clair, réponses succès strictement inchangées (payload user + cookie signé) et devCode préservé en development — le bouton « Démo — Entrer comme Mariam » et les E2E fonctionnent à l'identique.
+- Preuves curl incluses ci-dessus (200/400/403/429, stats {23,11,1} puis {28,11,1} après E2E, dump base masqué, cookie admin → 200 no-store, contre-preuves verrou par téléphone vs IP).
+- Leçons : (1) un compteur d'échecs en Map survit au HMR seulement si on ne PURGE PAS les entrées non verrouillées à la lecture — lockedUntil=0 est l'état normal d'un compteur en cours, pas un verrou expiré ; (2) derrière le gateway, le bucket rate-limit par IP est PARTAGÉ entre tous les navigateurs/agents de la machine (::1) — les preuves d'un verrou par téléphone exigent un bucket vierge (XFF dédié) sinon le 429 vient du rate-limiter IP et masque le message du verrou ; (3) le champ phone masqué dans le journal suffit à déboguer (••77 vs ••04) sans jamais réexposer un numéro complet.
+- Périmètre respecté : prisma/schema.prisma (model ajouté), src/lib/kene/audit.ts (nouveau), 6 routes API greffées (request/verify/logout/pro-register/payments-confirm/push-subscribe/admin-stats), /api/admin/security (nouveau), pro/types.ts + AdminApp.tsx (carte ajoutée sous les KPIs) ; middleware/next.config/icons/ClientApp/HomeScreen/ProApp/ChatScreen/PassportView/Onboarding/InstallBanner/ShopScreen/dermato/diagnoses INTouchés ; zéro dépendance ; serveur jamais relancé ni tué ; aucun test automatisé ajouté.
+---
+Task ID: t.86
+Agent: agent principal (Z.ai Code)
+Task: « Logo visible dans toutes les zones où il doit apparaître » + « Sécuriser l'application comme les meilleures apps 2026 »
+
+Work Log:
+- RELECTURE AVANT CODAGE : worklog complet (logo t. 69-b mark SVG / t. 75 Sceau Kènè + zones splash/Seuil/accueil ; sessions HMAC t. 73 ; rate limits t. 63) + cartographie des zones de marque réelles par grep (KeneEmblem n'était présent que dans 3 zones : BootSkeleton, WelcomeThreshold, HomeScreen — AdminApp n'avait AUCUN logo, chat/boutique/passeport/404/og non plus).
+- 86-b · LOGO PARTOUT (11 zones livrées, agent principal) :
+  · icons.tsx — NOUVEAU KeneEmblemLockup (emblème + wordmark ReactNode + sublabel, tokens var(--foreground)), composant officiel des en-têtes 2026 ; KeneMark/KeneLogo/Emblem inchangés.
+  · ClientApp — header mobile : KeneEmblemLockup 36/19px (ex-KeneLogo 32) ; sidebar xl : lockup 44 + « Beauté mélanoderme » ; sidebar md : emblème 44 seul.
+  · ProApp — sidebar : lockup 44 « Kènè <or>Pro</or> » + « Gestion institut » ; header mobile : emblème 38.
+  · AdminApp — ConsoleHeader : Sceau 56 + drop-shadow or (édité AVANT le lancement du sous-agent 86-d pour éviter tout conflit de fichier).
+  · ChatScreen — l'avatar du Dr. Kènè EST désormais le Médaillon 40 dans le halo k-glow-gold (NeaOnnim conservé pour les avatars de bulles).
+  · Onboarding — hero étape 1 : lockup 48 + devise (ex-KeneLogo 42).
+  · InstallBanner — Sceau 56 (ex-mark 40).
+  · PassportView — SCEAU OFFICIEL 40 en variante sombre FORCÉE (span.dark local → fond espresso du passeport public, VLM : « fond parfaitement, sans carré clair ») + wordmark.
+  · ShopScreen — KeneMark 26 inline avant « Boutique Kènè ».
+  · NOT-FOUND 404 — src/app/not-found.tsx NOUVEAU : Sceau 72 + filet kente + « Cette page s'est égarée dans le tissage » + CTA k-btn-gold « Retour à l'accueil » (server component, zéro hook).
+  · layout.tsx — openGraph + twitter card images = kene-emblem-light.png (partages sociaux brandés).
+  · sw.js — CORRECTIF : networkFirstNavigation retourne désormais la 404 brandée (status 404) au lieu de la masquer derrière la coquille précachée ; 5xx/offline → coquille inchangée.
+- 86-c · SOUS-AGENT SÉCURITÉ #1 : src/middleware.ts (8 en-têtes sur TOUTES les réponses : CSP complète avec frame-ancestors * pour l'iframe preview, HSTS 63072000, nosniff, Referrer-Policy, Permissions-Policy camera/mic=(self), X-DNS-Prefetch-Control, COOP same-origin-allow-popups) + garde CSRF Origin sur les mutations /api (403 « origine externe », tolère Origin absent/null) ; next.config.ts nettoyé (middleware = source unique) ; piège Caddy résolu : Host sans port → X-Forwarded-Host pour la comparaison ; preuves curl :81 toutes vertes (evil origin 403, même-origin 200, sans-origin 200, /sw.js durci, accueil HTML 200).
+- 86-d · SOUS-AGENT SÉCURITÉ #2 : Prisma SecurityEvent (kind/phone masqué/userId/ip/detail, index ts) + lib audit.ts (fire-and-forget, maskPhone « +225 07•••••04 » dans audit(), prune 90 j, troncatures) ; OTP DURCI — codes hachés sha256 en base, verify timing-safe hash-à-hash, verrouillage 5 échecs → 15 min (429 FR) par numéro, devCode renvoyé seulement hors production (démo Mariam intacte) ; audits greffés sur otp request/verify, logout, pro/register, payments/confirm, push/subscribe, admin/stats ; NOUVELLE route /api/admin/security (garde admin, 80 événements + stats 24 h) ; console admin : carte « Posture sécurité » (4 KPI + journal role=list/listitem avec pastilles tokens) — incident phoneLocked corrigé en live (purge du compteur).
+- 86-e · SÉCURITÉ #3 (agent principal) : lib/kene/upload.ts NOUVEAU — validation dataURL en 3 couches (MIME whitelist JPEG/PNG/WebP + plafond 8 Mo décodés + MAGIC BYTES confrontés au type déclaré, SVG et EXE-déguisés rejetés), câblée sur /api/diagnoses et /api/dermato/photo avec événements upload_reject 415 ; session.ts — secret de signature désormais aléatoire 48 octets généré au 1er démarrage et PERSISTÉ dans db/.kene-session-secret (0600, survit aux redéploiements, env KENE_SESSION_SECRET prioritaire) — fin de la constante partagée « kene-session-secret-poc » (cookies antérieurs invalidés une fois, documenté).
+- VÉRIFS : test unitaire bun du validateur 8/8 (jpeg/png/webp OK ; exe→jpg, svg scripté, mime menteur, trop court, base64 pourri rejetés) ; lint 0 ; tsc 0 src/ ; dev.log 0 ⨯ ; secret file créé 65 o mode 600 au 1er verify.
+- E2E (session navigateur t86, iPhone 14 + desktop 1440, gateway :81, audits VLM indépendants) : Seuil clair → Sceau 9/10 « net, aligné, premium » ; login démo Mariam → home mobile : lockup Kènè dans l'en-tête glass + médaillon 56 junto au prénom (VLM confirme les deux, zéro rognage logo) ; Boutique → badge header + mark 26 avant « Boutique Kènè » (VLM ✓) ; Chat → Médaillon-avatar Dr. Kènè net + point vert (VLM ✓) ; Passeport public ?passport= → sceau sombre « fond parfaitement, sans carré clair » (VLM ✓) ; 404 → rendue (le SW la masquait avant correctif — purge SW + handler fixé → titre/emblème/CTA vérifiés au DOM) ; desktop → sidebar lockup « parfait, aucun rognage » (VLM ✓) ; console admin (OTP +2250700000000) → Sceau 56 + carte Posture sécurité + journal 38 événements role=list (VLM ✓) ; espace Pro (swap DB temporaire +221→+225 du compte Ndeye, restauré après) → sidebar « Kènè Pro » avec médaillon « parfaitement aligné, hiérarchisé » (VLM ✓) ; sécurité E2E : faux EXE en jpeg → 415, SVG scripté → 415, POST cross-origin → 403, JPEG réel 16px → pipeline nominal (triage honnête) ; 0 erreur console ; logout → SecurityEvent INSERT visible dans dev.log.
+- Nettoyage : session navigateur fermée proprement (logout + storage clear), numéro pro restauré, captures de preuve t86-*.png conservées à la racine.
+
+Stage Summary:
+- LE LOGO EST PARTOUT : 11 nouvelles zones + les 3 existantes — splash, Seuil, header mobile (chaque écran), sidebars cliente/Pro (xl lockup + md emblème), en-tête accueil, avatar Dr. Kènè, onboarding, bannière PWA, sceau du Passeport public (variante sombre), Boutique, Console admin, 404 brandée, favicon/PWA/og-image — chacune validée par audit VLM indépendant ou DOM, le SW ne masque plus les 404.
+- SÉCURITÉ 2026 (defense in depth, vérifiée par preuves) : en-têtes durcis sur toutes les réponses (CSP/HSTS/Permissions-Policy/COOP/nosniff/Referrer-Policy), CSRF par Origin sur les mutations, uploads photo à 3 couches (magic bytes), OTP haché + timing-safe + verrouillage anti-force-brute, secret de session aléatoire persisté unique par environnement, journal d'audit visible dans la console admin (Posture sécurité + 80 événements), rate limits inchangés et actifs.
+- Leçons : (1) un SW network-first navigation DOIT laisser passer les 404 brandées sinon elles sont invisibles pour l'utilisatrice ; (2) forcer la variante sombre d'un composant next-thèmes dans un contexte sombre = wrapper local className="dark" ; (3) le pavé +225 fixe du POC impose un swap DB temporaire (restauré) pour tester les comptes seedés étrangers.
+
+---
+Task ID: t.87
+Agent: agent principal (Z.ai Code)
+Task: « Erreur de réponse au niveau du Dr Kènè » — diagnostic + correctif résilience IA
+
+Work Log:
+- REPRODUCTION IMMÉDIATE : l'API /api/dermato/chat répondait 200 en direct, E2E navigateur OK — le stress-test (6 requêtes parallèles) a fait tomber le masque : 4/6 en 500 « Erreur interne du serveur ».
+- CAUSE RACINE (log serveur) : le moteur IA amont renvoie des 429 « Too many requests » (quota machine PARTAGÉ chat/VLM/ASR/TTS + agents/audits) ; aucune route ne réessayait et le chat convertissait ce refus TEMPORAIRE en 500 mensonger. Défaut secondaire relevé : réponses LLM en markdown brut (« **Conseils :** », puces « - ») affiché tel quel dans les bulles — réponse qui paraissait cassée.
+- NOUVEAU src/lib/ai/zai-retry.ts : zaiCall (timeout par tentative via withTimeout + retry 429 avec backoff exponentiel 700 ms ×2^i + jitter ≤ 250 ms, 2 retries par défaut ; timeout JAMAIS retenté — la cliente attend déjà) ; isUpstreamBusy (matching « status 429 | Too many requests ») ; UpstreamBusyError après épuisement.
+- Route /api/dermato/chat : zaiCall (busyRetries 2) ; UpstreamBusyError → 502 « Dr. Kènè est très sollicitée — reformule dans quelques secondes » ; TOUTE autre défaillance amont → 502 FR (plus jamais serverError 500) ; tidyReply (nettoyage serveur : **gras**→gras, titres #→texte, puces -/* → « • », collapse \n{3,}) + instruction « TEXTE BRUT UNIQUEMENT » dans le prompt système (double filet).
+- src/lib/ai/vlm.ts : runDiagnosis phase 1 (zaiCall busyRetries 2 en plus du retry de format existant) + phase 2 (busyRetries 1) + triageLesion (busyRetries 2, avant le fallback jaune) — import withTimeout retiré (plus utilisé).
+- Routes /api/asr et /api/tts : zaiCall sur transcription/traduction/synthèse ; UpstreamBusyError → 502 dédié ; derniers 500 → 502 (erreur amont réessayable).
+- VÉRIFS : lint 0 erreur ; tsc 0 erreur src/ (skills/ préexistantes hors périmètre) ; dev.log 0 ⨯.
+- PREUVES POST-FIX (curl :3000 + gateway navigateur :81) : stress-test 6 parallèles → 6/6 × 200 (2,7-5,6 s, délais = backoff absorbé) contre 2/6 avant ; question « taches noires » → réponse PROPRE (• puces, zéro astérisque, détecteur automatique « NON — réponse propre ») ; TTS 200 (audio wav 150 Ko) ; photo triage 200 (vert) ; E2E navigateur login démo Mariam → chat : question PIH → réponse nettoyée rendue en bulle, VLM audit capture : « texte propre et lisible, sans astérisques, puces bien alignées » ; rafale 3 messages rapprochés → 3 × 200, 11 bulles Dr. Kènè, 0 message d'erreur, 0 erreur console ; session fermée proprement.
+
+Stage Summary:
+- L'« erreur de réponse du Dr Kènè » est éliminée à la racine : les refus de quota amont (429) sont maintenant retentés avec backoff (6/6 requêtes passent sous charge, contre 2/6 avant), et un échec résiduel répond 502 honnête et actionnable — jamais plus de 500 « erreur interne » mensonger.
+- Toute la surface IA (chat Dr Kènè, triage photo, diagnostics VLM, ASR vocal, TTS + traduction locale) partage désormais le même wrapper résilient zaiCall — un seul endroit pour régler les défaillances amont.
+- Bonus UX réparé : les réponses du Dr Kènè s'affichent en texte brut propre (puces •, zéro markdown visible), validé par capture + audit VLM indépendant.
+- Leçon : un 500 générique devant une erreur amont réessayable est un bug UX autant qu'un bug technique — la hiérarchie correcte est retry silencieux (backoff+jitter) → 502 message FR orienté réessai.
+- Périmètre : src/lib/ai/zai-retry.ts (nouveau), routes dermato/chat + dermato/photo (via vlm.ts) + asr + tts, prompt système chat enrichi ; aucun composant client modifié (le formatage serveur suffit) ; zéro dépendance ajoutée ; serveur jamais relancé.
+
+---
+Task ID: t.89
+Agent: agent principal (Z.ai Code)
+Task: « La Dermo ne passe pas » / « La Demo ne passe pas » — diagnostic + correctif racine
+
+Work Log:
+- ENQUÊTE (0 trace de l'échec dans dev.log frais — serveur redémarré 20:42 après kill externe, log écrasé par tee) : toutes les surfaces testées d'abord une à une — chat Dr Kènè 200 (3 s), triage photo dermato 200 (2,7 s), /api/diagnoses 202, bouton démo 200, inscription pro dermo_conseil 201 → AUCUN de ces flux n'est en cause.
+- PISTE DÉCISIVE : relevé SecurityEvent + base — l'utilisatrice réelle « Fenezara » (client) avait un RDV confirmé chez « Cabinet LA DERMO » ; DEUX tenants « Cabinet LA DERMO » existent (d2BORAH +2250707070707 type dermo_conseil, 05/09 ; Déborah +2250504195071 type institut, 08/09). « La Dermo » = SON ESPACE PRO « LA DERMO », pas le chat ni la démo.
+- CAUSE RACINE 1 (mauvais tenant) : à la reconnexion d'une gérante (nouvel appareil, storage vidé, repli 409), AUCUN code ne re-posait proTenantId → ProApp appelle /api/pro/overview SANS tenantId → resolveTenant(null) = defaultTenant() = PREMIER tenant de la base (« Éclat d'Abidjan », seed) → dashboard d'UN AUTRE institut, et l'effet « première résolution » PERSISTAIT ce mauvais id dans le store. La gérante ne voyait jamais son LA DERMO.
+- CAUSE RACINE 2 (formulaire hors-sujet) : une gérante EXISTANTE qui se connectait via « Espace entreprise » (mode pro) atterrissait sur le formulaire « Crée ton espace entreprise » (étape 2) comme une nouvelle inscrite — sans chemin vers son espace existant (il fallait soumettre le formulaire et récolter un 409 pour que le repli session l'y emmène).
+- CAUSE RACINE 3 (IDOR sécurité) : resolveTenant(tenantId) ne vérifiait JAMAIS l'appartenance — TOUTE pro connectée pouvait lire les données (CA, agenda, CRM, stock, paie…) de N'IMPORTE quel institut via ?tenantId=.
+- CORRECTIF SERVEUR (point d'étranglement unique, 17 routes pro) : resolveTenant(req, tenantId?) — session pro → résout SON institut (ownerPhone) ; tenantId étranger → null (404) ; admin → inchangé ; sans cookie → legacy POC. Les 17 appelants migrés mécaniquement (sed vérifié : zéro site resté à l'ancienne signature, tsc 0 erreur).
+- CORRECTIF CONTRAT : /api/auth/otp/verify ET /api/auth/session (cookie et repli legacy) renvoient désormais tenant { id, name } pour les comptes pro propriétaires — shape additive, readSession (t. 66) la parse déjà.
+- CORRECTIF FRONT : Onboarding verify() mode pro — une gérante EXISTANTE (rôle pro + institut) entre DIRECTEMENT dans son espace (setUser + setProTenantId + toast « Bienvenue … — "Cabinet LA DERMO" t'attend ») ; le formulaire de création ne reste que pour les VRAIES nouvelles inscriptions. SessionKeeper : au boot, s.user.role=pro && s.tenantId → setProTenantId (GUÉRIT le mauvais id persisté par l'ancien bug AVANT que ProApp ne charge). ProApp : auto-guérison reformulée (404 tenant périmé → résolution = SON institut).
+- NETTOYAGE : mes tenants/users de test supprimés (« Cabinet Dermo Éclat », « Institut Test T89 », +2250700000999, +2250700011111) — base revenue aux 4 tenants réels.
+- VÉRIFS : tsc 0 erreur src/ ; lint 0 ; dev.log 0 ⨯ (serveur mort à 21:10 par kill externe sans trace — relancé, health 200).
+- E2E (session navigateur dermo-fix-t89, gateway :81) : Déborah via « Espace entreprise » → OTP → ENTRÉE DIRECTE espace Pro « Cabinet LA DERMO » (sidebar « Institut actif : Cabinet LA DERMO », sous-titre dashboard, badge En direct, capture t89-dermo-final.png + audit VLM : « Cabinet LA DERMO » confirmé, KPIs rendus) ; d2BORAH (2e LA DERMO, dermo_conseil) → même entrée directe ✓ ; nouvelle inscription test (Dermo-conseil) → formulaire → 201 → espace ✓ (puis purgée) ; IDOR : overview?tenantId=Éclat d'Abidjan avec cookie Déborah → 404 ✓, son tenant → 200 ✓, sans tenantId → « Cabinet LA DERMO » ✓ ; session API → tenant { LA DERMO } ✓ ; GUÉRISON : proTenantId empoisonné (id Éclat d'Abidjan) posé à la main → reload → ré-aligné sur LA DERMO + dashboard correct ✓ ; démo Mariam → app complète ✓ ; chat Dr Kènè (question cuir chevelu) → réponse propre en bulle ✓ ; 0 erreur console, 0 ⨯ dev.log. NB : une passe E2E a d'abord servi l'ANCIEN bundle via le Service Worker — purge SW+caches obligatoire avant de conclure « le fix ne marche pas » (leçon récurrente t. 86).
+- Nettoyage final : storage/cookies navigateur vidés, session fermée.
+
+Stage Summary:
+- « LA DERMO NE PASSE PAS » EST RÉPARÉ À LA RACINE : une gérante qui se connecte (n'importe quel appareil, n'importe quel chemin — Espace entreprise, carte reconnexion, repli 409) entre DIRECTEMENT dans SON espace avec SON institut — « Cabinet LA DERMO » s'affiche partout (sidebar, dashboard), plus jamais le dashboard d'un autre.
+- BONUS SÉCURITÉ 2026 : l'IDOR tenant est fermé sur les 17 routes pro (une pro ne lit plus que SON institut ; tenantId étranger → 404) ; guérison automatique au boot des proTenantId empoisonnés par l'ancien bug.
+- Contrats enrichis de façon additive : verify et session renvoient tenant { id, name } pour les pros — aucun front cassé (readSession le lit depuis t. 66).
+- Preuves : captures t89-dermo-pro.png / t89-dermo-final.png / t89-chat-ok.png + audit VLM indépendant + 0 erreur console/dev.log + tsc 0 + lint 0.
+
+---
+Task ID: t.90
+Agent: agent principal (Z.ai Code)
+Task: « La Demo ne passe pas » + « je ne vois pas le nom de l'application » — diagnostic + correctif racine
+
+Work Log:
+- ENQUÊTE (l'utilisatrice réelle « Fenezara » +2250748894270 détectée EN DIRECT dans dev.log — 130 polls notifications, requêtes toutes « sans cookie (legacy) » = session POC d'avant les cookies, ouverte dans l'iframe de préview) :
+  - API démo testée en direct : otp/request 200 (devCode) + otp/verify 200 (Mariam Diallo complète) → l'API n'est PAS en cause.
+  - E2E session vierge via :81 : landing → bouton @e7 « Découvrir la démo — entrer comme Mariam » → app complète (wallet 11 525, multi-zones 87/100, Cercle Kènè), 0 erreur console → la démo PASSE en navigateur propre.
+  - Reproduction iframe même-origin (fichier public/test-iframe.html, même contexte que le panneau de préview) : démo OK aussi, 0 erreur.
+  - Audits VLM : splash ✓ « Kènè », landing ✓ wordmark « Kènè » + « BEAUTÉ MÉLANODERME » + médaillon, home ✓ lockup en-tête glass, profil ✓ « Kènè » à côté du médaillon → le nom est PARTOUT dans le bundle COURANT.
+  - Manifest PWA (name/short_name « Kènè »), layout.tsx (title/appleWebApp/OG), 0 requête en échec dans dev.log, rate-limits OTP 10/15 min non atteints.
+- CAUSE RACINE : SON NAVIGATEUR TOURNE SUR UN ANCIEN BUNDLE servi par un Service Worker PÉRIMÉ. Le flux de mise à jour historique posait un toast « Mise à jour disponible » de 8 s ; si l'utilisatrice ne cliquait pas « Recharger » dans cette fenêtre, le nouveau SW restait À JAMAIS « waiting » → l'ancien code (pré-t.86 : SANS le lockup wordmark dans l'en-tête glass, avec les anciens correctifs) continuait de tourner. Ses deux plaintes s'expliquent d'un coup : l'ancien bundle n'a pas le nom dans l'en-tête (« je ne vois pas le nom de l'application ») et ses vieux chunks mélangés aux nouveaux font dysfonctionner les interactions (« la démo ne passe pas »). PwaProvider n'appelait JAMAIS registration.update() : en iframe, le navigateur ne re-checke sw.js qu'à la navigation ou toutes les 24 h — une préview ouverte des heures ne voit AUCUNE mise à jour.
+- CORRECTIF 1 — src/components/kene/pwa/PwaProvider.tsx RÉÉCRIT (auto-guérison) :
+  - AU BOOT : registration.update() immédiat + lecture directe de registration.waiting (l'état piégé de l'incident) → SKIP_WAITING + reload sur controllerchange, SANS intervention ;
+  - garde anti-boucle sessionStorage (kene-sw-healed-at, 10 s min entre deux auto-reloads) ;
+  - EN SESSION : poll update() toutes les 60 s (l'iframe ne navigue jamais) ;
+  - respect de l'utilisatrice : un worker trouvé en session s'active seulement quand elle est calme (aucune activité pointer/clavier depuis 30 s, force à 5 min max) — jamais de rechargement au milieu d'une saisie ;
+  - toast conservé mais informatif (« Elle s'appliquera automatiquement dans un instant ») avec action « Appliquer » pour forcer.
+- CORRECTIF 2 — public/sw.js : VERSION/caches bumpés v3 → v4 (kene-sw-v4, precache/data/img/static) : chaque navigateur avec un vieux SW détecte le diff d'octets au prochain check → installe v4 → l'auto-guérison l'active → activation purge TOUS les caches non-v4 → bundle courant intégral (chaîne vérifiée : SKIP_WAITING → skipWaiting → activate → purge → clients.claim → controllerchange → reload).
+- VÉRIFS : lint 0 ; tsc 0 erreur src/ ; dev.log 0 ⨯ (uniquement des 200) ; sw.js servi via :81 = kene-sw-v4 ; E2E sous SW v4 contrôlant la page : landing → démo Mariam → app complète, 0 erreur ; iframe : idem ; rechargements répétés : AUCUNE boucle (garde sessionStorage confirmée « pas-de-guérison ») ; purges caches : seuls les caches v4 subsistent.
+- Nettoyage : public/test-iframe.html supprimé ; captures de preuve t90-home-demo.png / t90-iframe-demo-ok.png conservées ; 3 sessions navigateur fermées proprement (storage vidé).
+
+Stage Summary:
+- « LA DÉMO NE PASSE PAS » + « JE NE VOIS PAS LE NOM DE L'APPLICATION » = UN SEUL ET MÊME INCIDENT : un Service Worker piégé en état « waiting » servait à l'utilisatrice un ancien bundle (sans wordmark header, avec les vieux bugs) — l'app courante fonctionne parfaitement (démo + nom vérifiés partout, en direct ET en iframe).
+- AUTO-GUÉRISSON : au prochain rechargement de sa préview, son navigateur télécharge le SW v4, le nouveau PwaProvider l'active automatiquement (plus JAMAIS de dépendance à un toast de 8 s), purge tous les anciens caches et recharge — elle obtient l'app courante avec la démo fonctionnelle et « Kènè » affiché sur chaque écran.
+- ACTION REQUISE CÔTÉ UTILISATRICE (unique) : recharger la préview (bouton rechargement du panneau ou rouvrir l'onglet).
+- Leçons : (1) un flux de mise à jour PWA qui dépend d'un toast éphémère est un piège — l'activation doit être automatique au boot et reportée seulement pendant l'activité ; (2) en iframe de préview (jamais de navigation), il faut POLLER registration.update() côté page ; (3) diagnostiquer « ça ne marche pas » sans reproduction = d'abord identifier l'ÉTAT du navigateur du plaignant (SW actif ? waiting ? cookie ? bundle servi ?) avant de toucher au code métier.
+
+---
+Task ID: t.90-bis
+Agent: agent principal (Z.ai Code)
+Task: « Impossible de se connecter en tant que client et entreprise » — la boucle de rechargement créée par le correctif t. 90
+
+Work Log:
+- REPRODUCTION PAR LES LOGS : la rafale de 23 chargements « GET / 200 » SANS AUCUNE autre requête (zéro POST otp, zéro appel session, zéro chunk) = le navigateur de l'utilisatrice rechargeait la page en boucle — chaque rechargement réinitialisait l'écran avant qu'elle puisse compléter une connexion → « impossible de se connecter en tant que client et entreprise ». La fréquence correspondait au filet de sécurité de 2 s du PwaProvider t. 90.
+- CAUSE RACINE (2 défauts composés dans mon correctif t. 90) :
+  1. le « filet de sécurité » rechargeait la page 2 s après CHAQUE tentative d'activation, MÊME si le nouveau Service Worker n'avait PAS pris le contrôle (rechargement « au cas où ») ;
+  2. la garde anti-boucle reposait sur sessionStorage — BLOQUÉ dans l'iframe de préview (même politique que ses cookies : les logs la montraient « sans cookie (legacy) ») → la garde échouait silencieusement → auto-guérison re-armée à chaque chargement → boucle infinie ~2 s.
+- PREUVE DE GUÉRISON IMMÉDIATE : la boucle s'est arrêtée À LA SECONDE où le nouveau code a été poussé par HMR dans sa page (0 GET / mesuré sur 20 s après recompilation).
+- CORRECTIF (PwaProvider réécrit, garanties formelles) :
+  1. UNE SEULE tentative d'auto-guérison PAR PAGE, sentinelle dans l'URL (`kene-sw-heal=1`, posée via location.replace, lue puis retirée par history.replaceState) — survit à TOUS les blocages de stockage (iframe partitionnée, navigation privée) : la page rechargée porte la sentinelle → plus jamais d'auto-guérison dans cet onglet ;
+  2. UN RECHARGEMENT UNIQUEMENT SI L'ACTIVATION EST PROUVÉE : événement controllerchange, OU filet de 3 s qui COMPARE le contrôleur (scriptURL) avant/après — si le nouveau SW ne prend pas le contrôle, AUCUN rechargement (le toast manuel reste le seul recours) ;
+  3. plus AUCUNE activation automatique « quand la cliente est calme » (le re-remplissage de la boucle t. 90) : après la tentative unique, seul le bouton « Appliquer » du toast agit (clic = consentement) ;
+  4. garde anti-spam : un seul toast par page (le poll 60 s re-détecte sans spammer).
+- public/sw.js : VERSION bumpée v4 → v5 (caches kene-*-v5) — un worker tout neuf remplace tout worker « waiting » zombifié chez les navigateurs en attente.
+- VÉRIFS : lint 0 ; tsc 0 erreur src/ ; sw.js servi via :81 = kene-sw-v5 ; SW activé, aucun worker en attente ; 3 rechargements successifs → 0 chargement parasite mesuré sur 12 s (boucle impossible) ; 0 erreur console ; dev.log 0 ⨯.
+- E2E COMPLET des deux flux incriminés (session login-t90 via :81) :
+  - CLIENTE : landing → « Espace cliente » → pavé 0701020304 → « Recevoir mon code par SMS » (POST otp/request 200) → « Code reçu, remplir automatiquement » (POST otp/verify 200) → ACCUEIL Mariam connectée (wallet, multi-zones, tab-bar complète) ✓ ;
+  - ENTREPRISE : landing → « Espace entreprise » → pavé 0707070707 (d2BORAH) → code auto (200) → ESPACE PRO « Cabinet LA DERMO » avec sidebar complète (Tableau de bord, Agenda, Diagnostic, Caisse, CRM, Relances…) ✓ — session persistante aux rechargements ;
+  - capture de preuve t90bis-espace-pro.png ; session fermée proprement.
+
+Stage Summary:
+- « IMPOSSIBLE DE SE CONNECTER (CLIENT + ENTREPRISE) » ÉLIMINÉ : les deux flux sont intégralement fonctionnels et vérifiés E2E — le seul obstacle était la boucle de rechargement introduite par mon correctif t. 90, désormais rendue mathématiquement impossible (1 tentative/page + preuve d'activation obligatoire + sentinelle URL insensible aux blocages de stockage).
+- Boucle éteinte EN DIRECT dans le navigateur de l'utilisatrice par le push HMR du code corrigé (0 requête parasite mesurée ensuite) ; SW v5 tout neuf proposé à tous les navigateurs en attente.
+- Leçons : (1) un « filet de sécurité » qui recharge sans PREUVER le changement de contrôleur est un moteur de boucle ; (2) sessionStorage n'est PAS fiable dans une iframe (cookies et stockage suivent la même politique de blocage) — toute garde anti-boucle doit vivre dans l'URL ou en mémoire, jamais dans un storage optionnel ; (3) un correctif de mise à jour automatique doit être borné « une fois par page » PAR CONSTRUCTION, pas par un mécanisme d'expiration.

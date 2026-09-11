@@ -19,6 +19,7 @@ import { BootSkeleton } from "@/components/kene/client/BootSkeleton";
 import { PassportGate } from "@/components/kene/client/PassportView";
 import { HerbierGate } from "@/components/kene/herbier/Herbier";
 import { SessionKeeper } from "@/components/kene/SessionKeeper";
+import { PostBeacon } from "@/components/kene/PostBeacon";
 import { PwaProvider } from "@/components/kene/pwa/PwaProvider";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -65,6 +66,10 @@ export default function Page() {
 
         {/* Validation de session au boot — TOUS espaces (voir SessionKeeper) */}
         <SessionKeeper />
+
+        {/* t. 91 — balise diagnostique GET/POST (TEMPORAIRE, à retirer) : mesure
+            quelles méthodes traversent la chaîne de préview de l'utilisatrice. */}
+        <PostBeacon />
 
         {/* PWA : enregistrement du service worker + mise à jour offline (aucun rendu) */}
         <PwaProvider />
