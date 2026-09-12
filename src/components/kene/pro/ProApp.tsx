@@ -51,6 +51,24 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
   { id: "abonnement", label: "Abonnement", icon: Crown, hint: "Offres & facturation" },
 ];
 
+/* t. 96 — Rôles employées : sections visibles par poste. La GÉRANTE
+ * (employeeRole absent) garde tout, y compris paie/compta/paramètres.
+ * Une employée voit les sections de son poste ; les autres sections ne
+ * sont ni affichées ni atteignables (redirection auto si la section
+ * courante n'est pas autorisée — p.ex. après un changement de compte). */
+const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
+  estheticienne: ["agenda", "diagnostic", "parametres"],
+  dermo_conseillere: ["agenda", "diagnostic", "crm", "relances", "parametres"],
+  caissiere: ["caisse", "catalogue", "promos", "stock", "parametres"],
+  manager: ["dashboard", "agenda", "diagnostic", "caisse", "crm", "relances", "catalogue", "promos", "stock", "abonnement", "parametres"],
+};
+const EMPLOYEE_ROLE_LABELS: Record<string, string> = {
+  estheticienne: "Esthéticienne",
+  dermo_conseillere: "Dermo-conseillère",
+  caissiere: "Caissière",
+  manager: "Manager",
+};
+
 const PLAN_STYLES: Record<string, string> = {
   pro: "bg-gold/15 text-gold-text border-transparent ring-1 ring-inset ring-gold/30",
   business: "bg-success/15 text-success border-transparent ring-1 ring-inset ring-success/30",
@@ -183,13 +201,23 @@ export function ProApp() {
   const agendaBadge = Math.max(0, (live?.pendingAppts ?? 0) - agendaSeen);
   const navBadges: Partial<Record<ProSectionId, number>> = agendaBadge > 0 ? { agenda: agendaBadge } : {};
 
+  // t. 96 — sections du poste (employée) vs tout (gérante).
+  const employeeRole = sessionUser?.employeeRole ?? null;
+  const allowedIds = employeeRole ? EMPLOYEE_SECTIONS[employeeRole] ?? ["parametres"] : null;
+  const nav = allowedIds ? NAV.filter((n) => allowedIds.includes(n.id)) : NAV;
+  // Une employée n'atterrit jamais sur une section interdite : la section
+  // ACTIVE est dérivée (clamp) — pas de redirection, pas d'effet, la valeur
+  // mémoire reste ce qu'elle est mais le rendu suit strictement le poste.
+  const activeSection: ProSectionId =
+    allowedIds && !allowedIds.includes(section) ? allowedIds[0]! : section;
+
   const tenantOptions = useMemo(() => {
     const t = overview.data?.tenant;
     return t ? [{ id: t.id, name: t.name, city: t.city, country: t.country, plan: t.plan }] : [];
   }, [overview.data]);
 
   const tenant = overview.data?.tenant;
-  const activeLabel = NAV.find((n) => n.id === section)?.label ?? "";
+  const activeLabel = NAV.find((n) => n.id === activeSection)?.label ?? "";
 
   // Chip compte (t. 66-b) : nom de la gérante de session (rôle « pro », le
   // seul qui monte cet espace depuis l'isolation t. 69-a) ; le fallback « Fatou
@@ -197,7 +225,11 @@ export function ProApp() {
   const proOwner = sessionUser?.role === "pro" ? sessionUser : null;
   const chipName =
     proOwner?.name && proOwner.name !== "Nouvelle cliente" && proOwner.name.trim() ? proOwner.name.trim() : "Fatou Koné";
-  const chipRole = proOwner ? "Fondatrice / Gérante" : "Gérante — démo";
+  const chipRole = employeeRole
+    ? EMPLOYEE_ROLE_LABELS[employeeRole] ?? "Employée"
+    : proOwner
+      ? "Fondatrice / Gérante"
+      : "Gérante — démo";
   const chipInitials =
     chipName
       .split(/\s+/)
@@ -276,8 +308,8 @@ export function ProApp() {
         </div>
 
         <nav aria-label="Navigation App Pro" className="flex-1 px-1.5 lg:px-3 py-2 space-y-1">
-          {NAV.map((item) => {
-            const active = section === item.id;
+          {nav.map((item) => {
+            const active = activeSection === item.id;
             const badge = navBadges[item.id];
             return (
               <button
@@ -349,17 +381,17 @@ export function ProApp() {
         {/* Nav mobile — chips verre scrollables (uniquement <md), chrome collant */}
         <div className="md:hidden sticky top-0 z-30 k-chrome">
           <nav aria-label="Navigation App Pro (mobile)" className="flex gap-1.5 overflow-x-auto no-scrollbar px-3 py-2.5">
-            {NAV.map((item) => {
+          {nav.map((item) => {
               const badge = navBadges[item.id];
               return (
                 <button
                   key={item.id}
                   onClick={() => openSection(item.id)}
-                  aria-current={section === item.id ? "page" : undefined}
+                  aria-current={activeSection === item.id ? "page" : undefined}
                   aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
                   className={cn(
                     "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 min-h-11 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
-                    section === item.id
+                    activeSection === item.id
                       ? "k-btn-gold text-primary-foreground font-semibold"
                       : "k-chip text-muted-foreground hover:text-foreground"
                   )}
@@ -414,7 +446,7 @@ export function ProApp() {
             </div>
           </div>
 
-          {overview.error && section === "dashboard" && (
+          {overview.error && activeSection === "dashboard" && (
             <div className="mb-4 rounded-2xl border border-bissap/30 bg-bissap/5 px-4 py-2.5 text-sm text-bissap">
               Impossible de charger l&apos;institut : {overview.error}
             </div>
@@ -427,11 +459,11 @@ export function ProApp() {
             transition={{ duration: 0.25, ease: "easeOut" }}
             className="min-w-0"
           >
-            {section === "dashboard" && (
+            {activeSection === "dashboard" && (
               <DashboardSection tenantId={tid} overview={overview} loadingOverview={overview.loading} onNavigate={openSection} />
             )}
-            {section === "agenda" && <AgendaSection tenantId={tid} refreshKey={refreshKey} />}
-            {section === "diagnostic" && (
+            {activeSection === "agenda" && <AgendaSection tenantId={tid} refreshKey={refreshKey} />}
+            {activeSection === "diagnostic" && (
               <DiagnosticsSection
                 tenantId={tid}
                 refreshKey={refreshKey}
@@ -440,16 +472,16 @@ export function ProApp() {
                 onNavigate={openSection}
               />
             )}
-            {section === "caisse" && <PosSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} refreshKey={refreshKey} />}
-            {section === "crm" && <CrmSection tenantId={tid} onStartDiagnostic={(clientId) => { setDiagCommand({ clientId, nonce: Date.now() }); openSection("diagnostic"); }} />}
-            {section === "relances" && <RelancesSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
-            {section === "catalogue" && <CatalogSection tenantId={tid} />}
-            {section === "promos" && <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
-            {section === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
-            {section === "paie" && <PayrollSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} tenantName={tenant?.name ?? "Institut"} />}
-            {section === "compta" && <AccountingSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
-            {section === "parametres" && <SettingsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} tenantCity={tenant?.city} onNavigate={openSection} />}
-            {section === "abonnement" && <ProPlanSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
+            {activeSection === "caisse" && <PosSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} refreshKey={refreshKey} />}
+            {activeSection === "crm" && <CrmSection tenantId={tid} onStartDiagnostic={(clientId) => { setDiagCommand({ clientId, nonce: Date.now() }); openSection("diagnostic"); }} />}
+            {activeSection === "relances" && <RelancesSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
+            {activeSection === "catalogue" && <CatalogSection tenantId={tid} />}
+            {activeSection === "promos" && <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
+            {activeSection === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
+            {activeSection === "paie" && <PayrollSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} tenantName={tenant?.name ?? "Institut"} />}
+            {activeSection === "compta" && <AccountingSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
+            {activeSection === "parametres" && <SettingsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} tenantCity={tenant?.city} onNavigate={openSection} />}
+            {activeSection === "abonnement" && <ProPlanSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
           </motion.div>
         </div>
       </div>

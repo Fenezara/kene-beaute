@@ -34,6 +34,9 @@ export interface SessionUser {
   fitzpatrick?: string | null;
   allergies?: string | null;
   consentHealth?: boolean;
+  // t. 96 — poste de l'EMPLOYÉE connectée (estheticienne | dermo_conseillere |
+  // caissiere | manager). Absent/null = gérante (accès complet).
+  employeeRole?: string | null;
 }
 
 /** Shape réellement persistée (liste blanche du partialize). */

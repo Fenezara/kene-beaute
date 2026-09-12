@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, Brush, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, GitCompareArrows, Hand, History,
+  ArrowLeft, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, GitCompareArrows, Hand, History,
   ImagePlus, Layers, Loader2, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Sparkles, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -1281,12 +1281,27 @@ function HistoryView({
                       } else onOpen(d);
                     }}
                     className="flex items-center gap-3 flex-1 min-w-0 text-left focus-visible:outline-2 focus-visible:outline-primary rounded-xl"
-                    aria-label={`Diagnostic ${d.zone} du ${formatDate(d.createdAt)}, score ${d.scoreGlobal}`}
+                    aria-label={`Diagnostic ${d.zone} du ${formatDate(d.createdAt)}, score ${d.scoreGlobal}${d.institut ? `, en institut ${d.institut}` : ""}`}
                   >
-                    <img src={diagImgSrc(d.imageData)} alt={`Diagnostic ${d.zone}`} loading="lazy" className="h-14 w-14 rounded-xl object-cover shrink-0" />
+                    {diagImgSrc(d.imageData) ? (
+                      <img src={diagImgSrc(d.imageData)} alt={`Diagnostic ${d.zone}`} loading="lazy" className="h-14 w-14 rounded-xl object-cover shrink-0" />
+                    ) : (
+                      <div className="h-14 w-14 rounded-xl grid place-items-center bg-muted shrink-0" aria-hidden="true">
+                        <Building2 size={20} className="text-primary" />
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <p className="text-sm font-semibold">{BODY_ZONES.find((z) => z.id === d.zone)?.label ?? d.zone}</p>
-                      <p className="text-[11px] text-muted-foreground">{formatDate(d.createdAt)}</p>
+                      {d.institut ? (
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1 flex-wrap">
+                          <span>{formatDate(d.createdAt)}</span>
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/12 px-1.5 py-px text-[9px] font-bold text-primary">
+                            <Building2 size={9} aria-hidden="true" /> En institut · {d.institut}{d.practitioner ? ` — ${d.practitioner}` : ""}
+                          </span>
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground">{formatDate(d.createdAt)} · Self-scan</p>
+                      )}
                     </div>
                     <div className="ml-auto"><ScoreChip score={d.scoreGlobal} /></div>
                   </button>

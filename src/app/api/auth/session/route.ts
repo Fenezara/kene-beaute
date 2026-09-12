@@ -37,10 +37,16 @@ export async function GET(req: NextRequest) {
       if (!user) return jsonError("Session expirée", 404);
       // t. 89 : l'institut de la gérante suit la session — le front peut
       // re-poser proTenantId au boot sans requête supplémentaire.
-      const tenant = user.role === "pro"
-        ? await db.tenant.findFirst({ where: { ownerPhone: user.phone } })
+      // t. 96 : une EMPLOYÉE (pas gérante) résout l'institut de son EMPLOYEUR
+      // + son poste — la session restaurée est identique à un login frais.
+      const emp = user.role === "pro"
+        ? await db.employee.findFirst({ where: { userId: user.id, active: true } })
         : null;
-      return NextResponse.json({ user, tenant: tenant ? { id: tenant.id, name: tenant.name } : null });
+      const tenant = user.role === "pro"
+        ? (await db.tenant.findFirst({ where: { ownerPhone: user.phone } })) ??
+          (emp ? await db.tenant.findUnique({ where: { id: emp.tenantId } }) : null)
+        : null;
+      return NextResponse.json({ user, tenant: tenant ? { id: tenant.id, name: tenant.name } : null, employeeRole: emp ? emp.role : null });
     }
 
     // 2) Legacy (session POC d'avant ce sprint, sans cookie) : repli query userId.
@@ -51,11 +57,15 @@ export async function GET(req: NextRequest) {
     if (!user) return jsonError("Session expirée", 404);
 
     // t. 89 : même enrichissement sur le repli legacy (le repli 409 de
-    // l'onboarding pro passe par ici).
-    const tenant = user.role === "pro"
-      ? await db.tenant.findFirst({ where: { ownerPhone: user.phone } })
+    // l'onboarding pro passe par ici). t. 96 : employée idem.
+    const empLegacy = user.role === "pro"
+      ? await db.employee.findFirst({ where: { userId: user.id, active: true } })
       : null;
-    return NextResponse.json({ user, tenant: tenant ? { id: tenant.id, name: tenant.name } : null });
+    const tenant = user.role === "pro"
+      ? (await db.tenant.findFirst({ where: { ownerPhone: user.phone } })) ??
+        (empLegacy ? await db.tenant.findUnique({ where: { id: empLegacy.tenantId } }) : null)
+      : null;
+    return NextResponse.json({ user, tenant: tenant ? { id: tenant.id, name: tenant.name } : null, employeeRole: empLegacy ? empLegacy.role : null });
   } catch (err) {
     return serverError("auth/session", err);
   }

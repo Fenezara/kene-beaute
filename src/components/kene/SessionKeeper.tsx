@@ -46,7 +46,7 @@ export function SessionKeeper() {
         // 200 : profil frais si la réponse est lisible ; sinon on garde la
         // session locale (ne jamais déconnecter sur une réponse inattendue).
         if (s.user) {
-          setUser(s.user as SessionUser);
+          setUser({ ...s.user, employeeRole: s.employeeRole } as SessionUser);
           // t. 89 — incident « La Dermo ne passe pas » : GUÉRISON au boot du
           // proTenantId persisté. L'ancien bug faisait persister l'id du
           // « premier institut de la base » (Éclat d'Abidjan) chez une gérante

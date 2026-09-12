@@ -408,6 +408,9 @@ function HireDialog({
   const [transport, setTransport] = useState("");
   const [housing, setHousing] = useState("");
   const [cadres, setCadres] = useState(false);
+  // t. 96 — compte APP de l'employée : son numéro lui ouvre l'espace Pro
+  // avec les sections de son poste (elle se connecte par code SMS).
+  const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function submit() {
@@ -416,9 +419,14 @@ function HireDialog({
       toast.error("Nom et salaire de base valides requis");
       return;
     }
+    const digits = phone.replace(/\D/g, "");
+    if (phone.trim() && digits.length < 8) {
+      toast.error("Numéro de l'employée invalide (8 chiffres min.)");
+      return;
+    }
     setBusy(true);
     try {
-      await apiPost("/api/pro/employees", {
+      const r = await apiPost<{ employee: unknown; account: { created: boolean } | null }>("/api/pro/employees", {
         tenantId,
         name: name.trim(),
         role,
@@ -428,13 +436,21 @@ function HireDialog({
         transport: Number(transport) || 0,
         housing: Number(housing) || 0,
         cadres: country === "SN" ? cadres : undefined,
+        phone: phone.trim() || undefined,
       });
-      toast.success(`${name.trim()} ajoutée à l'équipe`);
+      if (r.account?.created) {
+        toast.success(`${name.trim()} ajoutée à l'équipe`, {
+          description: `Compte app créé (${phone.trim()}) — elle se connecte avec ce numéro (code SMS) et voit les sections de son poste.`,
+        });
+      } else {
+        toast.success(`${name.trim()} ajoutée à l'équipe`);
+      }
       setName("");
       setBaseSalary("");
       setTransport("");
       setHousing("");
       setCadres(false);
+      setPhone("");
       onOpenChange(false);
       await onCreated();
     } catch (e) {
@@ -515,6 +531,25 @@ function HireDialog({
               <Switch id="h-cadres" checked={cadres} onCheckedChange={setCadres} />
             </div>
           )}
+          {/* t. 96 — compte APP de l'employée : son numéro de téléphone suffit. */}
+          <div className="rounded-lg border border-border bg-muted/50 px-3 py-2.5">
+            <Label htmlFor="h-phone" className="text-xs font-medium">Compte app de l&apos;employée (facultatif)</Label>
+            <Input
+              id="h-phone"
+              inputMode="numeric"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/[^0-9+ ]/g, ""))}
+              className="mt-1.5 font-mono"
+              placeholder="07 05 04 03 02"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1.5">
+              Avec son numéro, elle se connecte à l&apos;app par code SMS et accède à l&apos;espace Pro selon son poste —{" "}
+              {role === "estheticienne" && "Agenda et Diagnostic."}
+              {role === "dermo_conseillere" && "Agenda, Diagnostic, CRM et Relances."}
+              {role === "caissiere" && "Caisse, Catalogue, Promos et Stock."}
+              {role === "manager" && "toute la gestion (hors paie et compta)."}
+            </p>
+          </div>
           <Button disabled={busy} onClick={submit} className="w-full font-semibold gap-1.5">
             <BadgeCheck className="size-4" aria-hidden="true" /> {busy ? "Création…" : "Ajouter l'employé"}
           </Button>

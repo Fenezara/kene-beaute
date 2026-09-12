@@ -18,6 +18,7 @@ import { checkCoupon, redeemCoupon } from "@/lib/kene/coupons";
 import { newConfirmToken, paymentWithConfirmToken } from "@/lib/kene/confirm-token";
 import { pushTenantFeed } from "@/lib/kene/realtime";
 import { guardUserClaim } from "@/lib/kene/session";
+import { ensureClientProfile } from "@/lib/kene/client-link";
 import { rateLimit, rlKey, rateLimitResponse, ORDERS_CREATE } from "@/lib/kene/rate-limit";
 
 const Body = z.object({
@@ -114,6 +115,21 @@ export async function POST(req: NextRequest) {
       const order = await tx.order.create({
         data: { userId, subtotal, discount, couponCode: appliedCouponId ? couponCode!.toUpperCase() : null, cashback, total, status: paymentMethod === "wallet" ? "paid" : "pending", items: { create: orderItemsData } },
       });
+
+      // Synchronisation App↔Institut (t. 96) : commander un produit d'une
+      // entreprise = un « contact » — la cliente de l'app apparaît dans le CRM
+      // de CETTE entreprise (fiche liée userId, miroir peau). Les produits
+      // maison Kènè (tenantId null) ne créent rien.
+      const orderTenantIds = [...new Set(lines.map((l) => l.product.tenantId).filter((t): t is string => Boolean(t)))];
+      for (const tid of orderTenantIds) {
+        await ensureClientProfile(tx, tid, {
+          id: user.id,
+          name: user.name,
+          phone: user.phone,
+          skinType: user.skinType,
+          fitzpatrick: user.fitzpatrick,
+        });
+      }
 
       // Consommation du coupon DANS la transaction : si la garde échoue
       // (usage simultané), le throw annule commande + items d'un coup.

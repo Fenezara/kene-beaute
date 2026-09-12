@@ -24,6 +24,10 @@ export interface ApiDiagnosis {
   scoreGlobal: number;
   status: string;
   createdAt: string;
+  // t. 96 — diagnostics réalisés EN INSTITUT (fusionnés dans l'historique) :
+  // nom de l'entreprise + praticienne éventuelle. Absents sur les self-scans.
+  institut?: string | null;
+  practitioner?: string | null;
 }
 
 export interface ApiInstitute {
@@ -157,12 +161,15 @@ interface ApiSessionShape {
   proTenantId?: unknown;
   id?: unknown;
   phone?: unknown;
+  // t. 96 — poste de l'employée connectée (null pour une gérante).
+  employeeRole?: unknown;
 }
 
 export interface ApiSession {
   user: ApiUser | null;
   tenantId: string | null;
   tenantName: string | null;
+  employeeRole: string | null;
 }
 
 /** Lecture tolérante d'une réponse /api/auth/session : normalise
@@ -174,7 +181,8 @@ export function readSession(payload: unknown): ApiSession {
   const tenant = o.tenant && typeof o.tenant === "object" ? o.tenant : null;
   const tenantId = typeof tenant?.id === "string" ? tenant.id : typeof o.proTenantId === "string" ? o.proTenantId : null;
   const tenantName = typeof tenant?.name === "string" ? tenant.name : null;
-  return { user, tenantId, tenantName };
+  const employeeRole = typeof o.employeeRole === "string" ? o.employeeRole : null;
+  return { user, tenantId, tenantName, employeeRole };
 }
 
 export interface ApiWallet {

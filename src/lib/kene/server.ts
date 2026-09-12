@@ -41,7 +41,19 @@ export function defaultTenant() {
 export async function resolveTenant(req: NextRequest, tenantId?: string | null) {
   const sess = sessionFromRequest(req);
   if (sess && sess.role === "pro") {
-    const mine = await db.tenant.findFirst({ where: { ownerPhone: sess.phone } });
+    // 1) gérante : son institut (ownerPhone).
+    let mine = await db.tenant.findFirst({ where: { ownerPhone: sess.phone } });
+    // 2) t. 96 — EMPLOYÉE de l'app (compte créé par sa gérante) : l'institut
+    // de son EMPLOYEUR via la fiche Employee liée (userId). Une employée ne
+    // voit QUE cet institut — mêmes règles strictes qu'une gérante
+    // (tenantId étranger → refus, aucune institut → 404 franc).
+    if (!mine) {
+      const emp = await db.employee.findFirst({
+        where: { userId: sess.userId, active: true },
+        select: { tenantId: true },
+      });
+      if (emp) mine = await db.tenant.findUnique({ where: { id: emp.tenantId } });
+    }
     if (!mine) return null; // pro sans institut : 404 franc, pas de repli
     if (tenantId && tenantId !== mine.id) return null; // institut d'une autre → refus
     return mine;

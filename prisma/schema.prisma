@@ -499,6 +499,11 @@ model Employee {
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name         String
   role         String // estheticienne | dermo_conseillere | caissiere | manager
+  // t. 96 — compte APP de l'employée : User (rôle « pro ») lié par userId.
+  // La fondatrice crée le compte à l'embauche (numéro de l'employée) ;
+  // l'employée se connecte par OTP et entre dans l'espace Pro de SON
+  // institut avec les sections de son poste (resolveTenant + ProApp).
+  userId       String?
   contractType String   @default("CDI") // CDI | CDD | Stage
   country      String // CI | SN
   baseSalary   Int // mensuel brut de base XOF

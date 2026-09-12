@@ -167,7 +167,7 @@ export function Onboarding({
     if (code.length !== 6) return;
     setLoading(true);
     try {
-      const v = await apiPost<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/otp/verify", { phone: `+225${digits}`, code, name: name.trim() || undefined });
+      const v = await apiPost<{ user: ApiUser; tenant: { id: string; name: string } | null; employeeRole?: string | null }>("/api/auth/otp/verify", { phone: `+225${digits}`, code, name: name.trim() || undefined });
       // Mémoire du dernier compte (t. 73) : clé dédiée kene-last-account,
       // locale à l'appareil, survit à la déconnexion → carte « Contente de
       // te revoir » sur la page d'accueil. Aucun effet si le stockage refuse.
@@ -182,10 +182,14 @@ export function Onboarding({
         // n'aboutissait nulle part. Le formulaire ne reste désormais QUE pour
         // les VÉRITABLES nouvelles inscriptions.
         if (v.user.role === "pro" && v.tenant?.id) {
-          setUser(v.user as SessionUser);
+          setUser({ ...v.user, employeeRole: v.employeeRole ?? null } as SessionUser);
           setProTenantId(v.tenant.id);
           setSpace("pro");
-          toast.success(`Bienvenue ${v.user.name.split(" ")[0]} — « ${v.tenant.name} » t'attend`);
+          toast.success(
+            v.employeeRole
+              ? `Bienvenue ${v.user.name.split(" ")[0]} — « ${v.tenant.name} » t'attend (${v.employeeRole === "manager" ? "manager" : v.employeeRole.replace("_", " ")})`
+              : `Bienvenue ${v.user.name.split(" ")[0]} — « ${v.tenant.name} » t'attend`
+          );
           return;
         }
         // Mode entreprise : JAMAIS de questionnaire peau (phototype/objectifs/
@@ -205,7 +209,7 @@ export function Onboarding({
       // setUser fait suivre l'espace au rôle (clamp store) → ProApp/AdminApp
       // se monte, Onboarding se démonte.
       if (v.user.role === "pro" || v.user.role === "admin") {
-        setUser(v.user as SessionUser);
+        setUser({ ...v.user, employeeRole: v.employeeRole ?? null } as SessionUser);
         toast.success(
           v.user.role === "pro"
             ? `Bienvenue ${v.user.name.split(" ")[0]} — ton espace entreprise t'attend`

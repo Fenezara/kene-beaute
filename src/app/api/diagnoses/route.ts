@@ -115,11 +115,42 @@ export async function GET(req: NextRequest) {
     if (guard) return guard;
     // Historique borné (POC : 20 derniers — le front liste tout, sans
     // « charger plus » ; imageData conservé pour l'historique photos).
-    const diagnoses = await db.diagnosis.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    });
+    //
+    // t. 96 — « de part et d'autre » : l'historique fusionne les self-scans
+    // app ET les diagnostics réalisés EN INSTITUT chez ses partenaires
+    // (ProDiagnosis.userId, posé dès que la fiche CRM est liée au compte).
+    // Chaque entrée institut porte le champ `institut` (nom du tenant) — le
+    // front l'affiche comme badge ; les self-scans n'ont pas le champ.
+    const [selfScans, proDiags] = await Promise.all([
+      db.diagnosis.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
+      db.proDiagnosis.findMany({
+        where: { userId },
+        include: { tenant: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
+    ]);
+    const diagnoses = [
+      ...selfScans,
+      ...proDiags.map((p) => ({
+        id: p.id,
+        userId,
+        zone: p.zone,
+        imageData: p.photoData ?? "",
+        resultJson: p.resultJson,
+        scoreGlobal: p.scoreGlobal,
+        status: "done" as const,
+        createdAt: p.createdAt,
+        institut: p.tenant.name,
+        practitioner: p.practitioner ?? null,
+      })),
+    ]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 20);
     return NextResponse.json({ diagnoses });
   } catch (err) {
     return serverError("diagnoses:get", err);

@@ -12,6 +12,7 @@ import { DEPOSIT_RATE } from "@/lib/kene/format";
 import { newConfirmToken, paymentWithConfirmToken, serializePayment } from "@/lib/kene/confirm-token";
 import type { Appointment, Payment } from "@prisma/client";
 import { guardUserClaim } from "@/lib/kene/session";
+import { ensureClientProfile } from "@/lib/kene/client-link";
 import { rateLimit, rlKey, rateLimitResponse, APPOINTMENTS_CREATE } from "@/lib/kene/rate-limit";
 
 const CreateBody = z.object({
@@ -133,6 +134,27 @@ export async function POST(req: NextRequest) {
           },
           include: APPT_INCLUDE,
         });
+
+        // Synchronisation App↔Institut (t. 96) : une cliente de l'app qui
+        // réserve apparaît immédiatement dans le CRM de l'institut (fiche
+        // liée userId + miroir peau) et le RDV porte clientProfileId —
+        // comptes RDV/visites de la fiche 360° et relances alimentés d'office.
+        if (userId) {
+          const u = await tx.user.findUnique({
+            where: { id: userId },
+            select: { id: true, name: true, phone: true, skinType: true, fitzpatrick: true },
+          });
+          if (u) {
+            const profile = await ensureClientProfile(tx, tenantId, u);
+            if (profile) {
+              appointment = await tx.appointment.update({
+                where: { id: appointment.id },
+                data: { clientProfileId: profile.id },
+                include: APPT_INCLUDE,
+              });
+            }
+          }
+        }
 
         // Acompte (simulation MoMo) → Payment en attente de confirmation
         let payment: Payment | null = null;

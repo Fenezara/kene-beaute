@@ -62,9 +62,16 @@ Rédige des recommandations personnalisées cohérentes avec CES résultats. JSO
 }
 
 function extractJson(raw: string): Record<string, unknown> | null {
+  // t. 96 — espaces Unicode exotiques entre jetons (NBSP, ZWSP… mesurés en
+  // préview : le modèle en émet parfois autour des étiquettes ; JSON.parse les
+  // REJETTE alors qu'un espace simple est valide). Normalisés AVANT tout : un
+  // NBSP à l'intérieur d'une note devient une espace — cosmétique et sans
+  // incidence. La preuve : réponse « valide à l'œil » mais rejetée car
+  // l'espace dans [ "nez" était en fait U+00A0.
   const cleaned = raw
     .replace(/```json/gi, "")
     .replace(/```/g, "")
+    .replace(/[\u00a0\u1680\u2000-\u200f\u2028\u2029\u202f\u205f\u3000\ufeff]/g, " ")
     .trim();
   const attempts: string[] = [cleaned];
   // Variance du modèle (t. 77, mesurée) : le JSON revient presque toujours
@@ -76,11 +83,25 @@ function extractJson(raw: string): Record<string, unknown> | null {
     s.replace(/([{,]\s*)([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9 _()&/'\u2019_-]*?)\s*:/g, '$1"$2":');
   const fixElems = (s: string) =>
     s.replace(/([,\[]\s*)([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9 _()&/'\u2019_-]*?)(\s*[,}\]])/g, '$1"$2"$3');
+  // t. 96 — quote ouvrante MANQUANTE sur une étiquette de tableau (mesuré :
+  // [nez",400,…] au lieu de ["nez",400,…]). Ne touche jamais un élément déjà
+  // quoté : le motif exige une lettre directement après [ ou , — une quote
+  // ouvrante ne peut pas matcher.
+  const fixStrayQuote = (s: string) =>
+    s.replace(/([,\[]\s*)([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9 _()&/'\u2019_-]*?)"(?=\s*[,}\]])/g, '$1"$2"');
   const k = fixKeys(cleaned);
   const e = fixElems(cleaned);
+  const q = fixStrayQuote(cleaned);
   if (k !== cleaned) attempts.push(k);
   if (e !== cleaned) attempts.push(e);
+  if (q !== cleaned) attempts.push(q);
   if (k !== cleaned && e !== cleaned) attempts.push(fixElems(k));
+  // réparations composées : quote manquante + clés/éléments nus ensemble.
+  if (q !== cleaned) {
+    attempts.push(fixKeys(q));
+    attempts.push(fixElems(q));
+    attempts.push(fixElems(fixKeys(q)));
+  }
   for (const attempt of attempts) {
     try {
       return JSON.parse(attempt);

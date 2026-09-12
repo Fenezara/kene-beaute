@@ -115,7 +115,22 @@ function implicitPort(scheme: string): string {
 
 /**
  * Garde CSRF/Origin : true = l'origine déclarée ne correspond PAS à cette
- * requête → 403. Comparaison host==host robuste :
+ * requête → 403.
+ *
+ * ARBITRE PRINCIPAL — Sec-Fetch-Site (t. 96) : en-tête posé par le navigateur
+ * lui-même (non forgeable en JS — spec Fetch « forbidden header »). La chaîne
+ * de préview de la fondatrice traverse un gateway externe qui RÉÉCRIT le Host
+ * (Origin = domaine plateforme ≠ Host vu par Next) : la comparaison littérale
+ * Origin↔Host rejetait en 403 silencieux TOUT ses POST — diagnostic, login
+ * pavé, inscription — alors que son navigateur émettait des requêtes
+ * parfaitement same-origin. On fait donc confiance à Sec-Fetch-Site :
+ *  - « same-origin » / « same-site » / « none » → REQUÊTE LÉGITIME, on passe ;
+ *  - « cross-site » → vrai CSRF (page attaquante) → refus ;
+ *  - absent (curl, serveur→serveur, vieux clients) → repli sur la comparaison
+ *    Origin↔Host historique ci-dessous (le garde-fou reste entier pour les
+ *    clients non-navigateur qui forgent Origin).
+ *
+ * Repli historique — comparaison host==host robuste :
  *  - le schéma (http/https) est IGNORÉ (le gateway peut terminer le TLS en
  *    amont) ;
  *  - hostname : header Host en priorité (véridique côté navigateur, impossible
@@ -133,6 +148,15 @@ function implicitPort(scheme: string): string {
 function isExternalOrigin(req: NextRequest, reqUrl: URL): boolean {
   const origin = (req.headers.get("origin") ?? "").trim().toLowerCase();
   if (origin === "" || origin === "null") return false;
+
+  // 1) Arbitre navigateur (non forgeable) : seul un VRAI cross-site est coupé.
+  const fetchSite = (req.headers.get("sec-fetch-site") ?? "").trim().toLowerCase();
+  if (fetchSite === "same-origin" || fetchSite === "same-site" || fetchSite === "none") {
+    return false;
+  }
+  if (fetchSite === "cross-site") {
+    return true;
+  }
 
   let originUrl: URL;
   try {

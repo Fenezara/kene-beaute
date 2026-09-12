@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError, resolveTenant, dayStart, dayEnd } from "@/lib/kene/server";
+import { jsonError, serverError, resolveTenant, dayStart, dayEnd, genRef } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
@@ -40,6 +40,9 @@ const Body = z.object({
   transport: z.number().int().min(0).optional(),
   housing: z.number().int().min(0).optional(),
   cadres: z.boolean().optional(),
+  // t. 96 — compte APP de l'employée : numéro → User (rôle pro) lié à cette
+  // fiche. L'employée se connecte par OTP et voit les sections de son poste.
+  phone: z.string().trim().min(6).max(30).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -55,12 +58,45 @@ export async function POST(req: NextRequest) {
     const tenant = await db.tenant.findUnique({ where: { id: parsed.data.tenantId } });
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    const { tenantId, name, role, contractType, baseSalary, transport, housing, cadres } = parsed.data;
+    const { tenantId, name, role, contractType, baseSalary, transport, housing, cadres, phone } = parsed.data;
+
+    // t. 96 — compte APP optionnel : vérifications AVANT toute écriture.
+    // Normalisation canonique de l'app : numéro local (8+ chiffres) →
+    // +<indicatif pays du tenant><10 derniers chiffres> ; un numéro déjà
+    // complet (+…) est pris tel quel.
+    let accountUserId: string | null = null;
+    if (phone) {
+      const digits = phone.replace(/\D/g, "");
+      if (digits.length < 8 || digits.length > 15) {
+        return jsonError("Téléphone invalide (8 à 15 chiffres)", 400);
+      }
+      const cc = (parsed.data.country ?? (tenant.country === "SN" ? "SN" : "CI")) === "SN" ? "221" : "225";
+      const normalized = phone.startsWith("+") ? phone : `+${cc}${digits.slice(-10)}`;
+      const existing = await db.user.findUnique({ where: { phone: normalized } });
+      if (existing) {
+        const ownedTenant = await db.tenant.findFirst({ where: { ownerPhone: normalized } });
+        if (ownedTenant) {
+          return jsonError("Ce numéro est déjà gérante d'un institut — compte employé impossible", 409);
+        }
+        const alreadyEmployee = await db.employee.findFirst({ where: { userId: existing.id } });
+        if (alreadyEmployee && alreadyEmployee.tenantId !== tenantId) {
+          return jsonError("Ce numéro est déjà employée dans un autre institut", 409);
+        }
+        accountUserId = existing.id;
+      } else {
+        const created = await db.user.create({
+          data: { phone: normalized, name, role: "pro", referralCode: genRef("KENE") },
+        });
+        accountUserId = created.id;
+      }
+    }
+
     const employee = await db.employee.create({
       data: {
         tenantId,
         name,
         role,
+        userId: accountUserId,
         contractType,
         country: parsed.data.country ?? (tenant.country === "SN" ? "SN" : "CI"),
         baseSalary,
@@ -70,7 +106,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ employee }, { status: 201 });
+    return NextResponse.json(
+      { employee, account: accountUserId ? { created: true, phone: phone } : null },
+      { status: 201 },
+    );
   } catch (err) {
     return serverError("pro/employees:post", err);
   }

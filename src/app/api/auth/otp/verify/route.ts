@@ -141,17 +141,28 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   const ownerTenant = await db.tenant.findFirst({ where: { ownerPhone: phone } });
 
   let user = await db.user.findUnique({ where: { phone } });
+  // t. 96 — EMPLOYÉE de l'app (compte créé par sa gérante via l'embauche) :
+  // sa fiche Employee liée donne l'institut de son EMPLOYEUR + son poste.
+  const employeeLink = user
+    ? await db.employee.findFirst({
+        where: { userId: user.id, active: true },
+        include: { tenant: { select: { id: true, name: true } } },
+      })
+    : null;
   if (!user) {
     user = await db.user.create({
       data: {
         phone,
         name: name || "Nouvelle cliente",
-        role: ownerTenant ? "pro" : "client",
+        role: ownerTenant || employeeLink ? "pro" : "client",
         referralCode: genRef("KENE"),
       },
     });
   } else if (name && (!user.name || user.name === "Nouvelle cliente")) {
     user = await db.user.update({ where: { id: user.id }, data: { name } });
+  } else if (employeeLink && user.role !== "pro") {
+    // compte pré-existant (cliente) devenu employée : rôle pro
+    user = await db.user.update({ where: { id: user.id }, data: { role: "pro" } });
   }
 
   void audit({ kind: "login_success", phone, userId: user.id, ip });
@@ -163,9 +174,16 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   // dans son espace avec le bon institut — plus de « premier tenant de la
   // base » sur le dashboard d'une autre). Additif : les fronts qui l'ignorent
   // ne changent pas de comportement.
+  // t. 96 — une EMPLOYÉE reçoit l'institut de son employeur + son poste
+  // (`employeeRole`) : le front ouvre l'espace Pro filtré sur ses sections.
   const response = NextResponse.json({
     user,
-    tenant: ownerTenant ? { id: ownerTenant.id, name: ownerTenant.name } : null,
+    tenant: ownerTenant
+      ? { id: ownerTenant.id, name: ownerTenant.name }
+      : employeeLink
+        ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name }
+        : null,
+    employeeRole: employeeLink ? employeeLink.role : null,
   });
   setSessionCookie(response, user);
   return response;
