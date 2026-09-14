@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   ArrowRight,
   TrendingUp,
+  Star,
+  MessageSquareHeart,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -216,6 +218,41 @@ export function DashboardSection({
                         <p className="text-xs text-muted-foreground">{s.count} prestation{s.count > 1 ? "s" : ""}</p>
                       </div>
                       <Money value={s.total} className="text-sm" />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="font-heading text-base flex items-center gap-2">
+                <MessageSquareHeart className="size-4 text-gold" aria-hidden="true" />
+                Derniers avis clientes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {!data.recentReviews || data.recentReviews.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-muted-foreground">
+                  Aucun avis pour l&apos;instant — ils arrivent dès que vos clientes notent leurs RDV depuis l&apos;app.
+                </p>
+              ) : (
+                <ul className="max-h-56 overflow-y-auto pretty-scroll divide-y divide-border/70">
+                  {data.recentReviews.map((r) => (
+                    <li key={r.id} className="px-4 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-medium">{r.clientName}</p>
+                        <span className="flex items-center gap-0.5 shrink-0" role="img" aria-label={`Note ${r.rating} sur 5`}>
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star key={i} className={cn("size-3", i < r.rating ? "fill-gold text-gold" : "text-border")} aria-hidden="true" />
+                          ))}
+                        </span>
+                      </div>
+                      {r.comment ? <p className="mt-0.5 truncate text-xs text-muted-foreground">« {r.comment} »</p> : null}
+                      <p className="mt-0.5 text-[10px] text-muted-foreground font-mono">
+                        {r.serviceName ? `${r.serviceName} · ` : ""}{formatDate(r.createdAt)}
+                      </p>
                     </li>
                   ))}
                 </ul>

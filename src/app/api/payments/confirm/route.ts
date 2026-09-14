@@ -103,8 +103,14 @@ export async function POST(req: NextRequest) {
 
           const user = await tx.user.findUnique({ where: { id: order.userId } });
           if (user) {
+            // Rattachement institut (commande mono-boutique): la trace de la
+            // confirmation reste liée à l'institut vendeur concerné.
+            const orderTenantIds = [
+              ...new Set(orderWithItems.items.map((i) => i.product.tenantId).filter((t): t is string => Boolean(t))),
+            ];
             await notify({
               userId: user.id,
+              tenantId: orderTenantIds.length === 1 ? orderTenantIds[0] : null,
               channel: "sms",
               toPhone: user.phone,
               message: `Kènè : commande confirmée ✅ ${xof(order.total)} payés${order.cashback ? ` — ${xof(order.cashback)} de cashback crédités` : ""}. Livraison en cours de préparation.`,

@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, Crown, LayoutDashboard, MapPin, Settings, Stethoscope, TicketPercent } from "lucide-react";
+import { BellRing, Crown, LayoutDashboard, MapPin, Settings, ShoppingBag, Stethoscope, TicketPercent } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -33,14 +33,16 @@ import { DiagnosticsSection } from "./DiagnosticsSection";
 import { SettingsSection } from "./SettingsSection";
 import { ProPlanSection } from "./ProPlanSection";
 import { TeamSection } from "./TeamSection";
+import { OrdersSection } from "./OrdersSection";
 
-export type ProSectionId = "dashboard" | "agenda" | "diagnostic" | "caisse" | "crm" | "relances" | "equipe" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
+export type ProSectionId = "dashboard" | "agenda" | "diagnostic" | "caisse" | "orders" | "crm" | "relances" | "equipe" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
   { id: "agenda", label: "Agenda", icon: SankofaIcon, hint: "Rendez-vous" },
   { id: "diagnostic", label: "Diagnostic", icon: Stethoscope, hint: "En cabine + questionnaire" },
   { id: "caisse", label: "Caisse", icon: AbanIcon, hint: "Point de vente" },
+  { id: "orders", label: "Commandes", icon: ShoppingBag, hint: "Boutique en ligne Kènè" },
   { id: "crm", label: "CRM", icon: OsramIcon, hint: "Clientes & fidélité" },
   { id: "relances", label: "Relances", icon: BellRing, hint: "Suivi post-protocole" },
   { id: "equipe", label: "Équipe", icon: NkonsonkonsonIcon, hint: "Personnel & pointage" },
@@ -61,8 +63,8 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
 const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
   estheticienne: ["agenda", "diagnostic", "parametres"],
   dermo_conseillere: ["agenda", "diagnostic", "crm", "relances", "parametres"],
-  caissiere: ["caisse", "catalogue", "promos", "stock", "parametres"],
-  manager: ["dashboard", "agenda", "diagnostic", "caisse", "crm", "relances", "equipe", "catalogue", "promos", "stock", "abonnement", "parametres"],
+  caissiere: ["caisse", "orders", "catalogue", "promos", "stock", "parametres"],
+  manager: ["dashboard", "agenda", "diagnostic", "caisse", "orders", "crm", "relances", "equipe", "catalogue", "promos", "stock", "abonnement", "parametres"],
 };
 const EMPLOYEE_ROLE_LABELS: Record<string, string> = {
   estheticienne: "Esthéticienne",
@@ -180,6 +182,8 @@ export function ProApp() {
             toast.success("Nouvelle demande de RDV", { description: f.last.label, duration: 6_000 });
           } else if (f.last.type === "order") {
             toast.success("Commande boutique reçue", { description: f.last.label, duration: 6_000 });
+          } else if (f.last.type === "review") {
+            toast.success("Nouvel avis cliente", { description: f.last.label, duration: 6_000 });
           }
         }
       }
@@ -492,6 +496,7 @@ export function ProApp() {
               />
             )}
             {activeSection === "caisse" && <PosSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} refreshKey={refreshKey} />}
+            {activeSection === "orders" && <OrdersSection tenantId={tid} refreshKey={refreshKey} />}
             {activeSection === "crm" && <CrmSection tenantId={tid} onStartDiagnostic={(clientId) => { setDiagCommand({ clientId, nonce: Date.now() }); openSection("diagnostic"); }} />}
             {activeSection === "relances" && <RelancesSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {activeSection === "equipe" && <TeamSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} />}

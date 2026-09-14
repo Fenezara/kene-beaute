@@ -1,8 +1,11 @@
 // POST /api/appointments/[id]/review — avis après RDV + recalcul note institut
+// SYNCHRO CLIENT→INSTITUT: l'avis déposé depuis l'app cliente réveille
+// l'espace Pro en temps réel (pushTenantFeed + ligne Notification adressée
+// à l'institut) — la gérante voit l'avis arriver sans recharger.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError } from "@/lib/kene/server";
+import { jsonError, serverError, notify } from "@/lib/kene/server";
 import { guardUserClaim } from "@/lib/kene/session";
 
 const Body = z.object({
@@ -28,6 +31,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const user = await db.user.findUnique({ where: { id: parsed.data.userId } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);
 
+    // PROPRIÉTÉ: l'avis ne peut porter que sur un RDV de la cliente
+    // elle-même (l'appointmentId étant devinable, un avis « emprunté »
+    // sur le RDV d'une autre est refusé — même garde que l'annulation).
+    if (appointment.userId !== user.id) {
+      return jsonError("Cet avis ne concerne pas votre rendez-vous", 403);
+    }
+
+    // Un seul avis par RDV (appointmentId unique en base): réponse
+    // claire plutôt qu'une erreur P2002 brute au second clic.
+    const existing = await db.review.findUnique({ where: { appointmentId: appointment.id } });
+    if (existing) return jsonError("Un avis a déjà été déposé pour ce rendez-vous", 409);
+
     const review = await db.review.create({
       data: {
         tenantId: appointment.tenantId,
@@ -39,11 +54,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
 
     // Recalcul de la note moyenne de l'institut
-    const agg = await db.review.aggregate({
-      where: { tenantId: appointment.tenantId },
-      _avg: { rating: true },
-      _count: true,
-    });
+    const [agg, tenant] = await Promise.all([
+      db.review.aggregate({
+        where: { tenantId: appointment.tenantId },
+        _avg: { rating: true },
+        _count: true,
+      }),
+      db.tenant.findUnique({ where: { id: appointment.tenantId }, select: { id: true, phone: true } }),
+    ]);
     await db.tenant.update({
       where: { id: appointment.tenantId },
       data: {
@@ -51,6 +69,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         reviewCount: agg._count,
       },
     });
+
+    // Temps réel institut: ligne Notification adressée à l'institut
+    // (traçabilité) + pushTenantFeed → toast « Nouvel avis » sur l'espace
+    // Pro connecté, immédiatement.
+    const stars = "★".repeat(parsed.data.rating);
+    if (tenant) {
+      await notify({
+        tenantId: tenant.id,
+        channel: "whatsapp",
+        toPhone: tenant.phone,
+        message: `Kènè Pro : nouvel avis de ${user.name} — ${stars} (${parsed.data.rating}/5)${parsed.data.comment ? ` « ${parsed.data.comment.slice(0, 140)} »` : ""}`,
+      });
+    }
 
     return NextResponse.json({ review }, { status: 201 });
   } catch (err) {

@@ -1,12 +1,15 @@
 "use client";
-// Kènè Pro — CRM: recherche, segments RFM, fiche cliente (ventes, RDV, diagnostics IA, diagnostics en institut, notes)
+// Kènè Pro — CRM: recherche, segments RFM, fiche cliente (ventes, RDV,
+// commandes boutique, avis, diagnostics IA, diagnostics en institut, notes)
 // — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
-import { FileDown, MessageCircle, Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown } from "lucide-react";
+import { FileDown, MessageCircle, Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown, Save, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { apiGet, apiPatch } from "@/lib/kene/api";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,7 +17,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { apiGet } from "@/lib/kene/api";
 import { xof, formatDate, formatTime, scoreVar } from "@/lib/kene/format";
 import { rfmScore, RFM_SEGMENT_STYLES } from "@/lib/kene/rfm";
 import { RFM_SEGMENTS } from "@/lib/kene/types";
@@ -27,6 +29,8 @@ import { ProEvolutionCard } from "@/components/kene/evolution/ProEvolutionCard";
 import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, InitialAvatar, Money, SectionHeader, KenteTop } from "./ui-bits";
 import { ResultView } from "./DiagnosticsSection";
+import { OrderStatusBadge } from "./OrdersSection";
+import { proToastError } from "./ProApp";
 import type { ProClient, ProClientDetail, ProDiagnosisItem } from "./types";
 
 function useDebounced<T>(value: T, delay = 350): T {
@@ -238,12 +242,39 @@ function ClientSheet({
   onClose: () => void;
   onStartDiagnostic?: (clientId: string) => void;
 }) {
-  // Note locale: chargée au montage (la fiche est re-montée à chaque ouverture)
-  const [note, setNote] = useState(() => (typeof window === "undefined" ? "" : window.localStorage.getItem(`kene-crm-note-${clientId}`) ?? ""));
-  const detail = useApi<ProClientDetail>(() => apiGet<ProClientDetail>(`/api/pro/clients/${clientId}`), [clientId]);
+  // Notes PRIVÉES: persistées sur la fiche ClientProfile (base) — elles
+  // suivent la cliente sur tous les postes et nourrissent la fiche de
+  // consultation PDF (plus de notes locales par poste).
+  const [note, setNote] = useState("");
+  const [noteBusy, setNoteBusy] = useState(false);
+  const [noteLoaded, setNoteLoaded] = useState<string | null>(null);
+  const detail = useApi<ProClientDetail>(
+    () => apiGet<ProClientDetail>(`/api/pro/clients/${clientId}?tenantId=${tenantId}`),
+    [clientId, tenantId]
+  );
 
   const d = detail.data;
   const c = d?.client;
+
+  // Edition: la zone part de la note SERVEUR dès que la fiche est chargée
+  useEffect(() => {
+    if (c && noteLoaded !== c.id) {
+      setNoteLoaded(c.id);
+      setNote(c.notes ?? "");
+    }
+  }, [c, noteLoaded]);
+
+  async function saveNote() {
+    setNoteBusy(true);
+    try {
+      await apiPatch(`/api/pro/clients/${clientId}?tenantId=${tenantId}`, { notes: note.trim() || null });
+      toast.success("Note enregistrée", { description: "Elle apparaîtra sur la fiche de consultation imprimée." });
+    } catch (e) {
+      proToastError(e, "Enregistrement impossible");
+    } finally {
+      setNoteBusy(false);
+    }
+  }
 
  /* Jumeau de Peau — agrégation 3D des diagnostics de la cliente (toutes zones) */
   const twinEntries = useMemo<TwinEntry[]>(
@@ -407,9 +438,11 @@ function ClientSheet({
               {/* Onglets */}
               <Tabs defaultValue="sales">
                 <TabsList className="w-full">
-                  <TabsTrigger value="sales" className="text-xs flex-1">Ventes</TabsTrigger>
-                  <TabsTrigger value="appts" className="text-xs flex-1">RDV</TabsTrigger>
-                  <TabsTrigger value="notes" className="text-xs flex-1">Notes</TabsTrigger>
+                  <TabsTrigger value="sales" className="text-[11px] flex-1">Ventes</TabsTrigger>
+                  <TabsTrigger value="appts" className="text-[11px] flex-1">RDV</TabsTrigger>
+                  <TabsTrigger value="orders" className="text-[11px] flex-1">Commandes</TabsTrigger>
+                  <TabsTrigger value="reviews" className="text-[11px] flex-1">Avis</TabsTrigger>
+                  <TabsTrigger value="notes" className="text-[11px] flex-1">Notes</TabsTrigger>
                 </TabsList>
                 <TabsContent value="sales" className="mt-3">
                   {d.sales.length === 0 ? (
@@ -447,18 +480,66 @@ function ClientSheet({
                     </ul>
                   )}
                 </TabsContent>
+                <TabsContent value="orders" className="mt-3">
+                  {d.orders.length === 0 ? (
+                    <EmptyState label="Aucune commande boutique" sub="Ses commandes de produits Kènè (app) apparaîtront ici." />
+                  ) : (
+                    <ul className="space-y-2 max-h-72 overflow-y-auto pretty-scroll pr-1">
+                      {d.orders.map((o) => (
+                        <li key={o.id} className="rounded-xl border border-border p-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-muted-foreground font-mono">{formatDate(o.createdAt)} {formatTime(o.createdAt)}</span>
+                            <OrderStatusBadge status={o.status} />
+                          </div>
+                          <p className="mt-1 text-xs">{o.items.map((it) => `${it.qty}× ${it.label}`).join(" · ")}</p>
+                          <div className="mt-1 flex items-center justify-between gap-2">
+                            <span className="text-[10px] text-muted-foreground">{o.couponCode ? `Coupon ${o.couponCode} · ` : ""}Voir onglet Commandes pour le suivi</span>
+                            <Money value={o.total} className="text-xs font-semibold" />
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </TabsContent>
+                <TabsContent value="reviews" className="mt-3">
+                  {d.reviews.length === 0 ? (
+                    <EmptyState label="Aucun avis" sub="Ses avis après rendez-vous apparaîtront ici." />
+                  ) : (
+                    <ul className="space-y-2 max-h-72 overflow-y-auto pretty-scroll pr-1">
+                      {d.reviews.map((r) => (
+                        <li key={r.id} className="rounded-xl border border-border p-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-0.5" role="img" aria-label={`Note ${r.rating} sur 5`}>
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Star key={i} className={cn("size-3.5", i < r.rating ? "fill-gold text-gold" : "text-border")} aria-hidden="true" />
+                              ))}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground font-mono">{formatDate(r.createdAt)}</span>
+                          </div>
+                          {r.comment ? <p className="mt-1.5 text-xs leading-relaxed">« {r.comment} »</p> : null}
+                          {r.appointment?.service?.name ? (
+                            <p className="mt-1 text-[10px] text-muted-foreground">Après : {r.appointment.service.name}</p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </TabsContent>
                 <TabsContent value="notes" className="mt-3">
                   <Textarea
                     rows={5}
                     value={note}
-                    onChange={(e) => {
-                      setNote(e.target.value);
-                      window.localStorage.setItem(`kene-crm-note-${c.id}`, e.target.value);
-                    }}
+                    onChange={(e) => setNote(e.target.value)}
                     placeholder="Notes privées sur la cliente (allergies, préférences, conseils…)"
                     aria-label="Notes privées"
                   />
-                  <p className="mt-1 text-[10px] text-muted-foreground">Enregistré localement sur ce poste.</p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="text-[10px] text-muted-foreground">Enregistrée sur la fiche — visible sur tous les postes et la fiche PDF.</p>
+                    <Button size="sm" className="gap-1.5 h-8 font-semibold" disabled={noteBusy} onClick={() => void saveNote()}>
+                      <Save className="size-3.5" aria-hidden="true" />
+                      {noteBusy ? "Enregistrement…" : "Enregistrer"}
+                    </Button>
+                  </div>
                 </TabsContent>
               </Tabs>
             </div>

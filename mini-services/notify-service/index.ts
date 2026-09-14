@@ -113,7 +113,7 @@ async function pollTenant(tenantId: string, reason: string) {
   try {
     const res = await fetch(`${APP}/api/pro/live?tenantId=${encodeURIComponent(tenantId)}`, {
       signal: AbortSignal.timeout(6_000),
-      headers: { "user-agent": "kene-notify-service/1.0" },
+      headers: { "user-agent": "kene-notify-service/1.0", "x-notify-secret": PUSH_SECRET },
     });
     if (!res.ok) {
       log(`poll pro ${reason} → HTTP ${res.status} (silence, cache conservé)`, tenantId);

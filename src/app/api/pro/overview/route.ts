@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const since30 = new Date(now.getTime() - 30 * 86_400_000);
     const completed = { tenantId: tenant.id, status: "completed" as string };
 
-    const [salesToday, agg7, agg30, activeResources, apptsToday, newClients, sales14, sales30d, todayAppts, products] =
+    const [salesToday, agg7, agg30, activeResources, apptsToday, newClients, sales14, sales30d, todayAppts, products, recentReviews] =
       await Promise.all([
         db.sale.findMany({ where: { ...completed, createdAt: { gte: dayStart() } }, select: { total: true } }),
         db.sale.aggregate({ where: { ...completed, createdAt: { gte: since7 } }, _sum: { total: true } }),
@@ -47,6 +47,21 @@ export async function GET(req: NextRequest) {
           orderBy: { startAt: "asc" },
         }),
         db.product.findMany({ where: { tenantId: tenant.id } }),
+        // Derniers avis déposés par les clientes depuis l'app (après RDV) —
+        // remontés au tableau de bord: la gérante voit la parole cliente.
+        db.review.findMany({
+          where: { tenantId: tenant.id },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+            user: { select: { name: true } },
+            appointment: { select: { service: { select: { name: true } } } },
+          },
+        }),
       ]);
 
     const caToday = salesToday.reduce((s, x) => s + x.total, 0);
@@ -114,6 +129,14 @@ export async function GET(req: NextRequest) {
         price: a.price,
       })),
       stockAlerts,
+      recentReviews: recentReviews.map((r) => ({
+        id: r.id,
+        clientName: r.user.name,
+        rating: r.rating,
+        comment: r.comment,
+        serviceName: r.appointment?.service?.name ?? null,
+        createdAt: r.createdAt,
+      })),
     });
   } catch (err) {
     return serverError("pro/overview", err);

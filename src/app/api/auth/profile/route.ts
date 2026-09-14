@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
+import { guardUserClaim } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { checkPhoto } from "@/lib/kene/photo";
@@ -33,6 +34,10 @@ export async function PATCH(req: NextRequest) {
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
+    // Session signée (migration douce): avec cookie, le profil ne peut
+    // bouger que pour le compte de la session; sans cookie → legacy.
+    const guard = guardUserClaim(req, "auth/profile:patch", parsed.data.userId);
+    if (guard) return guard;
     return await runProfile(parsed.data);
   } catch (err) {
     return serverError("auth/profile", err);
@@ -48,6 +53,8 @@ export async function GET(req: NextRequest) {
   try {
     const bridged = decodeBridge(req, Body);
     if (!bridged.ok) return jsonError(`Corps de requête invalide — ${bridged.error}`, 400);
+    const guard = guardUserClaim(req, "auth/profile:get", bridged.data.userId);
+    if (guard) return guard;
     return await runProfile(bridged.data);
   } catch (err) {
     return serverError("auth/profile", err);
@@ -75,6 +82,22 @@ async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
   if (avatarData !== undefined) update.avatarData = avatarData;
 
   const updated = await db.user.update({ where: { id: userId }, data: update });
+
+  // MIROIR PEAU → CRM: le type de peau / phototype déclaré par la
+  // cliente dans SON app doit se répercuter À CHAUD sur toutes ses
+  // fiches ClientProfile (un par institut) — sinon l'institut consulte
+  // un miroir périmé jusqu'au prochain RDV/commande (ensureClientProfile
+  // ne resynchronise qu'à cette occasion).
+  if (update.skinType !== undefined || update.fitzpatrick !== undefined) {
+    await db.clientProfile.updateMany({
+      where: { userId },
+      data: {
+        ...(update.skinType !== undefined ? { skinType: (update.skinType as string | null) ?? null } : {}),
+        ...(update.fitzpatrick !== undefined ? { fitzpatrick: (update.fitzpatrick as string | null) ?? null } : {}),
+      },
+    });
+  }
+
   const { avatarData: _ad, ...safe } = updated;
   return NextResponse.json({ user: { ...safe, hasAvatar: Boolean(_ad) } });
 }

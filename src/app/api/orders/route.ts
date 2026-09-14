@@ -110,6 +110,9 @@ export async function POST(req: NextRequest) {
       total: l.total,
     }));
 
+    // Instituts concernés par la commande (produits maison → aucun).
+    const orderTenantIds = [...new Set(lines.map((l) => l.product.tenantId).filter((t): t is string => Boolean(t)))];
+
     // ─── Transaction atomique: commande + coupon + paiement + wallet + stock ───
     const created = await db.$transaction(async (tx) => {
       const order = await tx.order.create({
@@ -120,7 +123,6 @@ export async function POST(req: NextRequest) {
       // entreprise = un « contact » — la cliente de l'app apparaît dans le CRM
       // de CETTE entreprise (fiche liée userId, miroir peau). Les produits
       // maison Kènè (tenantId null) ne créent rien.
-      const orderTenantIds = [...new Set(lines.map((l) => l.product.tenantId).filter((t): t is string => Boolean(t)))];
       for (const tid of orderTenantIds) {
         await ensureClientProfile(tx, tid, {
           id: user.id,
@@ -201,6 +203,9 @@ export async function POST(req: NextRequest) {
 
       await notify({
         userId,
+        // Rattachement institut si la commande ne concerne qu'un seul
+        // institut (commande mono-boutique) — trace et temps réel cohérents.
+        tenantId: orderTenantIds.length === 1 ? orderTenantIds[0] : null,
         channel: "sms",
         toPhone: user.phone,
         message: `Kènè : commande ${order.id.slice(-6).toUpperCase()} enregistrée (${xof(total)}${discount ? `, remise ${xof(discount)} appliquée` : ""}${cashback ? `, ${xof(cashback)} de cashback` : ""}). Réf paiement ${paymentRef}.`,

@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       }),
       db.appointment.findMany({
         where: { userId, startAt: { gte: new Date(now.getTime() - 12 * HOUR) }, status: { in: ["confirmed", "completed"] } },
-        select: { id: true, startAt: true, status: true, service: { select: { name: true } }, tenant: { select: { name: true } } },
+        select: { id: true, startAt: true, status: true, service: { select: { name: true } }, tenant: { select: { id: true, name: true } } },
         orderBy: { startAt: "asc" },
       }),
       // Couverture: méta des notifications scheduled + sent des 60 derniers
@@ -77,6 +77,7 @@ export async function GET(req: NextRequest) {
 
     const toCreate: {
       userId: string;
+      tenantId?: string | null;
       channel: string;
       toPhone: string;
       message: string;
@@ -110,6 +111,9 @@ export async function GET(req: NextRequest) {
       if (fireAt.getTime() < now.getTime() - 24 * HOUR) continue; // fenêtre J-1 dépassée
       toCreate.push({
         userId,
+        // Rattachement institut (cohérent avec les rappels J-1 créés à la
+        // réservation/confirmation : la ligne reste liée à l'institut du RDV).
+        tenantId: a.tenant?.id ?? null,
         channel: "whatsapp",
         toPhone: user.phone,
         message: `Kènè ✨ ${first}, petit rappel : ${a.service?.name ?? "ton soin"} chez ${a.tenant?.name ?? "l'institut"} le ${new Date(a.startAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}. Préviens-nous si tu dois déplacer, sinon on t'attend avec plaisir !`,

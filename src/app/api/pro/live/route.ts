@@ -2,13 +2,17 @@
 // Payload VOLONTAIREMENT léger et diffable: le mini-service notify-service le
 // sérialise et n'émet `tenant-feed` que si la sérialisation change (compteur
 // qui bouge, dernier événement qui change). Jamais de liste lourde ici.
+// ACCÈS: session pro/admin OU secret de service (x-notify-secret, le
+// notify-service qui poll sans cookie) — le port 3000 étant exposé, ce
+// flux (prénoms clientes, montants) n'est plus anonymement lisible.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, dayStart, dayEnd } from "@/lib/kene/server";
+import { sessionFromRequest } from "@/lib/kene/session";
 import { xof } from "@/lib/kene/format";
 
 interface LiveEvent {
-  type: "appointment" | "order" | "sale";
+  type: "appointment" | "order" | "sale" | "review";
   id: string;
   at: string;
   label: string;
@@ -17,11 +21,23 @@ interface LiveEvent {
 
 export async function GET(req: NextRequest) {
   try {
+    // Garde d'accès STRICTE (flux machine): secret de service (notify-service)
+    // OU session pro/admin valide. Pas de mode legacy sans cookie ici — ce
+    // flux n'est jamais consommé directement par le navigateur (il passe par
+    // la socket du notify-service), et il expose prénoms et montants.
+    const secret = req.headers.get("x-notify-secret");
+    if (secret !== (process.env.PUSH_SECRET ?? "kene-push-secret")) {
+      const sess = sessionFromRequest(req);
+      if (!sess || (sess.role !== "pro" && sess.role !== "admin")) {
+        return jsonError("Accès réservé au service temps réel", 401);
+      }
+    }
+
     const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
     const now = new Date();
 
-    const [pendingAppts, apptsToday, aggToday, ordersToday, lastAppt, lastOrder, lastSale] = await Promise.all([
+    const [pendingAppts, apptsToday, aggToday, ordersToday, lastAppt, lastOrder, lastSale, lastReview] = await Promise.all([
       // RDV réservés par des clientes, à confirmer par l'institut
       db.appointment.count({ where: { tenantId: tenant.id, status: "pending", startAt: { gte: now } } }),
       db.appointment.count({
@@ -44,6 +60,12 @@ export async function GET(req: NextRequest) {
         where: { tenantId: tenant.id, status: "completed" },
         orderBy: { createdAt: "desc" },
         select: { id: true, total: true, createdAt: true, paymentMethod: true },
+      }),
+      // Dernier avis déposé par une cliente depuis l'app (toasts « Nouvel avis »)
+      db.review.findFirst({
+        where: { tenantId: tenant.id },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, rating: true, createdAt: true, user: { select: { name: true } } },
       }),
     ]);
 
@@ -72,6 +94,14 @@ export async function GET(req: NextRequest) {
         id: lastSale.id,
         at: lastSale.createdAt.toISOString(),
         label: `${xof(lastSale.total)} · ${lastSale.paymentMethod}`,
+      });
+    }
+    if (lastReview) {
+      candidates.push({
+        type: "review",
+        id: lastReview.id,
+        at: lastReview.createdAt.toISOString(),
+        label: `${"★".repeat(lastReview.rating)} (${lastReview.rating}/5) · ${lastReview.user?.name ?? "cliente"}`,
       });
     }
     candidates.sort((a, b) => (a.at < b.at ? 1 : -1));

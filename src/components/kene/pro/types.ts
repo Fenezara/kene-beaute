@@ -22,7 +22,7 @@ export type PaymentMethod = "wave" | "orange" | "cash" | "card";
 
 // ─────────────── Flux temps réel institut (/api/pro/live) ───────────────
 export interface ProLiveEvent {
-  type: "appointment" | "order" | "sale";
+  type: "appointment" | "order" | "sale" | "review";
   id: string;
   at: string;
   label: string;
@@ -74,6 +74,7 @@ export interface ProOverview {
   topServices: { name: string; count: number; total: number }[];
   todayAppointments: TodayAppointment[];
   stockAlerts: StockAlertItem[];
+  recentReviews?: ProReviewView[];
 }
 
 // ─────────────── Agenda ───────────────
@@ -144,6 +145,55 @@ export interface ProClientDetail {
     resultJson: string;
   }[];
   proDiagnoses: ProDiagnosisItem[];
+  orders: ProOrderView[];
+  reviews: ProReviewView[];
+}
+
+// ─────────────── Commandes boutique (/api/pro/orders) ───────────────
+
+export interface ProOrderItemView {
+  label: string;
+  qty: number;
+  unitPrice: number;
+  total: number;
+  mine: boolean; // article de CET institut (commande mixte possible)
+}
+
+export interface ProOrderView {
+  id: string;
+  createdAt: string;
+  status: string; // pending | paid | delivered | cancelled
+  clientName: string;
+  clientPhone: string;
+  items: ProOrderItemView[];
+  total: number;
+  discount: number;
+  couponCode?: string | null;
+  ownTotal: number; // CA de cet institut dans la commande
+  payment: { method: string; status: string; ref: string } | null;
+}
+
+export interface ProOrdersKpis {
+  today: number;
+  toPay: number;
+  toDeliver: number;
+  revenue30d: number;
+}
+
+export interface ProOrdersResponse {
+  orders: ProOrderView[];
+  kpis: ProOrdersKpis;
+}
+
+// ─────────────── Avis clientes ───────────────
+
+export interface ProReviewView {
+  id: string;
+  clientName?: string; // absent dans la fiche 360° (le nom est déjà dans l'en-tête)
+  rating: number;
+  comment?: string | null;
+  serviceName?: string | null;
+  createdAt: string;
 }
 
 // ─────────────── Diagnostic en institut (questionnaire ± photo) ───────────────

@@ -218,9 +218,11 @@ export function guardUserClaim(
 }
 
 /**
- * Garde /api/pro/**: SI un cookie de session valide est présent, le rôle doit
- * être « pro » (ou « admin ») → sinon 403 « Espace entreprise réservé aux
- * comptes pro ». SANS cookie (notify-service, sessions legacy): inchangé.
+ * Garde /api/pro/**: exige une session signée de rôle « pro » (ou « admin »).
+ * Fin du mode legacy sans cookie: le port 3000 étant exposé, les routes pro
+ * (données clientes, paie, caisse) ne sont plus accessibles anonymement.
+ * Le notify-service, lui, passe par /api/pro/live avec son secret de service
+ * (x-notify-secret) — il ne transite pas par cette garde.
  */
 export function guardProRole(req: NextRequest, routePath: string): NextResponse | null {
   const sess = sessionFromRequest(req);
@@ -231,7 +233,7 @@ export function guardProRole(req: NextRequest, routePath: string): NextResponse 
     return null;
   }
   warnLegacyNoCookie(routePath);
-  return null;
+  return sessionError("Session requise — reconnecte-toi à l'espace entreprise", 401);
 }
 
 /**
