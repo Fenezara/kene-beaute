@@ -2916,3 +2916,17 @@ Stage Summary:
 - RÈGLES MÉTIER POSEES : jours ouverts = tous les jours sauf dimanche (semaine des instituts) ; solde estimé 2 j/mois plafond 24 j, maladie/maternité hors solde ; chevauchement interdit ; décision réservée aux pending ; isolation stricte par institut (404 cross-tenant, 401 anonyme — mêmes gardes que tout /api/pro).
 - CHOIX ASSUMÉ : l'auto-demande par l'employée depuis son espace app (les employées ont des comptes mais pas de section Équipe) reste un chantier futur ; aujourd'hui la gérante enregistre ce qui lui est demandé à l'oral — le flux du petit institut.
 - LEÇONS : (1) le SW a resservi le bundle d'avant-hier au 1er chargement — purge systématique avant tout E2E post-édition ; (2) un modèle « présent mais non exposé » (LeaveRequest) n'est jamais « déjà fait » : ses champs datent d'un seed initial (status approved par défaut, pas de tenantId) — l'enrichir fut le vrai travail ; (3) pour piloter un input date React depuis agent-browser, passer par le setter natif + événement input (le fill direct des spinbuttons month/day/year est fragile) ; (4) les compteurs calculés du DOM (jours ouverts) ne sortent pas dans l'arbre a11y — les vérifier par eval textuel.
+---
+Task ID: t.126
+Agent: agent principal (Z.ai Code)
+Task: « les documents sont ils a jours ? » — re-vérification documentaire après la livraison t. 125 (congés & absences).
+
+Work Log:
+- CONTEXTE : depuis l'audit t. 124, la tâche déléguée « fait ton meilleur choix » a été exécutée (t. 125 = congés du personnel) — il fallait donc confirmer que sa documentation avait bien suivi.
+- README vérifié par énumération réelle : find src/app/api -name route.ts = **75 fichiers** = « 75 routes » documentées (zéro dérive, la leçon t. 124 appliquée) ; famille leaves présente dans l'arbre (GET+POST+PATCH — congés & absences) ; paragraphe Pro enrichi du bloc Congés & absences (t. 125) ; backlog : ~~congés & absences~~ ✅ (t. 125) coché, restent documentés externes : OTP réel (passerelle SMS), paiements réels Wave/OM (identifiants marchands), voix TTS natives.
+- JOURNAL (worklog.md) : entrées t. 124 (audit documentaire) et t. 125 (congés — choix, schéma, API, UI, E2E API + navigateur, VLM, leçons) complètes et conformes au format (citation de la demande, travail, leçons).
+- RUNTIME : dev :3000 sain — dev.log en 200 (dont la balise POST /api/health/echo active), aucun ⨯.
+
+Stage Summary:
+- RÉPONSE : oui — README (75 routes exactes, congés documentés, backlog à jour), journal (t. 1 → t. 126 complet), runtime sain. Rien à corriger.
+- CONFIRMATION : la discipline « documenter en même temps que livrer » a tenu sur t. 125 — l'audit de ce jour n'a trouvé AUCUN écart, contrairement à t. 124 qui en avait trouvé 4.
