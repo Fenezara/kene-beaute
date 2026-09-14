@@ -24,6 +24,7 @@ import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES } from "./types";
 import { SectionTitle } from "./bits";
 import { ParrainageCard } from "./ParrainageCard";
 import { PassportCard } from "./PassportCard";
+import { SharesCard } from "./SharesCard";
 
 /** SessionUser + goals (string JSON) renvoyé par PATCH profile */
 type ClientUser = SessionUser & { goals?: string | null };
@@ -432,6 +433,11 @@ export function ProfileScreen() {
       <div id="kene-passport" className="scroll-mt-20">
         <PassportCard userId={user.id} />
       </div>
+
+      {/* Partage des self-scans — la cliente décide, institut par institut */}
+      <RevealItem>
+        <SharesCard userId={user.id} userName={user.name} />
+      </RevealItem>
 
       {/* Passerelle Paramètres — les réglages de l'application
  (apparence, langue, notifications, sécurité, RGPD, PWA, session)

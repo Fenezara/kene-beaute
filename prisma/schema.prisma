@@ -636,10 +636,15 @@ model Consent {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String // health_data | photo_storage | marketing | whatsapp
+  type      String // health_data | photo_storage | marketing | whatsapp | share_scans
+  // Pour type = share_scans: institut concerné par le partage des self-scans
+  // (null pour les consentements globaux du compte).
+  tenantId  String?
   granted   Boolean
   ip        String?
   createdAt DateTime @default(now())
+
+  @@index([userId, type, tenantId])
 }
 
 model AuditLog {

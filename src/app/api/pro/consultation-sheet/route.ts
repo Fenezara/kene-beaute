@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
+import { isScansShared } from "@/lib/kene/share-consent";
 import { consultationSheetPdf, consultationSheetFilename, type ConsultationClientPrefill } from "@/lib/kene/consultation-pdf";
 
 export const runtime = "nodejs";
@@ -33,7 +34,10 @@ export async function GET(req: NextRequest) {
       const linkedUser = client.userId
         ? await db.user.findUnique({ where: { id: client.userId }, select: { allergies: true } })
         : null;
-      const scans = client.userId
+      // Self-scans: uniquement si la cliente a explicitement partagé son
+      // historique avec CET institut (consentement révocable depuis son app).
+      const scansShared = client.userId ? await isScansShared(client.userId, tenant.id) : false;
+      const scans = client.userId && scansShared
         ? await db.diagnosis.findMany({
             where: { userId: client.userId, status: "done" },
             orderBy: { createdAt: "desc" },
@@ -48,6 +52,7 @@ export async function GET(req: NextRequest) {
         fitzpatrick: client.fitzpatrick,
         notes: client.notes,
         appAccount: Boolean(client.userId),
+        scansShared,
         scans: scans.map((s) => ({ zone: s.zone, score: s.scoreGlobal, date: s.createdAt.toISOString() })),
       };
       // Allergies du compte app (miroir santé) reportées sur le papier.

@@ -73,6 +73,14 @@ export async function GET(req: NextRequest) {
       ? await db.walletTransaction.findMany({ where: { walletId: walletRec.id }, orderBy: { createdAt: "desc" } })
       : [];
 
+    // Instituts nommés pour les consentements de partage self-scans (le
+    // tenantId brut n'est pas lisible dans un export destiné à la cliente).
+    const consentTenantIds = [...new Set(consents.map((c) => c.tenantId).filter((t): t is string => !!t))];
+    const consentTenants = consentTenantIds.length
+      ? await db.tenant.findMany({ where: { id: { in: consentTenantIds } }, select: { id: true, name: true } })
+      : [];
+    const tenantNameOf = new Map(consentTenants.map((t) => [t.id, t.name]));
+
     // ── Parrainage ──
     let referredBy: { name: string } | null = null;
     if (user.referredBy) {
@@ -110,7 +118,13 @@ export async function GET(req: NextRequest) {
         filleuls: filleuls.map((f) => ({ nom: f.name, depuis: iso(f.createdAt) })),
         inscriteLe: iso(user.createdAt),
       },
-      consentements: consents.map((c) => ({ type: c.type, accorde: c.granted, date: iso(c.createdAt), ip: c.ip })),
+      consentements: consents.map((c) => ({
+        type: c.type,
+        accorde: c.granted,
+        institut: c.tenantId ? tenantNameOf.get(c.tenantId) ?? null : null,
+        date: iso(c.createdAt),
+        ip: c.ip,
+      })),
       diagnostics: diagnoses.map((d) => ({
         zone: d.zone,
         scoreGlobal: d.scoreGlobal,

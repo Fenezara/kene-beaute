@@ -4,7 +4,7 @@
 // — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
-import { FileDown, MessageCircle, Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown, Save, Star } from "lucide-react";
+import { FileDown, Lock, MessageCircle, Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown, Save, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -403,8 +403,22 @@ function ClientSheet({
                 )}
               </section>
 
-              {/* Diagnostics liés */}
-              {c.userId && (
+              {/* Diagnostics liés — soumis au partage explicite de la
+             cliente (case à la réservation ou carte « Partage » de son app). */}
+              {c.userId && !d.scansShared && (
+                <section aria-label="Diagnostics Kènè non partagés">
+                  <div className="flex items-start gap-2.5 rounded-xl border border-dashed border-border bg-muted/40 p-3">
+                    <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      <strong className="text-foreground">{(c.name.split(/\s+/)[0] ?? c.name)} n&apos;a pas partagé ses self-scans.</strong>{" "}
+                      Elle a un compte Kènè mais choisit, institut par institut, qui voit l&apos;historique de ses
+                      diagnostics — c&apos;est elle qui active le partage depuis son app. Son profil de base (type de
+                      peau, phototype) reste partagé avec votre institut, et vos diagnostics cabine restent enregistrés.
+                    </p>
+                  </div>
+                </section>
+              )}
+              {c.userId && d.scansShared && (
                 <section aria-label="Diagnostics IA liés">
                   <h4 className="font-heading text-sm font-bold mb-2">Diagnostics Kènè ({d.diagnoses.length})</h4>
                   {/* Jumeau de Peau — agrégation 3D de tous les diagnostics de la cliente */}

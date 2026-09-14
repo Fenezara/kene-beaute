@@ -13,6 +13,7 @@ import { cancellationRefund } from "@/lib/kene/rfm";
 import { waLink } from "@/lib/kene/followups";
 import { SankofaIcon } from "@/components/kene/icons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Chip, IconBadge, PrimaryCTA, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useKene } from "@/store/kene";
@@ -51,6 +52,12 @@ export function BookingScreen() {
   const [paying, setPaying] = useState(false);
   const [payOverlay, setPayOverlay] = useState<{ phase: "processing" | "done"; amount: number } | null>(null);
   const [confirmed, setConfirmed] = useState<ApiAppointment | null>(null);
+
+  // Partage des self-scans avec l'institut choisi: consentement EXPLICITE
+  // (case décochée par défaut). État initial = dernier choix connu pour CET
+  // institut ; l'accord n'est enregistré qu'une fois la réservation réussie
+  // (la fiche CRM — créée par le RDV — doit exister pour pouvoir partager).
+  const [scanShare, setScanShare] = useState<{ granted: boolean; initial: boolean; scansTotal: number } | null>(null);
 
   // Sécurité renforcée (2FA-lite): si activée ET acompte payant, la cliente
   // re-vérifie son code AVANT la confirmation du RDV (voir startBook + SecureVerify).
@@ -110,6 +117,14 @@ export function BookingScreen() {
     setSlot(null);
     setSlots(null);
     setDetailLoading(true);
+    // État de partage self-scans pour CET institut (non bloquant: pas de
+    // case affichée si l'état est inconnu ou si la cliente n'a aucun scan).
+    apiGet<{ scansTotal: number; shares: { tenantId: string; granted: boolean }[] }>(`/api/auth/shares?userId=${user.id}`)
+      .then((r) => {
+        const mine = r.shares.find((s) => s.tenantId === i.id);
+        setScanShare({ granted: mine?.granted ?? false, initial: mine?.granted ?? false, scansTotal: r.scansTotal });
+      })
+      .catch(() => setScanShare(null));
     try {
       const r = await apiGet<{ institute: ApiInstitute; services: ApiService[]; resources: ApiResource[]; reviews: ApiReview[] }>(`/api/institutes/${i.id}`);
       setServices(r.services ?? []);
@@ -200,6 +215,18 @@ export function BookingScreen() {
       haptic(HAPTIC.success);
       setTimeout(() => setPayOverlay(null), 1400);
       setConfirmed(r.appointment);
+      // Consentement de partage self-scans: enregistré une fois la fiche CRM
+      // créée par le RDV (silencieux en cas d'échec — révocable depuis le profil).
+      if (scanShare?.granted && !scanShare.initial) {
+        apiPost("/api/auth/shares", { userId: user.id, tenantId: inst.id, granted: true })
+          .then(() => {
+            toast.success(`Diagnostics partagés avec ${inst.name}`, {
+              description: "Ton esthéticienne voit ton historique de scans pour personnaliser tes soins.",
+            });
+            setScanShare({ ...scanShare, initial: true });
+          })
+          .catch(() => {});
+      }
       const w = await apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).catch(() => null);
       if (w) setWallet(w.wallet);
     } catch (e) {
@@ -498,6 +525,27 @@ export function BookingScreen() {
                         <p className="flex justify-between border-t border-dashed border-border pt-1.5"><span className="font-semibold">Acompte 30 % (aujourd&apos;hui)</span><span className="font-mono font-black tabular-nums text-primary">{xof(deposit)}</span></p>
                         <p className="text-[10px] text-muted-foreground">Solde de {xof(service.price - deposit)} à régler sur place. Annulation gratuite &gt; 72 h.</p>
                       </div>
+
+                      {/* Consentement explicite: partage de l'historique de
+                     self-scans avec CET institut (décoché par défaut). */}
+                      {scanShare && scanShare.scansTotal > 0 && (
+                        <div className="mt-4 rounded-2xl border border-dashed border-border bg-muted/30 p-3">
+                          <div className="flex items-start gap-2.5">
+                            <Checkbox
+                              id="share-scans"
+                              checked={scanShare.granted}
+                              onCheckedChange={(v) => setScanShare({ ...scanShare, granted: v === true })}
+                              className="mt-0.5"
+                            />
+                            <label htmlFor="share-scans" className="cursor-pointer text-[11px] leading-relaxed">
+                              <span className="font-semibold">Partager mes {scanShare.scansTotal} diagnostics de peau avec {inst.name}</span>
+                              <span className="text-muted-foreground">
+                                {" "}— pour que mon esthéticienne personnalise mes soins. Je peux retirer ce partage à tout moment depuis mon profil.
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      )}
 
                       <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">Payer l&apos;acompte avec</p>
                       {securityEnabled && deposit > 0 && (

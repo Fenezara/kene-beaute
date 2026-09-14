@@ -68,6 +68,10 @@ export function LegalScreen() {
               <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 rounded-full bg-gold shrink-0" />
               <span><strong className="font-semibold">Rétention des photos :</strong> les photos de diagnostic sont conservées pour ton historique ; la purge automatique à 90 jours est prévue — en attendant, elles restent attachées à ton compte tant que tu ne le supprimes pas.</span>
             </li>
+            <li className="flex gap-2">
+              <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 rounded-full bg-gold shrink-0" />
+              <span><strong className="font-semibold">Partage avec les instituts :</strong> un institut ne voit l&apos;historique de tes self-scans que si tu l&apos;acceptes — case à la réservation ou carte « Partage » de ton profil, institut par institut, révocable à tout moment. Ton profil de base (type de peau, phototype) seul est transmis pour préparer tes soins.</span>
+            </li>
           </ul>
         </section>
       </RevealItem>

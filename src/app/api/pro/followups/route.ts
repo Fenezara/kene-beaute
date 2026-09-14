@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, notify } from "@/lib/kene/server";
 import { buildFollowUps } from "@/lib/kene/followups";
 import { guardProRole } from "@/lib/kene/session";
+import { sharedScanUserIds } from "@/lib/kene/share-consent";
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,7 +30,12 @@ export async function GET(req: NextRequest) {
       db.followUpMark.findMany({ where: { tenantId: tenant.id } }),
     ]);
 
-    const userIds = clients.map((c) => c.userId).filter((u): u is string => !!u);
+    // Self-scans: seules les clientes qui ont EXPLICITEMENT partagé leur
+    // historique avec cet institut alimentent les relances « contrôle
+    // post-protocole » — un scan non partagé ne doit même pas transparaître
+    // ici (sinon la relance révélerait l'existence du scan).
+    const linkedUserIds = clients.map((c) => c.userId).filter((u): u is string => !!u);
+    const userIds = [...(await sharedScanUserIds(linkedUserIds, tenant.id))];
     const [diagnoses, sales] = await Promise.all([
       userIds.length
         ? db.diagnosis.findMany({

@@ -147,6 +147,8 @@ export interface ProClientDetail {
   proDiagnoses: ProDiagnosisItem[];
   orders: ProOrderView[];
   reviews: ProReviewView[];
+  /** la cliente a-t-elle partagé ses self-scans avec CET institut ? */
+  scansShared: boolean;
 }
 
 // ─────────────── Commandes boutique (/api/pro/orders) ───────────────
@@ -194,6 +196,8 @@ export interface ProReviewView {
   comment?: string | null;
   serviceName?: string | null;
   createdAt: string;
+  /** fiche 360°: le RDV d'où vient l'avis (soin concerné) */
+  appointment?: { service?: { name?: string | null } | null } | null;
 }
 
 // ─────────────── Diagnostic en institut (questionnaire ± photo) ───────────────

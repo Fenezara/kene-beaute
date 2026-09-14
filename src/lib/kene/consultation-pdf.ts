@@ -83,6 +83,8 @@ export interface ConsultationClientPrefill {
  /** derniers self-scans Kènè (si compte lié): { zone, score, date } */
   scans?: { zone: string; score: number; date: string }[];
   appAccount?: boolean;
+  /** la cliente a-t-elle partagé ses self-scans avec cet institut ? */
+  scansShared?: boolean;
 }
 
 export function consultationSheetPdf(input: {
@@ -131,7 +133,14 @@ export function consultationSheetPdf(input: {
   }
   doc.advance(26);
   if (c?.appAccount) {
-    doc.text("Cliente sur l'app Kènè — ses self-scans et son jumeau de peau sont visibles dans la fiche CRM.", M_X, doc.cursorY, { size: 7.5, color: SOFT, font: "oblique" });
+    doc.text(
+      c.scansShared
+        ? "Cliente sur l'app Kènè — elle a partagé ses self-scans : historique visible dans la fiche CRM."
+        : "Cliente sur l'app Kènè — elle n'a pas (encore) partagé ses self-scans : elle le fait depuis son app, institut par institut.",
+      M_X,
+      doc.cursorY,
+      { size: 7.5, color: SOFT, font: "oblique" },
+    );
     doc.advance(13);
   }
 
