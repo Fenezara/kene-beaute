@@ -273,7 +273,7 @@ export default function KenteWeaveScene({
       aria-hidden
       dpr={[1, 1.35]}
       frameloop={frameloop}
-      camera={{ fov: 42, position: [0, 0.05, 3.6], near: 0.1, far: 30 }}
+      camera={{ fov: 42, position: [0, 0.04, 2.5], near: 0.1, far: 30 }}
       gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       style={{ position: "absolute", inset: 0 }}
     >

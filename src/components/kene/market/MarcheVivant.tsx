@@ -36,7 +36,7 @@ const DRAG_RANGE_PX = 140; // largeur de doigt pour parcourir ±10°
 /** Auvent stylisé d'une échoppe — petit SVG inline (aucun asset). */
 function StallAwning({ color }: { color: string }) {
   return (
-    <svg viewBox="0 0 64 44" aria-hidden="true" className="h-[44px] w-[64px]">
+    <svg viewBox="0 0 64 44" aria-hidden="true" className="h-[36px] w-[52px]">
       {/* auvent trapèze + liserés */}
       <path d="M6 6 L58 6 L62 20 L2 20 Z" fill={color} opacity="0.92" />
       <path d="M6 6 L58 6 L62 20 L2 20 Z" fill="none" stroke="#241A10" strokeWidth="1" opacity="0.35" />
@@ -57,7 +57,7 @@ function StallAwning({ color }: { color: string }) {
 /** La guirlande de lanternes — arc + points chauds (statique, décorative). */
 function GarlandSvg() {
   return (
-    <svg viewBox="0 0 400 34" preserveAspectRatio="none" aria-hidden="true" className="h-[34px] w-full">
+    <svg viewBox="0 0 400 34" preserveAspectRatio="none" aria-hidden="true" className="h-[26px] w-full">
       <path d="M-4 8 C 100 30, 300 30, 404 8" fill="none" stroke="#3A2A1A" strokeWidth="1.4" />
       { [0.1, 0.22, 0.34, 0.46, 0.58, 0.7, 0.82, 0.94].map((t, i) => {
         const x = 400 * t;
@@ -76,26 +76,26 @@ function MarketStatic({ onStallTap }: { onStallTap: (index: number) => void }) {
       <div className="absolute inset-0 bg-[radial-gradient(120%_130%_at_50%_115%,#3A2A1A_0%,#241A10_62%,#1A1410_100%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(closest-side_at_50%_60%,rgba(200,149,30,0.12),transparent_80%)]" />
       {/* guirlande tendue en haut du bandeau */}
-      <div className="absolute inset-x-0 top-1 px-2">
+      <div className="absolute inset-x-0 top-0.5 px-2">
         <GarlandSvg />
       </div>
       {/* les 4 échoppes cliquables */}
-      <div className="absolute inset-x-3 top-[52px] grid grid-cols-4 gap-1.5">
+      <div className="absolute inset-x-3 top-[38px] grid grid-cols-4 gap-1.5">
         {MARKET_STALLS.map((s, i) => (
           <button
             key={s.category}
             type="button"
             onClick={() => onStallTap(i)}
             aria-label={`Visiter l'échoppe ${s.name} — voir les produits`}
-            className="group flex flex-col items-center rounded-2xl border border-[#C8951E]/20 bg-[#1A1410]/60 px-1 pt-2 pb-1.5 text-center transition-colors hover:border-[#C8951E]/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#C8951E]"
+            className="group flex flex-col items-center rounded-2xl border border-[#C8951E]/20 bg-[#1A1410]/60 px-1 pt-1.5 pb-1 text-center transition-colors hover:border-[#C8951E]/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#C8951E]"
           >
             <StallAwning color={s.color} />
-            <span className="mt-1.5 text-[9.5px] font-bold leading-tight text-[#F8F1E4]">{s.name}</span>
+            <span className="mt-1 text-[9px] font-bold leading-tight text-[#F8F1E4]">{s.name}</span>
           </button>
         ))}
       </div>
       {/* sol de terre battue */}
-      <div className="absolute inset-x-0 bottom-0 h-[38px] bg-gradient-to-b from-[#8D5524]/70 to-[#53341E]/80" />
+      <div className="absolute inset-x-0 bottom-0 h-[22px] bg-gradient-to-b from-[#8D5524]/70 to-[#53341E]/80" />
     </div>
   );
 }
@@ -155,11 +155,11 @@ export function MarcheVivant({ onSelectCategory }: { onSelectCategory: (category
   const sel = selected != null ? MARKET_STALLS[selected] : null;
 
   return (
-    <section aria-label="Le Marché vivant — choisis une échoppe pour découvrir une famille de soins" className="relative mt-4">
+    <section aria-label="Le Marché vivant — choisis une échoppe pour découvrir une famille de soins" className="relative mt-3">
       <div
         ref={stageRef}
         className={cn(
-          "relative h-[280px] overflow-hidden rounded-[26px] border border-border shadow-md select-none sm:h-[300px]",
+          "relative h-[190px] overflow-hidden rounded-[26px] border border-border shadow-md select-none sm:h-[210px]",
           full && "touch-pan-y cursor-grab active:cursor-grabbing",
         )}
         onPointerDown={onPointerDown}
@@ -170,27 +170,24 @@ export function MarcheVivant({ onSelectCategory }: { onSelectCategory: (category
         {full ? <MarketScene stalls={MARKET_STALLS} refs={refs} onStallTap={handleStallTap} active={active} /> : <MarketStatic onStallTap={handleStallTap} />}
 
         {/* Titre HTML superposé (au-dessus du canvas, jamais bloqué par lui) */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-4">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 px-3 pt-2.5">
           <div className="inline-flex flex-col rounded-2xl">
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#E3B04B]">La boutique Kènè</p>
-            <h2 className="font-heading font-black text-[20px] leading-tight text-[#F8F1E4] drop-shadow-[0_2px_8px_rgba(26,20,16,0.8)]">
+            <p className="text-[8.5px] font-bold uppercase tracking-[0.2em] text-[#E3B04B]">La boutique Kènè</p>
+            <h2 className="font-heading font-black text-[16px] leading-tight text-[#F8F1E4] drop-shadow-[0_2px_8px_rgba(26,20,16,0.8)]">
               Le Marché vivant
             </h2>
-            <p className="mt-0.5 text-[11px] font-medium text-[#F8F1E4]/80 drop-shadow-[0_1px_4px_rgba(26,20,16,0.9)]">
-              Touche une échoppe {full ? "· glisse pour pivoter" : ""}
-            </p>
           </div>
         </div>
 
         {/* Affordance drag (plein mode seulement, discret) */}
         {full && (
-          <div className="pointer-events-none absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full border border-[#F8F1E4]/15 bg-[#1A1410]/70 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#F8F1E4]/70">
+          <div className="pointer-events-none absolute right-2.5 top-2 z-10 flex items-center gap-1 rounded-full border border-[#F8F1E4]/15 bg-[#1A1410]/70 px-2 py-0.5 text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[#F8F1E4]/70">
             <Hand size={11} aria-hidden="true" /> Glisser
           </div>
         )}
 
         {/* Bandeau du bas : la famille de produits sélectionnée (ou l'invite) */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 p-3">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 p-2">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={sel ? sel.category : "invite"}
@@ -198,21 +195,21 @@ export function MarcheVivant({ onSelectCategory }: { onSelectCategory: (category
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 6 }}
               transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              className="mx-auto flex max-w-[380px] items-center gap-2.5 rounded-2xl border border-[#C8951E]/30 bg-[#1A1410]/85 px-3.5 py-2.5 backdrop-blur-[2px]"
+              className="mx-auto flex max-w-[340px] items-center gap-2 rounded-xl border border-[#C8951E]/30 bg-[#1A1410]/85 px-3 py-1.5 backdrop-blur-[2px]"
             >
               {sel ? (
                 <>
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#C8951E]/15 text-[#E3B04B]">
-                    <Store size={15} aria-hidden="true" />
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-[#C8951E]/15 text-[#E3B04B]">
+                    <Store size={12} aria-hidden="true" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-bold text-[#F8F1E4]">{sel.name}</span>
-                    <span className="block text-[10px] text-[#F8F1E4]/65">La sélection descend vers toi…</span>
+                    <span className="block truncate text-[11px] font-bold leading-tight text-[#F8F1E4]">{sel.name}</span>
+                    <span className="block text-[9px] leading-tight text-[#F8F1E4]/65">La sélection descend vers toi…</span>
                   </span>
-                  <ChevronDown size={16} className="shrink-0 text-[#E3B04B]" aria-hidden="true" />
+                  <ChevronDown size={14} className="shrink-0 text-[#E3B04B]" aria-hidden="true" />
                 </>
               ) : (
-                <span className="flex w-full items-center justify-center gap-1.5 text-[10.5px] font-medium text-[#F8F1E4]/70">
+                <span className="flex w-full items-center justify-center gap-1.5 text-[9.5px] font-medium text-[#F8F1E4]/70">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#E3B04B]" aria-hidden="true" />
                   Quatre échoppes t&apos;attendent — touche la tienne
                 </span>

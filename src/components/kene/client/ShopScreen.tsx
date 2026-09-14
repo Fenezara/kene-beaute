@@ -361,8 +361,8 @@ export function ShopScreen() {
         </RevealItem>
 
         <RevealItem>
-          {/* Le Fil de Kente — hero tissé, le fil de la catégorie s'illumine */}
-          <div className="mt-4">
+          {/* Le Fil de Kente — hero tissé compact, le fil de la catégorie s'illumine */}
+          <div className="mt-3">
             <KenteWeaveCard highlightIndex={cat ? categoryThread(cat) : -1} caption={weaveCaption} />
           </div>
         </RevealItem>

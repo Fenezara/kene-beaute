@@ -2617,3 +2617,22 @@ Stage Summary:
 - LA BOUTIQUE CLIENTE EST DÉSORMAIS ORGANISÉE PAR INSTITUT, de bout en bout : l'API sert la marketplace réelle (maison + instituts actifs), la cliente CHOISIT son institut dans la bande dorée « Acheter selon l'institut », le catalogue s'affiche GROUPÉ par vendeur avec en-têtes (nom · ville · compte), chaque carte produit porte le badge de son institut, la fiche dit « Vendu par », et la commande d'un produit d'institut décrémente SON stock + crée SON mouvement d'inventaire (déjà en place t. 96, re-prouvé ici E2E).
 - LEÇON : quand l'utilisatrice dit « rien n'a changé », vérifier d'abord si la DONNÉE arrive au navigateur (couper la chaîne à l'API) avant de toucher l'UI — le filtre `tenantId: null` rendait tout re-groupement frontend impossible.
 - MÉCANISME GÉNÉRIQUE : la liste des vendeurs est DÉRIVÉE des produits en stock — tout nouvel institut qui publie des produits apparaîtra automatiquement dans la bande, aucune config.
+
+---
+Task ID: 114
+Agent: main (Z.ai Code)
+Task: Compacter les deux gros blocs décoratifs de la boutique cliente (« Le Marché vivant » et « Le Fil de Kente ») qui prenaient trop d'espace écran (capture utilisatrice : marché 280px + kente 118px ≈ 40 % du viewport mobile avant même la recherche).
+
+Work Log:
+- LECTURE CAPTURE (VLM) : la photo montrait le bandeau Marché vivant (280px, en-tête 3 lignes + guirlande + 4 échoppes + pilule sélecteur) empilé sur la bande Kente (118px + légende). Aucun défaut fonctionnel — purement un ratio décoratif/information trop élevé.
+- MARCHEVIVANT.TSX : hauteur 280→190px (sm 300→210px) ; en-tête resserré (badge 8.5px + titre 16px, suffixe « touche une échoppe · glisse » SUPPRIMÉ car redondant avec la pilule du bas + badge Glisser, et il chevauchait les pointes d'auvents) ; pilule sélecteur du bas allégée (py-1.5, icône 24px, textes 11/9px, max-w-340) ; fallback SVG retenu pour 190px (guirlande 26px, échoppes top-38px, StallAwning 36×52px, sol 22px, libellés 9px) ; mt-4→mt-3.
+- MARKETSCENE.TSX (cadrage 3D pour cadre bas) : caméra rapprochée z 6.3→4.9, y 2.3→2.1 ; point de visée remonté (0, 1.3, 0.2) après itération VLM — géométrie recalculée : pointes d'auvents projetées ~63px (titre termine à 48px → 15px de ciel dégagé), étals 117-134px, sol 152-180px, pilule 148-182px en overlay comme au design d'origine ; fog 6.5→7.5/14 pour ne pas embrumer les échoppes rapprochées.
+- KENTEWEAVECARD.TSX : bande 118→84px (sm 132→96px) ; badge atelier resserré (left-2.5 top-2, px-2 py-0.5, 8.5px) ; figcaption mt-1.5/min-h-16.
+- KENTEWEAVESCENE.TSX : caméra rapprochée z 3.6→2.5 pour que le tissage (BAND_H 1.2 u) remplisse ~62 % de la bande basse au lieu d'un fil perdu.
+- SHOPSCREEN.TSX : wrapper kente mt-4→mt-3.
+- VÉRIFICATIONS E2E (agent-browser, démo Mariam, 594×900 mobile) : mesures DOM marché 190px / bande 84px (figure 106px avec légende) ; VLM marché 3D 8/10 (titre dégagé, composition équilibrée après 2 itérations de cadrage) ; mode Clair de Lune (#moonlight, celui de la capture utilisatrice) comparé AVANT/APRÈS : 9/10 vs 6/10 — échoppes et noms parfaitement lisibles, zéro chevauchement ; tap échoppe 3D (Huiles & beurres) → pilule + chip « Huiles » + scroll grille + sections par institut (MAISON Kènè, Éclat d'Abidjan) ✓ ; tap échoppe statique (Savonnerie) → pilule + scroll ✓ ; desktop 1024px : marché 210px / kente 96px, VLM 9/10, aucun défaut ; console 0 erreur (warnings metadataBase + THREE.Clock préexistants) ; lint 0 erreur ; dev.log sans nouvelle erreur.
+
+Stage Summary:
+- BOUTIQUE COMPACTÉE : ~146px rendus à la cliente sur mobile (marché −90px, kente −34px, espacements −8px) — les blocs décoratifs gardent leur âme (marché 3D, tissage, guirlande) mais ne dominent plus l'écran ; la recherche et la grille arrivent beaucoup plus tôt.
+- LEÇON DE CADRAGE 3D : raccourcir un canvas R3F ne déforme rien (fov vertical fixe) mais fait « rétrécir » la scène perçue → rapprocher la caméra (z 6.3→4.9) PUIS remontre le lookAt (y→1.3) pour loger titre en haut / scène au centre / pilule en bas ; toujours re-vérifier au VLM, les projections à la main se trompent de signe facilement.
+- Le suffixe d'invite dans le titre du marché a été supprimé (info dupliquée par la pilule du bas et le badge Glisser) — c'était le seul vrai chevauchement de texte, présent dans les 2 modes.

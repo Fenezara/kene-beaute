@@ -98,7 +98,7 @@ export function KenteWeaveCard({
       <div
         ref={stageRef}
         aria-hidden="true"
-        className="relative h-[118px] touch-pan-y select-none overflow-hidden rounded-3xl border border-border shadow-md sm:h-[132px]"
+        className="relative h-[84px] touch-pan-y select-none overflow-hidden rounded-3xl border border-border shadow-md sm:h-[96px]"
       >
         {/* fond mélanine « atelier du tisserand » */}
         <div className="absolute inset-0 bg-[radial-gradient(120%_130%_at_50%_115%,#3A2A1A_0%,#241A10_62%,#1A1410_100%)]" />
@@ -111,12 +111,12 @@ export function KenteWeaveCard({
         )}
 
         {/* badge atelier */}
-        <div className="absolute left-3 top-2.5 rounded-full border border-[#C8951E]/30 bg-[#1A1410]/75 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-[#C8951E]">
+        <div className="absolute left-2.5 top-2 rounded-full border border-[#C8951E]/30 bg-[#1A1410]/75 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-[0.16em] text-[#C8951E]">
           Le Fil de Kente
         </div>
       </div>
 
-      <figcaption className="mt-2 flex min-h-[18px] items-center gap-1.5 text-[10.5px] text-muted-foreground">
+      <figcaption className="mt-1.5 flex min-h-[16px] items-center gap-1.5 text-[10px] text-muted-foreground">
         {thread && (
           <>
             <span className="h-2 w-2 shrink-0 rounded-full border border-border" style={{ backgroundColor: thread.hex }} aria-hidden="true" />

@@ -291,13 +291,14 @@ function MarketRig({ refs, children }: { refs: RefObject<MarketRefs>; children: 
     dragCurrent.current += (refs.current.drag.target * 0.175 - dragCurrent.current) * Math.min(1, delta * 3.2);
     if (root.current) root.current.rotation.y = dragCurrent.current;
 
-    // Caméra : rotation lente ±3° autour du marché.
+    // Caméra : rotation lente ±3° autour du marché (cadre compact → caméra
+    // rapprochée, les échoppes remplissent le bandeau de 190px).
     const az = Math.sin(t * 0.075) * 0.052;
     const cam = state.camera;
-    cam.position.x = Math.sin(az) * 6.3;
-    cam.position.z = Math.cos(az) * 6.3;
-    cam.position.y = 2.3 + Math.sin(t * 0.05) * 0.05;
-    cam.lookAt(0, 0.78, 0.2);
+    cam.position.x = Math.sin(az) * 4.9;
+    cam.position.z = Math.cos(az) * 4.9;
+    cam.position.y = 2.1 + Math.sin(t * 0.05) * 0.05;
+    cam.lookAt(0, 1.3, 0.2);
   });
 
   return <group ref={root}>{children}</group>;
@@ -326,13 +327,13 @@ export default function MarketScene({
       aria-hidden
       dpr={[1, 1.5]}
       frameloop={active ? "always" : "never"}
-      camera={{ fov: 42, position: [0, 2.3, 6.3], near: 0.1, far: 40 }}
+      camera={{ fov: 42, position: [0, 2.1, 4.9], near: 0.1, far: 40 }}
       gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
       style={{ position: "absolute", inset: 0 }}
       onPointerMissed={() => onStallTap(-1)}
     >
       <color attach="background" args={["#1B120A"]} />
-      <fog attach="fog" args={["#1B120A", 6.5, 13]} />
+      <fog attach="fog" args={["#1B120A", 7.5, 14]} />
       {/* Fin d'après-midi sur le marché : clé dorée chaude + ambiante crème */}
       <ambientLight intensity={0.55} color="#F3E0C0" />
       <directionalLight position={[3, 6, 5]} intensity={1.35} color="#FFD98A" />
