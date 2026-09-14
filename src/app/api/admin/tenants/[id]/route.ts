@@ -7,6 +7,8 @@
 // Jamais de photoData binaire dans le payload (servie par /api/media).
 //
 // PATCH: les leviers de gestion — { active?, reason?, commissionRate?, plan? }
+//   ⚠ t. 130 — STEP-UP: ce PATCH exige une session admin + une ÉLÉVATION
+//   fraîche (< 5 min, code confirmé) — ASVS V2.7 sur les actions sensibles.
 // • active=false + reason (requis): SUSPENSION — l'institut quitte la vitrine
 //   (annuaire, boutique, réservations), ses comptes pro sont refusés à la
 //   connexion (verify) et ses sessions ouvertes se ferment (resolveTenant +
@@ -23,7 +25,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, notify } from "@/lib/kene/server";
-import { sessionFromRequest } from "@/lib/kene/session";
+import { sessionFromRequest, guardAdminElevated } from "@/lib/kene/session";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 import { requireAdmin } from "../route";
@@ -168,7 +170,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const rl = rateLimit(rlKey(req, "admin:tenant:patch"), ADMIN_STATS);
   if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop d'actions — réessaie dans une minute");
-  const guard = requireAdmin(req);
+  // t. 130 — step-up: session admin + élévation fraîche (garde complète:
+  // 401 sans session, 403 autre rôle, 403 elevation_required sinon).
+  const guard = guardAdminElevated(req);
   if (guard) return guard;
   try {
     const { id } = await ctx.params;

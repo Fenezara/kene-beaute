@@ -1,10 +1,11 @@
 "use client";
-// Kènè — Console Admin (t. 128 — refonte en console de GESTION):
-// onglets Vue d'ensemble · Instituts · Utilisatrices · Sécurité.
-// La fondatrice pilote désormais le réseau: suspendre/réactiver un institut
-// (motif montré à la gérante, notifiée), piloter commission et plan, et
-// verrouiller un compte abusif. Les routes de gestion exigent une session
-// admin (aucun mode anonyme) et chaque geste est audité.
+// Kènè — Console Admin (t. 128 — console de GESTION; t. 130 — porte dédiée
+// /console, session 8 h, step-up, passkeys): onglets Vue d'ensemble ·
+// Instituts · Utilisatrices · Sécurité. La fondatrice pilote le réseau:
+// suspendre/réactiver un institut (motif montré à la gérante, notifiée),
+// piloter commission et plan, verrouiller un compte abusif — chaque geste
+// sensible exige une confirmation d'identité fraîche (AdminGate) et est
+// audité. Les routes de gestion exigent une session admin stricte.
 import { useState } from "react";
 import { Building2, LayoutDashboard, ShieldCheck, Users } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
@@ -14,7 +15,9 @@ import { ErrorState } from "@/components/kene/pro/ui-bits";
 import type { AdminSecurity as AdminSecurityData, AdminStats } from "@/components/kene/pro/types";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { KeneEmblem } from "@/components/kene/icons";
+import { AdminGateProvider } from "./admin-gate";
 import { AdminOverview } from "./AdminOverview";
+import { AdminPasskeyCard } from "./AdminPasskeyCard";
 import { AdminSecurity } from "./AdminSecurity";
 import { AdminTenants } from "./AdminTenants";
 import { AdminUsers } from "./AdminUsers";
@@ -47,6 +50,7 @@ export function AdminApp() {
   }
 
   return (
+    <AdminGateProvider>
     <div className="mx-auto max-w-6xl px-3 sm:px-6 py-6 space-y-5 min-h-screen">
       <ConsoleHeader />
 
@@ -89,13 +93,20 @@ export function AdminApp() {
       )}
       {tab === "tenants" && <AdminTenants />}
       {tab === "users" && <AdminUsers />}
-      {tab === "security" && <AdminSecurity sec={sec} />}
+      {tab === "security" && (
+        <div className="space-y-5">
+          <AdminSecurity sec={sec} />
+          {/* t. 130 — passkeys: appareils autorisés à ouvrir la console */}
+          <AdminPasskeyCard />
+        </div>
+      )}
 
       <p className="flex items-center justify-center gap-1.5 pt-2 text-center text-xs text-muted-foreground">
         <ShieldCheck className="size-3.5" aria-hidden="true" />
-        Console plateforme Kènè · Pilotage réseau &amp; modération · Chaque geste est audité
+        Console plateforme Kènè · Pilotage réseau &amp; modération · Session 8 h · Chaque geste est audité
       </p>
     </div>
+    </AdminGateProvider>
   );
 }
 

@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError, genRef } from "@/lib/kene/server";
+import { jsonError, serverError, genRef, notify } from "@/lib/kene/server";
 import { setSessionCookie } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, OTP_VERIFY } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
@@ -24,6 +24,11 @@ const Body = z.object({
   phone: z.string().min(5),
   code: z.string().length(6),
   name: z.string().trim().min(1).optional(),
+  // t. 130 — D'OÙ vient la connexion: "app" (landing publique, défaut) ou
+  // "console" (lien dédié /console). Séparation des portes: un compte admin
+  // ne s'ouvre PLUS depuis la vitrine publique, et le lien console n'ouvre
+  // QUE les comptes admin (cf. garde ci-dessous).
+  context: z.enum(["app", "console"]).optional(),
 });
 
 // ─────────────── Verrouillage par numéro (5 échecs → 15 min) ───────────────
@@ -141,6 +146,28 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   const ownerTenant = await db.tenant.findFirst({ where: { ownerPhone: phone } });
 
   let user = await db.user.findUnique({ where: { phone } });
+
+  // ── t. 130 — Séparation des portes (AVANT toute création de session) ──
+  // Le rôle auquel aboutira cette connexion est déjà déterminable: un
+  // compte EXISTANT garde son rôle; un NOUVEAU compte (user null) ne peut
+  // JAMAIS être admin — le compte console est seedé, pas inscrit au fil de
+  // l'eau. D'où: willBeAdmin = le compte existant est admin, point.
+  // 1) CONTEXTE CONSOLE: seule la fondatrice (rôle admin) y entre — une
+  //    cliente/gérante qui tape son numéro sur le lien console reçoit un
+  //    refus clair (pas de fuite: elle vient de valider un code reçu par SMS).
+  // 2) CONTEXTE APP (défaut): un numéro admin y est refusé avec le guidage
+  //    vers le lien dédié — la console ne s'ouvre plus depuis la vitrine.
+  const willBeAdmin = (user?.role ?? "client") === "admin";
+  if (data.context === "console") {
+    if (!willBeAdmin) {
+      void audit({ kind: "login_failed", phone, ip, detail: "lien console — compte non admin" });
+      return jsonError("Ce lien ouvre la Console Kènè — ton compte vit dans l'app Kènè", 403);
+    }
+  } else if (willBeAdmin) {
+    void audit({ kind: "login_failed", phone, ip, detail: "vitrine publique — compte console" });
+    return jsonError("La Console Kènè s'ouvre depuis son lien dédié (/console)", 403);
+  }
+
   // — EMPLOYÉE de l'app (compte créé par sa gérante via l'embauche):
   // sa fiche Employee liée donne l'institut de son EMPLOYEUR + son poste.
   const employeeLink = user
@@ -206,6 +233,21 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   }
 
   void audit({ kind: "login_success", phone, userId: user.id, ip });
+
+  // t. 130 — Alerte de connexion console: chaque session admin ouverte est
+  // notifiée sur le compte console (date + IP) — une connexion inattendue
+  // est visible immédiatement, comme une alerte bancaire.
+  if (user.role === "admin") {
+    const when = new Date().toLocaleString("fr-FR", {
+      day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    void notify({
+      userId: user.id,
+      channel: "console",
+      toPhone: user.phone,
+      message: `🔐 Connexion console confirmée — ${when} · IP ${ip}`,
+    });
+  }
 
   // Session signée: cookie httpOnly 90 j posé à la connexion —
   // le payload JSON reste STRICTEMENT identique (zéro casse SessionKeeper).

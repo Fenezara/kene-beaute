@@ -4,9 +4,14 @@ import { toast } from "sonner";
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  /** Code machine optionnel du body d'erreur (ex. "elevation_required" —
+   * t. 130 step-up console: le front ouvre le dialogue de confirmation
+   * puis rejoue l'action). */
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -46,7 +51,7 @@ async function handle<T>(res: Response): Promise<T> {
     data = null;
   }
   if (!res.ok) {
-    const body = data as { error?: string; retryAfterSec?: number } | null;
+    const body = data as { error?: string; retryAfterSec?: number; code?: string } | null;
     if (res.status === 429) {
       const sec = retryAfterSec(body, res);
       toast.error(body?.error || "Trop de tentatives", {
@@ -60,7 +65,7 @@ async function handle<T>(res: Response): Promise<T> {
     const msg =
       body?.error ??
       (gatewayish ? "Connexion au serveur instable — réessaie dans un instant" : `Erreur ${res.status}`);
-    throw new ApiError(msg, res.status);
+    throw new ApiError(msg, res.status, body?.code);
   }
   return data as T;
 }
@@ -130,6 +135,11 @@ const BRIDGEABLE_ROUTES = new Set([
   "/api/referral/redeem", // parrainage — inscription cliente 
   "/api/auth/pro/register", // inscription entreprise 
   "/api/subscriptions/activate", // activation plan 
+  "/api/admin/elevate", // t. 130 — step-up console (dialogue code frais)
+  "/api/admin/passkey/login/options", // t. 130 — connexion console par passkey
+  "/api/admin/passkey/login/verify", // t. 130 (assertion ~1 ko — tient en query)
+  "/api/admin/passkey/register/options", // t. 130 — enregistrement appareil
+  "/api/admin/passkey/register/verify", // t. 130 (attestation ~1-3 ko)
 ]);
 
 /** La route expose-t-elle un handler GET ponté (`_g`)? */
@@ -188,7 +198,7 @@ function looksProxyBlocked(res: Response): boolean {
 /** Requête à corps JSON bornée dans le temps: résout la réponse, rejette
  * l'erreur réseau, ou rejette PostTimeoutError si elle reste muette (le fetch
  * d'origine continue en arrière-plan — son éventuel résultat est ignoré). */
-function raceMethod(url: string, method: "POST" | "PATCH", json: string | undefined, ms: number): Promise<Response> {
+function raceMethod(url: string, method: "POST" | "PATCH" | "DELETE", json: string | undefined, ms: number): Promise<Response> {
   return new Promise<Response>((resolve, reject) => {
     const timer = setTimeout(() => reject(new PostTimeoutError(ms)), ms);
     fetch(url, {
@@ -296,6 +306,19 @@ export async function apiPatch<T>(url: string, body?: unknown, opts: { timeoutMs
   // PATCH ponté pour les routes du registre (auth/profile — questionnaire
   // d'inscription,); borné 8 s pour les autres au lieu d'un pendu infini.
   return apiWrite<T>("PATCH", url, body, opts.timeoutMs ?? POST_TIMEOUT_MS);
+}
+
+/** DELETE JSON (t. 130 — retrait d'un appareil passkey). Borné 8 s; pas de
+ * pont (les routes dynamiques ne sont pas au registre) — message FR clair si
+ * le transport est bloqué. */
+export async function apiDelete<T>(url: string, opts: { timeoutMs?: number } = {}): Promise<T> {
+  let res: Response;
+  try {
+    res = await raceMethod(url, "DELETE", undefined, opts.timeoutMs ?? POST_TIMEOUT_MS);
+  } catch {
+    throw new ApiError(MSG_INSTABLE, 0);
+  }
+  return handle<T>(res);
 }
 
 /** Redimensionne une photo côté client (max 820px, JPEG q0.8) → dataURL.

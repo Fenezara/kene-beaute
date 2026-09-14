@@ -199,6 +199,20 @@ export function middleware(req: NextRequest) {
   const method = req.method.toUpperCase();
   const path = req.nextUrl.pathname;
 
+  // 0) LIEN DÉDIÉ CONSOLE (t. 130) — « /console » ouvre la Console Kènè:
+  // rewrite TRANSPARENT vers la page unique « / » (aucune route de page
+  // supplémentaire — le navigateur garde /console en barre d'adresse, le
+  // client détecte l'entrée par location.pathname et monte l'écran de
+  // connexion console). Séparation des portes: la vitrine publique ne
+  // connecte plus les comptes admin (otp/verify refuse le rôle admin en
+  // contexte « app »), et /console n'ouvre QUE les comptes admin.
+  if (path === "/console" || path === "/console/") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/";
+    url.search = "";
+    return applySecurityHeaders(NextResponse.rewrite(url));
+  }
+
   // 1) Garde CSRF/Origin — AVANT tout: les écritures /api/* d'une origine
   // externe ne doivent JAMAIS atteindre les handlers.
   if (

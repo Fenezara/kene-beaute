@@ -60,6 +60,10 @@ model User {
   orders       Order[]
   reviews      Review[]
   notifications Notification[]
+  // t. 130 — passkeys de la Console (WebAuthn): chaque appareil enregistré
+  // peut ouvrir la console par preuve cryptographique (Face ID / empreinte /
+  // clé USB) — MFA résistante au hameçonnage (NIST 800-63B-4).
+  passkeys     PasskeyCredential[]
   consents     Consent[]
   appointments Appointment[] @relation("UserAppointments")
   wallet       Wallet?
@@ -685,6 +689,43 @@ model OtpCode {
   createdAt DateTime @default(now())
 
   @@index([phone]) // vérification OTP par téléphone
+}
+
+// ─────────────────────────── Console — passkeys & défis WebAuthn (t. 130) ───────────────────────────
+// PasskeyCredential: un appareil enregistré par la fondatrice pour ouvrir la
+// Console Kènè. La clé publique COSE est stockée en base64url; la partie
+// privée ne quitte JAMAIS l'appareil (enclave sécurisée / clé USB).
+// `credentialId` est l'identifiant WebAuthn (base64url), unique.
+model PasskeyCredential {
+  id           String    @id @default(cuid())
+  credentialId String    @unique // base64url — id WebAuthn
+  userId       String
+  publicKey    String // clé publique COSE, base64url
+  counter      Int       @default(0) // anti-rejeu (signe de compteur)
+  transports   String? // "internal" | "hybrid" | "usb"… (csv)
+  deviceType   String? // singleDevice | multiDevice
+  backedUp     Boolean   @default(false)
+  name         String? // étiquette console (« MacBook de la fondatrice »)
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// WebauthnChallenge: défi éphémère d'une cérémonie WebAuthn (login ou
+// register), consommé à la vérification, expiré après 5 min — purge paresseuse
+// par la route qui en crée un (même hygiène que OtpCode).
+model WebauthnChallenge {
+  id        String   @id @default(cuid())
+  phone     String
+  challenge String
+  purpose   String // login | register
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone, purpose])
 }
 
 // ─────────────────────────── Sécurité — journal d'audit (t. 86-d) ───────────────────────────

@@ -21,21 +21,23 @@ import { HerbierGate } from "@/components/kene/herbier/Herbier";
 import { SessionKeeper } from "@/components/kene/SessionKeeper";
 import { TransportProbe } from "@/components/kene/TransportProbe";
 import { PwaProvider } from "@/components/kene/pwa/PwaProvider";
+import { ConsoleEntry, ConsoleRedirect, useEntryKind } from "@/components/kene/admin/ConsoleEntry";
 import { Toaster } from "@/components/ui/sonner";
 
 // Espaces Pro / Admin: chunks séparés, chargés à l'entrée de l'espace
-// (exports nommés → default attendu par next/dynamic).
+// (exports nommés → default attendu par next/dynamic). AdminApp est chargé
+// par ConsoleEntry (t. 130) — la console ne vit QUE derrière /console.
 const ProApp = dynamic(() => import("@/components/kene/pro/ProApp").then((m) => ({ default: m.ProApp })), {
-  ssr: false,
-  loading: () => <BootSkeleton />,
-});
-const AdminApp = dynamic(() => import("@/components/kene/admin/AdminApp").then((m) => ({ default: m.AdminApp })), {
   ssr: false,
   loading: () => <BootSkeleton />,
 });
 
 export default function Page() {
   const space = useKene((s) => s.space);
+  // t. 130 — porte dédiée: « /console » (rewrite middleware) monte l'écran
+  // de connexion console; null → BootSkeleton le temps de la résolution
+  // client (zéro flash: SSR et hydratation passent sur null).
+  const entry = useEntryKind();
 
   return (
     <MotionConfig reducedMotion="user">
@@ -48,9 +50,19 @@ export default function Page() {
         </a>
 
         <main id="contenu" className="w-full">
-          {space === "client" && <ClientApp />}
-          {space === "pro" && <ProApp />}
-          {space === "admin" && <AdminApp />}
+          {entry === null && <BootSkeleton />}
+          {entry === "console" && <ConsoleEntry />}
+          {entry === "app" && (
+            <>
+              {space === "client" && <ClientApp />}
+              {space === "pro" && <ProApp />}
+              {/* t. 130 — l'espace admin n'existe PLUS hors de son lien
+                  dédié: une session admin sur la vitrine est redirigée
+                  vers /console (la vitrine ne connecte plus les comptes
+                  admin — otp/verify contexte « app »). */}
+              {space === "admin" && <ConsoleRedirect />}
+            </>
+          )}
         </main>
 
         {/* Passeport de Peau — vue publique quand l'URL porte?passport=<jeton> (QR scanné en institut). Au-dessus de TOUT:

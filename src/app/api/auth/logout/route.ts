@@ -5,7 +5,7 @@
 //: événement `logout` au journal d'audit (userId si session lisible,
 // IP) — fire-and-forget, le journal ne peut pas faire échouer la déconnexion.
 import { NextRequest, NextResponse } from "next/server";
-import { clearSessionCookie, sessionFromRequest } from "@/lib/kene/session";
+import { clearSessionCookie, clearElevationCookie, sessionFromRequest } from "@/lib/kene/session";
 import { audit, clientIp } from "@/lib/kene/audit";
 
 export const runtime = "nodejs";
@@ -15,5 +15,7 @@ export async function POST(req: NextRequest) {
   void audit({ kind: "logout", userId: sess?.userId, ip: clientIp(req) });
   const res = NextResponse.json({ ok: true });
   clearSessionCookie(res);
+  // t. 130 — l'élévation (step-up console) meurt avec la session.
+  clearElevationCookie(res);
   return res;
 }

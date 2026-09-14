@@ -15,12 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { apiGet, apiPatch, ApiError } from "@/lib/kene/api";
+import { apiGet, ApiError } from "@/lib/kene/api";
 import { formatDate } from "@/lib/kene/format";
 import { cn } from "@/lib/utils";
 import { useApi } from "@/components/kene/pro/useApi";
 import { EmptyState, ErrorState, KenteTop } from "@/components/kene/pro/ui-bits";
 import type { AdminUserPatchResult, AdminUserRow } from "@/components/kene/pro/types";
+import { useAdminGate } from "./admin-gate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -49,10 +50,14 @@ export function AdminUsers() {
   const [lockFor, setLockFor] = useState<AdminUserRow | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // t. 130 — le PATCH de verrouillage passe par le gate (step-up serveur:
+  // code frais exigé, dialogue de confirmation puis rejeu automatique).
+  const gate = useAdminGate();
+
   const patchUser = async (id: string, body: Record<string, unknown>, okMsg: string) => {
     setBusy(true);
     try {
-      await apiPatch<AdminUserPatchResult>(`/api/admin/users/${id}`, body);
+      await gate.elevatedPatch<AdminUserPatchResult>(`/api/admin/users/${id}`, body);
       toast.success(okMsg);
       await list.refetch();
       return true;

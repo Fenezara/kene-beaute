@@ -35,6 +35,12 @@ const SEC_KINDS: Record<string, { label: string; cls: string }> = {
   tenant_plan: { label: "Plan changé", cls: "bg-muted text-muted-foreground" },
   user_locked: { label: "Compte verrouillé (console)", cls: "bg-gold/15 text-gold" },
   user_unlocked: { label: "Compte déverrouillé", cls: "bg-success/15 text-success" },
+  // ── t. 130 — step-up & passkeys ──
+  admin_elevated: { label: "Identité confirmée (step-up)", cls: "bg-primary/15 text-primary" },
+  admin_elevate_failed: { label: "Step-up refusé", cls: "bg-bissap/15 text-bissap" },
+  passkey_registered: { label: "Passkey enregistré", cls: "bg-gold/15 text-gold" },
+  passkey_register_failed: { label: "Passkey refusé", cls: "bg-bissap/15 text-bissap" },
+  passkey_removed: { label: "Passkey retiré", cls: "bg-muted text-muted-foreground" },
 };
 
 /** Heure FR compacte: « 16/08 14:32 » (— si date illisible). */

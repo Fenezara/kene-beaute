@@ -18,8 +18,34 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export const SESSION_COOKIE = "kene_session";
-export const SESSION_TTL_SEC = 90 * 24 * 3600; // 90 jours
+export const SESSION_TTL_SEC = 90 * 24 * 3600; // 90 jours (clientes / pros)
+
+// t. 130 — OWASP Session Management / ASVS V3: une session À PRIVILÈGES vit
+// quelques HEURES, pas des semaines. La console peut suspendre un institut
+// et verrouiller des comptes → sa session expire après 8 h d'inactivité
+// connectée (reconnexion par passkey ou code, ~ le rythme d'une journée de
+// pilotage). Les clientes et gérantes gardent leurs 90 jours « comme TikTok ».
+export const ADMIN_SESSION_TTL_SEC = 8 * 3600;
+
 const SESSION_TTL_MS = SESSION_TTL_SEC * 1000;
+const ADMIN_SESSION_TTL_MS = ADMIN_SESSION_TTL_SEC * 1000;
+
+/** TTL de session selon le rôle (admin = courte, autres = 90 j). */
+export function sessionTtlSecForRole(role: string): number {
+  return role === "admin" ? ADMIN_SESSION_TTL_SEC : SESSION_TTL_SEC;
+}
+
+// ─────────────── Élévation admin (step-up, t. 130) ───────────────
+// ASVS V2.7: les actions sensibles (suspendre un institut, verrouiller un
+// compte, enregistrer un passkey) exigent une preuve d'identité FRAÎCHE.
+// Le cookie `kene_admin_elevated` est un jeton signé (même HMAC que la
+// session) valable 5 minutes: posé par /api/admin/elevate après vérification
+// d'un code OTP frais, vérifié par les routes de gestion avant d'écrire.
+export const ELEVATION_COOKIE = "kene_admin_elevated";
+export const ELEVATION_TTL_SEC = 5 * 60;
+const ELEVATION_TTL_MS = ELEVATION_TTL_SEC * 1000;
+
+type ElevationPayload = { uid: string; exp: number };
 
 // Secret de signature ( — durcissement 2026):
 // 1) KENE_SESSION_SECRET (env) prime TOUJOURS si fourni (≥ 16 chars);
@@ -63,7 +89,9 @@ export type KeneSession = { userId: string; phone: string; role: string };
 
 const hmacOf = (data: string): Buffer => createHmac("sha256", SECRET).update(data).digest();
 
-/** Signe une session: `base64url(JSON payload) + "." + HMAC-SHA256(base64url)`. */
+/** Signe une session: `base64url(JSON payload) + "." + HMAC-SHA256(base64url)`.
+ * Le TTL dépend du rôle: admin → 8 h (OWASP session à privilèges), autres
+ * → 90 jours. La forme du payload reste STRICTEMENT identique. */
 export function signSession(user: SessionUserInput): string {
   const iat = Date.now();
   const payload: SessionPayload = {
@@ -71,10 +99,48 @@ export function signSession(user: SessionUserInput): string {
     phone: user.phone,
     role: user.role,
     iat,
-    exp: iat + SESSION_TTL_MS,
+    exp: iat + (user.role === "admin" ? ADMIN_SESSION_TTL_MS : SESSION_TTL_MS),
   };
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   return `${body}.${hmacOf(body).toString("base64url")}`;
+}
+
+/** Signe un jeton d'élévation admin (uid + exp, même HMAC que la session). */
+export function signElevation(userId: string): string {
+  const payload: ElevationPayload = { uid: userId, exp: Date.now() + ELEVATION_TTL_MS };
+  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  return `${body}.${hmacOf(body).toString("base64url")}`;
+}
+
+/** Vérifie un jeton d'élévation: signature + exp strict → uid ou null. */
+export function verifyElevationToken(token: string | undefined | null): string | null {
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [body, sig] = parts;
+  try {
+    const expected = hmacOf(body);
+    const given = Buffer.from(sig, "base64url");
+    if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as ElevationPayload;
+    if (typeof payload.uid !== "string" || typeof payload.exp !== "number") return null;
+    if (payload.exp <= Date.now()) return null;
+    return payload.uid;
+  } catch {
+    return null;
+  }
+}
+
+/** Élévation valide pour CETTE session? (cookie signé + uid identique). */
+export function elevationFromRequest(req: NextRequest): { userId: string } | null {
+  const raw = req.headers.get("cookie") ?? "";
+  for (const part of raw.split(";")) {
+    const kv = part.trim();
+    if (!kv.startsWith(`${ELEVATION_COOKIE}=`)) continue;
+    const uid = verifyElevationToken(decodeURIComponent(kv.slice(ELEVATION_COOKIE.length + 1)));
+    return uid ? { userId: uid } : null;
+  }
+  return null;
 }
 
 function isPayloadShape(v: unknown): v is SessionPayload {
@@ -148,7 +214,8 @@ export function requireUser(req: NextRequest): KeneSession | null {
 
 // ─────────────── Pose / retrait du cookie ───────────────
 
-/** Pose le cookie de session (90 jours) sur la réponse. */
+/** Pose le cookie de session sur la réponse — TTL selon le rôle
+ * (admin: 8 h — OWASP session à privilèges; autres: 90 jours). */
 export function setSessionCookie(res: NextResponse, user: SessionUserInput): void {
   res.cookies.set({
     name: SESSION_COOKIE,
@@ -158,7 +225,33 @@ export function setSessionCookie(res: NextResponse, user: SessionUserInput): voi
     path: "/",
     // Sandbox en HTTP — passer à `secure: true` derrière HTTPS en prod.
     secure: false,
-    maxAge: SESSION_TTL_SEC,
+    maxAge: sessionTtlSecForRole(user.role),
+  });
+}
+
+/** Pose le cookie d'élévation admin (5 min) sur la réponse — step-up validé. */
+export function setElevationCookie(res: NextResponse, userId: string): void {
+  res.cookies.set({
+    name: ELEVATION_COOKIE,
+    value: signElevation(userId),
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    secure: false, // idem session: true derrière HTTPS en prod
+    maxAge: ELEVATION_TTL_SEC,
+  });
+}
+
+/** Efface le cookie d'élévation (déconnexion / expiration de secours). */
+export function clearElevationCookie(res: NextResponse): void {
+  res.cookies.set({
+    name: ELEVATION_COOKIE,
+    value: "",
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    secure: false,
+    maxAge: 0,
   });
 }
 
@@ -237,17 +330,49 @@ export function guardProRole(req: NextRequest, routePath: string): NextResponse 
 }
 
 /**
- * Garde /api/admin/**: SI un cookie de session valide est présent, le rôle
- * doit être « admin » → sinon 403. SANS cookie: comportement historique.
+ * Garde /api/admin/** (t. 130 — fermeture du legacy): une session admin
+ * VALIDE est TOUJOURS exigée — sans cookie → 401 (fin du comportement
+ * historique permissif qui laissait passer les requêtes anonymes avec un
+ * simple warning). Autre rôle → 403.
  */
 export function guardAdminRole(req: NextRequest, routePath: string): NextResponse | null {
+  void routePath;
   const sess = sessionFromRequest(req);
-  if (sess) {
-    if (sess.role !== "admin") {
-      return sessionError("Console admin réservée aux comptes admin", 403);
-    }
-    return null;
+  if (!sess) {
+    return sessionError("Session requise — ouvre la Console Kènè via son lien dédié", 401);
   }
-  warnLegacyNoCookie(routePath);
+  if (sess.role !== "admin") {
+    return sessionError("Console admin réservée aux comptes admin", 403);
+  }
+  return null;
+}
+
+/**
+ * Garde des actions SENSIBLES de la console (t. 130 — step-up ASVS V2.7):
+ * session admin + élévation fraîche (< 5 min, cookie signé posé par
+ * /api/admin/elevate). Sinon 403 `elevation_required` — le front ouvre le
+ * dialogue de confirmation par code puis rejoue l'action.
+ */
+export function guardAdminElevated(
+  req: NextRequest,
+): NextResponse | null {
+  const sess = sessionFromRequest(req);
+  if (!sess) {
+    return sessionError("Session requise — ouvre la Console Kènè via son lien dédié", 401);
+  }
+  if (sess.role !== "admin") {
+    return sessionError("Console admin réservée aux comptes admin", 403);
+  }
+  const elev = elevationFromRequest(req);
+  if (!elev || elev.userId !== sess.userId) {
+    return NextResponse.json(
+      {
+        error: "Confirmation d'identité requise — entre un code frais pour continuer",
+        code: "elevation_required",
+        retryAfterSec: 0,
+      },
+      { status: 403 },
+    );
+  }
   return null;
 }

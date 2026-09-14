@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { apiGet, apiPatch, ApiError } from "@/lib/kene/api";
+import { apiGet, ApiError } from "@/lib/kene/api";
 import { formatDate, xof } from "@/lib/kene/format";
 import { cn } from "@/lib/utils";
 import { useApi } from "@/components/kene/pro/useApi";
@@ -28,6 +28,7 @@ import type {
   AdminTenantDetail, AdminTenantPatchResult, AdminTenantRow,
 } from "@/components/kene/pro/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAdminGate } from "./admin-gate";
 
 /** Badge de statut d'un institut — en ligne (vert Baobab) / suspendu (bordeaux Bissap). */
 function StatusBadge({ t }: { t: Pick<AdminTenantRow, "active" | "suspendedAt"> }) {
@@ -74,11 +75,15 @@ export function AdminTenants() {
   const [suspendFor, setSuspendFor] = useState<AdminTenantRow | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // t. 130 — les PATCH passent par le gate: confirmation d'identité (code
+  // frais < 5 min) exigée par le serveur, dialogue puis rejeu automatique.
+  const gate = useAdminGate();
+
   const patch = useCallback(
     async (id: string, body: Record<string, unknown>, okMsg: string) => {
       setBusy(true);
       try {
-        const r = await apiPatch<AdminTenantPatchResult>(`/api/admin/tenants/${id}`, body);
+        const r = await gate.elevatedPatch<AdminTenantPatchResult>(`/api/admin/tenants/${id}`, body);
         if (!r.changed) {
           toast.info(r.message ?? "Aucun changement appliqué");
         } else {
@@ -94,7 +99,7 @@ export function AdminTenants() {
         setBusy(false);
       }
     },
-    [list],
+    [list, gate],
   );
 
   return (
