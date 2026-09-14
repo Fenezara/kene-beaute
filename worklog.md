@@ -2930,3 +2930,19 @@ Work Log:
 Stage Summary:
 - RÉPONSE : oui — README (75 routes exactes, congés documentés, backlog à jour), journal (t. 1 → t. 126 complet), runtime sain. Rien à corriger.
 - CONFIRMATION : la discipline « documenter en même temps que livrer » a tenu sur t. 125 — l'audit de ce jour n'a trouvé AUCUN écart, contrairement à t. 124 qui en avait trouvé 4.
+---
+Task ID: t.127
+Agent: agent principal (Z.ai Code)
+Task: « comment accéder au compte admin ? et est ce que l'administrateur gère effectivement toute l'application ? » — question documentaire + vérification live des pouvoirs réels de la Console Kènè.
+
+Work Log:
+- ACCÈS (vérifié dans le code PUIS en live) : compte seedé prisma/seed.ts → Console Kènè, +225 07 00 00 00 00, role "admin". Parcours : écran d'accueil → saisir le numéro → « Recevoir mon code » → en mode essai le code 6 chiffres s'affiche DIRECTEMENT à l'écran (grosse typographie cliquable qui auto-remplit — la passerelle SMS réelle reste le chantier externe documenté) → vérification → cookie de session signé → AdminApp monte seule (l'espace est DÉRIVÉ du rôle : un admin ne voit QUE la console, jamais l'app cliente ni l'espace Pro — store.ts spaceForRole).
+- TEST LIVE (curl) : request → devCode 576811 → verify → user {name "Console Kènè", role admin} ✓ ; GET /api/admin/stats = {users 14, tenants 4, diagnoses 9, orders 6, gmvBoutique 54 500 F, referrals 2} ✓ ; session cliente → /api/admin/stats = 403 « Console admin réservée aux comptes admin » ✓.
+- POUVOIRS RÉELS (inventaire exhaustif des routes) : /api/admin = 2 routes, toutes deux GET en lecture seule — stats (6 KPI, courbe diagnostics 14 j, top instituts CA 30 j) et security (posture sécurité : 4 indicateurs + journal d'audit login_success/failed/locked, otp_request, logout, payment_confirm, admin_access, pro_register, push_subscribe, upload_reject, avec téléphone/IP/détail/horodatage).
+- AU NIVEAU API : guardProRole accepte volontairement role pro OU admin (session.ts l. 230) et resolveTenant donne à l'admin accès à tout tenant (server.ts : « admin connecté : accès à tout tenant (console) ») — mais l'UI n'expose JAMAIS l'espace Pro à un admin (isolation par rôle dans le store). L'admin_landing UI = console seule.
+- VERDICT HONNÊTE : l'administrateur NE « gère » PAS l'application — il la SUPERVISE. Zéro action d'écriture : pas de création/gestion d'instituts, pas de modération des utilisatrices, pas de pilotage des commissions Kènè, pas de déconnexion/verrouillage manuel d'un compte, pas de bascule de fonctionnalités. La « gestion » opérationnelle vit dans les espaces Pro (chaque gérante) et le back-office est une console d'observabilité (KPIs + sécurité).
+
+Stage Summary:
+- RÉPONSE ACCÈS : +225 07 00 00 00 00 → code affiché à l'écran (mode essai) → Console Kènè. Compte isolé : un admin ne peut pas naviguer dans l'app cliente ni l'espace Pro.
+- RÉPONSE POUVOIRS : non — console en LECTURE SEULE (supervision : 6 KPIs, courbe, top instituts, posture sécurité/journal d'audit). Aucune écriture, aucune modération, aucun pilotage. Testé en live ce jour (403 pour une cliente, stats OK pour l'admin).
+- CHANTIER CANDIDAT identifié pour une vraie console de GESTION : valider/refuser les inscriptions d'instituts, modérer, piloter les commissions, verrouiller un compte, consulter la fiche d'un institut en lecture — à proposer à la fondatrice (t. 128 potentiel).
