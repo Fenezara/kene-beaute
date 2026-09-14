@@ -42,6 +42,19 @@ export async function GET(req: NextRequest) {
     if (sess) {
       const user = await db.user.findUnique({ where: { id: sess.userId } });
       if (!user) return jsonError("Session expirée", 404);
+      // t. 128 — modération Console: un compte verrouillé (ou un institut
+      // suspendu) ne doit pas restaurer sa session au boot. 404 « Session
+      // expirée » → le SessionKeeper fait une déconnexion douce (zéro casse
+      // front: le refus de connexion détaillé viendra du verify OTP).
+      if (user.lockedAt) return jsonError("Session expirée", 404);
+      const emp0 = user.role === "pro"
+        ? await db.employee.findFirst({ where: { userId: user.id, active: true } })
+        : null;
+      const tenant0 = user.role === "pro"
+        ? (await db.tenant.findFirst({ where: { ownerPhone: user.phone } })) ??
+          (emp0 ? await db.tenant.findUnique({ where: { id: emp0.tenantId } }) : null)
+        : null;
+      if (tenant0 && !tenant0.active) return jsonError("Session expirée", 404);
       //: l'institut de la gérante suit la session — le front peut
       // re-poser proTenantId au boot sans requête supplémentaire.
       //: une EMPLOYÉE (pas gérante) résout l'institut de son EMPLOYEUR

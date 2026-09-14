@@ -48,6 +48,11 @@ model User {
   // t. 120 — photo de profil cliente (data URL JPEG redimensionnée côté
   // client, servie par /api/media/user/:id, jamais dans les payloads JSON)
   avatarData   String?
+  // t. 128 — verrouillage manuel par la Console Kènè (modération):
+  // bloqué à la vérification OTP ET au boot de session (déconnexion douce).
+  // Null = compte libre. Le motif est montré à l'utilisatrice au login.
+  lockedAt      DateTime?
+  lockedReason  String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -86,6 +91,10 @@ model Tenant {
   openingHour    Int      @default(9)
   closingHour    Int      @default(19)
   active         Boolean  @default(true)
+  // t. 128 — traçabilité console de la suspension (active = false):
+  // quand, pourquoi — montré à la gérante au login et sur la fiche admin.
+  suspendedAt    DateTime?
+  suspendedReason String?
   createdAt      DateTime @default(now())
 
   resources      Resource[]

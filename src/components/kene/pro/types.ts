@@ -511,3 +511,88 @@ export interface AdminSecurity {
   events: AdminSecurityEvent[];
   stats: AdminSecurityStats;
 }
+
+// ─────────────── Admin — console de gestion (t. 128) ───────────────
+
+// GET /api/admin/tenants — ligne de la liste des instituts.
+export interface AdminTenantRow {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+  phone: string;
+  ownerName: string;
+  ownerPhone: string;
+  plan: string; // trial | pro | business
+  commissionRate: number; // 0..0.30
+  rating: number;
+  reviewCount: number;
+  active: boolean;
+  suspendedAt: string | null;
+  suspendedReason: string | null;
+  createdAt: string;
+  caBoutique30: number;
+  caPos30: number;
+  orders30: number;
+  pendingOrders: number;
+  clientsCrm: number;
+  employees: number;
+  products: number;
+}
+
+// GET /api/admin/tenants/[id] — fiche de gestion détaillée.
+export interface AdminTenantDetail extends AdminTenantRow {
+  type: string;
+  address: string | null;
+  description: string | null;
+  openingHour: number;
+  closingHour: number;
+  proDiag30: number;
+  upcomingAppointments: number;
+  team: { name: string; role: string }[];
+  topProducts: { name: string; qty: number; ca: number }[];
+  lastSales: { id: string; total: number; clientName: string | null; createdAt: string }[];
+  lastOrders: { id: string; status: string; total: number; clientName: string; createdAt: string }[];
+}
+
+// PATCH /api/admin/tenants/[id] — réponse (aussi utilisée pour le POST optimiste).
+export interface AdminTenantPatchResult {
+  ok: boolean;
+  changed: boolean;
+  message?: string;
+  tenant?: {
+    id: string;
+    name: string;
+    active: boolean;
+    commissionRate: number;
+    plan: string;
+    suspendedAt: string | null;
+    suspendedReason: string | null;
+  };
+}
+
+// GET /api/admin/users — ligne de l'annuaire des comptes.
+export interface AdminUserRow {
+  id: string;
+  name: string;
+  phone: string;
+  role: string; // client | pro | admin
+  city: string | null;
+  createdAt: string;
+  lockedAt: string | null;
+  lockedReason: string | null;
+  orders: number;
+  diagnoses: number;
+  tenantName: string | null; // institut des comptes pro
+}
+
+// PATCH /api/admin/users/[id] — réponse.
+export interface AdminUserPatchResult {
+  ok: boolean;
+  user?: {
+    id: string;
+    name: string;
+    lockedAt: string | null;
+    lockedReason: string | null;
+  };
+}

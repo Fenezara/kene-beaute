@@ -146,7 +146,9 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   const employeeLink = user
     ? await db.employee.findFirst({
         where: { userId: user.id, active: true },
-        include: { tenant: { select: { id: true, name: true } } },
+        // t. 128 — active/suspendedReason servis à la garde modération
+        // ci-dessous; la réponse JSON finale n'embarque QUE id/name.
+        include: { tenant: { select: { id: true, name: true, active: true, suspendedReason: true } } },
       })
     : null;
   if (!user) {
@@ -163,6 +165,44 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   } else if (employeeLink && user.role !== "pro") {
     // compte pré-existant (cliente) devenu employée: rôle pro
     user = await db.user.update({ where: { id: user.id }, data: { role: "pro" } });
+  }
+
+  // ── t. 128 — Modération Console Kènè (AVANT de poser le cookie) ──
+  // 1) Compte VERROUILLÉ manuellement: connexion refusée, motif montré.
+  //    (un compte créé au fil de l'eau ne peut pas être verrouillé: lockedAt
+  //    n'existe que posé par la console — le if couvre donc les comptes
+  //    existants uniquement, jamais une inscription fraîche.)
+  if (user.lockedAt) {
+    void audit({
+      kind: "login_locked",
+      phone,
+      userId: user.id,
+      ip,
+      detail: `compte verrouillé par la Console${user.lockedReason ? ` — ${user.lockedReason}` : ""}`,
+    });
+    return jsonError(
+      user.lockedReason
+        ? `Compte verrouillé par la Console Kènè — ${user.lockedReason}`
+        : "Compte verrouillé par la Console Kènè — contacte le support",
+      403,
+    );
+  }
+  // 2) Compte PRO d'un institut SUSPENDU (gérante ou employée): connexion
+  //    refusée jusqu'à réactivation — une suspension ferme l'opération.
+  //    L'admin, elle, n'est jamais concernée (aucun institut lui appartient).
+  const employerTenant = ownerTenant ?? (employeeLink ? employeeLink.tenant : null);
+  if (employerTenant && !employerTenant.active) {
+    void audit({
+      kind: "login_locked",
+      phone,
+      userId: user.id,
+      ip,
+      detail: `institut suspendu — ${employerTenant.name}`,
+    });
+    return jsonError(
+      `${employerTenant.name} est suspendu${employerTenant.suspendedReason ? ` — ${employerTenant.suspendedReason}` : ""}. Contacte la Console Kènè.`,
+      403,
+    );
   }
 
   void audit({ kind: "login_success", phone, userId: user.id, ip });

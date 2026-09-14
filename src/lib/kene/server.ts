@@ -56,6 +56,12 @@ export async function resolveTenant(req: NextRequest, tenantId?: string | null) 
     }
     if (!mine) return null; // pro sans institut: 404 franc, pas de repli
     if (tenantId && tenantId !== mine.id) return null; // institut d'une autre → refus
+    // t. 128 — institut SUSPENDU par la Console: l'opération est fermée,
+    // toutes les routes /api/pro/* répondent 404 pour ses comptes (double
+    // filet pour les sessions ouvertes AVANT la suspension — la verify
+    // bloque déjà les NOUVELLES connexions). L'admin n'est pas concernée:
+    // elle passe par le chemin admin ci-dessous (accès console complet).
+    if (!mine.active) return null;
     return mine;
   }
   if (tenantId) return db.tenant.findUnique({ where: { id: tenantId } });
