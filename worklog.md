@@ -2871,3 +2871,25 @@ Stage Summary:
 - RÉPONSE : la boucle client→entreprise est complète ET consentie — l'institut voit tout ce que la cliente fait chez lui (RDV, commandes, avis, diagnostics cabine, miroir peau), et son historique de self-scans UNIQUEMENT si elle l'a accordé (case à la réservation ou carte Partage du profil, révocable à tout instant, effet immédiat sur CRM, relances et fiche papier). Chaque accord/retrait est horodaté et tracé (AuditLog + historique Consent, export RGPD).
 - ARCHITECTURE DU CONSENTEMENT : Consent(type="share_scans", tenantId) — le DERNIER enregistrement gagne partout (single et batch), la fiche CRM doit exister avant tout partage (404 sinon), guardUserClaim verrouille l'usurpation, le miroir peau reste le contexte minimal partagé du soin.
 - ÉCUEILS : (1) « dernier gagne » en lot se bugue en un add/delete sur TOUT l'historique — toujours dédupliquer sur le premier rencontré en ordre desc ; (2) les textes PDF échappent les parenthèses (\(encore\)) — un grep naïf passe à côté de la preuve ; (3) après édition à chaud le SW peut servir un chunk mort — purge caches + unregister avant de conclure à une régression ; (4) la coquille de type t. 122 (ProReviewView.appointment) a été révélée par le tsc de ce jour — un « 0 erreur » de fin de tâche se re-vérifie à la tâche suivante.
+---
+Task ID: t.124
+Agent: agent principal (Z.ai Code)
+Task: « tous les documents sont à jour ? Et le journal des tâches, notre échange ? » — audit documentaire complet + resynchronisation.
+
+Work Log:
+- JOURNAL (worklog.md, 2 873 lignes) : vérifié complet t.1 → t.123 — chaque entrée cite la demande fondatrice mot pour mot, le travail fait, les leçons ; RIEN perdu entre les resets de contexte (le résumé de session et le journal se recoupent). Le présent échange devient t.124.
+- README — comparaison route par route (find src/app/api -name route.ts = 74 fichiers) contre l'arbre documenté : 4 dérives détectées et corrigées :
+  • compte « 73 routes » → 74 ;
+  • famille health/ ABSENTE de l'arbre (GET /api/health = sonde de santé base OK/503 ; /api/health/echo = balise de transport — vérifié ACTIVE : consommée par TransportProbe.tsx, donc à documenter, pas à retirer) ;
+  • diagnoses/[id] absent (poll du statut pendant l'analyse VLM) ;
+  • profile/export placé sous auth/ alors qu'il est top-level (déplacé à sa vraie place) + push/ explicité (public-key · subscribe · unsubscribe · dispatch).
+- RUNTIME : dev :3000 → 200, dev.log sans ⨯ (requêtes 200 en boucle) ; notify-service :3004 → handshake socket.io OK (0{"sid":…,"upgrades":["websocket"]} — le « Transport unknown » sur GET / nu est le comportement normal d'un serveur engine.io interrogé sans transport polling).
+- QUALITÉ : bun run lint → 0 erreur ; tsc --noEmit → 0 erreur dans src/ (seules erreurs restantes dans les outils vendés hors app : skills/, examples/, scripts/ de nettoyage ponctuels).
+- BACKLOG README : t.119 → t.123 tous cochés ✓ — restent documentés comme externes : OTP réel (passerelle SMS), paiements réels Wave/OM (identifiants marchands), voix TTS natives locales.
+- Inventaire documentaire : README.md (doc produit/architecture, à jour), worklog.md (journal des tâches, à jour), download/README.md = placeholder d'outillage (« Here are all the generated files. », pas un document projet, laissé en place), agent-ctx/ = contextes historiques de sous-agents (archives), captures PNG racine = artefacts de QA historiques.
+
+Stage Summary:
+- RÉPONSE : oui, tout est à jour — après correction du seul point de dérive trouvé (l'arbre API du README avait 4 écarts : compte, health/, diagnoses/[id], position de profile/export — corrigés, 74 routes exactes).
+- LE JOURNAL EST NOTRE MÉMOIRE : worklog.md documente chaque échange de la fondatrice (citation littérale de la demande) + le travail + les leçons, de t.1 à t.124 ; il survit aux resets de contexte et sert de point de reprise.
+- ÉTAT SANITAIRE : dev + notify-service sains, lint 0, tsc 0 (src/), aucun ⨯ dans dev.log.
+- LEÇON : un « N routes » dans un README doit être revérifié par énumération réelle à chaque audit documentaire — la famille health/ (2 routes) avait été ajoutée sans jamais entrer dans l'arbre.

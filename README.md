@@ -43,14 +43,14 @@ Palette panafricaine en variables CSS (light + dark) : or `#C8951E` (aplats déc
 src/
 ├─ app/
 │  ├─ page.tsx             # route unique /
-│  └─ api/                 # 73 routes :
+│  └─ api/                 # 74 routes :
 │     ├─ auth/             #   otp/request · otp/verify · consent · profile
 │     │                     #   (+ express — accès sans inscription ·
 │     │                     #   logout · session · pro/register)
-│     │                     #   (+ profile/export — portabilité RGPD)
 │     │                     #   (+ shares — consentement de partage des
 │     │                     #   self-scans par institut, GET+POST, t. 123)
-│     ├─ diagnoses/        #   GET,POST (+ /evolution) (+ /report —
+│     ├─ diagnoses/        #   GET,POST (+ [id] — poll du statut pendant
+│     │                     #   l'analyse) (+ /evolution) (+ /report —
 │     │                     #   compte-rendu PDF self-scan)
 │     ├─ dermato/          #   photo (VLM) · chat (LLM Dr. Kènè)
 │     ├─ appointments/     #   GET,POST (+ [id]/cancel · [id]/review)
@@ -61,13 +61,18 @@ src/
 │     │                     #   photo produit · photo soin · avatar cliente
 │     │                     #   (bytes cacheables, 404 net si pas de photo)
 │     ├─ wallet/           #   (+ /topup)
+│     ├─ profile/export    #   portabilité RGPD (« Mes données »)
 │     ├─ coupons/          #   /validate (checkout)
 │     ├─ referral/         #   (+ /redeem)
 │     ├─ notifications/    #   (+ /read)
 │     ├─ tts/ · asr/       #   synthèse vocale (fr|dy|bq|bt) · entrée vocale
 │     ├─ passport/ · gold-threads/ · testimonials/ · subscriptions/ ·
 │     │   push/            #   Passeport public · fils d'or · Cercle ·
-│     │                     #   Kènè+ · web push
+│     │                     #   Kènè+ · web push (public-key · subscribe ·
+│     │                     #   unsubscribe · dispatch)
+│     ├─ health/           #   GET / — sonde de santé (base OK / 503) ·
+│     │                     #   /echo — balise de transport (consommée
+│     │                     #   par la sonde réseau de l'app)
 │     ├─ pro/              #   overview · live · appointments · clients
 │     │                     #   (+ clients/[id] PATCH — notes privées
 │     │                     #   persistées, t. 122 ; self-scans de la
