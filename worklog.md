@@ -2706,3 +2706,30 @@ Stage Summary:
 - LA PORTE D'ENTRÉE SANS STIGMATE : le badge « POC démo » est parti, l'accès instantané devient « Explorer Kènè — sans inscription » (comportement identique : GET unique, compte riche Mariam, reconnexion mémorisée) — une fonctionnalité produit, plus un aveu de prototype.
 - ENCART OTP : « SMS simulé (POC) » → « Code de vérification » + « En mode essai, ton code s'affiche ici » — l'expéditeur SMS simulé devient une transparence de version d'essai, formulée produit.
 - LEÇONS : (1) un balayage rg du SEUL texte rendu (innerText côté navigateur) est la preuve finale — le code contient des dizaines de « POC » en commentaires qui ne sortent jamais à l'écran ; séparer le visible de l'invisible AVANT d'éditer ; (2) innerText applique text-transform CSS (« Code de vérification » se lit « CODE DE VÉRIFICATION ») — toujours comparer insensible à la casse ; (3) « démo » se cache aussi dans des faux positifs (« poches », « démontage ») — vérifier le contexte de chaque match ; (4) l'honnêteté d'un POC (aucun argent réel) peut être reformulée en vocabulaire produit (« mode essai ») sans mentir — c'est le pattern standard des SaaS en précommercialisation.
+
+---
+Task ID: t.118
+Agent: agent principal (Z.ai Code)
+Task: « Tu es sûr que tout est réglé ? Et est-ce que les documents de base sont à jour ? » — re-vérification complète de l'état vivant (t. 113-117) + mise à jour du document de base (README.md).
+
+Work Log:
+- RE-VÉRIFICATION VIVANTE (agent-browser, 594×733 — taille du panneau de la fondatrice) :
+  • LANDING : docH = 733 = innerH = 733 → UNE PAGE EXACTE ✓ ; /poc|démo|simulé/i = false sur innerText ✓ ; bouton « Explorer Kènè — sans inscription » présent ✓.
+  • BOUTIQUE (via accès instantané → Mariam → onglet Boutique) : « Le Marché vivant » ABSENT ✓ ; bande « Acheter selon l'institut » ✓ ; sections par institut dans le catalogue ✓ ; chips de catégories + recherche ✓ ; 0 POC/démo ✓.
+  • CONSOLE : 0 erreur de page, seuls les warnings préexistants (THREE.Clock, HMR) ; capture t118-boutique.png.
+  • VLM boutique sans le bloc image : **8,5/10** — « très esthétique et premium, aucune défaut majeur : pas de chevauchement, pas de texte coupé » ; la suppression du Marché vivant améliore même l'entrée vers les produits.
+  • INFRA : serveur :3000 → 200 ; notify-service :3004 → 200 ; lint → 0 erreur.
+- RÉPONSE À « LES DOCUMENTS DE BASE SONT-ILS À JOUR ? » : NON — le README datait d'avant t. 113-117 (et d'avant plusieurs vagues). Mis à jour (15 éditions) :
+  • Phase A du récit : « Introduction 3D immersive » (retirée t. 116) → « Le Seuil — porte d'entrée une seule page » (reconnexion express, portails côte à côte, bande Navette d'Or ~92 px, ligne légale en pied collant, accès « Explorer Kènè — sans inscription »).
+  • Espace Cliente : « boutique (grille 2-3 colonnes) » → « boutique marketplace par institut » (t. 113) ; ajout ASR vocal (Dr. Kènè), abonnement Kènè+ (2 500 F/mois, diagnostics illimités), Passeport de Peau, Le Cercle, push web ; « hors intro/onboarding » → « hors onboarding » (intro retirée).
+  • Arbre API : 48 → 66 routes (auth/demo·logout·session·pro/register, asr, passport, gold-threads, testimonials, subscriptions, push, admin/security ; payments/confirm).
+  • Arbre composants : dossiers manquants ajoutés — loom/ (LoomSection t. 116 · KenteIdentity · WovenDivider · useLoomMode — GoldenLoom INERTE), market/ (INERTE t. 115), herbier/, descent/·cercle/·constellation/, pwa/ (SW v6) ; intro/ marqué INERTE.
+  • « Limites assumées (démo) » → « (version d'essai) » ; « Paiements simulés » → « mode essai — aucun débit réel » ; « Connexion par sélecteur de démo » → « Code de vérification affiché à l'écran en mode essai » ; « (POC) » traductions → supprimé.
+  • Backlog : +4 entrées cochées (t. 113 marketplace instituts, t. 114-115 compaction + retrait Marché vivant, t. 116 landing une page, t. 117 vocabulaire mode essai).
+  • « Comptes de démonstration » → « Comptes de test (seedés) » ; QA rapide : ajout #moonlight + note accès instantané.
+  • Contrôle final : plus aucun vocabulaire prototype dans le README hors l'entrée de backlog qui décrit la tâche accomplie (registre historique).
+
+Stage Summary:
+- OUI, TOUT EST RÉGLÉ — re-prouvé ce jour sur l'app vivante : landing une page exacte à la taille du panneau, boutique sans bloc image et organisée par institut, zéro trace POC/démo à l'écran, 0 erreur console, lint 0 erreur, services :3000/:3004 vivants.
+- LE README EST MAINTENANT À JOUR : il décrivait l'app d'avANT t. 113 (et même d'avant les vagues Kènè+/Passeport/Cercle/ASR/push) — 66 routes documentées, dossiers loom/market/herbier/pwa ajoutés, vocabulaire « mode essai » aligné sur t. 117, backlog complété.
+- LEÇON : chaque lot de tâches UI (t. 113-117) doit déclencher une passe README — le document de base dérive vite (compte de routes, composants actifs/inertes, vocabulaire produit) et c'est la première chose qu'un nouveau lecteur (ou la fondatrice) consulte.

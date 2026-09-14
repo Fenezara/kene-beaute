@@ -10,7 +10,7 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 
 | Phase | Espace | Ce que vit la cliente |
 |---|---|---|
-| **A — Le Fil de Kente** | Accueil | Introduction 3D immersive (WebGL, six chapitres au fil d'or) ; fallback CSS statique et `prefers-reduced-motion` |
+| **A — Le Seuil** | Accueil | Porte d'entrée **une seule page** (t. 116) : médaillon + wordmark, reconnexion express sur une ligne, portails Cliente / Entreprise côte à côte, bande tissée compacte « La Navette d'Or » (~92 px, identique en 3D et Clair de Lune), ligne légale en pied collant ; accès instantané « **Explorer Kènè — sans inscription** » (t. 117) |
 | **B — Ton Jumeau de Peau** | Diagnostic | Buste 3D procédural portant les marqueurs du diagnostic VLM par zone anatomique (23 pastilles, rotation interactive, orbite du Fil d'Or) ; jumeau agrégé côté Pro (CRM 360°) |
 | **C — La Route de l'Or** | Résultats | Parcours narratif en 7 étapes : 4 stations (Purifier / Soigner / Nourrir / Protéger) matchant les produits aux indicateurs du diagnostic → institut (Sankofa) → **kente de soin tissé procéduralement** (canvas 2D, navette visible, signature, PNG téléchargeable) → panier en un geste |
 | **D — Le Fil du Temps** | Historique | Skin Twin prospectif : curseur tissé S+0 → S+12, marqueurs qui guérissent en continu (modèle hybride), adhérence à la routine ; courbes d'évolution rétrospectives par indicateur (fusion floue des libellés VLM, projection pointillée dès le premier scan) — aussi côté Pro (ProEvolutionCard dans le CRM) |
@@ -18,7 +18,7 @@ Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibr
 
 ## Les trois espaces
 
-- **Cliente** (**shell applicatif plein écran type app 2026** — Instagram/TikTok/Facebook) : mobile = header glass (cloche live, chat, thème) + flux plein cadre + **tab-bar 5 onglets avec CTA « Scanner » central surélevé** ; tablette (≥ 768 px) = **rail d'icônes vertical façon TikTok iPad** (la tab-bar disparaît, l'écran large est exploité) ; desktop = **sidebar gauche façon Instagram web** (nav verticale + bascule Espace Pro/Admin) + feed centré 640 px + **rail droit** (mini-profil, actions rapides, légal). Feed d'accueil : **stories par zone** (re-scan 1 tap + scores en anneau, libellés 2 lignes, dégradé d'affordance au scroll), carte score multi-zones avec **lecture vocale TTS multilingue** (français complet, **résumé compact traduit en dioula / baoulé / bété**), **résumé en pictos tapables** (tuile = 1 icône + 1 mot, se lit à voix haute), glossaire 1 tap, diagnostic IA, jumeau 3D, route de l'or, boutique (grille adaptative 2-3 colonnes) + **Mes commandes** + checkout avec **code promo** (remise + cashback sur le montant payé) Wave / Orange Money / Wallet Kènè, profil & wallet, **parrainage** (« Le Fil du Parrainage » : cadeau filleule 2 000 F, bonus parraine 2 500 F à la 1re commande payée, idempotent), prise de RDV avec acompte, **rappels automatiques** (S+3 protocole, J-1, carte « Ta prochaine étape » + suivi WhatsApp live), **export « Mes données » RGPD art. 20** (JSON complet en 1 tap depuis le Profil), chatbot Dr. Kènè (LLM + triage photo), notifications temps réel. Scroll **interne au shell** (le document ne scrolle jamais — hors intro/onboarding) — transitions d'onglets animées, zéro espace perdu sur PC/tablette/mobile.
+- **Cliente** (**shell applicatif plein écran type app 2026** — Instagram/TikTok/Facebook) : mobile = header glass (cloche live, chat, thème) + flux plein cadre + **tab-bar 5 onglets avec CTA « Scanner » central surélevé** ; tablette (≥ 768 px) = **rail d'icônes vertical façon TikTok iPad** (la tab-bar disparaît, l'écran large est exploité) ; desktop = **sidebar gauche façon Instagram web** (nav verticale + bascule Espace Pro/Admin) + feed centré 640 px + **rail droit** (mini-profil, actions rapides, légal). Feed d'accueil : **stories par zone** (re-scan 1 tap + scores en anneau, libellés 2 lignes, dégradé d'affordance au scroll), carte score multi-zones avec **lecture vocale TTS multilingue** (français complet, **résumé compact traduit en dioula / baoulé / bété**), **résumé en pictos tapables** (tuile = 1 icône + 1 mot, se lit à voix haute), glossaire 1 tap, diagnostic IA, jumeau 3D, route de l'or, boutique **marketplace par institut** (bande « Acheter selon l'institut », catalogue groupé par vendeur, badge vendeur sur chaque carte — t. 113) + **Mes commandes** + checkout avec **code promo** (remise + cashback sur le montant payé) Wave / Orange Money / Wallet Kènè, profil & wallet, **parrainage** (« Le Fil du Parrainage » : cadeau filleule 2 000 F, bonus parraine 2 500 F à la 1re commande payée, idempotent), prise de RDV avec acompte, **rappels automatiques** (S+3 protocole, J-1, carte « Ta prochaine étape » + suivi WhatsApp live), **export « Mes données » RGPD art. 20** (JSON complet en 1 tap depuis le Profil), chatbot Dr. Kènè (LLM + triage photo, **entrée vocale ASR**), **abonnement Kènè+** (2 500 F/mois : diagnostics illimités + suivi d'évolution — gratuit = 1 diagnostic/mois), **Passeport de Peau** (vue publique partageable), **Le Cercle** (témoignages en cercle de sœurs), notifications temps réel + **push web**. Scroll **interne au shell** (le document ne scrolle jamais — hors onboarding) — transitions d'onglets animées, zéro espace perdu sur PC/tablette/mobile.
 - **Pro** (institut) : dashboard KPI, agenda multi-praticiennes, **Diagnostic en cabine** (l'institut réalise le diagnostic de peau au sein de sa structure : questionnaire dermatologique structuré — 4 sections, 21 questions dont dépigération/grossesse en questions sensibles — ± photo analysée par le VLM, fusion déclaratif 38 % / observation 62 %, résultat + protocole enregistré dans le CRM, cliente notifiée si elle est sur l'app), CRM 360° (fiche cliente : jumeau de peau agrégé, évolution, ventes/RDV/notes, **diagnostics en institut dépliables**, score RFM), **Relances « Le Fil du Retour »** (KPI, filtres, WhatsApp wa.me pré-rempli, traiter/ignorer/réactiver), catalogue soins/produits, POS (ticket SYSCOHADA) avec **cliente express** (2 champs depuis la caisse, anti-doublon multi-formats), **Promos** (coupons % ou montant fixe, création/diffusion push live), stock, paie CNPS CI / IPM SN (+ e-CNPS XML), comptabilité (grand livre, OD, bilan, exports CSV) et **liasse comptable PDF en 1 clic** (dossier complet 7 sections, période au choix — prête pour le comptable/DGI) — badge & flux « En direct » (RDV, ventes, commandes) via socket.io. Shell pleine largeur : mobile = chips + en-tête compact (institut + En direct) ; **tablette (≥ 768 px) = rail d'icônes 76 px** (libellés dès lg) ; desktop = sidebar 240 px libellée.
 - **Admin** : multi-instituts, santé de la plateforme (console pleine largeur, KPI 6 cartes dont Parrainages, courbe diagnostics 14 j, top instituts).
 
@@ -43,26 +43,32 @@ Palette panafricaine en variables CSS (light + dark) : or `#C8951E` (aplats déc
 src/
 ├─ app/
 │  ├─ page.tsx             # route unique /
-│  └─ api/                 # 48 routes :
+│  └─ api/                 # 66 routes :
 │     ├─ auth/             #   otp/request · otp/verify · consent · profile
-│     │                     #   (+ profile/export — portabilité RGPD)
+│     │                     #   (+ demo — accès sans inscription · logout ·
+│     │                     #   session · pro/register) (+ profile/export
+│     │                     #   — portabilité RGPD)
 │     ├─ diagnoses/        #   GET,POST (+ /evolution)
 │     ├─ dermato/          #   photo (VLM) · chat (LLM Dr. Kènè)
 │     ├─ appointments/     #   GET,POST (+ [id]/cancel · [id]/review)
 │     ├─ institutes/       #   (+ [id] · [id]/availability)
-│     ├─ shop/products · orders · payments/ (initiate·confirm)
+│     ├─ shop/products (marketplace : maison + instituts actifs) ·
+│     │                     #   orders · payments/confirm
 │     ├─ wallet/           #   (+ /topup)
 │     ├─ coupons/          #   /validate (checkout)
 │     ├─ referral/         #   (+ /redeem)
 │     ├─ notifications/    #   (+ /read)
-│     ├─ tts/              #   POST — synthèse vocale (lang fr|dy|bq|bt)
+│     ├─ tts/ · asr/       #   synthèse vocale (fr|dy|bq|bt) · entrée vocale
+│     ├─ passport/ · gold-threads/ · testimonials/ · subscriptions/ ·
+│     │   push/            #   Passeport public · fils d'or · Cercle ·
+│     │                     #   Kènè+ · web push
 │     ├─ pro/              #   overview · live · appointments · clients
 │     │                     #   (+ express) · catalog · coupons (+ diffuse)
 │     │                     #   sales · stock · followups · employees
 │     │                     #   (+ attendance) · payroll (+ run · ecnps)
 │     │                     #   accounting (+ manual · export csv|pdf)
 │     │                     #   · diagnoses (en cabine : questionnaire ± VLM)
-│     └─ admin/stats
+│     └─ admin/stats · security
 ├─ components/kene/
 │  ├─ client/              # ClientApp (shell) · HomeScreen (feed) ·
 │  │                       # DiagnosticScreen · ShopScreen · BookingScreen ·
@@ -75,12 +81,23 @@ src/
 │  │                       # Catalog · Coupons · Stock ·
 │  │                       # Payroll · Accounting · types · ui-bits · useApi
 │  ├─ admin/AdminApp.tsx
-│  ├─ intro/               # Phase A — KenteIntro · Intro3D · chapters · introState
+│  ├─ intro/               # INERTE (retiré de la landing t. 116) —
+│  │                       #   KenteIntro · Intro3D · chapters · introState
 │  ├─ skintwin/            # Phases B & D — SkinTwinCard · SkinTwinScene ·
 │  │                       # ProjectionSlider · twinMath · mode
 │  ├─ route/               # Phase C — RitualJourney · WovenBand · ritual
 │  ├─ evolution/           # EvolutionCard (cliente) · ProEvolutionCard (CRM)
 │  ├─ weave/               # Phase E — KenteWeaveCard · KenteWeaveScene · threads
+│  ├─ loom/                # LoomSection (bande Navette d'Or de la landing,
+│  │                       #   t. 116) · KenteIdentity · WovenDivider ·
+│  │                       #   useLoomMode (#moonlight) — GoldenLoom INERTE
+│  ├─ market/              # INERTE (retiré de la boutique t. 115) —
+│  │                       #   MarcheVivant · MarketScene
+│  ├─ herbier/             # Herbier (jardin botanique) · Herbier3D · plants
+│  ├─ descent/ · cercle/ · constellation/
+│  │                       #   SkinDescent/Descent3D (descente du diagnostic)
+│  │                       #   · CercleKene (témoignages) · AdinkraSky (ciel)
+│  ├─ pwa/                 # PwaProvider (SW v6) · InstallBanner
 │  └─ icons.tsx · ThemeToggle · SpaceSwitcher
 ├─ lib/
 │  ├─ kene/                # lib PURES (aucune dépendance React) :
@@ -128,20 +145,20 @@ Cœur de cible : femmes 20-45 peaux mélanodermes (Abidjan pilote, expansion UEM
 
 Risques d'échec classés : 1) non-lectrices → funnel vide silencieux ; 2) pro non-saisissante → promesse 360° non tenue ; 3) méfiance → bad buzz possible ; 4) semi-lettrées → abandon en milieu de parcours ; 5) petites data → poids de l'app ; 6) digitales exigeantes → déception comparative.
 
-## Limites assumées (démo) & priorités
+## Limites assumées (version d'essai) & priorités
 
-- Paiements **simulés** (wallet interne + transactions) — intégration Wave Business / Orange Money à venir.
-- Connexion par sélecteur de démo — OTP réel prévu (modèle `OtpCode` déjà dans le schéma Prisma).
-- Traductions dioula/baoulé/bété **IA indicatives** (POC) — voix natives locales indisponibles dans le moteur TTS actuel.
+- Paiements en **mode essai** (wallet interne + transactions, **aucun débit réel**) — intégration Wave Business / Orange Money à venir.
+- Code de vérification **affiché à l'écran en mode essai** — envoi SMS réel à venir (modèle `OtpCode` déjà dans le schéma Prisma).
+- Traductions dioula/baoulé/bété **IA indicatives** — voix natives locales indisponibles dans le moteur TTS actuel.
 - SQLite mono-fichier — passage Postgres prévu à l'échelle.
-- Backlog priorisé : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → ~~liasse PDF comptable~~ ✅ (t. 44) → ~~refonte UX « app 2026 » plein écran~~ ✅ (t. 45) → ~~finitions tablette/libellés~~ ✅ (t. 46) → ~~audit mobile 360° (390/360, clair/sombre) + affordances scroll~~ ✅ (t. 47-48) → ~~portabilité RGPD « Mes données »~~ ✅ (t. 49) → ~~langues locales (dioula/baoulé/bété)~~ ✅ (t. 50) → ~~résumé en pictos non-lectrices~~ ✅ (t. 51) → ~~audit & réécriture README~~ ✅ (t. 52-53) → ~~diagnostic en institut + questionnaire (espace Pro)~~ ✅ (t. 54) → ~~audit normes WCAG AA + UX gestes apps 2026 (Instagram/TikTok/Wave)~~ ✅ (t. 55) → **reste** : OTP réel (nécessite une passerelle SMS — `OtpCode` prêt), paiements réels Wave/OM (nécessite des identifiants marchands), voix TTS natives locales.
+- Backlog priorisé : ~~lecture vocale TTS~~ ✅ (t. 39) → ~~glossaire 1 tap~~ ✅ (t. 40) → ~~compression photo~~ ✅ (t. 41) → ~~cliente express~~ ✅ (t. 42) → ~~lecture lente FLN~~ ✅ (t. 43) → ~~liasse PDF comptable~~ ✅ (t. 44) → ~~refonte UX « app 2026 » plein écran~~ ✅ (t. 45) → ~~finitions tablette/libellés~~ ✅ (t. 46) → ~~audit mobile 360° (390/360, clair/sombre) + affordances scroll~~ ✅ (t. 47-48) → ~~portabilité RGPD « Mes données »~~ ✅ (t. 49) → ~~langues locales (dioula/baoulé/bété)~~ ✅ (t. 50) → ~~résumé en pictos non-lectrices~~ ✅ (t. 51) → ~~audit & réécriture README~~ ✅ (t. 52-53) → ~~diagnostic en institut + questionnaire (espace Pro)~~ ✅ (t. 54) → ~~audit normes WCAG AA + UX gestes apps 2026 (Instagram/TikTok/Wave)~~ ✅ (t. 55) → ~~boutique marketplace par institut~~ ✅ (t. 113) → ~~compaction boutique + retrait du Marché vivant~~ ✅ (t. 114-115) → ~~landing « une seule page » (tous modes/écrans)~~ ✅ (t. 116) → ~~vocabulaire produit « mode essai » — plus aucun mot de prototype à l'écran~~ ✅ (t. 117) → **reste** : OTP réel (nécessite une passerelle SMS — `OtpCode` prêt), paiements réels Wave/OM (nécessite des identifiants marchands), voix TTS natives locales.
 
 ### Conformité & UX livrées (t. 55)
 
 - **WCAG 2.1 AA** : contrastes light refondus (cause racine or corrigée ~80 % des défauts), cibles tactiles ≥ 44 px sur les parcours critiques (pills langues, chips, qty POS, dots intro, Sheet close 36 px + « Fermer »), h1 unique par vue à tout format, focus visible partout (chat réparé), dialogs modaux sur les overlays paiement, `aria-required`/labels OTP, hiérarchie h2/h3 dans les Sheets.
 - **UX Instagram/TikTok/Wave** : pull-to-refresh (indicateur NeaOnnim + toast + haptique), swipe horizontal entre onglets avec transitions directionnelles, double-tap « ajout rapide » burst panier kente, succès paiement animé (coche dessinée + confettis kente + montant), haptique Android (patterns tap/light/medium/success), badge panier rebond, bandeau hors-ligne résilient.
 
-## Comptes de démonstration
+## Comptes de test (seedés)
 
 Seeded dans `prisma/seed.ts` (SQLite) — p. ex. **Mariam Diallo** (cliente riche : 3 diagnostics seedés + wallet, parraine Awa & Bintou), **Awa Traoré** (cliente filleule, projection pointillée dès le 1er scan), comptes Pro : **Éclat d'Abidjan** (CI, gérante Fatou Koné +225 070 908 0706) et **Institut Baobab** (SN, Dakar, Ndeye Sow), plus la **Console Kènè** (admin).
 
@@ -158,4 +175,4 @@ cd mini-services/notify-service && bun run dev   # socket.io :3004 (bun --hot)
 
 Variables d'environnement (`.env`) : `DATABASE_URL` (requis) ; optionnelles avec défauts — `NOTIFY_SERVICE_URL`, `PUSH_SECRET`, `APP_URL`.
 
-QA rapide : suffixer l'URL de `#twin-static` ou `#weave-static` (puis recharger) force les fallbacks non-WebGL.
+QA rapide : suffixer l'URL de `#moonlight` (mode Clair de Lune sans WebGL), `#twin-static` ou `#weave-static` (puis recharger) force les fallbacks statiques. L'accès instantané « Explorer Kènè — sans inscription » (landing) ouvre le compte Mariam.
