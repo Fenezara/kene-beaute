@@ -187,6 +187,7 @@ export interface ProService {
   commissionPct: number;
   description?: string | null;
   botanicals?: string | null;
+  hasPhoto?: boolean; // t. 120 — visuel du soin (/api/media/service/:id)
   active: boolean;
 }
 
@@ -202,6 +203,7 @@ export interface ProProduct {
   stock: number;
   stockAlert: number;
   image: string;
+  hasPhoto?: boolean; // t. 120 — photo réelle (/api/media/product/:id, prime sur image)
   active: boolean;
 }
 

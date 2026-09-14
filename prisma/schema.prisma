@@ -45,6 +45,9 @@ model User {
   consentTs    DateTime?
   referralCode String?
   referredBy   String?
+  // t. 120 — photo de profil cliente (data URL JPEG redimensionnée côté
+  // client, servie par /api/media/user/:id, jamais dans les payloads JSON)
+  avatarData   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -77,6 +80,9 @@ model Tenant {
   rating         Float    @default(4.7)
   reviewCount    Int      @default(0)
   description    String?
+  // t. 120 — photo de vitrine de l'institut (data URL, servie par
+  // /api/media/tenant/:id) — remplace le visuel calculé du nom si posée
+  photoData      String?
   openingHour    Int      @default(9)
   closingHour    Int      @default(19)
   active         Boolean  @default(true)
@@ -139,6 +145,8 @@ model Service {
   commissionPct Float   @default(10)
   description   String?
   botanicals    String? // "Karité, Baobab"
+  // t. 120 — visuel du soin (data URL, servie par /api/media/service/:id)
+  photoData     String?
   active        Boolean @default(true)
 
   appointments Appointment[]
@@ -256,7 +264,10 @@ model Product {
   compareAt   Int?
   stock       Int     @default(50)
   stockAlert  Int     @default(8)
-  image       String  // /products/xxx.webp
+  image       String  // /products/xxx.webp (visuel studio par défaut)
+  // t. 120 — photo RÉELLE du produit prise par l'institut (data URL, servie
+  // par /api/media/product/:id) — prime sur `image` quand elle existe
+  photoData   String?
   rating      Float   @default(4.8)
   reviewCount Int     @default(0)
   active      Boolean @default(true)

@@ -19,13 +19,26 @@ export async function GET(req: NextRequest) {
         // marketplace : la maison (tenantId null) + les instituts actifs
         OR: [{ tenantId: null }, { tenant: { active: true } }],
       },
-      include: { tenant: { select: { id: true, name: true, city: true, type: true } } },
+      include: { tenant: { select: { id: true, name: true, city: true, type: true, photoData: true } } },
       orderBy: { name: "asc" },
     });
 
+    // t. 120 — la photo réelle (photoData, data URL lourde) ne part JAMAIS
+    // dans le payload : un booléen hasPhoto suffit, l'UI charge
+    // /api/media/product/:id (photo institut) qui prime sur le visuel studio.
     const products = all
       .filter((p) => !category || p.category.toLowerCase() === category)
-      .filter((p) => !q || slugify(p.name).includes(slugify(q)) || slugify(p.description).includes(slugify(q)));
+      .filter((p) => !q || slugify(p.name).includes(slugify(q)) || slugify(p.description).includes(slugify(q)))
+      .map((p) => {
+        const { photoData, tenant, ...rest } = p;
+        return {
+          ...rest,
+          hasPhoto: Boolean(photoData),
+          tenant: tenant
+            ? { id: tenant.id, name: tenant.name, city: tenant.city, type: tenant.type, hasPhoto: Boolean(tenant.photoData) }
+            : null,
+        };
+      });
 
     return NextResponse.json({ products });
   } catch (err) {

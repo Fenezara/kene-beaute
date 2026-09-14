@@ -3,14 +3,14 @@
 // Les réglages (langue, notifications, sécurité, RGPD, PWA, espace entreprise,
 // déconnexion) vivent désormais dans SettingsScreen (t. 69-c) — lien discret
 // en pied d'écran vers l'onglet « parametres ».
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowDownLeft, ArrowLeft, ArrowUpRight, BadgeCheck, Check, Loader2, MapPin,
-  Pencil, Phone, Plus, Settings, Sparkles, Wallet as WalletIcon,
+  ArrowDownLeft, ArrowLeft, ArrowUpRight, BadgeCheck, Camera, Check, Loader2, MapPin,
+  Pencil, Phone, Plus, Settings, Sparkles, Trash2, Wallet as WalletIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiGet, apiPatch, apiPost } from "@/lib/kene/api";
+import { apiGet, apiPatch, apiPost, resizeImage } from "@/lib/kene/api";
 import { formatDate, xof, CASHBACK_RATE } from "@/lib/kene/format";
 import { useT } from "@/lib/kene/use-t";
 import type { GoldThreads } from "@/lib/kene/gold-threads";
@@ -46,6 +46,54 @@ export function ProfileScreen() {
   const [name, setName] = useState(user.name);
   const [city, setCity] = useState(user.city ?? "");
   const [savingId, setSavingId] = useState(false);
+
+  // t. 120 — photo de profil : aperçu local immédiat (data URL) + upload.
+  // `hasAvatar` suit le store : la photo vit en base, servie par
+  // /api/media/user/:id — jamais dans le state permanent.
+  const [hasAvatar, setHasAvatar] = useState(Boolean(user.hasAvatar));
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function onPickAvatar(file: File | undefined) {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Photo trop lourde — choisis une image plus légère");
+      return;
+    }
+    setAvatarBusy(true);
+    try {
+      // Redimensionnement local (canvas → JPEG ~820px) : upload léger même en 3G
+      const dataUrl = await resizeImage(file);
+      setAvatarPreview(dataUrl);
+      await apiPatch("/api/auth/profile", { userId: user.id, avatarData: dataUrl });
+      setHasAvatar(true);
+      setUser({ ...user, hasAvatar: true } as SessionUser);
+      toast.success("Photo de profil mise à jour");
+    } catch (e) {
+      setAvatarPreview(null);
+      toast.error(e instanceof Error ? e.message : "Photo impossible");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function removeAvatar() {
+    setAvatarBusy(true);
+    try {
+      await apiPatch("/api/auth/profile", { userId: user.id, avatarData: null });
+      setHasAvatar(false);
+      setAvatarPreview(null);
+      setUser({ ...user, hasAvatar: false } as SessionUser);
+      toast.success("Photo retirée");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Suppression impossible");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  const avatarSrc = avatarPreview ?? (hasAvatar ? `/api/media/user/${user.id}` : null);
 
   const [fitz, setFitz] = useState(user.fitzpatrick ?? "V");
   const [skinType, setSkinType] = useState(user.skinType ?? "mixte");
@@ -162,8 +210,37 @@ export function ProfileScreen() {
           <div className="kente-band h-1.5 w-full" aria-hidden="true" />
           <div id="me-t" className="p-5">
             <div className="flex items-center gap-4">
-              <span className="k-glow-gold grid place-items-center h-16 w-16 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC] font-heading font-black text-2xl">
-                {user.name.charAt(0)}
+              {/* t. 120 — photo de profil si posée, sinon l'initiale dorée */}
+              <span className="relative shrink-0">
+                <span
+                  className={`k-glow-gold grid place-items-center h-16 w-16 rounded-full text-[#FFF9EC] font-heading font-black text-2xl overflow-hidden ${avatarSrc ? "" : "bg-gradient-to-br from-[#C8951E] to-[#A0522D]"}`}
+                >
+                  {avatarSrc ? (
+                    <img src={avatarSrc} alt={`Photo de profil de ${user.name}`} className="size-full object-cover" />
+                  ) : (
+                    user.name.charAt(0)
+                  )}
+                </span>
+                {/* Pastille appareil : ouvre le sélecteur de photo (t. 120) */}
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={avatarBusy}
+                  aria-label={hasAvatar ? "Changer ma photo de profil" : "Ajouter une photo de profil"}
+                  className="absolute -bottom-0.5 -right-0.5 grid place-items-center size-8 rounded-full bg-card border border-border text-primary shadow-sm hover:scale-105 active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60"
+                >
+                  {avatarBusy ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => {
+                    void onPickAvatar(e.target.files?.[0]);
+                    e.target.value = ""; // permettre de re-choisir le même fichier
+                  }}
+                />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="font-heading font-black text-[22px] leading-tight truncate">{user.name}</p>
@@ -177,6 +254,17 @@ export function ProfileScreen() {
             {edit && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden">
                 <div className="mt-4 space-y-3">
+                  {/* Retrait de la photo (t. 120) — sobre, seulement si photo posée */}
+                  {hasAvatar && (
+                    <button
+                      type="button"
+                      onClick={() => void removeAvatar()}
+                      disabled={avatarBusy}
+                      className="k-chip inline-flex items-center gap-1.5 rounded-full px-3 min-h-9 text-[11px] font-semibold hover:text-destructive focus-visible:outline-2 focus-visible:outline-primary"
+                    >
+                      <Trash2 size={12} aria-hidden="true" /> Retirer ma photo de profil
+                    </button>
+                  )}
                   <div>
                     <label htmlFor="p-name" className="text-[11px] font-semibold text-muted-foreground">Prénom & nom</label>
                     <input id="p-name" value={name} onChange={(e) => setName(e.target.value)} className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />

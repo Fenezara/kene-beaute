@@ -137,7 +137,11 @@ export function consultationSheetPdf(input: {
 
   // — 2. Consentements —
   sectionBand(doc, "2 · CONSENTEMENTS — À FAIRE SIGNER AVANT LE DIAGNOSTIC", "Conformité données de santé & photos (RGPD / loi ivoirienne n°2013-450 relative à la protection des données à caractère personnel)");
-  doc.ensure(56);
+  doc.ensure(64);
+  // t. 120 — clientes qui ne lisent pas : les consentements sont EXPLIQUÉS à
+  // voix haute et la signature peut être une empreinte digitale (pouce encre).
+  doc.text("Les consentements sont expliqués à la cliente avant signature — lecture à voix haute si nécessaire.", M_X, doc.cursorY, { size: 7.5, color: SOFT, font: "oblique" });
+  doc.advance(12);
   const consents: [boolean, string][] = [
     [false, "Je consens à la prise et à la conservation de photographies de ma peau dans mon dossier client,"],
     [false, "uniquement pour le suivi de mes diagnostics (aucune diffusion, aucun autre usage)."],
@@ -164,7 +168,7 @@ export function consultationSheetPdf(input: {
   y += 30;
   writeLine(doc, y, M_X + 130, M_X + 300);
   writeLine(doc, y, M_X + 380, M_RIGHT);
-  doc.text("Signature de la cliente", M_X, y + 3, { size: 8, color: SOFT });
+  doc.text("Signature ou empreinte digitale", M_X, y + 3, { size: 8, color: SOFT });
   doc.text("Date", M_X + 320, y + 3, { size: 8, color: SOFT });
   doc.advance(24);
 
@@ -233,7 +237,7 @@ export function consultationSheetPdf(input: {
   y = doc.cursorY;
   writeLine(doc, y, M_X, M_X + 220);
   writeLine(doc, y, M_X + 290, M_RIGHT);
-  doc.text("Signature de la cliente", M_X, y + 3, { size: 8, color: SOFT });
+  doc.text("Signature ou empreinte digitale", M_X, y + 3, { size: 8, color: SOFT });
   doc.text("Signature & cachet de l'institut", M_X + 290, y + 3, { size: 8, color: SOFT });
   doc.advance(14);
 
@@ -441,7 +445,7 @@ export function proDiagReportPdf(input: {
   writeLine(doc, doc.cursorY, M_X, M_X + 220);
   writeLine(doc, doc.cursorY, M_X + 290, M_RIGHT);
   doc.text("Signature de la praticienne", M_X, doc.cursorY + 3, { size: 8, color: SOFT });
-  doc.text("Signature de la cliente", M_X + 290, doc.cursorY + 3, { size: 8, color: SOFT });
+  doc.text("Signature ou empreinte digitale", M_X + 290, doc.cursorY + 3, { size: 8, color: SOFT });
   doc.advance(14);
 
   return doc.finish();

@@ -1,7 +1,10 @@
 "use client";
 // Kènè Pro — Catalogue : soins & produits, création/édition, activation
-import { useState } from "react";
-import { Clock, MoreVertical, Package, Pencil, Percent, Plus, Power, Sparkles } from "lucide-react";
+// t. 120 — chaque fiche porte désormais une PHOTO RÉELLE (produit posé sur
+// le comptoir, soin en cabine) : upload local redimensionné, stocké en base
+// et servi par /api/media — la photo prime sur le visuel studio si posée.
+import { useRef, useState } from "react";
+import { Camera, Clock, ImageOff, Loader2, MoreVertical, Package, Pencil, Percent, Plus, Power, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { apiGet, apiPatch, apiPost } from "@/lib/kene/api";
+import { apiGet, apiPatch, apiPost, resizeImage } from "@/lib/kene/api";
 import { xof } from "@/lib/kene/format";
 import { useApi } from "./useApi";
 import { EmptyState, ErrorState, Money, SectionHeader } from "./ui-bits";
@@ -37,6 +40,8 @@ interface FormState {
   description: string;
   botanicals: string;
   image: string;
+  // t. 120 — photo réelle : null = pas de photo, undefined = inchangée
+  photoData: string | null | undefined;
 }
 
 const emptyForm: FormState = {
@@ -50,6 +55,7 @@ const emptyForm: FormState = {
   description: "",
   botanicals: "",
   image: "serum-moringa",
+  photoData: undefined,
 };
 
 export function CatalogSection({ tenantId }: { tenantId: string }) {
@@ -58,18 +64,25 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [busy, setBusy] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  // Photo déjà en base sur la fiche ÉDITÉE (aperçu /api/media) — distinée de
+  // l'aperçu local data URL d'un upload frais.
+  const [existingPhoto, setExistingPhoto] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
 
   const catalog = useApi<ProCatalog>(() => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve({ services: [], products: [] })), [tenantId]);
 
   function openCreate(type: "service" | "product") {
     setEditType(type);
     setEditId(null);
+    setExistingPhoto(false);
     setForm({ ...emptyForm, category: type === "service" ? "soin" : "serum" });
     setDialogOpen(true);
   }
   function openEdit(type: "service" | "product", item: ProService | ProProduct) {
     setEditType(type);
     setEditId(item.id);
+    setExistingPhoto(Boolean(item.hasPhoto));
     setForm({
       name: item.name,
       category: item.category,
@@ -81,8 +94,28 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
       description: item.description ?? "",
       botanicals: item.botanicals ?? "",
       image: (item as ProProduct).image?.replace("/products/", "").replace(".webp", "") ?? "serum-moringa",
+      photoData: undefined,
     });
     setDialogOpen(true);
+  }
+
+  /** t. 120 — upload d'une photo réelle : redimensionnée localement
+   *  (canvas, ~820px) puis envoyée avec la fiche. */
+  async function pickPhoto(file: File | undefined) {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Photo trop lourde — choisis une image plus légère");
+      return;
+    }
+    setPhotoBusy(true);
+    try {
+      const dataUrl = await resizeImage(file);
+      setForm((s) => ({ ...s, photoData: dataUrl }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Photo impossible");
+    } finally {
+      setPhotoBusy(false);
+    }
   }
 
   async function toggleActive(type: "service" | "product", item: ProService | ProProduct) {
@@ -103,6 +136,9 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
     }
     setBusy(true);
     try {
+      // t. 120 — la photo réelle part SEULEMENT si elle vient d'être posée
+      // (string) ou retirée (null) ; undefined = on ne touche pas à l'existante.
+      const photo = form.photoData;
       const data =
         editType === "service"
           ? {
@@ -113,6 +149,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
               commissionPct: Number(form.commissionPct) || 0,
               description: form.description.trim() || undefined,
               botanicals: form.botanicals.trim() || undefined,
+              ...(photo !== undefined ? { photoData: photo } : {}),
             }
           : {
               name: form.name.trim(),
@@ -123,6 +160,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
               description: form.description.trim(),
               botanicals: form.botanicals.trim(),
               image: `/products/${form.image}.webp`,
+              ...(photo !== undefined ? { photoData: photo } : {}),
             };
       if (editId) {
         await apiPatch("/api/pro/catalog", { tenantId, type: editType, id: editId, data });
@@ -183,16 +221,24 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
                   <Card key={s.id} className={cn("gap-2", !s.active && "opacity-55")}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-heading font-semibold leading-tight">{s.name}</p>
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                            <Badge variant="secondary" className="text-[10px] capitalize">{s.category}</Badge>
-                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                              <Clock className="size-3" aria-hidden="true" /> {s.durationMin} min
+                        <div className="flex min-w-0 gap-2.5">
+                          {/* t. 120 — vignette du soin si photo posée */}
+                          {s.hasPhoto && (
+                            <span className="size-12 shrink-0 overflow-hidden rounded-[12px] border border-border">
+                              <img src={`/api/media/service/${s.id}`} alt={`Photo du soin ${s.name}`} loading="lazy" className="size-full object-cover" />
                             </span>
-                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                              <Percent className="size-3" aria-hidden="true" /> {s.commissionPct} %
-                            </span>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-heading font-semibold leading-tight">{s.name}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <Badge variant="secondary" className="text-[10px] capitalize">{s.category}</Badge>
+                              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                                <Clock className="size-3" aria-hidden="true" /> {s.durationMin} min
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                                <Percent className="size-3" aria-hidden="true" /> {s.commissionPct} %
+                              </span>
+                            </div>
                           </div>
                         </div>
                         <DropdownMenu>
@@ -235,7 +281,8 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
                   <Card key={p.id} className={cn("gap-2", !p.active && "opacity-55")}>
                     <CardContent className="p-4 flex gap-3">
                       <div className="size-16 shrink-0 rounded-xl overflow-hidden bg-muted border border-border">
-                        <img src={p.image} alt={p.name} className="size-full object-cover" />
+                        {/* t. 120 — photo réelle du produit si posée, sinon visuel studio */}
+                        <img src={p.hasPhoto ? `/api/media/product/${p.id}` : p.image} alt={p.name} loading="lazy" className="size-full object-cover" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
@@ -340,11 +387,59 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
                 </>
               )}
             </div>
+            {/* t. 120 — PHOTO RÉELLE (produit ou soin) : la praticienne
+                photographie ce qu'elle vend. Elle prime sur le visuel studio. */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Photo réelle {editType === "service" ? "du soin" : "du produit"} (optionnelle)</Label>
+              <div className="flex items-center gap-3">
+                <div className="relative size-[72px] shrink-0 overflow-hidden rounded-[14px] border border-border bg-muted">
+                  {form.photoData ? (
+                    <img src={form.photoData} alt="Nouvelle photo — aperçu" className="size-full object-cover" />
+                  ) : existingPhoto && editId ? (
+                    <img src={`/api/media/${editType}/${editId}`} alt="Photo actuelle" className="size-full object-cover" />
+                  ) : (
+                    <span className="grid size-full place-items-center text-muted-foreground">
+                      {editType === "service" ? <Sparkles size={20} aria-hidden="true" /> : <Package size={20} aria-hidden="true" />}
+                    </span>
+                  )}
+                  {photoBusy && (
+                    <span className="absolute inset-0 grid place-items-center bg-background/70">
+                      <Loader2 className="size-5 animate-spin text-primary" aria-hidden="true" />
+                    </span>
+                  )}
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <Button type="button" variant="outline" size="sm" onClick={() => photoInput.current?.click()} disabled={photoBusy} className="h-9 gap-1.5 text-xs">
+                    <Camera className="size-3.5" aria-hidden="true" />
+                    {(form.photoData || existingPhoto) ? "Changer la photo" : "Photographier"}
+                  </Button>
+                  {(form.photoData || (existingPhoto && form.photoData === null)) && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setForm((s) => ({ ...s, photoData: null }))} className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-destructive">
+                      <ImageOff className="size-3.5" aria-hidden="true" /> Retirer la photo
+                    </Button>
+                  )}
+                  {form.photoData === null && !existingPhoto && (
+                    <p className="text-[10px] text-muted-foreground">Aucune photo — visuel par défaut conservé.</p>
+                  )}
+                </div>
+                <input
+                  ref={photoInput}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => {
+                    void pickPhoto(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+            </div>
+
             {editType === "product" && (
               <div className="space-y-1">
-                <Label className="text-xs">Visuel produit</Label>
+                <Label className="text-xs">Visuel studio (si pas de photo réelle)</Label>
                 <Select value={form.image} onValueChange={(v) => f("image", v)}>
-                  <SelectTrigger aria-label="Visuel produit"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Visuel studio"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {PRODUCT_IMAGES.map((img) => (
                       <SelectItem key={img} value={img}>{img.replace("-", " ")}</SelectItem>
@@ -353,7 +448,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
                 </Select>
                 <div className="mt-1.5 flex items-center gap-2">
                   <div className="size-12 rounded-lg overflow-hidden border border-border bg-muted">
-                    <img src={`/products/${form.image}.webp`} alt="Aperçu visuel produit" className="size-full object-cover" />
+                    <img src={`/products/${form.image}.webp`} alt="Aperçu visuel studio" className="size-full object-cover" />
                   </div>
                   <span className="text-[10px] text-muted-foreground font-mono">/products/{form.image}.webp</span>
                 </div>

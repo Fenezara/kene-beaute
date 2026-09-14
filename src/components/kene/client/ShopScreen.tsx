@@ -75,7 +75,7 @@ export function ShopScreen() {
     if (s.id === p.id && now - s.t < 320 && s.timer) {
       window.clearTimeout(s.timer);
       lastTap.current = { id: "", t: 0, timer: null };
-      addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image });
+      addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.hasPhoto ? `/api/media/product/${p.id}` : p.image });
       haptic(HAPTIC.light);
       const rect = e.currentTarget.getBoundingClientRect();
       setBurst({ id: p.id, x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -142,7 +142,16 @@ export function ShopScreen() {
       const key = p.tenant?.id ?? "";
       const cur = map.get(key);
       if (cur) cur.count += 1;
-      else map.set(key, { key, name: p.tenant?.name ?? "MAISON Kènè", city: p.tenant?.city ?? null, maison: !p.tenant, count: 1 });
+      else
+        map.set(key, {
+          key,
+          name: p.tenant?.name ?? "MAISON Kènè",
+          city: p.tenant?.city ?? null,
+          maison: !p.tenant,
+          count: 1,
+          // t. 120 — vitrine réelle de l'institut pour la carte vendeur
+          hasPhoto: Boolean(p.tenant?.hasPhoto),
+        });
     }
     return [...map.values()].sort((a, b) => (a.maison === b.maison ? a.name.localeCompare(b.name, "fr") : a.maison ? -1 : 1));
   }, [products]);
@@ -500,7 +509,7 @@ export function ShopScreen() {
               <div className="mx-auto sticky top-0 z-10 bg-card/95 backdrop-blur pt-2 pb-1">
                 <div className="h-1 w-10 rounded-full bg-muted mx-auto" aria-hidden="true" />
               </div>
-              <img src={detail.image} alt={detail.name} className="aspect-square w-full object-cover px-0" />
+              <img src={detail.hasPhoto ? `/api/media/product/${detail.id}` : detail.image} alt={detail.name} className="aspect-square w-full object-cover px-0" />
               <SheetHeader className="px-5 pt-4 text-left">
                 <SheetTitle className="font-heading font-black text-lg leading-tight">{detail.name}</SheetTitle>
                 <div className="flex items-center gap-2">
@@ -538,7 +547,7 @@ export function ShopScreen() {
                   </div>
                 </div>
                 <PrimaryCTA
-                  onClick={() => { addToCart({ productId: detail.id, name: detail.name, price: detail.price, qty, image: detail.image }); toast.success(`${qty} × ${detail.name} ajouté au panier`); setDetail(null); }}
+                  onClick={() => { addToCart({ productId: detail.id, name: detail.name, price: detail.price, qty, image: detail.hasPhoto ? `/api/media/product/${detail.id}` : detail.image }); toast.success(`${qty} × ${detail.name} ajouté au panier`); setDetail(null); }}
                   className="h-12 w-full"
                 >
                   <Plus size={17} aria-hidden="true" /> Ajouter au panier — {xof(detail.price * qty)}
@@ -772,6 +781,9 @@ function SellerCard({ seller, selected, onClick, totalCount }: {
         {seller ? (
           seller.maison ? (
             <KeneMark size={13} />
+          ) : seller.hasPhoto ? (
+            /* t. 120 — vignette de la vitrine réelle de l'institut */
+            <img src={`/api/media/tenant/${seller.key}`} alt="" className="size-[18px] rounded-md object-cover" loading="lazy" />
           ) : (
             <Building2 size={13} className={selected ? "text-primary-foreground/80" : "text-terre"} aria-hidden="true" />
           )
@@ -809,7 +821,8 @@ function ProductGrid({ items, onCardTap, burst }: {
               aria-label={`${p.name}, ${xof(p.price)} — appuie une fois pour la fiche, deux fois pour l'ajouter au panier`}
             >
               <div className="relative">
-                <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full rounded-[18px] object-cover" />
+                {/* t. 120 — photo réelle du produit (institut) si posée, sinon visuel studio */}
+                <img src={p.hasPhoto ? `/api/media/product/${p.id}` : p.image} alt={p.name} loading="lazy" className="aspect-square w-full rounded-[18px] object-cover" />
                 {/* Dégradé bas subtil — profondeur derrière le badge prix flottant */}
                 <div aria-hidden="true" className="absolute inset-0 rounded-[18px] bg-gradient-to-t from-black/25 via-transparent to-transparent" />
                 {/* Badge vendeur (t. 113) — l'institut (ou la maison) qui vend ce soin */}
@@ -848,7 +861,7 @@ function ProductGrid({ items, onCardTap, burst }: {
                 type="button"
                 whileTap={{ scale: 0.9 }}
                 onClick={() => {
-                  addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image });
+                  addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.hasPhoto ? `/api/media/product/${p.id}` : p.image });
                   haptic(HAPTIC.light);
                   toast.success(`${p.name} ajouté au panier`);
                 }}

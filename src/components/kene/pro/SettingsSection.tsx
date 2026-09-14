@@ -5,12 +5,16 @@
 // ramène simplement à l'accueil Kènè via le clamp du store, jamais setSpace).
 // Hydratation : l'état actif Clair/Sombre est gardé par useSyncExternalStore
 // (pattern ThemeToggle / use-install) — zéro setState-in-effect, zéro flash.
-import { useSyncExternalStore } from "react";
+// t. 120 — carte « Identité visuelle » : photo de vitrine de l'institut
+// (façade, enseigne ou intérieur) qui remplace le visuel calculé partout
+// (annuaire, boutique, fiche cliente) — upload local redimensionné.
+import { useEffect, useRef, useSyncExternalStore, useState } from "react";
 import { useTheme } from "next-themes";
-import { Building2, Check, ChevronRight, Crown, Languages, LogOut, Moon, Phone, SunMedium } from "lucide-react";
+import { Building2, Camera, Check, ChevronRight, Crown, ImageOff, Languages, Loader2, LogOut, Moon, Phone, SunMedium } from "lucide-react";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
+import { apiGet, apiPost, resizeImage } from "@/lib/kene/api";
 import { Badge } from "@/components/ui/badge";
 import { Eyebrow, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
@@ -26,11 +30,76 @@ function useHydrated(): boolean {
   return useSyncExternalStore(subscribeNothing, () => true, () => false);
 }
 
-export function SettingsSection({ tenantName, tenantCity, onNavigate }: { tenantId: string; tenantName: string; tenantCity?: string; onNavigate?: (s: ProSectionId) => void }) {
+export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }: { tenantId: string; tenantName: string; tenantCity?: string; onNavigate?: (s: ProSectionId) => void }) {
   const sessionUser = useKene((s) => s.user);
   const setUser = useKene((s) => s.setUser);
   const clearCart = useKene((s) => s.clearCart);
   const { lang, setLang } = useT();
+
+  // ── Photo de vitrine (t. 120) ──
+  // Le visuel ACTUEL vient de l'annuaire public (image + hasPhoto), l'aperçu
+  // local d'un upload frais prend le dessus le temps de la requête.
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
+  const [hasPhoto, setHasPhoto] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let alive = true;
+    apiGet<{ institutes: { id: string; image: string; hasPhoto?: boolean }[] }>("/api/institutes")
+      .then((r) => {
+        if (!alive) return;
+        const mine = r.institutes.find((i) => i.id === tenantId);
+        if (mine) {
+          setCurrentImage(mine.image);
+          setHasPhoto(Boolean(mine.hasPhoto));
+        }
+      })
+      .catch(() => {}); // non bloquant : la carte affiche l'état vide
+    return () => {
+      alive = false;
+    };
+  }, [tenantId]);
+
+  async function uploadVitrine(file: File | undefined) {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Photo trop lourde — choisis une image plus légère");
+      return;
+    }
+    setPhotoBusy(true);
+    try {
+      const dataUrl = await resizeImage(file, 1080); // vitrine plus large que l'avatar
+      setPhotoPreview(dataUrl);
+      await apiPost("/api/pro/institute-photo", { tenantId, photoData: dataUrl });
+      setHasPhoto(true);
+      setCurrentImage(`/api/media/tenant/${tenantId}`);
+      toast.success("Photo de vitrine mise à jour", {
+        description: "Elle remplace le visuel par défaut dans l'annuaire et la boutique.",
+      });
+    } catch (e) {
+      setPhotoPreview(null);
+      toast.error(e instanceof Error ? e.message : "Photo impossible");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function removeVitrine() {
+    setPhotoBusy(true);
+    try {
+      await apiPost("/api/pro/institute-photo", { tenantId, photoData: null });
+      setHasPhoto(false);
+      setPhotoPreview(null);
+      setCurrentImage(null);
+      toast.success("Photo retirée — retour au visuel par défaut");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Suppression impossible");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   // ── Affichage (next-themes — attribute="class", light/dark uniquement) ──
   const { theme, setTheme } = useTheme();
@@ -89,6 +158,65 @@ export function SettingsSection({ tenantName, tenantCity, onNavigate }: { tenant
             <Building2 size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
             <span className="truncate">{tenantName}{tenantCity ? ` · ${tenantCity}` : ""}</span>
           </p>
+        </div>
+      </div>
+
+      {/* Identité visuelle (t. 120) — photo de vitrine de l'institut */}
+      <div className="k-card rounded-[20px] p-4">
+        <div className="flex items-center gap-3">
+          <IconBadge icon={<Camera size={18} />} tone="gold" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold">Photo de l&apos;institut</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+              Façade, enseigne ou intérieur — elle devient la vitrine de {tenantName} dans l&apos;annuaire et la boutique.
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <div className="h-20 w-32 shrink-0 overflow-hidden rounded-[14px] border border-border bg-muted">
+            {(photoPreview || currentImage || hasPhoto) ? (
+              <img
+                src={photoPreview ?? currentImage ?? `/api/media/tenant/${tenantId}`}
+                alt={`Vitrine de ${tenantName}`}
+                className="size-full object-cover"
+              />
+            ) : (
+              <span className="grid size-full place-items-center text-muted-foreground">
+                <Building2 size={22} aria-hidden="true" />
+              </span>
+            )}
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => photoInput.current?.click()}
+              disabled={photoBusy}
+              className="h-11 rounded-[14px] border border-border bg-card px-3 text-xs font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60"
+            >
+              {photoBusy ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} aria-hidden="true" />}
+              {hasPhoto ? "Changer la photo" : "Ajouter une photo"}
+            </button>
+            {hasPhoto && (
+              <button
+                type="button"
+                onClick={() => void removeVitrine()}
+                disabled={photoBusy}
+                className="h-10 rounded-[14px] px-3 text-xs font-semibold text-muted-foreground inline-flex items-center justify-center gap-2 hover:text-destructive active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive disabled:opacity-60"
+              >
+                <ImageOff size={14} aria-hidden="true" /> Retirer (visuel par défaut)
+              </button>
+            )}
+            <input
+              ref={photoInput}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(e) => {
+                void uploadVitrine(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </div>
         </div>
       </div>
 

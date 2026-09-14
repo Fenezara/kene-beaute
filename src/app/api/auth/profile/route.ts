@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
+import { checkPhoto } from "@/lib/kene/photo";
 
 const Body = z.object({
   userId: z.string().min(1),
@@ -18,6 +19,10 @@ const Body = z.object({
   fitzpatrick: z.string().trim().optional().nullable(),
   allergies: z.string().trim().optional().nullable(),
   goals: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
+  // t. 120 — photo de profil : data URL (nouvelle photo) ou null (retrait).
+  // La donnée lourde ne revient JAMAIS dans la réponse : seul `hasAvatar`
+  // est renvoyé, l'UI charge /api/media/user/:id.
+  avatarData: z.string().nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -51,17 +56,25 @@ export async function GET(req: NextRequest) {
 
 /** Cœur partagé PATCH/GET. */
 async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
-  const { userId, goals, ...rest } = data;
+  const { userId, goals, avatarData, ...rest } = data;
 
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) return jsonError("Utilisatrice introuvable", 404);
+
+  // t. 120 — la photo passe par la validation partagée (format + poids)
+  if (avatarData !== undefined) {
+    const check = checkPhoto(avatarData, "photo de profil");
+    if (!check.ok) return jsonError(check.error, 400);
+  }
 
   const update: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(rest)) {
     if (value !== undefined) update[key] = value;
   }
   if (goals !== undefined) update.goals = JSON.stringify(goals);
+  if (avatarData !== undefined) update.avatarData = avatarData;
 
   const updated = await db.user.update({ where: { id: userId }, data: update });
-  return NextResponse.json({ user: updated });
+  const { avatarData: _ad, ...safe } = updated;
+  return NextResponse.json({ user: { ...safe, hasAvatar: Boolean(_ad) } });
 }

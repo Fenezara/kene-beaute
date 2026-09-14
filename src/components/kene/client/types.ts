@@ -41,6 +41,9 @@ export interface ApiInstitute {
   openingHour: number;
   closingHour: number;
   image: string;
+  // t. 120 — numéro officiel (bouton WhatsApp) + vitrine réelle éventuelle
+  phone?: string;
+  hasPhoto?: boolean;
   _count?: { services?: number; reviews?: number };
 }
 
@@ -53,6 +56,7 @@ export interface ApiService {
   price: number;
   description?: string | null;
   botanicals?: string | null;
+  hasPhoto?: boolean; // t. 120 — visuel du soin (/api/media/service/:id)
 }
 
 export interface ApiResource {
@@ -110,7 +114,9 @@ export interface ApiProduct {
   // t. 113 — marketplace par institut : null = produit MAISON Kènè,
   // sinon le produit est vendu par l'institut porté par `tenant`.
   tenantId?: string | null;
-  tenant?: { id: string; name: string; city: string; type: string } | null;
+  tenant?: { id: string; name: string; city: string; type: string; hasPhoto?: boolean } | null;
+  // t. 120 — photo réelle du produit prise par l'institut (prime sur `image`)
+  hasPhoto?: boolean;
 }
 
 /** Vendeur du marché (t. 113) : la MAISON Kènè ou un institut partenaire.
@@ -121,6 +127,7 @@ export interface ApiSeller {
   city: string | null;
   maison: boolean; // true = MAISON Kènè (tenantId null)
   count: number;
+  hasPhoto?: boolean; // t. 120 — vitrine réelle de l'institut vendeur
 }
 
 export interface ApiOrder {

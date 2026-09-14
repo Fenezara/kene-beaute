@@ -1,7 +1,9 @@
 "use client";
 // Kènè Pro — CRM : recherche, segments RFM, fiche cliente (ventes, RDV, diagnostics IA, diagnostics en institut, notes)
+// t. 120 — WhatsApp direct depuis la fiche cliente : message de prise de
+// contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
-import { FileDown, Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown } from "lucide-react";
+import { FileDown, MessageCircle, Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,6 +21,7 @@ import { RFM_SEGMENTS } from "@/lib/kene/types";
 import type { BodyZone } from "@/lib/kene/types";
 import { parseDiagnosis, diagImgSrc } from "@/components/kene/client/types";
 import { parseProDiagnosis } from "@/lib/kene/questionnaire";
+import { waLink } from "@/lib/kene/followups";
 import { SkinTwinCard, type TwinEntry } from "@/components/kene/skintwin/SkinTwinCard";
 import { ProEvolutionCard } from "@/components/kene/evolution/ProEvolutionCard";
 import { useApi } from "./useApi";
@@ -307,16 +310,29 @@ function ClientSheet({
             </SheetHeader>
 
             <div className="space-y-4 p-4">
-              {/* Fiche de consultation papier (t. 119) — pré-remplie pour cette cliente */}
-              <Button
-                variant="outline"
-                className="w-full gap-1.5"
-                onClick={() => window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}&clientId=${clientId}`, "_blank")}
-                aria-label={`Imprimer la fiche de consultation pré-remplie de ${c.name}`}
-              >
-                <FileDown className="size-4" aria-hidden="true" />
-                Fiche de consultation (PDF pré-rempli)
-              </Button>
+              {/* Actions rapides (t. 119/120) : fiche papier + WhatsApp direct */}
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                {/* Fiche de consultation papier (t. 119) — pré-remplie pour cette cliente */}
+                <Button
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}&clientId=${clientId}`, "_blank")}
+                  aria-label={`Imprimer la fiche de consultation pré-remplie de ${c.name}`}
+                >
+                  <FileDown className="size-4" aria-hidden="true" />
+                  Fiche de consultation (PDF)
+                </Button>
+                {/* t. 120 — WhatsApp : message pré-rempli au prénom de la cliente */}
+                <a
+                  href={waLink(c.phone, `Bonjour ${(c.name.split(/\s+/)[0] ?? c.name).trim()} 👋 Ici l'équipe de votre institut. Nous pensons à vous et à votre peau — une question, un conseil, un créneau ? Répondez ici, notre esthéticienne est là pour vous.`)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-10 items-center justify-center gap-1.5 rounded-md bg-[#3F7D3F]/12 px-3 text-xs font-bold text-[#2E5C2E] ring-1 ring-[#3F7D3F]/30 transition-all hover:bg-[#3F7D3F]/20 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-[#3F7D3F] dark:text-[#8FD18F]"
+                  aria-label={`Écrire à ${c.name} sur WhatsApp`}
+                >
+                  <MessageCircle className="size-4" aria-hidden="true" /> WhatsApp
+                </a>
+              </div>
 
               {/* RFM */}
               <section aria-label="Score RFM">

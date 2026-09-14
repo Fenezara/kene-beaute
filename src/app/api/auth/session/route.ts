@@ -22,6 +22,13 @@ import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/r
 
 export const runtime = "nodejs";
 
+/** t. 120 — l'avatar (data URL lourde) ne part jamais dans la session :
+ * seul `hasAvatar` fait le voyage, l'UI charge /api/media/user/:id. */
+function safeUser(user: { avatarData?: string | null } & Record<string, unknown>) {
+  const { avatarData, ...rest } = user;
+  return { ...rest, hasAvatar: Boolean(avatarData) };
+}
+
 export async function GET(req: NextRequest) {
   // Léger : appelé une fois au boot — AUTH_MUTATION (20/min) suffit largement.
   const rl = rateLimit(rlKey(req, "auth:session"), AUTH_MUTATION);
@@ -46,7 +53,7 @@ export async function GET(req: NextRequest) {
         ? (await db.tenant.findFirst({ where: { ownerPhone: user.phone } })) ??
           (emp ? await db.tenant.findUnique({ where: { id: emp.tenantId } }) : null)
         : null;
-      return NextResponse.json({ user, tenant: tenant ? { id: tenant.id, name: tenant.name } : null, employeeRole: emp ? emp.role : null });
+      return NextResponse.json({ user: safeUser(user), tenant: tenant ? { id: tenant.id, name: tenant.name } : null, employeeRole: emp ? emp.role : null });
     }
 
     // 2) Legacy (session POC d'avant ce sprint, sans cookie) : repli query userId.
@@ -65,7 +72,7 @@ export async function GET(req: NextRequest) {
       ? (await db.tenant.findFirst({ where: { ownerPhone: user.phone } })) ??
         (empLegacy ? await db.tenant.findUnique({ where: { id: empLegacy.tenantId } }) : null)
       : null;
-    return NextResponse.json({ user, tenant: tenant ? { id: tenant.id, name: tenant.name } : null, employeeRole: empLegacy ? empLegacy.role : null });
+    return NextResponse.json({ user: safeUser(user), tenant: tenant ? { id: tenant.id, name: tenant.name } : null, employeeRole: empLegacy ? empLegacy.role : null });
   } catch (err) {
     return serverError("auth/session", err);
   }

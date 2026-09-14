@@ -34,6 +34,9 @@ export interface SessionUser {
   fitzpatrick?: string | null;
   allergies?: string | null;
   consentHealth?: boolean;
+  // t. 120 — photo de profil : la data URL vit en base (jamais dans le
+  // store), seul le booléen voyage — l'UI charge /api/media/user/:id.
+  hasAvatar?: boolean;
   // t. 96 — poste de l'EMPLOYÉE connectée (estheticienne | dermo_conseillere |
   // caissiere | manager). Absent/null = gérante (accès complet).
   employeeRole?: string | null;

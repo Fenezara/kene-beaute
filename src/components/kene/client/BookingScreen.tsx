@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Loader2, Lock, MapPin,
-  MessageSquareQuote, Star, TriangleAlert, Users, X,
+  MessageCircle, MessageSquareQuote, Star, TriangleAlert, Users, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { addDays, formatDate, formatTime, xof, DEPOSIT_RATE } from "@/lib/kene/format";
 import { cancellationRefund } from "@/lib/kene/rfm";
+import { waLink } from "@/lib/kene/followups";
 import { SankofaIcon } from "@/components/kene/icons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Chip, IconBadge, PrimaryCTA, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
@@ -366,6 +367,22 @@ export function BookingScreen() {
                   {inst.description && <p className="text-xs text-muted-foreground leading-relaxed mt-3">{inst.description}</p>}
                 </RevealItem>
 
+                {/* t. 120 — WhatsApp direct cliente → institut : message
+                    pré-rempli, sans quitter l'app (lien wa.me officiel). */}
+                {inst.phone && (
+                  <RevealItem>
+                    <a
+                      href={waLink(inst.phone, `Bonjour ${inst.name} 👋 Je suis sur l'app Kènè et j'aimerais des informations sur vos soins.`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#3F7D3F]/12 text-[#2E5C2E] text-sm font-bold ring-1 ring-[#3F7D3F]/30 transition-all hover:bg-[#3F7D3F]/20 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-[#3F7D3F] dark:text-[#8FD18F]"
+                      aria-label={`Écrire à ${inst.name} sur WhatsApp`}
+                    >
+                      <MessageCircle size={17} aria-hidden="true" /> Écrire à l&apos;institut sur WhatsApp
+                    </a>
+                  </RevealItem>
+                )}
+
               {detailLoading ? (
                 <div className="space-y-2 mt-4">{[0, 1, 2].map((i) => <Shimmer key={i} className="h-16 rounded-[18px]" />)}</div>
               ) : (
@@ -400,7 +417,15 @@ export function BookingScreen() {
                       <RevealItem key={s.id}>
                         <div className="k-card rounded-[24px] p-2">
                           <div className={`flex items-start gap-3 rounded-[18px] p-3 transition-all duration-300 ${sel ? "bg-primary/8 ring-2 ring-primary/60" : ""}`}>
-                            <IconBadge icon={sel ? <Check size={17} /> : <Clock size={17} />} tone={sel ? "gold" : "terre"} className="mt-0.5" />
+                            {/* t. 120 — visuel du soin si l'institut en a posé un,
+                                sinon le badge horloge habituel */}
+                            {s.hasPhoto ? (
+                              <span className="mt-0.5 size-10 shrink-0 overflow-hidden rounded-[12px] ring-1 ring-border">
+                                <img src={`/api/media/service/${s.id}`} alt={`Illustration du soin ${s.name}`} loading="lazy" className="size-full object-cover" />
+                              </span>
+                            ) : (
+                              <IconBadge icon={sel ? <Check size={17} /> : <Clock size={17} />} tone={sel ? "gold" : "terre"} className="mt-0.5" />
+                            )}
                             <div className="min-w-0 flex-1">
                               <div className="flex items-baseline justify-between gap-2">
                                 <p className="min-w-0 text-sm font-semibold">{s.name}</p>

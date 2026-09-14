@@ -201,13 +201,22 @@ export function HomeScreen({
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {data?.wallet && <WalletPill balance={data.wallet.balance} onClick={() => setClientTab("profil")} />}
-            {/* Médaillon de marque (t. 77) — le 04b choisi par la fondatrice vit
-                AUSSI dans l'app (splash + Seuil ne suffisaient pas : une cliente
-                connectée ne les voit jamais). ≥ 56 px conformément au système
-                de marque 3 étages ; décoratif — le prénom est dans le h2. */}
-            <span aria-hidden="true" className="shrink-0 select-none">
-              <KeneEmblem size={56} className="drop-shadow-[0_2px_8px_rgba(200,149,30,0.22)]" />
-            </span>
+            {/* t. 120 — photo de profil si posée (touche l'onglet Profil),
+                sinon médaillon de marque (t. 77) : le 04b choisi par la
+                fondatrice reste la signature quand la cliente n'a pas de photo. */}
+            {user.hasAvatar ? (
+              <button
+                onClick={() => setClientTab("profil")}
+                aria-label={`Mon profil — ${user.name}`}
+                className="shrink-0 size-14 rounded-full overflow-hidden ring-2 ring-gold/50 hover:ring-gold focus-visible:outline-2 focus-visible:outline-primary transition-all"
+              >
+                <img src={`/api/media/user/${user.id}`} alt="" className="size-full object-cover" />
+              </button>
+            ) : (
+              <span aria-hidden="true" className="shrink-0 select-none">
+                <KeneEmblem size={56} className="drop-shadow-[0_2px_8px_rgba(200,149,30,0.22)]" />
+              </span>
+            )}
           </div>
         </header>
       </RevealItem>

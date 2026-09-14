@@ -17,11 +17,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         name: true,
         city: true,
         country: true,
+        phone: true, // t. 120 — numéro officiel : bouton WhatsApp cliente → institut
         rating: true,
         reviewCount: true,
         description: true,
         openingHour: true,
         closingHour: true,
+        photoData: true,
         _count: { select: { services: true, reviews: true } },
       },
     });
@@ -39,6 +41,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           price: true,
           description: true,
           botanicals: true,
+          photoData: true, // t. 120 — visuel du soin (hasPhoto dans la réponse)
         },
       }),
       db.resource.findMany({
@@ -53,9 +56,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       }),
     ]);
 
+    const { photoData, ...institute } = tenant;
     return NextResponse.json({
-      institute: { ...tenant, image: instituteImage(tenant.name), reviewCount: tenant.reviewCount ?? tenant._count.reviews },
-      services,
+      institute: {
+        ...institute,
+        // t. 120 — vitrine réelle si posée, sinon visuel studio du nom
+        image: photoData ? `/api/media/tenant/${id}` : instituteImage(tenant.name),
+        hasPhoto: Boolean(photoData),
+        reviewCount: tenant.reviewCount ?? tenant._count.reviews,
+      },
+      // hasPhoto par soin (photo réelle prise en institut) — la data URL ne
+      // part jamais dans le payload, /api/media/service/:id la sert.
+      services: services.map(({ photoData: pd, ...s }) => ({ ...s, hasPhoto: Boolean(pd) })),
       resources,
       reviews,
     });
