@@ -186,6 +186,11 @@ model ProDiagnosis {
   scoreGlobal      Int          @default(0)
   vlmUsed          Boolean      @default(false) // photo analysée par le VLM
   photoUsed        Boolean      @default(false) // photo jointe
+  // Consentements recueillis en cabine AVANT le diagnostic (t. 119) — la
+  // cliente signe aussi la fiche papier ; ici la trace numérique horodatée.
+  consentPhoto     Boolean      @default(false) // prise & conservation de photos par l'institut
+  consentData      Boolean      @default(false) // conservation des données de peau par l'institut
+  consentTs        DateTime?    // horodatage du consentement
   createdAt        DateTime     @default(now())
 }
 
@@ -619,7 +624,7 @@ model Consent {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String // health_data | marketing | whatsapp
+  type      String // health_data | photo_storage | marketing | whatsapp
   granted   Boolean
   ip        String?
   createdAt DateTime @default(now())

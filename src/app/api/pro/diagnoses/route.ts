@@ -31,6 +31,10 @@ const Body = z.object({
   client: z.object({ name: z.string().min(2).max(80), phone: z.string().min(8).max(20) }).optional(),
   photo: z.string().startsWith("data:image/").optional(),
   practitioner: z.string().max(80).optional(),
+  // Consentements recueillis en cabine (t. 119) — obligatoires avant tout
+  // diagnostic : photos ET données de peau. La fiche papier porte la
+  // signature ; ici la trace numérique horodatée.
+  consent: z.object({ photo: z.boolean(), data: z.boolean() }),
 });
 
 /** Réponses admissibles uniquement pour les questions déclarées (anti-spam). */
@@ -70,6 +74,9 @@ export async function POST(req: NextRequest) {
       );
     }
     const { zone, photo, practitioner } = parsed.data;
+    if (!parsed.data.consent?.photo || !parsed.data.consent?.data) {
+      return jsonError("Les consentements de la cliente (photos + données de peau) doivent être recueillis avant le diagnostic — cochez les deux cases à l'étape cliente", 400);
+    }
     const answers = sanitizeAnswers(parsed.data.answers as QAnswers);
 
     const tenant = await resolveTenant(req, parsed.data.tenantId);
@@ -146,8 +153,22 @@ export async function POST(req: NextRequest) {
         scoreGlobal: result.score_global,
         vlmUsed: Boolean(vlm && result.source === "vlm+questionnaire"),
         photoUsed: Boolean(photo),
+        consentPhoto: parsed.data.consent.photo,
+        consentData: parsed.data.consent.data,
+        consentTs: new Date(),
       },
     });
+
+    // Trace du consentement institut sur le registre Consent de la cliente
+    // (si elle est sur l'app) — même vocabulaire que l'onboarding.
+    if (client.userId) {
+      await db.consent.createMany({
+        data: [
+          { userId: client.userId, type: "photo_storage", granted: true },
+          { userId: client.userId, type: "skin_data", granted: true },
+        ],
+      });
+    }
 
     await db.clientProfile.update({
       where: { id: client.id },
@@ -215,6 +236,9 @@ export async function GET(req: NextRequest) {
         scoreGlobal: true,
         vlmUsed: true,
         photoUsed: true,
+        consentPhoto: true,
+        consentData: true,
+        consentTs: true,
         createdAt: true,
         userId: true,
         clientProfile: { select: { name: true, phone: true } },

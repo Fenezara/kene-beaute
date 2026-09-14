@@ -17,7 +17,7 @@ const CONTENT_TOP = 64; // 1re ligne de contenu (sous l'en-tête courant)
 const RESERVE_BOTTOM = 52; // réserve pied de page
 const CONTENT_W = M_RIGHT - M_X; // ≈ 507
 
-type RGB = readonly [number, number, number];
+export type RGB = readonly [number, number, number];
 const INK: RGB = [0.16, 0.11, 0.05];
 const SOFT: RGB = [0.45, 0.38, 0.28];
 const GOLD: RGB = [0.69, 0.497, 0.078]; // #B07F14 — identité Kènè
@@ -28,8 +28,10 @@ const CARD: RGB = [0.988, 0.972, 0.937];
 const LINE: RGB = [0.85, 0.79, 0.68];
 const GREEN: RGB = [0.13, 0.45, 0.28];
 const RED: RGB = [0.72, 0.26, 0.18];
+export { INK, SOFT, GOLD, GOLD_DARK, GOLD_BAND, CREAM, CARD, LINE, GREEN, RED };
+export { PAGE_W, PAGE_H, M_X, M_RIGHT, CONTENT_W, CONTENT_TOP };
 
-type Font = "regular" | "bold" | "oblique";
+export type Font = "regular" | "bold" | "oblique";
 
 // ─────────────── Encodage WinAnsi (cp1252) ───────────────
 // PDF : les polices Type1 standard déclarent /WinAnsiEncoding → un octet par
@@ -195,6 +197,7 @@ class ByteBuf {
 }
 
 const fmtPt = (n: number): string => String(Math.round(n * 100) / 100);
+export { fmtPt };
 
 // ─────────────── Document (primitives + pagination) ───────────────
 interface TextOpts {
@@ -205,11 +208,14 @@ interface TextOpts {
   letterSpace?: number; // point
 }
 
-class PdfDoc {
+export class PdfDoc {
   private pages: string[][] = [];
   private cur: string[] = [];
   private y = CONTENT_TOP;
   private footerLeft = "";
+  // En-tête courant des pages 2+ (t. 119 : le moteur sert aussi la fiche de
+  // consultation et les comptes-rendus — pas seulement la liasse comptable).
+  constructor(private headerText = "Kènè Pro — Liasse comptable SYSCOHADA") {}
 
   /** Position verticale courante (baseline, depuis le HAUT de page) */
   get cursorY(): number {
@@ -266,6 +272,10 @@ class PdfDoc {
   hline(x1: number, x2: number, y: number, color: RGB = LINE, lw = 0.7): void {
     this.op(`${color.map((v) => fmtPt(v)).join(" ")} RG ${fmtPt(lw)} w ${fmtPt(x1)} ${fmtPt(PAGE_H - y)} m ${fmtPt(x2)} ${fmtPt(PAGE_H - y)} l S`);
   }
+  /** Segment quelconque (coordonnées y depuis le HAUT) — coches, diagonales. */
+  line(x1: number, y1: number, x2: number, y2: number, color: RGB = LINE, lw = 0.9): void {
+    this.op(`${color.map((v) => fmtPt(v)).join(" ")} RG ${fmtPt(lw)} w ${fmtPt(x1)} ${fmtPt(PAGE_H - y1)} m ${fmtPt(x2)} ${fmtPt(PAGE_H - y2)} l S`);
+  }
 
   // — sérialisation —
   finish(): { data: Uint8Array; pages: number } {
@@ -313,7 +323,7 @@ class PdfDoc {
   }
 
   private runningHeader(): string {
-    const left = encodePdfText("Kènè Pro — Liasse comptable SYSCOHADA");
+    const left = encodePdfText(this.headerText);
     return (
       `BT /F1 7 Tf 0 Tc ${SOFT.map(fmtPt).join(" ")} rg 1 0 0 1 ${M_X} ${fmtPt(PAGE_H - 36)} Tm (${left}) Tj ET\n` +
       `q ${GOLD.map((v) => fmtPt(v)).join(" ")} RG 1.1 w ${M_X} ${fmtPt(PAGE_H - 46)} m ${M_RIGHT} ${fmtPt(PAGE_H - 46)} l S Q`

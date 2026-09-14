@@ -95,7 +95,10 @@ export function Onboarding({
   const [skinType, setSkinType] = useState<string>("mixte");
   const [allergies, setAllergies] = useState("");
   const [goals, setGoals] = useState<string[]>(["pih", "eclat"]);
-  const [consent, setConsent] = useState(false);
+  // Consentements explicites (t. 119) : données de peau ET conservation des
+  // photos — deux cases distinctes, toutes deux obligatoires pour le diagnostic.
+  const [consentData, setConsentData] = useState(false);
+  const [consentPhoto, setConsentPhoto] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
 
   // compte entreprise (mode pro) — POST /api/auth/pro/register
@@ -129,7 +132,7 @@ export function Onboarding({
   // Progression indicative du questionnaire (barre ÉCLAT 2026, étape profil) —
   // pure dérivation d'état pour l'affichage, aucun usage métier.
   const profileProgress =
-    25 + (goals.length > 0 ? 20 : 0) + (isNew ? (name.trim() ? 15 : 0) : 15) + (allergies.trim() ? 10 : 0) + (consent ? 30 : 0);
+    25 + (goals.length > 0 ? 20 : 0) + (isNew ? (name.trim() ? 15 : 0) : 15) + (allergies.trim() ? 10 : 0) + (consentData ? 15 : 0) + (consentPhoto ? 15 : 0);
 
   async function requestCode(p = `+225${digits}`) {
     setLoading(true);
@@ -273,7 +276,7 @@ export function Onboarding({
     if (!authId) return toast.error("Session expirée — reviens puis revalide le code");
     setSavingProfile(true);
     try {
-      await apiPost("/api/auth/consent", { userId: authId });
+      await apiPost("/api/auth/consent", { userId: authId, types: ["health_data", "photo_storage"] });
       const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {
         userId: authId,
         name: name.trim() || undefined,
@@ -820,22 +823,36 @@ export function Onboarding({
               )}
 
               <RevealItem>
-                <label className="k-card rounded-[22px] flex items-start gap-3 p-3.5 cursor-pointer active:scale-[0.99] transition-transform">
-                  <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[#C8951E]" />
-                  <span className="text-[12px] leading-relaxed text-muted-foreground">
-                    <ShieldCheck size={14} className="inline mr-1 text-primary" />
-                    J&apos;accepte le traitement de mes données santé (photos de peau, historique) pour mes diagnostics personnalisés. Chiffrées, jamais partagées sans mon accord. <span className="text-primary font-semibold">Obligatoire.</span>
-                  </span>
-                </label>
+                <div className="k-card rounded-[22px] p-3.5 space-y-3" aria-label="Consentements obligatoires">
+                  <p className="text-sm font-semibold flex items-center gap-1.5">
+                    <ShieldCheck size={15} className="text-primary" aria-hidden="true" />
+                    Mes consentements
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-primary">Obligatoires</span>
+                  </p>
+                  <label className="flex items-start gap-3 cursor-pointer active:scale-[0.99] transition-transform">
+                    <input type="checkbox" checked={consentData} onChange={(e) => setConsentData(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[#C8951E]" aria-label="Consentement données de peau" />
+                    <span className="text-[12px] leading-relaxed text-muted-foreground">
+                      <span className="font-bold text-foreground">Mes données de peau — </span>
+                      j&apos;accepte le traitement de mes données santé (historique, scores, protocoles) pour mes diagnostics personnalisés. Chiffrées, jamais revendues, jamais partagées sans mon accord.
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer active:scale-[0.99] transition-transform">
+                    <input type="checkbox" checked={consentPhoto} onChange={(e) => setConsentPhoto(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[#C8951E]" aria-label="Consentement conservation des photos" />
+                    <span className="text-[12px] leading-relaxed text-muted-foreground">
+                      <span className="font-bold text-foreground">Mes photos — </span>
+                      j&apos;accepte que mes photos de peau soient conservées dans mon historique pour suivre l&apos;évolution de ma peau. Je peux demander leur suppression à tout moment depuis Mes données.
+                    </span>
+                  </label>
+                </div>
               </RevealItem>
 
               <RevealItem>
                 <PrimaryCTA
                   onClick={async () => {
-                    if (!consent) return toast.error("Le consentement santé est obligatoire pour le diagnostic");
+                    if (!consentData || !consentPhoto) return toast.error("Les deux consentements (données de peau + photos) sont obligatoires pour le diagnostic");
                     await saveProfile();
                   }}
-                  disabled={!consent || savingProfile}
+                  disabled={!consentData || !consentPhoto || savingProfile}
                   className="sticky bottom-4 w-full"
                 >
                   {savingProfile ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}

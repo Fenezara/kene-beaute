@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, GitCompareArrows, Hand, History,
+  ArrowLeft, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, FileDown, GitCompareArrows, Hand, History,
   ImagePlus, Layers, Loader2, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Sparkles, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -1066,6 +1066,14 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
             <History size={16} /> Historique
           </button>
         </div>
+        {/* Compte-rendu PDF (t. 119) — imprimable / partageable */}
+        <button
+          onClick={() => window.open(`/api/diagnoses/report?userId=${user.id}&id=${diag.id}`, "_blank")}
+          className="k-chip mt-3 h-12 w-full rounded-2xl text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
+          aria-label="Télécharger ou imprimer mon compte-rendu de diagnostic en PDF"
+        >
+          <FileDown size={16} /> Mon compte-rendu PDF
+        </button>
       </RevealItem>
       </Reveal>
 

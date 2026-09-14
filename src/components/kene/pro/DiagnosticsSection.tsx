@@ -8,8 +8,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Camera, ChevronLeft, ChevronRight, ImagePlus, Info, Loader2, OctagonAlert,
-  Search, Sparkles, Stethoscope, Trash2, UserPlus, Users,
+  Camera, ChevronLeft, ChevronRight, FileDown, ImagePlus, Info, Loader2, OctagonAlert,
+  Printer, Search, ShieldCheck, Sparkles, Stethoscope, Trash2, UserPlus, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -82,10 +82,21 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
         title="Diagnostic en cabine"
         sub="L'institut réalise le diagnostic peau, guidé par le questionnaire dermatologique"
         actions={
-          <Button onClick={() => setWizardOpen(true)} className="gap-2 font-semibold" aria-label="Lancer un nouveau diagnostic en cabine">
-            <Stethoscope className="size-4" aria-hidden="true" />
-            Nouveau diagnostic
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}`, "_blank")}
+              className="gap-2"
+              aria-label="Imprimer une fiche de consultation vierge (support papier de l'entretien)"
+            >
+              <Printer className="size-4" aria-hidden="true" />
+              Fiche vierge
+            </Button>
+            <Button onClick={() => setWizardOpen(true)} className="gap-2 font-semibold" aria-label="Lancer un nouveau diagnostic en cabine">
+              <Stethoscope className="size-4" aria-hidden="true" />
+              Nouveau diagnostic
+            </Button>
+          </div>
         }
       />
 
@@ -263,6 +274,10 @@ function DiagWizard({
   const [result, setResult] = useState<ProDiagnosisResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [analysisMsg, setAnalysisMsg] = useState(ANALYSIS_STEPS[0]);
+  // Consentements cabine (t. 119) — recueillis à l'étape cliente, requis pour
+  // lancer le questionnaire ; tracés sur le diagnostic + registre Consent.
+  const [consent, setConsent] = useState({ photo: false, data: false });
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   // Message d'attente rotatif pendant l'analyse VLM (10-30 s possibles)
   const msgIdx = useRef(0);
@@ -288,6 +303,8 @@ function DiagWizard({
     setPhoto(null);
     setResult(null);
     setSubmitError(null);
+    setConsent({ photo: false, data: false });
+    setSavedId(null);
   };
 
   const submit = async () => {
@@ -305,9 +322,11 @@ function DiagWizard({
           clientProfileId: selected?.id,
           photo: photo ?? undefined,
           practitioner: practitioner.trim() || undefined,
+          consent,
         }
       );
       setResult(res.result);
+      setSavedId(res.diagnosis.id);
       toast.success(`Diagnostic enregistré — ${res.diagnosis.clientName} · ${res.result.score_global}/100`, {
         description: res.result.questionnaire.flags.length > 0 ? `${res.result.questionnaire.flags.length} point(s) de vigilance noté(s) — visible dans la fiche CRM.` : "Résultat fusionné disponible dans le CRM.",
         duration: 7_000,
@@ -370,6 +389,8 @@ function DiagWizard({
               onZone={setZone}
               practitioner={practitioner}
               onPractitioner={setPractitioner}
+              consent={consent}
+              onConsent={setConsent}
               onNext={() => setStep(2)}
             />
           )}
@@ -398,6 +419,7 @@ function DiagWizard({
               error={submitError}
               result={result}
               clientName={selected?.name}
+              printUrl={savedId ? `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${savedId}` : null}
               onRetryBack={() => setStep(3)}
               onNew={reset}
               onDone={onClose}
@@ -409,7 +431,7 @@ function DiagWizard({
   );
 }
 
-// ── Étape 1 : cliente + zone + praticienne ──
+// ── Étape 1 : cliente + consentements + zone + praticienne ──
 function ClientStep({
   tenantId,
   preselectClientId,
@@ -419,6 +441,8 @@ function ClientStep({
   onZone,
   practitioner,
   onPractitioner,
+  consent,
+  onConsent,
   onNext,
 }: {
   tenantId: string;
@@ -429,6 +453,8 @@ function ClientStep({
   onZone: (z: BodyZone) => void;
   practitioner: string;
   onPractitioner: (v: string) => void;
+  consent: { photo: boolean; data: boolean };
+  onConsent: (c: { photo: boolean; data: boolean }) => void;
   onNext: () => void;
 }) {
   const [query, setQuery] = useState("");
@@ -594,7 +620,51 @@ function ClientStep({
         />
       </div>
 
-      <Button onClick={onNext} disabled={!selected} className="w-full gap-1.5 font-semibold">
+      {/* Consentements cabine (t. 119) — obligatoires avant l'entretien */}
+      <div className="rounded-xl border border-gold/35 bg-gold/5 p-3.5 space-y-2.5" aria-label="Consentements de la cliente">
+        <p className="text-sm font-semibold flex items-center gap-1.5">
+          <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
+          Consentements de la cliente
+          <span className="text-[10px] font-bold uppercase tracking-wide text-primary">Obligatoires</span>
+        </p>
+        {([
+          ["photo", "Photos", "Elle accepte la prise et la conservation de photos de sa peau dans son dossier client."],
+          ["data", "Données de peau", "Elle accepte la conservation de ses données de peau et de diagnostic par l'institut."],
+        ] as const).map(([key, title, text]) => (
+          <label key={key} className="flex items-start gap-2.5 cursor-pointer active:scale-[0.99] transition-transform">
+            <input
+              type="checkbox"
+              checked={consent[key]}
+              onChange={(e) => onConsent({ ...consent, [key]: e.target.checked })}
+              className="mt-0.5 h-5 w-5 accent-[#C8951E]"
+              aria-label={`Consentement ${title}`}
+            />
+            <span className="text-xs leading-relaxed text-muted-foreground">
+              <span className="font-bold text-foreground">{title} — </span>
+              {text}
+            </span>
+          </label>
+        ))}
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <p className="text-[11px] text-muted-foreground">La fiche papier (ci-dessous) porte sa signature.</p>
+          <button
+            type="button"
+            onClick={() =>
+              window.open(
+                `/api/pro/consultation-sheet?tenantId=${tenantId}${selected ? `&clientId=${selected.id}` : ""}&practitioner=${encodeURIComponent(practitioner)}`,
+                "_blank"
+              )
+            }
+            className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-medium hover:bg-accent/50 transition-colors min-h-8"
+            aria-label="Imprimer la fiche de consultation (pré-remplie pour la cliente sélectionnée)"
+          >
+            <Printer className="size-3" aria-hidden="true" />
+            Fiche de consultation
+          </button>
+        </div>
+      </div>
+
+      <Button onClick={onNext} disabled={!selected || !consent.photo || !consent.data} className="w-full gap-1.5 font-semibold">
         Commencer le questionnaire
         <ChevronRight className="size-4" aria-hidden="true" />
       </Button>
@@ -836,6 +906,7 @@ function ResultStep({
   error,
   result,
   clientName,
+  printUrl,
   onRetryBack,
   onNew,
   onDone,
@@ -845,6 +916,7 @@ function ResultStep({
   error: string | null;
   result: ProDiagnosisResult | null;
   clientName?: string;
+  printUrl: string | null;
   onRetryBack: () => void;
   onNew: () => void;
   onDone: () => void;
@@ -882,7 +954,18 @@ function ResultStep({
   return (
     <div className="space-y-5">
       <ResultView result={result} clientName={clientName} />
-      <div className="flex gap-2 pb-2">
+      <div className="flex flex-wrap gap-2 pb-2">
+        {printUrl && (
+          <Button
+            variant="outline"
+            onClick={() => window.open(printUrl, "_blank")}
+            className="gap-1.5"
+            aria-label="Imprimer le compte-rendu PDF du diagnostic pour la cliente"
+          >
+            <FileDown className="size-4" aria-hidden="true" />
+            Compte-rendu PDF
+          </Button>
+        )}
         <Button variant="outline" onClick={onNew} className="gap-1.5">
           Nouveau diagnostic
         </Button>
@@ -1182,6 +1265,15 @@ function DetailSheet({
                   <ChevronRight className="size-4" aria-hidden="true" />
                 </Button>
               )}
+              <Button
+                variant="outline"
+                className="mt-2 w-full gap-1.5"
+                onClick={() => window.open(`/api/pro/diagnoses/report?tenantId=${tenantId}&id=${item.id}`, "_blank")}
+                aria-label={`Imprimer le compte-rendu PDF du diagnostic de ${item.clientName}`}
+              >
+                <FileDown className="size-4" aria-hidden="true" />
+                Compte-rendu PDF
+              </Button>
             </>
           )}
         </div>

@@ -1,7 +1,7 @@
 "use client";
 // Kènè Pro — CRM : recherche, segments RFM, fiche cliente (ventes, RDV, diagnostics IA, diagnostics en institut, notes)
 import { useEffect, useMemo, useState } from "react";
-import { Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown } from "lucide-react";
+import { FileDown, Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -307,6 +307,17 @@ function ClientSheet({
             </SheetHeader>
 
             <div className="space-y-4 p-4">
+              {/* Fiche de consultation papier (t. 119) — pré-remplie pour cette cliente */}
+              <Button
+                variant="outline"
+                className="w-full gap-1.5"
+                onClick={() => window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}&clientId=${clientId}`, "_blank")}
+                aria-label={`Imprimer la fiche de consultation pré-remplie de ${c.name}`}
+              >
+                <FileDown className="size-4" aria-hidden="true" />
+                Fiche de consultation (PDF pré-rempli)
+              </Button>
+
               {/* RFM */}
               <section aria-label="Score RFM">
                 <h4 className="font-heading text-sm font-bold mb-2">Score RFM</h4>
