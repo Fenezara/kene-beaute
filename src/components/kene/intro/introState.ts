@@ -1,6 +1,6 @@
 "use client";
 // Kènè — état partagé de l'introduction (Fil de Kente).
-// Pattern useSyncExternalStore : lecture localStorage SANS mismatch d'hydratation
+// Pattern useSyncExternalStore: lecture localStorage SANS mismatch d'hydratation
 // (snapshot serveur = false → l'intro est rendue puis corrigée après hydratation),
 // notification même onglet via événement custom + multi-onglets via "storage".
 import { useSyncExternalStore } from "react";
@@ -12,7 +12,7 @@ export function markIntroDone() {
   try {
     localStorage.setItem(INTRO_KEY, "1");
   } catch {
-    /* stockage indisponible — l'événement suffit pour la session courante */
+ /* stockage indisponible — l'événement suffit pour la session courante */
   }
   window.dispatchEvent(new Event(INTRO_EVENT));
 }

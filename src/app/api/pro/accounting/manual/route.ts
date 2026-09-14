@@ -23,8 +23,8 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, l'écriture
-    // comptable exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, l'écriture
+    // comptable exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:accounting:manual");
     if (guard) return guard;
 

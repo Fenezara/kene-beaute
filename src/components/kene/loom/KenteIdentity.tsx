@@ -1,7 +1,7 @@
 "use client";
-// Kènè — Kente identitaire (t. 82, vague 1) : le pagne UNIQUE de chaque
+// Kènè — Kente identitaire (, vague 1): le pagne UNIQUE de chaque
 // cliente, rendu en canvas 2D procédural. La graine (dérivée de l'userId
-// côté API) fixe le motif — bandeaux, symétries, accents ; le nombre de
+// côté API) fixe le motif — bandeaux, symétries, accents; le nombre de
 // Fils d'Or (actions réelles) fixe combien de rayures DORÉES brillent dans
 // la trame. Zéro asset, DPI net, ~1 ms de rendu.
 import { useEffect, useRef } from "react";
@@ -30,11 +30,11 @@ export function KenteIdentity({
   className,
   height,
 }: {
-  /** Graine déterministe (dérivée de l'userId par l'API). */
+ /** Graine déterministe (dérivée de l'userId par l'API). */
   seed: number;
-  /** Nombre de Fils d'Or — autant de rayures dorées allumées. */
+ /** Nombre de Fils d'Or — autant de rayures dorées allumées. */
   threads: number;
-  /** Variante slim (carte accueil) vs complète (profil). */
+ /** Variante slim (carte accueil) vs complète (profil). */
   compact?: boolean;
   className?: string;
   height?: number;
@@ -64,7 +64,7 @@ export function KenteIdentity({
 
     for (let r = 0; r < rows; r++) {
       const y = r * rowH;
-      // bandeau de fond : 2–4 segments par rangée
+      // bandeau de fond: 2–4 segments par rangée
       const segs = 2 + Math.floor(rnd() * 3);
       let x = 0;
       while (x < w) {
@@ -74,7 +74,7 @@ export function KenteIdentity({
         const base = isGold ? GOLD : PALETTE[Math.floor(rnd() * PALETTE.length)];
         ctx.fillStyle = base;
         ctx.fillRect(x, y, Math.min(segW, w - x) - 1.5, rowH - 1.5);
-        // trame tissée : tirets clairs/sombres en quinconce
+        // trame tissée: tirets clairs/sombres en quinconce
         ctx.fillStyle = isGold ? GOLD_BRIGHT : "rgba(248,241,228,0.16)";
         const step = 9;
         const phase = (r % 2) * (step / 2);
@@ -95,7 +95,7 @@ export function KenteIdentity({
       }
     }
 
-    // bord : filet or hairline (cadre du pagne)
+    // bord: filet or hairline (cadre du pagne)
     ctx.strokeStyle = "rgba(200,149,30,0.55)";
     ctx.lineWidth = 1;
     ctx.strokeRect(0.5, 0.5, w - 1, h - 1);

@@ -1,13 +1,13 @@
 "use client";
-// Kènè Cliente — Chat Dr. Kènè : WhatsApp-like, micro serveur (ASR), triage
-// photo IA, TTS. ÉCLAT 2026 : bulles verre (IA) / dégradé terre-bissap
+// Kènè Cliente — Chat Dr. Kènè: WhatsApp-like, micro serveur (ASR), triage
+// photo IA, TTS. ÉCLAT 2026: bulles verre (IA) / dégradé terre-bissap
 // (cliente), avatar NeaOnnim à halo doré, chips verre — présentation seule,
 // logique chat (store persist, triage photo, TTS) inchangée.
-// La conversation vit dans le store persist « kene-chat » (src/store/chat.ts) :
+// La conversation vit dans le store persist « kene-chat » (src/store/chat.ts):
 // elle survit au changement d'onglet et au rechargement, sans les photos
 // (base64 — mémoire de session uniquement, jamais dans localStorage).
 //
-// MICRO SERVEUR (t. 71-d) : la cliente parle → MediaRecorder (webm/opus,
+// MICRO SERVEUR: la cliente parle → MediaRecorder (webm/opus,
 // 12 s max, annulable) → POST /api/asr → la transcription arrive DANS LE
 // CHAMP DE SAISIE — jamais d'envoi automatique, elle relit et valide.
 // Safari (mp4/aac non supporté par le moteur) → ré-encodage WAV mono via
@@ -30,15 +30,15 @@ const SUGGESTIONS = [
   "Routine minimaliste matin/soir ?",
 ];
 
-/** Contrat badge cloche chat (63-a) : un message de Dr. Kènè vient d'arriver
- *  — c'est le SEUL point de couplage, l'événement est figé. */
+/** Contrat badge cloche chat (63-a): un message de Dr. Kènè vient d'arriver
+ * — c'est le SEUL point de couplage, l'événement est figé. */
 function notifyChatNew() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("kene:chat:new", { detail: { at: Date.now() } }));
   }
 }
 
-/* ── Micro serveur (t. 71-d) — types & helpers purs ── */
+/* ── Micro serveur — types & helpers purs ── */
 type MicState = "idle" | "recording" | "transcribing" | "unavailable";
 
 /** 12 s max d'enregistrement (couvre une question beauté posée à l'oral). */
@@ -48,8 +48,8 @@ function mmss(sec: number): string {
   return `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
 }
 
-/** webm/opus si supporté (Chrome/Android/Firefox) ; undefined sinon → Safari
- *  enregistre en mp4/aac, converti en WAV par toAsrBlob avant l'envoi. */
+/** webm/opus si supporté (Chrome/Android/Firefox); undefined sinon → Safari
+ * enregistre en mp4/aac, converti en WAV par toAsrBlob avant l'envoi. */
 function pickRecorderMime(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
   for (const m of ["audio/webm;codecs=opus", "audio/webm"]) {
@@ -71,14 +71,14 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-/** Le moteur ASR n'accepte QUE WAV et WebM (erreur amont explicite) : tout
- *  autre conteneur (mp4/aac Safari) est ré-encodé en WAV mono 16 bits via
- *  WebAudio — conversion minimale côté client, documentée dans la route. */
+/** Le moteur ASR n'accepte QUE WAV et WebM (erreur amont explicite): tout
+ * autre conteneur (mp4/aac Safari) est ré-encodé en WAV mono 16 bits via
+ * WebAudio — conversion minimale côté client, documentée dans la route. */
 async function toAsrBlob(blob: Blob): Promise<Blob> {
   const t = blob.type.toLowerCase();
   if (t.includes("webm") || t.includes("wav")) return blob;
   const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!Ctx) return blob; // dernier recours : tenter l'envoi tel quel
+  if (!Ctx) return blob; // dernier recours: tenter l'envoi tel quel
   const ctx = new Ctx();
   try {
     const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
@@ -118,8 +118,8 @@ const TRIAGE = {
   rouge: { border: "border-l-4 border-bissap", bg: "bg-bissap/5", text: "text-destructive", Icon: OctagonAlert, cta: "Voir les instituts", tab: "rdv" as const },
 };
 
-/* Ids uniques entre sessions : un simple compteur entrerait en collision avec
-   les ids persistés ("m1" déjà pris par un ancien message) → préfixe horodaté. */
+/* Ids uniques entre sessions: un simple compteur entrerait en collision avec
+ les ids persistés ("m1" déjà pris par un ancien message) → préfixe horodaté. */
 let idCounter = 0;
 const nid = () => `m${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 
@@ -144,8 +144,8 @@ export function ChatScreen() {
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Rehydratation paresseuse et idempotente (pattern use-t.ts) : le premier
-  // montage relit le localStorage persisté ; les montages suivants ne
+  // Rehydratation paresseuse et idempotente (pattern use-t.ts): le premier
+  // montage relit le localStorage persisté; les montages suivants ne
   // relisent PAS — les photos de session restent en mémoire (hasHydrated
   // évite qu'une relecture n'écrase le fil courant sans ses photos).
   useEffect(() => {
@@ -156,7 +156,7 @@ export function ChatScreen() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, sending]);
 
-  /* ── Micro serveur : machine à états idle → recording → transcribing ── */
+ /* ── Micro serveur: machine à états idle → recording → transcribing ── */
 
   function clearMicTimers() {
     if (tickRef.current) {
@@ -169,8 +169,8 @@ export function ChatScreen() {
     }
   }
 
-  /** Rendu du flux : le micro s'éteint réellement (getUserMedia +
-   *  recorder.stream, tous deux référencés — même objet en pratique). */
+ /** Rendu du flux: le micro s'éteint réellement (getUserMedia +
+ * recorder.stream, tous deux référencés — même objet en pratique). */
   function releaseStream() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
@@ -183,7 +183,7 @@ export function ChatScreen() {
     chunksRef.current = [];
   }
 
-  // Démontage (changement d'onglet) : plus aucune piste/timer ne survit,
+  // Démontage (changement d'onglet): plus aucune piste/timer ne survit,
   // et aucun setState post-démontage (onstop neutralisé).
   useEffect(
     () => () => {
@@ -284,7 +284,7 @@ export function ChatScreen() {
         toast.info("Je n'ai pas bien entendu — réessaie");
         return;
       }
-      // Le texte arrive dans le champ : replace si vide, append sinon.
+      // Le texte arrive dans le champ: replace si vide, append sinon.
       // JAMAIS d'envoi automatique — la cliente relit et valide.
       setInput((prev) => (prev ? `${prev} ${text}` : text));
     } catch (e) {
@@ -311,15 +311,15 @@ export function ChatScreen() {
     add(mine); // le store re-sème le message d'accueil si le fil est vide
     setSending(true);
     try {
-      // Transport compact (t. 91) : 8 derniers messages, contenus plafonnés à
+      // Transport compact: 8 derniers messages, contenus plafonnés à
       // 400 caractères. En POST l'historique complet passerait, mais le pont
       // GET (préviews qui bloquent les POST — voir api.ts) plafonne la taille
-      // de l'URL : ce format tient toujours dans les deux transports, et la
+      // de l'URL: ce format tient toujours dans les deux transports, et la
       // perte de contexte est nulle (le serveur re-tranche à 20 messages).
       const history = [...messages, mine]
         .slice(-8)
         .map((m) => ({ role: m.role, content: m.content.slice(0, 400) }));
-      // Timeout long (t. 92) : la garde serveur du chat coupe à 30 s — un POST
+      // Timeout long: la garde serveur du chat coupe à 30 s — un POST
       // légitime ne doit jamais être préempté par le nôtre (35 s). En revanche
       // un POST pendu (transport bloqué) tombe dans le pont GET après 35 s,
       // puis la mémoire « POST mort » envoie les questions suivantes DROIT au
@@ -342,7 +342,7 @@ export function ChatScreen() {
     setPhotoBusy(true);
     try {
       const dataUrl = await resizeImage(f);
-      // La photo vit en mémoire de session : jamais persistée (partialize du
+      // La photo vit en mémoire de session: jamais persistée (partialize du
       // store la retire), le fil texte lui survit.
       add({ id: nid(), role: "user", content: "Regarde cette zone, stp.", kind: "photo", photo: dataUrl, time: Date.now() });
       setSending(true);
@@ -362,7 +362,7 @@ export function ChatScreen() {
     <div className="flex flex-col min-h-[68vh] pt-4">
       <header className="flex items-center gap-3 pb-3 border-b border-border">
         <span className="relative shrink-0">
-          {/* Sceau 2026 (t. 86) — le Médaillon Kènè est l'avatar du Dr. Kènè */}
+          {/* Sceau 2026 — le Médaillon Kènè est l'avatar du Dr. Kènè */}
           <span className="k-glow-gold inline-grid rounded-[14px]">
             <KeneEmblem size={40} />
           </span>
@@ -500,7 +500,7 @@ export function ChatScreen() {
                 </span>
                 <span className="ml-auto text-[10px] text-muted-foreground shrink-0" aria-hidden="true">max 12 s</span>
               </div>
-              {/* Annulation : jette l'enregistrement, rien n'est transcrit */}
+              {/* Annulation: jette l'enregistrement, rien n'est transcrit */}
               <button
                 onClick={cancelRecording}
                 aria-label="Annuler l'enregistrement"
@@ -512,7 +512,7 @@ export function ChatScreen() {
             </>
           ) : (
             <>
-              {/* Micro serveur : parler → transcription ASR dans le champ */}
+              {/* Micro serveur: parler → transcription ASR dans le champ */}
               <button
                 onClick={startRecording}
                 disabled={micState === "unavailable" || micState === "transcribing"}

@@ -1,8 +1,8 @@
 "use client";
-// Kènè Cliente — SecureVerify : re-vérification par code OTP avant paiement
+// Kènè Cliente — SecureVerify: re-vérification par code OTP avant paiement
 // (2FA-lite, « Sécurité renforcée » activable depuis le profil).
-// Overlay plein écran mobile ; l'UX OTP est la COPIE EXACTE de l'étape 2 de
-// Onboarding.tsx (6 cases InputOTP + encart pointillé « SMS simulé (POC) »
+// Overlay plein écran mobile; l'UX OTP est la COPIE EXACTE de l'étape 2 de
+// Onboarding.tsx (6 cases InputOTP + encart pointillé « code de vérification »
 // avec devCode cliquable qui auto-remplit puis vérifie).
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -13,17 +13,17 @@ import { xof } from "@/lib/kene/format";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 interface SecureVerifyProps {
-  /** true = overlay ouvert (un code frais est demandé à chaque ouverture) */
+ /** true = overlay ouvert (un code frais est demandé à chaque ouverture) */
   open: boolean;
   phone: string;
-  /** montant du paiement en attente (affiché en rappel, facultatif) */
+ /** montant du paiement en attente (affiché en rappel, facultatif) */
   amount?: number;
   onVerified: () => void;
   onCancel: () => void;
 }
 
 /** Montage/démontage contrôlé par `open` — l'état interne (code, saisie)
- *  est remis à zéro à CHAQUE ouverture : jamais de code obsolète. */
+ * est remis à zéro à CHAQUE ouverture: jamais de code obsolète. */
 export function SecureVerify({ open, phone, amount, onVerified, onCancel }: SecureVerifyProps) {
   return (
     <AnimatePresence>
@@ -35,15 +35,15 @@ export function SecureVerify({ open, phone, amount, onVerified, onCancel }: Secu
 }
 
 function SecureVerifyDialog({ phone, amount, onVerified, onCancel }: Omit<SecureVerifyProps, "open">) {
-  // Une seule issue par ouverture : code confirmé OU annulation — jamais les
-  // deux (fenêtre de course : annulation pendant l'auto-vérification POC).
+  // Une seule issue par ouverture: code confirmé OU annulation — jamais les
+  // deux (fenêtre de course: annulation pendant l'auto-vérification).
   const settled = useRef(false);
   const [devCode, setDevCode] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false); // renvoi de code en cours
   const [verifying, setVerifying] = useState(false);
-  // Demande initiale : lancée dès le montage, `requesting` part à true →
-  // aucun setState synchrone dans l'effet (seuls les .then/.catch écrivent).
+  // Demande initiale: lancée dès le montage, `requesting` part à true →
+  // aucun setState synchrone dans l'effet (seuls les.then/.catch écrivent).
   const [requesting, setRequesting] = useState(true);
 
   useEffect(() => {
@@ -165,8 +165,8 @@ function SecureVerifyDialog({ phone, amount, onVerified, onCancel }: Omit<Secure
           Continuer
         </button>
 
-        {/* Code de vérification (mode essai : le code s'affiche ici, l'envoi
-            SMS arrivera avec la passerelle) — copie de l'encart Onboarding */}
+        {/* Code de vérification (mode essai: le code s'affiche ici, l'envoi
+ SMS arrivera avec la passerelle) — copie de l'encart Onboarding */}
         <div className="mt-6 rounded-2xl border border-dashed border-primary/50 bg-primary/5 p-4 text-center">
           <p className="text-[10px] uppercase tracking-[0.14em] text-primary font-semibold">Code de vérification</p>
           {requesting ? (

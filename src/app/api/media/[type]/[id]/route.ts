@@ -1,11 +1,11 @@
-// GET /api/media/:type/:id — service d'images Kènè (t. 120).
+// GET /api/media/:type/:id — service d'images Kènè.
 // Sert les photos uploadées (data URL stockées en base) en vraies réponses
-// image cacheables : vitrine institut, produits, soins, avatar cliente.
+// image cacheables: vitrine institut, produits, soins, avatar cliente.
 // Pourquoi une route dédiée plutôt que d'embarquer les data URLs dans les
-// payloads JSON : les listes (boutique, annuaire, catalogue) restent légères,
+// payloads JSON: les listes (boutique, annuaire, catalogue) restent légères,
 // le navigateur met la réponse en cache (ETag = type-id-taille).
-// Sécurité : lecture publique assumée — ce sont des visuels VITRINE (pas des
-// photos de diagnostic, qui ne quittent jamais l'espace propriétaire) ; les
+// Sécurité: lecture publique assumée — ce sont des visuels VITRINE (pas des
+// photos de diagnostic, qui ne quittent jamais l'espace propriétaire); les
 // identifiants sont des cuids non énumérables. 404 net si pas de photo.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -51,7 +51,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ type: stri
       headers: {
         "Content-Type": mime,
         "Content-Length": String(bytes.byteLength),
-        // Photo réputée immuable : chaque nouvelle photo écrase la colonne et
+        // Photo réputée immuable: chaque nouvelle photo écrase la colonne et
         // l'ETag (type-id-taille) change — le cache navigateur se rafraîchit
         // seul, sans staleness visible.
         "Cache-Control": "public, max-age=86400, must-revalidate",
@@ -59,7 +59,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ type: stri
       },
     });
   } catch {
-    // Id introuvable / base occupée : 404 sobre, jamais de 500 bruyant
+    // Id introuvable / base occupée: 404 sobre, jamais de 500 bruyant
     return new NextResponse("Photo indisponible", { status: 404 });
   }
 }

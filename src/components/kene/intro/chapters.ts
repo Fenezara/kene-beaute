@@ -1,7 +1,7 @@
-// Kènè — Fil de Kente : partition du récit d'introduction immersive.
+// Kènè — Fil de Kente: partition du récit d'introduction immersive.
 // Ranges de progression globale p ∈ [0,1] partagés entre le canvas 3D (Intro3D)
 // et les overlays HTML (KenteIntro). Copie = UX Writer (ton intime, tutoiement).
-// L'état persisté (déjà vue ?) vit dans ./introState (useSyncExternalStore).
+// L'état persisté (déjà vue?) vit dans./introState (useSyncExternalStore).
 
 export type OverlayPos = "center" | "left-low" | "top" | "bottom" | "right-low";
 
@@ -88,13 +88,13 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
 export interface ChapterT {
-  /** 0→1 à l'intérieur du chapitre */
+ /** 0→1 à l'intérieur du chapitre */
   local: number;
-  /** fondu d'entrée individuel 0→1 */
+ /** fondu d'entrée individuel 0→1 */
   inT: number;
-  /** fondu de sortie individuel 0→1 */
+ /** fondu de sortie individuel 0→1 */
   outT: number;
-  /** visibilité combinée 0→1 (min des deux) */
+ /** visibilité combinée 0→1 (min des deux) */
   vis: number;
 }
 

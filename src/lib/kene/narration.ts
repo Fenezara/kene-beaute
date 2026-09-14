@@ -1,6 +1,6 @@
-// Kènè — narration vocale des diagnostics (TTS) : texte parlé ≤ 950 caractères.
+// Kènè — narration vocale des diagnostics (TTS): texte parlé ≤ 950 caractères.
 // Lib PURE (aucune dépendance React) — consommée par VoiceNarration (client).
-// Les nombres passent en toutes lettres : les moteurs TTS lisent plus
+// Les nombres passent en toutes lettres: les moteurs TTS lisent plus
 // fiablement « soixante-deux » que « 62 », et la cible non-lectrice
 // n'a pas besoin de lire l'écran, seulement d'écouter.
 import type { DiagnosisResult } from "./types";
@@ -59,7 +59,7 @@ function clipSentences(text: string, max: number): string {
   if (text.length <= max) return text;
   const cut = text.slice(0, max);
   const dot = Math.max(cut.lastIndexOf("."), cut.lastIndexOf("!"), cut.lastIndexOf("?"));
-  const end = dot >= max * 0.5 ? dot + 1 : cut.trimEnd().length; // pas de phrase ? coupe net
+  const end = dot >= max * 0.5 ? dot + 1 : cut.trimEnd().length; // pas de phrase? coupe net
   return cut.slice(0, end).trim();
 }
 
@@ -86,7 +86,7 @@ export const NARRATION_LANGS = [
 export type NarrationLang = (typeof NARRATION_LANGS)[number]["code"];
 
 /**
- * Narration COURTE (≤ 420 chars) pour les langues locales :
+ * Narration COURTE (≤ 420 chars) pour les langues locales:
  * l'essentiel oralisable — score, verdict, priorité n°1, un geste,
  * orientation dermato, avertissement. Les traductions locales portent
  * sur ce texte compact (plus fiable + moins coûteux).
@@ -126,7 +126,7 @@ export function buildNarrationCompact(result: DiagnosisResult, opts?: { userName
 }
 
 /**
- * Construit le texte parlé du diagnostic : score, verdict, 3 priorités,
+ * Construit le texte parlé du diagnostic: score, verdict, 3 priorités,
  * résumé des conseils, 1 geste matin + soir, orientation dermato,
  * botaniques, avertissement — assemblés par priorité décroissante
  * dans le budget NARRATION_MAX.
@@ -177,7 +177,7 @@ export function buildNarration(result: DiagnosisResult, opts?: { userName?: stri
   // 7. Avertissement (toujours si possible)
   blocks.push("Kènè est un outil d'éducation beauté. Cette lecture ne remplace pas un avis médical.");
 
-  // Assemblage par budget : les blocs prioritaires d'abord, coupe à la fin de phrase
+  // Assemblage par budget: les blocs prioritaires d'abord, coupe à la fin de phrase
   const parts: string[] = [];
   let used = 0;
   for (const b of blocks) {

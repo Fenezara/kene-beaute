@@ -1,6 +1,6 @@
 "use client";
-// Kènè Cliente — Boutique : catalogue, fiche produit, panier, checkout Wave/Orange/Wallet simulé
-// + « Mes commandes » : historique des commandes enregistrées (consultation par la cliente).
+// Kènè Cliente — Boutique: catalogue, fiche produit, panier, checkout Wave/Orange/Wallet simulé
+// + « Mes commandes »: historique des commandes enregistrées (consultation par la cliente).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BadgeCheck, Building2, Heart, History, Loader2, Lock, Minus, Plus, Search, ShoppingBag, Store, Tag, Trash2, TriangleAlert, X } from "lucide-react";
@@ -42,7 +42,7 @@ export function ShopScreen() {
 
   const [products, setProducts] = useState<ApiProduct[] | null>(null);
   const [cat, setCat] = useState("");
-  // t. 113 — la boutique est organisée PAR INSTITUT : "" = tout le marché,
+  // — la boutique est organisée PAR INSTITUT: "" = tout le marché,
   // "maison" = MAISON Kènè, sinon le tenantId de l'institut vendeur choisi.
   const [institut, setInstitut] = useState("");
   const [q, setQ] = useState("");
@@ -52,19 +52,19 @@ export function ShopScreen() {
   const [qty, setQty] = useState(1);
   const [checkout, setCheckout] = useState(false);
   const [wallet, setWallet] = useState<ApiWallet | null>(null);
-  // Fin des échecs silencieux : solde inconnu → encart discret + Réessayer
+  // Fin des échecs silencieux: solde inconnu → encart discret + Réessayer
   // (plus jamais un « … » éternel sur le bouton Wallet du checkout).
   const [walletError, setWalletError] = useState(false);
   const [payState, setPayState] = useState<{ phase: "processing" | "success"; method: PayMethod; amount: number } | null>(null);
   const [paying, setPaying] = useState(false);
 
-  // Sécurité renforcée (2FA-lite) : si activée, la cliente re-vérifie son code
+  // Sécurité renforcée (2FA-lite): si activée, la cliente re-vérifie son code
   // AVANT que le moindre appel de paiement ne parte (voir startPay + SecureVerify).
   const securityEnabled = useSecurity((s) => s.enabled);
   const [pendingPay, setPendingPay] = useState<PayMethod | null>(null);
 
   // ─── Double-tap « ajout rapide » (TikTok Shop / Instagram) ───
-  // 1er tap = ouvre la fiche (avec un délai court annulable) ; 2e tap < 320 ms
+  // 1er tap = ouvre la fiche (avec un délai court annulable); 2e tap < 320 ms
   // = ajoute directement au panier + burst animé sur la carte.
   const lastTap = useRef<{ id: string; t: number; timer: number | null }>({ id: "", t: 0, timer: null });
   const [burst, setBurst] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -95,12 +95,12 @@ export function ShopScreen() {
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  /* « Mes commandes » — historique consultable (chargé au montage, rafraîchi
-   * après chaque commande réussie : la cliente suit ses données enregistrées). */
+ /* « Mes commandes » — historique consultable (chargé au montage, rafraîchi
+ * après chaque commande réussie: la cliente suit ses données enregistrées). */
   const [view, setView] = useState<"catalogue" | "commandes">("catalogue");
   const [orders, setOrders] = useState<ApiOrder[] | null>(null);
-  /* La grille produits — destination du Marché vivant (tap échoppe → filtre +
-   * descente douce du catalogue vers la famille choisie). */
+ /* La grille produits — destination du Marché vivant (tap échoppe → filtre +
+ * descente douce du catalogue vers la famille choisie). */
   const gridRef = useRef<HTMLDivElement>(null);
   const refreshOrders = useCallback(() => {
     apiGet<{ orders: ApiOrder[] }>(`/api/orders?userId=${user.id}`)
@@ -109,16 +109,16 @@ export function ShopScreen() {
   }, [user.id]);
 
   const subtotal = cart.reduce((s, l) => s + l.price * l.qty, 0);
-  /* Coupon invalidé si le panier a changé depuis la validation (remise recalculée
-   * sur un autre sous-total) — la cliente re-valide, jamais de surprise serveur. */
+ /* Coupon invalidé si le panier a changé depuis la validation (remise recalculée
+ * sur un autre sous-total) — la cliente re-valide, jamais de surprise serveur. */
   const livePromo = promo && promo.subtotal === subtotal ? promo : null;
   const discount = livePromo?.discount ?? 0;
   const total = subtotal - discount;
-  /* taux de cashback réellement appliqué (wallet de la cliente, sinon défaut) */
+ /* taux de cashback réellement appliqué (wallet de la cliente, sinon défaut) */
   const cashbackRate = wallet?.cashbackRate ?? CASHBACK_RATE;
 
-  /* Solde wallet — échec explicite (walletError) plutôt que silence : le
-   * bouton Wallet reste désactivé tant que le solde est inconnu. */
+ /* Solde wallet — échec explicite (walletError) plutôt que silence: le
+ * bouton Wallet reste désactivé tant que le solde est inconnu. */
   const loadWallet = useCallback(() => {
     apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`)
       .then((r) => { setWallet(r.wallet); setWalletError(false); })
@@ -133,9 +133,9 @@ export function ShopScreen() {
     refreshOrders();
   }, [user.id, refreshOrders, loadWallet]);
 
-  /* Les vendeurs du marché (t. 113) — MAISON Kènè d'abord, puis les instituts
-   * partenaires par nom. Dérivés des produits réellement en stock : un
-   * institut sans produit disponible n'apparaît pas. */
+ /* Les vendeurs du marché — MAISON Kènè d'abord, puis les instituts
+ * partenaires par nom. Dérivés des produits réellement en stock: un
+ * institut sans produit disponible n'apparaît pas. */
   const sellers = useMemo<ApiSeller[]>(() => {
     const map = new Map<string, ApiSeller>();
     for (const p of products ?? []) {
@@ -149,7 +149,7 @@ export function ShopScreen() {
           city: p.tenant?.city ?? null,
           maison: !p.tenant,
           count: 1,
-          // t. 120 — vitrine réelle de l'institut pour la carte vendeur
+          // — vitrine réelle de l'institut pour la carte vendeur
           hasPhoto: Boolean(p.tenant?.hasPhoto),
         });
     }
@@ -167,8 +167,8 @@ export function ShopScreen() {
     );
   }, [products, cat, institut, q, favOnly, favs]);
 
-  /* Le catalogue organisé PAR INSTITUT : une section par vendeur (maison
-   * incluse) — la cliente voit qui vend quoi, groupe par groupe. */
+ /* Le catalogue organisé PAR INSTITUT: une section par vendeur (maison
+ * incluse) — la cliente voit qui vend quoi, groupe par groupe. */
   const grouped = useMemo(
     () =>
       sellers
@@ -177,11 +177,11 @@ export function ShopScreen() {
     [sellers, filtered]
   );
 
-  /* libellé du vendeur sélectionné (légende du fil + messages vides) */
+ /* libellé du vendeur sélectionné (légende du fil + messages vides) */
   const institutLabel =
     institut === "" ? null : institut === "maison" ? "MAISON Kènè" : sellers.find((s) => s.key === institut)?.name ?? null;
 
-  /* le fil de la catégorie — la navette l'illumine dans la bande tissée */
+ /* le fil de la catégorie — la navette l'illumine dans la bande tissée */
   const weaveCaption =
     products === null
       ? "La navette monte le métier…"
@@ -193,8 +193,8 @@ export function ShopScreen() {
               : " au catalogue"
         }${favOnly ? " · favoris" : ""}`;
 
-  /* Applique un code promo : aperçu de remise sans consommer le coupon
-   * (la consommation a lieu à la commande — toutes les gardes côté serveur). */
+ /* Applique un code promo: aperçu de remise sans consommer le coupon
+ * (la consommation a lieu à la commande — toutes les gardes côté serveur). */
   async function applyPromo() {
     const code = promoInput.trim().toUpperCase();
     if (!code || promoChecking) return;
@@ -215,9 +215,9 @@ export function ShopScreen() {
     }
   }
 
-  /** Passerelle paiement : vérification d'identité par code si la sécurité
-   *  renforcée est active — le paiement initialement prévu (pay) n'est lancé
-   *  qu'une fois le code confirmé ; annulé sinon, rien n'est engagé. */
+ /** Passerelle paiement: vérification d'identité par code si la sécurité
+ * renforcée est active — le paiement initialement prévu (pay) n'est lancé
+ * qu'une fois le code confirmé; annulé sinon, rien n'est engagé. */
   function startPay(method: PayMethod) {
     if (securityEnabled) {
       haptic(HAPTIC.tap);
@@ -239,7 +239,7 @@ export function ShopScreen() {
       });
       const amount = r.order.total;
       if (method !== "wallet" && r.payment) {
-        // Contrat confirmToken (63-b/63-c) : un paiement mobile money en attente
+        // Contrat confirmToken (63-b/63-c): un paiement mobile money en attente
         // porte son jeton — absent, on n'appelle JAMAIS confirm et on rollback
         // l'état UI comme un échec de paiement (panier intact, aucun overlay).
         const confirmToken = r.payment.confirmToken;
@@ -261,7 +261,7 @@ export function ShopScreen() {
       setPayState({ phase: "success", method, amount });
       haptic(HAPTIC.success);
       clearCart();
-      setPromo(null); // le coupon est consommé : remise à zéro pour la prochaine commande
+      setPromo(null); // le coupon est consommé: remise à zéro pour la prochaine commande
       void refreshOrders(); // la nouvelle commande apparaît dans « Mes commandes »
       const cb = r.order.cashback;
       toast.success(cb > 0 ? `Commande confirmée — cashback ${xof(cb)} crédité sur ton wallet` : "Commande confirmée et payée");
@@ -285,7 +285,7 @@ export function ShopScreen() {
         <RevealItem>
           <header className="flex items-center justify-between">
             <h1 className="flex items-center gap-2 font-heading font-black text-xl tracking-tight">
-              {/* Mark de marque (t. 86) — signature vectorielle de la boutique */}
+              {/* Mark de marque — signature vectorielle de la boutique */}
               <span aria-hidden="true">
                 <KeneMark size={26} />
               </span>
@@ -321,16 +321,16 @@ export function ShopScreen() {
         <OrdersView orders={orders} onRefresh={refreshOrders} onShop={() => setView("catalogue")} />
       ) : (
         <>
-      {/* t. 115 — Le Marché vivant a été retiré à la demande de la fondatrice
-          (trop d'espace) : les 4 familles restent accessibles par les chips de
-          filtre ci-dessous (Sérums / Crèmes / Huiles / Savons…), l'identité
-          visuelle est portée par la bande kente et la carte d'en-tête. */}
+      {/* — Le Marché vivant a été retiré à la demande de la fondatrice
+ (trop d'espace): les 4 familles restent accessibles par les chips de
+ filtre ci-dessous (Sérums / Crèmes / Huiles / Savons…), l'identité
+ visuelle est portée par la bande kente et la carte d'en-tête. */}
 
       <Reveal>
         <RevealItem>
-          {/* t. 113 — Acheter selon l'institut : le marché est organisé par
-              vendeur (MAISON Kènè + instituts partenaires). La carte choisie
-              filtre tout le catalogue sur CET institut. */}
+          {/* — Acheter selon l'institut: le marché est organisé par
+ vendeur (MAISON Kènè + instituts partenaires). La carte choisie
+ filtre tout le catalogue sur CET institut. */}
           {products === null ? (
             <div className="mt-3 flex gap-2" aria-hidden="true">
               {[0, 1, 2].map((i) => (
@@ -384,7 +384,7 @@ export function ShopScreen() {
         </RevealItem>
 
         <RevealItem>
-          {/* Filtres : catégories + favoris (bascules aria-pressed, cumulables) — Chip verre→or 2026 */}
+          {/* Filtres: catégories + favoris (bascules aria-pressed, cumulables) — Chip verre→or 2026 */}
           <div className="flex gap-2 overflow-x-auto py-3 scrollbar-thin -mx-1 px-1" role="group" aria-label="Filtres de la boutique">
             {SHOP_CATEGORIES.map((c) => (
               <Chip key={c.id} selected={cat === c.id} onClick={() => setCat(c.id)} className="min-h-11 shrink-0">
@@ -455,8 +455,8 @@ export function ShopScreen() {
           />
         )
       ) : (
-        /* Catalogue organisé PAR INSTITUT (t. 113) : une section par vendeur —
-           la MAISON Kènè ouvre le marché, chaque institut partenaire suit. */
+ /* Catalogue organisé PAR INSTITUT: une section par vendeur —
+ la MAISON Kènè ouvre le marché, chaque institut partenaire suit. */
         grouped.map(({ seller, items }) => (
           <section key={seller.key} aria-label={`Soins vendus par ${seller.name}`} className="mt-5 first:mt-0">
             <header className="mb-3 flex items-center gap-2">
@@ -518,7 +518,7 @@ export function ShopScreen() {
                 </div>
               </SheetHeader>
               <div className="px-5 pb-6 space-y-4">
-                {/* Vendeur (t. 113) — l'institut (ou la maison) qui vend ce soin */}
+                {/* Vendeur — l'institut (ou la maison) qui vend ce soin */}
                 <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#C8951E]/30 bg-karite px-2.5 py-1">
                   {detail.tenant ? (
                     <Building2 size={12} className="shrink-0 text-terre" aria-hidden="true" />
@@ -748,10 +748,10 @@ export function ShopScreen() {
   );
 }
 
-/* ══════════════ Vendeurs du marché (t. 113) ══════════════ */
+/* ══════════════ Vendeurs du marché ══════════════ */
 
 /** Carte vendeur — « Tout le marché » (sans `seller`) ou un institut /
- *  la MAISON Kènè (avec `seller`). Le tap filtre le catalogue sur ce vendeur. */
+ * la MAISON Kènè (avec `seller`). Le tap filtre le catalogue sur ce vendeur. */
 function SellerCard({ seller, selected, onClick, totalCount }: {
   seller?: ApiSeller;
   selected: boolean;
@@ -762,8 +762,8 @@ function SellerCard({ seller, selected, onClick, totalCount }: {
   const sub = seller
     ? `${seller.city ? `${seller.city} · ` : ""}${seller.count} soin${seller.count > 1 ? "s" : ""}`
     : `${totalCount ?? 0} soins · tous les vendeurs`;
-  /* Sélection = le traitement signature de l'app (k-btn-gold, comme les chips
-   * de catégories) : impossible de rater quel institut filtre le catalogue. */
+ /* Sélection = le traitement signature de l'app (k-btn-gold, comme les chips
+ * de catégories): impossible de rater quel institut filtre le catalogue. */
   const metaCls = selected ? "text-primary-foreground/75" : "text-muted-foreground";
   return (
     <button
@@ -782,7 +782,7 @@ function SellerCard({ seller, selected, onClick, totalCount }: {
           seller.maison ? (
             <KeneMark size={13} />
           ) : seller.hasPhoto ? (
-            /* t. 120 — vignette de la vitrine réelle de l'institut */
+ /* — vignette de la vitrine réelle de l'institut */
             <img src={`/api/media/tenant/${seller.key}`} alt="" className="size-[18px] rounded-md object-cover" loading="lazy" />
           ) : (
             <Building2 size={13} className={selected ? "text-primary-foreground/80" : "text-terre"} aria-hidden="true" />
@@ -801,7 +801,7 @@ function SellerCard({ seller, selected, onClick, totalCount }: {
 }
 
 /** Grille des soins d'UN vendeur — chaque carte porte le badge de l'institut
- *  qui la vend : la cliente sait toujours chez qui elle achète. */
+ * qui la vend: la cliente sait toujours chez qui elle achète. */
 function ProductGrid({ items, onCardTap, burst }: {
   items: ApiProduct[];
   onCardTap: (p: ApiProduct, e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -811,8 +811,8 @@ function ProductGrid({ items, onCardTap, burst }: {
   return (
     <Reveal className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
       {items.map((p) => (
-        /* Wrapper relatif : le cœur est un FRÈRE de la carte (jamais de <button>
-           imbriqué — HTML valide, focus/a11y propres), posé sur l'image en absolu. */
+ /* Wrapper relatif: le cœur est un FRÈRE de la carte (jamais de <button>
+ imbriqué — HTML valide, focus/a11y propres), posé sur l'image en absolu. */
         <RevealItem key={p.id} className="relative">
           <div className="k-card k-card-hover rounded-[24px] p-2.5 pb-2">
             <button
@@ -821,11 +821,11 @@ function ProductGrid({ items, onCardTap, burst }: {
               aria-label={`${p.name}, ${xof(p.price)} — appuie une fois pour la fiche, deux fois pour l'ajouter au panier`}
             >
               <div className="relative">
-                {/* t. 120 — photo réelle du produit (institut) si posée, sinon visuel studio */}
+                {/* — photo réelle du produit (institut) si posée, sinon visuel studio */}
                 <img src={p.hasPhoto ? `/api/media/product/${p.id}` : p.image} alt={p.name} loading="lazy" className="aspect-square w-full rounded-[18px] object-cover" />
                 {/* Dégradé bas subtil — profondeur derrière le badge prix flottant */}
                 <div aria-hidden="true" className="absolute inset-0 rounded-[18px] bg-gradient-to-t from-black/25 via-transparent to-transparent" />
-                {/* Badge vendeur (t. 113) — l'institut (ou la maison) qui vend ce soin */}
+                {/* Badge vendeur — l'institut (ou la maison) qui vend ce soin */}
                 <span className="absolute left-2 top-2 max-w-[75%] truncate rounded-full bg-[#1A1410]/72 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-[#F8F1E4] backdrop-blur-[2px]">
                   {p.tenant?.name ?? "MAISON Kènè"}
                 </span>

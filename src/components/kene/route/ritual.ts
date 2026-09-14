@@ -1,4 +1,4 @@
-// Kènè — La Route de l'Or : logique pure du rituel tissé (Phase C)
+// Kènè — La Route de l'Or: logique pure du rituel tissé (Phase C)
 // Le diagnostic désigne des priorités → la route les organise en stations
 // → chaque station choisit des produits → le tissage final les relie.
 import type { DiagnosisResult, Indicator } from "@/lib/kene/types";
@@ -36,15 +36,15 @@ export interface StationDef {
   label: string;
   verb: string;
   poem: string;
-  /** couleur du fil dans le tissage + accents UI */
+ /** couleur du fil dans le tissage + accents UI */
   thread: string;
   threadSoft: string;
   botanical: string;
-  /** catégories boutique acceptées en fallback */
+ /** catégories boutique acceptées en fallback */
   categories: string[];
-  /** mots-clés d'indicateurs ciblés par cette station */
+ /** mots-clés d'indicateurs ciblés par cette station */
   indicatorKeys: string[];
-  /** usage — étiquettes du rituel */
+ /** usage — étiquettes du rituel */
   matin: boolean;
   soir: boolean;
 }
@@ -108,16 +108,16 @@ export const STATIONS: StationDef[] = [
 /** un produit retenu dans une station, avec son pourquoi */
 export interface StationPick {
   product: ApiProduct;
-  /** indicateur ciblé (le plus faible parmi les cibles de la station) */
+ /** indicateur ciblé (le plus faible parmi les cibles de la station) */
   target: Indicator | null;
-  /** le produit vient-il de la recommandation IA (VLM) ? */
+ /** le produit vient-il de la recommandation IA (VLM)? */
   fromAi: boolean;
 }
 
 export interface RitualStation {
   def: StationDef;
   picks: StationPick[];
-  /** indicateurs les plus faibles ciblés par la station (affichés même sans produit) */
+ /** indicateurs les plus faibles ciblés par la station (affichés même sans produit) */
   focus: Indicator[];
 }
 
@@ -156,8 +156,8 @@ export function buildRitual(result: DiagnosisResult, products: ApiProduct[]): Ri
   const used: string[] = [];
   const stations: RitualStation[] = STATIONS.map((def) => {
     const focus = stationFocus(def, result.indicateurs);
-    // IA d'abord : produits recommandés dont la catégorie colle à la station.
-    // Un produit n'apparaît qu'une fois dans tout le rituel ; un solaire
+    // IA d'abord: produits recommandés dont la catégorie colle à la station.
+    // Un produit n'apparaît qu'une fois dans tout le rituel; un solaire
     // n'appartient qu'à la station Protéger.
     const aiPool = aiProducts.filter(
       (p) =>
@@ -171,7 +171,7 @@ export function buildRitual(result: DiagnosisResult, products: ApiProduct[]): Ri
       picks.push({ product: p, target: focus[0] ?? null, fromAi: true });
       used.push(p.id);
     }
-    // fallback boutique (et pour protéger : uniquement un vrai solaire)
+    // fallback boutique (et pour protéger: uniquement un vrai solaire)
     if (picks.length === 0) {
       const pool =
         def.id === "proteger"

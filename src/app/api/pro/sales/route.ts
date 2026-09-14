@@ -9,8 +9,8 @@ import { guardProRole } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
-    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:sales:get");
     if (guard) return guard;
 
@@ -47,8 +47,8 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, la vente
-    // caisse exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, la vente
+    // caisse exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:sales:post");
     if (guard) return guard;
 
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
       lines: saleJournalLines({ total, servicesAmount, productsAmount, method: paymentMethod }),
     });
 
-    // CRM : visites, CA, dernier passage, RFM
+    // CRM: visites, CA, dernier passage, RFM
     if (clientProfile) {
       await db.clientProfile.update({
         where: { id: clientProfile.id },
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
       await recomputeClientRfm(clientProfile.id);
     }
 
-    // Temps réel : le dashboard de l'institut (CA du jour, badge) se met à jour
+    // Temps réel: le dashboard de l'institut (CA du jour, badge) se met à jour
     // sans reload — best-effort, le poll du service rattrape sinon.
     pushTenantFeed(tenantId);
 

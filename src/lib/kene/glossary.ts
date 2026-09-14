@@ -1,7 +1,7 @@
-// Kènè — glossaire 1 tap : définition SIMPLE de chaque indicateur du diagnostic,
+// Kènè — glossaire 1 tap: définition SIMPLE de chaque indicateur du diagnostic,
 // + les grandes notions de la base de connaissances (conditions, botaniques,
 // actifs, dépigmentation — voir src/lib/kene/knowledge.ts).
-// Lib PURE (aucune dépendance React). Cible : semi-lettrées et non-lectrices —
+// Lib PURE (aucune dépendance React). Cible: semi-lettrées et non-lectrices —
 // phrases courtes, mots du quotidien, zéro jargon médical non expliqué.
 // Les définitions sont aussi lues par TTS (SpeakButton) — rester < 1024 chars.
 
@@ -10,7 +10,7 @@ export interface GlossaryEntry {
   simple: string; // définition 1-3 phrases, mots simples
 }
 
-/** Normalisation : minuscules, sans accents, sans ponctuation, espaces simples. */
+/** Normalisation: minuscules, sans accents, sans ponctuation, espaces simples. */
 function norm(s: string): string {
   return s
     .normalize("NFD")
@@ -307,7 +307,7 @@ const G: Record<string, GlossaryEntry> = {
       "Un grain de beauté dangereux qui pousse sur les PAUMES, les PLANTES ou les ONGLES. Signe à montrer vite : une ligne sombre verticale sur UN SEUL ongle qui s'élargit, ou une tache sombre qui change. Dermatologue sans attendre.",
   },
 
-  // ——— t. 84-b : dermatoses spécifiquement africaines (24 entrées) ———
+  // ── Dermatoses spécifiquement africaines (24 entrées) ──
   tungose: {
     title: "Chiques (tungose)",
     simple:
@@ -539,7 +539,7 @@ const EXACT: Record<string, string> = {
   "melanome acral": "melanome_acral",
   "ligne sombre sur l ongle": "melanome_acral",
 
-  // ——— t. 84-b : alias des dermatoses africaines (avec/sans accents) ———
+  // ── Alias des dermatoses africaines (avec/sans accents) ──
   "tungose": "tungose",
   "chique": "tungose",
   "chiques": "tungose",
@@ -637,9 +637,9 @@ const EXACT: Record<string, string> = {
   "demangeaisons grossesse": "cholestase_gravidique",
 };
 
-/** Recherche par mots-clés (repli : libellés proches venus du VLM). */
+/** Recherche par mots-clés (repli: libellés proches venus du VLM). */
 const KEYWORDS: [string, string][] = [
-  // ——— t. 84-b : mots-clés SPÉCIFIQUES (dermatoses africaines) — AVANT les génériques ———
+  // ── Mots-clés SPÉCIFIQUES (dermatoses africaines) — AVANT les génériques ──
   ["taches blanches enfant", "pityriasis_alba"],
   ["ver de cayor", "myiase_tumbu"],
   ["variole du singe", "mpox"],

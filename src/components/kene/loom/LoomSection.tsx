@@ -1,20 +1,19 @@
 "use client";
-// Kènè — La bande tissée du Seuil (t. 82 → t. 116) : le chapitre « La Navette
+// Kènè — La bande tissée du Seuil: le chapitre « La Navette
 // d'Or » vit dans une bande compacte pleine largeur (~92-110 px), identique
 // dans les DEUX modes (3D et Clair de Lune) — la landing tient désormais sur
-// UNE seule page (demande fondatrice t. 116 : « la landing page ne tient plus
+// UNE seule page (demande fondatrice: « la landing page ne tient plus
 // sur une seule page »). Les fils d'or animés + le message du chapitre
-// racontent toujours le pagne ; le métier à tisser 3D scrollé (t. 82-94,
+// racontent toujours le pagne; le métier à tisser 3D scrollé (,
 // ~1,9 écran sticky) est retiré de la porte d'entrée — GoldenLoom.tsx reste
-// sur disque (inerte, convention projet, comme market/* en t. 115).
+// sur disque (inerte, convention projet, comme market/* en).
 import { useEffect, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 /* ───────────────────────── Fils de kente vivants ─────────────────────────
-   3 courbes Bézier or/terre/bissap qui se dessinent + perles aux extrémités,
-   parallaxe pointeur douce sur desktop (désactivée en reduced-motion).
-   t. 116 : tracés aplatis (viewBox 400×96) taillés pour la bande compacte —
-   ils courent derrière le message comme la trame derrière le tissage. */
+ 3 courbes Bézier or/terre/bissap qui se dessinent + perles aux extrémités,
+ parallaxe pointeur douce sur desktop (désactivée en reduced-motion).: tracés aplatis (viewBox 400×96) taillés pour la bande compacte —
+ ils courent derrière le message comme la trame derrière le tissage. */
 const THREADS = [
   { d: "M -20 24 C 110 4, 250 46, 396 16", stroke: "#C8951E", w: 2.2 },
   { d: "M -20 44 C 140 20, 240 64, 396 36", stroke: "#A0522D", w: 1.8 },
@@ -88,9 +87,9 @@ function KenteThreads({ first }: { first: boolean }) {
 }
 
 /* ───────────────────────── La bande tissée compacte ─────────────────────────
-   Même langage visuel que la carte kente de la boutique (fond atelier +
-   armure + fils d'or) — t. 115 l'a validée au VLM, t. 116 la rend compacte :
-   badge chapitre en haut, message du chapitre en bas, fils vivants derrière. */
+ Même langage visuel que la carte kente de la boutique (fond atelier +
+ armure + fils d'or) — l'a validée au VLM, la rend compacte:
+ badge chapitre en haut, message du chapitre en bas, fils vivants derrière. */
 export function LoomSection({ first }: { first: boolean }) {
   return (
     <section aria-label="Le tissage — chaque geste est un fil" className="relative mt-3">
@@ -100,7 +99,7 @@ export function LoomSection({ first }: { first: boolean }) {
         <div className="absolute inset-0 bg-[radial-gradient(closest-side_at_50%_40%,rgba(200,149,30,0.12),transparent_80%)]" />
         {/* trame kente douce */}
         <div className="absolute inset-0 kente-band-soft opacity-90" />
-        {/* armure : croisures horizontales or + verticales sombres */}
+        {/* armure: croisures horizontales or + verticales sombres */}
         <div
           className="absolute inset-0 opacity-50"
           style={{

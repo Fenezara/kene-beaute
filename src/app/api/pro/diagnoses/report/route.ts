@@ -1,5 +1,5 @@
 // GET /api/pro/diagnoses/report?tenantId=&id= → PDF « Compte-rendu de
-// diagnostic en institut » (t. 119) — score fusionné, indicateurs, vigilances,
+// diagnostic en institut » — score fusionné, indicateurs, vigilances,
 // protocole, réponses à l'entretien, consentements horodatés, signatures.
 // Session pro/admin + institut propriétaire du diagnostic (isolation stricte).
 import { NextRequest, NextResponse } from "next/server";

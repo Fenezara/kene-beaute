@@ -1,5 +1,5 @@
 // POST /api/auth/consent — {userId, types?} → consentement données de santé
-// GET  /api/auth/consent?_g=… — pont t. 93 (même payload JSON en query) : les
+// GET /api/auth/consent?_g=… — pont (même payload JSON en query): les
 // préviews bloqueuses de POST ne doivent pas empêcher l'inscription d'un
 // compte (le consentement santé fait partie du questionnaire d'onboarding).
 import { NextRequest, NextResponse } from "next/server";
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Pont GET (t. 93) — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous.
+// Pont GET — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous.
 export async function GET(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "auth:consent"), AUTH_MUTATION);
   if (!rl.ok) {

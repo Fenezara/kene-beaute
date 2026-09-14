@@ -1,28 +1,28 @@
-// Kènè — i18n interface : français (défaut) + dioula + baoulé + bété.
-// Lib PURE (aucune dépendance React/store) : métadonnées des langues,
-// dictionnaires statiques et translate() avec repli français.
+// Kènè — i18n interface: français (défaut) + dioula + baoulé + bété.
+// Lib PURE (aucune dépendance React/store): métadonnées des langues,
+// dictionnaires statiques et translate avec repli français.
 // La langue active vit dans src/store/lang (zustand persist) et le hook
-// useT() (src/lib/kene/use-t.ts) — ce fichier ne fait que du texte.
+// useT (src/lib/kene/use-t.ts) — ce fichier ne fait que du texte.
 //
-// Choix de traduction (t. 60-b, étendue t. 71-d) :
-//   • fr  : libellés repris EXACTS du code existant (référence).
-//   • dy  : dioula d'Abidjan, écriture latine usuelle (è pour ɛ, o pour ɔ),
-//           COUVERTURE COMPLÈTE du dictionnaire FR (t. 71-d) — vocabulaire
-//           attesté + emprunts français naturels là où il n'y a pas
-//           d'équivalent usuel certain (Scanner, wallet, RDV…) — comme
-//           on parle vraiment : code-switching assumé. Tutoiement Kènè.
-//   • bq  : attesté usuel UNIQUEMENT (t. 71-d, sources croisées 2026-09 :
-//           cours de baoulé de Clément N'Goran, coastsystems.net — « Nja /
-//           Mmo anyin o ! » salutation du matin ; page Baoule Mhin, FB —
-//           « Mo agni oh » pour une femme). Refus délibéré d'inventer du
-//           baoulé : tout le reste retombe sur le français via le repli
-//           (même honnêteté que la narration vocale t. 50).
-//   • bt  : attesté usuel UNIQUEMENT — salutation « Yaho » confirmée par le
-//           « Petit lexique en Bété de Gagnoa » (multi-sources : bonjour
-//           Yaho, au revoir wato-keyi, comment ça va eko-lobo-wa — aucun
-//           libellé d'interface attesté au-delà de la salutation). Reste
-//           en repli fr.
-// Une extension future = pure donnée : compléter DICTS, aucun code à toucher.
+// Choix de traduction (, étendue):
+// • fr: libellés repris EXACTS du code existant (référence).
+// • dy: dioula d'Abidjan, écriture latine usuelle (è pour ɛ, o pour ɔ),
+// COUVERTURE COMPLÈTE du dictionnaire FR — vocabulaire
+// attesté + emprunts français naturels là où il n'y a pas
+// d'équivalent usuel certain (Scanner, wallet, RDV…) — comme
+// on parle vraiment: code-switching assumé. Tutoiement Kènè.
+// • bq: attesté usuel UNIQUEMENT (, sources croisées 2026-09:
+// cours de baoulé de Clément N'Goran, coastsystems.net — « Nja /
+// Mmo anyin o! » salutation du matin; page Baoule Mhin, FB —
+// « Mo agni oh » pour une femme). Refus délibéré d'inventer du
+// baoulé: tout le reste retombe sur le français via le repli
+// (même honnêteté que la narration vocale).
+// • bt: attesté usuel UNIQUEMENT — salutation « Yaho » confirmée par le
+// « Petit lexique en Bété de Gagnoa » (multi-sources: bonjour
+// Yaho, au revoir wato-keyi, comment ça va eko-lobo-wa — aucun
+// libellé d'interface attesté au-delà de la salutation). Reste
+// en repli fr.
+// Une extension future = pure donnée: compléter DICTS, aucun code à toucher.
 
 export type Lang = "fr" | "dy" | "bq" | "bt";
 
@@ -30,7 +30,7 @@ export type Lang = "fr" | "dy" | "bq" | "bt";
 export interface LangMeta {
   id: Lang;
   label: string;
-  /** Pastille courte façon pills VoiceNarration (FR/DY/BQ/BT) */
+ /** Pastille courte façon pills VoiceNarration (FR/DY/BQ/BT) */
   flag: string;
   note: string;
 }
@@ -139,10 +139,10 @@ const FR: Dict = {
 };
 
 /* ───────── Dioula (dy) — COUVERTURE COMPLÈTE du dictionnaire FR ─────────
-   Dioula d'Abidjan, écriture latine usuelle : è = ɛ, o = ɔ (t. 60-b).
-   Toutes les clés FR sont présentes (t. 71-d) ; code-switching assumé là
-   où il n'y a pas d'équivalent usuel certain (Scanner, wallet, RDV,
-   Paramètres…) — « I ni sogoma » = bonjour, « I ni cé » = merci. */
+ Dioula d'Abidjan, écriture latine usuelle: è = ɛ, o = ɔ.
+ Toutes les clés FR sont présentes; code-switching assumé là
+ où il n'y a pas d'équivalent usuel certain (Scanner, wallet, RDV,
+ Paramètres…) — « I ni sogoma » = bonjour, « I ni cé » = merci. */
 
 const DY: Dict = {
   // Onglets (tab-bar mobile + rail desktop)
@@ -237,14 +237,14 @@ const DY: Dict = {
 };
 
 /* ───────── Baoulé (bq) / Bété (bt) — attesté usuel UNIQUEMENT ─────────
-   Sources croisées 2026-09 (t. 71-d) — la salutation, et rien d'autre :
-   baoulé : « Nja / Mmo anyin o ! » le matin (cours Clément N'Goran,
-   coastsystems.net) ; « Mo agni oh » à une femme (page Baoule Mhin) →
-   « Mo anyin o », la cliente Kènè étant une femme.
-   bété : « Yaho » = bonjour, « wato-keyi » = au revoir, « eko-lobo-wa » =
-   comment ça va (Petit lexique en Bété de Gagnoa, multi-sources) — seules
-   les salutations ont un équivalent attesté pour nos libellés UI.
-   Tout le reste retombe sur le français : ne rien inventer est un choix. */
+ Sources croisées 2026-09 — la salutation, et rien d'autre:
+ baoulé: « Nja / Mmo anyin o! » le matin (cours Clément N'Goran,
+ coastsystems.net); « Mo agni oh » à une femme (page Baoule Mhin) →
+ « Mo anyin o », la cliente Kènè étant une femme.
+ bété: « Yaho » = bonjour, « wato-keyi » = au revoir, « eko-lobo-wa » =
+ comment ça va (Petit lexique en Bété de Gagnoa, multi-sources) — seules
+ les salutations ont un équivalent attesté pour nos libellés UI.
+ Tout le reste retombe sur le français: ne rien inventer est un choix. */
 
 const BQ: Dict = {
   "home.greeting": "Mo anyin o",
@@ -258,7 +258,7 @@ export const DICTS: Record<Lang, Dict> = { fr: FR, dy: DY, bq: BQ, bt: BT };
 
 /**
  * Traduit une clé dans la langue demandée.
- * Repli en cascade : langue → français → clé brute (jamais de vide).
+ * Repli en cascade: langue → français → clé brute (jamais de vide).
  */
 export function translate(lang: Lang, key: string): string {
   const dict = DICTS[lang];

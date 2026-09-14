@@ -1,5 +1,5 @@
 "use client";
-// Kènè Pro — Caisse POS : catalogue cliquable, ticket, paiement mobile money, ticket thermique imprimable
+// Kènè Pro — Caisse POS: catalogue cliquable, ticket, paiement mobile money, ticket thermique imprimable
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Loader2, Minus, Plus, Printer, ReceiptText, Trash2, Wallet, User, UserRoundPlus, Sparkles, X } from "lucide-react";

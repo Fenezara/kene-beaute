@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, slugify } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 
-// Validation zod (t. 63-d, remplace le cast manuel) : bornes calquées sur
+// Validation zod (, remplace le cast manuel): bornes calquées sur
 // l'ancien contrat (nom ≤ 80, téléphone raisonnablement borné en longueur —
 // la sémantique 8-15 chiffres reste vérifiée après normalisation, messages FR inchangés).
 const Body = z.object({
@@ -17,8 +17,8 @@ const Body = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
-    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:clients:get");
     if (guard) return guard;
 
@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, la fiche
-    // express exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, la fiche
+    // express exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:clients:post");
     if (guard) return guard;
 
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     const tenant = await resolveTenant(req, parsed.data.tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    // Normalisation conservée (trim + espaces multiples) : zod garantit la
+    // Normalisation conservée (trim + espaces multiples): zod garantit la
     // forme, ces sémantiques restent la source des messages FR ci-dessous.
     const name = parsed.data.name.trim().replace(/\s+/g, " ");
     const phone = parsed.data.phone.trim();
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     if (name.length < 2 || name.length > 80) return jsonError("Nom invalide (2 à 80 caractères)");
     if (digits.length < 8 || digits.length > 15) return jsonError("Téléphone invalide (8 à 15 chiffres)");
 
-    // anti-doublon : comparaison sur chiffres NORMALISÉS (les formats « 07 05… »,
+    // anti-doublon: comparaison sur chiffres NORMALISÉS (les formats « 07 05… »,
     // « 0705… » et « +225 07… » désignent le même numéro — un contains SQL brut
     // ne le voit pas). Les 10 derniers chiffres = numéro local CI.
     const tail = digits.slice(-10);

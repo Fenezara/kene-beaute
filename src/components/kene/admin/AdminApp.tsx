@@ -1,6 +1,6 @@
 "use client";
-// Kènè — Console Admin : KPIs plateforme, diagnostics IA/jour, top instituts
-// + « Posture sécurité » (t. 86-d) : journal d'audit OTP/connexions + verrouillages.
+// Kènè — Console Admin: KPIs plateforme, diagnostics IA/jour, top instituts
+// + « Posture sécurité »: journal d'audit OTP/connexions + verrouillages.
 import { Activity, AlertTriangle, Building2, HeartHandshake, ReceiptText, RefreshCw, ShieldCheck, ShoppingBag, Users } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +19,7 @@ import { KeneEmblem } from "@/components/kene/icons";
 
 export function AdminApp() {
   const stats = useApi<AdminStats>(() => apiGet<AdminStats>("/api/admin/stats"), []);
-  // t. 86-d : journal sécurité — hook séparé, la carte gère SES états (erreur
+  //: journal sécurité — hook séparé, la carte gère SES états (erreur
   // inline, vide, chargement) sans jamais toucher au rendu des KPIs existants.
   const sec = useApi<AdminSecurity>(() => apiGet<AdminSecurity>("/api/admin/security"), []);
 
@@ -67,7 +67,7 @@ export function AdminApp() {
         <KpiCard icon={<ReceiptText className="size-4" />} label="GMV boutique" value={xof(data.gmvBoutique, { compact: true })} hint={`Commissions : ${xof(data.commissionTotal, { compact: true })}`} />
       </div>
 
-      {/* Posture sécurité (t. 86-d) — journal d'audit + verrouillages */}
+      {/* Posture sécurité — journal d'audit + verrouillages */}
       <SecurityCard sec={sec} />
 
       {/* Chart */}
@@ -148,8 +148,8 @@ export function AdminApp() {
   );
 }
 
-// ─────────────── Posture sécurité (t. 86-d) ───────────────
-// Kind → libellé FR lisible + pastille couleur (tokens shadcn : succès vert
+// ─────────────── Posture sécurité ───────────────
+// Kind → libellé FR lisible + pastille couleur (tokens shadcn: succès vert
 // Baobab, échecs/verrous bordeaux Bissap, demande de code or profond, le
 // reste en sobre muted). Zéro nouvelle dépendance.
 const SEC_KINDS: Record<string, { label: string; cls: string }> = {
@@ -165,7 +165,7 @@ const SEC_KINDS: Record<string, { label: string; cls: string }> = {
   upload_reject: { label: "Fichier rejeté", cls: "bg-muted text-muted-foreground" },
 };
 
-/** Heure FR compacte : « 16/08 14:32 » (— si date illisible). */
+/** Heure FR compacte: « 16/08 14:32 » (— si date illisible). */
 function secTime(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
@@ -262,7 +262,7 @@ function ConsoleHeader() {
       <div aria-hidden="true" className="kente-band h-1.5 w-full" />
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
         <div className="flex min-w-0 items-center gap-3.5">
-          {/* Sceau de marque (t. 86) — la console porte le Médaillon Kènè */}
+          {/* Sceau de marque — la console porte le Médaillon Kènè */}
           <span aria-hidden="true" className="shrink-0 select-none">
             <KeneEmblem size={56} className="drop-shadow-[0_2px_10px_rgba(200,149,30,0.22)]" />
           </span>

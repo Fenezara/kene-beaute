@@ -1,4 +1,4 @@
-// POST /api/coupons/validate — {code, userId?, subtotal} : aperçu de remise
+// POST /api/coupons/validate — {code, userId?, subtotal}: aperçu de remise
 // au checkout SANS consommer le coupon (la consommation a lieu à la commande).
 // Toutes les gardes métier vivent dans lib/kene/coupons (source unique).
 import { NextRequest, NextResponse } from "next/server";
@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return jsonError("code et subtotal requis", 400);
     const { code, userId, subtotal } = parsed.data;
 
-    // Session signée (t. 71-b, migration douce) : avec cookie, l'aperçu de
-    // remise se calcule pour le compte de la session ; sans userId dans le
+    // Session signée (, migration douce): avec cookie, l'aperçu de
+    // remise se calcule pour le compte de la session; sans userId dans le
     // corps (invitée) ou sans cookie → legacy (comportement conservé).
     const guard = guardUserClaim(req, "coupons:validate", userId);
     if (guard) return guard;

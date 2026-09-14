@@ -1,13 +1,13 @@
 // POST /api/payments/confirm — confirme un paiement MoMo (code de confirmation)
-// et déclenche les effets métier. t. 63-c :
-//  • le paiement n'est confirmé QU'AVEC son code (confirmToken) — un simple
-//    paymentId ne suffit plus (fin du « mint anonyme » de wallet/cashback) ;
-//  • le passage pending → success est un updateMany CONDITIONNEL (anti-TOCTOU :
-//    deux confirmations concurrentes ne passent qu'une seule fois) ;
-//  • TOUS les effets consécutifs (crédit wallet topup, commande/acompte payé,
-//    cashback, décrément stock + InventoryMovement, notifications) partagent
-//    UNE seule prisma.$transaction — plus de panne partielle (commande payée
-//    sans stock décrémenté).
+// et déclenche les effets métier.:
+// • le paiement n'est confirmé QU'AVEC son code (confirmToken) — un simple
+// paymentId ne suffit plus (fin du « mint anonyme » de wallet/cashback);
+// • le passage pending → success est un updateMany CONDITIONNEL (anti-TOCTOU:
+// deux confirmations concurrentes ne passent qu'une seule fois);
+// • TOUS les effets consécutifs (crédit wallet topup, commande/acompte payé,
+// cashback, décrément stock + InventoryMovement, notifications) partagent
+// UNE seule prisma.$transaction — plus de panne partielle (commande payée
+// sans stock décrémenté).
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import type { Order, Payment, Wallet } from "@prisma/client";
@@ -21,7 +21,7 @@ import { audit, clientIp } from "@/lib/kene/audit";
 
 const Body = z.object({
   paymentId: z.string().min(1),
-  // absent/vide → message dédié (contrat 63-b : le front passe r.payment.confirmToken)
+  // absent/vide → message dédié (contrat 63-b: le front passe r.payment.confirmToken)
   confirmToken: z.string().optional(),
 });
 
@@ -44,9 +44,9 @@ export async function POST(req: NextRequest) {
     const payment = await db.payment.findUnique({ where: { id: paymentId } });
     if (!payment) return jsonError("Paiement introuvable", 404);
 
-    // Session signée (t. 71-b) : avec cookie, seul le compte propriétaire du
-    // paiement (payment.userId) peut le confirmer ; sans cookie → legacy
-    // (le code de confirmation reste la barrière anti-mint de t. 63-c).
+    // Session signée: avec cookie, seul le compte propriétaire du
+    // paiement (payment.userId) peut le confirmer; sans cookie → legacy
+    // (le code de confirmation reste la barrière anti-mint de).
     const guard = guardUserClaim(req, "payments:confirm", payment.userId ?? undefined);
     if (guard) return guard;
 
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       return jsonError("Code de confirmation invalide", 400);
     }
 
-    // Anti-TOCTOU + atomicité : le flip pending → success et TOUS les effets
+    // Anti-TOCTOU + atomicité: le flip pending → success et TOUS les effets
     // métier sont dans la même transaction. Si une autre requête a déjà
     // confirmé (updateMany → count 0), tout est annulé, aucun effet rejoué.
     const outcome: ConfirmOutcome = await db.$transaction(async (tx) => {
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
             if (w) wallet = await creditWallet(w.id, order.cashback, "cashback", order.id, tx);
           }
 
-          // Parrainage : récompense du parrain à la première commande payée
+          // Parrainage: récompense du parrain à la première commande payée
           await rewardReferrerIfNeeded(order.userId, tx);
 
           // Sorties de stock (+ mouvements pour les produits rattachés à un tenant)
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
             toPhone: updated.clientPhone,
             message: `Kènè : acompte de ${xof(confirmed.amount)} reçu — votre RDV est confirmé ✅`,
           }, tx);
-          // Rappel automatique J-1 réel : programmé 24 h avant le RDV, envoyé au
+          // Rappel automatique J-1 réel: programmé 24 h avant le RDV, envoyé au
           // fil de l'eau par le due-runner (GET /api/notifications).
           const [svc, tnt] = await Promise.all([
             tx.service.findUnique({ where: { id: updated.serviceId }, select: { name: true } }),
@@ -155,13 +155,13 @@ export async function POST(req: NextRequest) {
     });
 
     if (outcome.stale) {
-      // updateMany a raté : déjà confirmé par une requête concurrente, ou disparu.
+      // updateMany a raté: déjà confirmé par une requête concurrente, ou disparu.
       const again = await db.payment.findUnique({ where: { id: paymentId }, select: { status: true } });
       if (again?.status === "success") return jsonError("Paiement déjà confirmé", 400);
       return jsonError("Paiement introuvable", 404);
     }
 
-    // t. 86-d : journal d'audit — userId + montant dans le détail (court).
+    //: journal d'audit — userId + montant dans le détail (court).
     void audit({
       kind: "payment_confirm",
       userId: outcome.payment.userId ?? undefined,

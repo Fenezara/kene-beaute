@@ -1,5 +1,5 @@
 "use client";
-// Kènè Cliente — Diagnostic IA : wizard zone → capture → analyse → résultats VISIA-like → historique — ÉCLAT 2026
+// Kènè Cliente — Diagnostic IA: wizard zone → capture → analyse → résultats VISIA-like → historique — ÉCLAT 2026
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -51,7 +51,7 @@ const ZONE_TONES: Record<BodyZone, "gold" | "terre" | "bissap" | "success"> = {
   naevi: "terre",
 };
 
-// Pipeline asynchrone (t. 71) — 3 étapes honnêtes : le POST est immédiat
+// Pipeline asynchrone — 3 étapes honnêtes: le POST est immédiat
 // (202), l'analyse VLM tourne côté serveur, le protocole se constitue à la fin.
 const ANALYSIS_STEPS = [
   "Envoi de la photo",
@@ -71,19 +71,19 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const [progress, setProgress] = useState(0);
   const [checkedSteps, setCheckedSteps] = useState(0);
   const [diag, setDiag] = useState<{ id: string; result: DiagnosisResult; imageData: string; createdAt: string } | null>(null);
-  // File d'attente offline (t. 83-f) : compteur vivant — la REPLAY vit dans
+  // File d'attente offline: compteur vivant — la REPLAY vit dans
   // ClientApp (elle marche quel que soit l'écran courant), ici on AFFICHE.
   const [queuedCount, setQueuedCount] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Résilience 502 (t. 66-b) : message discret sous la barre de progression
+  // Résilience 502: message discret sous la barre de progression
   // pendant un retry / une récupération (annoncé aux lecteurs d'écran).
   const [netNotice, setNetNotice] = useState<string | null>(null);
-  // Quota gratuit atteint (t. 71-e) : le POST a répondu 403 (quotaExceeded) —
+  // Quota gratuit atteint: le POST a répondu 403 (quotaExceeded) —
   // on affiche la carte upsell Kènè+ sur l'écran de capture au lieu d'un
-  // simple échec : le monetization est un parcours, pas un mur.
+  // simple échec: le monetization est un parcours, pas un mur.
   const [quotaUpsell, setQuotaUpsell] = useState(false);
-  // Filet de sécurité : AUCUN interval/timeout de launch()/trackDiagnosis()
+  // Filet de sécurité: AUCUN interval/timeout de launch/trackDiagnosis
   // ne survit au démontage (changement d'onglet pendant une analyse — les
   // setState deviendraient des no-ops mais on rend les minuteurs morts de
   // façon déterministe, quel que soit le chemin pris).
@@ -92,7 +92,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     poll?: ReturnType<typeof setInterval>;
     timeouts: ReturnType<typeof setTimeout>[];
   }>({ timeouts: [] });
-  // Génération du suivi courant : chaque clearTimers() invalide les
+  // Génération du suivi courant: chaque clearTimers invalide les
   // continuations async encore en vol (fetch de poll résolvant après un
   // échec/relance → elles ne peuvent plus écraser l'état courant).
   const trackGenRef = useRef(0);
@@ -112,14 +112,14 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   useEffect(() => clearTimers, [clearTimers]);
 
   const [products, setProducts] = useState<ApiProduct[]>([]);
-  // Fin des échecs silencieux : produits indisponibles → encart discret +
+  // Fin des échecs silencieux: produits indisponibles → encart discret +
   // Réessayer sur la section recommandations (plus de section muette).
   const [productsError, setProductsError] = useState(false);
   const [history, setHistory] = useState<ApiDiagnosis[] | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareSel, setCompareSel] = useState<string[]>([]);
 
-  // File d'attente offline (t. 83-f) : compteur vivant — la REPLAY vit dans
+  // File d'attente offline: compteur vivant — la REPLAY vit dans
   // ClientApp (elle marche quel que soit l'écran courant), ici on AFFICHE.
   useEffect(() => {
     const update = () => setQueuedCount(diagQueueCount());
@@ -127,7 +127,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     return subscribeDiagQueue(update);
   }, []);
 
-  // Haptique du rituel (t. 83-f) : chaque étape franchie vibre doucement, la
+  // Haptique du rituel: chaque étape franchie vibre doucement, la
   // constellation complète sonne la réussite (no-op silencieux sur iOS).
   const prevCheckedRef = useRef(0);
   useEffect(() => {
@@ -181,7 +181,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     try {
       const dataUrl = await resizeImage(f);
       setImage(dataUrl);
-      // Transparence « petite data » : montrer le poids réel envoyé (compressé côté client)
+      // Transparence « petite data »: montrer le poids réel envoyé (compressé côté client)
       const origKo = Math.round(f.size / 1024);
       const sentKo = Math.max(1, Math.round((dataUrl.length * 0.75) / 1024)); // base64 ≈ 4/3
       if (origKo > 250 && origKo > sentKo * 2) {
@@ -192,11 +192,11 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     }
   }
 
-  async function useDemoPhoto() {
-    const demo = zone === "mains" ? "demo-mains-1" : zone === "dos" ? "demo-dos-1" : zone === "naevi" ? "demo-visage-2" : "demo-visage-1";
+  async function useGuidePhoto() {
+    const guide = zone === "mains" ? "guide-mains-1" : zone === "dos" ? "guide-dos-1" : zone === "naevi" ? "guide-visage-2" : "guide-visage-1";
     try {
-      const blob = await (await fetch(`/skin/${demo}.webp`)).blob();
-      const file = new File([blob], `${demo}.webp`, { type: "image/webp" });
+      const blob = await (await fetch(`/skin/${guide}.webp`)).blob();
+      const file = new File([blob], `${guide}.webp`, { type: "image/webp" });
       await onFile(file);
       toast.success("Photo d'exemple chargée");
     } catch {
@@ -204,11 +204,11 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     }
   }
 
-  // ── Pipeline asynchrone (t. 71) ──────────────────────────────────────
-  // Le POST répond 202 en < 1 s avec { diagnosis: status "pending" } ; le
-  // VLM tourne dans un worker côté serveur ; on suit la ligne ici (poll).
+  // ── Pipeline asynchrone ──────────────────────────────────────
+  // Le POST répond 202 en < 1 s avec { diagnosis: status "pending" }; le
+  // VLM tourne dans un worker côté serveur; on suit la ligne ici (poll).
 
-  // Résultat acquis (poll du worker, back synchrone ou récupération 66-b) :
+  // Résultat acquis (poll du worker, back synchrone ou récupération 66-b):
   // même animation de fin, durée minimale ~3,4 s, minuteurs suivis et nettoyés
   // dans tous les cas.
   const showResult = useCallback(
@@ -241,14 +241,14 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     [clearTimers],
   );
 
-  // Suivi d'un diagnostic serveur : progression honnête pilotée par le temps
+  // Suivi d'un diagnostic serveur: progression honnête pilotée par le temps
   // écoulé (le serveur n'expose pas d'avancement réel) + poll
   // GET /api/diagnoses/{id} toutes les 1,8 s. Timeout global 100 s → échec
   // honnête + Réessayer (retour capture, photo conservée — comportement 66-b).
-  // Échec réseau d'un tick → on continue de poller (garde-fou : timeout).
+  // Échec réseau d'un tick → on continue de poller (garde-fou: timeout).
   const trackDiagnosis = useCallback(
     (diagId: string, opts: { recovered?: boolean; startedAt?: number } = {}) => {
-      clearTimers(); // filet : aucun reliquat d'un suivi précédent
+      clearTimers(); // filet: aucun reliquat d'un suivi précédent
       const gen = trackGenRef.current;
       const t0 = opts.startedAt ?? Date.now();
       const recovered = opts.recovered ?? false;
@@ -264,10 +264,10 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         setAnalyzing(false);
         setNetNotice(null);
         toast.error(msg);
-        setStep(1); // retour capture : la photo est conservée → Réessayer
+        setStep(1); // retour capture: la photo est conservée → Réessayer
       }
 
-      // Progression : courbe exponentielle vers 96 % (jamais 100 avant la fin
+      // Progression: courbe exponentielle vers 96 % (jamais 100 avant la fin
       // réelle) — la reprise au montage repart de createdAt (startedAt).
       const timer = setInterval(() => {
         const elapsed = Date.now() - t0;
@@ -302,11 +302,11 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         busy = true;
         apiGet<{ diagnosis: ApiDiagnosis }>(`/api/diagnoses/${diagId}`)
           .then((r) => { busy = false; check(r.diagnosis); })
-          .catch(() => { busy = false; /* réseau : le tick suivant réessaie */ });
+          .catch(() => { busy = false; /* réseau: le tick suivant réessaie */ });
       }, POLL_MS);
       timersRef.current.poll = poll;
 
-      // Premier statut immédiat : si le worker a déjà fini (reprise au
+      // Premier statut immédiat: si le worker a déjà fini (reprise au
       // montage), les résultats arrivent sans attendre le 1er tick.
       apiGet<{ diagnosis: ApiDiagnosis }>(`/api/diagnoses/${diagId}`)
         .then((r) => check(r.diagnosis))
@@ -315,8 +315,8 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     [clearTimers, showResult],
   );
 
-  // Récupération après échec réseau (66-b) : le diagnostic a très bien pu
-  // être ENREGISTRÉ avant la coupure. Done récent (< 4 min) → résultats ;
+  // Récupération après échec réseau (66-b): le diagnostic a très bien pu
+  // être ENREGISTRÉ avant la coupure. Done récent (< 4 min) → résultats;
   // pending → on reprend son suivi (poll du worker). Retourne true si pris
   // en charge.
   async function tryRecover(t0: number): Promise<boolean> {
@@ -343,19 +343,19 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         );
         return true;
       }
-      // pending : le worker tourne encore côté serveur → on le suit.
+      // pending: le worker tourne encore côté serveur → on le suit.
       setZone(found.zone);
       setImage(diagImgSrc(found.imageData));
       trackDiagnosis(found.id, { recovered: true, startedAt: new Date(found.createdAt).getTime() });
       return true;
     } catch {
-      // Le GET lui-même est injoignable (serveur toujours au redémarrage) :
+      // Le GET lui-même est injoignable (serveur toujours au redémarrage):
       // échec final honnête, sans crash.
       return false;
     }
   }
 
-  // Reprise automatique (t. 71) : au montage, si le DERNIER diagnostic de
+  // Reprise automatique: au montage, si le DERNIER diagnostic de
   // l'historique est "pending" et récent (< 3 min), on reprend son suivi —
   // la cliente qui quitte et revient ne perd rien. Les setState vivent dans
   // la continuation async (pattern loadProducts — règle set-state-in-effect).
@@ -376,7 +376,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       setNetNotice(null);
       trackDiagnosis(last.id, { startedAt: new Date(last.createdAt).getTime() });
     } catch {
-      /* historique injoignable au montage : parcours normal, silencieux */
+ /* historique injoignable au montage: parcours normal, silencieux */
     }
   }, [user.id, trackDiagnosis]);
 
@@ -394,14 +394,14 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     setNetNotice(null);
     setQuotaUpsell(false);
     const t0 = Date.now();
-    // Hors-ligne dès le départ (t. 83-f) : la photo part en file d'attente —
+    // Hors-ligne dès le départ: la photo part en file d'attente —
     // envoyée toute seule au retour du réseau (la replay vit dans ClientApp,
     // elle prévient par toast). Jamais d'échec sec pour une photo déjà cadrée.
     if (!isOnline()) {
       const q = enqueueDiag({ userId: user.id, zone, image, fitzpatrick: user.fitzpatrick ?? undefined, allergies: user.allergies ?? undefined });
       haptic(HAPTIC.light);
       setAnalyzing(false);
-      setStep(1); // la photo reste affichée : la cliente voit qu'elle est gardée
+      setStep(1); // la photo reste affichée: la cliente voit qu'elle est gardée
       toast.success("Diagnostic mis en attente", {
         description: q.ok
           ? "Ta photo partira toute seule dès que le réseau revient — tu peux même quitter l’app."
@@ -410,12 +410,12 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       return;
     }
     try {
-      // POST /api/diagnoses : répond 202 en < 1 s avec la ligne "pending"
-      // (pipeline asynchrone t. 71). 4 tentatives (t. 77 : 3 → 4, backoff
+      // POST /api/diagnoses: répond 202 en < 1 s avec la ligne "pending"
+      // (pipeline asynchrone). 4 tentatives (: 3 → 4, backoff
       // jusqu'à 8 s ≈ ~13,5 s de fenêtre) quand la gateway renvoie
       // 502/503/504 (recompilation/restart du serveur Next en dev) — backoff
       // 1,5 s → 4 s → 8 s. Les autres erreurs (400/404/429…) ne sont JAMAIS
-      // rejouées ; chaque retry crée une NOUVELLE ligne côté serveur si le
+      // rejouées; chaque retry crée une NOUVELLE ligne côté serveur si le
       // POST a échoué AVANT d'atteindre l'app (échec réseau = rien reçu).
       let r: { diagnosis: ApiDiagnosis } | undefined;
       let fatal: unknown = new Error("Analyse impossible");
@@ -440,7 +440,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         }
       }
       if (!r) throw fatal;
-      // Compat : un back encore synchrone (status "done" direct) est accepté
+      // Compat: un back encore synchrone (status "done" direct) est accepté
       // tel quel — même animation de fin.
       if (r.diagnosis.status === "done") {
         const result = parseDiagnosis(r.diagnosis.resultJson);
@@ -449,18 +449,18 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           return;
         }
       }
-      // 202 : ligne créée "pending", worker VLM lancé côté serveur → suivi.
+      // 202: ligne créée "pending", worker VLM lancé côté serveur → suivi.
       setCheckedSteps(1); // « Envoi de la photo ✓ »
       trackDiagnosis(r.diagnosis.id, { startedAt: Date.now() });
     } catch (e) {
-      // 502/503/504 après 3 tentatives : tenter la récupération AVANT l'échec.
+      // 502/503/504 après 3 tentatives: tenter la récupération AVANT l'échec.
       const gatewayish = e instanceof ApiError && [502, 503, 504].includes(e.status);
       if (gatewayish && (await tryRecover(t0))) return;
       clearTimers();
       setAnalyzing(false);
       setNetNotice(null);
-      // Échec RÉSEAU pur (fetch avorté — pas de réponse serveur) : file
-      // d'attente offline (t. 83-f). La photo reste cadrée, elle partira seule.
+      // Échec RÉSEAU pur (fetch avorté — pas de réponse serveur): file
+      // d'attente offline. La photo reste cadrée, elle partira seule.
       if (!(e instanceof ApiError)) {
         const q = enqueueDiag({ userId: user.id, zone, image, fitzpatrick: user.fitzpatrick ?? undefined, allergies: user.allergies ?? undefined });
         haptic(HAPTIC.light);
@@ -469,7 +469,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             ? "Ta photo partira toute seule dès le retour du réseau, sans rien retaper."
             : undefined,
         });
-        setStep(1); // retour capture : la photo est conservée
+        setStep(1); // retour capture: la photo est conservée
         return;
       }
       // 403 = quota gratuit atteint (le garde session renvoie 401, jamais
@@ -482,11 +482,11 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             ? e.message
             : "Analyse impossible",
       );
-      setStep(1); // retour capture : la photo est conservée
+      setStep(1); // retour capture: la photo est conservée
     }
   }
 
-  /* ─────────── Étape 0 — Choix de zone ─────────── */
+ /* ─────────── Étape 0 — Choix de zone ─────────── */
   if (step === 0) {
     return (
       <div className="pt-4">
@@ -523,7 +523,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     );
   }
 
-  /* ─────────── Étape 1 — Capture ─────────── */
+ /* ─────────── Étape 1 — Capture ─────────── */
   if (step === 1) {
     const zoneDef = BODY_ZONES.find((z) => z.id === zone)!;
     return (
@@ -571,7 +571,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         </div>
 
         <div className="mt-4 flex gap-2">
-          <button onClick={useDemoPhoto} className="k-chip h-11 flex-1 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
+          <button onClick={useGuidePhoto} className="k-chip h-11 flex-1 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
             <ImagePlus size={15} className="text-primary" /> Photo d&apos;exemple
           </button>
           {image && (
@@ -589,7 +589,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           <NeaOnnimIcon size={22} /> Lancer l&apos;analyse IA
         </PrimaryCTA>
 
-        {/* Quota gratuit atteint (t. 71-e) — upsell Kènè+ : parcours, pas mur. */}
+        {/* Quota gratuit atteint — upsell Kènè+: parcours, pas mur. */}
         {quotaUpsell && (
           <GlassCard className="mt-5 rounded-[24px] p-5">
             <div className="flex items-center gap-3">
@@ -609,7 +609,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           </GlassCard>
         )}
 
-        {/* File d'attente offline (t. 83-f) : photos gardées, départ auto. */}
+        {/* File d'attente offline: photos gardées, départ auto. */}
         {queuedCount > 0 && (
           <div role="status" className="mt-4 flex items-center gap-3 rounded-[20px] p-3.5 k-card">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
@@ -629,7 +629,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     );
   }
 
-  /* ─────────── Étape 2 — Analyse en cours ─────────── */
+ /* ─────────── Étape 2 — Analyse en cours ─────────── */
   if (step === 2 && analyzing) {
     return (
       <Reveal className="pt-6 flex flex-col items-center" stagger={0.07}>
@@ -643,8 +643,8 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           />
         </RevealItem>
 
-      {/* Constellation Adinkra (t. 83-e) : le ciel du rituel s'assemble
-          pendant l'analyse — décoratif, la liste d'étapes reste le contrat. */}
+      {/* Constellation Adinkra: le ciel du rituel s'assemble
+ pendant l'analyse — décoratif, la liste d'étapes reste le contrat. */}
       <RevealItem className="mt-5 w-full max-w-[320px]">
         <AdinkraSky checked={checkedSteps} total={ANALYSIS_STEPS.length} />
       </RevealItem>
@@ -685,10 +685,10 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     );
   }
 
-  /* ─────────── Étape 4 — Historique ─────────── */
+ /* ─────────── Étape 4 — Historique ─────────── */
   if (step === 4) return <HistoryView userId={user.id} history={history} compareMode={compareMode} setCompareMode={setCompareMode} compareSel={compareSel} setCompareSel={setCompareSel} onBack={() => setStep(0)} onOpen={(d) => { const r = parseDiagnosis(d.resultJson); if (r) { setDiag({ id: d.id, result: r, imageData: diagImgSrc(d.imageData), createdAt: d.createdAt }); setStep(3); } }} />;
 
-  /* ─────────── Étape 3 — Résultats ─────────── */
+ /* ─────────── Étape 3 — Résultats ─────────── */
   if (step === 3 && diag) {
     return <ResultView diag={diag} products={products} productsError={productsError} onRetryProducts={loadProducts} onNewZone={() => { setStep(0); setImage(""); setDiag(null); }} onHistory={goHistory} />;
   }
@@ -706,7 +706,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
   const [descentOpen, setDescentOpen] = useState(false);
   const [glossary, setGlossary] = useState<GlossaryEntry | null>(null);
   const r = diag.result;
-  // Fiabilité (t. 71) : champ posé par le worker dans resultJson ; les
+  // Fiabilité: champ posé par le worker dans resultJson; les
   // anciens diagnostics n'en ont pas → dérivé de `source` (déjà présent).
   const confidence = r.confidence ?? (r.source === "vlm" ? "haute" : "indicative");
   const weakest = useMemo(() => [...r.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage).slice(0, 8), [r.indicateurs]);
@@ -729,7 +729,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
   return (
     <div className="pt-4 pb-2">
       <Reveal stagger={0.07}>
-      {/* Header score — carte héro : verre + lueurs internes + filet kente 3px */}
+      {/* Header score — carte héro: verre + lueurs internes + filet kente 3px */}
       <RevealItem>
         <GlassCard hero className="overflow-hidden rounded-[26px]">
           <div className="kente-band h-[3px] w-full" aria-hidden="true" />
@@ -745,7 +745,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
                 <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: scoreColor(r.score_global), color: readableTextColor(scoreColor(r.score_global)) }}>
                   {r.score_global >= 80 ? "Excellente santé" : r.score_global >= 60 ? "Bon équilibre" : r.score_global >= 40 ? "Points à surveiller" : "Besoin de soin"}
                 </span>
-                {/* Pastille fiabilité — chip discret (t. 71) */}
+                {/* Pastille fiabilité — chip discret */}
                 <span
                   className={`k-chip inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${confidence === "haute" ? "text-success" : "text-terre"}`}
                 >
@@ -771,10 +771,10 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
         <PictoSummary result={r} zoneLabel={BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone} />
       </RevealItem>
 
-      {/* Atlas africain (t. 84) — « Dr Kènè pense reconnaître… » : hypothèses
-          éducatives citées par le VLM puis VALIDÉES côté serveur (id exact de
-          l'atlas + zone cohérente + confiance ≥ 25). Jamais un diagnostic
-          formel — une piste à faire confirmer, avec le bon niveau de conduite. */}
+      {/* Atlas africain — « Dr Kènè pense reconnaître… »: hypothèses
+ éducatives citées par le VLM puis VALIDÉES côté serveur (id exact de
+ l'atlas + zone cohérente + confiance ≥ 25). Jamais un diagnostic
+ formel — une piste à faire confirmer, avec le bon niveau de conduite. */}
       {r.hypotheses && r.hypotheses.length > 0 && (
         <RevealItem className="mt-4">
           <section aria-labelledby="hyp-t">
@@ -791,8 +791,8 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
         </RevealItem>
       )}
 
-      {/* Descente de Peau (t. 82) — voyage 3D dans les couches, éclairé par
-          les indicateurs réels. Plein cadre opt-in, se ferme à la remontée. */}
+      {/* Descente de Peau — voyage 3D dans les couches, éclairé par
+ les indicateurs réels. Plein cadre opt-in, se ferme à la remontée. */}
       <RevealItem className="mt-4">
         <motion.button
           whileTap={{ scale: 0.98 }}
@@ -1066,7 +1066,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
             <History size={16} /> Historique
           </button>
         </div>
-        {/* Compte-rendu PDF (t. 119) — imprimable / partageable */}
+        {/* Compte-rendu PDF — imprimable / partageable */}
         <button
           onClick={() => window.open(`/api/diagnoses/report?userId=${user.id}&id=${diag.id}`, "_blank")}
           className="k-chip mt-3 h-12 w-full rounded-2xl text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
@@ -1086,8 +1086,8 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
         />
       )}
 
-      {/* Descente de Peau (t. 82) — overlay plein cadre, se referme à la
-          remontée (Échap inclus). */}
+      {/* Descente de Peau — overlay plein cadre, se referme à la
+ remontée (Échap inclus). */}
       {descentOpen && (
         <SkinDescent
           indicators={r.indicateurs}
@@ -1097,13 +1097,13 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
         />
       )}
 
-      {/* Glossaire 1 tap — « ? » sur un indicateur ouvre sa définition simple */}
+      {/* Glossaire 1 tap — «? » sur un indicateur ouvre sa définition simple */}
       <GlossaryDialog entry={glossary} onClose={() => setGlossary(null)} />
     </div>
   );
 }
 
-/* ══════════════ Hypothèse de l'atlas africain (t. 84) ══════════════ */
+/* ══════════════ Hypothèse de l'atlas africain ══════════════ */
 const HYP_LEVEL: Record<AtlasLevel, { chip: string; label: string; icon: React.ReactNode }> = {
   educatif: { chip: "border-success/45 bg-success/5 text-success", label: "Éducatif", icon: <Check size={12} /> },
   institut: { chip: "border-primary/45 bg-primary/5 text-primary", label: "Institut partenaire", icon: <Sparkles size={12} /> },
@@ -1179,8 +1179,8 @@ function HypothesisCard({ h, onAsk, onRdv }: { h: SuspectedCondition; onAsk: (te
 }
 
 function IndicatorBar({ ind, onAsk }: { ind: Indicator; onAsk?: (term: string) => void }) {
-  // Garde double : severite absente (anciens resultJson) → NaN index → 0 ;
-  // index hors bornes → clamp 0..3 ; SEVERITY_STYLES[i] résolu UNE fois.
+  // Garde double: severite absente (anciens resultJson) → NaN index → 0;
+  // index hors bornes → clamp 0..3; SEVERITY_STYLES[i] résolu UNE fois.
   const sevIdx = Number.isFinite(ind.severite) ? Math.min(3, Math.max(0, Math.trunc(ind.severite))) : 0;
   const sev = SEVERITY_STYLES[sevIdx] ?? SEVERITY_STYLES[0];
   const explainable = onAsk && glossaryFor(ind.nom) !== null;

@@ -1,8 +1,8 @@
 "use client";
-// Kènè — langue de l'interface (i18n UI) : fr | dy | bq | bt.
-// Store séparé du store applicatif (kene.ts) : la langue est une préférence
+// Kènè — langue de l'interface (i18n UI): fr | dy | bq | bt.
+// Store séparé du store applicatif (kene.ts): la langue est une préférence
 // transverse, indépendante de la session et du panier.
-// skipHydration : le HTML serveur est rendu en français (état initial), la
+// skipHydration: le HTML serveur est rendu en français (état initial), la
 // valeur persistée est relue APRÈS montage (voir useT) — zéro mismatch
 // d'hydratation, l'interface bascule juste après le premier rendu.
 import { create } from "zustand";

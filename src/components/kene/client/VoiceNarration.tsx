@@ -2,7 +2,7 @@
 // Kènè — lecture vocale TTS du diagnostic (accès non-lectrices & confort audio).
 // Utilise le cache TTS partagé (ttsAudio.ts) + option « lecture lente »
 // (speed 0.85) pour l'écoute en français langue seconde.
-// Langues : français (complet) + dioula / baoulé / bété (résumé compact,
+// Langues: français (complet) + dioula / baoulé / bété (résumé compact,
 // traduction IA indicative — Côte d'Ivoire).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
@@ -33,7 +33,7 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
     [],
   );
 
-  // changer de langue pendant une lecture : couper proprement
+  // changer de langue pendant une lecture: couper proprement
   function switchLang(next: NarrationLang) {
     if (state === "playing") {
       stopAudio();
@@ -77,7 +77,7 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
   }
 
   function toggleSlow() {
-    // changer la vitesse pendant une lecture : couper proprement avant
+    // changer la vitesse pendant une lecture: couper proprement avant
     if (state === "playing") {
       stopAudio();
       setState("idle");

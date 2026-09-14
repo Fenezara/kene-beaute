@@ -1,5 +1,5 @@
 "use client";
-// Kènè — Passeport de Peau, vue publique (t. 82, vague 1) : ce que voit un
+// Kènè — Passeport de Peau, vue publique (, vague 1): ce que voit un
 // institut (ou une amie) qui scanne le QR — SANS compte, SANS photo. Monté à
 // la racine (au-dessus de tous les espaces, y compris le Seuil). Le lien vit
 // dans l'URL jusqu'à fermeture par l'utilisatrice (replaceState nettoie).
@@ -42,8 +42,8 @@ function scoreTone(score: number): string {
 }
 
 /* Jeton de l'URL — lu UNE fois côté client via useSyncExternalStore (même
-   pattern que useLoomMode) : snapshot serveur null → correction post-
-   hydratation SANS setState dans un effet. */
+ pattern que useLoomMode): snapshot serveur null → correction post-
+ hydratation SANS setState dans un effet. */
 let cachedToken: string | null | undefined;
 function readToken(): string | null {
   if (cachedToken === undefined) {
@@ -69,12 +69,12 @@ export function PassportGate() {
   if (!token || closed) return null;
 
   function close() {
-    // Nettoyage de l'URL : le lien QR reste valable (même jeton), seul cet
+    // Nettoyage de l'URL: le lien QR reste valable (même jeton), seul cet
     // affichage se ferme — on retombe sur l'app normale.
     try {
       window.history.replaceState(null, "", window.location.pathname);
     } catch {
-      /* historique indisponible — on ferme quand même */
+ /* historique indisponible — on ferme quand même */
     }
     setClosed(true);
   }
@@ -101,8 +101,8 @@ export function PassportGate() {
         {/* En-tête de marque — sceau officiel + wordmark */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            {/* Sceau 2026 (t. 86) — variante sombre FORCÉE (classe `dark` locale)
-                pour fondre dans l’espresso du passeport public. */}
+            {/* Sceau 2026 — variante sombre FORCÉE (classe `dark` locale)
+ pour fondre dans l’espresso du passeport public. */}
             <span className="dark" aria-hidden="true">
               <KeneEmblem size={40} className="drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]" />
             </span>

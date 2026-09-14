@@ -1,7 +1,7 @@
 // GET /api/pro/catalog?tenantId= | POST — création service/produit | PATCH — mise à jour partielle
-// t. 120 — `photoData` (data URL | null) accepté en création ET en édition :
+// — `photoData` (data URL | null) accepté en création ET en édition:
 // la photo RÉELLE du soin/produit prise en institut. Jamais renvoyée dans le
-// payload (trop lourde) : remplacée par `hasPhoto`, l'UI charge
+// payload (trop lourde): remplacée par `hasPhoto`, l'UI charge
 // /api/media/service/:id ou /api/media/product/:id.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -18,8 +18,8 @@ function withPhotoFlag<T extends { photoData?: string | null }>(item: T): Omit<T
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
-    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:catalog:get");
     if (guard) return guard;
 
@@ -50,14 +50,14 @@ const CreateBody = z.object({
     stock: z.number().int().min(0).optional(),
     stockAlert: z.number().int().min(0).optional(),
     image: z.string().optional(),
-    photoData: z.string().nullable().optional(), // t. 120 — photo réelle (data URL)
+    photoData: z.string().nullable().optional(), // — photo réelle (data URL)
   }),
 });
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, la création
-    // service/produit exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, la création
+    // service/produit exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:catalog:post");
     if (guard) return guard;
 
@@ -119,13 +119,13 @@ const PatchBody = z.object({
 
 const SERVICE_FIELDS = ["name", "category", "durationMin", "price", "commissionPct", "description", "botanicals", "active"];
 const PRODUCT_FIELDS = ["name", "category", "price", "stock", "stockAlert", "description", "botanicals", "image", "active", "compareAt"];
-// t. 120 — photoData (string | null) passe par checkPhoto avant update
+// — photoData (string | null) passe par checkPhoto avant update
 const PHOTO_FIELD = "photoData";
 
 export async function PATCH(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, la mise à jour
-    // catalogue exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, la mise à jour
+    // catalogue exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:catalog:patch");
     if (guard) return guard;
 

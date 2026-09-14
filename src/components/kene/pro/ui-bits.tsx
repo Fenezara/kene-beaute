@@ -1,8 +1,8 @@
 "use client";
 // Kènè Pro — briques UI partagées (KPI, badges statut, états vides/erreur/chargement) — ÉCLAT 2026.
-// Mêmes signatures d'export (zéro breaking change pour les 11 sections) : les KPI
+// Mêmes signatures d'export (zéro breaking change pour les 11 sections): les KPI
 // passent à la carte verre k-card + eyebrow + valeur mono signature, les badges
-// aux pastilles ring-inset, les états vides au grain (primitives : ui2026.tsx).
+// aux pastilles ring-inset, les états vides au grain (primitives: ui2026.tsx).
 import type { ReactNode } from "react";
 import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { xof, formatDate } from "@/lib/kene/format";
 import { Eyebrow, IconBadge, Shimmer } from "@/components/kene/ui2026";
 
-/** Label jour robuste : accepte une date ISO ou une chaîne déjà formatée ("16/08") */
+/** Label jour robuste: accepte une date ISO ou une chaîne déjà formatée ("16/08") */
 export function dayLabel(date: string): string {
   const d = new Date(date);
   return Number.isNaN(d.getTime()) ? date : formatDate(date, { day: "2-digit", month: "2-digit" });
@@ -21,14 +21,14 @@ export function KenteTop({ className = "" }: { className?: string }) {
   return <div aria-hidden="true" className={cn("kente-band-soft h-1.5 w-full rounded-t-xl", className)} />;
 }
 
-/** Montant financier — TOUJOURS font-mono + xof() */
+/** Montant financier — TOUJOURS font-mono + xof */
 export function Money({ value, className, compact }: { value: number; className?: string; compact?: boolean }) {
   return <span className={cn("font-mono tabular-nums", className)}>{xof(value, { compact })}</span>;
 }
 
-/** KPI — carte verre ÉCLAT 2026 : label en eyebrow, valeur mono signature
- *  (or lisible AA), badge icône teinté selon la donnée (monétaire → or,
- *  opérationnel → terre). Hover élévation desktop. */
+/** KPI — carte verre ÉCLAT 2026: label en eyebrow, valeur mono signature
+ * (or lisible AA), badge icône teinté selon la donnée (monétaire → or,
+ * opérationnel → terre). Hover élévation desktop. */
 export function KpiCard({
   icon,
   label,

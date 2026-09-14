@@ -1,6 +1,6 @@
 "use client";
 // Kènè Cliente — Briques UI partagées (mobile-first) — ÉCLAT 2026.
-// Mêmes signatures d'export (zéro breaking change) ; les surfaces passent
+// Mêmes signatures d'export (zéro breaking change); les surfaces passent
 // au verre translucide (k-card), les badges aux halos teintés, l'anneau de
 // score au dégradé signature (voir ui2026.tsx pour les primitives).
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -12,7 +12,7 @@ import { ScoreRing } from "@/components/kene/ui2026";
 import { cn } from "@/lib/utils";
 
 /**
- * Rangée horizontale scrollable avec signal d'affordance :
+ * Rangée horizontale scrollable avec signal d'affordance:
  * dégradé droit tant qu'il reste du contenu caché, retiré en fin de scroll.
  * (Sinon les dernières stories / produits « n'existent pas » pour l'utilisatrice.)
  */
@@ -63,8 +63,8 @@ export function ScrollFadeRow({
   );
 }
 
-/** Jauge circulaire du score santé peau — anneau signature 2026 :
- *  dégradé or→score→bissap, halo doré, chiffre mono tabulaire. */
+/** Jauge circulaire du score santé peau — anneau signature 2026:
+ * dégradé or→score→bissap, halo doré, chiffre mono tabulaire. */
 export function ScoreGauge({ score, size = 130, stroke = 11, label = "Score peau" }: { score: number; size?: number; stroke?: number; label?: string }) {
   return <ScoreRing score={score} size={size} stroke={stroke} label={label} />;
 }
@@ -167,7 +167,7 @@ export function MomoProcessing({ operator, color, amount, phone }: { operator: s
 }
 
 /** Confirmation animée façon Wave — coche dessinée + confettis kente.
- * Décorative (aria-hidden) : le libellé texte adjacent porte l'information. */
+ * Décorative (aria-hidden): le libellé texte adjacent porte l'information. */
 export function SuccessBurst({ size = 84 }: { size?: number }) {
   const angles = [0, 60, 120, 180, 240, 300].map((a) => (a * Math.PI) / 180);
   const colors = ["#C8951E", "#A0522D", "#4C9050", "#8B1A3B", "#E07A2B", "#F8F1E4"];

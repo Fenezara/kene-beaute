@@ -1,8 +1,8 @@
 "use client";
-// Kènè — Fil de Kente : l'introduction immersive narrative au défilement.
+// Kènè — Fil de Kente: l'introduction immersive narrative au défilement.
 // 3D = Lenis (défilement fluide) + progression rAF écrite dans une ref mutable
 // (zéro re-render React) → canvas Intro3D + overlays HTML + rail de chapitres.
-// Fallback statique (préférence reduced-motion ou WebGL indisponible) : mêmes
+// Fallback statique (préférence reduced-motion ou WebGL indisponible): mêmes
 // chapitres en sections empilées, sans animation — accessibilité d'abord.
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
@@ -231,7 +231,7 @@ let cachedMode: "3d" | "static" | null = null;
 function computeMode(): "3d" | "static" {
   if (typeof window === "undefined") return "static"; // sécurité — jamais appelé côté serveur via getSnapshot
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return "static";
-  if (window.location.hash === "#intro-static") return "static"; // QA : forcer le fallback statique
+  if (window.location.hash === "#intro-static") return "static"; // QA: forcer le fallback statique
   try {
     const c = document.createElement("canvas");
     if (!(c.getContext("webgl2") || c.getContext("webgl"))) return "static";
@@ -249,7 +249,7 @@ const getModeSnapshot = (): "3d" | "static" => {
 const noopSubscribe = () => () => {};
 
 export function KenteIntro() {
-  // Décision client-only SANS setState dans un effet : useSyncExternalStore
+  // Décision client-only SANS setState dans un effet: useSyncExternalStore
   // (snapshot serveur « pending » → hydratation cohérente, correction post-hydratation).
   const mode = useSyncExternalStore<IntroMode>(noopSubscribe, getModeSnapshot, () => "pending");
 

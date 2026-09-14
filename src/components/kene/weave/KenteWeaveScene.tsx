@@ -1,11 +1,11 @@
 "use client";
-// Kènè — Fil de Kente : la scène WebGL de la bande tissée (boutique).
+// Kènè — Fil de Kente: la scène WebGL de la bande tissée (boutique).
 // Chaîne (fils verticaux) + trame (segments horizontaux qui passent SUR puis
 // SOUS la chaîne, une cellule sur deux) en meshes instanciés — une seule
 // draw call par couche, ~178 instances. La navette d'or tisse rangée par
-// rangée ; le fil de la catégorie sélectionnée s'illumine et saute vers
+// rangée; le fil de la catégorie sélectionnée s'illumine et saute vers
 // l'avant. Refs mutables → zéro re-render (pattern Phase A/D).
-// Budget : DPR ≤ 1,5, cylindres 6 segments, rendu coupé hors viewport (IO).
+// Budget: DPR ≤ 1,5, cylindres 6 segments, rendu coupé hors viewport (IO).
 
 import { useEffect, useMemo, useRef } from "react";
 import { type RefObject } from "react";
@@ -29,7 +29,7 @@ const rowY = (row: number) => ((ROWS - 1) / 2 - row) * CH;
 const easeOut = (x: number) => 1 - (1 - x) * (1 - x);
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
-/* ───────────────────────── Le métier : chaîne, trame, franges, navette ───────────────────────── */
+/* ───────────────────────── Le métier: chaîne, trame, franges, navette ───────────────────────── */
 
 function WeaveBand({ refs, weaveKey }: { refs: RefObject<WeaveRefs>; weaveKey?: number }) {
   const group = useRef<THREE.Group>(null);
@@ -40,13 +40,13 @@ function WeaveBand({ refs, weaveKey }: { refs: RefObject<WeaveRefs>; weaveKey?: 
   const shuttleLight = useRef<THREE.PointLight>(null);
   const glowLight = useRef<THREE.PointLight>(null);
 
-  /* couleurs pré-calculées (base + version « illuminée » par fil) — dans des refs mutables, règle immutability */
+ /* couleurs pré-calculées (base + version « illuminée » par fil) — dans des refs mutables, règle immutability */
   const cols = useRef({
     base: KENTE_THREADS.map((t) => new THREE.Color(t.hex)),
     bright: KENTE_THREADS.map((t) => new THREE.Color(t.hex).lerp(new THREE.Color("#FFE9B0"), 0.55)),
   }).current;
 
-  /* état de travail — tout mutable et possédé ici, jamais de setState */
+ /* état de travail — tout mutable et possédé ici, jamais de setState */
   const w = useRef({
     first: true,
     reveal: { t: 0, done: false }, // progression du tissage (delta-based)
@@ -62,7 +62,7 @@ function WeaveBand({ refs, weaveKey }: { refs: RefObject<WeaveRefs>; weaveKey?: 
     tmp: new THREE.Color(),
   }).current;
 
-  /* usage dynamique des matrices (elles bougent à chaque frame) */
+ /* usage dynamique des matrices (elles bougent à chaque frame) */
   useEffect(() => {
     for (const m of [weft.current, warp.current, fringe.current]) {
       if (m) m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -70,11 +70,11 @@ function WeaveBand({ refs, weaveKey }: { refs: RefObject<WeaveRefs>; weaveKey?: 
   }, []);
 
   useFrame((state, rawDelta) => {
-    const dt = Math.min(rawDelta, 0.05); // reprise IO / onglet : pas de saut
+    const dt = Math.min(rawDelta, 0.05); // reprise IO / onglet: pas de saut
     const time = state.clock.elapsedTime;
     const hIdx = refs.current?.highlight.index ?? -1; // lecture seule
 
-    /* — re-tissage demandé (weaveKey changé) puis progression du tissage — */
+ /* — re-tissage demandé (weaveKey changé) puis progression du tissage — */
     if (weaveKey !== undefined && weaveKey !== w.lastKey) {
       w.lastKey = weaveKey;
       w.reveal.t = 0;
@@ -87,7 +87,7 @@ function WeaveBand({ refs, weaveKey }: { refs: RefObject<WeaveRefs>; weaveKey?: 
     const reveal = w.reveal.t;
     const woven = reveal * CELLS;
 
-    /* — surbrillance : détection de changement + intensité lissée + coup de navette — */
+ /* — surbrillance: détection de changement + intensité lissée + coup de navette — */
     if (hIdx !== w.lastHl) {
       w.lastHl = hIdx;
       w.hlK = 0; // le nouveau fil s'allume en fondu
@@ -100,10 +100,10 @@ function WeaveBand({ refs, weaveKey }: { refs: RefObject<WeaveRefs>; weaveKey?: 
     w.hlK += (target - w.hlK) * Math.min(1, dt * 5.5);
     w.pass = Math.max(0, w.pass - dt * 0.9);
     const k = w.hlK;
-    /* couleurs re-upload seulement pendant la transition (stabilisé → zéro upload) */
+ /* couleurs re-upload seulement pendant la transition (stabilisé → zéro upload) */
     const doColors = w.first || Math.abs(target - k) > 0.002 || w.prevK > 0.004 !== k > 0.004;
 
-    /* — parallaxe pointer + ajustement à la largeur du viewport — */
+ /* — parallaxe pointer + ajustement à la largeur du viewport — */
     if (group.current) {
       w.tiltX += (-state.pointer.y * 0.07 - w.tiltX) * Math.min(1, dt * 4);
       w.tiltY += (state.pointer.x * 0.13 - w.tiltY) * Math.min(1, dt * 4);
@@ -114,7 +114,7 @@ function WeaveBand({ refs, weaveKey }: { refs: RefObject<WeaveRefs>; weaveKey?: 
       group.current.scale.setScalar(sc);
     }
 
-    /* — trame : 144 segments, sur/sous la chaîne, tissés un à un — */
+ /* — trame: 144 segments, sur/sous la chaîne, tissés un à un — */
     if (weft.current) {
       for (let i = 0; i < CELLS; i++) {
         const col = i % COLS;
@@ -146,7 +146,7 @@ function WeaveBand({ refs, weaveKey }: { refs: RefObject<WeaveRefs>; weaveKey?: 
       if (doColors && weft.current.instanceColor) weft.current.instanceColor.needsUpdate = true;
     }
 
-    /* — chaîne : montée rapide au début (le métier se tend avant le tissage) — */
+ /* — chaîne: montée rapide au début (le métier se tend avant le tissage) — */
     if (warp.current) {
       const wrS = easeOut(clamp01(reveal / 0.16));
       for (let col = 0; col < COLS; col++) {
@@ -168,7 +168,7 @@ function WeaveBand({ refs, weaveKey }: { refs: RefObject<WeaveRefs>; weaveKey?: 
       if (doColors && warp.current.instanceColor) warp.current.instanceColor.needsUpdate = true;
     }
 
-    /* — franges : restes de chaîne sous la bande, révélées en fin de tissage — */
+ /* — franges: restes de chaîne sous la bande, révélées en fin de tissage — */
     if (fringe.current) {
       const frS = easeOut(clamp01((reveal - 0.82) / 0.18));
       for (let i = 0; i < FRINGE; i++) {
@@ -188,7 +188,7 @@ function WeaveBand({ refs, weaveKey }: { refs: RefObject<WeaveRefs>; weaveKey?: 
       if (w.first && fringe.current.instanceColor) fringe.current.instanceColor.needsUpdate = true;
     }
 
-    /* — la navette d'or : tisse pendant la révélation, puis passes lentes — */
+ /* — la navette d'or: tisse pendant la révélation, puis passes lentes — */
     if (shuttle.current && shuttleLight.current) {
       let sx: number;
       let sy: number;
@@ -215,7 +215,7 @@ function WeaveBand({ refs, weaveKey }: { refs: RefObject<WeaveRefs>; weaveKey?: 
       shuttleLight.current.intensity = 3 + w.pass * 8 + (reveal < 1 ? 3 : 0);
     }
 
-    /* — lueur frontale de la surbrillance — */
+ /* — lueur frontale de la surbrillance — */
     if (glowLight.current) {
       glowLight.current.intensity = k * 5;
     }

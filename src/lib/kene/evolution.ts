@@ -1,6 +1,6 @@
-// Kènè — Le Fil du Temps : évolution des indicateurs + projection indicative.
+// Kènè — Le Fil du Temps: évolution des indicateurs + projection indicative.
 // Lib PURE (aucune dépendance three/react) — partagée par l'API (serveur) et
-// l'UI (client). La projection est une SIMULATION NON MÉDICALE : cinétique par
+// l'UI (client). La projection est une SIMULATION NON MÉDICALE: cinétique par
 // famille d'indicateur (renouvellement cutané mélanoderme), adhérence à la
 // routine, horizon plafonné à 12 semaines.
 
@@ -176,10 +176,10 @@ export function pctToSev(p: number): number {
 
 /**
  * Sévérité projetée d'un marqueur du jumeau (valeur continue — le slider
- * temporel interpole sans à-coups). Modèle hybride : si l'indicateur lié devient
- * sain (≥ 80), le marqueur guérit ; sinon il s'estompe au prorata du gain
+ * temporel interpole sans à-coups). Modèle hybride: si l'indicateur lié devient
+ * sain (≥ 80), le marqueur guérit; sinon il s'estompe au prorata du gain
  * relatif de l'indicateur ((proj − pct) / (96 − pct)) — jamais d'aggravation.
- * Sans indicateur lié : décroissance douce.
+ * Sans indicateur lié: décroissance douce.
  */
 export function projectMarkerSev(
   sev: number,

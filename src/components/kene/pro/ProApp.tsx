@@ -1,6 +1,6 @@
 "use client";
-// Kènè — APP PRO (desktop/tablette) : Dashboard, Agenda, Diagnostic en cabine, Caisse POS, CRM, Relances, Catalogue, Promos, Stock, Paie, Compta
-// TEMPS RÉEL (tâche 35) : socket.io vers notify-service (?XTransformPort=3004),
+// Kènè — APP PRO (desktop/tablette): Dashboard, Agenda, Diagnostic en cabine, Caisse POS, CRM, Relances, Catalogue, Promos, Stock, Paie, Compta
+// TEMPS RÉEL: socket.io vers notify-service (?XTransformPort=3004),
 // room tenant:{id} — RDV réservé, commande institut, vente POS → badge Agenda,
 // toast, KPIs du dashboard et listes branchées rafraîchis SANS reload.
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -11,7 +11,7 @@ import { BellRing, Crown, LayoutDashboard, MapPin, Settings, Stethoscope, Ticket
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
-import { KeneEmblem, KeneEmblemLockup, DuafeIcon, SankofaIcon, AbanIcon, OsramIcon, KenteIcon, FihankraIcon, BaouleIcon } from "@/components/kene/icons";
+import { KeneEmblem, KeneEmblemLockup, DuafeIcon, SankofaIcon, AbanIcon, OsramIcon, KenteIcon, FihankraIcon, BaouleIcon, NkonsonkonsonIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -32,8 +32,9 @@ import { CouponsSection } from "./CouponsSection";
 import { DiagnosticsSection } from "./DiagnosticsSection";
 import { SettingsSection } from "./SettingsSection";
 import { ProPlanSection } from "./ProPlanSection";
+import { TeamSection } from "./TeamSection";
 
-export type ProSectionId = "dashboard" | "agenda" | "diagnostic" | "caisse" | "crm" | "relances" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
+export type ProSectionId = "dashboard" | "agenda" | "diagnostic" | "caisse" | "crm" | "relances" | "equipe" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
@@ -42,6 +43,7 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
   { id: "caisse", label: "Caisse", icon: AbanIcon, hint: "Point de vente" },
   { id: "crm", label: "CRM", icon: OsramIcon, hint: "Clientes & fidélité" },
   { id: "relances", label: "Relances", icon: BellRing, hint: "Suivi post-protocole" },
+  { id: "equipe", label: "Équipe", icon: NkonsonkonsonIcon, hint: "Personnel & pointage" },
   { id: "catalogue", label: "Catalogue", icon: DuafeIcon, hint: "Soins & produits" },
   { id: "promos", label: "Promos", icon: TicketPercent, hint: "Coupons boutique" },
   { id: "stock", label: "Stock", icon: KenteIcon, hint: "Inventaire" },
@@ -51,16 +53,16 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
   { id: "abonnement", label: "Abonnement", icon: Crown, hint: "Offres & facturation" },
 ];
 
-/* t. 96 — Rôles employées : sections visibles par poste. La GÉRANTE
+/* — Rôles employées: sections visibles par poste. La GÉRANTE
  * (employeeRole absent) garde tout, y compris paie/compta/paramètres.
- * Une employée voit les sections de son poste ; les autres sections ne
+ * Une employée voit les sections de son poste; les autres sections ne
  * sont ni affichées ni atteignables (redirection auto si la section
  * courante n'est pas autorisée — p.ex. après un changement de compte). */
 const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
   estheticienne: ["agenda", "diagnostic", "parametres"],
   dermo_conseillere: ["agenda", "diagnostic", "crm", "relances", "parametres"],
   caissiere: ["caisse", "catalogue", "promos", "stock", "parametres"],
-  manager: ["dashboard", "agenda", "diagnostic", "caisse", "crm", "relances", "catalogue", "promos", "stock", "abonnement", "parametres"],
+  manager: ["dashboard", "agenda", "diagnostic", "caisse", "crm", "relances", "equipe", "catalogue", "promos", "stock", "abonnement", "parametres"],
 };
 const EMPLOYEE_ROLE_LABELS: Record<string, string> = {
   estheticienne: "Esthéticienne",
@@ -85,9 +87,9 @@ function looksLikeLive(f: unknown): f is ProLive {
 export function ProApp() {
   const proTenantId = useKene((s) => s.proTenantId);
   const setProTenantId = useKene((s) => s.setProTenantId);
-  // Compte de session (t. 66-b) : alimente le chip de la sidebar. Depuis
-  // l'isolation des comptes (t. 69-a), l'espace Pro n'est monté QUE pour une
-  // session de rôle « pro » — le fallback démo « Fatou Koné » reste défensif
+  // Compte de session: alimente le chip de la sidebar. Depuis
+  // l'isolation des comptes, l'espace Pro n'est monté QUE pour une
+  // session de rôle « pro » — le fallback « Fatou Koné » reste défensif
   // (aucun risque si un jour l'espace est ouvert sans session).
   const sessionUser = useKene((s) => s.user);
   const [section, setSection] = useState<ProSectionId>("dashboard");
@@ -100,16 +102,16 @@ export function ProApp() {
     [proTenantId]
   );
 
-  // Première résolution serveur : le tenant de la session est mémorisé
-  // (t. 89 : le serveur renvoie l'institut de LA GÉRANTE, pas un « défaut »)
+  // Première résolution serveur: le tenant de la session est mémorisé
+  // (: le serveur renvoie l'institut de LA GÉRANTE, pas un « défaut »)
   useEffect(() => {
     if (!proTenantId && overview.data?.tenant?.id) setProTenantId(overview.data.tenant.id);
   }, [proTenantId, overview.data, setProTenantId]);
 
-  // AUTO-GUÉRISON : un institut mémorisé (localStorage) disparu ou ÉTRANGER
-  // (t. 89 : l'ancien bug pouvait y persister l'id du « premier institut de
+  // AUTO-GUÉRISON: un institut mémorisé (localStorage) disparu ou ÉTRANGER
+  // (: l'ancien bug pouvait y persister l'id du « premier institut de
   // la base ») ne doit jamais bloquer l'espace Pro — on oublie la préférence
-  // périmée : la résolution sans id renvoie désormais l'institut de la gérante.
+  // périmée: la résolution sans id renvoie désormais l'institut de la gérante.
   const healedRef = useRef(false);
   useEffect(() => {
     if (overview.error && proTenantId && !healedRef.current) {
@@ -121,12 +123,12 @@ export function ProApp() {
 
   const tid = proTenantId ?? overview.data?.tenant.id ?? "";
 
-  /* ── Temps réel institut (room tenant:{tid}) ─────────────────────────
-   * join-tenant à la connexion (et à chaque changement d'institut) ;
-   * tenant-feed → badge RDV à confirmer, toast d'arrivée (RDV réservé par
-   * une cliente ou commande institut — jamais les actions de la pro
-   * elle-même), KPIs dashboard et listes Agenda/Caisse rafraîchies.
-   * Dégradation douce : sans service, tout continue au montage. */
+ /* ── Temps réel institut (room tenant:{tid}) ─────────────────────────
+ * join-tenant à la connexion (et à chaque changement d'institut);
+ * tenant-feed → badge RDV à confirmer, toast d'arrivée (RDV réservé par
+ * une cliente ou commande institut — jamais les actions de la pro
+ * elle-même), KPIs dashboard et listes Agenda/Caisse rafraîchies.
+ * Dégradation douce: sans service, tout continue au montage. */
   const [live, setLive] = useState<ProLive | null>(null);
   const [liveConnected, setLiveConnected] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -148,7 +150,7 @@ export function ProApp() {
       reconnectionDelayMax: 4_000,
       timeout: 8_000,
     });
-    // Auto-guérison : service redémarré à chaud → zombie détecté ≤ 35 s,
+    // Auto-guérison: service redémarré à chaud → zombie détecté ≤ 35 s,
     // reconnexion → join-tenant rejoué au connect.
     const disarm = armHeartbeat(socket);
 
@@ -161,17 +163,17 @@ export function ProApp() {
       if (!looksLikeLive(f) || f.tenantId !== tid) return; // garde défensive
       const prevId = lastEventIdRef.current;
       setLive(f);
-      // Le baseline « déjà vues » descend avec les confirmations : si la pro
+      // Le baseline « déjà vues » descend avec les confirmations: si la pro
       // a vu 3 demandes, en confirme une (reste 2) puis qu'une NOUVELLE arrive
       // (3), le badge doit montrer 1 — pas 0.
       setAgendaSeen((seen) => Math.min(seen, f.pendingAppts));
       if (f.last) {
         lastEventIdRef.current = f.last.id;
-        // Toast d'arrivée : uniquement les événements distants (réservation
+        // Toast d'arrivée: uniquement les événements distants (réservation
         // cliente à confirmer, commande boutique) — la pro voit déjà ses
         // propres actions (POS, RDV créés côté institut → statut confirmed).
-        // prevId null = premier fil après montage : pas de toast (vieille
-        // activité déjà là au chargement, cf. garde prev !== null du centre
+        // prevId null = premier fil après montage: pas de toast (vieille
+        // activité déjà là au chargement, cf. garde prev!== null du centre
         // de notifications cliente).
         if (prevId !== null && f.last.id !== prevId) {
           if (f.last.type === "appointment" && f.last.status === "pending") {
@@ -181,7 +183,7 @@ export function ProApp() {
           }
         }
       }
-      // KPIs + listes branchées : rechargement live (anti-flash : setFeed des useApi)
+      // KPIs + listes branchées: rechargement live (anti-flash: setFeed des useApi)
       setRefreshKey((k) => k + 1);
       void refetchRef.current();
     });
@@ -198,18 +200,30 @@ export function ProApp() {
     if (s === "agenda") setAgendaSeen(live?.pendingAppts ?? 0);
     setSection(s);
   };
+
   const agendaBadge = Math.max(0, (live?.pendingAppts ?? 0) - agendaSeen);
   const navBadges: Partial<Record<ProSectionId, number>> = agendaBadge > 0 ? { agenda: agendaBadge } : {};
 
-  // t. 96 — sections du poste (employée) vs tout (gérante).
+  // — sections du poste (employée) vs tout (gérante).
   const employeeRole = sessionUser?.employeeRole ?? null;
   const allowedIds = employeeRole ? EMPLOYEE_SECTIONS[employeeRole] ?? ["parametres"] : null;
   const nav = allowedIds ? NAV.filter((n) => allowedIds.includes(n.id)) : NAV;
-  // Une employée n'atterrit jamais sur une section interdite : la section
+  // Une employée n'atterrit jamais sur une section interdite: la section
   // ACTIVE est dérivée (clamp) — pas de redirection, pas d'effet, la valeur
   // mémoire reste ce qu'elle est mais le rendu suit strictement le poste.
   const activeSection: ProSectionId =
     allowedIds && !allowedIds.includes(section) ? allowedIds[0]! : section;
+
+  // Nav mobile : la puce ACTIVE reste toujours visible — la bande défile
+  // d'elle-même quand la section change (p.ex. pont Paie → « Gérer l'équipe »).
+  const chipRefs = useRef<Partial<Record<ProSectionId, HTMLButtonElement | null>>>({});
+  useEffect(() => {
+    chipRefs.current[activeSection]?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [activeSection]);
 
   const tenantOptions = useMemo(() => {
     const t = overview.data?.tenant;
@@ -219,8 +233,8 @@ export function ProApp() {
   const tenant = overview.data?.tenant;
   const activeLabel = NAV.find((n) => n.id === activeSection)?.label ?? "";
 
-  // Chip compte (t. 66-b) : nom de la gérante de session (rôle « pro », le
-  // seul qui monte cet espace depuis l'isolation t. 69-a) ; le fallback « Fatou
+  // Chip compte: nom de la gérante de session (rôle « pro », le
+  // seul qui monte cet espace depuis l'isolation); le fallback « Fatou
   // Koné » reste défensif (session pro sans nom lisible).
   const proOwner = sessionUser?.role === "pro" ? sessionUser : null;
   const chipName =
@@ -241,13 +255,13 @@ export function ProApp() {
   return (
     <div className="w-full min-h-screen flex flex-col md:flex-row">
       {/* Atmosphère ÉCLAT 2026 — lueurs aurora derrière tout l'espace Pro
-          (sobriété back-office : le fond de page reste --background). */}
+ (sobriété back-office: le fond de page reste --background). */}
       <AuroraBackdrop />
 
       {/* ───────── Rail sidebar tablette (md→lg icônes) / desktop (lg+ libellés) — chrome verre ───────── */}
       <aside className="hidden md:flex w-[76px] lg:w-[240px] shrink-0 flex-col k-chrome text-foreground sticky top-0 self-start max-h-screen overflow-y-auto pretty-scroll">
         <div className="p-2.5 lg:p-4 lg:pb-3">
-          {/* Lockup Sceau 2026 (t. 86) — l'espace Pro porte le Médaillon Kènè */}
+          {/* Lockup Sceau 2026 — l'espace Pro porte le Médaillon Kènè */}
           <div className="flex items-center justify-center lg:justify-start">
             <KeneEmblemLockup
               size={44}
@@ -348,10 +362,10 @@ export function ProApp() {
           })}
         </nav>
 
-        {/* Chip gérante (t. 66-b) — carte verre : la gérante de session (rôle
-            « pro », seule façon d'entrer ici depuis l'isolation t. 69-a) ; le
-            fallback « Fatou Koné — Gérante démo » reste défensif. Les réglages
-            (t. 69-c) vivent dans la NAV ci-dessus, dernière entrée. */}
+        {/* Chip gérante — carte verre: la gérante de session (rôle
+ « pro », seule façon d'entrer ici depuis l'isolation); le
+ fallback « Fatou Koné — Gérante » reste défensif. Les réglages
+ vivent dans la NAV ci-dessus, dernière entrée. */}
         <div className="p-2.5 lg:p-4">
           <div className="k-card rounded-[20px] p-2 lg:p-3">
             <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-2.5">
@@ -378,14 +392,19 @@ export function ProApp() {
 
       {/* ───────── Zone contenu ───────── */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Nav mobile — chips verre scrollables (uniquement <md), chrome collant */}
+        {/* Nav mobile — chips verre scrollables (uniquement <md), chrome collant.
+            Fondus de bord : la bande annonce qu'elle défile (puce coupée + fondu). */}
         <div className="md:hidden sticky top-0 z-30 k-chrome">
-          <nav aria-label="Navigation App Pro (mobile)" className="flex gap-1.5 overflow-x-auto no-scrollbar px-3 py-2.5">
+          <nav
+            aria-label="Navigation App Pro (mobile)"
+            className="flex gap-1.5 overflow-x-auto no-scrollbar px-3 py-2.5 [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)]"
+          >
           {nav.map((item) => {
               const badge = navBadges[item.id];
               return (
                 <button
                   key={item.id}
+                  ref={(el) => { chipRefs.current[item.id] = el; }}
                   onClick={() => openSection(item.id)}
                   aria-current={activeSection === item.id ? "page" : undefined}
                   aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
@@ -410,8 +429,8 @@ export function ProApp() {
         </div>
 
         {/* En-tête pro (desktop lg+) — chrome verre collant. Le h1 UNIQUE de
-            l'espace Pro vit ici, rendu en permanence (sr-only <lg où l'en-tête
-            compact + la chip active de la nav portent déjà la section courante). */}
+ l'espace Pro vit ici, rendu en permanence (sr-only <lg où l'en-tête
+ compact + la chip active de la nav portent déjà la section courante). */}
         <header className="lg:sticky lg:top-0 lg:z-30 lg:pt-6">
           <div className="sr-only lg:not-sr-only">
             <div className="k-chrome mx-6 rounded-[20px]">
@@ -424,7 +443,7 @@ export function ProApp() {
 
         <div className="p-3 sm:p-5 lg:p-6 flex-1 min-w-0">
           {/* En-tête compact mobile + tablette (rail icônes md→lg sans libellés) —
-              sans le h1 : celui-ci vit dans l'en-tête pro chrome ci-dessus. */}
+ sans le h1: celui-ci vit dans l'en-tête pro chrome ci-dessus. */}
           <div className="lg:hidden mb-4 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground truncate flex items-center gap-1.5">
@@ -475,10 +494,11 @@ export function ProApp() {
             {activeSection === "caisse" && <PosSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} refreshKey={refreshKey} />}
             {activeSection === "crm" && <CrmSection tenantId={tid} onStartDiagnostic={(clientId) => { setDiagCommand({ clientId, nonce: Date.now() }); openSection("diagnostic"); }} />}
             {activeSection === "relances" && <RelancesSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
+            {activeSection === "equipe" && <TeamSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} />}
             {activeSection === "catalogue" && <CatalogSection tenantId={tid} />}
             {activeSection === "promos" && <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {activeSection === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
-            {activeSection === "paie" && <PayrollSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} tenantName={tenant?.name ?? "Institut"} />}
+            {activeSection === "paie" && <PayrollSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} tenantName={tenant?.name ?? "Institut"} onNavigate={openSection} />}
             {activeSection === "compta" && <AccountingSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {activeSection === "parametres" && <SettingsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} tenantCity={tenant?.city} onNavigate={openSection} />}
             {activeSection === "abonnement" && <ProPlanSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}

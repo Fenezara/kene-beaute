@@ -1,19 +1,19 @@
 "use client";
-// Kènè — LE SEUIL : la page d'accueil d'avant-portails, refonte totale (t. 74).
+// Kènè — LE SEUIL: la page d'accueil d'avant-portails, refonte totale.
 //
 // Ce qui change par rapport aux anciennes pages d'entrée (intro forcée +
-// portes marketing + connexion classique) — inspirations assumées :
-//   • Linear / Locomotive (hero éditorial géant, lumière vivante, zéro bruit)
-//   • Instagram / TikTok (stories OPT-IN « Découvrir en 30 s » — plus aucune
-//     intro imposée : la découverte accompagne, elle ne retient pas)
-//   • Cash App / N26 (pavé numérique natif plein cadre — aucune friction OS)
-//   • Fenty / Glossier (portails image plein cadre, typographie éditoriale)
+// portes marketing + connexion classique) — inspirations assumées:
+// • Linear / Locomotive (hero éditorial géant, lumière vivante, zéro bruit)
+// • Instagram / TikTok (stories OPT-IN « Découvrir en 30 s » — plus aucune
+// intro imposée: la découverte accompagne, elle ne retient pas)
+// • Cash App / N26 (pavé numérique natif plein cadre — aucune friction OS)
+// • Fenty / Glossier (portails image plein cadre, typographie éditoriale)
 //
-// Architecture : UNE page, TROIS états (landing → keypad → signin). Le
+// Architecture: UNE page, TROIS états (landing → keypad → signin). Le
 // pavé appelle lui-même /api/auth/otp/request puis monte l'Onboarding
 // DIRECTEMENT à l'étape OTP (pont initialStep/initialDevCode — additif).
-// La reconnexion express garde la mémoire locale kene-last-account (t. 73).
-// Copie FR directe (précédent 71-c/73 : le marketing d'entrée reste hors i18n).
+// La reconnexion express garde la mémoire locale kene-last-account.
+// Copie FR directe (précédent 71-c/73: le marketing d'entrée reste hors i18n).
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -123,11 +123,11 @@ export function WelcomeThreshold() {
   const [entering, setEntering] = useState<"client" | "pro" | null>(null);
   const [stories, setStories] = useState(false);
   const [last, setLast] = useState<LastAccount | null>(null);
-  const [demoLoading, setDemoLoading] = useState(false);
+  const [exploring, setExploring] = useState(false);
   const [first, setFirst] = useState(true);
   const enterTimer = useRef<number | null>(null);
 
-  // Première visite ? (raccourcit la chorégraphie d'arrivée au retour).
+  // Première visite? (raccourcit la chorégraphie d'arrivée au retour).
   // Lecture localStorage en rendu client uniquement — le composant n'est
   // monté qu'APRÈS la porte d'hydratation de ClientApp (BootSkeleton avant).
   useEffect(() => {
@@ -135,7 +135,7 @@ export function WelcomeThreshold() {
       setFirst(localStorage.getItem(SEEN_KEY) !== "1");
       localStorage.setItem(SEEN_KEY, "1");
     } catch {
-      /* stockage indisponible — comportement première visite */
+ /* stockage indisponible — comportement première visite */
     }
     setLast(readLastAccount());
     return () => {
@@ -172,17 +172,17 @@ export function WelcomeThreshold() {
     }
   }
 
-  async function startDemo() {
-    if (demoLoading) return;
-    setDemoLoading(true);
+  async function startExploration() {
+    if (exploring) return;
+    setExploring(true);
     try {
-      // t. 92 — UNE requête GET : la démo ne dépend plus d'AUCUN POST. Chez
+      // — UNE requête GET: l'accès express ne dépend d'AUCUN POST. Chez
       // l'utilisatrice réelle (préview iframe), les POST sortants sont bloqués
       // ou pendus en amont du serveur — ses GET traversent toujours. La route
-      // /api/auth/demo fait le login complet côté serveur et répond exactement
+      // /api/auth/express fait le login complet côté serveur et répond exactement
       // comme otp/verify ({ user, tenant } + cookie de session).
-      const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/demo");
-      // Mémoire locale (t. 73) — survit à la déconnexion, jamais envoyée.
+      const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express");
+      // Mémoire locale — survit à la déconnexion, jamais envoyée.
       try {
         localStorage.setItem("kene-last-account", JSON.stringify({ phone: "+2250701020304", name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" }));
       } catch { /* non bloquant */ }
@@ -191,7 +191,7 @@ export function WelcomeThreshold() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Connexion impossible — réessaie");
     } finally {
-      setDemoLoading(false);
+      setExploring(false);
     }
   }
 
@@ -205,11 +205,11 @@ export function WelcomeThreshold() {
       <AnimatePresence mode="wait" initial={false}>
         {stage.phase === "landing" && (
           <motion.div key="landing" {...pageSlide} transition={{ duration: 0.3 }} className="flex w-full min-h-dvh flex-col">
-            {/* Colonne éditoriale haute (t. 94) : marque + hero. t. 116 : la
-                landing tient sur UNE page — espacements et tailles resserrés. */}
+            {/* Colonne éditoriale haute: marque + hero.: la
+ landing tient sur UNE page — espacements et tailles resserrés. */}
             <div className="mx-auto flex w-full max-w-[560px] flex-col px-5 pt-4 sm:px-6 sm:pt-6">
-            {/* ── Marque ── Sceau Kènè (t. 75) : l'art d'or se pose sans
-                couture sur le fond de page + wordmark éditorial serré ── */}
+            {/* ── Marque ── Sceau Kènè: l'art d'or se pose sans
+ couture sur le fond de page + wordmark éditorial serré ── */}
             <Reveal y={12}>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-3">
@@ -295,21 +295,21 @@ export function WelcomeThreshold() {
             </section>
             </div>
 
-            {/* ── La Navette d'Or (t. 82 → t. 116) : bande tissée COMPACTE
-                pleine largeur (~92-110 px), identique dans les deux modes —
-                la landing tient sur UNE seule page. Le chapitre 3D scrollé
-                (t. 82-94) est retiré de la porte d'entrée ; le message du
-                pagne reste porté par les fils d'or animés. ── */}
+            {/* ── La Navette d'Or: bande tissée COMPACTE
+ pleine largeur (~92-110 px), identique dans les deux modes —
+ la landing tient sur UNE seule page. Le chapitre 3D scrollé
+ est retiré de la porte d'entrée; le message du
+ pagne reste porté par les fils d'or animés. ── */}
             <LoomSection first={first} />
 
-            {/* Colonne éditoriale basse (t. 94) : reconnexion, portails,
-                démo, mentions. t. 116 : flex-1 → les mentions restent au bas
-                de LA page unique (pied de page collant, écrans hauts). */}
+            {/* Colonne éditoriale basse: reconnexion, portails,
+ exploration, mentions. flex-1 → les mentions restent au bas
+ de LA page unique (pied de page collant, écrans hauts). */}
             <div className="mx-auto flex w-full max-w-[560px] flex-1 flex-col px-5 pb-4 sm:px-6">
 
-            {/* ── Reconnexion express — t. 116 : rangée compacte (la carte de
-                200 px est devenue une ligne « reprendre » ; les portails
-                ci-dessous offrent déjà « utiliser un autre numéro »). ── */}
+            {/* ── Reconnexion express: rangée compacte (la carte de
+ 200 px est devenue une ligne « reprendre »; les portails
+ ci-dessous offrent déjà « utiliser un autre numéro »). ── */}
             <AnimatePresence initial={false}>
               {last && (
                 <RevealItem className="mt-4">
@@ -342,8 +342,8 @@ export function WelcomeThreshold() {
               )}
             </AnimatePresence>
 
-            {/* ── LES DEUX PORTAILS ── t. 116 : côte à côte dès 480 px (la
-                page unique a besoin de hauteur), empilés sous 480 (téléphones) */}
+            {/* ── LES DEUX PORTAILS ──: côte à côte dès 480 px (la
+ page unique a besoin de hauteur), empilés sous 480 (téléphones) */}
             <div className="mt-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
               <PortalCard
                 mode="client"
@@ -371,16 +371,16 @@ export function WelcomeThreshold() {
               />
             </div>
 
-            {/* ── Démo · légal (t. 116 : les puces de confiance sont fondues
-                dans la ligne légale — une seule page, zéro redite) ── */}
+            {/* ── Exploration · légal — les puces de confiance sont fondues
+ dans la ligne légale — une seule page, zéro redite) ── */}
             {!last && (
               <RevealItem className="mt-3">
                 <button
-                  onClick={startDemo}
-                  disabled={demoLoading}
+                  onClick={startExploration}
+                  disabled={exploring}
                   className="mx-auto flex min-h-11 items-center gap-2 rounded-full px-4 text-[12px] font-semibold text-foreground/75 underline underline-offset-4 decoration-dotted hover:text-primary disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary"
                 >
-                  {demoLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} aria-hidden="true" />}
+                  {exploring ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} aria-hidden="true" />}
                   Explorer Kènè — sans inscription
                 </button>
               </RevealItem>

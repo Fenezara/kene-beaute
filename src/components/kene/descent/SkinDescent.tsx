@@ -1,11 +1,11 @@
 "use client";
-// Kènè — La Descente de Peau (t. 82, vague 2) : « Voyager dans sa peau ».
+// Kènè — La Descente de Peau (, vague 2): « Voyager dans sa peau ».
 // Overlay plein cadre ouvert depuis le résultat du diagnostic. Le scroll
 // traverse les trois couches cutanées en 3D — épiderme, derme, hypoderme —
 // et les zones s'illuminent avec les scores RÉELS de l'analyse (couleur
-// scoreColor, intensité pulsée). Rig Intro3D : progression en ref mutable,
+// scoreColor, intensité pulsée). Rig Intro3D: progression en ref mutable,
 // rendu coupé hors écran, DPR clampé, ~10k triangles, tout procédural.
-// Mode Clair de Lune : mêmes contenus en sections empilées (zéro canvas).
+// Mode Clair de Lune: mêmes contenus en sections empilées (zéro canvas).
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
@@ -121,7 +121,7 @@ export function SkinDescent({
     const io = new IntersectionObserver((entries) => setActive(entries[0]?.isIntersecting ?? false), { threshold: 0.05 });
     io.observe(section);
     let raf = 0;
-    // Haptique des couches (t. 83-f) : chaque franchissement de couche
+    // Haptique des couches: chaque franchissement de couche
     // (épiderme → derme → hypoderme) vibre doucement (no-op iOS).
     let lastLayer = -1;
     const loop = () => {
@@ -187,7 +187,7 @@ export function SkinDescent({
       </button>
 
       {mode !== "full" ? (
-        /* ── Clair de Lune : sections empilées, mêmes contenus, zéro 3D ── */
+ /* ── Clair de Lune: sections empilées, mêmes contenus, zéro 3D ── */
         <div className="h-full overflow-y-auto">
           <div className="mx-auto max-w-[560px] pb-10">
             {title}
@@ -211,7 +211,7 @@ export function SkinDescent({
           </div>
         </div>
       ) : (
-        /* ── Expérience 3D : 3,4 écrans de descente, sticky cinéma ── */
+ /* ── Expérience 3D: 3,4 écrans de descente, sticky cinéma ── */
         <div className="h-full overflow-y-auto pretty-scroll">
           <div ref={sectionRef} className="relative h-[340vh]">
             <div className="sticky top-0 h-svh overflow-hidden">
@@ -245,7 +245,7 @@ export function SkinDescent({
                 </div>
               ))}
 
-              {/* Fin de descente : remontée */}
+              {/* Fin de descente: remontée */}
               <div
                 ref={(el) => {
                   captionRefs.current[3] = el;
@@ -263,7 +263,7 @@ export function SkinDescent({
               </div>
 
               {/* Invitation au défilement — pilotée par la boucle rAF,
-                  s'efface dès le début de la descente */}
+ s'efface dès le début de la descente */}
               <div
                 ref={hintRef}
                 aria-hidden="true"

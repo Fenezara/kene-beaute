@@ -1,16 +1,16 @@
-// Kènè — POST /api/asr : transcription vocale (ASR z-ai-web-dev-sdk, backend only).
+// Kènè — POST /api/asr: transcription vocale (ASR z-ai-web-dev-sdk, backend only).
 // Entrée { audio: base64 (webm/opus enregistré côté client, ~≤5 Mo décodé),
-//          mimeType? (informatif — le moteur détecte le format lui-même) }
-// → { text: string } (transcription trimée ; "" si silence).
+// mimeType? (informatif — le moteur détecte le format lui-même) }
+// → { text: string } (transcription trimée; "" si silence).
 //
-// FORMAT (constaté sur le moteur, 2026-09) : SEULS WAV et WebM sont acceptés
+// FORMAT (constaté sur le moteur, 2026-09): SEULS WAV et WebM sont acceptés
 // (« Audio format conversion failed: unsupported audio format: unknown,
-//   only WAV and WebM are supported » en erreur amont). MediaRecorder produit
-// du webm/opus sur Chrome/Android/Firefox → envoyé tel quel ; Safari enregistre
+// only WAV and WebM are supported » en erreur amont). MediaRecorder produit
+// du webm/opus sur Chrome/Android/Firefox → envoyé tel quel; Safari enregistre
 // en mp4/aac, ré-encodé en WAV mono côté CLIENT avant l'envoi (ChatScreen,
 // helper toAsrBlob). Un audio dans un autre format remonte en 400 propre.
 //
-// Garde temporelle : 25 s (maxDuration 30) — un moteur qui hang répond 502 FR.
+// Garde temporelle: 25 s (maxDuration 30) — un moteur qui hang répond 502 FR.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import ZAI from "z-ai-web-dev-sdk";
@@ -20,7 +20,7 @@ import { zaiCall, UpstreamBusyError } from "@/lib/ai/zai-retry";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const MAX_BYTES = 5 * 1024 * 1024; // ~5 Mo décodés (12 s d'opus ≈ 40 Ko : très large)
+const MAX_BYTES = 5 * 1024 * 1024; // ~5 Mo décodés (12 s d'opus ≈ 40 Ko: très large)
 const ASR_TIMEOUT_MS = 25_000;
 // Base64 d'un payload de 5 Mo ≈ 6,99 M caractères (4/3 par octet).
 const Body = z.object({
@@ -29,7 +29,7 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  // Bucket dédié micro-chat : 10/min — une conversation parlée humaine ≪.
+  // Bucket dédié micro-chat: 10/min — une conversation parlée humaine ≪.
   const rl = rateLimit(rlKey(req, "asr"), ASR);
   if (!rl.ok) {
     return rateLimitResponse(rl.retryAfterSec, "Transcription très sollicitée — reprends dans quelques secondes");
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       const issue = parsed.error.issues[0];
       const field = issue?.path?.[0];
       if (field === "audio") {
-        // Base64 trop long ≈ audio > 5 Mo décodé → 413 ; absent/vide → 400.
+        // Base64 trop long ≈ audio > 5 Mo décodé → 413; absent/vide → 400.
         const tooBig = issue?.code === "too_big";
         return NextResponse.json(
           { error: tooBig ? "Enregistrement trop volumineux (max 5 Mo)" : "Audio requis" },
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     }
 
     const zai = await ZAI.create();
-    // t. 87 — zaiCall : retry backoff sur 429 amont (quota machine partagé
+    // — zaiCall: retry backoff sur 429 amont (quota machine partagé
     // chat/VLM/ASR/TTS) — le vocal ne meurt plus sur un refus temporaire.
     const r = await zaiCall(
       () => zai.audio.asr.create({ file_base64: buf.toString("base64") }),

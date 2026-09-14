@@ -1,8 +1,8 @@
 "use client";
-// Kènè — Fil de Kente : le monde 3D de l'introduction.
-// Une seule scène Canvas ; la progression du scroll (ref mutable, sans re-render)
+// Kènè — Fil de Kente: le monde 3D de l'introduction.
+// Une seule scène Canvas; la progression du scroll (ref mutable, sans re-render)
 // pilote caméra + révélation de chaque chapitre. Tout est procédural (zéro asset),
-// budget : < 60k triangles, DPR plafonné 1,5, rendu coupé quand invisible.
+// budget: < 60k triangles, DPR plafonné 1,5, rendu coupé quand invisible.
 import { useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -81,7 +81,7 @@ function MelaninDust({ progressRef }: { progressRef: ProgressRef }) {
       orig[i * 3] = r * Math.sin(ph) * Math.cos(th);
       orig[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th) * 0.72;
       orig[i * 3 + 2] = r * Math.cos(ph);
-      // cible : galaxie spirale — les poussières se condensent
+      // cible: galaxie spirale — les poussières se condensent
       const ang = (i / N) * Math.PI * 5.5;
       const rr = 0.5 + (i / N) * 2.9 + (Math.random() - 0.5) * 0.3;
       tgt[i * 3] = Math.cos(ang) * rr;
@@ -301,7 +301,7 @@ function Botanical({ progressRef }: { progressRef: ProgressRef }) {
           <icosahedronGeometry args={[0.34, 0]} />
           <meshStandardMaterial color="#4C8A4C" flatShading roughness={0.75} transparent />
         </mesh>
-        {/* fruits : pulpe bissap + amande karité */}
+        {/* fruits: pulpe bissap + amande karité */}
         {[
           [0.22, 1.02, 0.1, "#8B1A3B"],
           [0.34, 1.16, -0.06, "#F8F1E4"],
@@ -567,7 +567,7 @@ const kenteFragment = /* glsl */ `
       float lx = fract(uv.x * cols);
       if (lx < 0.045) c = mix(c, vec3(0.10, 0.06, 0.04), 0.72);
     }
-    // armure : tissage subtil
+    // armure: tissage subtil
     c *= 0.9 + 0.1 * sin(uv.x * cols * 3.14159) * sin(uv.y * rows * 3.14159);
     // vignette douce
     float d = distance(uv, vec2(0.5));

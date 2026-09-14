@@ -1,4 +1,4 @@
-// Kènè — Skin Twin : mathématiques du Jumeau de Peau.
+// Kènè — Skin Twin: mathématiques du Jumeau de Peau.
 // Sculpture procédurale de la tête (bosses gaussiennes sur icosaèdre), projection
 // des marqueurs du diagnostic (photo 2D → surface 3D par zone du corps), teintes
 // mélanodermes Fitzpatrick, rapprochement marqueur ↔ indicateur.
@@ -29,7 +29,7 @@ export const HAND = { x: 0.62, y: 0.42, z: 0.02, rx: 0.135, ry: 0.2, rz: 0.085 }
 
 /* ───────────────────────── Sculpture de la tête ───────────────────────── */
 
-/** Bosse gaussienne sur la sphère : k = 1 − cos(angle) ∈ [0, 2], centre normalisé. */
+/** Bosse gaussienne sur la sphère: k = 1 − cos(angle) ∈ [0, 2], centre normalisé. */
 function bump(d: THREE.Vector3, cx: number, cy: number, cz: number, sigma: number): number {
   const len = Math.sqrt(cx * cx + cy * cy + cz * cz);
   const k = 1 - Math.max(-1, Math.min(1, (d.x * cx + d.y * cy + d.z * cz) / len));
@@ -43,26 +43,26 @@ const smooth01 = (t: number): number => {
 
 /**
  * Rayon sculpté de la tête pour une direction unitaire `d`
- * (repère local : z+ = visage, y+ = sommet, x+ = joue droite du sujet).
+ * (repère local: z+ = visage, y+ = sommet, x+ = joue droite du sujet).
  * Menton, arcade, orbites, arête nasale, pommettes, oreilles, lèvres — stylisé, jamais photoréaliste.
  */
 export function headRadius(d: THREE.Vector3): number {
   let r = 0.5;
   r *= 1 + 0.05 * smooth01(d.y + 0.15) * smooth01((1 - d.z) * 0.9); // occiput plein
-  r *= 1 + 0.02 * smooth01((d.y - 0.35) / 0.45) * smooth01(d.z * 0.9); // front bombé (t. 77)
+  r *= 1 + 0.02 * smooth01((d.y - 0.35) / 0.45) * smooth01(d.z * 0.9); // front bombé 
   const jaw = smooth01((-d.y - 0.05) / 0.7); // effilement mandibulaire
   r *= 1 - 0.2 * jaw * (0.5 + 0.5 * Math.abs(d.x));
   r += 0.055 * bump(d, 0, -0.88, 0.48, 0.1); // menton
-  r += 0.012 * bump(d, 0, -0.84, 0.5, 0.05); // bout du menton (t. 77)
+  r += 0.012 * bump(d, 0, -0.84, 0.5, 0.05); // bout du menton 
   r += 0.026 * bump(d, 0, 0.3, 0.95, 0.16); // arcade sourcilière
   r -= 0.03 * (bump(d, 0.36, 0.18, 0.91, 0.075) + bump(d, -0.36, 0.18, 0.91, 0.075)); // orbites
-  r += 0.016 * (bump(d, 0.3, 0.19, 0.94, 0.05) + bump(d, -0.3, 0.19, 0.94, 0.05)); // globes oculaires (t. 77)
+  r += 0.016 * (bump(d, 0.3, 0.19, 0.94, 0.05) + bump(d, -0.3, 0.19, 0.94, 0.05)); // globes oculaires 
   r += 0.06 * bump(d, 0, 0.03, 1, 0.055); // arête nasale
   r += 0.03 * (bump(d, 0.56, -0.16, 0.6, 0.1) + bump(d, -0.56, -0.16, 0.6, 0.1)); // pommettes
-  r -= 0.014 * (bump(d, 0.16, -0.2, 0.92, 0.045) + bump(d, -0.16, -0.2, 0.92, 0.045)); // sillons nasogéniens (t. 77)
+  r -= 0.014 * (bump(d, 0.16, -0.2, 0.92, 0.045) + bump(d, -0.16, -0.2, 0.92, 0.045)); // sillons nasogéniens 
   r += 0.045 * (bump(d, 1, -0.06, 0.06, 0.075) + bump(d, -1, -0.06, 0.06, 0.075)); // oreilles
   r += 0.022 * bump(d, 0, -0.55, 0.83, 0.07); // lèvres
-  r -= 0.01 * bump(d, 0, -0.48, 0.86, 0.035); // sillon sous-nasal (t. 77)
+  r -= 0.01 * bump(d, 0, -0.48, 0.86, 0.035); // sillon sous-nasal 
   return r;
 }
 
@@ -85,7 +85,7 @@ export function sphDir(lonDeg: number, latDeg: number): THREE.Vector3 {
 }
 
 /**
- * Position 3D d'un marqueur : la photo de la zone (x, y en %) est projetée sur la
+ * Position 3D d'un marqueur: la photo de la zone (x, y en %) est projetée sur la
  * région anatomique correspondante du buste. Chaque zone a sa fenêtre angulaire.
  */
 export function markerPosition(zone: BodyZone, x: number, y: number): THREE.Vector3 {
@@ -164,7 +164,7 @@ export interface TwinMarker {
   x: number;
   y: number;
   pos: [number, number, number];
-  /** Score santé (0-100) de l'indicateur rapproché — pilote la projection (Fil du Temps). */
+ /** Score santé (0-100) de l'indicateur rapproché — pilote la projection (Fil du Temps). */
   pct: number | null;
 }
 
@@ -178,7 +178,7 @@ export function buildMarkers(entries: TwinEntry[]): TwinMarker[] {
       out.push({
         key: `${e.id}-${i}`,
         label: m.label,
-        // Garde : severite absente (anciens resultJson) → NaN index → 0
+        // Garde: severite absente (anciens resultJson) → NaN index → 0
         sev: Number.isFinite(m.severite) ? Math.min(3, Math.max(0, Math.trunc(m.severite))) : 0,
         zone: e.zone,
         diagId: e.id,

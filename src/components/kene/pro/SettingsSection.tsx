@@ -1,11 +1,11 @@
 "use client";
-// Kènè Pro — Paramètres (t. 69-c) : compte, affichage, langue, session.
-// Sobriété back-office : volontairement PAS d'accès à l'espace cliente ici
-// (isolation t. 69-a — l'app pro vit sur un compte dédié, fermer la session
+// Kènè Pro — Paramètres: compte, affichage, langue, session.
+// Sobriété back-office: volontairement PAS d'accès à l'espace cliente ici
+// (isolation — l'app pro vit sur un compte dédié, fermer la session
 // ramène simplement à l'accueil Kènè via le clamp du store, jamais setSpace).
-// Hydratation : l'état actif Clair/Sombre est gardé par useSyncExternalStore
+// Hydratation: l'état actif Clair/Sombre est gardé par useSyncExternalStore
 // (pattern ThemeToggle / use-install) — zéro setState-in-effect, zéro flash.
-// t. 120 — carte « Identité visuelle » : photo de vitrine de l'institut
+// — carte « Identité visuelle »: photo de vitrine de l'institut
 // (façade, enseigne ou intérieur) qui remplace le visuel calculé partout
 // (annuaire, boutique, fiche cliente) — upload local redimensionné.
 import { useEffect, useRef, useSyncExternalStore, useState } from "react";
@@ -21,9 +21,9 @@ import { useKene } from "@/store/kene";
 import { InitialAvatar, SectionHeader } from "./ui-bits";
 import type { ProSectionId } from "./ProApp";
 
-/* Porte d'hydratation : false pendant le rendu serveur + l'hydratation, true
+/* Porte d'hydratation: false pendant le rendu serveur + l'hydratation, true
  * ensuite — l'état actif Clair/Sombre ne s'affiche qu'une fois le thème
- * réellement lisible (règle react-hooks/set-state-in-effect : pas de setState
+ * réellement lisible (règle react-hooks/set-state-in-effect: pas de setState
  * dans un effet, même approche que ThemeToggle et use-install). */
 const subscribeNothing = () => () => {};
 function useHydrated(): boolean {
@@ -36,7 +36,7 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
   const clearCart = useKene((s) => s.clearCart);
   const { lang, setLang } = useT();
 
-  // ── Photo de vitrine (t. 120) ──
+  // ── Photo de vitrine ──
   // Le visuel ACTUEL vient de l'annuaire public (image + hasPhoto), l'aperçu
   // local d'un upload frais prend le dessus le temps de la requête.
   const [currentImage, setCurrentImage] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
           setHasPhoto(Boolean(mine.hasPhoto));
         }
       })
-      .catch(() => {}); // non bloquant : la carte affiche l'état vide
+      .catch(() => {}); // non bloquant: la carte affiche l'état vide
     return () => {
       alive = false;
     };
@@ -112,7 +112,7 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
   const managerName = sessionUser?.name?.trim() || "Gérante";
   const managerPhone = sessionUser?.phone || "Numéro non renseigné";
 
-  /** Langue de l'interface — même logique que côté cliente. */
+ /** Langue de l'interface — même logique que côté cliente. */
   function selectLang(l: Lang) {
     if (l === lang) return;
     setLang(l);
@@ -120,9 +120,9 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
     toast.success(`Interface en ${label.toLowerCase()}`);
   }
 
-  /** Ferme la session : le clamp du store ramène à l'accueil cliente
-   *  (setUser(null) → espace "client" sans session → onboarding). La session
-   *  SERVEUR (cookie httpOnly signé, t. 71-b) est fermée dans la foulée. */
+ /** Ferme la session: le clamp du store ramène à l'accueil cliente
+ * (setUser(null) → espace "client" sans session → onboarding). La session
+ * SERVEUR (cookie httpOnly signé,) est fermée dans la foulée. */
   function closeSession() {
     void fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     clearCart();
@@ -161,7 +161,7 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         </div>
       </div>
 
-      {/* Identité visuelle (t. 120) — photo de vitrine de l'institut */}
+      {/* Identité visuelle — photo de vitrine de l'institut */}
       <div className="k-card rounded-[20px] p-4">
         <div className="flex items-center gap-3">
           <IconBadge icon={<Camera size={18} />} tone="gold" />
@@ -283,8 +283,8 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         </div>
       </div>
 
-      {/* Abonnement & facturation (t. 71-c) — lien vers la section dédiée
-          (même pattern de navigation que les autres sections). */}
+      {/* Abonnement & facturation — lien vers la section dédiée
+ (même pattern de navigation que les autres sections). */}
       <div className="k-card rounded-[20px] p-2">
         <button
           onClick={() => onNavigate?.("abonnement")}
@@ -299,8 +299,8 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         </button>
       </div>
 
-      {/* Session — destructif sobre (jamais de setSpace : le clamp store
-          ramène à l'accueil cliente, isolation t. 69-a) */}
+      {/* Session — destructif sobre (jamais de setSpace: le clamp store
+ ramène à l'accueil cliente, isolation) */}
       <div className="k-card rounded-[20px] p-4">
         <div className="flex items-center gap-3">
           <IconBadge icon={<LogOut size={18} />} tone="bissap" />

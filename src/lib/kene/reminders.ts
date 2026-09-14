@@ -1,4 +1,4 @@
-// Kènè — Rappels automatiques : templates de messages programmés + logique
+// Kènè — Rappels automatiques: templates de messages programmés + logique
 // d'annulation intelligente (lib PURE, serveur uniquement). Les rappels sont
 // des Notification { status: "scheduled", scheduledAt } créés par les événements
 // métier (diagnostic terminé, RDV confirmé) et « envoyés » (sent) au fil de
@@ -47,7 +47,7 @@ export function readMeta(metaJson?: string | null): NotificationMeta {
   }
 }
 
-// ─────────────── Fil cliente : typage sérialisable ───────────────
+// ─────────────── Fil cliente: typage sérialisable ───────────────
 
 export interface ReminderNotification {
   id: string;
@@ -60,12 +60,12 @@ export interface ReminderNotification {
 }
 
 /**
- * Un rappel scheduled est-il encore pertinent ?
- * — {apptId} : RDV non annulé et pas encore passé
- * — {diagId} : ce diagnostic est TOUJOURS le dernier de sa zone (sinon le
- *   contrôle a été refait → rappel périmé)
- * — {dedupKey} : la relance pro n'est pas marquée traitée (sinon doublon)
- * Sans méta : on garde (rappel manuel p.ex.).
+ * Un rappel scheduled est-il encore pertinent?
+ * — {apptId}: RDV non annulé et pas encore passé
+ * — {diagId}: ce diagnostic est TOUJOURS le dernier de sa zone (sinon le
+ * contrôle a été refait → rappel périmé)
+ * — {dedupKey}: la relance pro n'est pas marquée traitée (sinon doublon)
+ * Sans méta: on garde (rappel manuel p.ex.).
  */
 export function scheduledStillRelevant(
   n: ReminderNotification,
@@ -97,7 +97,7 @@ export function humanWhen(iso: string): string {
   return formatDate(d, { day: "numeric", month: "short", year: "numeric" });
 }
 
-/** Badge court du canal : WhatsApp / SMS / E-mail. */
+/** Badge court du canal: WhatsApp / SMS / E-mail. */
 export function channelLabel(channel: string): string {
   if (channel === "whatsapp") return "WhatsApp";
   if (channel === "sms") return "SMS";

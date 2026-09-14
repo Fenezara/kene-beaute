@@ -1,4 +1,4 @@
-// POST /api/push/unsubscribe — { endpoint } : supprime l'abonnement push
+// POST /api/push/unsubscribe — { endpoint }: supprime l'abonnement push
 // (désactivation « Rappels sur mon téléphone » ou purge côté navigateur).
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -27,9 +27,9 @@ export async function POST(req: NextRequest) {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("endpoint https requis", 400);
 
-    // Session signée (t. 71-b, migration douce) : le corps ne porte pas de
+    // Session signée (, migration douce): le corps ne porte pas de
     // userId → l'appartenance se lit sur l'abonnement lui-même. Avec cookie,
-    // seul le compte propriétaire de l'endpoint peut le retirer ; sans cookie
+    // seul le compte propriétaire de l'endpoint peut le retirer; sans cookie
     // → legacy (comportement conservé).
     const sess = requireUser(req);
     if (sess) {

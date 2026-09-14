@@ -1,10 +1,10 @@
 "use client";
-// Kènè — Skin Twin : la carte « Jumeau de Peau ».
+// Kènè — Skin Twin: la carte « Jumeau de Peau ».
 // Le diagnostic porté par un buste 3D interactif (drag pour pivoter, pastilles
 // cliquables, balayage scanner, orbite du Fil d'Or). Les chips sous la scène
-// forment l'interface accessible (clavier + lecteurs d'écran) : survol/sélection
+// forment l'interface accessible (clavier + lecteurs d'écran): survol/sélection
 // d'une chip illumine la pastille 3D correspondante et réciproquement.
-// Fallback SVG statique (reduced-motion / WebGL absent / #twin-static) : mêmes
+// Fallback SVG statique (reduced-motion / WebGL absent / #twin-static): mêmes
 // marqueurs projetés en 2D sur une silhouette. Rendu coupé hors viewport (IO).
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -84,7 +84,7 @@ export function SkinTwinCard({
   entries: TwinEntry[];
   context?: "client" | "pro";
   className?: string;
-  /** Active le Fil du Temps : curseur S+0 → S+12, les marqueurs « guérissent ». */
+ /** Active le Fil du Temps: curseur S+0 → S+12, les marqueurs « guérissent ». */
   projection?: boolean;
 }) {
   const mode = useTwinMode();
@@ -95,7 +95,7 @@ export function SkinTwinCard({
   const stageRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef(createDragState());
 
-  /* Fil du Temps : cible mutable lue par la scène chaque frame (zéro re-render au drag) */
+ /* Fil du Temps: cible mutable lue par la scène chaque frame (zéro re-render au drag) */
   const [weeks, setWeeks] = useState(0);
   const [adherence, setAdherence] = useState<Adherence>("pleine");
   const projRef = useRef({ t: 0, adh: ADHERENCE_FACTOR.pleine });
@@ -115,7 +115,7 @@ export function SkinTwinCard({
   const skin = (fitz && FITZ_SKIN[fitz]) || DEFAULT_SKIN;
   const activeIndex = hover ?? selected;
 
-  /* rendu coupé quand la carte sort du viewport (rAF = asynchrone, hors effet) */
+ /* rendu coupé quand la carte sort du viewport (rAF = asynchrone, hors effet) */
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;
@@ -135,7 +135,7 @@ export function SkinTwinCard({
     };
   }, []);
 
-  /* drag — rotation directe dans la ref mutable (zéro re-render React) */
+ /* drag — rotation directe dans la ref mutable (zéro re-render React) */
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = dragRef.current;
     d.down = true;
@@ -169,7 +169,7 @@ export function SkinTwinCard({
     d.idle = 0;
   };
 
-  /* panneau de détail de la pastille sélectionnée */
+ /* panneau de détail de la pastille sélectionnée */
   const selectedMarker = selected != null ? (markers[selected] ?? null) : null;
   const selectedEntry = selectedMarker ? entries.find((e) => e.id === selectedMarker.diagId) : null;
   const matched = selectedMarker ? matchIndicator(selectedMarker.label, selectedEntry?.indicators) : null;

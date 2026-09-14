@@ -60,9 +60,9 @@ export function scoreColor(score: number): string {
 }
 
 /**
- * Couleur de score adaptée au thème actif (variables CSS --score-*) :
+ * Couleur de score adaptée au thème actif (variables CSS --score-*):
  * à utiliser en TEXTE, trait SVG (style.stroke) ou fond — contrairement à
- * scoreColor() (hex fixes, réservés aux aplats + readableTextColor).
+ * scoreColor (hex fixes, réservés aux aplats + readableTextColor).
  * En light les variantes sont assombries (WCAG AA ≥ 4.5:1 sur crème).
  */
 export function scoreVar(score: number): string {

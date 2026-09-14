@@ -1,19 +1,19 @@
 "use client";
-// Kènè — Constellation Adinkra (t. 83-e, vague 3) : pendant que l'IA analyse,
+// Kènè — Constellation Adinkra (, vague 3): pendant que l'IA analyse,
 // le ciel nocturne de Kènè assemble sa constellation rituelle. Chaque étape
-// franchie allume une étoile ; un fil d'or se tend entre les étoiles ; quand
+// franchie allume une étoile; un fil d'or se tend entre les étoiles; quand
 // le protocole est constitué, l'emblème Nea Onnim se révèle au centre — le
 // rituel s'achève sur la signature de la maison.
-// Panneau DÉCORATIF (aria-hidden) : la liste des étapes en dessous reste le
+// Panneau DÉCORATIF (aria-hidden): la liste des étapes en dessous reste le
 // contrat d'accessibilité. Zéro 3D (pas de canvas en concurrence avec le
 // scanline de la photo) — SVG + framer-motion, offline-friendly.
 import { motion, useReducedMotion } from "framer-motion";
 import { NeaOnnimIcon } from "@/components/kene/icons";
 
 export interface AdinkraSkyProps {
-  /** nombre d'étapes franchies (0 → total) */
+ /** nombre d'étapes franchies (0 → total) */
   checked: number;
-  /** nombre total d'étapes */
+ /** nombre total d'étapes */
   total: number;
 }
 
@@ -24,8 +24,8 @@ const STEP_STARS = [
   { x: 242, y: 106 },
 ];
 
-/** Micro-étoiles de fond — positions fixes : rendu déterministe, zéro
- *  divergence d'hydratation, scintillement lent (transform/opacity GPU). */
+/** Micro-étoiles de fond — positions fixes: rendu déterministe, zéro
+ * divergence d'hydratation, scintillement lent (transform/opacity GPU). */
 const BG_STARS: { x: number; y: number; r: number }[] = [
   { x: 24, y: 22, r: 1.1 },
   { x: 71, y: 44, r: 0.8 },
@@ -111,7 +111,7 @@ export function AdinkraSky({ checked, total }: AdinkraSkyProps) {
           );
         })}
 
-        {/* Les étoiles des étapes : éteinte → palpitante (active) → allumée */}
+        {/* Les étoiles des étapes: éteinte → palpitante (active) → allumée */}
         {STEP_STARS.map((st, i) => {
           const done = i < checked;
           const active = i === checked && !complete;

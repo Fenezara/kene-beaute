@@ -1,7 +1,7 @@
 "use client";
-// Kènè Pro — Catalogue : soins & produits, création/édition, activation
-// t. 120 — chaque fiche porte désormais une PHOTO RÉELLE (produit posé sur
-// le comptoir, soin en cabine) : upload local redimensionné, stocké en base
+// Kènè Pro — Catalogue: soins & produits, création/édition, activation
+// — chaque fiche porte désormais une PHOTO RÉELLE (produit posé sur
+// le comptoir, soin en cabine): upload local redimensionné, stocké en base
 // et servi par /api/media — la photo prime sur le visuel studio si posée.
 import { useRef, useState } from "react";
 import { Camera, Clock, ImageOff, Loader2, MoreVertical, Package, Pencil, Percent, Plus, Power, Sparkles } from "lucide-react";
@@ -40,7 +40,7 @@ interface FormState {
   description: string;
   botanicals: string;
   image: string;
-  // t. 120 — photo réelle : null = pas de photo, undefined = inchangée
+  // — photo réelle: null = pas de photo, undefined = inchangée
   photoData: string | null | undefined;
 }
 
@@ -99,8 +99,8 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
     setDialogOpen(true);
   }
 
-  /** t. 120 — upload d'une photo réelle : redimensionnée localement
-   *  (canvas, ~820px) puis envoyée avec la fiche. */
+ /** — upload d'une photo réelle: redimensionnée localement
+ * (canvas, ~820px) puis envoyée avec la fiche. */
   async function pickPhoto(file: File | undefined) {
     if (!file) return;
     if (file.size > 8 * 1024 * 1024) {
@@ -136,8 +136,8 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
     }
     setBusy(true);
     try {
-      // t. 120 — la photo réelle part SEULEMENT si elle vient d'être posée
-      // (string) ou retirée (null) ; undefined = on ne touche pas à l'existante.
+      // — la photo réelle part SEULEMENT si elle vient d'être posée
+      // (string) ou retirée (null); undefined = on ne touche pas à l'existante.
       const photo = form.photoData;
       const data =
         editType === "service"
@@ -222,7 +222,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex min-w-0 gap-2.5">
-                          {/* t. 120 — vignette du soin si photo posée */}
+                          {/* — vignette du soin si photo posée */}
                           {s.hasPhoto && (
                             <span className="size-12 shrink-0 overflow-hidden rounded-[12px] border border-border">
                               <img src={`/api/media/service/${s.id}`} alt={`Photo du soin ${s.name}`} loading="lazy" className="size-full object-cover" />
@@ -281,7 +281,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
                   <Card key={p.id} className={cn("gap-2", !p.active && "opacity-55")}>
                     <CardContent className="p-4 flex gap-3">
                       <div className="size-16 shrink-0 rounded-xl overflow-hidden bg-muted border border-border">
-                        {/* t. 120 — photo réelle du produit si posée, sinon visuel studio */}
+                        {/* — photo réelle du produit si posée, sinon visuel studio */}
                         <img src={p.hasPhoto ? `/api/media/product/${p.id}` : p.image} alt={p.name} loading="lazy" className="size-full object-cover" />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -387,8 +387,8 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
                 </>
               )}
             </div>
-            {/* t. 120 — PHOTO RÉELLE (produit ou soin) : la praticienne
-                photographie ce qu'elle vend. Elle prime sur le visuel studio. */}
+            {/* — PHOTO RÉELLE (produit ou soin): la praticienne
+ photographie ce qu'elle vend. Elle prime sur le visuel studio. */}
             <div className="space-y-1.5">
               <Label className="text-xs">Photo réelle {editType === "service" ? "du soin" : "du produit"} (optionnelle)</Label>
               <div className="flex items-center gap-3">

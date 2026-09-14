@@ -1,14 +1,14 @@
-// Kènè — Sessions signées serveur (t. 71-b) : fin du « session = localStorage
+// Kènè — Sessions signées serveur: fin du « session = localStorage
 // falsifiable côté client ». Token maison `base64url(JSON payload) + "." +
 // HMAC-SHA256`, transporté par un cookie httpOnly — zéro dépendance externe
-// (pas de lib jwt : node:crypto suffit).
+// (pas de lib jwt: node:crypto suffit).
 //
-// Migration DOUCE : les routes gardées vérifient la session UNIQUEMENT si le
-// cookie est présent (strict-if-cookie) ; une session POC ouverte avant ce
+// Migration DOUCE: les routes gardées vérifient la session UNIQUEMENT si le
+// cookie est présent (strict-if-cookie); une session ouverte avant ce
 // sprint (localStorage, pas encore de cookie) conserve le comportement
 // historique + un warning par route (voir warnLegacyNoCookie).
 //
-// Persistance « comme TikTok » : 90 jours — la cliente reste connectée sur
+// Persistance « comme TikTok »: 90 jours — la cliente reste connectée sur
 // son appareil, même après avoir vidé le localStorage (le SessionKeeper
 // interroge /api/auth/session, qui lit le cookie en priorité).
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
@@ -21,14 +21,14 @@ export const SESSION_COOKIE = "kene_session";
 export const SESSION_TTL_SEC = 90 * 24 * 3600; // 90 jours
 const SESSION_TTL_MS = SESSION_TTL_SEC * 1000;
 
-// Secret de signature (t. 86-e — durcissement 2026) :
-//   1) KENE_SESSION_SECRET (env) prime TOUJOURS si fourni (≥ 16 chars) ;
-//   2) sinon : secret aléatoire de 48 octets, généré au premier démarrage et
-//      persisté dans db/.kene-session-secret (mode 0600, hors public/) — il
-//      survit aux redéploiements (sessions 90 j préservées) et reste UNIQUE
-//      par environnement, contrairement à l'ancienne constante partagée ;
-//   3) repli déterministe POC UNIQUEMENT si le fs est indisponible (théorique).
-// Effet de bord documenté : la migration depuis l'ancien secret POC invalide
+// Secret de signature ( — durcissement 2026):
+// 1) KENE_SESSION_SECRET (env) prime TOUJOURS si fourni (≥ 16 chars);
+// 2) sinon: secret aléatoire de 48 octets, généré au premier démarrage et
+// persisté dans db/.kene-session-secret (mode 0600, hors public/) — il
+// survit aux redéploiements (sessions 90 j préservées) et reste UNIQUE
+// par environnement, contrairement à l'ancienne constante partagée;
+// 3) repli déterministe UNIQUEMENT si le fs est indisponible (théorique).
+// Effet de bord documenté: la migration depuis l'ancien secret invalide
 // les cookies d'avant ce sprint — les clientes se reconnectent une fois.
 function loadSessionSecret(): string {
   const env = process.env.KENE_SESSION_SECRET;
@@ -44,7 +44,7 @@ function loadSessionSecret(): string {
     writeFileSync(file, `${fresh}\n`, { mode: 0o600 });
     return fresh;
   } catch {
-    console.warn("[kene:session] fs indisponible — repli secret POC (sessions non persistantes)");
+    console.warn("[kene:session] fs indisponible — repli secret éphémère (sessions non persistantes)");
     return "kene-session-secret-poc";
   }
 }
@@ -63,7 +63,7 @@ export type KeneSession = { userId: string; phone: string; role: string };
 
 const hmacOf = (data: string): Buffer => createHmac("sha256", SECRET).update(data).digest();
 
-/** Signe une session : `base64url(JSON payload) + "." + HMAC-SHA256(base64url)`. */
+/** Signe une session: `base64url(JSON payload) + "." + HMAC-SHA256(base64url)`. */
 export function signSession(user: SessionUserInput): string {
   const iat = Date.now();
   const payload: SessionPayload = {
@@ -90,7 +90,7 @@ function isPayloadShape(v: unknown): v is SessionPayload {
 }
 
 /**
- * Vérifie un token : signature en timingSafeEqual (longueurs comparées avant —
+ * Vérifie un token: signature en timingSafeEqual (longueurs comparées avant —
  * timingSafeEqual throw sinon), payload shape validé, `exp` STRICT (exp <= now
  * → null). Tout token invalide, falsifié ou expiré → null, jamais d'exception.
  */
@@ -116,7 +116,7 @@ export function verifySessionToken(token: string): SessionPayload | null {
 // ─────────────── Lecture depuis la requête ───────────────
 
 /** Extrait `kene_session` du header Cookie (parse manuel — pas de next/headers,
- *  compatible route handlers). Valeur décodée si URL-encodée. */
+ * compatible route handlers). Valeur décodée si URL-encodée. */
 function sessionTokenFromCookieHeader(header: string | null): string | null {
   if (!header) return null;
   for (const part of header.split(";")) {
@@ -141,7 +141,7 @@ export function sessionFromRequest(req: NextRequest): KeneSession | null {
   return { userId: payload.uid, phone: payload.phone, role: payload.role };
 }
 
-/** Alias canonique de sessionFromRequest : `{ userId, phone, role } | null`. */
+/** Alias canonique de sessionFromRequest: `{ userId, phone, role } | null`. */
 export function requireUser(req: NextRequest): KeneSession | null {
   return sessionFromRequest(req);
 }
@@ -156,7 +156,7 @@ export function setSessionCookie(res: NextResponse, user: SessionUserInput): voi
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    // POC sandbox en HTTP — passer à `secure: true` derrière HTTPS en prod.
+    // Sandbox en HTTP — passer à `secure: true` derrière HTTPS en prod.
     secure: false,
     maxAge: SESSION_TTL_SEC,
   });
@@ -170,7 +170,7 @@ export function clearSessionCookie(res: NextResponse): void {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    // POC sandbox en HTTP — `secure: true` derrière HTTPS en prod.
+    // Sandbox en HTTP — `secure: true` derrière HTTPS en prod.
     secure: false,
     maxAge: 0,
   });
@@ -182,12 +182,12 @@ function sessionError(message: string, status: number): NextResponse {
   return NextResponse.json({ error: message }, { status });
 }
 
-// Dédup du warning legacy : UNE fois par process ET par route (survit au HMR
+// Dédup du warning legacy: UNE fois par process ET par route (survit au HMR
 // via globalThis, pattern du rate-limit) — pas de spam en dev.log.
 const g = globalThis as typeof globalThis & { __keneLegacyWarned?: Set<string> };
 const legacyWarned: Set<string> = (g.__keneLegacyWarned ??= new Set());
 
-/** Session POC ouverte avant ce sprint (pas encore de cookie) : log une fois. */
+/** Session ouverte avant l'ère des cookies signés: log une fois. */
 export function warnLegacyNoCookie(routePath: string): void {
   if (legacyWarned.has(routePath)) return;
   legacyWarned.add(routePath);
@@ -195,9 +195,9 @@ export function warnLegacyNoCookie(routePath: string): void {
 }
 
 /**
- * Garde routes cliente : SI un cookie de session valide est présent, le userId
+ * Garde routes cliente: SI un cookie de session valide est présent, le userId
  * revendiqué (body POST/PATCH ou query GET) doit être celui de la session →
- * sinon 401 « Session invalide pour ce compte ». SANS cookie : session legacy
+ * sinon 401 « Session invalide pour ce compte ». SANS cookie: session legacy
  * d'avant ce sprint → comportement historique conservé (+ warning).
  * Retourne la réponse à renvoyer, ou null si la requête passe.
  */
@@ -218,9 +218,9 @@ export function guardUserClaim(
 }
 
 /**
- * Garde /api/pro/** : SI un cookie de session valide est présent, le rôle doit
+ * Garde /api/pro/**: SI un cookie de session valide est présent, le rôle doit
  * être « pro » (ou « admin ») → sinon 403 « Espace entreprise réservé aux
- * comptes pro ». SANS cookie (notify-service, sessions legacy) : inchangé.
+ * comptes pro ». SANS cookie (notify-service, sessions legacy): inchangé.
  */
 export function guardProRole(req: NextRequest, routePath: string): NextResponse | null {
   const sess = sessionFromRequest(req);
@@ -235,8 +235,8 @@ export function guardProRole(req: NextRequest, routePath: string): NextResponse 
 }
 
 /**
- * Garde /api/admin/** : SI un cookie de session valide est présent, le rôle
- * doit être « admin » → sinon 403. SANS cookie : comportement historique.
+ * Garde /api/admin/**: SI un cookie de session valide est présent, le rôle
+ * doit être « admin » → sinon 403. SANS cookie: comportement historique.
  */
 export function guardAdminRole(req: NextRequest, routePath: string): NextResponse | null {
   const sess = sessionFromRequest(req);

@@ -16,7 +16,7 @@ const Body = z.object({
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, la gestion du
+    // Session signée (, migration douce): avec cookie, la gestion du
     // RDV (confirm/complete/cancel/reschedule) exige un compte pro/admin.
     const guard = guardProRole(req, "pro:appointments:[id]:patch");
     if (guard) return guard;
@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
     if (!appointment) return jsonError("Rendez-vous introuvable", 404);
 
-    // ── reschedule : déplacer le RDV (vérif chevauchement) ──
+    // ── reschedule: déplacer le RDV (vérif chevauchement) ──
     if (action === "reschedule") {
       const newStart = startAt ? new Date(startAt) : appointment.startAt;
       if (startAt && Number.isNaN(newStart.getTime())) return jsonError("Date invalide", 400);
@@ -58,13 +58,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         where: { id },
         data: { startAt: newStart, resourceId: newResourceId },
       });
-      // Temps réel : autres postes/onglets Pro + dashboard rafraîchis
+      // Temps réel: autres postes/onglets Pro + dashboard rafraîchis
       pushTenantFeed(appointment.tenantId);
       return NextResponse.json({ appointment: updated });
     }
 
-    // ── confirm / cancel / no_show : changement de statut simple ──
-    // (temps réel : le badge « à confirmer » des autres postes descend en direct)
+    // ── confirm / cancel / no_show: changement de statut simple ──
+    // (temps réel: le badge « à confirmer » des autres postes descend en direct)
     if (action === "confirm") {
       const updated = await db.appointment.update({ where: { id }, data: { status: "confirmed" } });
       pushTenantFeed(appointment.tenantId);
@@ -81,7 +81,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ appointment: updated });
     }
 
-    // ── complete : statut + vente caisse auto + écriture comptable + CRM ──
+    // ── complete: statut + vente caisse auto + écriture comptable + CRM ──
     if (appointment.status === "completed") return jsonError("Rendez-vous déjà terminé", 400);
 
     const method = paymentMethod ?? "cash";

@@ -1,14 +1,14 @@
 // Kènè — push temps réel côté SERVEUR (routes API uniquement, node runtime).
-// Après chaque notify(), l'app prévient le mini-service notify-service
+// Après chaque notify, l'app prévient le mini-service notify-service
 // (socket.io, port 3004) qui déclenche un poll immédiat du fil de la cliente
 // → sa cloche se met à jour en ~250 ms, sans reload.
 //
 // Connexion DIRECTE localhost (server-to-server, jamais depuis le navigateur —
-// les clientes passent par la gateway ?XTransformPort=3004, cf. NotificationCenter).
-// Best-effort : si le service est down, on saute silencieusement — le poll
+// les clientes passent par la gateway (query XTransformPort=3004), cf. NotificationCenter).
+// Best-effort: si le service est down, on saute silencieusement — le poll
 // périodique du service reste le filet de sécurité (8 s).
 //
-// globalThis : le socket survit aux hot-reload du dev server Next.js
+// globalThis: le socket survit aux hot-reload du dev server Next.js
 // (sinon chaque recompilation ouvrirait une connexion de plus).
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "./live-socket";
@@ -33,20 +33,20 @@ function ensurePushSocket(): Socket | null {
     socket.on("connect", () => {
       socket.emit("register-app", { secret: PUSH_SECRET });
     });
-    // Auto-guérison : si le service redémarre à chaud, le TCP survit mais la
+    // Auto-guérison: si le service redémarre à chaud, le TCP survit mais la
     // session socket.io devient orpheline (push perdus en silence). Le
     // heartbeat détecte le zombie ≤ 35 s et reconnecte → register-app rejoué.
     armHeartbeat(socket);
     g.__kenePushSocket = socket;
     return socket;
   } catch {
-    return null; // service injoignable : push désactivé, poll 8 s en filet
+    return null; // service injoignable: push désactivé, poll 8 s en filet
   }
 }
 
 /**
  * Prévient le service temps réel qu'une notification vient d'être créée pour
- * cette utilisatrice. Fire-and-forget : n'échoue JAMAIS, ne ralentit JAMAIS
+ * cette utilisatrice. Fire-and-forget: n'échoue JAMAIS, ne ralentit JAMAIS
  * la route appelante (si le service est absent, le poll 8 s rattrape tout).
  * L'emit est bufferisé par socket.io-client si la connexion est en cours
  * (démarrage à froid) puis envoyé dès qu'elle s'établit.
@@ -59,7 +59,7 @@ export function pushFeed(userId?: string | null): void {
 }
 
 /**
- * Même canal, côté institut : après un événement tenant (RDV réservé, vente
+ * Même canal, côté institut: après un événement tenant (RDV réservé, vente
  * POS, commande contenant un produit de l'institut…), l'espace Pro connecté
  * à ce tenant reçoit un `tenant-feed` frais en ~250 ms — badge, toasts et
  * KPIs du dashboard sans reload.

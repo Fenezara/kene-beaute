@@ -1,21 +1,21 @@
-// Kènè — ATLAS DES DERMATOSES AFRICAINES (t. 84).
-// Lib PURE (zéro dépendance React/serveur). Source unique de vérité pour :
-//  1. Le DIAGNOSTIC PHOTO (src/lib/ai/vlm.ts) : catalogue zone-filtré injecté
-//     dans le prompt vision ; le VLM cite un id EXACT → validation
-//     anti-hallucination ici-même (hypothesesFromVlm) → carte « hypothèses »
-//     dans l'écran de résultats.
-//  2. Le chat Dr Kènè : ATLAS_DIGEST (condensé injecté dans le prompt système).
-//  3. Les écrans pédagogiques à venir (croisements glossaire/herbier).
+// Kènè — ATLAS DES DERMATOSES AFRICAINES.
+// Lib PURE (zéro dépendance React/serveur). Source unique de vérité pour:
+// 1. Le DIAGNOSTIC PHOTO (src/lib/ai/vlm.ts): catalogue zone-filtré injecté
+// dans le prompt vision; le VLM cite un id EXACT → validation
+// anti-hallucination ici-même (hypothesesFromVlm) → carte « hypothèses »
+// dans l'écran de résultats.
+// 2. Le chat Dr Kènè: ATLAS_DIGEST (condensé injecté dans le prompt système).
+// 3. Les écrans pédagogiques à venir (croisements glossaire/herbier).
 //
-// PROFONDEUR : chaque affection porte sa signature SUR PEAU NOIRE — sur peau
+// PROFONDEUR: chaque affection porte sa signature SUR PEAU NOIRE — sur peau
 // mélanoderme (Fitz IV-VI), l'érythème est violacé et masqué, la
 // pigmentation réagit à tout (PIH), les squames se lisent sur fond foncé,
 // l'hypopigmentation saute aux yeux. C'est LA différence avec les atlas
 // occidentaux, et la clé de la reconnaissance correcte.
 //
-// POSITIONNEMENT : Kènè ÉDUQUE et ORIENTE — jamais de diagnostic formel, jamais
-// de prescription. niveau=educatif → conseils doux ; institut → dermo-
-// conseillère partenaire ; dermato → avis médical ; urgence → immédiat.
+// POSITIONNEMENT: Kènè ÉDUQUE et ORIENTE — jamais de diagnostic formel, jamais
+// de prescription. niveau=educatif → conseils doux; institut → dermo-
+// conseillère partenaire; dermato → avis médical; urgence → immédiat.
 
 import type { AtlasLevel, BodyZone, SuspectedCondition } from "@/lib/kene/types";
 
@@ -64,33 +64,33 @@ export const LEVEL_LABELS: Record<AtlasLevel, string> = {
 };
 
 export interface AtlasCondition {
-  /** id ASCII snake_case — cité EXACTEMENT par le VLM (contrat anti-hallucination). */
+ /** id ASCII snake_case — cité EXACTEMENT par le VLM (contrat anti-hallucination). */
   id: string;
   nom: string;
-  /** Noms courants / locaux / médicaux que la cliente peut employer. */
+ /** Noms courants / locaux / médicaux que la cliente peut employer. */
   aliases?: string[];
   categorie: AtlasCategory;
   frequence: "tres-frequente" | "frequente" | "peu-frequente" | "rare";
-  /** Zones de photo Kènè où l'affection est visible (contrat zone-filtré). */
+ /** Zones de photo Kènè où l'affection est visible (contrat zone-filtré). */
   zones: BodyZone[];
-  /** LA clé : comment ça se présente SUR PEAU NOIRE (1-2 phrases cliniques). */
+ /** LA clé: comment ça se présente SUR PEAU NOIRE (1-2 phrases cliniques). */
   surPeauNoire: string;
-  /** Symptômes ressentis (mots de la cliente). */
+ /** Symptômes ressentis (mots de la cliente). */
   symptomes?: string[];
-  /** Pièges — avec quoi on la confond souvent. */
+ /** Pièges — avec quoi on la confond souvent. */
   confondAvec?: string[];
   niveau: AtlasLevel;
-  /** Conduite Kènè (1 phrase, jamais de médicament nommé). */
+ /** Conduite Kènè (1 phrase, jamais de médicament nommé). */
   action: string;
-  /** Éducation patiente 2-3 phrases (affichée telle quelle sur la carte). */
+ /** Éducation patiente 2-3 phrases (affichée telle quelle sur la carte). */
   education: string;
-  /** Signe d'alerte : ce qui impose de sortir du cadre éducatif. */
+ /** Signe d'alerte: ce qui impose de sortir du cadre éducatif. */
   drapeau?: string;
-  /** Libellés d'indicateurs du diagnostic en lien (croisements éducatifs). */
+ /** Libellés d'indicateurs du diagnostic en lien (croisements éducatifs). */
   indicateurs?: string[];
-  /** Requête glossaire 1-tap qui résout (clé/mot-clé existant). */
+ /** Requête glossaire 1-tap qui résout (clé/mot-clé existant). */
   glossaire?: string;
-  /** Signature compacte ≤ 60 chars pour le prompt VLM. */
+ /** Signature compacte ≤ 60 chars pour le prompt VLM. */
   vlmHint: string;
 }
 
@@ -1767,9 +1767,9 @@ export function conditionsForZone(zone: BodyZone): AtlasCondition[] {
   );
 }
 
-/** Catalogue compact injecté dans le prompt vision : "id=signature ; id=signature…"
- *  Cap 26 par zone : les plus fréquentes d'abord (input tokens peu coûteux,
- *  la latence du VLM est dominée par la GÉNÉRATION, pas la lecture). */
+/** Catalogue compact injecté dans le prompt vision: "id=signature; id=signature…"
+ * Cap 26 par zone: les plus fréquentes d'abord (input tokens peu coûteux,
+ * la latence du VLM est dominée par la GÉNÉRATION, pas la lecture). */
 export function vlmCatalogForZone(zone: BodyZone): string {
   return conditionsForZone(zone)
     .slice(0, 26)
@@ -1785,7 +1785,7 @@ function clampConf(n: unknown): number {
 
 /**
  * Validation ANTI-HALLUCINATION de la sortie VLM (champ `conds` du prompt
- * t. 84) : ids EXACTS de l'atlas uniquement, zone cohérente, confiance
+ *): ids EXACTS de l'atlas uniquement, zone cohérente, confiance
  * minimale 25, dédoublonnée, triée, cap 2. Renvoie [] si rien de fiable —
  * le diagnostic reste alors muet sur les hypothèses (mieux qu'un faux).
  */
@@ -1825,11 +1825,11 @@ export const ATLAS_STATS = {
   })),
 };
 
-/** Digest compact pour le chat Dr Kènè (injecté dans le prompt système) :
- *  familles + noms AVEC les mots des clientes (alias locaux) + signatures
- *  des affections phares — assez pour raccrocher le témoignage d'une
- *  cliente (« chiques dans les orteils ») à la bonne affection, assez
- *  court pour l'enveloppe du prompt (~2 800 chars). */
+/** Digest compact pour le chat Dr Kènè (injecté dans le prompt système):
+ * familles + noms AVEC les mots des clientes (alias locaux) + signatures
+ * des affections phares — assez pour raccrocher le témoignage d'une
+ * cliente (« chiques dans les orteils ») à la bonne affection, assez
+ * court pour l'enveloppe du prompt (~2 800 chars). */
 const SIGNATURE_IDS = [
   "tungose", "myiase_tumbu", "larbish", "gale", "onchocercose", "mpox", "lepre",
   "buruli", "erysipele", "teigne_capitis", "pityriasis_alba", "acanthosis",

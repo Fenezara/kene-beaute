@@ -1,5 +1,5 @@
 "use client";
-// Kènè Cliente — RDV : réservation instituts (services, créneaux, acompte MoMo/wallet) + mes RDV (avis, annulation)
+// Kènè Cliente — RDV: réservation instituts (services, créneaux, acompte MoMo/wallet) + mes RDV (avis, annulation)
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -44,7 +44,7 @@ export function BookingScreen() {
   const [slots, setSlots] = useState<ApiSlot[] | null>(null);
   const [slot, setSlot] = useState<ApiSlot | null>(null);
   const [wallet, setWallet] = useState<ApiWallet | null>(null);
-  // Fin des échecs silencieux : solde inconnu → encart discret + Réessayer
+  // Fin des échecs silencieux: solde inconnu → encart discret + Réessayer
   // (le bouton Wallet reste désactivé tant que le solde est inconnu).
   const [walletError, setWalletError] = useState(false);
   const [payMethod, setPayMethod] = useState<PayMethod>("wave");
@@ -52,7 +52,7 @@ export function BookingScreen() {
   const [payOverlay, setPayOverlay] = useState<{ phase: "processing" | "done"; amount: number } | null>(null);
   const [confirmed, setConfirmed] = useState<ApiAppointment | null>(null);
 
-  // Sécurité renforcée (2FA-lite) : si activée ET acompte payant, la cliente
+  // Sécurité renforcée (2FA-lite): si activée ET acompte payant, la cliente
   // re-vérifie son code AVANT la confirmation du RDV (voir startBook + SecureVerify).
   const securityEnabled = useSecurity((s) => s.enabled);
   const [pendingBook, setPendingBook] = useState(false);
@@ -88,7 +88,7 @@ export function BookingScreen() {
     }
   }, [user.id]);
 
-  /* Solde wallet — échec explicite (walletError) plutôt que « … » éternel. */
+ /* Solde wallet — échec explicite (walletError) plutôt que « … » éternel. */
   const loadWallet = useCallback(() => {
     apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`)
       .then((r) => { setWallet(r.wallet); setWalletError(false); })
@@ -149,9 +149,9 @@ export function BookingScreen() {
     }
   }
 
-  /** Passerelle confirmation : vérification d'identité par code si la
-   *  sécurité renforcée est active et qu'un acompte est réglé — la
-   *  réservation (book) ne part qu'une fois le code confirmé. */
+ /** Passerelle confirmation: vérification d'identité par code si la
+ * sécurité renforcée est active et qu'un acompte est réglé — la
+ * réservation (book) ne part qu'une fois le code confirmé. */
   function startBook() {
     if (securityEnabled && deposit > 0) {
       haptic(HAPTIC.tap);
@@ -180,7 +180,7 @@ export function BookingScreen() {
         paymentMethod: payMethod,
       });
       if (payMethod === "wave" && r.payment) {
-        // Contrat confirmToken (63-b/63-c) : un acompte mobile money en attente
+        // Contrat confirmToken (63-b/63-c): un acompte mobile money en attente
         // porte son jeton — absent, on n'appelle JAMAIS confirm et on rollback
         // l'état UI comme un échec de réservation (aucun overlay, récap intact).
         const confirmToken = r.payment.confirmToken;
@@ -253,7 +253,7 @@ export function BookingScreen() {
       {tab === "book" && (
         <AnimatePresence mode="wait">
           {confirmed ? (
-            /* — Confirmation — */
+ /* — Confirmation — */
             <motion.div key="ok" exit={{ opacity: 0, x: -30 }}>
               <Reveal className="flex flex-col items-center pt-8 text-center">
                 <RevealItem>
@@ -291,7 +291,7 @@ export function BookingScreen() {
               </Reveal>
             </motion.div>
           ) : !inst ? (
-            /* — Liste instituts — */
+ /* — Liste instituts — */
             <motion.div key="list" exit={{ opacity: 0, x: -30 }}>
               <Reveal className="space-y-3">
                 <RevealItem>
@@ -335,7 +335,7 @@ export function BookingScreen() {
               </Reveal>
             </motion.div>
           ) : (
-            /* — Détail institut — */
+ /* — Détail institut — */
             <motion.div key="detail" exit={{ opacity: 0, x: -30 }}>
               <Reveal>
                 <RevealItem>
@@ -367,8 +367,8 @@ export function BookingScreen() {
                   {inst.description && <p className="text-xs text-muted-foreground leading-relaxed mt-3">{inst.description}</p>}
                 </RevealItem>
 
-                {/* t. 120 — WhatsApp direct cliente → institut : message
-                    pré-rempli, sans quitter l'app (lien wa.me officiel). */}
+                {/* — WhatsApp direct cliente → institut: message
+ pré-rempli, sans quitter l'app (lien wa.me officiel). */}
                 {inst.phone && (
                   <RevealItem>
                     <a
@@ -407,7 +407,7 @@ export function BookingScreen() {
                     </RevealItem>
                   )}
 
-                  {/* Services — cartes radio : k-card + état sélectionné or (ring + teinte) */}
+                  {/* Services — cartes radio: k-card + état sélectionné or (ring + teinte) */}
                   <RevealItem>
                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-5 mb-2">Soins & tarifs</p>
                   </RevealItem>
@@ -417,8 +417,8 @@ export function BookingScreen() {
                       <RevealItem key={s.id}>
                         <div className="k-card rounded-[24px] p-2">
                           <div className={`flex items-start gap-3 rounded-[18px] p-3 transition-all duration-300 ${sel ? "bg-primary/8 ring-2 ring-primary/60" : ""}`}>
-                            {/* t. 120 — visuel du soin si l'institut en a posé un,
-                                sinon le badge horloge habituel */}
+                            {/* — visuel du soin si l'institut en a posé un,
+ sinon le badge horloge habituel */}
                             {s.hasPhoto ? (
                               <span className="mt-0.5 size-10 shrink-0 overflow-hidden rounded-[12px] ring-1 ring-border">
                                 <img src={`/api/media/service/${s.id}`} alt={`Illustration du soin ${s.name}`} loading="lazy" className="size-full object-cover" />

@@ -1,6 +1,6 @@
 "use client";
-// Kènè — La Route de l'Or : parcours narratif qui tisse la routine de soin
-// (overlay plein cadre ≤430px — 7 étapes : le fil, 4 stations, l'institut, le tissage)
+// Kènè — La Route de l'Or: parcours narratif qui tisse la routine de soin
+// (overlay plein cadre ≤430px — 7 étapes: le fil, 4 stations, l'institut, le tissage)
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, CalendarPlus, Check, Moon, ShoppingBag, Sparkles, Sunrise, X } from "lucide-react";

@@ -1,12 +1,12 @@
 "use client";
-// Kènè — Le Cercle Kènè (t. 83-b, vague 3) : le cercle des témoignages.
+// Kènè — Le Cercle Kènè (, vague 3): le cercle des témoignages.
 // Les utilisatrices entendent les voix de celles qui ont marché avant elles.
 // Autour d'une braise dorée (halo radial CSS, zéro animation lourde), les
-// sœurs du cercle forment un rond : chaque médaillon est une voix, la carte
+// sœurs du cercle forment un rond: chaque médaillon est une voix, la carte
 // au premier plan porte sa parole. Version « auto-focus séquentiel » choisie
 // pour la lisibilité mobile (le cercle de parole avance de sœur en sœur —
 // pause au survol, au tap et à la navigation clavier).
-// Clair de Lune / prefers-reduced-motion : pile statique des mêmes contenus,
+// Clair de Lune / prefers-reduced-motion: pile statique des mêmes contenus,
 // zéro animation — la section n'est JAMAIS vide (repli embarqué réseau).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -69,13 +69,13 @@ const FALLBACK_TESTIMONIALS: TestimonialItem[] = [
 const MEDAL_COLORS = ["#C8951E", "#8B1A3B", "#3F7D3F", "#A0522D", "#E07A2B", "#241A10"];
 
 /** Couleur du médaillon d'une sœur — dérivée de seedOf (graine FNV-1a stable,
- *  même couleur pour toujours, cohérence avec le kente identitaire t. 82). */
+ * même couleur pour toujours, cohérence avec le kente identitaire). */
 function medalOf(author: string): { bg: string; fg: string } {
   const bg = MEDAL_COLORS[seedOf(author) % MEDAL_COLORS.length];
   return { bg, fg: readableTextColor(bg) };
 }
 
-/** Initiales lisibles : « Aminata K. » → « AK ». */
+/** Initiales lisibles: « Aminata K. » → « AK ». */
 function initialsOf(author: string): string {
   const parts = author.split(/[\s.]+/).filter(Boolean);
   return (parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "");
@@ -99,8 +99,8 @@ function StarsRow({ rating, size = 11 }: { rating: number; size?: number }) {
 }
 
 /** La braise du tison — halo radial CSS au centre du cercle (statique).
- *  Racine de taille nulle : les halos s'ancrent au centre du conteneur
- *  relatif (le rond des sœurs) — aucun calcul de layout. */
+ * Racine de taille nulle: les halos s'ancrent au centre du conteneur
+ * relatif (le rond des sœurs) — aucun calcul de layout. */
 function Ember() {
   return (
     <div aria-hidden="true" className="pointer-events-none h-0 w-0">
@@ -133,7 +133,7 @@ export function CercleKene() {
   const [touched, setTouched] = useState(false); // tout tap/choix manuel fige le cercle
   const stageRef = useRef<HTMLDivElement>(null);
 
-  /* Fetch non bloquant — la section vit SA vie, le fil d'accueil n'attend jamais. */
+ /* Fetch non bloquant — la section vit SA vie, le fil d'accueil n'attend jamais. */
   useEffect(() => {
     let alive = true;
     apiGet<{ testimonials: TestimonialItem[] }>("/api/testimonials")
@@ -144,7 +144,7 @@ export function CercleKene() {
         setItems(list.length > 0 ? list : FALLBACK_TESTIMONIALS);
       })
       .catch(() => {
-        if (alive) setItems(FALLBACK_TESTIMONIALS); // hors-ligne / 5xx : le cercle chuchote quand même
+        if (alive) setItems(FALLBACK_TESTIMONIALS); // hors-ligne / 5xx: le cercle chuchote quand même
       });
     return () => {
       alive = false;
@@ -155,7 +155,7 @@ export function CercleKene() {
   const extra = Math.max(0, (items?.length ?? 0) - 6);
   const focused = shown[Math.min(focus, Math.max(shown.length - 1, 0))];
 
-  /* Le cercle ne tourne que sous les yeux (budget + pertinence). */
+ /* Le cercle ne tourne que sous les yeux (budget + pertinence). */
   useEffect(() => {
     const el = stageRef.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
@@ -164,8 +164,8 @@ export function CercleKene() {
     return () => io.disconnect();
   }, [items]);
 
-  /* Rotation douce = auto-focus séquentiel : la parole passe de sœur en sœur.
-     PAUSE au survol, après un tap (choix manuel) et hors écran. */
+ /* Rotation douce = auto-focus séquentiel: la parole passe de sœur en sœur.
+ PAUSE au survol, après un tap (choix manuel) et hors écran. */
   useEffect(() => {
     if (!animated || touched || hovering || !inView || shown.length < 2) return;
     const id = window.setInterval(() => setFocus((f) => (f + 1) % shown.length), AUTO_ADVANCE_MS);
@@ -178,7 +178,7 @@ export function CercleKene() {
   };
   const step = (dir: 1 | -1) => focusAt(focus + dir);
 
-  /* ── Chargement : squelettes (le fil continue de défiler pendant ce temps) ── */
+ /* ── Chargement: squelettes (le fil continue de défiler pendant ce temps) ── */
   if (!items) {
     return (
       <section aria-label="Cercle Kènè — les voix de celles qui tissent avant toi" className="relative">
@@ -215,7 +215,7 @@ export function CercleKene() {
     </header>
   );
 
-  /* ── Clair de Lune / reduced-motion : pile statique, mêmes contenus, zéro animation ── */
+ /* ── Clair de Lune / reduced-motion: pile statique, mêmes contenus, zéro animation ── */
   if (!animated) {
     return (
       <section aria-label="Cercle Kènè — les voix de celles qui tissent avant toi" className="relative">
@@ -256,7 +256,7 @@ export function CercleKene() {
     );
   }
 
-  /* ── Cercle vivant : médaillons en rond + carte au premier plan ── */
+ /* ── Cercle vivant: médaillons en rond + carte au premier plan ── */
   return (
     <section
       ref={stageRef}
@@ -324,7 +324,7 @@ export function CercleKene() {
         })}
       </div>
 
-      {/* La carte au premier plan : la parole de la sœur attentive */}
+      {/* La carte au premier plan: la parole de la sœur attentive */}
       {focused && (
         <div
           role="group"

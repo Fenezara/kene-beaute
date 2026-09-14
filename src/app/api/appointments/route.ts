@@ -1,8 +1,8 @@
 // GET /api/appointments?userId= — RDV de la cliente | POST — nouveau RDV (côté cliente)
-// t. 63-c : les écritures de booking (appointment + payment) passent dans UNE
+//: les écritures de booking (appointment + payment) passent dans UNE
 // prisma.$transaction. L'acompte MoMo (wave/orange) crée un Payment pending
 // porteur d'un code de confirmation (token BRUT renvoyé au front — contrat 63-b,
-// hash sha256 stocké) ; le paiement wallet reste instantané (succès, sans code).
+// hash sha256 stocké); le paiement wallet reste instantané (succès, sans code).
 // Les notifications/rappels restent best-effort, APRÈS le commit.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
 
-    // Session signée (t. 71-b, migration douce) : avec cookie, la session ne
-    // lit que SES rendez-vous ; sans cookie → legacy (comportement conservé).
+    // Session signée (, migration douce): avec cookie, la session ne
+    // lit que SES rendez-vous; sans cookie → legacy (comportement conservé).
     const guard = guardUserClaim(req, "appointments:get", userId);
     if (guard) return guard;
 
@@ -67,9 +67,9 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, serviceId, resourceId, startAt, clientName, clientPhone, userId, paymentMethod } = parsed.data;
 
-    // Session signée (t. 71-b, migration douce) : avec cookie, le userId
-    // éventuel du corps doit être celui de la session (réservation pour soi) ;
-    // sans cookie → legacy (walk-in sans compte : userId facultatif, inchangé).
+    // Session signée (, migration douce): avec cookie, le userId
+    // éventuel du corps doit être celui de la session (réservation pour soi);
+    // sans cookie → legacy (walk-in sans compte: userId facultatif, inchangé).
     const guard = guardUserClaim(req, "appointments:post", userId);
     if (guard) return guard;
 
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     const service = await db.service.findFirst({ where: { id: serviceId, tenantId, active: true } });
     if (!service) return jsonError("Service introuvable", 404);
 
-    // Acompte : la règle des 30 % du prix du service est appliquée côté serveur
+    // Acompte: la règle des 30 % du prix du service est appliquée côté serveur
     // (la valeur cliente est plafonnée — un client malveillant ne peut pas réserver en payant moins)
     const depositAmount = Math.max(0, Math.min(parsed.data.depositAmount ?? 0, Math.round(service.price * DEPOSIT_RATE)));
 
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
       if (!user) return jsonError("Utilisatrice introuvable", 404);
     }
 
-    // Paiement wallet immédiat : garde AVANT toute écriture (userId + solde).
+    // Paiement wallet immédiat: garde AVANT toute écriture (userId + solde).
     if (depositAmount > 0 && paymentMethod === "wallet") {
       if (!userId) return jsonError("Wallet : userId requis", 400);
       const w = await ensureWallet(userId);
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
       return jsonError("Ce créneau est déjà réservé pour cette praticienne", 409);
     }
 
-    // ─── Booking atomique : RDV + paiement dans la même transaction ───
+    // ─── Booking atomique: RDV + paiement dans la même transaction ───
     const created: { appointment: Appointment; payment: Payment | null; confirmToken: string | null } =
       await db.$transaction(async (tx) => {
         let appointment = await tx.appointment.create({
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
           include: APPT_INCLUDE,
         });
 
-        // Synchronisation App↔Institut (t. 96) : une cliente de l'app qui
+        // Synchronisation App↔Institut: une cliente de l'app qui
         // réserve apparaît immédiatement dans le CRM de l'institut (fiche
         // liée userId + miroir peau) et le RDV porte clientProfileId —
         // comptes RDV/visites de la fiche 360° et relances alimentés d'office.
@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
         let confirmToken: string | null = null;
         if (depositAmount > 0) {
           if (paymentMethod === "wallet") {
-            // Paiement wallet immédiat : débit direct + confirmation du RDV
+            // Paiement wallet immédiat: débit direct + confirmation du RDV
             // (pas de code de confirmation — succès instantané).
             const w = await ensureWallet(userId!, tx);
             if (!w) throw new Error("Wallet indisponible");
@@ -184,8 +184,8 @@ export async function POST(req: NextRequest) {
               include: APPT_INCLUDE,
             });
           } else {
-            // MoMo (wave/orange) : Payment pending porteur du code de
-            // confirmation (contrat 63-b : token brut renvoyé, hash stocké).
+            // MoMo (wave/orange): Payment pending porteur du code de
+            // confirmation (contrat 63-b: token brut renvoyé, hash stocké).
             const { token, tokenHash } = newConfirmToken();
             confirmToken = token;
             payment = await tx.payment.create({
@@ -225,7 +225,7 @@ export async function POST(req: NextRequest) {
 
     // Rappel automatique J-1 (24 h avant) — créé dès que le RDV est confirmé
     // (paiement wallet immédiat). Le path MoMo le crée à la confirmation du
-    // paiement ; le filtre GET /api/notifications masque celui d'un RDV annulé.
+    // paiement; le filtre GET /api/notifications masque celui d'un RDV annulé.
     if (appointment.status === "confirmed" && userId && new Date(start).getTime() > Date.now() + 24 * 3_600_000) {
       const u = await db.user.findUnique({ where: { id: userId }, select: { name: true } });
       const first = (u?.name.split(/\s+/)[0] ?? clientName).trim();

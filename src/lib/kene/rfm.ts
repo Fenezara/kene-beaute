@@ -36,7 +36,7 @@ export function cancellationRefund(hoursBefore: number): { rate: number; label: 
   return { rate: 0, label: "Aucun remboursement (< 2 h — no-show)" };
 }
 
-/** Créneaux disponibles : génère des slots de `stepMin` entre ouvertures, en excluant RDV existants */
+/** Créneaux disponibles: génère des slots de `stepMin` entre ouvertures, en excluant RDV existants */
 export function generateDaySlots(
   date: Date,
   openingHour: number,

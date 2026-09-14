@@ -1,8 +1,8 @@
-// POST /api/auth/logout — ferme la session signée : cookie `kene_session`
+// POST /api/auth/logout — ferme la session signée: cookie `kene_session`
 // effacé (Max-Age=0, httpOnly). Répond toujours { ok: true } en 200 — le
 // nettoyage localStorage (panier, store) reste du côté client.
-// (Câblage dans SettingsScreen / SettingsSection : posé par le main agent.)
-// t. 86-d : événement `logout` au journal d'audit (userId si session lisible,
+// (Câblage dans SettingsScreen / SettingsSection: posé par le main agent.)
+//: événement `logout` au journal d'audit (userId si session lisible,
 // IP) — fire-and-forget, le journal ne peut pas faire échouer la déconnexion.
 import { NextRequest, NextResponse } from "next/server";
 import { clearSessionCookie, sessionFromRequest } from "@/lib/kene/session";

@@ -1,11 +1,11 @@
-// GET/POST /api/health/echo — balise de diagnostic réseau (t. 91).
-// Objectif : déterminer EMPIRIQUEMENT quelles méthodes HTTP traversent la
+// GET/POST /api/health/echo — balise de diagnostic réseau.
+// Objectif: déterminer EMPIRIQUEMENT quelles méthodes HTTP traversent la
 // chaîne de préview de l'utilisatrice réelle (iframe de préview → gateway
-// plateforme → Caddy :81 → Next :3000). Symptômes : ses GET arrivent
+// plateforme → Caddy:81 → Next:3000). Symptômes: ses GET arrivent
 // (polls notifications visibles en dev.log), ses POST n'arrivent JAMAIS
 // (zéro POST /api/dermato/chat, zéro otp/request de sa part sur toute la
 // génération de log) → login ET chat cassés pour elle seule.
-// La balise logge la méthode + marqueur : si les marqueurs GET arrivent et
+// La balise logge la méthode + marqueur: si les marqueurs GET arrivent et
 // pas les POST, la chaîne externe bloque les POST → correctif requis côté
 // transport. Route à retirer après diagnostic (temporaire).
 import { NextRequest, NextResponse } from "next/server";

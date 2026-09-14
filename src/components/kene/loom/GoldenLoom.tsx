@@ -1,10 +1,10 @@
 "use client";
-// Kènè — La Navette d'Or (t. 82, vague 1) : le tissage 3D signature du Seuil.
+// Kènè — La Navette d'Or (, vague 1): le tissage 3D signature du Seuil.
 // Au défilement, la chaîne se tend, la navette croise la trame, le pagne
 // apparaît… puis se lève comme un rideau de théâtre et révèle le médaillon
 // de particules dorées. Tout est procédural (zéro asset), budget < 15k
 // triangles, DPR plafonné 1,5, frameloop piloté par le wrapper (jamais de
-// rendu hors écran). Rig éprouvé de Intro3D : progression dans une ref
+// rendu hors écran). Rig éprouvé de Intro3D: progression dans une ref
 // mutable, zéro re-render React pendant le scroll.
 import { useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
@@ -22,7 +22,7 @@ const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 const PALETTE = ["#C8951E", "#C8951E", "#A0522D", "#8B1A3B", "#E07A2B", "#C8951E", "#A0522D"];
 
 /* ───────────────────────── Chaîne (fils verticaux tendus) ─────────────────────────
-   7 fils légèrement ondulés, révélés par drawRange au tout début du scroll. */
+ 7 fils légèrement ondulés, révélés par drawRange au tout début du scroll. */
 
 function Warp({ progressRef, riseRef }: { progressRef: ProgressRef; riseRef: React.RefObject<THREE.Group | null> }) {
   const group = useRef<THREE.Group>(null);
@@ -44,7 +44,7 @@ function Warp({ progressRef, riseRef }: { progressRef: ProgressRef; riseRef: Rea
 
   useFrame((state) => {
     const p = progressRef.current ?? 0;
-    // (t. 94) fenêtre décalée sous 0 : la chaîne est déjà entamée (~27 %)
+    // fenêtre décalée sous 0: la chaîne est déjà entamée (~27 %)
     // quand la bande collante arrive à l'écran — plus de premier plan vide.
     const reveal = seg(p, -0.08, 0.22);
     meshes.current.forEach((m, i) => {
@@ -76,8 +76,8 @@ function Warp({ progressRef, riseRef }: { progressRef: ProgressRef; riseRef: Rea
 }
 
 /* ───────────────────────── Trame (la navette qui croise) ─────────────────────────
-   3 fils horizontaux qui se tissent en alternance au-dessus / en-dessous de
-   la chaîne (illusion du croisement), avec la navette lumineuse au bout. */
+ 3 fils horizontaux qui se tissent en alternance au-dessus / en-dessous de
+ la chaîne (illusion du croisement), avec la navette lumineuse au bout. */
 
 function Weft({ progressRef }: { progressRef: ProgressRef }) {
   const meshes = useRef<(THREE.Mesh | null)[]>([]);
@@ -117,7 +117,7 @@ function Weft({ progressRef }: { progressRef: ProgressRef }) {
         activeT = d;
       }
     });
-    // la navette : petite comète au bout du fil en cours de tissage
+    // la navette: petite comète au bout du fil en cours de tissage
     const active = activeCurve !== null;
     if (shuttle.current) {
       shuttle.current.visible = active;
@@ -267,8 +267,8 @@ function CurtainRig({
 }
 
 /* ───────────────────────── Le médaillon (particules dorées) ─────────────────────────
-   ~560 particules convergent d'un nuage dispersé vers un anneau + disque :
-   le sceau de Kènè se matérise derrière le rideau levé. */
+ ~560 particules convergent d'un nuage dispersé vers un anneau + disque:
+ le sceau de Kènè se matérise derrière le rideau levé. */
 
 const MED_COLORS: [number, number, number][] = [
   [0.784, 0.584, 0.118],
@@ -288,14 +288,14 @@ function Medallion({ progressRef }: { progressRef: ProgressRef }) {
     const cur = new Float32Array(N * 3);
     const col = new Float32Array(N * 3);
     for (let i = 0; i < N; i++) {
-      // nuage de départ : coquille sphérique large
+      // nuage de départ: coquille sphérique large
       const r = 2.1 + Math.random() * 1.5;
       const th = Math.random() * Math.PI * 2;
       const ph = Math.acos(2 * Math.random() - 1);
       orig[i * 3] = r * Math.sin(ph) * Math.cos(th);
       orig[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th) * 0.6;
       orig[i * 3 + 2] = r * Math.cos(ph) * 0.5;
-      // cible : médaillon — anneau (70 %) + disque intérieur (30 %)
+      // cible: médaillon — anneau (70 %) + disque intérieur (30 %)
       const ring = i < N * 0.7;
       const a = Math.random() * Math.PI * 2;
       const rr = ring ? 0.62 + (Math.random() - 0.5) * 0.05 : Math.sqrt(Math.random()) * 0.4;
@@ -353,12 +353,12 @@ function Medallion({ progressRef }: { progressRef: ProgressRef }) {
 }
 
 /* ───────────────────────── Caméra — respiration + cadrage adaptatif ─────────────────────────
-   (t. 94) Le rig est calibré pour un cadre portrait (mobile). Sur écran large,
-   une caméra fixe à z=3.1 laissait le tissage au centre (≈46% de la largeur)
-   avec de grands vides latéraux. La distance s'adapte maintenant à l'aspect :
-   on vise une LARGEUR VISIBLE ≈ 3,2 unités (pagne 2,5 + marge, médaillon entier
-   en hauteur), bornée pour ne jamais coller (ultra-wide) ni s'éloigner (mobile
-   = comportement historique 3,1). Lissage lerp : aucune coupure au resize. */
+ Le rig est calibré pour un cadre portrait (mobile). Sur écran large,
+ une caméra fixe à z=3.1 laissait le tissage au centre (≈46% de la largeur)
+ avec de grands vides latéraux. La distance s'adapte maintenant à l'aspect:
+ on vise une LARGEUR VISIBLE ≈ 3,2 unités (pagne 2,5 + marge, médaillon entier
+ en hauteur), bornée pour ne jamais coller (ultra-wide) ni s'éloigner (mobile
+ = comportement historique 3,1). Lissage lerp: aucune coupure au resize. */
 
 const LOOM_TARGET_WIDTH = 3.2;
 const LOOM_DIST_MIN = 1.7;

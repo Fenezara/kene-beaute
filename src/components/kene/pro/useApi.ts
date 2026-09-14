@@ -10,7 +10,7 @@ export interface UseApiResult<T> {
   setData: React.Dispatch<React.SetStateAction<T | null>>;
 }
 
-/** Fetch declaratif simple : useApi(() => apiGet<T>(url), [dep]) */
+/** Fetch declaratif simple: useApi( => apiGet<T>(url), [dep]) */
 export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = []): UseApiResult<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);

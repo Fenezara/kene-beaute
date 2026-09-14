@@ -1,5 +1,5 @@
-// Kènè — Générateur PDF à ZÉRO DÉPENDANCE : liasse comptable SYSCOHADA (dossier complet).
-// Moteur minimal mais rigoureux : pages A4, polices standard PDF (Helvetica,
+// Kènè — Générateur PDF à ZÉRO DÉPENDANCE: liasse comptable SYSCOHADA (dossier complet).
+// Moteur minimal mais rigoureux: pages A4, polices standard PDF (Helvetica,
 // Helvetica-Bold, Helvetica-Oblique — aucun fichier de police à embarquer),
 // encodage WinAnsi (accents français OK), texte aligné à droite par métriques
 // AFM, rects/lignes, pagination automatique, en-têtes & pieds de page en 2e passe.
@@ -34,9 +34,9 @@ export { PAGE_W, PAGE_H, M_X, M_RIGHT, CONTENT_W, CONTENT_TOP };
 export type Font = "regular" | "bold" | "oblique";
 
 // ─────────────── Encodage WinAnsi (cp1252) ───────────────
-// PDF : les polices Type1 standard déclarent /WinAnsiEncoding → un octet par
-// caractère ; l'Unicode hors cp1252 est remplacé par « ? » (contrôlé : nos
-// textes sont français ; les données saisies passent par le même filtre).
+// PDF: les polices Type1 standard déclarent /WinAnsiEncoding → un octet par
+// caractère; l'Unicode hors cp1252 est remplacé par «? » (contrôlé: nos
+// textes sont français; les données saisies passent par le même filtre).
 const CP1252_EXTRA: Record<number, number> = {
   0x20ac: 0x80, 0x201a: 0x82, 0x0192: 0x83, 0x201e: 0x84, 0x2026: 0x85,
   0x2020: 0x86, 0x2021: 0x87, 0x02c6: 0x88, 0x2030: 0x89, 0x0160: 0x8a,
@@ -46,7 +46,7 @@ const CP1252_EXTRA: Record<number, number> = {
   0x017e: 0x9e, 0x0178: 0x9f,
 };
 
-/** Chaîne JS → octets cp1252 + échappement \ ( ) pour l'opérateur Tj */
+/** Chaîne JS → octets cp1252 + échappement \  pour l'opérateur Tj */
 function encodePdfText(s: string): string {
   let out = "";
   for (const ch of s) {
@@ -59,31 +59,31 @@ function encodePdfText(s: string): string {
 }
 
 // ─────────────── Métriques Helvetica (AFM, largeurs 1/1000) ───────────────
-// ASCII exact (Adobe AFM public) ; accents ≈ largeur de la lettre de base
-// (règle AFM : accent sans chasse). Les montants étant ASCII pur, l'alignement
+// ASCII exact (Adobe AFM public); accents ≈ largeur de la lettre de base
+// (règle AFM: accent sans chasse). Les montants étant ASCII pur, l'alignement
 // à droite des colonnes numériques est exact au point près.
 const W_REG = buildWidths(false);
 const W_BOLD = buildWidths(true);
 
 function asciiWidths(bold: boolean): number[] {
   const w = new Array<number>(0x60).fill(556);
-  //             sp    !     "     #     $     %     &     '     (     )
+  // sp! " # $ % & ' 
   const reg = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333,
-    //   *     +     ,     -     .     /     0 … 9
+    // * +, -. / 0 … 9
     389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556,
-    //   :     ;     <     =     >     ?     @     A     B     C     D
+    //:; < = >? @ A B C D
     278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722,
-    //   E     F     G     H     I     J     K     L     M     N
+    // E F G H I J K L M N
     667, 611, 778, 722, 278, 500, 667, 556, 833, 722,
-    //   O     P     Q     R     S     T     U     V     W
+    // O P Q R S T U V W
     778, 667, 778, 722, 667, 611, 722, 667, 944,
-    //   X     Y     Z     [     \     ]     ^     _     `     a
+    // X Y Z [ \ ] ^ _ ` a
     667, 667, 611, 278, 278, 278, 469, 556, 333, 556,
-    //   b     c     d     e     f     g     h     i     j     k
+    // b c d e f g h i j k
     556, 500, 556, 556, 278, 556, 556, 222, 222, 500,
-    //   l     m     n     o     p     q     r     s     t     u
+    // l m n o p q r s t u
     222, 833, 556, 556, 556, 556, 333, 500, 278, 556,
-    //   v     w     x     y     z     {     |     }     ~
+    // v w x y z { | } ~
     500, 722, 500, 500, 500, 334, 260, 334, 584];
   const bld = [278, 333, 474, 556, 556, 889, 722, 238, 333, 333,
     389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556,
@@ -103,7 +103,7 @@ function buildWidths(bold: boolean): number[] {
   const ascii = asciiWidths(bold);
   const w = new Array<number>(0x100).fill(556);
   for (let b = 0x20; b < 0x80; b++) w[b] = ascii[b - 0x20];
-  // Latin-1 + cp1252 : largeur de la lettre de base (NFD)
+  // Latin-1 + cp1252: largeur de la lettre de base (NFD)
   for (let b = 0xa0; b < 0x100; b++) {
     const ch = String.fromCharCode(b).normalize("NFD")[0] ?? "?";
     const c = ch.charCodeAt(0);
@@ -213,7 +213,7 @@ export class PdfDoc {
   private cur: string[] = [];
   private y = CONTENT_TOP;
   private footerLeft = "";
-  // En-tête courant des pages 2+ (t. 119 : le moteur sert aussi la fiche de
+  // En-tête courant des pages 2+ (: le moteur sert aussi la fiche de
   // consultation et les comptes-rendus — pas seulement la liasse comptable).
   constructor(private headerText = "Kènè Pro — Liasse comptable SYSCOHADA") {}
 
@@ -229,7 +229,7 @@ export class PdfDoc {
     this.cur = [];
     this.y = CONTENT_TOP;
   }
-  /** Réserve dy de hauteur : saute de page si nécessaire */
+  /** Réserve dy de hauteur: saute de page si nécessaire */
   ensure(dy: number): void {
     if (this.y + dy > PAGE_H - RESERVE_BOTTOM) this.newPage();
   }
@@ -249,7 +249,7 @@ export class PdfDoc {
     const str = o.maxW ? clip(s, o.maxW, size, font) : s;
     const enc = encodePdfText(str);
     const f = font === "bold" ? "/F2" : font === "oblique" ? "/F3" : "/F1";
-    // Tc TOUJOURS explicite : l'état texte (Tc) survit aux blocs BT/ET —
+    // Tc TOUJOURS explicite: l'état texte (Tc) survit aux blocs BT/ET —
     // sans remise à zéro, l'interlettrage d'un titre bave sur les textes suivants.
     const ls = fmtPt(o.letterSpace ?? 0);
     this.op(
@@ -349,7 +349,7 @@ function fmtAmount(n: number): string {
 }
 const fmtFcfa = (n: number): string => `${fmtAmount(n)} FCFA`;
 
-// ─────────────── Document : la liasse complète ───────────────
+// ─────────────── Document: la liasse complète ───────────────
 export interface LiassePdfInput {
   tenantName: string;
   tenantCity?: string | null;
@@ -367,7 +367,7 @@ export interface LiassePdfResult {
   pages: number;
 }
 
-/** Nom de fichier : kene-liasse-{AAAAMMJJ-AAAAMMJJ|tout}.pdf */
+/** Nom de fichier: kene-liasse-{AAAAMMJJ-AAAAMMJJ|tout}.pdf */
 export function liassePdfFilename(from?: Date, to?: Date): string {
   const stamp = (d?: Date): string => {
     if (!d || Number.isNaN(new Date(d).getTime())) return "";
@@ -497,7 +497,7 @@ export function liassePdf(input: LiassePdfInput): LiassePdfResult {
   function tableHeader(cols: { title: string; col: Col }[]): void {
     doc.ensure(18);
     for (const { title, col } of cols) {
-      // pas d'interlettrage sur les colonnes alignées à droite : la mesure de
+      // pas d'interlettrage sur les colonnes alignées à droite: la mesure de
       // largeur (AFM) ne compte pas le Tc — l'alignement resterait approximatif.
       if (col.align === "right") doc.textRight(title, col.x + col.w, doc.cursorY + 2, { font: "bold", size: 7, color: SOFT });
       else doc.text(title, col.x, doc.cursorY + 2, { font: "bold", size: 7, color: SOFT, letterSpace: 0.4 });

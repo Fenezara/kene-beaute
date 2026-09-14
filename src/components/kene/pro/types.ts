@@ -26,7 +26,7 @@ export interface ProLiveEvent {
   id: string;
   at: string;
   label: string;
-  status?: string; // RDV : pending = réservé côté cliente (à confirmer)
+  status?: string; // RDV: pending = réservé côté cliente (à confirmer)
 }
 
 export interface ProLive {
@@ -187,7 +187,7 @@ export interface ProService {
   commissionPct: number;
   description?: string | null;
   botanicals?: string | null;
-  hasPhoto?: boolean; // t. 120 — visuel du soin (/api/media/service/:id)
+  hasPhoto?: boolean; // — visuel du soin (/api/media/service/:id)
   active: boolean;
 }
 
@@ -203,7 +203,7 @@ export interface ProProduct {
   stock: number;
   stockAlert: number;
   image: string;
-  hasPhoto?: boolean; // t. 120 — photo réelle (/api/media/product/:id, prime sur image)
+  hasPhoto?: boolean; // — photo réelle (/api/media/product/:id, prime sur image)
   active: boolean;
 }
 
@@ -258,8 +258,11 @@ export interface ProEmployee {
   housing?: number;
   cadres?: boolean;
   cnpsNumber?: string | null;
+  bankAccount?: string | null;
   active: boolean;
   hireDate: string;
+  endDate?: string | null;
+  accountPhone?: string | null;
 }
 
 export interface AttendanceRow {
@@ -402,8 +405,8 @@ export interface AdminStats {
   topTenants: { name: string; city: string; country?: string; ca30: number }[];
 }
 
-// ─────────────── Admin — visionneuse Sécurité (t. 86-d) ───────────────
-// GET /api/admin/security : journal d'audit (80 plus récents, ts desc) +
+// ─────────────── Admin — visionneuse Sécurité ───────────────
+// GET /api/admin/security: journal d'audit (80 plus récents, ts desc) +
 // compteurs. `phone` est déjà masqué côté serveur (ex. « +225 07•••••04 »).
 export interface AdminSecurityEvent {
   id: string;

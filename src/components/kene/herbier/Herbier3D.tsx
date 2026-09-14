@@ -1,12 +1,12 @@
 "use client";
-// Kènè — Herbier des Grandes-Mères, scène 3D (t. 83-d) : un jardin botanique
+// Kènè — Herbier des Grandes-Mères, scène 3D: un jardin botanique
 // africain entièrement procédural (zéro asset externe — offline-friendly).
-// 8 plantes DISTINCTES en arc de cercle doux sur un sol ocre ; la caméra
+// 8 plantes DISTINCTES en arc de cercle doux sur un sol ocre; la caméra
 // avance le long de l'arc au fil du scroll interne de la vue (pilotage par
 // progressRef, rig Descent3D). Tap sur une plante (sphère de hit élargie,
 // gardée anti-drag par ev.delta) → la carte HTML change. Halo doré rétro
 // derrière la plante regardée, lampe chaude qui suit la promeneuse, pollen
-// doré en suspension. Budget : ~3 500 triangles, DPR ≤ 1,5, frameloop coupé
+// doré en suspension. Budget: ~3 500 triangles, DPR ≤ 1,5, frameloop coupé
 // hors écran (pattern LoomSection). Toutes les animations vivent dans UNE
 // seule boucle useFrame (Garden) + le rig caméra.
 import { useMemo, useRef } from "react";
@@ -394,7 +394,7 @@ function Plantain({ color }: { color: string }) {
 
 const PLANT_SHAPES = [Karite, Aloe, Moringa, Baobab, Bissap, Nere, Neem, Plantain];
 
-/* ───────────────────────── Jardin : arc + boucle unique ───────────────────────── */
+/* ───────────────────────── Jardin: arc + boucle unique ───────────────────────── */
 function Garden({ activeRef, angleRef, onSelect }: { activeRef: ActiveRef; angleRef: React.RefObject<number>; onSelect: (i: number) => void }) {
   const groups = useRef<(THREE.Group | null)[]>([]);
   const halo = useRef<THREE.Mesh>(null);
@@ -417,7 +417,7 @@ function Garden({ activeRef, angleRef, onSelect }: { activeRef: ActiveRef; angle
     return g;
   }, []);
 
-  // UNE boucle : bruissement, plante active agrandie, halo rétro, pollen, lampe.
+  // UNE boucle: bruissement, plante active agrandie, halo rétro, pollen, lampe.
   useFrame((state, delta) => {
     const t = state.clock.elapsedTime;
     const active = activeRef.current ?? 0;
@@ -503,7 +503,7 @@ function Garden({ activeRef, angleRef, onSelect }: { activeRef: ActiveRef; angle
   );
 }
 
-/* ───────────────────────── Rig caméra : l'arc au scroll ───────────────────────── */
+/* ───────────────────────── Rig caméra: l'arc au scroll ───────────────────────── */
 function GardenRig({ progressRef, angleRef, pointerRef }: { progressRef: ProgressRef; angleRef: React.RefObject<number>; pointerRef: PointerRef | null }) {
   const smoothed = useRef(0);
   const _target = useRef(new THREE.Vector3());

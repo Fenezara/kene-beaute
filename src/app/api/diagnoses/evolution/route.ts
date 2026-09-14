@@ -1,4 +1,4 @@
-// GET /api/diagnoses/evolution?userId= — Le Fil du Temps :
+// GET /api/diagnoses/evolution?userId= — Le Fil du Temps:
 // séries temporelles par indicateur (fusion floue normKey) + score global.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";

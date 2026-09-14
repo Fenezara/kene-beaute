@@ -1,16 +1,16 @@
 // POST /api/subscriptions/activate — active un plan payant Kènè
 // (cliente « Kènè+ », pro « Essentiel » / « Complexe ») après paiement
 // mobile money SIMULÉ (Wave / Orange Money / MTN MoMo).
-// GET  /api/subscriptions/activate?_g=… — pont t. 93 (même payload JSON en
-// query) : l'activation d'un plan fait partie du parcours d'inscription
+// GET /api/subscriptions/activate?_g=… — pont (même payload JSON en
+// query): l'activation d'un plan fait partie du parcours d'inscription
 // (PlanScreen) — elle doit passer même chez les préviews qui bloquent les POST.
-// PAIEMENT SIMULÉ (POC) : source = "momo_sim", aucun débit réel — le front
-// affiche « Démo — paiement simulé (POC) » à chaque étape (honnêteté absolue :
+// PAIEMENT SIMULÉ (POC): source = "momo_sim", aucun débit réel — le front
+// affiche « paiement en mode essai » à chaque étape (honnêteté absolue:
 // l'argent est simulé, comme le reste du POC).
-// Garde d'audience : un compte CLIENT ne peut pas activer pro_essentiel /
+// Garde d'audience: un compte CLIENT ne peut pas activer pro_essentiel /
 // pro_complexe, un compte PRO ne peut pas activer kene_plus (isolation des
-// espaces t. 69-a — chaque rôle paye pour son propre espace).
-// Idempotent : même plan déjà actif non expirée → 200 avec l'existante.
+// espaces — chaque rôle paye pour son propre espace).
+// Idempotent: même plan déjà actif non expirée → 200 avec l'existante.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -25,7 +25,7 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  // Pattern rate-limit d'une route existante (wallet/topup, t. 63-c) : le
+  // Pattern rate-limit d'une route existante (wallet/topup,): le
   // flux argent simulé reste borné 8/min par IP.
   const rl = rateLimit(rlKey(req, "subscriptions:activate"), WALLET_TOPUP);
   if (!rl.ok) {
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Pont GET (t. 93) — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous.
+// Pont GET — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous.
 export async function GET(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "subscriptions:activate"), WALLET_TOPUP);
   if (!rl.ok) {
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
 /** Traduction d'erreur partagée POST/GET. */
 function activateError(err: unknown): NextResponse {
   if (err instanceof Error && (err.message === "Plan inconnu" || err.message === "Utilisatrice introuvable")) {
-    // Double garde (lib + route) : plan/user re-validés au cas où.
+    // Double garde (lib + route): plan/user re-validés au cas où.
     return jsonError(err.message, err.message === "Plan inconnu" ? 400 : 404);
   }
   return serverError("subscriptions/activate", err);
@@ -75,7 +75,7 @@ async function runActivate(data: z.infer<typeof Body>): Promise<NextResponse> {
   const def = planDefById(plan);
   if (!def) return jsonError("Plan inconnu", 400);
 
-  // Cohérence d'audience avec le rôle : offres pro réservées aux comptes
+  // Cohérence d'audience avec le rôle: offres pro réservées aux comptes
   // entreprise, Kènè+ réservé aux comptes clientes (et console).
   if (def.audience === "pro" && user.role !== "pro") {
     return jsonError("Ce plan est réservé aux comptes entreprise (espace Pro)", 400);
@@ -84,7 +84,7 @@ async function runActivate(data: z.infer<typeof Body>): Promise<NextResponse> {
     return jsonError("Ce plan est réservé aux comptes clientes Kènè", 400);
   }
 
-  // activatePlan : idempotent (même plan actif → existante), création
+  // activatePlan: idempotent (même plan actif → existante), création
   // transactionnelle + notification WhatsApp simulée à la création seule.
   const { subscription } = await activatePlan(userId, plan);
   const quota = await diagQuotaFor(userId);

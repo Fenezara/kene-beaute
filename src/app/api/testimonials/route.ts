@@ -1,9 +1,9 @@
-// GET /api/testimonials — le Cercle Kènè (t. 83-b, vague 3).
-// Le cercle des témoignages : les voix de celles qui tissent avant. Contenu
-// PUBLIC de démonstration (POC) — aucune auth, aucune donnée personnelle
+// GET /api/testimonials — le Cercle Kènè (, vague 3).
+// Le cercle des témoignages: les voix de celles qui tissent avant. Contenu
+// PUBLIC — aucune auth, aucune donnée personnelle
 // réelle (prénom + initiale, villes ivoiriennes variées, parcours cohérents
-// avec l'app : PIH, mélasma, DPN, alopécie de traction, teigne, barrière,
-// acné dorsale). Seed paresseux : si la table est vide, les 8 voix sont
+// avec l'app: PIH, mélasma, DPN, alopécie de traction, teigne, barrière,
+// acné dorsale). Seed paresseux: si la table est vide, les 8 voix sont
 // insérées au premier appel puis servies telles quelles (jamais re-seedées).
 // Cache public 5 min — ce contenu ne change qu'à la main (BO plus tard).
 import { NextResponse } from "next/server";
@@ -98,8 +98,8 @@ const SEED_TESTIMONIALS: {
 
 export async function GET() {
   try {
-    // Seed paresseux : au tout premier appel (table vide), on installe le
-    // cercle. La condition count() === 0 garantit qu'on ne re-seed JAMAIS
+    // Seed paresseux: au tout premier appel (table vide), on installe le
+    // cercle. La condition count === 0 garantit qu'on ne re-seed JAMAIS
     // par la suite (les appels suivants ne font que lire).
     const count = await db.testimonial.count();
     if (count === 0) {

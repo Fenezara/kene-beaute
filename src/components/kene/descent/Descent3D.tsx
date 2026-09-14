@@ -1,6 +1,6 @@
 "use client";
-// Kènè — Descente de Peau, scène 3D (t. 82, vague 2). Trois couches
-// traversées verticalement par la caméra ; les indicateurs RÉELS du
+// Kènè — Descente de Peau, scène 3D (, vague 2). Trois couches
+// traversées verticalement par la caméra; les indicateurs RÉELS du
 // diagnostic deviennent des orbes lumineuses (couleur scoreColor, pulsation)
 // suspendues le long du voyage. ~10k triangles, tout procédural, frameloop
 // piloté par le wrapper.
@@ -38,7 +38,7 @@ function Epidermis({ progressRef }: { progressRef: ProgressRef }) {
 
   useFrame(() => {
     const p = progressRef.current ?? 0;
-    // L'épiderme est la PREMIÈRE couche : visible dès p=0 (on part DESSUS),
+    // L'épiderme est la PREMIÈRE couche: visible dès p=0 (on part DESSUS),
     // puis s'efface quand la caméra descend dans le derme.
     const vis = 1 - seg(p, 0.42, 0.62);
     if (group.current) group.current.visible = vis > 0.01;
@@ -130,7 +130,7 @@ function Hypodermis({ progressRef }: { progressRef: ProgressRef }) {
     return { geometry, matrices, count };
   }, []);
 
-  // InstancedMesh : les matrices se posent UNE fois au montage (setMatrixAt,
+  // InstancedMesh: les matrices se posent UNE fois au montage (setMatrixAt,
   // puis instanceMatrix.needsUpdate) — jamais via attach par enfant.
   useLayoutEffect(() => {
     const inst = mesh.current;
@@ -165,7 +165,7 @@ function ScoreOrbs({ progressRef, indicators }: { progressRef: ProgressRef; indi
   const orbs = useRef<(THREE.Mesh | null)[]>([]);
   const lights = useRef<(THREE.PointLight | null)[]>([]);
 
-  // positionner les orbes le long de la descente : les 3 premières vers
+  // positionner les orbes le long de la descente: les 3 premières vers
   // l'épiderme, les suivantes descendent vers derme/hypoderme.
   const items = useMemo(() => {
     const sorted = [...indicators].sort((a, b) => b.pourcentage - a.pourcentage).slice(0, 6);
@@ -184,7 +184,7 @@ function ScoreOrbs({ progressRef, indicators }: { progressRef: ProgressRef; indi
     items.forEach((it, i) => {
       const mesh = orbs.current[i];
       const light = lights.current[i];
-      // l'orbe s'illumine quand la descente APPROCHE sa profondeur : chaque
+      // l'orbe s'illumine quand la descente APPROCHE sa profondeur: chaque
       // indicateur a son instant de lecture le long du voyage.
       const moment = 0.16 + i * 0.13;
       const lit = clamp01(1 - Math.abs(p - moment) * 3.1) + 0.22;

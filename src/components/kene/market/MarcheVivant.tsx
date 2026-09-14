@@ -1,12 +1,12 @@
 "use client";
-// Kènè — Le Marché vivant (t. 83-c, vague 3) : le bandeau-marché qui coiffe
-// la boutique. Version pleine : 4 échoppes 3D procédurales (scène séparée,
+// Kènè — Le Marché vivant (, vague 3): le bandeau-marché qui coiffe
+// la boutique. Version pleine: 4 échoppes 3D procédurales (scène séparée,
 // chargée dynamiquement) — tap sur une échoppe → elle se soulève, le bandeau
 // HTML nomme la famille de produits et la sélection glisse vers la grille
 // (filtre réel du ShopScreen). Drag horizontal léger = pivot ±10°.
-// Clair de Lune / reduced-motion (useLoomMode) : bande illustrée SVG
+// Clair de Lune / reduced-motion (useLoomMode): bande illustrée SVG
 // (auvents stylisés + guirlande) avec les MÊMES 4 destinations cliquables —
-// jamais de canvas, jamais de blocage : le catalogue reste 100 % accessible.
+// jamais de canvas, jamais de blocage: le catalogue reste 100 % accessible.
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
@@ -19,8 +19,8 @@ import type { MarketRefs, MarketStallDef } from "./MarketScene";
 const MarketScene = dynamic(() => import("./MarketScene"), { ssr: false, loading: () => null });
 
 /* ───────────────────────── Les 4 échoppes = 4 filtres RÉELS du ShopScreen ─────────────────────────
-   (Sérums / Crèmes / Huiles / Savons — gommages et masques restent dans les
-   chips existantes). Les noms disent la famille, le tap pose le filtre exact. */
+ (Sérums / Crèmes / Huiles / Savons — gommages et masques restent dans les
+ chips existantes). Les noms disent la famille, le tap pose le filtre exact. */
 
 export const MARKET_STALLS: MarketStallDef[] = [
   { category: "serum", name: "Sérums rituels", color: "#8B1A3B" },
@@ -112,7 +112,7 @@ export function MarcheVivant({ onSelectCategory }: { onSelectCategory: (category
   const stageRef = useRef<HTMLDivElement>(null);
   const dragInfo = useRef({ startX: 0, base: 0, dragging: false, moved: false });
 
-  /* Rendu coupé hors écran (pattern LoomSection / KenteWeaveCard). */
+ /* Rendu coupé hors écran (pattern LoomSection / KenteWeaveCard). */
   useEffect(() => {
     const el = stageRef.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
@@ -131,8 +131,8 @@ export function MarcheVivant({ onSelectCategory }: { onSelectCategory: (category
     }
   };
 
-  /* Drag horizontal léger : ±10° — désactivé hors mode plein. Le scroll
-     vertical reste au page (touch-action: pan-y). */
+ /* Drag horizontal léger: ±10° — désactivé hors mode plein. Le scroll
+ vertical reste au page (touch-action: pan-y). */
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!full) return;
     dragInfo.current = { startX: e.clientX, base: refs.current.drag.target, dragging: true, moved: false };
@@ -186,7 +186,7 @@ export function MarcheVivant({ onSelectCategory }: { onSelectCategory: (category
           </div>
         )}
 
-        {/* Bandeau du bas : la famille de produits sélectionnée (ou l'invite) */}
+        {/* Bandeau du bas: la famille de produits sélectionnée (ou l'invite) */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 p-2">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div

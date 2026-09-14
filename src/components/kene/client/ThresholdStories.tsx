@@ -1,8 +1,8 @@
 "use client";
-// Kènè — Le Seuil : stories « Découvrir en 30 s ».
+// Kènè — Le Seuil: stories « Découvrir en 30 s ».
 //
 // Remplace l'ancienne intro NARRATIVE FORCÉE (Fil de Kente, scroll long) par
-// un pattern que la génération TikTok/Instagram connaît par cœur : 3 cartes
+// un pattern que la génération TikTok/Instagram connaît par cœur: 3 cartes
 // plein cadre, barres de progression, tap droite/gauche, croix pour sortir.
 // L'intro devient OPT-IN (pilule sur la page d'accueil) — la découverte ne
 // ralentit plus l'entrée, elle l'accompagne.
@@ -20,7 +20,7 @@ interface StoryCard {
 
 const STORIES: StoryCard[] = [
   {
-    img: "/skin/demo-visage-1.webp",
+    img: "/skin/guide-visage-1.webp",
     imgAlt: "Analyse de peau par l'intelligence artificielle",
     num: "01",
     title: "Ton visage, écouté",
@@ -113,7 +113,7 @@ export function ThresholdStories({ onClose }: { onClose: () => void }) {
               animate={{ scaleX: i < idx ? 1 : i === idx ? 1 : 0 }}
               style={{ transformOrigin: "left" }}
               transition={i === idx ? { duration: reduce ? 0 : DURATION_MS / 1000, ease: "linear" } : { duration: 0.2 }}
-              // barre courante : remplie progressivement ; les suivantes vides.
+              // barre courante: remplie progressivement; les suivantes vides.
               onUpdate={() => undefined}
             />
           </div>
@@ -161,7 +161,7 @@ export function ThresholdStories({ onClose }: { onClose: () => void }) {
           </motion.div>
         </AnimatePresence>
 
-        {/* Zones tactiles : gauche = précédent, droite = suivant */}
+        {/* Zones tactiles: gauche = précédent, droite = suivant */}
         <div className="absolute inset-0 flex" aria-hidden="true">
           <button className="h-full w-[34%]" onClick={prev} tabIndex={-1} aria-hidden="true" />
           <button className="h-full flex-1" onClick={next} tabIndex={-1} aria-hidden="true" />

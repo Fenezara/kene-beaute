@@ -1,5 +1,5 @@
 "use client";
-// Kènè Pro — Relances « Le Fil du Retour » : post-protocole, soins de suivi,
+// Kènè Pro — Relances « Le Fil du Retour »: post-protocole, soins de suivi,
 // satisfaction produits et réactivation des clientes inactives — dérivées de l'activité réelle.
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -45,7 +45,7 @@ function matchFilter(i: FollowUpItem, f: FilterId): boolean {
   return i.daysFromNow > 7;
 }
 
-/** Puce d'échéance : En retard de N j / Aujourd'hui / Dans N j */
+/** Puce d'échéance: En retard de N j / Aujourd'hui / Dans N j */
 function DueChip({ item }: { item: FollowUpItem }) {
   const d = item.daysFromNow;
   const cls =
@@ -75,7 +75,7 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
   const [filter, setFilter] = useState<FilterId>("late");
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
-  // Filtre initial intelligent : premier panier non vide
+  // Filtre initial intelligent: premier panier non vide
   useEffect(() => {
     if (!data.data) return;
     const c = data.data.counts;

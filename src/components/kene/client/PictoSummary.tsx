@@ -1,7 +1,7 @@
 "use client";
-// Kènè — « Résumé en pictos » : les priorités du diagnostic en grandes tuiles
+// Kènè — « Résumé en pictos »: les priorités du diagnostic en grandes tuiles
 // icône + 1-2 mots, tapables → lecture vocale. Pensé pour les utilisatrices
-// non-lectrices : l'image parle, la voix explique, aucun texte long à décoder.
+// non-lectrices: l'image parle, la voix explique, aucun texte long à décoder.
 import { useMemo, useRef, useState, type ComponentType } from "react";
 import { motion } from "framer-motion";
 import {

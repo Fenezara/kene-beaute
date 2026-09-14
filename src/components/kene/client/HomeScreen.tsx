@@ -1,5 +1,5 @@
 "use client";
-// Kènè Cliente — Fil d'accueil (façon feed Instagram/TikTok) :
+// Kènè Cliente — Fil d'accueil (façon feed Instagram/TikTok):
 // stories de zones (scan rapide + scores), carte score multi-zones avec lecture
 // vocale TTS, CTA scan, Route de l'Or, prochain RDV, wallet, recommandations
 // et suivi WhatsApp. Les mentions légales vivent en fin de fil (app-like).
@@ -79,9 +79,9 @@ export function HomeScreen({
   onRefreshed,
 }: {
   onScanZone: (z: BodyZone) => void;
-  /** Incrémenté par le pull-to-refresh du shell — déclenche un rechargement */
+ /** Incrémenté par le pull-to-refresh du shell — déclenche un rechargement */
   refreshKey?: number;
-  /** Appelé à la fin du chargement (le shell ferme l'indicateur de tirage) */
+ /** Appelé à la fin du chargement (le shell ferme l'indicateur de tirage) */
   onRefreshed?: () => void;
 }) {
   const user = useKene((s) => s.user)!;
@@ -101,7 +101,7 @@ export function HomeScreen({
           apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).catch(() => null),
           apiGet<{ products: ApiProduct[] }>("/api/shop/products"),
           apiGet<ApiReminderFeed>(`/api/notifications?userId=${user.id}`).catch(() => null),
-          // Fils d'Or (t. 82) — non bloquant : la carte ne s'affiche pas si
+          // Fils d'Or — non bloquant: la carte ne s'affiche pas si
           // l'API ne répond pas (le feed reste vivant avant tout).
           apiGet<GoldThreads>(`/api/gold-threads?userId=${user.id}`).catch(() => null),
         ]);
@@ -169,10 +169,10 @@ export function HomeScreen({
     return (pick.length >= 3 ? pick : [...pick, ...all.filter((p) => !pick.includes(p))]).slice(0, 3);
   }, [data?.products, user.skinType]);
 
-  // Route de l'Or : dernier diagnostic parsable → rituel tissable depuis l'accueil
+  // Route de l'Or: dernier diagnostic parsable → rituel tissable depuis l'accueil
   const lastResult = useMemo(() => (multi.last ? parseDiagnosis(multi.last.resultJson) : null), [multi.last]);
 
-  // Le Fil du Retour : prochaine étape dérivée de l'activité (contrôle protocole / soin de suite)
+  // Le Fil du Retour: prochaine étape dérivée de l'activité (contrôle protocole / soin de suite)
   const nextStep = useMemo(
     () => (data ? nextClientStep(new Date(), data.diagnoses, data.appointments) : null),
     [data],
@@ -181,7 +181,7 @@ export function HomeScreen({
   const first = user.name.split(" ")[0];
 
   return (
-    // Reveal = entrée en cascade spring (respecte prefers-reduced-motion) :
+    // Reveal = entrée en cascade spring (respecte prefers-reduced-motion):
     // chaque bloc du fil est un RevealItem — le contenu/logique est inchangé.
     <Reveal className="flex flex-col gap-6 pt-1">
       {/* ───── Salutation ───── */}
@@ -201,9 +201,9 @@ export function HomeScreen({
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {data?.wallet && <WalletPill balance={data.wallet.balance} onClick={() => setClientTab("profil")} />}
-            {/* t. 120 — photo de profil si posée (touche l'onglet Profil),
-                sinon médaillon de marque (t. 77) : le 04b choisi par la
-                fondatrice reste la signature quand la cliente n'a pas de photo. */}
+            {/* — photo de profil si posée (touche l'onglet Profil),
+ sinon médaillon de marque: le 04b choisi par la
+ fondatrice reste la signature quand la cliente n'a pas de photo. */}
             {user.hasAvatar ? (
               <button
                 onClick={() => setClientTab("profil")}
@@ -221,12 +221,12 @@ export function HomeScreen({
         </header>
       </RevealItem>
 
-      {/* ───── Bannière d'installation PWA (auto-masquée : installée / fermée / standalone) ───── */}
+      {/* ───── Bannière d'installation PWA (auto-masquée: installée / fermée / standalone) ───── */}
       <RevealItem>
         <InstallBanner />
       </RevealItem>
 
-      {/* ───── Stories : scan rapide + zones avec score ───── */}
+      {/* ───── Stories: scan rapide + zones avec score ───── */}
       <RevealItem className="-mx-3 sm:-mx-5">
         <section aria-label="Scan rapide par zone" className="px-3 sm:px-5">
           <ScrollFadeRow label="Stories des zones — fais défiler horizontalement" className="flex gap-3.5 overflow-x-auto no-scrollbar py-1.5 pr-2">
@@ -300,7 +300,7 @@ export function HomeScreen({
 
       {err && <p className="rounded-xl bg-destructive/10 text-destructive text-xs p-3">{err}</p>}
 
-      {/* ───── Fil conducteur d'or (t. 82) — le fil qui relie les sections ───── */}
+      {/* ───── Fil conducteur d'or — le fil qui relie les sections ───── */}
       <WovenDivider label="Ton score se tisse" />
 
       {/* ───── Carte score multi-zones (avec lecture vocale) — héro verre ───── */}
@@ -433,7 +433,7 @@ export function HomeScreen({
         </RevealItem>
       )}
 
-      {/* ───── Fils d'Or — la fidélité tissée (t. 82) ───── */}
+      {/* ───── Fils d'Or — la fidélité tissée ───── */}
       {data?.gold && data.gold.threads >= 0 && (
         <RevealItem>
           <button
@@ -470,7 +470,7 @@ export function HomeScreen({
         </RevealItem>
       )}
 
-      {/* ───── Cercle Kènè — les voix de celles qui tissent avant (t. 83-b) ───── */}
+      {/* ───── Cercle Kènè — les voix de celles qui tissent avant ───── */}
       <WovenDivider label="Le cercle chuchote" />
       <RevealItem>
         <CercleKene />

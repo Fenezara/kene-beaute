@@ -1,9 +1,9 @@
 // Kènè — heartbeat des sockets live (cliente, pro, app serveur).
-// Problème visé (rencontré en tâche 35) : quand le notify-service redémarre à
+// Problème visé (rencontré en): quand le notify-service redémarre à
 // chaud (bun --hot), le TCP reste établi mais la session socket.io est
 // orpheline côté serveur — le client CROIT être connecté, le nouveau service
-// ne le connaît pas : plus aucun push reçu, silencieusement.
-// Solution : sonde toutes les 30 s (event `hb`) ; sans ack sous 5 s, on ferme
+// ne le connaît pas: plus aucun push reçu, silencieusement.
+// Solution: sonde toutes les 30 s (event `hb`); sans ack sous 5 s, on ferme
 // et reconnecte — les handlers « connect » rejouent join / join-tenant /
 // register-app, tout repart proprement.
 import type { Socket } from "socket.io-client";
@@ -29,7 +29,7 @@ export function armHeartbeat(socket: Socket): () => void {
     const watchdog = setTimeout(() => {
       socket.off("hb-ack", onAck);
       waiting = false;
-      // Zombie confirmé : reset dur → reconnexion → join rejoués au connect
+      // Zombie confirmé: reset dur → reconnexion → join rejoués au connect
       socket.disconnect();
       socket.connect();
     }, HB_TIMEOUT);

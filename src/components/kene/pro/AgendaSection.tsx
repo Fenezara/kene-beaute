@@ -1,5 +1,5 @@
 "use client";
-// Kènè Pro — Agenda : vue semaine/jour, création RDV, actions (confirmer, terminer, annuler, no-show, déplacer)
+// Kènè Pro — Agenda: vue semaine/jour, création RDV, actions (confirmer, terminer, annuler, no-show, déplacer)
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -86,7 +86,7 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
     [tenantId, createOpen]
   );
 
-  // Praticiennes déduites des RDV : fenêtre large (30 j passés → 45 j à venir)
+  // Praticiennes déduites des RDV: fenêtre large (30 j passés → 45 j à venir)
   // pour disposer des resourceId réels même sur une semaine sans RDV.
   const resourcePool = useApi<ProAppointment[]>(
     () =>
@@ -335,7 +335,7 @@ function ApptDetailDialog({
     try {
       await onAction(appt, action, extra);
     } catch {
-      /* toast déjà émis */
+ /* toast déjà émis */
     } finally {
       setBusy(false);
     }

@@ -1,7 +1,7 @@
 "use client";
 // Kènè — bannière d'installation PWA (haut du fil d'accueil).
-// Android/Chrome : capture beforeinstallprompt → prompt natif.
-// iOS : pas de prompt natif → bouton qui déplie les instructions
+// Android/Chrome: capture beforeinstallprompt → prompt natif.
+// iOS: pas de prompt natif → bouton qui déplie les instructions
 // « Partager → Sur l'écran d'accueil » (après ~3 s sans événement natif).
 // Fermée → localStorage « kene-install-dismissed », plus jamais réaffichée.
 // Masquée si l'app tourne déjà en standalone ou vient d'être installée.
@@ -18,7 +18,7 @@ const DISMISS_KEY = "kene-install-dismissed";
 /** Délai avant de conclure « pas de prompt natif » (iOS / navigateurs sans support). */
 const PROMPT_GRACE_MS = 3000;
 
-/* ─── Store externe : bannière fermée (localStorage) ─── */
+/* ─── Store externe: bannière fermée (localStorage) ─── */
 
 function subscribeDismiss(callback: () => void): () => void {
   // L'événement storage couvre la fermeture depuis un autre onglet.
@@ -48,7 +48,7 @@ export function InstallBanner() {
   const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
-    // iOS : aucun beforeinstallprompt n'arrivera — on attend ~3 s avant de
+    // iOS: aucun beforeinstallprompt n'arrivera — on attend ~3 s avant de
     // conclure et d'afficher la variante « instructions iPhone ».
     const timer = window.setTimeout(() => setSettled(true), PROMPT_GRACE_MS);
     const onAppInstalled = () => setInstalled(true);
@@ -68,7 +68,7 @@ export function InstallBanner() {
     try {
       window.localStorage.setItem(DISMISS_KEY, "1");
     } catch {
-      /* mode privé : la fermeture reste valable pour la session */
+ /* mode privé: la fermeture reste valable pour la session */
     }
   }
 
@@ -94,7 +94,7 @@ export function InstallBanner() {
       className="rounded-2xl border border-border bg-card p-4 shadow-sm"
     >
       <div className="flex items-center gap-3">
-        {/* Sceau 2026 (t. 86) — le Médaillon Kènè sur la carte d'installation */}
+        {/* Sceau 2026 — le Médaillon Kènè sur la carte d'installation */}
         <KeneEmblem size={56} />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold leading-tight">Installe Kènè sur ton téléphone</p>

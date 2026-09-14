@@ -1,9 +1,9 @@
 "use client";
-// Kènè — Error Boundary racine (App Router) : attrape les erreurs de rendu de
+// Kènè — Error Boundary racine (App Router): attrape les erreurs de rendu de
 // la page et remplace l'écran blanc par un fallback brandé, rassurant et
 // actionnable. Aucune fuite technique (message/stack jamais affichés —
 // l'erreur est logguée en console pour le débogage, le reste reste sobre).
-// Note : les erreurs du root layout lui-même relèvent de global-error.tsx
+// Note: les erreurs du root layout lui-même relèvent de global-error.tsx
 // (non nécessaire ici — le layout ne contient que ThemeProvider + polices).
 
 import { useEffect } from "react";

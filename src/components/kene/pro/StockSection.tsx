@@ -1,5 +1,5 @@
 "use client";
-// Kènè Pro — Stock : inventaire produits, mouvements (entrée/sortie/perte), alertes
+// Kènè Pro — Stock: inventaire produits, mouvements (entrée/sortie/perte), alertes
 import { useState } from "react";
 import { AlertTriangle, ArrowDownLeft, ArrowUpRight, PackagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";

@@ -1,5 +1,5 @@
 "use client";
-// Kènè Pro — Tableau de bord : KPIs, CA 14j, paiements, top soins, timeline du jour, alertes stock
+// Kènè Pro — Tableau de bord: KPIs, CA 14j, paiements, top soins, timeline du jour, alertes stock
 import {
   Banknote,
   CalendarCheck,
@@ -166,7 +166,7 @@ export function DashboardSection({
         </Card>
       </div>
 
-      {/* ── Ligne 3 : timeline + top soins ── */}
+      {/* ── Ligne 3: timeline + top soins ── */}
       <div className="grid lg:grid-cols-2 gap-4">
         <Card className="overflow-hidden pt-0">
           <KenteTop />

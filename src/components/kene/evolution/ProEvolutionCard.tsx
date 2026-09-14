@@ -1,5 +1,5 @@
 "use client";
-// Kènè Pro — Fil du Temps de la cliente (fiche CRM 360°) : courbe d'évolution
+// Kènè Pro — Fil du Temps de la cliente (fiche CRM 360°): courbe d'évolution
 // des scores + « Lecture pro » (verdict de trajectoire, axes d'action, contrôle
 // conseillé). Les séries sont calculées LOCALEMENT via buildEvolution (lib pure)
 // depuis les diagnostics déjà chargés par la fiche — zéro appel réseau.

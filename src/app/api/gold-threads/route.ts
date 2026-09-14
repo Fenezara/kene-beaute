@@ -1,9 +1,9 @@
-// GET /api/gold-threads?userId= — les Fils d'Or (t. 82, vague 1).
-// Fidélité tissée : chaque action VRAIE de la cliente ajoute un fil d'or à
-// son kente identitaire. Les fils ne sont pas une table dédiée : ils se
+// GET /api/gold-threads?userId= — les Fils d'Or (, vague 1).
+// Fidélité tissée: chaque action VRAIE de la cliente ajoute un fil d'or à
+// son kente identitaire. Les fils ne sont pas une table dédiée: ils se
 // lisent sur l'activité réelle (diagnostics, commandes, visites, avis,
 // parrainages) — impossible à fausser depuis le client, cohérent avec le
-// wallet. La graine du motif est dérivée de l'userId : un pagne unique par
+// wallet. La graine du motif est dérivée de l'userId: un pagne unique par
 // utilisatrice, stable pour toujours.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
 
-    // Session signée (t. 71-b) : avec cookie, on ne lit que SES fils.
+    // Session signée: avec cookie, on ne lit que SES fils.
     const guard = guardUserClaim(req, "gold-threads:get", userId);
     if (guard) return guard;
 
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     ];
     const threads = items.reduce((s, it) => s + it.count, 0);
 
-    // Rang suivant : prochain multiple de 5 (palier de fils)
+    // Rang suivant: prochain multiple de 5 (palier de fils)
     const next = Math.ceil((threads + 1) / 5) * 5;
     const remaining = next - threads;
 

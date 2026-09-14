@@ -1,44 +1,44 @@
-// Kènè — « cerveau » du Dr Kènè : base de connaissances structurée.
-// Lib PURE (aucune dépendance React/serveur). Deux usages :
-//  1. Les données typées ci-dessous (conditions, dépigmentation, botaniques,
-//     actifs, signes rouges, contexte ivoirien) : richesse pour l'app
-//     (futurs écrans pédagogiques, croissements questionnaire/glossaire).
-//  2. KNOWLEDGE_DIGEST : version CONDENSÉE (≤ ~900 mots) assemblée par code
-//     depuis ces données — injectée dans le prompt système du chat LLM
-//     (POST /api/dermato/chat).
-// Positionnement : le Dr Kènè ÉDUQUE et ORIENTE. Elle ne pose JAMAIS de
+// Kènè — « cerveau » du Dr Kènè: base de connaissances structurée.
+// Lib PURE (aucune dépendance React/serveur). Deux usages:
+// 1. Les données typées ci-dessous (conditions, dépigmentation, botaniques,
+// actifs, signes rouges, contexte ivoirien): richesse pour l'app
+// (futurs écrans pédagogiques, croissements questionnaire/glossaire).
+// 2. KNOWLEDGE_DIGEST: version CONDENSÉE (≤ ~900 mots) assemblée par code
+// depuis ces données — injectée dans le prompt système du chat LLM
+// (POST /api/dermato/chat).
+// Positionnement: le Dr Kènè ÉDUQUE et ORIENTE. Elle ne pose JAMAIS de
 // diagnostic formel et ne prescrit JAMAIS de médicament (voir CHARACTER_RULES).
 
 // ─────────────────────────── Types ───────────────────────────
 
-/** Niveau d'une condition : « éducatif » (conseils doux possibles) ou
- *  « référer » (orientation professionnelle immédiate). */
+/** Niveau d'une condition: « éducatif » (conseils doux possibles) ou
+ * « référer » (orientation professionnelle immédiate). */
 export type KnowledgeLevel = "educatif" | "referer";
 
 export interface KnowledgeCondition {
   id: string;
   name: string;
   level: KnowledgeLevel;
-  /** Résumé 2-3 phrases, niveau patiente (mots du quotidien). */
+ /** Résumé 2-3 phrases, niveau patiente (mots du quotidien). */
   summary: string;
-  /** Signes d'alerte : ce qui doit faire sortir du cadre « éducatif ». */
+ /** Signes d'alerte: ce qui doit faire sortir du cadre « éducatif ». */
   redFlags: string[];
-  /** Conduite à tenir par Kènè (hygiène, soins doux, prévention). */
+ /** Conduite à tenir par Kènè (hygiène, soins doux, prévention). */
   action: string;
-  /** Quand référer (dermatologue / médecin / urgence). */
+ /** Quand référer (dermatologue / médecin / urgence). */
   refer: string;
-  /** Ligne ultra-compacte (≈ 15-20 mots) pour le digest LLM. */
+ /** Ligne ultra-compacte (≈ 15-20 mots) pour le digest LLM. */
   digest: string;
 }
 
 export interface KnowledgeBotanical {
   id: string;
   name: string;
-  /** Vertus principales. */
+ /** Vertus principales. */
   virtues: string;
-  /** Forme d'usage. */
+ /** Forme d'usage. */
   usage: string;
-  /** Précautions d'emploi. */
+ /** Précautions d'emploi. */
   caution: string;
   digest: string;
 }
@@ -46,18 +46,18 @@ export interface KnowledgeBotanical {
 export interface KnowledgeActive {
   id: string;
   name: string;
-  /** Rôle sur peau foncée. */
+ /** Rôle sur peau foncée. */
   role: string;
-  /** Conseil d'introduction. */
+ /** Conseil d'introduction. */
   advice: string;
   digest: string;
 }
 
 export interface KnowledgeRedFlag {
   id: string;
-  /** Le signe, décrit simplement. */
+ /** Le signe, décrit simplement. */
   sign: string;
-  /** Conduite : qui voir, à quelle vitesse. */
+ /** Conduite: qui voir, à quelle vitesse. */
   action: string;
   digest: string;
 }
@@ -73,11 +73,11 @@ export interface DepigmentationDanger {
   digest: string;
 }
 
-/** Entrée de contexte ivoirien : texte complet + version compacte (digest). */
+/** Entrée de contexte ivoirien: texte complet + version compacte (digest). */
 export interface IvoryContextEntry {
-  /** Version complète (app / futurs écrans). */
+ /** Version complète (app / futurs écrans). */
   text: string;
-  /** Version compacte (digest LLM). */
+ /** Version compacte (digest LLM). */
   digest: string;
 }
 
@@ -705,7 +705,7 @@ export const IVORY_CONTEXT: IvoryContext = {
 
 // ─────────────────────────── Digest (prompt LLM) ───────────────────────────
 // Version condensée, assemblée par code depuis les données ci-dessus.
-// Contrainte : ≤ ~900 mots — compacte mais complète pour un LLM.
+// Contrainte: ≤ ~900 mots — compacte mais complète pour un LLM.
 
 const levelTag = (c: KnowledgeCondition): string => (c.level === "referer" ? "RÉFÉRER" : "éducatif");
 

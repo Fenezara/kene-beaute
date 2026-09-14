@@ -1,12 +1,12 @@
 "use client";
-// Kènè — la barre du Pouce d'Or (t. 83-f) : les actions primaires de l'écran
+// Kènè — la barre du Pouce d'Or: les actions primaires de l'écran
 // ramenées dans la zone du pouce, collées au-dessus de la nav mobile.
-//   • Accueil  → « Scanner ma peau » (or) + « Dr Kènè »
-//   • Profil   → « Mon passeport de peau » + « Herbier »
-// Boutique : sa propre barre panier collante (t. 77) — aucune barre ici, on
-// ne double pas le chrome. Diagnostic / RDV / Dr Kènè : CTAs déjà en bas
-// d'écran. Réglage : Paramètres → Pouce d'Or (défaut : téléphone = activé).
-// Sticky dans le flux de scroll (même pattern que la barre panier) : rien
+// • Accueil → « Scanner ma peau » (or) + « Dr Kènè »
+// • Profil → « Mon passeport de peau » + « Herbier »
+// Boutique: sa propre barre panier collante — aucune barre ici, on
+// ne double pas le chrome. Diagnostic / RDV / Dr Kènè: CTAs déjà en bas
+// d'écran. Réglage: Paramètres → Pouce d'Or (défaut: téléphone = activé).
+// Sticky dans le flux de scroll (même pattern que la barre panier): rien
 // n'est jamais recouvert en fin de page.
 import { useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "framer-motion";

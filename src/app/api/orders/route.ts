@@ -1,13 +1,13 @@
 // POST /api/orders — commande boutique (wallet = paiement immédiat, MoMo = en attente)
-// couponCode (facultatif) : validé puis consommé via lib/kene/coupons — la
+// couponCode (facultatif): validé puis consommé via lib/kene/coupons — la
 // remise réduit le total payé, le cashback s'applique sur le montant payé.
-// t. 63-c : le flux complet (order.create, consommation coupon, payment.create,
+//: le flux complet (order.create, consommation coupon, payment.create,
 // order.update paymentId, débit/crédit wallet, cashback, parrainage, sorties de
 // stock + InventoryMovement, notification) passe dans UNE prisma.$transaction —
 // plus de panne partielle. Le paiement MoMo pending porte un code de confirmation
 // (confirmToken renvoyé au front, hash sha256 stocké). Les push temps réel
 // institut restent best-effort, APRÈS le commit.
-// GET /api/orders?userId= — historique des commandes de la cliente (« Mes commandes ») :
+// GET /api/orders?userId= — historique des commandes de la cliente (« Mes commandes »):
 // la cliente consulte ses données enregistrées, l'institut les voit côté CRM/Caisse.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -28,7 +28,7 @@ const Body = z.object({
   couponCode: z.string().trim().max(40).optional(),
 });
 
-/** Erreur métier à remonter en 400 : le throw annule la transaction entière. */
+/** Erreur métier à remonter en 400: le throw annule la transaction entière. */
 class OrderFlowError extends Error {}
 
 export async function GET(req: NextRequest) {
@@ -60,8 +60,8 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { userId, items, paymentMethod, couponCode } = parsed.data;
 
-    // Session signée (t. 71-b, migration douce) : avec cookie, la commande ne
-    // peut passer que pour le compte de la session ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, la commande ne
+    // peut passer que pour le compte de la session; sans cookie → legacy.
     const guard = guardUserClaim(req, "orders:post", userId);
     if (guard) return guard;
 
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     });
     const subtotal = lines.reduce((s, l) => s + l.total, 0);
 
-    // Coupon : validation complète AVANT toute écriture (garde d'usage incluse)
+    // Coupon: validation complète AVANT toute écriture (garde d'usage incluse)
     let discount = 0;
     let appliedCouponId: string | null = null;
     if (couponCode) {
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     }
     const total = subtotal - discount;
 
-    // Taux de cashback : celui de la wallet de la cliente, sinon le taux par défaut
+    // Taux de cashback: celui de la wallet de la cliente, sinon le taux par défaut
     // — appliqué au montant PAYÉ (après remise)
     const wallet = await db.wallet.findUnique({ where: { userId } });
     if (paymentMethod === "wallet" && (!wallet || wallet.balance < total)) {
@@ -110,13 +110,13 @@ export async function POST(req: NextRequest) {
       total: l.total,
     }));
 
-    // ─── Transaction atomique : commande + coupon + paiement + wallet + stock ───
+    // ─── Transaction atomique: commande + coupon + paiement + wallet + stock ───
     const created = await db.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: { userId, subtotal, discount, couponCode: appliedCouponId ? couponCode!.toUpperCase() : null, cashback, total, status: paymentMethod === "wallet" ? "paid" : "pending", items: { create: orderItemsData } },
       });
 
-      // Synchronisation App↔Institut (t. 96) : commander un produit d'une
+      // Synchronisation App↔Institut: commander un produit d'une
       // entreprise = un « contact » — la cliente de l'app apparaît dans le CRM
       // de CETTE entreprise (fiche liée userId, miroir peau). Les produits
       // maison Kènè (tenantId null) ne créent rien.
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Consommation du coupon DANS la transaction : si la garde échoue
+      // Consommation du coupon DANS la transaction: si la garde échoue
       // (usage simultané), le throw annule commande + items d'un coup.
       if (appliedCouponId) {
         const redeemed = await redeemCoupon(appliedCouponId, userId, subtotal, order.id, tx);
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
       let paid = false;
 
       if (paymentMethod === "wallet") {
-        // Paiement wallet : débit immédiat (sur le total remisé), pas de code
+        // Paiement wallet: débit immédiat (sur le total remisé), pas de code
         // de confirmation (succès instantané).
         const payment = await tx.payment.create({
           data: {
@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
 
         await debitWallet(wallet!.id, total, "payment", order.id, tx);
         await creditWallet(wallet!.id, cashback, "cashback", order.id, tx);
-        // Parrainage : récompense du parrain à la première commande payée
+        // Parrainage: récompense du parrain à la première commande payée
         await rewardReferrerIfNeeded(userId, tx);
 
         // Sorties de stock (+ mouvements pour les produits rattachés à un tenant)
@@ -178,8 +178,8 @@ export async function POST(req: NextRequest) {
         }
         paid = true;
       } else {
-        // MoMo (wave/orange) : commande en attente — le paiement pending porte
-        // un code de confirmation (contrat 63-b : token brut renvoyé, hash stocké).
+        // MoMo (wave/orange): commande en attente — le paiement pending porte
+        // un code de confirmation (contrat 63-b: token brut renvoyé, hash stocké).
         const { token, tokenHash } = newConfirmToken();
         const payment = await tx.payment.create({
           data: {
@@ -209,7 +209,7 @@ export async function POST(req: NextRequest) {
       return { orderId: order.id, paymentId, confirmToken, paid };
     });
 
-    // Temps réel institut (best-effort, HORS transaction) : si la commande
+    // Temps réel institut (best-effort, HORS transaction): si la commande
     // contient des produits de l'institut, l'espace Pro connecté est réveillé
     // (badge + toast + KPIs). Les produits maison (tenantId null) ne
     // concernent aucun institut → silence.

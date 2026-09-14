@@ -1,6 +1,6 @@
 "use client";
 // Kènè — bouton « écouter » compact et réutilisable (glossaire, etc.).
-// Utilise le cache TTS partagé (ttsAudio.ts) : plusieurs écoutes = 1 seul appel réseau.
+// Utilise le cache TTS partagé (ttsAudio.ts): plusieurs écoutes = 1 seul appel réseau.
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Square, Volume2 } from "lucide-react";
 import { toast } from "sonner";

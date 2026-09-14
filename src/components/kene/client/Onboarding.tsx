@@ -1,9 +1,9 @@
 "use client";
-// Kènè Cliente — Onboarding 3 étapes : téléphone → OTP → profil peau
-// ÉCLAT 2026 : aurora plein cadre, GlassCard héro, Reveal en cascade —
+// Kènè Cliente — Onboarding 3 étapes: téléphone → OTP → profil peau
+// ÉCLAT 2026: aurora plein cadre, GlassCard héro, Reveal en cascade —
 // présentation seule, AUCUNE logique touchée (mode pro, OTP, parrainage,
 // registerPro/409, slice(0,14) demeurent intacts).
-// Mode entreprise (t. 66-b) : même téléphone → OTP, puis formulaire
+// Mode entreprise: même téléphone → OTP, puis formulaire
 // institut (jamais de questionnaire peau — le consent santé n'est requis
 // que pour la cliente, au diagnostic IA) → POST /api/auth/pro/register.
 import { useEffect, useRef, useState } from "react";
@@ -43,12 +43,12 @@ const PRO_COUNTRIES = [
 ] as const;
 
 /**
- * Props des Portes (t. 73) — toutes OPTIONNELLES, l'écran reste autonome :
- *  • initialMode : porte d'origine (cliente par défaut, entreprise si c'est
- *    par elle qu'on est entré — le bandeau de bascule reste actif) ;
- *  • initialPhone : numéro du dernier compte mémorisé (E.164, « +225… » —
- *    le préfixe opérateur de l'UI est retiré) → reconnexion express ;
- *  • onBack : retour aux Portes (visible à l'étape 1 uniquement).
+ * Props des Portes — toutes OPTIONNELLES, l'écran reste autonome:
+ * • initialMode: porte d'origine (cliente par défaut, entreprise si c'est
+ * par elle qu'on est entré — le bandeau de bascule reste actif);
+ * • initialPhone: numéro du dernier compte mémorisé (E.164, « +225… » —
+ * le préfixe opérateur de l'UI est retiré) → reconnexion express;
+ * • onBack: retour aux Portes (visible à l'étape 1 uniquement).
  */
 export function Onboarding({
   initialMode,
@@ -59,7 +59,7 @@ export function Onboarding({
 }: {
   initialMode?: "client" | "pro";
   initialPhone?: string;
-  /** Pont pavé numérique (t. 74) : code déjà demandé → étape OTP directe. */
+ /** Pont pavé numérique: code déjà demandé → étape OTP directe. */
   initialDevCode?: string;
   initialStep?: 0 | 1;
   onBack?: () => void;
@@ -69,9 +69,9 @@ export function Onboarding({
   const setSpace = useKene((s) => s.setSpace);
   const { t } = useT();
   const [step, setStep] = useState<0 | 1 | 2>(initialStep ?? 0);
-  // Reconnexion express : le numéro mémorisé arrive en E.164 → on retire le
+  // Reconnexion express: le numéro mémorisé arrive en E.164 → on retire le
   // préfixe +225 affiché séparément (les autres préfixes resteraient tels
-  // quels — cas théorique POC mono-opérateur, garde-fou slice(0,14) intact).
+  // quels — cas théorique mono-opérateur, garde-fou slice(0,14) intact).
   const [phone, setPhone] = useState(() => {
     const raw = initialPhone ?? "";
     const d = raw.replace(/\D/g, "");
@@ -82,12 +82,12 @@ export function Onboarding({
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [isNew, setIsNew] = useState(false);
-  // Mode d'inscription : cliente (par défaut) ou compte entreprise (institut,
+  // Mode d'inscription: cliente (par défaut) ou compte entreprise (institut,
   // spa, dermo-conseillère) — l'étape après l'OTP change, le SMS non.
   const [mode, setMode] = useState<"client" | "pro">(initialMode ?? "client");
-  // Fil du Parrainage : code d'une amie saisi (facultatif) — échangé après
+  // Fil du Parrainage: code d'une amie saisi (facultatif) — échangé après
   // authentification (l'API exige un userId valide et garde toutes ses
-  // protections : auto-parrainage, échange croisé, double redeem)
+  // protections: auto-parrainage, échange croisé, double redeem)
   const [parrainCode, setParrainCode] = useState("");
 
   // profil peau
@@ -95,7 +95,7 @@ export function Onboarding({
   const [skinType, setSkinType] = useState<string>("mixte");
   const [allergies, setAllergies] = useState("");
   const [goals, setGoals] = useState<string[]>(["pih", "eclat"]);
-  // Consentements explicites (t. 119) : données de peau ET conservation des
+  // Consentements explicites: données de peau ET conservation des
   // photos — deux cases distinctes, toutes deux obligatoires pour le diagnostic.
   const [consentData, setConsentData] = useState(false);
   const [consentPhoto, setConsentPhoto] = useState(false);
@@ -113,8 +113,8 @@ export function Onboarding({
   const digits = phone.replace(/\D/g, "");
   const phoneValid = digits.length >= 8;
 
-  // Pont « cliente curieuse → compte entreprise » (t. 69-a) : ProfileScreen
-  // pose un drapeau sessionStorage AVANT de fermer la session cliente ; au
+  // Pont « cliente curieuse → compte entreprise »: ProfileScreen
+  // pose un drapeau sessionStorage AVANT de fermer la session cliente; au
   // montage de l'onboarding on le consomme et on bascule le mode vers « pro »
   // (comme le ferait le bandeau entreprise de l'étape 1). Effet au montage
   // uniquement, APRÈS hydratation → aucun mismatch (jamais de storage pendant
@@ -126,7 +126,7 @@ export function Onboarding({
         setMode("pro");
       }
     } catch {
-      /* stockage indisponible : l'onboarding reste en mode cliente */
+ /* stockage indisponible: l'onboarding reste en mode cliente */
     }
   }, []);
   // Progression indicative du questionnaire (barre ÉCLAT 2026, étape profil) —
@@ -148,14 +148,14 @@ export function Onboarding({
     }
   }
 
-  async function startDemo() {
+  async function startExploration() {
     setLoading(true);
     try {
-      // t. 92 — UNE requête GET : la démo ne dépend plus d'AUCUN POST (les POST
-      // de la préview de l'utilisatrice sont bloqués/pendus en amont ; ses GET
-      // traversent toujours). /api/auth/demo = login complet côté serveur,
+      // — UNE requête GET: l'accès express ne dépend d'AUCUN POST (les POST
+      // de la préview de l'utilisatrice sont bloqués/pendus en amont; ses GET
+      // traversent toujours). /api/auth/express = login complet côté serveur,
       // réponse identique à otp/verify ({ user, tenant } + cookie).
-      const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/demo");
+      const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express");
       rememberAccount({ phone: "+2250701020304", name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" });
       setUser(v.user as SessionUser);
       toast.success(`Bienvenue ${v.user.name.split(" ")[0]} 💛`);
@@ -171,16 +171,16 @@ export function Onboarding({
     setLoading(true);
     try {
       const v = await apiPost<{ user: ApiUser; tenant: { id: string; name: string } | null; employeeRole?: string | null }>("/api/auth/otp/verify", { phone: `+225${digits}`, code, name: name.trim() || undefined });
-      // Mémoire du dernier compte (t. 73) : clé dédiée kene-last-account,
+      // Mémoire du dernier compte: clé dédiée kene-last-account,
       // locale à l'appareil, survit à la déconnexion → carte « Contente de
       // te revoir » sur la page d'accueil. Aucun effet si le stockage refuse.
       rememberAccount({ phone: `+225${digits}`, name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" });
       setAuthId(v.user.id);
       if (!v.user.name || v.user.name === "Nouvelle cliente") setIsNew(true);
       if (mode === "pro") {
-        // t. 89 — incident « La Dermo ne passe pas » : une GÉRANTE EXISTANTE
+        // — incident « La Dermo ne passe pas »: une GÉRANTE EXISTANTE
         // (rôle pro + institut) entre DIRECTEMENT dans son espace avec SON
-        // institut. Avant : elle tombait sur le formulaire « Crée ton espace
+        // institut. Avant: elle tombait sur le formulaire « Crée ton espace
         // entreprise » comme une nouvelle inscrite — son institut existant
         // n'aboutissait nulle part. Le formulaire ne reste désormais QUE pour
         // les VÉRITABLES nouvelles inscriptions.
@@ -195,7 +195,7 @@ export function Onboarding({
           );
           return;
         }
-        // Mode entreprise : JAMAIS de questionnaire peau (phototype/objectifs/
+        // Mode entreprise: JAMAIS de questionnaire peau (phototype/objectifs/
         // consent santé = diagnostic IA cliente uniquement) — directement le
         // formulaire institut après l'OTP. Le prénom connu pré-remplit la
         // gérante, le parrainage reste réservé au mode cliente.
@@ -206,7 +206,7 @@ export function Onboarding({
         setStep(2);
         return;
       }
-      // Isolation des comptes (t. 69-a) : un numéro de gérante ou d'admin
+      // Isolation des comptes: un numéro de gérante ou d'admin
       // qui se connecte ici atterrit directement dans SON espace — jamais
       // dans le questionnaire peau ni le parrainage (réservés aux clientes).
       // setUser fait suivre l'espace au rôle (clamp store) → ProApp/AdminApp
@@ -225,7 +225,7 @@ export function Onboarding({
         if (v.user.name && v.user.name !== "Nouvelle cliente") setName(v.user.name.split(" ")[0]);
         setStep(2);
       } else {
-        // Compte déjà complet : échange du code AVANT l'entrée (données fraîches)
+        // Compte déjà complet: échange du code AVANT l'entrée (données fraîches)
         const ref = await tryReferral(v.user.id);
         setUser(v.user as SessionUser);
         toast.success(`Bienvenue ${v.user.name.split(" ")[0]}`);
@@ -242,12 +242,12 @@ export function Onboarding({
   // id de l'utilisatrice authentifiée à l'étape OTP (profil finalisé à l'étape 3)
   const [authId, setAuthId] = useState<string | null>(null);
 
-  /**
-   * Échange du code parrain saisi à l'étape OTP — AVANT setUser : les données
-   * fraîches (wallet crédité, badge non-lus) doivent être visibles dès que
-   * l'accueil se monte. Renvoie le résultat, l'annonce (toasts) revient à
-   * l'appelant APRÈS l'entrée dans l'app (ordre narratif).
-   */
+ /**
+ * Échange du code parrain saisi à l'étape OTP — AVANT setUser: les données
+ * fraîches (wallet crédité, badge non-lus) doivent être visibles dès que
+ * l'accueil se monte. Renvoie le résultat, l'annonce (toasts) revient à
+ * l'appelant APRÈS l'entrée dans l'app (ordre narratif).
+ */
   async function tryReferral(
     uid: string
   ): Promise<{ ok: true; gift: number; parrainName: string } | { ok: false; error: string } | null> {
@@ -285,9 +285,9 @@ export function Onboarding({
         allergies: allergies.trim() || undefined,
         goals: goals.map((id) => ({ id, label: SKIN_GOALS.find((g) => g.id === id)?.label ?? id })),
       });
-      // Le Fil du Parrainage commence ici : cadeau de bienvenue dès l'inscription.
+      // Le Fil du Parrainage commence ici: cadeau de bienvenue dès l'inscription.
       // Échange AVANT setUser → l'accueil se monte avec le wallet déjà crédité
-      // et la cloche déjà badgée ; l'annonce suit l'entrée (ordre narratif).
+      // et la cloche déjà badgée; l'annonce suit l'entrée (ordre narratif).
       const ref = await tryReferral(authId);
       // Le prénom choisi ici devient celui de la carte de reconnexion.
       rememberAccount({ phone: `+225${digits}`, name: r.user.name, role: "client" });
@@ -301,10 +301,10 @@ export function Onboarding({
     }
   }
 
-  /** Création du compte entreprise (POST /api/auth/pro/register, contrat figé
-   *  t. 66) : 201 → session + tenant mémorisés → espace Pro. 409 (ce numéro
-   *  gère déjà un espace) : ApiError ne transporte pas le body → GET session
-   *  de secours, on y retourne si le compte est bien passé pro. */
+ /** Création du compte entreprise (POST /api/auth/pro/register, contrat figé
+ *): 201 → session + tenant mémorisés → espace Pro. 409 (ce numéro
+ * gère déjà un espace): ApiError ne transporte pas le body → GET session
+ * de secours, on y retourne si le compte est bien passé pro. */
   async function registerPro() {
     if (!authId) return toast.error("Session expirée — reviens puis revalide le code");
     const institute = instituteName.trim();
@@ -321,7 +321,7 @@ export function Onboarding({
         country,
         type: proType,
       });
-      // Passage de rôle client→pro : la mémoire suit (carte « Espace entreprise »).
+      // Passage de rôle client→pro: la mémoire suit (carte « Espace entreprise »).
       rememberAccount({ phone: `+225${digits}`, name: r.user.name, role: "pro" });
       setUser(r.user as SessionUser);
       setProTenantId(r.tenant.id);
@@ -329,7 +329,7 @@ export function Onboarding({
       toast.success(`« ${r.tenant.name} » est né 🎉 Bienvenue dans ton espace Pro`);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        // Lecture de secours : si le compte est déjà pro (et qu'on retrouve
+        // Lecture de secours: si le compte est déjà pro (et qu'on retrouve
         // le tenant), on entre directement dans l'espace entreprise — sinon
         // on affiche l'erreur renvoyée par l'API.
         let entered = false;
@@ -347,7 +347,7 @@ export function Onboarding({
             );
           }
         } catch {
-          /* session injoignable → message du 409 ci-dessous */
+ /* session injoignable → message du 409 ci-dessous */
         }
         if (!entered) toast.error(e.message || "Un espace entreprise existe déjà pour ce numéro");
       } else {
@@ -361,8 +361,8 @@ export function Onboarding({
   return (
     <div className="relative isolate mx-auto w-full max-w-[430px] min-h-[80vh] overflow-hidden">
       {/* Atmosphère ÉCLAT 2026 — l'écran de connexion vit sur l'aurora plein
-          cadre (fixed, -z-10) comme l'app connectée ; isolate garantit que les
-          lueurs passent au-dessus du fond de page, sous le contenu. */}
+ cadre (fixed, -z-10) comme l'app connectée; isolate garantit que les
+ lueurs passent au-dessus du fond de page, sous le contenu. */}
       <AuroraBackdrop />
       {/* ───── Étape 1 — Téléphone ───── */}
       <AnimatePresence mode="wait">
@@ -370,9 +370,9 @@ export function Onboarding({
           <motion.div key="s0" {...slide} transition={{ duration: 0.35 }} className="flex flex-col min-h-[70vh]">
             <Reveal y={18} className="flex flex-col flex-1">
               <div className="relative h-60">
-                {/* Retour aux Portes (t. 73) — pilule verre posée SUR le héros
-                    (zéro décalage de mise en page) ; absente si l'écran est
-                    monté seul (aucun parent Portes). */}
+                {/* Retour aux Portes — pilule verre posée SUR le héros
+ (zéro décalage de mise en page); absente si l'écran est
+ monté seul (aucun parent Portes). */}
                 {onBack && (
                   <button
                     onClick={onBack}
@@ -385,7 +385,7 @@ export function Onboarding({
                 <img src="/hero/hero-client.webp" alt="Portrait d'une femme africaine au teint lumineux" className="absolute inset-0 h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/25 to-transparent" />
                 <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
-                  {/* Sceau 2026 (t. 86) — emblème officiel + wordmark sur l'accueil à compte */}
+                  {/* Sceau 2026 — emblème officiel + wordmark sur l'accueil à compte */}
                   <KeneEmblemLockup size={48} sublabel="Beauté mélanoderme" />
                 </div>
               </div>
@@ -436,7 +436,7 @@ export function Onboarding({
                       {t("onboarding.cta")}
                     </PrimaryCTA>
                     {/* « Rester connectée » rassurée dès l'inscription (réalité
-                        technique : localStorage kene-store, session par appareil). */}
+ technique: localStorage kene-store, session par appareil). */}
                     <p className="mt-3 flex items-start justify-center gap-1.5 text-[11px] leading-relaxed text-muted-foreground text-center">
                       <Smartphone size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
                       Une seule connexion suffit : tu restes connectée sur cet appareil, comme sur tes applis préférées.
@@ -445,9 +445,9 @@ export function Onboarding({
                 </RevealItem>
 
                 {/* Compte entreprise — institut, spa, dermo-conseillère.
-                    NB cascade : k-card écrase border, ring et bg sur le même
-                    élément → l'anneau pointillé vit sur l'enveloppe, le verre
-                    sur la carte interne (glass + dashed ring, signature 66-b). */}
+ NB cascade: k-card écrase border, ring et bg sur le même
+ élément → l'anneau pointillé vit sur l'enveloppe, le verre
+ sur la carte interne (glass + dashed ring, signature 66-b). */}
                 <RevealItem>
                   {mode === "client" ? (
                     <div className="rounded-[22px] border border-dashed border-primary/40 p-[4px]">
@@ -492,7 +492,7 @@ export function Onboarding({
                 </RevealItem>
                 <RevealItem>
                   <button
-                    onClick={startDemo}
+                    onClick={startExploration}
                     disabled={loading}
                     className="mx-auto inline-flex items-center min-h-11 px-3 text-[12px] text-muted-foreground underline underline-offset-4 decoration-dotted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary rounded"
                   >

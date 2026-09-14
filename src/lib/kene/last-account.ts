@@ -1,20 +1,20 @@
 // Kènè — mémoire du dernier compte connecté sur CET appareil.
 //
-// Rôle (t. 73, « rester connectée / se reconnecter simplement ») : la page
+// Rôle (, « rester connectée / se reconnecter simplement »): la page
 // d'accueil (« les Portes ») propose à une utilisatrice déconnectée de
 // reprendre sa session en un geste. On mémorise donc le dernier téléphone
 // utilisé dans une clé dédiée `kene-last-account` — clé volontairement
-// SÉPARÉE du store persisté (`kene-store`) : la déconnexion vide la session
+// SÉPARÉE du store persisté (`kene-store`): la déconnexion vide la session
 // (setUser(null) + cookie serveur /api/auth/logout) mais NE vide JAMAIS cette
 // clé — c'est elle qui rend la reconnexion tactile.
 //
-// Confidentialité : données locales à l'appareil (jamais envoyées), téléphone
+// Confidentialité: données locales à l'appareil (jamais envoyées), téléphone
 // affiché masqué (+225 •• •• 03 04). Supprimable d'un geste (« Oublier ») et
 // par l'effacement du stockage navigateur.
 export interface LastAccount {
-  /** E.164 complet, ex. "+2250701020304" */
+ /** E.164 complet, ex. "+2250701020304" */
   phone: string;
-  /** Nom affiché (prénom extrait à l'affichage) */
+ /** Nom affiché (prénom extrait à l'affichage) */
   name: string;
   role: "client" | "pro" | "admin";
 }
@@ -26,7 +26,7 @@ export function rememberAccount(a: LastAccount): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(a));
   } catch {
-    /* stockage indisponible (navigation privée…) — silencieux, non bloquant */
+ /* stockage indisponible (navigation privée…) — silencieux, non bloquant */
   }
 }
 
@@ -52,11 +52,11 @@ export function forgetAccount(): void {
   try {
     localStorage.removeItem(KEY);
   } catch {
-    /* silencieux */
+ /* silencieux */
   }
 }
 
-/** Masque un E.164 pour l'affichage public : +225 •• •• 03 04 */
+/** Masque un E.164 pour l'affichage public: +225 •• •• 03 04 */
 export function maskPhone(phone: string): string {
   const d = phone.replace(/\D/g, "");
   if (d.length < 8) return phone;

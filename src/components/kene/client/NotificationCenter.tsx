@@ -1,14 +1,14 @@
 "use client";
-// Kènè Cliente — Centre de notifications : cloche (badge non-lus) + Sheet
+// Kènè Cliente — Centre de notifications: cloche (badge non-lus) + Sheet
 // « À venir » (rappels programmés) / « Reçues » (envoyées, état lu/non lue)
 // + « Tout marquer comme lu » (POST /api/notifications/read).
-// TEMPS RÉEL (tâche 33) : socket.io vers le mini-service notify-service
-// (?XTransformPort=3004) — le fil arrive en PUSH (event `feed`) : badge, liste
+// TEMPS RÉEL: socket.io vers le mini-service notify-service
+// (?XTransformPort=3004) — le fil arrive en PUSH (event `feed`): badge, liste
 // et toast d'arrivée se mettent à jour SANS reload pendant que l'app est ouverte.
-// Dégradation douce : sans service, le comportement historique (GET au montage
+// Dégradation douce: sans service, le comportement historique (GET au montage
 // + à l'ouverture) reste intact.
-// WEB PUSH (t. 60-e) : carte « Rappels sur mon téléphone » en bas du Sheet —
-// abonnement Push API (VAPID) via le service worker : les rappels arrivent
+// WEB PUSH: carte « Rappels sur mon téléphone » en bas du Sheet —
+// abonnement Push API (VAPID) via le service worker: les rappels arrivent
 // en notification système MÊME application fermée.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -43,7 +43,7 @@ export function NotificationCenter({
   onLiveFeed,
 }: {
   userId: string;
-  /** Appelé à chaque fil reçu en temps réel (badge + liste à jour) */
+ /** Appelé à chaque fil reçu en temps réel (badge + liste à jour) */
   onLiveFeed?: (feed: ApiReminderFeed) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -52,7 +52,7 @@ export function NotificationCenter({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [live, setLive] = useState(false);
-  // Web Push : "checking" le temps de lire permission + abonnement réels,
+  // Web Push: "checking" le temps de lire permission + abonnement réels,
   // puis "on" | "off" | "unsupported" (navigateur sans service worker/PushManager).
   const [pushStatus, setPushStatus] = useState<PushStatus | "checking">("checking");
   const [pushBusy, setPushBusy] = useState(false);
@@ -88,7 +88,7 @@ export function NotificationCenter({
     void load(false);
   }, [load]);
 
-  // Web Push : état réel au montage (support navigateur + permission +
+  // Web Push: état réel au montage (support navigateur + permission +
   // abonnement actif) — la carte du Sheet se cale dessus, jamais sur un état deviné.
   useEffect(() => {
     let cancelled = false;
@@ -101,9 +101,9 @@ export function NotificationCenter({
     };
   }, []);
 
-  /* ── Temps réel : connexion au notify-service ──────────────────
-   * io('/?XTransformPort=3004') : la gateway route vers le mini-service.
-   * Une seule socket par onglet, partagée badge + Sheet + carte accueil. */
+ /* ── Temps réel: connexion au notify-service ──────────────────
+ * io('/?XTransformPort=3004'): la gateway route vers le mini-service.
+ * Une seule socket par onglet, partagée badge + Sheet + carte accueil. */
   useEffect(() => {
     // Never use PORT in the URL, always use XTransformPort
     // DO NOT change the path, it is used by Caddy to forward the request to the correct port
@@ -116,7 +116,7 @@ export function NotificationCenter({
     });
     socketRef.current = socket;
 
-    // Auto-guérison : service redémarré à chaud → zombie détecté ≤ 35 s,
+    // Auto-guérison: service redémarré à chaud → zombie détecté ≤ 35 s,
     // reconnexion → join rejoué au connect.
     const disarm = armHeartbeat(socket);
 
@@ -128,7 +128,7 @@ export function NotificationCenter({
     socket.on("feed", (f: unknown) => {
       if (!looksLikeFeed(f)) return;
       setFeed(f);
-      // Toast d'arrivée : seulement une NOUVELLE non-lue, feuille fermée
+      // Toast d'arrivée: seulement une NOUVELLE non-lue, feuille fermée
       // (feuille ouverte → la liste s'anime d'elle-même).
       const prev = prevUnreadRef.current;
       if (prev !== null && f.unread > prev && !openRef.current) {
@@ -150,7 +150,7 @@ export function NotificationCenter({
     };
   }, [userId]);
 
-  // Refraîchi à chaque ouverture (doublon volontaire : le GET déclenche aussi
+  // Refraîchi à chaque ouverture (doublon volontaire: le GET déclenche aussi
   // backfill + due-runner côté API — le socket prend ensuite le relais)
   function onOpenChange(o: boolean) {
     setOpen(o);
@@ -163,7 +163,7 @@ export function NotificationCenter({
     setBusy(true);
     try {
       const r = await apiPost<{ ok: boolean; updated: number }>("/api/notifications/read", { userId });
-      // Mise à jour locale immédiate : badge à zéro + items marqués lus
+      // Mise à jour locale immédiate: badge à zéro + items marqués lus
       setFeed((f) =>
         f
           ? { ...f, unread: 0, sent: f.sent.map((n) => ({ ...n, readAt: n.readAt ?? new Date().toISOString() })) }
@@ -180,9 +180,9 @@ export function NotificationCenter({
     }
   }
 
-  /* ── Web Push : activation des rappels téléphone ───────────────
-   * Permission navigateur → clé publique VAPID → abonnement pushManager
-   * → enregistrement côté serveur (dispatch même app fermée). */
+ /* ── Web Push: activation des rappels téléphone ───────────────
+ * Permission navigateur → clé publique VAPID → abonnement pushManager
+ * → enregistrement côté serveur (dispatch même app fermée). */
   async function enablePush() {
     if (pushBusy) return;
     setPushBusy(true);
@@ -217,7 +217,7 @@ export function NotificationCenter({
     }
   }
 
-  /* Désactivation : désabonnement local (pushManager) + purge serveur. */
+ /* Désactivation: désabonnement local (pushManager) + purge serveur. */
   async function disablePush() {
     if (pushBusy) return;
     setPushBusy(true);
@@ -403,9 +403,9 @@ export function NotificationCenter({
             )}
           </div>
 
-          {/* ── Rappels sur mon téléphone (Web Push, t. 60-e) ──
-             Pinnée en bas du Sheet (hors zone de scroll) : le Switch pilote
-             l'abonnement Push API — notifications système même app fermée. */}
+          {/* ── Rappels sur mon téléphone (Web Push,) ──
+ Pinnée en bas du Sheet (hors zone de scroll): le Switch pilote
+ l'abonnement Push API — notifications système même app fermée. */}
           <div className="shrink-0 border-t border-border px-4 pt-3 pb-4">
             <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-card p-3.5">
               <span

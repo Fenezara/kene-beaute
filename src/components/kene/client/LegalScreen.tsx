@@ -1,5 +1,5 @@
 "use client";
-// Kènè Cliente — Mentions légales & conformité (t. 71-c, t. 117) : éditeur,
+// Kènè Cliente — Mentions légales & conformité: éditeur,
 // avertissement médical renforcé, données personnelles (RGPD + Afrique de
 // l'Ouest), cadre local CI/SN, paiements en mode essai.
 // Structure Reveal identique à SettingsScreen (retour accueil même pattern).

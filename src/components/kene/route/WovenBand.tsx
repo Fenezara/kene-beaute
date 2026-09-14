@@ -1,6 +1,6 @@
 "use client";
-// Kènè — La Route de l'Or : bande de kente tissée procéduralement (canvas 2D)
-// Chaque station du rituel ajoute une rangée ; la navette tisse sous les yeux
+// Kènè — La Route de l'Or: bande de kente tissée procéduralement (canvas 2D)
+// Chaque station du rituel ajoute une rangée; la navette tisse sous les yeux
 // de la cliente pendant l'animation d'entrée (2 s, easeOut, reduced-motion respecté).
 import { useEffect, useRef, useState } from "react";
 import { Download } from "lucide-react";

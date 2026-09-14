@@ -1,11 +1,11 @@
 "use client";
-// Kènè Pro — Abonnement & facturation (t. 71-c) : offres pro « Essentiel »
+// Kènè Pro — Abonnement & facturation: offres pro « Essentiel »
 // (15 000 FCFA/mois — RDV, clients, catalogue, boutique) et « Complexe »
 // (45 000 FCFA/mois — + paie CNPS/IPM, comptabilité SYSCOHADA,
 // multi-établissements). Paiement mobile money SIMULÉ (même flow honnête que
-// l'app cliente : chips opérateurs, « Démo — paiement simulé (POC) »).
-// En POC sans ligne d'abonnement active, Essentiel est affiché comme « plan
-// actuel en démo » (aucune facturation réelle).
+// l'app cliente: chips opérateurs, « paiement en mode essai »).
+// Sans ligne d'abonnement active, Essentiel est affiché comme « plan
+// actuel pendant l'essai » (aucune facturation réelle).
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
@@ -19,7 +19,7 @@ import { IconBadge, Shimmer } from "@/components/kene/ui2026";
 import { useKene, type SessionUser } from "@/store/kene";
 import { SectionHeader } from "./ui-bits";
 
-/* ─── Contrat API (t. 71-c — audience pro) ─── */
+/* ─── Contrat API ( — audience pro) ─── */
 interface ApiPlanDef {
   id: string;
   audience: "client" | "pro";
@@ -83,7 +83,7 @@ export function ProPlanSection({ tenantName }: { tenantId: string; tenantName: s
   const activePlan = data?.plan === "pro_complexe" || data?.plan === "pro_essentiel" ? data.plan : null;
   const activeSub = activePlan ? data?.subscription : null;
 
-  /** Upgrade vers Complexe — paiement SIMULÉ, POST activate (rôle pro). */
+ /** Upgrade vers Complexe — paiement SIMULÉ, POST activate (rôle pro). */
   async function confirmUpgrade() {
     setBusy(true);
     setState("processing");
@@ -127,7 +127,7 @@ export function ProPlanSection({ tenantName }: { tenantId: string; tenantName: s
         </div>
       )}
 
-      {/* Statut courant — Essentiel affiché actif en démo sans ligne active */}
+      {/* Statut courant — Essentiel affiché actif pendant l'essai sans ligne active */}
       {!error && (data === null ? (
         <div className="k-card rounded-[20px] p-4 space-y-3" role="status" aria-busy="true">
           <Shimmer className="h-4 w-32" />

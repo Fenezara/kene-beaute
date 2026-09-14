@@ -1,13 +1,13 @@
 "use client";
-// Kènè — sécurité renforcée (2FA-lite) : re-vérification par code OTP avant
+// Kènè — sécurité renforcée (2FA-lite): re-vérification par code OTP avant
 // chaque paiement (boutique + acompte RDV), activable depuis le profil.
-// POC : préférence locale par appareil (localStorage "kene-secure"),
+// Préférence locale par appareil (localStorage "kene-secure"),
 // même pattern que kene-store — pas d'API, pas de DB.
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface SecurityState {
-  /** true = un code SMS est exigé avant chaque paiement, même téléphone dérobé */
+ /** true = un code SMS est exigé avant chaque paiement, même téléphone dérobé */
   enabled: boolean;
   setEnabled: (b: boolean) => void;
 }

@@ -1,9 +1,9 @@
-// GET /api/diagnoses/[id] — statut d'un diagnostic (voie de poll du front, t. 71).
-// Renvoie la ligne complète : le front lit `status` (pending | done | error),
+// GET /api/diagnoses/[id] — statut d'un diagnostic (voie de poll du front,).
+// Renvoie la ligne complète: le front lit `status` (pending | done | error),
 // puis resultJson + scoreGlobal dès que le worker (lib/kene/diag-jobs) a fini.
-// Ligne complète volontairement (imageData inclus) : la reprise au montage de
+// Ligne complète volontairement (imageData inclus): la reprise au montage de
 // l'écran (cliente revenue pendant l'analyse) s'appuie dessus.
-// Propriété (t. 71-e) : si une session valide est présente, la ligne ne peut
+// Propriété: si une session valide est présente, la ligne ne peut
 // être lue que par sa propriétaire — sans cookie (notify/POC legacy),
 // comportement historique conservé.
 import { NextRequest, NextResponse } from "next/server";

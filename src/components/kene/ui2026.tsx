@@ -1,11 +1,11 @@
 "use client";
-// Kènè — ÉCLAT 2026 : primitives visuelles partagées (shell + écrans).
+// Kènè — ÉCLAT 2026: primitives visuelles partagées (shell + écrans).
 // Une seule source de vérité pour l'atmosphère (aurora + grain), les
 // surfaces verre translucides, les entrées animées (Reveal), les badges
 // d'icônes, les puces animées et l'anneau de score signature.
-// Discipline perf : AUCUN backdrop-filter ici (réservé au chrome UI via
-// .k-chrome) — les cartes jouent la translucidité + ombres teintées.
-// Discipline AA : textes en tokens (jamais de dégradé sous petit texte).
+// Discipline perf: AUCUN backdrop-filter ici (réservé au chrome UI via
+//.k-chrome) — les cartes jouent la translucidité + ombres teintées.
+// Discipline AA: textes en tokens (jamais de dégradé sous petit texte).
 
 import { type ReactNode } from "react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
@@ -13,10 +13,10 @@ import { cn } from "@/lib/utils";
 import { scoreColor } from "@/lib/kene/format";
 
 /* ────────────────────────────────────────────────────────────────
-   1) Atmosphère — couche fixe derrière TOUT le contenu d'un espace.
-   Usage : <AuroraBackdrop /> une seule fois par shell (pointer-events
-   none, -z-10). Light : lueurs chaudes sur crème ; dark : braises.
-   ──────────────────────────────────────────────────────────────── */
+ 1) Atmosphère — couche fixe derrière TOUT le contenu d'un espace.
+ Usage: <AuroraBackdrop /> une seule fois par shell (pointer-events
+ none, -z-10). Light: lueurs chaudes sur crème; dark: braises.
+ ──────────────────────────────────────────────────────────────── */
 export function AuroraBackdrop({ className }: { className?: string }) {
   return (
     <div aria-hidden="true" className={cn("pointer-events-none fixed inset-0 -z-10 aurora-kene", className)}>
@@ -26,9 +26,9 @@ export function AuroraBackdrop({ className }: { className?: string }) {
 }
 
 /* ────────────────────────────────────────────────────────────────
-   2) Reveal — entrée douce en cascade (children directs animés).
-   Respecte prefers-reduced-motion (fade seul, sans translation).
-   ──────────────────────────────────────────────────────────────── */
+ 2) Reveal — entrée douce en cascade (children directs animés).
+ Respecte prefers-reduced-motion (fade seul, sans translation).
+ ──────────────────────────────────────────────────────────────── */
 export function Reveal({
   children,
   className,
@@ -62,8 +62,8 @@ export function Reveal({
   );
 }
 
-/* Wrapper item : à utiliser DANS un Reveal pour hériter de la cascade.
-   (Reveal anime ses motion children via variants propagation.) */
+/* Wrapper item: à utiliser DANS un Reveal pour hériter de la cascade.
+ (Reveal anime ses motion children via variants propagation.) */
 export function RevealItem({ children, className }: { children: ReactNode; className?: string }) {
   const reduce = useReducedMotion();
   return (
@@ -77,9 +77,9 @@ export function RevealItem({ children, className }: { children: ReactNode; class
 }
 
 /* ────────────────────────────────────────────────────────────────
-   3) GlassCard — surface verre translucide prête à l'emploi.
-   hero = lueur interne or/bissap ; hover = élévation desktop.
-   ──────────────────────────────────────────────────────────────── */
+ 3) GlassCard — surface verre translucide prête à l'emploi.
+ hero = lueur interne or/bissap; hover = élévation desktop.
+ ──────────────────────────────────────────────────────────────── */
 export function GlassCard({
   children,
   className,
@@ -109,9 +109,9 @@ export function GlassCard({
 }
 
 /* ────────────────────────────────────────────────────────────────
-   4) IconBadge — icône dans un « squircle » teinté (12-16 % d'or),
-   filet intérieur lumineux. Remplace les cercles muted plats.
-   ──────────────────────────────────────────────────────────────── */
+ 4) IconBadge — icône dans un « squircle » teinté (12-16 % d'or),
+ filet intérieur lumineux. Remplace les cercles muted plats.
+ ──────────────────────────────────────────────────────────────── */
 export function IconBadge({
   icon,
   className,
@@ -142,8 +142,8 @@ export function IconBadge({
 }
 
 /* ────────────────────────────────────────────────────────────────
-   5) Eyebrow — micro-titre éditorial au-dessus des sections.
-   ──────────────────────────────────────────────────────────────── */
+ 5) Eyebrow — micro-titre éditorial au-dessus des sections.
+ ──────────────────────────────────────────────────────────────── */
 export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <p className={cn("text-[10px] font-bold uppercase tracking-[0.2em] text-gold-text", className)}>{children}</p>
@@ -151,8 +151,8 @@ export function Eyebrow({ children, className }: { children: ReactNode; classNam
 }
 
 /* ────────────────────────────────────────────────────────────────
-   6) Chip — puce filtre animée (verre → or sélectionné).
-   ──────────────────────────────────────────────────────────────── */
+ 6) Chip — puce filtre animée (verre → or sélectionné).
+ ──────────────────────────────────────────────────────────────── */
 export function Chip({
   children,
   selected = false,
@@ -185,8 +185,8 @@ export function Chip({
 }
 
 /* ────────────────────────────────────────────────────────────────
-   7) PrimaryCTA — bouton signature terre→bissap + halo teinté.
-   ──────────────────────────────────────────────────────────────── */
+ 7) PrimaryCTA — bouton signature terre→bissap + halo teinté.
+ ──────────────────────────────────────────────────────────────── */
 export function PrimaryCTA({
   children,
   onClick,
@@ -220,10 +220,10 @@ export function PrimaryCTA({
 }
 
 /* ────────────────────────────────────────────────────────────────
-   8) ScoreRing — anneau de score signature 2026 : dégradé sur le
-   trait (SVG linearGradient), halo doré, chiffre en mono tabulaire,
-   tick de départ doré. stroke color = scoreColor (AA thème).
-   ──────────────────────────────────────────────────────────────── */
+ 8) ScoreRing — anneau de score signature 2026: dégradé sur le
+ trait (SVG linearGradient), halo doré, chiffre en mono tabulaire,
+ tick de départ doré. stroke color = scoreColor (AA thème).
+ ──────────────────────────────────────────────────────────────── */
 export function ScoreRing({
   score,
   size = 148,
@@ -285,8 +285,8 @@ export function ScoreRing({
 }
 
 /* ────────────────────────────────────────────────────────────────
-   9) Shimmer — squelettes de chargement vivants (k-shimmer CSS).
-   ──────────────────────────────────────────────────────────────── */
+ 9) Shimmer — squelettes de chargement vivants (k-shimmer CSS).
+ ──────────────────────────────────────────────────────────────── */
 export function Shimmer({ className }: { className?: string }) {
   return <span aria-hidden="true" className={cn("k-shimmer block rounded-xl bg-muted", className)} />;
 }

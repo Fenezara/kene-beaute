@@ -1,5 +1,5 @@
 "use client";
-// Kènè — Skin Twin v2 : le curseur temporel « Le Fil du Temps ».
+// Kènè — Skin Twin v2: le curseur temporel « Le Fil du Temps ».
 // Piste tissée kente + navette (input range natif invisible par-dessus →
 // drag tactile ET navigation clavier, pastilles d'arrêts cliquables).
 import { CalendarClock, Hand, Info } from "lucide-react";
@@ -65,7 +65,7 @@ export function ProjectionSlider({
           className="pointer-events-none absolute top-1/2 h-[20px] w-[20px] -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[5px] border-2 border-[#C8951E] bg-[#F8F1E4] shadow-md shadow-black/25"
           style={{ left: `calc(0.25rem + ${t * 100}% * 0.965)`, transition: "left 90ms ease-out" }}
         />
-        {/* input range natif : drag + clavier (flèches = ±1 semaine) */}
+        {/* input range natif: drag + clavier (flèches = ±1 semaine) */}
         <input
           type="range"
           min={0}

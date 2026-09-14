@@ -7,7 +7,7 @@ export interface PayrollInput {
   transport?: number;
   housing?: number;
   hoursWorked?: number; // heures payées du mois
-  cadres?: boolean; // SN : IPRES cadres
+  cadres?: boolean; // SN: IPRES cadres
   month?: number; // pour abattement IGR éventuel
 }
 
@@ -70,12 +70,12 @@ export function computeIGRCI(netImposable: number): { tax: number; brackets: { f
 }
 
 // ───────────── CI — CNPS ─────────────
-// Pensions : employeur 7,7 % + salarié 6,3 % (plafond 3 375 000)
-// Prestations familiales : employeur 5 % (plafond 70 000)
-// Maternité : employeur 0,75 % (plafond 70 000)
-// AT/MP : employeur 2 % (plafond 70 000)
-// Congés payés : employeur 8 %
-// CN (Contribution Nationale) : salarié 1,5 %
+// Pensions: employeur 7,7 % + salarié 6,3 % (plafond 3 375 000)
+// Prestations familiales: employeur 5 % (plafond 70 000)
+// Maternité: employeur 0,75 % (plafond 70 000)
+// AT/MP: employeur 2 % (plafond 70 000)
+// Congés payés: employeur 8 %
+// CN (Contribution Nationale): salarié 1,5 %
 export function computePayrollCI(input: PayrollInput): PayrollResult {
   const baseSalary = input.baseSalary;
   const transport = input.transport ?? 0;
@@ -98,7 +98,7 @@ export function computePayrollCI(input: PayrollInput): PayrollResult {
   const cnpsEmployer = pensionEmployer + prestationsFamiliales + maternite + atmp + congesPayes;
   const cnpsEmployee = pensionEmployee;
 
-  // Base IGR : brut cotisable − cotisations sociales salarié (pension) ; abattement 75 000 intégré au barème
+  // Base IGR: brut cotisable − cotisations sociales salarié (pension); abattement 75 000 intégré au barème
   const netImposable = Math.max(0, brut - pensionEmployee);
   const { tax: igr } = computeIGRCI(netImposable);
   const cn = r(Math.max(0, netImposable) * 0.015);
@@ -170,8 +170,8 @@ export function computeIRSN(netImposable: number): number {
 }
 
 // ───────────── SN — IPM (Prestations familiales 7 % plafond 63 000) + IPRES ─────────────
-// IPRES retraite : employeur 8,4 % + salarié 5,6 % (plafond 432 000)
-// IPRES cadres : employeur 3,6 % + salarié 2,4 %
+// IPRES retraite: employeur 8,4 % + salarié 5,6 % (plafond 432 000)
+// IPRES cadres: employeur 3,6 % + salarié 2,4 %
 export function computePayrollSN(input: PayrollInput): PayrollResult {
   const baseSalary = input.baseSalary;
   const transport = input.transport ?? 0;

@@ -1,6 +1,6 @@
 "use client";
-// Kènè Pro — CRM : recherche, segments RFM, fiche cliente (ventes, RDV, diagnostics IA, diagnostics en institut, notes)
-// t. 120 — WhatsApp direct depuis la fiche cliente : message de prise de
+// Kènè Pro — CRM: recherche, segments RFM, fiche cliente (ventes, RDV, diagnostics IA, diagnostics en institut, notes)
+// — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
 import { FileDown, MessageCircle, Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown } from "lucide-react";
@@ -238,14 +238,14 @@ function ClientSheet({
   onClose: () => void;
   onStartDiagnostic?: (clientId: string) => void;
 }) {
-  // Note locale : chargée au montage (la fiche est re-montée à chaque ouverture)
+  // Note locale: chargée au montage (la fiche est re-montée à chaque ouverture)
   const [note, setNote] = useState(() => (typeof window === "undefined" ? "" : window.localStorage.getItem(`kene-crm-note-${clientId}`) ?? ""));
   const detail = useApi<ProClientDetail>(() => apiGet<ProClientDetail>(`/api/pro/clients/${clientId}`), [clientId]);
 
   const d = detail.data;
   const c = d?.client;
 
-  /* Jumeau de Peau — agrégation 3D des diagnostics de la cliente (toutes zones) */
+ /* Jumeau de Peau — agrégation 3D des diagnostics de la cliente (toutes zones) */
   const twinEntries = useMemo<TwinEntry[]>(
     () =>
       (d?.diagnoses ?? []).map((dg) => {
@@ -268,13 +268,13 @@ function ClientSheet({
       <SheetContent side="right" aria-describedby={undefined} className="w-full sm:max-w-lg overflow-y-auto pretty-scroll p-0">
         {detail.error ? (
           <div className="p-4">
-            {/* Titre sr-only : Radix exige un SheetTitle dès l'ouverture, même en état d'erreur */}
+            {/* Titre sr-only: Radix exige un SheetTitle dès l'ouverture, même en état d'erreur */}
             <SheetTitle className="sr-only">Fiche cliente indisponible</SheetTitle>
             <ErrorState message={`Fiche indisponible : ${detail.error}`} onRetry={detail.refetch} />
           </div>
         ) : detail.loading || !d || !c ? (
           <div className="space-y-3 p-4">
-            {/* Titre sr-only : présent dès le squelette de chargement (exigence Radix a11y) */}
+            {/* Titre sr-only: présent dès le squelette de chargement (exigence Radix a11y) */}
             <SheetTitle className="sr-only">Chargement de la fiche cliente…</SheetTitle>
             <Skeleton className="h-20" />
             <Skeleton className="h-24" />
@@ -310,9 +310,9 @@ function ClientSheet({
             </SheetHeader>
 
             <div className="space-y-4 p-4">
-              {/* Actions rapides (t. 119/120) : fiche papier + WhatsApp direct */}
+              {/* Actions rapides: fiche papier + WhatsApp direct */}
               <div className="grid grid-cols-[1fr_auto] gap-2">
-                {/* Fiche de consultation papier (t. 119) — pré-remplie pour cette cliente */}
+                {/* Fiche de consultation papier — pré-remplie pour cette cliente */}
                 <Button
                   variant="outline"
                   className="gap-1.5"
@@ -322,7 +322,7 @@ function ClientSheet({
                   <FileDown className="size-4" aria-hidden="true" />
                   Fiche de consultation (PDF)
                 </Button>
-                {/* t. 120 — WhatsApp : message pré-rempli au prénom de la cliente */}
+                {/* — WhatsApp: message pré-rempli au prénom de la cliente */}
                 <a
                   href={waLink(c.phone, `Bonjour ${(c.name.split(/\s+/)[0] ?? c.name).trim()} 👋 Ici l'équipe de votre institut. Nous pensons à vous et à votre peau — une question, un conseil, un créneau ? Répondez ici, notre esthéticienne est là pour vous.`)}
                   target="_blank"

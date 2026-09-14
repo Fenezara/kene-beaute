@@ -1,5 +1,5 @@
 // Kènè — Export comptable CSV (SYSCOHADA révisé)
-// Lib PURE client-safe : format Excel FR (séparateur « ; », fins de ligne \r\n, BOM UTF-8).
+// Lib PURE client-safe: format Excel FR (séparateur «; », fins de ligne \r\n, BOM UTF-8).
 // Les 4 constructeurs partagent un en-tête documentaire (institut, période, édition)
 // puis alignent colonnes et totaux pour être exploitables directement par un comptable.
 
@@ -29,7 +29,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 
 // ─────────────── Primitives CSV ───────────────
 
-/** Échappe une cellule : guillemets doublés si séparateur / quote / retour ligne */
+/** Échappe une cellule: guillemets doublés si séparateur / quote / retour ligne */
 export function csvEscape(v: CsvCell): string {
   const s = String(v ?? "");
   return /[";\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;

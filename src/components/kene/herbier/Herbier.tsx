@@ -1,18 +1,18 @@
 "use client";
-// Kènè — « Herbier des Grandes-Mères » (t. 83-d) : le jardin botanique des
-// sages ivoiriennes. Vue plein écran (overlay z-70, pattern SkinDescent :
+// Kènè — « Herbier des Grandes-Mères »: le jardin botanique des
+// sages ivoiriennes. Vue plein écran (overlay z-70, pattern SkinDescent:
 // scroll interne + scène collante + Échap + blocage du scroll body) montée
-// à la racine via un gate hash (pattern PassportView : useSyncExternalStore,
+// à la racine via un gate hash (pattern PassportView: useSyncExternalStore,
 // jamais de setState dans un effet). Le hash est `#herbier` — aucune
-// collision avec ?passport=… (query) ni avec #moonlight (mode figé une fois
-// pour toutes par useLoomMode, cf. worklog t. 82).
+// collision avec `?passport=…` (query) ni avec #moonlight (mode figé une fois
+// pour toutes par useLoomMode, cf. worklog).
 //
 // Mode Clair de Lune (reduced-motion / 2G-3G / saveData / deviceMemory / pas
-// de WebGL) : PAS de canvas — grille statique des 8 cartes plantes (médaillon
+// de WebGL): PAS de canvas — grille statique des 8 cartes plantes (médaillon
 // couleur feuillage, tap = déploiement). Le contenu n'est JAMAIS bloqué.
 //
-// Expérience 3D : le scroll interne avance la caméra le long de l'arc des 8
-// plantes (chaque plante arrive au premier plan à son tour) ; tap sur une
+// Expérience 3D: le scroll interne avance la caméra le long de l'arc des 8
+// plantes (chaque plante arrive au premier plan à son tour); tap sur une
 // plante (raycast R3F, zone de hit élargie) ou points ‹ › → la carte de
 // sagesse change (transition framer-motion) + « Écouter » (TTS partagé).
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -44,7 +44,7 @@ const Herbier3D = dynamic(() => import("./Herbier3D"), { ssr: false, loading: ()
 
 const N = HERBIER_PLANTS.length;
 
-/* ── Gate : hash #herbier (store externe, pattern PassportView) ── */
+/* ── Gate: hash #herbier (store externe, pattern PassportView) ── */
 const HERBIER_HASH = "#herbier";
 const listeners = new Set<() => void>();
 let forceClosed = false; // repli si replaceState échoue (historique verrouillé)
@@ -68,7 +68,7 @@ function subscribeOpen(l: () => void) {
   };
 }
 
-/** Ouvre l'Herbier (entrée d'historique : le bouton Retour referme aussi). */
+/** Ouvre l'Herbier (entrée d'historique: le bouton Retour referme aussi). */
 export function openHerbier() {
   forceClosed = false;
   if (typeof window !== "undefined" && window.location.hash !== HERBIER_HASH) {
@@ -178,8 +178,8 @@ function Herbier({ onClose }: { onClose: () => void }) {
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [canvasOn, setCanvasOn] = useState(true);
 
-  /* Avance à la plante i : carte immédiate + défilement doux vers sa place
-     (la boucle rAF ne reprend la main qu'après l'animation — verrou 750 ms). */
+ /* Avance à la plante i: carte immédiate + défilement doux vers sa place
+ (la boucle rAF ne reprend la main qu'après l'animation — verrou 750 ms). */
   function goto(i: number) {
     const c = clampIndex(i);
     lockUntilRef.current = performance.now() + 750;
@@ -193,14 +193,14 @@ function Herbier({ onClose }: { onClose: () => void }) {
     }
   }
 
-  /* Clair de lune : ouvre la carte i et la fait défiler à l'écran. */
+ /* Clair de lune: ouvre la carte i et la fait défiler à l'écran. */
   function gotoMoonlit(i: number) {
     const c = clampIndex(i);
     setMoonlit((cur) => (cur === c ? cur : c));
     cardRefs.current[c]?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
-  /* Échap ferme, flèches ‹ › naviguent (les deux modes). */
+ /* Échap ferme, flèches ‹ › naviguent (les deux modes). */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -220,7 +220,7 @@ function Herbier({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [active, moonlit, full, onClose]);
 
-  /* Bloque le scroll du document derrière l'overlay (pattern SkinDescent). */
+ /* Bloque le scroll du document derrière l'overlay (pattern SkinDescent). */
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -229,8 +229,8 @@ function Herbier({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  /* Boucle unique : progression du scroll → caméra + plante active + invite.
-     Rendu coupé hors écran (IO → frameloop, budget GPU — pattern LoomSection). */
+ /* Boucle unique: progression du scroll → caméra + plante active + invite.
+ Rendu coupé hors écran (IO → frameloop, budget GPU — pattern LoomSection). */
   useEffect(() => {
     if (!full) return;
     const section = sectionRef.current;
@@ -293,14 +293,14 @@ function Herbier({ onClose }: { onClose: () => void }) {
       {closeButton}
 
       {full ? (
-        /* ── Expérience 3D : promenade en arc, scène collante ── */
+ /* ── Expérience 3D: promenade en arc, scène collante ── */
         <>
           <HerbierHeader />
           <div ref={scrollRef} className="absolute inset-0 overflow-y-auto pretty-scroll">
             <div ref={sectionRef} className="relative h-[320vh]">
               <div className="sticky top-0 h-svh overflow-hidden">
                 {/* Le jardin — garde les événements pointeur (tap sur plante),
-                    le scroll remonte au conteneur (pas de touch-action: none) */}
+ le scroll remonte au conteneur (pas de touch-action: none) */}
                 <div className="absolute inset-0">
                   <Herbier3D
                     progressRef={progressRef}
@@ -405,7 +405,7 @@ function Herbier({ onClose }: { onClose: () => void }) {
           </div>
         </>
       ) : (
-        /* ── Clair de Lune : grille statique, mêmes contenus, zéro canvas ── */
+ /* ── Clair de Lune: grille statique, mêmes contenus, zéro canvas ── */
         <div className="absolute inset-0 overflow-y-auto pretty-scroll">
           <div className="mx-auto max-w-[560px] px-5 pb-12">
             <HerbierHeader />

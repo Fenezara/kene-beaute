@@ -1,5 +1,5 @@
-// Kènè — 404 brandée (t. 86) : même une page perdue porte le Sceau et la
-// voix de la marque. Server component volontairement sobre : aucun hook,
+// Kènè — 404 brandée: même une page perdue porte le Sceau et la
+// voix de la marque. Server component volontairement sobre: aucun hook,
 // aucune donnée — l'emblème raster (double livraison claire/sombre) et le
 // filet kente suffisent à garder l'identité sur tous les écrans.
 import Link from "next/link";

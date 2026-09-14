@@ -1,12 +1,12 @@
-// Kènè — helpers Web Push côté navigateur (t. 60-e).
-// Utilisés par la carte « Rappels sur mon téléphone » du NotificationCenter :
+// Kènè — helpers Web Push côté navigateur.
+// Utilisés par la carte « Rappels sur mon téléphone » du NotificationCenter:
 // détection de support, état de l'abonnement, (dés)inscription pushManager,
-// conversion de la clé VAPID base64url → Uint8Array pour subscribe().
-// Tout est défensif : navigateur sans service worker/PushManager (Safari
+// conversion de la clé VAPID base64url → Uint8Array pour subscribe.
+// Tout est défensif: navigateur sans service worker/PushManager (Safari
 // ancien, Firefox sans autorisation…), SW non encore actif, permissions —
 // chaque helper retourne null/false au lieu de lever.
 
-/** Le navigateur sait-il faire du Web Push ? (appelé côté client uniquement) */
+/** Le navigateur sait-il faire du Web Push? (appelé côté client uniquement) */
 export function isPushSupported(): boolean {
   return (
     typeof window !== "undefined" &&
@@ -15,7 +15,7 @@ export function isPushSupported(): boolean {
   );
 }
 
-/** État dérivé de la carte : support navigateur + permission + abonnement actif. */
+/** État dérivé de la carte: support navigateur + permission + abonnement actif. */
 export type PushStatus = "unsupported" | "off" | "on";
 
 export async function getPushStatus(): Promise<PushStatus> {

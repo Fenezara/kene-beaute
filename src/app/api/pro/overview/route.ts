@@ -6,8 +6,8 @@ import { guardProRole } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
-    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:overview:get");
     if (guard) return guard;
 
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
     }
     const topServices = [...svcMap.values()].sort((a, b) => b.total - a.total).slice(0, 5);
 
-    // Alertes stock : produits sous le seuil (comparaison colonne à colonne en JS)
+    // Alertes stock: produits sous le seuil (comparaison colonne à colonne en JS)
     const stockAlerts = products
       .filter((p) => p.stock <= p.stockAlert)
       .map((p) => ({ id: p.id, name: p.name, stock: p.stock, stockAlert: p.stockAlert }));

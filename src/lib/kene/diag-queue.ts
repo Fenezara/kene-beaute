@@ -1,20 +1,20 @@
-// Kènè — file d'attente offline du diagnostic (t. 83-f, innovation).
-// Problème : à Abidjan, le réseau tombe souvent AU moment d'envoyer la photo.
-// Avant : échec sec → la cliente retape tout le parcours. Maintenant : la
-// photo (déjà cadrée, déjà redimensionnée) part en file localStorage ; dès le
+// Kènè — file d'attente offline du diagnostic (, innovation).
+// Problème: à Abidjan, le réseau tombe souvent AU moment d'envoyer la photo.
+// Avant: échec sec → la cliente retape tout le parcours. Maintenant: la
+// photo (déjà cadrée, déjà redimensionnée) part en file localStorage; dès le
 // retour du réseau (event « online » — la replay vit dans ClientApp), elle
-// part TOUTE SEULE vers /api/diagnoses ; le résultat arrive ensuite par
+// part TOUTE SEULE vers /api/diagnoses; le résultat arrive ensuite par
 // notification / historique, comme toute analyse.
 //
-// Garde-fous :
-// • cap 2 entrées (~2 × 330 Ko base64 max — loin du quota localStorage) ;
-//   au-delà, la PLUS ANCIENNE saute (jamais la fraîche) ;
-// • entrée > 24 h = périmée (jamais de POST fantôme du lendemain) ;
-// • doublon détecté par l'image (même dataUrl) → remplacement, pas de double ;
-// • en replay : succès OU échec définitif (400/403/404/413) → retire ;
-//   429/5xx/réseau → garde (rejoué plus tard) ;
+// Garde-fous:
+// • cap 2 entrées (~2 × 330 Ko base64 max — loin du quota localStorage);
+// au-delà, la PLUS ANCIENNE saute (jamais la fraîche);
+// • entrée > 24 h = périmée (jamais de POST fantôme du lendemain);
+// • doublon détecté par l'image (même dataUrl) → remplacement, pas de double;
+// • en replay: succès OU échec définitif (400/403/404/413) → retire;
+// 429/5xx/réseau → garde (rejoué plus tard);
 // • abonnés notifiés à la main (l'event « storage » ne fire PAS dans l'onglet
-//   courant — leçon t. 81), + « storage » pour les autres onglets.
+// courant — leçon), + « storage » pour les autres onglets.
 import { ApiError, apiPost } from "@/lib/kene/api";
 
 export interface QueuedDiag {
@@ -38,19 +38,19 @@ function notify() {
     try {
       l();
     } catch {
-      /* un abonné fragile ne casse pas la file */
+ /* un abonné fragile ne casse pas la file */
     }
   }
 }
 
-/** Onglets frères : « storage » fire dans les AUTRES onglets seulement. */
+/** Onglets frères: « storage » fire dans les AUTRES onglets seulement. */
 if (typeof window !== "undefined") {
   window.addEventListener?.("storage", (e) => {
     if (e.key === KEY || e.key === null) notify();
   });
 }
 
-/** Lecture : parse tolérant + purge des entrées périmées (> 24 h). */
+/** Lecture: parse tolérant + purge des entrées périmées (> 24 h). */
 export function readDiagQueue(): QueuedDiag[] {
   if (typeof window === "undefined") return [];
   try {
@@ -72,7 +72,7 @@ export function readDiagQueue(): QueuedDiag[] {
       try {
         window.localStorage.setItem(KEY, JSON.stringify(entries));
       } catch {
-        /* quota : la purge attendra la prochaine écriture */
+ /* quota: la purge attendra la prochaine écriture */
       }
     }
     return entries;
@@ -85,12 +85,12 @@ function write(entries: QueuedDiag[]) {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(entries));
   } catch {
-    // Quota dépassé : on ne garde que la plus récente (jamais un throw au
+    // Quota dépassé: on ne garde que la plus récente (jamais un throw au
     // moment où la cliente vient de perdre son réseau).
     try {
       window.localStorage.setItem(KEY, JSON.stringify(entries.slice(-1)));
     } catch {
-      /* localStorage plein/bloqué : la file est simplement indisponible */
+ /* localStorage plein/bloqué: la file est simplement indisponible */
     }
   }
   notify();
@@ -125,10 +125,10 @@ export function removeDiag(id: string) {
 }
 
 /**
- * Rejoue la file : POST chaque photo vers /api/diagnoses.
- * Succès ou échec définitif (400/403/404/413) → entrée retirée ;
+ * Rejoue la file: POST chaque photo vers /api/diagnoses.
+ * Succès ou échec définitif (400/403/404/413) → entrée retirée;
  * 429 / 5xx / échec réseau → l'entrée RESTE (rejouée plus tard).
- * Retour : nombre de diagnostics effectivement partis.
+ * Retour: nombre de diagnostics effectivement partis.
  */
 export async function replayDiagQueue(): Promise<number> {
   if (typeof window === "undefined" || navigator.onLine === false) return 0;
@@ -147,11 +147,11 @@ export async function replayDiagQueue(): Promise<number> {
       removeDiag(e.id);
     } catch (err) {
       // 400 (corps invalide — ex. image corrompue), 403 (quota du mois),
-      // 404, 413 (trop volumineux) : ça ne passera JAMAIS → on retire.
+      // 404, 413 (trop volumineux): ça ne passera JAMAIS → on retire.
       if (err instanceof ApiError && [400, 403, 404, 413].includes(err.status)) {
         removeDiag(e.id);
       }
-      // 429 / 502 / 503 / 504 / échec réseau : on garde, prochaine replay.
+      // 429 / 502 / 503 / 504 / échec réseau: on garde, prochaine replay.
     }
   }
   return sent;

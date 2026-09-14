@@ -1,9 +1,9 @@
 "use client";
 // Kènè — conversation Dr. Kènè (chat), persistée par appareil.
-// skipHydration : le HTML serveur et l'hydratation passent sur l'état initial
+// skipHydration: le HTML serveur et l'hydratation passent sur l'état initial
 // (fil vide), le localStorage est relu AU PREMIER MONTAGE de ChatScreen
 // (pattern use-t.ts / lang.ts) — zéro mismatch d'hydratation.
-// Les photos (dataURL base64) ne sont JAMAIS persistées : partialize les
+// Les photos (dataURL base64) ne sont JAMAIS persistées: partialize les
 // retire — elles restent en mémoire de session uniquement (quota 5 Mo).
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -13,8 +13,8 @@ import type { ChatMsg } from "@/components/kene/client/types";
 const MAX_MESSAGES = 60;
 
 /** Message d'accueil de Dr. Kènè — seed du fil (et re-seed après reset).
- *  L'horodatage est posé au moment du seed (heure réelle de début de fil) ;
- *  une fois persisté, le w1 conserve son heure d'origine. */
+ * L'horodatage est posé au moment du seed (heure réelle de début de fil);
+ * une fois persisté, le w1 conserve son heure d'origine. */
 function welcomeMsg(): ChatMsg {
   return {
     id: "w1",
@@ -27,12 +27,12 @@ function welcomeMsg(): ChatMsg {
 }
 
 interface ChatState {
-  /** Fil de discussion — persisté SANS les photos (voir partialize). */
+ /** Fil de discussion — persisté SANS les photos (voir partialize). */
   messages: ChatMsg[];
-  /** Ajoute un message ; re-seed WELCOME si le fil est vide ; cap mémoire 60
-   *  (les plus vieux glissent). La photo reste en mémoire de session. */
+ /** Ajoute un message; re-seed WELCOME si le fil est vide; cap mémoire 60
+ * (les plus vieux glissent). La photo reste en mémoire de session. */
   add: (msg: ChatMsg) => void;
-  /** Vide le fil et re-sème le message d'accueil. */
+ /** Vide le fil et re-sème le message d'accueil. */
   reset: () => void;
 }
 
@@ -51,7 +51,7 @@ export const useChat = create<ChatState>()(
     {
       name: "kene-chat",
       skipHydration: true,
-      // Messages SANS photo : la clé `photo` repasse à undefined → JSON.stringify
+      // Messages SANS photo: la clé `photo` repasse à undefined → JSON.stringify
       // l'omet → jamais un octet de base64 dans localStorage.
       partialize: (s) => ({ messages: s.messages.map((m) => ({ ...m, photo: undefined })) }),
     }

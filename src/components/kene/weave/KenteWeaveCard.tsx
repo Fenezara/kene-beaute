@@ -1,9 +1,9 @@
 "use client";
-// Kènè — Fil de Kente : la carte « bande tissée » réutilisable.
-// Hero WebGL de la boutique (et de toute section qui veut un fil d'identité) :
+// Kènè — Fil de Kente: la carte « bande tissée » réutilisable.
+// Hero WebGL de la boutique (et de toute section qui veut un fil d'identité):
 // la navette tisse la bande à l'entrée, le fil de la catégorie sélectionnée
 // s'illumine. Fallback CSS (reduced-motion / WebGL absent / #weave-static),
-// rendu coupé hors viewport (IO), a11y : figure + figcaption, canvas aria-hidden.
+// rendu coupé hors viewport (IO), a11y: figure + figcaption, canvas aria-hidden.
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -20,7 +20,7 @@ function WeaveStatic({ highlightIndex }: { highlightIndex: number }) {
     <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
       {/* trame de fond — bandes kente douces */}
       <div className="absolute inset-0 kente-band-soft opacity-90" />
-      {/* armure : croisures horizontales or + verticales sombres */}
+      {/* armure: croisures horizontales or + verticales sombres */}
       <div
         className="absolute inset-0 opacity-60"
         style={{
@@ -50,15 +50,15 @@ export function KenteWeaveCard({
   className,
   weaveKey,
 }: {
-  /** index du fil mis en avant (−1 = aucun) — cf. threads.ts */
+ /** index du fil mis en avant (−1 = aucun) — cf. threads.ts */
   highlightIndex?: number;
-  /** texte de légende sous la bande (accessible) */
+ /** texte de légende sous la bande (accessible) */
   caption?: string;
-  /** aria-label de la figure */
+ /** aria-label de la figure */
   label?: string;
-  /** classes additionnelles pour la figure */
+ /** classes additionnelles pour la figure */
   className?: string;
-  /** changement → la navette re-tisse la bande */
+ /** changement → la navette re-tisse la bande */
   weaveKey?: number;
 }) {
   const mode = useWeaveMode();
@@ -66,12 +66,12 @@ export function KenteWeaveCard({
   const [active, setActive] = useState(true); // IntersectionObserver → frameloop
   const stageRef = useRef<HTMLDivElement>(null);
 
-  /* le fil à illuminer — écrit dans la ref mutable, lue par la scène (zéro re-render) */
+ /* le fil à illuminer — écrit dans la ref mutable, lue par la scène (zéro re-render) */
   useEffect(() => {
     refsRef.current.highlight.index = highlightIndex;
   }, [highlightIndex, refsRef]);
 
-  /* rendu coupé quand la carte sort du viewport */
+ /* rendu coupé quand la carte sort du viewport */
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;

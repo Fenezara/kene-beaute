@@ -1,5 +1,5 @@
 // GET /api/diagnoses/report?userId=&id= → PDF « Mon diagnostic de peau »
-// (t. 119) — compte-rendu du self-scan IA de la cliente : score, indicateurs,
+// — compte-rendu du self-scan IA de la cliente: score, indicateurs,
 // routine conseillée, orientation éventuelle, mention non médicale.
 // Session cliente (guardUserClaim) — chacun ne voit que ses comptes-rendus.
 import { NextRequest, NextResponse } from "next/server";

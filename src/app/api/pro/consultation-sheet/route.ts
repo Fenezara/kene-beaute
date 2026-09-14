@@ -1,8 +1,8 @@
 // GET /api/pro/consultation-sheet?tenantId=&clientId?=&practitioner?
-// → PDF « Fiche de consultation & diagnostic de peau » (t. 119).
-//   - sans clientId : fiche VIERGE (support papier universel, à remplir à la main) ;
-//   - avec clientId : fiche PRÉ-REMPLIE (identité, miroir peau, derniers
-//     self-scans si la cliente est sur l'app).
+// → PDF « Fiche de consultation & diagnostic de peau ».
+// - sans clientId: fiche VIERGE (support papier universel, à remplir à la main);
+// - avec clientId: fiche PRÉ-REMPLIE (identité, miroir peau, derniers
+// self-scans si la cliente est sur l'app).
 // Session pro/admin exigée (guardProRole) + institut résolu (isolation stricte).
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";

@@ -1,10 +1,10 @@
 "use client";
-// Kènè Cliente — Abonnement (t. 71-c) : offres Kènè+ (2 500 FCFA/mois) et
+// Kènè Cliente — Abonnement: offres Kènè+ (2 500 FCFA/mois) et
 // état du quota diagnostics (gratuit = 1/mois, Kènè+ = illimité).
-// Paiement mobile money SIMULÉ : le Sheet d'activation propose Wave / Orange
+// Paiement mobile money SIMULÉ: le Sheet d'activation propose Wave / Orange
 // Money / MTN MoMo en pastilles texte stylées (aucune image externe) et
-// affiche « Démo — paiement simulé (POC) : aucun débit réel » — l'argent est
-// simulé, comme le reste du POC (honnêteté absolue).
+// affiche « paiement en mode essai — aucun débit réel » — l'argent est
+// simulé, comme le reste de la version d'essai (honnêteté absolue).
 // Libellés 100 % FR direct (i18n hors périmètre ce sprint).
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
@@ -19,7 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { IconBadge, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import { useKene, type SessionUser } from "@/store/kene";
 
-/* ─── Contrat API (t. 71-c) ─── */
+/* ─── Contrat API ─── */
 interface ApiPlanDef {
   id: string;
   audience: "client" | "pro";
@@ -46,7 +46,7 @@ interface SubsData {
 }
 
 /** Icônes des perks Kènè+ — mappées par index sur l'ordre stable de
- *  PLAN_DEFS (diagnostics illimités, suivi évolution, priorité, défis). */
+ * PLAN_DEFS (diagnostics illimités, suivi évolution, priorité, défis). */
 const PLUS_PERK_ICONS = [Sparkles, TrendingUp, Zap, Trophy] as const;
 
 /** « 25/03 » à partir d'une date ISO — pas de dépendance locale floue. */
@@ -59,7 +59,7 @@ export function PlanScreen() {
   const user = useKene((s) => s.user) as SessionUser;
   const setClientTab = useKene((s) => s.setClientTab);
 
-  // ── Données (statut + plans + quota) : squelettes → données / erreur datée ──
+  // ── Données (statut + plans + quota): squelettes → données / erreur datée ──
   const [data, setData] = useState<SubsData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,7 +85,7 @@ export function PlanScreen() {
   const isPlus = data?.plan === "kene_plus";
   const quota = data?.quota;
 
-  /** Confirme l'activation (paiement SIMULÉ) → POST activate → succès. */
+ /** Confirme l'activation (paiement SIMULÉ) → POST activate → succès. */
   async function confirmActivation() {
     setBusy(true);
     setState("processing");
@@ -118,7 +118,7 @@ export function PlanScreen() {
         </button>
       </RevealItem>
 
-      {/* Erreur datée + ré-essai en un tap (pattern walletError t. 63-b) */}
+      {/* Erreur datée + ré-essai en un tap */}
       {error && (
         <RevealItem>
           <section role="alert" className="k-card rounded-[24px] p-4 flex items-center gap-3">
@@ -195,8 +195,8 @@ export function PlanScreen() {
           </div>
         </RevealItem>
       ) : isPlus && data?.subscription ? (
-        /* Déjà abonnée : carte active (badge, expiration, renouvellement démo,
-           perks cochées) — honnêteté POC sur le paiement simulé. */
+ /* Déjà abonnée: carte active (badge, expiration, renouvellement simulé,
+ perks cochées) — honnêteté sur le paiement en mode essai. */
         <RevealItem>
           <section aria-labelledby="plus-active-t" className="k-card k-glow-gold rounded-[24px] p-5">
             <div className="flex items-center gap-3">
@@ -233,7 +233,7 @@ export function PlanScreen() {
           </section>
         </RevealItem>
       ) : (
-        /* Offre : carte halo or + perks + prix + CTA k-btn-gold. */
+ /* Offre: carte halo or + perks + prix + CTA k-btn-gold. */
         <RevealItem>
           <section aria-labelledby="plus-offer-t" className="k-card k-glow-gold overflow-hidden rounded-[24px]">
             <div className="kente-band h-1.5 w-full" aria-hidden="true" />
@@ -284,16 +284,16 @@ export function PlanScreen() {
         </RevealItem>
       ))}
 
-      {/* Note de bas d'écran : l'offre Pro vit sur un compte entreprise dédié. */}
+      {/* Note de bas d'écran: l'offre Pro vit sur un compte entreprise dédié. */}
       <RevealItem>
         <p className="text-center text-[11px] leading-relaxed text-muted-foreground px-4">
           L&apos;abonnement Pro (Essentiel / Complexe) est réservé aux comptes entreprise — il se gère depuis l&apos;espace Pro.
         </p>
       </RevealItem>
 
-      {/* Sheet d'activation — mobile money SIMULÉ (POC).
-          Opérateurs en pastilles texte stylées (aucune image externe),
-          numéro pré-rempli, mention « aucun débit réel » à chaque étape. */}
+      {/* Sheet d'activation — mobile money EN MODE ESSAI.
+ Opérateurs en pastilles texte stylées (aucune image externe),
+ numéro pré-rempli, mention « aucun débit réel » à chaque étape. */}
       <Sheet open={sheet} onOpenChange={(o) => { setSheet(o); if (!o) setState("idle"); }}>
         <SheetContent side="bottom" className="max-w-[560px] mx-auto rounded-t-3xl">
           <SheetHeader className="text-left">

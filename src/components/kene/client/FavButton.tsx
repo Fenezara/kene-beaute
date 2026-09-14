@@ -1,7 +1,7 @@
 "use client";
 // Kènè Cliente — bouton favori (wishlist) réutilisable.
-// variant "card"  : pastille cœur en verre, superposée en absolu sur la carte produit.
-// variant "inline" : bouton pleine largeur avec libellé, dans la fiche produit.
+// variant "card": pastille cœur en verre, superposée en absolu sur la carte produit.
+// variant "inline": bouton pleine largeur avec libellé, dans la fiche produit.
 // Identité or (text-primary), jamais de rouge standard. MotionConfig global
 // (page.tsx, reducedMotion="user") ⇒ le micro-bounce respecte prefers-reduced-motion.
 import { motion } from "framer-motion";
@@ -18,7 +18,7 @@ interface FavButtonProps {
 }
 
 export function FavButton({ productId, productName, variant = "card", className = "" }: FavButtonProps) {
-  // Sélecteur dérivé (booléen) : re-render de CE bouton uniquement à son tour.
+  // Sélecteur dérivé (booléen): re-render de CE bouton uniquement à son tour.
   const active = useFavorites((s) => s.favs.includes(productId));
   const toggleFav = useFavorites((s) => s.toggleFav);
 
@@ -52,7 +52,7 @@ export function FavButton({ productId, productName, variant = "card", className 
     );
   }
 
-  // Pastille « card » — verre + blur natif Tailwind (cf. worklog t. 57 : Lightning CSS
+  // Pastille « card » — verre + blur natif Tailwind (cf. worklog: Lightning CSS
   // retire backdrop-filter des règles custom, on utilise l'utilitaire backdrop-blur-md).
   return (
     <motion.button
@@ -63,8 +63,8 @@ export function FavButton({ productId, productName, variant = "card", className 
       whileTap={{ scale: 0.82 }}
       className={`absolute top-2 right-2 z-10 grid place-items-center h-10 w-10 min-h-10 min-w-10 rounded-full bg-background/80 backdrop-blur-md shadow-sm text-primary focus-visible:outline-2 focus-visible:outline-primary ${className}`}
     >
-      {/* Micro-bounce au toggle : remount via key → ressort léger (désactivé
-          automatiquement si prefers-reduced-motion, via MotionConfig global). */}
+      {/* Micro-bounce au toggle: remount via key → ressort léger (désactivé
+ automatiquement si prefers-reduced-motion, via MotionConfig global). */}
       <motion.span
         key={active ? "on" : "off"}
         initial={{ scale: 0.55 }}

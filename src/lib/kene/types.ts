@@ -44,27 +44,27 @@ export interface RecommendationSet {
   conseils_hygiene_vie: string[];
 }
 
-/** Niveau de conduite Kènè pour une affection de l'atlas africain (t. 84) :
- *  educatif → conseils doux possibles ; institut → dermo-conseillère partenaire ;
- *  dermato → avis médical ; urgence → consultation immédiate. */
+/** Niveau de conduite Kènè pour une affection de l'atlas africain:
+ * educatif → conseils doux possibles; institut → dermo-conseillère partenaire;
+ * dermato → avis médical; urgence → consultation immédiate. */
 export type AtlasLevel = "educatif" | "institut" | "dermato" | "urgence";
 
 /** Affection suspectée par le VLM après validation anti-hallucination
- *  (id EXACT de l'atlas + zone cohérente + confiance ≥ 25). Jamais un
- *  diagnostic formel : une hypothèse éducative à faire confirmer. */
+ * (id EXACT de l'atlas + zone cohérente + confiance ≥ 25). Jamais un
+ * diagnostic formel: une hypothèse éducative à faire confirmer. */
 export interface SuspectedCondition {
   id: string;
   nom: string;
-  /** Label lisible de la famille (ex. « Infections parasitaires »). */
+ /** Label lisible de la famille (ex. « Infections parasitaires »). */
   categorie: string;
-  /** 0-100, confiance du modèle de vision. */
+ /** 0-100, confiance du modèle de vision. */
   confiance: number;
   niveau: AtlasLevel;
-  /** Comment ça se présente sur peau noire — la clé de la reconnaissance. */
+ /** Comment ça se présente sur peau noire — la clé de la reconnaissance. */
   surPeauNoire: string;
-  /** Conduite de Kènè en une phrase. */
+ /** Conduite de Kènè en une phrase. */
   action: string;
-  /** Signe d'alerte éventuel. */
+ /** Signe d'alerte éventuel. */
   drapeau?: string;
 }
 
@@ -78,15 +78,15 @@ export interface DiagnosisResult {
   orientation_dermato: boolean;
   raison_orientation?: string;
   abcde?: AbcdeCriteria[];
-  /** Hypothèses éducatives de l'atlas africain (t. 84) — renvoyées par le
-   *  VLM uniquement (jamais en mode secours), max 2, validées côté serveur
-   *  (id exact + zone cohérente + confiance ≥ 25). */
+ /** Hypothèses éducatives de l'atlas africain — renvoyées par le
+ * VLM uniquement (jamais en mode secours), max 2, validées côté serveur
+ * (id exact + zone cohérente + confiance ≥ 25). */
   hypotheses?: SuspectedCondition[];
   avertissement: string;
   source: "vlm" | "fallback";
-  /** Fiabilité affichée (t. 71) : "haute" = analyse IA vision (VLM),
-   *  "indicative" = fallback déterministe (mode secours). Optionnel : les
-   *  anciens resultJson ne l'ont pas → le front le dérive de `source`. */
+ /** Fiabilité affichée: "haute" = analyse IA vision (VLM),
+ * "indicative" = fallback déterministe (mode secours). Optionnel: les
+ * anciens resultJson ne l'ont pas → le front le dérive de `source`. */
   confidence?: "haute" | "indicative";
 }
 

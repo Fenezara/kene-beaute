@@ -1,6 +1,6 @@
-// POST /api/pro/coupons/diffuse — {tenantId, couponId} : pousse le code promo
-// à toutes les clientes (role client) : notification + cloche TEMPS RÉEL
-// (tâche 33) + audit. Idempotence : pas de double diffusion d'un même coupon
+// POST /api/pro/coupons/diffuse — {tenantId, couponId}: pousse le code promo
+// à toutes les clientes (role client): notification + cloche TEMPS RÉEL
+// + audit. Idempotence: pas de double diffusion d'un même coupon
 // (une notification existe déjà avec metaJson.couponId = id).
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -16,14 +16,14 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  // Mass-notification (une diffusion notifie TOUTES les clientes) : 4/min.
+  // Mass-notification (une diffusion notifie TOUTES les clientes): 4/min.
   const rl = rateLimit(rlKey(req, "pro:coupons:diffuse"), COUPONS_DIFFUSE);
   if (!rl.ok) {
     return rateLimitResponse(rl.retryAfterSec, "Diffusion trop fréquente — reprends dans quelques secondes");
   }
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, la diffusion
-    // mass-notification exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, la diffusion
+    // mass-notification exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:coupons:diffuse");
     if (guard) return guard;
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     if (coupon.tenantId === null) return jsonError("Coupon maison Kènè — diffusion réservée à l'administration", 403);
     if (!coupon.active) return jsonError("Active le coupon avant de le diffuser", 400);
 
-    // Idempotence : déjà diffusé ?
+    // Idempotence: déjà diffusé?
     const already = await db.notification.findFirst({
       where: { metaJson: { contains: `"couponId":"${coupon.id}"` } },
       select: { id: true },

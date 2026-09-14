@@ -14,36 +14,36 @@ export function jsonError(error: string, status = 400): NextResponse {
   return NextResponse.json({ error }, { status });
 }
 
-/** Handleur générique : capture les erreurs non gérées en 500 loggé */
+/** Handleur générique: capture les erreurs non gérées en 500 loggé */
 export function serverError(scope: string, err: unknown): NextResponse {
   console.error(`[kene:api:${scope}]`, err instanceof Error ? err.message : err);
   return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
 }
 
-/** Tenant Pro par défaut (mono-tenant démo) : premier créé */
+/** Tenant Pro par défaut (mono-tenant): premier créé */
 export function defaultTenant() {
   return db.tenant.findFirst({ orderBy: { createdAt: "asc" } });
 }
 
 /** Résout un tenant pour UNE requête, en liant l'accès au propriétaire de
- * session (t. 89 — incident « La Dermo ne passe pas ») :
- *  • gérante pro connectée (cookie signé) : elle n'accède QU'À SON institut —
- *    sans tenantId → SON tenant (plus jamais le « premier de la base », qui
- *    faisait atterrir une gérante qui se reconnecte sur le dashboard d'un
- *    autre institut) ; avec un tenantId ÉTRANGER → null (404) — ferme au
- *    passage l'IDOR qui laissait toute pro lire les données d'un autre ;
- *  • admin connecté : accès à tout tenant (console) ;
- *  • sans cookie : comportement historique POC (résolution libre) — les
- *    parcours front posent tous le cookie depuis t. 71-b.
- * Signature enrichie de la requête : les 17 routes pro passent par CE point
+ * session ( — incident « La Dermo ne passe pas »):
+ * • gérante pro connectée (cookie signé): elle n'accède QU'À SON institut —
+ * sans tenantId → SON tenant (plus jamais le « premier de la base », qui
+ * faisait atterrir une gérante qui se reconnecte sur le dashboard d'un
+ * autre institut); avec un tenantId ÉTRANGER → null (404) — ferme au
+ * passage l'IDOR qui laissait toute pro lire les données d'un autre;
+ * • admin connecté: accès à tout tenant (console);
+ * • sans cookie: comportement historique (résolution libre) — les
+ * parcours front posent tous le cookie depuis.
+ * Signature enrichie de la requête: les 17 routes pro passent par CE point
  * unique (overview, agenda, CRM, caisse, stock, payroll, compta, relances,
  * catalogue, diagnostics, live, employées, coupons…). */
 export async function resolveTenant(req: NextRequest, tenantId?: string | null) {
   const sess = sessionFromRequest(req);
   if (sess && sess.role === "pro") {
-    // 1) gérante : son institut (ownerPhone).
+    // 1) gérante: son institut (ownerPhone).
     let mine = await db.tenant.findFirst({ where: { ownerPhone: sess.phone } });
-    // 2) t. 96 — EMPLOYÉE de l'app (compte créé par sa gérante) : l'institut
+    // 2) — EMPLOYÉE de l'app (compte créé par sa gérante): l'institut
     // de son EMPLOYEUR via la fiche Employee liée (userId). Une employée ne
     // voit QUE cet institut — mêmes règles strictes qu'une gérante
     // (tenantId étranger → refus, aucune institut → 404 franc).
@@ -54,7 +54,7 @@ export async function resolveTenant(req: NextRequest, tenantId?: string | null) 
       });
       if (emp) mine = await db.tenant.findUnique({ where: { id: emp.tenantId } });
     }
-    if (!mine) return null; // pro sans institut : 404 franc, pas de repli
+    if (!mine) return null; // pro sans institut: 404 franc, pas de repli
     if (tenantId && tenantId !== mine.id) return null; // institut d'une autre → refus
     return mine;
   }
@@ -112,7 +112,7 @@ export function overlaps(startA: Date, durA: number, startB: Date, durB: number)
 }
 
 // ─────────────── Wallet ───────────────
-// t. 63-c : ces helpers acceptent un client de transaction optionnel.
+//: ces helpers acceptent un client de transaction optionnel.
 // À l'intérieur d'un prisma.$transaction, passer le `tx` reçu → toutes les
 // écritures de la route partagent la même transaction atomique. Sans
 // paramètre (comportement historique), ils utilisent le client global —
@@ -198,8 +198,8 @@ export async function rewardReferrerIfNeeded(filleulUserId: string, tx?: Prisma.
 }
 
 // ─────────────── Notifications (SMS/WhatsApp simulés) ───────────────
-// `tx` facultatif (t. 63-c) : la ligne Notification est créée DANS la
-// transaction de la route appelante quand il y en a une ; sans tx, le
+// `tx` facultatif: la ligne Notification est créée DANS la
+// transaction de la route appelante quand il y en a une; sans tx, le
 // comportement historique est conservé à l'identique.
 export function notify(
   data: {
@@ -226,9 +226,9 @@ export function notify(
       metaJson: data.metaJson ?? null,
     },
   });
-  // Temps réel : si la cliente est en ligne, son fil est repoussé en ~250 ms
+  // Temps réel: si la cliente est en ligne, son fil est repoussé en ~250 ms
   // (best-effort — le poll 8 s du notify-service rattrape sinon tout).
-  // Même canal côté institut : un événement tenant (RDV, relance, diffusion)
+  // Même canal côté institut: un événement tenant (RDV, relance, diffusion)
   // réveille aussi l'espace Pro connecté à ce tenant.
   const tenantId = data.tenantId;
   if (tenantId) {
@@ -244,7 +244,7 @@ export function notify(
   return created;
 }
 
-// ─────────────── CRM : recalcul RFM d'un ClientProfile ───────────────
+// ─────────────── CRM: recalcul RFM d'un ClientProfile ───────────────
 export async function recomputeClientRfm(clientProfileId: string) {
   const client = await db.clientProfile.findUnique({ where: { id: clientProfileId } });
   if (!client) return null;
@@ -260,7 +260,7 @@ export async function recomputeClientRfm(clientProfileId: string) {
   return db.clientProfile.update({ where: { id: clientProfileId }, data: { rfmSegment: segment } });
 }
 
-// ─────────────── Comptabilité : écriture depuis lignes simplifiées ───────────────
+// ─────────────── Comptabilité: écriture depuis lignes simplifiées ───────────────
 export async function createJournalEntry(
   tenantId: string,
   opts: { journalCode: string; date: Date; reference: string; description: string; sourceType?: string; sourceId?: string; lines: SimpleLine[] }

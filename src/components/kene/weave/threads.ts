@@ -1,10 +1,10 @@
-// Kènè — Fil de Kente : palette des fils, armure du tissage et refs mutables.
-// Module PUR (aucune dépendance three / React) : réutilisable côté scène WebGL,
+// Kènè — Fil de Kente: palette des fils, armure du tissage et refs mutables.
+// Module PUR (aucune dépendance three / React): réutilisable côté scène WebGL,
 // fallback CSS ou serveur. Suit la convention de twinMath / evolution.
 
 export interface KenteThread {
   id: string;
-  /** nom poétique du fil (légende visible) */
+ /** nom poétique du fil (légende visible) */
   name: string;
   hex: string;
 }
@@ -21,7 +21,7 @@ export const KENTE_THREADS: KenteThread[] = [
 
 /**
  * Armure kente — index de fil pour une cellule (col, row) de la TRAME.
- * Rangées de cadre en liseré or ponctué de mélanine ; à l'intérieur, le pas
+ * Rangées de cadre en liseré or ponctué de mélanine; à l'intérieur, le pas
  * s'inverse une rangée sur deux → chevrons, comme le tissage Ashanti réel.
  */
 export function weftThreadIndex(col: number, row: number, rows: number): number {
@@ -57,11 +57,11 @@ export function categoryThread(cat: string): number {
 }
 
 /* ───────────────────────── Refs mutables (pattern Phase A/D) ─────────────────────────
-   La carte écrit, la scène ne fait que LIRE — la progression du tissage est
-   possédée par la scène elle-même (weaveKey comparé, lecture seule). */
+ La carte écrit, la scène ne fait que LIRE — la progression du tissage est
+ possédée par la scène elle-même (weaveKey comparé, lecture seule). */
 
 export interface WeaveRefs {
-  /** index du fil mis en avant (−1 = aucun) */
+ /** index du fil mis en avant (−1 = aucun) */
   highlight: { index: number };
 }
 

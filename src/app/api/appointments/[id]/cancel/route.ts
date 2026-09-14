@@ -1,6 +1,6 @@
 // POST /api/appointments/[id]/cancel — annulation + remboursement acompte (politique PRD §8.6)
-// t. 63-c : le remboursement part TOUJOURS vers le VRAI propriétaire du RDV
-// (appointment.userId), jamais vers un userId fourni dans le corps ; une
+//: le remboursement part TOUJOURS vers le VRAI propriétaire du RDV
+// (appointment.userId), jamais vers un userId fourni dans le corps; une
 // userId cliente qui ne correspond pas au propriétaire → 403. Refund wallet +
 // passage en annulé partagent une même prisma.$transaction.
 import { NextRequest, NextResponse } from "next/server";
@@ -23,9 +23,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const parsed = Body.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
 
-    // Session signée (t. 71-b, migration douce) : avec cookie, le userId du
+    // Session signée (, migration douce): avec cookie, le userId du
     // corps doit être celui de la session — la garde propriétaire (403 juste
-    // après) reste la barrière métier ; sans cookie → legacy.
+    // après) reste la barrière métier; sans cookie → legacy.
     const guard = guardUserClaim(req, "appointments:cancel", parsed.data.userId);
     if (guard) return guard;
 
@@ -36,8 +36,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!appointment) return jsonError("Rendez-vous introuvable", 404);
     if (appointment.status === "cancelled") return jsonError("Rendez-vous déjà annulé", 400);
 
-    // Appartenance (POC : userId fourni par le client, mais au moins le refund
-    // ne part plus vers un tiers) : seule la propriétaire du RDV peut l'annuler.
+    // Appartenance (POC: userId fourni par le client, mais au moins le refund
+    // ne part plus vers un tiers): seule la propriétaire du RDV peut l'annuler.
     if (parsed.data.userId !== appointment.userId) {
       return jsonError("Ce rendez-vous ne t'appartient pas", 403);
     }

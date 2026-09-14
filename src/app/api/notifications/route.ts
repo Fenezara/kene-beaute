@@ -1,14 +1,14 @@
 // GET /api/notifications?userId= — fil de rappels automatiques de la cliente.
-// 1) BACKFILL idempotent : matérialise les rappels manquants pour les
-//    diagnostics terminés (contrôle S+3) et les RDV confirmés à venir (J-1)
-//    — fonctionne aussi pour les données créées avant la fonctionnalité.
-//    Idempotence : la couverture lit les méta des notifications scheduled ET
-//    sent récentes (un rappel déjà parti ne doit pas re-naître), et les
-//    relances pro marquées traitées ferment le besoin côté cliente.
-// 2) DUE-RUNNER : les rappels scheduled dont l'heure est venue passent à sent
-//    (envoi simulé, POC).
-// 3) FILTRE intelligent : les rappels périmés (RDV annulé, contrôle déjà fait
-//    via un scan plus récent, relance pro déjà traitée) sont exclus du fil.
+// 1) BACKFILL idempotent: matérialise les rappels manquants pour les
+// diagnostics terminés (contrôle S+3) et les RDV confirmés à venir (J-1)
+// — fonctionne aussi pour les données créées avant la fonctionnalité.
+// Idempotence: la couverture lit les méta des notifications scheduled ET
+// sent récentes (un rappel déjà parti ne doit pas re-naître), et les
+// relances pro marquées traitées ferment le besoin côté cliente.
+// 2) DUE-RUNNER: les rappels scheduled dont l'heure est venue passent à sent
+// (envoi simulé, POC).
+// 3) FILTRE intelligent: les rappels périmés (RDV annulé, contrôle déjà fait
+// via un scan plus récent, relance pro déjà traitée) sont exclus du fil.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         select: { id: true, startAt: true, status: true, service: { select: { name: true } }, tenant: { select: { name: true } } },
         orderBy: { startAt: "asc" },
       }),
-      // Couverture : méta des notifications scheduled + sent des 60 derniers
+      // Couverture: méta des notifications scheduled + sent des 60 derniers
       // jours — un rappel déjà parti (flippé sent par le due-runner) ne doit
       // pas être re-créé au backfill.
       db.notification.findMany({
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
       if (meta.diagId) coveredDiagIds.add(meta.diagId);
       if (meta.apptId) coveredApptIds.add(meta.apptId);
     }
-    // Relances pro déjà traitées : le rappel automatique cliente est un doublon
+    // Relances pro déjà traitées: le rappel automatique cliente est un doublon
     const handledDiagIds = new Set<string>();
     const handledDedupKeys = new Set<string>();
     for (const m of doneMarksRaw) {
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Dernier diagnostic par zone (desc) : un rappel de contrôle S+3 chacun.
+    // Dernier diagnostic par zone (desc): un rappel de contrôle S+3 chacun.
     const lastByZone = new Map<string, (typeof diagnoses)[number]>();
     for (const d of diagnoses) if (!lastByZone.has(d.zone)) lastByZone.set(d.zone, d);
 
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Rappel J-1 : RDV confirmés à venir, sans rappel existant.
+    // Rappel J-1: RDV confirmés à venir, sans rappel existant.
     for (const a of upcomingAppts) {
       if (a.status !== "confirmed") continue;
       if (new Date(a.startAt).getTime() <= now.getTime()) continue;
@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
       await db.notification.createMany({ data: toCreate });
     }
 
-    /* ── 2) Due-runner : échéance venue → envoyé (POC) ────────── */
+    /* ── 2) Due-runner: échéance venue → envoyé (POC) ────────── */
 
     await db.notification.updateMany({
       where: { userId, status: "scheduled", scheduledAt: { lte: now } },
@@ -131,8 +131,8 @@ export async function GET(req: NextRequest) {
     });
 
     /* ── 3) Lecture du fil (sent 30 j + scheduled pertinents) ── */
-    // Fil borné (t. 63-d) : 30 entrées max par section, orderBy conservé
-    // (sent: createdAt desc ; scheduled: scheduledAt asc) — le backfill et le
+    // Fil borné: 30 entrées max par section, orderBy conservé
+    // (sent: createdAt desc; scheduled: scheduledAt asc) — le backfill et le
     // due-runner ci-dessus restent inchangés et non déplacés.
 
     const [sentRaw, scheduledRaw, allDiags, futureAppts, unreadCount] = await Promise.all([
@@ -155,7 +155,7 @@ export async function GET(req: NextRequest) {
         where: { userId, startAt: { gte: now }, status: { in: ["confirmed", "pending", "completed"] } },
         select: { id: true },
       }),
-      // Badge : toutes les envoyées non lues de la fenêtre 30 j (pas seulement la page)
+      // Badge: toutes les envoyées non lues de la fenêtre 30 j (pas seulement la page)
       db.notification.count({
         where: { userId, status: "sent", readAt: null, createdAt: { gte: new Date(now.getTime() - 30 * DAY) } },
       }),

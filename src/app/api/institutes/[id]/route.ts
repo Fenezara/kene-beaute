@@ -1,7 +1,7 @@
 // GET /api/institutes/[id] — fiche institut + services + praticiennes + avis
-// Sécurité (t. 63-d) : select explicite partout — la fiche publique expose
+// Sécurité: select explicite partout — la fiche publique expose
 // uniquement les champs consommés par le front (BookingScreen). Sont retirés
-// de la réponse : ownerName, ownerPhone, phone, address, plan, commissionRate,
+// de la réponse: ownerName, ownerPhone, phone, address, plan, commissionRate,
 // active (données business) et commissionPct des services.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         name: true,
         city: true,
         country: true,
-        phone: true, // t. 120 — numéro officiel : bouton WhatsApp cliente → institut
+        phone: true, // — numéro officiel: bouton WhatsApp cliente → institut
         rating: true,
         reviewCount: true,
         description: true,
@@ -41,7 +41,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           price: true,
           description: true,
           botanicals: true,
-          photoData: true, // t. 120 — visuel du soin (hasPhoto dans la réponse)
+          photoData: true, // — visuel du soin (hasPhoto dans la réponse)
         },
       }),
       db.resource.findMany({
@@ -60,7 +60,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({
       institute: {
         ...institute,
-        // t. 120 — vitrine réelle si posée, sinon visuel studio du nom
+        // — vitrine réelle si posée, sinon visuel studio du nom
         image: photoData ? `/api/media/tenant/${id}` : instituteImage(tenant.name),
         hasPhoto: Boolean(photoData),
         reviewCount: tenant.reviewCount ?? tenant._count.reviews,

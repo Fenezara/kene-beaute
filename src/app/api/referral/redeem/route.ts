@@ -1,8 +1,8 @@
-// POST /api/referral/redeem — { userId, code } : échange du code d'une amie
-// GET  /api/referral/redeem?_g=… — pont t. 93 (même payload JSON en query) :
+// POST /api/referral/redeem — { userId, code }: échange du code d'une amie
+// GET /api/referral/redeem?_g=… — pont (même payload JSON en query):
 // le parrainage fait partie du questionnaire d'inscription d'une nouvelle
 // cliente — il doit passer même chez les préviews qui bloquent les POST.
-// Effets : filleule reçoit son cadeau de bienvenue immédiatement, parrain notifié,
+// Effets: filleule reçoit son cadeau de bienvenue immédiatement, parrain notifié,
 // le parrain sera récompensé à la première commande PAYÉE de la filleule.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Pont GET (t. 93) — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous
+// Pont GET — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous
 // (rate-limit, session signée via cookie, validations zod).
 export async function GET(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "referral:redeem"), REFERRAL_REDEEM);
@@ -60,8 +60,8 @@ async function runRedeem(data: z.infer<typeof Body>, req: NextRequest): Promise<
   const { userId, code: rawCode } = data;
   const code = rawCode.toUpperCase().trim();
 
-  // Session signée (t. 71-b, migration douce) : avec cookie, le code ne
-  // s'échange que pour le compte de la session ; sans cookie → legacy.
+  // Session signée (, migration douce): avec cookie, le code ne
+  // s'échange que pour le compte de la session; sans cookie → legacy.
   const guard = guardUserClaim(req, "referral:redeem", userId);
   if (guard) return guard;
 

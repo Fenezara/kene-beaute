@@ -1,33 +1,33 @@
-// Kènè — « Herbier des Grandes-Mères » (t. 83-d) : données pures des 8 plantes
+// Kènè — « Herbier des Grandes-Mères »: données pures des 8 plantes
 // du jardin. Lib SANS React ni three (importable partout, testable, SSR-safe).
-// Ton éditorial : sagesse de grand-mère ivoirienne — chaleureux, concret, et
-// HONNÊTE. Zéro promesse thérapeutique, zéro posologie médicale ; une seule
+// Ton éditorial: sagesse de grand-mère ivoirienne — chaleureux, concret, et
+// HONNÊTE. Zéro promesse thérapeutique, zéro posologie médicale; une seule
 // précaution claire par plante. `indicateurs` = clés CANONIQUES du glossaire
 // (src/lib/kene/glossary.ts) auxquelles la plante répond traditionnellement —
 // la carte peut donc afficher le libellé exact compris au diagnostic.
 
 export interface HerbierPlant {
-  /** Identifiant stable (clé d'animation, pas affiché). */
+ /** Identifiant stable (clé d'animation, pas affiché). */
   id: string;
-  /** Nom français usuel. */
+ /** Nom français usuel. */
   nom: string;
-  /** 1-2 appellations populaires ivoiriennes/ouest-africaines (si sûres),
-   *  sinon le nom scientifique — affiché « aussi appelé… ». */
+ /** 1-2 appellations populaires ivoiriennes/ouest-africaines (si sûres),
+ * sinon le nom scientifique — affiché « aussi appelé… ». */
   nomsLocaux: string[];
-  /** Famille botanique (affichée en surtitre). */
+ /** Famille botanique (affichée en surtitre). */
   famille: string;
-  /** Vertus traditionnelles — 2-3 phrases simples, niveau grand-mère
-   *  (« apaise », « nourrit », « calme les rougeurs »…). */
+ /** Vertus traditionnelles — 2-3 phrases simples, niveau grand-mère
+ * (« apaise », « nourrit », « calme les rougeurs »…). */
   vertus: string;
-  /** Forme d'usage concrète et douce (beurre, décoction refroidie…). */
+ /** Forme d'usage concrète et douce (beurre, décoction refroidie…). */
   usage: string;
-  /** UNE phrase honnête de prudence (test pli du coude, jamais sur plaie…). */
+ /** UNE phrase honnête de prudence (test pli du coude, jamais sur plaie…). */
   precaution: string;
-  /** Clés d'indicateurs du diagnostic (glossary.ts) « soignées » par la plante. */
+ /** Clés d'indicateurs du diagnostic (glossary.ts) « soignées » par la plante. */
   indicateurs: string[];
-  /** Citation de grand-mère — une phrase, ton juste et tendre. */
+ /** Citation de grand-mère — une phrase, ton juste et tendre. */
   sagesse: string;
-  /** Couleur signature (feuillage / calice) — hex, pilote la 3D et le médaillon. */
+ /** Couleur signature (feuillage / calice) — hex, pilote la 3D et le médaillon. */
   couleur: string;
 }
 

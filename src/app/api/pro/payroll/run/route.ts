@@ -1,4 +1,4 @@
-// POST /api/pro/payroll/run — {tenantId, period "YYYY-MM"} : bulletins + totaux + écriture PA
+// POST /api/pro/payroll/run — {tenantId, period "YYYY-MM"}: bulletins + totaux + écriture PA
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -14,8 +14,8 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, la validation
-    // de paie exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, la validation
+    // de paie exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:payroll:run");
     if (guard) return guard;
 

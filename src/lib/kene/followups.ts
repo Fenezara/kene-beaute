@@ -1,4 +1,4 @@
-// Kènè — « Le Fil du Retour » : moteur de relances post-protocole (lib PURE, serveur & client)
+// Kènè — « Le Fil du Retour »: moteur de relances post-protocole (lib PURE, serveur & client)
 // Les relances sont DÉRIVÉES de l'activité réelle (diagnostics, RDV complétés, ventes, inactivité)
 // et les marques « traitée / ignorée » sont persistées par tenant (FollowUpMark).
 import { addDays, formatDate } from "./format";
@@ -87,7 +87,7 @@ const zoneLabel = (z: string) => BODY_ZONES.find((x) => x.id === z)?.label ?? z.
 
 /**
  * Construit la liste des relances d'un institut à partir de son activité réelle.
- * Aucune écriture : les marques (FollowUpMark) sont simplement fusionnées.
+ * Aucune écriture: les marques (FollowUpMark) sont simplement fusionnées.
  */
 export function buildFollowUps(input: {
   now?: Date;
@@ -139,8 +139,8 @@ export function buildFollowUps(input: {
     const future = futureByClient.get(c.id);
     const lastAppt = lastDoneAppt.get(c.id);
 
-    // 1) Contrôle post-protocole : 3 semaines après le dernier diagnostic IA,
-    //    non clos par un retour en institut postérieur au diagnostic.
+    // 1) Contrôle post-protocole: 3 semaines après le dernier diagnostic IA,
+    // non clos par un retour en institut postérieur au diagnostic.
     if (c.userId) {
       const d = lastDiag.get(c.userId);
       if (d) {
@@ -163,8 +163,8 @@ export function buildFollowUps(input: {
       }
     }
 
-    // 2) Soin de suivi : cycle ~4 semaines après le dernier soin complété,
-    //    uniquement si la cliente ne s'est pas déjà rébookée.
+    // 2) Soin de suivi: cycle ~4 semaines après le dernier soin complété,
+    // uniquement si la cliente ne s'est pas déjà rébookée.
     if (lastAppt && !future) {
       const dueAt = addDays(new Date(lastAppt.startAt), POST_SOIN_DAYS);
       if (t(dueAt) >= now.getTime() - 17 * DAY) {
@@ -181,7 +181,7 @@ export function buildFollowUps(input: {
       }
     }
 
-    // 3) Satisfaction produits : 10 jours après le dernier achat produits.
+    // 3) Satisfaction produits: 10 jours après le dernier achat produits.
     const sale = lastProdSale.get(c.id);
     if (sale && t(sale.createdAt) >= now.getTime() - 15 * DAY) {
       const labels = (sale.productLabels ?? []).slice(0, 2).join(", ");
@@ -197,7 +197,7 @@ export function buildFollowUps(input: {
       });
     }
 
-    // 4) Inactivité CRM : plus de 60 jours sans visite et sans RDV à venir.
+    // 4) Inactivité CRM: plus de 60 jours sans visite et sans RDV à venir.
     if (c.lastVisit && !future) {
       const lastVisit = new Date(c.lastVisit);
       const dueAt = addDays(lastVisit, INACTIVE_DAYS);
@@ -263,7 +263,7 @@ export function waLink(phone: string, text: string): string {
   return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }
 
-// ─────────────── Côté cliente : « Ta prochaine étape » ───────────────
+// ─────────────── Côté cliente: « Ta prochaine étape » ───────────────
 
 export interface ClientNextStep {
   kind: FollowUpKind;
@@ -329,6 +329,6 @@ export function nextClientStep(
   }
 
   if (candidates.length === 0) return null;
-  // Priorité : en retard d'abord (le plus en retard), sinon l'échéance la plus proche
+  // Priorité: en retard d'abord (le plus en retard), sinon l'échéance la plus proche
   return candidates.sort((a, b) => a.days - b.days)[0];
 }

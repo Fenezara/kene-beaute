@@ -1,5 +1,5 @@
 // POST /api/push/dispatch — { secret, userId } — route INTERNE (notify-service),
-// jamais appelée par le navigateur. Web Push VAPID (t. 60-e) : envoie la
+// jamais appelée par le navigateur. Web Push VAPID: envoie la
 // dernière notification non lue de la cliente vers TOUTES ses PushSubscription
 // (elle la reçoit même application fermée — le service worker affiche la
 // notification système). Un abonnement obsolète (404/410 du push service ou
@@ -21,9 +21,9 @@ const Body = z.object({
   userId: z.string().min(1).max(64),
 });
 
-/** Un endpoint mort ne reviendra pas : 404/410 du push service, ou domaine
- *  push inexistant/injoignable (ENOTFOUND…) — on purge, l'envoi vers les
- *  autres abonnements continue. */
+/** Un endpoint mort ne reviendra pas: 404/410 du push service, ou domaine
+ * push inexistant/injoignable (ENOTFOUND…) — on purge, l'envoi vers les
+ * autres abonnements continue. */
 function isStaleEndpoint(err: unknown): boolean {
   if (err instanceof WebPushError) return err.statusCode === 404 || err.statusCode === 410;
   const msg = err instanceof Error ? err.message : "";
@@ -46,13 +46,13 @@ export async function POST(req: NextRequest) {
     const privateKey = process.env.VAPID_PRIVATE_KEY?.trim();
     const subject = process.env.VAPID_SUBJECT?.trim() || "mailto:contact@kene.app";
     if (!publicKey || !privateKey) {
-      // VAPID non configuré : rien à envoyer, mais la route reste verte
+      // VAPID non configuré: rien à envoyer, mais la route reste verte
       // (le notify-service ne doit jamais crasher là-dessus).
       return NextResponse.json({ sent: 0, failed: 0 });
     }
     setVapidDetails(subject, publicKey, privateKey);
 
-    // Dernière notification non lue (même définition que le badge : sent + readAt null)
+    // Dernière notification non lue (même définition que le badge: sent + readAt null)
     const [notification, subscriptions] = await Promise.all([
       db.notification.findFirst({
         where: { userId, status: "sent", readAt: null },
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         failed++;
         if (isStaleEndpoint(err)) {
-          // Purge silencieuse : la base ne garde jamais un endpoint mort.
+          // Purge silencieuse: la base ne garde jamais un endpoint mort.
           await db.pushSubscription
             .deleteMany({ where: { endpoint: sub.endpoint } })
             .catch(() => undefined);

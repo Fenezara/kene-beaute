@@ -1,13 +1,13 @@
 "use client";
-// Kènè — Le Seuil : pavé numérique natif (inspiration Cash App / N26).
+// Kènè — Le Seuil: pavé numérique natif (inspiration Cash App / N26).
 //
-// Pourquoi un keypad maison (t. 74) : sur mobile, le clavier OS qui saute,
+// Pourquoi un keypad maison: sur mobile, le clavier OS qui saute,
 // couvre l'écran et force le mode numérique est LE friction n°1 des
-// onboarding téléphone. Ici : pavé plein cadre, touches 64 px+, haptique
+// onboarding téléphone. Ici: pavé plein cadre, touches 64 px+, haptique
 // visuelle (press scale), retour instantané — ça SENT l'app native dans un
-// navigateur. Le préfixe +225 est fixe (POC mono-opérateur, contrat API).
+// navigateur. Le préfixe +225 est fixe (mono-opérateur, contrat API actuel).
 //
-// Contrat : onConfirm(digits, devCode) — l'appel POST /api/auth/otp/request
+// Contrat: onConfirm(digits, devCode) — l'appel POST /api/auth/otp/request
 // est fait ICI (l'écran OTP de l'Onboarding arrive pré-rempli via pont
 // initialStep/initialDevCode). Aucune autre logique métier ici.
 import { useEffect, useRef, useState } from "react";
@@ -20,11 +20,11 @@ import { AuroraBackdrop, Chip } from "@/components/kene/ui2026";
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 
 /** Numéro ivoirien = 10 chiffres (07 01 02 03 04) — 8 = plancher de
- *  validité (contrat historique phoneValid), 10 = pleine longueur. */
+ * validité (contrat historique phoneValid), 10 = pleine longueur. */
 const MAX_DIGITS = 10;
 const MIN_DIGITS = 8;
 
-/** Groupes de 2, respiration : « 07 01 02 03 04 » ou « 07 01 02 03 ». */
+/** Groupes de 2, respiration: « 07 01 02 03 04 » ou « 07 01 02 03 ». */
 function formatDigits(d: string): string {
   return d.replace(/(\d{2})(?=\d)/g, "$1 ");
 }
@@ -47,7 +47,7 @@ export function PhoneKeypad({
   const ready = digits.length >= MIN_DIGITS;
   const displayRef = useRef<HTMLDivElement>(null);
 
-  // Chiffres supplémentaires : reste au clavier physique (desktop) —
+  // Chiffres supplémentaires: reste au clavier physique (desktop) —
   // le pavé tactile reste la voie principale (mobile-first).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -82,7 +82,7 @@ export function PhoneKeypad({
   return (
     <div className="relative isolate flex min-h-dvh w-full flex-col">
       <AuroraBackdrop />
-      {/* ── Contexte : retour + espace choisi + bascule ── */}
+      {/* ── Contexte: retour + espace choisi + bascule ── */}
       <div className="flex items-center gap-2 px-4 pt-5 sm:px-6">
         <button
           onClick={onBack}

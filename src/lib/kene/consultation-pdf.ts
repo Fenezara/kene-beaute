@@ -1,14 +1,14 @@
-// Kènè — Documents de consultation & comptes-rendus (t. 119).
-// Lib PURE serveur, construite sur le moteur PDF maison (src/lib/accounting/pdf.ts) :
-//  1. FICHE DE CONSULTATION — support papier de l'entretien en institut :
-//     identité, consentements (photos + données de peau) à signer, peau connue,
-//     questionnaire dermatologique complet (4 sections, 21 questions),
-//     observations, protocole, signatures. Pré-remplie si la cliente a une
-//     fiche CRM, sinon vierge.
-//  2. COMPTE-RENDU CABINE — résultat complet d'un diagnostic réalisé en
-//     institut (score, indicateurs, vigilances, recommandations, réponses).
-//  3. COMPTE-RENDU SELF-SCAN — résultat d'un diagnostic IA réalisé par la
-//     cliente sur l'app (mention non médicale obligatoire).
+// Kènè — Documents de consultation & comptes-rendus.
+// Lib PURE serveur, construite sur le moteur PDF maison (src/lib/accounting/pdf.ts):
+// 1. FICHE DE CONSULTATION — support papier de l'entretien en institut:
+// identité, consentements (photos + données de peau) à signer, peau connue,
+// questionnaire dermatologique complet (4 sections, 21 questions),
+// observations, protocole, signatures. Pré-remplie si la cliente a une
+// fiche CRM, sinon vierge.
+// 2. COMPTE-RENDU CABINE — résultat complet d'un diagnostic réalisé en
+// institut (score, indicateurs, vigilances, recommandations, réponses).
+// 3. COMPTE-RENDU SELF-SCAN — résultat d'un diagnostic IA réalisé par la
+// cliente sur l'app (mention non médicale obligatoire).
 import { PdfDoc, textWidth, INK, SOFT, GOLD, GOLD_DARK, GOLD_BAND, CREAM, CARD, LINE, GREEN, RED, M_X, M_RIGHT, CONTENT_W, type RGB } from "@/lib/accounting/pdf";
 import { QUESTIONNAIRE_SECTIONS, QUESTIONS, type QAnswers, type Question, type ProDiagnosisResult } from "@/lib/kene/questionnaire";
 import { BODY_ZONES, type BodyZone, type DiagnosisResult } from "@/lib/kene/types";
@@ -46,7 +46,7 @@ function sectionBand(doc: PdfDoc, title: string, subtitle?: string): void {
 function checkbox(doc: PdfDoc, x: number, y: number, size = 8.5, checked = false, color: RGB = INK): void {
   doc.rectStroke(x, y, size, size, color, 0.9);
   if (checked) {
-    // coche ✓ : petit segment descendant puis longue remontée
+    // coche ✓: petit segment descendant puis longue remontée
     doc.line(x + 1.7, y + size * 0.52, x + size * 0.38, y + size * 0.78, color, 1.2);
     doc.line(x + size * 0.38, y + size * 0.78, x + size * 0.86, y + size * 0.14, color, 1.2);
   }
@@ -80,7 +80,7 @@ export interface ConsultationClientPrefill {
   skinType?: string | null;
   fitzpatrick?: string | null;
   notes?: string | null;
-  /** derniers self-scans Kènè (si compte lié) : { zone, score, date } */
+ /** derniers self-scans Kènè (si compte lié): { zone, score, date } */
   scans?: { zone: string; score: number; date: string }[];
   appAccount?: boolean;
 }
@@ -103,7 +103,7 @@ export function consultationSheetPdf(input: {
     `${input.tenantPhone ? `Tél ${input.tenantPhone} · ` : ""}Date : ${fmtDate(input.date ?? new Date())}`
   );
 
-  // — 1. Identité —
+  // ── 1. Identité ──
   sectionBand(doc, "1 · IDENTITÉ DE LA CLIENTE");
   const c = input.client ?? null;
   const idRows: [string, string][] = [
@@ -135,10 +135,10 @@ export function consultationSheetPdf(input: {
     doc.advance(13);
   }
 
-  // — 2. Consentements —
+  // ── 2. Consentements ──
   sectionBand(doc, "2 · CONSENTEMENTS — À FAIRE SIGNER AVANT LE DIAGNOSTIC", "Conformité données de santé & photos (RGPD / loi ivoirienne n°2013-450 relative à la protection des données à caractère personnel)");
   doc.ensure(64);
-  // t. 120 — clientes qui ne lisent pas : les consentements sont EXPLIQUÉS à
+  // — clientes qui ne lisent pas: les consentements sont EXPLIQUÉS à
   // voix haute et la signature peut être une empreinte digitale (pouce encre).
   doc.text("Les consentements sont expliqués à la cliente avant signature — lecture à voix haute si nécessaire.", M_X, doc.cursorY, { size: 7.5, color: SOFT, font: "oblique" });
   doc.advance(12);
@@ -172,7 +172,7 @@ export function consultationSheetPdf(input: {
   doc.text("Date", M_X + 320, y + 3, { size: 8, color: SOFT });
   doc.advance(24);
 
-  // — 3. Peau connue —
+  // ── 3. Peau connue ──
   sectionBand(doc, "3 · PEAU CONNUE (si la cliente est déjà dans le CRM)");
   const known: [string, string][] = [
     ["Type de peau", c?.skinType ? c.skinType.replace(/^\w/, (m) => m.toUpperCase()) : ""],
@@ -204,7 +204,7 @@ export function consultationSheetPdf(input: {
     doc.advance(6);
   }
 
-  // — 4. Questionnaire —
+  // ── 4. Questionnaire ──
   sectionBand(doc, "4 · QUESTIONNAIRE DERMATOLOGIQUE GUIDÉ", "À remplir pendant l'entretien — les réponses alimentent le moteur de scoring Kènè");
   for (const section of QUESTIONNAIRE_SECTIONS) {
     const qs = QUESTIONS.filter((q) => q.section === section.id);
@@ -217,7 +217,7 @@ export function consultationSheetPdf(input: {
     doc.advance(6);
   }
 
-  // — 5 & 6. Observations + protocole —
+  // ── 5 & 6. Observations + protocole ──
   sectionBand(doc, "5 · OBSERVATIONS DE LA PRATICIENNE");
   for (let i = 0; i < 4; i++) {
     doc.ensure(16);
@@ -255,7 +255,7 @@ function renderQuestion(doc: PdfDoc, q: Question): void {
     doc.advance(16);
     return;
   }
-  // Options : 2 par ligne si courtes, sinon 1 par ligne (les cases restent
+  // Options: 2 par ligne si courtes, sinon 1 par ligne (les cases restent
   // alignées — le praticienne coche à la main).
   const boxes = q.options.map((o) => o.label);
   const twoPerLine = boxes.every((b) => textWidth(b, 8) < (CONTENT_W - 40) / 2 - 24);

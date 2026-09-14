@@ -1,4 +1,4 @@
-// Kènè — types et outils partagés des Fils d'Or (t. 82).
+// Kènè — types et outils partagés des Fils d'Or.
 export interface GoldThreadItem {
   kind: "scan" | "order" | "visit" | "review" | "referral";
   label: string;
@@ -14,8 +14,8 @@ export interface GoldThreads {
 }
 
 /** Graine déterministe du kente identitaire (FNV-1a → PRNG).
- *  Même userId = même pagne, pour toujours — partagée par /api/gold-threads
- *  (vue privée) et /api/passport (vue publique) pour un motif IDENTIQUE. */
+ * Même userId = même pagne, pour toujours — partagée par /api/gold-threads
+ * (vue privée) et /api/passport (vue publique) pour un motif IDENTIQUE. */
 export function seedOf(userId: string): number {
   let h = 2166136261;
   for (let i = 0; i < userId.length; i++) {

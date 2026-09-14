@@ -1,6 +1,6 @@
 "use client";
-// Kènè Pro — Compta SYSCOHADA : journal, grand livre, balance, liasse fiscale (bilan + résultat + TVA)
-// + Exports CSV téléchargeables (Excel FR) avec période au choix : livre des ventes, journal, balance, liasse.
+// Kènè Pro — Compta SYSCOHADA: journal, grand livre, balance, liasse fiscale (bilan + résultat + TVA)
+// + Exports CSV téléchargeables (Excel FR) avec période au choix: livre des ventes, journal, balance, liasse.
 import { Fragment, useMemo, useState } from "react";
 import {
   BookOpen,
@@ -124,7 +124,7 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
           const j = (await res.json()) as { error?: string };
           if (j.error) msg = j.error;
         } catch {
-          /* réponse non-JSON : message générique conservé */
+ /* réponse non-JSON: message générique conservé */
         }
         throw new Error(msg);
       }

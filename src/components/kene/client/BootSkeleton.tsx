@@ -1,10 +1,10 @@
 "use client";
-// Kènè — écran d'amorçage plein cadre : affiché pendant la relecture du store
-// persisté (gate d'hydratation kene-store, t. 63) et comme fallback de
-// chargement des espaces Pro/Admin (next/dynamic, t. 63-a).
-// min-h-dvh + bg-background : même fond que la racine → l'app qui remplace
+// Kènè — écran d'amorçage plein cadre: affiché pendant la relecture du store
+// persisté (gate d'hydratation kene-store,) et comme fallback de
+// chargement des espaces Pro/Admin (next/dynamic,).
+// min-h-dvh + bg-background: même fond que la racine → l'app qui remplace
 // le squelette ne provoque aucun décalage de mise en page.
-// ÉCLAT 2026 : flash volontairement sobre — depuis t. 75, le Sceau Kènè
+// ÉCLAT 2026: flash volontairement sobre — depuis, le Sceau Kènè
 // (emblème visage-ligne d'or, fond calé sur le token de page → sans couture)
 // ouvre la session, complété du wordmark resserré et de la barre Shimmer
 // vivante (aucune durée ni logique modifiées, aucun blur).

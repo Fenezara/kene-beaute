@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Image invalide (dataURL attendu)", 400);
 
-    // Validation d'upload 2026 (t. 86-e) : MIME + taille + magic bytes.
+    // Validation d'upload 2026: MIME + taille + magic bytes.
     const upload = checkImageDataUrl(parsed.data.image);
     if (!upload.ok) {
       void audit({ kind: "upload_reject", ip: clientIp(req), detail: upload.reason });

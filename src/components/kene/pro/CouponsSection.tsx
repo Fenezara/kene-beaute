@@ -1,7 +1,7 @@
 "use client";
-// Kènè Pro — Coupons & promos boutique : création (code auto ou personnalisé),
+// Kènè Pro — Coupons & promos boutique: création (code auto ou personnalisé),
 // suivi des utilisations, activation/désactivation, diffusion aux clientes
-// (notification + cloche temps réel via le canal de la tâche 33).
+// (notification + cloche temps réel via le canal de la).
 import { useMemo, useState } from "react";
 import { CalendarClock, Loader2, Percent, Plus, Send, Tag, Users } from "lucide-react";
 import { toast } from "sonner";

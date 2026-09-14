@@ -1,11 +1,11 @@
-// Passeport de Peau (t. 82, vague 1) — QR partageable vers les instituts.
-//   POST /api/passport  { userId }        → crée (ou retrouve) le jeton de la
-//                                           cliente + URL publique à encoder.
-//   GET  /api/passport?token=XXXX         → LECTURE PUBLIQUE (sans compte) :
-//                                           profil peau, dernier score, fils
-//                                           d'or. Aucune photo, aucun numéro.
-//   POST /api/passport  { userId, rotate } → révoque l'ancien jeton (nouveau
-//                                           QR = l'ancien lien meurt).
+// Passeport de Peau (, vague 1) — QR partageable vers les instituts.
+// POST /api/passport { userId } → crée (ou retrouve) le jeton de la
+// cliente + URL publique à encoder.
+// GET /api/passport?token=XXXX → LECTURE PUBLIQUE (sans compte):
+// profil peau, dernier score, fils
+// d'or. Aucune photo, aucun numéro.
+// POST /api/passport { userId, rotate } → révoque l'ancien jeton (nouveau
+// QR = l'ancien lien meurt).
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     if (!user) return jsonError("Utilisatrice introuvable", 404);
 
     if (body?.rotate) {
-      // Révocation : l'ancien lien public meurt immédiatement (nouveau jeton).
+      // Révocation: l'ancien lien public meurt immédiatement (nouveau jeton).
       await db.skinPassport.deleteMany({ where: { userId } });
     }
 
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       token: passport.token,
-      // URL relative cohérente avec la gateway (jamais de port en dur) :
+      // URL relative cohérente avec la gateway (jamais de port en dur):
       // le client reconstruit l'absolu avec window.location.origin.
       path: `/?passport=${passport.token}`,
     });

@@ -1,4 +1,4 @@
-// GET  /api/pro/followups?tenantId= — relances calculées « Le Fil du Retour »
+// GET /api/pro/followups?tenantId= — relances calculées « Le Fil du Retour »
 // POST /api/pro/followups — marquer une relance (done | dismissed | todo) + journalisation
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -9,8 +9,8 @@ import { guardProRole } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
-    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:followups:get");
     if (guard) return guard;
 
@@ -80,8 +80,8 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, le traitement
-    // d'une relance exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, le traitement
+    // d'une relance exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:followups:post");
     if (guard) return guard;
 
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    // Réactivation : on efface la marque, la relance redevient « à traiter »
+    // Réactivation: on efface la marque, la relance redevient « à traiter »
     if (status === "todo") {
       await db.followUpMark.deleteMany({ where: { tenantId, dedupKey } });
       await db.auditLog.create({
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Relance traitée → le rappel automatique côté cliente (même diagnostic)
-    // devient un doublon : on l'annule silencieusement.
+    // devient un doublon: on l'annule silencieusement.
     if (status === "done" && dedupKey.startsWith("diag:")) {
       const diagId = dedupKey.slice(5);
       let clientUserId: string | null = null;

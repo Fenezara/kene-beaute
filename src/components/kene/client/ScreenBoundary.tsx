@@ -1,9 +1,9 @@
 "use client";
 // Kènè — frontière d'erreur par section d'écran (Error Boundary locale).
 // Un écran d'onglet qui plante (rendu, lazy-chunk introuvable, donnée inattendue)
-// est remplacé par une carte inline discrète : le shell de l'app (header,
+// est remplacé par une carte inline discrète: le shell de l'app (header,
 // navigation, autres onglets) reste vivant — jamais d'écran blanc total.
-// « Réessayer » remonte l'enfant neuf (clé d'essai → état local réinitialisé) ;
+// « Réessayer » remonte l'enfant neuf (clé d'essai → état local réinitialisé);
 // « Recharger la page » reste l'issue de secours complète.
 
 import { Component, Fragment, type ErrorInfo, type ReactNode } from "react";
@@ -11,13 +11,13 @@ import { AlertTriangle, RefreshCw, RotateCcw } from "lucide-react";
 
 interface ScreenBoundaryProps {
   children: ReactNode;
-  /** Nom lisible de la section, affiché dans le fallback (« La section … a rencontré un souci ») */
+ /** Nom lisible de la section, affiché dans le fallback (« La section … a rencontré un souci ») */
   name: string;
 }
 
 interface ScreenBoundaryState {
   error: Error | null;
-  /** Incrémenté à chaque « Réessayer » → remontée garantie d'un enfant neuf */
+ /** Incrémenté à chaque « Réessayer » → remontée garantie d'un enfant neuf */
   attempt: number;
 }
 

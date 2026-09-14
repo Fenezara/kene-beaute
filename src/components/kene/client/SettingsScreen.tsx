@@ -1,12 +1,12 @@
 "use client";
-// Kènè Cliente — Paramètres (t. 69-c) : l'écran de réglages standard façon
+// Kènè Cliente — Paramètres: l'écran de réglages standard façon
 // applis 2026 (TikTok / Instagram) — compte, apparence, langue, notifications,
 // sécurité, confidentialité, application, espace entreprise, session.
 // Les sections « réglages » vivaient dans ProfileScreen (langue, consentement,
-// RGPD, 2FA, PWA, espace entreprise, déconnexion) : elles ont été DÉPLACÉES ici
+// RGPD, 2FA, PWA, espace entreprise, déconnexion): elles ont été DÉPLACÉES ici
 // avec un code métier identique (imports adaptés uniquement). Le Profil garde
 // l'identité, le profil peau, le wallet et le parrainage.
-// Hydratation : la permission navigateur et l'état « monté » du thème sont lus
+// Hydratation: la permission navigateur et l'état « monté » du thème sont lus
 // via useSyncExternalStore (pattern use-install.ts) — aucune API web n'est
 // touchée pendant le rendu, zéro setState-in-effect, zéro mismatch.
 
@@ -30,7 +30,7 @@ import { getThumbMode, setThumbMode, subscribeThumbMode } from "@/lib/kene/thumb
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 
 /* ─── Porte d'hydratation (thème) ───
- * false pendant le rendu serveur + l'hydratation, true ensuite : l'état actif
+ * false pendant le rendu serveur + l'hydratation, true ensuite: l'état actif
  * Clair/Sombre ne s'affiche qu'une fois le thème réellement lisible — aucun
  * flash, aucun mismatch. useSyncExternalStore (règle react-hooks/set-state-in-effect
  * oblige — même approche que ThemeToggle/use-install). */
@@ -44,8 +44,8 @@ function useHydrated(): boolean {
  * "unsupported" → carte masquée tant que l'API n'est pas confirmée côté
  * client, y pendant l'hydratation). La permission peut changer hors de
  * l'application (réglages du navigateur, autre onglet) → relecture sur
- * focus/visibilité ; notifyPermListeners() force la relecture juste après
- * Notification.requestPermission(). */
+ * focus/visibilité; notifyPermListeners force la relecture juste après
+ * Notification.requestPermission. */
 type NotifPerm = "unsupported" | "default" | "granted" | "denied";
 
 const permListeners = new Set<() => void>();
@@ -90,20 +90,20 @@ export function SettingsScreen() {
   const notifPerm = useSyncExternalStore(subscribePerm, readPerm, serverPerm);
 
   const [exportBusy, setExportBusy] = useState(false);
-  // Confirmation « Créer un compte entreprise » (isolation des comptes t. 69-a)
+  // Confirmation « Créer un compte entreprise » (isolation des comptes)
   const [proSignup, setProSignup] = useState(false);
 
   // Installation PWA — même source d'événement que la bannière d'accueil.
   const { canInstall, promptInstall, isStandalone, isIOS } = useInstallPrompt();
 
-  // Sécurité renforcée (2FA-lite) : code SMS exigé avant chaque paiement.
+  // Sécurité renforcée (2FA-lite): code SMS exigé avant chaque paiement.
   const secureEnabled = useSecurity((s) => s.enabled);
-  // Pouce d'Or (t. 83-f) — préférence appareil (localStorage), lue via
-  // useSyncExternalStore : aucune API web pendant le rendu, zéro mismatch.
+  // Pouce d'Or — préférence appareil (localStorage), lue via
+  // useSyncExternalStore: aucune API web pendant le rendu, zéro mismatch.
   const thumbOn = useSyncExternalStore(subscribeThumbMode, getThumbMode, () => false);
   const setSecureEnabled = useSecurity((s) => s.setEnabled);
 
-  /** Portabilité RGPD — télécharge « mes données » en JSON via blob */
+ /** Portabilité RGPD — télécharge « mes données » en JSON via blob */
   async function downloadMyData() {
     setExportBusy(true);
     try {
@@ -129,17 +129,17 @@ export function SettingsScreen() {
     }
   }
 
-  /** « Créer un compte entreprise » (t. 69-a) : l'espace Pro vit sur un compte
-   *  DÉDIÉ, séparé du compte cliente — on pose le pont sessionStorage que
-   *  l'onboarding consomme à son montage (mode entreprise), on vide le panier
-   *  (règle de déconnexion) puis on ferme la session cliente. */
+ /** « Créer un compte entreprise »: l'espace Pro vit sur un compte
+ * DÉDIÉ, séparé du compte cliente — on pose le pont sessionStorage que
+ * l'onboarding consomme à son montage (mode entreprise), on vide le panier
+ * (règle de déconnexion) puis on ferme la session cliente. */
   function startProSignup() {
     try {
       sessionStorage.setItem("kene-pro-signup", "1");
     } catch {
-      /* stockage indisponible : l'onboarding démarrera simplement en mode cliente */
+ /* stockage indisponible: l'onboarding démarrera simplement en mode cliente */
     }
-    // Session serveur fermée aussi (t. 71-e) : le cookie httpOnly signé est
+    // Session serveur fermée aussi: le cookie httpOnly signé est
     // effacé pour ne pas laisser traîner une session cliente pendant le
     // parcours d'inscription entreprise.
     void fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
@@ -148,7 +148,7 @@ export function SettingsScreen() {
     toast.info("À très vite — bienvenue dans l'aventure entreprise");
   }
 
-  /** Installer l'app (prompt natif, ou instructions iOS / navigateur). */
+ /** Installer l'app (prompt natif, ou instructions iOS / navigateur). */
   async function installApp() {
     if (canInstall) {
       const accepted = await promptInstall();
@@ -168,7 +168,7 @@ export function SettingsScreen() {
     });
   }
 
-  /** Demande la permission navigateur puis relit l'état (toast succès/info). */
+ /** Demande la permission navigateur puis relit l'état (toast succès/info). */
   async function enableNotifications() {
     if (typeof window === "undefined" || !("Notification" in window)) return;
     const result = await Notification.requestPermission();
@@ -177,7 +177,7 @@ export function SettingsScreen() {
     else toast.info("Notifications refusées", { description: "Tu pourras les réactiver à tout moment dans les réglages du navigateur." });
   }
 
-  /** Langue de l'interface (i18n) — indépendante de la langue de lecture vocale. */
+ /** Langue de l'interface (i18n) — indépendante de la langue de lecture vocale. */
   function selectLang(l: Lang) {
     if (l === lang) return;
     setLang(l);
@@ -185,7 +185,7 @@ export function SettingsScreen() {
     toast.success(`Interface en ${label.toLowerCase()}`);
   }
 
-  /** Sécurité renforcée : bascule la re-vérification par code avant paiement. */
+ /** Sécurité renforcée: bascule la re-vérification par code avant paiement. */
   function toggleSecure() {
     const next = !secureEnabled;
     setSecureEnabled(next);
@@ -261,7 +261,7 @@ export function SettingsScreen() {
         </RevealItem>
 
         {/* Langue de l'interface — i18n UI, indépendante de la lecture vocale
-            (la langue TTS se règle dans les pilules du résumé vocal, accueil) */}
+ (la langue TTS se règle dans les pilules du résumé vocal, accueil) */}
         <RevealItem>
           <section aria-labelledby="lang-t" className="k-card rounded-[24px] p-4">
             <div className="flex items-center gap-3">
@@ -300,7 +300,7 @@ export function SettingsScreen() {
         </RevealItem>
 
         {/* Notifications — permission navigateur (carte masquée si l'API
-            n'existe pas sur cet appareil ; pas d'abonnement push au POC) */}
+ n'existe pas sur cet appareil; pas d'abonnement push dans cette version) */}
         {notifPerm !== "unsupported" && (
           <RevealItem>
             <section aria-labelledby="set-notif-t" className="k-card rounded-[24px] p-4">
@@ -331,10 +331,10 @@ export function SettingsScreen() {
           </RevealItem>
         )}
 
-        {/* Sécurité renforcée — 2FA-lite : code SMS avant chaque paiement.
-            Toute la rangée est le bouton (cible ≥ 40 px) ; l'indicateur est un
-            pseudo-switch purement décoratif (un vrai Switch shadcn rendrait un
-            <button> imbriqué — HTML invalide + erreur d'hydratation). */}
+        {/* Sécurité renforcée — 2FA-lite: code SMS avant chaque paiement.
+ Toute la rangée est le bouton (cible ≥ 40 px); l'indicateur est un
+ pseudo-switch purement décoratif (un vrai Switch shadcn rendrait un
+ <button> imbriqué — HTML invalide + erreur d'hydratation). */}
         <RevealItem>
           <section aria-labelledby="sec-t" className="k-card rounded-[24px] p-4">
             <button
@@ -357,9 +357,9 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
-        {/* Pouce d'Or (t. 83-f) — mode une main : les actions primaires de
-            l'écran restent sous le pouce (barre collante au-dessus de la nav).
-            Même pattern accessibilité que la sécurité : rangée-bouton entière. */}
+        {/* Pouce d'Or — mode une main: les actions primaires de
+ l'écran restent sous le pouce (barre collante au-dessus de la nav).
+ Même pattern accessibilité que la sécurité: rangée-bouton entière. */}
         <RevealItem>
           <section aria-labelledby="thumb-t" className="k-card rounded-[24px] p-4">
             <button
@@ -452,8 +452,8 @@ export function SettingsScreen() {
       </RevealItem>
 
         {/* Espace entreprise — compte DÉDIÉ séparé du compte cliente (isolation
-            stricte t. 69-a) : plus d'entrée directe vers l'espace Pro, une
-            information honnête + un départ assisté vers l'inscription. */}
+ stricte): plus d'entrée directe vers l'espace Pro, une
+ information honnête + un départ assisté vers l'inscription. */}
         <RevealItem>
           <section aria-labelledby="prosignup-t" className="rounded-[24px] border-2 border-dashed border-primary/40 bg-primary/5 p-4">
             <p id="prosignup-t" className="flex items-center gap-2 font-heading font-bold text-sm text-primary">
@@ -471,8 +471,8 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
-        {/* Abonnement (t. 71-c) — offres Kènè+ et quota diagnostics : écran
-            caché « abonnement » (même porte que Paramètres, depuis ici). */}
+        {/* Abonnement — offres Kènè+ et quota diagnostics: écran
+ caché « abonnement » (même porte que Paramètres, depuis ici). */}
         <RevealItem>
           <section aria-labelledby="sub-t" className="k-card rounded-[24px] p-2">
             <button
@@ -489,8 +489,8 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
-        {/* Mentions légales (t. 71-c) — éditeur POC, santé, RGPD, cadre CI/SN,
-            paiements simulés : écran caché « legal ». */}
+        {/* Mentions légales — éditeur, santé, RGPD, cadre CI/SN,
+ paiements simulés: écran caché « legal ». */}
         <RevealItem>
           <section aria-labelledby="legal-t" className="k-card rounded-[24px] p-2">
             <button
@@ -507,9 +507,9 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
-        {/* Déconnexion — le panier est vidé AVANT de perdre la session : la
-            prochaine utilisatrice du téléphone n'hérite de rien. La session
-            SERVEUR (cookie httpOnly signé, t. 71-b) est fermée dans la foulée. */}
+        {/* Déconnexion — le panier est vidé AVANT de perdre la session: la
+ prochaine utilisatrice du téléphone n'hérite de rien. La session
+ SERVEUR (cookie httpOnly signé,) est fermée dans la foulée. */}
         <RevealItem>
           <button
             onClick={() => {
@@ -535,7 +535,7 @@ export function SettingsScreen() {
       </Reveal>
 
       {/* Confirmation « Créer un compte entreprise » — la session cliente va
-          être fermée : le dialogue le dit honnêtement (isolation t. 69-a). */}
+ être fermée: le dialogue le dit honnêtement (isolation). */}
       <AlertDialog open={proSignup} onOpenChange={setProSignup}>
         <AlertDialogContent>
           <AlertDialogHeader>

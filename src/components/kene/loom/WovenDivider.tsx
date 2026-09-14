@@ -1,10 +1,10 @@
 "use client";
-// Kènè — Le fil conducteur d'or (t. 82, vague 1) : le fil qui RELIE les
+// Kènè — Le fil conducteur d'or (, vague 1): le fil qui RELIE les
 // sections du fil d'accueil. Entre chaque grand bloc du feed, un diviseur
-// tissé : deux courbes (or + terre) qui se dessinent quand elles entrent à
+// tissé: deux courbes (or + terre) qui se dessinent quand elles entrent à
 // l'écran (IntersectionObserver + transition stroke-dashoffset — léger, zéro
 // rAF permanent), une perle qui se pose au centre, et un libellé narratif.
-// prefers-reduced-motion : fil déjà tissé, perle posée, transitions OFF.
+// prefers-reduced-motion: fil déjà tissé, perle posée, transitions OFF.
 import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ export function WovenDivider({
   label,
   className,
 }: {
-  /** Libellé narratif du segment (ex. « Ton score se tisse ») — optionnel. */
+ /** Libellé narratif du segment (ex. « Ton score se tisse ») — optionnel. */
   label?: string;
   className?: string;
 }) {
@@ -27,7 +27,7 @@ export function WovenDivider({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // reduced-motion ou très vieux navigateur sans IO : fil déjà tissé.
+    // reduced-motion ou très vieux navigateur sans IO: fil déjà tissé.
     if (reduce || typeof IntersectionObserver === "undefined") {
       // rAF (asynchrone) — jamais de setState synchrone dans l'effet.
       const id = requestAnimationFrame(() => setInView(true));

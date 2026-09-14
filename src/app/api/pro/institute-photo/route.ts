@@ -1,8 +1,8 @@
-// POST /api/pro/institute-photo — photo de vitrine de l'institut (t. 120).
-// La gérante (ou son employée) dépose la photo de SON établissement :
+// POST /api/pro/institute-photo — photo de vitrine de l'institut.
+// La gérante (ou son employée) dépose la photo de SON établissement:
 // photo d'identité de la façade, de l'enseigne, de l'intérieur — elle
 // remplace le visuel calculé (slug du nom) dans l'annuaire, la boutique et
-// les fiches. Isolation stricte : resolveTenant garantit que la session ne
+// les fiches. Isolation stricte: resolveTenant garantit que la session ne
 // touche QUE son institut. `photoData: null` supprime la photo (retour au
 // visuel par défaut).
 import { NextRequest, NextResponse } from "next/server";

@@ -1,16 +1,16 @@
 // POST /api/auth/pro/register — inscription entreprise (institut | spa | dermo_conseil).
-// GET  /api/auth/pro/register?_g=… — pont t. 93 (même payload JSON en query) :
+// GET /api/auth/pro/register?_g=… — pont (même payload JSON en query):
 // l'INSCRIPTION D'UNE ENTREPRISE doit passer même chez les préviews qui
-// bloquent les POST (chaîne mesurée chez l'utilisatrice — voir api.ts t. 92).
-// La gérante authentifiée (userId) crée son espace Pro : Tenant + 2 praticiennes
+// bloquent les POST (chaîne mesurée chez l'utilisatrice — voir api.ts).
+// La gérante authentifiée (userId) crée son espace Pro: Tenant + 2 praticiennes
 // par défaut + catalogue de départ selon le type + notifications de bienvenue
 // (WhatsApp immédiat + astuce programmée J+2) + passage du compte en rôle pro.
-// Contrat figé (t. 66, le front est codé contre) :
-//   req  { userId, instituteName 3-60, ownerName? 2-60, city 2-40, country CI|SN, type? }
-//   201  { ok: true, tenant: { id, name, city, country, type, plan }, user }
-//   400  validation zod (FR) · 404 compte introuvable · 409 déjà gérante
-// Tout l'enchaînement passe dans UNE db.$transaction (t. 63-c) : aucune trace
-// partielle si un maillon échoue — notify() accepte le tx optionnel.
+// Contrat figé (, le front est codé contre):
+// req { userId, instituteName 3-60, ownerName? 2-60, city 2-40, country CI|SN, type? }
+// 201 { ok: true, tenant: { id, name, city, country, type, plan }, user }
+// 400 validation zod (FR) · 404 compte introuvable · 409 déjà gérante
+// Tout l'enchaînement passe dans UNE db.$transaction: aucune trace
+// partielle si un maillon échoue — notify accepte le tx optionnel.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
   return runRegister(parsed.data, req);
 }
 
-// Pont GET (t. 93) — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous
+// Pont GET — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous
 // (rate-limit, validation zod, audit, re-signature du cookie de session).
 export async function GET(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "auth:pro-register"), AUTH_MUTATION);
@@ -185,7 +185,7 @@ async function runRegister(data: z.infer<typeof Body>, req: NextRequest): Promis
     const user = await db.user.findUnique({ where: { id: userId } });
     if (!user) return jsonError("Compte introuvable — reconnecte-toi", 404);
 
-    // Une gérante = un espace : ownerPhone déjà rattaché → refus franc avec le
+    // Une gérante = un espace: ownerPhone déjà rattaché → refus franc avec le
     // tenant existant (le front propose d'y retourner directement).
     const existing = await db.tenant.findFirst({ where: { ownerPhone: user.phone } });
     if (existing) {
@@ -200,7 +200,7 @@ async function runRegister(data: z.infer<typeof Body>, req: NextRequest): Promis
 
     const finalOwnerName = ownerName ?? user.name;
 
-    // ─── Transaction atomique : tenant + praticiennes + catalogue + rôle pro ───
+    // ─── Transaction atomique: tenant + praticiennes + catalogue + rôle pro ───
     const tenant = await db.$transaction(async (tx) => {
       const t = await tx.tenant.create({
         data: {
@@ -277,7 +277,7 @@ async function runRegister(data: z.infer<typeof Body>, req: NextRequest): Promis
       return t;
     });
 
-    // t. 86-d : journal d'audit — nom d'institut tronqué (fait aussi par audit(),
+    //: journal d'audit — nom d'institut tronqué (fait aussi par audit,
     // 64 chars), ville, aucun secret.
     void audit({
       kind: "pro_register",
@@ -288,7 +288,7 @@ async function runRegister(data: z.infer<typeof Body>, req: NextRequest): Promis
 
     // User rechargé (objet Prisma complet, role=pro) pour la réponse 201
     const freshUser = await db.user.findUnique({ where: { id: user.id } });
-    // Re-signature de la session (t. 71-e) : le rôle vient de passer
+    // Re-signature de la session: le rôle vient de passer
     // « client » → « pro » — le cookie posé à la vérification OTP porterait
     // un rôle périmé et les gardes pro (403) bloqueraient l'espace fraîchement
     // créé. On re-pose le cookie signé avec le rôle ACTUEL.

@@ -216,7 +216,7 @@ export function buildStatements(balance: BalanceRow[]): FinancialStatements {
   const resultat = produits - charges;
   const actif = [...actifMap.entries()].map(([label, amount]) => ({ label, amount })).filter((x) => x.amount !== 0);
   const passif = [...passifMap.entries()].map(([label, amount]) => ({ label, amount })).filter((x) => x.amount !== 0);
-  // SYSCOHADA : le résultat s'équilibre — bénéfice au passif, perte présentée à l'actif
+  // SYSCOHADA: le résultat s'équilibre — bénéfice au passif, perte présentée à l'actif
   if (resultat >= 0) {
     passif.push({ label: "Résultat de l'exercice (bénéfice)", amount: resultat });
   } else {

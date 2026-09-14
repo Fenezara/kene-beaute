@@ -1,5 +1,5 @@
-// Kènè — « Le Fil du Parrainage » : lib PURE partagée serveur + client (zéro dépendance)
-// Le fil qui relie les amies : la filleule échange un code, le parrain est récompensé
+// Kènè — « Le Fil du Parrainage »: lib PURE partagée serveur + client (zéro dépendance)
+// Le fil qui relie les amies: la filleule échange un code, le parrain est récompensé
 // à la première commande PAYÉE de sa filleule (boucle de croissance honnête).
 import { waLink } from "./followups";
 
@@ -46,7 +46,7 @@ export interface ReferralInvitee {
 
 export interface ReferralSummary {
   code: string;
-  /** Filleul : son parrain (null si pas encore parrainée) */
+ /** Filleul: son parrain (null si pas encore parrainée) */
   referredBy: { id: string; name: string; rewarded: boolean } | null;
   invitees: ReferralInvitee[];
   stats: { invitees: number; rewarded: number; earnings: number }; // gains = bonus parrains cumulés

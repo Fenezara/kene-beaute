@@ -1,7 +1,7 @@
 "use client";
-// Kènè — util TTS côté client : fetch /api/tts → blob WAV → objectURL.
+// Kènè — util TTS côté client: fetch /api/tts → blob WAV → objectURL.
 // Cache partagé UNIQUE (FIFO 8) pour toute l'app (narration diagnostic,
-// définitions du glossaire, future lecture de questions) : ré-écouter
+// définitions du glossaire, future lecture de questions): ré-écouter
 // est instantané et gratuit (aucun nouvel appel réseau).
 import { fnv1a } from "@/lib/kene/narration";
 
@@ -25,7 +25,7 @@ export async function fetchTtsAudioUrl(text: string, speed = 1, lang: "fr" | "dy
       const j = (await res.json()) as { error?: string };
       if (j?.error) msg = j.error;
     } catch {
-      /* réponse non-JSON */
+ /* réponse non-JSON */
     }
     throw new Error(msg);
   }

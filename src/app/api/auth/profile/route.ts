@@ -1,5 +1,5 @@
 // PATCH /api/auth/profile — {userId, name?, city?, skinType?, fitzpatrick?, allergies?, goals?}
-// GET  /api/auth/profile?_g=… — pont t. 93 (même payload JSON en query) : la
+// GET /api/auth/profile?_g=… — pont (même payload JSON en query): la
 // sauvegarde du questionnaire d'inscription (nom, type de peau, phototype,
 // allergies, objectifs) fait partie de la CRÉATION DE COMPTE cliente — elle
 // doit passer même chez les préviews qui bloquent les POST/PATCH.
@@ -19,8 +19,8 @@ const Body = z.object({
   fitzpatrick: z.string().trim().optional().nullable(),
   allergies: z.string().trim().optional().nullable(),
   goals: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
-  // t. 120 — photo de profil : data URL (nouvelle photo) ou null (retrait).
-  // La donnée lourde ne revient JAMAIS dans la réponse : seul `hasAvatar`
+  // — photo de profil: data URL (nouvelle photo) ou null (retrait).
+  // La donnée lourde ne revient JAMAIS dans la réponse: seul `hasAvatar`
   // est renvoyé, l'UI charge /api/media/user/:id.
   avatarData: z.string().nullable().optional(),
 });
@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// Pont GET (t. 93) — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous.
+// Pont GET — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous.
 export async function GET(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "auth:profile"), AUTH_MUTATION);
   if (!rl.ok) {
@@ -61,7 +61,7 @@ async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) return jsonError("Utilisatrice introuvable", 404);
 
-  // t. 120 — la photo passe par la validation partagée (format + poids)
+  // — la photo passe par la validation partagée (format + poids)
   if (avatarData !== undefined) {
     const check = checkPhoto(avatarData, "photo de profil");
     if (!check.ok) return jsonError(check.error, 400);

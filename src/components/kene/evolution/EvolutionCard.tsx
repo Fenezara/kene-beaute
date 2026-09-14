@@ -1,6 +1,6 @@
 "use client";
-// Kènè — Le Fil du Temps : courbes d'évolution par indicateur.
-// SVG pur (zéro dépendance de charting) : fil d'or lissé Catmull-Rom, nœuds
+// Kènè — Le Fil du Temps: courbes d'évolution par indicateur.
+// SVG pur (zéro dépendance de charting): fil d'or lissé Catmull-Rom, nœuds
 // pastille couleur sévérité, trajectoire projetée en pointillés quand un seul
 // diagnostic existe. Chips = interface accessible (clavier + lecteurs d'écran),
 // table sr-only en miroir du graphique.
@@ -262,7 +262,7 @@ export function EvolutionCard({ userId, className }: { userId: string; className
               )}
             </p>
 
-            {/* chips : interface accessible du graphique */}
+            {/* chips: interface accessible du graphique */}
             <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Indicateurs suivis">
               {chips.map((c) => {
                 const d = c.points.length > 1 ? c.points[c.points.length - 1].value - c.points[0].value : null;

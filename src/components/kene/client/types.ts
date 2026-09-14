@@ -24,7 +24,7 @@ export interface ApiDiagnosis {
   scoreGlobal: number;
   status: string;
   createdAt: string;
-  // t. 96 — diagnostics réalisés EN INSTITUT (fusionnés dans l'historique) :
+  // — diagnostics réalisés EN INSTITUT (fusionnés dans l'historique):
   // nom de l'entreprise + praticienne éventuelle. Absents sur les self-scans.
   institut?: string | null;
   practitioner?: string | null;
@@ -41,7 +41,7 @@ export interface ApiInstitute {
   openingHour: number;
   closingHour: number;
   image: string;
-  // t. 120 — numéro officiel (bouton WhatsApp) + vitrine réelle éventuelle
+  // — numéro officiel (bouton WhatsApp) + vitrine réelle éventuelle
   phone?: string;
   hasPhoto?: boolean;
   _count?: { services?: number; reviews?: number };
@@ -56,7 +56,7 @@ export interface ApiService {
   price: number;
   description?: string | null;
   botanicals?: string | null;
-  hasPhoto?: boolean; // t. 120 — visuel du soin (/api/media/service/:id)
+  hasPhoto?: boolean; // — visuel du soin (/api/media/service/:id)
 }
 
 export interface ApiResource {
@@ -111,23 +111,23 @@ export interface ApiProduct {
   image: string;
   rating: number;
   reviewCount: number;
-  // t. 113 — marketplace par institut : null = produit MAISON Kènè,
+  // — marketplace par institut: null = produit MAISON Kènè,
   // sinon le produit est vendu par l'institut porté par `tenant`.
   tenantId?: string | null;
   tenant?: { id: string; name: string; city: string; type: string; hasPhoto?: boolean } | null;
-  // t. 120 — photo réelle du produit prise par l'institut (prime sur `image`)
+  // — photo réelle du produit prise par l'institut (prime sur `image`)
   hasPhoto?: boolean;
 }
 
-/** Vendeur du marché (t. 113) : la MAISON Kènè ou un institut partenaire.
- *  Dérivé des produits réellement en stock (jamais de vendeur vide). */
+/** Vendeur du marché: la MAISON Kènè ou un institut partenaire.
+ * Dérivé des produits réellement en stock (jamais de vendeur vide). */
 export interface ApiSeller {
   key: string; // "" = maison, sinon tenantId
   name: string;
   city: string | null;
   maison: boolean; // true = MAISON Kènè (tenantId null)
   count: number;
-  hasPhoto?: boolean; // t. 120 — vitrine réelle de l'institut vendeur
+  hasPhoto?: boolean; // — vitrine réelle de l'institut vendeur
 }
 
 export interface ApiOrder {
@@ -150,14 +150,14 @@ export interface ApiPayment {
   status: string;
   ref: string;
   createdAt?: string;
-  /** Jeton de confirmation des paiements mobile money en attente (wave/orange) :
-   *  fourni par la création (orders / appointments / wallet topup), exigé par
-   *  POST /api/payments/confirm. Absent sur un paiement pending → la cliente
-   *  ne doit PAS tenter le confirm (contrat 63-b/63-c). */
+ /** Jeton de confirmation des paiements mobile money en attente (wave/orange):
+ * fourni par la création (orders / appointments / wallet topup), exigé par
+ * POST /api/payments/confirm. Absent sur un paiement pending → la cliente
+ * ne doit PAS tenter le confirm (contrat 63-b/63-c). */
   confirmToken?: string;
 }
 
-/* ── Compte entreprise (POST /api/auth/pro/register — contrat figé t. 66) ── */
+/* ── Compte entreprise (POST /api/auth/pro/register — contrat figé) ── */
 export interface ApiProTenant {
   id: string;
   name: string;
@@ -174,15 +174,15 @@ export interface ApiProRegisterResponse {
 }
 
 /* ── Session (GET /api/auth/session?userId=) ──
- *  Le contrat exact n'est pas figé côté front : la réponse peut être
- *  { user, tenant? } ou l'utilisateur nu — readSession() accepte les deux. */
+ * Le contrat exact n'est pas figé côté front: la réponse peut être
+ * { user, tenant? } ou l'utilisateur nu — readSession accepte les deux. */
 interface ApiSessionShape {
   user?: unknown;
   tenant?: { id?: unknown; name?: unknown } | null;
   proTenantId?: unknown;
   id?: unknown;
   phone?: unknown;
-  // t. 96 — poste de l'employée connectée (null pour une gérante).
+  // — poste de l'employée connectée (null pour une gérante).
   employeeRole?: unknown;
 }
 
@@ -193,8 +193,8 @@ export interface ApiSession {
   employeeRole: string | null;
 }
 
-/** Lecture tolérante d'une réponse /api/auth/session : normalise
- *  { user, tenant? } comme l'utilisateur brut en ApiSession. */
+/** Lecture tolérante d'une réponse /api/auth/session: normalise
+ * { user, tenant? } comme l'utilisateur brut en ApiSession. */
 export function readSession(payload: unknown): ApiSession {
   const o = (payload && typeof payload === "object" ? payload : {}) as ApiSessionShape;
   const raw = (o.user && typeof o.user === "object" ? o.user : o) as Partial<ApiUser> | null;
@@ -256,7 +256,7 @@ export function parseDiagnosis(resultJson: string): import("@/lib/kene/types").D
   try {
     const r = JSON.parse(resultJson) as import("@/lib/kene/types").DiagnosisResult;
     if (typeof r.score_global !== "number" || !Array.isArray(r.indicateurs)) return null;
-    // Assainissement des indicateurs : les anciens resultJson peuvent omettre
+    // Assainissement des indicateurs: les anciens resultJson peuvent omettre
     // severite/pourcentage → NaN dans les index/clamps des consommateurs
     // (IndicatorBar, SkinTwin, Evolution, CRM). On normalise une fois ici.
     const indicateurs = r.indicateurs

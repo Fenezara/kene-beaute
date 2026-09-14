@@ -1,5 +1,5 @@
 "use client";
-// Kènè Cliente — « Le Fil du Parrainage » : partage ton code, suis tes filleules,
+// Kènè Cliente — « Le Fil du Parrainage »: partage ton code, suis tes filleules,
 // échange le code d'une amie (cadeau de bienvenue immédiat, bonus parrain à sa 1ʳᵉ commande).
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";

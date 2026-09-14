@@ -1,6 +1,6 @@
-// GET /api/shop/products?category=&q= — boutique marketplace Kènè (t. 113) :
+// GET /api/shop/products?category=&q= — boutique marketplace Kènè:
 // produits MAISON Kènè (tenantId null) ET produits des INSTITUTS actifs —
-// chaque produit porte son vendeur (`tenant` : id, nom, ville, type) pour que
+// chaque produit porte son vendeur (`tenant`: id, nom, ville, type) pour que
 // la cliente choisisse et navigue PAR INSTITUT. Les instituts inactifs ou en
 // rupture totale (stock 0) restent naturellement absents du catalogue.
 import { NextRequest, NextResponse } from "next/server";
@@ -16,15 +16,15 @@ export async function GET(req: NextRequest) {
       where: {
         active: true,
         stock: { gt: 0 },
-        // marketplace : la maison (tenantId null) + les instituts actifs
+        // marketplace: la maison (tenantId null) + les instituts actifs
         OR: [{ tenantId: null }, { tenant: { active: true } }],
       },
       include: { tenant: { select: { id: true, name: true, city: true, type: true, photoData: true } } },
       orderBy: { name: "asc" },
     });
 
-    // t. 120 — la photo réelle (photoData, data URL lourde) ne part JAMAIS
-    // dans le payload : un booléen hasPhoto suffit, l'UI charge
+    // — la photo réelle (photoData, data URL lourde) ne part JAMAIS
+    // dans le payload: un booléen hasPhoto suffit, l'UI charge
     // /api/media/product/:id (photo institut) qui prime sur le visuel studio.
     const products = all
       .filter((p) => !category || p.category.toLowerCase() === category)

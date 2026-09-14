@@ -1,11 +1,11 @@
 "use client";
-// Kènè — Le Marché vivant, scène 3D (t. 83-c, vague 3). Le haut de la
-// boutique devient un marché africain : 4 échoppes procédurales (poteaux,
+// Kènè — Le Marché vivant, scène 3D (, vague 3). Le haut de la
+// boutique devient un marché africain: 4 échoppes procédurales (poteaux,
 // étals, auvents pyramidaux, ballots de tissu instanciés), guirlandes de
 // lanternes chaudes en caténaire, poussière en suspension, lumière de fin
 // d'après-midi. ~2,5k triangles, 100 % procédural (zéro asset, offline),
 // DPR ≤ 1,5, frameloop piloté par le wrapper (rendu coupé hors écran).
-// Boucle : R3F n'a qu'UN rAF — chaque sous-composant s'y abonne (useFrame)
+// Boucle: R3F n'a qu'UN rAF — chaque sous-composant s'y abonne (useFrame)
 // et n'anime que SES propres objets (refs locales), en lisant les refs
 // mutables du wrapper (pattern Phase A/D de threads.ts, zéro re-render).
 import { useLayoutEffect, useMemo, useRef, type RefObject } from "react";
@@ -21,9 +21,9 @@ export interface MarketStallDef {
 }
 
 export interface MarketRefs {
-  /** pivot horizontal du drag : -1..1 (±10°) — écrit par le wrapper, lu ici */
+ /** pivot horizontal du drag: -1..1 (±10°) — écrit par le wrapper, lu ici */
   drag: { target: number };
-  /** échoppe sélectionnée : -1 = aucune — écrit par le wrapper, lu ici */
+ /** échoppe sélectionnée: -1 = aucune — écrit par le wrapper, lu ici */
   selected: { index: number };
 }
 
@@ -40,9 +40,9 @@ function mulberry32(seed: number) {
 }
 
 /* ───────────────────────── Les 4 échoppes ─────────────────────────
-   En arc face caméra : les corps tiennent dans le cadre mobile, les
-   pointes d'auvent dépassent à peine (le marché est plus grand que le
-   cadre — il respire au-delà des bords). */
+ En arc face caméra: les corps tiennent dans le cadre mobile, les
+ pointes d'auvent dépassent à peine (le marché est plus grand que le
+ cadre — il respire au-delà des bords). */
 
 const STALL_SPOTS: { pos: [number, number, number]; rotY: number }[] = [
   { pos: [-2.2, 0, 0.3], rotY: 0.3 },
@@ -72,8 +72,8 @@ function Stall({
   const liftY = useRef(0);
   const ballotMesh = useRef<THREE.InstancedMesh>(null);
 
-  /* L'échoppe tapée se soulève légèrement puis retombe douce (lecture de la
-     ref partagée, animation de MA ref locale — rien d'autre ne bouge). */
+ /* L'échoppe tapée se soulève légèrement puis retombe douce (lecture de la
+ ref partagée, animation de MA ref locale — rien d'autre ne bouge). */
   useFrame((_, delta) => {
     const g = lift.current;
     if (!g) return;
@@ -82,9 +82,9 @@ function Stall({
     g.position.y = liftY.current;
   });
 
-  /* Ballots de tissu — piles instanciées sur l'étal (matrices + couleurs
-     posées UNE fois au montage via setMatrixAt/setColorAt, jamais d'attach
-     d'enfant par matrice). */
+ /* Ballots de tissu — piles instanciées sur l'étal (matrices + couleurs
+ posées UNE fois au montage via setMatrixAt/setColorAt, jamais d'attach
+ d'enfant par matrice). */
   const { ballotGeo, ballots, count } = useMemo(() => {
     const geo = new THREE.BoxGeometry(0.17, 0.115, 0.13);
     const rnd = mulberry32(index * 97 + 11);
@@ -145,8 +145,8 @@ function Stall({
         <instancedMesh ref={ballotMesh} args={[ballotGeo, undefined, count]}>
           <meshStandardMaterial color="#FFF9EC" roughness={0.6} />
         </instancedMesh>
-        {/* Zone de tap invisible et généreuse : suit le soulèvement et le
-            pivot — le raycast R3F tape l'échoppe entière, pas ses petits fils. */}
+        {/* Zone de tap invisible et généreuse: suit le soulèvement et le
+ pivot — le raycast R3F tape l'échoppe entière, pas ses petits fils. */}
         <mesh position={[0, 0.95, 0]} onClick={onTap(index)}>
           <boxGeometry args={[2.05, 1.9, 1.35]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -157,9 +157,9 @@ function Stall({
 }
 
 /* ───────────────────────── Guirlandes de lanternes ─────────────────────────
-   Deux caténaires tendues entre les poteaux ; les lanternes (sphères
-   émissives chaudes) pendent le long du fil. Tout est instancié, matrices
-   posées au montage. Le fil oscille et le halo pulse — objets locaux. */
+ Deux caténaires tendues entre les poteaux; les lanternes (sphères
+ émissives chaudes) pendent le long du fil. Tout est instancié, matrices
+ posées au montage. Le fil oscille et le halo pulse — objets locaux. */
 
 const GARLANDS: { from: [number, number, number]; to: [number, number, number]; sag: number; lanterns: number }[] = [
   { from: [-2.35, 1.95, 1.32], to: [2.35, 1.95, 1.32], sag: 0.3, lanterns: 7 },
@@ -217,8 +217,8 @@ function Lanterns() {
     inst.instanceMatrix.needsUpdate = true;
   }, [lanternMatrices]);
 
-  /* Le fil respire (oscillation subtile) et le halo des lanternes pulse
-     chaud — un abonnement à la boucle partagée R3F, objets 100 % locaux. */
+ /* Le fil respire (oscillation subtile) et le halo des lanternes pulse
+ chaud — un abonnement à la boucle partagée R3F, objets 100 % locaux. */
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     garlandGroups.current.forEach((g, i) => {
@@ -276,9 +276,9 @@ function Dust() {
   );
 }
 
-/* ───────────────────────── Le Rig : drag + caméra ─────────────────────────
-   Pivot du marché ±10° (drag posé par le wrapper) et rotation lente de la
-   caméra ±3° — orbite azimutale douce autour des étals. */
+/* ───────────────────────── Le Rig: drag + caméra ─────────────────────────
+ Pivot du marché ±10° (drag posé par le wrapper) et rotation lente de la
+ caméra ±3° — orbite azimutale douce autour des étals. */
 
 function MarketRig({ refs, children }: { refs: RefObject<MarketRefs>; children: React.ReactNode }) {
   const root = useRef<THREE.Group>(null);
@@ -291,7 +291,7 @@ function MarketRig({ refs, children }: { refs: RefObject<MarketRefs>; children: 
     dragCurrent.current += (refs.current.drag.target * 0.175 - dragCurrent.current) * Math.min(1, delta * 3.2);
     if (root.current) root.current.rotation.y = dragCurrent.current;
 
-    // Caméra : rotation lente ±3° autour du marché (cadre compact → caméra
+    // Caméra: rotation lente ±3° autour du marché (cadre compact → caméra
     // rapprochée, les échoppes remplissent le bandeau de 190px).
     const az = Math.sin(t * 0.075) * 0.052;
     const cam = state.camera;
@@ -334,7 +334,7 @@ export default function MarketScene({
     >
       <color attach="background" args={["#1B120A"]} />
       <fog attach="fog" args={["#1B120A", 7.5, 14]} />
-      {/* Fin d'après-midi sur le marché : clé dorée chaude + ambiante crème */}
+      {/* Fin d'après-midi sur le marché: clé dorée chaude + ambiante crème */}
       <ambientLight intensity={0.55} color="#F3E0C0" />
       <directionalLight position={[3, 6, 5]} intensity={1.35} color="#FFD98A" />
       <pointLight position={[0, 2.4, 1.6]} color="#E07A2B" intensity={16} distance={8} decay={2} />

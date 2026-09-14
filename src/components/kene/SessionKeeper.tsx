@@ -1,23 +1,23 @@
 "use client";
-// Kènè — SessionKeeper : validation silencieuse de la session au boot, montée
+// Kènè — SessionKeeper: validation silencieuse de la session au boot, montée
 // à la RACINE (page.tsx) pour couvrir les 3 espaces (Cliente / Pro / Admin).
-// Raison d'être (t. 66-d) : le check vivait dans ClientApp — jamais monté quand
+// Raison d'être: le check vivait dans ClientApp — jamais monté quand
 // l'espace persisté est « pro »/« admin », la session invalidée n'était donc
 // pas purgée au retour dans ces espaces.
 //
-// Contrat :
-//   • Après hydratation du store (gate _keneHydrated), SI une session existe :
-//     UNE requête GET /api/auth/session?userId=.
-//   • 200 → profil rafraîchi (setUser) — jamais déconnecter sur réponse inattendue.
-//     Isolation des comptes (t. 69-a) : setUser fait suivre l'espace au rôle
-//     frais du serveur (clamp store) — un rôle changé côté base est suivi ici.
-//   • 404 → session révolue : déconnexion douce (setUser(null) + clearCart +
-//     toast « Session expirée — reconnecte-toi », pas d'alerte) + retour à
-//     l'espace cliente (l'onboarding/login y vit).
-//   • 502/503/504/réseau → SILENCIEUX : hors-ligne ou redémarrage transitoire
-//     ne doit JAMAIS déconnecter (c'est tout le point du « rester connectée »).
-//   • Anti-boucle : le ref mémorise le dernier userId validé ; l'effet ne se
-//     re-déclenche QUE si userId change (le setUser d'un 200 conserve l'id).
+// Contrat:
+// • Après hydratation du store (gate _keneHydrated), SI une session existe:
+// UNE requête GET /api/auth/session?userId=.
+// • 200 → profil rafraîchi (setUser) — jamais déconnecter sur réponse inattendue.
+// Isolation des comptes: setUser fait suivre l'espace au rôle
+// frais du serveur (clamp store) — un rôle changé côté base est suivi ici.
+// • 404 → session révolue: déconnexion douce (setUser(null) + clearCart +
+// toast « Session expirée — reconnecte-toi », pas d'alerte) + retour à
+// l'espace cliente (l'onboarding/login y vit).
+// • 502/503/504/réseau → SILENCIEUX: hors-ligne ou redémarrage transitoire
+// ne doit JAMAIS déconnecter (c'est tout le point du « rester connectée »).
+// • Anti-boucle: le ref mémorise le dernier userId validé; l'effet ne se
+// re-déclenche QUE si userId change (le setUser d'un 200 conserve l'id).
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { apiGet, ApiError } from "@/lib/kene/api";
@@ -43,20 +43,20 @@ export function SessionKeeper() {
       .then((payload) => {
         if (cancelled) return;
         const s = readSession(payload);
-        // 200 : profil frais si la réponse est lisible ; sinon on garde la
+        // 200: profil frais si la réponse est lisible; sinon on garde la
         // session locale (ne jamais déconnecter sur une réponse inattendue).
         if (s.user) {
           setUser({ ...s.user, employeeRole: s.employeeRole } as SessionUser);
-          // t. 89 — incident « La Dermo ne passe pas » : GUÉRISON au boot du
+          // — incident « La Dermo ne passe pas »: GUÉRISON au boot du
           // proTenantId persisté. L'ancien bug faisait persister l'id du
           // « premier institut de la base » (Éclat d'Abidjan) chez une gérante
           // reconnectée sans son id — la session serveur dit aujourd'hui
-          // VÉRITÉ (son institut à elle) : on ré-aligne le store AVANT que
+          // VÉRITÉ (son institut à elle): on ré-aligne le store AVANT que
           // ProApp ne charge, plus aucun aller-retour 404→auto-guérison.
           if (s.user.role === "pro" && s.tenantId) {
             setProTenantId(s.tenantId);
           }
-          // Mémoire de reconnexion (t. 73) : rafraîchie depuis la base —
+          // Mémoire de reconnexion: rafraîchie depuis la base —
           // cookie 90 j = « rester connectée », la carte « Contente de te
           // revoir » des Portes garde ainsi prénom/rôle à jour.
           rememberAccount({
@@ -74,7 +74,7 @@ export function SessionKeeper() {
           setSpace("client");
           toast.error("Session expirée — reconnecte-toi");
         }
-        // 502/503/504/réseau : silencieux — la session locale reste valable.
+        // 502/503/504/réseau: silencieux — la session locale reste valable.
       });
     return () => {
       cancelled = true;

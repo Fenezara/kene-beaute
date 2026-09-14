@@ -1,8 +1,8 @@
 // Kènè — Questionnaire dermatologique « Diagnostic en institut »
-// Lib PURE (aucune dépendance React/serveur) : définition des questions,
+// Lib PURE (aucune dépendance React/serveur): définition des questions,
 // moteur de scoring par indicateur, drapeaux de vigilance, recommandations
 // et fusion questionnaire ± analyse VLM (photo de cabine).
-// L'entreprise réalise le diagnostic au sein de sa structure : la praticienne
+// L'entreprise réalise le diagnostic au sein de sa structure: la praticienne
 // mène l'entretien (les réponses sont déclarées par la cliente), la photo
 // apporte l'observation — les deux se combinent en un score unique.
 
@@ -20,7 +20,7 @@ export interface QFlag {
   detail?: string;
 }
 
-/** Effets d'une option : clé mot-clé d'indicateur → delta de score santé. */
+/** Effets d'une option: clé mot-clé d'indicateur → delta de score santé. */
 type Effects = Record<string, number>;
 
 export interface QOption {
@@ -37,9 +37,9 @@ export interface Question {
   help?: string;
   type: "single" | "multi" | "text";
   options: QOption[];
-  required?: boolean; // single : une option · multi : ≥ 1 · text : jamais requis
+  required?: boolean; // single: une option · multi: ≥ 1 · text: jamais requis
   placeholder?: string;
-  /** sensible : entouré visuellement (dépigmentation, grossesse…) */
+ /** sensible: entouré visuellement (dépigmentation, grossesse…) */
   sensitive?: boolean;
 }
 
@@ -384,7 +384,7 @@ export function defaultAnswers(): QAnswers {
   return {};
 }
 
-/** Une question est-elle renseignée ? (texte = jamais requis) */
+/** Une question est-elle renseignée? (texte = jamais requis) */
 export function isAnswered(q: Question, answers: QAnswers): boolean {
   const v = answers[q.id];
   if (q.type === "multi") return Array.isArray(v) && v.length > 0;
@@ -398,7 +398,7 @@ export function questionnaireProgress(answers: QAnswers): number {
   return REQUIRED_QUESTIONS.length === 0 ? 1 : done / REQUIRED_QUESTIONS.length;
 }
 
-/** Validation serveur : ids des questions requises manquantes. */
+/** Validation serveur: ids des questions requises manquantes. */
 export function missingRequired(answers: QAnswers): string[] {
   return REQUIRED_QUESTIONS.filter((q) => !isAnswered(q, answers)).map((q) => q.id);
 }
@@ -567,7 +567,7 @@ export function scoreQuestionnaire(answers: QAnswers, zone: BodyZone): Questionn
     flags.unshift({ level: "info", label: "Allergies déclarées", detail: allergies.slice(0, 200) });
   }
 
-  // Nævi : le questionnaire ne peut pas évaluer ABCDE — honnêteté clinique
+  // Nævi: le questionnaire ne peut pas évaluer ABCDE — honnêteté clinique
   if (zone === "naevi") {
     flags.push({
       level: "info",
@@ -628,7 +628,7 @@ export function mergeResults(qr: QuestionnaireResult, vlm: DiagnosisResult | nul
   });
   const scoreGlobal = Math.round(vlm.score_global * PHOTO_WEIGHT + qr.scoreGlobal * Q_WEIGHT);
 
-  // Recommandations : base observation VLM + vigilances questionnaire
+  // Recommandations: base observation VLM + vigilances questionnaire
   const rec: RecommendationSet = {
     ...vlm.recommandations,
     conseils_hygiene_vie: Array.from(

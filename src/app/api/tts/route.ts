@@ -1,9 +1,9 @@
-// Kènè — POST /api/tts : synthèse vocale (TTS z-ai-web-dev-sdk, backend only).
+// Kènè — POST /api/tts: synthèse vocale (TTS z-ai-web-dev-sdk, backend only).
 // Entrée { text ≤ 1200 (contrat), voice?, speed 0.5-2?, lang fr|dy|bq|bt } → audio/wav.
-// lang = fr (défaut) | dy (dioula) | bq (baoulé) | bt (bété) :
+// lang = fr (défaut) | dy (dioula) | bq (baoulé) | bt (bété):
 // le texte est d'abord traduit par LLM (cache serveur), puis synthétisé.
 // Cache mémoire FIFO plafonné (les narrations de diagnostic reviennent souvent).
-// Garde temporelle : tout appel IA qui hang répond 502 FR au bout de 45 s.
+// Garde temporelle: tout appel IA qui hang répond 502 FR au bout de 45 s.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import ZAI from "z-ai-web-dev-sdk";
@@ -19,7 +19,7 @@ const LANG_NAME: Record<string, string> = {
   bt: "bété (bété de Côte d'Ivoire)",
 };
 const TTS_TIMEOUT_MS = 45_000;
-// Double bornage du texte : 1200 en validation (contrat externe), 1000 au
+// Double bornage du texte: 1200 en validation (contrat externe), 1000 au
 // moment de la synthèse — le SDK TTS plafonne l'input à ~1024 caractères,
 // passer au-delà échouerait côté moteur (MAX_TEXT garde le message existant).
 const MAX_TEXT_ZOD = 1200;
@@ -27,8 +27,8 @@ const MAX_TEXT = 1000; // < limite SDK (1024)
 const CACHE_MAX_BYTES = 32 * 1024 * 1024; // ~15 narrations de 1 min
 const TR_CACHE_MAX = 128; // traductions LLM mémorisées
 
-/** Validation stricte du contrat (fini les casts manuels) : text borné,
- *  lang enum, speed borné 0.5-2, voix tolérée (fallback tongtong). */
+/** Validation stricte du contrat (fini les casts manuels): text borné,
+ * lang enum, speed borné 0.5-2, voix tolérée (fallback tongtong). */
 const Body = z.object({
   text: z.string().min(1).max(MAX_TEXT_ZOD),
   voice: z.string().max(40).optional(),
@@ -56,7 +56,7 @@ async function translateLocal(zai: Awaited<ReturnType<typeof ZAI.create>>, text:
   const hit = trCache.get(key);
   if (hit) return hit;
 
-  // t. 87 — zaiCall : retry backoff sur 429 amont avant d'abandonner la
+  // — zaiCall: retry backoff sur 429 amont avant d'abandonner la
   // traduction (le cache absorbe le reste).
   const completion = await zaiCall(
     () =>

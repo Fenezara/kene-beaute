@@ -1,10 +1,10 @@
-// GET /api/admin/security — visionneuse « Sécurité » de la console admin (t. 86-d)
-// Journal d'audit + posture : les 80 événements les plus récents (ts desc) et
+// GET /api/admin/security — visionneuse « Sécurité » de la console admin 
+// Journal d'audit + posture: les 80 événements les plus récents (ts desc) et
 // les compteurs 24 h.
 //
-// Garde : même mécanique de session que /api/admin/stats (cookie signé
+// Garde: même mécanique de session que /api/admin/stats (cookie signé
 // kene_session, HMAC-SHA256), mais STRICT — la route est nouvelle (aucun
-// consommateur antérieur), et le journal expose des IP : pas de mode legacy
+// consommateur antérieur), et le journal expose des IP: pas de mode legacy
 // public possible. Sans session admin valide → 403 franc.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     return rateLimitResponse(rl.retryAfterSec, "Journal très sollicité — reprends dans quelques secondes");
   }
   try {
-    // Garde stricte (cf. en-tête) : session signée avec rôle admin, sinon 403.
+    // Garde stricte (cf. en-tête): session signée avec rôle admin, sinon 403.
     const sess = sessionFromRequest(req);
     if (!sess || sess.role !== "admin") {
       return NextResponse.json({ error: "Console admin réservée aux comptes admin" }, { status: 403 });
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
         id: e.id,
         ts: e.ts.toISOString(),
         kind: e.kind,
-        phone: e.phone, // déjà masqué à l'écriture (audit())
+        phone: e.phone, // déjà masqué à l'écriture (audit)
         ip: e.ip,
         detail: e.detail,
       })),

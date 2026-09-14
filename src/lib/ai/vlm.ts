@@ -1,17 +1,17 @@
 // Kènè — Service de diagnostic de peau par VLM (glm-4.6v via z-ai-web-dev-sdk)
-// IMPORTANT : backend uniquement.
+// IMPORTANT: backend uniquement.
 //
-// PIPELINE 2 PHASES (t. 77) : la latence de glm-4.6v est dominée par la
+// PIPELINE 2 PHASES: la latence de glm-4.6v est dominée par la
 // GÉNÉRATION de tokens (~10-15 tok/s, forte variance 18-77 s mesurées sur
-// un JSON détaillé). Découpage + format compact :
-//   Phase 1 — vision au format MAP (indicateurs {nom:score}, notes seulement
-//   pour les 3 plus faibles) : ~500-600 chars de sortie → ~10-18 s médian.
-//   Phase 2 — LLM texte glm-4.6 (recommandations personnalisées) : ~4 s.
-//   Gardes : 45 s + 20 s = 65 s pire cas, dans la fenêtre du poll front
-//   (100 s). L'image client (820 px JPEG ~86 Ko via resizeImage) part telle
-//   quelle : les tests montrent que la taille d'image n'est PAS le facteur
-//   dominant — et sharp est BANNI des routes API (import natif = OOM kill
-//   du next-server au compile, t. 77 — cf. worklog).
+// un JSON détaillé). Découpage + format compact:
+// Phase 1 — vision au format MAP (indicateurs {nom:score}, notes seulement
+// pour les 3 plus faibles): ~500-600 chars de sortie → ~10-18 s médian.
+// Phase 2 — LLM texte glm-4.6 (recommandations personnalisées): ~4 s.
+// Gardes: 45 s + 20 s = 65 s pire cas, dans la fenêtre du poll front
+// (100 s). L'image client (820 px JPEG ~86 Ko via resizeImage) part telle
+// quelle: les tests montrent que la taille d'image n'est PAS le facteur
+// dominant — et sharp est BANNI des routes API (import natif = OOM kill
+// du next-server au compile, — cf. worklog).
 import ZAI from "z-ai-web-dev-sdk";
 import type { VisionMessage } from "z-ai-web-dev-sdk";
 import type { BodyZone, DiagnosisResult, Indicator, RecommendationSet, SuspectedCondition, ZoneMark } from "@/lib/kene/types";
@@ -20,10 +20,10 @@ import { hypothesesFromVlm, vlmCatalogForZone } from "@/lib/kene/conditions";
 import { severityFromPercent } from "@/lib/kene/format";
 import { zaiCall } from "@/lib/ai/zai-retry";
 
-/** Gardes par phase (t. 77) : 40 s vision (variance de service mesurée
- *  18-77 s — au-delà, le fallback déterministe est plus utile qu'une
- *  attente indéterminée) + retry 25 s + 15 s texte = 80 s pire cas,
- *  sous la fenêtre du poll front (100 s) avec la marge d'écriture DB. */
+/** Gardes par phase: 40 s vision (variance de service mesurée
+ * 18-77 s — au-delà, le fallback déterministe est plus utile qu'une
+ * attente indéterminée) + retry 25 s + 15 s texte = 80 s pire cas,
+ * sous la fenêtre du poll front (100 s) avec la marge d'écriture DB. */
 const VLM_TIMEOUT_MS = 40_000;
 const VLM_RETRY_TIMEOUT_MS = 25_000;
 const LLM_TIMEOUT_MS = 15_000;
@@ -33,11 +33,11 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/** Phase 1 — prompt vision au FORMAT COMPACT (t. 77) : indicateurs en map
- *  {nom: score} (zéro note par défaut), notes uniquement pour les 3 plus
- *  faibles (champ focus), marquages en tableaux courts. Sortie ~500-600
- *  caractères même pour le visage (14 indicateurs) — contre ~1 800 en
- *  tableau détaillé : c'est la génération qui dominait (18-77 s mesurés). */
+/** Phase 1 — prompt vision au FORMAT COMPACT: indicateurs en map
+ * {nom: score} (zéro note par défaut), notes uniquement pour les 3 plus
+ * faibles (champ focus), marquages en tableaux courts. Sortie ~500-600
+ * caractères même pour le visage (14 indicateurs) — contre ~1 800 en
+ * tableau détaillé: c'est la génération qui dominait (18-77 s mesurés). */
 function buildAnalysisPrompt(zone: BodyZone, knownFitz?: string, allergies?: string): string {
   const indicateurs = ZONE_INDICATORS[zone];
   const abcdePart =
@@ -52,8 +52,8 @@ Réponds STRICTEMENT en JSON ultra-compact (≤ 650 caractères, sans markdown, 
 Règles : TOUS les indicateurs listés dans "ind" ; 4 à 6 marks ; sev 0=sain 1=léger 2=modéré 3=marqué ; conds = UNIQUEMENT des ids du catalogue ci-dessus (la/les plus probables, 0-2, confiance ≥ 40 seulement) ; si la photo ne montre pas de peau : score 0, derm false, conds vide.`;
 }
 
-/** Phase 2 — prompt texte (glm-4.6) : recommandations personnalisées à partir
- *  de l'analyse réelle. Texte pur = génération rapide (~4 s). */
+/** Phase 2 — prompt texte (glm-4.6): recommandations personnalisées à partir
+ * de l'analyse réelle. Texte pur = génération rapide (~4 s). */
 function buildRecommendationsPrompt(analysisJson: string, zone: BodyZone): string {
   return `Tu es conseillère beauté Kènè, spécialiste des peaux mélanodermes africaines. Botaniques maison : karité, moringa, baobab, bissap, aloka.
 Analyse cutanée récente (zone « ${zone} ») : ${analysisJson.slice(0, 700)}
@@ -62,11 +62,11 @@ Rédige des recommandations personnalisées cohérentes avec CES résultats. JSO
 }
 
 function extractJson(raw: string): Record<string, unknown> | null {
-  // t. 96 — espaces Unicode exotiques entre jetons (NBSP, ZWSP… mesurés en
-  // préview : le modèle en émet parfois autour des étiquettes ; JSON.parse les
-  // REJETTE alors qu'un espace simple est valide). Normalisés AVANT tout : un
+  // — espaces Unicode exotiques entre jetons (NBSP, ZWSP… mesurés en
+  // préview: le modèle en émet parfois autour des étiquettes; JSON.parse les
+  // REJETTE alors qu'un espace simple est valide). Normalisés AVANT tout: un
   // NBSP à l'intérieur d'une note devient une espace — cosmétique et sans
-  // incidence. La preuve : réponse « valide à l'œil » mais rejetée car
+  // incidence. La preuve: réponse « valide à l'œil » mais rejetée car
   // l'espace dans [ "nez" était en fait U+00A0.
   const cleaned = raw
     .replace(/```json/gi, "")
@@ -74,7 +74,7 @@ function extractJson(raw: string): Record<string, unknown> | null {
     .replace(/[\u00a0\u1680\u2000-\u200f\u2028\u2029\u202f\u205f\u3000\ufeff]/g, " ")
     .trim();
   const attempts: string[] = [cleaned];
-  // Variance du modèle (t. 77, mesurée) : le JSON revient presque toujours
+  // Variance du modèle (, mesurée): le JSON revient presque toujours
   // bien formé MAIS parfois avec des étiquettes nues dans les tableaux
   // ([Joue G,25,55,…]) ou des clés nues ({Hydratation:85}). Deux réparations
   // ciblées, appliquées EN CASCADE seulement si le parse direct échoue —
@@ -83,9 +83,9 @@ function extractJson(raw: string): Record<string, unknown> | null {
     s.replace(/([{,]\s*)([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9 _()&/'\u2019_-]*?)\s*:/g, '$1"$2":');
   const fixElems = (s: string) =>
     s.replace(/([,\[]\s*)([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9 _()&/'\u2019_-]*?)(\s*[,}\]])/g, '$1"$2"$3');
-  // t. 96 — quote ouvrante MANQUANTE sur une étiquette de tableau (mesuré :
+  // — quote ouvrante MANQUANTE sur une étiquette de tableau (mesuré:
   // [nez",400,…] au lieu de ["nez",400,…]). Ne touche jamais un élément déjà
-  // quoté : le motif exige une lettre directement après [ ou , — une quote
+  // quoté: le motif exige une lettre directement après [ ou, — une quote
   // ouvrante ne peut pas matcher.
   const fixStrayQuote = (s: string) =>
     s.replace(/([,\[]\s*)([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9 _()&/'\u2019_-]*?)"(?=\s*[,}\]])/g, '$1"$2"');
@@ -157,11 +157,11 @@ function coerceArray<T>(v: unknown): T[] {
 /** Phase 1 — transforme la réponse vision brute en analyse validée
  *  (SANS recommandations : elles viennent de la phase 2). Renvoie null si
  *  l'analyse est inutilisable → fallback global.
- *  Accepte les DEUX formats (t. 77) : le compact ({ind:{nom:score},
+ *  Accepte les DEUX formats : le compact ({ind:{nom:score},
  *  marks:[[label,x,y,w,h,sev]], focus:[[nom,note]], derm, why}) et l'ancien
  *  détaillé (indicateurs[], zones_marquages[], orientation_dermato) —
  *  rétrocompatibilité si le modèle répond à l'ancien format.
- *  t. 84 : champ `conds` → hypothèses de l'atlas africain, validées par
+ *  Champ `conds` → hypothèses de l'atlas africain, validées par
  *  hypothesesFromVlm (ids exacts + zone cohérente + confiance ≥ 25). */
 function normalizeAnalysis(
   raw: unknown,
@@ -187,7 +187,7 @@ function normalizeAnalysis(
     }
   }
 
-  // Scores : map compacte "ind" {nom: nombre} ou ancien tableau indicateurs[].
+  // Scores: map compacte "ind" {nom: nombre} ou ancien tableau indicateurs[].
   const indMap = isRecord(o.ind) ? o.ind : null;
   const indicateurs: Indicator[] = indicateursList.map((nom) => {
     const pct = clamp(indMap?.[nom] ?? oldInd.find((i) => i && String(i.nom).toLowerCase().includes(nom.toLowerCase().slice(0, 10)))?.pourcentage, 0, 100, 70);
@@ -201,10 +201,10 @@ function normalizeAnalysis(
   });
   if (indicateurs.length === 0) return null;
 
-  // Marquages : tableaux courts [[label,x,y,w,h,sev]] ou anciens objets.
-  // Échelle auto (t. 77) : le modèle émet parfois des coordonnées ×10
-  // (grille pixel 0-1000 au lieu du % 0-100 — mesuré : 180/480/820…).
-  // Détection : une quelconque coordonnée x/y > 100 → TOUTE la géométrie
+  // Marquages: tableaux courts [[label,x,y,w,h,sev]] ou anciens objets.
+  // Échelle auto: le modèle émet parfois des coordonnées ×10
+  // (grille pixel 0-1000 au lieu du % 0-100 — mesuré: 180/480/820…).
+  // Détection: une quelconque coordonnée x/y > 100 → TOUTE la géométrie
   // est en millièmes → division par 10 (w/h > 35 → /10 aussi).
   const marksIn = coerceArray<unknown>(o.marks);
   const oldMarks = coerceArray<Record<string, unknown>>(o.zones_marquages);
@@ -237,7 +237,7 @@ function normalizeAnalysis(
     })),
   ].slice(0, 8);
 
-  // ABCDE : paires [[critere, intitule, alerte, detail]] ou anciens objets.
+  // ABCDE: paires [[critere, intitule, alerte, detail]] ou anciens objets.
   const abcdePairs = coerceArray<unknown>(o.abcde)
     .filter((c): c is unknown[] => Array.isArray(c) && typeof c[0] === "string")
     .map((c) => ({
@@ -262,7 +262,7 @@ function normalizeAnalysis(
   const why = o.why ?? o.raison_orientation;
   const fitzRaw = o.fitz ?? o.fitzpatrick_estime;
 
-  // t. 84 — hypothèses de l'atlas africain : validation ANTI-HALLUCINATION
+  // — hypothèses de l'atlas africain: validation ANTI-HALLUCINATION
   // (ids exacts du catalogue zone-filtré, confiance plancher, cap 2). Le
   // champ peut être absent (ancien format / modèle silencieux) → [].
   const hypotheses: SuspectedCondition[] = hypothesesFromVlm(o.conds, zone);
@@ -307,8 +307,8 @@ function normalizeRecommendations(raw: unknown): RecommendationSet | null {
 }
 
 /** Phase 2 (fallback) — recommandations déterministes dérivées de l'ANALYSE
- *  réelle : la phase 1 a réussi, seule la rédaction LLM a échoué → les conseils
- *  restent personnalisés par indicateurs (les plus faibles d'abord). */
+ * réelle: la phase 1 a réussi, seule la rédaction LLM a échoué → les conseils
+ * restent personnalisés par indicateurs (les plus faibles d'abord). */
 function ruleRecommendations(
   analysis: Omit<DiagnosisResult, "recommandations" | "source" | "confidence" | "avertissement">,
 ): RecommendationSet {
@@ -344,7 +344,7 @@ function ruleRecommendations(
   };
 }
 
-/** Fallback déterministe si le VLM échoue (POC toujours fonctionnel) */
+/** Fallback déterministe si le VLM échoue (toujours fonctionnel) */
 export function fallbackResult(zone: BodyZone, seed: number): DiagnosisResult {
   const rand = (i: number) => {
     const x = Math.sin(seed * 97.13 + i * 41.7) * 10000;
@@ -382,17 +382,17 @@ export function fallbackResult(zone: BodyZone, seed: number): DiagnosisResult {
     orientation_dermato: false,
     avertissement: "Mode secours : résultat simulé car le moteur IA est momentanément indisponible.",
     source: "fallback",
-    // Champ confiance (t. 71) : mode secours déterministe → « indicative ».
+    // Champ confiance: mode secours déterministe → « indicative ».
     confidence: "indicative",
   };
 }
 
-/** Appel principal — pipeline 2 phases (t. 77) avec fallback par phase.
- *  Phase 1 : vision minimale (analyse réelle de la photo, ~12 s).
- *  Phase 2 : LLM texte (recommandations personnalisées, ~4 s) — si elle
- *  échoue, des recommandations dérivées de l'analyse réelle prennent le
- *  relais (le diagnostic reste « haute » confiance : la vision a réussi).
- *  Phase 1 en échec → fallback global déterministe (mode secours assumé). */
+/** Appel principal — pipeline 2 phases avec fallback par phase.
+ * Phase 1: vision minimale (analyse réelle de la photo, ~12 s).
+ * Phase 2: LLM texte (recommandations personnalisées, ~4 s) — si elle
+ * échoue, des recommandations dérivées de l'analyse réelle prennent le
+ * relais (le diagnostic reste « haute » confiance: la vision a réussi).
+ * Phase 1 en échec → fallback global déterministe (mode secours assumé). */
 export async function runDiagnosis(opts: {
   imageBase64: string; // data URL complète
   zone: BodyZone;
@@ -404,9 +404,9 @@ export async function runDiagnosis(opts: {
   try {
     const zai = await ZAI.create();
 
-    // ── Phase 1 : vision compacte — 2 tentatives (variance de format du
-    // modèle : un JSON tronqué/enrobé tombe dans extractJson → retry une
-    // fois ; la 2e réponse est souvent propre). ──────────────────────────
+    // ── Phase 1: vision compacte — 2 tentatives (variance de format du
+    // modèle: un JSON tronqué/enrobé tombe dans extractJson → retry une
+    // fois; la 2e réponse est souvent propre). ──────────────────────────
     let analysis: ReturnType<typeof normalizeAnalysis> = null;
     let lastRaw = "";
     for (let attempt = 0; attempt < 2 && !analysis; attempt += 1) {
@@ -419,8 +419,8 @@ export async function runDiagnosis(opts: {
           ],
         },
       ];
-      // t. 87 — zaiCall : retry backoff sur 429 amont (quota machine partagé)
-      // EN PLUS du retry de format existant : un refus de quota ne doit plus
+      // — zaiCall: retry backoff sur 429 amont (quota machine partagé)
+      // EN PLUS du retry de format existant: un refus de quota ne doit plus
       // jeter un diagnostic en mode secours simulé.
       const response = await zaiCall(
         () =>
@@ -442,7 +442,7 @@ export async function runDiagnosis(opts: {
     }
     if (!analysis) return fallbackResult(zone, seed);
 
-    // ── Phase 2 : recommandations rédigées (LLM texte rapide) ──────────
+    // ── Phase 2: recommandations rédigées (LLM texte rapide) ──────────
     let recommandations: RecommendationSet | null = null;
     try {
       const recResponse = await zaiCall(

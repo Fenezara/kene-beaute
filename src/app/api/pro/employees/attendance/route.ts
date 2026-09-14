@@ -12,8 +12,8 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, le pointage
-    // exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, le pointage
+    // exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:employees:attendance");
     if (guard) return guard;
 

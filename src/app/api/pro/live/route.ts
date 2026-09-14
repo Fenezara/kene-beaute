@@ -1,5 +1,5 @@
 // GET /api/pro/live?tenantId= — flux temps réel institut (badge Pro, KPIs live)
-// Payload VOLONTAIREMENT léger et diffable : le mini-service notify-service le
+// Payload VOLONTAIREMENT léger et diffable: le mini-service notify-service le
 // sérialise et n'émet `tenant-feed` que si la sérialisation change (compteur
 // qui bouge, dernier événement qui change). Jamais de liste lourde ici.
 import { NextRequest, NextResponse } from "next/server";
@@ -12,7 +12,7 @@ interface LiveEvent {
   id: string;
   at: string;
   label: string;
-  status?: string; // RDV : pending = réservé côté cliente (à confirmer)
+  status?: string; // RDV: pending = réservé côté cliente (à confirmer)
 }
 
 export async function GET(req: NextRequest) {

@@ -1,4 +1,4 @@
-// GET /api/profile/export?userId= — portabilité RGPD « Mes données » :
+// GET /api/profile/export?userId= — portabilité RGPD « Mes données »:
 // export JSON complet de TOUT ce que Kènè sait de la cliente (POC, données locales).
 // En-têtes Content-Disposition → téléchargement direct côté client.
 import { NextRequest, NextResponse } from "next/server";
@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
 
-    // Session signée (t. 71-b, migration douce) : avec cookie, l'export RGPD
-    // ne sort que pour le compte de la session ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, l'export RGPD
+    // ne sort que pour le compte de la session; sans cookie → legacy.
     const guard = guardUserClaim(req, "profile:export", userId);
     if (guard) return guard;
 
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    // ── Assemblage (les images photo ne sont PAS exportées : volumétrie) ──
+    // ── Assemblage (les images photo ne sont PAS exportées: volumétrie) ──
     const payload = {
       formatVersion: 1,
       generatedAt: new Date().toISOString(),

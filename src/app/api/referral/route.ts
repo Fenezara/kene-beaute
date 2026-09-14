@@ -1,4 +1,4 @@
-// GET /api/referral?userId= — Le Fil du Parrainage : code, parrain, filleules, stats
+// GET /api/referral?userId= — Le Fil du Parrainage: code, parrain, filleules, stats
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, ensureWallet } from "@/lib/kene/server";

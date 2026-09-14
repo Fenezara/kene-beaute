@@ -1,5 +1,5 @@
-// t. 120 — validation partagée des photos uploadées (data URL).
-// Le client redimensionne déjà (canvas → JPEG ~820px) : ici on borne la
+// Validation partagée des photos uploadées (data URL).
+// Le client redimensionne déjà (canvas → JPEG ~820px): ici on borne la
 // taille et on vérifie le format AVANT d'écrire en base — jamais de blob
 // arbitraire dans la base.
 export const PHOTO_MAX_CHARS = 1_600_000; // ~1,2 Mo de JPEG base64 (820px q80)
@@ -10,8 +10,8 @@ export type PhotoCheck = { ok: true; value: string | null } | { ok: false; error
 
 /**
  * `undefined` → champ non fourni (aucune modification)
- * `null`       → suppression de la photo
- * string       → nouvelle photo (data URL image/jpeg|png|webp bornée)
+ * `null` → suppression de la photo
+ * string → nouvelle photo (data URL image/jpeg|png|webp bornée)
  */
 export function checkPhoto(v: unknown, label = "photo"): PhotoCheck {
   if (v === undefined) return { ok: true, value: undefined as unknown as null };

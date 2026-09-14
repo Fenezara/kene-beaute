@@ -530,6 +530,7 @@ model Employee {
   cnpsNumber   String?
   bankAccount  String?
   active       Boolean  @default(true)
+  endDate      DateTime? // sortie (null = en poste)
 
   attendance  Attendance[]
   leaves      LeaveRequest[]

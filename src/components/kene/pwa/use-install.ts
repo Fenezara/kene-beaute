@@ -1,6 +1,6 @@
 "use client";
 // Kènè — hook partagé d'installation PWA (bannière d'accueil + bouton Profil).
-// beforeinstallprompt ne peut être capturé qu'une fois par session : l'événement
+// beforeinstallprompt ne peut être capturé qu'une fois par session: l'événement
 // est gardé dans un singleton module-level (l'abonnement survit aux
 // montage/démontage des écrans), exposé via useSyncExternalStore.
 // standalone (media query display-mode) et iOS (userAgent) sont aussi des
@@ -33,14 +33,14 @@ function ensureListening(): void {
     notifyPrompt();
   });
 
-  // Installée : l'événement ne reviendra plus, on purge partout.
+  // Installée: l'événement ne reviendra plus, on purge partout.
   window.addEventListener("appinstalled", () => {
     deferredPrompt = null;
     notifyPrompt();
   });
 }
 
-/* ─── Store externe : prompt d'installation natif ─── */
+/* ─── Store externe: prompt d'installation natif ─── */
 
 function subscribePrompt(callback: () => void): () => void {
   ensureListening();
@@ -58,7 +58,7 @@ function getServerPrompt(): BeforeInstallPromptEvent | null {
   return null;
 }
 
-/* ─── Store externe : app lancée en standalone ? ─── */
+/* ─── Store externe: app lancée en standalone? ─── */
 
 function subscribeStandalone(callback: () => void): () => void {
   const mql = window.matchMedia("(display-mode: standalone)");
@@ -66,7 +66,7 @@ function subscribeStandalone(callback: () => void): () => void {
   return () => mql.removeEventListener("change", callback);
 }
 
-/** App déjà lancée depuis l'écran d'accueil (display-mode: standalone) ? */
+/** App déjà lancée depuis l'écran d'accueil (display-mode: standalone)? */
 export function detectStandalone(): boolean {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
@@ -79,7 +79,7 @@ function getServerStandalone(): boolean {
   return false;
 }
 
-/* ─── Store externe : terminal iOS (constant par session) ─── */
+/* ─── Store externe: terminal iOS (constant par session) ─── */
 
 function subscribeNothing(): () => void {
   return () => {};
@@ -98,13 +98,13 @@ function getServerIOS(): boolean {
 }
 
 export interface InstallPromptApi {
-  /** Un prompt natif est prêt à être affiché (Android/Chrome, Edge…). */
+ /** Un prompt natif est prêt à être affiché (Android/Chrome, Edge…). */
   canInstall: boolean;
-  /** Déclenche le prompt natif. Résout true si l'utilisateur a accepté. */
+ /** Déclenche le prompt natif. Résout true si l'utilisateur a accepté. */
   promptInstall: () => Promise<boolean>;
-  /** App déjà installée/lançée en standalone. */
+ /** App déjà installée/lançée en standalone. */
   isStandalone: boolean;
-  /** Terminal iOS (installation manuelle via Partager). */
+ /** Terminal iOS (installation manuelle via Partager). */
   isIOS: boolean;
 }
 
@@ -120,7 +120,7 @@ export function useInstallPrompt(): InstallPromptApi {
       await prompt.prompt();
       const { outcome } = await prompt.userChoice;
       if (outcome === "accepted") {
-        // appinstalled arrivera aussi ; on purge tout de suite pour masquer
+        // appinstalled arrivera aussi; on purge tout de suite pour masquer
         // la bannière sans attendre.
         deferredPrompt = null;
         notifyPrompt();

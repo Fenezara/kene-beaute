@@ -1,6 +1,6 @@
-// POST /api/pro/diagnoses — diagnostic en institut : questionnaire ± photo (VLM)
-// GET  /api/pro/diagnoses?tenantId=&clientId= — historique institut + KPIs
-// L'entreprise réalise le diagnostic au sein de sa structure : la praticienne
+// POST /api/pro/diagnoses — diagnostic en institut: questionnaire ± photo (VLM)
+// GET /api/pro/diagnoses?tenantId=&clientId= — historique institut + KPIs
+// L'entreprise réalise le diagnostic au sein de sa structure: la praticienne
 // mène l'entretien (questionnaire structuré), prend éventuellement une photo
 // en cabine → le moteur fusionne déclaratif (38 %) et observation VLM (62 %),
 // sauvegarde dans le CRM et notifie la cliente si elle est sur l'app Kènè.
@@ -31,9 +31,9 @@ const Body = z.object({
   client: z.object({ name: z.string().min(2).max(80), phone: z.string().min(8).max(20) }).optional(),
   photo: z.string().startsWith("data:image/").optional(),
   practitioner: z.string().max(80).optional(),
-  // Consentements recueillis en cabine (t. 119) — obligatoires avant tout
-  // diagnostic : photos ET données de peau. La fiche papier porte la
-  // signature ; ici la trace numérique horodatée.
+  // Consentements recueillis en cabine — obligatoires avant tout
+  // diagnostic: photos ET données de peau. La fiche papier porte la
+  // signature; ici la trace numérique horodatée.
   consent: z.object({ photo: z.boolean(), data: z.boolean() }),
 });
 
@@ -50,14 +50,14 @@ function sanitizeAnswers(answers: QAnswers): QAnswers {
 }
 
 export async function POST(req: NextRequest) {
-  // Route coûteuse (questionnaire ± photo VLM en cabine) : 10/min par IP.
+  // Route coûteuse (questionnaire ± photo VLM en cabine): 10/min par IP.
   const rl = rateLimit(rlKey(req, "pro:diagnoses"), PRO_DIAGNOSES);
   if (!rl.ok) {
     return rateLimitResponse(rl.retryAfterSec, "Diagnostic en institut très sollicité — reprends dans quelques secondes");
   }
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, le diagnostic
-    // en institut exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, le diagnostic
+    // en institut exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:diagnoses:post");
     if (guard) return guard;
 
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     const tenant = await resolveTenant(req, parsed.data.tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    // 1. Cliente : fiche CRM existante OU création express (anti-doublon téléphones)
+    // 1. Cliente: fiche CRM existante OU création express (anti-doublon téléphones)
     let clientProfileId = parsed.data.clientProfileId ?? null;
     let reusedClient = false;
     if (clientProfileId) {
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     const client = await db.clientProfile.findUnique({ where: { id: clientProfileId } });
     if (!client) return jsonError("Fiche cliente introuvable", 404);
 
-    // 2. Questionnaire complet ?
+    // 2. Questionnaire complet?
     const missing = missingRequired(answers);
     if (missing.length > 0) {
       return jsonError(`Questionnaire incomplet — ${missing.length} réponse(s) manquante(s)`, 400);
@@ -212,8 +212,8 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
-    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:diagnoses:get");
     if (guard) return guard;
 

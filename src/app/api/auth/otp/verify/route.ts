@@ -1,14 +1,14 @@
 // POST /api/auth/otp/verify — {phone, code, name?} → { user }
-// GET  /api/auth/otp/verify?_g=… — pont t. 91 (même payload JSON en query)
-// Durcissement t. 86-d :
-//  • le code soumis est haché (sha256) puis comparé au hash stocké via
-//    timingSafeEqual — jamais de comparaison de clair, jamais d'oracle de
-//    timing (les codes créés avant ce sprint, en clair en base, restent
-//    vérifiables : hashés à la volée avant la même comparaison constante) ;
-//  • compteur d'échecs par téléphone (Map globalThis, comme le rate-limit) :
-//    5 échecs → verrouillage 15 min de CE numéro (429 FR clair) + événement
-//    login_locked ; le succès remet le compteur à zéro ;
-//  • chaque issue est journalisée (login_success / login_failed / login_locked).
+// GET /api/auth/otp/verify?_g=… — pont (même payload JSON en query)
+// Durcissement:
+// • le code soumis est haché (sha256) puis comparé au hash stocké via
+// timingSafeEqual — jamais de comparaison de clair, jamais d'oracle de
+// timing (les codes créés avant ce sprint, en clair en base, restent
+// vérifiables: hashés à la volée avant la même comparaison constante);
+// • compteur d'échecs par téléphone (Map globalThis, comme le rate-limit):
+// 5 échecs → verrouillage 15 min de CE numéro (429 FR clair) + événement
+// login_locked; le succès remet le compteur à zéro;
+// • chaque issue est journalisée (login_success / login_failed / login_locked).
 // Le format des réponses succès (payload user + cookie signé posé par
 // setSessionCookie) reste STRICTEMENT identique.
 import { NextRequest, NextResponse } from "next/server";
@@ -27,7 +27,7 @@ const Body = z.object({
 });
 
 // ─────────────── Verrouillage par numéro (5 échecs → 15 min) ───────────────
-// État sur globalThis : survit aux rechargements de modules en dev (HMR
+// État sur globalThis: survit aux rechargements de modules en dev (HMR
 // Turbopack) et reste un singleton même si la route est bundlée plusieurs
 // fois. Purge paresseuse à la lecture — zéro timer, zéro fuite.
 const OTP_MAX_FAILS = 5;
@@ -37,12 +37,12 @@ type OtpFailEntry = { fails: number; lockedUntil: number; lastFail: number };
 const gLock = globalThis as typeof globalThis & { __keneOtpFails?: Map<string, OtpFailEntry> };
 const otpFails: Map<string, OtpFailEntry> = (gLock.__keneOtpFails ??= new Map());
 
-/** Verrou actif sur ce numéro ? Purge paresseuse : compteur inactif depuis
- *  15 min ou verrou expiré → l'entrée sort de la Map (retour à zéro propre). */
+/** Verrou actif sur ce numéro? Purge paresseuse: compteur inactif depuis
+ * 15 min ou verrou expiré → l'entrée sort de la Map (retour à zéro propre). */
 function phoneLocked(phone: string): number {
   const entry = otpFails.get(phone);
   if (!entry) return 0;
-  // `lastFail ?? 0` : une entrée héritée d'un module antérieur (champ absent
+  // `lastFail?? 0`: une entrée héritée d'un module antérieur (champ absent
   // après HMR) est traitée comme périmée — purge nette, retour à zéro.
   if (Date.now() - (entry.lastFail ?? 0) > OTP_LOCK_MS) {
     otpFails.delete(phone);
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Pont GET (t. 91) — voir src/lib/kene/get-bridge.ts : certaines préviews
+// Pont GET — voir src/lib/kene/get-bridge.ts: certaines préviews
 // bloqueuses laissent passer les GET mais jamais les POST (login impossible
 // chez l'utilisatrice). MÊMES garde-fous que le POST (rate-limit, verrouillage
 // par numéro, audit, cookie de session posé sur la réponse).
@@ -95,7 +95,7 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   const { code, name } = data;
   const ip = clientIp(req);
 
-  // Verrouillage t. 86-d : numéro bloqué par ses 5 échecs → 429 direct
+  // Verrouillage: numéro bloqué par ses 5 échecs → 429 direct
   const lockedUntil = phoneLocked(phone);
   if (lockedUntil > 0) {
     return rateLimitResponse(
@@ -109,7 +109,7 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
     orderBy: { createdAt: "desc" },
   });
 
-  // Comparaison hash-à-hash, à temps constant. Un code stocké avant t. 86-d
+  // Comparaison hash-à-hash, à temps constant. Un code stocké avant 
   // (en clair, 6 chiffres) est haché à la volée — même chemin, même timing.
   const submittedHash = sha256Hex(code);
   const storedHash = otp ? (/^[0-9a-f]{64}$/.test(otp.code) ? otp.code : sha256Hex(otp.code)) : null;
@@ -133,7 +133,7 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
     return jsonError("Code invalide ou expiré", 400);
   }
 
-  // Succès : compteur du numéro remis à zéro, code consommé
+  // Succès: compteur du numéro remis à zéro, code consommé
   otpFails.delete(phone);
   await db.otpCode.update({ where: { id: otp.id }, data: { used: true } });
 
@@ -141,7 +141,7 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   const ownerTenant = await db.tenant.findFirst({ where: { ownerPhone: phone } });
 
   let user = await db.user.findUnique({ where: { phone } });
-  // t. 96 — EMPLOYÉE de l'app (compte créé par sa gérante via l'embauche) :
+  // — EMPLOYÉE de l'app (compte créé par sa gérante via l'embauche):
   // sa fiche Employee liée donne l'institut de son EMPLOYEUR + son poste.
   const employeeLink = user
     ? await db.employee.findFirst({
@@ -161,21 +161,21 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   } else if (name && (!user.name || user.name === "Nouvelle cliente")) {
     user = await db.user.update({ where: { id: user.id }, data: { name } });
   } else if (employeeLink && user.role !== "pro") {
-    // compte pré-existant (cliente) devenu employée : rôle pro
+    // compte pré-existant (cliente) devenu employée: rôle pro
     user = await db.user.update({ where: { id: user.id }, data: { role: "pro" } });
   }
 
   void audit({ kind: "login_success", phone, userId: user.id, ip });
 
-  // Session signée (t. 71-b) : cookie httpOnly 90 j posé à la connexion —
+  // Session signée: cookie httpOnly 90 j posé à la connexion —
   // le payload JSON reste STRICTEMENT identique (zéro casse SessionKeeper).
-  // t. 89 — incident « La Dermo ne passe pas » : la réponse embarque
+  // — incident « La Dermo ne passe pas »: la réponse embarque
   // `tenant { id, name }` pour une gérante (l'onboarding entre DIRECTEMENT
   // dans son espace avec le bon institut — plus de « premier tenant de la
-  // base » sur le dashboard d'une autre). Additif : les fronts qui l'ignorent
+  // base » sur le dashboard d'une autre). Additif: les fronts qui l'ignorent
   // ne changent pas de comportement.
-  // t. 96 — une EMPLOYÉE reçoit l'institut de son employeur + son poste
-  // (`employeeRole`) : le front ouvre l'espace Pro filtré sur ses sections.
+  // — une EMPLOYÉE reçoit l'institut de son employeur + son poste
+  // (`employeeRole`): le front ouvre l'espace Pro filtré sur ses sections.
   const response = NextResponse.json({
     user,
     tenant: ownerTenant

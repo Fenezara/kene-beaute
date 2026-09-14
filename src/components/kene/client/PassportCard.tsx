@@ -1,8 +1,8 @@
 "use client";
-// Kènè — Passeport de Peau (t. 82, vague 1) : la carte du profil qui génère
+// Kènè — Passeport de Peau (, vague 1): la carte du profil qui génère
 // le QR partageable. Un jeton stable par cliente (rotation possible = l'ancien
 // lien meurt). Partage natif navigator.share, repli copie du lien. Le QR est
-// encodé côté client (lib qrcode) : modules #1A1410 sur #F8F1E4 — contraste
+// encodé côté client (lib qrcode): modules #1A1410 sur #F8F1E4 — contraste
 // maximal, scanable en institut même en plein soleil.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, QrCode, RotateCcw, Share2 } from "lucide-react";
@@ -27,11 +27,11 @@ export function PassportCard({ userId }: { userId: string }) {
         const r = await apiPost<{ token: string; path: string }>("/api/passport", rotate ? { userId, rotate: true } : { userId });
         setToken(r.token);
         // path = "/?passport=<token>" (relatif, jamais de port en dur) → absolu
-        // reconstruit sur l'origine RÉELLE vue par le navigateur (gateway :81
+        // reconstruit sur l'origine RÉELLE vue par le navigateur (gateway:81
         // en E2E, domaine public en prod).
         const abs = `${window.location.origin}${r.path.startsWith("/") ? r.path : `/${r.path}`}`;
         setUrl(abs);
-        // QR : marge généreuse (quiet zone), correction M — scanable même si
+        // QR: marge généreuse (quiet zone), correction M — scanable même si
         // l'écran est fissuré ou la capture penche.
         const dataUrl = await QRCode.toDataURL(abs, {
           margin: 2,

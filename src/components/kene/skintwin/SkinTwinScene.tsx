@@ -1,17 +1,17 @@
 "use client";
-// Kènè — Skin Twin : la scène 3D du Jumeau de Peau.
-// Buste sculpté procéduralement (zéro asset externe) : tête (bosses gaussiennes),
+// Kènè — Skin Twin: la scène 3D du Jumeau de Peau.
+// Buste sculpté procéduralement (zéro asset externe): tête (bosses gaussiennes),
 // cou, torse ellipsoïdal, moufles, socle muséal à liseré or. Les marqueurs du
 // diagnostic sont projetés sur la surface (voir twinMath). Rotation au drag avec
 // inertie + auto-rotation après repos, balayage scanner sunset à l'apparition,
 // orbite du Fil d'Or (continuité de l'introduction Kènè).
 //
-// RÉALISME (t. 77) : matériau Phong (reflets humides type peau — le Lambert
+// RÉALISME: matériau Phong (reflets humides type peau — le Lambert
 // mat rendait le buste « argile »), micro-texture de peau procédurale (canvas
-// 128² : pores clairs/sombres en variance subtile), AO cuite par sommets (les
+// 128²: pores clairs/sombres en variance subtile), AO cuite par sommets (les
 // creux — orbites, sous-maxillaire — s'assombrissent doucement) et éclairage
 // hémisphérique (ciel crème chaud / sol umber → modelé sculptural).
-// Budget perf conservé : < 25k triangles, DPR ≤ 1,5, rendu coupé hors viewport.
+// Budget perf conservé: < 25k triangles, DPR ≤ 1,5, rendu coupé hors viewport.
 
 import { useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -37,7 +37,7 @@ export interface SkinTwinSceneProps {
   onSelect: (i: number) => void;
   dragRef: React.RefObject<DragState>;
   frameloop: "always" | "never";
-  /** Cible de projection (Fil du Temps) : t ∈ [0,1] → 0..12 semaines, adh facteur — mutable, zéro re-render. */
+ /** Cible de projection (Fil du Temps): t ∈ [0,1] → 0..12 semaines, adh facteur — mutable, zéro re-render. */
   projRef?: React.RefObject<{ t: number; adh: number }> | null;
 }
 
@@ -48,7 +48,7 @@ type RevealRef = React.RefObject<{ t: number }>;
 const SEV_COL = SEV_HEX.map((h) => new THREE.Color(h));
 const RIM_GREEN = new THREE.Color("#3F7D3F");
 
-/* ───────────────── Peau réaliste : texture + matériaux ───────────────── */
+/* ───────────────── Peau réaliste: texture + matériaux ───────────────── */
 
 /** PRNG déterministe (mulberry32) — texture identique à chaque montage. */
 function mulberry32(seed: number): () => number {
@@ -62,12 +62,12 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-/** Micro-texture de peau procédurale : mosaïque de pores clairs/sombres en
- *  variance subtile sur le ton de base (canvas 128², RepeatWrapping ×3).
- *  Échantillonnage bilinéaire = lissage gratuit, contraste volontairement
- *  faible (±5 % de luminance) — assez pour casser le « plastique » lisse,
- *  pas assez pour lire du bruit. Client-only (document) : la scène est
- *  dynamic({ ssr:false }) → jamais exécutée côté serveur. */
+/** Micro-texture de peau procédurale: mosaïque de pores clairs/sombres en
+ * variance subtile sur le ton de base (canvas 128², RepeatWrapping ×3).
+ * Échantillonnage bilinéaire = lissage gratuit, contraste volontairement
+ * faible (±5 % de luminance) — assez pour casser le « plastique » lisse,
+ * pas assez pour lire du bruit. Client-only (document): la scène est
+ * dynamic({ ssr:false }) → jamais exécutée côté serveur. */
 function makeSkinTexture(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = c.height = 128;
@@ -101,8 +101,8 @@ function makeSkinTexture(): THREE.CanvasTexture {
   return tex;
 }
 
-/** AO cuite par sommets : assombrit les faces orientées vers le bas/les creux
- *  (facteur 0,84–1,0 selon la normale) — modelé sculptural quasi gratuit. */
+/** AO cuite par sommets: assombrit les faces orientées vers le bas/les creux
+ * (facteur 0,84–1,0 selon la normale) — modelé sculptural quasi gratuit. */
 function bakeVertexAO(geo: THREE.BufferGeometry): THREE.BufferGeometry {
   const pos = geo.attributes.position as THREE.BufferAttribute;
   const nrm = geo.attributes.normal as THREE.BufferAttribute;
@@ -112,7 +112,7 @@ function bakeVertexAO(geo: THREE.BufferGeometry): THREE.BufferGeometry {
   for (let i = 0; i < pos.count; i++) {
     d.fromBufferAttribute(pos, i).normalize();
     n.fromBufferAttribute(nrm, i).normalize();
-    // concavité approx : normale locale vs direction radiale + faces descendantes
+    // concavité approx: normale locale vs direction radiale + faces descendantes
     const recess = 1 - Math.max(0, n.dot(d)); // creux → 1
     const under = 1 - Math.max(0, n.y * 0.5 + 0.5); // sous le buste → plus sombre
     const shade = 1 - recess * 0.16 - under * 0.12;
@@ -160,10 +160,10 @@ function Bust({
 
   // Tête sculptée — construite une fois (la même fonction rayon sert aux marqueurs,
   // donc les pastilles reposent exactement sur la surface sculptée). AO cuite
-  // par sommets juste après computeVertexNormals (t. 77 : les creux s'assombrissent).
-  // RÉALISME (t. 77) : SphereGeometry INDEXÉE — computeVertexNormals sur une
+  // par sommets juste après computeVertexNormals (: les creux s'assombrissent).
+  // RÉALISME: SphereGeometry INDEXÉE — computeVertexNormals sur une
   // géométrie indexée produit des normales LISSES (vs IcosahedronGeometry
-  // non-indexée = facettes plates « low-poly argile »). Aucun coût : moins de
+  // non-indexée = facettes plates « low-poly argile »). Aucun coût: moins de
   // sommets que l'icosaèdre subdivision 4, et le Phong (spéculaire) enfin
   // continu — les reflets ne se brisent plus sur les facettes.
   const headGeo = useMemo(() => {
@@ -179,8 +179,8 @@ function Bust({
     return bakeVertexAO(geo);
   }, []);
 
-  // Géométries lisses (t. 77) — torse/épaules/cou/mains en sphères et
-  // cylindre indexés : plus de facettes. Le socle muséal reste facetté
+  // Géométries lisses — torse/épaules/cou/mains en sphères et
+  // cylindre indexés: plus de facettes. Le socle muséal reste facetté
   // (volontaire — objet minéral). Le scale du torse passe par le mesh
   // (normalMatrix), les normales restent donc correctes sans recalcul.
   const smooth = useMemo(() => {
@@ -196,7 +196,7 @@ function Bust({
     const t = state.clock.elapsedTime;
     const dr = dragRef.current;
 
-    /* rotation : inertie du drag, puis auto-rotation douce après repos */
+ /* rotation: inertie du drag, puis auto-rotation douce après repos */
     if (!dr.down) {
       if (Math.abs(dr.velY) > 0.0004) {
         dr.rotY += dr.velY;
@@ -214,7 +214,7 @@ function Bust({
       tilt.current.position.y = Math.sin(t * 0.85) * 0.012; // respiration
     }
 
-    /* balayage scanner : une fois, à l'apparition (plan additif, sans lumière — perf) */
+ /* balayage scanner: une fois, à l'apparition (plan additif, sans lumière — perf) */
     const rv = revealRef.current;
     rv.t += delta;
     const sweep = Math.min(1, Math.max(0, (rv.t - 0.25) / 1.7));
@@ -227,10 +227,10 @@ function Bust({
       (beam.current.material as THREE.MeshBasicMaterial).opacity = 0.8;
     }
 
-    /* pastilles : révélées au passage du faisceau par pop d'échelle (opaques — zéro
-       blending), puis pulsation cardiaque. Le Fil du Temps (projRef) fait « guérir »
-       les marqueurs : couleur interpolée vers le vert, échelle réduite — valeurs
-       continues, mutées en place (zéro allocation par frame). */
+ /* pastilles: révélées au passage du faisceau par pop d'échelle (opaques — zéro
+ blending), puis pulsation cardiaque. Le Fil du Temps (projRef) fait « guérir »
+ les marqueurs: couleur interpolée vers le vert, échelle réduite — valeurs
+ continues, mutées en place (zéro allocation par frame). */
     const pj = projRef?.current;
     markerRefs.current.forEach((m, i) => {
       if (!m) return;
@@ -259,7 +259,7 @@ function Bust({
       mat.emissiveIntensity = active ? 2.6 + Math.sin(t * 3.1) * 0.3 : 1.15 + Math.sin(t * 2.6 + i * 1.31) * 0.25;
     });
 
-    /* halo doré sur la pastille active (billboard vers la caméra) */
+ /* halo doré sur la pastille active (billboard vers la caméra) */
     if (halo.current) {
       const has = activeIndex != null && activeIndex < markers.length;
       halo.current.visible = has;
@@ -271,8 +271,8 @@ function Bust({
       }
     }
 
-    /* liseré doré du socle — il respire avec le score global (émissif, sans lumière) ;
-       sous projection, il verdit doucement (l'horizon de soin) */
+ /* liseré doré du socle — il respire avec le score global (émissif, sans lumière);
+ sous projection, il verdit doucement (l'horizon de soin) */
     if (torusMat.current) {
       torusMat.current.emissiveIntensity = 0.55 + Math.sin(t * 1.7) * 0.22;
       const g = pj ? Math.min(1, pj.t) : 0;
@@ -283,7 +283,7 @@ function Bust({
   });
 
   const skinTex = useMemo(() => makeSkinTexture(), []);
-  // Peau Phong (t. 77) : spéculaire chaud et bas shininess → reflet "peau
+  // Peau Phong: spéculaire chaud et bas shininess → reflet "peau
   // hydratée" sur nez/pommettes/épaules (le Lambert plat rendait l'argile).
   // Textures et couleurs réagissent au ton de base — une instance par montage.
   const skinMat = useMemo(
@@ -299,7 +299,7 @@ function Bust({
       }),
     [skin, skinTex],
   );
-  // Tête : même famille + AO cuite par sommets (vertexColors multiplie la map).
+  // Tête: même famille + AO cuite par sommets (vertexColors multiplie la map).
   const headMat = useMemo(
     () =>
       new THREE.MeshPhongMaterial({
@@ -447,8 +447,8 @@ export default function SkinTwinScene({
     >
       {/* fond mélanine opaque — le composite alpha coûte cher (budget perf) */}
       <color attach="background" args={["#241A10"]} />
-      {/* Éclairage sculptural (t. 77) : hémisphère ciel-crème/sol-umber (modelé
-          doux global), clé dorée chaude, contre ember qui décolle la silhouette. */}
+      {/* Éclairage sculptural: hémisphère ciel-crème/sol-umber (modelé
+ doux global), clé dorée chaude, contre ember qui décolle la silhouette. */}
       <hemisphereLight args={["#F8E8C8", "#241A10", 0.85]} />
       <directionalLight position={[3.2, 4.6, 4]} intensity={1.55} color="#FFD98A" />
       <pointLight position={[-4, 2.4, -3]} intensity={16} distance={12} decay={2} color="#E07A2B" />

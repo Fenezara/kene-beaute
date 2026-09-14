@@ -1,16 +1,16 @@
-// Kènè — Journal d'audit sécurité (t. 86-d) : traçabilité des événements
+// Kènè — Journal d'audit sécurité: traçabilité des événements
 // sensibles (OTP, connexions, verrouillages, paiements, accès console…).
 //
-// Principes :
-//  • le journal ne doit JAMAIS faire échouer une route : audit() avale ses
-//    erreurs (console.warn "[kene:audit]") et renvoie une promesse qui ne
-//    rejette pas — l'appelant peut `void audit(...)` en fire-and-forget ;
-//  • `phone` est TOUJOURS masqué avant stockage (defense in depth : le
-//    masquage vit ICI, dans audit(), pas chez l'appelant) — jamais de
-//    numéro complet en base ;
-//  • `kind`/`detail` tronqués (64/180) — pas de data client volumineuse ;
-//  • prune paresseux (> 90 j) au plus toutes les 30 min, via un compteur
-//    globalThis (pattern du rate-limit : survit au HMR, zéro timer).
+// Principes:
+// • le journal ne doit JAMAIS faire échouer une route: audit avale ses
+// erreurs (console.warn "[kene:audit]") et renvoie une promesse qui ne
+// rejette pas — l'appelant peut `void audit(...)` en fire-and-forget;
+// • `phone` est TOUJOURS masqué avant stockage (defense in depth: le
+// masquage vit ICI, dans audit, pas chez l'appelant) — jamais de
+// numéro complet en base;
+// • `kind`/`detail` tronqués (64/180) — pas de data client volumineuse;
+// • prune paresseux (> 90 j) au plus toutes les 30 min, via un compteur
+// globalThis (pattern du rate-limit: survit au HMR, zéro timer).
 import { createHash, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 
@@ -27,12 +27,12 @@ export type AuditEvent = {
 const KIND_MAX = 64;
 const DETAIL_MAX = 180;
 const PRUNE_EVERY_MS = 30 * 60_000; // au plus une passe de prune / 30 min
-const RETENTION_MS = 90 * 24 * 3_600_000; // journal léger : 90 jours
+const RETENTION_MS = 90 * 24 * 3_600_000; // journal léger: 90 jours
 
 const g = globalThis as typeof globalThis & { __keneAuditLastPrune?: number };
 
-/** Écrit un événement dans le journal. Fire-and-forget friendly :
- *  `void audit({ kind: "login_success", ... })`. Échecs avalés (warn). */
+/** Écrit un événement dans le journal. Fire-and-forget friendly:
+ * `void audit({ kind: "login_success",... })`. Échecs avalés (warn). */
 export async function audit(evt: AuditEvent): Promise<void> {
   try {
     maybePrune();
@@ -50,8 +50,8 @@ export async function audit(evt: AuditEvent): Promise<void> {
   }
 }
 
-/** Prune paresseux : si 30 min se sont écoulées depuis la dernière passe,
- *  supprime (en tâche de fond, jamais bloquante) les événements de + 90 j. */
+/** Prune paresseux: si 30 min se sont écoulées depuis la dernière passe,
+ * supprime (en tâche de fond, jamais bloquante) les événements de + 90 j. */
 function maybePrune(): void {
   const now = Date.now();
   if (now - (g.__keneAuditLastPrune ?? 0) < PRUNE_EVERY_MS) return;
@@ -63,9 +63,9 @@ function maybePrune(): void {
 
 // ─────────────── Anonymisation ───────────────
 
-/** Masque un téléphone : garde pays + 2 chiffres, milieu en •, 2 derniers.
- *  « +2250701020304 » → « +225 07•••••04 » — 5 pastilles fixes, la longueur
- *  réelle du numéro n'est jamais révélée. Trop court → tout masqué. */
+/** Masque un téléphone: garde pays + 2 chiffres, milieu en •, 2 derniers.
+ * « +2250701020304 » → « +225 07•••••04 » — 5 pastilles fixes, la longueur
+ * réelle du numéro n'est jamais révélée. Trop court → tout masqué. */
 export function maskPhone(phone: string): string {
   const clean = phone.replace(/[\s.\-()]/g, "").trim();
   if (clean.length < 6) return "•••••";
@@ -82,25 +82,25 @@ export function maskPhone(phone: string): string {
 
 // ─────────────── Réseau ───────────────
 
-/** IP cliente : x-forwarded-for (première IP, derrière le gateway Caddy)
- *  sinon x-real-ip sinon "local" (accès direct :3000) — même logique que
- *  rlKey, sans préfixe de scope. */
+/** IP cliente: x-forwarded-for (première IP, derrière le gateway Caddy)
+ * sinon x-real-ip sinon "local" (accès direct:3000) — même logique que
+ * rlKey, sans préfixe de scope. */
 export function clientIp(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for");
   return (fwd ? fwd.split(",")[0].trim() : req.headers.get("x-real-ip")?.trim()) || "local";
 }
 
-// ─────────────── Hachage OTP (durcissement t. 86-d) ───────────────
+// ─────────────── Hachage OTP (durcissement) ───────────────
 
 /** sha256 hex — utilisée par otp/request (stockage du code haché) et
- *  otp/verify (hash du code soumis avant comparaison). */
+ * otp/verify (hash du code soumis avant comparaison). */
 export function sha256Hex(input: string): string {
   return createHash("sha256").update(input, "utf8").digest("hex");
 }
 
 /** Comparaison à temps constant de DEUX hashes sha256 hex (64 chars chacun →
- *  buffers de même longueur). Longueurs inégales/vides → false sans lever.
- *  Comparer hash-à-hash, JAMAIS hash-à-clair. */
+ * buffers de même longueur). Longueurs inégales/vides → false sans lever.
+ * Comparer hash-à-hash, JAMAIS hash-à-clair. */
 export function hashEqual(aHex: string, bHex: string): boolean {
   const a = Buffer.from(aHex, "hex");
   const b = Buffer.from(bHex, "hex");

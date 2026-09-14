@@ -3,7 +3,7 @@ import { Fraunces, Plus_Jakarta_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 
-// Typographie Kènè : Fraunces (serif éditorial chaleureux) pour l'identité,
+// Typographie Kènè: Fraunces (serif éditorial chaleureux) pour l'identité,
 // Plus Jakarta Sans (sans moderne très lisible) pour le corps de texte.
 const fraunces = Fraunces({
   variable: "--font-display",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     ],
     apple: "/icons/apple-touch-icon.png",
   },
-  // Sceau Kènè (t. 86) — identité visuelle des partages réseaux sociaux
+  // Sceau Kènè — identité visuelle des partages réseaux sociaux
   openGraph: {
     title: "Kènè — La beauté mélanoderme, enfin comprise.",
     description:

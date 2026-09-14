@@ -1,6 +1,6 @@
 // GET /api/pro/accounting/export?tenantId=&type=journal|balance|liasse|ventes&from=&to=&format=csv|pdf
-// CSV : fichiers Excel FR téléchargeables — données COMPLÈTES (pas de plafond 60) + filtre période.
-// PDF : réservé au type « liasse » — dossier complet multi-pages (compte de résultat, TVA,
+// CSV: fichiers Excel FR téléchargeables — données COMPLÈTES (pas de plafond 60) + filtre période.
+// PDF: réservé au type « liasse » — dossier complet multi-pages (compte de résultat, TVA,
 // bilan, balance, journal, livre des ventes) généré sans dépendance externe.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -21,7 +21,7 @@ import {
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 
-/** "2026-08-01" | ISO → Date ; undefined si absent, null si présent mais invalide */
+/** "2026-08-01" | ISO → Date; undefined si absent, null si présent mais invalide */
 function parseDay(v: string | null): Date | undefined | null {
   if (!v) return undefined;
   const d = new Date(v.length === 10 ? `${v}T00:00:00` : v);
@@ -36,8 +36,8 @@ function endOfDay(d: Date): Date {
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : export navigateur — avec
-    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): export navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:accounting:export");
     if (guard) return guard;
 
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
 
     const dateFilter = from || to ? { gte: from, lte: to } : undefined;
 
-    // ── PDF : la liasse complète (toutes sections, une seule requête) ──
+    // ── PDF: la liasse complète (toutes sections, une seule requête) ──
     if (formatParam === "pdf") {
       const [entries, accounts, sales] = await Promise.all([
         db.journalEntry.findMany({

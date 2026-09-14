@@ -1,6 +1,6 @@
 // GET /api/pro/coupons?tenantId= | POST création | PATCH activation/désactivation
-// Coupons boutique : la pro crée (code auto PROMO-XXXX ou personnalisé), suit
-// les utilisations, coupe à tout moment — et diffuse via /diffuse (tâche 33).
+// Coupons boutique: la pro crée (code auto PROMO-XXXX ou personnalisé), suit
+// les utilisations, coupe à tout moment — et diffuse via /diffuse.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -10,7 +10,7 @@ import { guardProRole } from "@/lib/kene/session";
 
 export const runtime = "nodejs";
 
-/* Statut dérivé (affichage pro) : actif | programmé | expiré | épuisé | inactif */
+/* Statut dérivé (affichage pro): actif | programmé | expiré | épuisé | inactif */
 function statusOf(c: { active: boolean; startsAt: Date; expiresAt: Date | null; maxUses: number; usedCount: number }): string {
   const now = new Date();
   if (!c.active) return "inactif";
@@ -22,8 +22,8 @@ function statusOf(c: { active: boolean; startsAt: Date; expiresAt: Date | null; 
 
 export async function GET(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : GET navigateur — avec
-    // cookie, l'espace entreprise exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): GET navigateur — avec
+    // cookie, l'espace entreprise exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:coupons:get");
     if (guard) return guard;
 
@@ -72,7 +72,7 @@ const CreateBody = z.object({
 });
 
 function genCode(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sans I/O/0/1 : lisibilité
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sans I/O/0/1: lisibilité
   let s = "";
   for (let i = 0; i < 4; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
   return `PROMO-${s}`;
@@ -80,8 +80,8 @@ function genCode(): string {
 
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, la création de
-    // coupon exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, la création de
+    // coupon exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:coupons:post");
     if (guard) return guard;
 
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
     const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    // Bornes métier : 5..90 % ou 500..500 000 FCFA
+    // Bornes métier: 5..90 % ou 500..500 000 FCFA
     if (kind === "percent" && (value < 5 || value > 90)) {
       return jsonError("Pourcentage entre 5 et 90 %", 400);
     }
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
       return jsonError("Montant entre 500 et 500 000 FCFA", 400);
     }
 
-    // Code : personnalisé (normalisé) ou auto-généré, unique en base
+    // Code: personnalisé (normalisé) ou auto-généré, unique en base
     let code = parsed.data.code ? normalizeCouponCode(parsed.data.code) : "";
     if (code && !COUPON_CODE_RE.test(code)) {
       return jsonError("Code invalide (4 à 24 caractères : A-Z, chiffres, tirets)", 400);
@@ -151,8 +151,8 @@ const PatchBody = z.object({
 
 export async function PATCH(req: NextRequest) {
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, l'activation/
-    // désactivation exige un compte pro/admin ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, l'activation/
+    // désactivation exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:coupons:patch");
     if (guard) return guard;
 

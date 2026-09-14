@@ -1,5 +1,5 @@
 // GET /api/institutes/[id]/availability?date=YYYY-MM-DD&serviceId=
-// Grille de créneaux 30 min ; un créneau est proposé si ≥ 1 praticienne libre
+// Grille de créneaux 30 min; un créneau est proposé si ≥ 1 praticienne libre
 // pour la durée complète du service.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";

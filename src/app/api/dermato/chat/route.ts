@@ -1,5 +1,5 @@
 // POST /api/dermato/chat — chat LLM dermatologique (peaux mélanodermes)
-// GET  /api/dermato/chat?_g=… — pont t. 91 (même payload JSON en query)
+// GET /api/dermato/chat?_g=… — pont (même payload JSON en query)
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import ZAI from "z-ai-web-dev-sdk";
@@ -13,16 +13,16 @@ import { ATLAS_DIGEST } from "@/lib/kene/conditions";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-/** Garde temporelle : un LLM qui hang répond 502 FR au lieu de laisser la
- *  conversation cliente en attente indéfinie. */
+/** Garde temporelle: un LLM qui hang répond 502 FR au lieu de laisser la
+ * conversation cliente en attente indéfinie. */
 const CHAT_TIMEOUT_MS = 30_000;
 
-/** Nettoyage d'affichage (t. 87) : le modèle répond parfois en markdown
- *  (\`\`\`**gras**\`\`\`, puces « - », titres « ## ») alors que la bulle chat
- *  affiche du TEXTE BRUT (whitespace-pre-wrap) — l'utilisatrice voyait des
- *  astérisques littéraux, réponse qui paraissait cassée. On normalise en
- *  texte lisible sans jamais perdre d'information. Filet de sécurité APRÈS
- *  l'instruction « texte brut » du prompt (le modèle reste faillible). */
+/** Nettoyage d'affichage: le modèle répond parfois en markdown
+ * (\`\`\`**gras**\`\`\`, puces « - », titres « ## ») alors que la bulle chat
+ * affiche du TEXTE BRUT (whitespace-pre-wrap) — l'utilisatrice voyait des
+ * astérisques littéraux, réponse qui paraissait cassée. On normalise en
+ * texte lisible sans jamais perdre d'information. Filet de sécurité APRÈS
+ * l'instruction « texte brut » du prompt (le modèle reste faillible). */
 function tidyReply(raw: string): string {
   return raw
     .replace(/```/g, "")                    // clôtures de code résiduelles
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Pont GET (t. 91) — voir src/lib/kene/get-bridge.ts : certaines préviews
+// Pont GET — voir src/lib/kene/get-bridge.ts : certaines préviews
 // bloqueuses laissent passer les GET mais jamais les POST ; le front replie
 // automatiquement vers ce transport. MÊMES garde-fous que le POST (rate-limit
 // IP, validation zod, réponses au byte près).
@@ -102,7 +102,7 @@ async function runChat(parsed: z.infer<typeof Body>): Promise<NextResponse> {
   const history = parsed.messages.slice(-20);
 
   const zai = await ZAI.create();
-  // t. 87 — zaiCall : retry avec backoff sur les 429 amont (quota machine
+  // zaiCall : retry avec backoff sur les 429 amont (quota machine
   // partagé chat/VLM/ASR/TTS) : la conversation ne meurt plus sur un refus
   // TEMPORAIRE de quota. Timeout sans retry (la cliente attend déjà).
   const completion = await zaiCall(

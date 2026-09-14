@@ -1,10 +1,10 @@
 // GET /api/admin/stats — KPIs plateforme (espace Admin)
-// Deux gardes (t. 63-d) :
-//  • rate-limit 30/min par IP : la route est publique côté front, un scan
-//    coûteux ne doit pas être martelé ;
-//  • cache mémoire globalThis TTL 60 s (pattern singleton du rate-limit) :
-//    la route scanne toute la base (orders + items, ventes 30 j, diagnostics
-//    14 j) — les hits répétés servent le snapshot au lieu de re-scanner.
+// Deux gardes:
+// • rate-limit 30/min par IP: la route est publique côté front, un scan
+// coûteux ne doit pas être martelé;
+// • cache mémoire globalThis TTL 60 s (pattern singleton du rate-limit):
+// la route scanne toute la base (orders + items, ventes 30 j, diagnostics
+// 14 j) — les hits répétés servent le snapshot au lieu de re-scanner.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, daysAgo, ddMM } from "@/lib/kene/server";
@@ -26,7 +26,7 @@ type StatsPayload = {
   topTenants: { name: string; city: string; ca30: number }[];
 };
 
-// Singleton sur globalThis : survit aux rechargements de modules en dev (HMR)
+// Singleton sur globalThis: survit aux rechargements de modules en dev (HMR)
 // et reste unique même si la route est bundlée plusieurs fois.
 const g = globalThis as typeof globalThis & { __keneAdminStatsCache?: { data: StatsPayload; at: number } };
 
@@ -36,13 +36,13 @@ export async function GET(req: NextRequest) {
     return rateLimitResponse(rl.retryAfterSec, "Statistiques très sollicitées — reprends dans quelques secondes");
   }
   try {
-    // Session signée (t. 71-b, migration douce) : avec cookie, la console
-    // exige un compte admin ; sans cookie → legacy (route publique + rate-limit).
+    // Session signée (, migration douce): avec cookie, la console
+    // exige un compte admin; sans cookie → legacy (route publique + rate-limit).
     const guard = guardAdminRole(req, "admin:stats");
     if (guard) return guard;
 
-    // t. 86-d : chaque passage de la garde (session admin vérifiée) est
-    // journalisé — userId + IP. Legacy sans cookie : pas d'événement (rien
+    //: chaque passage de la garde (session admin vérifiée) est
+    // journalisé — userId + IP. Legacy sans cookie: pas d'événement (rien
     // n'est authentifiable) — c'est la trace des ACCÈS réels qui compte.
     const sess = sessionFromRequest(req);
     if (sess) {
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
 
     const gmvBoutique = paidOrders.reduce((s, o) => s + o.total, 0);
 
-    // Commissions marketplace : ventes de produits rattachés à un institut partenaire
+    // Commissions marketplace: ventes de produits rattachés à un institut partenaire
     let commissionTotal = 0;
     for (const o of paidOrders) {
       for (const item of o.items) {

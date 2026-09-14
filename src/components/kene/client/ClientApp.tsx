@@ -1,17 +1,17 @@
 "use client";
 // Kènè Cliente — Shell applicatif plein écran, expérience type réseaux sociaux 2026
-// (Instagram / TikTok / Facebook) :
-//   • Mobile (<md)  : header glass (logo · cloche · chat) + flux plein cadre + tab-bar bas
-//               5 onglets avec CTA « Scanner » central surélevé.
-//   • Tablette (md+) : rail d'icônes 84 px (façon TikTok iPad / Instagram web compacte)
-//               + colonne centrée — l'écran large est exploité dès 768 px.
-//   • Desktop  (xl) : sidebar complète libellée + feed centré max 640 px + rail droit
-//               (mini-profil, actions rapides, mentions légales) — zéro espace perdu.
+// (Instagram / TikTok / Facebook):
+// • Mobile (<md): header glass (logo · cloche · chat) + flux plein cadre + tab-bar bas
+// 5 onglets avec CTA « Scanner » central surélevé.
+// • Tablette (md+): rail d'icônes 84 px (façon TikTok iPad / Instagram web compacte)
+// + colonne centrée — l'écran large est exploité dès 768 px.
+// • Desktop (xl): sidebar complète libellée + feed centré max 640 px + rail droit
+// (mini-profil, actions rapides, mentions légales) — zéro espace perdu.
 // Le Fil de Kente (intro) et l'onboarding restent plein cadre, hors shell.
-// Résilience + code splitting (t. 63-a) : chaque écran d'onglet vit derrière une
+// Résilience + code splitting: chaque écran d'onglet vit derrière une
 // ScreenBoundary (erreur locale = carte inline, l'app reste vivante) et les écrans
 // lourds sont lazy (chunk dédié au premier clic — HomeScreen/Onboarding eager).
-// Gate d'hydratation : BootSkeleton tant que le store persisté n'est pas relu.
+// Gate d'hydratation: BootSkeleton tant que le store persisté n'est pas relu.
 
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -35,7 +35,7 @@ import { BootSkeleton } from "./BootSkeleton";
 import { cn } from "@/lib/utils";
 
 /** Navigation latérale (desktop) — libellés façon Instagram web.
- *  labelKey = clé i18n (repli français) — t() résout à l'affichage. */
+ * labelKey = clé i18n (repli français) — t résout à l'affichage. */
 const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
   { tab: "accueil", labelKey: "tab.home", icon: Home },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
@@ -54,13 +54,13 @@ const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
-/** Onglets d'écran (t. 71-c) — « abonnement » et « legal » sont des écrans
- *  CACHÉS façon « parametres » (t. 69-c) : hors tab-bar, hors balayage, accès
- *  depuis Paramètres (cartes Abonnement / Mentions légales). Ils ne sont PAS
- *  ajoutés au type persistable du store (fichier hors périmètre ce sprint) :
- *  sanitizePersisted ne restaure que les onglets connus → un écran caché ne
- *  survit jamais à un rechargement (retour accueil, c'est voulu) — les casts
- *  ci-dessous sont purement typés, le runtime est identique. */
+/** Onglets d'écran — « abonnement » et « legal » sont des écrans
+ * CACHÉS façon « parametres »: hors tab-bar, hors balayage, accès
+ * depuis Paramètres (cartes Abonnement / Mentions légales). Ils ne sont PAS
+ * ajoutés au type persistable du store (fichier hors périmètre ce sprint):
+ * sanitizePersisted ne restaure que les onglets connus → un écran caché ne
+ * survit jamais à un rechargement (retour accueil, c'est voulu) — les casts
+ * ci-dessous sont purement typés, le runtime est identique. */
 type ScreenTab = ClientTab | "abonnement" | "legal";
 
 const TITLES: Record<ScreenTab, string> = {
@@ -71,7 +71,7 @@ const TITLES: Record<ScreenTab, string> = {
   chat: "title.chat",
   profil: "title.profile",
   parametres: "title.parametres",
-  // FR direct (i18n hors périmètre ce sprint) : t() replie sur la clé brute →
+  // FR direct (i18n hors périmètre ce sprint): t replie sur la clé brute →
   // la chaîne est affichée telle quelle.
   abonnement: "Abonnement",
   legal: "Mentions légales",
@@ -80,8 +80,8 @@ const TITLES: Record<ScreenTab, string> = {
 /** Ordre de balayage mobile (swipe horizontal gauche/droite — TikTok-like) */
 const SWIPE_ORDER: ClientTab[] = ["accueil", "boutique", "diagnostic", "rdv", "profil"];
 
-// ─── Code splitting par onglet (t. 63-a) ───
-// Les écrans lourds rejoignent le bundle uniquement à la demande : le premier
+// ─── Code splitting par onglet ───
+// Les écrans lourds rejoignent le bundle uniquement à la demande: le premier
 // clic Diagnostic / Boutique / RDV / Chat télécharge le chunk dédié (visible
 // dans l'onglet Network du navigateur). HomeScreen et Onboarding restent
 // eager (premier rendu complet). Exports nommés → default attendu par lazy.
@@ -89,14 +89,14 @@ const DiagnosticScreen = lazy(() => import("./DiagnosticScreen").then((m) => ({ 
 const ShopScreen = lazy(() => import("./ShopScreen").then((m) => ({ default: m.ShopScreen })));
 const BookingScreen = lazy(() => import("./BookingScreen").then((m) => ({ default: m.BookingScreen })));
 const ChatScreen = lazy(() => import("./ChatScreen").then((m) => ({ default: m.ChatScreen })));
-// Paramètres : écran de réglages standard (t. 69-c) — lazy comme les autres
+// Paramètres: écran de réglages standard — lazy comme les autres
 // écrans lourds, chunk dédié au premier clic sur l'engrenage du header.
 const SettingsScreen = lazy(() => import("./SettingsScreen").then((m) => ({ default: m.SettingsScreen })));
-// Abonnement & Mentions légales (t. 71-c) : écrans cachés (même pattern que
+// Abonnement & Mentions légales: écrans cachés (même pattern que
 // Paramètres), chunks dédiés au premier clic depuis l'écran Paramètres.
 const PlanScreen = lazy(() => import("./PlanScreen").then((m) => ({ default: m.PlanScreen })));
 const LegalScreen = lazy(() => import("./LegalScreen").then((m) => ({ default: m.LegalScreen })));
-// Cloche + Sheet notifications : lazy aussi (socket.io du header sort du premier rendu)
+// Cloche + Sheet notifications: lazy aussi (socket.io du header sort du premier rendu)
 const NotificationCenter = lazy(() => import("./NotificationCenter").then((m) => ({ default: m.NotificationCenter })));
 
 /** Squelette d'attente d'onglet — spinner discret pendant le chargement du chunk */
@@ -111,7 +111,7 @@ function TabLoading() {
   );
 }
 
-/** Cloche en attente — même empreinte (h-11 w-11) que le bouton final : zéro décalage du header */
+/** Cloche en attente — même empreinte (h-11 w-11) que le bouton final: zéro décalage du header */
 function BellLoading() {
   return (
     <span role="status" aria-busy="true" className="grid place-items-center h-11 w-11">
@@ -128,12 +128,12 @@ export function ClientApp() {
   const tab = useKene((s) => s.clientTab) as ScreenTab;
   const setClientTab = useKene((s) => s.setClientTab);
   const cartCount = useKene((s) => s.cart.reduce((n, l) => n + l.qty, 0));
-  // Gate d'hydratation kene-store (contrat t. 63-b) : _keneHydrated passe à
+  // Gate d'hydratation kene-store (contrat): _keneHydrated passe à
   // true quand la relecture localStorage est finie (onRehydrateStorage, même
-  // en cas d'erreur — la porte ne se verrouille jamais). Typage tolérant : si
+  // en cas d'erreur — la porte ne se verrouille jamais). Typage tolérant: si
   // 63-b était absent, fallback true = comportement d'avant (zéro régression).
   const hydrated = useKene((s) => (s as { _keneHydrated?: boolean })._keneHydrated ?? true);
-  // Badge chat honnête : faux par défaut — seul un message ENTRANT (événement
+  // Badge chat honnête: faux par défaut — seul un message ENTRANT (événement
   // « kene:chat:new » dispatché par ChatScreen) l'allume, voir l'effet plus bas
   const [chatUnread, setChatUnread] = useState(false);
   const [pendingZone, setPendingZone] = useState<BodyZone | null>(null);
@@ -165,9 +165,9 @@ export function ClientApp() {
     };
   }, []);
 
-  // File d'attente offline du diagnostic (t. 83-f) : les photos mises en
+  // File d'attente offline du diagnostic: les photos mises en
   // attente partent TOUTES SEULES au retour du réseau — peu importe l'écran
-  // courant (la replay vit ici, toujours montée). Au boot : si la file n'est
+  // courant (la replay vit ici, toujours montée). Au boot: si la file n'est
   // pas vide et qu'on est en ligne, elle part après 2,5 s (reprise d'app).
   useEffect(() => {
     let alive = true;
@@ -190,8 +190,8 @@ export function ClientApp() {
     };
   }, []);
 
-  // Relecture du store persisté (kene-store, skipHydration t. 63-b) — UNE fois
-  // au montage, idempotente (le store a aussi son propre filet « load ») :
+  // Relecture du store persisté (kene-store, skipHydration) — UNE fois
+  // au montage, idempotente (le store a aussi son propre filet « load »):
   // c'est ceci qui restaure l'état persisté (space/user/panier/onglet) après
   // le premier rendu client — le BootSkeleton couvre exactement cette fenêtre.
   useEffect(() => {
@@ -199,13 +199,13 @@ export function ClientApp() {
   }, []);
 
   // ── Validation silencieuse de la session au boot ── DÉPLACÉE à la racine
-  // (t. 66-d) : le check vivait ici, or ClientApp n'est PAS monté quand
+  //: le check vivait ici, or ClientApp n'est PAS monté quand
   // l'espace persisté est pro/admin → une session invalidée n'était pas
   // purgée au retour dans ces espaces. Voir src/components/kene/SessionKeeper.tsx
   // (monté dans page.tsx, couvre les 3 espaces).
 
-  // Badge chat honnête : l'événement « kene:chat:new » (CustomEvent, détail
-  // { at } — dispatché par ChatScreen, contrat figé t. 63) n'allume le point
+  // Badge chat honnête: l'événement « kene:chat:new » (CustomEvent, détail
+  // { at } — dispatché par ChatScreen, contrat figé) n'allume le point
   // QUE si tu n'es pas déjà sur l'onglet chat (lecture fraîche via getState,
   // l'effet ne se réabonne jamais). Aller sur l'onglet chat → goTab éteint.
   useEffect(() => {
@@ -254,7 +254,7 @@ export function ClientApp() {
     const dy = t.clientY - s.y;
     const dx = t.clientX - s.x;
     if (dy <= 0 || Math.abs(dx) > Math.abs(dy)) return; // tirage vertical uniquement
-    setPull(Math.min(dy / 2.2, 96)); // résistif : l'icône s'alourdit en fin de course
+    setPull(Math.min(dy / 2.2, 96)); // résistif: l'icône s'alourdit en fin de course
   };
 
   const onTouchEnd = (e: React.TouchEvent) => {
@@ -308,14 +308,14 @@ export function ClientApp() {
   const onZoneConsumed = useCallback(() => setPendingZone(null), []);
 
   // Store persisté pas encore relu → squelette d'amorçage (évite le flash
-  // d'onboarding avant la restauration de la session — t. 63)
+  // d'onboarding avant la restauration de la session —)
   if (!hydrated) return <BootSkeleton />;
 
   if (!user) {
-    // LE SEUIL (t. 74) — une seule page avant les portails : hero cinématique,
+    // LE SEUIL — une seule page avant les portails: hero cinématique,
     // stories opt-in, portails image, reconnexion express, pavé numérique
     // natif puis OTP. L'ancienne chaîne (intro forcée → portes → saisie
-    // classique) est retirée : plus AUCUN écran obligatoire avant le choix.
+    // classique) est retirée: plus AUCUN écran obligatoire avant le choix.
     return <WelcomeThreshold />;
   }
 
@@ -324,8 +324,8 @@ export function ClientApp() {
   return (
     <div className="h-dvh flex overflow-hidden">
       {/* Atmosphère ÉCLAT 2026 — lueurs aurora derrière tout le shell (le fond
-          de page vient du body : ce div reste transparent pour laisser passer
-          la couche fixe -z-10, light et dark). */}
+ de page vient du body: ce div reste transparent pour laisser passer
+ la couche fixe -z-10, light et dark). */}
       <AuroraBackdrop />
       {/* ───────── Rail latéral tablette + desktop (md+) — chrome verre ───────── */}
       <aside
@@ -333,7 +333,7 @@ export function ClientApp() {
         className="hidden md:flex w-[84px] xl:w-[248px] shrink-0 flex-col k-chrome"
       >
         <div className="h-16 flex items-center px-4 xl:px-5 border-b border-border/60">
-          {/* Lockup Sceau 2026 (t. 86) — emblème + wordmark en xl, emblème seul en md */}
+          {/* Lockup Sceau 2026 — emblème + wordmark en xl, emblème seul en md */}
           <span className="hidden xl:block">
             <KeneEmblemLockup size={44} sublabel="Beauté mélanoderme" />
           </span>
@@ -376,7 +376,7 @@ export function ClientApp() {
                 )}
               >
                 <span className="relative">
-                  {/* md : squircle teinté (IconBadge) ; xl : icône nue alignée au libellé */}
+                  {/* md: squircle teinté (IconBadge); xl: icône nue alignée au libellé */}
                   <Icon className={cn("hidden xl:block size-[22px]", active && "font-bold")} />
                   <IconBadge icon={<Icon className="size-[22px]" />} className="xl:hidden" />
                   {n.tab === "chat" && chatUnread && (
@@ -401,9 +401,9 @@ export function ClientApp() {
           })}
         </nav>
 
-        {/* Bas de sidebar : micro légal (l'isolation des comptes t. 69-a a
-            retiré la bascule libre vers les espaces Pro/Admin — chaque compte
-            n'accède qu'à son propre espace). */}
+        {/* Bas de sidebar: micro légal (l'isolation des comptes a
+ retiré la bascule libre vers les espaces Pro/Admin — chaque compte
+ n'accède qu'à son propre espace). */}
         <div className="border-t border-border/60 p-2.5 xl:p-4">
           <p className="hidden xl:block px-3 pt-2 text-[10px] leading-relaxed text-muted-foreground/70">
             Kènè — paiements en mode essai · estimations IA non médicales
@@ -413,16 +413,16 @@ export function ClientApp() {
 
       {/* ───────── Colonne principale ───────── */}
       <div className="relative flex-1 min-w-0 flex flex-col h-full">
-        {/* Header unique responsive : mobile = logo + actions ; desktop = titre + actions.
-            k-chrome = verre blur+saturate (le CSS gère le filet et l'ombre). */}
+        {/* Header unique responsive: mobile = logo + actions; desktop = titre + actions.
+ k-chrome = verre blur+saturate (le CSS gère le filet et l'ombre). */}
         <header className="shrink-0 z-40 k-chrome">
           <div className="h-14 sm:h-16 flex items-center justify-between gap-2 px-3 sm:px-5">
             <div className="md:hidden">
-              {/* Lockup Sceau 2026 (t. 86) — le Médaillon Kènè sur chaque écran mobile */}
+              {/* Lockup Sceau 2026 — le Médaillon Kènè sur chaque écran mobile */}
               <KeneEmblemLockup size={36} labelSize={19} />
             </div>
-            {/* h1 de vue : présent pour les lecteurs d'écran à TOUS les formats
-                (sr-only mobile, visible md+ — un seul h1 par vue) */}
+            {/* h1 de vue: présent pour les lecteurs d'écran à TOUS les formats
+ (sr-only mobile, visible md+ — un seul h1 par vue) */}
             <div className="flex items-baseline gap-2.5 min-w-0">
               <h1 className="sr-only md:not-sr-only md:font-heading md:font-bold md:tracking-tight md:text-lg xl:text-xl truncate">{t(TITLES[tab])}</h1>
               <p className="hidden xl:block text-[11px] text-muted-foreground truncate">
@@ -430,14 +430,14 @@ export function ClientApp() {
               </p>
             </div>
             <div className="flex items-center gap-1">
-              {/* Cloche notifications : flux temps réel (notify-service) —
-                  lazy : socket.io + Sheet chargés dans leur propre chunk */}
+              {/* Cloche notifications: flux temps réel (notify-service) —
+ lazy: socket.io + Sheet chargés dans leur propre chunk */}
               <Suspense fallback={<BellLoading />}>
                 <NotificationCenter userId={user.id} />
               </Suspense>
-              {/* Engrenage Paramètres (t. 69-c) — visible à TOUS les formats,
-                  même pattern que le bouton chat mobile (l'écran vit dans
-                  l'onglet « parametres », hors tab-bar et hors balayage). */}
+              {/* Engrenage Paramètres — visible à TOUS les formats,
+ même pattern que le bouton chat mobile (l'écran vit dans
+ l'onglet « parametres », hors tab-bar et hors balayage). */}
               <button
                 onClick={() => goTab("parametres")}
                 aria-label={t("title.parametres")}
@@ -467,7 +467,7 @@ export function ClientApp() {
         </header>
 
         {/* Zone de flux — scroll interne (l'app ne scrolle jamais le document)
-            Gestes : tirer-actualiser + balayage horizontal entre onglets (tactile) */}
+ Gestes: tirer-actualiser + balayage horizontal entre onglets (tactile) */}
         <div
           ref={scrollRef}
           onTouchStart={onTouchStart}
@@ -504,8 +504,8 @@ export function ClientApp() {
                 exit={{ opacity: 0, x: -12 * navDir, y: -4 }}
                 transition={{ duration: 0.22, ease: "easeOut" }}
               >
-                {/* Suspense DANS le motion.div : le squelette d'attente participe
-                    à la transition d'onglet pendant le chargement du chunk */}
+                {/* Suspense DANS le motion.div: le squelette d'attente participe
+ à la transition d'onglet pendant le chargement du chunk */}
                 <Suspense fallback={<TabLoading />}>
                   {tab === "accueil" && (
                     <ScreenBoundary name="Accueil">
@@ -555,9 +555,9 @@ export function ClientApp() {
                 </Suspense>
               </motion.div>
             </AnimatePresence>
-            {/* Pouce d'Or (t. 83-f) — actions primaires de l'écran sous le pouce,
-                collées au-dessus de la nav mobile (accueil + profil ; la boutique
-                a sa propre barre panier, les autres écrans ont leurs CTAs en bas). */}
+            {/* Pouce d'Or — actions primaires de l'écran sous le pouce,
+ collées au-dessus de la nav mobile (accueil + profil; la boutique
+ a sa propre barre panier, les autres écrans ont leurs CTAs en bas). */}
             <ThumbBar tab={tab} />
           </div>
         </div>

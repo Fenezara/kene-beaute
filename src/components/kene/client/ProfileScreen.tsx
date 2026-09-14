@@ -1,7 +1,7 @@
 "use client";
-// Kènè Cliente — Profil : identité, profil peau rééditable, wallet complet, parrainage — ÉCLAT 2026.
+// Kènè Cliente — Profil: identité, profil peau rééditable, wallet complet, parrainage — ÉCLAT 2026.
 // Les réglages (langue, notifications, sécurité, RGPD, PWA, espace entreprise,
-// déconnexion) vivent désormais dans SettingsScreen (t. 69-c) — lien discret
+// déconnexion) vivent désormais dans SettingsScreen — lien discret
 // en pied d'écran vers l'onglet « parametres ».
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
@@ -47,8 +47,8 @@ export function ProfileScreen() {
   const [city, setCity] = useState(user.city ?? "");
   const [savingId, setSavingId] = useState(false);
 
-  // t. 120 — photo de profil : aperçu local immédiat (data URL) + upload.
-  // `hasAvatar` suit le store : la photo vit en base, servie par
+  // — photo de profil: aperçu local immédiat (data URL) + upload.
+  // `hasAvatar` suit le store: la photo vit en base, servie par
   // /api/media/user/:id — jamais dans le state permanent.
   const [hasAvatar, setHasAvatar] = useState(Boolean(user.hasAvatar));
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export function ProfileScreen() {
     }
     setAvatarBusy(true);
     try {
-      // Redimensionnement local (canvas → JPEG ~820px) : upload léger même en 3G
+      // Redimensionnement local (canvas → JPEG ~820px): upload léger même en 3G
       const dataUrl = await resizeImage(file);
       setAvatarPreview(dataUrl);
       await apiPatch("/api/auth/profile", { userId: user.id, avatarData: dataUrl });
@@ -122,7 +122,7 @@ export function ProfileScreen() {
       .catch(() => setTxs([]));
   }, [user.id]);
 
-  // Fils d'Or (t. 82) — non bloquant : la section s'efface si indisponible.
+  // Fils d'Or — non bloquant: la section s'efface si indisponible.
   useEffect(() => {
     let alive = true;
     apiGet<GoldThreads>(`/api/gold-threads?userId=${user.id}`)
@@ -173,7 +173,7 @@ export function ProfileScreen() {
     setTopupState("processing");
     try {
       const r = await apiPost<{ payment: { id: string; confirmToken?: string } }>("/api/wallet/topup", { userId: user.id, amount, method });
-      // Contrat confirmToken (63-b/63-c) : un approvisionnement mobile money en
+      // Contrat confirmToken (63-b/63-c): un approvisionnement mobile money en
       // attente porte son jeton — absent, on n'appelle JAMAIS confirm et on
       // revient au formulaire comme après un échec (aucun crédit fantôme).
       const confirmToken = r.payment.confirmToken;
@@ -210,7 +210,7 @@ export function ProfileScreen() {
           <div className="kente-band h-1.5 w-full" aria-hidden="true" />
           <div id="me-t" className="p-5">
             <div className="flex items-center gap-4">
-              {/* t. 120 — photo de profil si posée, sinon l'initiale dorée */}
+              {/* Photo de profil si posée, sinon l'initiale dorée */}
               <span className="relative shrink-0">
                 <span
                   className={`k-glow-gold grid place-items-center h-16 w-16 rounded-full text-[#FFF9EC] font-heading font-black text-2xl overflow-hidden ${avatarSrc ? "" : "bg-gradient-to-br from-[#C8951E] to-[#A0522D]"}`}
@@ -221,7 +221,7 @@ export function ProfileScreen() {
                     user.name.charAt(0)
                   )}
                 </span>
-                {/* Pastille appareil : ouvre le sélecteur de photo (t. 120) */}
+                {/* Pastille appareil: ouvre le sélecteur de photo */}
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
@@ -254,7 +254,7 @@ export function ProfileScreen() {
             {edit && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="overflow-hidden">
                 <div className="mt-4 space-y-3">
-                  {/* Retrait de la photo (t. 120) — sobre, seulement si photo posée */}
+                  {/* Retrait de la photo — sobre, seulement si photo posée */}
                   {hasAvatar && (
                     <button
                       type="button"
@@ -283,7 +283,7 @@ export function ProfileScreen() {
         </section>
       </RevealItem>
 
-      {/* ── Mon kente identitaire (t. 82) — Fils d'Or ── */}
+      {/* ── Mon kente identitaire — Fils d'Or ── */}
       {gold && (
         <RevealItem>
           <section aria-labelledby="kt-t">
@@ -427,15 +427,15 @@ export function ProfileScreen() {
       {/* Parrainage — le fil qui relie les amies */}
       <ParrainageCard userId={user.id} userName={user.name} onRedeemed={loadWallet} />
 
-      {/* Passeport de Peau (t. 82) — QR partageable vers les instituts.
-          id kene-passport : destination du Pouce d'Or (t. 83-f). */}
+      {/* Passeport de Peau — QR partageable vers les instituts.
+ id kene-passport: destination du Pouce d'Or. */}
       <div id="kene-passport" className="scroll-mt-20">
         <PassportCard userId={user.id} />
       </div>
 
-      {/* Passerelle Paramètres (t. 69-c) — les réglages de l'application
-          (apparence, langue, notifications, sécurité, RGPD, PWA, session)
-          vivent désormais dans l'onglet dédié : lien discret en pied de profil. */}
+      {/* Passerelle Paramètres — les réglages de l'application
+ (apparence, langue, notifications, sécurité, RGPD, PWA, session)
+ vivent désormais dans l'onglet dédié: lien discret en pied de profil. */}
       <RevealItem className="self-center pt-1">
         <button onClick={() => setClientTab("parametres")} className="inline-flex items-center gap-1.5 min-h-10 px-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors rounded focus-visible:outline-2 focus-visible:outline-primary">
           <Settings size={13} /> Paramètres de l&apos;application

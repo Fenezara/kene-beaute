@@ -1,8 +1,8 @@
 // POST /api/auth/otp/request — {phone} → envoie (simule) un code OTP 6 chiffres
-// GET  /api/auth/otp/request?_g=… — pont t. 91 (même payload JSON en query)
-// Durcissement t. 86-d : le code est stocké HACHÉ (sha256 hex) dans OtpCode.code
+// GET /api/auth/otp/request?_g=… — pont (même payload JSON en query)
+// Durcissement: le code est stocké HACHÉ (sha256 hex) dans OtpCode.code
 // — plus jamais de code en clair en base. La réponse renvoie `devCode` (le code
-// brut) UNIQUEMENT hors production : en development, le flux démo « Entrer comme
+// brut) UNIQUEMENT hors production: en development, l'accès express « Explorer comme
 // Mariam » et les E2E continuent de fonctionner à l'identique.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Pont GET (t. 91) — voir src/lib/kene/get-bridge.ts : certaines préviews
+// Pont GET — voir src/lib/kene/get-bridge.ts: certaines préviews
 // bloqueuses laissent passer les GET mais jamais les POST (login impossible
 // chez l'utilisatrice). MÊMES garde-fous que le POST.
 export async function GET(req: NextRequest) {
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
 async function runRequest(parsed: z.infer<typeof Body>, req: NextRequest): Promise<NextResponse> {
   const phone = normalizePhone(parsed.phone);
 
-  // Hygiène (t. 63-d) : purge des codes expirés de TOUS les numéros avant
+  // Hygiène: purge des codes expirés de TOUS les numéros avant
   // toute création — la table OtpCode grossissait sinon indéfiniment (41
   // codes morts relevés en base). deleteMany ciblé, aucune erreur bloquante.
   await db.otpCode.deleteMany({ where: { expiresAt: { lt: new Date() } } });
@@ -69,15 +69,15 @@ async function runRequest(parsed: z.infer<typeof Body>, req: NextRequest): Promi
   await db.otpCode.create({
     data: {
       phone,
-      code: sha256Hex(code), // t. 86-d : seul le hash touche la base
+      code: sha256Hex(code), //: seul le hash touche la base
       expiresAt: new Date(Date.now() + 5 * 60_000),
     },
   });
 
-  // Journal d'audit : numéro MASQUÉ (le masquage vit dans audit()), + IP
+  // Journal d'audit: numéro MASQUÉ (le masquage vit dans audit), + IP
   void audit({ kind: "otp_request", phone, ip: clientIp(req) });
 
-  // OTP simulé : le code brut n'existe qu'en mémoire de réponse, et
+  // OTP simulé: le code brut n'existe qu'en mémoire de réponse, et
   // UNIQUEMENT hors production — en prod, il part par SMS et ne revient
   // jamais dans le body (le front affiche alors la zone de saisie seule).
   const payload: { ok: true; devCode?: string } = { ok: true };

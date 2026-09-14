@@ -1,8 +1,8 @@
 "use client";
-// Kènè Pro — Diagnostic en cabine : L'ENTREPRISE réalise le diagnostic de peau
+// Kènè Pro — Diagnostic en cabine: L'ENTREPRISE réalise le diagnostic de peau
 // au sein de sa structure, accompagné d'un questionnaire dermatologique.
-// Assistant 4 étapes : Cliente → Questionnaire → Photo (option) → Résultat.
-// Fusion serveur : entretien déclaratif (38 %) ± photo analysée par le VLM (62 %).
+// Assistant 4 étapes: Cliente → Questionnaire → Photo (option) → Résultat.
+// Fusion serveur: entretien déclaratif (38 %) ± photo analysée par le VLM (62 %).
 // Chaque diagnostic enrichit le CRM (visite, peau, notes) et notifie la cliente
 // si elle est aussi sur l'app Kènè.
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -37,9 +37,9 @@ import type { ProSectionId } from "./ProApp";
 interface Props {
   tenantId: string;
   refreshKey?: number;
-  /** Commande « Lancer un diagnostic » depuis la fiche CRM (nonce = rouvre l'assistant) */
+ /** Commande « Lancer un diagnostic » depuis la fiche CRM (nonce = rouvre l'assistant) */
   preselectCommand?: { clientId: string; nonce: number } | null;
-  /** Accusé de réception de la commande (le wizard s'est ouvert puis refermé) */
+ /** Accusé de réception de la commande (le wizard s'est ouvert puis refermé) */
   onCommandHandled?: () => void;
   onNavigate?: (s: ProSectionId) => void;
 }
@@ -54,9 +54,9 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
   const [wizardOpen, setWizardOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  // Commande CRM « Lancer un diagnostic » : détectée pendant le RENDU (pattern
+  // Commande CRM « Lancer un diagnostic »: détectée pendant le RENDU (pattern
   // React « ajustement d'état », pas d'effet). La comparaison par nonce gère
-  // le montage frais (section CRM → section Diagnostic) ET la relance : le
+  // le montage frais (section CRM → section Diagnostic) ET la relance: le
   // composant peut ne pas être monté quand la commande arrive.
   const [seenNonce, setSeenNonce] = useState(-1);
   if (preselectCommand && preselectCommand.nonce > seenNonce) {
@@ -274,8 +274,8 @@ function DiagWizard({
   const [result, setResult] = useState<ProDiagnosisResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [analysisMsg, setAnalysisMsg] = useState(ANALYSIS_STEPS[0]);
-  // Consentements cabine (t. 119) — recueillis à l'étape cliente, requis pour
-  // lancer le questionnaire ; tracés sur le diagnostic + registre Consent.
+  // Consentements cabine — recueillis à l'étape cliente, requis pour
+  // lancer le questionnaire; tracés sur le diagnostic + registre Consent.
   const [consent, setConsent] = useState({ photo: false, data: false });
   const [savedId, setSavedId] = useState<string | null>(null);
 
@@ -431,7 +431,7 @@ function DiagWizard({
   );
 }
 
-// ── Étape 1 : cliente + consentements + zone + praticienne ──
+// ── Étape 1: cliente + consentements + zone + praticienne ──
 function ClientStep({
   tenantId,
   preselectClientId,
@@ -467,7 +467,7 @@ function ClientStep({
     return () => window.clearTimeout(t);
   }, [query]);
 
-  // Préselection CRM : charge la fiche dès l'ouverture
+  // Préselection CRM: charge la fiche dès l'ouverture
   const preselected = useApi<WizardClient | null>(
     () =>
       preselectClientId
@@ -620,7 +620,7 @@ function ClientStep({
         />
       </div>
 
-      {/* Consentements cabine (t. 119) — obligatoires avant l'entretien */}
+      {/* Consentements cabine — obligatoires avant l'entretien */}
       <div className="rounded-xl border border-gold/35 bg-gold/5 p-3.5 space-y-2.5" aria-label="Consentements de la cliente">
         <p className="text-sm font-semibold flex items-center gap-1.5">
           <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
@@ -672,7 +672,7 @@ function ClientStep({
   );
 }
 
-// ── Étape 2 : questionnaire ──
+// ── Étape 2: questionnaire ──
 function QuestionnaireStep({
   answers,
   onChange,
@@ -724,7 +724,7 @@ function QuestionnaireStep({
                     {q.label}
                     {q.required && (
                       <span className="ml-1 text-bissap" aria-hidden="true">
-                        *
+ *
                       </span>
                     )}
                     {q.sensitive && (
@@ -806,7 +806,7 @@ function QuestionnaireStep({
   );
 }
 
-// ── Étape 3 : photo optionnelle ──
+// ── Étape 3: photo optionnelle ──
 function PhotoStep({
   photo,
   onPhoto,
@@ -899,7 +899,7 @@ function PhotoStep({
   );
 }
 
-// ── Étape 4 : analyse / résultat ──
+// ── Étape 4: analyse / résultat ──
 function ResultStep({
   submitting,
   analysisMsg,

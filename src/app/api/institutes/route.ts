@@ -1,6 +1,6 @@
 // GET /api/institutes?city=&q= — instituts partenaires actifs (annuaire public)
-// Sécurité (t. 63-d) : select explicite — la réponse publique ne contient
-// UNIQUEMENT que ce que le front consomme (BookingScreen : nom, ville, pays,
+// Sécurité: select explicite — la réponse publique ne contient
+// UNIQUEMENT que ce que le front consomme (BookingScreen: nom, ville, pays,
 // note, nb d'avis, description, horaires + visuel calculé + compteurs).
 // Jamais de ownerName/ownerPhone/phone/address/plan/commissionRate/active.
 import { NextRequest, NextResponse } from "next/server";
@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { serverError, instituteImage, slugify } from "@/lib/kene/server";
 
 /** Champs publics d'un institut (contrat = ApiInstitute côté cliente).
- * t. 120 — `phone` (numéro OFFICIEL de l'établissement, affiché devanture :
+ * — `phone` (numéro OFFICIEL de l'établissement, affiché devanture:
 // il alimente le bouton WhatsApp cliente → institut) et `photoData` (seul
 // le booléen hasPhoto part dans la réponse — la photo binaire est servie
 // par /api/media/tenant/:id) rejoignent les champs publics. Jamais
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       orderBy: { rating: "desc" },
     });
 
-    // SQLite : filtrage insensible à la casse/accents côté JS
+    // SQLite: filtrage insensible à la casse/accents côté JS
     const institutes = tenants
       .filter((t) => !city || slugify(t.city).includes(slugify(city)) || t.city.toLowerCase().includes(city))
       .filter((t) => !q || slugify(t.name).includes(slugify(q)) || t.name.toLowerCase().includes(q))
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
         const { photoData, ...rest } = t;
         return {
           ...rest,
-          // t. 120 — photo de vitrine réelle si posée par la gérante, sinon le
+          // — photo de vitrine réelle si posée par la gérante, sinon le
           // visuel studio calculé depuis le nom
           image: photoData ? `/api/media/tenant/${t.id}` : instituteImage(t.name),
           hasPhoto: Boolean(photoData),

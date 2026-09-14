@@ -108,6 +108,20 @@ export function FihankraIcon(props: IconProps) {
   );
 }
 
+/** Nkonsonkonson — maillons de chaîne, coopération & communauté. Module Équipe */
+export function NkonsonkonsonIcon(props: IconProps) {
+  const { size, ...rest } = props;
+  return (
+    <svg {...base(size, rest)}>
+      <path d="M7.5 7H5.8A2.8 2.8 0 0 0 3 9.8v0A2.8 2.8 0 0 0 5.8 12.6h2.4" />
+      <path d="M7.5 17H5.8A2.8 2.8 0 0 1 3 14.2v0" />
+      <path d="M16.5 7h1.7A2.8 2.8 0 0 1 21 9.8v0a2.8 2.8 0 0 1-2.8 2.8h-2.4" />
+      <path d="M16.5 17h1.7a2.8 2.8 0 0 0 2.8-2.8v0" />
+      <path d="M10.4 12h3.2" />
+    </svg>
+  );
+}
+
 /** Motif Kente géométrisé. Module Stock */
 export function KenteIcon(props: IconProps) {
   const { size, ...rest } = props;
@@ -186,8 +200,8 @@ export function MoringaIcon(props: IconProps) {
 }
 
 /** Géométrie canonique du mark Kènè (96-grid) — partagée par KeneMark et
- *  les fichiers statiques public/kene-{mark,logo}.svg. Ne pas éditer sans
- *  régénérer les icônes PWA (scripts/gen-logo.ts). */
+ * les fichiers statiques public/kene-{mark,logo}.svg. Ne pas éditer sans
+ * régénérer les icônes PWA (scripts/gen-logo.ts). */
 const KENE_BADGE_PATHS = (
   <>
     <path d="M5 3v18" />
@@ -202,11 +216,11 @@ const KENE_BADGE_PATHS = (
 );
 
 /** Badge Kènè seul — squircle or fondu terre (dégradé vectoriel 3 tons),
- *  double relief orfèvrerie (filet intérieur crème + reflet radial haut-gauche),
- *  Duafe centré. SVG pur, lisible de 20 px à l'infini. Pour usages sans wordmark. */
+ * double relief orfèvrerie (filet intérieur crème + reflet radial haut-gauche),
+ * Duafe centré. SVG pur, lisible de 20 px à l'infini. Pour usages sans wordmark. */
 export function KeneMark({ size = 40, className = "" }: { size?: number; className?: string }) {
-  // IDs uniques par instance : plusieurs marks sur une même page sans collision
-  // (useId renvoie des « : » — nettoyés car exotiques en url(#…)).
+  // IDs uniques par instance: plusieurs marks sur une même page sans collision
+  // (useId renvoie des «: » — nettoyés car exotiques en url(#…)).
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const gold = `keneGold-${uid}`;
   const sheen = `keneSheen-${uid}`;
@@ -260,15 +274,15 @@ export function KeneMark({ size = 40, className = "" }: { size?: number; classNa
   );
 }
 
-/** Emblème de marque Kènè — « le Médaillon Kènè » : portrait de femme en
- *  profil, spirales de cheveux et peigne Duafe massif, illustration riche
- *  aux ors antiques (concept 04b retenu par la fondatrice, t. 76 ; variante
- *  claire assortie générée et validée 9/10). Double livraison claire/sombre
- *  sur fond chaud propre : présentation MÉDAILLON (plaque orfévrée) — filet
- *  or hairline + coins squircle 26 %, écho du filet crème du KeneMark.
- *  Réservé aux grands usages (≥ 56 px : splash, héro d'entrée, com.) ; pour
- *  les petites tailles préférer KeneMark (SVG vectoriel, crisp à toute
- *  échelle). next-themes attribute="class" → dark: variants. */
+/** Emblème de marque Kènè — « le Médaillon Kènè »: portrait de femme en
+ * profil, spirales de cheveux et peigne Duafe massif, illustration riche
+ * aux ors antiques (concept 04b retenu par la fondatrice,; variante
+ * claire assortie générée et validée 9/10). Double livraison claire/sombre
+ * sur fond chaud propre: présentation MÉDAILLON (plaque orfévrée) — filet
+ * or hairline + coins squircle 26 %, écho du filet crème du KeneMark.
+ * Réservé aux grands usages (≥ 56 px: splash, héro d'entrée, com.); pour
+ * les petites tailles préférer KeneMark (SVG vectoriel, crisp à toute
+ * échelle). next-themes attribute="class" → dark: variants. */
 export function KeneEmblem({ size = 96, className = "" }: { size?: number; className?: string }) {
   return (
     <span
@@ -300,9 +314,9 @@ export function KeneEmblem({ size = 96, className = "" }: { size?: number; class
   );
 }
 
-/** Logo complet Kènè — lockup signature : badge Duafe or→terre, wordmark
- *  « Kènè » Fraunces (0.62×size), filet kente 3 segments or/terre/baobab,
- *  devise « Beauté mélanoderme ». Texte en var(--foreground/-muted-foreground). */
+/** Logo complet Kènè — lockup signature: badge Duafe or→terre, wordmark
+ * « Kènè » Fraunces (0.62×size), filet kente 3 segments or/terre/baobab,
+ * devise « Beauté mélanoderme ». Texte en var(--foreground/-muted-foreground). */
 export function KeneLogo({ size = 40, withText = true }: { size?: number; withText?: boolean }) {
   return (
     <span className="inline-flex items-center gap-2.5 select-none">
@@ -316,7 +330,7 @@ export function KeneLogo({ size = 40, withText = true }: { size?: number; withTe
             >
               Kènè
             </span>
-            {/* Mini filet kente : or / terre / baobab, largeur du wordmark */}
+            {/* Mini filet kente: or / terre / baobab, largeur du wordmark */}
             <span aria-hidden="true" className="mt-[3px] flex h-[2px] w-full overflow-hidden rounded-full">
               <span className="h-full flex-1 bg-[#C8951E]" />
               <span className="h-full flex-1 bg-[#A0522D]" />
@@ -335,12 +349,12 @@ export function KeneLogo({ size = 40, withText = true }: { size?: number; withTe
   );
 }
 
-/** Lockup Sceau 2026 (t. 86) — le Médaillon Kènè (KeneEmblem) accompagné du
- *  wordmark : c'est LE logo officiel de l'app dans les en-têtes et sidebars
- *  (cliente, Pro, admin). L'emblème raster vit en double livraison claire/
- *  sombre ; le wordmark reste en tokens (var(--foreground)) pour s'inverser.
- *  `label` accepte un ReactNode (ex. « Kènè <span or>Pro</span> »).
- *  `sublabel` = ligne éditoriale optionnelle sous le wordmark. */
+/** Lockup Sceau 2026 — le Médaillon Kènè (KeneEmblem) accompagné du
+ * wordmark: c'est LE logo officiel de l'app dans les en-têtes et sidebars
+ * (cliente, Pro, admin). L'emblème raster vit en double livraison claire/
+ * sombre; le wordmark reste en tokens (var(--foreground)) pour s'inverser.
+ * `label` accepte un ReactNode (ex. « Kènè <span or>Pro</span> »).
+ * `sublabel` = ligne éditoriale optionnelle sous le wordmark. */
 export function KeneEmblemLockup({
   size = 44,
   label = "Kènè",

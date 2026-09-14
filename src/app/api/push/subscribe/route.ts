@@ -1,6 +1,6 @@
 // POST /api/push/subscribe — { userId, subscription: { endpoint, keys: { p256dh, auth } } }
 // Enregistre l'abonnement Push API du navigateur (rappels même app fermée,
-// t. 60-e). Upsert par endpoint : delete existant puis create — simple et sûr
+//). Upsert par endpoint: delete existant puis create — simple et sûr
 // (un endpoint n'appartient qu'à un seul appareil/utilisatrice, jamais de
 // doublon si la clé VAPID a changé ou si on se réabonne).
 import { NextRequest, NextResponse } from "next/server";
@@ -41,8 +41,8 @@ export async function POST(req: NextRequest) {
 
     const { userId, subscription } = parsed.data;
 
-    // Session signée (t. 71-b, migration douce) : avec cookie, l'abonnement
-    // push s'enregistre pour le compte de la session ; sans cookie → legacy.
+    // Session signée (, migration douce): avec cookie, l'abonnement
+    // push s'enregistre pour le compte de la session; sans cookie → legacy.
     const guard = guardUserClaim(req, "push:subscribe", userId);
     if (guard) return guard;
 
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // t. 86-d : journal d'audit — l'endpoint push (secret navigateur) ne va
+    //: journal d'audit — l'endpoint push (secret navigateur) ne va
     // JAMAIS dans le journal, seulement le compte concerné.
     void audit({ kind: "push_subscribe", userId, ip: clientIp(req) });
 

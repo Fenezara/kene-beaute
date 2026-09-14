@@ -1,5 +1,5 @@
 // Kènè — utilitaires d'expérience tactile et réseau (patterns Wave/Instagram)
-// Côté client uniquement. Dégradation gracieuse : iOS Safari ne supporte pas
+// Côté client uniquement. Dégradation gracieuse: iOS Safari ne supporte pas
 // l'API Vibration — aucun appel ne plante, simplement pas de retour tactile.
 
 /** Patterns haptiques (ms) — calibrés façon apps natives 2026 */

@@ -1,6 +1,6 @@
 "use client";
-// Kènè — glossaire 1 tap : Dialog de définition simple, avec lecture vocale.
-// En tête : l'entrée « 🌿 Herbier des Grandes-Mères » (t. 83-d) qui ouvre le
+// Kènè — glossaire 1 tap: Dialog de définition simple, avec lecture vocale.
+// En tête: l'entrée « 🌿 Herbier des Grandes-Mères » qui ouvre le
 // jardin des plantes (hash #herbier) au lieu d'une définition.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BookOpen, ChevronRight } from "lucide-react";
@@ -16,7 +16,7 @@ export function GlossaryDialog({ entry, onClose }: { entry: GlossaryEntry | null
         {entry && (
           <>
             {/* 🌿 Entrée en tête — ouvre l'Herbier des Grandes-Mères au lieu
-                d'une définition (même style que le reste du dialogue) */}
+ d'une définition (même style que le reste du dialogue) */}
             <button
               onClick={() => {
                 onClose();
