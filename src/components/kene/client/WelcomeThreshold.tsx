@@ -17,14 +17,14 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowRight, BriefcaseBusiness, Loader2, LogIn, Play, Sparkles,
+  ArrowRight, BriefcaseBusiness, Loader2, LogIn, Play, Sparkles, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet } from "@/lib/kene/api";
 import {
   firstNameOf, forgetAccount, maskPhone, readLastAccount, type LastAccount,
 } from "@/lib/kene/last-account";
-import { AuroraBackdrop, Eyebrow, GlassCard, PrimaryCTA, Reveal, RevealItem } from "@/components/kene/ui2026";
+import { AuroraBackdrop, Eyebrow, GlassCard, Reveal, RevealItem } from "@/components/kene/ui2026";
 import { DuafeIcon, KeneEmblem, KeneMark } from "@/components/kene/icons";
 import { useKene, type SessionUser } from "@/store/kene";
 import { LoomSection } from "@/components/kene/loom/LoomSection";
@@ -66,7 +66,7 @@ function PortalCard({
       animate={{ opacity: dimmed && !entering ? 0.35 : 1, y: 0, scale: entering ? 1.045 : 1 }}
       transition={{ delay, type: "spring", stiffness: 210, damping: 24 }}
       whileTap={{ scale: 0.97 }}
-      className="group relative block h-[128px] w-full overflow-hidden rounded-[24px] text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:h-[168px] md:h-[272px]"
+      className="group relative block h-[112px] w-full overflow-hidden rounded-[20px] text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary min-[480px]:h-[138px] md:h-[180px]"
       style={{
         boxShadow: mode === "pro"
           ? "0 0 0 1px rgba(200,149,30,0.4), 0 16px 40px -16px rgba(200,149,30,0.5)"
@@ -79,22 +79,22 @@ function PortalCard({
       <div className="absolute inset-0 bg-gradient-to-r from-[#140E08]/45 to-transparent" />
 
       {/* Badge espace — opacité montée (lisibilité sur zones claires des photos) */}
-      <span className="absolute left-3.5 top-3.5 inline-flex items-center gap-1.5 rounded-full bg-[#140E08]/60 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#FFF9EC] ring-1 ring-[#FFF9EC]/25">
+      <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1.5 rounded-full bg-[#140E08]/60 px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-[0.14em] text-[#FFF9EC] ring-1 ring-[#FFF9EC]/25">
         {icon}
         {kicker}
       </span>
 
       {/* Titre + CTA */}
-      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4 sm:p-5">
+      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2.5 p-3 sm:p-4">
         <div className="min-w-0">
-          <p className="font-heading text-[18px] font-black leading-tight text-[#FFF9EC] sm:text-[22px]">{title}</p>
-          <p className="mt-1 hidden text-[11.5px] text-[#FFF9EC]/75 sm:block">
+          <p className="font-heading text-[15px] font-black leading-tight text-[#FFF9EC] sm:text-[17px] md:text-[19px]">{title}</p>
+          <p className="mt-1 hidden text-[10.5px] text-[#FFF9EC]/75 sm:block">
             {mode === "client" ? "Diagnostic IA · Dr. Kènè · Boutique" : "Agenda · Caisse · CRM clientes"}
           </p>
         </div>
-        <span className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full k-btn-gold px-4 text-[12px] font-bold text-primary-foreground">
+        <span className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-btn-gold px-3.5 text-[11px] font-bold text-primary-foreground">
           Entrer
-          <ArrowRight size={13} className="transition-transform duration-300 group-hover:translate-x-0.5" />
+          <ArrowRight size={12} className="transition-transform duration-300 group-hover:translate-x-0.5" />
         </span>
       </div>
     </motion.button>
@@ -200,16 +200,14 @@ export function WelcomeThreshold() {
   const d = first ? 1 : 0.3; // multiplicateur de délai (retour = plus vif)
 
   return (
-    <div className="relative isolate min-h-dvh w-full">
+    <div className="relative isolate min-h-dvh w-full overflow-x-clip">
       <AuroraBackdrop />
       <AnimatePresence mode="wait" initial={false}>
         {stage.phase === "landing" && (
-          <motion.div key="landing" {...pageSlide} transition={{ duration: 0.3 }} className="w-full">
-            {/* Colonne éditoriale haute (t. 94) : marque + hero. Le tissage vit
-                désormais HORS de cette colonne — plein cadre — sinon la section
-                immersive se retrouve coincée dans un couloir de 520px au centre
-                de l'écran (fils coupés net, grands vides latéraux). */}
-            <div className="mx-auto flex w-full max-w-[560px] flex-col px-5 pt-6 sm:px-6 sm:pt-9">
+          <motion.div key="landing" {...pageSlide} transition={{ duration: 0.3 }} className="flex w-full min-h-dvh flex-col">
+            {/* Colonne éditoriale haute (t. 94) : marque + hero. t. 116 : la
+                landing tient sur UNE page — espacements et tailles resserrés. */}
+            <div className="mx-auto flex w-full max-w-[560px] flex-col px-5 pt-4 sm:px-6 sm:pt-6">
             {/* ── Marque ── Sceau Kènè (t. 75) : l'art d'or se pose sans
                 couture sur le fond de page + wordmark éditorial serré ── */}
             <Reveal y={12}>
@@ -232,7 +230,7 @@ export function WelcomeThreshold() {
             </Reveal>
 
             {/* ── Hero éditorial + fils de kente ── */}
-            <section className="relative mt-6 sm:mt-8" aria-label="Promesse Kènè">
+            <section className="relative mt-4 sm:mt-5" aria-label="Promesse Kènè">
               {/* Lumière dorée localisée (plus riche que l'aurora globale) */}
               <div
                 className="pointer-events-none absolute -inset-x-5 -top-6 h-[130%]"
@@ -245,12 +243,12 @@ export function WelcomeThreshold() {
               {/* Filigrane Duafe — géant, discret, flotte lentement */}
               <motion.span
                 aria-hidden="true"
-                className="pointer-events-none absolute -right-7 -top-9 text-[160px] opacity-[0.055] sm:text-[210px]"
+                className="pointer-events-none absolute -right-7 -top-7 text-[140px] opacity-[0.055] sm:text-[190px]"
                 animate={{ y: [0, -9, 0], rotate: [0, 1.5, 0] }}
                 transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
                 style={{ color: "var(--gold-text)" }}
               >
-                <KeneMark size={160} />
+                <KeneMark size={140} />
               </motion.span>
 
               <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 * d, duration: 0.5 }}>
@@ -258,7 +256,7 @@ export function WelcomeThreshold() {
                   {greet} ✨ Bienvenue à Kènè
                 </Eyebrow>
               </motion.div>
-              <h1 className="mt-3 font-heading text-[38px] font-black leading-[1.02] tracking-tight text-foreground sm:text-[50px]">
+              <h1 className="mt-2 font-heading text-[30px] font-black leading-[1.04] tracking-tight text-foreground sm:text-[38px]">
                 {["Ta peau,", "mélanoderme,"].map((line, i) =>
                   i === 1 ? (
                     <motion.span key={line} className="kente-text-flow block italic"
@@ -280,7 +278,7 @@ export function WelcomeThreshold() {
                   enfin comprise.
                 </motion.span>
               </h1>
-              <motion.p className="mt-5 max-w-[42ch] text-[13.5px] leading-relaxed text-muted-foreground"
+              <motion.p className="mt-3 max-w-[42ch] text-[12.5px] leading-relaxed text-muted-foreground"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.62 * d }}>
                 Diagnostic IA vision, coach Dr. Kènè, boutique botanique et instituts partenaires —
                 pensés pour les teints Fitzpatrick&nbsp;IV–VI.
@@ -288,7 +286,7 @@ export function WelcomeThreshold() {
               <motion.button
                 onClick={() => setStories(true)}
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.72 * d }}
-                className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full k-chip px-4 text-[12.5px] font-semibold text-foreground/85 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+                className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full k-chip px-4 text-[12.5px] font-semibold text-foreground/85 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
                 aria-label="Découvrir Kènè en 30 secondes (stories)"
               >
                 <span className="grid h-6 w-6 place-items-center rounded-full k-btn-gold text-primary-foreground" aria-hidden="true">
@@ -300,49 +298,46 @@ export function WelcomeThreshold() {
             </section>
             </div>
 
-            {/* ── La Navette d'Or (t. 82) — le métier à tisser du Seuil :
-                chaîne, navette, pagne… puis rideau qui se lève sur le
-                médaillon de particules. Clair de Lune (reduced-motion /
-                2G-3G) : bande de fils SVG élégante, même place. Le tissage
-                vit dans sa PROPRE bande collante PLEIN CADRE (t. 94) — hors
-                colonne éditoriale, jamais derrière un texte. ── */}
+            {/* ── La Navette d'Or (t. 82 → t. 116) : bande tissée COMPACTE
+                pleine largeur (~92-110 px), identique dans les deux modes —
+                la landing tient sur UNE seule page. Le chapitre 3D scrollé
+                (t. 82-94) est retiré de la porte d'entrée ; le message du
+                pagne reste porté par les fils d'or animés. ── */}
             <LoomSection first={first} />
 
             {/* Colonne éditoriale basse (t. 94) : reconnexion, portails,
-                confiance, démo, mentions. */}
-            <div className="mx-auto flex w-full max-w-[560px] flex-col px-5 pb-6 sm:px-6">
+                démo, mentions. t. 116 : flex-1 → les mentions restent au bas
+                de LA page unique (pied de page collant, écrans hauts). */}
+            <div className="mx-auto flex w-full max-w-[560px] flex-1 flex-col px-5 pb-4 sm:px-6">
 
-            {/* ── Reconnexion express ── */}
+            {/* ── Reconnexion express — t. 116 : rangée compacte (la carte de
+                200 px est devenue une ligne « reprendre » ; les portails
+                ci-dessous offrent déjà « utiliser un autre numéro »). ── */}
             <AnimatePresence initial={false}>
               {last && (
-                <RevealItem className="mt-6">
-                  <GlassCard hero grain className="rounded-[24px] p-4.5 sm:p-5">
-                    <div className="flex items-center gap-3.5">
-                      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full k-cta text-[17px] font-heading font-black text-[#FFF9EC]" aria-hidden="true">
+                <RevealItem className="mt-4">
+                  <GlassCard hero grain className="rounded-[20px] p-3">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full k-cta text-[15px] font-heading font-black text-[#FFF9EC]" aria-hidden="true">
                         {firstNameOf(last.name).slice(0, 1).toUpperCase() || "K"}
                       </span>
-                      <div className="min-w-0">
-                        <p className="font-heading text-[15px] font-bold leading-tight">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-heading text-[13.5px] font-bold leading-tight">
                           {greet}, {firstNameOf(last.name) || "bienvenue"} 👋
                         </p>
-                        <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                        <p className="mt-0.5 truncate font-mono text-[10.5px] text-muted-foreground">
                           {maskPhone(last.phone)} · {last.role === "pro" ? "Espace entreprise" : last.role === "admin" ? "Console Kènè" : "Espace cliente"}
                         </p>
                       </div>
-                    </div>
-                    <PrimaryCTA className="mt-4 w-full" onClick={() => startReconnect(last)}>
-                      <LogIn size={17} />
-                      Reprendre ma session
-                    </PrimaryCTA>
-                    <div className="mt-2 flex items-center justify-between">
-                      <button onClick={() => { setKeypadDigits(""); setKeypadMode("client"); setStage({ phase: "keypad", mode: "client" }); }}
-                        className="inline-flex min-h-11 items-center px-2 text-xs text-muted-foreground underline underline-offset-4 decoration-dotted hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded">
-                        Utiliser un autre numéro
+                      <button onClick={() => startReconnect(last)}
+                        className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full k-btn-gold px-4 text-[11.5px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                        <LogIn size={13} />
+                        Reprendre
                       </button>
                       <button onClick={() => { forgetAccount(); setLast(null); }}
-                        className="inline-flex min-h-11 items-center px-2 text-xs text-muted-foreground/80 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded"
+                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
                         aria-label="Oublier ce numéro sur cet appareil">
-                        Oublier
+                        <X size={14} />
                       </button>
                     </div>
                   </GlassCard>
@@ -350,8 +345,9 @@ export function WelcomeThreshold() {
               )}
             </AnimatePresence>
 
-            {/* ── LES DEUX PORTAILS ── */}
-            <div className="mt-8 flex flex-col gap-3.5 sm:mt-9 md:grid md:grid-cols-2 md:gap-4">
+            {/* ── LES DEUX PORTAILS ── t. 116 : côte à côte dès 480 px (la
+                page unique a besoin de hauteur), empilés sous 480 (téléphones) */}
+            <div className="mt-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
               <PortalCard
                 mode="client"
                 img="/hero/hero-client.webp"
@@ -378,19 +374,10 @@ export function WelcomeThreshold() {
               />
             </div>
 
-            {/* ── Confiance · démo · légal ── */}
-            <RevealItem className="mt-5">
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <span className="k-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10.5px] font-semibold text-foreground/80">
-                  <Sparkles size={12} className="text-gold-text" aria-hidden="true" /> Zéro friction — 2 gestes pour entrer
-                </span>
-                <span className="k-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10.5px] font-semibold text-foreground/80">
-                  Données chiffrées, jamais revendues
-                </span>
-              </div>
-            </RevealItem>
+            {/* ── Démo · légal (t. 116 : les puces de confiance sont fondues
+                dans la ligne légale — une seule page, zéro redite) ── */}
             {!last && (
-              <RevealItem className="mt-4">
+              <RevealItem className="mt-3">
                 <button
                   onClick={startDemo}
                   disabled={demoLoading}
@@ -401,8 +388,8 @@ export function WelcomeThreshold() {
                 </button>
               </RevealItem>
             )}
-            <p className="mt-auto pt-7 text-center text-[11px] leading-relaxed text-muted-foreground">
-              En continuant, tu acceptes les conditions Kènè.
+            <p className="mt-auto pt-3 text-center text-[10.5px] leading-relaxed text-muted-foreground">
+              Données chiffrées, jamais revendues · En continuant, tu acceptes les conditions Kènè.
             </p>
             </div>
           </motion.div>
@@ -440,3 +427,4 @@ export function WelcomeThreshold() {
     </div>
   );
 }
+
