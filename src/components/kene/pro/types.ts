@@ -332,6 +332,35 @@ export interface EmployeesResponse {
   attendanceToday: AttendanceRow[];
 }
 
+// ─────────────── Congés ───────────────
+export interface ProLeave {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  type: string; // conge | maladie | maternite
+  startDate: string;
+  endDate: string;
+  days: number;
+  status: string; // pending | approved | rejected
+  reason?: string | null;
+  note?: string | null;
+  decidedAt?: string | null;
+  createdAt: string;
+  current?: boolean; // en cours aujourd'hui
+}
+
+export interface LeaveBalance {
+  employeeId: string;
+  earned: number;
+  taken: number;
+  balance: number;
+}
+
+export interface LeavesResponse {
+  leaves: ProLeave[];
+  balances: LeaveBalance[];
+}
+
 export interface ProPayslip {
   id: string;
   employee: { name: string; role: string; cnpsNumber?: string | null };

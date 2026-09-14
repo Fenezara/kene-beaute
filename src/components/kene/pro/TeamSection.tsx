@@ -7,14 +7,17 @@ import {
   BadgeCheck,
   Banknote,
   CalendarDays,
+  Check,
   LogIn,
   LogOut,
+  Palmtree,
   Pencil,
   Plus,
   Smartphone,
   Undo2,
   UserRoundCheck,
   Users,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -40,6 +43,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -47,7 +51,7 @@ import { apiGet, apiPatch, apiPost } from "@/lib/kene/api";
 import { xof, formatDate } from "@/lib/kene/format";
 import { useApi } from "./useApi";
 import { EmptyState, ErrorState, KpiCard, Money, SectionHeader } from "./ui-bits";
-import type { EmployeesResponse, ProEmployee } from "./types";
+import type { EmployeesResponse, LeaveBalance, LeavesResponse, ProEmployee, ProLeave } from "./types";
 
 const ROLE_LABELS: Record<string, string> = {
   estheticienne: "Esthéticienne",
@@ -72,10 +76,42 @@ const ROLE_HINTS: Record<string, string> = {
   manager: "toute la gestion (hors paie et compta).",
 };
 
+const LEAVE_TYPES: { value: string; label: string }[] = [
+  { value: "conge", label: "Congé annuel" },
+  { value: "maladie", label: "Maladie" },
+  { value: "maternite", label: "Maternité" },
+];
+const LEAVE_TYPE_STYLES: Record<string, { label: string; cls: string }> = {
+  conge: { label: "Congé annuel", cls: "bg-success/15 text-success border-success/30" },
+  maladie: { label: "Maladie", cls: "bg-sunset/15 text-sunset border-sunset/30" },
+  maternite: { label: "Maternité", cls: "bg-bissap/12 text-bissap border-bissap/30" },
+};
+const LEAVE_STATUS_STYLES: Record<string, { label: string; cls: string }> = {
+  pending: { label: "En attente", cls: "bg-gold/15 text-gold-text border-gold/30" },
+  approved: { label: "Approuvé", cls: "bg-success/15 text-success border-success/30" },
+  rejected: { label: "Refusé", cls: "bg-muted text-muted-foreground border-border" },
+};
+
+/** Jours ouverts d'une période (tous les jours sauf dimanche). */
+function workingDays(startIso: string, endIso: string): number {
+  if (!startIso || !endIso) return 0;
+  const start = new Date(`${startIso}T00:00:00`);
+  const end = new Date(`${endIso}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
+  let days = 0;
+  const cur = new Date(start);
+  while (cur <= end) {
+    if (cur.getDay() !== 0) days += 1;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+
 export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; defaultCountry: string }) {
   const [hireOpen, setHireOpen] = useState(false);
   const [editing, setEditing] = useState<ProEmployee | null>(null);
   const [departing, setDeparting] = useState<ProEmployee | null>(null);
+  const [leaveOpen, setLeaveOpen] = useState(false);
 
   const employees = useApi<EmployeesResponse>(
     () =>
@@ -84,15 +120,31 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
         : Promise.resolve({ employees: [], attendanceToday: [] }),
     [tenantId],
   );
+  const leaves = useApi<LeavesResponse>(
+    () =>
+      tenantId
+        ? apiGet<LeavesResponse>(`/api/pro/leaves?tenantId=${tenantId}`)
+        : Promise.resolve({ leaves: [], balances: [] }),
+    [tenantId],
+  );
+
+  async function refreshTeam() {
+    await Promise.all([employees.refetch(), leaves.refetch()]);
+  }
 
   const list = employees.data?.employees ?? [];
   const attendanceToday = employees.data?.attendanceToday ?? [];
+  const leaveList = leaves.data?.leaves ?? [];
+  const balances = leaves.data?.balances ?? [];
+  const balanceOf = (id: string) => balances.find((b) => b.employeeId === id);
+  const pendingLeaves = leaveList.filter((l) => l.status === "pending");
+  const onLeaveNow = leaveList.filter((l) => l.current);
   const kpis = useMemo(() => {
     const actives = list.filter((e) => e.active);
     return {
       effectif: actives.length,
       sorties: list.length - actives.length,
-      presentes: attendanceToday.filter((a) => a.checkIn).length,
+      presentes: attendanceToday.filter((a) => a.checkIn && a.status !== "leave").length,
       comptes: actives.filter((e) => e.accountPhone).length,
       masseBase: actives.reduce((s, e) => s + e.baseSalary, 0),
     };
@@ -108,6 +160,18 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
     }
   }
 
+  async function decide(leave: ProLeave, action: "approve" | "reject") {
+    try {
+      await apiPatch("/api/pro/leaves", { tenantId, id: leave.id, action });
+      toast.success(action === "approve" ? "Congé approuvé" : "Demande refusée", {
+        description: `${leave.employeeName} · ${formatDate(leave.startDate)} → ${formatDate(leave.endDate)}`,
+      });
+      await refreshTeam();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Action impossible");
+    }
+  }
+
   async function setDeparture(emp: ProEmployee, when: string) {
     try {
       await apiPatch("/api/pro/employees", {
@@ -120,7 +184,7 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
         description: when ? `Fin de contrat le ${formatDate(when)}.` : "Elle quitte l'équipe aujourd'hui.",
       });
       setDeparting(null);
-      await employees.refetch();
+      await refreshTeam();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Enregistrement impossible");
     }
@@ -130,7 +194,7 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
     try {
       await apiPatch("/api/pro/employees", { tenantId, id: emp.id, active: true });
       toast.success(`${emp.name} est de retour dans l'équipe`);
-      await employees.refetch();
+      await refreshTeam();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Réactivation impossible");
     }
@@ -142,9 +206,14 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
         title="Équipe"
         sub="Registre du personnel — postes, contrats, comptes app et pointage du jour"
         actions={
-          <Button variant="outline" onClick={() => setHireOpen(true)} className="gap-1.5">
-            <Plus className="size-4" aria-hidden="true" /> Embaucher
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={() => setLeaveOpen(true)} className="gap-1.5">
+              <Palmtree className="size-4" aria-hidden="true" /> Poser un congé
+            </Button>
+            <Button variant="outline" onClick={() => setHireOpen(true)} className="gap-1.5">
+              <Plus className="size-4" aria-hidden="true" /> Embaucher
+            </Button>
+          </div>
         }
       />
 
@@ -176,6 +245,8 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
             const att = attendanceToday.find((a) => a.employeeId === emp.id);
             const st = ATTENDANCE_STYLES[att?.status ?? "absent"] ?? ATTENDANCE_STYLES.absent;
             const primes = (emp.transport ?? 0) + (emp.housing ?? 0);
+            const bal = balanceOf(emp.id);
+            const cur = leaveList.find((l) => l.employeeId === emp.id && l.current);
             return (
               <Card key={emp.id} className={cn("gap-2 overflow-hidden", !emp.active && "opacity-75")}>
                 <CardContent className="p-4 space-y-3">
@@ -196,7 +267,11 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                         </div>
                       </div>
                     </div>
-                    {emp.active ? (
+                    {emp.active && cur ? (
+                      <Badge variant="outline" className="text-[10px] shrink-0 bg-gold/15 text-gold-text border-gold/30">
+                        En congé · retour {formatDate(cur.endDate)}
+                      </Badge>
+                    ) : emp.active ? (
                       <Badge variant="outline" className="text-[10px] shrink-0 bg-success/10 text-success border-success/30">
                         En poste
                       </Badge>
@@ -224,6 +299,14 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                       </span>
                       <span className="font-mono text-[11px]">{formatDate(emp.hireDate)}</span>
                     </div>
+                    {bal && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <Palmtree className="size-3" aria-hidden="true" /> Solde congés
+                        </span>
+                        <span className={cn("font-mono text-[11px]", bal.balance < 0 && "text-bissap")}>{bal.balance} j</span>
+                      </div>
+                    )}
                     {emp.cnpsNumber && (
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-muted-foreground">Matricule {emp.country === "SN" ? "IPRES" : "CNPS"}</span>
@@ -251,26 +334,33 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                           {att?.hours ? ` (${att.hours} h)` : ""}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={Boolean(att?.checkIn)}
-                          className="h-7 text-[11px] gap-1"
-                          onClick={() => void point(emp.id, "in", emp.name)}
-                        >
-                          <LogIn className="size-3" aria-hidden="true" /> Arrivée
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!att?.checkIn || Boolean(att?.checkOut)}
-                          className="h-7 text-[11px] gap-1"
-                          onClick={() => void point(emp.id, "out", emp.name)}
-                        >
-                          <LogOut className="size-3" aria-hidden="true" /> Départ
-                        </Button>
-                      </div>
+                      {att?.status === "leave" || cur ? (
+                        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <Palmtree className="size-3 shrink-0" aria-hidden="true" />
+                          En congé{cur ? ` — retour prévu le ${formatDate(cur.endDate)}` : ""}
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={Boolean(att?.checkIn)}
+                            className="h-7 text-[11px] gap-1"
+                            onClick={() => void point(emp.id, "in", emp.name)}
+                          >
+                            <LogIn className="size-3" aria-hidden="true" /> Arrivée
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!att?.checkIn || Boolean(att?.checkOut)}
+                            className="h-7 text-[11px] gap-1"
+                            onClick={() => void point(emp.id, "out", emp.name)}
+                          >
+                            <LogOut className="size-3" aria-hidden="true" /> Départ
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -310,12 +400,126 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
         </div>
       )}
 
+      {/* ── Congés & absences ── */}
+      <Card>
+        <CardContent className="p-4 sm:p-5 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="font-heading font-semibold flex items-center gap-2">
+                <Palmtree className="size-4 text-gold" aria-hidden="true" /> Congés & absences
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Solde estimé : 2 j par mois travaillé (plafond 24 j) — maladie et maternité ne décomptent pas
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {pendingLeaves.length > 0 && (
+                <Badge variant="outline" className="text-[10px] bg-gold/15 text-gold-text border-gold/30">
+                  {pendingLeaves.length} en attente
+                </Badge>
+              )}
+              {onLeaveNow.length > 0 && (
+                <Badge variant="outline" className="text-[10px] bg-success/12 text-success border-success/30">
+                  {onLeaveNow.length} en congé aujourd'hui
+                </Badge>
+              )}
+              <Button size="sm" onClick={() => setLeaveOpen(true)} className="h-8 gap-1.5">
+                <Plus className="size-3.5" aria-hidden="true" /> Poser un congé
+              </Button>
+            </div>
+          </div>
+
+          {leaves.error && !leaves.data ? (
+            <ErrorState message={`Congés indisponibles : ${leaves.error}`} onRetry={leaves.refetch} />
+          ) : leaves.loading && !leaves.data ? (
+            <Skeleton className="h-40" />
+          ) : leaveList.length === 0 ? (
+            <EmptyState
+              label="Aucun congé enregistré"
+              sub="Pose un congé annuel, une absence maladie ou un congé maternité pour une employée."
+            />
+          ) : (
+            <div className="max-h-80 overflow-y-auto -mx-1 px-1">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employée</TableHead>
+                    <TableHead className="hidden sm:table-cell">Type</TableHead>
+                    <TableHead>Période</TableHead>
+                    <TableHead className="hidden md:table-cell text-right">Jours</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="text-right">Décision</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {leaveList.map((l) => {
+                    const tst = LEAVE_STATUS_STYLES[l.status] ?? LEAVE_STATUS_STYLES.pending;
+                    const ty = LEAVE_TYPE_STYLES[l.type] ?? LEAVE_TYPE_STYLES.conge;
+                    return (
+                      <TableRow key={l.id} className={cn(l.status === "rejected" && "opacity-60")}>
+                        <TableCell className="font-medium">{l.employeeName}</TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Badge variant="outline" className={cn("text-[10px]", ty.cls)}>{ty.label}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-[11px]">
+                            {formatDate(l.startDate)} → {formatDate(l.endDate)}
+                          </span>
+                          {(l.status === "pending" ? l.reason : l.note) && (
+                            <p className="mt-0.5 max-w-40 truncate text-[10px] text-muted-foreground">
+                              {l.status === "pending" ? l.reason : l.note}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-right font-mono text-[11px]">{l.days} j</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cn("text-[10px]", tst.cls)}>{tst.label}</Badge>
+                          {l.current && <span className="ml-1 text-[10px] text-success">en cours</span>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {l.status === "pending" ? (
+                            <div className="flex justify-end gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 gap-1 text-[11px] text-success hover:text-success"
+                                onClick={() => void decide(l, "approve")}
+                              >
+                                <Check className="size-3" aria-hidden="true" />
+                                <span className="hidden sm:inline">Approuver</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 gap-1 text-[11px] text-bissap hover:text-bissap"
+                                onClick={() => void decide(l, "reject")}
+                              >
+                                <X className="size-3" aria-hidden="true" />
+                                <span className="hidden sm:inline">Refuser</span>
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">
+                              {l.decidedAt ? formatDate(l.decidedAt) : "—"}
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <HireDialog
         open={hireOpen}
         onOpenChange={setHireOpen}
         tenantId={tenantId}
         defaultCountry={defaultCountry}
-        onCreated={() => void employees.refetch()}
+        onCreated={() => void refreshTeam()}
       />
       {editing && (
         <EditDialog
@@ -328,6 +532,15 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
       )}
       {departing && (
         <DepartDialog key={departing.id} employee={departing} onClose={() => setDeparting(null)} onConfirm={setDeparture} />
+      )}
+      {leaveOpen && (
+        <LeaveDialog
+          employees={list}
+          balances={balances}
+          tenantId={tenantId}
+          onClose={() => setLeaveOpen(false)}
+          onSaved={() => void refreshTeam()}
+        />
       )}
     </div>
   );
@@ -649,6 +862,143 @@ function EditDialog({
           </div>
           <Button disabled={busy} onClick={submit} className="w-full font-semibold gap-1.5">
             <BadgeCheck className="size-4" aria-hidden="true" /> {busy ? "Enregistrement…" : "Enregistrer la fiche"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ═════════════ Congés : poser un congé (dialog) ═════════════ */
+function LeaveDialog({
+  employees,
+  balances,
+  tenantId,
+  onClose,
+  onSaved,
+}: {
+  employees: ProEmployee[];
+  balances: LeaveBalance[];
+  tenantId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const actives = employees.filter((e) => e.active);
+  const [employeeId, setEmployeeId] = useState(actives[0]?.id ?? "");
+  const [type, setType] = useState("conge");
+  const [start, setStart] = useState(() => new Date().toISOString().slice(0, 10));
+  const [end, setEnd] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const days = workingDays(start, end);
+  const bal = balances.find((b) => b.employeeId === employeeId);
+  const overdrawn = type === "conge" && bal !== undefined && days > bal.balance;
+
+  async function submit(approve: boolean) {
+    if (!employeeId || days < 1) return;
+    setBusy(true);
+    try {
+      await apiPost("/api/pro/leaves", {
+        tenantId,
+        employeeId,
+        type,
+        startDate: start,
+        endDate: end,
+        ...(reason.trim() ? { reason: reason.trim() } : {}),
+        approve,
+      });
+      toast.success(approve ? "Congé approuvé" : "Demande enregistrée — en attente", {
+        description: `${actives.find((e) => e.id === employeeId)?.name} · ${formatDate(start)} → ${formatDate(end)} (${days} j ouverts)`,
+      });
+      onSaved();
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Enregistrement impossible");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-heading">Poser un congé</DialogTitle>
+          <DialogDescription>
+            Enregistre une absence pour une employée — les jours ouverts (dimanche exclu) sont comptés automatiquement.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="leave-emp">Employée</Label>
+            <Select value={employeeId} onValueChange={setEmployeeId}>
+              <SelectTrigger id="leave-emp">
+                <SelectValue placeholder="Choisir une employée" />
+              </SelectTrigger>
+              <SelectContent>
+                {actives.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.name} — {ROLE_LABELS[e.role] ?? e.role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Type d&apos;absence</Label>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LEAVE_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="leave-start">Du</Label>
+              <Input id="leave-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="leave-end">Au</Label>
+              <Input id="leave-end" type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">Jours ouverts (dimanche exclu)</span>
+            <span className="font-mono font-semibold">{days} j</span>
+          </div>
+          {bal && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Solde congés estimé de l&apos;employée</span>
+              <span className="font-mono">{bal.balance} j</span>
+            </div>
+          )}
+          {overdrawn && (
+            <p className="text-[11px] text-sunset">
+              Cette absence dépasse le solde estimé — elle reste enregistrable (à ton appréciation).
+            </p>
+          )}
+          <div className="space-y-1.5">
+            <Label htmlFor="leave-reason">Motif (optionnel)</Label>
+            <Input
+              id="leave-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Ex. congé annuel, repos médical…"
+            />
+          </div>
+        </div>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" disabled={busy || !employeeId || days < 1} onClick={() => void submit(false)}>
+            Garder en attente
+          </Button>
+          <Button disabled={busy || !employeeId || days < 1} onClick={() => void submit(true)} className="gap-1.5">
+            <Check className="size-4" aria-hidden="true" /> Poser et approuver
           </Button>
         </div>
       </DialogContent>

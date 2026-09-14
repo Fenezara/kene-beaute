@@ -27,16 +27,34 @@ export async function GET(req: NextRequest) {
     const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    const [employees, attendanceToday] = await Promise.all([
+    const [employees, attendanceToday, leavesToday] = await Promise.all([
       db.employee.findMany({ where: { tenantId: tenant.id }, orderBy: [{ active: "desc" }, { name: "asc" }] }),
       db.attendance.findMany({
         where: { employee: { tenantId: tenant.id }, date: { gte: dayStart(), lte: dayEnd() } },
         include: { employee: { select: { id: true, name: true } } },
         orderBy: { checkIn: "asc" },
       }),
+      // Congés approuvés couvrant aujourd'hui → pointage « Congé » (affichage).
+      db.leaveRequest.findMany({
+        where: { tenantId: tenant.id, status: "approved", startDate: { lte: new Date() }, endDate: { gte: new Date() } },
+        select: { employeeId: true, endDate: true },
+      }),
     ]);
 
-    return NextResponse.json({ employees: await withAccountPhones(employees), attendanceToday });
+    // Fusion : une employée en congé approuvé est « Congé » aujourd'hui,
+    // même sans ligne de pointage (le congé prime sur le pointage).
+    const onLeaveIds = new Set(leavesToday.map((l) => l.employeeId));
+    const seen = new Set(attendanceToday.map((a) => a.employeeId));
+    const rows = attendanceToday.map((a) =>
+      onLeaveIds.has(a.employeeId) ? { ...a, status: "leave" } : a,
+    );
+    for (const emp of employees) {
+      if (onLeaveIds.has(emp.id) && !seen.has(emp.id)) {
+        rows.push({ id: `leave-${emp.id}`, date: new Date(), employeeId: emp.id, checkIn: null, checkOut: null, status: "leave", hours: 0, employee: { id: emp.id, name: emp.name } });
+      }
+    }
+
+    return NextResponse.json({ employees: await withAccountPhones(employees), attendanceToday: rows });
   } catch (err) {
     return serverError("pro/employees:get", err);
   }

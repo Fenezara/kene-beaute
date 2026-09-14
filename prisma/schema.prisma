@@ -104,6 +104,7 @@ model Tenant {
   notifications  Notification[]
   followUpMarks  FollowUpMark[]
   proDiagnoses   ProDiagnosis[]
+  leaves        LeaveRequest[]
 }
 
 // ─────────────────────────── Relances « Le Fil du Retour » ───────────────────────────
@@ -549,14 +550,22 @@ model Attendance {
 }
 
 model LeaveRequest {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   startDate  DateTime
   endDate    DateTime
-  type       String   @default("conge") // conge | maladie | maternite
-  days       Int
-  status     String   @default("approved")
+  type       String    @default("conge") // conge | maladie | maternite
+  days       Int // jours ouverts (dimanche exclu), calculés à la saisie
+  status     String    @default("pending") // pending | approved | rejected
+  reason     String?   // motif saisi à la demande
+  note       String?   // décision (motif de refus p. ex.)
+  decidedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId, startDate])
 }
 
 model PayPeriod {
