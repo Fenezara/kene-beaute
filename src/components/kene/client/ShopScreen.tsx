@@ -17,7 +17,6 @@ import { useSecurity } from "@/store/security";
 import { KenteWeaveCard } from "@/components/kene/weave/KenteWeaveCard";
 import { KeneMark } from "@/components/kene/icons";
 import { categoryThread } from "@/components/kene/weave/threads";
-import { MarcheVivant } from "@/components/kene/market/MarcheVivant";
 import type { ApiOrder, ApiPayment, ApiProduct, ApiSeller, ApiWallet } from "./types";
 import { SHOP_CATEGORIES } from "./types";
 import { EmptyBlock, Stars, SuccessBurst } from "./bits";
@@ -313,17 +312,10 @@ export function ShopScreen() {
         <OrdersView orders={orders} onRefresh={refreshOrders} onShop={() => setView("catalogue")} />
       ) : (
         <>
-      {/* Le Marché vivant (t. 83-c) — le marché 3D coiffe la boutique ; le tap
-          sur une échoppe pose le filtre réel et descend vers la grille. Clair
-          de Lune : bande SVG cliquable (jamais bloquant). */}
-      <MarcheVivant
-        onSelectCategory={(category) => {
-          setCat(category);
-          setQ(""); // saut exploratoire : la recherche ne masque pas l'échoppe
-          setFavOnly(false);
-          gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }}
-      />
+      {/* t. 115 — Le Marché vivant a été retiré à la demande de la fondatrice
+          (trop d'espace) : les 4 familles restent accessibles par les chips de
+          filtre ci-dessous (Sérums / Crèmes / Huiles / Savons…), l'identité
+          visuelle est portée par la bande kente et la carte d'en-tête. */}
 
       <Reveal>
         <RevealItem>

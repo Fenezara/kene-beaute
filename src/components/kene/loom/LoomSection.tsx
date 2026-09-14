@@ -7,7 +7,7 @@
 // bande de fils SVG d'origine (t. 74) reste — élégante, statique, zéro coût.
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { useLoomMode } from "./useLoomMode";
@@ -17,19 +17,23 @@ const GoldenLoom = dynamic(() => import("./GoldenLoom"), { ssr: false, loading: 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 /* ───────────────────────── Fils de kente vivants (fallback Clair de Lune) ─────────────────────────
-   Repris tels quels de t. 74 : 3 courbes Bézier qui se dessinent, respirent,
-   parallaxe pointeur douce sur desktop. */
+   3 courbes Bézier or/terre/bissap qui se dessinent + perles aux extrémités,
+   parallaxe pointeur douce sur desktop (désactivée en reduced-motion).
+   t. 115 : les fils courent dans le HAUT de la bande (viewBox 400×150) pour
+   laisser le message du chapitre respirer en bas — plus de « 3 traits perdus ». */
 const THREADS = [
-  { d: "M -20 62 C 120 18, 260 108, 430 66", stroke: "#C8951E", w: 2 },
-  { d: "M -20 132 C 140 92, 250 168, 430 122", stroke: "#A0522D", w: 1.6 },
-  { d: "M -20 202 C 110 162, 280 228, 430 188", stroke: "#8B1A3B", w: 1.6 },
+  { d: "M -20 34 C 110 6, 250 66, 396 26", stroke: "#C8951E", w: 2.4 },
+  { d: "M -20 62 C 140 30, 240 96, 396 52", stroke: "#A0522D", w: 2 },
+  { d: "M -20 92 C 120 58, 280 118, 396 80", stroke: "#8B1A3B", w: 2 },
 ];
 
 function KenteThreads({ first }: { first: boolean }) {
   const parallax = useRef<HTMLDivElement>(null);
   const raf = useRef(0);
+  const reduced = useReducedMotion();
 
   useEffect(() => {
+    if (reduced) return; // pas de parallaxe en mouvement réduit
     const zone = parallax.current?.parentElement;
     if (!zone) return;
     const onMove = (e: MouseEvent) => {
@@ -49,11 +53,11 @@ function KenteThreads({ first }: { first: boolean }) {
       zone.removeEventListener("mousemove", onMove);
       if (raf.current) window.cancelAnimationFrame(raf.current);
     };
-  }, []);
+  }, [reduced]);
 
   return (
     <div ref={parallax} className="pointer-events-none absolute inset-0 transition-transform duration-500 ease-out" aria-hidden="true">
-      <svg viewBox="0 0 400 240" preserveAspectRatio="none" className="h-full w-full">
+      <svg viewBox="0 0 400 150" preserveAspectRatio="none" className="h-full w-full">
         {THREADS.map((t, i) => (
           <motion.path
             key={i}
@@ -62,8 +66,8 @@ function KenteThreads({ first }: { first: boolean }) {
             stroke={t.stroke}
             strokeWidth={t.w}
             strokeLinecap="round"
-            opacity={0.45}
-            initial={{ pathLength: 0 }}
+            opacity={0.55}
+            initial={{ pathLength: reduced ? 1 : 0 }}
             animate={{ pathLength: 1 }}
             transition={{ duration: first ? 1.1 : 0.5, delay: (first ? 0.15 : 0) + i * 0.16, ease: [0.22, 1, 0.36, 1] }}
           />
@@ -76,9 +80,9 @@ function KenteThreads({ first }: { first: boolean }) {
               key={`n${i}`}
               cx={parseFloat(m[1])}
               cy={parseFloat(m[2])}
-              r={3.2}
+              r={3.6}
               fill={t.stroke}
-              initial={{ opacity: 0, scale: 0 }}
+              initial={{ opacity: reduced ? 0.9 : 0, scale: reduced ? 1 : 0 }}
               animate={{ opacity: 0.9, scale: 1 }}
               transition={{ delay: (first ? 1 : 0.4) + i * 0.16, type: "spring", stiffness: 300, damping: 18 }}
             />
@@ -185,12 +189,45 @@ export function LoomSection({ first }: { first: boolean }) {
     };
   }, [mode]);
 
-  // Clair de Lune (et phase « pending » d'hydratation) : la bande SVG t. 74.
+  // Clair de Lune (et phase « pending » d'hydratation) : la bande tissée
+  // t. 115 — même langage que la carte kente de la boutique (fond atelier +
+  // armure + fils d'or) PLEIN CADRE, avec le message condensé du chapitre.
+  // Fini les « 3 traits perdus » qui faisaient croire à une page cassée : la
+  // variante statique raconte aussi l'histoire, élégamment, zéro coût GPU.
   if (mode !== "full") {
     return (
-      <div className="relative mt-5 h-[56px] sm:h-[64px]" aria-hidden="true">
-        <KenteThreads first={first} />
-      </div>
+      <section aria-label="Le tissage — chaque geste est un fil" className="relative mt-4">
+        <div className="relative mx-4 h-[150px] overflow-hidden rounded-[26px] border border-border shadow-md sm:mx-6 sm:h-[170px]">
+          {/* fond mélanine « atelier du tisserand » */}
+          <div className="absolute inset-0 bg-[radial-gradient(120%_130%_at_50%_115%,#3A2A1A_0%,#241A10_62%,#1A1410_100%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(closest-side_at_50%_40%,rgba(200,149,30,0.12),transparent_80%)]" />
+          {/* trame kente douce */}
+          <div className="absolute inset-0 kente-band-soft opacity-90" />
+          {/* armure : croisures horizontales or + verticales sombres */}
+          <div
+            className="absolute inset-0 opacity-50"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(0deg, rgba(26,20,16,0.35) 0 2px, transparent 2px 10px), repeating-linear-gradient(90deg, rgba(200,149,30,0.26) 0 2px, transparent 2px 18px)",
+            }}
+          />
+          {/* les fils d'or vivants + perles */}
+          <KenteThreads first={first} />
+          {/* badge chapitre */}
+          <div className="absolute left-3 top-2.5 rounded-full border border-[#C8951E]/30 bg-[#1A1410]/75 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-[#C8951E]">
+            La Navette d&apos;Or
+          </div>
+          {/* message condensé du chapitre (vrai HTML, lisible par tous) */}
+          <div className="absolute inset-x-0 bottom-0 p-3.5 sm:p-4">
+            <p className="font-heading font-black text-[17px] leading-tight text-[#F8F1E4] drop-shadow-[0_2px_8px_rgba(26,20,16,0.85)] sm:text-[19px]">
+              Chaque geste est un fil
+            </p>
+            <p className="mt-1 max-w-[54ch] text-[11px] leading-snug text-[#F8F1E4]/75 drop-shadow-[0_1px_4px_rgba(26,20,16,0.9)]">
+              Chaque scan, chaque soin, chaque partage tisse ton histoire — un pagne unique, le tien.
+            </p>
+          </div>
+        </div>
+      </section>
     );
   }
 
