@@ -198,9 +198,9 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       const blob = await (await fetch(`/skin/${demo}.webp`)).blob();
       const file = new File([blob], `${demo}.webp`, { type: "image/webp" });
       await onFile(file);
-      toast.success("Photo démo chargée");
+      toast.success("Photo d'exemple chargée");
     } catch {
-      toast.error("Photo démo indisponible");
+      toast.error("Photo d'exemple indisponible");
     }
   }
 
@@ -572,7 +572,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
 
         <div className="mt-4 flex gap-2">
           <button onClick={useDemoPhoto} className="k-chip h-11 flex-1 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
-            <ImagePlus size={15} className="text-primary" /> Photo démo
+            <ImagePlus size={15} className="text-primary" /> Photo d&apos;exemple
           </button>
           {image && (
             <button onClick={() => fileRef.current?.click()} className="k-chip h-11 px-4 rounded-2xl text-xs font-semibold flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">

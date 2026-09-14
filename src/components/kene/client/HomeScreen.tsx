@@ -658,7 +658,7 @@ export function HomeScreen({
           )}
         </div>
         <p className="mt-3 text-center text-[10px] text-muted-foreground flex items-center justify-center gap-1">
-          <Star size={10} className="text-primary" aria-hidden /> Rappels automatiques — contrôle protocole S+3 &amp; RDV J-1 (POC, envois simulés)
+          <Star size={10} className="text-primary" aria-hidden /> Rappels automatiques — contrôle protocole S+3 &amp; RDV J-1
         </p>
         </section>
       </RevealItem>
@@ -671,7 +671,7 @@ export function HomeScreen({
             © {new Date().getFullYear()} Kènè — « La beauté mélanoderme, enfin comprise. »
           </p>
           <p className="text-[10px] text-muted-foreground/70 mt-1">
-            POC — Paiements Wave / Orange Money simulés · Estimations IA non médicales · CNPS CI / IPM SN / SYSCOHADA
+            Paiements Wave / Orange Money en mode essai · Estimations IA non médicales · CNPS CI / IPM SN / SYSCOHADA
           </p>
         </footer>
       </RevealItem>

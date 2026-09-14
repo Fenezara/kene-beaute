@@ -1,7 +1,7 @@
 "use client";
-// Kènè Cliente — Mentions légales & conformité (t. 71-c) : éditeur POC,
+// Kènè Cliente — Mentions légales & conformité (t. 71-c, t. 117) : éditeur,
 // avertissement médical renforcé, données personnelles (RGPD + Afrique de
-// l'Ouest), cadre local CI/SN, paiements simulés.
+// l'Ouest), cadre local CI/SN, paiements en mode essai.
 // Structure Reveal identique à SettingsScreen (retour accueil même pattern).
 // Libellés 100 % FR direct (i18n hors périmètre ce sprint).
 import { ArrowLeft, Building2, Scale, ShieldCheck, Stethoscope, Wallet } from "lucide-react";
@@ -27,7 +27,7 @@ export function LegalScreen() {
             <p id="leg-ed-t" className="text-xs font-bold">Éditeur</p>
           </div>
           <p className="mt-3 text-[13px] leading-relaxed">
-            Kènè — POC v1.0 (preuve de concept). Paiements simulés. Contact : support@kene.app
+            Kènè — v1.0. Les paiements sont en mode essai. Contact : support@kene.app
           </p>
         </section>
       </RevealItem>
@@ -66,7 +66,7 @@ export function LegalScreen() {
             </li>
             <li className="flex gap-2">
               <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 rounded-full bg-gold shrink-0" />
-              <span><strong className="font-semibold">Rétention des photos :</strong> les photos de diagnostic sont conservées pour ton historique ; en production, purge automatique à 90 jours. En POC, elles restent attachées à ton compte tant que tu ne le supprimes pas.</span>
+              <span><strong className="font-semibold">Rétention des photos :</strong> les photos de diagnostic sont conservées pour ton historique ; la purge automatique à 90 jours est prévue — en attendant, elles restent attachées à ton compte tant que tu ne le supprimes pas.</span>
             </li>
           </ul>
         </section>
@@ -99,7 +99,7 @@ export function LegalScreen() {
             <p id="leg-pay-t" className="text-xs font-bold">Paiements</p>
           </div>
           <p className="mt-3 text-[13px] leading-relaxed">
-            Les paiements (wallet, commandes, acomptes, abonnements) sont <strong className="font-semibold">simulés</strong> en POC — aucun argent réel ne circule.
+            Les paiements (wallet, commandes, acomptes, abonnements) sont traités en <strong className="font-semibold">mode essai</strong> — aucun argent réel ne circule.
           </p>
           <p className="mt-2 text-[13px] leading-relaxed">
             Le mobile money réel (Wave, Orange Money, MTN MoMo) passera par un agrégateur certifié à venir.

@@ -716,7 +716,7 @@ export function ShopScreen() {
                   <div className="flex items-center gap-2 text-sm text-[#F8F1E4]/80">
                     <Loader2 size={16} className="animate-spin" aria-hidden="true" /> Traitement en cours…
                   </div>
-                  <p className="text-[10px] text-[#F8F1E4]/60">Paiement mobile money simulé — POC</p>
+                  <p className="text-[10px] text-[#F8F1E4]/60">Paiement mobile money — mode essai</p>
                 </div>
               ) : (
                 <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 18 }} className="flex flex-col items-center gap-4 text-center py-6">

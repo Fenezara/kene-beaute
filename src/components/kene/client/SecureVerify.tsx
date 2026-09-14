@@ -53,7 +53,7 @@ function SecureVerifyDialog({ phone, amount, onVerified, onCancel }: Omit<Secure
         if (!alive) return;
         setDevCode(r.devCode);
         setRequesting(false);
-        toast.success("Code envoyé par SMS (simulé)");
+        toast.success("Ton code est prêt — saisis-le ci-dessous");
       })
       .catch((e) => {
         if (!alive) return;
@@ -165,9 +165,10 @@ function SecureVerifyDialog({ phone, amount, onVerified, onCancel }: Omit<Secure
           Continuer
         </button>
 
-        {/* SMS simulé (POC) — copie exacte de l'encart Onboarding étape 2 */}
+        {/* Code de vérification (mode essai : le code s'affiche ici, l'envoi
+            SMS arrivera avec la passerelle) — copie de l'encart Onboarding */}
         <div className="mt-6 rounded-2xl border border-dashed border-primary/50 bg-primary/5 p-4 text-center">
-          <p className="text-[10px] uppercase tracking-[0.14em] text-primary font-semibold">SMS simulé (POC)</p>
+          <p className="text-[10px] uppercase tracking-[0.14em] text-primary font-semibold">Code de vérification</p>
           {requesting ? (
             <div className="mt-2 h-8 grid place-items-center" aria-live="polite">
               <Loader2 size={18} className="animate-spin text-primary" aria-label="Code en cours d'envoi" />
@@ -184,7 +185,7 @@ function SecureVerifyDialog({ phone, amount, onVerified, onCancel }: Omit<Secure
               {devCode}
             </button>
           )}
-          <p className="text-[11px] text-muted-foreground mt-1">Touche le code pour le remplir</p>
+          <p className="text-[11px] text-muted-foreground mt-1">En mode essai, ton code s&apos;affiche ici — touche-le pour le remplir</p>
         </div>
 
         <button

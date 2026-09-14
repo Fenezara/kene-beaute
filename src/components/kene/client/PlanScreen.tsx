@@ -99,7 +99,7 @@ export function PlanScreen() {
       setState("done");
       setExpiresAt(r.subscription.expiresAt);
       toast.success("Kènè+ activé — diagnostics illimités ✨", {
-        description: `Actif jusqu'au ${fmtJJMM(r.subscription.expiresAt)} · paiement simulé (POC)`,
+        description: `Actif jusqu'au ${fmtJJMM(r.subscription.expiresAt)} · paiement en mode essai`,
       });
       load(); // statut + quota rafraîchis (illimité)
     } catch (e) {
@@ -228,7 +228,7 @@ export function PlanScreen() {
             </ul>
             <p className="mt-4 flex items-start gap-1.5 rounded-xl bg-success/10 px-3 py-2.5 text-[11px] text-success leading-snug">
               <BadgeCheck size={14} className="mt-px shrink-0" aria-hidden="true" />
-              Ton abonnement est actif jusqu&apos;au {fmtJJMM(data.subscription.expiresAt)} — il se renouvelle chaque mois en démo (paiement simulé, aucun débit réel).
+              Ton abonnement est actif jusqu&apos;au {fmtJJMM(data.subscription.expiresAt)} — il se renouvelle chaque mois (paiement en mode essai, aucun débit réel).
             </p>
           </section>
         </RevealItem>
@@ -277,7 +277,7 @@ export function PlanScreen() {
                 <Crown size={16} /> Activer Kènè+
               </button>
               <p className="mt-2 text-center text-[10px] text-muted-foreground">
-                Paiement mobile money simulé — démo POC, aucun débit réel.
+                Paiement mobile money en mode essai — aucun débit réel.
               </p>
             </div>
           </section>
@@ -303,7 +303,7 @@ export function PlanScreen() {
             {state === "idle" && (
               <div className="space-y-4">
                 <p className="rounded-xl bg-[#6B2416]/10 border border-[#6B2416]/20 px-3 py-2.5 text-[11px] font-semibold text-terre leading-snug">
-                  Démo — paiement simulé (POC) : aucun débit réel. L&apos;argent est simulé, comme le reste du POC.
+                  Mode essai : aucun débit réel. Le paiement mobile money certifié arrive bientôt.
                 </p>
                 <div>
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Opérateur</p>
@@ -356,7 +356,7 @@ export function PlanScreen() {
                 <p className="text-xs text-muted-foreground">
                   Actif jusqu&apos;au {expiresAt ? fmtJJMM(expiresAt) : "—"} · diagnostics illimités dès maintenant.
                 </p>
-                <p className="text-[10px] text-muted-foreground">Paiement simulé (POC) — aucun débit réel.</p>
+                <p className="text-[10px] text-muted-foreground">Paiement en mode essai — aucun débit réel.</p>
                 <button onClick={() => setSheet(false)} className="k-btn-gold mt-2 h-11 px-6 rounded-xl text-primary-foreground font-semibold text-sm focus-visible:outline-2 focus-visible:outline-primary">Fermer</button>
               </motion.div>
             )}

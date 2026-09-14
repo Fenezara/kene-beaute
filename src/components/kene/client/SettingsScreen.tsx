@@ -528,8 +528,8 @@ export function SettingsScreen() {
         <RevealItem>
           <section aria-labelledby="about-t" className="k-card rounded-[24px] p-5 text-center">
             <p id="about-t" className="font-heading font-bold text-sm text-primary">Kènè — La beauté mélanoderme, enfin comprise.</p>
-            <p className="mt-1.5 font-mono text-[11px] text-muted-foreground">POC v1.0</p>
-            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground/80">Paiements simulés · estimations IA non médicales.</p>
+            <p className="mt-1.5 font-mono text-[11px] text-muted-foreground">Kènè v1.0</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground/80">Paiements en mode essai · estimations IA non médicales.</p>
           </section>
         </RevealItem>
       </Reveal>

@@ -142,7 +142,7 @@ export function AdminApp() {
 
       <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
         <ShieldCheck className="size-3.5" aria-hidden="true" />
-        POC — données de démonstration · Commission plateforme 5 % sur la boutique Kènè
+        Console plateforme Kènè · Commission 5 % sur la boutique
       </p>
     </div>
   );

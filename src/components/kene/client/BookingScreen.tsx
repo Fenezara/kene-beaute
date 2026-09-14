@@ -274,7 +274,7 @@ export function BookingScreen() {
                 </RevealItem>
                 <RevealItem>
                   <p className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#3F7D3F]/10 text-[#3F7D3D] px-3 py-1.5 text-[11px] font-semibold">
-                    <MessageSquareQuote size={13} /> Rappel SMS J-1 programmé (simulé)
+                    <MessageSquareQuote size={13} /> Rappel SMS J-1 programmé
                   </p>
                 </RevealItem>
                 <RevealItem className="w-full">

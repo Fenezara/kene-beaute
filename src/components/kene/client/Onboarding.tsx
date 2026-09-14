@@ -155,9 +155,9 @@ export function Onboarding({
       const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/demo");
       rememberAccount({ phone: "+2250701020304", name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" });
       setUser(v.user as SessionUser);
-      toast.success(`Bienvenue ${v.user.name.split(" ")[0]} — compte démo riche chargé`);
+      toast.success(`Bienvenue ${v.user.name.split(" ")[0]} 💛`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Démo indisponible");
+      toast.error(e instanceof Error ? e.message : "Connexion impossible — réessaie");
     } finally {
       setLoading(false);
     }
@@ -384,7 +384,6 @@ export function Onboarding({
                 <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
                   {/* Sceau 2026 (t. 86) — emblème officiel + wordmark sur l'accueil à compte */}
                   <KeneEmblemLockup size={48} sublabel="Beauté mélanoderme" />
-                  <span className="rounded-full bg-[#6B2416]/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#FFF9EC]">POC démo</span>
                 </div>
               </div>
               <div className="px-5 -mt-2 pb-8 flex flex-col gap-5 flex-1">
@@ -424,7 +423,7 @@ export function Onboarding({
                         if (!phoneValid) return toast.error("Numéro incomplet (8 chiffres min.)");
                         if (await requestCode()) {
                           setStep(1);
-                          toast.success("Code envoyé par SMS (simulé)");
+                          toast.success("Ton code est prêt — saisis-le ci-dessous");
                         }
                       }}
                       disabled={loading || !phoneValid}
@@ -494,7 +493,7 @@ export function Onboarding({
                     disabled={loading}
                     className="mx-auto inline-flex items-center min-h-11 px-3 text-[12px] text-muted-foreground underline underline-offset-4 decoration-dotted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary rounded"
                   >
-                    Démo — Entrer comme Mariam (compte riche : 3 diagnostics, wallet)
+                    Explorer Kènè — sans inscription
                   </button>
                 </RevealItem>
                 <RevealItem className="mt-auto">
@@ -549,11 +548,11 @@ export function Onboarding({
               <RevealItem>
                 <div className="mt-6 rounded-[22px] border border-dashed border-primary/50 p-[4px]">
                   <div className="k-card rounded-[18px] p-3.5 text-center">
-                    <p className="text-[10px] uppercase tracking-[0.14em] text-primary font-semibold">SMS simulé (POC)</p>
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-primary font-semibold">Code de vérification</p>
                     <button onClick={() => { setOtp(devCode); setTimeout(() => verify(devCode), 250); }} className="mt-2 font-mono text-2xl font-black tracking-[0.3em] text-primary hover:scale-105 active:scale-95 transition-transform" aria-label={`Code reçu ${devCode}, remplir automatiquement`}>
                       {devCode}
                     </button>
-                    <p className="text-[11px] text-muted-foreground mt-1">Touche le code pour le remplir</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">En mode essai, ton code s&apos;affiche ici — touche-le pour le remplir</p>
                   </div>
                 </div>
               </RevealItem>
@@ -723,7 +722,7 @@ export function Onboarding({
               </RevealItem>
               <RevealItem>
                 <p className="text-[11px] leading-relaxed text-muted-foreground text-center">
-                  Paiements simulés (POC) · Tes clientes continuent de réserver et commander depuis l&apos;app cliente.
+                  Tes clientes continuent de réserver et commander depuis l&apos;app cliente.
                 </p>
               </RevealItem>
             </Reveal>

@@ -165,7 +165,7 @@ export function SettingsSection({ tenantName, tenantCity, onNavigate }: { tenant
           <IconBadge icon={<Crown size={18} />} tone="gold" />
           <span className="flex-1 min-w-0">
             <span className="block text-xs font-bold">Abonnement &amp; facturation</span>
-            <span className="block text-[11px] text-muted-foreground mt-0.5">Offres Essentiel / Complexe · paiement simulé</span>
+            <span className="block text-[11px] text-muted-foreground mt-0.5">Offres Essentiel / Complexe · facturation en mode essai</span>
           </span>
           <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
         </button>
@@ -191,9 +191,9 @@ export function SettingsSection({ tenantName, tenantCity, onNavigate }: { tenant
 
       {/* À propos */}
       <div className="k-card rounded-[20px] p-4">
-        <p className="font-heading font-bold text-sm">Kènè Pro — POC</p>
+        <p className="font-heading font-bold text-sm">Kènè Pro — v1.0</p>
         <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-          Paiements simulés · conformité CNPS CI / IPM SN / SYSCOHADA. Réservations, commandes et ventes de l&apos;institut arrivent en temps réel lorsque le service de notifications est en ligne.
+          Paiements en mode essai · conformité CNPS CI / IPM SN / SYSCOHADA. Réservations, commandes et ventes de l&apos;institut arrivent en temps réel lorsque le service de notifications est en ligne.
         </p>
       </div>
     </div>

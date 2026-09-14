@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   if (!rl.ok) {
     return rateLimitResponse(
       rl.retryAfterSec,
-      `Trop de connexions démo — réessaie dans ${Math.max(1, Math.ceil(rl.retryAfterSec / 60))} min`,
+      `Trop de connexions rapides — réessaie dans ${Math.max(1, Math.ceil(rl.retryAfterSec / 60))} min`,
     );
   }
   try {
@@ -71,5 +71,5 @@ export async function GET(req: NextRequest) {
 // Un POST ici n'a pas de sens (le login démo EST le GET) — réponse explicite
 // plutôt qu'un 405 muet si un ancien bundle appelait cette URL en POST.
 export async function POST() {
-  return jsonError("Route démo : appel GET uniquement", 405);
+  return jsonError("Accès instantané : appel GET uniquement", 405);
 }

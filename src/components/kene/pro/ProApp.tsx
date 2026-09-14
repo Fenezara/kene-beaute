@@ -229,7 +229,7 @@ export function ProApp() {
     ? EMPLOYEE_ROLE_LABELS[employeeRole] ?? "Employée"
     : proOwner
       ? "Fondatrice / Gérante"
-      : "Gérante — démo";
+      : "Gérante";
   const chipInitials =
     chipName
       .split(/\s+/)
@@ -371,7 +371,7 @@ export function ProApp() {
             </div>
           </div>
           <p className="hidden lg:block px-1 pt-3 text-[10px] leading-relaxed text-muted-foreground/60">
-            Kènè POC — paiements simulés · CNPS CI / IPM SN / SYSCOHADA
+            Kènè Pro — paiements en mode essai · CNPS CI / IPM SN / SYSCOHADA
           </p>
         </div>
       </aside>

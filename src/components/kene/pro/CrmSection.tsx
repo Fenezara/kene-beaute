@@ -431,7 +431,7 @@ function ClientSheet({
                     placeholder="Notes privées sur la cliente (allergies, préférences, conseils…)"
                     aria-label="Notes privées"
                   />
-                  <p className="mt-1 text-[10px] text-muted-foreground">Enregistré localement sur ce poste (démo).</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Enregistré localement sur ce poste.</p>
                 </TabsContent>
               </Tabs>
             </div>

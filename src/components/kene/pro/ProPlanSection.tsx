@@ -96,7 +96,7 @@ export function ProPlanSection({ tenantName }: { tenantId: string; tenantName: s
       setState("done");
       setExpiresAt(r.subscription.expiresAt);
       toast.success("Complexe activé — paie & compta débloquées", {
-        description: `Actif jusqu'au ${fmtJJMM(r.subscription.expiresAt)} · facturation simulée (POC)`,
+        description: `Actif jusqu'au ${fmtJJMM(r.subscription.expiresAt)} · facturation en mode essai`,
       });
       load();
     } catch (e) {
@@ -111,7 +111,7 @@ export function ProPlanSection({ tenantName }: { tenantId: string; tenantName: s
     <div className="max-w-3xl space-y-4">
       <SectionHeader
         title="Abonnement & facturation"
-        sub={`Offres Essentiel / Complexe de ${tenantName} — paiement simulé (POC)`}
+        sub={`Offres Essentiel / Complexe de ${tenantName} — facturation en mode essai`}
       />
 
       {/* Erreur datée + ré-essai (pattern ErrorState maison) */}
@@ -146,7 +146,7 @@ export function ProPlanSection({ tenantName }: { tenantId: string; tenantName: s
                 {activeSub ? (
                   <span className="ml-2 rounded-full bg-gold/15 text-gold-text px-2 py-0.5 text-[10px] font-bold align-middle">Actif</span>
                 ) : (
-                  <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground align-middle">plan actuel en démo</span>
+                  <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground align-middle">Actuel · période d&apos;essai</span>
                 )}
               </p>
             </div>
@@ -154,8 +154,8 @@ export function ProPlanSection({ tenantName }: { tenantId: string; tenantName: s
           <p className="mt-3 flex items-start gap-1.5 text-[11px] text-muted-foreground leading-snug">
             <BadgeCheck size={13} className="mt-px shrink-0 text-gold-text" aria-hidden="true" />
             {activeSub
-              ? `Ton abonnement est actif jusqu'au ${fmtJJMM(activeSub.expiresAt)} — il se renouvelle chaque mois en démo (facturation simulée POC).`
-              : "Aucune facturation en POC : le plan Essentiel est offert en démo pour explorer agenda, CRM, catalogue et boutique."}
+              ? `Ton abonnement est actif jusqu'au ${fmtJJMM(activeSub.expiresAt)} — il se renouvelle chaque mois (facturation en mode essai).`
+              : "Le plan Essentiel est offert pendant la période d'essai — explore agenda, CRM, catalogue et boutique en toute liberté."}
           </p>
         </div>
       ))}
@@ -172,7 +172,7 @@ export function ProPlanSection({ tenantName }: { tenantId: string; tenantName: s
           <div className="k-card rounded-[20px] p-4">
             <div className="flex items-center justify-between gap-2">
               <p className="font-heading text-[17px] font-bold">{essentiel.name}</p>
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">Actuel en démo</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">Actuel · période d&apos;essai</span>
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">{essentiel.tagline}</p>
             <p className="mt-3 flex items-baseline gap-1.5">
@@ -224,9 +224,9 @@ export function ProPlanSection({ tenantName }: { tenantId: string; tenantName: s
               onClick={() => { setSheet(true); setState("idle"); }}
               className="k-btn-gold mt-4 h-11 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              <Crown size={15} /> {activePlan === "pro_complexe" ? "Prolonger Complexe (démo)" : "Passer à Complexe"}
+              <Crown size={15} /> {activePlan === "pro_complexe" ? "Prolonger Complexe" : "Passer à Complexe"}
             </button>
-            <p className="mt-2 text-center text-[10px] text-muted-foreground">Facturation simulée POC — aucun débit réel.</p>
+            <p className="mt-2 text-center text-[10px] text-muted-foreground">Facturation en mode essai — aucun débit réel.</p>
           </div>
         </div>
       ))}
@@ -246,7 +246,7 @@ export function ProPlanSection({ tenantName }: { tenantId: string; tenantName: s
             {state === "idle" && (
               <div className="space-y-4">
                 <p className="rounded-xl bg-[#6B2416]/10 border border-[#6B2416]/20 px-3 py-2.5 text-[11px] font-semibold text-terre leading-snug">
-                  Démo — paiement simulé (POC) : aucun débit réel. La facturation restera simulée tant que le mobile money réel (agrégateur certifié) n&apos;est pas branché.
+                  Mode essai : aucun débit réel. La facturation passera au mobile money certifié dès sa mise en service.
                 </p>
                 <div>
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Opérateur</p>
@@ -299,7 +299,7 @@ export function ProPlanSection({ tenantName }: { tenantId: string; tenantName: s
                 <p className="text-xs text-muted-foreground">
                   Actif jusqu&apos;au {expiresAt ? fmtJJMM(expiresAt) : "—"} · paie CNPS/IPM, compta SYSCOHADA et multi-établissements débloqués.
                 </p>
-                <p className="text-[10px] text-muted-foreground">Facturation simulée (POC) — aucun débit réel.</p>
+                <p className="text-[10px] text-muted-foreground">Facturation en mode essai — aucun débit réel.</p>
                 <button onClick={() => setSheet(false)} className="k-btn-gold mt-2 h-11 px-6 rounded-xl text-primary-foreground font-semibold text-sm focus-visible:outline-2 focus-visible:outline-primary">Fermer</button>
               </motion.div>
             )}

@@ -241,7 +241,7 @@ export function PassportGate() {
               Entrer dans Kènè <ArrowRight size={15} />
             </button>
             <p className="mt-auto pt-6 text-center text-[9.5px] text-[#F8F1E4]/40">
-              Kènè — la beauté mélanoderme, enfin comprise · POC
+              Kènè — la beauté mélanoderme, enfin comprise
             </p>
           </motion.div>
         )}

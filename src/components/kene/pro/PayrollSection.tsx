@@ -648,7 +648,7 @@ function PayslipDialog({ slip, periodLabel, tenantName, country, onClose }: { sl
           {/* Pied */}
           <div className="mt-6 border-t border-dashed border-black/50 pt-3 text-center text-[10px] text-black/70">
             <p>Conforme CNPS CI / IPM SN — généré par Kènè</p>
-            <p className="font-mono mt-0.5">Édité le {formatDate(new Date())} · Document démonstratif</p>
+            <p className="font-mono mt-0.5">Édité le {formatDate(new Date())} · Kènè Pro</p>
           </div>
         </div>
 

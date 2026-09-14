@@ -154,7 +154,7 @@ export function MomoProcessing({ operator, color, amount, phone }: { operator: s
       </div>
       <div>
         <p className="font-heading font-bold text-lg">{operator}</p>
-        <p className="text-xs text-muted-foreground mt-1">Paiement sécurisé — simulation POC</p>
+        <p className="text-xs text-muted-foreground mt-1">Paiement sécurisé — mode essai</p>
       </div>
       <p className="font-mono text-3xl font-black">{xof(amount)}</p>
       <p className="text-xs text-muted-foreground">Numéro {phone}</p>

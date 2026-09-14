@@ -166,7 +166,7 @@ export function WelcomeThreshold() {
     try {
       const devCode = await requestOtp(phone);
       setStage({ phase: "signin", mode: keypadMode, phone, devCode });
-      toast.success("Code envoyé par SMS (simulé)");
+      toast.success("Ton code est prêt — saisis-le ci-dessous");
     } catch (e) {
       otpErrorToast(e);
     }
@@ -187,9 +187,9 @@ export function WelcomeThreshold() {
         localStorage.setItem("kene-last-account", JSON.stringify({ phone: "+2250701020304", name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" }));
       } catch { /* non bloquant */ }
       setUser(v.user as SessionUser);
-      toast.success(`Bienvenue ${v.user.name.split(" ")[0]} — compte démo riche chargé`);
+      toast.success(`Bienvenue ${v.user.name.split(" ")[0]} 💛`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Démo indisponible");
+      toast.error(e instanceof Error ? e.message : "Connexion impossible — réessaie");
     } finally {
       setDemoLoading(false);
     }
@@ -222,9 +222,6 @@ export function WelcomeThreshold() {
                       Beauté mélanoderme
                     </span>
                   </span>
-                </span>
-                <span className="rounded-full bg-[#6B2416]/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#FFF9EC]">
-                  POC démo
                 </span>
               </div>
             </Reveal>
@@ -384,7 +381,7 @@ export function WelcomeThreshold() {
                   className="mx-auto flex min-h-11 items-center gap-2 rounded-full px-4 text-[12px] font-semibold text-foreground/75 underline underline-offset-4 decoration-dotted hover:text-primary disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary"
                 >
                   {demoLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} aria-hidden="true" />}
-                  Découvrir la démo — entrer comme Mariam
+                  Explorer Kènè — sans inscription
                 </button>
               </RevealItem>
             )}
