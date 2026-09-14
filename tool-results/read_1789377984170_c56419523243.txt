@@ -1,0 +1,799 @@
+     1→"use client";
+     2→// Kènè Cliente — Boutique : catalogue, fiche produit, panier, checkout Wave/Orange/Wallet simulé
+     3→// + « Mes commandes » : historique des commandes enregistrées (consultation par la cliente).
+     4→import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+     5→import { AnimatePresence, motion } from "framer-motion";
+     6→import { BadgeCheck, Heart, History, Loader2, Lock, Minus, Plus, Search, ShoppingBag, Tag, Trash2, TriangleAlert, X } from "lucide-react";
+     7→import { toast } from "sonner";
+     8→import { apiGet, apiPost } from "@/lib/kene/api";
+     9→import { xof, CASHBACK_RATE, formatDate, formatTime } from "@/lib/kene/format";
+    10→import { HAPTIC, haptic } from "@/lib/kene/ux";
+    11→import { MOMO_OPERATORS } from "@/lib/kene/rfm";
+    12→import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+    13→import { Chip, PrimaryCTA, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
+    14→import { useKene } from "@/store/kene";
+    15→import { useFavorites } from "@/store/favorites";
+    16→import { useSecurity } from "@/store/security";
+    17→import { KenteWeaveCard } from "@/components/kene/weave/KenteWeaveCard";
+    18→import { KeneMark } from "@/components/kene/icons";
+    19→import { categoryThread } from "@/components/kene/weave/threads";
+    20→import { MarcheVivant } from "@/components/kene/market/MarcheVivant";
+    21→import type { ApiOrder, ApiPayment, ApiProduct, ApiWallet } from "./types";
+    22→import { SHOP_CATEGORIES } from "./types";
+    23→import { EmptyBlock, Stars, SuccessBurst } from "./bits";
+    24→import { FavButton } from "./FavButton";
+    25→import { SecureVerify } from "./SecureVerify";
+    26→
+    27→type PayMethod = "wave" | "orange" | "wallet";
+    28→
+    29→/* Coupon validé au checkout (aperçu local — la consommation a lieu à la commande) */
+    30→interface AppliedPromo {
+    31→  code: string;
+    32→  label: string | null;
+    33→  discount: number;
+    34→  subtotal: number; // panier au moment de la validation (invalidation si changement)
+    35→}
+    36→
+    37→export function ShopScreen() {
+    38→  const user = useKene((s) => s.user)!;
+    39→  const cart = useKene((s) => s.cart);
+    40→  const addToCart = useKene((s) => s.addToCart);
+    41→  const setCartQty = useKene((s) => s.setCartQty);
+    42→  const clearCart = useKene((s) => s.clearCart);
+    43→
+    44→  const [products, setProducts] = useState<ApiProduct[] | null>(null);
+    45→  const [cat, setCat] = useState("");
+    46→  const [q, setQ] = useState("");
+    47→  const [favOnly, setFavOnly] = useState(false); // filtre « ♥ Favoris » (cumulable avec catégorie + recherche)
+    48→  const favs = useFavorites((s) => s.favs);
+    49→  const [detail, setDetail] = useState<ApiProduct | null>(null);
+    50→  const [qty, setQty] = useState(1);
+    51→  const [checkout, setCheckout] = useState(false);
+    52→  const [wallet, setWallet] = useState<ApiWallet | null>(null);
+    53→  // Fin des échecs silencieux : solde inconnu → encart discret + Réessayer
+    54→  // (plus jamais un « … » éternel sur le bouton Wallet du checkout).
+    55→  const [walletError, setWalletError] = useState(false);
+    56→  const [payState, setPayState] = useState<{ phase: "processing" | "success"; method: PayMethod; amount: number } | null>(null);
+    57→  const [paying, setPaying] = useState(false);
+    58→
+    59→  // Sécurité renforcée (2FA-lite) : si activée, la cliente re-vérifie son code
+    60→  // AVANT que le moindre appel de paiement ne parte (voir startPay + SecureVerify).
+    61→  const securityEnabled = useSecurity((s) => s.enabled);
+    62→  const [pendingPay, setPendingPay] = useState<PayMethod | null>(null);
+    63→
+    64→  // ─── Double-tap « ajout rapide » (TikTok Shop / Instagram) ───
+    65→  // 1er tap = ouvre la fiche (avec un délai court annulable) ; 2e tap < 320 ms
+    66→  // = ajoute directement au panier + burst animé sur la carte.
+    67→  const lastTap = useRef<{ id: string; t: number; timer: number | null }>({ id: "", t: 0, timer: null });
+    68→  const [burst, setBurst] = useState<{ id: string; x: number; y: number } | null>(null);
+    69→
+    70→  const onCardTap = (p: ApiProduct, e: React.MouseEvent<HTMLButtonElement>) => {
+    71→    const now = Date.now();
+    72→    const s = lastTap.current;
+    73→    if (s.id === p.id && now - s.t < 320 && s.timer) {
+    74→      window.clearTimeout(s.timer);
+    75→      lastTap.current = { id: "", t: 0, timer: null };
+    76→      addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image });
+    77→      haptic(HAPTIC.light);
+    78→      const rect = e.currentTarget.getBoundingClientRect();
+    79→      setBurst({ id: p.id, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    80→      window.setTimeout(() => setBurst(null), 700);
+    81→      toast.success(`${p.name} ajouté au panier`, { description: "Astuce : double-tape une carte pour l'ajouter en 1 geste" });
+    82→    } else {
+    83→      if (s.timer) window.clearTimeout(s.timer);
+    84→      const timer = window.setTimeout(() => {
+    85→        setDetail(p);
+    86→        setQty(1);
+    87→      }, 240);
+    88→      lastTap.current = { id: p.id, t: now, timer };
+    89→    }
+    90→  };
+    91→  const [promoInput, setPromoInput] = useState("");
+    92→  const [promoChecking, setPromoChecking] = useState(false);
+    93→  const [promo, setPromo] = useState<AppliedPromo | null>(null);
+    94→  const inputRef = useRef<HTMLInputElement>(null);
+    95→
+    96→  /* « Mes commandes » — historique consultable (chargé au montage, rafraîchi
+    97→   * après chaque commande réussie : la cliente suit ses données enregistrées). */
+    98→  const [view, setView] = useState<"catalogue" | "commandes">("catalogue");
+    99→  const [orders, setOrders] = useState<ApiOrder[] | null>(null);
+   100→  /* La grille produits — destination du Marché vivant (tap échoppe → filtre +
+   101→   * descente douce du catalogue vers la famille choisie). */
+   102→  const gridRef = useRef<HTMLDivElement>(null);
+   103→  const refreshOrders = useCallback(() => {
+   104→    apiGet<{ orders: ApiOrder[] }>(`/api/orders?userId=${user.id}`)
+   105→      .then((r) => setOrders(r.orders ?? []))
+   106→      .catch(() => setOrders((prev) => prev ?? []));
+   107→  }, [user.id]);
+   108→
+   109→  const subtotal = cart.reduce((s, l) => s + l.price * l.qty, 0);
+   110→  /* Coupon invalidé si le panier a changé depuis la validation (remise recalculée
+   111→   * sur un autre sous-total) — la cliente re-valide, jamais de surprise serveur. */
+   112→  const livePromo = promo && promo.subtotal === subtotal ? promo : null;
+   113→  const discount = livePromo?.discount ?? 0;
+   114→  const total = subtotal - discount;
+   115→  /* taux de cashback réellement appliqué (wallet de la cliente, sinon défaut) */
+   116→  const cashbackRate = wallet?.cashbackRate ?? CASHBACK_RATE;
+   117→
+   118→  /* Solde wallet — échec explicite (walletError) plutôt que silence : le
+   119→   * bouton Wallet reste désactivé tant que le solde est inconnu. */
+   120→  const loadWallet = useCallback(() => {
+   121→    apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`)
+   122→      .then((r) => { setWallet(r.wallet); setWalletError(false); })
+   123→      .catch(() => setWalletError(true));
+   124→  }, [user.id]);
+   125→
+   126→  useEffect(() => {
+   127→    apiGet<{ products: ApiProduct[] }>("/api/shop/products")
+   128→      .then((r) => setProducts(r.products ?? []))
+   129→      .catch(() => setProducts([]));
+   130→    loadWallet();
+   131→    refreshOrders();
+   132→  }, [user.id, refreshOrders, loadWallet]);
+   133→
+   134→  const filtered = useMemo(() => {
+   135→    const nq = q.trim().toLowerCase();
+   136→    return (products ?? []).filter(
+   137→      (p) =>
+   138→        (!cat || p.category === cat) &&
+   139→        (!favOnly || favs.includes(p.id)) &&
+   140→        (!nq || `${p.name} ${p.botanicals} ${p.description}`.toLowerCase().includes(nq))
+   141→    );
+   142→  }, [products, cat, q, favOnly, favs]);
+   143→
+   144→  /* le fil de la catégorie — la navette l'illumine dans la bande tissée */
+   145→  const weaveCaption =
+   146→    products === null
+   147→      ? "La navette monte le métier…"
+   148→      : `${filtered.length} soin${filtered.length > 1 ? "s" : ""}${
+   149→          cat ? ` · ${SHOP_CATEGORIES.find((c) => c.id === cat)?.label.toLowerCase() ?? cat}` : " au catalogue"
+   150→        }${favOnly ? " · favoris" : ""}`;
+   151→
+   152→  /* Applique un code promo : aperçu de remise sans consommer le coupon
+   153→   * (la consommation a lieu à la commande — toutes les gardes côté serveur). */
+   154→  async function applyPromo() {
+   155→    const code = promoInput.trim().toUpperCase();
+   156→    if (!code || promoChecking) return;
+   157→    setPromoChecking(true);
+   158→    try {
+   159→      const r = await apiPost<{ ok: true; coupon: { code: string; label: string | null }; discount: number; total: number }>(
+   160→        "/api/coupons/validate",
+   161→        { code, userId: user.id, subtotal }
+   162→      );
+   163→      setPromo({ code: r.coupon.code, label: r.coupon.label, discount: r.discount, subtotal });
+   164→      setPromoInput("");
+   165→      toast.success(`Code ${r.coupon.code} appliqué`, { description: `Remise de ${xof(r.discount)} déduite du total.` });
+   166→    } catch (e) {
+   167→      setPromo(null);
+   168→      toast.error(e instanceof Error ? e.message : "Code promo invalide");
+   169→    } finally {
+   170→      setPromoChecking(false);
+   171→    }
+   172→  }
+   173→
+   174→  /** Passerelle paiement : vérification d'identité par code si la sécurité
+   175→   *  renforcée est active — le paiement initialement prévu (pay) n'est lancé
+   176→   *  qu'une fois le code confirmé ; annulé sinon, rien n'est engagé. */
+   177→  function startPay(method: PayMethod) {
+   178→    if (securityEnabled) {
+   179→      haptic(HAPTIC.tap);
+   180→      setPendingPay(method);
+   181→      return;
+   182→    }
+   183→    void pay(method);
+   184→  }
+   185→
+   186→  async function pay(method: PayMethod) {
+   187→    setPaying(true);
+   188→    try {
+   189→      const items = cart.map((l) => ({ productId: l.productId, qty: l.qty }));
+   190→      const r = await apiPost<{ order: ApiOrder; payment: ApiPayment | null; paid: boolean }>("/api/orders", {
+   191→        userId: user.id,
+   192→        items,
+   193→        paymentMethod: method,
+   194→        ...(livePromo ? { couponCode: livePromo.code } : {}),
+   195→      });
+   196→      const amount = r.order.total;
+   197→      if (method !== "wallet" && r.payment) {
+   198→        // Contrat confirmToken (63-b/63-c) : un paiement mobile money en attente
+   199→        // porte son jeton — absent, on n'appelle JAMAIS confirm et on rollback
+   200→        // l'état UI comme un échec de paiement (panier intact, aucun overlay).
+   201→        const confirmToken = r.payment.confirmToken;
+   202→        if (!confirmToken) {
+   203→          setCheckout(false);
+   204→          toast.error("Paiement impossible — réessaie dans quelques instants");
+   205→          return;
+   206→        }
+   207→        setCheckout(false);
+   208→        setPayState({ phase: "processing", method, amount });
+   209→        await new Promise((res) => setTimeout(res, 3000));
+   210→        const c = await apiPost<{ payment: ApiPayment; order?: ApiOrder; wallet?: ApiWallet }>("/api/payments/confirm", { paymentId: r.payment.id, confirmToken });
+   211→        if (c.wallet) { setWallet(c.wallet); setWalletError(false); }
+   212→      } else {
+   213→        setCheckout(false);
+   214→        setPayState({ phase: "processing", method: "wallet", amount });
+   215→        await new Promise((res) => setTimeout(res, 1200));
+   216→      }
+   217→      setPayState({ phase: "success", method, amount });
+   218→      haptic(HAPTIC.success);
+   219→      clearCart();
+   220→      setPromo(null); // le coupon est consommé : remise à zéro pour la prochaine commande
+   221→      void refreshOrders(); // la nouvelle commande apparaît dans « Mes commandes »
+   222→      const cb = r.order.cashback;
+   223→      toast.success(cb > 0 ? `Commande confirmée — cashback ${xof(cb)} crédité sur ton wallet` : "Commande confirmée et payée");
+   224→      if (method === "wallet") {
+   225→        const w = await apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).catch(() => null);
+   226→        if (w) setWallet(w.wallet);
+   227→      }
+   228→    } catch (e) {
+   229→      setPayState(null);
+   230→      toast.error(e instanceof Error ? e.message : "Paiement impossible");
+   231→    } finally {
+   232→      setPaying(false);
+   233→    }
+   234→  }
+   235→
+   236→  const op = (m: PayMethod) => MOMO_OPERATORS.find((o) => o.code === m);
+   237→
+   238→  return (
+   239→    <div className="pt-4 pb-2">
+   240→      <Reveal>
+   241→        <RevealItem>
+   242→          <header className="flex items-center justify-between">
+   243→            <h1 className="flex items-center gap-2 font-heading font-black text-xl tracking-tight">
+   244→              {/* Mark de marque (t. 86) — signature vectorielle de la boutique */}
+   245→              <span aria-hidden="true">
+   246→                <KeneMark size={26} />
+   247→              </span>
+   248→              Boutique Kènè
+   249→            </h1>
+   250→            <span className="k-chip rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-gold-text">Cashback {Math.round(cashbackRate * 100)} %</span>
+   251→          </header>
+   252→        </RevealItem>
+   253→        <RevealItem>
+   254→          {/* Bascule Catalogue ↔ Mes commandes — la cliente consulte ses données */}
+   255→          <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl k-card p-1" role="tablist" aria-label="Vues boutique">
+   256→            <button
+   257→              role="tab"
+   258→              aria-selected={view === "catalogue"}
+   259→              onClick={() => setView("catalogue")}
+   260→              className={`h-10 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-primary ${view === "catalogue" ? "k-btn-gold text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+   261→            >
+   262→              <ShoppingBag size={14} aria-hidden="true" /> Catalogue
+   263→            </button>
+   264→            <button
+   265→              role="tab"
+   266→              aria-selected={view === "commandes"}
+   267→              onClick={() => setView("commandes")}
+   268→              className={`h-10 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-primary ${view === "commandes" ? "k-btn-gold text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+   269→            >
+   270→              <History size={14} aria-hidden="true" /> Mes commandes{orders !== null && orders.length > 0 ? ` (${orders.length})` : ""}
+   271→            </button>
+   272→          </div>
+   273→        </RevealItem>
+   274→      </Reveal>
+   275→
+   276→      {view === "commandes" ? (
+   277→        <OrdersView orders={orders} onRefresh={refreshOrders} onShop={() => setView("catalogue")} />
+   278→      ) : (
+   279→        <>
+   280→      {/* Le Marché vivant (t. 83-c) — le marché 3D coiffe la boutique ; le tap
+   281→          sur une échoppe pose le filtre réel et descend vers la grille. Clair
+   282→          de Lune : bande SVG cliquable (jamais bloquant). */}
+   283→      <MarcheVivant
+   284→        onSelectCategory={(category) => {
+   285→          setCat(category);
+   286→          setQ(""); // saut exploratoire : la recherche ne masque pas l'échoppe
+   287→          setFavOnly(false);
+   288→          gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+   289→        }}
+   290→      />
+   291→
+   292→      <Reveal>
+   293→        <RevealItem>
+   294→          {/* Le Fil de Kente — hero tissé, le fil de la catégorie s'illumine */}
+   295→          <div className="mt-4">
+   296→            <KenteWeaveCard highlightIndex={cat ? categoryThread(cat) : -1} caption={weaveCaption} />
+   297→          </div>
+   298→        </RevealItem>
+   299→
+   300→        <RevealItem>
+   301→          {/* Recherche */}
+   302→          <div className="mt-3 relative">
+   303→            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+   304→            <input
+   305→              ref={inputRef}
+   306→              value={q}
+   307→              onChange={(e) => setQ(e.target.value)}
+   308→              placeholder="Rechercher un soin, un botanique…"
+   309→              aria-label="Rechercher un produit"
+   310→              className="k-input h-12 w-full rounded-2xl pl-10 pr-4 text-sm"
+   311→            />
+   312→          </div>
+   313→        </RevealItem>
+   314→
+   315→        <RevealItem>
+   316→          {/* Filtres : catégories + favoris (bascules aria-pressed, cumulables) — Chip verre→or 2026 */}
+   317→          <div className="flex gap-2 overflow-x-auto py-3 scrollbar-thin -mx-1 px-1" role="group" aria-label="Filtres de la boutique">
+   318→            {SHOP_CATEGORIES.map((c) => (
+   319→              <Chip key={c.id} selected={cat === c.id} onClick={() => setCat(c.id)} className="min-h-11 shrink-0">
+   320→                {c.label}
+   321→              </Chip>
+   322→            ))}
+   323→            {/* ♥ Favoris — filtre cumulable, badge count si ≥ 1 */}
+   324→            <Chip
+   325→              selected={favOnly}
+   326→              onClick={() => { setFavOnly((v) => !v); haptic(HAPTIC.tap); }}
+   327→              className="min-h-11 shrink-0"
+   328→            >
+   329→              <Heart size={13} fill={favOnly ? "currentColor" : "none"} aria-hidden="true" />
+   330→              Favoris{favs.length > 0 ? ` · ${favs.length}` : ""}
+   331→            </Chip>
+   332→          </div>
+   333→        </RevealItem>
+   334→      </Reveal>
+   335→
+   336→      <div ref={gridRef} className="scroll-mt-4">
+   337→      {/* Grille produits */}
+   338→      {products === null ? (
+   339→        <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
+   340→          {[0, 1, 2, 3].map((i) => (
+   341→            <div key={i} className="space-y-2">
+   342→              <Shimmer className="aspect-square rounded-[18px]" />
+   343→              <Shimmer className="h-3.5 w-4/5 rounded" />
+   344→              <Shimmer className="h-3 w-2/3 rounded" />
+   345→            </div>
+   346→          ))}
+   347→        </div>
+   348→      ) : filtered.length === 0 ? (
+   349→        favOnly && favs.length === 0 ? (
+   350→          <EmptyBlock
+   351→            icon={<Heart size={22} />}
+   352→            title="Aucun favori pour l'instant"
+   353→            text="Touche le cœur sur un soin pour le retrouver ici."
+   354→          />
+   355→        ) : favOnly ? (
+   356→          <EmptyBlock
+   357→            icon={<Heart size={22} />}
+   358→            title="Aucun favori dans cette sélection"
+   359→            text="Tes favoris ne passent pas ce filtre — essaie une autre catégorie ou efface la recherche."
+   360→            cta={
+   361→              <button
+   362→                onClick={() => { setCat(""); setQ(""); }}
+   363→                className="k-btn-gold h-11 rounded-xl px-6 text-sm font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary"
+   364→              >
+   365→                Voir tous mes favoris
+   366→              </button>
+   367→            }
+   368→          />
+   369→        ) : (
+   370→          <EmptyBlock icon={<Search size={22} />} title="Aucun produit trouvé" text="Essaie un autre mot-clé ou une autre catégorie." />
+   371→        )
+   372→      ) : (
+   373→        <Reveal className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
+   374→          {filtered.map((p) => (
+   375→            /* Wrapper relatif : le cœur est un FRÈRE de la carte (jamais de <button>
+   376→               imbriqué — HTML valide, focus/a11y propres), posé sur l'image en absolu. */
+   377→            <RevealItem key={p.id} className="relative">
+   378→              <div className="k-card k-card-hover rounded-[24px] p-2.5 pb-2">
+   379→                <button
+   380→                  onClick={(e) => onCardTap(p, e)}
+   381→                  className="block w-full touch-manipulation rounded-[18px] text-left transition-transform focus-visible:outline-2 focus-visible:outline-primary active:scale-[0.98]"
+   382→                  aria-label={`${p.name}, ${xof(p.price)} — appuie une fois pour la fiche, deux fois pour l'ajouter au panier`}
+   383→                >
+   384→                  <div className="relative">
+   385→                    <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full rounded-[18px] object-cover" />
+   386→                    {/* Dégradé bas subtil — profondeur derrière le badge prix flottant */}
+   387→                    <div aria-hidden="true" className="absolute inset-0 rounded-[18px] bg-gradient-to-t from-black/25 via-transparent to-transparent" />
+   388→                    {/* Burst double-tap — panier kente qui jaillit sous le doigt */}
+   389→                    {burst?.id === p.id && (
+   390→                      <motion.span
+   391→                        aria-hidden="true"
+   392→                        initial={{ scale: 0.3, opacity: 0.95 }}
+   393→                        animate={{ scale: 1.7, opacity: 0 }}
+   394→                        transition={{ duration: 0.65, ease: "easeOut" }}
+   395→                        className="pointer-events-none absolute z-20"
+   396→                        style={{ left: burst.x, top: burst.y }}
+   397→                      >
+   398→                        <span className="grid place-items-center h-20 w-20 -ml-10 -mt-10 rounded-full bg-[#FFF9EC]/30 backdrop-blur-[2px] shadow-xl">
+   399→                          <span className="grid place-items-center h-12 w-12 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] shadow-lg">
+   400→                            <ShoppingBag size={22} className="text-[#FFF9EC]" />
+   401→                          </span>
+   402→                        </span>
+   403→                      </motion.span>
+   404→                    )}
+   405→                    {/* Badge prix — pilule de verre flottant sur l'image */}
+   406→                    <span className="k-chip absolute bottom-2.5 left-2.5 rounded-full px-2.5 py-1 font-mono text-[11px] font-bold text-gold-text">{xof(p.price)}</span>
+   407→                  </div>
+   408→                  <div className="pt-2">
+   409→                    <p className="font-heading text-sm font-bold leading-tight tracking-tight line-clamp-2 min-h-9">{p.name}</p>
+   410→                    <p className="text-[10px] text-terre mt-1 truncate">{p.botanicals}</p>
+   411→                  </div>
+   412→                </button>
+   413→                <div className="mt-1.5 flex items-center justify-between gap-2 px-0.5">
+   414→                  <Stars rating={p.rating} size={9} />
+   415→                  {/* Ajout express — même store addToCart que le double-tap, affordance dédiée */}
+   416→                  <motion.button
+   417→                    type="button"
+   418→                    whileTap={{ scale: 0.9 }}
+   419→                    onClick={() => {
+   420→                      addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image });
+   421→                      haptic(HAPTIC.light);
+   422→                      toast.success(`${p.name} ajouté au panier`);
+   423→                    }}
+   424→                    aria-label={`Ajouter ${p.name} au panier`}
+   425→                    className="k-btn-gold grid h-11 w-11 place-items-center rounded-full text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary"
+   426→                  >
+   427→                    <Plus size={18} aria-hidden="true" />
+   428→                  </motion.button>
+   429→                </div>
+   430→              </div>
+   431→              <FavButton variant="card" productId={p.id} productName={p.name} />
+   432→            </RevealItem>
+   433→          ))}
+   434→        </Reveal>
+   435→      )}
+   436→      </div>
+   437→        </>
+   438→      )}
+   439→
+   440→      {/* Barre panier sticky au-dessus de la nav */}
+   441→      <AnimatePresence>
+   442→        {cart.length > 0 && !payState && (
+   443→          <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="sticky bottom-[84px] z-20 mt-4">
+   444→            <button
+   445→              onClick={() => { setCheckout(true); haptic(HAPTIC.tap); }}
+   446→              className="k-cta flex h-14 w-full items-center justify-between rounded-2xl px-4 text-[#FFF9EC] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   447→              aria-label={`Panier ${cart.length} articles, total ${xof(subtotal)} — commander`}
+   448→            >
+   449→              <span className="flex items-center gap-2 text-sm font-semibold">
+   450→                <span className="relative" aria-hidden="true">
+   451→                  <ShoppingBag size={20} />
+   452→                  <span className="absolute -top-1.5 -right-2 h-4 min-w-4 px-0.5 rounded-full bg-[#FFF9EC] text-[#A0520F] text-[9px] font-black grid place-items-center">{cart.reduce((s, l) => s + l.qty, 0)}</span>
+   453→                </span>
+   454→                <span aria-hidden="true">{cart.length} article{cart.length > 1 ? "s" : ""}</span>
+   455→              </span>
+   456→              <span className="font-mono font-black text-base" aria-hidden="true">{xof(subtotal)}</span>
+   457→            </button>
+   458→          </motion.div>
+   459→        )}
+   460→      </AnimatePresence>
+   461→
+   462→      {/* Sheet fiche produit */}
+   463→      <Sheet open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+   464→        <SheetContent side="bottom" className="max-h-[88vh] rounded-t-3xl px-0 overflow-y-auto max-w-[560px] mx-auto">
+   465→          {detail && (
+   466→            <>
+   467→              <div className="mx-auto sticky top-0 z-10 bg-card/95 backdrop-blur pt-2 pb-1">
+   468→                <div className="h-1 w-10 rounded-full bg-muted mx-auto" aria-hidden="true" />
+   469→              </div>
+   470→              <img src={detail.image} alt={detail.name} className="aspect-square w-full object-cover px-0" />
+   471→              <SheetHeader className="px-5 pt-4 text-left">
+   472→                <SheetTitle className="font-heading font-black text-lg leading-tight">{detail.name}</SheetTitle>
+   473→                <div className="flex items-center gap-2">
+   474→                  <Stars rating={detail.rating} />
+   475→                  <span className="text-[11px] text-muted-foreground">{detail.rating.toFixed(1)} ({detail.reviewCount} avis)</span>
+   476→                </div>
+   477→              </SheetHeader>
+   478→              <div className="px-5 pb-6 space-y-4">
+   479→                <p className="text-xs text-muted-foreground leading-relaxed">{detail.description}</p>
+   480→                <div className="flex flex-wrap gap-1.5">
+   481→                  {detail.botanicals.split(/[,;]/).map((b, i) => (
+   482→                    <span key={i} className="rounded-full bg-karite border border-[#C8951E]/30 px-2.5 py-1 text-[10px] font-semibold text-terre">{b.trim()}</span>
+   483→                  ))}
+   484→                </div>
+   485→                <div className="flex items-center justify-between">
+   486→                  <div>
+   487→                    <p className="font-mono text-xl font-black tabular-nums text-primary">{xof(detail.price)}</p>
+   488→                    {detail.compareAt && detail.compareAt > detail.price && <p className="text-[11px] text-muted-foreground line-through">{xof(detail.compareAt)}</p>}
+   489→                  </div>
+   490→                  <div className="flex items-center gap-3 rounded-full border border-border px-2 py-1.5">
+   491→                    <button onClick={() => setQty((n) => Math.max(1, n - 1))} className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted active:scale-90 transition-all" aria-label="Diminuer la quantité"><Minus size={16} /></button>
+   492→                    <span className="font-mono font-bold w-5 text-center" aria-live="polite">{qty}</span>
+   493→                    <button onClick={() => setQty((n) => Math.min(detail.stock, n + 1))} className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted active:scale-90 transition-all" aria-label="Augmenter la quantité"><Plus size={16} /></button>
+   494→                  </div>
+   495→                </div>
+   496→                <PrimaryCTA
+   497→                  onClick={() => { addToCart({ productId: detail.id, name: detail.name, price: detail.price, qty, image: detail.image }); toast.success(`${qty} × ${detail.name} ajouté au panier`); setDetail(null); }}
+   498→                  className="h-12 w-full"
+   499→                >
+   500→                  <Plus size={17} aria-hidden="true" /> Ajouter au panier — {xof(detail.price * qty)}
+   501→                </PrimaryCTA>
+   502→                {/* Favori — action secondaire de la fiche produit (persistante, par appareil) */}
+   503→                <FavButton variant="inline" productId={detail.id} productName={detail.name} />
+   504→              </div>
+   505→            </>
+   506→          )}
+   507→        </SheetContent>
+   508→      </Sheet>
+   509→
+   510→      {/* Sheet checkout */}
+   511→      <Sheet open={checkout} onOpenChange={(o) => !o && setCheckout(false)}>
+   512→        <SheetContent side="bottom" className="max-h-[90vh] rounded-t-3xl overflow-y-auto max-w-[560px] mx-auto">
+   513→          <SheetHeader className="text-left">
+   514→            <SheetTitle className="font-heading font-black">Ma commande</SheetTitle>
+   515→          </SheetHeader>
+   516→          <div className="px-4 pb-6 space-y-4">
+   517→            <div className="space-y-2">
+   518→              {cart.map((l) => (
+   519→                <div key={l.productId} className="k-card flex items-center gap-3 rounded-[18px] p-2">
+   520→                  <img src={l.image} alt={l.name} className="h-12 w-12 rounded-lg object-cover" />
+   521→                  <div className="min-w-0 flex-1">
+   522→                    <p className="text-xs font-semibold leading-tight line-clamp-2">{l.name}</p>
+   523→                    <p className="font-mono text-[11px] text-muted-foreground mt-0.5">{xof(l.price)} × {l.qty}</p>
+   524→                  </div>
+   525→                  <div className="flex items-center gap-1.5">
+   526→                    <button onClick={() => setCartQty(l.productId, l.qty - 1)} className="h-8 w-8 grid place-items-center rounded-full border border-border active:scale-90 transition-transform" aria-label={`Retirer un ${l.name}`}><Minus size={13} /></button>
+   527→                    <span className="font-mono text-xs font-bold w-4 text-center">{l.qty}</span>
+   528→                    <button onClick={() => setCartQty(l.productId, l.qty + 1)} className="h-8 w-8 grid place-items-center rounded-full border border-border active:scale-90 transition-transform" aria-label={`Ajouter un ${l.name}`}><Plus size={13} /></button>
+   529→                    <button onClick={() => setCartQty(l.productId, 0)} className="h-8 w-8 grid place-items-center rounded-full text-destructive hover:bg-destructive/10 active:scale-90 transition-all" aria-label={`Supprimer ${l.name}`}><Trash2 size={14} /></button>
+   530→                  </div>
+   531→                </div>
+   532→              ))}
+   533→            </div>
+   534→
+   535→            {/* Code promo — l'aperçu vit côté serveur (lib/kene/coupons) */}
+   536→            {livePromo ? (
+   537→              <div className="rounded-2xl border border-[#3F7D3F]/30 bg-[#3F7D3F]/[0.06] p-3.5 flex items-center gap-3" aria-live="polite">
+   538→                <span className="grid place-items-center h-9 w-9 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] shrink-0">
+   539→                  <Tag size={16} aria-hidden="true" />
+   540→                </span>
+   541→                <div className="min-w-0 flex-1">
+   542→                  <p className="text-xs font-bold font-mono tracking-wide">{livePromo.code}</p>
+   543→                  <p className="text-[11px] text-[#3F7D3F] leading-tight">
+   544→                    {livePromo.label ? `${livePromo.label} · ` : ""}−{xof(livePromo.discount)}
+   545→                  </p>
+   546→                </div>
+   547→                <button
+   548→                  onClick={() => setPromo(null)}
+   549→                  aria-label={`Retirer le code ${livePromo.code}`}
+   550→                  className="h-8 w-8 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all"
+   551→                >
+   552→                  <X size={15} />
+   553→                </button>
+   554→              </div>
+   555→            ) : (
+   556→              <div className="flex gap-2">
+   557→                <div className="relative flex-1">
+   558→                  <Tag size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+   559→                  <input
+   560→                    value={promoInput}
+   561→                    onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+   562→                    onKeyDown={(e) => e.key === "Enter" && void applyPromo()}
+   563→                    placeholder="CODE PROMO"
+   564→                    aria-label="Code promo"
+   565→                    autoComplete="off"
+   566→                    maxLength={24}
+   567→                    className="k-input h-12 w-full rounded-2xl pl-10 pr-3 text-sm font-mono uppercase tracking-wide placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
+   568→                  />
+   569→                </div>
+   570→                <button
+   571→                  onClick={() => void applyPromo()}
+   572→                  disabled={!promoInput.trim() || promoChecking}
+   573→                  className="k-chip h-12 rounded-2xl px-5 text-xs font-bold disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-primary"
+   574→                >
+   575→                  {promoChecking ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : "Appliquer"}
+   576→                </button>
+   577→              </div>
+   578→            )}
+   579→
+   580→            <div className="k-card k-card-hero space-y-1.5 rounded-[24px] p-4 text-xs">
+   581→              <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span className="font-mono font-semibold tabular-nums">{xof(subtotal)}</span></div>
+   582→              {discount > 0 && (
+   583→                <div className="flex justify-between text-[#3F7D3F]">
+   584→                  <span className="font-semibold">Remise {livePromo?.code}</span>
+   585→                  <span className="font-mono font-semibold tabular-nums">−{xof(discount)}</span>
+   586→                </div>
+   587→              )}
+   588→              <div className="flex justify-between"><span className="text-muted-foreground">Cashback estimé ({Math.round(cashbackRate * 100)} %)</span><span className="font-mono font-semibold tabular-nums text-[#3F7D3F]">+{xof(Math.round(total * cashbackRate))}</span></div>
+   589→              <div className="flex justify-between border-t border-border pt-1.5 text-sm"><span className="font-semibold">Total à payer</span><span className="font-mono font-black tabular-nums text-primary">{xof(total)}</span></div>
+   590→            </div>
+   591→
+   592→            <div>
+   593→              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Mode de paiement</p>
+   594→              {securityEnabled && (
+   595→                <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1">
+   596→                  <Lock size={10} aria-hidden="true" /> Vérification par code activée
+   597→                </p>
+   598→              )}
+   599→              <div className="space-y-2">
+   600→                {(["wave", "orange"] as const).map((m) => {
+   601→                  const o = op(m)!;
+   602→                  return (
+   603→                    <button key={m} onClick={() => startPay(m)} disabled={paying} className="w-full h-12 rounded-xl border-2 bg-card flex items-center gap-3 px-4 font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" style={{ borderColor: o.color }}>
+   604→                      <span className="h-7 w-7 rounded-full grid place-items-center font-heading font-black text-[#1A1410] text-xs shrink-0" style={{ backgroundColor: o.color }}>{o.name.charAt(0)}</span>
+   605→                      {o.name}
+   606→                      <span className="ml-auto text-[10px] font-normal text-muted-foreground">{o.hint}</span>
+   607→                    </button>
+   608→                  );
+   609→                })}
+   610→                <button
+   611→                  onClick={() => startPay("wallet")}
+   612→                  disabled={paying || (wallet?.balance ?? 0) < total}
+   613→                  className="w-full h-12 rounded-xl border-2 border-melanine bg-card flex items-center gap-3 px-4 font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   614→                >
+   615→                  <span className="h-7 w-7 rounded-full grid place-items-center bg-melanine text-[#C8951E] shrink-0 font-heading font-black text-xs">K</span>
+   616→                  Wallet Kènè
+   617→                  <span className="ml-auto font-mono text-[11px] text-muted-foreground">{wallet ? xof(wallet.balance) : walletError ? "indisponible" : "…"}</span>
+   618→                </button>
+   619→                {wallet && wallet.balance < total && <p className="text-[10px] text-destructive text-center">Solde insuffisant — approvisionne ton wallet depuis ton profil.</p>}
+   620→                {walletError && (
+   621→                  <div role="alert" className="rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 flex items-center gap-2.5">
+   622→                    <TriangleAlert size={14} className="text-terre shrink-0" aria-hidden="true" />
+   623→                    <p className="flex-1 min-w-0 text-[11px] text-muted-foreground leading-snug">Solde indisponible — réessaie</p>
+   624→                    <button onClick={loadWallet} className="k-btn-gold h-11 shrink-0 rounded-xl px-3.5 text-xs font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary">
+   625→                      Réessayer
+   626→                    </button>
+   627→                  </div>
+   628→                )}
+   629→              </div>
+   630→            </div>
+   631→          </div>
+   632→        </SheetContent>
+   633→      </Sheet>
+   634→
+   635→      {/* Sécurité renforcée — code OTP exigé avant de lancer le paiement */}
+   636→      <SecureVerify
+   637→        open={pendingPay !== null}
+   638→        phone={user.phone}
+   639→        amount={total}
+   640→        onVerified={() => {
+   641→          const method = pendingPay;
+   642→          setPendingPay(null);
+   643→          if (method) void pay(method);
+   644→        }}
+   645→        onCancel={() => setPendingPay(null)}
+   646→      />
+   647→
+   648→      {/* Overlay paiement simulé plein écran — dialog accessible (pattern RitualJourney) */}
+   649→      <AnimatePresence>
+   650→        {payState && (
+   651→          <motion.div
+   652→            initial={{ opacity: 0 }}
+   653→            animate={{ opacity: 1 }}
+   654→            exit={{ opacity: 0 }}
+   655→            role="dialog"
+   656→            aria-modal="true"
+   657→            aria-label={payState.phase === "processing" ? `Paiement en cours, ${xof(payState.amount)}` : "Paiement réussi"}
+   658→            onKeyDown={(e) => {
+   659→              if (e.key === "Escape" && payState.phase === "success") setPayState(null);
+   660→            }}
+   661→            className="fixed inset-0 z-[70] bg-[#1A1410]/97 backdrop-blur-sm grid place-items-center"
+   662→          >
+   663→            <div className="w-full max-w-[560px] mx-auto px-6">
+   664→              {payState.phase === "processing" ? (
+   665→                <div className="flex flex-col items-center gap-5 text-center" aria-live="polite">
+   666→                  <div className="grid place-items-center w-20 h-20 rounded-3xl font-heading font-black text-3xl text-[#1A1410] shadow-lg" style={{ backgroundColor: op(payState.method)?.color ?? "#C8951E" }}>
+   667→                    {(op(payState.method)?.name ?? "K").charAt(0)}
+   668→                  </div>
+   669→                  <p className="font-heading font-bold text-lg text-[#F8F1E4]">{op(payState.method)?.name ?? "Wallet Kènè"}</p>
+   670→                  <p className="font-mono text-3xl font-black text-[#F8F1E4]">{xof(payState.amount)}</p>
+   671→                  <p className="text-[11px] text-[#F8F1E4]/70 font-mono">+{user.phone.slice(0, 9)}···</p>
+   672→                  <div className="flex items-center gap-2 text-sm text-[#F8F1E4]/80">
+   673→                    <Loader2 size={16} className="animate-spin" aria-hidden="true" /> Traitement en cours…
+   674→                  </div>
+   675→                  <p className="text-[10px] text-[#F8F1E4]/60">Paiement mobile money simulé — POC</p>
+   676→                </div>
+   677→              ) : (
+   678→                <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 18 }} className="flex flex-col items-center gap-4 text-center py-6">
+   679→                  <SuccessBurst />
+   680→                  <p className="font-heading font-black text-xl text-[#F8F1E4]">Paiement réussi</p>
+   681→                  <p className="font-mono text-sm font-bold text-[#F8F1E4]/90">{xof(payState.amount)}</p>
+   682→                  <p className="text-xs text-[#F8F1E4]/70 max-w-[300px] leading-relaxed">
+   683→                    Commande confirmée. <span className="flex items-center gap-1 justify-center mt-1 text-gold-text dark:text-[#E3B454] font-semibold"><BadgeCheck size={13} aria-hidden="true" /> Cashback {xof(Math.round(payState.amount * cashbackRate))} crédité sur ton wallet Kènè</span>
+   684→                  </p>
+   685→                  <button autoFocus onClick={() => setPayState(null)} className="mt-2 h-12 px-8 rounded-xl bg-primary text-primary-foreground font-semibold shadow active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
+   686→                    Continuer mes achats
+   687→                  </button>
+   688→                </motion.div>
+   689→              )}
+   690→            </div>
+   691→          </motion.div>
+   692→        )}
+   693→      </AnimatePresence>
+   694→    </div>
+   695→  );
+   696→}
+   697→
+   698→/* ══════════════ Mes commandes — historique consultable ══════════════ */
+   699→
+   700→const ORDER_STATUS: Record<string, { label: string; cls: string }> = {
+   701→  pending: { label: "En attente", cls: "bg-gold/12 text-terre border-gold/30" },
+   702→  paid: { label: "Payée", cls: "bg-[#3F7D3F]/12 text-[#3F7D3F] border-[#3F7D3F]/30" },
+   703→  delivered: { label: "Livrée", cls: "bg-primary/12 text-primary border-primary/30" },
+   704→  cancelled: { label: "Annulée", cls: "bg-destructive/10 text-destructive border-destructive/30" },
+   705→};
+   706→
+   707→function OrdersView({ orders, onRefresh, onShop }: { orders: ApiOrder[] | null; onRefresh: () => void; onShop: () => void }) {
+   708→  if (orders === null) {
+   709→    return (
+   710→      <div className="mt-4 space-y-3">
+   711→        {[0, 1, 2].map((i) => (
+   712→          <Shimmer key={i} className="h-36 rounded-[24px]" />
+   713→        ))}
+   714→      </div>
+   715→    );
+   716→  }
+   717→
+   718→  if (orders.length === 0) {
+   719→    return (
+   720→      <div className="mt-4">
+   721→        <EmptyBlock
+   722→          icon={<History size={22} />}
+   723→          title="Aucune commande pour l'instant"
+   724→          text="Tes commandes boutique s'enregistrent ici — articles, remises et cashback."
+   725→          cta={
+   726→            <button onClick={onShop} className="k-btn-gold h-11 rounded-xl px-6 text-sm font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary">
+   727→              Découvrir le catalogue
+   728→            </button>
+   729→          }
+   730→        />
+   731→      </div>
+   732→    );
+   733→  }
+   734→
+   735→  return (
+   736→    <div className="mt-4 space-y-3" aria-live="polite">
+   737→      <Reveal className="space-y-3">
+   738→      {orders.map((o) => {
+   739→        const st = ORDER_STATUS[o.status] ?? { label: o.status, cls: "bg-muted text-muted-foreground border-border" };
+   740→        return (
+   741→          <RevealItem key={o.id}>
+   742→          <article aria-label={`Commande N° ${o.id.slice(-6).toUpperCase()}`} className="k-card overflow-hidden rounded-[24px]">
+   743→            <div className="kente-band-soft h-1 w-full" aria-hidden="true" />
+   744→            <div className="p-4 space-y-3">
+   745→              <div className="flex items-start justify-between gap-2">
+   746→                <div className="min-w-0">
+   747→                  <p className="font-mono text-xs font-bold tracking-wide">N° {o.id.slice(-6).toUpperCase()}</p>
+   748→                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{formatDate(o.createdAt)} · {formatTime(o.createdAt)}</p>
+   749→                </div>
+   750→                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${st.cls}`}>{st.label}</span>
+   751→              </div>
+   752→
+   753→              <ul className="space-y-1.5">
+   754→                {(o.items ?? []).map((it) => (
+   755→                  <li key={it.id} className="flex items-baseline justify-between gap-2 text-xs">
+   756→                    <span className="min-w-0 truncate">
+   757→                      <span className="font-mono text-muted-foreground">{it.qty}×</span> {it.label}
+   758→                    </span>
+   759→                    <span className="shrink-0 font-mono font-semibold">{xof(it.total)}</span>
+   760→                  </li>
+   761→                ))}
+   762→              </ul>
+   763→
+   764→              <div className="rounded-xl bg-muted/50 px-3 py-2.5 space-y-1 text-[11px]">
+   765→                <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span className="font-mono">{xof(o.subtotal)}</span></div>
+   766→                {!!o.discount && (
+   767→                  <div className="flex justify-between text-terre">
+   768→                    <span className="font-semibold">Remise {o.couponCode ?? ""}</span>
+   769→                    <span className="font-mono">−{xof(o.discount)}</span>
+   770→                  </div>
+   771→                )}
+   772→                {!!o.cashback && o.status !== "pending" && (
+   773→                  <div className="flex justify-between text-[#3F7D3F]">
+   774→                    <span>Cashback crédité</span>
+   775→                    <span className="font-mono">+{xof(o.cashback)}</span>
+   776→                  </div>
+   777→                )}
+   778→                <div className="flex justify-between border-t border-border pt-1 text-xs">
+   779→                  <span className="font-semibold">Total</span>
+   780→                  <span className="font-mono font-black tabular-nums text-primary">{xof(o.total)}</span>
+   781→                </div>
+   782→              </div>
+   783→
+   784→              {o.status === "pending" && (
+   785→                <p className="text-[10px] text-muted-foreground leading-snug">Paiement mobile money à confirmer — la commande passera à « Payée » dès réception.</p>
+   786→              )}
+   787→            </div>
+   788→          </article>
+   789→          </RevealItem>
+   790→        );
+   791→      })}
+   792→      </Reveal>
+   793→      <button onClick={onRefresh} className="k-chip h-11 w-full rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary">
+   794→        Rafraîchir
+   795→      </button>
+   796→    </div>
+   797→  );
+   798→}
+   799→

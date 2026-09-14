@@ -107,6 +107,20 @@ export interface ApiProduct {
   image: string;
   rating: number;
   reviewCount: number;
+  // t. 113 — marketplace par institut : null = produit MAISON Kènè,
+  // sinon le produit est vendu par l'institut porté par `tenant`.
+  tenantId?: string | null;
+  tenant?: { id: string; name: string; city: string; type: string } | null;
+}
+
+/** Vendeur du marché (t. 113) : la MAISON Kènè ou un institut partenaire.
+ *  Dérivé des produits réellement en stock (jamais de vendeur vide). */
+export interface ApiSeller {
+  key: string; // "" = maison, sinon tenantId
+  name: string;
+  city: string | null;
+  maison: boolean; // true = MAISON Kènè (tenantId null)
+  count: number;
 }
 
 export interface ApiOrder {

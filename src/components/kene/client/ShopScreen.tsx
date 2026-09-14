@@ -3,7 +3,7 @@
 // + « Mes commandes » : historique des commandes enregistrées (consultation par la cliente).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, Heart, History, Loader2, Lock, Minus, Plus, Search, ShoppingBag, Tag, Trash2, TriangleAlert, X } from "lucide-react";
+import { BadgeCheck, Building2, Heart, History, Loader2, Lock, Minus, Plus, Search, ShoppingBag, Store, Tag, Trash2, TriangleAlert, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof, CASHBACK_RATE, formatDate, formatTime } from "@/lib/kene/format";
@@ -18,7 +18,7 @@ import { KenteWeaveCard } from "@/components/kene/weave/KenteWeaveCard";
 import { KeneMark } from "@/components/kene/icons";
 import { categoryThread } from "@/components/kene/weave/threads";
 import { MarcheVivant } from "@/components/kene/market/MarcheVivant";
-import type { ApiOrder, ApiPayment, ApiProduct, ApiWallet } from "./types";
+import type { ApiOrder, ApiPayment, ApiProduct, ApiSeller, ApiWallet } from "./types";
 import { SHOP_CATEGORIES } from "./types";
 import { EmptyBlock, Stars, SuccessBurst } from "./bits";
 import { FavButton } from "./FavButton";
@@ -43,6 +43,9 @@ export function ShopScreen() {
 
   const [products, setProducts] = useState<ApiProduct[] | null>(null);
   const [cat, setCat] = useState("");
+  // t. 113 — la boutique est organisée PAR INSTITUT : "" = tout le marché,
+  // "maison" = MAISON Kènè, sinon le tenantId de l'institut vendeur choisi.
+  const [institut, setInstitut] = useState("");
   const [q, setQ] = useState("");
   const [favOnly, setFavOnly] = useState(false); // filtre « ♥ Favoris » (cumulable avec catégorie + recherche)
   const favs = useFavorites((s) => s.favs);
@@ -131,22 +134,55 @@ export function ShopScreen() {
     refreshOrders();
   }, [user.id, refreshOrders, loadWallet]);
 
+  /* Les vendeurs du marché (t. 113) — MAISON Kènè d'abord, puis les instituts
+   * partenaires par nom. Dérivés des produits réellement en stock : un
+   * institut sans produit disponible n'apparaît pas. */
+  const sellers = useMemo<ApiSeller[]>(() => {
+    const map = new Map<string, ApiSeller>();
+    for (const p of products ?? []) {
+      const key = p.tenant?.id ?? "";
+      const cur = map.get(key);
+      if (cur) cur.count += 1;
+      else map.set(key, { key, name: p.tenant?.name ?? "MAISON Kènè", city: p.tenant?.city ?? null, maison: !p.tenant, count: 1 });
+    }
+    return [...map.values()].sort((a, b) => (a.maison === b.maison ? a.name.localeCompare(b.name, "fr") : a.maison ? -1 : 1));
+  }, [products]);
+
   const filtered = useMemo(() => {
     const nq = q.trim().toLowerCase();
     return (products ?? []).filter(
       (p) =>
         (!cat || p.category === cat) &&
+        (institut === "" || (institut === "maison" ? !p.tenant : p.tenant?.id === institut)) &&
         (!favOnly || favs.includes(p.id)) &&
         (!nq || `${p.name} ${p.botanicals} ${p.description}`.toLowerCase().includes(nq))
     );
-  }, [products, cat, q, favOnly, favs]);
+  }, [products, cat, institut, q, favOnly, favs]);
+
+  /* Le catalogue organisé PAR INSTITUT : une section par vendeur (maison
+   * incluse) — la cliente voit qui vend quoi, groupe par groupe. */
+  const grouped = useMemo(
+    () =>
+      sellers
+        .map((seller) => ({ seller, items: filtered.filter((p) => (p.tenant?.id ?? "") === seller.key) }))
+        .filter((g) => g.items.length > 0),
+    [sellers, filtered]
+  );
+
+  /* libellé du vendeur sélectionné (légende du fil + messages vides) */
+  const institutLabel =
+    institut === "" ? null : institut === "maison" ? "MAISON Kènè" : sellers.find((s) => s.key === institut)?.name ?? null;
 
   /* le fil de la catégorie — la navette l'illumine dans la bande tissée */
   const weaveCaption =
     products === null
       ? "La navette monte le métier…"
       : `${filtered.length} soin${filtered.length > 1 ? "s" : ""}${
-          cat ? ` · ${SHOP_CATEGORIES.find((c) => c.id === cat)?.label.toLowerCase() ?? cat}` : " au catalogue"
+          institutLabel
+            ? ` · ${institutLabel}`
+            : cat
+              ? ` · ${SHOP_CATEGORIES.find((c) => c.id === cat)?.label.toLowerCase() ?? cat}`
+              : " au catalogue"
         }${favOnly ? " · favoris" : ""}`;
 
   /* Applique un code promo : aperçu de remise sans consommer le coupon
@@ -291,6 +327,40 @@ export function ShopScreen() {
 
       <Reveal>
         <RevealItem>
+          {/* t. 113 — Acheter selon l'institut : le marché est organisé par
+              vendeur (MAISON Kènè + instituts partenaires). La carte choisie
+              filtre tout le catalogue sur CET institut. */}
+          {products === null ? (
+            <div className="mt-3 flex gap-2" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <Shimmer key={i} className="h-[78px] w-[142px] shrink-0 rounded-[20px]" />
+              ))}
+            </div>
+          ) : (
+            <div className="mt-3" role="group" aria-label="Acheter selon l'institut">
+              <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                <Building2 size={12} aria-hidden="true" /> Acheter selon l&apos;institut
+              </p>
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin -mx-1 px-1">
+                <SellerCard
+                  selected={institut === ""}
+                  totalCount={(products ?? []).length}
+                  onClick={() => { setInstitut(""); haptic(HAPTIC.tap); }}
+                />
+                {sellers.map((s) => (
+                  <SellerCard
+                    key={s.key}
+                    seller={s}
+                    selected={institut === (s.maison ? "maison" : s.key)}
+                    onClick={() => { setInstitut(s.maison ? "maison" : s.key); haptic(HAPTIC.tap); }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </RevealItem>
+
+        <RevealItem>
           {/* Le Fil de Kente — hero tissé, le fil de la catégorie s'illumine */}
           <div className="mt-4">
             <KenteWeaveCard highlightIndex={cat ? categoryThread(cat) : -1} caption={weaveCaption} />
@@ -359,7 +429,7 @@ export function ShopScreen() {
             text="Tes favoris ne passent pas ce filtre — essaie une autre catégorie ou efface la recherche."
             cta={
               <button
-                onClick={() => { setCat(""); setQ(""); }}
+                onClick={() => { setCat(""); setQ(""); setInstitut(""); }}
                 className="k-btn-gold h-11 rounded-xl px-6 text-sm font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary"
               >
                 Voir tous mes favoris
@@ -367,71 +437,42 @@ export function ShopScreen() {
             }
           />
         ) : (
-          <EmptyBlock icon={<Search size={22} />} title="Aucun produit trouvé" text="Essaie un autre mot-clé ou une autre catégorie." />
+          <EmptyBlock
+            icon={<Search size={22} />}
+            title="Aucun produit trouvé"
+            text={`Aucun soin ${institutLabel ? `chez ${institutLabel} ` : ""}ne passe ce filtre — essaie un autre mot-clé, une autre catégorie ou un autre institut.`}
+            cta={
+              institut !== "" ? (
+                <button
+                  onClick={() => setInstitut("")}
+                  className="k-btn-gold h-11 rounded-xl px-6 text-sm font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  Voir tout le marché
+                </button>
+              ) : undefined
+            }
+          />
         )
       ) : (
-        <Reveal className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
-          {filtered.map((p) => (
-            /* Wrapper relatif : le cœur est un FRÈRE de la carte (jamais de <button>
-               imbriqué — HTML valide, focus/a11y propres), posé sur l'image en absolu. */
-            <RevealItem key={p.id} className="relative">
-              <div className="k-card k-card-hover rounded-[24px] p-2.5 pb-2">
-                <button
-                  onClick={(e) => onCardTap(p, e)}
-                  className="block w-full touch-manipulation rounded-[18px] text-left transition-transform focus-visible:outline-2 focus-visible:outline-primary active:scale-[0.98]"
-                  aria-label={`${p.name}, ${xof(p.price)} — appuie une fois pour la fiche, deux fois pour l'ajouter au panier`}
-                >
-                  <div className="relative">
-                    <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full rounded-[18px] object-cover" />
-                    {/* Dégradé bas subtil — profondeur derrière le badge prix flottant */}
-                    <div aria-hidden="true" className="absolute inset-0 rounded-[18px] bg-gradient-to-t from-black/25 via-transparent to-transparent" />
-                    {/* Burst double-tap — panier kente qui jaillit sous le doigt */}
-                    {burst?.id === p.id && (
-                      <motion.span
-                        aria-hidden="true"
-                        initial={{ scale: 0.3, opacity: 0.95 }}
-                        animate={{ scale: 1.7, opacity: 0 }}
-                        transition={{ duration: 0.65, ease: "easeOut" }}
-                        className="pointer-events-none absolute z-20"
-                        style={{ left: burst.x, top: burst.y }}
-                      >
-                        <span className="grid place-items-center h-20 w-20 -ml-10 -mt-10 rounded-full bg-[#FFF9EC]/30 backdrop-blur-[2px] shadow-xl">
-                          <span className="grid place-items-center h-12 w-12 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] shadow-lg">
-                            <ShoppingBag size={22} className="text-[#FFF9EC]" />
-                          </span>
-                        </span>
-                      </motion.span>
-                    )}
-                    {/* Badge prix — pilule de verre flottant sur l'image */}
-                    <span className="k-chip absolute bottom-2.5 left-2.5 rounded-full px-2.5 py-1 font-mono text-[11px] font-bold text-gold-text">{xof(p.price)}</span>
-                  </div>
-                  <div className="pt-2">
-                    <p className="font-heading text-sm font-bold leading-tight tracking-tight line-clamp-2 min-h-9">{p.name}</p>
-                    <p className="text-[10px] text-terre mt-1 truncate">{p.botanicals}</p>
-                  </div>
-                </button>
-                <div className="mt-1.5 flex items-center justify-between gap-2 px-0.5">
-                  <Stars rating={p.rating} size={9} />
-                  {/* Ajout express — même store addToCart que le double-tap, affordance dédiée */}
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => {
-                      addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image });
-                      haptic(HAPTIC.light);
-                      toast.success(`${p.name} ajouté au panier`);
-                    }}
-                    aria-label={`Ajouter ${p.name} au panier`}
-                    className="k-btn-gold grid h-11 w-11 place-items-center rounded-full text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary"
-                  >
-                    <Plus size={18} aria-hidden="true" />
-                  </motion.button>
-                </div>
-              </div>
-              <FavButton variant="card" productId={p.id} productName={p.name} />
-            </RevealItem>
-          ))}
-        </Reveal>
+        /* Catalogue organisé PAR INSTITUT (t. 113) : une section par vendeur —
+           la MAISON Kènè ouvre le marché, chaque institut partenaire suit. */
+        grouped.map(({ seller, items }) => (
+          <section key={seller.key} aria-label={`Soins vendus par ${seller.name}`} className="mt-5 first:mt-0">
+            <header className="mb-3 flex items-center gap-2">
+              {seller.maison ? (
+                <KeneMark size={16} />
+              ) : (
+                <Building2 size={14} className="shrink-0 text-terre" aria-hidden="true" />
+              )}
+              <h3 className="font-heading text-sm font-black tracking-tight">{seller.name}</h3>
+              <span className="whitespace-nowrap text-[10px] font-semibold text-muted-foreground">
+                {seller.city ? `${seller.city} · ` : ""}{items.length} soin{items.length > 1 ? "s" : ""}
+              </span>
+              <span className="ml-1 h-px flex-1 bg-border" aria-hidden="true" />
+            </header>
+            <ProductGrid items={items} onCardTap={onCardTap} burst={burst} />
+          </section>
+        ))
       )}
       </div>
         </>
@@ -476,6 +517,17 @@ export function ShopScreen() {
                 </div>
               </SheetHeader>
               <div className="px-5 pb-6 space-y-4">
+                {/* Vendeur (t. 113) — l'institut (ou la maison) qui vend ce soin */}
+                <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#C8951E]/30 bg-karite px-2.5 py-1">
+                  {detail.tenant ? (
+                    <Building2 size={12} className="shrink-0 text-terre" aria-hidden="true" />
+                  ) : (
+                    <span className="shrink-0" aria-hidden="true"><KeneMark size={12} /></span>
+                  )}
+                  <span className="truncate text-[10px] font-bold text-terre">
+                    Vendu par {detail.tenant?.name ?? "MAISON Kènè"}{detail.tenant?.city ? ` · ${detail.tenant.city}` : ""}
+                  </span>
+                </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">{detail.description}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {detail.botanicals.split(/[,;]/).map((b, i) => (
@@ -692,6 +744,133 @@ export function ShopScreen() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+/* ══════════════ Vendeurs du marché (t. 113) ══════════════ */
+
+/** Carte vendeur — « Tout le marché » (sans `seller`) ou un institut /
+ *  la MAISON Kènè (avec `seller`). Le tap filtre le catalogue sur ce vendeur. */
+function SellerCard({ seller, selected, onClick, totalCount }: {
+  seller?: ApiSeller;
+  selected: boolean;
+  onClick: () => void;
+  totalCount?: number; // pour la carte « Tout le marché »
+}) {
+  const name = seller?.name ?? "Tout le marché";
+  const sub = seller
+    ? `${seller.city ? `${seller.city} · ` : ""}${seller.count} soin${seller.count > 1 ? "s" : ""}`
+    : `${totalCount ?? 0} soins · tous les vendeurs`;
+  /* Sélection = le traitement signature de l'app (k-btn-gold, comme les chips
+   * de catégories) : impossible de rater quel institut filtre le catalogue. */
+  const metaCls = selected ? "text-primary-foreground/75" : "text-muted-foreground";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      aria-label={seller ? `Voir les produits de ${name}` : "Voir tous les produits du marché"}
+      className={`min-w-[142px] shrink-0 rounded-[20px] border p-3 text-left transition-all focus-visible:outline-2 focus-visible:outline-primary ${
+        selected
+          ? "k-btn-gold border-primary/60 text-primary-foreground"
+          : "border-border bg-card text-foreground hover:border-primary/40"
+      }`}
+    >
+      <span className="flex items-center gap-1.5">
+        {seller ? (
+          seller.maison ? (
+            <KeneMark size={13} />
+          ) : (
+            <Building2 size={13} className={selected ? "text-primary-foreground/80" : "text-terre"} aria-hidden="true" />
+          )
+        ) : (
+          <Store size={13} className={selected ? "text-primary-foreground/80" : "text-primary"} aria-hidden="true" />
+        )}
+        <span className={`text-[9px] font-bold uppercase tracking-wide ${metaCls}`}>
+          {seller ? (seller.maison ? "Marque maison" : "Institut partenaire") : "Tous les vendeurs"}
+        </span>
+      </span>
+      <p className="mt-1 truncate font-heading text-xs font-bold leading-tight tracking-tight">{name}</p>
+      <p className={`mt-0.5 truncate text-[10px] ${metaCls}`}>{sub}</p>
+    </button>
+  );
+}
+
+/** Grille des soins d'UN vendeur — chaque carte porte le badge de l'institut
+ *  qui la vend : la cliente sait toujours chez qui elle achète. */
+function ProductGrid({ items, onCardTap, burst }: {
+  items: ApiProduct[];
+  onCardTap: (p: ApiProduct, e: React.MouseEvent<HTMLButtonElement>) => void;
+  burst: { id: string; x: number; y: number } | null;
+}) {
+  const addToCart = useKene((s) => s.addToCart);
+  return (
+    <Reveal className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
+      {items.map((p) => (
+        /* Wrapper relatif : le cœur est un FRÈRE de la carte (jamais de <button>
+           imbriqué — HTML valide, focus/a11y propres), posé sur l'image en absolu. */
+        <RevealItem key={p.id} className="relative">
+          <div className="k-card k-card-hover rounded-[24px] p-2.5 pb-2">
+            <button
+              onClick={(e) => onCardTap(p, e)}
+              className="block w-full touch-manipulation rounded-[18px] text-left transition-transform focus-visible:outline-2 focus-visible:outline-primary active:scale-[0.98]"
+              aria-label={`${p.name}, ${xof(p.price)} — appuie une fois pour la fiche, deux fois pour l'ajouter au panier`}
+            >
+              <div className="relative">
+                <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full rounded-[18px] object-cover" />
+                {/* Dégradé bas subtil — profondeur derrière le badge prix flottant */}
+                <div aria-hidden="true" className="absolute inset-0 rounded-[18px] bg-gradient-to-t from-black/25 via-transparent to-transparent" />
+                {/* Badge vendeur (t. 113) — l'institut (ou la maison) qui vend ce soin */}
+                <span className="absolute left-2 top-2 max-w-[75%] truncate rounded-full bg-[#1A1410]/72 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-[#F8F1E4] backdrop-blur-[2px]">
+                  {p.tenant?.name ?? "MAISON Kènè"}
+                </span>
+                {/* Burst double-tap — panier kente qui jaillit sous le doigt */}
+                {burst?.id === p.id && (
+                  <motion.span
+                    aria-hidden="true"
+                    initial={{ scale: 0.3, opacity: 0.95 }}
+                    animate={{ scale: 1.7, opacity: 0 }}
+                    transition={{ duration: 0.65, ease: "easeOut" }}
+                    className="pointer-events-none absolute z-20"
+                    style={{ left: burst.x, top: burst.y }}
+                  >
+                    <span className="grid place-items-center h-20 w-20 -ml-10 -mt-10 rounded-full bg-[#FFF9EC]/30 backdrop-blur-[2px] shadow-xl">
+                      <span className="grid place-items-center h-12 w-12 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] shadow-lg">
+                        <ShoppingBag size={22} className="text-[#FFF9EC]" />
+                      </span>
+                    </span>
+                  </motion.span>
+                )}
+                {/* Badge prix — pilule de verre flottant sur l'image */}
+                <span className="k-chip absolute bottom-2.5 left-2.5 rounded-full px-2.5 py-1 font-mono text-[11px] font-bold text-gold-text">{xof(p.price)}</span>
+              </div>
+              <div className="pt-2">
+                <p className="font-heading text-sm font-bold leading-tight tracking-tight line-clamp-2 min-h-9">{p.name}</p>
+                <p className="text-[10px] text-terre mt-1 truncate">{p.botanicals}</p>
+              </div>
+            </button>
+            <div className="mt-1.5 flex items-center justify-between gap-2 px-0.5">
+              <Stars rating={p.rating} size={9} />
+              {/* Ajout express — même store addToCart que le double-tap, affordance dédiée */}
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.9 }}
+                onClick={() => {
+                  addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image });
+                  haptic(HAPTIC.light);
+                  toast.success(`${p.name} ajouté au panier`);
+                }}
+                aria-label={`Ajouter ${p.name} au panier`}
+                className="k-btn-gold grid h-11 w-11 place-items-center rounded-full text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary"
+              >
+                <Plus size={18} aria-hidden="true" />
+              </motion.button>
+            </div>
+          </div>
+          <FavButton variant="card" productId={p.id} productName={p.name} />
+        </RevealItem>
+      ))}
+    </Reveal>
   );
 }
 

@@ -1,4 +1,8 @@
-// GET /api/shop/products?category=&q= — boutique Kènè (produits marketplace, tenantId null)
+// GET /api/shop/products?category=&q= — boutique marketplace Kènè (t. 113) :
+// produits MAISON Kènè (tenantId null) ET produits des INSTITUTS actifs —
+// chaque produit porte son vendeur (`tenant` : id, nom, ville, type) pour que
+// la cliente choisisse et navigue PAR INSTITUT. Les instituts inactifs ou en
+// rupture totale (stock 0) restent naturellement absents du catalogue.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, slugify } from "@/lib/kene/server";
@@ -9,7 +13,13 @@ export async function GET(req: NextRequest) {
     const q = req.nextUrl.searchParams.get("q")?.trim().toLowerCase() ?? "";
 
     const all = await db.product.findMany({
-      where: { tenantId: null, active: true, stock: { gt: 0 } },
+      where: {
+        active: true,
+        stock: { gt: 0 },
+        // marketplace : la maison (tenantId null) + les instituts actifs
+        OR: [{ tenantId: null }, { tenant: { active: true } }],
+      },
+      include: { tenant: { select: { id: true, name: true, city: true, type: true } } },
       orderBy: { name: "asc" },
     });
 
