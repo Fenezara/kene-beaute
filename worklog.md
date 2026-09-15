@@ -3106,3 +3106,16 @@ Stage Summary:
 - RÉPONSE : oui — deux familles : (A) comment exploiter dès maintenant l'onglet Abonnements (7 recommandations opérationnelles avec les chiffres réels), (B) dans quel ordre engager les démarches externes (SMS d'abord, Wave/OM ensuite, HTTPS au passage prod).
 - AUCUN CHANGEMENT DE CODE : question conseil + vérification live de l'état livré (vitrine et console vivantes, 0 erreur, base cohérente : 2 abonnées actives, MRR simulé 47 500 F, rappel J-3 en place).
 - LEÇON : quand un résumé de session contredit le worklog, le WORKLOG GAGNE (discipline du projet confirmée) — réconciliation par preuves fichiers + base + navigateur avant de répondre.
+---
+Task ID: t.137
+Agent: agent principal (Z.ai Code)
+Task: « y a t il d'autre recommandation sur une autre chose de l'application que tu aimerais traiter ? » — la fondatrice invite à proposer le prochain chantier interne, après livraison t. 135-136 (console Abonnements + recommandations d'exploitation).
+
+Work Log:
+- FAITS VÉRIFIÉS (greps, aucun code changé) : (1) côté cliente l'abonnement vit UNIQUEMENT dans l'onglet dédié PlanScreen (nav « abonnement » de ClientApp) + SettingsScreen — activation ET renouvellement simulé y existent ; (2) la VITRINE PUBLIQUE n'affiche AUCUN plan/prix (zéro mention Abonnement/Kènè+/2 500 F dans src/app hors routes API) ; (3) AUCUN pont vers l'abonnement aux moments chauds (fin de diagnostic IA, commande boutique confirmée) — grep activate/Renouvelle ne matche que PlanScreen.
+- RÉPONSE CONSEIL LIVRÉE (français, fondatrice) : 3 candidats évalués — (A) PARCOURS CONVERSION KÈNÈ+ = MON CHOIX (la console sait PILOTER la monétisation depuis t. 135, mais l'app ne la PROPOSE qu'à un seul endroit ; 13 utilisatrices / 2 abonnées = entonnoir passif ; chantier interne non bloqué, effet mesurable sur le MRR console) ; (B) exports comptable console CSV/PDF (utile pour la comptable — le pattern existe déjà côté Pro : accounting/export, consultation-pdf — valeur moyenne, court) ; (C) multi-admin (prématuré : fondatrice seule aux commandes — à rouvrir quand elle délègue). Détail du chantier proposé : 4 moments (vitrine publie les 3 plans en FCFA ; fin de diagnostic réussi → carte d'activation ; commande confirmée → upsell ; carte J-3 dans l'app → renouvellement 2 tapes via le renew EXISTANT de PlanScreen) + option parrainage récompensé en mois Kènè+ ; garde-fous normatifs : JAMAIS de renouvellement automatique caché ni case pré-cochée (l'expiration naturelle à 30 j reste LA protection — principe click-to-cancel), prix FCFA toujours visibles, étiquetage simulation conservé, pas de compte à rebours artificiel ; mesure = la console devient juge de paix (MRR, byPlan, activations avant/après).
+
+Stage Summary:
+- RÉPONSE : oui — mon chantier de cœur pour la suite : « faire entrer le carburant dans le moteur » (parcours de conversion Kènè+ : vitrine + moments diagnostic/commande/échéance), devant les exports comptables console (ensuite) et le multi-admin (plus tard). En attente du feu vert de la fondatrice (un mot lance t. 138).
+- FAIT NOUVEAU POUR LE DOSSIER : la vitrine ne montre AUCUN plan — une visiteuse ne peut pas savoir que Kènè+ existe avant d'avoir un compte ; c'est le goulot n° 1 identifié par les faits, pas par l'intuition.
+- AUCUN CHANGEMENT DE CODE : question conseil + 2 greps de vérification seulement.
