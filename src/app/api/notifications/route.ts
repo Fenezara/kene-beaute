@@ -11,8 +11,9 @@
 // via un scan plus récent, relance pro déjà traitée) sont exclus du fil.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { jsonError, serverError } from "@/lib/kene/server";
+import { jsonError, serverError, ddMM } from "@/lib/kene/server";
 import { readMeta, scheduledStillRelevant } from "@/lib/kene/reminders";
+import { getActiveSubscription, subPlanLabel } from "@/lib/kene/plans";
 
 export const runtime = "nodejs";
 
@@ -56,10 +57,12 @@ export async function GET(req: NextRequest) {
 
     const coveredDiagIds = new Set<string>();
     const coveredApptIds = new Set<string>();
+    const coveredSubKeys = new Set<string>();
     for (const n of existingMeta) {
       const meta = readMeta(n.metaJson);
       if (meta.diagId) coveredDiagIds.add(meta.diagId);
       if (meta.apptId) coveredApptIds.add(meta.apptId);
+      if (meta.dedupKey?.startsWith("sub:")) coveredSubKeys.add(meta.dedupKey);
     }
     // Relances pro déjà traitées: le rappel automatique cliente est un doublon
     const handledDiagIds = new Set<string>();
@@ -121,6 +124,33 @@ export async function GET(req: NextRequest) {
         scheduledAt: fireAt,
         metaJson: JSON.stringify({ apptId: a.id }),
       });
+    }
+
+    // Rappel J-3: abonnement payant actif arrivant à échéance (t. 135 —
+    // principe « rappel avant renouvellement », standard facturation 2026).
+    // Une seule ligne active par abonnée par construction (activatePlan et
+    // les 30 j offerts par la Console annulent l'ancienne ligne — le rappel
+    // de la nouvelle ligne naît ici, l'ancien est purgé par le PATCH).
+    const activeSub = await getActiveSubscription(userId);
+    if (activeSub) {
+      const dedup = `sub:${activeSub.id}`;
+      if (!coveredSubKeys.has(dedup)) {
+        // Déclenchement: 3 jours avant l'échéance — ou maintenant si la
+        // fenêtre J-3 est déjà entamée (borné à +60 s: le due-runner de la
+        // prochaine visite l'enverra, pas celui-ci).
+        const fireAt = new Date(
+          Math.max(now.getTime() + 60_000, activeSub.expiresAt.getTime() - 3 * DAY),
+        );
+        toCreate.push({
+          userId,
+          channel: "app",
+          toPhone: user.phone,
+          message: `Kènè 💛 ${first}, ton abonnement ${subPlanLabel(activeSub.plan)} se termine le ${ddMM(activeSub.expiresAt)}. Renouvelle-le quand tu veux depuis la carte Abonnement de ton profil pour garder tous tes avantages.`,
+          status: "scheduled",
+          scheduledAt: fireAt,
+          metaJson: JSON.stringify({ dedupKey: dedup }),
+        });
+      }
     }
 
     if (toCreate.length > 0) {

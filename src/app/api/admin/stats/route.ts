@@ -24,6 +24,10 @@ type StatsPayload = {
   referrals: number;
   chart: { date: string; count: number }[];
   topTenants: { name: string; city: string; ca30: number }[];
+  // t. 135 — monétisation: abonnées actives + revenus mensuels simulés
+  // (MRR — les mois offerts par la Console comptent 0 F).
+  activeSubs: number;
+  subsMrrFcfa: number;
 };
 
 // Singleton sur globalThis: survit aux rechargements de modules en dev (HMR)
@@ -57,7 +61,7 @@ export async function GET(req: NextRequest) {
     const now = new Date();
     const since30 = new Date(now.getTime() - 30 * 86_400_000);
 
-    const [users, tenants, diagnoses, orders, paidOrders, diagRecent, sales30, referrals] = await Promise.all([
+    const [users, tenants, diagnoses, orders, paidOrders, diagRecent, sales30, referrals, activeSubsRaw] = await Promise.all([
       db.user.count(),
       db.tenant.count(),
       db.diagnosis.count(),
@@ -72,6 +76,11 @@ export async function GET(req: NextRequest) {
         select: { tenantId: true, total: true },
       }),
       db.user.count({ where: { referredBy: { not: null } } }),
+      // t. 135 — lignes d'abonnement actives non expirées (MRR simulé).
+      db.subscription.findMany({
+        where: { status: "active", expiresAt: { gt: now } },
+        select: { priceFcfa: true },
+      }),
     ]);
 
     const gmvBoutique = paidOrders.reduce((s, o) => s + o.total, 0);
@@ -114,6 +123,8 @@ export async function GET(req: NextRequest) {
       referrals,
       chart,
       topTenants,
+      activeSubs: activeSubsRaw.length,
+      subsMrrFcfa: activeSubsRaw.reduce((s, x) => s + x.priceFcfa, 0),
     };
     g.__keneAdminStatsCache = { data: payload, at: Date.now() };
     return NextResponse.json(payload);

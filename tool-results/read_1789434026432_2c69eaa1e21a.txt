@@ -1,0 +1,584 @@
+     1→"use client";
+     2→// Kènè — Console Admin · Instituts (t. 128): la gestion du réseau partenaire.
+     3→// Liste avec recherche + filtre statut, fiche détaillée (dialog), et les
+     4→// leviers de gestion: suspendre (motif obligatoire — l'opération ferme:
+     5→// vitrine, réservations, connexion de l'équipe), réactiver, piloter la
+     6→// commission boutique (0-30 %) et le plan (trial/pro/business).
+     7→import { useCallback, useEffect, useMemo, useState } from "react";
+     8→import {
+     9→  AlertTriangle, Building2, CalendarClock, Loader2, MapPin, Package, PauseCircle,
+    10→  Percent, PlayCircle, Receipt, Search, ShieldAlert, ShoppingBag, Star, Users,
+    11→} from "lucide-react";
+    12→import { toast } from "sonner";
+    13→import {
+    14→  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    15→} from "@/components/ui/dialog";
+    16→import { Badge } from "@/components/ui/badge";
+    17→import { Button } from "@/components/ui/button";
+    18→import { Input } from "@/components/ui/input";
+    19→import { Label } from "@/components/ui/label";
+    20→import { Skeleton } from "@/components/ui/skeleton";
+    21→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+    22→import { apiGet, ApiError } from "@/lib/kene/api";
+    23→import { formatDate, xof } from "@/lib/kene/format";
+    24→import { cn } from "@/lib/utils";
+    25→import { useApi } from "@/components/kene/pro/useApi";
+    26→import { EmptyState, ErrorState, KenteTop, Money } from "@/components/kene/pro/ui-bits";
+    27→import type {
+    28→  AdminTenantDetail, AdminTenantPatchResult, AdminTenantRow,
+    29→} from "@/components/kene/pro/types";
+    30→import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+    31→import { useAdminGate } from "./admin-gate";
+    32→
+    33→/** Badge de statut d'un institut — en ligne (vert Baobab) / suspendu (bordeaux Bissap). */
+    34→function StatusBadge({ t }: { t: Pick<AdminTenantRow, "active" | "suspendedAt"> }) {
+    35→  return t.active ? (
+    36→    <Badge className="bg-success/15 text-success border border-success/30 hover:bg-success/15">En ligne</Badge>
+    37→  ) : (
+    38→    <Badge className="bg-bissap/15 text-bissap border border-bissap/30 hover:bg-bissap/15">Suspendu</Badge>
+    39→  );
+    40→}
+    41→
+    42→/** Pourcentage FR fidèle: 0.075 → « 7,5 % » (pas d'arrondi trompeur à 8). */
+    43→function pctLabel(rate: number): string {
+    44→  return `${Math.round(rate * 1000) / 10}`.replace(".", ",") + " %";
+    45→}
+    46→
+    47→export function AdminTenants() {
+    48→  // Recherche debouncée (250 ms) — pattern 2026: l'UI répond au doigt,
+    49→  // le réseau n'est tapé qu'au repos de frappe.
+    50→  const [q, setQ] = useState("");
+    51→  const [dq, setDq] = useState("");
+    52→  useEffect(() => {
+    53→    const id = setTimeout(() => setDq(q.trim()), 250);
+    54→    return () => clearTimeout(id);
+    55→  }, [q]);
+    56→
+    57→  const list = useApi(
+    58→    () => apiGet<{ tenants: AdminTenantRow[] }>(`/api/admin/tenants?q=${encodeURIComponent(dq)}`),
+    59→    [dq],
+    60→  );
+    61→
+    62→  const [statusFilter, setStatusFilter] = useState<"all" | "online" | "suspended">("all");
+    63→  // Incrémenté après chaque PATCH réussi → la FICHE ouverte se recharge
+    64→  // (elle vit dans TenantSheet avec son propre useApi: la liste seule ne suffit pas).
+    65→  const [refreshKey, setRefreshKey] = useState(0);
+    66→  const rows = useMemo(() => {
+    67→    const all = list.data?.tenants ?? [];
+    68→    if (statusFilter === "online") return all.filter((t) => t.active);
+    69→    if (statusFilter === "suspended") return all.filter((t) => !t.active);
+    70→    return all;
+    71→  }, [list.data, statusFilter]);
+    72→
+    73→  // Fiche détaillée (dialog) + dialog de suspension
+    74→  const [openId, setOpenId] = useState<string | null>(null);
+    75→  const [suspendFor, setSuspendFor] = useState<AdminTenantRow | null>(null);
+    76→  const [busy, setBusy] = useState(false);
+    77→
+    78→  // t. 130 — les PATCH passent par le gate: confirmation d'identité (code
+    79→  // frais < 5 min) exigée par le serveur, dialogue puis rejeu automatique.
+    80→  const gate = useAdminGate();
+    81→
+    82→  const patch = useCallback(
+    83→    async (id: string, body: Record<string, unknown>, okMsg: string) => {
+    84→      setBusy(true);
+    85→      try {
+    86→        const r = await gate.elevatedPatch<AdminTenantPatchResult>(`/api/admin/tenants/${id}`, body);
+    87→        if (!r.changed) {
+    88→          toast.info(r.message ?? "Aucun changement appliqué");
+    89→        } else {
+    90→          toast.success(okMsg);
+    91→        }
+    92→        await Promise.all([list.refetch()]);
+    93→        setRefreshKey((k) => k + 1);
+    94→        return true;
+    95→      } catch (e) {
+    96→        toast.error(e instanceof ApiError ? e.message : "Action impossible — réessaie");
+    97→        return false;
+    98→      } finally {
+    99→        setBusy(false);
+   100→      }
+   101→    },
+   102→    [list, gate],
+   103→  );
+   104→
+   105→  return (
+   106→    <div className="space-y-4">
+   107→      {/* Barre: recherche + filtres statut */}
+   108→      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+   109→        <div className="relative flex-1">
+   110→          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+   111→          <Input
+   112→            value={q}
+   113→            onChange={(e) => setQ(e.target.value)}
+   114→            placeholder="Rechercher un institut, une ville, une gérante…"
+   115→            aria-label="Rechercher un institut"
+   116→            className="pl-9"
+   117→          />
+   118→        </div>
+   119→        <div className="flex gap-1.5" role="group" aria-label="Filtrer par statut">
+   120→          {([
+   121→            ["all", "Tous"],
+   122→            ["online", "En ligne"],
+   123→            ["suspended", "Suspendus"],
+   124→          ] as const).map(([key, label]) => (
+   125→            <button
+   126→              key={key}
+   127→              onClick={() => setStatusFilter(key)}
+   128→              aria-pressed={statusFilter === key}
+   129→              className={cn(
+   130→                "min-h-11 rounded-full border px-3.5 text-sm font-medium transition-colors",
+   131→                statusFilter === key
+   132→                  ? "border-primary bg-primary text-primary-foreground"
+   133→                  : "border-border bg-card text-muted-foreground hover:bg-muted",
+   134→              )}
+   135→            >
+   136→              {label}
+   137→            </button>
+   138→          ))}
+   139→        </div>
+   140→      </div>
+   141→
+   142→      {/* Liste */}
+   143→      <Card className="overflow-hidden pt-0">
+   144→        <KenteTop />
+   145→        <CardHeader className="pb-2">
+   146→          <CardTitle className="flex flex-wrap items-center gap-2 font-heading text-base">
+   147→            <Building2 className="size-4 text-primary" aria-hidden="true" />
+   148→            Instituts partenaires
+   149→            <Badge variant="outline" className="font-mono text-[10px]">{rows.length}</Badge>
+   150→          </CardTitle>
+   151→        </CardHeader>
+   152→        <CardContent className="p-0">
+   153→          {list.error && !list.data ? (
+   154→            <div className="p-4"><ErrorState message={list.error} onRetry={list.refetch} /></div>
+   155→          ) : list.loading && !list.data ? (
+   156→            <div className="space-y-2 p-4" aria-busy="true">
+   157→              <Skeleton className="h-14" />
+   158→              <Skeleton className="h-14" />
+   159→              <Skeleton className="h-14" />
+   160→            </div>
+   161→          ) : rows.length === 0 ? (
+   162→            <EmptyState label={dq ? `Aucun institut ne correspond à « ${dq} »` : "Aucun institut partenaire"} />
+   163→          ) : (
+   164→            <div className="overflow-x-auto pretty-scroll">
+   165→              <Table>
+   166→                <TableHeader>
+   167→                  <TableRow>
+   168→                    <TableHead>Institut</TableHead>
+   169→                    <TableHead className="hidden md:table-cell">Gérante</TableHead>
+   170→                    <TableHead className="text-right">CA 30 j</TableHead>
+   171→                    <TableHead className="hidden lg:table-cell text-right">Commandes</TableHead>
+   172→                    <TableHead className="hidden lg:table-cell text-right">Commission</TableHead>
+   173→                    <TableHead>Statut</TableHead>
+   174→                    <TableHead className="text-right">Actions</TableHead>
+   175→                  </TableRow>
+   176→                </TableHeader>
+   177→                <TableBody>
+   178→                  {rows.map((t) => (
+   179→                    <TableRow key={t.id} className={cn(!t.active && "opacity-75")}>
+   180→                      <TableCell>
+   181→                        <p className="font-medium leading-tight">{t.name}</p>
+   182→                        <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+   183→                          <MapPin className="size-3 shrink-0" aria-hidden="true" />
+   184→                          {t.city}
+   185→                          <span className="font-mono text-[9px] text-muted-foreground/70">{t.country}</span>
+   186→                        </p>
+   187→                      </TableCell>
+   188→                      <TableCell className="hidden md:table-cell">
+   189→                        <p className="text-sm leading-tight">{t.ownerName}</p>
+   190→                        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{t.ownerPhone}</p>
+   191→                      </TableCell>
+   192→                      <TableCell className="text-right">
+   193→                        <Money value={t.caBoutique30 + t.caPos30} className="text-sm font-semibold" />
+   194→                        <p className="mt-0.5 text-[10px] text-muted-foreground">
+   195→                          boutique {xof(t.caBoutique30, { compact: true })} · caisse {xof(t.caPos30, { compact: true })}
+   196→                        </p>
+   197→                      </TableCell>
+   198→                      <TableCell className="hidden lg:table-cell text-right text-sm">
+   199→                        {t.orders30}
+   200→                        {t.pendingOrders > 0 && (
+   201→                          <span className="ml-1 text-[10px] text-gold" title={`${t.pendingOrders} en attente`}>
+   202→                            +{t.pendingOrders}⏳
+   203→                          </span>
+   204→                        )}
+   205→                      </TableCell>
+   206→                      <TableCell className="hidden lg:table-cell text-right font-mono text-sm">
+   207→                        {pctLabel(t.commissionRate)}
+   208→                      </TableCell>
+   209→                      <TableCell><StatusBadge t={t} /></TableCell>
+   210→                      <TableCell className="text-right">
+   211→                        <div className="flex justify-end gap-1.5">
+   212→                          <Button size="sm" variant="outline" className="h-11" onClick={() => setOpenId(t.id)}>
+   213→                            Fiche
+   214→                          </Button>
+   215→                          {t.active ? (
+   216→                            <Button
+   217→                              size="sm"
+   218→                              variant="outline"
+   219→                              className="h-11 gap-1.5 border-bissap/40 text-bissap hover:bg-bissap/10 hover:text-bissap"
+   220→                              onClick={() => setSuspendFor(t)}
+   221→                              aria-label={`Suspendre ${t.name}`}
+   222→                            >
+   223→                              <PauseCircle className="size-4" aria-hidden="true" />
+   224→                              <span className="hidden sm:inline">Suspendre</span>
+   225→                            </Button>
+   226→                          ) : (
+   227→                            <Button
+   228→                              size="sm"
+   229→                              variant="outline"
+   230→                              className="h-11 gap-1.5 border-success/40 text-success hover:bg-success/10 hover:text-success"
+   231→                              disabled={busy}
+   232→                              onClick={() => void patch(t.id, { active: true }, `${t.name} est de retour en ligne`)}
+   233→                              aria-label={`Réactiver ${t.name}`}
+   234→                            >
+   235→                              {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <PlayCircle className="size-4" aria-hidden="true" />}
+   236→                              <span className="hidden sm:inline">Réactiver</span>
+   237→                            </Button>
+   238→                          )}
+   239→                        </div>
+   240→                      </TableCell>
+   241→                    </TableRow>
+   242→                  ))}
+   243→                </TableBody>
+   244→              </Table>
+   245→            </div>
+   246→          )}
+   247→        </CardContent>
+   248→      </Card>
+   249→
+   250→      {/* Fiche détaillée */}
+   251→      {openId && <TenantSheet id={openId} refreshKey={refreshKey} onClose={() => setOpenId(null)} onSuspend={(t) => { setSuspendFor(t); }} busy={busy} patch={patch} />}
+   252→
+   253→      {/* Dialog de suspension — motif obligatoire, impact énoncé noir sur blanc */}
+   254→      <SuspendDialog
+   255→        target={suspendFor}
+   256→        busy={busy}
+   257→        onCancel={() => setSuspendFor(null)}
+   258→        onConfirm={async (reason) => {
+   259→          if (!suspendFor) return;
+   260→          const okDone = await patch(suspendFor.id, { active: false, reason }, `${suspendFor.name} suspendu — la gérante est notifiée`);
+   261→          if (okDone) setSuspendFor(null);
+   262→        }}
+   263→      />
+   264→    </div>
+   265→  );
+   266→}
+   267→
+   268→// ─────────────── Fiche détaillée d'un institut ───────────────
+   269→
+   270→function TenantSheet({
+   271→  id, refreshKey, onClose, onSuspend, busy, patch,
+   272→}: {
+   273→  id: string;
+   274→  refreshKey: number;
+   275→  onClose: () => void;
+   276→  onSuspend: (t: AdminTenantRow) => void;
+   277→  busy: boolean;
+   278→  patch: (id: string, body: Record<string, unknown>, okMsg: string) => Promise<boolean>;
+   279→}) {
+   280→  const detail = useApi(() => apiGet<{ tenant: AdminTenantDetail }>(`/api/admin/tenants/${id}`), [id, refreshKey]);
+   281→  const t = detail.data?.tenant;
+   282→
+   283→  // Commission & plan: pattern « draft » — la valeur affichée est celle du
+   284→  // serveur TANT QUE rien n'est en cours d'édition (null = pas de brouillon).
+   285→  // Zéro setState dans un effet: la fiche peut recharger, le brouillon suit.
+   286→  const [draftPct, setDraftPct] = useState<string | null>(null);
+   287→  const [draftPlan, setDraftPlan] = useState<string | null>(null);
+   288→  // Saisie en notation point (l'inputMode decimal + parseFloat), affichage
+   289→  // FR ailleurs. 7,5 % se saisit « 7.5 ».
+   290→  const commissionPct = draftPct ?? (t ? String(Math.round(t.commissionRate * 1000) / 10) : "");
+   291→  const plan = draftPlan ?? t?.plan ?? "";
+   292→
+   293→  const commissionDirty =
+   294→    t !== undefined && draftPct !== null && draftPct.trim() !== String(Math.round(t.commissionRate * 1000) / 10);
+   295→  const planDirty = t !== undefined && draftPlan !== null && draftPlan !== t.plan;
+   296→  const pctValue = Number.parseFloat(commissionPct);
+   297→  const pctValid = Number.isFinite(pctValue) && pctValue >= 0 && pctValue <= 30;
+   298→
+   299→  return (
+   300→    <Dialog open onOpenChange={(o) => (!o ? onClose() : undefined)}>
+   301→      <DialogContent className="max-h-[90vh] overflow-y-auto pretty-scroll sm:max-w-2xl">
+   302→        {detail.error ? (
+   303→          <>
+   304→            <DialogHeader>
+   305→              <DialogTitle className="font-heading">Fiche institut</DialogTitle>
+   306→              <DialogDescription>Une erreur est survenue.</DialogDescription>
+   307→            </DialogHeader>
+   308→            <ErrorState message={detail.error} onRetry={detail.refetch} />
+   309→          </>
+   310→        ) : !t ? (
+   311→          <>
+   312→            <DialogHeader>
+   313→              <DialogTitle className="font-heading">Fiche institut</DialogTitle>
+   314→              <DialogDescription>Chargement de la fiche en cours.</DialogDescription>
+   315→            </DialogHeader>
+   316→            <div className="space-y-3" aria-busy="true" aria-label="Chargement de la fiche institut">
+   317→              <Skeleton className="h-8 w-2/3" />
+   318→              <Skeleton className="h-24" />
+   319→              <Skeleton className="h-40" />
+   320→            </div>
+   321→          </>
+   322→        ) : (
+   323→          <>
+   324→            <DialogHeader>
+   325→              <DialogTitle className="flex flex-wrap items-center gap-2 font-heading">
+   326→                {t.name}
+   327→                <StatusBadge t={t} />
+   328→              </DialogTitle>
+   329→              <DialogDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
+   330→                <span className="flex items-center gap-1"><MapPin className="size-3.5" aria-hidden="true" />{t.city} · {t.country}</span>
+   331→                <span className="flex items-center gap-1"><Receipt className="size-3.5" aria-hidden="true" />{t.ownerName} · <span className="font-mono">{t.ownerPhone}</span></span>
+   332→                <span className="flex items-center gap-1"><Star className="size-3.5 text-gold" aria-hidden="true" />{t.rating.toFixed(1)} ({t.reviewCount} avis)</span>
+   333→              </DialogDescription>
+   334→            </DialogHeader>
+   335→
+   336→            {!t.active && t.suspendedReason && (
+   337→              <p role="status" className="rounded-xl bg-bissap/10 px-3.5 py-3 text-sm text-bissap">
+   338→                <ShieldAlert className="mr-1.5 inline size-4" aria-hidden="true" />
+   339→                Suspendu le {formatDate(new Date(t.suspendedAt ?? ""), { day: "numeric", month: "long", year: "numeric" })} — « {t.suspendedReason} »
+   340→              </p>
+   341→            )}
+   342→
+   343→            {/* KPIs */}
+   344→            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+   345→              {[
+   346→                { label: "CA 30 j (total)", value: xof(t.caBoutique30 + t.caPos30, { compact: true }) },
+   347→                { label: "Commandes 30 j", value: String(t.orders30) },
+   348→                { label: "Clientes CRM", value: String(t.clientsCrm) },
+   349→                { label: "Équipe active", value: String(t.employees) },
+   350→                { label: "Diagnostics cabine 30 j", value: String(t.proDiag30) },
+   351→                { label: "RDV à venir", value: String(t.upcomingAppointments) },
+   352→                { label: "Catalogue actif", value: String(t.products) },
+   353→                { label: "En attente (boutique)", value: String(t.pendingOrders) },
+   354→              ].map((k) => (
+   355→                <div key={k.label} className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5">
+   356→                  <p className="text-[11px] leading-tight text-muted-foreground">{k.label}</p>
+   357→                  <p className="mt-1 font-mono text-lg font-bold tabular-nums">{k.value}</p>
+   358→                </div>
+   359→              ))}
+   360→            </div>
+   361→
+   362→            {/* Leviers: commission + plan */}
+   363→            <div className="grid gap-3 sm:grid-cols-2">
+   364→              <div className="rounded-xl border border-border/60 p-3.5">
+   365→                <Label htmlFor="commission" className="flex items-center gap-1.5 text-xs font-medium">
+   366→                  <Percent className="size-3.5" aria-hidden="true" /> Commission boutique (%)
+   367→                </Label>
+   368→                <div className="mt-2 flex gap-2">
+   369→                  <Input
+   370→                    id="commission"
+   371→                    inputMode="decimal"
+   372→                    value={commissionPct}
+   373→                    onChange={(e) => setDraftPct(e.target.value)}
+   374→                    aria-invalid={!pctValid}
+   375→                    className="h-11"
+   376→                  />
+   377→                  <Button
+   378→                    size="sm"
+   379→                    className="h-11"
+   380→                    disabled={!pctValid || !commissionDirty || busy}
+   381→                    onClick={() =>
+   382→                      void patch(t.id, { commissionRate: pctValue / 100 }, `Commission de ${t.name} fixée à ${String(pctValue).replace(".", ",")} %`).then((okDone) => {
+   383→                        if (okDone) setDraftPct(null);
+   384→                      })
+   385→                    }
+   386→                  >
+   387→                    {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : "Enregistrer"}
+   388→                  </Button>
+   389→                </div>
+   390→                <p className="mt-1.5 text-[11px] text-muted-foreground">Kènè prélève sur les ventes boutique — appliqué aux prochaines commandes.</p>
+   391→              </div>
+   392→
+   393→              <div className="rounded-xl border border-border/60 p-3.5">
+   394→                <p className="flex items-center gap-1.5 text-xs font-medium">
+   395→                  <Package className="size-3.5" aria-hidden="true" /> Plan
+   396→                </p>
+   397→                <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Plan de l'institut">
+   398→                  {(["trial", "pro", "business"] as const).map((p) => (
+   399→                    <button
+   400→                      key={p}
+   401→                      onClick={() => setDraftPlan(p)}
+   402→                      aria-pressed={plan === p}
+   403→                      className={cn(
+   404→                        "min-h-11 rounded-full border px-3.5 text-sm font-medium capitalize transition-colors",
+   405→                        plan === p ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:bg-muted",
+   406→                      )}
+   407→                    >
+   408→                      {p}
+   409→                    </button>
+   410→                  ))}
+   411→                  <Button
+   412→                    size="sm"
+   413→                    className="ml-auto h-11"
+   414→                    disabled={!planDirty || busy}
+   415→                    onClick={() =>
+   416→                      void patch(t.id, { plan }, `Plan de ${t.name} : ${plan}`).then((okDone) => {
+   417→                        if (okDone) setDraftPlan(null);
+   418→                      })
+   419→                    }
+   420→                  >
+   421→                    {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : "Enregistrer"}
+   422→                  </Button>
+   423→                </div>
+   424→                <p className="mt-1.5 text-[11px] text-muted-foreground">Essai, Pro ou Business — la tarification Kènè.</p>
+   425→              </div>
+   426→            </div>
+   427→
+   428→            {/* Équipe */}
+   429→            {t.team.length > 0 && (
+   430→              <div>
+   431→                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+   432→                  <Users className="size-3.5" aria-hidden="true" /> Équipe active ({t.team.length})
+   433→                </p>
+   434→                <ul className="grid gap-1.5 sm:grid-cols-2">
+   435→                  {t.team.map((e) => (
+   436→                    <li key={e.name} className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm">
+   437→                      <span className="font-medium">{e.name}</span>
+   438→                      <span className="text-muted-foreground"> · {e.role}</span>
+   439→                    </li>
+   440→                  ))}
+   441→                </ul>
+   442→              </div>
+   443→            )}
+   444→
+   445→            {/* Top produits */}
+   446→            {t.topProducts.length > 0 && (
+   447→              <div>
+   448→                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+   449→                  <ShoppingBag className="size-3.5" aria-hidden="true" /> Top produits — 30 jours
+   450→                </p>
+   451→                <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
+   452→                  {t.topProducts.map((p) => (
+   453→                    <li key={p.name} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+   454→                      <span className="min-w-0 truncate">{p.name}</span>
+   455→                      <span className="shrink-0 font-mono text-xs text-muted-foreground">
+   456→                        {p.qty} vendus · {xof(p.ca, { compact: true })}
+   457→                      </span>
+   458→                    </li>
+   459→                  ))}
+   460→                </ul>
+   461→              </div>
+   462→            )}
+   463→
+   464→            {/* Dernières activités */}
+   465→            <div className="grid gap-3 sm:grid-cols-2">
+   466→              {t.lastSales.length > 0 && (
+   467→                <div>
+   468→                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+   469→                    <Receipt className="size-3.5" aria-hidden="true" /> Dernières ventes caisse
+   470→                  </p>
+   471→                  <ul className="space-y-1.5">
+   472→                    {t.lastSales.map((s) => (
+   473→                      <li key={s.id} className="flex items-center justify-between gap-2 text-sm">
+   474→                        <span className="min-w-0 truncate text-muted-foreground">{s.clientName ?? "Cliente express"}</span>
+   475→                        <span className="shrink-0 font-mono text-xs"><Money value={s.total} className="text-sm" /></span>
+   476→                      </li>
+   477→                    ))}
+   478→                  </ul>
+   479→                </div>
+   480→              )}
+   481→              {t.lastOrders.length > 0 && (
+   482→                <div>
+   483→                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+   484→                    <CalendarClock className="size-3.5" aria-hidden="true" /> Dernières commandes boutique
+   485→                  </p>
+   486→                  <ul className="space-y-1.5">
+   487→                    {t.lastOrders.map((o) => (
+   488→                      <li key={o.id} className="flex items-center justify-between gap-2 text-sm">
+   489→                        <span className="min-w-0 truncate text-muted-foreground">
+   490→                          {o.clientName}
+   491→                          <span className="ml-1 text-[10px] uppercase text-muted-foreground/70">{o.status}</span>
+   492→                        </span>
+   493→                        <span className="shrink-0 font-mono text-xs"><Money value={o.total} className="text-sm" /></span>
+   494→                      </li>
+   495→                    ))}
+   496→                  </ul>
+   497→                </div>
+   498→              )}
+   499→            </div>
+   500→
+   501→            <DialogFooter className="gap-2 sm:justify-between">
+   502→              <Button variant="outline" className="h-11" onClick={onClose}>Fermer</Button>
+   503→              {t.active ? (
+   504→                <Button
+   505→                  variant="outline"
+   506→                  className="h-11 gap-1.5 border-bissap/40 text-bissap hover:bg-bissap/10 hover:text-bissap"
+   507→                  onClick={() => onSuspend({ ...t })}
+   508→                >
+   509→                  <PauseCircle className="size-4" aria-hidden="true" /> Suspendre l'institut
+   510→                </Button>
+   511→              ) : (
+   512→                <Button
+   513→                  className="h-11 gap-1.5 bg-success text-white hover:bg-success/90"
+   514→                  disabled={busy}
+   515→                  onClick={() => void patch(t.id, { active: true }, `${t.name} est de retour en ligne`)}
+   516→                >
+   517→                  {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <PlayCircle className="size-4" aria-hidden="true" />}
+   518→                  Réactiver
+   519→                </Button>
+   520→              )}
+   521→            </DialogFooter>
+   522→          </>
+   523→        )}
+   524→      </DialogContent>
+   525→    </Dialog>
+   526→  );
+   527→}
+   528→
+   529→// ─────────────── Dialog de suspension ───────────────
+   530→
+   531→function SuspendDialog({
+   532→  target, busy, onCancel, onConfirm,
+   533→}: {
+   534→  target: AdminTenantRow | null;
+   535→  busy: boolean;
+   536→  onCancel: () => void;
+   537→  onConfirm: (reason: string) => void;
+   538→}) {
+   539→  // L'état repart à zéro à chaque ouverture: Radix démonte le contenu du
+   540→  // dialog fermé — jamais un motif qui traîne d'un institut à l'autre.
+   541→  const [reason, setReason] = useState("");
+   542→  const valid = reason.trim().length >= 3;
+   543→
+   544→  return (
+   545→    <Dialog open={Boolean(target)} onOpenChange={(o) => (!o ? onCancel() : undefined)}>
+   546→      <DialogContent className="sm:max-w-md">
+   547→        <DialogHeader>
+   548→          <DialogTitle className="flex items-center gap-2 font-heading text-bissap">
+   549→            <AlertTriangle className="size-5" aria-hidden="true" />
+   550→            Suspendre {target?.name ?? ""} ?
+   551→          </DialogTitle>
+   552→          <DialogDescription>
+   553→            L&apos;institut quitte immédiatement la vitrine Kènè (boutique, annuaire, réservations) et
+   554→            son équipe ne peut plus se connecter. La gérante reçoit le motif ci-dessous. Les données
+   555→            restent intactes — la décision est réversible.
+   556→          </DialogDescription>
+   557→        </DialogHeader>
+   558→        <div className="space-y-1.5">
+   559→          <Label htmlFor="suspend-reason">Motif (montré à la gérante)</Label>
+   560→          <Input
+   561→            id="suspend-reason"
+   562→            value={reason}
+   563→            onChange={(e) => setReason(e.target.value)}
+   564→            placeholder="p. ex. Commission impayée depuis 60 jours"
+   565→            aria-invalid={!valid && reason.length > 0}
+   566→            className="h-11"
+   567→          />
+   568→        </div>
+   569→        <DialogFooter className="gap-2">
+   570→          <Button variant="outline" className="h-11" onClick={onCancel} disabled={busy}>Annuler</Button>
+   571→          <Button
+   572→            className="h-11 gap-1.5 bg-bissap text-white hover:bg-bissap/90"
+   573→            disabled={!valid || busy}
+   574→            onClick={() => onConfirm(reason.trim())}
+   575→          >
+   576→            {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <PauseCircle className="size-4" aria-hidden="true" />}
+   577→            Suspendre
+   578→          </Button>
+   579→        </DialogFooter>
+   580→      </DialogContent>
+   581→    </Dialog>
+   582→  );
+   583→}
+   584→

@@ -2,7 +2,7 @@
 // Kènè — Console Admin · Vue d'ensemble (t. 128: extraite d'AdminApp,
 // comportement inchangé): KPIs plateforme, courbe diagnostics 14 j,
 // top instituts par CA 30 j.
-import { Activity, Building2, HeartHandshake, ReceiptText, ShoppingBag, Users } from "lucide-react";
+import { Activity, Building2, CreditCard, HeartHandshake, ReceiptText, ShoppingBag, Users } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,14 +22,16 @@ export function AdminOverview({ stats }: { stats: ReturnType<typeof useApi<Admin
 
   return (
     <div className="space-y-5">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+      {/* KPIs — t. 135: la monétisation rejoint la vue d'ensemble (MRR simulé,
+          fallbacks 0: le cache mémoire peut servir un snapshot antérieur). */}
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
         <KpiCard icon={<Users className="size-4" />} label="Utilisatrices" value={String(data.users)} monetary={false} />
         <KpiCard icon={<HeartHandshake className="size-4" />} label="Parrainages" value={String(data.referrals)} monetary={false} hint="Fil du Parrainage" />
         <KpiCard icon={<Building2 className="size-4" />} label="Instituts" value={String(data.tenants)} monetary={false} />
         <KpiCard icon={<Activity className="size-4" />} label="Diagnostics IA" value={String(data.diagnoses)} monetary={false} />
         <KpiCard icon={<ShoppingBag className="size-4" />} label="Commandes boutique" value={String(data.orders)} monetary={false} />
         <KpiCard icon={<ReceiptText className="size-4" />} label="GMV boutique" value={xof(data.gmvBoutique, { compact: true })} hint={`Commissions : ${xof(data.commissionTotal, { compact: true })}`} />
+        <KpiCard icon={<CreditCard className="size-4" />} label="Revenus abonnements" value={xof(data.subsMrrFcfa ?? 0, { compact: true })} hint={`${data.activeSubs ?? 0} abonnée${(data.activeSubs ?? 0) > 1 ? "s" : ""} · simulation`} />
       </div>
 
       {/* Chart */}

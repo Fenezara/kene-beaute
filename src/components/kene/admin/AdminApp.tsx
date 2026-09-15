@@ -1,13 +1,15 @@
 "use client";
 // Kènè — Console Admin (t. 128 — console de GESTION; t. 130 — porte dédiée
-// /console, session 8 h, step-up, passkeys): onglets Vue d'ensemble ·
-// Instituts · Utilisatrices · Sécurité. La fondatrice pilote le réseau:
-// suspendre/réactiver un institut (motif montré à la gérante, notifiée),
-// piloter commission et plan, verrouiller un compte abusif — chaque geste
-// sensible exige une confirmation d'identité fraîche (AdminGate) et est
-// audité. Les routes de gestion exigent une session admin stricte.
+// /console, session 8 h, step-up, passkeys; t. 135 — abonnements): onglets
+// Vue d'ensemble · Instituts · Utilisatrices · Abonnements · Sécurité.
+// La fondatrice pilote le réseau: suspendre/réactiver un institut (motif
+// montré à la gérante, notifiée), piloter commission et plan, verrouiller
+// un compte abusif, et gérer la monétisation (abonnées, MRR simulé,
+// annulation notifiée, 30 j offerts) — chaque geste sensible exige une
+// confirmation d'identité fraîche (AdminGate) et est audité. Les routes
+// de gestion exigent une session admin stricte.
 import { useState } from "react";
-import { Building2, LayoutDashboard, ShieldCheck, Users } from "lucide-react";
+import { Building2, CreditCard, LayoutDashboard, ShieldCheck, Users } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
 import { cn } from "@/lib/utils";
 import { useApi } from "@/components/kene/pro/useApi";
@@ -19,15 +21,17 @@ import { AdminGateProvider } from "./admin-gate";
 import { AdminOverview } from "./AdminOverview";
 import { AdminPasskeyCard } from "./AdminPasskeyCard";
 import { AdminSecurity } from "./AdminSecurity";
+import { AdminSubscriptions } from "./AdminSubscriptions";
 import { AdminTenants } from "./AdminTenants";
 import { AdminUsers } from "./AdminUsers";
 
-type AdminTab = "overview" | "tenants" | "users" | "security";
+type AdminTab = "overview" | "tenants" | "users" | "subs" | "security";
 
 const TABS: { key: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { key: "overview", label: "Vue d'ensemble", icon: LayoutDashboard },
   { key: "tenants", label: "Instituts", icon: Building2 },
   { key: "users", label: "Utilisatrices", icon: Users },
+  { key: "subs", label: "Abonnements", icon: CreditCard },
   { key: "security", label: "Sécurité", icon: ShieldCheck },
 ];
 
@@ -93,6 +97,7 @@ export function AdminApp() {
       )}
       {tab === "tenants" && <AdminTenants />}
       {tab === "users" && <AdminUsers />}
+      {tab === "subs" && <AdminSubscriptions />}
       {tab === "security" && (
         <div className="space-y-5">
           <AdminSecurity sec={sec} />
@@ -103,7 +108,7 @@ export function AdminApp() {
 
       <p className="flex items-center justify-center gap-1.5 pt-2 text-center text-xs text-muted-foreground">
         <ShieldCheck className="size-3.5" aria-hidden="true" />
-        Console plateforme Kènè · Pilotage réseau &amp; modération · Session 8 h · Chaque geste est audité
+        Console plateforme Kènè · Pilotage réseau, modération &amp; abonnements · Session 8 h · Chaque geste est audité
       </p>
     </div>
     </AdminGateProvider>

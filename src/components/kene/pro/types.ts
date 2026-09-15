@@ -486,6 +486,10 @@ export interface AdminStats {
   referrals: number;
   chart: { date: string; count: number }[];
   topTenants: { name: string; city: string; country?: string; ca30: number }[];
+  // t. 135 — monétisation (fallbacks 0: le cache mémoire 60 s peut servir
+  // un snapshot calculé avant ce chantier).
+  activeSubs: number;
+  subsMrrFcfa: number;
 }
 
 // ─────────────── Admin — visionneuse Sécurité ───────────────
@@ -595,4 +599,48 @@ export interface AdminUserPatchResult {
     lockedAt: string | null;
     lockedReason: string | null;
   };
+}
+
+// ─────────────── Admin — abonnements Kènè+ / Pro (t. 135) ───────────────
+
+// GET /api/admin/subscriptions — ligne de la liste des abonnements.
+// `derived` est calculé serveur (jamais stocké — IFRS 15: la ligne d'origine
+// reste intacte): active | expiring (≤ 7 j) | expired | cancelled.
+export interface AdminSubRow {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  userRole: string;
+  plan: string; // kene_plus | pro_essentiel | pro_complexe
+  planLabel: string;
+  status: string; // active | cancelled (état brut de la ligne)
+  derived: "active" | "expiring" | "expired" | "cancelled";
+  priceFcfa: number; // 0 = offert par la Console
+  source: string; // momo_sim | console_gift
+  startedAt: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface AdminSubsKpis {
+  activeCount: number;
+  mrrFcfa: number;
+  expiringSoon: number;
+  giftActive: number;
+}
+
+// GET /api/admin/subscriptions — payload complet.
+export interface AdminSubsPayload {
+  kpis: AdminSubsKpis;
+  byPlan: { plan: string; label: string; count: number; mrr: number }[];
+  subs: AdminSubRow[];
+}
+
+// PATCH /api/admin/subscriptions/[id] — réponse.
+export interface AdminSubPatchResult {
+  ok: boolean;
+  changed: boolean;
+  message?: string;
+  subscription?: { id: string; status: string; expiresAt: string };
 }

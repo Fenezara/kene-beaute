@@ -78,6 +78,15 @@ export function planDefById(planId: string): PlanDef | null {
   return PLAN_DEFS.find((p) => p.id === planId) ?? null;
 }
 
+/** Libellé humain d'un plan (« kene_plus » → « Kènè+ ») — contrat
+ * d'affichage partagé console admin + fil notifications cliente. */
+export function subPlanLabel(plan: string): string {
+  if (plan === "kene_plus") return "Kènè+";
+  if (plan === "pro_essentiel") return "Pro Essentiel";
+  if (plan === "pro_complexe") return "Pro Complexe";
+  return plan;
+}
+
 // ─────────────── Plan gratuit & quota diagnostics ───────────────
 
 /** Quota « illimité »: les checks serveurs comparent remaining > 0 —
