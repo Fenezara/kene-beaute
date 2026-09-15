@@ -3059,3 +3059,16 @@ Stage Summary:
 - RÉPONSE : le référentiel 2026 pour une console de gestion d'abonnements = visibilité complète (liste + MRR + échéances), cycle de vie normalisé (past_due/dunning en prod), annulation aussi simple que la souscription + rappel avant échéance (principe click-to-cancel, standard de facto malgré le blocage fédéral US), historique intouchable (IFRS 15 — on annule/ajoute, jamais on modifie), argent réel confié à des PSP agréés BCEAO (la console ne touche qu'aux droits), step-up + audit sur chaque levier.
 - KÈNÈ CONFORME PAR CONSTRUCTION sur 2 points clés : aucun prélèvement automatique (expiration naturelle à 30 j = zéro risque de débit non souhaité) et lignes d'abonnement historisées sans suppression.
 - CHANTIER t. 134 (ex-t. 133, affiné par les normes, en attente de validation) : onglet Abonnements (liste, recherche, filtres) + KPI MRR Vue d'ensemble + annulation admin (motif obligatoire, notifiée, step-up) + extension/offre 30 j (nouvelle période tracée, step-up) + notification J-3 avant échéance + audit kinds dédiés ; jamais de suppression/modification de lignes ; past_due/dunning au backlog production.
+---
+Task ID: t.134
+Agent: agent principal (Z.ai Code)
+Task: « ok et y a t il d'autre chantier restant ? » — le « ok » VALIDe le chantier Abonnements proposé en t. 132-133 (renuméroté t. 135 à la construction) ; la question appelle l'INVENTAIRE complet des chantiers restants.
+
+Work Log:
+- SOURCES VÉRIFIÉES : README § « Limites assumées (version d'essai) & priorités » (ligne backlog + lignes 177-180) + worklog t. 129 (Phase 3 production) + t. 133 (past_due/dunning backlog) — aucune autre trace de chantier ouvert.
+- INVENTAIRE ÉTABLI EN 3 CATÉGORIES + suggestions : (A) VALIDÉ PRÊT À LANCER : gestion des abonnements console (t. 135) — interne, zéro dépendance. (B) BLOQUÉS SUR DÉMARCHES EXTERNES (côté fondatrice) : OTP SMS réel (passerelle à souscrire — modèle OtpCode prêt), paiements réels Wave Business/Orange Money (contrat marchand), voix TTS natives locales dioula/baoulé/bété (moteur actuel = FR seulement, traductions IA indicatives). (C) PASSAGE EN PRODUCTION : HTTPS + cookies secure (code prêt, booléen documenté secure:false), dunning/past_due (lié aux paiements réels), SQLite → Postgres à l'échelle. (D) SUGGESTIONS non planifiées : multi-admin (déléguer un accès console), exports console CSV, reçu/facture PDF d'abonnement.
+- RÉPONSE LIVRÉE : inventaire structuré + confirmation que le chantier Abonnements est validé et sera le prochain construit.
+
+Stage Summary:
+- RÉPONSE : après le chantier Abonnements (validé, t. 135), il reste 3 chantiers bloqués sur des démarches externes (SMS réel, Wave/OM réels, TTS natives) et 3 chantiers de production (HTTPS/secure cookies, dunning, Postgres) — rien d'autre d'ouvert côté interne.
+- ÉTAT : le produit en mode essai est COMPLET sur son périmètre ; les chantiers restants dépendent soit de démarches fondatrice (souscriptions/agréments), soit du passage en production.
