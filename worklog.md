@@ -3028,3 +3028,19 @@ Stage Summary:
 - RÉPONSE : l'admin se connecte UNIQUEMENT par le lien dédié /console (jamais depuis la landing — un compte admin y est refusé avec guidage, une session admin y est redirigée) : numéro 07 00 00 00 00 → code 6 chiffres → console. Parcours re-vérifié de bout en bout ce jour, session 8 h confirmée par décodage du cookie.
 - AUCUN CHANGEMENT DE CODE : question + re-vérification uniquement (lint/tsc non relancés — rien n'a bougé).
 - RÉFÉRENCE FONDATRICE : numéro console +225 07 00 00 00 00 (compte seedé « Console Kènè », rôle admin, protégé contre l'auto-verrouillage).
+---
+Task ID: t.132
+Agent: agent principal (Z.ai Code)
+Task: « et au niveau des abonnements, l'admine peux les gérer ? » — question de la fondatrice sur la gestion des abonnements depuis la console admin.
+
+Work Log:
+- DEUX CONCEPTS DISTINGUÉS dans le code : (1) « plans d'institut » — champ Tenant.plan (trial | pro | business), classification par institut ; (2) « abonnements des comptes » — model Subscription t. 71-c (Kènè+ 2 500 F/mois clientes, Pro Essentiel 15 000 F, Pro Complexe 45 000 F/mois, source momo_sim = paiement SIMULÉ).
+- VÉRIFICATION PLANS INSTITUTS : ✓ DÉJÀ GÉRABLES — PATCH /api/admin/tenants/[id] accepte plan (t. 128), pills Plan dans la fiche institut (AdminTenants), audit kind tenant_plan. En base : Éclat d'Abidjan=pro, Baobab=trial, LA DERMO=trial.
+- VÉRIFICATION ABONNEMENTS COMPTES : ✗ INVISIBLES DEPUIS LA CONSOLE — aucune route admin ne touche Subscription (grep : 0), aucune UI admin ne les mentionne (grep composants admin : 0). Seules routes : GET /api/subscriptions (lecture par l'utilisatrice elle-même) + POST /api/subscriptions/activate (auto-activation, paiement simulé). Aucun levier admin : pas de liste, pas d'annulation, pas d'offre/prolongation, pas de KPI revenus.
+- DONNÉES RÉELLES EN BASE : 2 abonnements actifs — 1× Kènè+ (expire 21 sept. 2026) + 1× Pro Complexe (expire 8 oct. 2026) = 47 500 F/mois simulés que la console ne montre nulle part. GET /api/admin/stats ne calcule AUCUN KPI abonnements (CA 30 j uniquement).
+- RÉPONSE LIVRÉE : oui pour les plans d'instituts (déjà livré t. 128) ; non pour les abonnements des comptes — et proposition t. 133 : carte/onglet « Abonnements » dans la console (liste + recherche, KPI revenus simulés, annulation à motif notifié, offre/prolongation 30 j geste commercial, audit + step-up cohérent avec t. 130).
+
+Stage Summary:
+- RÉPONSE : l'admin gère les PLANS D'INSTITUTS (trial/pro/business, fiche institut, t. 128) mais PAS les ABONNEMENTS Kènè+/Pro des comptes — ils s'auto-activent côté utilisatrice (paiement mobile money simulé) et sont invisibles dans la console (aucune route, aucune UI, aucun KPI).
+- ENJEU BUSINESS IDENTIFIÉ : la monétisation (2 500/15 000/45 000 F/mois simulés) n'a AUCUNE surface de pilotage — la fondatrice ne peut ni voir qui paie, ni annuler, ni offrir un mois.
+- PROPOSITION t. 133 (en attente de validation) : gestion des abonnements dans la console — liste/filtres, KPI MRR simulé, annulation à motif + notification, prolongation/offre 30 j, audit kinds dédiés, step-up avant actions sensibles.
