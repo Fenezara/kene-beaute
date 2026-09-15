@@ -110,6 +110,27 @@ export function PlanScreen() {
     }
   }
 
+  // ── Flow de renouvellement (t. 138 — deux tapes depuis la carte active) ──
+  const [renewBusy, setRenewBusy] = useState(false);
+
+  /** Renouvelle +30 jours (paiement SIMULÉ) → POST renew → toast + reload. */
+  async function renew() {
+    setRenewBusy(true);
+    try {
+      const r = await apiPost<{ subscription: ApiSubscription }>("/api/subscriptions/renew", {
+        userId: user.id,
+      });
+      toast.success("Abonnement renouvelé — merci 💛", {
+        description: `Actif jusqu'au ${fmtJJMM(r.subscription.expiresAt)} · paiement en mode essai`,
+      });
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Renouvellement impossible");
+    } finally {
+      setRenewBusy(false);
+    }
+  }
+
   return (
     <Reveal className="pt-4 pb-2 flex flex-col gap-6" stagger={0.07}>
       <RevealItem className="self-start">
@@ -228,7 +249,21 @@ export function PlanScreen() {
             </ul>
             <p className="mt-4 flex items-start gap-1.5 rounded-xl bg-success/10 px-3 py-2.5 text-[11px] text-success leading-snug">
               <BadgeCheck size={14} className="mt-px shrink-0" aria-hidden="true" />
-              Ton abonnement est actif jusqu&apos;au {fmtJJMM(data.subscription.expiresAt)} — il se renouvelle chaque mois (paiement en mode essai, aucun débit réel).
+              Ton abonnement est actif jusqu&apos;au {fmtJJMM(data.subscription.expiresAt)} — sans engagement, il expire naturellement à cette date (aucun prélèvement automatique, jamais).
+            </p>
+            {/* t. 138 — renouvellement en deux tapes: la carte J-3 de l'accueil
+                et le rappel automatique mènent ici. Jours raccordés (IFRS 15). */}
+            <button
+              onClick={() => void renew()}
+              disabled={renewBusy}
+              className="k-btn-gold mt-3 h-12 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              aria-label={`Renouveler Kènè+ pour 30 jours supplémentaires — ${plusDef ? xof(plusDef.priceFcfa) : "2 500 F"} par mois, paiement en mode essai`}
+            >
+              {renewBusy ? <Loader2 size={16} className="animate-spin" /> : <Crown size={16} />}
+              Renouveler +30 jours · {plusDef ? xof(plusDef.priceFcfa) : "2 500 F"}
+            </button>
+            <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
+              Les 30 jours se raccordent après ton échéance actuelle · paiement mobile money en mode essai, aucun débit réel.
             </p>
           </section>
         </RevealItem>

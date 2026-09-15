@@ -479,14 +479,17 @@ model Notification {
 // ─────────────────────────── Abonnements (t. 71-c) ───────────────────────────
 // Monétisation Kènè : cliente « Kènè+ » (2 500 F/mois) et pro « Essentiel » /
 // « Complexe » (15 000 / 45 000 F/mois). source = "momo_sim" : paiement
-// SIMULÉ mobile money (POC — aucun argent réel, mention affichée partout).
+// SIMULÉ mobile money (POC — aucun argent réel, mention affichée partout) ;
+// "console_gift" : 30 j offerts par la Console (t. 135) ; "referral_gift" :
+// 30 j offerts à la marraine quand sa filleule rejoint (t. 138) — les cadeaux
+// comptent 0 F (hors MRR, norme t. 133) et ne s'écrasent JAMAIS (IFRS 15).
 model Subscription {
   id        String   @id @default(cuid())
   userId    String
   plan      String   // "kene_plus" | "pro_essentiel" | "pro_complexe"
   status    String   @default("active") // active | cancelled | expired
   priceFcfa Int
-  source    String   @default("momo_sim") // paiement simulé POC
+  source    String   @default("momo_sim") // momo_sim | console_gift | referral_gift
   startedAt DateTime @default(now())
   expiresAt DateTime
   createdAt DateTime @default(now())

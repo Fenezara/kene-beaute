@@ -3,7 +3,7 @@
 // + « Mes commandes »: historique des commandes enregistrées (consultation par la cliente).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, Building2, Heart, History, Loader2, Lock, Minus, Plus, Search, ShoppingBag, Store, Tag, Trash2, TriangleAlert, X } from "lucide-react";
+import { BadgeCheck, Building2, Crown, Heart, History, Loader2, Lock, Minus, Plus, Search, ShoppingBag, Store, Tag, Trash2, TriangleAlert, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof, CASHBACK_RATE, formatDate, formatTime } from "@/lib/kene/format";
@@ -39,6 +39,10 @@ export function ShopScreen() {
   const addToCart = useKene((s) => s.addToCart);
   const setCartQty = useKene((s) => s.setCartQty);
   const clearCart = useKene((s) => s.clearCart);
+  const setClientTab = useKene((s) => s.setClientTab);
+  // t. 138 — le moment commande: une acheteuse a prouvé son engagement. On
+  // sait si elle est déjà abonnée (non bloquant, échec → pas de carte).
+  const [hasSub, setHasSub] = useState<boolean | null>(null);
 
   const [products, setProducts] = useState<ApiProduct[] | null>(null);
   const [cat, setCat] = useState("");
@@ -131,6 +135,9 @@ export function ShopScreen() {
       .catch(() => setProducts([]));
     loadWallet();
     refreshOrders();
+    apiGet<{ subscription: { plan: string } | null }>(`/api/subscriptions?userId=${user.id}`)
+      .then((r) => setHasSub(Boolean(r.subscription)))
+      .catch(() => setHasSub(null));
   }, [user.id, refreshOrders, loadWallet]);
 
  /* Les vendeurs du marché — MAISON Kènè d'abord, puis les instituts
@@ -735,6 +742,27 @@ export function ShopScreen() {
                   <p className="text-xs text-[#F8F1E4]/70 max-w-[300px] leading-relaxed">
                     Commande confirmée. <span className="flex items-center gap-1 justify-center mt-1 text-gold-text dark:text-[#E3B454] font-semibold"><BadgeCheck size={13} aria-hidden="true" /> Cashback {xof(Math.round(payState.amount * cashbackRate))} crédité sur ton wallet Kènè</span>
                   </p>
+                  {/* t. 138 — PARCOURS CONVERSION: le moment commande (une
+                      acheteuse a déjà prouvé son engagement). Une seule offre
+                      sobre, seulement si NON abonnée — jamais de pression. */}
+                  {hasSub === false && (
+                    <button
+                      onClick={() => { setPayState(null); setClientTab("abonnement"); }}
+                      className="mt-1 w-full max-w-[340px] rounded-xl border border-[#E3B454]/45 bg-[#E3B454]/12 px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E3B454]"
+                      aria-label="Découvrir Kènè+ — 2 500 francs par mois, sans engagement"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC]" aria-hidden="true">
+                          <Crown size={16} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[13px] font-bold text-[#F8F1E4]">Ajoute Kènè+ à ta routine</span>
+                          <span className="mt-0.5 block text-[10.5px] leading-snug text-[#F8F1E4]/70">2 500 F/mois · sans engagement · diagnostics illimités</span>
+                        </span>
+                        <span className="shrink-0 text-[#E3B454]" aria-hidden="true">→</span>
+                      </span>
+                    </button>
+                  )}
                   <button autoFocus onClick={() => setPayState(null)} className="mt-2 h-12 px-8 rounded-xl bg-primary text-primary-foreground font-semibold shadow active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary">
                     Continuer mes achats
                   </button>

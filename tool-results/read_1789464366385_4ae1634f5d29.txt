@@ -1,0 +1,766 @@
+     1→// Kènè — Schéma Prisma multi-tenant (SQLite)
+     2→// Les types enum sont simulés via String + validation Zod côté API.
+     3→
+     4→generator client {
+     5→  provider = "prisma-client-js"
+     6→}
+     7→
+     8→datasource db {
+     9→  provider = "sqlite"
+    10→  url      = env("DATABASE_URL")
+    11→}
+    12→
+    13→// ─────────────────────────── Globales ───────────────────────────
+    14→
+    15→model Country {
+    16→  id        String  @id @default(cuid())
+    17→  code      String  @unique // "CI" | "SN"
+    18→  name      String
+    19→  currency  String  @default("XOF")
+    20→  tvaRate   Float   @default(18.0)
+    21→  phoneCode String // "+225"
+    22→}
+    23→
+    24→model MomoOperator {
+    25→  id      String @id @default(cuid())
+    26→  code    String @unique // wave | orange | mtn
+    27→  name    String
+    28→  color   String
+    29→  ussd    String
+    30→  active  Boolean @default(true)
+    31→}
+    32→
+    33→model User {
+    34→  id           String   @id @default(cuid())
+    35→  phone        String   @unique
+    36→  name         String
+    37→  role         String   @default("client") // client | pro | admin
+    38→  email        String?
+    39→  city         String?
+    40→  skinType     String? // grasse | seche | mixte | normale
+    41→  fitzpatrick  String? // III | IV | V | VI
+    42→  allergies    String? // texte libre
+    43→  goals        String? // JSON [{id,label}]
+    44→  consentHealth Boolean @default(false)
+    45→  consentTs    DateTime?
+    46→  referralCode String?
+    47→  referredBy   String?
+    48→  // t. 120 — photo de profil cliente (data URL JPEG redimensionnée côté
+    49→  // client, servie par /api/media/user/:id, jamais dans les payloads JSON)
+    50→  avatarData   String?
+    51→  // t. 128 — verrouillage manuel par la Console Kènè (modération):
+    52→  // bloqué à la vérification OTP ET au boot de session (déconnexion douce).
+    53→  // Null = compte libre. Le motif est montré à l'utilisatrice au login.
+    54→  lockedAt      DateTime?
+    55→  lockedReason  String?
+    56→  createdAt    DateTime @default(now())
+    57→  updatedAt    DateTime @updatedAt
+    58→
+    59→  diagnoses    Diagnosis[]
+    60→  orders       Order[]
+    61→  reviews      Review[]
+    62→  notifications Notification[]
+    63→  // t. 130 — passkeys de la Console (WebAuthn): chaque appareil enregistré
+    64→  // peut ouvrir la console par preuve cryptographique (Face ID / empreinte /
+    65→  // clé USB) — MFA résistante au hameçonnage (NIST 800-63B-4).
+    66→  passkeys     PasskeyCredential[]
+    67→  consents     Consent[]
+    68→  appointments Appointment[] @relation("UserAppointments")
+    69→  wallet       Wallet?
+    70→  couponRedemptions CouponRedemption[]
+    71→  subscriptions Subscription[] // abonnements Kènè+ / Pro (t. 71-c)
+    72→  passport     SkinPassport? // Passeport de Peau partageable (t. 82)
+    73→}
+    74→
+    75→// ─────────────────────────── Tenants (entreprises) ───────────────────────────
+    76→
+    77→model Tenant {
+    78→  id             String   @id @default(cuid())
+    79→  name           String
+    80→  type           String   @default("institut") // institut | spa | dermo_conseil
+    81→  country        String // CI | SN
+    82→  city           String
+    83→  address        String?
+    84→  phone          String
+    85→  ownerName      String
+    86→  ownerPhone     String
+    87→  plan           String   @default("trial") // trial | pro | business
+    88→  commissionRate Float    @default(0)
+    89→  rating         Float    @default(4.7)
+    90→  reviewCount    Int      @default(0)
+    91→  description    String?
+    92→  // t. 120 — photo de vitrine de l'institut (data URL, servie par
+    93→  // /api/media/tenant/:id) — remplace le visuel calculé du nom si posée
+    94→  photoData      String?
+    95→  openingHour    Int      @default(9)
+    96→  closingHour    Int      @default(19)
+    97→  active         Boolean  @default(true)
+    98→  // t. 128 — traçabilité console de la suspension (active = false):
+    99→  // quand, pourquoi — montré à la gérante au login et sur la fiche admin.
+   100→  suspendedAt    DateTime?
+   101→  suspendedReason String?
+   102→  createdAt      DateTime @default(now())
+   103→
+   104→  resources      Resource[]
+   105→  services       Service[]
+   106→  clients        ClientProfile[]
+   107→  appointments   Appointment[]
+   108→  sales          Sale[]
+   109→  products       Product[]
+   110→  movements      InventoryMovement[]
+   111→  employees      Employee[]
+   112→  payPeriods     PayPeriod[]
+   113→  accounts       ChartAccount[]
+   114→  journals       JournalEntry[]
+   115→  coupons        Coupon[]
+   116→  reviews        Review[]
+   117→  notifications  Notification[]
+   118→  followUpMarks  FollowUpMark[]
+   119→  proDiagnoses   ProDiagnosis[]
+   120→  leaves        LeaveRequest[]
+   121→}
+   122→
+   123→// ─────────────────────────── Relances « Le Fil du Retour » ───────────────────────────
+   124→
+   125→model FollowUpMark {
+   126→  id        String   @id @default(cuid())
+   127→  tenantId  String
+   128→  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   129→  dedupKey  String   // "diag:<id>" | "appt:<id>" | "sale:<id>" | "client:<id>"
+   130→  status    String   @default("done") // done | dismissed
+   131→  via       String?  // whatsapp | call | visit | sms
+   132→  note      String?
+   133→  createdAt DateTime @default(now())
+   134→  updatedAt DateTime @updatedAt
+   135→
+   136→  @@unique([tenantId, dedupKey])
+   137→}
+   138→
+   139→model Resource {
+   140→  id        String  @id @default(cuid())
+   141→  tenantId  String
+   142→  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   143→  name      String
+   144→  role      String  @default("estheticienne") // estheticienne | dermo_conseillere | caissiere
+   145→  color     String  @default("#C8951E")
+   146→  active    Boolean @default(true)
+   147→
+   148→  appointments Appointment[]
+   149→}
+   150→
+   151→model Service {
+   152→  id            String  @id @default(cuid())
+   153→  tenantId      String
+   154→  tenant        Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   155→  name          String
+   156→  category      String  @default("soin") // soin | gommage | massage | diagnostic | consultation
+   157→  durationMin   Int     @default(60)
+   158→  price         Int
+   159→  commissionPct Float   @default(10)
+   160→  description   String?
+   161→  botanicals    String? // "Karité, Baobab"
+   162→  // t. 120 — visuel du soin (data URL, servie par /api/media/service/:id)
+   163→  photoData     String?
+   164→  active        Boolean @default(true)
+   165→
+   166→  appointments Appointment[]
+   167→  saleItems    SaleItem[]
+   168→}
+   169→
+   170→// ─────────────────────────── CRM ───────────────────────────
+   171→
+   172→model ClientProfile {
+   173→  id          String    @id @default(cuid())
+   174→  tenantId    String
+   175→  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   176→  userId      String?   // lien vers User si cliente Kènè
+   177→  name        String
+   178→  phone       String
+   179→  email       String?
+   180→  skinType    String?
+   181→  fitzpatrick String?
+   182→  notes       String?
+   183→  visitsCount Int       @default(0)
+   184→  totalSpent  Int       @default(0)
+   185→  lastVisit   DateTime?
+   186→  rfmSegment  String    @default("Nouveau") // Champions | Fidèles | Potentiels | À risque | Perdus | Nouveaux
+   187→  createdAt   DateTime  @default(now())
+   188→
+   189→  appointments Appointment[]
+   190→  sales        Sale[]
+   191→  proDiagnoses ProDiagnosis[]
+   192→}
+   193→
+   194→// ─────────────────────────── Diagnostic en institut (questionnaire ± photo) ───────────────────────────
+   195→
+   196→model ProDiagnosis {
+   197→  id               String       @id @default(cuid())
+   198→  tenantId         String
+   199→  tenant           Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   200→  clientProfileId  String
+   201→  clientProfile    ClientProfile @relation(fields: [clientProfileId], references: [id])
+   202→  userId           String?      // si la cliente est aussi sur l'app Kènè (notification envoyée)
+   203→  zone             String       // visage | dos | cuir_chevelu | mains | barbe | naevi
+   204→  practitioner     String?      // praticienne qui a réalisé le diagnostic
+   205→  questionnaireJson String      // réponses brutes { questionId: value | value[] }
+   206→  photoData        String?      // data URL (optionnelle — photo prise en cabine)
+   207→  resultJson       String       // résultat complet (questionnaire ± VLM fusionnés)
+   208→  scoreGlobal      Int          @default(0)
+   209→  vlmUsed          Boolean      @default(false) // photo analysée par le VLM
+   210→  photoUsed        Boolean      @default(false) // photo jointe
+   211→  // Consentements recueillis en cabine AVANT le diagnostic (t. 119) — la
+   212→  // cliente signe aussi la fiche papier ; ici la trace numérique horodatée.
+   213→  consentPhoto     Boolean      @default(false) // prise & conservation de photos par l'institut
+   214→  consentData      Boolean      @default(false) // conservation des données de peau par l'institut
+   215→  consentTs        DateTime?    // horodatage du consentement
+   216→  createdAt        DateTime     @default(now())
+   217→}
+   218→
+   219→// ─────────────────────────── RDV ───────────────────────────
+   220→
+   221→model Appointment {
+   222→  id             String   @id @default(cuid())
+   223→  tenantId       String
+   224→  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   225→  clientProfileId String?
+   226→  clientProfile  ClientProfile? @relation(fields: [clientProfileId], references: [id])
+   227→  userId         String?
+   228→  user           User?   @relation("UserAppointments", fields: [userId], references: [id])
+   229→  clientName     String
+   230→  clientPhone    String
+   231→  resourceId     String
+   232→  resource       Resource @relation(fields: [resourceId], references: [id])
+   233→  serviceId      String
+   234→  service        Service @relation(fields: [serviceId], references: [id])
+   235→  startAt        DateTime
+   236→  durationMin    Int     @default(60)
+   237→  status         String  @default("confirmed") // pending | confirmed | completed | cancelled | no_show
+   238→  price          Int     @default(0)
+   239→  depositAmount  Int     @default(0) // acompte payé via MoMo
+   240→  paymentId      String?
+   241→  notes          String?
+   242→  createdAt      DateTime @default(now())
+   243→
+   244→  review Review?
+   245→
+   246→  @@index([tenantId, startAt]) // agenda : RDV d'un institut par plage de dates
+   247→}
+   248→
+   249→// ─────────────────────────── Diagnostic IA ───────────────────────────
+   250→
+   251→model Diagnosis {
+   252→  id           String   @id @default(cuid())
+   253→  userId       String
+   254→  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   255→  zone         String // visage | dos | cuir_chevelu | mains | barbe | naevi
+   256→  imageData    String   // base64 (redimensionné côté client)
+   257→  resultJson   String   // résultat complet VLM
+   258→  scoreGlobal  Int      @default(0)
+   259→  status       String   @default("pending") // pending | done | error
+   260→  vlmUsed      Boolean  @default(true)
+   261→  createdAt    DateTime @default(now())
+   262→
+   263→  @@index([userId, createdAt]) // historique diagnostic par cliente
+   264→}
+   265→
+   266→// ─────────────────────────── Boutique / Produits / Stock ───────────────────────────
+   267→
+   268→model Product {
+   269→  id          String  @id @default(cuid())
+   270→  tenantId    String? // null = boutique Kènè (marketplace light)
+   271→  tenant      Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   272→  name        String
+   273→  brandLine   String  @default("Kènè Botaniques")
+   274→  category    String  @default("soin") // serum | creme | huile | gommage | masque | savon
+   275→  description String
+   276→  botanicals  String // "Moringa, Karité"
+   277→  price       Int
+   278→  compareAt   Int?
+   279→  stock       Int     @default(50)
+   280→  stockAlert  Int     @default(8)
+   281→  image       String  // /products/xxx.webp (visuel studio par défaut)
+   282→  // t. 120 — photo RÉELLE du produit prise par l'institut (data URL, servie
+   283→  // par /api/media/product/:id) — prime sur `image` quand elle existe
+   284→  photoData   String?
+   285→  rating      Float   @default(4.8)
+   286→  reviewCount Int     @default(0)
+   287→  active      Boolean @default(true)
+   288→
+   289→  movements InventoryMovement[]
+   290→  saleItems SaleItem[]
+   291→  orderItems OrderItem[]
+   292→}
+   293→
+   294→model Sale {
+   295→  id             String   @id @default(cuid())
+   296→  tenantId       String
+   297→  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   298→  clientProfileId String?
+   299→  clientProfile  ClientProfile? @relation(fields: [clientProfileId], references: [id])
+   300→  items          SaleItem[]
+   301→  subtotal       Int
+   302→  discount       Int      @default(0)
+   303→  total          Int
+   304→  tvaAmount      Int      @default(0) // TVA incluse (18%)
+   305→  paymentMethod  String   // wave | orange | cash | card
+   306→  paymentRef     String?
+   307→  cashierName    String   @default("Caisse 1")
+   308→  status         String   @default("completed") // pending | completed | refunded
+   309→  createdAt      DateTime @default(now())
+   310→
+   311→  @@index([tenantId, createdAt]) // KPIs ventes + compta par période
+   312→}
+   313→
+   314→model SaleItem {
+   315→  id        String  @id @default(cuid())
+   316→  saleId    String
+   317→  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+   318→  kind      String  // service | product
+   319→  serviceId String?
+   320→  service   Service? @relation(fields: [serviceId], references: [id])
+   321→  productId String?
+   322→  product   Product? @relation(fields: [productId], references: [id])
+   323→  label     String
+   324→  qty       Int     @default(1)
+   325→  unitPrice Int
+   326→  total     Int
+   327→}
+   328→
+   329→model InventoryMovement {
+   330→  id        String   @id @default(cuid())
+   331→  tenantId  String
+   332→  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   333→  productId String
+   334→  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+   335→  type      String // in | out | adjust | loss
+   336→  qty       Int
+   337→  reason    String
+   338→  createdAt DateTime @default(now())
+   339→}
+   340→
+   341→// ─────────────────────────── Wallet & Paiements ───────────────────────────
+   342→
+   343→model Wallet {
+   344→  id           String   @id @default(cuid())
+   345→  userId       String   @unique
+   346→  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   347→  balance      Int      @default(0)
+   348→  cashbackRate Float    @default(0.05)
+   349→  referralCode String   @unique
+   350→  createdAt    DateTime @default(now())
+   351→
+   352→  transactions WalletTransaction[]
+   353→}
+   354→
+   355→model WalletTransaction {
+   356→  id        String   @id @default(cuid())
+   357→  walletId  String
+   358→  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+   359→  type      String // credit | debit
+   360→  amount    Int
+   361→  reason    String // cashback | referral | topup | payment | refund
+   362→  refId     String?
+   363→  createdAt DateTime @default(now())
+   364→
+   365→  @@index([walletId, createdAt]) // relevé wallet par cliente (dédup parrainage)
+   366→}
+   367→
+   368→model Payment {
+   369→  id          String    @id @default(cuid())
+   370→  userId      String?
+   371→  purpose     String // shop_order | appointment_deposit | wallet_topup | pos_sale
+   372→  method      String // wave | orange | cash | card | wallet
+   373→  amount      Int
+   374→  status      String    @default("pending") // pending | success | failed
+   375→  ref         String    @unique
+   376→  metaJson    String?   // contexte (orderId, appointmentId…)
+   377→  confirmTokenHash String? // sha256 du code de confirmation (t. 63-c) — null = paiement sans code (wallet/POS)
+   378→  createdAt   DateTime  @default(now())
+   379→  confirmedAt DateTime?
+   380→
+   381→  order Order?
+   382→}
+   383→
+   384→model Order {
+   385→  id        String   @id @default(cuid())
+   386→  userId    String
+   387→  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   388→  items     OrderItem[]
+   389→  subtotal  Int
+   390→  discount  Int      @default(0) // remise coupon appliquée (0 = aucune)
+   391→  couponCode String? // code du coupon appliqué (traçabilité)
+   392→  cashback  Int      @default(0)
+   393→  total     Int
+   394→  paymentId String?  @unique
+   395→  payment   Payment? @relation(fields: [paymentId], references: [id])
+   396→  status    String   @default("pending") // pending | paid | delivered | cancelled
+   397→  createdAt DateTime @default(now())
+   398→
+   399→  @@index([userId, createdAt]) // « Mes commandes » par cliente
+   400→}
+   401→
+   402→model OrderItem {
+   403→  id        String  @id @default(cuid())
+   404→  orderId   String
+   405→  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+   406→  productId String
+   407→  product   Product @relation(fields: [productId], references: [id])
+   408→  label     String
+   409→  qty       Int     @default(1)
+   410→  unitPrice Int
+   411→  total     Int
+   412→}
+   413→
+   414→// ───────────────────── Coupons boutique (Sprint 6) ─────────────────────
+   415→
+   416→model Coupon {
+   417→  id          String             @id @default(cuid())
+   418→  tenantId    String? // null = coupon maison Kènè (diffusable par l'admin)
+   419→  tenant      Tenant?            @relation(fields: [tenantId], references: [id])
+   420→  code        String             @unique // PROMO-XXXX, stocké uppercase
+   421→  label       String? // description visible cliente (« Fête des mères » )
+   422→  kind        String             // percent | fixed
+   423→  value       Int                // percent : 5..90 (%) · fixed : 500..500000 (FCFA)
+   424→  minOrder    Int                @default(0) // panier minimum pour appliquer
+   425→  maxUses     Int                @default(0) // 0 = illimité
+   426→  usedCount   Int                @default(0)
+   427→  startsAt    DateTime           @default(now())
+   428→  expiresAt   DateTime?
+   429→  active      Boolean            @default(true)
+   430→  createdAt   DateTime           @default(now())
+   431→
+   432→  redemptions CouponRedemption[]
+   433→}
+   434→
+   435→model CouponRedemption {
+   436→  id        String   @id @default(cuid())
+   437→  couponId  String
+   438→  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+   439→  userId    String
+   440→  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   441→  orderId   String? // commande boutique concernée
+   442→  discount  Int      // remise réellement appliquée (FCFA)
+   443→  createdAt DateTime @default(now())
+   444→
+   445→  @@unique([couponId, userId]) // UNE seule utilisation par cliente et par coupon
+   446→}
+   447→
+   448→model Review {
+   449→  id            String   @id @default(cuid())
+   450→  tenantId      String
+   451→  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   452→  userId        String
+   453→  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   454→  appointmentId String?  @unique
+   455→  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+   456→  rating        Int
+   457→  comment       String?
+   458→  createdAt     DateTime @default(now())
+   459→}
+   460→
+   461→model Notification {
+   462→  id           String    @id @default(cuid())
+   463→  userId       String?
+   464→  user         User?     @relation(fields: [userId], references: [id])
+   465→  tenantId     String?
+   466→  tenant       Tenant?   @relation(fields: [tenantId], references: [id])
+   467→  channel      String // sms | whatsapp | email
+   468→  toPhone      String
+   469→  message      String
+   470→  status       String    @default("sent") // sent | scheduled
+   471→  scheduledAt  DateTime? // déclenchement prévu (status scheduled) — null = immédiat
+   472→  metaJson     String?   // contexte {diagId} | {apptId} | {dedupKey} — annulation intelligente
+   473→  readAt       DateTime? // lecture cliente (status sent) — null = non lue
+   474→  createdAt    DateTime  @default(now())
+   475→
+   476→  @@index([userId, createdAt]) // badge non-lues + fil client
+   477→}
+   478→
+   479→// ─────────────────────────── Abonnements (t. 71-c) ───────────────────────────
+   480→// Monétisation Kènè : cliente « Kènè+ » (2 500 F/mois) et pro « Essentiel » /
+   481→// « Complexe » (15 000 / 45 000 F/mois). source = "momo_sim" : paiement
+   482→// SIMULÉ mobile money (POC — aucun argent réel, mention affichée partout).
+   483→model Subscription {
+   484→  id        String   @id @default(cuid())
+   485→  userId    String
+   486→  plan      String   // "kene_plus" | "pro_essentiel" | "pro_complexe"
+   487→  status    String   @default("active") // active | cancelled | expired
+   488→  priceFcfa Int
+   489→  source    String   @default("momo_sim") // paiement simulé POC
+   490→  startedAt DateTime @default(now())
+   491→  expiresAt DateTime
+   492→  createdAt DateTime @default(now())
+   493→  user      User     @relation(fields: [userId], references: [id])
+   494→
+   495→  @@index([userId, status]) // plan actif + quota diagnostics par cliente
+   496→}
+   497→
+   498→// ─────────────────────────── Passeport de Peau (t. 82) ───────────────────────────
+   499→// QR partageable vers les instituts partenaires : un jeton stable par
+   500→// cliente, lisible SANS compte (vue publique /?passport=<token>). Pas de
+   501→// photo — profil peau uniquement (phototype, type, allergies, objectifs,
+   502→// dernier score, fils d'or). rotatable : régénérer le jeton révoque l'ancien.
+   503→model SkinPassport {
+   504→  id        String   @id @default(cuid())
+   505→  userId    String   @unique
+   506→  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   507→  token     String   @unique
+   508→  createdAt DateTime @default(now())
+   509→  rotatedAt DateTime?
+   510→}
+   511→
+   512→// ─────────────────────────── Web Push VAPID (t. 60-e) ───────────────────────────
+   513→// Abonnements navigateur (Push API) — rappels reçus MÊME application fermée.
+   514→// endpoint = URL du push service du navigateur (unique par abonnement).
+   515→model PushSubscription {
+   516→  id        String   @id @default(cuid())
+   517→  userId    String
+   518→  endpoint  String   @unique
+   519→  p256dh    String
+   520→  auth      String
+   521→  createdAt DateTime @default(now())
+   522→}
+   523→
+   524→// ─────────────────────────── Paie (Sprint 4) ───────────────────────────
+   525→
+   526→model Employee {
+   527→  id           String   @id @default(cuid())
+   528→  tenantId     String
+   529→  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   530→  name         String
+   531→  role         String // estheticienne | dermo_conseillere | caissiere | manager
+   532→  // t. 96 — compte APP de l'employée : User (rôle « pro ») lié par userId.
+   533→  // La fondatrice crée le compte à l'embauche (numéro de l'employée) ;
+   534→  // l'employée se connecte par OTP et entre dans l'espace Pro de SON
+   535→  // institut avec les sections de son poste (resolveTenant + ProApp).
+   536→  userId       String?
+   537→  contractType String   @default("CDI") // CDI | CDD | Stage
+   538→  country      String // CI | SN
+   539→  baseSalary   Int // mensuel brut de base XOF
+   540→  transport    Int      @default(0)
+   541→  housing      Int      @default(0)
+   542→  cadres       Boolean  @default(false) // IPRES cadres (SN)
+   543→  hireDate     DateTime @default(now())
+   544→  cnpsNumber   String?
+   545→  bankAccount  String?
+   546→  active       Boolean  @default(true)
+   547→  endDate      DateTime? // sortie (null = en poste)
+   548→
+   549→  attendance  Attendance[]
+   550→  leaves      LeaveRequest[]
+   551→  payslips    Payslip[]
+   552→}
+   553→
+   554→model Attendance {
+   555→  id         String   @id @default(cuid())
+   556→  employeeId String
+   557→  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+   558→  date       DateTime
+   559→  checkIn    String?  // "08:32"
+   560→  checkOut   String?
+   561→  hours      Float    @default(8)
+   562→  status     String   @default("present") // present | absent | leave | late
+   563→}
+   564→
+   565→model LeaveRequest {
+   566→  id         String    @id @default(cuid())
+   567→  tenantId   String
+   568→  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   569→  employeeId String
+   570→  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+   571→  startDate  DateTime
+   572→  endDate    DateTime
+   573→  type       String    @default("conge") // conge | maladie | maternite
+   574→  days       Int // jours ouverts (dimanche exclu), calculés à la saisie
+   575→  status     String    @default("pending") // pending | approved | rejected
+   576→  reason     String?   // motif saisi à la demande
+   577→  note       String?   // décision (motif de refus p. ex.)
+   578→  decidedAt  DateTime?
+   579→  createdAt  DateTime  @default(now())
+   580→
+   581→  @@index([tenantId, startDate])
+   582→}
+   583→
+   584→model PayPeriod {
+   585→  id        String   @id @default(cuid())
+   586→  tenantId  String
+   587→  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   588→  period    String // "2025-06"
+   589→  country   String
+   590→  status    String   @default("validated") // open | validated
+   591→  totalsJson String? // totaux agrégés
+   592→  createdAt DateTime @default(now())
+   593→
+   594→  payslips Payslip[]
+   595→}
+   596→
+   597→model Payslip {
+   598→  id            String   @id @default(cuid())
+   599→  payPeriodId   String
+   600→  payPeriod     PayPeriod @relation(fields: [payPeriodId], references: [id], onDelete: Cascade)
+   601→  employeeId    String
+   602→  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+   603→  baseSalary    Int
+   604→  hoursWorked   Float    @default(173.33)
+   605→  grossSalary   Int
+   606→  cnpsEmployee  Int      @default(0)
+   607→  cnpsEmployer  Int      @default(0)
+   608→  incomeTax     Int      @default(0) // IGR (CI) ou IR (SN)
+   609→  cn            Int      @default(0) // Contribution Nationale CI
+   610→  netSalary     Int
+   611→  detailsJson   String   // détail complet lignes
+   612→  createdAt     DateTime @default(now())
+   613→}
+   614→
+   615→// ─────────────────────────── Compta SYSCOHADA ───────────────────────────
+   616→
+   617→model ChartAccount {
+   618→  id       String  @id @default(cuid())
+   619→  tenantId String
+   620→  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   621→  code     String // "701000"
+   622→  classe   Int // 1..9
+   623→  label    String
+   624→  type     String // actif | passif | charge | produit
+   625→  system   Boolean @default(true) // compte du plan SYSCOHADA pré-chargé
+   626→
+   627→  entries JournalLine[]
+   628→}
+   629→
+   630→model JournalEntry {
+   631→  id         String   @id @default(cuid())
+   632→  tenantId   String
+   633→  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+   634→  journalCode String  @default("CA") // VE (ventes) | BQ (banque) | CA (caisse) | PA (paie) | OD
+   635→  date       DateTime
+   636→  reference  String
+   637→  description String
+   638→  sourceType String? // sale | payroll | manual
+   639→  sourceId   String?
+   640→  lines      JournalLine[]
+   641→  createdAt  DateTime @default(now())
+   642→}
+   643→
+   644→model JournalLine {
+   645→  id        String       @id @default(cuid())
+   646→  entryId   String
+   647→  entry     JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+   648→  accountId String
+   649→  account   ChartAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+   650→  debit     Int          @default(0)
+   651→  credit    Int          @default(0)
+   652→  label     String?
+   653→}
+   654→
+   655→// ─────────────────────────── Sécurité / Conformité ───────────────────────────
+   656→
+   657→model Consent {
+   658→  id        String   @id @default(cuid())
+   659→  userId    String
+   660→  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   661→  type      String // health_data | photo_storage | marketing | whatsapp | share_scans
+   662→  // Pour type = share_scans: institut concerné par le partage des self-scans
+   663→  // (null pour les consentements globaux du compte).
+   664→  tenantId  String?
+   665→  granted   Boolean
+   666→  ip        String?
+   667→  createdAt DateTime @default(now())
+   668→
+   669→  @@index([userId, type, tenantId])
+   670→}
+   671→
+   672→model AuditLog {
+   673→  id          String   @id @default(cuid())
+   674→  tenantId    String?
+   675→  userId      String?
+   676→  action      String
+   677→  entity      String
+   678→  entityId    String?
+   679→  detailsJson String?
+   680→  createdAt   DateTime @default(now())
+   681→}
+   682→
+   683→model OtpCode {
+   684→  id        String   @id @default(cuid())
+   685→  phone     String
+   686→  code      String
+   687→  expiresAt DateTime
+   688→  used      Boolean  @default(false)
+   689→  createdAt DateTime @default(now())
+   690→
+   691→  @@index([phone]) // vérification OTP par téléphone
+   692→}
+   693→
+   694→// ─────────────────────────── Console — passkeys & défis WebAuthn (t. 130) ───────────────────────────
+   695→// PasskeyCredential: un appareil enregistré par la fondatrice pour ouvrir la
+   696→// Console Kènè. La clé publique COSE est stockée en base64url; la partie
+   697→// privée ne quitte JAMAIS l'appareil (enclave sécurisée / clé USB).
+   698→// `credentialId` est l'identifiant WebAuthn (base64url), unique.
+   699→model PasskeyCredential {
+   700→  id           String    @id @default(cuid())
+   701→  credentialId String    @unique // base64url — id WebAuthn
+   702→  userId       String
+   703→  publicKey    String // clé publique COSE, base64url
+   704→  counter      Int       @default(0) // anti-rejeu (signe de compteur)
+   705→  transports   String? // "internal" | "hybrid" | "usb"… (csv)
+   706→  deviceType   String? // singleDevice | multiDevice
+   707→  backedUp     Boolean   @default(false)
+   708→  name         String? // étiquette console (« MacBook de la fondatrice »)
+   709→  createdAt    DateTime  @default(now())
+   710→  lastUsedAt   DateTime?
+   711→
+   712→  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+   713→
+   714→  @@index([userId])
+   715→}
+   716→
+   717→// WebauthnChallenge: défi éphémère d'une cérémonie WebAuthn (login ou
+   718→// register), consommé à la vérification, expiré après 5 min — purge paresseuse
+   719→// par la route qui en crée un (même hygiène que OtpCode).
+   720→model WebauthnChallenge {
+   721→  id        String   @id @default(cuid())
+   722→  phone     String
+   723→  challenge String
+   724→  purpose   String // login | register
+   725→  expiresAt DateTime
+   726→  createdAt DateTime @default(now())
+   727→
+   728→  @@index([phone, purpose])
+   729→}
+   730→
+   731→// ─────────────────────────── Sécurité — journal d'audit (t. 86-d) ───────────────────────────
+   732→// Journal léger des événements sensibles (OTP, connexions, paiements, accès
+   733→// console…). `phone` est TOUJOURS stocké MASQUÉ (ex. « +225 07•••••04 ») —
+   734→// jamais de numéro complet ; `detail` reste court (≤ 180 chars), sans secret.
+   735→// Prune paresseux côté serveur : > 90 jours d'ancienneté = supprimé.
+   736→model SecurityEvent {
+   737→  id      String   @id @default(cuid())
+   738→  ts      DateTime @default(now())
+   739→  kind    String   // otp_request | login_success | login_failed | login_locked | logout | pro_register | payment_confirm | admin_access | push_subscribe | upload_reject
+   740→  phone   String?  // MASQUÉ avant stockage (ex. +225 07•••••04) — JAMAIS de numéro complet
+   741→  userId  String?
+   742→  ip      String?
+   743→  detail  String?  // court, sans secret
+   744→
+   745→  @@index([ts]) // visionneuse admin : les 80 plus récents, ts desc
+   746→}
+   747→
+   748→// ─────────────────────────── Cercle Kènè (t. 83-b) ───────────────────────────
+   749→// Le cercle des témoignages : les voix de celles qui tissent avant. Contenu
+   750→// public de démonstration (POC) — prénom + initiale, jamais de nom complet,
+   751→// aucune donnée personnelle réelle, aucune relation : la carte est servie
+   752→// telle quelle par GET /api/testimonials (seed paresseux au premier appel).
+   753→
+   754→model Testimonial {
+   755→  id        String   @id @default(cuid())
+   756→  author    String // « Aminata K. » — prénom + initiale, jamais le nom complet
+   757→  city      String // « Cocody », « Yamoussoukro »…
+   758→  zone      String? // zone concernée (visage, dos, cuir chevelu…)
+   759→  text      String // 140-260 caractères, vécu concret
+   760→  months    Int // durée du parcours en mois (« 4 mois avec Kènè »)
+   761→  rating    Int // 4 ou 5
+   762→  threads   Int? // fils d'or de l'utilisatrice si connue
+   763→  featured  Boolean  @default(true)
+   764→  createdAt DateTime @default(now())
+   765→}
+   766→

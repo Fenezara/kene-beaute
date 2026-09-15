@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, slugify } from "@/lib/kene/server";
 import { subPlanLabel } from "@/lib/kene/plans";
+import { toCsv, csvDate, type CsvCell } from "@/lib/accounting/csv";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 import { requireAdmin } from "../tenants/route";
 
@@ -73,7 +74,8 @@ export async function GET(req: NextRequest) {
       activeCount: live.length,
       mrrFcfa,
       expiringSoon: live.filter((r) => r.derived === "expiring").length,
-      giftActive: live.filter((r) => r.source === "console_gift").length,
+      // Mois offerts actifs: gestes Console (t. 135) + cadeaux parrainage (t. 138).
+      giftActive: live.filter((r) => r.source === "console_gift" || r.source === "referral_gift").length,
     };
 
     // Répartition par plan (actifs) — pills de la carte liste.
@@ -98,13 +100,71 @@ export async function GET(req: NextRequest) {
     // Tri: ce qui vit d'abord — échéances proches, puis actives, puis
     // l'historique (expirés/annulés) du plus récent au plus ancien.
     const rank = { expiring: 0, active: 1, expired: 2, cancelled: 3 } as const;
-    filtered.sort((a, b) => {
+    const byLife = (a: (typeof rows)[number], b: (typeof rows)[number]) => {
       if (rank[a.derived] !== rank[b.derived]) return rank[a.derived] - rank[b.derived];
       if (a.derived === "active" || a.derived === "expiring") {
         return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime();
       }
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
+    };
+    filtered.sort(byLife);
+
+    // t. 140 — EXPORT COMPTABLE CSV: l'historique COMPLET (toutes lignes,
+    // hors recherche éventuelle — un export ne dépend jamais d'un filtre
+    // d'écran) pour la comptable. Même discipline que la compta Pro: BOM
+    // UTF-8 + «;» + \r\n + en-tête documentaire. Jamais de suppression ni
+    // modification — l'export reflète la base telle quelle.
+    if (req.nextUrl.searchParams.get("format") === "csv") {
+      const SRC: Record<string, string> = {
+        momo_sim: "Paiement (simulation)",
+        console_gift: "Offert Console",
+        referral_gift: "Cadeau parrainage",
+      };
+      const DER: Record<string, string> = {
+        active: "Actif",
+        expiring: "Expire ≤ 7 j",
+        expired: "Expirée",
+        cancelled: "Annulée",
+      };
+      const rowsCsv: CsvCell[][] = [
+        ["Console Kènè — Abonnements Kènè+ & Pro"],
+        ["Historique complet (IFRS 15) — inclut les lignes clôturées, rien ne s'efface"],
+        [`Édité le ${csvDate(new Date())} · ${rows.length} lignes · montants en FCFA · paiements en simulation (mode essai)`],
+        [],
+        ["Créée le", "Abonnée", "Téléphone", "Rôle", "Plan", "Prix F/mois", "Source", "Statut ligne", "Statut réel", "Début", "Échéance"],
+      ];
+      for (const r of [...rows].sort(byLife)) {
+        rowsCsv.push([
+          csvDate(r.createdAt),
+          r.userName,
+          r.userPhone,
+          r.userRole,
+          r.planLabel,
+          r.priceFcfa,
+          SRC[r.source] ?? r.source,
+          r.status === "cancelled" ? "Clôturée" : r.status,
+          DER[r.derived] ?? r.derived,
+          csvDate(r.startedAt),
+          csvDate(r.expiresAt),
+        ]);
+      }
+      rowsCsv.push(
+        [],
+        ["MRR actif (simulation)", `${kpis.mrrFcfa} F/mois`],
+        ["Abonnées actives", kpis.activeCount],
+        ["Mois offerts actifs", kpis.giftActive],
+      );
+      const stamp = `${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}`;
+      return new NextResponse(toCsv(rowsCsv), {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="kene-abonnements-${stamp}.csv"`,
+          "X-Rows-Count": String(rows.length),
+          "Cache-Control": "no-store",
+        },
+      });
+    }
 
     return NextResponse.json({ kpis, byPlan, subs: filtered });
   } catch (err) {

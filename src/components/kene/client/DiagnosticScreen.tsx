@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, FileDown, GitCompareArrows, Hand, History,
+  ArrowLeft, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, FileDown, GitCompareArrows, Hand, History,
   ImagePlus, Layers, Loader2, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Sparkles, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -705,6 +705,17 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
   const [ritualOpen, setRitualOpen] = useState(false);
   const [descentOpen, setDescentOpen] = useState(false);
   const [glossary, setGlossary] = useState<GlossaryEntry | null>(null);
+  // t. 138 — le moment diagnostic: la fin d'un résultat réussi est LE moment
+  // où la valeur est visible. On sait si l'utilisatrice est déjà abonnée
+  // (chargement non bloquant — la carte n'apparaît que si non abonnée).
+  const [hasSub, setHasSub] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    apiGet<{ subscription: { plan: string } | null }>(`/api/subscriptions?userId=${encodeURIComponent(user.id)}`)
+      .then((r) => { if (alive) setHasSub(Boolean(r.subscription)); })
+      .catch(() => { if (alive) setHasSub(null); });
+    return () => { alive = false; };
+  }, [user.id]);
   const r = diag.result;
   // Fiabilité: champ posé par le worker dans resultJson; les
   // anciens diagnostics n'en ont pas → dérivé de `source` (déjà présent).
@@ -1056,6 +1067,37 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
       <RevealItem className="mt-5">
         <p className="rounded-[14px] bg-muted/70 p-3 text-[10px] leading-relaxed text-muted-foreground">{r.avertissement} Kènè est un outil d&apos;éducation beauté assisté par IA — les estimations ne constituent pas un diagnostic médical.</p>
       </RevealItem>
+
+      {/* t. 138 — PARCOURS CONVERSION: le moment diagnostic. Uniquement si la
+          cliente n'est PAS abonnée (pas de doublon avec la carte quota 403).
+          Une carte, un prix, une action — jamais de compte à rebours. */}
+      {hasSub === false && (
+        <RevealItem className="mt-4">
+          <section aria-label="Continuer avec Kènè+" className="k-card k-glow-gold rounded-[20px] p-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC]" aria-hidden="true">
+                <Crown size={20} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-heading font-black text-[15px] leading-tight">Continue avec Kènè+</p>
+                <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                  Diagnostics illimités, suivi d&apos;évolution de ta peau, Dr. Kènè prioritaire — le plan gratuit s&apos;arrête à 1 diagnostic par mois.
+                </p>
+              </div>
+              <p className="shrink-0 text-right">
+                <span className="block font-mono text-[15px] font-black tabular-nums text-gold-text">2 500</span>
+                <span className="block text-[9px] text-muted-foreground">F / mois</span>
+              </p>
+            </div>
+            <button
+              onClick={() => setClientTab("abonnement")}
+              className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-[13px] font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <Crown size={15} /> Découvrir Kènè+ — sans engagement
+            </button>
+          </section>
+        </RevealItem>
+      )}
 
       <RevealItem className="mt-4 pb-2">
         <div className="grid grid-cols-2 gap-3">

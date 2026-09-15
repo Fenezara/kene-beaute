@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   ChevronRight,
   CircleDot,
+  Crown,
   Hand,
   MapPin,
   MessageCircle,
@@ -51,6 +52,8 @@ interface HomeData {
   products: ApiProduct[];
   reminders: ApiReminderFeed | null;
   gold?: GoldThreads | null;
+  /** Ligne d'abonnement active (t. 138 — carte échéance ≤ 7 j), null si aucune. */
+  sub?: { plan: string; expiresAt: string } | null;
 }
 
 /** Icône par zone de scan (stories du feed) */
@@ -95,7 +98,7 @@ export function HomeScreen({
     let alive = true;
     (async () => {
       try {
-        const [d, a, w, p, r, g] = await Promise.all([
+        const [d, a, w, p, r, g, s] = await Promise.all([
           apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`),
           apiGet<{ appointments: ApiAppointment[] }>(`/api/appointments?userId=${user.id}`),
           apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).catch(() => null),
@@ -104,6 +107,9 @@ export function HomeScreen({
           // Fils d'Or — non bloquant: la carte ne s'affiche pas si
           // l'API ne répond pas (le feed reste vivant avant tout).
           apiGet<GoldThreads>(`/api/gold-threads?userId=${user.id}`).catch(() => null),
+          // Abonnement — non bloquant (t. 138): ne sert qu'à la carte
+          // échéance ≤ 7 j, jamais au chargement du fil lui-même.
+          apiGet<{ subscription: { plan: string; expiresAt: string } | null }>(`/api/subscriptions?userId=${user.id}`).catch(() => null),
         ]);
         if (alive) {
           setData({
@@ -113,6 +119,7 @@ export function HomeScreen({
             products: p.products ?? [],
             reminders: r ?? null,
             gold: g,
+            sub: s?.subscription ?? null,
           });
           if (alive) onRefreshed?.();
         }
@@ -406,6 +413,44 @@ export function HomeScreen({
           </div>
         </motion.button>
       </RevealItem>
+
+      {/* ───── Kènè+ expire bientôt — le moment échéance (t. 138) ─────
+          Compagne de la notification J-3 automatique: quand l'échéance
+          active est ≤ 7 jours, la carte monte dans le fil avec le
+          renouvellement à portée de main (l'onglet Abonnement, 2 tapes). */}
+      {(() => {
+        const sub = data?.sub;
+        if (!sub) return null;
+        const days = Math.ceil((new Date(sub.expiresAt).getTime() - Date.now()) / 86_400_000);
+        if (days < 0 || days > 7) return null; // active mais loin → silence
+        return (
+          <RevealItem>
+            <section aria-label="Ton abonnement expire bientôt" className="k-card rounded-[24px] overflow-hidden">
+              <div className="kente-band h-1.5 w-full" aria-hidden="true" />
+              <div className="flex items-center gap-3.5 p-4">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gold/15 text-gold-text" aria-hidden="true">
+                  <Crown size={24} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-heading font-bold text-sm">
+                    {days === 0 ? "Ton Kènè+ expire aujourd'hui" : days === 1 ? "Ton Kènè+ expire demain" : `Ton Kènè+ expire dans ${days} jours`}
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                    {formatDate(sub.expiresAt, { day: "numeric", month: "long" })} · garde tes diagnostics illimités — renouvelle en deux tapes, sans engagement.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setClientTab("abonnement")}
+                  className="k-btn-gold h-11 shrink-0 rounded-xl px-4 text-primary-foreground text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  aria-label="Renouveler mon abonnement Kènè+"
+                >
+                  Renouveler
+                </button>
+              </div>
+            </section>
+          </RevealItem>
+        );
+      })()}
 
       {/* ───── Route de l'Or — rituel tissé depuis le dernier scan ───── */}
       {data && lastResult && multi.last && (

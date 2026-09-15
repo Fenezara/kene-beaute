@@ -496,7 +496,7 @@ export function ProApp() {
               />
             )}
             {activeSection === "caisse" && <PosSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} refreshKey={refreshKey} />}
-            {activeSection === "orders" && <OrdersSection tenantId={tid} refreshKey={refreshKey} />}
+            {activeSection === "orders" && <OrdersSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} refreshKey={refreshKey} />}
             {activeSection === "crm" && <CrmSection tenantId={tid} onStartDiagnostic={(clientId) => { setDiagCommand({ clientId, nonce: Date.now() }); openSection("diagnostic"); }} />}
             {activeSection === "relances" && <RelancesSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {activeSection === "equipe" && <TeamSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} />}

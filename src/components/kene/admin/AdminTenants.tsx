@@ -6,7 +6,7 @@
 // commission boutique (0-30 %) et le plan (trial/pro/business).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle, Building2, CalendarClock, Loader2, MapPin, Package, PauseCircle,
+  AlertTriangle, Building2, CalendarClock, Download, Loader2, MapPin, Package, PauseCircle,
   Percent, PlayCircle, Receipt, Search, ShieldAlert, ShoppingBag, Star, Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { apiGet, ApiError } from "@/lib/kene/api";
+import { apiGet, ApiError, downloadFile } from "@/lib/kene/api";
 import { formatDate, xof } from "@/lib/kene/format";
 import { cn } from "@/lib/utils";
 import { useApi } from "@/components/kene/pro/useApi";
@@ -79,6 +79,20 @@ export function AdminTenants() {
   // frais < 5 min) exigée par le serveur, dialogue puis rejeu automatique.
   const gate = useAdminGate();
 
+  // t. 140 — export CSV du réseau complet (CA 30 j, commission, plan, équipe).
+  const [exportBusy, setExportBusy] = useState(false);
+  async function exportCsv() {
+    setExportBusy(true);
+    try {
+      const name = await downloadFile("/api/admin/tenants?format=csv", "kene-instituts.csv");
+      toast.success("Export téléchargé", { description: `${name} · réseau complet avec CA 30 j` });
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Export impossible — réessaie");
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
   const patch = useCallback(
     async (id: string, body: Record<string, unknown>, okMsg: string) => {
       setBusy(true);
@@ -137,6 +151,17 @@ export function AdminTenants() {
             </button>
           ))}
         </div>
+        {/* t. 140 — export comptable CSV (réseau complet, hors filtre d'écran) */}
+        <Button
+          variant="outline"
+          className="h-11 gap-1.5 sm:ml-auto"
+          disabled={exportBusy}
+          onClick={() => void exportCsv()}
+          aria-label="Exporter les instituts avec leurs KPIs en CSV"
+        >
+          {exportBusy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Download className="size-4" aria-hidden="true" />}
+          <span className="hidden sm:inline">Exporter CSV</span>
+        </Button>
       </div>
 
       {/* Liste */}

@@ -11,7 +11,7 @@
 // (ASVS V2.7 — le dialogue « Confirme ton identité » s'ouvre si besoin).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle, BadgeCheck, CalendarClock, Gift, Loader2, Search, Sparkles,
+  AlertTriangle, BadgeCheck, CalendarClock, Download, Gift, Loader2, Search, Sparkles,
   Ban, CreditCard, Users, Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { apiGet, ApiError } from "@/lib/kene/api";
+import { apiGet, ApiError, downloadFile } from "@/lib/kene/api";
 import { formatDate, xof } from "@/lib/kene/format";
 import { cn } from "@/lib/utils";
 import { useApi } from "@/components/kene/pro/useApi";
@@ -87,7 +87,7 @@ export function AdminSubscriptions() {
       case "expiring": return all.filter((s) => s.derived === "expiring");
       case "expired": return all.filter((s) => s.derived === "expired");
       case "cancelled": return all.filter((s) => s.derived === "cancelled");
-      case "gift": return all.filter((s) => s.source === "console_gift" && (s.derived === "active" || s.derived === "expiring"));
+      case "gift": return all.filter((s) => (s.source === "console_gift" || s.source === "referral_gift") && (s.derived === "active" || s.derived === "expiring"));
       default: return all;
     }
   }, [list.data, filter]);
@@ -119,6 +119,21 @@ export function AdminSubscriptions() {
     [list, gate],
   );
 
+  // t. 140 — export comptable CSV: l'historique COMPLET des abonnements
+  // (IFRS 15 — lignes clôturées incluses) pour la comptable.
+  const [exportBusy, setExportBusy] = useState(false);
+  async function exportCsv() {
+    setExportBusy(true);
+    try {
+      const name = await downloadFile("/api/admin/subscriptions?format=csv", "kene-abonnements.csv");
+      toast.success("Export téléchargé", { description: `${name} · historique complet (IFRS 15)` });
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Export impossible — réessaie");
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
   const k = list.data?.kpis;
 
   return (
@@ -133,20 +148,33 @@ export function AdminSubscriptions() {
           hint="Simulation · mode essai"
         />
         <KpiCard icon={<CalendarClock className="size-4" />} label="Expirent ≤ 7 j" value={String(k?.expiringSoon ?? 0)} monetary={false} />
-        <KpiCard icon={<Gift className="size-4" />} label="Mois offerts actifs" value={String(k?.giftActive ?? 0)} monetary={false} hint="Gestes Console" />
+        <KpiCard icon={<Gift className="size-4" />} label="Mois offerts actifs" value={String(k?.giftActive ?? 0)} monetary={false} hint="Console & parrainage" />
       </div>
 
-      {/* Barre: recherche + filtres */}
+      {/* Barre: recherche + export + filtres */}
       <div className="flex flex-col gap-3">
-        <div className="relative sm:max-w-sm">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Rechercher une abonnée, un plan…"
-            aria-label="Rechercher un abonnement"
-            className="pl-9"
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1 sm:max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Rechercher une abonnée, un plan…"
+              aria-label="Rechercher un abonnement"
+              className="pl-9"
+            />
+          </div>
+          {/* t. 140 — export comptable CSV (historique complet, hors recherche) */}
+          <Button
+            variant="outline"
+            className="h-11 gap-1.5 sm:ml-auto"
+            disabled={exportBusy}
+            onClick={() => void exportCsv()}
+            aria-label="Exporter l'historique complet des abonnements en CSV"
+          >
+            {exportBusy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Download className="size-4" aria-hidden="true" />}
+            <span className="hidden sm:inline">Exporter CSV</span>
+          </Button>
         </div>
         <div className="-mx-1 overflow-x-auto pretty-scroll px-1 pb-1" role="group" aria-label="Filtrer par statut">
           <div className="flex min-w-max gap-1.5">
@@ -231,6 +259,11 @@ export function AdminSubscriptions() {
                             <Gift className="size-3" aria-hidden="true" /> Offert par la Console
                           </p>
                         )}
+                        {s.source === "referral_gift" && (
+                          <p className="mt-1 flex items-center gap-1 text-[10px] font-medium text-gold">
+                            <Gift className="size-3" aria-hidden="true" /> Mois de parrainage
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         {s.priceFcfa > 0 ? (
@@ -242,7 +275,7 @@ export function AdminSubscriptions() {
                             colonne Prix est étroite sur mobile et le badge
                             plan / « Offert par la Console » porte déjà l'info. */}
                         <p className="mt-0.5 hidden text-[10px] text-muted-foreground md:block">
-                          {s.source === "console_gift" ? "geste commercial" : "simulation"}
+                          {s.source === "console_gift" ? "geste commercial" : s.source === "referral_gift" ? "cadeau parrainage" : "simulation"}
                         </p>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">

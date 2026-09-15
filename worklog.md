@@ -3119,3 +3119,67 @@ Stage Summary:
 - RÉPONSE : oui — mon chantier de cœur pour la suite : « faire entrer le carburant dans le moteur » (parcours de conversion Kènè+ : vitrine + moments diagnostic/commande/échéance), devant les exports comptables console (ensuite) et le multi-admin (plus tard). En attente du feu vert de la fondatrice (un mot lance t. 138).
 - FAIT NOUVEAU POUR LE DOSSIER : la vitrine ne montre AUCUN plan — une visiteuse ne peut pas savoir que Kènè+ existe avant d'avoir un compte ; c'est le goulot n° 1 identifié par les faits, pas par l'intuition.
 - AUCUN CHANGEMENT DE CODE : question conseil + 2 greps de vérification seulement.
+---
+Task ID: t.138
+Agent: agent principal (Z.ai Code)
+Task: « traite tout » (fondatrice, validant l'inventaire t. 137) — chantier 1/4 : PARCOURS DE CONVERSION Kènè+ (la vitrine publie les prix, l'app propose l'abonnement aux moments chauds, le renouvellement devient un geste simple, les marraines sont récompensées).
+
+Work Log:
+- SOCLE SERVEUR : plans.ts + renewPlan (renouvellement 30 j : ancienne ligne clôturée, nouvelle au PRIX PLEIN source momo_sim, expiresAt = max(échéance, maintenant)+30 j — jamais d'écrasement, IFRS 15 ; notification « renouvelé ✔ ») + grantGiftDays (cadeau 0 F tracé, refuse d'écraser un plan différent) ; NOUVELLE ROUTE POST /api/subscriptions/renew (guardUserClaim même garde que referral, rate-limit WALLET_TOPUP, messages FR) — 89e route.
+- VITRINE : section « Les formules, affichées simplement » dans WelcomeThreshold (GlassCard grain, Kènè+ en vedette bord or + 2 plans Pro neutres, prix FCFA, argument honnêteté : sans engagement / expiration naturelle 30 j / aucun prélèvement automatique / simulation) — la vitrine ne vendait RIEN d'invisible avant.
+- 3 MOMENTS CHAUDS (tous conditionnés à « non abonnée », jamais de pression ni compte à rebours) : fin de diagnostic (carte Kènè+ dans ResultView, CTA → onglet Abonnement), paiement réussi boutique (carte dorée dans l'overlay succès, CTA → Abonnement), échéance ≤ 7 j (carte « Ton Kènè+ expire dans N jours » sur l'accueil, compagne du rappel J-3, CTA Renouveler).
+- RENOUVELLEMENT 2 TAPES : bouton « Renouveler +30 jours · 2 500 F » sur la carte abonnée de PlanScreen (busy, toast, énoncé « jours raccordés · mode essai ») ; le texte de la carte active dit désormais « expire naturellement, aucun prélèvement automatique » (vrai — l'ancien « se renouvelle chaque mois » était trompeur).
+- PARRAINAGE AMBASSADRICES : redeem route → marraine CLIENTE reçoit 30 j Kènè+ (grantGiftDays, source « referral_gift », 0 F hors MRR) + notification 🎁 + audit enrichi kenePlusGiftDays ; comptes pro/admin exclus (leur plan vit dans l'espace Pro — grantGiftDays refuse d'écraser un plan différent) ; réponse parrainGiftDays pour l'écran filleule.
+- CONSOLE : source referral_gift visible (« Mois de parrainage », filtre Offerts, KPI « Mois offerts actifs · Console & parrainage ») ; schéma commenté (momo_sim | console_gift | referral_gift).
+- E2E API (curl legacy) : renew 200 → nouvelle ligne 2500 F momo_sim expire 14 nov. (15 oct + 30 j PILE), ancienne clôturée, notification « renouvelé ✔ jusqu'au 14/11 », quota 9999 ✓ ; état démo restauré (cancel + activate → 2 500 F, 15 oct.) ; parrainage jetable (2 comptes test) : redeem 200, parrainGiftDays 30, sub parrain kene_plus 0 F referral_gift expire 15 oct., 2 notifications (cadeau 🎁 + reward 2 500 F), filleule referredBy + cadeau 2 000 F wallet, audit kenePlusGiftDays 30 ✓ ; nettoyage intégral des comptes jetables (0 restant).
+- E2E NAVIGATEUR (Fenezara +2250748894270, non abonnée, 1 diag done) : pavé → OTP → app ; Historique → son diagnostic → RESULTVIEW AVEC LA CARTE « Continue avec Kènè+ » ✓ ; CTA → écran Abonnement (offre + « Activer Kènè+ ») ✓ ; commande boutique réelle (Gommage 9 500 F puis Brume 8 500 F, Wave simulé) → OVERLAY « Paiement réussi » AVEC LA CARTE « Ajoute Kènè+ à ta routine · 2 500 F/mois · sans engagement » ✓ ; clic carte → écran Abonnement ✓ ; les 2 commandes de test + cashback wallet supprimés (état démo propre).
+- VLM : section tarifs vitrine 8/10 (« hiérarchie tarifaire bien structurée, distinction Cliente/Institut immédiatement compréhensible ») ; overlay paiement + offre 9/10 (« le fond sombre met parfaitement en valeur la carte dorée, hiérarchie claire »).
+- Vérifications négatives : Mariam (abonnée) → aucune carte upsell (diagnostic/overlay silencieux) ; carte échéance absente à 30 j de l'échéance.
+
+Stage Summary:
+- LIVRÉ : le carburant entre dans le moteur — une visiteuse voit désormais les prix AVANT de créer un compte ; une cliente qui vit la valeur (diagnostic réussi) ou qui paie (commande) est invitée au bon moment ; une abonnée à J-3/J-7 renouvelle en 2 tapes ; chaque marraine gagne 30 j de Kènè+ quand sa filleule rejoint. Conforme aux garde-fous annoncés : jamais de renouvellement auto, jamais de case pré-cochée, jamais de compte à rebours, prix visibles, étiquetage simulation.
+- INCIDENT : serveur dev :3000 tombé silencieusement en cours de chantier (curl 000, ports refusés — 3e occurrence connue) — relancé en arrière-plan, tout est repassé au vert immédiatement.
+- LEÇONS : (1) l'overlay de succès boutique se capture au timing près (3 s de processing) — poller juste après le clic de paiement ; (2) agent-browser : un dialog resté ouvert « couvre » les boutons du dessous (erreur « covered by div ») — le clic DOM direct (element.click()) contourne proprement ; (3) deux utilisatrices peuvent partager un prénom affiché (deux « Awa » en base) — toujours vérifier le TÉLÉPHONE, pas le nom, avant de conclure qu'un test a touché la mauvaise personne ; (4) l'ancien texte « il se renouvelle chaque mois » était un mensonge UX (aucun renouvellement auto n'existe) — le nouveau texte « expire naturellement » est à la fois vrai et argument de vente (click-to-cancel par conception).
+---
+Task ID: t.139
+Agent: agent principal (Z.ai Code)
+Task: « traite tout » + « est ce possible d'imprimer les reçu de caisse ? » — chantier 2/4 : REÇUS DE CAISSE IMPRIMABLES côté Pro (réponse : OUI, livré).
+
+Work Log:
+- OrdersSection (Pro) : bouton « Reçu » sur toute commande ENCAISSÉE (payée/livrée) ; dialogue d'aperçu fidèle + bouton « Imprimer le reçu » (window.print) ; composant ReceiptTicket monospace blanc/noir (nom de l'institut passé par ProApp comme PosSection, « TICKET DE CAISSE », date/heure, réf commande, cliente, articles de CET institut avec quantités, coupon éventuel, mention multi-boutiques, TOTAL ENCAISSÉ, mode de paiement + « · simulation » pour wave/orange/wallet, réf paiement, merci + tagline + mention « aucun débit réel » pour le momo simulé) ; zone d'impression dédiée #kene-receipt-print + @media print (masque TOUT par visibility, page 80 mm auto — imprimante ticket thermique ou A4).
+- E2E NAVIGATEUR (Fatou Koné, Éclat d'Abidjan) : Commandes → commande livrée de Mariam (9 500 F wallet) → bouton « Imprimer le reçu de caisse » ✓ → dialogue : ticket complet vérifié texte par texte (ÉCLAT D'ABIDJAN / 1× Gommage Bissap & Sucre / TOTAL ENCAISSÉ 9 500 F / Règlement « Wallet Kènè · simulation » / Merci 💛) ✓ ; zone print + style 80 mm présents dans le DOM ✓ ; l'impression elle-même ne peut pas être déclenchée en navigateur headless (fenêtre d'impression OS) — plumbing vérifié, c'est le seul point non exécutable en sandbox.
+- VLM : 8-9/10 (« imite parfaitement un ticket thermique, police monospace, alignements justifiés », « clair, structuré et lisible »).
+
+Stage Summary:
+- LIVRÉ : chaque institut peut tendre un ticket de caisse à sa cliente pour toute commande encaissée — aperçu fidèle à l'écran, impression 80 mm (thermique) ou A4, mentions honnêtes sur les paiements simulés, part multi-instituts correcte (le ticket ne montre QUE les articles du vendeur qui imprime). T.134 « reçus PDF » évoqué en suggestion : la version ticket imprimé est livrée avant la version PDF (plus utile en caisse).
+- Décision : pas de nouveau fichier de route — le reçu est une vue client pure (données déjà chargées par OrdersSection), zéro API ajoutée.
+---
+Task ID: t.140
+Agent: agent principal (Z.ai Code)
+Task: « traite tout » — chantier 3/4 : EXPORTS COMPTABLES CSV dans la console admin (abonnements + instituts).
+
+Work Log:
+- ROUTES : GET /api/admin/subscriptions?format=csv (historique COMPLET hors recherche éventuelle — un export ne dépend jamais d'un filtre d'écran ; en-tête documentaire « Console Kènè — Abonnements · IFRS 15 · édité le · N lignes », colonnes Créée le/Abonnée/Téléphone/Rôle/Plan/Prix/Source (libellés FR : Paiement (simulation) / Offert Console / Cadeau parrainage)/Statut ligne/Statut réel/Début/Échéance, totaux MRR + abonnées actives + mois offerts) ; GET /api/admin/tenants?format=csv (réseau complet : institut/ville/pays/gérante/téléphone/plan/commission %/CA boutique 30 j/CA caisse 30 j/CA total/commandes/en attente/CRM/équipe/produits/statut + TOTAUX + note de calcul). Même discipline que la compta Pro : toCsv (BOM UTF-8, « ; », \r\n), Content-Disposition attachment, X-Rows-Count, no-store.
+- HELPER CLIENT : downloadFile(url, fallback) dans lib/kene/api.ts (fetch → blob → ancre, nom lu dans Content-Disposition, ApiError en échec) — réutilisable pour tout export futur.
+- UI : bouton « Exporter CSV » dans la barre de recherche de l'onglet Abonnements ET dans la barre Instituts (busy, toast succès avec nom de fichier + description, aria-labels).
+- E2E API (session console via OTP) : sans cookie → 401 ✓ ; abonnements CSV → 200 text/csv, BOM présent, 10 lignes d'historique (les 8 + les 2 lignes du test renew restaurées — honnêteté de l'historique), totaux MRR ✓ ; instituts CSV → 200, 3 instituts, « Éclat d'Abidjan ; Abidjan — Cocody ; CI ; Fatou Koné ; Pro ; 7,5 % ; 9 500 ; 716 900 ; 726 400 … » ✓.
+- E2E NAVIGATEUR : boutons présents et cliqués dans les 2 onglets (aucune erreur console) ✓.
+- VLM : onglet Abonnements avec export 8,5/10 (« export CSV bien placé, badges immédiatement compréhensibles » — suggestions pagination/tri = backlog futur, pas des défauts).
+
+Stage Summary:
+- LIVRÉ : la comptable de la fondatrice reçoit en 1 clic deux fichiers Excel-ready — l'historique d'abonnements complet (piste d'audit IFRS 15 avec MRR) et le réseau d'instituts avec ses CA 30 j. Export = lecture pure (jamais de suppression/modification), session admin exigée.
+---
+Task ID: t.141
+Agent: agent principal (Z.ai Code)
+Task: « traite tout » — chantier 4/4 : ACCÈS CONSOLE DÉLÉGUÉ (multi-admin sécurisé — donner/retirer l'accès Console depuis l'onglet Utilisatrices).
+
+Work Log:
+- ROUTE : PATCH /api/admin/users/[id] étendu en union — {action:"promote"} (rôle → admin : uniquement comptes CLIENTES non verrouillées ; un compte Pro reçoit un 400 explicite « les comptes Pro restent liés à leur institut » pour ne pas casser la gérance) / {action:"demote"} (rôle → client : jamais soi-même, jamais le DERNIER admin) ; step-up guardAdminElevated inchangé (déjà en place t. 130) ; notifications 👑 (accès donné, « ouvre /console avec ton numéro ») et retrait ; audits admin_promoted/admin_demoted (téléphone masqué).
+- UI (AdminUsers) : session self via /api/auth/session (badge « toi · fondatrice » sur sa propre ligne — jamais de bouton retrait sur soi-même) ; bouton « Console » (doré) sur les clientes actives → dialogue d'énoncé d'impact COMPLET (elle verra toute la plateforme ; actions sensibles protégées par code ; tout est audité ; réversible ici même) ; bouton « Retirer la Console » (bissap) sur les autres admins → dialogue énonçant la limite honnête (session ouverte s'éteint au rechargement, cookie ≤ 8 h).
+- E2E API (session + élévation curl) : promote sans élévation → 403 elevation_required ✓ ; élévation (code frais, consommé) → elevatedFor 300 ✓ ; promote Awa Traoré → 200 role admin + notification 👑 + audit admin_promoted ✓ ; promote Fatou (pro) → 400 guidage exact ✓ ; demote SOI-MÊME → 400 « ton propre accès console » ✓ ; demote Awa → 200 role client + notification retrait + audit admin_demoted ✓ ; admins = 1 en fin de cycle ✓.
+- E2E NAVIGATEUR (foundatrice, /console) : « Donner l'accès Console à Awa » → dialogue énoncé → « Donner l'accès » → 403 INTERCEPTÉ → step-up « Confirme ton identité » s'ouvre SEUL → Envoyer le code → devCode → ACTION REJOUÉE automatiquement (badge Admin, ligne « toi ») ✓ ; « Retirer la Console » SANS re-dialogue (élévation < 5 min) → dialogue de retrait → confirmé → admins = 1 en base, notification retrait ✓.
+- Journaux : admin_elevated / admin_promoted / admin_demoted présents dans SecurityEvent avec téléphones masqués (note : le journal admin vit dans SecurityEvent — auditLog est le journal métier referral ; requête initiale sur la mauvaise table, corrigée).
+
+Stage Summary:
+- LIVRÉ : la fondatrice peut déléguer l'accès Console à une personne de confiance (compte cliente) et le reprendre — chaque sens passe le step-up, énonce son impact, notifie la personne, et laisse une trace d'audit. Protections : jamais soi-même, jamais le dernier admin, comptes Pro exclus (leur gérance ne se casse pas).
+- LIMITE DOCUMENTÉE : une session console déléguée déjà ouverte survit au retrait jusqu'au rechargement de la page (le cookie signé garde le rôle 8 h max) — énoncé dans le dialogue de retrait, cohérent avec le modèle de session signée du projet.

@@ -1,10 +1,12 @@
 "use client";
 // Kènè — Console Admin · Utilisatrices (t. 128): l'annuaire des comptes pour
-// la modération. Recherche + filtre par rôle, et le levier individualisé:
+// la modération. Recherche + filtre par rôle, et les leviers individualisés:
 // verrouiller un compte (motif obligatoire, montré au compte à sa tentative
-// de connexion) / déverrouiller. Les comptes admin sont protégés côté API.
+// de connexion) / déverrouiller, et depuis t. 141 l'ACCÈS CONSOLE DÉLÉGUÉ:
+// donner l'accès Console à une cliente de confiance / le retirer (jamais au
+// dernier admin, jamais à soi-même — protections côté serveur).
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Lock, LockOpen, Search, ShieldCheck, Users } from "lucide-react";
+import { Crown, Loader2, Lock, LockOpen, Search, ShieldCheck, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -46,9 +48,20 @@ export function AdminUsers() {
 
   const rows = useMemo(() => list.data?.users ?? [], [list.data]);
 
-  // Dialog de verrouillage
+  // Dialogs de verrouillage + accès Console (t. 141)
   const [lockFor, setLockFor] = useState<AdminUserRow | null>(null);
+  const [promoteFor, setPromoteFor] = useState<AdminUserRow | null>(null);
+  const [demoteFor, setDemoteFor] = useState<AdminUserRow | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // t. 141 — qui suis-je dans cette console ? (pour ne jamais proposer de
+  // retirer MON propre accès — la protection vit aussi côté serveur).
+  const [meId, setMeId] = useState<string | null>(null);
+  useEffect(() => {
+    apiGet<{ user: { id: string } }>("/api/auth/session")
+      .then((r) => setMeId(r.user.id))
+      .catch(() => setMeId(null));
+  }, []);
 
   // t. 130 — le PATCH de verrouillage passe par le gate (step-up serveur:
   // code frais exigé, dialogue de confirmation puis rejeu automatique).
@@ -180,30 +193,63 @@ export function AdminUsers() {
                       </TableCell>
                       <TableCell className="text-right">
                         {u.role === "admin" ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground" title="Les comptes admin sont protégés — gestion côté base">
-                            <ShieldCheck className="size-3.5" aria-hidden="true" /> protégé
-                          </span>
-                        ) : u.lockedAt ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-11 gap-1.5 border-success/40 text-success hover:bg-success/10 hover:text-success"
-                            disabled={busy}
-                            onClick={() => void patchUser(u.id, { locked: false }, `${u.name} peut se reconnecter`)}
-                          >
-                            {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <LockOpen className="size-4" aria-hidden="true" />}
-                            <span className="hidden sm:inline">Déverrouiller</span>
-                          </Button>
+                          u.id === meId ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-finance" title="Ton compte — on ne retire pas son propre accès">
+                              <Crown className="size-3.5" aria-hidden="true" /> toi
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-11 gap-1.5 border-bissap/40 text-bissap hover:bg-bissap/10 hover:text-bissap"
+                              disabled={busy}
+                              onClick={() => setDemoteFor(u)}
+                              aria-label={`Retirer l'accès Console de ${u.name}`}
+                            >
+                              <ShieldCheck className="size-4" aria-hidden="true" />
+                              <span className="hidden sm:inline">Retirer la Console</span>
+                            </Button>
+                          )
                         ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-11 gap-1.5 border-bissap/40 text-bissap hover:bg-bissap/10 hover:text-bissap"
-                            onClick={() => setLockFor(u)}
-                          >
-                            <Lock className="size-4" aria-hidden="true" />
-                            <span className="hidden sm:inline">Verrouiller</span>
-                          </Button>
+                          <span className="inline-flex flex-wrap justify-end gap-1.5">
+                            {/* t. 141 — accès Console délégué: clientes uniquement
+                                (les comptes Pro restent liés à leur institut). */}
+                            {u.role === "client" && !u.lockedAt && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-11 gap-1.5 border-finance/40 text-finance hover:bg-finance/10 hover:text-finance"
+                                disabled={busy}
+                                onClick={() => setPromoteFor(u)}
+                                aria-label={`Donner l'accès Console à ${u.name}`}
+                              >
+                                <Crown className="size-4" aria-hidden="true" />
+                                <span className="hidden md:inline">Console</span>
+                              </Button>
+                            )}
+                            {u.lockedAt ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-11 gap-1.5 border-success/40 text-success hover:bg-success/10 hover:text-success"
+                                disabled={busy}
+                                onClick={() => void patchUser(u.id, { locked: false }, `${u.name} peut se reconnecter`)}
+                              >
+                                {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <LockOpen className="size-4" aria-hidden="true" />}
+                                <span className="hidden sm:inline">Déverrouiller</span>
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-11 gap-1.5 border-bissap/40 text-bissap hover:bg-bissap/10 hover:text-bissap"
+                                onClick={() => setLockFor(u)}
+                              >
+                                <Lock className="size-4" aria-hidden="true" />
+                                <span className="hidden sm:inline">Verrouiller</span>
+                              </Button>
+                            )}
+                          </span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -237,6 +283,74 @@ export function AdminUsers() {
               if (okDone) setLockFor(null);
             }}
           />
+        </DialogContent>
+      </Dialog>
+      {/* t. 141 — Dialog: DONNER l'accès Console (énoncé d'impact complet) */}
+      <Dialog open={Boolean(promoteFor)} onOpenChange={(o) => (!o ? setPromoteFor(null) : undefined)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-heading text-finance">
+              <Crown className="size-5" aria-hidden="true" />
+              Donner l&apos;accès Console à {promoteFor?.name ?? ""} ?
+            </DialogTitle>
+            <DialogDescription>
+              Elle ouvrira la Console Kènè (/console) avec son propre numéro et verra toute la
+              plateforme : instituts, utilisatrices, abonnements, sécurité.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="rounded-xl bg-muted/40 px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
+            Les actions sensibles (suspension, verrouillage, annulation d&apos;abonnement, offre de
+            jours) resteront protégées par la confirmation d&apos;identité (code frais) et chaque
+            geste sera tracé au journal d&apos;audit. Elle est notifiée immédiatement — et tu peux
+            retirer son accès à tout moment depuis cette même liste.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="h-11" onClick={() => setPromoteFor(null)} disabled={busy}>Pas maintenant</Button>
+            <Button
+              className="h-11 gap-1.5"
+              disabled={busy}
+              onClick={async () => {
+                if (!promoteFor) return;
+                const okDone = await patchUser(promoteFor.id, { action: "promote" }, `${promoteFor.name} a maintenant accès à la Console 👑`);
+                if (okDone) setPromoteFor(null);
+              }}
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Crown className="size-4" aria-hidden="true" />}
+              Donner l&apos;accès
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* t. 141 — Dialog: RETIRER l'accès Console */}
+      <Dialog open={Boolean(demoteFor)} onOpenChange={(o) => (!o ? setDemoteFor(null) : undefined)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-heading text-bissap">
+              <ShieldCheck className="size-5" aria-hidden="true" />
+              Retirer l&apos;accès Console de {demoteFor?.name ?? ""} ?
+            </DialogTitle>
+            <DialogDescription>
+              Son compte redevient cliente — ses données restent intactes. Sa session console
+              ouverte s&apos;éteindra à son prochain rechargement de page (le cookie expire au bout
+              de 8 h au maximum).
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="h-11" onClick={() => setDemoteFor(null)} disabled={busy}>Annuler</Button>
+            <Button
+              className="h-11 gap-1.5 bg-bissap text-white hover:bg-bissap/90"
+              disabled={busy}
+              onClick={async () => {
+                if (!demoteFor) return;
+                const okDone = await patchUser(demoteFor.id, { action: "demote" }, `Accès Console retiré — ${demoteFor.name} redevient cliente`);
+                if (okDone) setDemoteFor(null);
+              }}
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <ShieldCheck className="size-4" aria-hidden="true" />}
+              Retirer l&apos;accès
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

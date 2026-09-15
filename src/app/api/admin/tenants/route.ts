@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, slugify } from "@/lib/kene/server";
 import { sessionFromRequest } from "@/lib/kene/session";
+import { toCsv, csvDate, type CsvCell } from "@/lib/accounting/csv";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 
 export const runtime = "nodejs";
@@ -106,6 +107,58 @@ export async function GET(req: NextRequest) {
 
     // Tri: CA total 30 j décroissant — la console montre d'abord ce qui vit.
     filtered.sort((a, b) => b.caBoutique30 + b.caPos30 - (a.caBoutique30 + a.caPos30));
+
+    // t. 140 — EXPORT CSV instituts: le réseau au complet avec ses KPIs de
+    // gestion (CA 30 j, commission, plan, équipe) — hors recherche éventuelle.
+    if (req.nextUrl.searchParams.get("format") === "csv") {
+      const PLAN: Record<string, string> = { trial: "Essai", pro: "Pro", business: "Business" };
+      const rowsCsv: CsvCell[][] = [
+        ["Console Kènè — Instituts partenaires"],
+        ["Réseau complet avec KPIs de gestion (CA 30 jours, commission, plan, équipe)"],
+        [`Édité le ${csvDate(new Date())} · ${rows.length} instituts · montants en FCFA`],
+        [],
+        ["Institut", "Ville", "Pays", "Gérante", "Téléphone", "Plan", "Commission", "CA boutique 30 j", "CA caisse 30 j", "CA total 30 j", "Commandes 30 j", "En attente", "Clientes CRM", "Employés", "Produits", "Statut"],
+      ];
+      let totB = 0;
+      let totP = 0;
+      for (const r of [...rows].sort((a, b) => b.caBoutique30 + b.caPos30 - (a.caBoutique30 + a.caPos30))) {
+        totB += r.caBoutique30;
+        totP += r.caPos30;
+        rowsCsv.push([
+          r.name,
+          r.city,
+          r.country,
+          r.ownerName,
+          r.ownerPhone,
+          PLAN[r.plan] ?? r.plan,
+          `${(r.commissionRate * 100).toFixed(1).replace(".", ",")} %`,
+          r.caBoutique30,
+          r.caPos30,
+          r.caBoutique30 + r.caPos30,
+          r.orders30,
+          r.pendingOrders,
+          r.clientsCrm,
+          r.employees,
+          r.products,
+          r.active ? "En ligne" : "Suspendu",
+        ]);
+      }
+      rowsCsv.push(
+        [],
+        ["TOTAUX", "", "", "", "", "", "", totB, totP, totB + totP],
+        ["CA boutique = commandes app payées/livrées de SES produits · CA caisse = ventes completed (POS)"],
+      );
+      const stamp = `${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}`;
+      return new NextResponse(toCsv(rowsCsv), {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="kene-instituts-${stamp}.csv"`,
+          "X-Rows-Count": String(rows.length),
+          "Cache-Control": "no-store",
+        },
+      });
+    }
 
     return NextResponse.json({ tenants: filtered });
   } catch (err) {

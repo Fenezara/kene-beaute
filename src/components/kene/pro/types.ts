@@ -590,12 +590,13 @@ export interface AdminUserRow {
   tenantName: string | null; // institut des comptes pro
 }
 
-// PATCH /api/admin/users/[id] — réponse.
+// PATCH /api/admin/users/[id] — réponse (verrouillage t. 128, accès Console t. 141).
 export interface AdminUserPatchResult {
   ok: boolean;
   user?: {
     id: string;
     name: string;
+    role?: string; // présent après promote/demote (t. 141)
     lockedAt: string | null;
     lockedReason: string | null;
   };
@@ -616,8 +617,8 @@ export interface AdminSubRow {
   planLabel: string;
   status: string; // active | cancelled (état brut de la ligne)
   derived: "active" | "expiring" | "expired" | "cancelled";
-  priceFcfa: number; // 0 = offert par la Console
-  source: string; // momo_sim | console_gift
+  priceFcfa: number; // 0 = offert (Console ou parrainage)
+  source: string; // momo_sim | console_gift | referral_gift
   startedAt: string;
   expiresAt: string;
   createdAt: string;

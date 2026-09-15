@@ -2,10 +2,14 @@
 // Kènè Pro — Commandes boutique: ce que les clientes commandent DEPUIS L'APP.
 // Liste temps réel (rafraîchie par le flux tenant-feed), KPIs du jour,
 // suivi livraison (payée → livrée) et annulation avec remboursement wallet.
+// t. 139 — REÇU DE CAISSE: toute commande encaissée (payée/livrée) peut être
+// imprimée en ticket 80 mm (ou A4) pour la cliente — articles de CET institut,
+// mode de paiement, mention honnête « simulation » pour le mobile money d'essai.
 import { useState } from "react";
-import { CheckCircle2, PackageCheck, ShoppingBag, Truck, XCircle, Banknote, Clock } from "lucide-react";
+import { CheckCircle2, PackageCheck, Printer, ReceiptText, ShoppingBag, Truck, XCircle, Banknote, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -38,9 +42,11 @@ export function OrderStatusBadge({ status }: { status: string }) {
   return <Badge variant="outline" className={cn("text-[10px] px-1.5", st.cls)}>{st.label}</Badge>;
 }
 
-export function OrdersSection({ tenantId, refreshKey }: { tenantId: string; refreshKey?: number }) {
+export function OrdersSection({ tenantId, tenantName = "Institut", refreshKey }: { tenantId: string; tenantName?: string; refreshKey?: number }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  // t. 139 — reçu de caisse: la commande encaissée dont on prépare le ticket.
+  const [receiptFor, setReceiptFor] = useState<ProOrderView | null>(null);
 
   const orders = useApi<ProOrdersResponse>(
     () => (tenantId ? apiGet<ProOrdersResponse>(`/api/pro/orders?tenantId=${tenantId}`) : Promise.resolve({ orders: [], kpis: { today: 0, toPay: 0, toDeliver: 0, revenue30d: 0 } })),
@@ -173,6 +179,20 @@ export function OrdersSection({ tenantId, refreshKey }: { tenantId: string; refr
                       <span className="hidden lg:inline"> {formatTime(o.createdAt)}</span>
                     </TableCell>
                     <TableCell className="text-right">
+                      {/* t. 139 — reçu de caisse: toute commande ENCAISSÉE
+                          (payée ou livrée) peut être imprimée pour la cliente. */}
+                      {(o.status === "paid" || o.status === "delivered") && confirmCancelId !== o.id && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 h-8 ml-1.5"
+                          onClick={() => setReceiptFor(o)}
+                          aria-label={`Imprimer le reçu de caisse de la commande de ${o.clientName}`}
+                        >
+                          <ReceiptText className="size-3.5" aria-hidden="true" />
+                          <span className="hidden lg:inline">Reçu</span>
+                        </Button>
+                      )}
                       {o.status === "paid" && confirmCancelId !== o.id && (
                         <Button
                           size="sm"
@@ -237,6 +257,102 @@ export function OrdersSection({ tenantId, refreshKey }: { tenantId: string; refr
         instituts). L&apos;annulation d&apos;une commande payée en wallet rembourse la cliente automatiquement et
         remet vos articles en stock.
       </p>
+
+      {/* t. 139 — Dialogue du reçu: aperçu fidèle du ticket + impression
+          (imprimante ticket 80 mm ou A4 — le CSS d'impression masque tout
+          sauf le ticket). */}
+      <Dialog open={Boolean(receiptFor)} onOpenChange={(o) => (!o ? setReceiptFor(null) : undefined)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-heading">
+              <ReceiptText className="size-5 text-primary" aria-hidden="true" />
+              Reçu de caisse
+            </DialogTitle>
+            <DialogDescription>
+              Aperçu du ticket tel qu&apos;il sortira à l&apos;impression — conserve le en vos archives de caisse.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border border-border bg-white p-3 text-black shadow-inner">
+            {receiptFor && <ReceiptTicket o={receiptFor} tenantName={tenantName} />}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="h-11" onClick={() => setReceiptFor(null)}>Fermer</Button>
+            <Button className="h-11 gap-1.5" onClick={() => window.print()}>
+              <Printer className="size-4" aria-hidden="true" />
+              Imprimer le reçu
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Zone d'impression (t. 139): rendue dans le DOM mais masquée à
+          l'écran ; @media print masque TOUT sauf elle (visibilité) et force
+          une page ticket 80 mm — le dialogue reste ouvert, il devient
+          invisible à l'impression. */}
+      {receiptFor && (
+        <>
+          <style>{`
+@media print {
+  body * { visibility: hidden; }
+  #kene-receipt-print, #kene-receipt-print * { visibility: visible; }
+  #kene-receipt-print {
+    position: absolute; left: 0; top: 0; width: 100%;
+    background: white; color: black;
+  }
+  @page { size: 80mm auto; margin: 4mm; }
+}
+          `}</style>
+          <div id="kene-receipt-print" className="hidden bg-white text-black">
+            <ReceiptTicket o={receiptFor} tenantName={tenantName} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────── Ticket de caisse (t. 139) ───────────────
+ * Monospace blanc/noir — fidèle à l'impression thermique. Ne montre que les
+ * articles de CET institut (une commande mixte imprimera le ticket de chaque
+ * vendeur chez elle). Modes de paiement honnêtes: Wave/Orange/Wallet =
+ * simulation (mode essai), Espèces/Carte = réels. */
+function ReceiptTicket({ o, tenantName }: { o: ProOrderView; tenantName: string }) {
+  const mine = o.items.filter((i) => i.mine);
+  const simulated = o.payment ? ["wave", "orange", "wallet"].includes(o.payment.method) : false;
+  const dashed = "border-t border-dashed border-black/40 my-2";
+  return (
+    <div className="mx-auto w-full max-w-[300px] px-1 py-1 font-mono text-[11px] leading-relaxed">
+      <p className="text-center text-[13px] font-bold uppercase tracking-wide">{tenantName}</p>
+      <p className="text-center text-[10px]">Boutique Kènè — partenaire</p>
+      <p className="mt-1 text-center text-[12px] font-bold">TICKET DE CAISSE</p>
+      <div className={dashed} aria-hidden="true" />
+      <p className="flex justify-between"><span>Le {formatDate(o.createdAt, { day: "numeric", month: "short", year: "numeric" })}</span><span>{formatTime(o.createdAt)}</span></p>
+      <p className="flex justify-between"><span>Réf</span><span className="font-bold">{o.id.slice(-8).toUpperCase()}</span></p>
+      <p className="flex justify-between"><span>Cliente</span><span className="truncate pl-2">{o.clientName}</span></p>
+      <div className={dashed} aria-hidden="true" />
+      {mine.map((i) => (
+        <p key={i.label} className="flex justify-between gap-2">
+          <span className="min-w-0">{i.qty}× {i.label}</span>
+          <span className="shrink-0 tabular-nums">{i.total.toLocaleString("fr-FR")}</span>
+        </p>
+      ))}
+      {o.couponCode && <p className="mt-1 text-[10px]">Coupon {o.couponCode} — remise appliquée à la commande</p>}
+      {o.ownTotal !== o.total && <p className="text-[10px]">Part d&apos;un achat multi-boutiques</p>}
+      <div className={dashed} aria-hidden="true" />
+      <p className="flex justify-between text-[13px] font-bold">
+        <span>TOTAL ENCAISSÉ</span>
+        <span className="tabular-nums">{o.ownTotal.toLocaleString("fr-FR")} F</span>
+      </p>
+      <p className="flex justify-between">
+        <span>Règlement</span>
+        <span>{o.payment ? PAYMENT_LABELS[o.payment.method] ?? o.payment.method : "à la livraison"}{simulated ? " · simulation" : ""}</span>
+      </p>
+      {o.payment?.ref && <p className="flex justify-between text-[10px]"><span>Réf paiement</span><span>{o.payment.ref.slice(-10)}</span></p>}
+      <div className={dashed} aria-hidden="true" />
+      <p className="text-center">Merci de ta visite 💛</p>
+      <p className="text-center text-[10px]">Kènè — la beauté mélanoderme, enfin comprise.</p>
+      {simulated && <p className="mt-1 text-center text-[9px]">Paiement mobile money en mode essai — aucun débit réel.</p>}
+      <p className="mt-1 text-center text-[9px]">Conserve ce reçu — généré par la Console Pro Kènè.</p>
     </div>
   );
 }

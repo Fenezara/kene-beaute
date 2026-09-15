@@ -204,3 +204,112 @@ export async function activatePlan(userId: string, planId: string): Promise<Acti
 
   return { subscription, created: true };
 }
+
+// ─────────────── Renouvellement (t. 138 — le moment échéance) ───────────────
+
+export interface RenewPlanResult {
+  subscription: Subscription;
+  /** Échéance AVANT renouvellement (pour l'énoncé « +30 j après le X »). */
+  previousExpiry: Date;
+}
+
+/** Renouvelle l'abonnement ACTIF du user pour 30 jours supplémentaires —
+ * paiement mobile money SIMULÉ (source "momo_sim", prix plein du plan).
+ * Même discipline que l'offre Console (t. 135) et le cadeau parrainage:
+ * l'ancienne ligne passe "cancelled", une NOUVELLE ligne est créée avec
+ * expiresAt = max(échéance courante, maintenant) + 30 jours — les jours
+ * restants ne sont jamais écrasés, la période payée se RACCORDE (IFRS 15:
+ * on ajoute une ligne, on ne modifie jamais l'historique).
+ * Le renouvellement d'une période offerte repasse au prix plein (0 F → 2 500 F).
+ * Throws Error (message FR) si user inconnu ou aucun abonnement actif. */
+export async function renewPlan(userId: string): Promise<RenewPlanResult> {
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error("Utilisatrice introuvable");
+
+  const existing = await getActiveSubscription(userId);
+  if (!existing) throw new Error("Aucun abonnement actif à renouveler");
+
+  const def = planDefById(existing.plan);
+  if (!def) throw new Error("Plan inconnu");
+
+  const now = new Date();
+  // Les jours restants se raccordent: la nouvelle échéance part de la fin
+  // de la période courante (ou de maintenant si déjà dépassée en base).
+  const base = existing.expiresAt.getTime() > now.getTime() ? existing.expiresAt : now;
+  const newExpires = new Date(base.getTime() + 30 * 24 * 3600 * 1000);
+
+  const subscription = await db.$transaction(async (tx) => {
+    await tx.subscription.update({ where: { id: existing.id }, data: { status: "cancelled" } });
+    return tx.subscription.create({
+      data: {
+        userId,
+        plan: def.id,
+        status: "active",
+        priceFcfa: def.priceFcfa, // renouveler une période offerte = payer le prix plein
+        source: "momo_sim", // paiement en mode essai
+        startedAt: now,
+        expiresAt: newExpires,
+      },
+    });
+  });
+
+  await notify({
+    userId: user.id,
+    channel: "whatsapp",
+    toPhone: user.phone,
+    message: `Kènè : abonnement ${def.name} renouvelé ✔ Actif jusqu'au ${ddMM(subscription.expiresAt)} — merci de ta confiance 💛`,
+  });
+
+  return { subscription, previousExpiry: existing.expiresAt };
+}
+
+// ─────────────── Cadeau de jours (parrainage — t. 138) ───────────────
+
+export interface GrantGiftResult {
+  subscription: Subscription;
+  created: boolean; // false = jours raccordés à une période déjà offerte/active
+}
+
+/** Offre `days` jours d'un plan à une utilisatrice — geste 0 F TRAÇÉ
+ * (source personnalisée, p. ex. "referral_gift"): sans abonnement actif une
+ * nouvelle ligne est créée (dès aujourd'hui) ; avec un abonnement actif du
+ * MÊME plan, la période se raccorde après l'échéance (ancienne ligne
+ * clôturée, jamais écrasée — même discipline que l'offre Console t. 135).
+ * Throws Error (message FR) si plan/user inconnu. */
+export async function grantGiftDays(userId: string, planId: string, days: number, source: string): Promise<GrantGiftResult> {
+  const def = planDefById(planId);
+  if (!def) throw new Error("Plan inconnu");
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error("Utilisatrice introuvable");
+
+  const now = new Date();
+  const existing = await getActiveSubscription(userId);
+
+  if (existing && existing.plan !== def.id) {
+    // Ne JAMAIS écraser un autre plan actif (une gerante Pro Complexe ne
+    // reçoit pas un Kènè+ qui annulerait sa ligne pro) — non-silencieux.
+    throw new Error("Un abonnement différent est déjà actif");
+  }
+
+  const base = existing && existing.expiresAt.getTime() > now.getTime() ? existing.expiresAt : now;
+  const newExpires = new Date(base.getTime() + days * 24 * 3600 * 1000);
+
+  const subscription = await db.$transaction(async (tx) => {
+    if (existing) {
+      await tx.subscription.update({ where: { id: existing.id }, data: { status: "cancelled" } });
+    }
+    return tx.subscription.create({
+      data: {
+        userId,
+        plan: def.id,
+        status: "active",
+        priceFcfa: 0, // cadeau — 0 F, hors revenus (norme MRR t. 133)
+        source,
+        startedAt: now,
+        expiresAt: newExpires,
+      },
+    });
+  });
+
+  return { subscription, created: !existing };
+}

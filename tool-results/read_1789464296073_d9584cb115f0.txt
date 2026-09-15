@@ -1,0 +1,1382 @@
+     1→"use client";
+     2→// Kènè Cliente — Diagnostic IA: wizard zone → capture → analyse → résultats VISIA-like → historique — ÉCLAT 2026
+     3→import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+     4→import { AnimatePresence, motion } from "framer-motion";
+     5→import {
+     6→  ArrowLeft, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, FileDown, GitCompareArrows, Hand, History,
+     7→  ImagePlus, Layers, Loader2, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Sparkles, Sunrise, TriangleAlert, WifiOff, X,
+     8→} from "lucide-react";
+     9→import { toast } from "sonner";
+    10→import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
+    11→import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
+    12→import { BODY_ZONES, SPECTRAL_VIEWS, type AtlasLevel, type BodyZone, type DiagnosisResult, type Indicator, type SuspectedCondition } from "@/lib/kene/types";
+    13→import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
+    14→import { AdinkraSky } from "@/components/kene/constellation/AdinkraSky";
+    15→import { diagQueueCount, enqueueDiag, subscribeDiagQueue } from "@/lib/kene/diag-queue";
+    16→import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
+    17→import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
+    18→import { SkinDescent } from "@/components/kene/descent/SkinDescent";
+    19→import { EvolutionCard } from "@/components/kene/evolution/EvolutionCard";
+    20→import { VoiceNarration } from "./VoiceNarration";
+    21→import { PictoSummary } from "./PictoSummary";
+    22→import { GlossaryDialog } from "./GlossaryDialog";
+    23→import { glossaryFor, type GlossaryEntry } from "@/lib/kene/glossary";
+    24→import { matchProduct, norm } from "@/components/kene/route/ritual";
+    25→import { RitualJourney } from "@/components/kene/route/RitualJourney";
+    26→import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+    27→import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    28→import { useKene } from "@/store/kene";
+    29→import { Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
+    30→import type { ApiDiagnosis, ApiProduct } from "./types";
+    31→import { diagImgSrc, parseDiagnosis } from "./types";
+    32→import { EmptyBlock, ScoreChip, ScoreGauge } from "./bits";
+    33→
+    34→const ZONE_ICONS: Record<BodyZone, React.ComponentType<{ size?: number; className?: string }>> = {
+    35→  visage: ScanFace,
+    36→  dos: PersonStanding,
+    37→  cuir_chevelu: Sparkles,
+    38→  mains: Hand,
+    39→  barbe: Brush,
+    40→  naevi: Cross,
+    41→};
+    42→
+    43→// ÉCLAT 2026 — badges teintés alternés (or / terre / bissap / vert baobab) pour
+    44→// donner de la vie à la grille des zones.
+    45→const ZONE_TONES: Record<BodyZone, "gold" | "terre" | "bissap" | "success"> = {
+    46→  visage: "gold",
+    47→  dos: "terre",
+    48→  cuir_chevelu: "bissap",
+    49→  mains: "success",
+    50→  barbe: "gold",
+    51→  naevi: "terre",
+    52→};
+    53→
+    54→// Pipeline asynchrone — 3 étapes honnêtes: le POST est immédiat
+    55→// (202), l'analyse VLM tourne côté serveur, le protocole se constitue à la fin.
+    56→const ANALYSIS_STEPS = [
+    57→  "Envoi de la photo",
+    58→  "Analyse IA en cours…",
+    59→  "Constitution du protocole",
+    60→];
+    61→
+    62→export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone: BodyZone | null; onZoneConsumed: () => void }) {
+    63→  const user = useKene((s) => s.user)!;
+    64→  const setClientTab = useKene((s) => s.setClientTab);
+    65→  const addToCart = useKene((s) => s.addToCart);
+    66→
+    67→  const [step, setStep] = useState(0);
+    68→  const [zone, setZone] = useState<BodyZone>("visage");
+    69→  const [image, setImage] = useState<string>("");
+    70→  const [analyzing, setAnalyzing] = useState(false);
+    71→  const [progress, setProgress] = useState(0);
+    72→  const [checkedSteps, setCheckedSteps] = useState(0);
+    73→  const [diag, setDiag] = useState<{ id: string; result: DiagnosisResult; imageData: string; createdAt: string } | null>(null);
+    74→  // File d'attente offline: compteur vivant — la REPLAY vit dans
+    75→  // ClientApp (elle marche quel que soit l'écran courant), ici on AFFICHE.
+    76→  const [queuedCount, setQueuedCount] = useState(0);
+    77→  const fileRef = useRef<HTMLInputElement>(null);
+    78→
+    79→  // Résilience 502: message discret sous la barre de progression
+    80→  // pendant un retry / une récupération (annoncé aux lecteurs d'écran).
+    81→  const [netNotice, setNetNotice] = useState<string | null>(null);
+    82→  // Quota gratuit atteint: le POST a répondu 403 (quotaExceeded) —
+    83→  // on affiche la carte upsell Kènè+ sur l'écran de capture au lieu d'un
+    84→  // simple échec: le monetization est un parcours, pas un mur.
+    85→  const [quotaUpsell, setQuotaUpsell] = useState(false);
+    86→  // Filet de sécurité: AUCUN interval/timeout de launch/trackDiagnosis
+    87→  // ne survit au démontage (changement d'onglet pendant une analyse — les
+    88→  // setState deviendraient des no-ops mais on rend les minuteurs morts de
+    89→  // façon déterministe, quel que soit le chemin pris).
+    90→  const timersRef = useRef<{
+    91→    timer?: ReturnType<typeof setInterval>;
+    92→    poll?: ReturnType<typeof setInterval>;
+    93→    timeouts: ReturnType<typeof setTimeout>[];
+    94→  }>({ timeouts: [] });
+    95→  // Génération du suivi courant: chaque clearTimers invalide les
+    96→  // continuations async encore en vol (fetch de poll résolvant après un
+    97→  // échec/relance → elles ne peuvent plus écraser l'état courant).
+    98→  const trackGenRef = useRef(0);
+    99→  // Une analyse a été lancée depuis CE montage → la reprise automatique au
+   100→  // boot ne doit jamais la doubler.
+   101→  const launchedRef = useRef(false);
+   102→
+   103→  const clearTimers = useCallback(() => {
+   104→    const t = timersRef.current;
+   105→    if (t.timer) { clearInterval(t.timer); t.timer = undefined; }
+   106→    if (t.poll) { clearInterval(t.poll); t.poll = undefined; }
+   107→    t.timeouts.forEach(clearTimeout);
+   108→    t.timeouts = [];
+   109→    trackGenRef.current += 1;
+   110→  }, []);
+   111→
+   112→  useEffect(() => clearTimers, [clearTimers]);
+   113→
+   114→  const [products, setProducts] = useState<ApiProduct[]>([]);
+   115→  // Fin des échecs silencieux: produits indisponibles → encart discret +
+   116→  // Réessayer sur la section recommandations (plus de section muette).
+   117→  const [productsError, setProductsError] = useState(false);
+   118→  const [history, setHistory] = useState<ApiDiagnosis[] | null>(null);
+   119→  const [compareMode, setCompareMode] = useState(false);
+   120→  const [compareSel, setCompareSel] = useState<string[]>([]);
+   121→
+   122→  // File d'attente offline: compteur vivant — la REPLAY vit dans
+   123→  // ClientApp (elle marche quel que soit l'écran courant), ici on AFFICHE.
+   124→  useEffect(() => {
+   125→    const update = () => setQueuedCount(diagQueueCount());
+   126→    update();
+   127→    return subscribeDiagQueue(update);
+   128→  }, []);
+   129→
+   130→  // Haptique du rituel: chaque étape franchie vibre doucement, la
+   131→  // constellation complète sonne la réussite (no-op silencieux sur iOS).
+   132→  const prevCheckedRef = useRef(0);
+   133→  useEffect(() => {
+   134→    if (checkedSteps > prevCheckedRef.current) {
+   135→      haptic(checkedSteps >= ANALYSIS_STEPS.length ? HAPTIC.success : HAPTIC.light);
+   136→    }
+   137→    prevCheckedRef.current = checkedSteps;
+   138→  }, [checkedSteps]);
+   139→
+   140→  // zone pré-sélectionnée depuis l'accueil
+   141→  useEffect(() => {
+   142→    if (pendingZone) {
+   143→      setZone(pendingZone);
+   144→      setStep(1);
+   145→      setDiag(null);
+   146→      setImage("");
+   147→      onZoneConsumed();
+   148→    }
+   149→  }, [pendingZone, onZoneConsumed]);
+   150→
+   151→  // produits pour les recommandations — échec explicite + re-fetch possible
+   152→  const loadProducts = useCallback(() => {
+   153→    apiGet<{ products: ApiProduct[] }>("/api/shop/products")
+   154→      .then((r) => { setProducts(r.products ?? []); setProductsError(false); })
+   155→      .catch(() => setProductsError(true));
+   156→  }, []);
+   157→
+   158→  useEffect(() => {
+   159→    loadProducts();
+   160→  }, [loadProducts]);
+   161→
+   162→  async function loadHistory() {
+   163→    setHistory(null);
+   164→    try {
+   165→      const r = await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`);
+   166→      setHistory(r.diagnoses ?? []);
+   167→    } catch {
+   168→      setHistory([]);
+   169→    }
+   170→  }
+   171→
+   172→  function goHistory() {
+   173→    setStep(4);
+   174→    setCompareSel([]);
+   175→    setCompareMode(false);
+   176→    loadHistory();
+   177→  }
+   178→
+   179→  async function onFile(f: File | undefined) {
+   180→    if (!f) return;
+   181→    try {
+   182→      const dataUrl = await resizeImage(f);
+   183→      setImage(dataUrl);
+   184→      // Transparence « petite data »: montrer le poids réel envoyé (compressé côté client)
+   185→      const origKo = Math.round(f.size / 1024);
+   186→      const sentKo = Math.max(1, Math.round((dataUrl.length * 0.75) / 1024)); // base64 ≈ 4/3
+   187→      if (origKo > 250 && origKo > sentKo * 2) {
+   188→        toast.success(`Photo compressée : ${origKo.toLocaleString("fr-FR")} Ko → ${sentKo.toLocaleString("fr-FR")} Ko — léger pour ta connexion`);
+   189→      }
+   190→    } catch (e) {
+   191→      toast.error(e instanceof Error ? e.message : "Photo illisible");
+   192→    }
+   193→  }
+   194→
+   195→  async function useGuidePhoto() {
+   196→    const guide = zone === "mains" ? "guide-mains-1" : zone === "dos" ? "guide-dos-1" : zone === "naevi" ? "guide-visage-2" : "guide-visage-1";
+   197→    try {
+   198→      const blob = await (await fetch(`/skin/${guide}.webp`)).blob();
+   199→      const file = new File([blob], `${guide}.webp`, { type: "image/webp" });
+   200→      await onFile(file);
+   201→      toast.success("Photo d'exemple chargée");
+   202→    } catch {
+   203→      toast.error("Photo d'exemple indisponible");
+   204→    }
+   205→  }
+   206→
+   207→  // ── Pipeline asynchrone ──────────────────────────────────────
+   208→  // Le POST répond 202 en < 1 s avec { diagnosis: status "pending" }; le
+   209→  // VLM tourne dans un worker côté serveur; on suit la ligne ici (poll).
+   210→
+   211→  // Résultat acquis (poll du worker, back synchrone ou récupération 66-b):
+   212→  // même animation de fin, durée minimale ~3,4 s, minuteurs suivis et nettoyés
+   213→  // dans tous les cas.
+   214→  const showResult = useCallback(
+   215→    (
+   216→      d: { id: string; result: DiagnosisResult; imageData: string; createdAt: string },
+   217→      t0: number,
+   218→      recovered = false,
+   219→    ) => {
+   220→      const wait = Math.max(0, 3400 - (Date.now() - t0));
+   221→      const to1 = setTimeout(() => {
+   222→        setProgress(100);
+   223→        setCheckedSteps(ANALYSIS_STEPS.length);
+   224→        const to2 = setTimeout(() => {
+   225→          setDiag(d);
+   226→          setAnalyzing(false);
+   227→          setNetNotice(null);
+   228→          setStep(3);
+   229→          haptic(HAPTIC.success); // le rituel s'achève (no-op iOS)
+   230→          clearTimers();
+   231→          if (recovered) {
+   232→            toast.success("Analyse retrouvée — voici tes résultats", {
+   233→              description: "Le réseau a été instable une seconde, mais ton diagnostic était bien enregistré.",
+   234→            });
+   235→          }
+   236→        }, 450);
+   237→        timersRef.current.timeouts.push(to2);
+   238→      }, wait);
+   239→      timersRef.current.timeouts.push(to1);
+   240→    },
+   241→    [clearTimers],
+   242→  );
+   243→
+   244→  // Suivi d'un diagnostic serveur: progression honnête pilotée par le temps
+   245→  // écoulé (le serveur n'expose pas d'avancement réel) + poll
+   246→  // GET /api/diagnoses/{id} toutes les 1,8 s. Timeout global 100 s → échec
+   247→  // honnête + Réessayer (retour capture, photo conservée — comportement 66-b).
+   248→  // Échec réseau d'un tick → on continue de poller (garde-fou: timeout).
+   249→  const trackDiagnosis = useCallback(
+   250→    (diagId: string, opts: { recovered?: boolean; startedAt?: number } = {}) => {
+   251→      clearTimers(); // filet: aucun reliquat d'un suivi précédent
+   252→      const gen = trackGenRef.current;
+   253→      const t0 = opts.startedAt ?? Date.now();
+   254→      const recovered = opts.recovered ?? false;
+   255→      if (recovered) setNetNotice("Récupération de ton analyse…");
+   256→
+   257→      function stopIntervals() {
+   258→        if (timersRef.current.timer) { clearInterval(timersRef.current.timer); timersRef.current.timer = undefined; }
+   259→        if (timersRef.current.poll) { clearInterval(timersRef.current.poll); timersRef.current.poll = undefined; }
+   260→      }
+   261→      function failAnalysis(msg: string) {
+   262→        if (trackGenRef.current !== gen) return;
+   263→        stopIntervals();
+   264→        setAnalyzing(false);
+   265→        setNetNotice(null);
+   266→        toast.error(msg);
+   267→        setStep(1); // retour capture: la photo est conservée → Réessayer
+   268→      }
+   269→
+   270→      // Progression: courbe exponentielle vers 96 % (jamais 100 avant la fin
+   271→      // réelle) — la reprise au montage repart de createdAt (startedAt).
+   272→      const timer = setInterval(() => {
+   273→        const elapsed = Date.now() - t0;
+   274→        setProgress(Math.min(96, Math.round(96 * (1 - Math.exp(-elapsed / 15000)))));
+   275→        setCheckedSteps(elapsed > 16000 ? 2 : 1);
+   276→      }, 420);
+   277→      timersRef.current.timer = timer;
+   278→
+   279→      const check = (d: ApiDiagnosis | undefined | null) => {
+   280→        if (trackGenRef.current !== gen) return;
+   281→        if (!d) { failAnalysis("Diagnostic introuvable — retente dans un instant"); return; }
+   282→        if (d.status === "done") {
+   283→          const result = parseDiagnosis(d.resultJson);
+   284→          stopIntervals();
+   285→          if (!result) { failAnalysis("Résultat IA illisible — retente dans un instant"); return; }
+   286→          showResult({ id: d.id, result, imageData: diagImgSrc(d.imageData), createdAt: d.createdAt }, t0, recovered);
+   287→        } else if (d.status === "error") {
+   288→          failAnalysis("Moteur d'analyse momentanément injoignable — tes photos restent prêtes, retente dans un instant.");
+   289→        }
+   290→        // "pending" → on continue de poller (timeout global en garde-fou)
+   291→      };
+   292→
+   293→      const POLL_MS = 1800;
+   294→      const TIMEOUT_MS = 100_000;
+   295→      let busy = false; // un fetch lent n'empile pas les ticks suivants
+   296→      const poll = setInterval(() => {
+   297→        if (Date.now() - t0 > TIMEOUT_MS) {
+   298→          failAnalysis("Ton analyse met plus de temps que prévu — ta photo reste prête, retente dans un instant.");
+   299→          return;
+   300→        }
+   301→        if (busy) return;
+   302→        busy = true;
+   303→        apiGet<{ diagnosis: ApiDiagnosis }>(`/api/diagnoses/${diagId}`)
+   304→          .then((r) => { busy = false; check(r.diagnosis); })
+   305→          .catch(() => { busy = false; /* réseau: le tick suivant réessaie */ });
+   306→      }, POLL_MS);
+   307→      timersRef.current.poll = poll;
+   308→
+   309→      // Premier statut immédiat: si le worker a déjà fini (reprise au
+   310→      // montage), les résultats arrivent sans attendre le 1er tick.
+   311→      apiGet<{ diagnosis: ApiDiagnosis }>(`/api/diagnoses/${diagId}`)
+   312→        .then((r) => check(r.diagnosis))
+   313→        .catch(() => undefined);
+   314→    },
+   315→    [clearTimers, showResult],
+   316→  );
+   317→
+   318→  // Récupération après échec réseau (66-b): le diagnostic a très bien pu
+   319→  // être ENREGISTRÉ avant la coupure. Done récent (< 4 min) → résultats;
+   320→  // pending → on reprend son suivi (poll du worker). Retourne true si pris
+   321→  // en charge.
+   322→  async function tryRecover(t0: number): Promise<boolean> {
+   323→    const RECENT_MS = 4 * 60 * 1000;
+   324→    const findRecent = (list: ApiDiagnosis[] | undefined): ApiDiagnosis | undefined =>
+   325→      (list ?? [])
+   326→        .filter(
+   327→          (d) =>
+   328→            d.zone === zone &&
+   329→            (d.status === "done" || d.status === "pending") &&
+   330→            Date.now() - new Date(d.createdAt).getTime() < RECENT_MS,
+   331→        )
+   332→        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+   333→    try {
+   334→      const found = findRecent((await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`)).diagnoses);
+   335→      if (!found) return false;
+   336→      if (found.status === "done") {
+   337→        const result = parseDiagnosis(found.resultJson);
+   338→        if (!result) return false;
+   339→        showResult(
+   340→          { id: found.id, result, imageData: diagImgSrc(found.imageData), createdAt: found.createdAt },
+   341→          t0,
+   342→          true,
+   343→        );
+   344→        return true;
+   345→      }
+   346→      // pending: le worker tourne encore côté serveur → on le suit.
+   347→      setZone(found.zone);
+   348→      setImage(diagImgSrc(found.imageData));
+   349→      trackDiagnosis(found.id, { recovered: true, startedAt: new Date(found.createdAt).getTime() });
+   350→      return true;
+   351→    } catch {
+   352→      // Le GET lui-même est injoignable (serveur toujours au redémarrage):
+   353→      // échec final honnête, sans crash.
+   354→      return false;
+   355→    }
+   356→  }
+   357→
+   358→  // Reprise automatique: au montage, si le DERNIER diagnostic de
+   359→  // l'historique est "pending" et récent (< 3 min), on reprend son suivi —
+   360→  // la cliente qui quitte et revient ne perd rien. Les setState vivent dans
+   361→  // la continuation async (pattern loadProducts — règle set-state-in-effect).
+   362→  const resumePending = useCallback(async () => {
+   363→    try {
+   364→      const r = await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`);
+   365→      if (launchedRef.current) return; // une analyse a démarré entre-temps
+   366→      const last = (r.diagnoses ?? [])[0]; // trié desc createdAt par l'API
+   367→      if (!last || last.status !== "pending") return;
+   368→      if (Date.now() - new Date(last.createdAt).getTime() > 3 * 60 * 1000) return;
+   369→      setZone(last.zone);
+   370→      setImage(diagImgSrc(last.imageData));
+   371→      setDiag(null);
+   372→      setStep(2);
+   373→      setAnalyzing(true);
+   374→      setProgress(8);
+   375→      setCheckedSteps(1);
+   376→      setNetNotice(null);
+   377→      trackDiagnosis(last.id, { startedAt: new Date(last.createdAt).getTime() });
+   378→    } catch {
+   379→ /* historique injoignable au montage: parcours normal, silencieux */
+   380→    }
+   381→  }, [user.id, trackDiagnosis]);
+   382→
+   383→  useEffect(() => {
+   384→    resumePending();
+   385→  }, [resumePending]);
+   386→
+   387→  async function launch() {
+   388→    if (!image) return;
+   389→    launchedRef.current = true;
+   390→    setStep(2);
+   391→    setAnalyzing(true);
+   392→    setProgress(0);
+   393→    setCheckedSteps(0);
+   394→    setNetNotice(null);
+   395→    setQuotaUpsell(false);
+   396→    const t0 = Date.now();
+   397→    // Hors-ligne dès le départ: la photo part en file d'attente —
+   398→    // envoyée toute seule au retour du réseau (la replay vit dans ClientApp,
+   399→    // elle prévient par toast). Jamais d'échec sec pour une photo déjà cadrée.
+   400→    if (!isOnline()) {
+   401→      const q = enqueueDiag({ userId: user.id, zone, image, fitzpatrick: user.fitzpatrick ?? undefined, allergies: user.allergies ?? undefined });
+   402→      haptic(HAPTIC.light);
+   403→      setAnalyzing(false);
+   404→      setStep(1); // la photo reste affichée: la cliente voit qu'elle est gardée
+   405→      toast.success("Diagnostic mis en attente", {
+   406→        description: q.ok
+   407→          ? "Ta photo partira toute seule dès que le réseau revient — tu peux même quitter l’app."
+   408→          : "File indisponible sur cet appareil — retente quand le réseau revient.",
+   409→      });
+   410→      return;
+   411→    }
+   412→    try {
+   413→      // POST /api/diagnoses: répond 202 en < 1 s avec la ligne "pending"
+   414→      // (pipeline asynchrone). 4 tentatives (: 3 → 4, backoff
+   415→      // jusqu'à 8 s ≈ ~13,5 s de fenêtre) quand la gateway renvoie
+   416→      // 502/503/504 (recompilation/restart du serveur Next en dev) — backoff
+   417→      // 1,5 s → 4 s → 8 s. Les autres erreurs (400/404/429…) ne sont JAMAIS
+   418→      // rejouées; chaque retry crée une NOUVELLE ligne côté serveur si le
+   419→      // POST a échoué AVANT d'atteindre l'app (échec réseau = rien reçu).
+   420→      let r: { diagnosis: ApiDiagnosis } | undefined;
+   421→      let fatal: unknown = new Error("Analyse impossible");
+   422→      const backoffs = [1500, 4000, 8000];
+   423→      for (let attempt = 0; attempt < 4; attempt += 1) {
+   424→        try {
+   425→          r = await apiPost<{ diagnosis: ApiDiagnosis }>("/api/diagnoses", {
+   426→            userId: user.id,
+   427→            zone,
+   428→            image,
+   429→            fitzpatrick: user.fitzpatrick ?? undefined,
+   430→            allergies: user.allergies ?? undefined,
+   431→          });
+   432→          break;
+   433→        } catch (e) {
+   434→          fatal = e;
+   435→          const retryable = e instanceof ApiError && [502, 503, 504].includes(e.status);
+   436→          if (!retryable || attempt === 3) break;
+   437→          setNetNotice("Rétablissement de la connexion…");
+   438→          await new Promise((res) => setTimeout(res, backoffs[attempt]));
+   439→          setNetNotice(null);
+   440→        }
+   441→      }
+   442→      if (!r) throw fatal;
+   443→      // Compat: un back encore synchrone (status "done" direct) est accepté
+   444→      // tel quel — même animation de fin.
+   445→      if (r.diagnosis.status === "done") {
+   446→        const result = parseDiagnosis(r.diagnosis.resultJson);
+   447→        if (result) {
+   448→          showResult({ id: r.diagnosis.id, result, imageData: image, createdAt: r.diagnosis.createdAt }, t0);
+   449→          return;
+   450→        }
+   451→      }
+   452→      // 202: ligne créée "pending", worker VLM lancé côté serveur → suivi.
+   453→      setCheckedSteps(1); // « Envoi de la photo ✓ »
+   454→      trackDiagnosis(r.diagnosis.id, { startedAt: Date.now() });
+   455→    } catch (e) {
+   456→      // 502/503/504 après 3 tentatives: tenter la récupération AVANT l'échec.
+   457→      const gatewayish = e instanceof ApiError && [502, 503, 504].includes(e.status);
+   458→      if (gatewayish && (await tryRecover(t0))) return;
+   459→      clearTimers();
+   460→      setAnalyzing(false);
+   461→      setNetNotice(null);
+   462→      // Échec RÉSEAU pur (fetch avorté — pas de réponse serveur): file
+   463→      // d'attente offline. La photo reste cadrée, elle partira seule.
+   464→      if (!(e instanceof ApiError)) {
+   465→        const q = enqueueDiag({ userId: user.id, zone, image, fitzpatrick: user.fitzpatrick ?? undefined, allergies: user.allergies ?? undefined });
+   466→        haptic(HAPTIC.light);
+   467→        toast.success("Réseau perdu — diagnostic gardé", {
+   468→          description: q.ok
+   469→            ? "Ta photo partira toute seule dès le retour du réseau, sans rien retaper."
+   470→            : undefined,
+   471→        });
+   472→        setStep(1); // retour capture: la photo est conservée
+   473→        return;
+   474→      }
+   475→      // 403 = quota gratuit atteint (le garde session renvoie 401, jamais
+   476→      // 403 sur cette route) → carte upsell plutôt qu'un échec sec.
+   477→      if (e instanceof ApiError && e.status === 403) setQuotaUpsell(true);
+   478→      toast.error(
+   479→        gatewayish
+   480→          ? "Moteur d'analyse momentanément injoignable — tes photos restent prêtes, retente dans un instant."
+   481→          : e instanceof Error
+   482→            ? e.message
+   483→            : "Analyse impossible",
+   484→      );
+   485→      setStep(1); // retour capture: la photo est conservée
+   486→    }
+   487→  }
+   488→
+   489→ /* ─────────── Étape 0 — Choix de zone ─────────── */
+   490→  if (step === 0) {
+   491→    return (
+   492→      <div className="pt-4">
+   493→        <button onClick={() => setClientTab("accueil")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label="Retour accueil">
+   494→          <ArrowLeft size={15} /> Accueil
+   495→        </button>
+   496→        <h2 className="font-heading font-black text-xl">Quelle zone analysons-nous ?</h2>
+   497→        <p className="text-xs text-muted-foreground mt-1 mb-5">Chaque zone est pondérée dans ton score global (PRD §8.8).</p>
+   498→        <Reveal className="grid grid-cols-2 gap-3" stagger={0.07}>
+   499→          {BODY_ZONES.map((z) => {
+   500→            const Icon = ZONE_ICONS[z.id];
+   501→            return (
+   502→              <RevealItem key={z.id}>
+   503→                <motion.button
+   504→                  whileTap={{ scale: 0.96 }}
+   505→                  onClick={() => { setZone(z.id); setStep(1); setImage(""); setDiag(null); }}
+   506→                  className={`k-card k-card-hover rounded-[22px] p-4 text-left focus-visible:outline-2 focus-visible:outline-primary ${zone === z.id ? "ring-2 ring-primary/60" : ""}`}
+   507→                >
+   508→                  <div className="flex items-start justify-between">
+   509→                    <IconBadge icon={<Icon size={20} />} tone={ZONE_TONES[z.id]} />
+   510→                    <span className="k-chip rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums text-muted-foreground">{Math.round(z.weight * 100)} %</span>
+   511→                  </div>
+   512→                  <p className="font-heading font-bold text-sm mt-3">{z.label}</p>
+   513→                  <p className="text-[11px] text-muted-foreground mt-1 leading-snug line-clamp-2">{z.hint}</p>
+   514→                </motion.button>
+   515→              </RevealItem>
+   516→            );
+   517→          })}
+   518→        </Reveal>
+   519→        <button onClick={goHistory} className="k-card k-card-hover mt-5 w-full h-11 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-primary">
+   520→          <History size={16} className="text-primary" /> Voir mon historique
+   521→        </button>
+   522→      </div>
+   523→    );
+   524→  }
+   525→
+   526→ /* ─────────── Étape 1 — Capture ─────────── */
+   527→  if (step === 1) {
+   528→    const zoneDef = BODY_ZONES.find((z) => z.id === zone)!;
+   529→    return (
+   530→      <div className="pt-4">
+   531→        <button onClick={() => setStep(0)} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour">
+   532→          <ArrowLeft size={15} /> Changer de zone
+   533→        </button>
+   534→        <span className="k-chip rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-gold-text">{zoneDef.label} · {Math.round(zoneDef.weight * 100)} %</span>
+   535→        <h2 className="font-heading font-black text-xl mt-3">Prends ta photo</h2>
+   536→
+   537→        <ul className="mt-4 space-y-2">
+   538→          {[
+   539→            "Lumière naturelle de préférence, sans ombre directe",
+   540→            "Distance ~30 cm, cadre serré sur la zone",
+   541→            "Cheveux dégagés, visage net (pas de maquillage)",
+   542→          ].map((t, i) => (
+   543→            <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+   544→              <span className="mt-0.5 grid place-items-center h-4 w-4 rounded-full bg-primary/15 text-primary font-mono text-[9px] font-bold shrink-0">{i + 1}</span>
+   545→              {t}
+   546→            </li>
+   547→          ))}
+   548→        </ul>
+   549→
+   550→        <div className="mt-5">
+   551→          {image ? (
+   552→            <div className="grain-kene relative rounded-[24px] overflow-hidden ring-4 ring-[#C8951E]/30 shadow-xl">
+   553→              <img src={image} alt={`Aperçu zone ${zoneDef.label}`} className="aspect-square w-full object-cover" />
+   554→              <button onClick={() => setImage("")} className="absolute top-2 right-2 h-10 w-10 grid place-items-center rounded-full bg-[#1A1410]/85 text-white active:scale-90 transition-transform" aria-label="Retirer la photo">
+   555→                <X size={16} />
+   556→              </button>
+   557→            </div>
+   558→          ) : (
+   559→            <button
+   560→              onClick={() => fileRef.current?.click()}
+   561→              className="w-full aspect-square rounded-[24px] border-2 border-dashed border-primary/45 bg-primary/5 grid place-items-center gap-3 active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+   562→            >
+   563→              <span className="flex flex-col items-center gap-3 text-primary">
+   564→                <Camera size={44} />
+   565→                <span className="text-sm font-semibold">Ouvrir l&apos;appareil photo</span>
+   566→                <span className="text-[11px] text-muted-foreground font-normal text-center px-6">{zoneDef.hint}</span>
+   567→              </span>
+   568→            </button>
+   569→          )}
+   570→          <input ref={fileRef} type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} aria-label="Photo de la zone" />
+   571→        </div>
+   572→
+   573→        <div className="mt-4 flex gap-2">
+   574→          <button onClick={useGuidePhoto} className="k-chip h-11 flex-1 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
+   575→            <ImagePlus size={15} className="text-primary" /> Photo d&apos;exemple
+   576→          </button>
+   577→          {image && (
+   578→            <button onClick={() => fileRef.current?.click()} className="k-chip h-11 px-4 rounded-2xl text-xs font-semibold flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
+   579→              <RotateCcw size={15} /> Reprendre
+   580→            </button>
+   581→          )}
+   582→        </div>
+   583→
+   584→        <PrimaryCTA
+   585→          onClick={launch}
+   586→          disabled={!image}
+   587→          className="mt-5 h-14 w-full rounded-[20px] font-heading font-black text-base"
+   588→        >
+   589→          <NeaOnnimIcon size={22} /> Lancer l&apos;analyse IA
+   590→        </PrimaryCTA>
+   591→
+   592→        {/* Quota gratuit atteint — upsell Kènè+: parcours, pas mur. */}
+   593→        {quotaUpsell && (
+   594→          <GlassCard className="mt-5 rounded-[24px] p-5">
+   595→            <div className="flex items-center gap-3">
+   596→              <IconBadge icon={<Sparkles size={20} />} tone="gold" />
+   597→              <p className="font-heading font-black text-sm">Ton diagnostic gratuit du mois est utilisé</p>
+   598→            </div>
+   599→            <p className="mt-2.5 text-xs text-muted-foreground leading-relaxed">
+   600→              Avec <span className="font-bold text-primary">Kènè+</span>, ton Scanner devient illimité : analyses,
+   601→              suivi d&apos;évolution et protocoles personnalisés à volonté.
+   602→            </p>
+   603→            <button
+   604→              onClick={() => setClientTab("abonnement")}
+   605→              className="mt-4 h-11 w-full rounded-2xl k-btn-gold text-sm font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+   606→            >
+   607→              <Sparkles size={15} /> Découvrir Kènè+
+   608→            </button>
+   609→          </GlassCard>
+   610→        )}
+   611→
+   612→        {/* File d'attente offline: photos gardées, départ auto. */}
+   613→        {queuedCount > 0 && (
+   614→          <div role="status" className="mt-4 flex items-center gap-3 rounded-[20px] p-3.5 k-card">
+   615→            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+   616→              <WifiOff size={16} aria-hidden="true" />
+   617→            </span>
+   618→            <div className="min-w-0 flex-1">
+   619→              <p className="text-xs font-bold">
+   620→                {queuedCount} diagnostic{queuedCount > 1 ? "s" : ""} en attente du réseau
+   621→              </p>
+   622→              <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+   623→                Envoyé{queuedCount > 1 ? "s" : ""} automatiquement dès le retour de la connexion — rien à refaire, tu peux même quitter l&apos;app.
+   624→              </p>
+   625→            </div>
+   626→          </div>
+   627→        )}
+   628→      </div>
+   629→    );
+   630→  }
+   631→
+   632→ /* ─────────── Étape 2 — Analyse en cours ─────────── */
+   633→  if (step === 2 && analyzing) {
+   634→    return (
+   635→      <Reveal className="pt-6 flex flex-col items-center" stagger={0.07}>
+   636→        <RevealItem className="grain-kene relative w-full max-w-[320px] rounded-[24px] overflow-hidden ring-4 ring-[#C8951E]/30 shadow-xl">
+   637→          <img src={image} alt="Photo en cours d'analyse" className="aspect-square w-full object-cover" />
+   638→          <motion.div
+   639→            className="absolute left-0 right-0 h-16 bg-gradient-to-b from-transparent via-[#C8951E]/50 to-transparent border-y-2 border-[#C8951E]"
+   640→            animate={{ top: ["8%", "78%", "8%"] }}
+   641→            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+   642→            aria-hidden="true"
+   643→          />
+   644→        </RevealItem>
+   645→
+   646→      {/* Constellation Adinkra: le ciel du rituel s'assemble
+   647→ pendant l'analyse — décoratif, la liste d'étapes reste le contrat. */}
+   648→      <RevealItem className="mt-5 w-full max-w-[320px]">
+   649→        <AdinkraSky checked={checkedSteps} total={ANALYSIS_STEPS.length} />
+   650→      </RevealItem>
+   651→
+   652→      <RevealItem className="mt-6 w-full max-w-[320px]">
+   653→        <GlassCard hero>
+   654→            <div className="divide-y divide-border/60">
+   655→              {ANALYSIS_STEPS.map((label, i) => {
+   656→                const done = i < checkedSteps;
+   657→                const active = i === checkedSteps;
+   658→                return (
+   659→                  <div key={i} className={`flex items-center gap-3 p-3 transition-colors ${done ? "bg-success/5" : active ? "bg-primary/5" : "opacity-50"}`}>
+   660→                    <span className={`grid place-items-center h-6 w-6 rounded-full shrink-0 ${done ? "bg-success text-white" : active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
+   661→                      {done ? <Check size={13} /> : active ? <Loader2 size={13} className="animate-spin" /> : <span className="font-mono text-[10px] font-bold">{i + 1}</span>}
+   662→                    </span>
+   663→                    <span className={`text-xs ${done ? "text-success font-semibold" : "text-muted-foreground"}`}>{label}</span>
+   664→                  </div>
+   665→                );
+   666→              })}
+   667→            </div>
+   668→          </GlassCard>
+   669→        </RevealItem>
+   670→        <RevealItem className="w-full max-w-[320px] mt-5">
+   671→          <div role="group" aria-label="Progression de l'analyse">
+   672→            <ProgressBar value={progress} />
+   673→            <p className="text-center text-[11px] text-muted-foreground mt-2 leading-relaxed">
+   674→              10 à 30 secondes — tu peux continuer à naviguer, ton analyse arrive dans tes notifications
+   675→            </p>
+   676→            {netNotice && (
+   677→              <p role="status" className="mt-1.5 flex min-h-11 items-center justify-center gap-1.5 text-center text-[11px] font-medium text-primary">
+   678→                <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+   679→                <span aria-live="polite">{netNotice}</span>
+   680→              </p>
+   681→            )}
+   682→          </div>
+   683→        </RevealItem>
+   684→      </Reveal>
+   685→    );
+   686→  }
+   687→
+   688→ /* ─────────── Étape 4 — Historique ─────────── */
+   689→  if (step === 4) return <HistoryView userId={user.id} history={history} compareMode={compareMode} setCompareMode={setCompareMode} compareSel={compareSel} setCompareSel={setCompareSel} onBack={() => setStep(0)} onOpen={(d) => { const r = parseDiagnosis(d.resultJson); if (r) { setDiag({ id: d.id, result: r, imageData: diagImgSrc(d.imageData), createdAt: d.createdAt }); setStep(3); } }} />;
+   690→
+   691→ /* ─────────── Étape 3 — Résultats ─────────── */
+   692→  if (step === 3 && diag) {
+   693→    return <ResultView diag={diag} products={products} productsError={productsError} onRetryProducts={loadProducts} onNewZone={() => { setStep(0); setImage(""); setDiag(null); }} onHistory={goHistory} />;
+   694→  }
+   695→
+   696→  return null;
+   697→}
+   698→
+   699→/* ══════════════ Résultat VISIA-like ══════════════ */
+   700→function ResultView({ diag, products, productsError, onRetryProducts, onNewZone, onHistory }: { diag: { id: string; result: DiagnosisResult; imageData: string; createdAt: string }; products: ApiProduct[]; productsError: boolean; onRetryProducts: () => void; onNewZone: () => void; onHistory: () => void }) {
+   701→  const user = useKene((s) => s.user)!;
+   702→  const setClientTab = useKene((s) => s.setClientTab);
+   703→  const addToCart = useKene((s) => s.addToCart);
+   704→  const [view, setView] = useState<string>("standard");
+   705→  const [ritualOpen, setRitualOpen] = useState(false);
+   706→  const [descentOpen, setDescentOpen] = useState(false);
+   707→  const [glossary, setGlossary] = useState<GlossaryEntry | null>(null);
+   708→  const r = diag.result;
+   709→  // Fiabilité: champ posé par le worker dans resultJson; les
+   710→  // anciens diagnostics n'en ont pas → dérivé de `source` (déjà présent).
+   711→  const confidence = r.confidence ?? (r.source === "vlm" ? "haute" : "indicative");
+   712→  const weakest = useMemo(() => [...r.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage).slice(0, 8), [r.indicateurs]);
+   713→  const viewDef = SPECTRAL_VIEWS.find((v) => v.id === view) ?? SPECTRAL_VIEWS[0];
+   714→  const heatmapCls = view === "pigment" ? "heatmap-pigment" : view === "inflammation" ? "heatmap-inflammation" : view === "acne" ? "heatmap-acne" : "";
+   715→
+   716→  const botanicIcon = (name: string): React.ReactNode => {
+   717→    const n = norm(name);
+   718→    if (n.includes("moringa")) return <MoringaIcon size={13} />;
+   719→    if (n.includes("karite")) return <KariteIcon size={13} />;
+   720→    if (n.includes("baobab")) return <BaobabIcon size={13} />;
+   721→    return <Sparkles size={13} />;
+   722→  };
+   723→
+   724→  function askGlossary(term: string) {
+   725→    const entry = glossaryFor(term);
+   726→    if (entry) setGlossary(entry);
+   727→  }
+   728→
+   729→  return (
+   730→    <div className="pt-4 pb-2">
+   731→      <Reveal stagger={0.07}>
+   732→      {/* Header score — carte héro: verre + lueurs internes + filet kente 3px */}
+   733→      <RevealItem>
+   734→        <GlassCard hero className="overflow-hidden rounded-[26px]">
+   735→          <div className="kente-band h-[3px] w-full" aria-hidden="true" />
+   736→          <div className="p-5 flex items-center gap-4">
+   737→            <ScoreGauge score={r.score_global} label="Zone" size={110} />
+   738→            <div className="min-w-0">
+   739→              <div className="flex items-center gap-2 flex-wrap">
+   740→                <h2 className="font-heading font-black text-lg">{BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone}</h2>
+   741→                {r.fitzpatrick_estime && <span className="rounded-full bg-melanine text-[#F8F1E4] px-2 py-0.5 text-[10px] font-bold">Fitz {r.fitzpatrick_estime}</span>}
+   742→              </div>
+   743→              <p className="text-[11px] text-muted-foreground mt-1">{formatDate(diag.createdAt)} · {r.source === "vlm" ? "Analyse VLM" : "Analyse heuristique"} · {r.indicateurs.length} indicateurs</p>
+   744→              <div className="flex gap-1.5 mt-2 flex-wrap">
+   745→                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: scoreColor(r.score_global), color: readableTextColor(scoreColor(r.score_global)) }}>
+   746→                  {r.score_global >= 80 ? "Excellente santé" : r.score_global >= 60 ? "Bon équilibre" : r.score_global >= 40 ? "Points à surveiller" : "Besoin de soin"}
+   747→                </span>
+   748→                {/* Pastille fiabilité — chip discret */}
+   749→                <span
+   750→                  className={`k-chip inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${confidence === "haute" ? "text-success" : "text-terre"}`}
+   751→                >
+   752→                  {confidence === "haute" ? (
+   753→                    <><Sparkles size={11} aria-hidden="true" /> Fiabilité : Haute (analyse IA vision)</>
+   754→                  ) : (
+   755→                    <><WifiOff size={11} aria-hidden="true" /> Mode indicatif (hors ligne)</>
+   756→                  )}
+   757→                </span>
+   758→              </div>
+   759→            </div>
+   760→          </div>
+   761→        </GlassCard>
+   762→      </RevealItem>
+   763→
+   764→      {/* Lecture vocale — accès non-lectrices & confort audio (TTS) */}
+   765→      <RevealItem>
+   766→        <VoiceNarration result={r} userName={user.name} />
+   767→      </RevealItem>
+   768→
+   769→      {/* Résumé en pictos — tuiles tapables lues à voix haute (non-lectrices) */}
+   770→      <RevealItem className="mt-4">
+   771→        <PictoSummary result={r} zoneLabel={BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone} />
+   772→      </RevealItem>
+   773→
+   774→      {/* Atlas africain — « Dr Kènè pense reconnaître… »: hypothèses
+   775→ éducatives citées par le VLM puis VALIDÉES côté serveur (id exact de
+   776→ l'atlas + zone cohérente + confiance ≥ 25). Jamais un diagnostic
+   777→ formel — une piste à faire confirmer, avec le bon niveau de conduite. */}
+   778→      {r.hypotheses && r.hypotheses.length > 0 && (
+   779→        <RevealItem className="mt-4">
+   780→          <section aria-labelledby="hyp-t">
+   781→            <h2 id="hyp-t" className="font-heading font-bold text-base">Dr Kènè pense reconnaître…</h2>
+   782→            <p className="mt-1 mb-3 text-[11px] leading-snug text-muted-foreground">
+   783→              Ce que la photo lui rappelle, parmi {r.hypotheses.length === 1 ? "les affections de peau noire" : "2 affections de peau noire"} — une hypothèse à faire confirmer, pas un diagnostic.
+   784→            </p>
+   785→            <div className="space-y-3">
+   786→              {r.hypotheses.map((h) => (
+   787→                <HypothesisCard key={h.id} h={h} onAsk={askGlossary} onRdv={() => setClientTab("rdv")} />
+   788→              ))}
+   789→            </div>
+   790→          </section>
+   791→        </RevealItem>
+   792→      )}
+   793→
+   794→      {/* Descente de Peau — voyage 3D dans les couches, éclairé par
+   795→ les indicateurs réels. Plein cadre opt-in, se ferme à la remontée. */}
+   796→      <RevealItem className="mt-4">
+   797→        <motion.button
+   798→          whileTap={{ scale: 0.98 }}
+   799→          onClick={() => setDescentOpen(true)}
+   800→          className="relative w-full overflow-hidden rounded-[24px] bg-gradient-to-br from-[#241A10] to-[#1A1410] text-left ring-1 ring-[#C8951E]/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+   801→          aria-label="Ouvrir la Descente de Peau — traverser les trois couches de ma peau en 3D"
+   802→        >
+   803→          <div aria-hidden="true" className="h-1.5 w-full" style={{ backgroundImage: "linear-gradient(90deg, #8D5524 0 33%, #C99B6E 33% 66%, #F0DFC2 66% 100%)" }} />
+   804→          <div className="flex items-center gap-3 p-4">
+   805→            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#C8951E]/15 text-[#E3B04B]">
+   806→              <Layers size={24} />
+   807→            </span>
+   808→            <div className="min-w-0 flex-1">
+   809→              <p className="font-heading font-bold text-sm text-[#F8F1E4]">Voyage dans ma peau</p>
+   810→              <p className="mt-0.5 text-[11px] leading-snug text-[#F8F1E4]/65">
+   811→                Descends à travers l’épiderme, le derme et l’hypoderme — éclairés par tes {r.indicateurs.length} indicateurs.
+   812→              </p>
+   813→            </div>
+   814→            <ChevronRight size={18} className="shrink-0 text-[#E3B04B]" aria-hidden="true" />
+   815→          </div>
+   816→        </motion.button>
+   817→      </RevealItem>
+   818→
+   819→      {/* Alerte orientation dermato */}
+   820→      {r.orientation_dermato && (
+   821→        <RevealItem className="mt-4">
+   822→          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-[22px] border-2 border-[#8B1A3B]/60 bg-[#8B1A3B]/5 p-4" role="alert">
+   823→            <p className="flex items-center gap-2 font-heading font-bold text-sm text-[#8B1A3B]">
+   824→              <TriangleAlert size={17} /> Consultation dermatologique conseillée
+   825→            </p>
+   826→            <p className="text-xs mt-1.5 leading-relaxed">{r.raison_orientation ?? "Une lésion présente des signes justifiant un avis médical."}</p>
+   827→            {r.abcde && r.abcde.length > 0 && (
+   828→              <div className="flex gap-1.5 flex-wrap mt-3">
+   829→                {r.abcde.map((a) => (
+   830→                  <span key={a.critere} className={`rounded-full px-2.5 py-1 text-[10px] font-bold border ${a.alerte ? "bg-[#8B1A3B] text-white border-[#8B1A3B]" : "border-[#346834]/50 text-[#346834] bg-[#346834]/10"}`}>
+   831→                    {a.critere} · {a.intitule}
+   832→                  </span>
+   833→                ))}
+   834→              </div>
+   835→            )}
+   836→            <button onClick={() => setClientTab("rdv")} className="mt-3 h-11 w-full rounded-xl bg-[#8B1A3B] text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#8B1A3B]">
+   837→              <CalendarPlus size={16} /> Prendre RDV avec un institut partenaire
+   838→            </button>
+   839→          </motion.div>
+   840→        </RevealItem>
+   841→      )}
+   842→
+   843→      {/* Jumeau de Peau — Skin Twin 3D + Fil du Temps (projection S+12) */}
+   844→      <RevealItem>
+   845→        <SkinTwinCard
+   846→          projection
+   847→          entries={[
+   848→            {
+   849→              id: diag.id,
+   850→              zone: r.zone,
+   851→              score: r.score_global,
+   852→              fitz: r.fitzpatrick_estime,
+   853→              marks: r.zones_marquages,
+   854→              date: diag.createdAt,
+   855→              indicators: r.indicateurs,
+   856→            },
+   857→          ]}
+   858→        />
+   859→      </RevealItem>
+   860→
+   861→      {/* Tabs spectraux */}
+   862→      <RevealItem className="mt-5">
+   863→        <section aria-label="Vues spectrales de la photo">
+   864→          <Tabs value={view} onValueChange={setView}>
+   865→            <TabsList className="w-full h-auto grid grid-cols-4 gap-1 bg-muted/60 p-1 rounded-2xl">
+   866→              {SPECTRAL_VIEWS.map((v) => (
+   867→                <TabsTrigger key={v.id} value={v.id} className="text-[10.5px] leading-tight px-1 py-2 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-semibold transition-colors">
+   868→                  {v.label.split(" ")[0]}
+   869→                </TabsTrigger>
+   870→              ))}
+   871→            </TabsList>
+   872→          </Tabs>
+   873→          <p className="text-[11px] text-muted-foreground mt-2 mb-2">{viewDef.label}{view !== "standard" ? " — filtre spectral + cartographie chaleur" : ""}</p>
+   874→          <div className="relative k-card rounded-[24px] overflow-hidden">
+   875→            <img src={diag.imageData} alt={`Vue ${viewDef.label} de la zone analysée`} className={`aspect-square w-full object-cover ${view !== "standard" ? viewDef.filter : ""}`} />
+   876→            {heatmapCls && <div aria-hidden="true" className={`absolute inset-0 ${heatmapCls} opacity-60 mix-blend-screen pointer-events-none`} />}
+   877→            {/* cadres zones détectées */}
+   878→            {r.zones_marquages.map((z, i) => (
+   879→              <div key={i} className="absolute border-2 border-dashed border-[#FFF9EC]/90 rounded-lg pointer-events-none" style={{ left: `${z.x}%`, top: `${z.y}%`, width: `${z.w}%`, height: `${z.h}%` }}>
+   880→                <span className="absolute -top-0.5 -left-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#FFF9EC]" style={{ backgroundColor: ["#346834", "#C8951E", "#E07A2B", "#8B1A3B"][Math.min(3, Math.max(0, z.severite))] }} aria-hidden="true" />
+   881→                <span className="absolute -bottom-5 left-0 whitespace-nowrap rounded-full bg-[#1A1410]/90 text-[#F8F1E4] px-1.5 py-0.5 text-[9px] font-semibold">{z.label}</span>
+   882→              </div>
+   883→            ))}
+   884→            <div className="absolute bottom-2 right-2 flex gap-1">
+   885→              {SEVERITY_STYLES.map((s, i) => (
+   886→                <span key={i} className="flex items-center gap-1 rounded-full bg-[#1A1410]/90 px-1.5 py-0.5 text-[11px] text-[#F8F1E4]">
+   887→                  <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} aria-hidden="true" />
+   888→                  {s.label}
+   889→                </span>
+   890→              ))}
+   891→            </div>
+   892→          </div>
+   893→        </section>
+   894→      </RevealItem>
+   895→
+   896→      {/* Indicateurs les plus faibles */}
+   897→      <RevealItem className="mt-6">
+   898→        <section aria-labelledby="ind-t">
+   899→          <h2 id="ind-t" className="font-heading font-bold text-base mb-3">Priorités de soin</h2>
+   900→          <div className="space-y-2.5">
+   901→            {weakest.map((ind) => (
+   902→              <IndicatorBar key={ind.nom} ind={ind} onAsk={askGlossary} />
+   903→            ))}
+   904→          </div>
+   905→          {r.indicateurs.length > 8 && (
+   906→            <Accordion type="single" collapsible className="mt-3">
+   907→              <AccordionItem value="all" className="border-border">
+   908→                <AccordionTrigger className="text-xs font-semibold py-3">Les {r.indicateurs.length} indicateurs détaillés</AccordionTrigger>
+   909→                <AccordionContent className="space-y-2.5 pb-2">
+   910→                  {r.indicateurs.map((ind) => (
+   911→                    <div key={ind.nom}>
+   912→                      <IndicatorBar ind={ind} onAsk={askGlossary} />
+   913→                      {ind.note && <p className="text-[10.5px] text-muted-foreground mt-1 leading-snug">{ind.note}</p>}
+   914→                    </div>
+   915→                  ))}
+   916→                </AccordionContent>
+   917→              </AccordionItem>
+   918→            </Accordion>
+   919→          )}
+   920→        </section>
+   921→      </RevealItem>
+   922→
+   923→      {/* Recommandations */}
+   924→      <RevealItem className="mt-6">
+   925→        <section aria-labelledby="reco-t">
+   926→          <h2 id="reco-t" className="font-heading font-bold text-base mb-3">Ta routine personnalisée</h2>
+   927→
+   928→          {/* Route de l'Or — parcours narratif (CTA signature terre→bissap) */}
+   929→          <PrimaryCTA
+   930→            onClick={() => setRitualOpen(true)}
+   931→            ariaLabel="Ouvrir la Route de l'Or — tisser ma routine en 4 stations"
+   932→            className="relative w-full min-h-0 overflow-hidden rounded-[24px] px-0 py-0"
+   933→          >
+   934→            <span aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-25" />
+   935→            <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1.5 w-full" style={{ backgroundImage: "repeating-linear-gradient(90deg,#8B1A3B 0 12px,#346834 12px 20px,#C8951E 20px 28px,#E07A2B 28px 36px,#A0522D 36px 46px)" }} />
+   936→            <span className="relative flex w-full items-center gap-3 px-4 py-3.5">
+   937→              <span className="grid place-items-center h-12 w-12 rounded-2xl bg-[#FFF9EC]/20 border border-[#FFF9EC]/30 shrink-0">
+   938→                <NeaOnnimIcon size={26} />
+   939→              </span>
+   940→              <span className="text-left min-w-0 flex-1">
+   941→                <span className="block font-heading font-black text-base leading-tight">La Route de l&apos;Or</span>
+   942→                <span className="block text-[11px] opacity-90">Tisse ta routine en 4 stations — ton kente de soin à la fin</span>
+   943→              </span>
+   944→              <ChevronRight size={20} className="ml-auto opacity-80 shrink-0" />
+   945→            </span>
+   946→          </PrimaryCTA>
+   947→
+   948→          <div className="k-card relative mt-4 rounded-[20px] p-4 pl-5">
+   949→            <span aria-hidden="true" className="k-rail-line absolute left-0 top-3.5 bottom-3.5 w-1 rounded-full" />
+   950→            <p className="text-xs leading-relaxed">{r.recommandations.resume}</p>
+   951→          </div>
+   952→
+   953→          <div className="grid grid-cols-2 gap-3 mt-4">
+   954→            <div className="k-card k-card-hover rounded-[20px] p-3.5">
+   955→              <p className="flex items-center gap-1.5 text-[11px] font-bold text-gold-text uppercase tracking-wide"><Sunrise size={13} /> Matin</p>
+   956→              <ul className="mt-2 space-y-1.5">
+   957→                {r.recommandations.routine_matin.slice(0, 4).map((s, i) => (
+   958→                  <li key={i} className="text-[11px] leading-snug flex gap-1.5"><span className="text-primary font-mono">{i + 1}.</span> {s}</li>
+   959→                ))}
+   960→              </ul>
+   961→            </div>
+   962→            <div className="k-card k-card-hover rounded-[20px] p-3.5">
+   963→              <p className="flex items-center gap-1.5 text-[11px] font-bold text-terre uppercase tracking-wide"><Moon size={13} /> Soir</p>
+   964→              <ul className="mt-2 space-y-1.5">
+   965→                {r.recommandations.routine_soir.slice(0, 4).map((s, i) => (
+   966→                  <li key={i} className="text-[11px] leading-snug flex gap-1.5"><span className="text-terre font-mono">{i + 1}.</span> {s}</li>
+   967→                ))}
+   968→              </ul>
+   969→            </div>
+   970→          </div>
+   971→
+   972→          {r.recommandations.botaniques_conseillees.length > 0 && (
+   973→            <div className="mt-4">
+   974→              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Botaniques africaines pour toi</p>
+   975→              <div className="flex flex-wrap gap-2">
+   976→                {r.recommandations.botaniques_conseillees.map((b, i) => (
+   977→                  <span key={i} className="k-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold text-terre">
+   978→                    {botanicIcon(b)} {b}
+   979→                  </span>
+   980→                ))}
+   981→              </div>
+   982→            </div>
+   983→          )}
+   984→
+   985→          {r.recommandations.produits.length > 0 && (
+   986→            <div className="mt-4 space-y-2">
+   987→              <p className="text-[11px] font-semibold text-muted-foreground">Produits recommandés</p>
+   988→              {productsError && (
+   989→                <div role="alert" className="rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 flex items-center gap-2.5">
+   990→                  <TriangleAlert size={14} className="text-terre shrink-0" aria-hidden="true" />
+   991→                  <p className="flex-1 min-w-0 text-[11px] text-muted-foreground leading-snug">Boutique indisponible — réessaie</p>
+   992→                  <button onClick={onRetryProducts} className="k-btn-gold h-11 px-3.5 rounded-xl text-primary-foreground text-xs font-bold shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+   993→                    Réessayer
+   994→                  </button>
+   995→                </div>
+   996→              )}
+   997→              {r.recommandations.produits.map((rec, i) => {
+   998→                const p = matchProduct(rec, products);
+   999→                return (
+  1000→                  <div key={i} className="k-card flex items-center gap-3 rounded-[18px] p-2.5">
+  1001→                    {p ? (
+  1002→                      <img src={p.image} alt={p.name} loading="lazy" className="h-12 w-12 rounded-xl object-cover shrink-0" />
+  1003→                    ) : (
+  1004→                      <span className="k-chip h-12 w-12 rounded-[14px] text-primary grid place-items-center shrink-0"><Sparkles size={18} /></span>
+  1005→                    )}
+  1006→                    <div className="min-w-0 flex-1">
+  1007→                      <p className="text-xs font-semibold leading-tight">{rec}</p>
+  1008→                      {p && <p className="font-mono text-[11px] text-primary font-bold tabular-nums mt-0.5">{xof(p.price)}</p>}
+  1009→                    </div>
+  1010→                    {p ? (
+  1011→                      <button
+  1012→                        onClick={() => { addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image }); toast.success(`${p.name} ajouté au panier`); }}
+  1013→                        className="k-btn-gold h-10 px-3 rounded-full text-primary-foreground text-[11px] font-bold flex items-center gap-1 shrink-0 focus-visible:outline-2 focus-visible:outline-primary"
+  1014→                      >
+  1015→                        <Plus size={13} /> Panier
+  1016→                      </button>
+  1017→                    ) : (
+  1018→                      <button onClick={() => setClientTab("boutique")} className="k-chip h-10 px-3 rounded-full border-primary/40 text-primary text-[11px] font-bold shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+  1019→                        Boutique
+  1020→                      </button>
+  1021→                    )}
+  1022→                  </div>
+  1023→                );
+  1024→              })}
+  1025→            </div>
+  1026→          )}
+  1027→
+  1028→          {r.recommandations.soins_conseilles.length > 0 && (
+  1029→            <div className="mt-4">
+  1030→              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Soins en institut</p>
+  1031→              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+  1032→                {r.recommandations.soins_conseilles.map((s, i) => (
+  1033→                  <button key={i} onClick={() => setClientTab("rdv")} className="k-chip shrink-0 rounded-full border-success/50 bg-success/10 px-3.5 py-2 text-[11px] font-semibold text-success flex items-center gap-1 focus-visible:outline-2 focus-visible:outline-[#346834]">
+  1034→                    <CalendarPlus size={13} /> {s} · Réserver
+  1035→                  </button>
+  1036→                ))}
+  1037→              </div>
+  1038→            </div>
+  1039→          )}
+  1040→
+  1041→          {r.recommandations.conseils_hygiene_vie.length > 0 && (
+  1042→            <div className="k-card mt-4 rounded-[20px] p-4">
+  1043→              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Hygiène de vie</p>
+  1044→              <ul className="space-y-1.5">
+  1045→                {r.recommandations.conseils_hygiene_vie.map((c, i) => (
+  1046→                  <li key={i} className="text-[11px] leading-snug flex gap-2">
+  1047→                    <Check size={12} className="text-success mt-0.5 shrink-0" /> {c}
+  1048→                  </li>
+  1049→                ))}
+  1050→              </ul>
+  1051→            </div>
+  1052→          )}
+  1053→        </section>
+  1054→      </RevealItem>
+  1055→
+  1056→      <RevealItem className="mt-5">
+  1057→        <p className="rounded-[14px] bg-muted/70 p-3 text-[10px] leading-relaxed text-muted-foreground">{r.avertissement} Kènè est un outil d&apos;éducation beauté assisté par IA — les estimations ne constituent pas un diagnostic médical.</p>
+  1058→      </RevealItem>
+  1059→
+  1060→      <RevealItem className="mt-4 pb-2">
+  1061→        <div className="grid grid-cols-2 gap-3">
+  1062→          <button onClick={onNewZone} className="k-chip h-12 rounded-2xl text-primary text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
+  1063→            <ScanFace size={16} /> Nouvelle zone
+  1064→          </button>
+  1065→          <button onClick={onHistory} className="k-chip h-12 rounded-2xl text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
+  1066→            <History size={16} /> Historique
+  1067→          </button>
+  1068→        </div>
+  1069→        {/* Compte-rendu PDF — imprimable / partageable */}
+  1070→        <button
+  1071→          onClick={() => window.open(`/api/diagnoses/report?userId=${user.id}&id=${diag.id}`, "_blank")}
+  1072→          className="k-chip mt-3 h-12 w-full rounded-2xl text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
+  1073→          aria-label="Télécharger ou imprimer mon compte-rendu de diagnostic en PDF"
+  1074→        >
+  1075→          <FileDown size={16} /> Mon compte-rendu PDF
+  1076→        </button>
+  1077→      </RevealItem>
+  1078→      </Reveal>
+  1079→
+  1080→      {ritualOpen && (
+  1081→        <RitualJourney
+  1082→          diag={{ id: diag.id, result: diag.result, createdAt: diag.createdAt }}
+  1083→          products={products}
+  1084→          userName={user.name}
+  1085→          onClose={() => setRitualOpen(false)}
+  1086→        />
+  1087→      )}
+  1088→
+  1089→      {/* Descente de Peau — overlay plein cadre, se referme à la
+  1090→ remontée (Échap inclus). */}
+  1091→      {descentOpen && (
+  1092→        <SkinDescent
+  1093→          indicators={r.indicateurs}
+  1094→          score={r.score_global}
+  1095→          zoneLabel={BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone}
+  1096→          onClose={() => setDescentOpen(false)}
+  1097→        />
+  1098→      )}
+  1099→
+  1100→      {/* Glossaire 1 tap — «? » sur un indicateur ouvre sa définition simple */}
+  1101→      <GlossaryDialog entry={glossary} onClose={() => setGlossary(null)} />
+  1102→    </div>
+  1103→  );
+  1104→}
+  1105→
+  1106→/* ══════════════ Hypothèse de l'atlas africain ══════════════ */
+  1107→const HYP_LEVEL: Record<AtlasLevel, { chip: string; label: string; icon: React.ReactNode }> = {
+  1108→  educatif: { chip: "border-success/45 bg-success/5 text-success", label: "Éducatif", icon: <Check size={12} /> },
+  1109→  institut: { chip: "border-primary/45 bg-primary/5 text-primary", label: "Institut partenaire", icon: <Sparkles size={12} /> },
+  1110→  dermato: { chip: "border-[#A0522D]/50 bg-[#A0522D]/5 text-[#A0522D]", label: "Avis dermatologique", icon: <PersonStanding size={12} /> },
+  1111→  urgence: { chip: "border-[#8B1A3B]/60 bg-[#8B1A3B]/10 text-[#8B1A3B]", label: "Urgence", icon: <TriangleAlert size={12} /> },
+  1112→};
+  1113→
+  1114→function HypothesisCard({ h, onAsk, onRdv }: { h: SuspectedCondition; onAsk: (term: string) => void; onRdv: () => void }) {
+  1115→  const lv = HYP_LEVEL[h.niveau];
+  1116→  const explainable = glossaryFor(h.nom) !== null;
+  1117→  return (
+  1118→    <motion.article
+  1119→      initial={{ opacity: 0, y: 8 }}
+  1120→      animate={{ opacity: 1, y: 0 }}
+  1121→      className="k-card rounded-[20px] p-4"
+  1122→    >
+  1123→      <div className="flex flex-wrap items-center gap-2">
+  1124→        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${lv.chip}`}>
+  1125→          {lv.icon}{lv.label}
+  1126→        </span>
+  1127→        <span className="rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{h.categorie}</span>
+  1128→        <span className="ml-auto font-mono text-[11px] font-bold tabular-nums text-gold-text">{h.confiance} %</span>
+  1129→      </div>
+  1130→
+  1131→      {explainable ? (
+  1132→        <button
+  1133→          onClick={() => onAsk(h.nom)}
+  1134→          className="mt-2 flex items-start gap-1 text-left rounded-md focus-visible:outline-2 focus-visible:outline-primary transition-colors hover:text-primary"
+  1135→          aria-label={`Expliquer : ${h.nom}`}
+  1136→        >
+  1137→          <p className="font-heading font-bold text-sm leading-snug">{h.nom}</p>
+  1138→          <CircleHelp size={13} className="text-primary shrink-0 mt-0.5" aria-hidden="true" />
+  1139→        </button>
+  1140→      ) : (
+  1141→        <p className="mt-2 font-heading font-bold text-sm leading-snug">{h.nom}</p>
+  1142→      )}
+  1143→
+  1144→      <ProgressBar value={h.confiance} className="mt-1.5 h-1" />
+  1145→
+  1146→      <div className="mt-3 space-y-2">
+  1147→        <div className="flex gap-2">
+  1148→          <ScanFace size={13} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+  1149→          <p className="text-[11px] leading-relaxed text-muted-foreground"><span className="font-bold text-foreground/80">Sur peau noire :</span> {h.surPeauNoire}</p>
+  1150→        </div>
+  1151→        <div className="flex gap-2">
+  1152→          <Hand size={13} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+  1153→          <p className="text-[11px] leading-relaxed"><span className="font-bold">Conduite de Kènè :</span> {h.action}</p>
+  1154→        </div>
+  1155→        {h.drapeau && (
+  1156→          <div role="note" className="flex gap-2 rounded-xl bg-[#8B1A3B]/10 p-2.5">
+  1157→            <TriangleAlert size={13} className="mt-0.5 shrink-0 text-[#8B1A3B]" aria-hidden="true" />
+  1158→            <p className="text-[11px] leading-relaxed font-semibold text-[#8B1A3B]">{h.drapeau}</p>
+  1159→          </div>
+  1160→        )}
+  1161→      </div>
+  1162→
+  1163→      {(h.niveau === "institut" || h.niveau === "dermato" || h.niveau === "urgence") && (
+  1164→        <button
+  1165→          onClick={onRdv}
+  1166→          className={`mt-3 h-10 w-full rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 ${
+  1167→            h.niveau === "urgence"
+  1168→              ? "bg-[#8B1A3B] text-white focus-visible:outline-[#8B1A3B]"
+  1169→              : h.niveau === "dermato"
+  1170→                ? "bg-[#A0522D] text-white focus-visible:outline-[#A0522D]"
+  1171→                : "k-btn-gold text-primary-foreground focus-visible:outline-primary"
+  1172→          }`}
+  1173→        >
+  1174→          {h.niveau === "urgence" ? <>Voir un professionnel aujourd'hui</> : <><CalendarPlus size={14} /> {h.niveau === "dermato" ? "Prendre RDV — avis dermatologique" : "Prendre RDV en institut partenaire"}</>}
+  1175→        </button>
+  1176→      )}
+  1177→    </motion.article>
+  1178→  );
+  1179→}
+  1180→
+  1181→function IndicatorBar({ ind, onAsk }: { ind: Indicator; onAsk?: (term: string) => void }) {
+  1182→  // Garde double: severite absente (anciens resultJson) → NaN index → 0;
+  1183→  // index hors bornes → clamp 0..3; SEVERITY_STYLES[i] résolu UNE fois.
+  1184→  const sevIdx = Number.isFinite(ind.severite) ? Math.min(3, Math.max(0, Math.trunc(ind.severite))) : 0;
+  1185→  const sev = SEVERITY_STYLES[sevIdx] ?? SEVERITY_STYLES[0];
+  1186→  const explainable = onAsk && glossaryFor(ind.nom) !== null;
+  1187→  return (
+  1188→    <div className="k-card rounded-[16px] p-3">
+  1189→      <div className="flex items-start justify-between gap-2">
+  1190→        {explainable ? (
+  1191→          <button
+  1192→            onClick={() => onAsk?.(ind.nom)}
+  1193→            aria-label={`Expliquer le mot : ${ind.nom}`}
+  1194→            className="min-w-0 text-left flex items-start gap-1 rounded-md focus-visible:outline-2 focus-visible:outline-primary transition-colors hover:text-primary"
+  1195→          >
+  1196→            <p className="text-xs font-semibold leading-tight line-clamp-2">{ind.nom}</p>
+  1197→            <CircleHelp size={13} className="text-primary shrink-0 mt-px" aria-hidden="true" />
+  1198→          </button>
+  1199→        ) : (
+  1200→          <p className="text-xs font-semibold leading-tight line-clamp-2">{ind.nom}</p>
+  1201→        )}
+  1202→        <span className="flex shrink-0 items-center gap-1.5">
+  1203→          <span className={`h-1.5 w-1.5 rounded-full ${sev.dot}`} aria-hidden="true" />
+  1204→          <span className="sr-only">{sev.label}</span>
+  1205→          <span className="font-mono text-xs font-bold tabular-nums text-gold-text">{ind.pourcentage}%</span>
+  1206→        </span>
+  1207→      </div>
+  1208→      <ProgressBar value={ind.pourcentage} className="mt-2 h-1.5" />
+  1209→    </div>
+  1210→  );
+  1211→}
+  1212→
+  1213→/* ══════════════ Historique + comparaison ══════════════ */
+  1214→function HistoryView({
+  1215→  userId, history, compareMode, setCompareMode, compareSel, setCompareSel, onBack, onOpen,
+  1216→}: {
+  1217→  userId: string;
+  1218→  history: ApiDiagnosis[] | null;
+  1219→  compareMode: boolean;
+  1220→  setCompareMode: (v: boolean) => void;
+  1221→  compareSel: string[];
+  1222→  setCompareSel: (v: string[]) => void;
+  1223→  onBack: () => void;
+  1224→  onOpen: (d: ApiDiagnosis) => void;
+  1225→}) {
+  1226→  const list = useMemo(
+  1227→    () => [...(history ?? [])].filter((d) => d.status === "done").sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
+  1228→    [history]
+  1229→  );
+  1230→  const sameZoneSel = compareSel.length === 2 && list.find((d) => d.id === compareSel[0])?.zone === list.find((d) => d.id === compareSel[1])?.zone;
+  1231→  const a = list.find((d) => d.id === compareSel[0]);
+  1232→  const b = list.find((d) => d.id === compareSel[1]);
+  1233→  const ra = a ? parseDiagnosis(a.resultJson) : null;
+  1234→  const rb = b ? parseDiagnosis(b.resultJson) : null;
+  1235→
+  1236→  const evolutions =
+  1237→    ra && rb
+  1238→      ? rb.indicateurs
+  1239→          .map((ib) => {
+  1240→            const ia = ra.indicateurs.find((x) => x.nom === ib.nom);
+  1241→            return ia ? { nom: ib.nom, delta: ib.pourcentage - ia.pourcentage } : null;
+  1242→          })
+  1243→          .filter((x): x is { nom: string; delta: number } => x !== null)
+  1244→          .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta))
+  1245→          .slice(0, 3)
+  1246→      : [];
+  1247→
+  1248→  return (
+  1249→    <div className="pt-4 pb-2">
+  1250→      <button onClick={onBack} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour">
+  1251→        <ArrowLeft size={15} /> Nouveau diagnostic
+  1252→      </button>
+  1253→      <div className="flex items-center justify-between gap-2">
+  1254→        <h2 className="font-heading font-black text-xl">Mon historique</h2>
+  1255→        <Chip selected={compareMode} onClick={() => { setCompareMode(!compareMode); setCompareSel([]); }}>
+  1256→          <GitCompareArrows size={14} /> Comparer
+  1257→        </Chip>
+  1258→      </div>
+  1259→
+  1260→      {history === null ? (
+  1261→        <div className="space-y-3 mt-5">
+  1262→          {[0, 1, 2].map((i) => (
+  1263→            <Shimmer key={i} className="h-20 rounded-[18px]" />
+  1264→          ))}
+  1265→        </div>
+  1266→      ) : list.length === 0 ? (
+  1267→        <div className="mt-6">
+  1268→          <EmptyBlock
+  1269→            icon={<NeaOnnimIcon size={30} />}
+  1270→            title="Aucun diagnostic pour l'instant"
+  1271→            text="Ton premier scan débloquera le suivi d'évolution."
+  1272→          />
+  1273→        </div>
+  1274→      ) : (
+  1275→        <>
+  1276→          {/* Le Fil du Temps — courbes d'évolution */}
+  1277→          <EvolutionCard userId={userId} className="mt-4" />
+  1278→
+  1279→          <Reveal className="space-y-2.5 mt-4" stagger={0.07}>
+  1280→            {list.map((d) => {
+  1281→              const sel = compareSel.includes(d.id);
+  1282→              return (
+  1283→                <RevealItem key={d.id}>
+  1284→                <div className={`k-card flex items-center gap-3 rounded-[18px] p-2.5 ${sel ? "ring-2 ring-primary/60" : ""}`}>
+  1285→                  <button
+  1286→                    onClick={() => {
+  1287→                      if (compareMode) {
+  1288→                        setCompareSel(sel ? compareSel.filter((x) => x !== d.id) : compareSel.length < 2 ? [...compareSel, d.id] : [compareSel[1], d.id]);
+  1289→                      } else onOpen(d);
+  1290→                    }}
+  1291→                    className="flex items-center gap-3 flex-1 min-w-0 text-left focus-visible:outline-2 focus-visible:outline-primary rounded-xl"
+  1292→                    aria-label={`Diagnostic ${d.zone} du ${formatDate(d.createdAt)}, score ${d.scoreGlobal}${d.institut ? `, en institut ${d.institut}` : ""}`}
+  1293→                  >
+  1294→                    {diagImgSrc(d.imageData) ? (
+  1295→                      <img src={diagImgSrc(d.imageData)} alt={`Diagnostic ${d.zone}`} loading="lazy" className="h-14 w-14 rounded-xl object-cover shrink-0" />
+  1296→                    ) : (
+  1297→                      <div className="h-14 w-14 rounded-xl grid place-items-center bg-muted shrink-0" aria-hidden="true">
+  1298→                        <Building2 size={20} className="text-primary" />
+  1299→                      </div>
+  1300→                    )}
+  1301→                    <div className="min-w-0">
+  1302→                      <p className="text-sm font-semibold">{BODY_ZONES.find((z) => z.id === d.zone)?.label ?? d.zone}</p>
+  1303→                      {d.institut ? (
+  1304→                        <p className="text-[11px] text-muted-foreground flex items-center gap-1 flex-wrap">
+  1305→                          <span>{formatDate(d.createdAt)}</span>
+  1306→                          <span className="inline-flex items-center gap-0.5 rounded-full bg-primary/12 px-1.5 py-px text-[9px] font-bold text-primary">
+  1307→                            <Building2 size={9} aria-hidden="true" /> En institut · {d.institut}{d.practitioner ? ` — ${d.practitioner}` : ""}
+  1308→                          </span>
+  1309→                        </p>
+  1310→                      ) : (
+  1311→                        <p className="text-[11px] text-muted-foreground">{formatDate(d.createdAt)} · Self-scan</p>
+  1312→                      )}
+  1313→                    </div>
+  1314→                    <div className="ml-auto"><ScoreChip score={d.scoreGlobal} /></div>
+  1315→                  </button>
+  1316→                  {compareMode && (
+  1317→                    <button
+  1318→                      onClick={() => setCompareSel(sel ? compareSel.filter((x) => x !== d.id) : compareSel.length < 2 ? [...compareSel, d.id] : [compareSel[1], d.id])}
+  1319→                      aria-pressed={sel}
+  1320→                      aria-label="Sélectionner pour comparaison"
+  1321→                      className={`h-9 w-9 grid place-items-center rounded-full border-2 shrink-0 transition-colors ${sel ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}
+  1322→                    >
+  1323→                      {sel && <Check size={14} />}
+  1324→                    </button>
+  1325→                  )}
+  1326→                </div>
+  1327→                </RevealItem>
+  1328→              );
+  1329→            })}
+  1330→          </Reveal>
+  1331→
+  1332→          {compareMode && (
+  1333→            <AnimatePresence>
+  1334→              {compareSel.length === 2 && sameZoneSel && ra && rb && a && b ? (
+  1335→                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 overflow-hidden">
+  1336→                  <div className="k-card rounded-[24px] p-4">
+  1337→                    <p className="font-heading font-bold text-sm mb-3 flex items-center gap-2">
+  1338→                      <GitCompareArrows size={15} className="text-primary" /> Avant / Après — {BODY_ZONES.find((z) => z.id === a.zone)?.label}
+  1339→                    </p>
+  1340→                    <div className="grid grid-cols-2 gap-3">
+  1341→                      {[{ d: a, r: ra, tag: "Avant" }, { d: b, r: rb, tag: "Après" }].map(({ d, r, tag }) => (
+  1342→                        <div key={tag}>
+  1343→                          <img src={diagImgSrc(d.imageData)} alt={`${tag} — ${d.zone}`} loading="lazy" className="aspect-square w-full rounded-2xl object-cover border border-border" />
+  1344→                          <div className="flex items-center justify-between mt-1.5">
+  1345→                            <span className="text-[10px] uppercase tracking-wide font-bold text-muted-foreground">{tag} · {formatDate(d.createdAt, { day: "numeric", month: "short" })}</span>
+  1346→                            <ScoreChip score={r.score_global} />
+  1347→                          </div>
+  1348→                        </div>
+  1349→                      ))}
+  1350→                    </div>
+  1351→                    <div className="mt-3 rounded-xl bg-muted/60 p-3 flex items-center justify-between">
+  1352→                      <span className="text-xs font-semibold">Évolution du score</span>
+  1353→                      <span className="font-mono text-lg font-black tabular-nums" style={{ color: rb.score_global >= ra.score_global ? "#346834" : "#8B1A3B" }}>
+  1354→                        {rb.score_global >= ra.score_global ? "+" : ""}{rb.score_global - ra.score_global} pts
+  1355→                      </span>
+  1356→                    </div>
+  1357→                    {evolutions.length > 0 && (
+  1358→                      <div className="mt-3 space-y-1.5">
+  1359→                        {evolutions.map((e) => (
+  1360→                          <div key={e.nom} className="flex items-center justify-between text-[11px]">
+  1361→                            <span className="text-muted-foreground">{e.nom}</span>
+  1362→                            <span className="font-mono font-bold tabular-nums" style={{ color: e.delta >= 0 ? "#346834" : "#8B1A3B" }}>
+  1363→                              {e.delta >= 0 ? "+" : ""}{e.delta} %
+  1364→                            </span>
+  1365→                          </div>
+  1366→                        ))}
+  1367→                      </div>
+  1368→                    )}
+  1369→                  </div>
+  1370→                </motion.div>
+  1371→              ) : (
+  1372→                <p className="mt-4 text-center text-[11px] text-muted-foreground">Sélectionne 2 diagnostics de la même zone pour comparer l&apos;évolution.</p>
+  1373→              )}
+  1374→            </AnimatePresence>
+  1375→          )}
+  1376→        </>
+  1377→      )}
+  1378→      <div className="h-2" />
+  1379→    </div>
+  1380→  );
+  1381→}
+  1382→

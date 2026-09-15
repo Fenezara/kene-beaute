@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowRight, BriefcaseBusiness, Loader2, LogIn, Play, Sparkles, X,
+  ArrowRight, BriefcaseBusiness, Crown, Loader2, LogIn, Play, ShieldCheck, Sparkles, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet } from "@/lib/kene/api";
@@ -341,6 +341,67 @@ export function WelcomeThreshold() {
                 </RevealItem>
               )}
             </AnimatePresence>
+
+            {/* ── Les tarifs, affichés simplement (t. 138): la vitrine publie
+  les 3 plans en FCFA AVANT l'entrée — on ne vend pas ce qu'on ne montre
+  pas. L'honnêteté est l'argument: sans engagement, expiration naturelle
+  à 30 jours, aucun prélèvement automatique (principe click-to-cancel —
+  souscrire doit être aussi simple qu'arrêter). ── */}
+            <RevealItem className="mt-4">
+              <section aria-label="Formules et tarifs Kènè">
+                <GlassCard grain className="rounded-[20px] p-4">
+                  <Eyebrow>Les formules, affichées simplement</Eyebrow>
+                  <div className="mt-3 space-y-2">
+                    {/* Kènè+ — cliente, la ligne mise en avant (bord or) */}
+                    <div className="flex items-center gap-3 rounded-2xl border border-gold/40 bg-gold/10 p-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full k-btn-gold text-primary-foreground" aria-hidden="true">
+                        <Crown size={18} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="flex flex-wrap items-center gap-x-2 font-heading text-[14px] font-bold leading-tight">
+                          Kènè+
+                          <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[9px] font-bold text-gold-text">Cliente</span>
+                        </p>
+                        <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground">
+                          Diagnostics IA illimités, suivi, Dr. Kènè prioritaire
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-right">
+                        <span className="block font-mono text-[15px] font-black tabular-nums text-gold-text">2 500</span>
+                        <span className="block text-[9px] text-muted-foreground">F / mois</span>
+                      </p>
+                    </div>
+                    {/* Pro — instituts, deux marches */}
+                    {[
+                      { name: "Pro Essentiel", icon: <Sparkles size={16} />, desc: "Agenda, fiches clientes, catalogue, boutique", price: "15 000" },
+                      { name: "Pro Complexe", icon: <BriefcaseBusiness size={16} />, desc: "Tout Essentiel + paie CNPS & comptabilité", price: "45 000" },
+                    ].map((p) => (
+                      <div key={p.name} className="flex items-center gap-3 rounded-2xl border border-border p-3">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-muted text-foreground/80" aria-hidden="true">
+                          {p.icon}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="flex flex-wrap items-center gap-x-2 font-heading text-[14px] font-bold leading-tight">
+                            {p.name}
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-[9px] font-bold text-muted-foreground">Institut</span>
+                          </p>
+                          <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground">{p.desc}</p>
+                        </div>
+                        <p className="shrink-0 text-right">
+                          <span className="block font-mono text-[15px] font-black tabular-nums">{p.price}</span>
+                          <span className="block text-[9px] text-muted-foreground">F / mois</span>
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-3 flex items-start gap-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
+                    <ShieldCheck size={13} className="mt-0.5 shrink-0 text-success" aria-hidden="true" />
+                    Sans engagement, aucun prélèvement automatique : chaque période dure 30 jours puis expire naturellement —
+                    tu renouvelles si tu veux. Paiements en mode essai (simulation).
+                  </p>
+                </GlassCard>
+              </section>
+            </RevealItem>
 
             {/* ── LES DEUX PORTAILS ──: côte à côte dès 480 px (la
  page unique a besoin de hauteur), empilés sous 480 (téléphones) */}

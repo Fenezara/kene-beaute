@@ -9,6 +9,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, ensureWallet, creditWallet, notify } from "@/lib/kene/server";
 import { FILLEUL_GIFT, PARRAIN_REWARD, filleulGiftRefId } from "@/lib/kene/referral";
+import { grantGiftDays } from "@/lib/kene/plans";
 import { guardUserClaim } from "@/lib/kene/session";
 import { xof } from "@/lib/kene/format";
 import { rateLimit, rlKey, rateLimitResponse, REFERRAL_REDEEM } from "@/lib/kene/rate-limit";
@@ -89,6 +90,28 @@ async function runRedeem(data: z.infer<typeof Body>, req: NextRequest): Promise<
   await db.user.update({ where: { id: user.id }, data: { referredBy: parrain.id } });
   const wallet = await creditWallet(myWallet.id, FILLEUL_GIFT, "referral", filleulGiftRefId(user.id));
 
+  // t. 138 — AMBASSADRICES: la marraine CLIENTE reçoit 30 jours de Kènè+
+  // offerts dès que sa filleule rejoint (geste 0 F TRACÉ source
+  // "referral_gift" — jamais d'écrasement, IFRS 15 comme l'offre Console).
+  // Les comptes pro/admin ne reçoivent pas le cadeau (leur plan vit dans
+  // l'espace Pro) ; l'échec « plan différent actif » (impossible pour une
+  // cliente en pratique) est absorbé sans casser l'échange.
+  let referralGift: { until: string } | null = null;
+  if (parrain.role === "client") {
+    try {
+      const gift = await grantGiftDays(parrain.id, "kene_plus", 30, "referral_gift");
+      referralGift = { until: gift.subscription.expiresAt.toISOString() };
+      await notify({
+        userId: parrain.id,
+        channel: "whatsapp",
+        toPhone: parrain.phone,
+        message: `Kènè : ${user.name} a rejoint avec ton code 🎁 30 jours de Kènè+ offerts — actifs jusqu'au ${gift.subscription.expiresAt.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} 💛`,
+      });
+    } catch {
+      // Pas de cadeau (plan différent actif) — l'échange reste valide.
+    }
+  }
+
   await notify({
     userId: parrain.id,
     channel: "whatsapp",
@@ -107,7 +130,7 @@ async function runRedeem(data: z.infer<typeof Body>, req: NextRequest): Promise<
       action: "referral_redeem",
       entity: "wallet",
       entityId: myWallet.id,
-      detailsJson: JSON.stringify({ parrainId: parrain.id, filleulId: user.id, code, gift: FILLEUL_GIFT }),
+      detailsJson: JSON.stringify({ parrainId: parrain.id, filleulId: user.id, code, gift: FILLEUL_GIFT, kenePlusGiftDays: referralGift ? 30 : 0 }),
     },
   });
 
@@ -116,5 +139,7 @@ async function runRedeem(data: z.infer<typeof Body>, req: NextRequest): Promise<
     gift: FILLEUL_GIFT,
     wallet,
     parrain: { id: parrain.id, name: parrain.name },
+    // Mention du cadeau Kènè+ pour l'écran de confirmation filleule.
+    parrainGiftDays: referralGift ? 30 : 0,
   });
 }

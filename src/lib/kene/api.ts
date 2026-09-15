@@ -75,6 +75,36 @@ export async function apiGet<T>(url: string): Promise<T> {
   return handle<T>(res);
 }
 
+/* ─────────────── Téléchargement de fichier (CSV/PDF — t. 140) ───────────────
+ * Les exports console ne passent PAS par apiGet (réponse non-JSON): même
+ * discipline que la compta Pro — fetch → blob → ancre de téléchargement,
+ * nom de fichier lu dans Content-Disposition, erreur JSON propagée en
+ * ApiError. Retourne le nom du fichier téléchargé (pour le toast). */
+export async function downloadFile(url: string, fallbackName: string): Promise<string> {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    let body: { error?: string; code?: string } | null = null;
+    try {
+      body = await res.json();
+    } catch {
+      /* réponse non-JSON (gateway) */
+    }
+    throw new ApiError(body?.error ?? `Erreur ${res.status}`, res.status, body?.code);
+  }
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const filename = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? fallbackName;
+  const blob = await res.blob();
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(href), 2000);
+  return filename;
+}
+
 /* ─────────────── Pont GET + transport résilient ───────────────
  * INCIDENT MESURÉ: chez l'utilisatrice réelle (iframe de préview), TOUS les
  * POST sortant de la page échouent AVANT le serveur alors que ses GET
