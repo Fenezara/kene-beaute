@@ -14,8 +14,10 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, ChevronLeft, Delete, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { apiPost } from "@/lib/kene/api";
+import { apiGet, apiPost } from "@/lib/kene/api";
+import { useKene } from "@/store/kene";
 import { AuroraBackdrop, Chip } from "@/components/kene/ui2026";
+import { KeneEmblemLockup } from "@/components/kene/icons";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 
@@ -80,7 +82,7 @@ export function PhoneKeypad({
   }
 
   return (
-    <div className="relative isolate flex min-h-dvh w-full flex-col">
+    <div className="relative isolate flex min-h-dvh w-full flex-col overflow-y-auto">
       <AuroraBackdrop />
       {/* ── Contexte: retour + espace choisi + bascule ── */}
       <div className="flex items-center gap-2 px-4 pt-5 sm:px-6">
@@ -103,8 +105,11 @@ export function PhoneKeypad({
       </div>
 
       {/* ── Affichage du numéro ── */}
-      <div className="flex flex-col items-center px-6 pt-8">
-        <h1 className="font-heading text-[26px] font-black leading-tight text-foreground">
+      <div className="flex flex-col items-center px-6 pt-5 sm:pt-7">
+        <div className="mb-4">
+          <KeneEmblemLockup size={48} labelSize={24} sublabel={mode === "pro" ? "Kènè Pro · Espace institut" : "Beauté mélanoderme"} />
+        </div>
+        <h1 className="font-heading text-[24px] sm:text-[26px] font-black leading-tight text-foreground">
           Ton numéro
         </h1>
         <p className="mt-1.5 text-center text-[13px] text-muted-foreground">
@@ -211,9 +216,8 @@ export function PhoneKeypad({
 
 /** Requête OTP — appelée par le parent (garde le keypad muet côté métier). */
 export async function requestOtp(phoneE164: string): Promise<string> {
-  const res = await apiPost<{ ok: boolean; devCode: string }>("/api/auth/otp/request", { phone: phoneE164 });
-  if (!res.devCode) throw new Error("Code non reçu — réessaie");
-  return res.devCode;
+  const res = await apiPost<{ ok: boolean; devCode?: string; smsSent?: boolean }>("/api/auth/otp/request", { phone: phoneE164 });
+  return res.devCode ?? "";
 }
 
 /** Toast standard du Seuil (erreur OTP). */

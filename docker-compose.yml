@@ -1,0 +1,67 @@
+# ==============================================================================
+# KÈNÈ BEAUTÉ & BIEN-ÊTRE — DOCKER COMPOSE ORCHESTRATION
+# ==============================================================================
+# Déploiement en 1 clic pour VPS (Ubuntu/Debian, DigitalOcean, OVH, Hetzner, etc.)
+# Usage : docker compose up -d --build
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kene-app:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - NOTIFY_SERVICE_URL=http://notify:3004
+    volumes:
+      - ./db:/app/db
+      - ./public/uploads:/app/public/uploads
+    networks:
+      - kene_net
+    expose:
+      - "3000"
+
+  notify:
+    build:
+      context: ./mini-services/notify-service
+      dockerfile: Dockerfile
+    image: kene-notify:latest
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3004
+      - APP_URL=http://app:3000
+    networks:
+      - kene_net
+    expose:
+      - "3004"
+    depends_on:
+      - app
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - kene_net
+    depends_on:
+      - app
+      - notify
+
+networks:
+  kene_net:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

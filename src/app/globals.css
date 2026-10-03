@@ -169,6 +169,7 @@
   }
   html {
     scroll-behavior: smooth;
+    touch-action: pan-x pan-y;
   }
   @media (prefers-reduced-motion: reduce) {
     html {
@@ -286,16 +287,9 @@
       radial-gradient(70% 120% at 0% 0%, color-mix(in srgb, var(--gold) 9%, transparent) 0%, transparent 60%),
       radial-gradient(70% 120% at 100% 0%, color-mix(in srgb, var(--terre) 7%, transparent) 0%, transparent 60%);
   }
-  /* Grain photographique — texture premium par bruit SVG fin */
+  /* Grain photographique — désactivé pour éviter les glitchs et artefacts de tramage GPU sur mobile Android */
   .grain-kene::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.05;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
-    background-size: 160px 160px;
-    border-radius: inherit;
+    display: none;
   }
 
   /* 2) Surfaces verre 2.0 — translucides, saturées, filet lumineux haut,
@@ -419,6 +413,58 @@
   .k-rail-line {
     background-image: linear-gradient(180deg, var(--gold) 0%, var(--terre) 50%, var(--bissap) 100%);
     box-shadow: 0 0 12px color-mix(in srgb, var(--gold) 40%, transparent);
+  }
+
+  /* 9) Trame Bogolan ancestrale — chevrons sacrés et symboles de terre cuite */
+  .bogolan-weave {
+    background-image:
+      radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--terre) 16%, transparent) 1px, transparent 1.2px),
+      linear-gradient(45deg, transparent 46%, color-mix(in srgb, var(--gold) 10%, transparent) 49%, color-mix(in srgb, var(--gold) 10%, transparent) 51%, transparent 54%),
+      linear-gradient(-45deg, transparent 46%, color-mix(in srgb, var(--terre) 10%, transparent) 49%, color-mix(in srgb, var(--terre) 10%, transparent) 51%, transparent 54%);
+    background-size: 24px 24px, 16px 16px, 16px 16px;
+  }
+
+  /* 10) Liseré Kente orfèvre animé — brillance de navette d'or */
+  .kente-border-gold {
+    position: relative;
+  }
+  .kente-border-gold::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: linear-gradient(115deg, #C8951E 0%, #E3B04B 25%, #A0522D 50%, #8B1A3B 75%, #C8951E 100%);
+    background-size: 200% 200%;
+    animation: kente-shimmer 6s linear infinite;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  @keyframes kente-shimmer {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* 11) Carte Kaolin purificatrice — céramique argileuse douce */
+  .kaolin-card {
+    background:
+      radial-gradient(130% 100% at 10% 0%, color-mix(in srgb, var(--gold) 8%, transparent) 0%, transparent 45%),
+      radial-gradient(100% 120% at 90% 100%, color-mix(in srgb, var(--terre) 7%, transparent) 0%, transparent 40%),
+      color-mix(in srgb, var(--card) 88%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gold) 26%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 249, 236, 0.35),
+      0 4px 20px -6px color-mix(in srgb, var(--melanine) 20%, transparent);
+  }
+
+  /* 12) Halo d'ambre et de mélanine — chaleur royale */
+  .melanin-glow-warm {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent),
+      0 10px 32px -8px color-mix(in srgb, #A0522D 40%, transparent);
   }
 }
 

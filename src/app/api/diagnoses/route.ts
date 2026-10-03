@@ -23,9 +23,13 @@ const zoneIds = BODY_ZONES.map((z2) => z2.id) as [string, ...string[]];
 const Body = z.object({
   userId: z.string().min(1),
   zone: z.enum(zoneIds),
-  image: z.string().startsWith("data:image/"),
+  image: z.string().startsWith("data:image/").optional(),
+  images: z.array(z.string().startsWith("data:image/")).min(1).max(5).optional(),
   fitzpatrick: z.string().optional(),
   allergies: z.string().optional(),
+}).refine((data) => Boolean(data.image || (data.images && data.images.length > 0)), {
+  message: "Au moins une image requise (image ou images)",
+  path: ["image"],
 });
 
 export async function POST(req: NextRequest) {
@@ -43,18 +47,24 @@ export async function POST(req: NextRequest) {
           ? `Zone invalide (zones : ${zoneIds.join(", ")})`
           : issue?.path?.[0] === "image"
             ? "Image invalide (dataURL attendu)"
-            : "Corps de requête invalide",
+            : issue?.message ?? "Corps de requête invalide",
         400
       );
     }
-    const { userId, zone, image } = parsed.data;
+    const { userId, zone } = parsed.data;
+    const rawImages: string[] = parsed.data.images && parsed.data.images.length > 0
+      ? parsed.data.images
+      : parsed.data.image
+      ? [parsed.data.image]
+      : [];
 
-    // Validation d'upload 2026: MIME + taille + magic bytes —
-    // une dataURL hostile ne rentre JAMAIS en base ni dans le moteur VLM.
-    const upload = checkImageDataUrl(image);
-    if (!upload.ok) {
-      void audit({ kind: "upload_reject", userId, ip: clientIp(req), detail: upload.reason });
-      return jsonError(`Photo refusée — ${upload.reason}`, 415);
+    // Validation d'upload 2026: MIME + taille + magic bytes pour chaque photo
+    for (let i = 0; i < rawImages.length; i++) {
+      const upload = checkImageDataUrl(rawImages[i]);
+      if (!upload.ok) {
+        void audit({ kind: "upload_reject", userId, ip: clientIp(req), detail: upload.reason });
+        return jsonError(`Photo ${i + 1} refusée — ${upload.reason}`, 415);
+      }
     }
     // (fitzpatrick/allergies restent validés par le contrat zod — le worker
     // les relit depuis le profil de la cliente côté serveur.)
@@ -89,8 +99,9 @@ export async function POST(req: NextRequest) {
 
     // 1. Création du diagnostic en pending — ligne immédiatement visible
     // dans l'historique et suivable par le poll.
+    const imageData = rawImages.length === 1 ? rawImages[0] : JSON.stringify(rawImages);
     const diagnosis = await db.diagnosis.create({
-      data: { userId, zone, imageData: image, resultJson: "", status: "pending" },
+      data: { userId, zone, imageData, resultJson: "", status: "pending" },
     });
 
     // 2. Analyse VLM (10-45 s): lancée en tâche de fond, on NE l'attend PAS

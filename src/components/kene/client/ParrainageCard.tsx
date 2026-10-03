@@ -107,9 +107,9 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
               </div>
               <p className="text-[11px] opacity-80 mt-2 leading-relaxed">
                 <Sparkles size={11} className="inline -mt-0.5 mr-1 text-[#C8951E]" aria-hidden="true" />
-                {shareLead} : ton amie reçoit <span className="font-bold text-[#E3B454]">{xof(FILLEUL_GIFT)}</span> à l&apos;inscription, toi <span className="font-bold text-[#E3B454]">{xof(PARRAIN_REWARD)}</span> dès sa première commande.
+                {shareLead} : ton amie reçoit <span className="font-bold text-[#E3B454]">{xof(FILLEUL_GIFT)}</span> à l&apos;inscription, toi <span className="font-bold text-[#E3B454]">{xof(PARRAIN_REWARD)}</span> dès sa 1ʳᵉ commande <strong className="text-[#E3B454] font-bold">+ 1 Fil d&apos;Or</strong> tissé sur ton Kente.
               </p>
-              <button onClick={shareWhatsapp} className="mt-4 h-11 w-full rounded-xl bg-[#3F7D3F] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#3F7D3F]">
+              <button onClick={shareWhatsapp} className="mt-4 h-11 w-full rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#25D366]">
                 <Send size={16} /> Inviter une amie sur WhatsApp
               </button>
             </div>
@@ -126,7 +126,7 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
               <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mt-0.5">Récompensées</p>
             </div>
             <div className="rounded-2xl border border-border bg-card p-3 text-center">
-              <p className="font-mono font-black text-lg text-gold-text" aria-label={`Gains ${data.stats.earnings} FCFA`}>{data.stats.earnings.toLocaleString("fr-FR")}</p>
+              <p className="font-mono font-black text-base sm:text-lg text-gold-text truncate" title={`${data.stats.earnings.toLocaleString("fr-FR")} FCFA`} aria-label={`Gains ${data.stats.earnings} FCFA`}>{data.stats.earnings.toLocaleString("fr-FR")}</p>
               <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide mt-0.5">Gains FCFA</p>
             </div>
           </div>
@@ -169,7 +169,7 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
           ) : (
             <button onClick={() => setRedeemOpen(true)} className="w-full rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-4 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
               <p className="flex items-center gap-2 font-heading font-bold text-sm text-primary"><Gift size={16} /> Une amie t&apos;a donné son code ?</p>
-              <p className="text-xs text-muted-foreground mt-1">Échange-le et reçois {xof(FILLEUL_GIFT)} de bienvenue sur ton wallet.</p>
+              <p className="text-xs text-muted-foreground mt-1">Échange-le et reçois {xof(FILLEUL_GIFT)} de réduction de bienvenue.</p>
             </button>
           )}
         </div>

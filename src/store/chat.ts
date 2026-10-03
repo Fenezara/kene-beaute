@@ -20,7 +20,7 @@ function welcomeMsg(): ChatMsg {
     id: "w1",
     role: "assistant",
     content:
-      "Bonjour ! Je suis Dr. Kènè, ton éducatrice cutanée. Pose-moi tes questions sur les peaux mélanodermes — taches, acné, hydratation, cheveux — ou envoie-moi une photo pour un premier avis orienté.",
+      "Bonjour ma chérie ! C'est Dr Kènè, ta grande sœur et dermo-conseillère ici à Abidjan. Pose-moi toutes tes questions sur ta peau — boutons, taches, éclat ou hydratation — ou envoie-moi une photo ou une note vocale. Je t'écoute avec le cœur et on va prendre soin de toi ensemble ✨.",
     kind: "text",
     time: Date.now(),
   };
@@ -51,9 +51,9 @@ export const useChat = create<ChatState>()(
     {
       name: "kene-chat",
       skipHydration: true,
-      // Messages SANS photo: la clé `photo` repasse à undefined → JSON.stringify
-      // l'omet → jamais un octet de base64 dans localStorage.
-      partialize: (s) => ({ messages: s.messages.map((m) => ({ ...m, photo: undefined })) }),
+      // Messages SANS photo ni gros binaire audio: `photo` et `audioUrl` repassent à undefined →
+      // JSON.stringify les omet → jamais de débordement de quota localStorage (5 Mo).
+      partialize: (s) => ({ messages: s.messages.map((m) => ({ ...m, photo: undefined, audioUrl: undefined })) }),
     }
   )
 );

@@ -32,6 +32,22 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# databases & secrets
+db/
+*.db
+*.db-journal
+*.sqlite
+.kene-session-secret
+
+# backups & archives
+backups/
+scratch/
+*.zip
+*.tar.gz
+agent-ctx/
+download/
 
 # vercel
 .vercel

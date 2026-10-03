@@ -48,12 +48,16 @@ function SecureVerifyDialog({ phone, amount, onVerified, onCancel }: Omit<Secure
 
   useEffect(() => {
     let alive = true;
-    apiPost<{ ok: boolean; devCode: string }>("/api/auth/otp/request", { phone })
+    apiPost<{ ok: boolean; devCode?: string; smsSent?: boolean }>("/api/auth/otp/request", { phone })
       .then((r) => {
         if (!alive) return;
-        setDevCode(r.devCode);
+        setDevCode(r.devCode || "");
         setRequesting(false);
-        toast.success("Ton code est prêt — saisis-le ci-dessous");
+        if (r.devCode) {
+          toast.info("Code instantané affiché à l'écran ✨");
+        } else {
+          toast.success("Code envoyé par SMS");
+        }
       })
       .catch((e) => {
         if (!alive) return;
@@ -68,10 +72,14 @@ function SecureVerifyDialog({ phone, amount, onVerified, onCancel }: Omit<Secure
   async function requestCode() {
     setLoading(true);
     try {
-      const r = await apiPost<{ ok: boolean; devCode: string }>("/api/auth/otp/request", { phone });
-      setDevCode(r.devCode);
+      const r = await apiPost<{ ok: boolean; devCode?: string; smsSent?: boolean }>("/api/auth/otp/request", { phone });
+      setDevCode(r.devCode || "");
       setOtp("");
-      toast.success("Nouveau code envoyé");
+      if (r.devCode) {
+        toast.info("Code instantané affiché à l'écran ✨");
+      } else {
+        toast.success("Nouveau code envoyé par SMS");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Envoi impossible");
     } finally {
@@ -185,7 +193,7 @@ function SecureVerifyDialog({ phone, amount, onVerified, onCancel }: Omit<Secure
               {devCode}
             </button>
           )}
-          <p className="text-[11px] text-muted-foreground mt-1">En mode essai, ton code s&apos;affiche ici — touche-le pour le remplir</p>
+          <p className="text-[11px] text-muted-foreground mt-1">Code de confirmation instantané — touche pour insérer</p>
         </div>
 
         <button

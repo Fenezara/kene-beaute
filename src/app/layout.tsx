@@ -23,6 +23,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
   title: "Kènè — La beauté mélanoderme, enfin comprise.",
   description:
     "Plateforme beauté et bien-être panafricaine : diagnostic de peau par IA calibrée peaux mélanodermes, instituts partenaires, boutique cosmétique aux botaniques africains, et gestion complète d'institut (RDV, caisse, paie CNPS/IPM, compta SYSCOHADA).",
@@ -36,10 +37,15 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/kene-mark.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
       { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/kene-mark.svg", type: "image/svg+xml" },
     ],
-    apple: "/icons/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
   // Sceau Kènè — identité visuelle des partages réseaux sociaux
   openGraph: {
@@ -51,17 +57,17 @@ export const metadata: Metadata = {
     siteName: "Kènè",
     images: [
       {
-        url: "/brand/kene-emblem-light.png",
+        url: "/brand/kene-emblem-dark.png",
         width: 512,
         height: 512,
-        alt: "Le Sceau Kènè — portrait aux ors antiques et peigne Duafe",
+        alt: "Le Sceau Kènè — portrait aux contours d'or et peigne Duafe",
       },
     ],
   },
   twitter: {
     card: "summary",
     title: "Kènè — La beauté mélanoderme, enfin comprise.",
-    images: ["/brand/kene-emblem-light.png"],
+    images: ["/brand/kene-emblem-dark.png"],
   },
 };
 
@@ -69,6 +75,9 @@ export const viewport: Viewport = {
   themeColor: "#C8951E",
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

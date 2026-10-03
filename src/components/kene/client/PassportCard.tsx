@@ -5,11 +5,12 @@
 // encodé côté client (lib qrcode): modules #1A1410 sur #F8F1E4 — contraste
 // maximal, scanable en institut même en plein soleil.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, QrCode, RotateCcw, Share2 } from "lucide-react";
+import { Loader2, MessageCircle, QrCode, RotateCcw, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import QRCode from "qrcode";
 import { apiPost } from "@/lib/kene/api";
 import { RevealItem } from "@/components/kene/ui2026";
+import { openWhatsApp, buildWhatsAppPassportMessage } from "@/lib/kene/whatsapp-relay";
 import { SectionTitle } from "./bits";
 
 export function PassportCard({ userId }: { userId: string }) {
@@ -40,18 +41,40 @@ export function PassportCard({ userId }: { userId: string }) {
           color: { dark: "#1A1410", light: "#F8F1E4" },
         });
         setQr(dataUrl);
+
+        // Sauvegarde résilience hors-ligne (PWA): le QR reste affichable sans réseau
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`kene_passport_${userId}`, JSON.stringify({ token: r.token, url: abs, qr: dataUrl }));
+          } catch {}
+        }
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Passeport indisponible");
+        // Si erreur réseau mais déjà en cache, pas d'alerte agressive
+        if (!qr) {
+          toast.error(e instanceof Error ? e.message : "Passeport indisponible");
+        }
       } finally {
         setBusy(false);
       }
     },
-    [userId]
+    [userId, qr]
   );
 
   useEffect(() => {
+    // Restauration immédiate depuis le cache local (affichage instantané en cabine)
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(`kene_passport_${userId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.token) setToken(parsed.token);
+          if (parsed.url) setUrl(parsed.url);
+          if (parsed.qr) setQr(parsed.qr);
+        }
+      } catch {}
+    }
     ensure();
-  }, [ensure]);
+  }, [userId, ensure]);
 
   async function share() {
     if (!url) return;
@@ -82,11 +105,11 @@ export function PassportCard({ userId }: { userId: string }) {
           <span id="pp-t">Passeport de Peau</span>
         </SectionTitle>
         <div className="k-card rounded-[24px] p-4">
-          <div className="flex items-start gap-4">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
             {/* QR — encart crème scannable (contraste AA + quiet zone) */}
             <div
               ref={qrBox}
-              className="shrink-0 rounded-[18px] bg-[#F8F1E4] p-2.5 shadow-inner ring-1 ring-border"
+              className="shrink-0 rounded-[18px] bg-[#F8F1E4] p-2.5 shadow-inner ring-1 ring-border mx-auto sm:mx-0"
               aria-label={token ? `QR de ton passeport — jeton ${token}` : "QR en préparation"}
             >
               {qr ? (
@@ -97,7 +120,7 @@ export function PassportCard({ userId }: { userId: string }) {
                 </span>
               )}
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 text-center sm:text-left">
               <p className="text-[13px] font-semibold leading-snug">Ton profil peau, dans la poche des instituts</p>
               <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
                 Scanne ce code en institut partenaire : phototype, type de peau, allergies signalées et ton dernier score
@@ -106,13 +129,25 @@ export function PassportCard({ userId }: { userId: string }) {
               {token && (
                 <p className="mt-2 font-mono text-[10px] tracking-wider text-muted-foreground/80">{token}</p>
               )}
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap justify-center sm:justify-start gap-2">
                 <button
                   onClick={share}
                   disabled={!url || sharing}
                   className="inline-flex h-11 items-center gap-1.5 rounded-xl k-btn-gold px-4 text-xs font-bold text-primary-foreground disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary"
                 >
                   {sharing ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />} Partager
+                </button>
+                <button
+                  onClick={() => {
+                    if (!url) return;
+                    const msg = buildWhatsAppPassportMessage({ passportUrl: url });
+                    openWhatsApp("", msg);
+                  }}
+                  disabled={!url}
+                  className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white px-3.5 text-xs font-bold shadow-sm transition active:scale-95 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-[#25D366]"
+                  title="Partager directement via WhatsApp"
+                >
+                  <MessageCircle size={14} /> WhatsApp
                 </button>
                 <button
                   onClick={() => ensure(true)}

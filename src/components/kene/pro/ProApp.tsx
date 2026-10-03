@@ -7,11 +7,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, Crown, LayoutDashboard, MapPin, Settings, ShoppingBag, Stethoscope, TicketPercent } from "lucide-react";
+import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, Stethoscope, TicketPercent, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
-import { KeneEmblem, KeneEmblemLockup, DuafeIcon, SankofaIcon, AbanIcon, OsramIcon, KenteIcon, FihankraIcon, BaouleIcon, NkonsonkonsonIcon } from "@/components/kene/icons";
+import { KeneEmblem, KeneEmblemLockup, KeneMark, DuafeIcon, SankofaIcon, AbanIcon, OsramIcon, KenteIcon, FihankraIcon, BaouleIcon, NkonsonkonsonIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,8 @@ import { AuroraBackdrop, Eyebrow, Shimmer } from "@/components/kene/ui2026";
 import { cn } from "@/lib/utils";
 import { useApi } from "./useApi";
 import type { ProOverview, ProLive } from "./types";
+import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
+import { CreateBranchDialog } from "./CreateBranchDialog";
 import { DashboardSection } from "./DashboardSection";
 import { AgendaSection } from "./AgendaSection";
 import { PosSection } from "./PosSection";
@@ -34,25 +36,24 @@ import { SettingsSection } from "./SettingsSection";
 import { ProPlanSection } from "./ProPlanSection";
 import { TeamSection } from "./TeamSection";
 import { OrdersSection } from "./OrdersSection";
+import { MamanAssistantModal } from "./MamanAssistantModal";
+import { AssistantSection } from "./AssistantSection";
 
-export type ProSectionId = "dashboard" | "agenda" | "diagnostic" | "caisse" | "orders" | "crm" | "relances" | "equipe" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
+export type ProSectionId = "dashboard" | "assistant" | "agenda" | "diagnostic" | "caisse" | "orders" | "crm" | "relances" | "equipe" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
+  { id: "assistant", label: "👑 Assistante Maman", icon: Crown, hint: "Débriefing vocal & point" },
   { id: "agenda", label: "Agenda", icon: SankofaIcon, hint: "Rendez-vous" },
   { id: "diagnostic", label: "Diagnostic", icon: Stethoscope, hint: "En cabine + questionnaire" },
-  { id: "caisse", label: "Caisse", icon: AbanIcon, hint: "Point de vente" },
-  { id: "orders", label: "Commandes", icon: ShoppingBag, hint: "Boutique en ligne Kènè" },
+  { id: "caisse", label: "Ventes & Caisse", icon: AbanIcon, hint: "Caisse POS · Commandes en ligne" },
   { id: "crm", label: "CRM", icon: OsramIcon, hint: "Clientes & fidélité" },
   { id: "relances", label: "Relances", icon: BellRing, hint: "Suivi post-protocole" },
   { id: "equipe", label: "Équipe", icon: NkonsonkonsonIcon, hint: "Personnel & pointage" },
-  { id: "catalogue", label: "Catalogue", icon: DuafeIcon, hint: "Soins & produits" },
-  { id: "promos", label: "Promos", icon: TicketPercent, hint: "Coupons boutique" },
-  { id: "stock", label: "Stock", icon: KenteIcon, hint: "Inventaire" },
+  { id: "catalogue", label: "Offre & Stock", icon: DuafeIcon, hint: "Soins · Stock · Promos" },
   { id: "paie", label: "Paie", icon: FihankraIcon, hint: "CNPS · IPRES" },
   { id: "compta", label: "Compta", icon: BaouleIcon, hint: "SYSCOHADA" },
-  { id: "parametres", label: "Paramètres", icon: Settings, hint: "Compte · affichage · session" },
-  { id: "abonnement", label: "Abonnement", icon: Crown, hint: "Offres & facturation" },
+  { id: "parametres", label: "Paramètres", icon: Settings, hint: "Institut & Abonnement Kènè+" },
 ];
 
 /* — Rôles employées: sections visibles par poste. La GÉRANTE
@@ -61,10 +62,10 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
  * sont ni affichées ni atteignables (redirection auto si la section
  * courante n'est pas autorisée — p.ex. après un changement de compte). */
 const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
-  estheticienne: ["agenda", "diagnostic", "parametres"],
-  dermo_conseillere: ["agenda", "diagnostic", "crm", "relances", "parametres"],
-  caissiere: ["caisse", "orders", "catalogue", "promos", "stock", "parametres"],
-  manager: ["dashboard", "agenda", "diagnostic", "caisse", "orders", "crm", "relances", "equipe", "catalogue", "promos", "stock", "abonnement", "parametres"],
+  estheticienne: ["assistant", "agenda", "diagnostic", "parametres"],
+  dermo_conseillere: ["assistant", "agenda", "diagnostic", "crm", "relances", "parametres"],
+  caissiere: ["assistant", "caisse", "catalogue", "parametres"],
+  manager: ["dashboard", "assistant", "agenda", "diagnostic", "caisse", "crm", "relances", "equipe", "catalogue", "parametres"],
 };
 const EMPLOYEE_ROLE_LABELS: Record<string, string> = {
   estheticienne: "Esthéticienne",
@@ -75,8 +76,8 @@ const EMPLOYEE_ROLE_LABELS: Record<string, string> = {
 
 const PLAN_STYLES: Record<string, string> = {
   pro: "bg-gold/15 text-gold-text border-transparent ring-1 ring-inset ring-gold/30",
-  business: "bg-success/15 text-success border-transparent ring-1 ring-inset ring-success/30",
-  trial: "bg-muted text-muted-foreground border-transparent ring-1 ring-inset ring-border",
+  business: "bg-primary/15 text-primary border-transparent ring-1 ring-inset ring-primary/30",
+  trial: "bg-gold/10 text-gold-text border-transparent ring-1 ring-inset ring-gold/25",
 };
 
 const NOTIFY_PORT = 3004;
@@ -95,9 +96,18 @@ export function ProApp() {
   // (aucun risque si un jour l'espace est ouvert sans session).
   const sessionUser = useKene((s) => s.user);
   const [section, setSection] = useState<ProSectionId>("dashboard");
+  const [salesTab, setSalesTab] = useState<"pos" | "orders">("pos");
+  const [catalogTab, setCatalogTab] = useState<"products" | "stock" | "promos">("products");
+  const [settingsTab, setSettingsTab] = useState<"settings" | "subscription">("settings");
   // Commande « Lancer un diagnostic » depuis la fiche CRM (objet neuf à chaque
   // clic → rouvre l'assistant même pour la même cliente)
   const [diagCommand, setDiagCommand] = useState<{ clientId: string; nonce: number } | null>(null);
+  // Commande « Nouvelle cliente » depuis l'Accès Rapide
+  const [crmCreateNonce, setCrmCreateNonce] = useState(0);
+  // Rail latéral rétractable (68px compact par défaut sur tablette, extensible à 220px)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  // Modal de l'Assistante de la Maman (Débriefing & dispatch 1-tap)
+  const [mamanAssistantOpen, setMamanAssistantOpen] = useState(false);
 
   const overview = useApi<ProOverview>(
     () => apiGet<ProOverview>(`/api/pro/overview${proTenantId ? `?tenantId=${proTenantId}` : ""}`),
@@ -202,6 +212,31 @@ export function ProApp() {
   // Le badge se vide quand la pro visite l'Agenda (elle a vu la liste)
   const openSection = (s: ProSectionId) => {
     if (s === "agenda") setAgendaSeen(live?.pendingAppts ?? 0);
+    if (s === "orders") {
+      setSalesTab("orders");
+      setSection("caisse");
+      return;
+    }
+    if (s === "caisse") {
+      setSalesTab("pos");
+      setSection("caisse");
+      return;
+    }
+    if (s === "stock") {
+      setCatalogTab("stock");
+      setSection("catalogue");
+      return;
+    }
+    if (s === "promos") {
+      setCatalogTab("promos");
+      setSection("catalogue");
+      return;
+    }
+    if (s === "abonnement") {
+      setSettingsTab("subscription");
+      setSection("parametres");
+      return;
+    }
     setSection(s);
   };
 
@@ -229,21 +264,26 @@ export function ProApp() {
     });
   }, [activeSection]);
 
+  const [createBranchOpen, setCreateBranchOpen] = useState(false);
+
   const tenantOptions = useMemo(() => {
+    if (overview.data?.tenants && overview.data.tenants.length > 0) {
+      return overview.data.tenants;
+    }
     const t = overview.data?.tenant;
     return t ? [{ id: t.id, name: t.name, city: t.city, country: t.country, plan: t.plan }] : [];
   }, [overview.data]);
 
   const tenant = overview.data?.tenant;
-  const activeLabel = NAV.find((n) => n.id === activeSection)?.label ?? "";
 
-  // Chip compte: nom de la gérante de session (rôle « pro », le
-  // seul qui monte cet espace depuis l'isolation); le fallback « Fatou
-  // Koné » reste défensif (session pro sans nom lisible).
-  const proOwner = sessionUser?.role === "pro" ? sessionUser : null;
+  // Chip compte: nom de la gérante ou de l'admin suprême connectée
+  const isAdmin = sessionUser?.role === "admin";
+  const proOwner = sessionUser?.role === "pro" || isAdmin ? sessionUser : null;
   const chipName =
     proOwner?.name && proOwner.name !== "Nouvelle cliente" && proOwner.name.trim() ? proOwner.name.trim() : "Fatou Koné";
-  const chipRole = employeeRole
+  const chipRole = isAdmin
+    ? "👑 Patronne / Admin"
+    : employeeRole
     ? EMPLOYEE_ROLE_LABELS[employeeRole] ?? "Employée"
     : proOwner
       ? "Fondatrice / Gérante"
@@ -257,153 +297,171 @@ export function ProApp() {
       .join("") || "FK";
 
   return (
-    <div className="w-full min-h-screen flex flex-col md:flex-row">
-      {/* Atmosphère ÉCLAT 2026 — lueurs aurora derrière tout l'espace Pro
- (sobriété back-office: le fond de page reste --background). */}
+    <div className="w-full min-h-screen flex flex-col">
+      {/* Atmosphère ÉCLAT 2026 — lueurs aurora derrière tout l'espace Pro */}
       <AuroraBackdrop />
 
-      {/* ───────── Rail sidebar tablette (md→lg icônes) / desktop (lg+ libellés) — chrome verre ───────── */}
-      <aside className="hidden md:flex w-[76px] lg:w-[240px] shrink-0 flex-col k-chrome text-foreground sticky top-0 self-start max-h-screen overflow-y-auto pretty-scroll">
-        <div className="p-2.5 lg:p-4 lg:pb-3">
-          {/* Lockup Sceau 2026 — l'espace Pro porte le Médaillon Kènè */}
-          <div className="flex items-center justify-center lg:justify-start">
+      {/* ───────── 1. BANDEAU SUPÉRIEUR PLEINE LARGEUR (TOP BAR) ───────── */}
+      {/* Porteur officiel du Logo + Nom + Slogan en haut à gauche en continu sur PC, tablette et mobile */}
+      <header className="sticky top-0 z-40 w-full k-chrome border-b border-border/60 pt-8 sm:pt-4 md:pt-0 [padding-top:max(env(safe-area-inset-top,0px),2.25rem)] md:[padding-top:env(safe-area-inset-top,0px)]">
+        <div className="flex h-16 items-center justify-between gap-3 px-3.5 sm:px-5 lg:px-6">
+          {/* TOUT EN HAUT À GAUCHE : Logo Médaillon officiel (42px) + Nom + Slogan */}
+          <div className="flex items-center gap-3 min-w-0">
             <KeneEmblemLockup
-              size={44}
-              labelSize={19}
+              size={42}
+              labelSize={20}
               label={<>Kènè <span className="text-gold-text">Pro</span></>}
-              sublabel="Gestion institut"
-              className="hidden lg:inline-flex"
+              sublabel="Beauté mélanoderme"
             />
-            <span className="lg:hidden" aria-hidden="true">
-              <KeneEmblem size={44} />
-            </span>
           </div>
-        </div>
 
-        <div className="hidden lg:block px-4 pb-3">
-          <Select value={tid || undefined} onValueChange={(v) => setProTenantId(v)} disabled={tenantOptions.length <= 1}>
-            <SelectTrigger
-              className="k-chip h-auto w-full rounded-xl py-2.5 text-[13px] font-medium text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
-              aria-label="Institut actif"
-            >
-              <SelectValue placeholder="Institut…" />
-            </SelectTrigger>
-            <SelectContent>
-              {tenantOptions.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {tenant ? (
-              <>
-                <Badge variant="outline" className={cn("text-[10px]", PLAN_STYLES[tenant.plan] ?? PLAN_STYLES.trial)}>
-                  {tenant.plan === "business" ? "Business" : tenant.plan === "pro" ? "Pro" : "Essai"}
-                </Badge>
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <MapPin className="size-3" aria-hidden="true" />
-                  {tenant.city} · {tenant.country}
-                </span>
-              </>
-            ) : (
-              <Shimmer className="h-4 w-24" />
+          {/* À DROITE : Sélecteur d'établissement + Direct + Thème + Console + Profil */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Sélecteur d'établissement (masqué sur mobile très étroit, visible dès sm) */}
+            <div className="hidden sm:block">
+              <Select
+                value={tid || undefined}
+                onValueChange={(v) => {
+                  if (v === "__create_branch__") {
+                    setCreateBranchOpen(true);
+                  } else {
+                    setProTenantId(v);
+                  }
+                }}
+                disabled={tenantOptions.length <= 1 && !proOwner}
+              >
+                <SelectTrigger
+                  className="k-chip h-9 rounded-xl px-3 text-xs font-medium text-foreground max-w-[210px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+                  aria-label="Institut actif"
+                >
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Building2 className="size-3.5 shrink-0 text-gold-text" />
+                    <span className="truncate">{tenant?.name ?? "Institut…"}</span>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {tenantOptions.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <div className="flex flex-col py-0.5 text-left">
+                        <span className="font-semibold text-xs text-foreground">{t.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{t.city} · {t.country}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                  {proOwner && (
+                    <SelectItem
+                      value="__create_branch__"
+                      className="mt-1 border-t border-border/40 pt-1.5 font-medium text-xs text-primary focus:text-primary cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Plus className="size-3.5" />
+                        <span>+ Ajouter un établissement...</span>
+                      </div>
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Badge d'offre de l'établissement */}
+            {tenant && (
+              <Badge variant="outline" className={cn("hidden lg:inline-flex text-[10px] font-semibold", PLAN_STYLES[tenant.plan] ?? PLAN_STYLES.trial)}>
+                {tenant.plan === "business" ? "Complexe" : tenant.plan === "pro" ? "Essentiel" : "Pass Découverte 30j"}
+              </Badge>
             )}
+
+            {/* Badge Direct */}
             {liveConnected && (
               <span
                 title="Connecté en temps réel — RDV, commandes et ventes arrivent sans recharger"
-                className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-medium text-success"
+                className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-success/15 px-2.5 py-1 text-xs font-medium text-success"
               >
-                <span className="relative flex size-1.5" aria-hidden="true">
+                <span className="relative flex size-2" aria-hidden="true">
                   <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
-                  <span className="relative inline-flex size-1.5 rounded-full bg-success" />
+                  <span className="relative inline-flex size-2 rounded-full bg-success" />
                 </span>
-                En direct
+                Direct
               </span>
             )}
-          </div>
-        </div>
 
-        <nav aria-label="Navigation App Pro" className="flex-1 px-1.5 lg:px-3 py-2 space-y-1">
-          {nav.map((item) => {
-            const active = activeSection === item.id;
-            const badge = navBadges[item.id];
-            return (
-              <button
-                key={item.id}
-                onClick={() => openSection(item.id)}
-                aria-current={active ? "page" : undefined}
-                aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
-                title={item.label}
-                className={cn(
-                  "relative w-full flex items-center justify-center lg:justify-start gap-3 rounded-2xl px-2 py-2.5 lg:px-3.5 text-sm text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
-                  active
-                    ? "bg-primary/12 text-primary font-semibold"
-                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-                )}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="pro-nav-rail"
-                    aria-hidden="true"
-                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                    className="k-rail-line absolute left-0 top-1/2 -translate-y-1/2 h-[26px] w-[3px] rounded-full"
-                  />
-                )}
-                <item.icon className="size-4.5 shrink-0" />
-                <span className="hidden lg:block min-w-0 truncate">{item.label}</span>
-                {badge ? (
-                  <span
-                    role="status"
-                    className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-bissap px-1.5 text-[11px] font-semibold text-white"
-                  >
-                    {badge}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </nav>
+            {/* Sélecteur d'interfaces Kènè */}
+            <SpaceSwitcher variant="compact" />
 
-        {/* Chip gérante — carte verre: la gérante de session (rôle
- « pro », seule façon d'entrer ici depuis l'isolation); le
- fallback « Fatou Koné — Gérante » reste défensif. Les réglages
- vivent dans la NAV ci-dessus, dernière entrée. */}
-        <div className="p-2.5 lg:p-4">
-          <div className="k-card rounded-[20px] p-2 lg:p-3">
-            <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-2.5">
+            {/* Basculeur de thème */}
+            <ThemeToggle />
+
+            {/* Chip gérante compacte */}
+            <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-border/60">
               <span
                 aria-hidden="true"
-                className="k-glow-gold grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[11px] font-semibold text-[#FFF9EC]"
+                className="k-glow-gold grid size-8 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[11px] font-semibold text-[#FFF9EC]"
               >
                 {chipInitials}
               </span>
-              <div className="hidden w-full min-w-0 leading-tight lg:block">
-                <p className="truncate font-heading text-[13px] font-bold">{chipName}</p>
+              <div className="hidden lg:block text-left leading-tight">
+                <p className="text-xs font-bold truncate max-w-[130px]">{chipName}</p>
                 <Eyebrow className="mt-0.5 text-[9px]">{chipRole}</Eyebrow>
-              </div>
-              <div className="lg:ml-auto flex items-center gap-1.5">
-                <ThemeToggle />
               </div>
             </div>
           </div>
-          <p className="hidden lg:block px-1 pt-3 text-[10px] leading-relaxed text-muted-foreground/60">
-            Kènè Pro — paiements en mode essai · CNPS CI / IPM SN / SYSCOHADA
-          </p>
         </div>
-      </aside>
 
-      {/* ───────── Zone contenu ───────── */}
-      <div className="flex-1 min-w-0 flex flex-col">
-        {/* Nav mobile — chips verre scrollables (uniquement <md), chrome collant.
-            Fondus de bord : la bande annonce qu'elle défile (puce coupée + fondu). */}
-        <div className="md:hidden sticky top-0 z-30 k-chrome">
+        {/* Sous-bandeau mobile uniquement (< md) : sélecteur si mobile étroit + nav chips */}
+        <div className="md:hidden border-t border-border/40 px-3 py-2 space-y-2">
+          {/* Sélecteur d'établissement sur mobile */}
+          {(tenantOptions.length > 1 || proOwner) && (
+            <div className="sm:hidden">
+              <Select
+                value={tid || undefined}
+                onValueChange={(v) => {
+                  if (v === "__create_branch__") {
+                    setCreateBranchOpen(true);
+                  } else {
+                    setProTenantId(v);
+                  }
+                }}
+                disabled={tenantOptions.length <= 1 && !proOwner}
+              >
+                <SelectTrigger
+                  className="k-chip h-8 w-full rounded-xl px-2.5 text-xs font-semibold"
+                  aria-label="Changer d'institut"
+                >
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Building2 className="size-3.5 shrink-0 text-gold-text" />
+                    <span className="truncate">{tenant?.name ?? "Institut…"}</span>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {tenantOptions.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <div className="flex flex-col py-0.5 text-left">
+                        <span className="font-semibold text-xs">{t.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{t.city} · {t.country}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                  {proOwner && (
+                    <SelectItem
+                      value="__create_branch__"
+                      className="mt-1 border-t border-border/40 pt-1.5 font-medium text-xs text-primary focus:text-primary cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Plus className="size-3" />
+                        <span>+ Ajouter un établissement...</span>
+                      </div>
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Navigation mobile chips */}
           <nav
             aria-label="Navigation App Pro (mobile)"
-            className="flex gap-1.5 overflow-x-auto no-scrollbar px-3 py-2.5 [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)]"
+            className="flex gap-1.5 overflow-x-auto no-scrollbar [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)]"
           >
-          {nav.map((item) => {
+            {nav.map((item) => {
               const badge = navBadges[item.id];
               return (
                 <button
@@ -413,7 +471,7 @@ export function ProApp() {
                   aria-current={activeSection === item.id ? "page" : undefined}
                   aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
                   className={cn(
-                    "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 min-h-11 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+                    "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 min-h-9 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
                     activeSection === item.id
                       ? "k-btn-gold text-primary-foreground font-semibold"
                       : "k-chip text-muted-foreground hover:text-foreground"
@@ -431,41 +489,131 @@ export function ProApp() {
             })}
           </nav>
         </div>
+      </header>
 
-        {/* En-tête pro (desktop lg+) — chrome verre collant. Le h1 UNIQUE de
- l'espace Pro vit ici, rendu en permanence (sr-only <lg où l'en-tête
- compact + la chip active de la nav portent déjà la section courante). */}
-        <header className="lg:sticky lg:top-0 lg:z-30 lg:pt-6">
-          <div className="sr-only lg:not-sr-only">
-            <div className="k-chrome mx-6 rounded-[20px]">
-              <div className="flex min-h-16 items-center px-7">
-                <h1 className="font-heading text-xl font-bold tracking-tight truncate">{activeLabel}</h1>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <div className="p-3 sm:p-5 lg:p-6 flex-1 min-w-0">
-          {/* En-tête compact mobile + tablette (rail icônes md→lg sans libellés) —
- sans le h1: celui-ci vit dans l'en-tête pro chrome ci-dessus. */}
-          <div className="lg:hidden mb-4 flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground truncate flex items-center gap-1.5">
-                <span className="truncate">{tenant ? `${tenant.name} · ${tenant.city}` : "…"}</span>
-                {liveConnected && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-medium text-success shrink-0">
-                    <span className="relative flex size-1.5" aria-hidden="true">
-                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
-                      <span className="relative inline-flex size-1.5 rounded-full bg-success" />
+      {/* ───────── 2. CORPS : RAIL LATÉRAL FIN (68 px) + CONTENU PRINCIPAL ───────── */}
+      <div className="flex-1 flex flex-row min-w-0">
+        {/* Rail de navigation compact 68 px (avec toggle possible vers 220 px) */}
+        <aside
+          className={cn(
+            "hidden md:flex flex-col shrink-0 k-chrome text-foreground sticky top-[calc(4rem+env(safe-area-inset-top,0px))] self-start h-[calc(100vh-4rem-env(safe-area-inset-top,0px))] overflow-y-auto pretty-scroll border-r border-border/60 transition-all duration-300",
+            sidebarExpanded ? "w-[220px]" : "w-[68px]"
+          )}
+        >
+          <nav aria-label="Navigation App Pro" className="flex-1 px-2 py-3 space-y-1">
+            {nav.map((item) => {
+              const active = activeSection === item.id;
+              const badge = navBadges[item.id];
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => openSection(item.id)}
+                  aria-current={active ? "page" : undefined}
+                  aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
+                  title={`${item.label} — ${item.hint}`}
+                  className={cn(
+                    "relative w-full flex items-center gap-3 rounded-xl p-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+                    sidebarExpanded ? "justify-start px-3" : "justify-center",
+                    active
+                      ? "bg-primary/12 text-primary font-semibold"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                  )}
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="pro-nav-rail"
+                      aria-hidden="true"
+                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                      className="k-rail-line absolute left-0 top-1/2 -translate-y-1/2 h-[24px] w-[3px] rounded-full"
+                    />
+                  )}
+                  <item.icon className="size-5 shrink-0" />
+                  {sidebarExpanded && <span className="min-w-0 truncate">{item.label}</span>}
+                  {badge ? (
+                    <span
+                      role="status"
+                      className={cn(
+                        "grid h-4.5 min-w-4.5 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white",
+                        sidebarExpanded ? "ml-auto" : "absolute top-1 right-1"
+                      )}
+                    >
+                      {badge}
                     </span>
-                    En direct
-                  </span>
-                )}
-              </p>
-            </div>
-            <KeneEmblem size={38} />
-            <div className="flex items-center gap-1.5">
-              <ThemeToggle />
+                  ) : null}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Bouton bascule plier / déplier en bas du rail */}
+          <div className="p-2 border-t border-border/40">
+            <button
+              onClick={() => setSidebarExpanded(!sidebarExpanded)}
+              className={cn(
+                "w-full flex items-center gap-2 rounded-xl p-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors",
+                sidebarExpanded ? "justify-start px-2.5" : "justify-center"
+              )}
+              title={sidebarExpanded ? "Réduire la barre de navigation" : "Agrandir la barre de navigation"}
+              aria-label={sidebarExpanded ? "Réduire la barre de navigation" : "Agrandir la barre de navigation"}
+            >
+              {sidebarExpanded ? (
+                <>
+                  <ChevronLeft size={16} className="shrink-0" />
+                  <span className="truncate">Réduire</span>
+                </>
+              ) : (
+                <ChevronRight size={16} className="shrink-0" />
+              )}
+            </button>
+          </div>
+        </aside>
+
+        {/* ───────── Zone contenu principal ───────── */}
+        <div className="flex-1 min-w-0 flex flex-col p-3 sm:p-5 lg:p-6">
+          {/* ⚡ Barre d'actions express praticienne (Encaisser, RDV, Scan) */}
+          <div className="mb-4 rounded-2xl border border-border/80 bg-card/75 p-2.5 sm:p-3 backdrop-blur-md shadow-sm flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider pl-1 hidden sm:inline shrink-0">
+              ⚡ Accès rapide :
+            </span>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => openSection("assistant")}
+                className="flex-1 sm:flex-initial h-9 px-3.5 rounded-xl border border-[#C8951E]/60 bg-gradient-to-r from-[#C8951E]/25 via-gold/15 to-transparent hover:from-[#C8951E]/35 text-foreground text-xs font-black flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
+              >
+                <Crown size={15} className="text-[#C8951E]" /> Assistante Maman ✨
+              </button>
+              <button
+                type="button"
+                onClick={() => openSection("caisse")}
+                className="flex-1 sm:flex-initial h-9 px-3.5 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
+              >
+                <AbanIcon size={16} /> Encaisser
+              </button>
+              <button
+                type="button"
+                onClick={() => openSection("agenda")}
+                className="flex-1 sm:flex-initial h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
+              >
+                <SankofaIcon size={16} /> Nouveau RDV
+              </button>
+              <button
+                type="button"
+                onClick={() => openSection("diagnostic")}
+                className="flex-1 sm:flex-initial h-9 px-3.5 rounded-xl border border-border bg-card text-foreground hover:bg-muted text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
+              >
+                <Stethoscope size={16} /> Scan Cabine
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCrmCreateNonce(Date.now());
+                  openSection("crm");
+                }}
+                className="flex-1 sm:flex-initial h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
+              >
+                <UserPlus size={16} /> + Cliente
+              </button>
             </div>
           </div>
 
@@ -485,6 +633,9 @@ export function ProApp() {
             {activeSection === "dashboard" && (
               <DashboardSection tenantId={tid} overview={overview} loadingOverview={overview.loading} onNavigate={openSection} />
             )}
+            {activeSection === "assistant" && (
+              <AssistantSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} onNavigate={openSection} refreshKey={refreshKey} />
+            )}
             {activeSection === "agenda" && <AgendaSection tenantId={tid} refreshKey={refreshKey} />}
             {activeSection === "diagnostic" && (
               <DiagnosticsSection
@@ -495,21 +646,185 @@ export function ProApp() {
                 onNavigate={openSection}
               />
             )}
-            {activeSection === "caisse" && <PosSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} refreshKey={refreshKey} />}
-            {activeSection === "orders" && <OrdersSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} refreshKey={refreshKey} />}
-            {activeSection === "crm" && <CrmSection tenantId={tid} onStartDiagnostic={(clientId) => { setDiagCommand({ clientId, nonce: Date.now() }); openSection("diagnostic"); }} />}
+            {(activeSection === "caisse" || activeSection === "orders") && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/60 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setSalesTab("pos")}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
+                      salesTab === "pos"
+                        ? "k-btn-gold text-primary-foreground shadow-sm"
+                        : "k-chip text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <AbanIcon size={15} />
+                    <span>Encaisser (Caisse POS)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSalesTab("orders")}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
+                      salesTab === "orders"
+                        ? "k-btn-gold text-primary-foreground shadow-sm"
+                        : "k-chip text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <ShoppingBag size={15} />
+                    <span>Commandes en ligne</span>
+                  </button>
+                </div>
+                {salesTab === "pos" ? (
+                  <PosSection
+                    tenantId={tid}
+                    tenantName={tenant?.name ?? "Institut"}
+                    tenantCity={tenant?.city}
+                    tenantPhone={tenant?.phone}
+                    refreshKey={refreshKey}
+                  />
+                ) : (
+                  <OrdersSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} refreshKey={refreshKey} />
+                )}
+              </div>
+            )}
+            {activeSection === "crm" && (
+              <CrmSection
+                tenantId={tid}
+                createClientNonce={crmCreateNonce}
+                onStartDiagnostic={(clientId) => {
+                  setDiagCommand({ clientId, nonce: Date.now() });
+                  openSection("diagnostic");
+                }}
+              />
+            )}
             {activeSection === "relances" && <RelancesSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {activeSection === "equipe" && <TeamSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} />}
-            {activeSection === "catalogue" && <CatalogSection tenantId={tid} />}
-            {activeSection === "promos" && <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
-            {activeSection === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
+            {(activeSection === "catalogue" || activeSection === "stock" || activeSection === "promos") && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/60 pb-3 overflow-x-auto no-scrollbar">
+                  <button
+                    type="button"
+                    onClick={() => setCatalogTab("products")}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0",
+                      catalogTab === "products"
+                        ? "k-btn-gold text-primary-foreground shadow-sm"
+                        : "k-chip text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <DuafeIcon size={15} />
+                    <span>Soins & Produits</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCatalogTab("stock")}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0",
+                      catalogTab === "stock"
+                        ? "k-btn-gold text-primary-foreground shadow-sm"
+                        : "k-chip text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <KenteIcon size={15} />
+                    <span>Inventaire Stock</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCatalogTab("promos")}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0",
+                      catalogTab === "promos"
+                        ? "k-btn-gold text-primary-foreground shadow-sm"
+                        : "k-chip text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <TicketPercent size={15} />
+                    <span>Codes Promo & Réductions</span>
+                  </button>
+                </div>
+                {catalogTab === "products" && <CatalogSection tenantId={tid} />}
+                {catalogTab === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
+                {catalogTab === "promos" && <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
+              </div>
+            )}
             {activeSection === "paie" && <PayrollSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} tenantName={tenant?.name ?? "Institut"} onNavigate={openSection} />}
             {activeSection === "compta" && <AccountingSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
-            {activeSection === "parametres" && <SettingsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} tenantCity={tenant?.city} onNavigate={openSection} />}
-            {activeSection === "abonnement" && <ProPlanSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
+            {(activeSection === "parametres" || activeSection === "abonnement") && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/60 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setSettingsTab("settings")}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
+                      settingsTab === "settings"
+                        ? "k-btn-gold text-primary-foreground shadow-sm"
+                        : "k-chip text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Settings size={15} />
+                    <span>Institut & Établissement</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsTab("subscription")}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
+                      settingsTab === "subscription"
+                        ? "k-btn-gold text-primary-foreground shadow-sm"
+                        : "k-chip text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Crown size={15} className="text-gold" />
+                    <span>Mon Abonnement Kènè+ Pro</span>
+                  </button>
+                </div>
+                {settingsTab === "settings" ? (
+                  <SettingsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} tenantCity={tenant?.city} onNavigate={openSection} />
+                ) : (
+                  <ProPlanSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />
+                )}
+              </div>
+            )}
           </motion.div>
         </div>
       </div>
+
+      <CreateBranchDialog
+        open={createBranchOpen}
+        onOpenChange={setCreateBranchOpen}
+        onSuccess={(newBranch) => {
+          setProTenantId(newBranch.id);
+          void overview.refetch();
+        }}
+      />
+
+      {/* Bouton d'action flottant (FAB) permanent pour l'Assistante de la Maman */}
+      <button
+        type="button"
+        onClick={() => openSection("assistant")}
+        className="fixed bottom-5 right-5 z-40 h-14 w-14 rounded-full bg-gradient-to-tr from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all ring-4 ring-black/40 group"
+        aria-label="Ouvrir l'Assistante de la Maman"
+        title="Assistante de la Maman (Débriefing 1 clic)"
+      >
+        <Crown size={26} className="group-hover:rotate-12 transition-transform" />
+      </button>
+
+      {/* Modal Assistante de la Maman */}
+      {mamanAssistantOpen && (
+        <MamanAssistantModal
+          tenantId={tid}
+          tenantName={tenant?.name ?? "Institut"}
+          isOpen={mamanAssistantOpen}
+          onClose={() => setMamanAssistantOpen(false)}
+          onActionExecuted={() => {
+            setRefreshKey((k) => k + 1);
+            void overview.refetch();
+          }}
+        />
+      )}
     </div>
   );
 }

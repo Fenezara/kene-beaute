@@ -15,6 +15,7 @@ import type { QAnswers } from "@/lib/kene/questionnaire";
 import { jsonError, serverError, notify, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, PRO_DIAGNOSES } from "@/lib/kene/rate-limit";
+import { checkImageDataUrl } from "@/lib/kene/upload";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -30,6 +31,7 @@ const Body = z.object({
   clientProfileId: z.string().optional(),
   client: z.object({ name: z.string().min(2).max(80), phone: z.string().min(8).max(20) }).optional(),
   photo: z.string().startsWith("data:image/").optional(),
+  photos: z.array(z.string().startsWith("data:image/")).max(5).optional(),
   practitioner: z.string().max(80).optional(),
   // Consentements recueillis en cabine — obligatoires avant tout
   // diagnostic: photos ET données de peau. La fiche papier porte la
@@ -67,15 +69,23 @@ export async function POST(req: NextRequest) {
       return jsonError(
         issue?.path?.[0] === "zone"
           ? `Zone invalide (zones : ${zoneIds.join(", ")})`
-          : issue?.path?.[0] === "photo"
+          : issue?.path?.[0] === "photo" || issue?.path?.[0] === "photos"
             ? "Photo invalide (dataURL attendu)"
             : "Corps de requête invalide",
         400
       );
     }
-    const { zone, photo, practitioner } = parsed.data;
+    const { zone, photo, photos, practitioner } = parsed.data;
     if (!parsed.data.consent?.photo || !parsed.data.consent?.data) {
       return jsonError("Les consentements de la cliente (photos + données de peau) doivent être recueillis avant le diagnostic — cochez les deux cases à l'étape cliente", 400);
+    }
+
+    const rawPhotos: string[] = photos && photos.length > 0 ? photos : photo ? [photo] : [];
+    for (let i = 0; i < rawPhotos.length; i++) {
+      const upload = checkImageDataUrl(rawPhotos[i]);
+      if (!upload.ok) {
+        return jsonError(`Photo ${i + 1} de cabine refusée — ${upload.reason}`, 415);
+      }
     }
     const answers = sanitizeAnswers(parsed.data.answers as QAnswers);
 
@@ -129,15 +139,16 @@ export async function POST(req: NextRequest) {
     const qr = scoreQuestionnaire(answers, zone as BodyZone);
     const allergies = typeof answers.allergies === "string" && answers.allergies.trim() ? answers.allergies.trim() : undefined;
     let vlm = null as Awaited<ReturnType<typeof runDiagnosis>> | null;
-    if (photo) {
+    if (rawPhotos.length > 0) {
       vlm = await runDiagnosis({
-        imageBase64: photo,
+        images: rawPhotos,
         zone: zone as BodyZone,
         fitzpatrick: typeof answers.fitz === "string" ? answers.fitz : undefined,
         allergies,
       });
     }
-    const result = mergeResults(qr, vlm, zone as BodyZone, Boolean(photo));
+    const result = mergeResults(qr, vlm, zone as BodyZone, rawPhotos.length > 0);
+    const photoDataToStore = rawPhotos.length === 0 ? null : rawPhotos.length === 1 ? rawPhotos[0] : JSON.stringify(rawPhotos);
 
     // 4. Persistance + mise à jour de la fiche CRM (le diagnostic EST une visite)
     const diagnosis = await db.proDiagnosis.create({
@@ -148,11 +159,11 @@ export async function POST(req: NextRequest) {
         zone,
         practitioner: practitioner?.trim() || null,
         questionnaireJson: JSON.stringify(answers),
-        photoData: photo ?? null,
+        photoData: photoDataToStore,
         resultJson: JSON.stringify(result),
         scoreGlobal: result.score_global,
         vlmUsed: Boolean(vlm && result.source === "vlm+questionnaire"),
-        photoUsed: Boolean(photo),
+        photoUsed: rawPhotos.length > 0,
         consentPhoto: parsed.data.consent.photo,
         consentData: parsed.data.consent.data,
         consentTs: new Date(),

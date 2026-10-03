@@ -40,9 +40,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const [sales, appointments, sales12m, diagnoses, proDiagnoses, orders, reviews] = await Promise.all([
       db.sale.findMany({
         where: { clientProfileId: id },
-        include: { items: true },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  botanicals: true,
+                  category: true,
+                  brandLine: true,
+                  image: true,
+                },
+              },
+            },
+          },
+        },
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: 50,
       }),
       db.appointment.findMany({
         where: { clientProfileId: id },
@@ -112,7 +127,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 const PatchBody = z.object({
-  notes: z.string().trim().max(2000).nullable(),
+  notes: z.string().trim().max(2000).nullable().optional(),
+  cosmeticsUsed: z.string().trim().max(3000).nullable().optional(),
+  productObservations: z.string().trim().max(5000).nullable().optional(),
+  district: z.string().trim().max(100).nullable().optional(),
+  birthDate: z.string().trim().max(20).nullable().optional(),
+  pregnant: z.boolean().nullable().optional(),
+  preferredChannel: z.string().trim().max(20).nullable().optional(),
+  beautyBudget: z.string().trim().max(100).nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -121,7 +143,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (guard) return guard;
 
     const parsed = PatchBody.safeParse(await req.json().catch(() => null));
-    if (!parsed.success) return jsonError("Notes invalides (2000 caractères maximum)", 400);
+    if (!parsed.success) return jsonError("Données invalides pour la fiche cliente", 400);
 
     const { id } = await params;
     const client = await db.clientProfile.findUnique({ where: { id } });
@@ -131,9 +153,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant || client.tenantId !== tenant.id) return jsonError("Fiche cliente introuvable", 404);
 
+    const data: Record<string, unknown> = {};
+
+    if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
+    if (parsed.data.cosmeticsUsed !== undefined) data.cosmeticsUsed = parsed.data.cosmeticsUsed;
+    if (parsed.data.productObservations !== undefined) data.productObservations = parsed.data.productObservations;
+    if (parsed.data.district !== undefined) data.district = parsed.data.district;
+    if (parsed.data.birthDate !== undefined) data.birthDate = parsed.data.birthDate;
+    if (parsed.data.pregnant !== undefined) data.pregnant = parsed.data.pregnant;
+    if (parsed.data.preferredChannel !== undefined) data.preferredChannel = parsed.data.preferredChannel;
+    if (parsed.data.beautyBudget !== undefined) data.beautyBudget = parsed.data.beautyBudget;
+
     const updated = await db.clientProfile.update({
       where: { id },
-      data: { notes: parsed.data.notes && parsed.data.notes.length > 0 ? parsed.data.notes : null },
+      data,
     });
 
     return NextResponse.json({ client: updated });
@@ -141,3 +174,53 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return serverError("pro/clients/[id] PATCH", err);
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const guard = guardProRole(req, "pro:clients:[id]:delete");
+    if (guard) return guard;
+
+    const { id } = await params;
+    const client = await db.clientProfile.findUnique({ where: { id } });
+    if (!client) return jsonError("Fiche cliente introuvable", 404);
+
+    const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
+    if (!tenant || client.tenantId !== tenant.id) return jsonError("Fiche cliente introuvable", 404);
+
+    // Protection comptable : Si la cliente a déjà des ventes ou RDV passés,
+    // on anonymise sa fiche CRM locale sans briser l'historique comptable de caisse
+    const salesCount = await db.sale.count({ where: { clientProfileId: id } });
+    const apptsCount = await db.appointment.count({ where: { clientProfileId: id } });
+
+    if (salesCount > 0 || apptsCount > 0) {
+      await db.clientProfile.update({
+        where: { id },
+        data: {
+          name: "Cliente archivée",
+          phone: `+22500${Date.now().toString().slice(-8)}`,
+          email: null,
+          notes: null,
+          cosmeticsUsed: null,
+          productObservations: null,
+          userId: null,
+        },
+      });
+      return NextResponse.json({
+        ok: true,
+        archived: true,
+        message: "Fiche cliente archivée et anonymisée du salon.",
+      });
+    } else {
+      // Aucune transaction financière liée : suppression propre de la fiche CRM
+      await db.clientProfile.delete({ where: { id } });
+      return NextResponse.json({
+        ok: true,
+        deleted: true,
+        message: "Fiche cliente retirée du salon.",
+      });
+    }
+  } catch (err) {
+    return serverError("pro/clients/[id] DELETE", err);
+  }
+}
+

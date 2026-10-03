@@ -13,6 +13,10 @@ const Body = z.object({
   tenantId: z.string().min(1),
   name: z.string().min(1).max(80),
   phone: z.string().min(6).max(30),
+  email: z.string().email().optional().or(z.literal("")),
+  skinType: z.string().optional(),
+  fitzpatrick: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -91,16 +95,40 @@ export async function POST(req: NextRequest) {
         })
       : null;
     if (existing) {
+      // Mettre à jour les informations complémentaires si fournies
+      const updateData: { email?: string; notes?: string; skinType?: string; fitzpatrick?: string } = {};
+      if (parsed.data.email && !existing.email) updateData.email = parsed.data.email;
+      if (parsed.data.skinType && !existing.skinType) updateData.skinType = parsed.data.skinType;
+      if (parsed.data.fitzpatrick && !existing.fitzpatrick) updateData.fitzpatrick = parsed.data.fitzpatrick;
+      if (parsed.data.notes && !existing.notes) updateData.notes = parsed.data.notes;
+
+      if (Object.keys(updateData).length > 0) {
+        const updated = await db.clientProfile.update({
+          where: { id: existing.id },
+          data: updateData,
+          include: { _count: { select: { sales: true, appointments: true } } },
+        });
+        return NextResponse.json({ client: updated, reused: true });
+      }
+
       return NextResponse.json({ client: existing, reused: true });
     }
+
+    // Tenter de lier avec un compte utilisateur Kènè existant
+    const allUsers = await db.user.findMany({ select: { id: true, phone: true } });
+    const matchingUser = allUsers.find((u) => u.phone.replace(/\D/g, "").endsWith(tail));
 
     const client = await db.clientProfile.create({
       data: {
         tenantId: tenant.id,
+        userId: matchingUser?.id ?? null,
         name,
         phone,
+        email: parsed.data.email?.trim() || null,
+        skinType: parsed.data.skinType?.trim() || null,
+        fitzpatrick: parsed.data.fitzpatrick?.trim() || null,
         rfmSegment: "Nouveau",
-        notes: "Créée express depuis la caisse",
+        notes: parsed.data.notes?.trim() || "Fiche cliente créée en salon",
       },
       include: { _count: { select: { sales: true, appointments: true } } },
     });

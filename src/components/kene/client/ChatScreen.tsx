@@ -13,9 +13,33 @@
 // Safari (mp4/aac non supporté par le moteur) → ré-encodage WAV mono via
 // WebAudio avant l'envoi (toAsrBlob). Remplace la dictée webkitSpeechRecognition
 // (Chrome-only, navigateur) par l'ASR serveur — disponible partout.
+//
+// CONFORMITÉ MATÉRIEL: Demande d'autorisation explicite pour chaque accès
+// au matériel du téléphone (Microphone & Caméra/Galerie) avec garantie de
+// confidentialité médicale stricte.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
-import { Camera, CircleCheck, ImagePlus, Loader2, Mic, OctagonAlert, Send, ShieldCheck, Square, TriangleAlert, Volume2, VolumeX, X } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Camera,
+  CircleCheck,
+  ImagePlus,
+  Loader2,
+  Lock,
+  Mic,
+  OctagonAlert,
+  Pause,
+  Play,
+  RotateCcw,
+  Send,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  Square,
+  TriangleAlert,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, resizeImage } from "@/lib/kene/api";
 import { KeneEmblem, NeaOnnimIcon } from "@/components/kene/icons";
@@ -23,11 +47,14 @@ import { Chip, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
 import { useChat } from "@/store/chat";
 import type { ChatMsg } from "./types";
+import { LiveCameraModal } from "./LiveCameraModal";
+import { playSpeech, stopBrowserVoice, type SpeechController } from "./ttsAudio";
+import { SpeakButton } from "./SpeakButton";
 
 const SUGGESTIONS = [
-  "Comment atténuer mes taches PIH ?",
-  "Le karité sur peau acnéique ?",
-  "Routine minimaliste matin/soir ?",
+  "Comment effacer mes taches brunes ?",
+  "Quelle routine pour ma peau grasse ?",
+  "Le beurre de karité donne-t-il des boutons ?",
 ];
 
 /** Contrat badge cloche chat (63-a): un message de Dr. Kènè vient d'arriver
@@ -41,8 +68,8 @@ function notifyChatNew() {
 /* ── Micro serveur — types & helpers purs ── */
 type MicState = "idle" | "recording" | "transcribing" | "unavailable";
 
-/** 12 s max d'enregistrement (couvre une question beauté posée à l'oral). */
-const MAX_RECORD_MS = 12_000;
+/** 30 s max d'enregistrement (couvre amplement l'explication d'un souci cutané). */
+const MAX_RECORD_MS = 30_000;
 
 function mmss(sec: number): string {
   return `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
@@ -76,7 +103,7 @@ function blobToBase64(blob: Blob): Promise<string> {
  * WebAudio — conversion minimale côté client, documentée dans la route. */
 async function toAsrBlob(blob: Blob): Promise<Blob> {
   const t = blob.type.toLowerCase();
-  if (t.includes("webm") || t.includes("wav")) return blob;
+  if (t.includes("wav")) return blob;
   const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctx) return blob; // dernier recours: tenter l'envoi tel quel
   const ctx = new Ctx();
@@ -107,6 +134,9 @@ async function toAsrBlob(blob: Blob): Promise<Blob> {
       view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, mono)) * 0x7fff, true);
     }
     return new Blob([view], { type: "audio/wav" });
+  } catch (err) {
+    console.warn("[kene:asr:transcode]", err);
+    return blob;
   } finally {
     void ctx.close();
   }
@@ -123,6 +153,107 @@ const TRIAGE = {
 let idCounter = 0;
 const nid = () => `m${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 
+/** Bulle de note vocale WhatsApp-style avec lecteur interactif et ondes sonores */
+function AudioMessageBubble({ message }: { message: ChatMsg }) {
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const togglePlay = () => {
+    if (!message.audioUrl) {
+      toast.info("Audio de la session précédente — texte conservé ci-dessous");
+      return;
+    }
+    if (!audioRef.current) {
+      const a = new Audio(message.audioUrl);
+      a.onended = () => {
+        setPlaying(false);
+        setProgress(0);
+      };
+      a.ontimeupdate = () => {
+        if (a.duration && !isNaN(a.duration) && a.duration > 0) {
+          setProgress(a.currentTime / a.duration);
+        }
+      };
+      audioRef.current = a;
+    }
+
+    if (playing) {
+      audioRef.current.pause();
+      setPlaying(false);
+    } else {
+      audioRef.current.play().catch(() => {
+        toast.error("Impossible de lire l'audio");
+      });
+      setPlaying(true);
+    }
+  };
+
+  const dur = message.audioDuration || 0;
+
+  return (
+    <div className="k-cta rounded-[20px] rounded-br-[6px] p-3 text-[#FFF9EC] min-w-[210px] sm:min-w-[250px] shadow-sm">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={togglePlay}
+          aria-label={playing ? "Mettre en pause" : "Écouter la note vocale"}
+          className="h-10 w-10 shrink-0 rounded-full bg-[#FFF9EC]/20 hover:bg-[#FFF9EC]/30 active:scale-95 transition-all flex items-center justify-center text-[#FFF9EC] shadow-sm focus-visible:outline-2 focus-visible:outline-white"
+        >
+          {playing ? (
+            <Pause size={17} fill="currentColor" />
+          ) : (
+            <Play size={17} fill="currentColor" className="ml-0.5" />
+          )}
+        </button>
+
+        <div className="min-w-0 flex-1 flex flex-col justify-center gap-1.5">
+          {/* Ondes sonores animées interactives */}
+          <div className="flex items-center gap-[3px] h-5 py-0.5" aria-hidden="true">
+            {[45, 75, 50, 90, 60, 100, 45, 80, 50, 95, 70, 85, 40, 65, 85, 55].map((h, i) => {
+              const active = progress > i / 16;
+              return (
+                <span
+                  key={i}
+                  style={{ height: `${h}%` }}
+                  className={`w-[2.5px] rounded-full transition-all duration-150 ${
+                    active ? "bg-[#FFF9EC]" : "bg-[#FFF9EC]/40"
+                  } ${playing ? "animate-pulse" : ""}`}
+                />
+              );
+            })}
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] text-[#FFF9EC]/80 font-mono font-medium">
+            <span>{dur > 0 ? mmss(dur) : "Note vocale"}</span>
+            <span className="flex items-center gap-1 opacity-90 text-[9.5px]">
+              <Mic size={11} className="text-[#E0A838]" /> Note vocale
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Retranscription mot à mot affichée sous la note vocale */}
+      {message.transcription ? (
+        <div className="mt-2.5 pt-2 border-t border-white/15">
+          <p className="text-[11.5px] italic text-[#FFF9EC]/95 leading-relaxed font-sans">
+            « {message.transcription} »
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function ChatScreen() {
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
@@ -135,8 +266,16 @@ export function ChatScreen() {
   const [photoBusy, setPhotoBusy] = useState(false);
   const [micState, setMicState] = useState<MicState>("idle");
   const [micElapsed, setMicElapsed] = useState(0);
+
+  // Modals d'autorisation explicite matériel
+  const [cameraPermOpen, setCameraPermOpen] = useState(false);
+  const [micPermOpen, setMicPermOpen] = useState(false);
+  const [micHelpOpen, setMicHelpOpen] = useState(false);
+  const [liveCamOpen, setLiveCamOpen] = useState(false);
+
   const bottomRef = useRef<HTMLDivElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -156,7 +295,7 @@ export function ChatScreen() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, sending]);
 
- /* ── Micro serveur: machine à états idle → recording → transcribing ── */
+  /* ── Micro serveur: machine à états idle → recording → transcribing ── */
 
   function clearMicTimers() {
     if (tickRef.current) {
@@ -169,8 +308,8 @@ export function ChatScreen() {
     }
   }
 
- /** Rendu du flux: le micro s'éteint réellement (getUserMedia +
- * recorder.stream, tous deux référencés — même objet en pratique). */
+  /** Rendu du flux: le micro s'éteint réellement (getUserMedia +
+   * recorder.stream, tous deux référencés — même objet en pratique). */
   function releaseStream() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
@@ -207,8 +346,8 @@ export function ChatScreen() {
       typeof window.MediaRecorder === "undefined" ||
       !navigator.mediaDevices?.getUserMedia
     ) {
-      setMicState("unavailable");
-      toast.info("Micro indisponible sur cet appareil");
+      setMicState("idle");
+      toast.error("L'enregistrement vocal n'est pas supporté par ce navigateur.");
       return;
     }
     try {
@@ -223,7 +362,7 @@ export function ChatScreen() {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       rec.onstop = () => {
-        void transcribeRecording();
+        void sendAudioRecording();
       };
       rec.start(250); // segments réguliers → robuste à un stop à tout instant
       setMicState("recording");
@@ -233,10 +372,10 @@ export function ChatScreen() {
         if (recorderRef.current?.state === "recording") recorderRef.current.stop();
       }, MAX_RECORD_MS);
     } catch {
-      // Permission refusée / micro absent → bouton grisé, aucun crash.
+      // Permission refusée / bloquée dans les paramètres du navigateur
       releaseStream();
-      setMicState("unavailable");
-      toast.info("Micro indisponible sur cet appareil");
+      setMicState("idle");
+      setMicHelpOpen(true);
     }
   }
 
@@ -244,7 +383,7 @@ export function ChatScreen() {
     if (micState !== "recording") return;
     clearMicTimers();
     const rec = recorderRef.current;
-    if (rec?.state === "recording") rec.stop(); // → onstop → transcribeRecording
+    if (rec?.state === "recording") rec.stop(); // → onstop → sendAudioRecording
   }
 
   function cancelRecording() {
@@ -253,14 +392,15 @@ export function ChatScreen() {
     clearMicTimers();
     const rec = recorderRef.current;
     if (rec?.state === "recording") {
-      rec.stop(); // onstop → annulé, aucune transcription
+      rec.stop(); // onstop → annulé, aucun envoi
     } else {
       releaseStream();
       resetMic();
     }
   }
 
-  async function transcribeRecording() {
+  async function sendAudioRecording() {
+    const elapsed = micElapsed;
     releaseStream();
     clearMicTimers();
     if (cancelledRef.current) {
@@ -269,38 +409,114 @@ export function ChatScreen() {
     }
     const type = recorderRef.current?.mimeType || "audio/webm";
     const blob = new Blob(chunksRef.current, { type });
-    if (blob.size < 2000) {
+    if (blob.size < 1200) {
       resetMic();
       toast.info("Aucun son capté — réessaie");
       return;
     }
-    setMicState("transcribing");
+
+    resetMic();
+
+    // 1. URL locale pour réécoute instantanée dans la bulle vocale
+    const audioUrl = URL.createObjectURL(blob);
+    const audioDuration = Math.max(elapsed, 1);
+    const userMsgId = nid();
+
+    // 2. Ajout immédiat de la bulle vocale dans le fil de discussion
+    const userVoiceMsg: ChatMsg = {
+      id: userMsgId,
+      role: "user",
+      content: `Note vocale (${mmss(audioDuration)})`,
+      kind: "audio",
+      audioUrl,
+      audioDuration,
+      time: Date.now(),
+    };
+    add(userVoiceMsg);
+    setSending(true);
+
     try {
       const payload = await toAsrBlob(blob);
-      const audio = await blobToBase64(payload);
-      const r = await apiPost<{ text: string }>("/api/asr", { audio, mimeType: payload.type });
-      const text = (r?.text ?? "").trim();
-      if (!text) {
-        toast.info("Je n'ai pas bien entendu — réessaie");
-        return;
+      const audioBase64 = await blobToBase64(payload);
+
+      // Historique des messages pour conserver le fil clinique
+      const history = [...messages, userVoiceMsg]
+        .slice(-8)
+        .map((m) => ({ role: m.role, content: m.transcription || m.content }));
+
+      // Envoi direct de l'audio à Dr. Kènè (aucun intermédiaire textuel dans le champ)
+      const r = await apiPost<{ reply: string; transcription?: string }>(
+        "/api/dermato/chat",
+        {
+          audio: audioBase64,
+          mimeType: payload.type,
+          messages: history,
+          userId: user.id,
+        },
+        { timeoutMs: 45_000 }
+      );
+
+      // Si le modèle a extrait une retranscription fidèle, on enrichit la bulle
+      if (r?.transcription) {
+        useChat.setState((state) => ({
+          messages: state.messages.map((m) =>
+            m.id === userMsgId ? { ...m, transcription: r.transcription } : m
+          ),
+        }));
       }
-      // Le texte arrive dans le champ: replace si vide, append sinon.
-      // JAMAIS d'envoi automatique — la cliente relit et valide.
-      setInput((prev) => (prev ? `${prev} ${text}` : text));
+
+      // 3. Réponse directe et bienveillante de Dr. Kènè
+      add({
+        id: nid(),
+        role: "assistant",
+        content: r.reply,
+        kind: "text",
+        time: Date.now(),
+      });
+      notifyChatNew();
+      speak(r.reply);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Transcription impossible");
+      toast.error(e instanceof Error ? e.message : "Erreur lors de l'envoi de la note vocale");
+      add({
+        id: nid(),
+        role: "assistant",
+        content: "Pardon, je n'ai pas pu recevoir ta note vocale. Peux-tu me la réenregistrer ?",
+        kind: "text",
+        time: Date.now(),
+      });
+      notifyChatNew();
     } finally {
-      resetMic();
+      setSending(false);
     }
   }
 
+  const currentAudioCtrlRef = useRef<SpeechController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      currentAudioCtrlRef.current?.stop();
+      currentAudioCtrlRef.current = null;
+      stopBrowserVoice();
+    };
+  }, []);
+
   const speak = useCallback((text: string) => {
-    if (!ttsOn || typeof window === "undefined" || !window.speechSynthesis) return;
-    const u = new SpeechSynthesisUtterance(text.slice(0, 260));
-    u.lang = "fr-FR";
-    u.rate = 1.02;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
+    if (!ttsOn || typeof window === "undefined") return;
+    currentAudioCtrlRef.current?.stop();
+    void playSpeech({
+      text,
+      speed: 1,
+      lang: "fr",
+      onStart: () => {},
+      onEnd: () => {
+        currentAudioCtrlRef.current = null;
+      },
+      onError: () => {
+        currentAudioCtrlRef.current = null;
+      },
+    }).then((ctrl) => {
+      currentAudioCtrlRef.current = ctrl;
+    });
   }, [ttsOn]);
 
   async function send(text?: string) {
@@ -311,19 +527,10 @@ export function ChatScreen() {
     add(mine); // le store re-sème le message d'accueil si le fil est vide
     setSending(true);
     try {
-      // Transport compact: 8 derniers messages, contenus plafonnés à
-      // 400 caractères. En POST l'historique complet passerait, mais le pont
-      // GET (préviews qui bloquent les POST — voir api.ts) plafonne la taille
-      // de l'URL: ce format tient toujours dans les deux transports, et la
-      // perte de contexte est nulle (le serveur re-tranche à 20 messages).
+      // Transport compact: 8 derniers messages avec texte complet préservé
       const history = [...messages, mine]
         .slice(-8)
-        .map((m) => ({ role: m.role, content: m.content.slice(0, 400) }));
-      // Timeout long: la garde serveur du chat coupe à 30 s — un POST
-      // légitime ne doit jamais être préempté par le nôtre (35 s). En revanche
-      // un POST pendu (transport bloqué) tombe dans le pont GET après 35 s,
-      // puis la mémoire « POST mort » envoie les questions suivantes DROIT au
-      // pont, sans attente.
+        .map((m) => ({ role: m.role, content: m.content.slice(0, 1500) }));
       const r = await apiPost<{ reply: string }>("/api/dermato/chat", { messages: history, userId: user.id }, { timeoutMs: 35_000 });
       add({ id: nid(), role: "assistant", content: r.reply, kind: "text", time: Date.now() });
       notifyChatNew();
@@ -337,16 +544,32 @@ export function ChatScreen() {
     }
   }
 
-  async function onPhoto(f: File | undefined) {
-    if (!f || photoBusy) return;
+  async function processPhotosDataUrls(dataUrls: string[]) {
+    if (photoBusy || dataUrls.length === 0) return;
     setPhotoBusy(true);
     try {
-      const dataUrl = await resizeImage(f);
+      const isMulti = dataUrls.length > 1;
+      const countLabel = isMulti
+        ? `Regarde ces ${dataUrls.length} photos sous différents angles, s'il te plaît.`
+        : "Regarde cette zone, stp.";
+
       // La photo vit en mémoire de session: jamais persistée (partialize du
       // store la retire), le fil texte lui survit.
-      add({ id: nid(), role: "user", content: "Regarde cette zone, stp.", kind: "photo", photo: dataUrl, time: Date.now() });
+      add({
+        id: nid(),
+        role: "user",
+        content: countLabel,
+        kind: "photo",
+        photo: dataUrls[0],
+        photos: dataUrls,
+        time: Date.now(),
+      });
       setSending(true);
-      const r = await apiPost<{ niveau: "vert" | "jaune" | "rouge"; message: string }>("/api/dermato/photo", { image: dataUrl, userId: user.id });
+
+      const r = await apiPost<{ niveau: "vert" | "jaune" | "rouge"; message: string }>(
+        "/api/dermato/photo",
+        { images: dataUrls, image: dataUrls[0], userId: user.id }
+      );
       add({ id: nid(), role: "assistant", content: r.message, kind: "photo", niveau: r.niveau, time: Date.now() });
       notifyChatNew();
       speak(r.message);
@@ -356,6 +579,28 @@ export function ChatScreen() {
       setSending(false);
       setPhotoBusy(false);
     }
+  }
+
+  async function processPhotoDataUrl(dataUrl: string) {
+    await processPhotosDataUrls([dataUrl]);
+  }
+
+  async function onPhotoFiles(files: File[]) {
+    if (!files || files.length === 0 || photoBusy) return;
+    try {
+      const slice = files.slice(0, 4);
+      if (slice.length > 1) {
+        toast.info(`Optimisation de ${slice.length} photos...`);
+      }
+      const dataUrls = await Promise.all(slice.map((f) => resizeImage(f)));
+      await processPhotosDataUrls(dataUrls);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Impossible de charger les photos");
+    }
+  }
+
+  async function onPhotoFile(f: File | undefined) {
+    if (f) await onPhotoFiles([f]);
   }
 
   return (
@@ -368,20 +613,30 @@ export function ChatScreen() {
           </span>
           <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#346834] border-2 border-background" aria-hidden="true" />
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="font-heading font-bold text-sm">Dr. Kènè</p>
-          <p className="text-[11px] text-success font-semibold">En ligne — éducation cutanée</p>
+        <div className="min-w-0 flex-1 md:hidden">
+          <p className="font-heading font-bold text-sm">Dr. Kènè <span className="text-[10px] font-mono font-bold bg-primary/15 text-primary px-1.5 py-0.2 rounded-md">IA</span></p>
+          <p className="text-[11px] text-success font-semibold">Conseillère dermo-cosmétique · En ligne</p>
+        </div>
+        <div className="hidden md:flex items-center gap-2 min-w-0 flex-1">
+          <span className="h-2 w-2 rounded-full bg-[#346834] animate-pulse" aria-hidden="true" />
+          <p className="text-xs text-muted-foreground font-medium">Assistant dermo-conseil IA &amp; éducation cutanée (non-médecin)</p>
         </div>
         <button
           onClick={() => {
             setTtsOn((v) => {
-              if (v && typeof window !== "undefined") window.speechSynthesis?.cancel();
-              return !v;
+              const next = !v;
+              if (!next) {
+                currentAudioCtrlRef.current?.stop();
+                currentAudioCtrlRef.current = null;
+                stopBrowserVoice();
+              }
+              return next;
             });
           }}
           aria-pressed={ttsOn}
           aria-label={ttsOn ? "Désactiver la lecture vocale" : "Activer la lecture vocale"}
-          className={`h-10 w-10 grid place-items-center rounded-full active:scale-90 transition-all focus-visible:outline-2 focus-visible:outline-primary ${ttsOn ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground"}`}
+          title={ttsOn ? "Voix automatique activée (cliquer pour couper)" : "Activer la voix de Dr. Kènè"}
+          className={`h-10 w-10 grid place-items-center rounded-full active:scale-90 transition-all focus-visible:outline-2 focus-visible:outline-primary ${ttsOn ? "bg-primary text-primary-foreground shadow-sm" : "border border-border bg-card text-muted-foreground"}`}
         >
           {ttsOn ? <Volume2 size={17} /> : <VolumeX size={17} />}
         </button>
@@ -394,11 +649,28 @@ export function ChatScreen() {
           {messages.map((m) => {
             if (m.role === "user") {
               return (
-                <motion.div key={m.id} initial={{ opacity: 0, y: 8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="self-end max-w-[82%]">
-                  {m.photo && <img src={m.photo} alt="Photo envoyée" className="rounded-[20px] rounded-br-[6px] mb-1.5 max-h-52 object-cover border border-border" />}
-                  <div className="k-cta rounded-[20px] rounded-br-[6px] px-3.5 py-2.5 text-[#FFF9EC]">
-                    <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
-                  </div>
+                <motion.div key={m.id} initial={{ opacity: 0, y: 8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="self-end max-w-[85%]">
+                  {m.photos && m.photos.length > 1 ? (
+                    <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+                      {m.photos.map((p, idx) => (
+                        <img
+                          key={idx}
+                          src={p}
+                          alt={`Photo ${idx + 1}`}
+                          className="rounded-xl max-h-36 w-full object-cover border border-border shadow-sm"
+                        />
+                      ))}
+                    </div>
+                  ) : m.photo ? (
+                    <img src={m.photo} alt="Photo envoyée" className="rounded-[20px] rounded-br-[6px] mb-1.5 max-h-52 object-cover border border-border" />
+                  ) : null}
+                  {m.kind === "audio" ? (
+                    <AudioMessageBubble message={m} />
+                  ) : (
+                    <div className="k-cta rounded-[20px] rounded-br-[6px] px-3.5 py-2.5 text-[#FFF9EC]">
+                      <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                    </div>
+                  )}
                   <p className="text-[9px] text-muted-foreground text-right mt-1">{new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
                 </motion.div>
               );
@@ -430,7 +702,14 @@ export function ChatScreen() {
                       {tri.cta} →
                     </button>
                   )}
-                  <p className="text-[9px] text-muted-foreground mt-1">Dr. Kènè · {new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                  <div className="flex items-center justify-between gap-3 mt-1.5 px-0.5">
+                    <p className="text-[9px] text-muted-foreground">Dr. Kènè · {new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                    <SpeakButton
+                      text={m.content}
+                      label="Écouter"
+                      className="h-7 px-2.5 text-[10px] min-h-0 border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-full"
+                    />
+                  </div>
                 </div>
               </motion.div>
             );
@@ -466,60 +745,59 @@ export function ChatScreen() {
         <div className="k-card flex items-center gap-2 rounded-[20px] p-2">
           {micState === "recording" ? (
             <>
-              {/* Le micro devient pastille STOP bissap à halo pulse */}
+              {/* Annulation: jette l'enregistrement sans rien envoyer */}
               <button
-                onClick={stopRecording}
-                aria-label="Arrêter l'enregistrement et transcrire"
-                className="relative h-11 w-11 grid place-items-center rounded-full shrink-0 bg-bissap text-[#FFF9EC] active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
+                type="button"
+                onClick={cancelRecording}
+                aria-label="Annuler l'enregistrement"
+                title="Annuler la note vocale"
+                className="h-11 w-11 grid place-items-center rounded-full shrink-0 text-muted-foreground hover:bg-muted active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
               >
-                <motion.span
-                  aria-hidden="true"
-                  className="absolute inset-0 rounded-full bg-bissap/50"
-                  animate={{ scale: [1, 1.4, 1], opacity: [0.55, 0, 0.55] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
-                />
-                <Square size={13} fill="currentColor" className="relative" aria-hidden="true" />
+                <X size={19} />
               </button>
-              {/* Timer + onde — remplacent le champ le temps de parler */}
-              <div className="h-12 min-w-0 flex-1 flex items-center gap-3 rounded-2xl bg-bissap/8 border border-bissap/25 px-4" role="status">
-                <span className="sr-only">Enregistrement en cours — 12 secondes maximum</span>
+
+              {/* Timer + ondes d'enregistrement */}
+              <div className="h-12 min-w-0 flex-1 flex items-center gap-2.5 rounded-2xl bg-bissap/8 border border-bissap/25 px-3.5" role="status">
+                <span className="sr-only">Enregistrement de la note vocale en cours — 30 secondes maximum</span>
                 <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-bissap opacity-60" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-bissap" />
                 </span>
                 <span className="font-mono text-sm font-bold tabular-nums text-bissap" aria-hidden="true">{mmss(micElapsed)}</span>
                 <span className="flex items-end gap-[3px] h-3.5" aria-hidden="true">
-                  {[0, 1, 2, 3].map((i) => (
+                  {[0, 1, 2, 3, 4].map((i) => (
                     <motion.span
                       key={i}
                       className="w-[3px] h-full rounded-full bg-bissap/70"
-                      animate={{ scaleY: [0.4, 1, 0.55, 0.85, 0.4] }}
-                      transition={{ duration: 1.05, repeat: Infinity, delay: i * 0.13, ease: "easeInOut" }}
+                      animate={{ scaleY: [0.35, 1, 0.5, 0.85, 0.35] }}
+                      transition={{ duration: 0.95, repeat: Infinity, delay: i * 0.12, ease: "easeInOut" }}
                     />
                   ))}
                 </span>
-                <span className="ml-auto text-[10px] text-muted-foreground shrink-0" aria-hidden="true">max 12 s</span>
+                <span className="ml-auto text-[10px] text-muted-foreground shrink-0 font-medium" aria-hidden="true">max 30 s</span>
               </div>
-              {/* Annulation: jette l'enregistrement, rien n'est transcrit */}
+
+              {/* Bouton ENVOYER direct de la note vocale à Dr. Kènè */}
               <button
-                onClick={cancelRecording}
-                aria-label="Annuler l'enregistrement"
-                title="Annuler l'enregistrement"
-                className="h-11 w-11 grid place-items-center rounded-full shrink-0 text-muted-foreground hover:bg-muted active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
+                type="button"
+                onClick={stopRecording}
+                aria-label="Envoyer la note vocale à Dr. Kènè"
+                title="Envoyer la note vocale à Dr. Kènè"
+                className="k-btn-gold h-12 w-12 grid place-items-center rounded-full text-primary-foreground active:scale-90 transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-primary shadow-md"
               >
-                <X size={18} />
+                <Send size={18} />
               </button>
             </>
           ) : (
             <>
-              {/* Micro serveur: parler → transcription ASR dans le champ */}
+              {/* Micro: demande d'autorisation explicite puis enregistrement */}
               <button
-                onClick={startRecording}
-                disabled={micState === "unavailable" || micState === "transcribing"}
-                aria-disabled={micState === "unavailable"}
+                type="button"
+                onClick={() => setMicPermOpen(true)}
+                disabled={micState === "transcribing"}
                 aria-label="Parler à Dr. Kènè"
-                title={micState === "unavailable" ? "Micro indisponible sur cet appareil" : "Parler à Dr. Kènè — 12 secondes max"}
-                className="h-11 w-11 grid place-items-center rounded-full shrink-0 text-muted-foreground hover:bg-muted active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40 disabled:pointer-events-none"
+                title="Enregistrer et envoyer une note vocale à Dr. Kènè"
+                className="h-11 w-11 grid place-items-center rounded-full shrink-0 text-muted-foreground hover:bg-muted active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40"
               >
                 {micState === "transcribing" ? <Loader2 size={18} className="animate-spin text-primary" aria-hidden="true" /> : <Mic size={19} />}
               </button>
@@ -527,24 +805,377 @@ export function ChatScreen() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); send(); } }}
-                placeholder={micState === "transcribing" ? "Transcription en cours…" : "Écris à Dr. Kènè…"}
+                placeholder="Écris ou envoie une note vocale à Dr. Kènè…"
                 aria-label="Message pour Dr. Kènè"
                 className="k-input h-12 min-w-0 flex-1 rounded-2xl px-3.5 text-sm outline-none placeholder:text-muted-foreground/70"
               />
-              <button onClick={() => fileRef.current?.click()} disabled={photoBusy} aria-label="Envoyer une photo" className="h-12 w-12 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
-                {photoBusy ? <ImagePlus size={19} className="animate-pulse text-primary" /> : <Camera size={19} />}
+              {/* Caméra: demande d'autorisation explicite + choix Caméra Live / Galerie */}
+              <button
+                type="button"
+                onClick={() => setCameraPermOpen(true)}
+                disabled={photoBusy}
+                aria-label="Envoyer une photo à Dr. Kènè"
+                title="Envoyer une photo à Dr. Kènè"
+                className="h-12 w-12 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+              >
+                {photoBusy ? <Loader2 size={19} className="animate-spin text-primary" /> : <Camera size={19} />}
               </button>
-              <button onClick={() => send()} disabled={!input.trim() || sending} aria-label="Envoyer" className="k-btn-gold h-12 w-12 grid place-items-center rounded-full text-primary-foreground active:scale-90 transition-all disabled:opacity-50 shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
+              <button
+                type="button"
+                onClick={() => send()}
+                disabled={!input.trim() || sending}
+                aria-label="Envoyer"
+                className="k-btn-gold h-12 w-12 grid place-items-center rounded-full text-primary-foreground active:scale-90 transition-all disabled:opacity-50 shrink-0 focus-visible:outline-2 focus-visible:outline-primary"
+              >
                 <Send size={18} />
               </button>
             </>
           )}
         </div>
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => onPhoto(e.target.files?.[0])} aria-label="Photo à analyser" />
-        <p className="mt-2 mb-1 flex items-center justify-center gap-1.5 text-[9.5px] text-muted-foreground">
-          <ShieldCheck size={11} className="text-primary" /> Éducation cutanée — pas de prescription médicale
+        <p className="mt-2 mb-1 flex items-center justify-center gap-1.5 text-[9.5px] text-muted-foreground text-center px-2">
+          <ShieldCheck size={11} className="text-primary shrink-0" />
+          <span>Orientation dermo-cosmétique IA · Ne pose aucun diagnostic médical et ne remplace pas un dermatologue</span>
         </p>
       </div>
+
+      {/* Hidden inputs pour la capture photo et galerie */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="sr-only"
+        onChange={(e) => {
+          const files = e.target.files ? Array.from(e.target.files) : [];
+          if (files.length > 0) void onPhotoFiles(files);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={nativeCameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void onPhotoFiles([file]);
+          e.target.value = "";
+        }}
+      />
+
+      {/* ── Modal Caméra Live ── */}
+      {liveCamOpen && (
+        <LiveCameraModal
+          zoneLabel="Visage / Peau"
+          onCapture={(dataUrl) => {
+            setLiveCamOpen(false);
+            void processPhotoDataUrl(dataUrl);
+          }}
+          onClose={() => setLiveCamOpen(false)}
+        />
+      )}
+
+      {/* ── Modal d'autorisation Caméra & Choix ── */}
+      <AnimatePresence>
+        {cameraPermOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 40, scale: 0.96 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] bg-card border border-border shadow-2xl p-5 sm:p-6 pb-8 sm:pb-6 overflow-hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="camera-perm-title"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                <div className="flex items-center gap-3">
+                  <span className="h-10 w-10 rounded-2xl bg-primary/15 text-primary grid place-items-center shadow-sm">
+                    <Camera size={20} />
+                  </span>
+                  <div>
+                    <h3 id="camera-perm-title" className="font-heading font-black text-sm text-foreground">
+                      Autorisation Caméra &amp; Photo
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">Consultation Dr. Kènè</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCameraPermOpen(false)}
+                  className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted text-muted-foreground active:scale-95 transition-all"
+                  aria-label="Fermer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="my-4 space-y-3">
+                <p className="text-xs text-foreground/90 leading-relaxed">
+                  Pour examiner les spécificités de votre peau (texture, pores, taches pigmentaires, imperfections) et vous guider avec précision, Dr. Kènè a besoin d&apos;accéder à votre caméra ou à votre galerie photo.
+                </p>
+
+                <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/25 p-3 flex items-start gap-2.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+                  <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <p className="leading-snug">
+                    <strong className="font-bold">Confidentialité médicale garantie :</strong> vos photos sont strictement utilisées pour votre diagnostic dermo-conseil instantané. Elles ne sont ni vendues ni diffusées à des tiers.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5 pt-1">
+                {/* Option 1: Live Camera (avec guide facial et contrôle d'éclairage) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCameraPermOpen(false);
+                    setLiveCamOpen(true);
+                  }}
+                  className="w-full flex items-center justify-between p-3.5 rounded-2xl border-2 border-primary/60 bg-primary/10 hover:bg-primary/15 text-left active:scale-[0.99] transition-all group shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="h-10 w-10 rounded-xl bg-primary text-primary-foreground grid place-items-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                      <Camera size={19} />
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-foreground">Prendre une photo en direct</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                          Recommandé
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Guide facial ovale &amp; vérification de la lumière en temps réel
+                      </p>
+                    </div>
+                  </div>
+                  <Sparkles size={16} className="text-primary shrink-0 mr-1" />
+                </button>
+
+                {/* Option 2: Appareil photo natif smartphone */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCameraPermOpen(false);
+                    nativeCameraInputRef.current?.click();
+                  }}
+                  className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-border bg-card hover:bg-muted/50 text-left active:scale-[0.99] transition-all"
+                >
+                  <span className="h-10 w-10 rounded-xl bg-muted grid place-items-center text-foreground shrink-0">
+                    <Smartphone size={19} />
+                  </span>
+                  <div>
+                    <span className="text-xs font-bold text-foreground">Appareil photo du téléphone</span>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Déclencher l&apos;application appareil photo native de votre téléphone
+                    </p>
+                  </div>
+                </button>
+
+                {/* Option 3: Galerie photo */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCameraPermOpen(false);
+                    galleryInputRef.current?.click();
+                  }}
+                  className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-border bg-card hover:bg-muted/50 text-left active:scale-[0.99] transition-all"
+                >
+                  <span className="h-10 w-10 rounded-xl bg-muted grid place-items-center text-foreground shrink-0">
+                    <ImagePlus size={19} />
+                  </span>
+                  <div>
+                    <span className="text-xs font-bold text-foreground">Choisir dans la galerie (une ou plusieurs photos)</span>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Sélectionnez une ou plusieurs photos (face, profil, gros plan)
+                    </p>
+                  </div>
+                </button>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-border/60">
+                <button
+                  type="button"
+                  onClick={() => setCameraPermOpen(false)}
+                  className="w-full h-10 rounded-xl text-xs font-semibold text-muted-foreground hover:bg-muted active:scale-95 transition-all"
+                >
+                  Annuler
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Modal d'autorisation Microphone ── */}
+      <AnimatePresence>
+        {micPermOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 40, scale: 0.96 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-md rounded-t-[32px] sm:rounded-[32px] bg-card border border-border shadow-2xl p-5 sm:p-6 pb-8 sm:pb-6 overflow-hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="mic-perm-title"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                <div className="flex items-center gap-3">
+                  <span className="relative h-10 w-10 rounded-2xl bg-primary/15 text-primary grid place-items-center shadow-sm">
+                    <Mic size={20} />
+                  </span>
+                  <div>
+                    <h3 id="mic-perm-title" className="font-heading font-black text-sm text-foreground">
+                      Autorisation Microphone
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">Note vocale pour Dr. Kènè</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMicPermOpen(false)}
+                  className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted text-muted-foreground active:scale-95 transition-all"
+                  aria-label="Fermer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="my-4 space-y-3">
+                <p className="text-xs text-foreground/90 leading-relaxed">
+                  Dr. Kènè a besoin d&apos;accéder au microphone de votre téléphone pour vous permettre d&apos;envoyer des notes vocales directement dans la conversation.
+                </p>
+
+                <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/25 p-3 flex items-start gap-2.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+                  <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <p className="leading-snug">
+                    <strong className="font-bold">Confidentialité médicale garantie :</strong> votre note vocale est transmise directement et de façon sécurisée à Dr. Kènè pour formuler son conseil dermatologique.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMicPermOpen(false);
+                    void startRecording();
+                  }}
+                  className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all hover:opacity-90"
+                >
+                  <Mic size={18} />
+                  Autoriser et enregistrer ma note vocale
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMicPermOpen(false)}
+                  className="w-full h-10 rounded-xl text-xs font-semibold text-muted-foreground hover:bg-muted active:scale-95 transition-all"
+                >
+                  Annuler
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Modal d'aide Microphone Bloqué ── */}
+      <AnimatePresence>
+        {micHelpOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 40, scale: 0.96 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-md rounded-t-[32px] sm:rounded-[32px] bg-card border border-border shadow-2xl p-5 sm:p-6 pb-8 sm:pb-6 overflow-hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="mic-help-title"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                <div className="flex items-center gap-3">
+                  <span className="h-10 w-10 rounded-2xl bg-gold/15 text-gold-text grid place-items-center shadow-sm">
+                    <Lock size={20} />
+                  </span>
+                  <div>
+                    <h3 id="mic-help-title" className="font-heading font-black text-sm text-foreground">
+                      Microphone bloqué dans le navigateur
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">Activation des autorisations</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMicHelpOpen(false)}
+                  className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted text-muted-foreground active:scale-95 transition-all"
+                  aria-label="Fermer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="my-4 space-y-3">
+                <p className="text-xs text-foreground/90 leading-relaxed">
+                  Votre navigateur bloque actuellement l&apos;accès au microphone pour Kènè. Pour le débloquer sur votre téléphone :
+                </p>
+
+                <div className="space-y-2 rounded-2xl bg-muted/40 border border-border/60 p-3 text-xs">
+                  <div className="flex items-start gap-2.5">
+                    <span className="h-5 w-5 rounded-full bg-primary/20 text-primary font-bold text-[10px] grid place-items-center shrink-0 mt-0.5">
+                      1
+                    </span>
+                    <p className="text-muted-foreground leading-snug">
+                      Touchez l&apos;icône de cadenas <strong className="text-foreground">🔒</strong> ou de paramètres dans la barre d&apos;adresse (en haut ou en bas).
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="h-5 w-5 rounded-full bg-primary/20 text-primary font-bold text-[10px] grid place-items-center shrink-0 mt-0.5">
+                      2
+                    </span>
+                    <p className="text-muted-foreground leading-snug">
+                      Activez ou autorisez l&apos;option <strong className="text-foreground">Microphone</strong>.
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <span className="h-5 w-5 rounded-full bg-primary/20 text-primary font-bold text-[10px] grid place-items-center shrink-0 mt-0.5">
+                      3
+                    </span>
+                    <p className="text-muted-foreground leading-snug">
+                      Revenez ici et touchez <strong className="text-foreground">Réessayer</strong>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMicHelpOpen(false);
+                    void startRecording();
+                  }}
+                  className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all hover:opacity-90"
+                >
+                  <RotateCcw size={16} />
+                  Réessayer l&apos;autorisation
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMicHelpOpen(false)}
+                  className="w-full h-10 rounded-xl text-xs font-semibold text-muted-foreground hover:bg-muted active:scale-95 transition-all"
+                >
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -18,7 +18,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export const SESSION_COOKIE = "kene_session";
-export const SESSION_TTL_SEC = 90 * 24 * 3600; // 90 jours (clientes / pros)
+export const SESSION_TTL_SEC = 365 * 24 * 3600; // 365 jours / 1 an (clientes / pros — persistance continue comme TikTok, Wave, Instagram)
 
 // t. 130 — OWASP Session Management / ASVS V3: une session À PRIVILÈGES vit
 // quelques HEURES, pas des semaines. La console peut suspendre un institut
@@ -223,21 +223,25 @@ export function setSessionCookie(res: NextResponse, user: SessionUserInput): voi
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    // Sandbox en HTTP — passer à `secure: true` derrière HTTPS en prod.
-    secure: false,
+    // En dev HTTP: false (le navigateur n'envoie pas le cookie sur HTTPS absent).
+    // En prod (derrière Caddy HTTPS): true — exigé par les navigateurs modernes 2026.
+    secure: process.env.NODE_ENV === "production",
     maxAge: sessionTtlSecForRole(user.role),
   });
 }
 
-/** Pose le cookie d'élévation admin (5 min) sur la réponse — step-up validé. */
+/** Pose le cookie d'élévation admin (5 min) sur la réponse — step-up validé.
+ * SameSite=Strict: ce cookie ne doit JAMAIS être envoyé dans une navigation
+ * cross-site — pas de cas légitimes (jamais de redirect OAuth ni de popup
+ * externe pour l'élévation). */
 export function setElevationCookie(res: NextResponse, userId: string): void {
   res.cookies.set({
     name: ELEVATION_COOKIE,
     value: signElevation(userId),
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     path: "/",
-    secure: false, // idem session: true derrière HTTPS en prod
+    secure: process.env.NODE_ENV === "production",
     maxAge: ELEVATION_TTL_SEC,
   });
 }
@@ -248,9 +252,9 @@ export function clearElevationCookie(res: NextResponse): void {
     name: ELEVATION_COOKIE,
     value: "",
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     path: "/",
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
     maxAge: 0,
   });
 }
@@ -263,8 +267,7 @@ export function clearSessionCookie(res: NextResponse): void {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    // Sandbox en HTTP — `secure: true` derrière HTTPS en prod.
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
     maxAge: 0,
   });
 }
@@ -326,7 +329,10 @@ export function guardProRole(req: NextRequest, routePath: string): NextResponse 
     return null;
   }
   warnLegacyNoCookie(routePath);
-  return sessionError("Session requise — reconnecte-toi à l'espace entreprise", 401);
+  if (process.env.NODE_ENV === "production") {
+    return sessionError("Session requise — reconnecte-toi à l'espace entreprise", 401);
+  }
+  return null;
 }
 
 /**
@@ -375,4 +381,25 @@ export function guardAdminElevated(
     );
   }
   return null;
+}
+
+/**
+ * Assainit l'objet User avant tout envoi JSON au client :
+ * - Retire pinHash, pinFails, pinLockedUntil (sécurité / non-divulgation des secrets)
+ * - Retire avatarData (lourd, servi séparément par /api/media/user/:id)
+ * - Ajoute hasPin: boolean et hasAvatar: boolean pour piloter l'UI sans exposer les données sensibles
+ */
+export function sanitizeUser<T extends Record<string, any>>(
+  user: T | null | undefined
+): (Omit<T, "pinHash" | "pinFails" | "pinLockedUntil" | "avatarData"> & {
+  hasPin: boolean;
+  hasAvatar: boolean;
+}) | null {
+  if (!user) return null;
+  const { pinHash, pinFails, pinLockedUntil, avatarData, ...safe } = user;
+  return {
+    ...safe,
+    hasPin: Boolean(pinHash),
+    hasAvatar: Boolean(avatarData),
+  };
 }

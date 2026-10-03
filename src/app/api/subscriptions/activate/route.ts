@@ -14,20 +14,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError } from "@/lib/kene/server";
+import { genRef, jsonError, serverError } from "@/lib/kene/server";
 import { activatePlan, diagQuotaFor, planDefById } from "@/lib/kene/plans";
-import { rateLimit, rlKey, rateLimitResponse, WALLET_TOPUP } from "@/lib/kene/rate-limit";
+import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
+import { createSaspayCheckoutSession } from "@/lib/payments/saspay";
+import { createWiniPayerPaymentSession } from "@/lib/payments/winipayer";
 
 const Body = z.object({
   userId: z.string().min(1),
   plan: z.string().min(1),
+  source: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
-  // Pattern rate-limit d'une route existante (wallet/topup,): le
-  // flux argent simulé reste borné 8/min par IP.
-  const rl = rateLimit(rlKey(req, "subscriptions:activate"), WALLET_TOPUP);
+  const rl = rateLimit(rlKey(req, "subscriptions:activate"), { limit: 25, windowMs: 60_000 });
   if (!rl.ok) {
     return rateLimitResponse(rl.retryAfterSec, "Trop d'activations à la suite — patiente quelques secondes");
   }
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
 
 // Pont GET — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous.
 export async function GET(req: NextRequest) {
-  const rl = rateLimit(rlKey(req, "subscriptions:activate"), WALLET_TOPUP);
+  const rl = rateLimit(rlKey(req, "subscriptions:activate"), { limit: 25, windowMs: 60_000 });
   if (!rl.ok) {
     return rateLimitResponse(rl.retryAfterSec, "Trop d'activations à la suite — patiente quelques secondes");
   }
@@ -59,7 +60,6 @@ export async function GET(req: NextRequest) {
 /** Traduction d'erreur partagée POST/GET. */
 function activateError(err: unknown): NextResponse {
   if (err instanceof Error && (err.message === "Plan inconnu" || err.message === "Utilisatrice introuvable")) {
-    // Double garde (lib + route): plan/user re-validés au cas où.
     return jsonError(err.message, err.message === "Plan inconnu" ? 400 : 404);
   }
   return serverError("subscriptions/activate", err);
@@ -84,9 +84,82 @@ async function runActivate(data: z.infer<typeof Body>): Promise<NextResponse> {
     return jsonError("Ce plan est réservé aux comptes clientes Kènè", 400);
   }
 
-  // activatePlan: idempotent (même plan actif → existante), création
-  // transactionnelle + notification WhatsApp simulée à la création seule.
-  const { subscription } = await activatePlan(userId, plan);
+  const hasSaspay = Boolean(process.env.SASPAY_API_KEY?.trim());
+  const hasWiniPayer = Boolean(process.env.WINIPAYER_MERCHANT_UUID && process.env.WINIPAYER_MERCHANT_TOKEN);
+
+  // Si le plan est payant et qu'une passerelle est configurée
+  if (def.priceFcfa > 0 && (hasSaspay || hasWiniPayer)) {
+    const payment = await db.payment.create({
+      data: {
+        userId: user.id,
+        amount: def.priceFcfa,
+        purpose: "subscription_activate",
+        status: "pending",
+        method: data.source || "saspay",
+        ref: genRef("PAY"),
+        metaJson: JSON.stringify({
+          userId: user.id,
+          planId: def.id,
+          source: data.source || "saspay",
+        }),
+      },
+    });
+
+    let checkoutUrl: string | null = null;
+    let saspayLaunchUrl: string | null = null;
+    let winipayerLaunchUrl: string | null = null;
+
+    if (hasSaspay) {
+      const sasSession = await createSaspayCheckoutSession({
+        paymentId: payment.id,
+        amount: payment.amount,
+        description: `Abonnement ${def.name} (30 jours)`,
+        customerName: user.name,
+        customerEmail: user.email ?? undefined,
+        customerPhone: user.phone,
+      });
+      if (sasSession.checkoutUrl) {
+        checkoutUrl = sasSession.checkoutUrl;
+        saspayLaunchUrl = sasSession.checkoutUrl;
+        await db.payment.update({
+          where: { id: payment.id },
+          data: {
+            metaJson: JSON.stringify({
+              userId: user.id,
+              planId: def.id,
+              saspayId: sasSession.id,
+            }),
+          },
+        });
+      }
+    }
+
+    if (!checkoutUrl && hasWiniPayer) {
+      const wpSession = await createWiniPayerPaymentSession({
+        paymentId: payment.id,
+        amount: payment.amount,
+        description: `Abonnement ${def.name} (30 jours)`,
+        clientName: user.name,
+        clientPhone: user.phone,
+      });
+      checkoutUrl = wpSession.paymentUrl;
+      winipayerLaunchUrl = wpSession.paymentUrl;
+    }
+
+    if (checkoutUrl) {
+      return NextResponse.json({
+        paymentId: payment.id,
+        checkoutUrl,
+        paymentUrl: checkoutUrl,
+        saspayLaunchUrl,
+        winipayerLaunchUrl,
+        mode: "redirect",
+      });
+    }
+  }
+
+  // Repli automatique si paiement gratuit ou passerelle non configurée
+  const { subscription } = await activatePlan(userId, plan, data.source ?? "winipayer");
   const quota = await diagQuotaFor(userId);
 
   return NextResponse.json({

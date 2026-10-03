@@ -13,9 +13,8 @@
 // 403 JSON AVANT d'atteindre les handlers.
 //
 // ⚠️ CONTRAINTE PRÉVIEW (à ne jamais briser): l'app vit dans une iframe de
-// préview sandbox derrière le gateway Caddy (:81). On ne pose JAMAIS de
-// X-Frame-Options, et la CSP garde `frame-ancestors *` — tout blocage de
-// frame casserait la préview.
+// préview sandbox derrière le gateway Caddy (:81). Aucun en-tête d'interdiction de frame,
+// et la CSP garde `frame-ancestors *` — tout blocage de frame casserait la préview.
 
 import { NextRequest, NextResponse } from "next/server";
 
@@ -59,7 +58,7 @@ const CONTENT_SECURITY_POLICY =
   "frame-ancestors *";
 
 // En-têtes posés sur CHAQUE réponse (403 CSRF inclus — un refus aussi est
-// une réponse durcie). ⚠️ AUCUN X-Frame-Options ici: l'iframe de préview
+// une réponse durcie). ⚠️ Aucun en-tête d'interdiction de frame ici: l'iframe de préview
 // sandbox l'interdit (frame-ancestors * dans la CSP fait le travail).
 const SECURITY_HEADERS: ReadonlyArray<readonly [string, string]> = [
   ["Content-Security-Policy", CONTENT_SECURITY_POLICY],
@@ -69,22 +68,38 @@ const SECURITY_HEADERS: ReadonlyArray<readonly [string, string]> = [
   ["X-Content-Type-Options", "nosniff"],
   ["Referrer-Policy", "strict-origin-when-cross-origin"],
   // camera/micro autorisés pour le diagnostic de peau (photo/scan) et l'ASR
-  // vocal; tout le reste (paiement, USB, série, bluetooth, idle-detection)
-  // verrouillé.
+  // vocal; bluetooth et usb autorisés pour l'impression thermique directe (ESC/POS POS)
+  // et les périphériques de caisse; le reste verrouillé.
   [
     "Permissions-Policy",
-    "camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), idle-detection=()",
+    "camera=(self), microphone=(self), bluetooth=(self), usb=(self), geolocation=(), payment=(), serial=(), idle-detection=()",
   ],
   ["X-DNS-Prefetch-Control", "off"],
   // COOP « same-origin-allow-popups »: isole le contexte browsing tout en
   // laissant window.open / liens target=_blank fonctionner (paiements, OAuth).
   ["Cross-Origin-Opener-Policy", "same-origin-allow-popups"],
+  // CORP « cross-origin »: permet à l'iframe de préview sandbox (et aux
+  // contextes webview/localhost) de charger les ressources sans blocage.
+  ["Cross-Origin-Resource-Policy", "cross-origin"],
+];
+
+// En-têtes supplémentaires pour les réponses /api/* : on interdit tout cache
+// intermédiaire (proxies, CDN) pour les données sensibles (sessions, bilans,
+// diagnostics, salaires…). Posés EN PLUS des SECURITY_HEADERS de base.
+const API_CACHE_HEADERS: ReadonlyArray<readonly [string, string]> = [
+  ["Cache-Control", "no-store, max-age=0"],
+  ["Pragma", "no-cache"],
 ];
 
 /** Pose les en-têtes de sécurité sur une réponse (quelle qu'elle soit). */
-function applySecurityHeaders(res: NextResponse): NextResponse {
+function applySecurityHeaders(res: NextResponse, isApi = false): NextResponse {
   for (const [key, value] of SECURITY_HEADERS) {
     res.headers.set(key, value);
+  }
+  if (isApi) {
+    for (const [key, value] of API_CACHE_HEADERS) {
+      res.headers.set(key, value);
+    }
   }
   return res;
 }
@@ -213,10 +228,36 @@ export function middleware(req: NextRequest) {
     return applySecurityHeaders(NextResponse.rewrite(url));
   }
 
+  // 0-bis) PORTE DÉDIÉE CODE PIN (/pin) — écran dédié de saisie du code secret
+  // (standard Wave / mobile banking): rewrite transparent vers « / », URL
+  // /pin conservée dans la barre d'adresse du client, préservation des query params.
+  if (path === "/pin" || path === "/pin/") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/";
+    return applySecurityHeaders(NextResponse.rewrite(url));
+  }
+
+  // 0-ter) PORTE DÉDIÉE ESPACE PRO (/pro) — accès direct à la gestion institut & Assistante Maman
+  if (path === "/pro" || path === "/pro/") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/";
+    return applySecurityHeaders(NextResponse.rewrite(url));
+  }
+
+  // 1-bis) Désactiver le cache pour /sw.js et la page d'accueil pour que les déploiements soient visibles immédiatement
+  if (path === "/sw.js" || path === "/" || path === "") {
+    const res = NextResponse.next();
+    res.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    return applySecurityHeaders(res);
+  }
+
+  // Detecte si la route est une API (pour Cache-Control: no-store).
+  const isApi = path.startsWith("/api/");
+
   // 1) Garde CSRF/Origin — AVANT tout: les écritures /api/* d'une origine
   // externe ne doivent JAMAIS atteindre les handlers.
   if (
-    path.startsWith("/api/") &&
+    isApi &&
     method !== "GET" &&
     method !== "HEAD" &&
     method !== "OPTIONS"
@@ -225,10 +266,12 @@ export function middleware(req: NextRequest) {
     if (isExternalOrigin(req, reqUrl)) {
       return applySecurityHeaders(
         NextResponse.json({ error: "Requête refusée (origine externe)" }, { status: 403 }),
+        true, // c'est une réponse API: no-store
       );
     }
   }
 
   // 2) En-têtes de sécurité sur TOUTES les réponses.
-  return applySecurityHeaders(NextResponse.next());
+  return applySecurityHeaders(NextResponse.next(), isApi);
 }
+

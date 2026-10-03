@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, notify } from "@/lib/kene/server";
 import { guardUserClaim } from "@/lib/kene/session";
+import { rateLimit, rlKey, rateLimitResponse, REVIEWS_POST } from "@/lib/kene/rate-limit";
 
 const Body = z.object({
   userId: z.string().min(1),
@@ -15,6 +16,10 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const rl = rateLimit(rlKey(req, "appointments:review"), REVIEWS_POST);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Trop d'avis soumis rapidement — veuillez patienter quelques instants");
+  }
   try {
     const { id } = await params;
     const parsed = Body.safeParse(await req.json().catch(() => null));
@@ -65,7 +70,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await db.tenant.update({
       where: { id: appointment.tenantId },
       data: {
-        rating: Math.round((agg._avg.rating ?? 0) * 10) / 10,
+        rating: agg._count > 0 && agg._avg.rating !== null ? Math.round(agg._avg.rating * 10) / 10 : 5.0,
         reviewCount: agg._count,
       },
     });

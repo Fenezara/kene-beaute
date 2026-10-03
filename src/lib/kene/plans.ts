@@ -110,6 +110,41 @@ export async function getActiveSubscription(userId: string): Promise<Subscriptio
   });
 }
 
+/**
+ * Offre 30 jours de Kènè+ gratuit (Pass Découverte) à une cliente lors de sa première inscription.
+ * Idempotent: si l'utilisatrice a déjà eu une ligne d'abonnement ou d'essai, ne recrée rien.
+ */
+export async function grantClientWelcomeTrial(userId: string): Promise<Subscription | null> {
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user || user.role !== "client") return null;
+
+  const existingSub = await db.subscription.findFirst({ where: { userId } });
+  if (existingSub) return null;
+
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 30);
+
+  const sub = await db.subscription.create({
+    data: {
+      userId: user.id,
+      plan: "kene_plus",
+      status: "active",
+      priceFcfa: 0,
+      source: "welcome_trial",
+      expiresAt,
+    },
+  });
+
+  await notify({
+    userId: user.id,
+    channel: "whatsapp",
+    toPhone: user.phone,
+    message: `Bienvenue sur Kènè ✨ Nous t'offrons 30 jours de Pass Kènè+ gratuit ! Profite de diagnostics illimités et des conseils du Dr Kènè jusqu'au ${ddMM(expiresAt)} 💛`,
+  }).catch(() => null);
+
+  return sub;
+}
+
 export interface DiagQuota {
  /** Quota du mois calendaire courant (gratuit = 1, Kènè+ = 9999). */
   quota: number;
@@ -161,40 +196,52 @@ export interface ActivatePlanResult {
  * Notification WhatsApp (simulée) au user à la CRÉATION seulement:
  * « ton abonnement {name} est actif jusqu'au {jj/mm} ».
  * Throws Error (message FR) si planId inconnu ou user introuvable. */
-export async function activatePlan(userId: string, planId: string): Promise<ActivatePlanResult> {
+export async function activatePlan(userId: string, planId: string, source: string = "winipayer"): Promise<ActivatePlanResult> {
   const def = planDefById(planId);
   if (!def) throw new Error("Plan inconnu");
 
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("Utilisatrice introuvable");
 
-  // Idempotence: même plan déjà actif non expiré → l'existante telle quelle.
+  // Si le même plan est déjà actif et non expiré: on le prolonge de 30 jours (renouvellement raccordé)
+  // au lieu de renvoyer l'ancienne période sans rien ajouter !
   const existing = await getActiveSubscription(userId);
-  if (existing && existing.plan === def.id) return { subscription: existing, created: false };
+  if (existing && existing.plan === def.id) {
+    const renewed = await renewPlan(userId, source, def.id);
+    return { subscription: renewed.subscription, created: false };
+  }
 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
 
   const subscription = await db.$transaction(async (tx) => {
-    // Changement de plan: l'ancienne ligne active (plan différent) est
-    // annulée proprement — une seule ligne active fait foi à tout instant.
-    if (existing) {
-      await tx.subscription.update({ where: { id: existing.id }, data: { status: "cancelled" } });
-    }
-    return tx.subscription.create({
+    // Changement de plan: les anciennes lignes actives sont annulées proprement
+    // — une seule ligne active fait foi à tout instant.
+    await tx.subscription.updateMany({
+      where: { userId, status: "active" },
+      data: { status: "cancelled" },
+    });
+    const s = await tx.subscription.create({
       data: {
         userId,
         plan: def.id,
         status: "active",
         priceFcfa: def.priceFcfa,
-        source: "momo_sim", // paiement en mode essai
+        source, // source de paiement certifiée (winipayer / momo)
         expiresAt,
       },
     });
+
+    if (def.id === "pro_complexe") {
+      await tx.tenant.updateMany({ where: { ownerPhone: user.phone }, data: { plan: "business" } });
+    } else if (def.id === "pro_essentiel") {
+      await tx.tenant.updateMany({ where: { ownerPhone: user.phone }, data: { plan: "pro" } });
+    }
+
+    return s;
   });
 
-  // Notification (simulée comme le reste des paiements) — seulement à la
-  // création: un re-POST idempotent ne re-notifie jamais.
+  // Notification WhatsApp / SMS au user à la CRÉATION seulement:
   await notify({
     userId: user.id,
     channel: "whatsapp",
@@ -213,44 +260,57 @@ export interface RenewPlanResult {
   previousExpiry: Date;
 }
 
-/** Renouvelle l'abonnement ACTIF du user pour 30 jours supplémentaires —
- * paiement mobile money SIMULÉ (source "momo_sim", prix plein du plan).
- * Même discipline que l'offre Console (t. 135) et le cadeau parrainage:
- * l'ancienne ligne passe "cancelled", une NOUVELLE ligne est créée avec
- * expiresAt = max(échéance courante, maintenant) + 30 jours — les jours
- * restants ne sont jamais écrasés, la période payée se RACCORDE (IFRS 15:
- * on ajoute une ligne, on ne modifie jamais l'historique).
- * Le renouvellement d'une période offerte repasse au prix plein (0 F → 2 500 F).
- * Throws Error (message FR) si user inconnu ou aucun abonnement actif. */
-export async function renewPlan(userId: string): Promise<RenewPlanResult> {
+/** Renouvelle l'abonnement du user pour 30 jours supplémentaires.
+ * Tolérant: si l'abonnement a déjà expiré ou si aucun n'était actif, réactive
+ * le plan (soit le plan demandé, soit le dernier plan souscrit, soit Kènè+). */
+export async function renewPlan(userId: string, source: string = "winipayer", planId?: string): Promise<RenewPlanResult> {
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("Utilisatrice introuvable");
 
   const existing = await getActiveSubscription(userId);
-  if (!existing) throw new Error("Aucun abonnement actif à renouveler");
+  let targetPlan = planId || existing?.plan;
 
-  const def = planDefById(existing.plan);
+  if (!targetPlan) {
+    const lastSub = await db.subscription.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+    targetPlan = lastSub?.plan || (user.role === "pro" ? "pro_essentiel" : "kene_plus");
+  }
+
+  const def = planDefById(targetPlan);
   if (!def) throw new Error("Plan inconnu");
 
   const now = new Date();
   // Les jours restants se raccordent: la nouvelle échéance part de la fin
-  // de la période courante (ou de maintenant si déjà dépassée en base).
-  const base = existing.expiresAt.getTime() > now.getTime() ? existing.expiresAt : now;
+  // de la période courante si active et future, sinon de maintenant.
+  const base = (existing && existing.expiresAt.getTime() > now.getTime()) ? existing.expiresAt : now;
   const newExpires = new Date(base.getTime() + 30 * 24 * 3600 * 1000);
 
   const subscription = await db.$transaction(async (tx) => {
-    await tx.subscription.update({ where: { id: existing.id }, data: { status: "cancelled" } });
-    return tx.subscription.create({
+    await tx.subscription.updateMany({
+      where: { userId, status: "active" },
+      data: { status: "cancelled" },
+    });
+    const s = await tx.subscription.create({
       data: {
         userId,
         plan: def.id,
         status: "active",
         priceFcfa: def.priceFcfa, // renouveler une période offerte = payer le prix plein
-        source: "momo_sim", // paiement en mode essai
+        source, // source de paiement certifiée (winipayer / momo)
         startedAt: now,
         expiresAt: newExpires,
       },
     });
+
+    if (def.id === "pro_complexe") {
+      await tx.tenant.updateMany({ where: { ownerPhone: user.phone }, data: { plan: "business" } });
+    } else if (def.id === "pro_essentiel") {
+      await tx.tenant.updateMany({ where: { ownerPhone: user.phone }, data: { plan: "pro" } });
+    }
+
+    return s;
   });
 
   await notify({
@@ -260,7 +320,7 @@ export async function renewPlan(userId: string): Promise<RenewPlanResult> {
     message: `Kènè : abonnement ${def.name} renouvelé ✔ Actif jusqu'au ${ddMM(subscription.expiresAt)} — merci de ta confiance 💛`,
   });
 
-  return { subscription, previousExpiry: existing.expiresAt };
+  return { subscription, previousExpiry: existing ? existing.expiresAt : now };
 }
 
 // ─────────────── Cadeau de jours (parrainage — t. 138) ───────────────

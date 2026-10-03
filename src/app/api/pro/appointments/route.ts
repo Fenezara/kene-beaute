@@ -6,8 +6,8 @@ import { jsonError, serverError, resolveTenant, overlaps, dayEnd, notify } from 
 import { guardProRole } from "@/lib/kene/session";
 
 const include = {
-  service: { select: { name: true, durationMin: true, price: true } },
-  resource: { select: { name: true, color: true } },
+  service: { select: { id: true, name: true, durationMin: true, price: true } },
+  resource: { select: { id: true, name: true, color: true } },
   clientProfile: { select: { id: true, name: true, phone: true, rfmSegment: true } },
 };
 

@@ -110,7 +110,7 @@ const FR: Dict = {
   // Profil
   "profile.title": "Mon profil",
   "profile.settings": "Réglages",
-  "profile.wallet": "Mon wallet Kènè",
+  "profile.wallet": "Mes avantages",
   "profile.back.aria": "Retour accueil",
 
   // Sélecteur de langue
@@ -208,7 +208,7 @@ const DY: Dict = {
   // Profil
   "profile.title": "N ka profil",
   "profile.settings": "Réglages",
-  "profile.wallet": "N ka wallet Kènè",
+  "profile.wallet": "N ka nafolo",
   "profile.back.aria": "So kono na",
 
   // Sélecteur de langue

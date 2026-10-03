@@ -17,17 +17,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
-import { sessionFromRequest } from "@/lib/kene/session";
+import { sessionFromRequest, setSessionCookie, sanitizeUser } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 
 export const runtime = "nodejs";
-
-/** — l'avatar (data URL lourde) ne part jamais dans la session:
- * seul `hasAvatar` fait le voyage, l'UI charge /api/media/user/:id. */
-function safeUser(user: { avatarData?: string | null } & Record<string, unknown>) {
-  const { avatarData, ...rest } = user;
-  return { ...rest, hasAvatar: Boolean(avatarData) };
-}
 
 export async function GET(req: NextRequest) {
   // Léger: appelé une fois au boot — AUTH_MUTATION (20/min) suffit largement.
@@ -66,26 +59,13 @@ export async function GET(req: NextRequest) {
         ? (await db.tenant.findFirst({ where: { ownerPhone: user.phone } })) ??
           (emp ? await db.tenant.findUnique({ where: { id: emp.tenantId } }) : null)
         : null;
-      return NextResponse.json({ user: safeUser(user), tenant: tenant ? { id: tenant.id, name: tenant.name } : null, employeeRole: emp ? emp.role : null });
+      const res = NextResponse.json({ user: sanitizeUser(user), tenant: tenant ? { id: tenant.id, name: tenant.name } : null, employeeRole: emp ? emp.role : null });
+      setSessionCookie(res, user);
+      return res;
     }
 
-    // 2) Legacy (session POC d'avant ce sprint, sans cookie): repli query userId.
-    const userId = req.nextUrl.searchParams.get("userId")?.trim();
-    if (!userId) return jsonError("Identifiant de session requis", 400);
-
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) return jsonError("Session expirée", 404);
-
-    //: même enrichissement sur le repli legacy (le repli 409 de
-    // l'onboarding pro passe par ici).: employée idem.
-    const empLegacy = user.role === "pro"
-      ? await db.employee.findFirst({ where: { userId: user.id, active: true } })
-      : null;
-    const tenant = user.role === "pro"
-      ? (await db.tenant.findFirst({ where: { ownerPhone: user.phone } })) ??
-        (empLegacy ? await db.tenant.findUnique({ where: { id: empLegacy.tenantId } }) : null)
-      : null;
-    return NextResponse.json({ user: safeUser(user), tenant: tenant ? { id: tenant.id, name: tenant.name } : null, employeeRole: empLegacy ? empLegacy.role : null });
+    // 2) Absence de cookie de session valide -> non authentifié (zéro résurrection zombie)
+    return jsonError("Session expirée ou absente", 401);
   } catch (err) {
     return serverError("auth/session", err);
   }

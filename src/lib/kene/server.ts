@@ -9,20 +9,55 @@ import { rfmScore } from "./rfm";
 import { PARRAIN_REWARD } from "./referral";
 import { pushFeed, pushTenantFeed } from "./realtime";
 import type { SimpleLine } from "@/lib/accounting/syscohada";
+import { sendNotificationSms } from "@/lib/sms";
+import { SALON_CONFIG } from "@/config/salon-identity";
 
 export function jsonError(error: string, status = 400): NextResponse {
   return NextResponse.json({ error }, { status });
 }
 
-/** Handleur générique: capture les erreurs non gérées en 500 loggé */
+/** Handleur générique: capture les erreurs non gérées en 500 loggé.
+ * En dev: log complet (message + stack). En prod: log côté serveur uniquement
+ * (jamais de stack dans la réponse) — defense in depth contre l'information
+ * disclosure (OWASP A05:2021, CVE patterns: debug info exposure). */
 export function serverError(scope: string, err: unknown): NextResponse {
-  console.error(`[kene:api:${scope}]`, err instanceof Error ? err.message : err);
+  if (process.env.NODE_ENV === "production") {
+    // En prod: log minimal côté serveur (sans stack visible côté client).
+    console.error(`[kene:api:${scope}]`, err instanceof Error ? err.message : String(err));
+  } else {
+    // En dev: log complet pour faciliter le débogage.
+    console.error(`[kene:api:${scope}]`, err);
+  }
   return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
 }
 
-/** Tenant Pro par défaut (mono-tenant): premier créé */
-export function defaultTenant() {
-  return db.tenant.findFirst({ orderBy: { createdAt: "asc" } });
+/** Tenant Pro par défaut (mono-tenant): premier créé, avec auto-initialisation si base vierge */
+export async function defaultTenant() {
+  let tenant = await db.tenant.findFirst({ orderBy: { createdAt: "asc" } });
+  if (!tenant) {
+    try {
+      tenant = await db.tenant.create({
+        data: {
+          name: SALON_CONFIG.legal.brandName,
+          type: "institut",
+          country: SALON_CONFIG.legal.country,
+          city: SALON_CONFIG.legal.city,
+          address: `${SALON_CONFIG.legal.commune}, ${SALON_CONFIG.legal.address}`,
+          phone: SALON_CONFIG.contact.phone,
+          ownerName: SALON_CONFIG.team[0]?.name || "Gérante Principale",
+          ownerPhone: SALON_CONFIG.team[0]?.phone || "+2250700000000",
+          plan: "pro",
+          commissionRate: 15.0,
+          openingHour: parseInt(SALON_CONFIG.businessHours.openingHour.split(":")[0], 10) || 9,
+          closingHour: parseInt(SALON_CONFIG.businessHours.closingHour.split(":")[0], 10) || 19,
+          active: true,
+        },
+      });
+    } catch {
+      // Ignorer si la base est en cours d'initialisation
+    }
+  }
+  return tenant;
 }
 
 /** Résout un tenant pour UNE requête, en liant l'accès au propriétaire de
@@ -38,34 +73,124 @@ export function defaultTenant() {
  * Signature enrichie de la requête: les 17 routes pro passent par CE point
  * unique (overview, agenda, CRM, caisse, stock, payroll, compta, relances,
  * catalogue, diagnostics, live, employées, coupons…). */
+export async function syncTenantPlan<T extends { id: string; ownerPhone: string; plan: string }>(tenant: T): Promise<T> {
+  try {
+    const ownerUser = await db.user.findUnique({
+      where: { phone: tenant.ownerPhone },
+      select: {
+        subscriptions: {
+          where: { status: "active", expiresAt: { gt: new Date() } },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    });
+    const sub = ownerUser?.subscriptions?.[0];
+    if (sub) {
+      const targetPlan = sub.plan === "pro_complexe" ? "business" : "pro";
+      if (tenant.plan !== targetPlan) {
+        tenant.plan = targetPlan;
+        await db.tenant.update({
+          where: { id: tenant.id },
+          data: { plan: targetPlan },
+        }).catch(() => null);
+      }
+    }
+  } catch {
+    // Non bloquant
+  }
+  return tenant;
+}
+
 export async function resolveTenant(req: NextRequest, tenantId?: string | null) {
   const sess = sessionFromRequest(req);
   if (sess && sess.role === "pro") {
-    // 1) gérante: son institut (ownerPhone).
-    let mine = await db.tenant.findFirst({ where: { ownerPhone: sess.phone } });
-    // 2) — EMPLOYÉE de l'app (compte créé par sa gérante): l'institut
-    // de son EMPLOYEUR via la fiche Employee liée (userId). Une employée ne
-    // voit QUE cet institut — mêmes règles strictes qu'une gérante
-    // (tenantId étranger → refus, aucune institut → 404 franc).
-    if (!mine) {
-      const emp = await db.employee.findFirst({
+    // 1) Établissements de la gérante (multi-succursales par ownerPhone)
+    const owned = await db.tenant.findMany({ where: { ownerPhone: sess.phone, active: true } });
+
+    // 2) Établissements où l'utilisatrice est employée active
+    let empTenants: typeof owned = [];
+    if (sess.userId) {
+      const emps = await db.employee.findMany({
         where: { userId: sess.userId, active: true },
         select: { tenantId: true },
       });
-      if (emp) mine = await db.tenant.findUnique({ where: { id: emp.tenantId } });
+      const empTenantIds = emps.map((e) => e.tenantId);
+      if (empTenantIds.length > 0) {
+        empTenants = await db.tenant.findMany({ where: { id: { in: empTenantIds }, active: true } });
+      }
     }
-    if (!mine) return null; // pro sans institut: 404 franc, pas de repli
-    if (tenantId && tenantId !== mine.id) return null; // institut d'une autre → refus
-    // t. 128 — institut SUSPENDU par la Console: l'opération est fermée,
-    // toutes les routes /api/pro/* répondent 404 pour ses comptes (double
-    // filet pour les sessions ouvertes AVANT la suspension — la verify
-    // bloque déjà les NOUVELLES connexions). L'admin n'est pas concernée:
-    // elle passe par le chemin admin ci-dessous (accès console complet).
-    if (!mine.active) return null;
-    return mine;
+
+    // Fusion sans doublon
+    const allMine = [...owned, ...empTenants.filter((et) => !owned.some((o) => o.id === et.id))];
+    if (allMine.length === 0) return null; // pro sans aucun institut: 404 franc
+
+    // Si une succursale spécifique est demandée
+    if (tenantId) {
+      const match = allMine.find((t) => t.id === tenantId);
+      if (!match) return null; // institut étranger ou non autorisé → refus franc (anti-IDOR)
+      return await syncTenantPlan(match);
+    }
+
+    // Par défaut, retourner la première succursale active
+    return await syncTenantPlan(allMine[0]);
   }
-  if (tenantId) return db.tenant.findUnique({ where: { id: tenantId } });
-  return defaultTenant();
+
+  // Admin connecté : accès à l'institut demandé ou au premier
+  if (sess && sess.role === "admin") {
+    if (tenantId) {
+      const match = await db.tenant.findUnique({ where: { id: tenantId } });
+      if (match) return await syncTenantPlan(match);
+    }
+    const def = await defaultTenant();
+    return def ? await syncTenantPlan(def) : null;
+  }
+
+  if (tenantId) {
+    const found = await db.tenant.findUnique({ where: { id: tenantId } });
+    return found ? await syncTenantPlan(found) : null;
+  }
+  const def = await defaultTenant();
+  return def ? await syncTenantPlan(def) : null;
+}
+
+/**
+ * Renvoie l'ensemble des établissements accessibles par la session Pro
+ * pour alimenter la liste déroulante (multi-succursales).
+ */
+export async function resolveProTenants(req: NextRequest) {
+  const sess = sessionFromRequest(req);
+  if (sess && sess.role === "pro") {
+    const owned = await db.tenant.findMany({
+      where: { ownerPhone: sess.phone, active: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    let empTenants: typeof owned = [];
+    if (sess.userId) {
+      const emps = await db.employee.findMany({
+        where: { userId: sess.userId, active: true },
+        select: { tenantId: true },
+      });
+      const empTenantIds = emps.map((e) => e.tenantId);
+      if (empTenantIds.length > 0) {
+        empTenants = await db.tenant.findMany({
+          where: { id: { in: empTenantIds }, active: true },
+          orderBy: { name: "asc" },
+        });
+      }
+    }
+
+    const all = [...owned, ...empTenants.filter((et) => !owned.some((o) => o.id === et.id))];
+    return await Promise.all(all.map((t) => syncTenantPlan(t)));
+  }
+
+  if (sess && sess.role === "admin") {
+    const all = await db.tenant.findMany({ where: { active: true }, orderBy: { name: "asc" } });
+    return await Promise.all(all.map((t) => syncTenantPlan(t)));
+  }
+
+  return [];
 }
 
 export function slugify(name: string): string {
@@ -247,6 +372,17 @@ export function notify(
       .then(() => pushFeed(data.userId as string))
       .catch(() => undefined);
   }
+
+  // Envoi SMS réel / simulé via la passerelle Termii (immédiat, non-bloquant)
+  if (data.channel === "sms" && data.toPhone && (!data.scheduledAt || data.scheduledAt <= new Date())) {
+    void sendNotificationSms({
+      phone: data.toPhone,
+      message: data.message,
+    }).catch((err) => {
+      console.error("[notify] Échec lors de la transmission SMS Termii:", err?.message || err);
+    });
+  }
+
   return created;
 }
 

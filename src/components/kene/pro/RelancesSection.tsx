@@ -3,7 +3,7 @@
 // satisfaction produits et réactivation des clientes inactives — dérivées de l'activité réelle.
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Archive, BellRing, CalendarCheck, Check, MessageCircle, Phone, Undo2, Sparkles } from "lucide-react";
+import { Archive, BellRing, CalendarCheck, Check, Loader2, MessageCircle, Phone, Send, Sparkles, Undo2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,38 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
   const counts = data.data?.counts ?? { late: 0, week: 0, upcoming: 0, done: 0, dismissed: 0 };
   const visible = useMemo(() => items.filter((i) => matchFilter(i, filter)), [items, filter]);
   const todoTotal = counts.late + counts.week + counts.upcoming;
+  const [batchBusy, setBatchBusy] = useState(false);
+
+  async function batchRelance(via: "sms" | "whatsapp") {
+    const lateItems = items.filter((i) => i.status === "todo" && i.daysFromNow < 0);
+    if (lateItems.length === 0) {
+      toast.info("Aucune cliente en retard à relancer.");
+      return;
+    }
+    setBatchBusy(true);
+    try {
+      const batchPayload = lateItems.map((it) => ({
+        dedupKey: it.dedupKey,
+        clientProfileId: it.clientProfileId ?? undefined,
+        clientPhone: it.clientPhone,
+        clientName: it.clientName,
+        message: buildRelanceMessage(it.kind, { clientName: it.clientName, detail: it.detail, dueAt: it.dueAt, tenantName }),
+      }));
+
+      await apiPost("/api/pro/followups", {
+        tenantId,
+        batch: batchPayload,
+        via,
+      });
+
+      toast.success(`${lateItems.length} relance(s) en retard traitées par ${via.toUpperCase()} 🚀`);
+      await data.refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de la relance groupée");
+    } finally {
+      setBatchBusy(false);
+    }
+  }
 
   async function mark(item: FollowUpItem, status: "done" | "dismissed" | "todo", via?: "whatsapp" | "call" | "visit" | "sms") {
     const first = item.clientName.split(/\s+/)[0] ?? item.clientName;
@@ -105,15 +137,17 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
         clientProfileId: item.clientProfileId ?? undefined,
         clientPhone: item.clientPhone,
         clientName: item.clientName,
-        message: via === "whatsapp" ? message : undefined,
+        message: via === "whatsapp" || via === "sms" ? message : undefined,
       });
       if (status === "done") {
         toast.success(
           via === "whatsapp"
             ? `Relance WhatsApp envoyée à ${first} — marquée traitée`
-            : via === "call"
-              ? `Relance de ${first} marquée traitée (appel)`
-              : `Relance de ${first} marquée traitée`
+            : via === "sms"
+              ? `Relance SMS envoyée à ${first} via Zavu/SMS — marquée traitée`
+              : via === "call"
+                ? `Relance de ${first} marquée traitée (appel)`
+                : `Relance de ${first} marquée traitée`
         );
       } else if (status === "dismissed") {
         toast.info(`Relance de ${first} ignorée pour aujourd'hui`);
@@ -134,9 +168,22 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
         title="Relances"
         sub="Le Fil du Retour — protocoles, soins de suivi et clientes à réactiver, calculés sur l'activité réelle"
         actions={
-          <Badge variant="outline" className="gap-1.5 bg-muted/60 text-muted-foreground">
-            <Sparkles className="size-3" aria-hidden="true" /> {todoTotal} à traiter · auto
-          </Badge>
+          <div className="flex items-center gap-2">
+            {counts.late > 0 && (
+              <Button
+                size="sm"
+                onClick={() => void batchRelance("sms")}
+                disabled={batchBusy}
+                className="h-8 gap-1.5 k-btn-gold text-primary-foreground text-xs font-bold shadow-sm"
+              >
+                {batchBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
+                <span>Relancer les {counts.late} en retard (SMS)</span>
+              </Button>
+            )}
+            <Badge variant="outline" className="gap-1.5 bg-muted/60 text-muted-foreground">
+              <Sparkles className="size-3" aria-hidden="true" /> {todoTotal} à traiter · auto
+            </Badge>
+          </div>
         }
       />
 
@@ -236,10 +283,20 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
                           size="sm"
                           onClick={() => void mark(item, "done", "whatsapp")}
                           disabled={busyKey === item.dedupKey}
-                          className="gap-1.5"
+                          className="gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white font-semibold"
                           aria-label={`Relancer ${item.clientName} sur WhatsApp et marquer traitée`}
                         >
                           <MessageCircle className="size-3.5" aria-hidden="true" /> WhatsApp
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void mark(item, "done", "sms")}
+                          disabled={busyKey === item.dedupKey}
+                          className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10 font-semibold"
+                          aria-label={`Relancer ${item.clientName} par SMS direct (Zavu) et marquer traitée`}
+                        >
+                          <Send className="size-3.5" aria-hidden="true" /> SMS Direct
                         </Button>
                         <Button
                           size="sm"

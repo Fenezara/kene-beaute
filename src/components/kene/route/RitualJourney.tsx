@@ -337,7 +337,7 @@ export function RitualJourney({
                   <div className="min-w-0">
                     <p className="text-xs font-bold">Le soin en institut</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                      Acompte 30 % à la réservation · rappel J-1 par SMS · annulation remboursée en wallet.
+                      Acompte 30 % à la réservation · rappel J-1 par SMS · annulation remboursée selon conditions.
                     </p>
                   </div>
                 </div>
@@ -394,9 +394,6 @@ export function RitualJourney({
                       <span className="text-xs font-semibold">Total du rituel</span>
                       <span className="font-mono text-base font-black text-primary">{xof(total)}</span>
                     </div>
-                    <p className="mt-1.5 text-[10.5px] text-muted-foreground">
-                      Cashback wallet estimé : <span className="font-mono font-bold text-primary">{xof(Math.round(total * CASHBACK_RATE))}</span> ({Math.round(CASHBACK_RATE * 100)} %)
-                    </p>
                   </div>
                 )}
 

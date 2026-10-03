@@ -1,8 +1,8 @@
 // GET /api/shop/products?category=&q= — boutique marketplace Kènè:
-// produits MAISON Kènè (tenantId null) ET produits des INSTITUTS actifs —
-// chaque produit porte son vendeur (`tenant`: id, nom, ville, type) pour que
-// la cliente choisisse et navigue PAR INSTITUT. Les instituts inactifs ou en
-// rupture totale (stock 0) restent naturellement absents du catalogue.
+// Seules les entreprises partenaires (instituts, cabinets, spas) vendent des
+// produits. Le fondateur (Dermo TIC) est une entreprise de développement
+// d'applications et ne vend aucun produit. Chaque produit est rattaché à son
+// entreprise vendeuse (`tenant`).
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, slugify } from "@/lib/kene/server";
@@ -16,8 +16,9 @@ export async function GET(req: NextRequest) {
       where: {
         active: true,
         stock: { gt: 0 },
-        // marketplace: la maison (tenantId null) + les instituts actifs
-        OR: [{ tenantId: null }, { tenant: { active: true } }],
+        // Seules les entreprises enregistrées vendent des produits:
+        tenantId: { not: null },
+        tenant: { active: true },
       },
       include: { tenant: { select: { id: true, name: true, city: true, type: true, photoData: true } } },
       orderBy: { name: "asc" },

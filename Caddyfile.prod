@@ -1,0 +1,39 @@
+# ==============================================================================
+# KÈNÈ BEAUTÉ & BIEN-ÊTRE — CADDYFILE PRODUCTION (HTTPS AUTO & REVERSE PROXY)
+# ==============================================================================
+# Remplacez votre nom de domaine ci-dessous (ex: kene.app ou votre-serveur.com)
+
+{
+	# Désactiver les logs verbeux en production si souhaité
+	# email contact@kene.app
+}
+
+# Domaine de production (HTTPS automatique Let's Encrypt)
+kene-beaute.com, www.kene-beaute.com {
+	encode gzip zstd
+
+	# Microservice WebSocket & Notifications push temps réel (notify-service)
+	@notify {
+		query XTransformPort=3004*
+		path /socket.io*
+	}
+	handle @notify {
+		reverse_proxy notify:3004 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Application principale Next.js standalone
+	handle {
+		reverse_proxy app:3000 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+}
+

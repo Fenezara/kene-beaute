@@ -241,6 +241,9 @@ export function ScoreRing({
   const C = 2 * Math.PI * r;
   const color = scoreColor(score);
   const gid = `ring-${Math.round(score)}-${size}`;
+  const scoreFontSize = Math.max(16, Math.round(size * 0.26));
+  const labelFontSize = Math.max(8, Math.round(size * 0.075));
+  const labelMaxWidth = Math.round(size * 0.76);
   return (
     <div
       className={cn("relative shrink-0 k-ring-glow", className)}
@@ -272,12 +275,21 @@ export function ScoreRing({
           style={{ stroke: `url(#${gid})` }}
         />
       </svg>
-      <div className="absolute inset-0 grid place-items-center">
-        <div className="text-center leading-none">
-          <div className="font-mono text-[34px] font-bold tabular-nums" style={{ color }}>
+      <div className="absolute inset-0 grid place-items-center p-1">
+        <div className="text-center leading-none flex flex-col items-center justify-center">
+          <div
+            className="font-mono font-bold tabular-nums"
+            style={{ fontSize: `${scoreFontSize}px`, color, lineHeight: 1 }}
+          >
             {score}
           </div>
-          <div className="mt-1.5 text-[9px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{label}</div>
+          <div
+            className="mt-1 font-bold uppercase tracking-wider text-muted-foreground truncate"
+            style={{ fontSize: `${labelFontSize}px`, maxWidth: `${labelMaxWidth}px` }}
+            title={label}
+          >
+            {label}
+          </div>
         </div>
       </div>
     </div>

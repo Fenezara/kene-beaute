@@ -81,6 +81,7 @@ export const NARRATION_LANGS = [
   { code: "dy", label: "Dioula" },
   { code: "bq", label: "Baoulé" },
   { code: "bt", label: "Bété" },
+  { code: "wo", label: "Wolof" },
 ] as const;
 
 export type NarrationLang = (typeof NARRATION_LANGS)[number]["code"];

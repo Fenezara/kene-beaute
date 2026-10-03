@@ -130,20 +130,6 @@ export function ApptBadge({ status }: { status: string }) {
   return <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ring-current/15", s.cls)}>{s.label}</span>;
 }
 
-/** Wallet inline compact — cible tactile 44 px, verre or + halo, point vivant */
-export function WalletPill({ balance, onClick }: { balance: number; onClick?: () => void }) {
-  return (
-    <button onClick={onClick} className="k-glow-gold inline-flex min-h-11 items-center gap-1.5 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] px-4 text-[#FFF9EC] transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-[#C8951E]" aria-label={`Wallet ${xof(balance)} — ouvrir`}>
-      <span className="font-mono text-xs font-bold tabular-nums">{xof(balance, { compact: true })}</span>
-      <motion.span
-        aria-hidden="true"
-        className="h-1.5 w-1.5 rounded-full bg-[#FFF9EC]/90"
-        animate={{ opacity: [1, 0.35, 1], scale: [1, 0.8, 1] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-      />
-    </button>
-  );
-}
 
 /** Écran de paiement mobile money simulé plein cadre (dans conteneur 430px) */
 export function MomoProcessing({ operator, color, amount, phone }: { operator: string; color: string; amount: number; phone: string }) {
@@ -154,7 +140,7 @@ export function MomoProcessing({ operator, color, amount, phone }: { operator: s
       </div>
       <div>
         <p className="font-heading font-bold text-lg">{operator}</p>
-        <p className="text-xs text-muted-foreground mt-1">Paiement sécurisé — mode essai</p>
+        <p className="text-xs text-muted-foreground mt-1">Paiement sécurisé · Mobile Money & Carte</p>
       </div>
       <p className="font-mono text-3xl font-black">{xof(amount)}</p>
       <p className="text-xs text-muted-foreground">Numéro {phone}</p>

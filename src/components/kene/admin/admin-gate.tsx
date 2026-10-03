@@ -126,9 +126,14 @@ export function AdminGateProvider({ children }: { children: ReactNode }) {
     if (!user?.phone) return;
     setSending(true);
     try {
-      const res = await apiPost<{ ok: boolean; devCode: string }>("/api/auth/otp/request", { phone: user.phone });
+      const res = await apiPost<{ ok: boolean; devCode?: string; smsSent?: boolean }>("/api/auth/otp/request", { phone: user.phone });
       setDevCode(res.devCode ?? "");
       setPhase("code");
+      if (res.devCode) {
+        toast.info("Code instantané affiché à l'écran ✨");
+      } else {
+        toast.success("Code envoyé par SMS");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Envoi impossible");
     } finally {
@@ -226,7 +231,7 @@ export function AdminGateProvider({ children }: { children: ReactNode }) {
                     >
                       {devCode}
                     </button>
-                    <p className="text-[10px] text-muted-foreground">En mode essai, ton code s&apos;affiche ici</p>
+                    <p className="text-[10px] text-muted-foreground">Code de confirmation instantané</p>
                   </div>
                 </div>
               )}

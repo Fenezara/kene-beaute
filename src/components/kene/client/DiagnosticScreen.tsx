@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, FileDown, GitCompareArrows, Hand, History,
-  ImagePlus, Layers, Loader2, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Sparkles, Sunrise, TriangleAlert, WifiOff, X,
+  ArrowLeft, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Droplets, FileDown, GitCompareArrows, Hand, History,
+  ImagePlus, Layers, Leaf, Loader2, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldCheck, Sparkles, Sun, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
 import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
-import { BODY_ZONES, SPECTRAL_VIEWS, type AtlasLevel, type BodyZone, type DiagnosisResult, type Indicator, type SuspectedCondition } from "@/lib/kene/types";
+import { cn } from "@/lib/utils";
+import { BODY_ZONES, SPECTRAL_VIEWS, ZONE_PHOTO_SLOTS, type AtlasLevel, type BodyZone, type DiagnosisResult, type Indicator, type SuspectedCondition, type ZonePhotoSlot } from "@/lib/kene/types";
 import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
 import { AdinkraSky } from "@/components/kene/constellation/AdinkraSky";
 import { diagQueueCount, enqueueDiag, subscribeDiagQueue } from "@/lib/kene/diag-queue";
@@ -17,9 +19,13 @@ import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
 import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
 import { SkinDescent } from "@/components/kene/descent/SkinDescent";
 import { EvolutionCard } from "@/components/kene/evolution/EvolutionCard";
+import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
 import { VoiceNarration } from "./VoiceNarration";
 import { PictoSummary } from "./PictoSummary";
 import { GlossaryDialog } from "./GlossaryDialog";
+import { AudioGuideButton } from "./AudioGuideButton";
+import { LiveCameraModal } from "./LiveCameraModal";
+import { BeautyCardModal } from "./BeautyCardModal";
 import { glossaryFor, type GlossaryEntry } from "@/lib/kene/glossary";
 import { matchProduct, norm } from "@/components/kene/route/ritual";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
@@ -28,7 +34,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useKene } from "@/store/kene";
 import { Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import type { ApiDiagnosis, ApiProduct } from "./types";
-import { diagImgSrc, parseDiagnosis } from "./types";
+import { diagImgSrc, diagImgSources, parseDiagnosis } from "./types";
 import { EmptyBlock, ScoreChip, ScoreGauge } from "./bits";
 
 const ZONE_ICONS: Record<BodyZone, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -62,11 +68,24 @@ const ANALYSIS_STEPS = [
 export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone: BodyZone | null; onZoneConsumed: () => void }) {
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
-  const addToCart = useKene((s) => s.addToCart);
 
   const [step, setStep] = useState(0);
   const [zone, setZone] = useState<BodyZone>("visage");
   const [image, setImage] = useState<string>("");
+  const [slotImages, setSlotImages] = useState<Record<string, string>>({});
+  const slots = useMemo(() => ZONE_PHOTO_SLOTS[zone] ?? [{ id: "main", label: "Vue principale", hint: "Photo nette", required: true }], [zone]);
+  const [activeSlotId, setActiveSlotId] = useState<string>(() => slots[0]?.id ?? "face");
+
+  // Synchroniser activeSlotId quand la zone change
+  useEffect(() => {
+    const currentSlots = ZONE_PHOTO_SLOTS[zone] ?? [{ id: "main", label: "Vue principale", hint: "Photo nette", required: true }];
+    setActiveSlotId((prev) => (currentSlots.some((s) => s.id === prev) ? prev : currentSlots[0].id));
+  }, [zone]);
+
+  const activeSlot = useMemo(() => slots.find((s) => s.id === activeSlotId) ?? slots[0], [slots, activeSlotId]);
+  const activeImage = slotImages[activeSlotId] ?? "";
+  const totalCaptured = useMemo(() => Object.values(slotImages).filter(Boolean).length, [slotImages]);
+
   const [analyzing, setAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [checkedSteps, setCheckedSteps] = useState(0);
@@ -74,6 +93,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   // File d'attente offline: compteur vivant — la REPLAY vit dans
   // ClientApp (elle marche quel que soit l'écran courant), ici on AFFICHE.
   const [queuedCount, setQueuedCount] = useState(0);
+  const [liveCamOpen, setLiveCamOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Résilience 502: message discret sous la barre de progression
@@ -141,9 +161,10 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   useEffect(() => {
     if (pendingZone) {
       setZone(pendingZone);
-      setStep(1);
-      setDiag(null);
+      setSlotImages({});
       setImage("");
+      setStep(0);
+      setDiag(null);
       onZoneConsumed();
     }
   }, [pendingZone, onZoneConsumed]);
@@ -180,12 +201,19 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     if (!f) return;
     try {
       const dataUrl = await resizeImage(f);
+      setSlotImages((prev) => ({ ...prev, [activeSlotId]: dataUrl }));
       setImage(dataUrl);
       // Transparence « petite data »: montrer le poids réel envoyé (compressé côté client)
       const origKo = Math.round(f.size / 1024);
       const sentKo = Math.max(1, Math.round((dataUrl.length * 0.75) / 1024)); // base64 ≈ 4/3
-      if (origKo > 250 && origKo > sentKo * 2) {
-        toast.success(`Photo compressée : ${origKo.toLocaleString("fr-FR")} Ko → ${sentKo.toLocaleString("fr-FR")} Ko — léger pour ta connexion`);
+      const nextEmpty = slots.find((s) => s.id !== activeSlotId && !slotImages[s.id]);
+      if (nextEmpty) {
+        toast.success(`Photo « ${activeSlot.label} » prête (${sentKo} Ko)`, {
+          description: `Tu peux aussi prendre l'angle « ${nextEmpty.label} » pour une analyse 360°.`,
+        });
+        setActiveSlotId(nextEmpty.id);
+      } else {
+        toast.success(`Photo « ${activeSlot.label} » prête (${sentKo} Ko)`);
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Photo illisible");
@@ -198,7 +226,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       const blob = await (await fetch(`/skin/${guide}.webp`)).blob();
       const file = new File([blob], `${guide}.webp`, { type: "image/webp" });
       await onFile(file);
-      toast.success("Photo d'exemple chargée");
+      toast.success(`Photo d'exemple chargée pour « ${activeSlot.label} »`);
     } catch {
       toast.error("Photo d'exemple indisponible");
     }
@@ -385,7 +413,12 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   }, [resumePending]);
 
   async function launch() {
-    if (!image) return;
+    const allImages = slots.map((s) => slotImages[s.id]).filter(Boolean) as string[];
+    const primaryImage = allImages[0] || image;
+    if (!primaryImage) {
+      toast.error("Veuillez prendre au moins une photo pour lancer l'analyse");
+      return;
+    }
     launchedRef.current = true;
     setStep(2);
     setAnalyzing(true);
@@ -398,13 +431,20 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     // envoyée toute seule au retour du réseau (la replay vit dans ClientApp,
     // elle prévient par toast). Jamais d'échec sec pour une photo déjà cadrée.
     if (!isOnline()) {
-      const q = enqueueDiag({ userId: user.id, zone, image, fitzpatrick: user.fitzpatrick ?? undefined, allergies: user.allergies ?? undefined });
+      const q = enqueueDiag({
+        userId: user.id,
+        zone,
+        image: primaryImage,
+        images: allImages,
+        fitzpatrick: user.fitzpatrick ?? undefined,
+        allergies: user.allergies ?? undefined,
+      });
       haptic(HAPTIC.light);
       setAnalyzing(false);
-      setStep(1); // la photo reste affichée: la cliente voit qu'elle est gardée
+      setStep(0); // la photo reste affichée: la cliente voit qu'elle est gardée
       toast.success("Diagnostic mis en attente", {
         description: q.ok
-          ? "Ta photo partira toute seule dès que le réseau revient — tu peux même quitter l’app."
+          ? "Tes photos partiront toutes seules dès que le réseau revient — tu peux même quitter l’app."
           : "File indisponible sur cet appareil — retente quand le réseau revient.",
       });
       return;
@@ -425,10 +465,11 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           r = await apiPost<{ diagnosis: ApiDiagnosis }>("/api/diagnoses", {
             userId: user.id,
             zone,
-            image,
+            image: primaryImage,
+            images: allImages,
             fitzpatrick: user.fitzpatrick ?? undefined,
             allergies: user.allergies ?? undefined,
-          });
+          }, { timeoutMs: 90_000 });
           break;
         } catch (e) {
           fatal = e;
@@ -445,7 +486,8 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       if (r.diagnosis.status === "done") {
         const result = parseDiagnosis(r.diagnosis.resultJson);
         if (result) {
-          showResult({ id: r.diagnosis.id, result, imageData: image, createdAt: r.diagnosis.createdAt }, t0);
+          const storedImgData = allImages.length > 1 ? JSON.stringify(allImages) : primaryImage;
+          showResult({ id: r.diagnosis.id, result, imageData: storedImgData, createdAt: r.diagnosis.createdAt }, t0);
           return;
         }
       }
@@ -462,14 +504,21 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       // Échec RÉSEAU pur (fetch avorté — pas de réponse serveur): file
       // d'attente offline. La photo reste cadrée, elle partira seule.
       if (!(e instanceof ApiError)) {
-        const q = enqueueDiag({ userId: user.id, zone, image, fitzpatrick: user.fitzpatrick ?? undefined, allergies: user.allergies ?? undefined });
+        const q = enqueueDiag({
+          userId: user.id,
+          zone,
+          image: primaryImage,
+          images: allImages,
+          fitzpatrick: user.fitzpatrick ?? undefined,
+          allergies: user.allergies ?? undefined,
+        });
         haptic(HAPTIC.light);
         toast.success("Réseau perdu — diagnostic gardé", {
           description: q.ok
-            ? "Ta photo partira toute seule dès le retour du réseau, sans rien retaper."
+            ? "Tes photos partiront toutes seules dès le retour du réseau, sans rien retaper."
             : undefined,
         });
-        setStep(1); // retour capture: la photo est conservée
+        setStep(0); // retour capture: la photo est conservée
         return;
       }
       // 403 = quota gratuit atteint (le garde session renvoie 401, jamais
@@ -482,114 +531,336 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             ? e.message
             : "Analyse impossible",
       );
-      setStep(1); // retour capture: la photo est conservée
+      setStep(0); // retour capture: la photo est conservée
     }
   }
 
- /* ─────────── Étape 0 — Choix de zone ─────────── */
+  /* ─────────── Étape 0 — Studio de Scan Direct (Zone + Capture Unifiée) ─────────── */
   if (step === 0) {
+    const zoneDef = BODY_ZONES.find((z) => z.id === zone) ?? BODY_ZONES[0];
+    const ActiveZoneIcon = ZONE_ICONS[zone];
+
     return (
-      <div className="pt-4">
-        <button onClick={() => setClientTab("accueil")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label="Retour accueil">
-          <ArrowLeft size={15} /> Accueil
-        </button>
-        <h2 className="font-heading font-black text-xl">Quelle zone analysons-nous ?</h2>
-        <p className="text-xs text-muted-foreground mt-1 mb-5">Chaque zone est pondérée dans ton score global (PRD §8.8).</p>
-        <Reveal className="grid grid-cols-2 gap-3" stagger={0.07}>
-          {BODY_ZONES.map((z) => {
-            const Icon = ZONE_ICONS[z.id];
-            return (
-              <RevealItem key={z.id}>
-                <motion.button
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => { setZone(z.id); setStep(1); setImage(""); setDiag(null); }}
-                  className={`k-card k-card-hover rounded-[22px] p-4 text-left focus-visible:outline-2 focus-visible:outline-primary ${zone === z.id ? "ring-2 ring-primary/60" : ""}`}
+      <div className="pt-2 sm:pt-4">
+        {/* Guide Vocal Oralisé pour l'étape */}
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Studio Scanner Kènè</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold px-2 py-0.5">
+              ÉCLAT 2026
+            </span>
+          </div>
+          <AudioGuideButton
+            text="Bienvenue dans le Studio Scanner Kènè. Choisis la zone que tu souhaites analyser avec les pastilles en haut, puis prends ta photo en direct ou importe-la."
+            label="Écouter le guide"
+            compact
+          />
+        </div>
+
+        {/* 1. Sélecteur de zone horizontal interactif (Silky Carousel) */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2 px-0.5">
+            <span className="text-xs font-bold text-foreground">1. Choisis la zone à scanner :</span>
+            <span className="text-[11px] text-primary font-semibold">{zoneDef.label} ({Math.round(zoneDef.weight * 100)}% santé)</span>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
+            {BODY_ZONES.map((z) => {
+              const Icon = ZONE_ICONS[z.id];
+              const isSelected = zone === z.id;
+              return (
+                <button
+                  key={z.id}
+                  type="button"
+                  onClick={() => {
+                    setZone(z.id);
+                    setSlotImages({});
+                    setImage("");
+                    haptic(HAPTIC.tap);
+                  }}
+                  className={cn(
+                    "flex-shrink-0 flex items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs font-bold transition-all border",
+                    isSelected
+                      ? "border-primary bg-primary/15 text-foreground shadow-sm ring-2 ring-primary/40 scale-[1.02]"
+                      : "border-border/60 bg-card/60 hover:bg-card text-muted-foreground hover:text-foreground"
+                  )}
                 >
-                  <div className="flex items-start justify-between">
-                    <IconBadge icon={<Icon size={20} />} tone={ZONE_TONES[z.id]} />
-                    <span className="k-chip rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums text-muted-foreground">{Math.round(z.weight * 100)} %</span>
+                  <span className={cn(
+                    "grid size-7 place-items-center rounded-xl transition-colors",
+                    isSelected ? "bg-primary text-primary-foreground shadow-xs" : "bg-muted text-muted-foreground"
+                  )}>
+                    <Icon size={16} />
+                  </span>
+                  <div className="text-left leading-tight">
+                    <span className="block">{z.label}</span>
+                    <span className="text-[9.5px] font-mono text-muted-foreground font-normal">{Math.round(z.weight * 100)}%</span>
                   </div>
-                  <p className="font-heading font-bold text-sm mt-3">{z.label}</p>
-                  <p className="text-[11px] text-muted-foreground mt-1 leading-snug line-clamp-2">{z.hint}</p>
-                </motion.button>
-              </RevealItem>
-            );
-          })}
-        </Reveal>
-        <button onClick={goHistory} className="k-card k-card-hover mt-5 w-full h-11 rounded-2xl text-sm font-medium flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-primary">
-          <History size={16} className="text-primary" /> Voir mon historique
-        </button>
-      </div>
-    );
-  }
+                  {z.id === "visage" && (
+                    <span className="ml-0.5 text-[9px] font-extrabold uppercase text-gold-text bg-gold/20 px-1.5 py-0.5 rounded-full">
+                      Recommandé
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
- /* ─────────── Étape 1 — Capture ─────────── */
-  if (step === 1) {
-    const zoneDef = BODY_ZONES.find((z) => z.id === zone)!;
-    return (
-      <div className="pt-4">
-        <button onClick={() => setStep(0)} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour">
-          <ArrowLeft size={15} /> Changer de zone
-        </button>
-        <span className="k-chip rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-gold-text">{zoneDef.label} · {Math.round(zoneDef.weight * 100)} %</span>
-        <h2 className="font-heading font-black text-xl mt-3">Prends ta photo</h2>
+          {/* Indication contextuelle de la zone choisie */}
+          <div className="mt-2.5 flex items-center gap-2 rounded-xl bg-card/40 border border-border/50 px-3 py-2 text-[11px] text-muted-foreground">
+            <ActiveZoneIcon size={14} className="text-primary shrink-0" />
+            <span className="truncate">{zoneDef.hint}</span>
+          </div>
+        </div>
 
-        <ul className="mt-4 space-y-2">
-          {[
-            "Lumière naturelle de préférence, sans ombre directe",
-            "Distance ~30 cm, cadre serré sur la zone",
-            "Cheveux dégagés, visage net (pas de maquillage)",
-          ].map((t, i) => (
-            <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-              <span className="mt-0.5 grid place-items-center h-4 w-4 rounded-full bg-primary/15 text-primary font-mono text-[9px] font-bold shrink-0">{i + 1}</span>
-              {t}
-            </li>
-          ))}
-        </ul>
+        {/* 2. Prises de vue multi-angles */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2 px-0.5">
+            <span className="text-xs font-bold text-foreground">2. Angles de prise de vue :</span>
+            <span className="text-[11px] font-semibold text-primary">
+              {totalCaptured === 0
+                ? "1 photo min. requise"
+                : `${totalCaptured}/${slots.length} angle${totalCaptured > 1 ? "s" : ""} capturé${totalCaptured > 1 ? "s" : ""}`}
+            </span>
+          </div>
 
-        <div className="mt-5">
-          {image ? (
-            <div className="grain-kene relative rounded-[24px] overflow-hidden ring-4 ring-[#C8951E]/30 shadow-xl">
-              <img src={image} alt={`Aperçu zone ${zoneDef.label}`} className="aspect-square w-full object-cover" />
-              <button onClick={() => setImage("")} className="absolute top-2 right-2 h-10 w-10 grid place-items-center rounded-full bg-[#1A1410]/85 text-white active:scale-90 transition-transform" aria-label="Retirer la photo">
-                <X size={16} />
-              </button>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {slots.map((s) => {
+              const hasImg = Boolean(slotImages[s.id]);
+              const isActive = activeSlotId === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveSlotId(s.id);
+                    haptic(HAPTIC.tap);
+                  }}
+                  className={cn(
+                    "relative p-2.5 rounded-2xl border text-left transition-all flex flex-col justify-between min-h-[72px]",
+                    isActive
+                      ? "border-primary bg-primary/15 ring-2 ring-primary/40 shadow-sm"
+                      : hasImg
+                      ? "border-emerald-500/50 bg-emerald-500/5 hover:bg-emerald-500/10 text-foreground"
+                      : "border-border/60 bg-card/50 hover:bg-card text-muted-foreground"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-1 w-full">
+                    <span className="text-[11px] font-bold text-foreground truncate">{s.label}</span>
+                    {hasImg ? (
+                      <span className="grid size-4 place-items-center rounded-full bg-emerald-500 text-white text-[9px] shrink-0">
+                        <Check size={10} strokeWidth={3} />
+                      </span>
+                    ) : s.required ? (
+                      <span className="text-[9px] text-gold-text font-bold bg-gold/15 px-1 py-0.2 rounded shrink-0">
+                        Requis
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-muted-foreground font-normal shrink-0">
+                        Optionnel
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[9.5px] text-muted-foreground mt-1 line-clamp-1">{s.hint}</p>
+                  {hasImg && (
+                    <div className="mt-1 flex items-center gap-1">
+                      <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
+                      <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400">Prêt</span>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 3. Conseils de prise de vue compacts & clairs */}
+        <div className="mb-4 rounded-2xl bg-muted/30 border border-border/40 p-3">
+          <p className="text-[11px] font-bold text-foreground mb-1.5">Conseils pour l&apos;angle « {activeSlot.label} » :</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="grid place-items-center size-4 rounded-full bg-primary/20 text-primary font-mono text-[9px] font-bold shrink-0">1</span>
+              Lumière naturelle de jour
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="grid place-items-center size-4 rounded-full bg-primary/20 text-primary font-mono text-[9px] font-bold shrink-0">2</span>
+              Distance ~30 cm nette
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="grid place-items-center size-4 rounded-full bg-primary/20 text-primary font-mono text-[9px] font-bold shrink-0">3</span>
+              Peau démaquillée & dégagée
+            </span>
+          </div>
+        </div>
+
+        {/* 4. Zone de capture ou prévisualisation */}
+        <div>
+          {activeImage ? (
+            <div>
+              <div className="grain-kene relative rounded-[24px] overflow-hidden ring-4 ring-[#C8951E]/30 shadow-xl max-h-[380px] flex items-center justify-center bg-black">
+                <img src={activeImage} alt={`Aperçu zone ${zoneDef.label} — ${activeSlot.label}`} className="w-full object-cover max-h-[380px]" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSlotImages((prev) => {
+                      const next = { ...prev };
+                      delete next[activeSlotId];
+                      return next;
+                    });
+                    setImage("");
+                  }}
+                  className="absolute top-3 right-3 h-10 w-10 grid place-items-center rounded-full bg-[#1A1410]/85 text-white active:scale-90 transition-transform shadow-lg"
+                  aria-label={`Retirer la photo ${activeSlot.label}`}
+                >
+                  <X size={18} />
+                </button>
+                <div className="absolute bottom-3 left-3 bg-[#1A1410]/80 backdrop-blur-md text-[#FFF9EC] text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-white/10">
+                  <ActiveZoneIcon size={14} className="text-gold" />
+                  <span>{zoneDef.label} — {activeSlot.label}</span>
+                </div>
+              </div>
+
+              {/* Badge de confirmation de pré-analyse */}
+              <div className="mt-3 flex items-center justify-between rounded-2xl bg-[#3F7D3F]/10 border border-[#3F7D3F]/30 px-3.5 py-2.5 text-xs text-[#3F7D3F] font-bold">
+                <span className="flex items-center gap-2">
+                  <Sparkles size={15} className="shrink-0" />
+                  <span>Angle « {activeSlot.label} » cadré & prêt</span>
+                </span>
+                {totalCaptured > 1 && (
+                  <span className="text-[10px] bg-[#3F7D3F]/20 px-2 py-0.5 rounded-full uppercase">
+                    Synthèse 360° ({totalCaptured} angles)
+                  </span>
+                )}
+              </div>
             </div>
           ) : (
+            <div className="space-y-3">
+              {/* Option 1 : Selfie Caméra Live (Recommandé) */}
+              <button
+                type="button"
+                onClick={() => setLiveCamOpen(true)}
+                className="w-full aspect-[16/10] sm:aspect-[16/9] rounded-[24px] border-2 border-primary/60 bg-gradient-to-br from-primary/15 via-gold/10 to-transparent p-5 flex flex-col items-center justify-center gap-2.5 shadow-md active:scale-[0.99] transition-all group"
+              >
+                <span className="grid size-14 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg group-hover:scale-105 transition-transform">
+                  <Camera size={28} />
+                </span>
+                <span className="font-heading font-black text-sm sm:text-base text-foreground">
+                  Capturer « {activeSlot.label} » en direct
+                </span>
+                <span className="text-[11px] text-muted-foreground text-center px-4 max-w-sm">
+                  {activeSlot.hint} · Vérification de luminosité en temps réel
+                </span>
+              </button>
+
+              {/* Option 2 : Importer depuis la galerie */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="h-12 rounded-2xl border border-border bg-card hover:bg-muted/40 text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                >
+                  <ImagePlus size={16} className="text-muted-foreground" /> Importer « {activeSlot.label} »
+                </button>
+                <button
+                  type="button"
+                  onClick={useGuidePhoto}
+                  className="h-12 rounded-2xl border border-border/60 bg-muted/20 hover:bg-muted/40 text-xs font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                >
+                  <Sparkles size={15} className="text-primary" /> Exemple « {activeSlot.label} »
+                </button>
+              </div>
+            </div>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="user"
+            className="sr-only"
+            onChange={(e) => onFile(e.target.files?.[0])}
+            aria-label={`Photo de la zone ${zoneDef.label} - ${activeSlot.label}`}
+          />
+        </div>
+
+        {/* Boutons d'action après capture */}
+        {activeImage && (
+          <div className="mt-3 flex gap-2">
             <button
-              onClick={() => fileRef.current?.click()}
-              className="w-full aspect-square rounded-[24px] border-2 border-dashed border-primary/45 bg-primary/5 grid place-items-center gap-3 active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+              type="button"
+              onClick={() => setLiveCamOpen(true)}
+              className="k-chip h-11 flex-1 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
             >
-              <span className="flex flex-col items-center gap-3 text-primary">
-                <Camera size={44} />
-                <span className="text-sm font-semibold">Ouvrir l&apos;appareil photo</span>
-                <span className="text-[11px] text-muted-foreground font-normal text-center px-6">{zoneDef.hint}</span>
-              </span>
+              <RotateCcw size={15} /> Reprendre « {activeSlot.label} »
             </button>
-          )}
-          <input ref={fileRef} type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} aria-label="Photo de la zone" />
-        </div>
-
-        <div className="mt-4 flex gap-2">
-          <button onClick={useGuidePhoto} className="k-chip h-11 flex-1 rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
-            <ImagePlus size={15} className="text-primary" /> Photo d&apos;exemple
-          </button>
-          {image && (
-            <button onClick={() => fileRef.current?.click()} className="k-chip h-11 px-4 rounded-2xl text-xs font-semibold flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
-              <RotateCcw size={15} /> Reprendre
+            <button
+              type="button"
+              onClick={useGuidePhoto}
+              className="k-chip h-11 px-4 rounded-2xl text-xs font-semibold flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <ImagePlus size={15} className="text-primary" /> Exemple
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
+        {/* Modal Caméra Live */}
+        {liveCamOpen && (
+          <LiveCameraModal
+            zoneLabel={`${zoneDef.label} — ${activeSlot.label}`}
+            onCapture={(dataUrl) => {
+              setSlotImages((prev) => ({ ...prev, [activeSlotId]: dataUrl }));
+              setImage(dataUrl);
+              const nextEmpty = slots.find((s) => s.id !== activeSlotId && !slotImages[s.id]);
+              if (nextEmpty) {
+                toast.success(`Photo « ${activeSlot.label} » capturée ✨`, {
+                  description: `Angle suivant suggéré : « ${nextEmpty.label} » pour une analyse 360°.`,
+                });
+                setActiveSlotId(nextEmpty.id);
+              } else {
+                toast.success(`Photo « ${activeSlot.label} » capturée avec succès ✨`);
+              }
+            }}
+            onClose={() => setLiveCamOpen(false)}
+          />
+        )}
+
+        {/* Synthèse multi-photos avant lancement */}
+        {totalCaptured > 1 ? (
+          <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/10 p-3 flex items-center gap-2.5 text-xs text-primary font-bold">
+            <Sparkles size={16} className="shrink-0" />
+            <span>Synthèse multi-angles activée : {totalCaptured} photos seront analysées conjointement par l&apos;IA 360°.</span>
+          </div>
+        ) : totalCaptured === 1 ? (
+          <div className="mt-4 rounded-2xl border border-border/50 bg-muted/20 p-2.5 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>1 photo prête · Tu peux lancer ou ajouter un autre angle</span>
+            {slots.find((s) => !slotImages[s.id]) && (
+              <button
+                type="button"
+                onClick={() => {
+                  const empty = slots.find((s) => !slotImages[s.id]);
+                  if (empty) setActiveSlotId(empty.id);
+                }}
+                className="text-primary font-bold hover:underline"
+              >
+                + Ajouter angle
+              </button>
+            )}
+          </div>
+        ) : null}
+
+        {/* Bouton de lancement de l'analyse */}
         <PrimaryCTA
           onClick={launch}
-          disabled={!image}
-          className="mt-5 h-14 w-full rounded-[20px] font-heading font-black text-base"
+          disabled={totalCaptured === 0}
+          className="mt-4 h-14 w-full rounded-[20px] font-heading font-black text-base shadow-lg"
         >
-          <NeaOnnimIcon size={22} /> Lancer l&apos;analyse IA
+          <NeaOnnimIcon size={22} />
+          {totalCaptured > 1
+            ? `Lancer le diagnostic 360° (${totalCaptured} photos)`
+            : totalCaptured === 1
+            ? `Lancer l'analyse IA (${zoneDef.label})`
+            : "Prends au moins une photo pour analyser"}
         </PrimaryCTA>
 
-        {/* Quota gratuit atteint — upsell Kènè+: parcours, pas mur. */}
+        {/* Quota gratuit atteint — upsell Kènè+ */}
         {quotaUpsell && (
           <GlassCard className="mt-5 rounded-[24px] p-5">
             <div className="flex items-center gap-3">
@@ -609,7 +880,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           </GlassCard>
         )}
 
-        {/* File d'attente offline: photos gardées, départ auto. */}
+        {/* File d'attente offline */}
         {queuedCount > 0 && (
           <div role="status" className="mt-4 flex items-center gap-3 rounded-[20px] p-3.5 k-card">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
@@ -620,11 +891,20 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                 {queuedCount} diagnostic{queuedCount > 1 ? "s" : ""} en attente du réseau
               </p>
               <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                Envoyé{queuedCount > 1 ? "s" : ""} automatiquement dès le retour de la connexion — rien à refaire, tu peux même quitter l&apos;app.
+                Envoyé{queuedCount > 1 ? "s" : ""} automatiquement dès le retour de la connexion — rien à refaire.
               </p>
             </div>
           </div>
         )}
+
+        {/* Raccourci vers l'historique complet */}
+        <button
+          type="button"
+          onClick={goHistory}
+          className="k-card k-card-hover mt-5 w-full h-12 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 border border-border/70"
+        >
+          <History size={16} className="text-primary" /> Voir mes diagnostics passés & historique
+        </button>
       </div>
     );
   }
@@ -633,21 +913,54 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   if (step === 2 && analyzing) {
     return (
       <Reveal className="pt-6 flex flex-col items-center" stagger={0.07}>
-        <RevealItem className="grain-kene relative w-full max-w-[320px] rounded-[24px] overflow-hidden ring-4 ring-[#C8951E]/30 shadow-xl">
-          <img src={image} alt="Photo en cours d'analyse" className="aspect-square w-full object-cover" />
-          <motion.div
-            className="absolute left-0 right-0 h-16 bg-gradient-to-b from-transparent via-[#C8951E]/50 to-transparent border-y-2 border-[#C8951E]"
-            animate={{ top: ["8%", "78%", "8%"] }}
-            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+        <RevealItem className="grain-kene relative w-full max-w-[320px] rounded-[24px] overflow-hidden ring-4 ring-[#C8951E]/40 shadow-[0_0_30px_rgba(200,149,30,0.3)] bg-black">
+          <img src={image} alt="Photo en cours d'analyse" className="aspect-square w-full object-cover filter contrast-105" />
+
+          {/* Grille holographique subtile */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(to_right,#C8951E_1px,transparent_1px),linear-gradient(to_bottom,#C8951E_1px,transparent_1px)] bg-[size:16px_16px]"
             aria-hidden="true"
           />
+
+          {/* Faisceau laser doré incandescent */}
+          <motion.div
+            className="absolute left-0 right-0 h-16 pointer-events-none"
+            animate={{ top: ["4%", "78%", "4%"] }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+            aria-hidden="true"
+          >
+            <div className="w-full h-full bg-gradient-to-b from-transparent via-[#C8951E]/45 to-transparent relative">
+              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FFF9EC] to-transparent shadow-[0_0_12px_#FFF9EC]" />
+            </div>
+          </motion.div>
+
+          {/* Cibles holographiques dynamiques */}
+          {[
+            { label: "Pores & Sébum", x: 48, y: 32 },
+            { label: "Mélanine & Éclat", x: 28, y: 55 },
+            { label: "Film Hydrolipidique", x: 68, y: 52 },
+          ].map((t, idx) => (
+            <div
+              key={idx}
+              style={{ left: `${t.x}%`, top: `${t.y}%` }}
+              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center animate-pulse"
+            >
+              <div className="size-5 rounded-full border border-[#C8951E] shadow-[0_0_6px_rgba(200,149,30,0.8)] grid place-items-center">
+                <div className="size-1 rounded-full bg-[#C8951E]" />
+              </div>
+              <span className="mt-0.5 font-mono text-[8px] font-bold text-black bg-[#C8951E]/90 px-1 rounded shadow">
+                {t.label}
+              </span>
+            </div>
+          ))}
+
+          {/* Coins optiques de visée */}
+          <div className="absolute top-2.5 left-2.5 size-4 border-t-2 border-l-2 border-[#C8951E] rounded-tl pointer-events-none" />
+          <div className="absolute top-2.5 right-2.5 size-4 border-t-2 border-r-2 border-[#C8951E] rounded-tr pointer-events-none" />
+          <div className="absolute bottom-2.5 left-2.5 size-4 border-b-2 border-l-2 border-[#C8951E] rounded-bl pointer-events-none" />
+          <div className="absolute bottom-2.5 right-2.5 size-4 border-b-2 border-r-2 border-[#C8951E] rounded-br pointer-events-none" />
         </RevealItem>
 
-      {/* Constellation Adinkra: le ciel du rituel s'assemble
- pendant l'analyse — décoratif, la liste d'étapes reste le contrat. */}
-      <RevealItem className="mt-5 w-full max-w-[320px]">
-        <AdinkraSky checked={checkedSteps} total={ANALYSIS_STEPS.length} />
-      </RevealItem>
 
       <RevealItem className="mt-6 w-full max-w-[320px]">
         <GlassCard hero>
@@ -700,10 +1013,13 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
 function ResultView({ diag, products, productsError, onRetryProducts, onNewZone, onHistory }: { diag: { id: string; result: DiagnosisResult; imageData: string; createdAt: string }; products: ApiProduct[]; productsError: boolean; onRetryProducts: () => void; onNewZone: () => void; onHistory: () => void }) {
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
-  const addToCart = useKene((s) => s.addToCart);
   const [view, setView] = useState<string>("standard");
+  const allImages = useMemo(() => diagImgSources(diag.imageData), [diag.imageData]);
+  const [selectedImgIdx, setSelectedImgIdx] = useState(0);
+  const currentImg = allImages[selectedImgIdx] || diagImgSrc(diag.imageData);
   const [ritualOpen, setRitualOpen] = useState(false);
   const [descentOpen, setDescentOpen] = useState(false);
+  const [beautyCardOpen, setBeautyCardOpen] = useState(false);
   const [glossary, setGlossary] = useState<GlossaryEntry | null>(null);
   // t. 138 — le moment diagnostic: la fin d'un résultat réussi est LE moment
   // où la valeur est visible. On sait si l'utilisatrice est déjà abonnée
@@ -730,6 +1046,72 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
     if (n.includes("karite")) return <KariteIcon size={13} />;
     if (n.includes("baobab")) return <BaobabIcon size={13} />;
     return <Sparkles size={13} />;
+  };
+
+  const getCareMeta = (rec: string): { icon: React.ReactNode; moment: string; purpose: string; actives: string[] } => {
+    const n = norm(rec);
+    if (n.includes("solaire") || n.includes("spf")) {
+      return {
+        icon: <Sun size={17} />,
+        moment: "Matin · Quotidien",
+        purpose: "Bouclier UV indispensable pour prévenir le vieillissement prématuré et bloquer la repigmentation des taches sur peau noire.",
+        actives: ["Filtres minéraux", "Oxyde de fer", "Antioxydants"],
+      };
+    }
+    if (n.includes("nettoy") || n.includes("savon") || n.includes("mousse") || n.includes("gel")) {
+      return {
+        icon: <Sparkles size={17} />,
+        moment: "Matin & Soir",
+        purpose: "Élimine le sébum, la sueur et les impuretés en douceur tout en respectant le film protecteur de l'épiderme.",
+        actives: ["Moringa", "Zinc PCA", "Tensioactifs doux"],
+      };
+    }
+    if (n.includes("tache") || n.includes("unifi") || n.includes("vitamine c") || n.includes("niacinamide") || n.includes("aha") || n.includes("azelai")) {
+      return {
+        icon: <Sparkles size={17} />,
+        moment: "Matin ou Soir",
+        purpose: "Régule la production de mélanine, atténue les taches post-inflammatoires et unifie le grain de peau sans décapage.",
+        actives: ["Niacinamide 10%", "Vitamine C stabilisée", "AHA de bissap"],
+      };
+    }
+    if (n.includes("karite") || n.includes("baume") || n.includes("repar") || n.includes("ceramide") || n.includes("nourri")) {
+      return {
+        icon: <ShieldCheck size={17} />,
+        moment: "Soir au coucher",
+        purpose: "Répare le ciment intercellulaire, soulage la déshydratation et scelle l'hydratation durablement pendant la nuit.",
+        actives: ["Beurre de karité brut", "Céramides", "Huile de baobab"],
+      };
+    }
+    if (n.includes("hyaluronique") || n.includes("hydrat") || n.includes("eau") || n.includes("aloka")) {
+      return {
+        icon: <Droplets size={17} />,
+        moment: "Matin & Soir",
+        purpose: "Infuse l'eau en profondeur dans les couches de l'épiderme pour repulper et défroisser les traits déshydratés.",
+        actives: ["Acide hyaluronique pur", "Aloka", "Glycérine végétale"],
+      };
+    }
+    if (n.includes("sebum") || n.includes("matifi") || n.includes("acne") || n.includes("arbre a the") || n.includes("zinc")) {
+      return {
+        icon: <ShieldCheck size={17} />,
+        moment: "Matin & Soir",
+        purpose: "Normalise la sécrétion sébacée, resserre les pores et prévient les éruptions cutanées sans assécher.",
+        actives: ["Zinc", "Arbre à thé", "Niacinamide"],
+      };
+    }
+    if (n.includes("cheveu") || n.includes("tempe") || n.includes("ricin") || n.includes("cuir chevelu")) {
+      return {
+        icon: <Leaf size={17} />,
+        moment: "Quotidien",
+        purpose: "Nourrit les follicules pileux, stimule la microcirculation et fortifie les bordures affaiblies par les coiffures.",
+        actives: ["Ricin noir d'Afrique", "Huile de baobab", "Moringa"],
+      };
+    }
+    return {
+      icon: <Sparkles size={17} />,
+      moment: "Soin ciblé",
+      purpose: "Formulation spécifique apportant les nutriments essentiels recommandés pour rééquilibrer votre zone cutanée.",
+      actives: ["Botaniques africains", "Vitamines protectrices"],
+    };
   };
 
   function askGlossary(term: string) {
@@ -802,30 +1184,6 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
         </RevealItem>
       )}
 
-      {/* Descente de Peau — voyage 3D dans les couches, éclairé par
- les indicateurs réels. Plein cadre opt-in, se ferme à la remontée. */}
-      <RevealItem className="mt-4">
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setDescentOpen(true)}
-          className="relative w-full overflow-hidden rounded-[24px] bg-gradient-to-br from-[#241A10] to-[#1A1410] text-left ring-1 ring-[#C8951E]/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          aria-label="Ouvrir la Descente de Peau — traverser les trois couches de ma peau en 3D"
-        >
-          <div aria-hidden="true" className="h-1.5 w-full" style={{ backgroundImage: "linear-gradient(90deg, #8D5524 0 33%, #C99B6E 33% 66%, #F0DFC2 66% 100%)" }} />
-          <div className="flex items-center gap-3 p-4">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#C8951E]/15 text-[#E3B04B]">
-              <Layers size={24} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-heading font-bold text-sm text-[#F8F1E4]">Voyage dans ma peau</p>
-              <p className="mt-0.5 text-[11px] leading-snug text-[#F8F1E4]/65">
-                Descends à travers l’épiderme, le derme et l’hypoderme — éclairés par tes {r.indicateurs.length} indicateurs.
-              </p>
-            </div>
-            <ChevronRight size={18} className="shrink-0 text-[#E3B04B]" aria-hidden="true" />
-          </div>
-        </motion.button>
-      </RevealItem>
 
       {/* Alerte orientation dermato */}
       {r.orientation_dermato && (
@@ -851,23 +1209,6 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
         </RevealItem>
       )}
 
-      {/* Jumeau de Peau — Skin Twin 3D + Fil du Temps (projection S+12) */}
-      <RevealItem>
-        <SkinTwinCard
-          projection
-          entries={[
-            {
-              id: diag.id,
-              zone: r.zone,
-              score: r.score_global,
-              fitz: r.fitzpatrick_estime,
-              marks: r.zones_marquages,
-              date: diag.createdAt,
-              indicators: r.indicateurs,
-            },
-          ]}
-        />
-      </RevealItem>
 
       {/* Tabs spectraux */}
       <RevealItem className="mt-5">
@@ -883,7 +1224,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
           </Tabs>
           <p className="text-[11px] text-muted-foreground mt-2 mb-2">{viewDef.label}{view !== "standard" ? " — filtre spectral + cartographie chaleur" : ""}</p>
           <div className="relative k-card rounded-[24px] overflow-hidden">
-            <img src={diag.imageData} alt={`Vue ${viewDef.label} de la zone analysée`} className={`aspect-square w-full object-cover ${view !== "standard" ? viewDef.filter : ""}`} />
+            <img src={currentImg} alt={`Vue ${viewDef.label} de la zone analysée`} className={`aspect-square w-full object-cover ${view !== "standard" ? viewDef.filter : ""}`} />
             {heatmapCls && <div aria-hidden="true" className={`absolute inset-0 ${heatmapCls} opacity-60 mix-blend-screen pointer-events-none`} />}
             {/* cadres zones détectées */}
             {r.zones_marquages.map((z, i) => (
@@ -900,6 +1241,27 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
                 </span>
               ))}
             </div>
+
+            {/* Sélecteur d'angle si diagnostic multi-photos */}
+            {allImages.length > 1 && (
+              <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-[#1A1410]/85 backdrop-blur-md p-1.5 rounded-2xl border border-white/10">
+                <span className="text-[10px] font-bold text-[#FFF9EC]/80 px-1.5">360° :</span>
+                {allImages.map((src, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setSelectedImgIdx(i)}
+                    className={cn(
+                      "relative size-8 rounded-xl overflow-hidden border transition-all",
+                      selectedImgIdx === i ? "border-gold ring-2 ring-gold/50 scale-105" : "border-white/20 opacity-60 hover:opacity-100"
+                    )}
+                    aria-label={`Afficher angle ${i + 1}`}
+                  >
+                    <img src={src} alt={`Angle ${i + 1}`} className="size-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </RevealItem>
@@ -994,45 +1356,69 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
           )}
 
           {r.recommandations.produits.length > 0 && (
-            <div className="mt-4 space-y-2">
-              <p className="text-[11px] font-semibold text-muted-foreground">Produits recommandés</p>
-              {productsError && (
-                <div role="alert" className="rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 flex items-center gap-2.5">
-                  <TriangleAlert size={14} className="text-terre shrink-0" aria-hidden="true" />
-                  <p className="flex-1 min-w-0 text-[11px] text-muted-foreground leading-snug">Boutique indisponible — réessaie</p>
-                  <button onClick={onRetryProducts} className="k-btn-gold h-11 px-3.5 rounded-xl text-primary-foreground text-xs font-bold shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
-                    Réessayer
-                  </button>
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-primary" />
+                    Soins &amp; Actifs recommandés pour votre peau
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Typologies de soins adaptées à votre profil cutané · Sans marque commerciale
+                  </p>
                 </div>
-              )}
-              {r.recommandations.produits.map((rec, i) => {
-                const p = matchProduct(rec, products);
-                return (
-                  <div key={i} className="k-card flex items-center gap-3 rounded-[18px] p-2.5">
-                    {p ? (
-                      <img src={p.image} alt={p.name} loading="lazy" className="h-12 w-12 rounded-xl object-cover shrink-0" />
-                    ) : (
-                      <span className="k-chip h-12 w-12 rounded-[14px] text-primary grid place-items-center shrink-0"><Sparkles size={18} /></span>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold leading-tight">{rec}</p>
-                      {p && <p className="font-mono text-[11px] text-primary font-bold tabular-nums mt-0.5">{xof(p.price)}</p>}
+              </div>
+
+              {/* Note d'indépendance dermo-conseil */}
+              <div className="rounded-2xl bg-primary/5 border border-primary/20 p-3 flex items-start gap-2.5 text-[11px]">
+                <ShieldCheck size={16} className="text-primary shrink-0 mt-0.5" />
+                <p className="text-muted-foreground leading-snug">
+                  <strong className="text-foreground font-semibold">Indépendance Kènè :</strong> L&apos;application Kènè ne vend aucun produit cosmétique. Ces typologies de soins et principes actifs sont des recommandations dermo-cosmétiques objectives, disponibles en pharmacie, parapharmacie ou auprès de vos instituts partenaires habituels.
+                </p>
+              </div>
+
+              {/* Cartes de soins recommandés (sans prix, sans panier) */}
+              <div className="space-y-2">
+                {r.recommandations.produits.map((rec, i) => {
+                  const meta = getCareMeta(rec);
+                  return (
+                    <div
+                      key={i}
+                      className="k-card rounded-[20px] p-3.5 flex items-start gap-3 border border-border/80 shadow-xs"
+                    >
+                      <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-gold/20 via-primary/15 to-transparent text-primary shadow-xs">
+                        {meta.icon}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-heading font-bold text-xs text-foreground leading-snug">
+                            {rec}
+                          </p>
+                          <span className="shrink-0 text-[9.5px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                            {meta.moment}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                          {meta.purpose}
+                        </p>
+                        {meta.actives && (
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] font-semibold text-foreground/70">Actifs clés :</span>
+                            {meta.actives.map((act, j) => (
+                              <span
+                                key={j}
+                                className="text-[9.5px] font-medium bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-md"
+                              >
+                                {act}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {p ? (
-                      <button
-                        onClick={() => { addToCart({ productId: p.id, name: p.name, price: p.price, qty: 1, image: p.image }); toast.success(`${p.name} ajouté au panier`); }}
-                        className="k-btn-gold h-10 px-3 rounded-full text-primary-foreground text-[11px] font-bold flex items-center gap-1 shrink-0 focus-visible:outline-2 focus-visible:outline-primary"
-                      >
-                        <Plus size={13} /> Panier
-                      </button>
-                    ) : (
-                      <button onClick={() => setClientTab("boutique")} className="k-chip h-10 px-3 rounded-full border-primary/40 text-primary text-[11px] font-bold shrink-0 focus-visible:outline-2 focus-visible:outline-primary">
-                        Boutique
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -1108,13 +1494,44 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
             <History size={16} /> Historique
           </button>
         </div>
-        {/* Compte-rendu PDF — imprimable / partageable */}
+        {/* Recommandation Dermo-Botanique & Pass Cabine avec QR vectoriel */}
+        <button
+          onClick={() => window.open(`/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`, "_blank")}
+          className="k-btn-gold mt-3 h-12 w-full rounded-2xl text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-[0.99] transition-all focus-visible:outline-2 focus-visible:outline-primary"
+          aria-label="Télécharger ma Recommandation Botanique & Pass Cabine avec QR Code en PDF"
+        >
+          <Sparkles size={16} /> Recommandation Botanique &amp; Pass Cabine (PDF)
+        </button>
+        <button
+          onClick={() => {
+            const origin = typeof window !== "undefined" ? window.location.origin : "https://kene.app";
+            const pdfUrl = `${origin}/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`;
+            const botanicals = diag.result.recommandations?.botaniques_conseillees?.slice(0, 3).join(", ") || "Actifs apaisants";
+            const zoneLabel = BODY_ZONES.find((z) => z.id === diag.result.zone)?.label || diag.result.zone;
+            const msg = `Bonjour ! 🌿\n\nVoici ma *Recommandation Dermo-Botanique & Pass Cabine Kènè* :\n\n📊 *Score Cutané* : ${diag.result.score_global}/100\n📍 *Zone analysée* : ${zoneLabel}\n🌱 *Actifs botaniques recommandés* : ${botanicals}\n\n📄 *Télécharger ma Recommandation & Pass Cabine (PDF)* :\n${pdfUrl}\n\nÀ présenter en institut partenaire pour adapter mon protocole de soin en cabine. ✨\n— Kènè, la beauté mélanoderme`;
+            openWhatsApp(user?.phone || "", msg);
+          }}
+          className="mt-2.5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-bold shadow-md transition active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-[#25D366]"
+          aria-label="Recevoir ma Recommandation Botanique & Pass Cabine sur WhatsApp"
+        >
+          <MessageCircle size={16} /> Recevoir mon Protocole sur WhatsApp
+        </button>
+
+        {/* Partager ma Routine & Carte Beauté sur WhatsApp / Story */}
+        <button
+          onClick={() => setBeautyCardOpen(true)}
+          className="k-card k-card-hover mt-2.5 h-12 w-full rounded-2xl border-2 border-[#C8951E]/50 bg-gradient-to-r from-[#C8951E]/15 via-gold/10 to-transparent text-foreground text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.99] transition-all focus-visible:outline-2 focus-visible:outline-primary"
+          aria-label="Partager ma Routine et Carte Beauté sur WhatsApp et Story"
+        >
+          <Share2 size={16} className="text-[#C8951E]" /> Partager ma Routine & Carte Beauté ✨
+        </button>
+
         <button
           onClick={() => window.open(`/api/diagnoses/report?userId=${user.id}&id=${diag.id}`, "_blank")}
-          className="k-chip mt-3 h-12 w-full rounded-2xl text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
+          className="k-chip mt-2 h-11 w-full rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
           aria-label="Télécharger ou imprimer mon compte-rendu de diagnostic en PDF"
         >
-          <FileDown size={16} /> Mon compte-rendu PDF
+          <FileDown size={15} /> Compte-rendu d&apos;analyse détaillé
         </button>
       </RevealItem>
       </Reveal>
@@ -1141,6 +1558,18 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
 
       {/* Glossaire 1 tap — «? » sur un indicateur ouvre sa définition simple */}
       <GlossaryDialog entry={glossary} onClose={() => setGlossary(null)} />
+
+      {/* Modal Carte Beauté Story / Statut WhatsApp */}
+      {beautyCardOpen && (
+        <BeautyCardModal
+          score={r.score_global}
+          zoneLabel={BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone}
+          fitzpatrick={r.fitzpatrick_estime}
+          botanicals={r.recommandations.botaniques_conseillees}
+          userName={user.name}
+          onClose={() => setBeautyCardOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1376,20 +1805,22 @@ function HistoryView({
               {compareSel.length === 2 && sameZoneSel && ra && rb && a && b ? (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-5 overflow-hidden">
                   <div className="k-card rounded-[24px] p-4">
-                    <p className="font-heading font-bold text-sm mb-3 flex items-center gap-2">
-                      <GitCompareArrows size={15} className="text-primary" /> Avant / Après — {BODY_ZONES.find((z) => z.id === a.zone)?.label}
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[{ d: a, r: ra, tag: "Avant" }, { d: b, r: rb, tag: "Après" }].map(({ d, r, tag }) => (
-                        <div key={tag}>
-                          <img src={diagImgSrc(d.imageData)} alt={`${tag} — ${d.zone}`} loading="lazy" className="aspect-square w-full rounded-2xl object-cover border border-border" />
-                          <div className="flex items-center justify-between mt-1.5">
-                            <span className="text-[10px] uppercase tracking-wide font-bold text-muted-foreground">{tag} · {formatDate(d.createdAt, { day: "numeric", month: "short" })}</span>
-                            <ScoreChip score={r.score_global} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <BeforeAfterSlider
+                      before={{
+                        imageUrl: diagImgSrc(a.imageData),
+                        label: `Avant (${formatDate(a.createdAt, { day: "numeric", month: "short" })})`,
+                        date: formatDate(a.createdAt),
+                        score: ra.score_global,
+                      }}
+                      after={{
+                        imageUrl: diagImgSrc(b.imageData),
+                        label: `Après (${formatDate(b.createdAt, { day: "numeric", month: "short" })})`,
+                        date: formatDate(b.createdAt),
+                        score: rb.score_global,
+                      }}
+                      zoneLabel={BODY_ZONES.find((z) => z.id === a.zone)?.label}
+                      showSpectralUvToggle={true}
+                    />
                     <div className="mt-3 rounded-xl bg-muted/60 p-3 flex items-center justify-between">
                       <span className="text-xs font-semibold">Évolution du score</span>
                       <span className="font-mono text-lg font-black tabular-nums" style={{ color: rb.score_global >= ra.score_global ? "#346834" : "#8B1A3B" }}>

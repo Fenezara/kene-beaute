@@ -14,6 +14,9 @@ import type { Appointment, Payment } from "@prisma/client";
 import { guardUserClaim } from "@/lib/kene/session";
 import { ensureClientProfile } from "@/lib/kene/client-link";
 import { rateLimit, rlKey, rateLimitResponse, APPOINTMENTS_CREATE } from "@/lib/kene/rate-limit";
+import { createWaveCheckoutSession } from "@/lib/payments/wave";
+import { createWiniPayerPaymentSession } from "@/lib/payments/winipayer";
+import { createSaspayCheckoutSession } from "@/lib/payments/saspay";
 
 const CreateBody = z.object({
   tenantId: z.string().min(1),
@@ -24,13 +27,14 @@ const CreateBody = z.object({
   clientPhone: z.string().trim().min(5),
   userId: z.string().optional(),
   depositAmount: z.number().int().min(0).optional(),
-  paymentMethod: z.enum(["wave", "orange", "wallet"]).optional(),
+  paymentMethod: z.enum(["wave", "orange", "mtn", "moov", "saspay", "winipayer", "wallet"]).optional(),
 });
 
 const APPT_INCLUDE = {
-  tenant: { select: { name: true, city: true, country: true } },
+  tenant: { select: { id: true, name: true, city: true, country: true } },
   service: { select: { name: true, durationMin: true, price: true } },
   resource: { select: { name: true } },
+  review: { select: { id: true, rating: true, comment: true, createdAt: true } },
 } as const;
 
 export async function GET(req: NextRequest) {
@@ -102,22 +106,27 @@ export async function POST(req: NextRequest) {
       if (w.balance < depositAmount) return jsonError("Solde wallet insuffisant", 400);
     }
 
-    // Pas de chevauchement pour cette praticienne (hors annulés / no-show)
-    const sameDay = await db.appointment.findMany({
-      where: {
-        resourceId,
-        status: { notIn: ["cancelled", "no_show"] },
-        startAt: { gte: new Date(start.getTime() - 24 * 3_600_000), lte: dayEnd(start) },
-      },
-      select: { startAt: true, durationMin: true },
-    });
-    if (sameDay.some((a) => overlaps(start, service.durationMin, a.startAt, a.durationMin))) {
-      return jsonError("Ce créneau est déjà réservé pour cette praticienne", 409);
-    }
+    // ─── Booking atomique: vérification anti-overbooking + création RDV + paiement dans la même transaction ───
+    let isOverlapConflict = false;
+    let created: { appointment: Appointment; payment: Payment | null; confirmToken: string | null };
 
-    // ─── Booking atomique: RDV + paiement dans la même transaction ───
-    const created: { appointment: Appointment; payment: Payment | null; confirmToken: string | null } =
-      await db.$transaction(async (tx) => {
+    try {
+      created = await db.$transaction(async (tx) => {
+        // 1. Vérification atomique anti-chevauchement (anti-TOCTOU sous concurrence)
+        const sameDay = await tx.appointment.findMany({
+          where: {
+            resourceId,
+            status: { notIn: ["cancelled", "no_show"] },
+            startAt: { gte: new Date(start.getTime() - 24 * 3_600_000), lte: dayEnd(start) },
+          },
+          select: { startAt: true, durationMin: true },
+        });
+
+        if (sameDay.some((a) => overlaps(start, service.durationMin, a.startAt, a.durationMin))) {
+          isOverlapConflict = true;
+          throw new Error("CONFLICT_OVERLAP");
+        }
+
         let appointment = await tx.appointment.create({
           data: {
             tenantId,
@@ -209,6 +218,12 @@ export async function POST(req: NextRequest) {
 
         return { appointment, payment, confirmToken };
       });
+    } catch (err: any) {
+      if (isOverlapConflict || err?.message === "CONFLICT_OVERLAP") {
+        return jsonError("Ce créneau est déjà réservé pour cette praticienne", 409);
+      }
+      throw err;
+    }
 
     const appointment = created.appointment;
     const payment = created.payment;
@@ -246,7 +261,69 @@ export async function POST(req: NextRequest) {
         ? paymentWithConfirmToken(payment, created.confirmToken)
         : serializePayment(payment)
       : undefined;
-    return NextResponse.json({ appointment, payment: paymentOut }, { status: 201 });
+
+    let paymentUrl: string | null = null;
+    let saspayLaunchUrl: string | null = null;
+    let winipayerLaunchUrl: string | null = null;
+    let waveLaunchUrl: string | null = null;
+
+    if (payment && depositAmount > 0 && appointment.status !== "confirmed") {
+      const hasSaspay = Boolean(process.env.SASPAY_API_KEY?.trim());
+      const hasWiniPayer = Boolean(process.env.WINIPAYER_MERCHANT_UUID && process.env.WINIPAYER_MERCHANT_TOKEN);
+
+      // 1. Passerelle Live SasPay (multi-opérateurs Wave, Orange, MTN, Moov, Carte)
+      if (hasSaspay && (paymentMethod === "saspay" || paymentMethod === "wave" || paymentMethod === "orange" || paymentMethod === "mtn" || paymentMethod === "moov" || paymentMethod === "winipayer" || !paymentMethod)) {
+        const sasSession = await createSaspayCheckoutSession({
+          paymentId: payment.id,
+          amount: depositAmount,
+          description: `Acompte RDV Kènè - ${service.name} chez ${tenant.name}`,
+          customerName: clientName,
+          customerPhone: clientPhone,
+        });
+        if (sasSession.checkoutUrl) {
+          paymentUrl = sasSession.checkoutUrl;
+          saspayLaunchUrl = sasSession.checkoutUrl;
+          try {
+            await db.payment.update({
+              where: { id: payment.id },
+              data: { metaJson: JSON.stringify({ appointmentId: appointment.id, saspayId: sasSession.id }) },
+            });
+          } catch {}
+        }
+      }
+
+      // 2. Repli WiniPayer (si explicitement demandé ou SasPay non configuré)
+      if (!paymentUrl && (hasWiniPayer && (paymentMethod === "winipayer" || paymentMethod === "wave" || paymentMethod === "orange" || paymentMethod === "mtn" || paymentMethod === "moov"))) {
+        const winiSession = await createWiniPayerPaymentSession({
+          paymentId: payment.id,
+          amount: depositAmount,
+          description: `Acompte RDV Kènè - ${service.name} chez ${tenant.name}`,
+          clientName,
+          clientPhone,
+        });
+        paymentUrl = winiSession.paymentUrl;
+        winipayerLaunchUrl = winiSession.paymentUrl;
+      }
+
+      if (!paymentUrl && paymentMethod === "wave") {
+        const waveSession = await createWaveCheckoutSession({
+          paymentId: payment.id,
+          amount: depositAmount,
+          description: `Acompte RDV Kènè - ${service.name} chez ${tenant.name}`,
+        });
+        waveLaunchUrl = waveSession.waveLaunchUrl ?? paymentUrl;
+        if (!paymentUrl) paymentUrl = waveSession.waveLaunchUrl;
+      }
+    }
+
+    return NextResponse.json({
+      appointment,
+      payment: paymentOut,
+      paymentUrl,
+      saspayLaunchUrl,
+      winipayerLaunchUrl,
+      waveLaunchUrl,
+    }, { status: 201 });
   } catch (err) {
     return serverError("appointments:post", err);
   }

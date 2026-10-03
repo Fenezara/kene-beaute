@@ -5,7 +5,7 @@
 // Les sections « réglages » vivaient dans ProfileScreen (langue, consentement,
 // RGPD, 2FA, PWA, espace entreprise, déconnexion): elles ont été DÉPLACÉES ici
 // avec un code métier identique (imports adaptés uniquement). Le Profil garde
-// l'identité, le profil peau, le wallet et le parrainage.
+// l'identité, le profil peau et le parrainage.
 // Hydratation: la permission navigateur et l'état « monté » du thème sont lus
 // via useSyncExternalStore (pattern use-install.ts) — aucune API web n'est
 // touchée pendant le rendu, zéro setState-in-effect, zéro mismatch.
@@ -14,11 +14,16 @@ import { useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import {
   ArrowLeft, Bell, Building2, Check, ChevronRight, Crown, Download, Hand, Languages, Loader2, LogOut, MapPin,
-  Moon, Pencil, Phone, Scale, ShieldCheck, Smartphone, SunMedium,
+  Moon, Pencil, Phone, Scale, ShieldCheck, Smartphone, SunMedium, Trash2, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
+import { apiPost, ApiError } from "@/lib/kene/api";
+import { forgetAccount } from "@/lib/kene/last-account";
+import { performLogout } from "@/lib/kene/logout";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -92,6 +97,32 @@ export function SettingsScreen() {
   const [exportBusy, setExportBusy] = useState(false);
   // Confirmation « Créer un compte entreprise » (isolation des comptes)
   const [proSignup, setProSignup] = useState(false);
+  // Suppression définitive du compte (conforme Apple 5.1.1(v) et RGPD/ARTCI)
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePin, setDeletePin] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      const res = await apiPost<{ ok: boolean; message: string }>("/api/auth/delete-account", {
+        pin: deletePin || undefined,
+      });
+      forgetAccount();
+      clearCart();
+      setUser(null);
+      setDeleteOpen(false);
+      haptic(HAPTIC.success);
+      toast.success("Compte supprimé", {
+        description: res.message || "Tes données personnelles ont été purgées. À bientôt sur Kènè.",
+      });
+    } catch (e) {
+      haptic(HAPTIC.warning);
+      toast.error(e instanceof ApiError ? e.message : "Erreur lors de la suppression — réessaie");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   // Installation PWA — même source d'événement que la bannière d'accueil.
   const { canInstall, promptInstall, isStandalone, isIOS } = useInstallPrompt();
@@ -197,8 +228,8 @@ export function SettingsScreen() {
     <>
       <Reveal className="pt-4 pb-2 flex flex-col gap-6" stagger={0.07}>
         <RevealItem className="self-start">
-          <button onClick={() => setClientTab("accueil")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label={t("profile.back.aria")}>
-            <ArrowLeft size={15} /> {t("tab.home")}
+          <button onClick={() => setClientTab("profil")} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label="Retour au profil">
+            <ArrowLeft size={15} /> Retour
           </button>
         </RevealItem>
 
@@ -411,7 +442,7 @@ export function SettingsScreen() {
               <IconBadge icon={<Download size={19} />} tone="terre" />
               <div className="flex-1 min-w-0">
                 <p id="rgpd-t" className="text-xs font-bold flex items-center gap-1.5">Mes données <span className="rounded-full bg-muted px-1.5 py-px text-[9px] font-semibold text-muted-foreground">RGPD</span></p>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Ton dossier complet en un fichier : diagnostics, rendez-vous, commandes, wallet, parrainage, notifications.</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Ton dossier complet en un fichier : diagnostics, rendez-vous, commandes, parrainage, notifications.</p>
               </div>
             </div>
             <button
@@ -457,16 +488,16 @@ export function SettingsScreen() {
         <RevealItem>
           <section aria-labelledby="prosignup-t" className="rounded-[24px] border-2 border-dashed border-primary/40 bg-primary/5 p-4">
             <p id="prosignup-t" className="flex items-center gap-2 font-heading font-bold text-sm text-primary">
-              <Building2 size={17} aria-hidden="true" /> Vous êtes gérante d&apos;institut ?
+              <Building2 size={17} aria-hidden="true" /> Vous dirigez un institut ou un spa ?
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              L&apos;espace entreprise Kènè vit sur un compte dédié, séparé de ton compte cliente — agenda, caisse, CRM, paie, comptabilité.
+              Rejoignez les établissements partenaires Kènè pour accueillir vos clientes et proposer vos soins cabine.
             </p>
             <button
               onClick={() => setProSignup(true)}
               className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              Créer un compte entreprise
+              Créer mon compte entreprise
             </button>
           </section>
         </RevealItem>
@@ -507,29 +538,50 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
+
         {/* Déconnexion — le panier est vidé AVANT de perdre la session: la
  prochaine utilisatrice du téléphone n'hérite de rien. La session
  SERVEUR (cookie httpOnly signé,) est fermée dans la foulée. */}
         <RevealItem>
           <button
-            onClick={() => {
-              void fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-              clearCart();
-              setUser(null);
-              toast.info("À bientôt sur Kènè");
-            }}
-            className="h-12 rounded-2xl border border-destructive/40 bg-destructive/10 text-destructive text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive"
+            onClick={() => void performLogout({ redirectUrl: "/", message: "À bientôt sur Kènè" })}
+            className="h-12 rounded-2xl border border-destructive/40 bg-destructive/10 text-destructive text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive w-full"
           >
             <LogOut size={16} /> Déconnexion
           </button>
+        </RevealItem>
+
+        {/* Zone Confidentialité / Droit à l'oubli — Suppression de compte (conforme Apple 5.1.1(v) et ARTCI) */}
+        <RevealItem>
+          <section aria-labelledby="delete-account-t" className="rounded-[24px] border border-destructive/25 bg-destructive/5 p-4 space-y-2.5">
+            <div className="flex items-center gap-2 text-destructive font-bold text-xs">
+              <Trash2 size={16} />
+              <span id="delete-account-t">Gestion des données & Droit à l&apos;oubli</span>
+            </div>
+            <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+              Conformément aux normes de protection de la vie privée (ARTCI / RGPD), tu peux supprimer ton compte et purger définitivement tes photos et diagnostics de peau.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(true)}
+              className="w-full h-11 rounded-xl border border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground text-xs font-bold transition-all flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-destructive"
+            >
+              <Trash2 size={14} />
+              Supprimer définitivement mon compte
+            </button>
+          </section>
         </RevealItem>
 
         {/* À propos */}
         <RevealItem>
           <section aria-labelledby="about-t" className="k-card rounded-[24px] p-5 text-center">
             <p id="about-t" className="font-heading font-bold text-sm text-primary">Kènè — La beauté mélanoderme, enfin comprise.</p>
-            <p className="mt-1.5 font-mono text-[11px] text-muted-foreground">Kènè v1.0</p>
-            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground/80">Paiements en mode essai · estimations IA non médicales.</p>
+            <p className="mt-1.5 font-semibold text-xs text-foreground">Développé et édité par Dermo TIC</p>
+            <p className="text-[11px] text-muted-foreground">Entreprise de développement technologique &amp; d&apos;applications</p>
+            <p className="mt-1 font-mono text-[10.5px] text-muted-foreground">Plateforme SaaS &amp; Marketplace Kènè v1.0</p>
+            <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground/80">
+              Les produits et soins sont vendus et exécutés exclusivement par les instituts et cabinets partenaires certifiés.
+            </p>
           </section>
         </RevealItem>
       </Reveal>
@@ -547,6 +599,58 @@ export function SettingsScreen() {
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={startProSignup}>Continuer</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialogue de suppression définitive de compte (Apple App Store / Google Play / ARTCI) */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading font-bold text-destructive flex items-center gap-2">
+              <AlertTriangle className="size-5 shrink-0" />
+              Supprimer définitivement ton compte ?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs leading-relaxed space-y-2">
+              <span className="block">
+                Cette action est <strong>immédiate et irréversible</strong>. Tes photos de diagnostic cutané, tes historiques d&apos;analyse IA et tes données personnelles seront définitivement purgés.
+              </span>
+              {user?.hasPin && (
+                <span className="block text-foreground font-semibold pt-1">
+                  Saisis ton code secret PIN pour confirmer la suppression :
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {user?.hasPin && (
+            <div className="py-2">
+              <Input
+                type="password"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={deletePin}
+                onChange={(e) => setDeletePin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="Code secret (4 à 6 chiffres)"
+                className="h-11 text-center font-mono tracking-widest text-lg"
+              />
+            </div>
+          )}
+
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel disabled={deleting} onClick={() => setDeletePin("")}>
+              Annuler
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={deleting || (Boolean(user?.hasPin) && deletePin.length < 4)}
+              onClick={handleDeleteAccount}
+              className="h-11 font-bold gap-2"
+            >
+              {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              Confirmer la suppression
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

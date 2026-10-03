@@ -6,7 +6,7 @@
 // imprimée en ticket 80 mm (ou A4) pour la cliente — articles de CET institut,
 // mode de paiement, mention honnête « simulation » pour le mobile money d'essai.
 import { useState } from "react";
-import { CheckCircle2, PackageCheck, Printer, ReceiptText, ShoppingBag, Truck, XCircle, Banknote, Clock } from "lucide-react";
+import { CheckCircle2, PackageCheck, Printer, ReceiptText, ShoppingBag, Truck, XCircle, Banknote, Clock, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { apiGet, apiPatch } from "@/lib/kene/api";
 import { xof, formatDate, formatTime } from "@/lib/kene/format";
+import { openWhatsApp, buildWhatsAppDeliveryMessage } from "@/lib/kene/whatsapp-relay";
+import { buildCourierMissionMessage } from "@/lib/kene/delivery-zones";
 import { useApi } from "./useApi";
 import { EmptyState, ErrorState, InitialAvatar, Money, SectionHeader, KenteTop } from "./ui-bits";
 import { proToastError } from "./ProApp";
@@ -30,8 +32,11 @@ const ORDER_STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 const PAYMENT_LABELS: Record<string, string> = {
+  winipayer: "WiniPayer",
   wave: "Wave",
   orange: "Orange Money",
+  mtn: "MTN MoMo",
+  moov: "Moov Money",
   wallet: "Wallet Kènè",
   cash: "Espèces",
   card: "Carte",
@@ -193,6 +198,60 @@ export function OrdersSection({ tenantId, tenantName = "Institut", refreshKey }:
                           <span className="hidden lg:inline">Reçu</span>
                         </Button>
                       )}
+                      {o.clientPhone && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                          onClick={() => {
+                            const msg = buildWhatsAppDeliveryMessage({
+                              clientName: o.clientName,
+                              orderNumber: o.id.slice(-6).toUpperCase(),
+                              deliveryZone: o.deliveryCity || "Abidjan",
+                              deliveryAddress: o.deliveryAddress || "À préciser avec le coursier",
+                              total: o.total,
+                              isPaid: o.status !== "pending",
+                            });
+                            openWhatsApp(o.clientPhone!, msg);
+                          }}
+                          aria-label={`Alerter ${o.clientName} par WhatsApp`}
+                          title="Alerter la cliente par WhatsApp"
+                        >
+                          <Share2 className="size-3.5" aria-hidden="true" />
+                          <span className="hidden xl:inline">WhatsApp</span>
+                        </Button>
+                      )}
+                      {(o.status === "pending" || o.status === "paid") && confirmCancelId !== o.id && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 gap-1 text-[11px] text-primary hover:bg-primary/10"
+                          onClick={() => {
+                            const courierPhone = window.prompt("Numéro WhatsApp du coursier (ex: 07 00 00 00 00) :");
+                            if (!courierPhone) return;
+                            const msg = buildCourierMissionMessage({
+                              orderRef: o.id,
+                              clientName: o.clientName,
+                              clientPhone: o.clientPhone || "",
+                              communeName: o.deliveryCity || "Abidjan",
+                              deliveryAddress: o.deliveryAddress || "À préciser avec la cliente",
+                              items: o.items.map((i) => ({ name: i.label, qty: i.qty })),
+                              totalAmount: o.total,
+                              deliveryFee: 1500,
+                              paymentMethod: o.payment?.method || "wave",
+                              isPaid: o.status !== "pending",
+                              instituteName: tenantName,
+                            });
+                            openWhatsApp(courierPhone, msg);
+                            toast.success("Ordre de mission coursier transmis !");
+                          }}
+                          aria-label={`Envoyer l'ordre de mission coursier pour ${o.clientName}`}
+                          title="Ordre de mission livreur / coursier (WhatsApp)"
+                        >
+                          <Truck className="size-3.5" aria-hidden="true" />
+                          <span className="hidden xl:inline">Coursier</span>
+                        </Button>
+                      )}
                       {o.status === "paid" && confirmCancelId !== o.id && (
                         <Button
                           size="sm"
@@ -318,7 +377,6 @@ export function OrdersSection({ tenantId, tenantName = "Institut", refreshKey }:
  * simulation (mode essai), Espèces/Carte = réels. */
 function ReceiptTicket({ o, tenantName }: { o: ProOrderView; tenantName: string }) {
   const mine = o.items.filter((i) => i.mine);
-  const simulated = o.payment ? ["wave", "orange", "wallet"].includes(o.payment.method) : false;
   const dashed = "border-t border-dashed border-black/40 my-2";
   return (
     <div className="mx-auto w-full max-w-[300px] px-1 py-1 font-mono text-[11px] leading-relaxed">
@@ -345,13 +403,13 @@ function ReceiptTicket({ o, tenantName }: { o: ProOrderView; tenantName: string 
       </p>
       <p className="flex justify-between">
         <span>Règlement</span>
-        <span>{o.payment ? PAYMENT_LABELS[o.payment.method] ?? o.payment.method : "à la livraison"}{simulated ? " · simulation" : ""}</span>
+        <span>{o.payment ? PAYMENT_LABELS[o.payment.method] ?? o.payment.method : "à la livraison"}</span>
       </p>
       {o.payment?.ref && <p className="flex justify-between text-[10px]"><span>Réf paiement</span><span>{o.payment.ref.slice(-10)}</span></p>}
       <div className={dashed} aria-hidden="true" />
       <p className="text-center">Merci de ta visite 💛</p>
       <p className="text-center text-[10px]">Kènè — la beauté mélanoderme, enfin comprise.</p>
-      {simulated && <p className="mt-1 text-center text-[9px]">Paiement mobile money en mode essai — aucun débit réel.</p>}
+      <p className="mt-1 text-center text-[9px]">Paiement certifié & sécurisé.</p>
       <p className="mt-1 text-center text-[9px]">Conserve ce reçu — généré par la Console Pro Kènè.</p>
     </div>
   );

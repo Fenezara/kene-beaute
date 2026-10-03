@@ -9,26 +9,34 @@
 // confirmation d'identité fraîche (AdminGate) et est audité. Les routes
 // de gestion exigent une session admin stricte.
 import { useState } from "react";
-import { Building2, CreditCard, LayoutDashboard, ShieldCheck, Users } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, CreditCard, ExternalLink, KeyRound, LayoutDashboard, LogOut, ShieldCheck, ShoppingBag, Users } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
 import { cn } from "@/lib/utils";
 import { useApi } from "@/components/kene/pro/useApi";
 import { ErrorState } from "@/components/kene/pro/ui-bits";
+import { Button } from "@/components/ui/button";
+import { useKene } from "@/store/kene";
+import { performLogout } from "@/lib/kene/logout";
 import type { AdminSecurity as AdminSecurityData, AdminStats } from "@/components/kene/pro/types";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
+import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { KeneEmblem } from "@/components/kene/icons";
 import { AdminGateProvider } from "./admin-gate";
 import { AdminOverview } from "./AdminOverview";
+import { AdminOrders } from "./AdminOrders";
+import { AdminAppointments } from "./AdminAppointments";
 import { AdminPasskeyCard } from "./AdminPasskeyCard";
 import { AdminSecurity } from "./AdminSecurity";
 import { AdminSubscriptions } from "./AdminSubscriptions";
 import { AdminTenants } from "./AdminTenants";
 import { AdminUsers } from "./AdminUsers";
 
-type AdminTab = "overview" | "tenants" | "users" | "subs" | "security";
+type AdminTab = "overview" | "orders" | "appointments" | "tenants" | "users" | "subs" | "security";
 
 const TABS: { key: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { key: "overview", label: "Vue d'ensemble", icon: LayoutDashboard },
+  { key: "orders", label: "Commandes", icon: ShoppingBag },
+  { key: "appointments", label: "Rendez-Vous", icon: Calendar },
   { key: "tenants", label: "Instituts", icon: Building2 },
   { key: "users", label: "Utilisatrices", icon: Users },
   { key: "subs", label: "Abonnements", icon: CreditCard },
@@ -37,6 +45,7 @@ const TABS: { key: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
 
 export function AdminApp() {
   const [tab, setTab] = useState<AdminTab>("overview");
+  const setUser = useKene((s) => s.setUser);
 
   // Vue d'ensemble + Sécurité gardent LEURS hooks (la navigation entre
   // onglets ne re-télécharge jamais ce qui est déjà en mémoire — l'état
@@ -45,10 +54,48 @@ export function AdminApp() {
   const sec = useApi(() => apiGet<AdminSecurityData>("/api/admin/security"), []);
 
   if (stats.error && !stats.data) {
+    const isAuthError =
+      stats.error.toLowerCase().includes("session") ||
+      stats.error.toLowerCase().includes("dédié") ||
+      stats.error.toLowerCase().includes("réservé") ||
+      stats.error.toLowerCase().includes("non autorisé") ||
+      stats.error.toLowerCase().includes("401");
+
     return (
       <div className="mx-auto max-w-5xl px-4 py-8 space-y-4">
         <ConsoleHeader />
-        <ErrorState message={`Console indisponible : ${stats.error}`} onRetry={stats.refetch} />
+        {isAuthError ? (
+          <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-5 shadow-sm max-w-md mx-auto">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <KeyRound className="size-7" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-heading text-xl font-bold">Session administrateur expirée</h3>
+              <p className="text-sm text-muted-foreground">
+                {stats.error || "Ta session administrateur Kènè a expiré ou nécessite une nouvelle authentification."}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2.5 pt-2">
+              <Button
+                variant="default"
+                size="lg"
+                onClick={() => performLogout({ redirectUrl: "/console" })}
+                className="w-full gap-2 font-medium"
+              >
+                <KeyRound className="size-4" />
+                Se reconnecter à la Console
+              </Button>
+              <Button variant="outline" size="lg" asChild className="w-full">
+                <a href="/">
+                  <ArrowLeft className="size-4 mr-2" />
+                  Retourner à l'application Kènè
+                </a>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <ErrorState message={`Console indisponible : ${stats.error}`} onRetry={stats.refetch} />
+        )}
       </div>
     );
   }
@@ -95,6 +142,8 @@ export function AdminApp() {
           <AdminOverview stats={stats} />
         )
       )}
+      {tab === "orders" && <AdminOrders />}
+      {tab === "appointments" && <AdminAppointments />}
       {tab === "tenants" && <AdminTenants />}
       {tab === "users" && <AdminUsers />}
       {tab === "subs" && <AdminSubscriptions />}
@@ -116,6 +165,14 @@ export function AdminApp() {
 }
 
 function ConsoleHeader() {
+  const setUser = useKene((s) => s.setUser);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await performLogout({ redirectUrl: "/console" });
+  };
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card">
       <div aria-hidden="true" className="kente-band h-1.5 w-full" />
@@ -127,12 +184,35 @@ function ConsoleHeader() {
           </span>
           <div className="min-w-0">
             <h2 className="font-heading text-2xl font-bold tracking-tight">Console Kènè</h2>
-            <p className="text-sm text-muted-foreground">Pilotage de la plateforme — instituts, IA diagnostic, marketplace</p>
+            <p className="text-xs sm:text-sm font-semibold text-gold-text dark:text-[#E3B04B]">Beauté mélanoderme · Pilotage plateforme</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <SpaceSwitcher variant="compact" />
           <BadgeConsole />
           <ThemeToggle />
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <a href="/" title="Ouvrir l'application Kènè">
+              <ExternalLink className="size-3.5" />
+              <span className="hidden sm:inline">Ouvrir l&apos;app</span>
+            </a>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            title="Se déconnecter de la Console"
+          >
+            <LogOut className="size-3.5" />
+            <span className="hidden sm:inline">Déconnexion</span>
+          </Button>
         </div>
       </div>
     </div>

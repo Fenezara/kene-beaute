@@ -14,10 +14,15 @@ import type { Prisma, User } from "@prisma/client";
 
 type Tx = Prisma.TransactionClient;
 
-/** Le miroir peau (questionnaire app) reporté sur la fiche CRM. */
-const skinMirror = (u: Pick<User, "skinType" | "fitzpatrick">) => ({
+/** Le miroir cliente (profil app) reporté sur la fiche CRM de l'institut. */
+const skinMirror = (u: Partial<Pick<User, "skinType" | "fitzpatrick" | "district" | "birthDate" | "pregnant" | "preferredChannel" | "beautyBudget">>) => ({
   skinType: u.skinType ?? undefined,
   fitzpatrick: u.fitzpatrick ?? undefined,
+  district: u.district ?? undefined,
+  birthDate: u.birthDate ?? undefined,
+  pregnant: u.pregnant ?? undefined,
+  preferredChannel: u.preferredChannel ?? undefined,
+  beautyBudget: u.beautyBudget ?? undefined,
 });
 
 /**
@@ -33,7 +38,7 @@ const skinMirror = (u: Pick<User, "skinType" | "fitzpatrick">) => ({
 export async function ensureClientProfile(
   tx: Tx,
   tenantId: string,
-  user: Pick<User, "id" | "name" | "phone" | "skinType" | "fitzpatrick">,
+  user: Pick<User, "id" | "name" | "phone"> & Partial<Pick<User, "skinType" | "fitzpatrick" | "district" | "birthDate" | "pregnant" | "preferredChannel" | "beautyBudget">>,
 ): Promise<{ id: string } | null> {
   // 1) Déjà liée à ce compte pour ce tenant?
   const byUser = await tx.clientProfile.findFirst({
@@ -76,6 +81,11 @@ export async function ensureClientProfile(
       phone: user.phone,
       skinType: user.skinType,
       fitzpatrick: user.fitzpatrick,
+      district: user.district,
+      birthDate: user.birthDate,
+      pregnant: user.pregnant ?? false,
+      preferredChannel: user.preferredChannel ?? "whatsapp",
+      beautyBudget: user.beautyBudget,
       rfmSegment: "Nouveau",
       notes: "Cliente app Kènè — fiche créée automatiquement à son premier contact (réservation ou commande).",
     },

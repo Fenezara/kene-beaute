@@ -3,12 +3,12 @@
 export type BodyZone = "visage" | "dos" | "cuir_chevelu" | "mains" | "barbe" | "naevi";
 
 export const BODY_ZONES: { id: BodyZone; label: string; hint: string; weight: number }[] = [
-  { id: "visage", label: "Visage", hint: "De face, lumière naturelle", weight: 0.4 },
-  { id: "dos", label: "Dos", hint: "Dos nu, miroir ou aide d'une proche", weight: 0.15 },
-  { id: "cuir_chevelu", label: "Cuir chevelu", hint: "Écarter les cheveux, photographier la racine", weight: 0.1 },
-  { id: "mains", label: "Mains", hint: "Paumes et dessus de mains", weight: 0.1 },
-  { id: "barbe", label: "Barbe", hint: "Zone pilo-sébacée, poils courts", weight: 0.05 },
-  { id: "naevi", label: "Nævi / grains de beauté", hint: "Chaque lésion pigmentée suspecte, cadre rapproché", weight: 0.2 },
+  { id: "visage", label: "Visage", hint: "Front, joues, nez, menton, tempes", weight: 0.4 },
+  { id: "dos", label: "Dos & Épaules", hint: "Haut et bas du dos, omoplates, reins", weight: 0.15 },
+  { id: "cuir_chevelu", label: "Cuir chevelu", hint: "Lisière frontale, tempes, golfes, vertex", weight: 0.1 },
+  { id: "mains", label: "Mains & Pieds", hint: "Extrémités : paumes, plantes, talons, callosités et ongles", weight: 0.1 },
+  { id: "barbe", label: "Barbe & Cou", hint: "Zone pilo-sébacée, menton, mâchoire, cou", weight: 0.05 },
+  { id: "naevi", label: "Corps (Bras, Jambes, Torse) & Lésions", hint: "Bras, jambes, torse, ventre, cuisses, taches et grains de beauté", weight: 0.2 },
 ];
 
 export interface ZoneMark {
@@ -132,4 +132,39 @@ export interface CartLine {
   qty: number;
   image: string;
 }
+
+export interface ZonePhotoSlot {
+  id: string;
+  label: string;
+  hint: string;
+  required?: boolean;
+}
+
+export const ZONE_PHOTO_SLOTS: Record<BodyZone, ZonePhotoSlot[]> = {
+  visage: [
+    { id: "face", label: "Face frontale", hint: "De face, regard droit, lumière naturelle", required: true },
+    { id: "profil_gauche", label: "Profil gauche", hint: "Joue et tempe gauche à 45°" },
+    { id: "profil_droit", label: "Profil droit", hint: "Joue et tempe droite à 45°" },
+  ],
+  dos: [
+    { id: "haut_dos", label: "Haut du dos & Épaules", hint: "Omoplates et haut du dos dégagés", required: true },
+    { id: "bas_dos", label: "Bas du dos & Reins", hint: "Milieu et bas du dos" },
+  ],
+  cuir_chevelu: [
+    { id: "ligne_frontale", label: "Ligne frontale & Golfes", hint: "Racines et lisière des cheveux", required: true },
+    { id: "vertex", label: "Vertex & Sommet", hint: "Vue plongeante du dessus du crâne" },
+  ],
+  mains: [
+    { id: "dessus_mains", label: "Dessus (Mains / Pieds & Ongles)", hint: "Dos des mains ou dessus des pieds et ongles", required: true },
+    { id: "paumes", label: "Plantes, Talons ou Paumes", hint: "Plantes des pieds, talons crevassés ou paumes ouvertes" },
+  ],
+  barbe: [
+    { id: "menton_cou", label: "Menton & Cou", hint: "Zone sous-mandibulaire et gorge", required: true },
+    { id: "machoires", label: "Joues & Mâchoires", hint: "Profil de barbe et angle maxillaire" },
+  ],
+  naevi: [
+    { id: "vue_ensemble", label: "Vue d'ensemble", hint: "Vue générale avec repère anatomique (~30 cm)", required: true },
+    { id: "macro", label: "Macro rapprochée", hint: "Gros plan net et bien éclairé sur la lésion" },
+  ],
+};
 

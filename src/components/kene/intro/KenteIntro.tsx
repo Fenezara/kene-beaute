@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import Lenis from "lenis";
 import { ChevronDown, Sparkles, X } from "lucide-react";
-import { KeneLogo } from "@/components/kene/icons";
+import { KeneEmblemLockup } from "@/components/kene/icons";
 import { useKene } from "@/store/kene";
 import { CHAPTERS, chapterT, easeOut } from "./chapters";
 import { markIntroDone } from "./introState";
@@ -146,8 +146,8 @@ function ScrollIntro({ onDone }: { onDone: () => void }) {
 
             {ch.id === "prologue" && (
               <>
-                <div className="mt-6 opacity-90">
-                  <KeneLogo size={46} withText />
+                <div className="mt-6">
+                  <KeneEmblemLockup size={52} labelSize={26} sublabel="Beauté mélanoderme" />
                 </div>
                 <div className="mt-10 flex flex-col items-center gap-1.5 text-[#F8F1E4]/55">
                   <span className="text-[10.5px] uppercase tracking-[0.18em]">Défile pour tisser</span>
@@ -199,7 +199,7 @@ function StaticIntro({ onDone }: { onDone: () => void }) {
             <p className="mt-4 text-sm leading-relaxed text-[#F8F1E4]/70">{ch.sub}</p>
             {ch.id === "prologue" && (
               <div className="mt-6">
-                <KeneLogo size={52} withText />
+                <KeneEmblemLockup size={56} labelSize={28} sublabel="Beauté mélanoderme" />
               </div>
             )}
             {ch.id === "jardin" && (

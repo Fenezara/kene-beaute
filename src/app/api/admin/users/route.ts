@@ -12,6 +12,7 @@ import { serverError, slugify } from "@/lib/kene/server";
 import { sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 import { requireAdmin } from "../tenants/route";
+import { isDemoAccount } from "@/lib/kene/demo";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest) {
   try {
     const q = req.nextUrl.searchParams.get("q")?.trim().toLowerCase() ?? "";
     const role = req.nextUrl.searchParams.get("role")?.trim() ?? "";
+    const type = req.nextUrl.searchParams.get("type")?.trim() ?? ""; // "real" | "demo" | ""
 
     const users = await db.user.findMany({
       // Hygiène: la console liste TOUT, mais l'avatar binaire ne part jamais.
@@ -63,8 +65,11 @@ export async function GET(req: NextRequest) {
       diagnoses: u._count.diagnoses,
       tenantName:
         u.role === "pro" ? (tenantByOwner.get(u.phone) ?? tenantByEmployee.get(u.id) ?? null) : null,
+      isDemo: isDemoAccount(u.phone),
     }));
 
+    if (type === "real") rows = rows.filter((u) => !u.isDemo);
+    if (type === "demo") rows = rows.filter((u) => u.isDemo);
     if (role) rows = rows.filter((u) => u.role === role);
     if (q) {
       rows = rows.filter((u) =>

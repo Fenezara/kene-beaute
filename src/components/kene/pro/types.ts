@@ -68,6 +68,7 @@ export interface StockAlertItem {
 
 export interface ProOverview {
   tenant: ProTenant;
+  tenants?: ProTenant[];
   kpis: ProKpis;
   chart: { date: string; total: number }[];
   paymentSplit: { method: string; total: number }[];
@@ -107,9 +108,16 @@ export interface ProClient {
   name: string;
   phone: string;
   email?: string | null;
+  district?: string | null;
+  birthDate?: string | null;
+  pregnant?: boolean | null;
+  preferredChannel?: string | null;
+  beautyBudget?: string | null;
   skinType?: string | null;
   fitzpatrick?: string | null;
   notes?: string | null;
+  cosmeticsUsed?: string | null;
+  productObservations?: string | null;
   visitsCount: number;
   totalSpent: number;
   lastVisit?: string | null;
@@ -119,11 +127,18 @@ export interface ProClient {
 }
 
 export interface ProSaleItemView {
+  id?: string;
+  saleId?: string;
   label: string;
   qty: number;
   unitPrice: number;
   total: number;
   kind: string;
+  productId?: string | null;
+  productBotanicals?: string | null;
+  productCategory?: string | null;
+  customPriceReason?: string | null;
+  createdAt?: string;
 }
 
 export interface ProClientDetail {
@@ -167,6 +182,8 @@ export interface ProOrderView {
   status: string; // pending | paid | delivered | cancelled
   clientName: string;
   clientPhone: string;
+  deliveryCity?: string;
+  deliveryAddress?: string;
   items: ProOrderItemView[];
   total: number;
   discount: number;
@@ -192,12 +209,27 @@ export interface ProOrdersResponse {
 export interface ProReviewView {
   id: string;
   clientName?: string; // absent dans la fiche 360° (le nom est déjà dans l'en-tête)
+  clientPhone?: string | null;
   rating: number;
   comment?: string | null;
   serviceName?: string | null;
+  practitionerName?: string | null;
+  appointmentDate?: string | null;
   createdAt: string;
   /** fiche 360°: le RDV d'où vient l'avis (soin concerné) */
   appointment?: { service?: { name?: string | null } | null } | null;
+}
+
+export interface ProReviewSummary {
+  averageRating: number;
+  totalCount: number;
+  breakdown: Record<number, number>;
+  satisfactionRate: number;
+}
+
+export interface ProReviewsResponse {
+  summary: ProReviewSummary;
+  reviews: ProReviewView[];
 }
 
 // ─────────────── Diagnostic en institut (questionnaire ± photo) ───────────────
@@ -273,7 +305,7 @@ export interface StockMovement {
   qty: number;
   reason: string;
   createdAt: string;
-  product: { name: string };
+  product: { name: string; category?: string; image?: string };
 }
 
 export interface StockResponse {
@@ -284,6 +316,7 @@ export interface StockResponse {
 // ─────────────── Caisse / Ventes ───────────────
 export interface ProSale {
   id: string;
+  tenantId?: string;
   createdAt: string;
   subtotal?: number;
   discount?: number;
@@ -292,7 +325,10 @@ export interface ProSale {
   paymentMethod: PaymentMethod;
   paymentRef?: string | null;
   cashierName?: string;
-  clientProfile?: { name: string } | null;
+  practitionerName?: string | null;
+  appointmentId?: string | null;
+  depositDeducted?: number;
+  clientProfile?: { name: string; phone?: string } | null;
   items?: ProSaleItemView[];
 }
 
@@ -542,6 +578,7 @@ export interface AdminTenantRow {
   clientsCrm: number;
   employees: number;
   products: number;
+  isDemo?: boolean;
 }
 
 // GET /api/admin/tenants/[id] — fiche de gestion détaillée.
@@ -588,6 +625,7 @@ export interface AdminUserRow {
   orders: number;
   diagnoses: number;
   tenantName: string | null; // institut des comptes pro
+  isDemo?: boolean;
 }
 
 // PATCH /api/admin/users/[id] — réponse (verrouillage t. 128, accès Console t. 141).

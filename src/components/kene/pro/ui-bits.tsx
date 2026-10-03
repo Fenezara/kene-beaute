@@ -48,8 +48,8 @@ export function KpiCard({
         <Eyebrow className="min-w-0 leading-snug">{label}</Eyebrow>
         <IconBadge icon={icon} size="sm" tone={monetary ? "gold" : "terre"} />
       </div>
-      <p className="mt-3 font-mono text-2xl font-bold tabular-nums tracking-tight text-gold-text">{value}</p>
-      {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
+      <p className="mt-3 font-mono text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-gold-text truncate" title={value}>{value}</p>
+      {hint && <p className="mt-1 text-[11px] text-muted-foreground truncate" title={hint}>{hint}</p>}
     </div>
   );
 }
@@ -147,7 +147,7 @@ export function SectionHeader({ title, sub, actions }: { title: string; sub?: st
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h2 className="font-heading text-xl sm:text-2xl font-bold tracking-tight">{title}</h2>
+        <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight">{title}</h1>
         {sub && <p className="mt-0.5 text-sm text-muted-foreground">{sub}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

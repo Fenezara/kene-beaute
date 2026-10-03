@@ -16,7 +16,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, notify } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
-import { setSessionCookie } from "@/lib/kene/session";
+import { setSessionCookie, sanitizeUser } from "@/lib/kene/session";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 
@@ -150,30 +150,38 @@ const DESCRIPTIONS: Record<InstituteType, string> = {
 };
 
 export async function POST(req: NextRequest) {
-  const rl = rateLimit(rlKey(req, "auth:pro-register"), AUTH_MUTATION);
-  if (!rl.ok) {
-    return rateLimitResponse(rl.retryAfterSec, "Trop d'inscriptions d'affilée — réessaie dans quelques secondes");
+  try {
+    const rl = rateLimit(rlKey(req, "auth:pro-register"), AUTH_MUTATION);
+    if (!rl.ok) {
+      return rateLimitResponse(rl.retryAfterSec, "Trop d'inscriptions d'affilée — réessaie dans quelques secondes");
+    }
+    const parsed = Body.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      const first = parsed.error.issues[0]?.message ?? "Corps de requête invalide";
+      return jsonError(first, 400);
+    }
+    return await runRegister(parsed.data, req);
+  } catch (err) {
+    return serverError("auth/pro/register:post", err);
   }
-  const parsed = Body.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) {
-    const first = parsed.error.issues[0]?.message ?? "Corps de requête invalide";
-    return jsonError(first, 400);
-  }
-  return runRegister(parsed.data, req);
 }
 
 // Pont GET — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous
 // (rate-limit, validation zod, audit, re-signature du cookie de session).
 export async function GET(req: NextRequest) {
-  const rl = rateLimit(rlKey(req, "auth:pro-register"), AUTH_MUTATION);
-  if (!rl.ok) {
-    return rateLimitResponse(rl.retryAfterSec, "Trop d'inscriptions d'affilée — réessaie dans quelques secondes");
+  try {
+    const rl = rateLimit(rlKey(req, "auth:pro-register"), AUTH_MUTATION);
+    if (!rl.ok) {
+      return rateLimitResponse(rl.retryAfterSec, "Trop d'inscriptions d'affilée — réessaie dans quelques secondes");
+    }
+    const bridged = decodeBridge(req, Body);
+    if (!bridged.ok) {
+      return jsonError(`Corps de requête invalide — ${bridged.error}`, 400);
+    }
+    return await runRegister(bridged.data, req);
+  } catch (err) {
+    return serverError("auth/pro/register:get", err);
   }
-  const bridged = decodeBridge(req, Body);
-  if (!bridged.ok) {
-    return jsonError(`Corps de requête invalide — ${bridged.error}`, 400);
-  }
-  return runRegister(bridged.data, req);
 }
 
 /** Cœur partagé POST/GET. */
@@ -211,12 +219,26 @@ async function runRegister(data: z.infer<typeof Body>, req: NextRequest): Promis
           phone: user.phone,
           ownerName: finalOwnerName,
           ownerPhone: user.phone,
-          plan: "trial",
+          plan: "pro", // Véritable établissement créé par la gérante elle-même
           commissionRate: 0,
           description: `${DESCRIPTIONS[type]} ${city}.`,
           openingHour: 9,
           closingHour: 19,
           active: true,
+        },
+      });
+
+      // Offre de bienvenue Pro : 30 jours complets offerts pour le premier établissement réel
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+      await tx.subscription.create({
+        data: {
+          userId: user.id,
+          plan: "pro_essentiel",
+          status: "active",
+          priceFcfa: 0,
+          source: "welcome_offer",
+          expiresAt,
         },
       });
 
@@ -303,7 +325,7 @@ async function runRegister(data: z.infer<typeof Body>, req: NextRequest): Promis
           type: tenant.type,
           plan: tenant.plan,
         },
-        user: freshUser,
+        user: sanitizeUser(freshUser),
       },
       { status: 201 },
     );

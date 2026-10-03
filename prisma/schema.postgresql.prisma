@@ -1,0 +1,807 @@
+// KÃ¨nÃ¨ â€” SchÃ©ma Prisma multi-tenant (SQLite)
+// Les types enum sont simulÃ©s via String + validation Zod cÃ´tÃ© API.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Globales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Country {
+  id        String  @id @default(cuid())
+  code      String  @unique // "CI" | "SN"
+  name      String
+  currency  String  @default("XOF")
+  tvaRate   Float   @default(18.0)
+  phoneCode String // "+225"
+}
+
+model MomoOperator {
+  id      String @id @default(cuid())
+  code    String @unique // wave | orange | mtn
+  name    String
+  color   String
+  ussd    String
+  active  Boolean @default(true)
+}
+
+model User {
+  id           String   @id @default(cuid())
+  phone        String   @unique
+  name         String
+  role         String   @default("client") // client | pro | admin
+  email        String?
+  city         String?
+  district     String? // Commune ou quartier
+  birthDate    String? // Anniversaire privilège
+  pregnant     Boolean? @default(false) // Grossesse ou allaitement
+  preferredChannel String? @default("whatsapp") // Canal favori
+  beautyBudget String? // Budget mensuel soins
+  skinType     String? // grasse | seche | mixte | normale
+  fitzpatrick  String? // III | IV | V | VI
+  allergies    String? // texte libre
+  goals        String? // JSON [{id,label}]
+  consentHealth Boolean @default(false)
+  consentTs    DateTime?
+  referralCode String?
+  referredBy   String?
+  // t. 120 â€” photo de profil cliente (data URL JPEG redimensionnÃ©e cÃ´tÃ©
+  // client, servie par /api/media/user/:id, jamais dans les payloads JSON)
+  avatarData   String?
+  // t. 128 â€” verrouillage manuel par la Console KÃ¨nÃ¨ (modÃ©ration):
+  // bloquÃ© Ã  la vÃ©rification OTP ET au boot de session (dÃ©connexion douce).
+  // Null = compte libre. Le motif est montrÃ© Ã  l'utilisatrice au login.
+  lockedAt      DateTime?
+  lockedReason  String?
+  // Authentification par code PIN secret (style Wave / mobile banking)
+  pinHash       String?
+  pinFails      Int       @default(0)
+  pinLockedUntil DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  diagnoses    Diagnosis[]
+  orders       Order[]
+  reviews      Review[]
+  notifications Notification[]
+  // t. 130 â€” passkeys de la Console (WebAuthn): chaque appareil enregistrÃ©
+  // peut ouvrir la console par preuve cryptographique (Face ID / empreinte /
+  // clÃ© USB) â€” MFA rÃ©sistante au hameÃ§onnage (NIST 800-63B-4).
+  passkeys     PasskeyCredential[]
+  consents     Consent[]
+  appointments Appointment[] @relation("UserAppointments")
+  wallet       Wallet?
+  couponRedemptions CouponRedemption[]
+  subscriptions Subscription[] // abonnements KÃ¨nÃ¨+ / Pro (t. 71-c)
+  passport     SkinPassport? // Passeport de Peau partageable (t. 82)
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Tenants (entreprises) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Tenant {
+  id             String   @id @default(cuid())
+  name           String
+  type           String   @default("institut") // institut | spa | dermo_conseil
+  country        String // CI | SN
+  city           String
+  address        String?
+  phone          String
+  ownerName      String
+  ownerPhone     String
+  plan           String   @default("trial") // trial | pro | business
+  commissionRate Float    @default(0)
+  rating         Float    @default(4.7)
+  reviewCount    Int      @default(0)
+  description    String?
+  // t. 120 â€” photo de vitrine de l'institut (data URL, servie par
+  // /api/media/tenant/:id) â€” remplace le visuel calculÃ© du nom si posÃ©e
+  photoData      String?
+  openingHour    Int      @default(9)
+  closingHour    Int      @default(19)
+  active         Boolean  @default(true)
+  // t. 128 â€” traÃ§abilitÃ© console de la suspension (active = false):
+  // quand, pourquoi â€” montrÃ© Ã  la gÃ©rante au login et sur la fiche admin.
+  suspendedAt    DateTime?
+  suspendedReason String?
+  createdAt      DateTime @default(now())
+
+  resources      Resource[]
+  services       Service[]
+  clients        ClientProfile[]
+  appointments   Appointment[]
+  sales          Sale[]
+  products       Product[]
+  movements      InventoryMovement[]
+  employees      Employee[]
+  payPeriods     PayPeriod[]
+  accounts       ChartAccount[]
+  journals       JournalEntry[]
+  coupons        Coupon[]
+  reviews        Review[]
+  notifications  Notification[]
+  followUpMarks  FollowUpMark[]
+  proDiagnoses   ProDiagnosis[]
+  leaves        LeaveRequest[]
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Relances Â« Le Fil du Retour Â» â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model FollowUpMark {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dedupKey  String   // "diag:<id>" | "appt:<id>" | "sale:<id>" | "client:<id>"
+  status    String   @default("done") // done | dismissed
+  via       String?  // whatsapp | call | visit | sms
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, dedupKey])
+}
+
+model Resource {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  role      String  @default("estheticienne") // estheticienne | dermo_conseillere | caissiere
+  color     String  @default("#C8951E")
+  active    Boolean @default(true)
+
+  appointments Appointment[]
+}
+
+model Service {
+  id            String  @id @default(cuid())
+  tenantId      String
+  tenant        Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name          String
+  category      String  @default("soin") // soin | gommage | massage | diagnostic | consultation
+  durationMin   Int     @default(60)
+  price         Int
+  commissionPct Float   @default(10)
+  description   String?
+  botanicals    String? // "KaritÃ©, Baobab"
+  // t. 120 â€” visuel du soin (data URL, servie par /api/media/service/:id)
+  photoData     String?
+  active        Boolean @default(true)
+
+  appointments Appointment[]
+  saleItems    SaleItem[]
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ CRM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model ClientProfile {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String?   // lien vers User si cliente KÃ¨nÃ¨
+  name        String
+  phone       String
+  email       String?
+  district    String?   // Commune ou quartier
+  birthDate   String?   // Anniversaire privilège
+  pregnant    Boolean?  @default(false) // Grossesse ou allaitement
+  preferredChannel String? @default("whatsapp") // Canal favori
+  beautyBudget String?  // Budget mensuel soins
+  skinType    String?
+  fitzpatrick String?
+  notes       String?
+  cosmeticsUsed       String? // Produits cosmétiques utilisés par la cliente (routine quotidienne)
+  productObservations String? // Observations de l'institut sur les composants des produits cosmétiques achetés
+  visitsCount Int       @default(0)
+  totalSpent  Int       @default(0)
+  lastVisit   DateTime?
+  rfmSegment  String    @default("Nouveau") // Champions | FidÃ¨les | Potentiels | Ã€ risque | Perdus | Nouveaux
+  createdAt   DateTime  @default(now())
+
+  appointments Appointment[]
+  sales        Sale[]
+  proDiagnoses ProDiagnosis[]
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Diagnostic en institut (questionnaire Â± photo) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model ProDiagnosis {
+  id               String       @id @default(cuid())
+  tenantId         String
+  tenant           Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientProfileId  String
+  clientProfile    ClientProfile @relation(fields: [clientProfileId], references: [id])
+  userId           String?      // si la cliente est aussi sur l'app KÃ¨nÃ¨ (notification envoyÃ©e)
+  zone             String       // visage | dos | cuir_chevelu | mains | barbe | naevi
+  practitioner     String?      // praticienne qui a rÃ©alisÃ© le diagnostic
+  questionnaireJson String      // rÃ©ponses brutes { questionId: value | value[] }
+  photoData        String?      // data URL (optionnelle â€” photo prise en cabine)
+  resultJson       String       // rÃ©sultat complet (questionnaire Â± VLM fusionnÃ©s)
+  scoreGlobal      Int          @default(0)
+  vlmUsed          Boolean      @default(false) // photo analysÃ©e par le VLM
+  photoUsed        Boolean      @default(false) // photo jointe
+  // Consentements recueillis en cabine AVANT le diagnostic (t. 119) â€” la
+  // cliente signe aussi la fiche papier ; ici la trace numÃ©rique horodatÃ©e.
+  consentPhoto     Boolean      @default(false) // prise & conservation de photos par l'institut
+  consentData      Boolean      @default(false) // conservation des donnÃ©es de peau par l'institut
+  consentTs        DateTime?    // horodatage du consentement
+  createdAt        DateTime     @default(now())
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ RDV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Appointment {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientProfileId String?
+  clientProfile  ClientProfile? @relation(fields: [clientProfileId], references: [id])
+  userId         String?
+  user           User?   @relation("UserAppointments", fields: [userId], references: [id])
+  clientName     String
+  clientPhone    String
+  resourceId     String
+  resource       Resource @relation(fields: [resourceId], references: [id])
+  serviceId      String
+  service        Service @relation(fields: [serviceId], references: [id])
+  startAt        DateTime
+  durationMin    Int     @default(60)
+  status         String  @default("confirmed") // pending | confirmed | completed | cancelled | no_show
+  price          Int     @default(0)
+  depositAmount  Int     @default(0) // acompte payÃ© via MoMo
+  paymentId      String?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  review Review?
+
+  @@index([tenantId, startAt]) // agenda : RDV d'un institut par plage de dates
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Diagnostic IA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Diagnosis {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  zone         String // visage | dos | cuir_chevelu | mains | barbe | naevi
+  imageData    String   // base64 (redimensionnÃ© cÃ´tÃ© client)
+  resultJson   String   // rÃ©sultat complet VLM
+  scoreGlobal  Int      @default(0)
+  status       String   @default("pending") // pending | done | error
+  vlmUsed      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt]) // historique diagnostic par cliente
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Boutique / Produits / Stock â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Product {
+  id          String  @id @default(cuid())
+  tenantId    String? // null = boutique KÃ¨nÃ¨ (marketplace light)
+  tenant      Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  brandLine   String  @default("KÃ¨nÃ¨ Botaniques")
+  category    String  @default("soin") // serum | creme | huile | gommage | masque | savon
+  description String
+  botanicals  String // "Moringa, KaritÃ©"
+  price       Int
+  compareAt   Int?
+  stock       Int     @default(50)
+  stockAlert  Int     @default(8)
+  image       String  // /products/xxx.webp (visuel studio par dÃ©faut)
+  // t. 120 â€” photo RÃ‰ELLE du produit prise par l'institut (data URL, servie
+  // par /api/media/product/:id) â€” prime sur `image` quand elle existe
+  photoData   String?
+  rating      Float   @default(4.8)
+  reviewCount Int     @default(0)
+  active      Boolean @default(true)
+
+  movements InventoryMovement[]
+  saleItems SaleItem[]
+  orderItems OrderItem[]
+}
+
+model Sale {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientProfileId String?
+  clientProfile  ClientProfile? @relation(fields: [clientProfileId], references: [id])
+  items          SaleItem[]
+  subtotal       Int
+  discount       Int      @default(0)
+  total          Int
+  tvaAmount      Int      @default(0) // TVA incluse (18%)
+  paymentMethod  String   // wave | orange | cash | card
+  paymentRef     String?
+  cashierName    String   @default("Caisse 1")
+  status         String   @default("completed") // pending | completed | refunded
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId, createdAt]) // KPIs ventes + compta par pÃ©riode
+}
+
+model SaleItem {
+  id        String  @id @default(cuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  kind      String  // service | product
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id])
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  label     String
+  qty       Int     @default(1)
+  unitPrice Int
+  total     Int
+  customPriceReason String? // Motif d'ajustement du prix dans le dossier patient
+}
+
+model InventoryMovement {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type      String // in | out | adjust | loss
+  qty       Int
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Wallet & Paiements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Wallet {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance      Int      @default(0)
+  cashbackRate Float    @default(0.05)
+  referralCode String   @unique
+  createdAt    DateTime @default(now())
+
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id        String   @id @default(cuid())
+  walletId  String
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type      String // credit | debit
+  amount    Int
+  reason    String // cashback | referral | topup | payment | refund
+  refId     String?
+  createdAt DateTime @default(now())
+
+  @@index([walletId, createdAt]) // relevÃ© wallet par cliente (dÃ©dup parrainage)
+}
+
+model Payment {
+  id          String    @id @default(cuid())
+  userId      String?
+  purpose     String // shop_order | appointment_deposit | wallet_topup | pos_sale
+  method      String // wave | orange | cash | card | wallet
+  amount      Int
+  status      String    @default("pending") // pending | success | failed
+  ref         String    @unique
+  metaJson    String?   // contexte (orderId, appointmentIdâ€¦)
+  confirmTokenHash String? // sha256 du code de confirmation (t. 63-c) â€” null = paiement sans code (wallet/POS)
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+
+  order Order?
+}
+
+model Order {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           OrderItem[]
+  subtotal        Int
+  shippingFee     Int      @default(0) // Frais de livraison (1500 - 3000 FCFA)
+  deliveryCity    String?  // abidjan | dakar
+  deliveryArea    String?  // nom de la commune / quartier
+  deliveryAddress String?  // rue, rÃ©sidence, repÃ¨res
+  deliveryPhone   String?  // tÃ©lÃ©phone de contact pour le coursier
+  deliveryNotes   String?  // consignes particuliÃ¨res de livraison
+  discount        Int      @default(0) // remise coupon appliquÃ©e (0 = aucune)
+  couponCode      String?  // code du coupon appliquÃ© (traÃ§abilitÃ©)
+  cashback        Int      @default(0)
+  total           Int
+  paymentId       String?  @unique
+  payment         Payment? @relation(fields: [paymentId], references: [id])
+  status          String   @default("pending") // pending | paid | preparing | in_transit | delivered | cancelled
+  createdAt       DateTime @default(now())
+
+  @@index([userId, createdAt]) // Â« Mes commandes Â» par cliente
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  label     String
+  qty       Int     @default(1)
+  unitPrice Int
+  total     Int
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Coupons boutique (Sprint 6) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Coupon {
+  id          String             @id @default(cuid())
+  tenantId    String? // null = coupon maison KÃ¨nÃ¨ (diffusable par l'admin)
+  tenant      Tenant?            @relation(fields: [tenantId], references: [id])
+  code        String             @unique // PROMO-XXXX, stockÃ© uppercase
+  label       String? // description visible cliente (Â« FÃªte des mÃ¨res Â» )
+  kind        String             // percent | fixed
+  value       Int                // percent : 5..90 (%) Â· fixed : 500..500000 (FCFA)
+  minOrder    Int                @default(0) // panier minimum pour appliquer
+  maxUses     Int                @default(0) // 0 = illimitÃ©
+  usedCount   Int                @default(0)
+  startsAt    DateTime           @default(now())
+  expiresAt   DateTime?
+  active      Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+
+  redemptions CouponRedemption[]
+}
+
+model CouponRedemption {
+  id        String   @id @default(cuid())
+  couponId  String
+  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId   String? // commande boutique concernÃ©e
+  discount  Int      // remise rÃ©ellement appliquÃ©e (FCFA)
+  createdAt DateTime @default(now())
+
+  @@unique([couponId, userId]) // UNE seule utilisation par cliente et par coupon
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointmentId String?  @unique
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  rating        Int
+  comment       String?
+  createdAt     DateTime @default(now())
+}
+
+model Notification {
+  id           String    @id @default(cuid())
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id])
+  tenantId     String?
+  tenant       Tenant?   @relation(fields: [tenantId], references: [id])
+  channel      String // sms | whatsapp | email
+  toPhone      String
+  message      String
+  status       String    @default("sent") // sent | scheduled
+  scheduledAt  DateTime? // dÃ©clenchement prÃ©vu (status scheduled) â€” null = immÃ©diat
+  metaJson     String?   // contexte {diagId} | {apptId} | {dedupKey} â€” annulation intelligente
+  readAt       DateTime? // lecture cliente (status sent) â€” null = non lue
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, createdAt]) // badge non-lues + fil client
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Abonnements (t. 71-c) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// MonÃ©tisation KÃ¨nÃ¨ : cliente Â« KÃ¨nÃ¨+ Â» (2 500 F/mois) et pro Â« Essentiel Â» /
+// Â« Complexe Â» (15 000 / 45 000 F/mois). source = "momo_sim" : paiement
+// SIMULÃ‰ mobile money (POC â€” aucun argent rÃ©el, mention affichÃ©e partout) ;
+// "console_gift" : 30 j offerts par la Console (t. 135) ; "referral_gift" :
+// 30 j offerts Ã  la marraine quand sa filleule rejoint (t. 138) â€” les cadeaux
+// comptent 0 F (hors MRR, norme t. 133) et ne s'Ã©crasent JAMAIS (IFRS 15).
+model Subscription {
+  id        String   @id @default(cuid())
+  userId    String
+  plan      String   // "kene_plus" | "pro_essentiel" | "pro_complexe"
+  status    String   @default("active") // active | cancelled | expired
+  priceFcfa Int
+  source    String   @default("momo_sim") // momo_sim | console_gift | referral_gift
+  startedAt DateTime @default(now())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, status]) // plan actif + quota diagnostics par cliente
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Passeport de Peau (t. 82) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// QR partageable vers les instituts partenaires : un jeton stable par
+// cliente, lisible SANS compte (vue publique /?passport=<token>). Pas de
+// photo â€” profil peau uniquement (phototype, type, allergies, objectifs,
+// dernier score, fils d'or). rotatable : rÃ©gÃ©nÃ©rer le jeton rÃ©voque l'ancien.
+model SkinPassport {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  createdAt DateTime @default(now())
+  rotatedAt DateTime?
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Web Push VAPID (t. 60-e) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Abonnements navigateur (Push API) â€” rappels reÃ§us MÃŠME application fermÃ©e.
+// endpoint = URL du push service du navigateur (unique par abonnement).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Paie (Sprint 4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Employee {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  role         String // estheticienne | dermo_conseillere | caissiere | manager
+  // t. 96 â€” compte APP de l'employÃ©e : User (rÃ´le Â« pro Â») liÃ© par userId.
+  // La fondatrice crÃ©e le compte Ã  l'embauche (numÃ©ro de l'employÃ©e) ;
+  // l'employÃ©e se connecte par OTP et entre dans l'espace Pro de SON
+  // institut avec les sections de son poste (resolveTenant + ProApp).
+  userId       String?
+  contractType String   @default("CDI") // CDI | CDD | Stage
+  country      String // CI | SN
+  baseSalary   Int // mensuel brut de base XOF
+  transport    Int      @default(0)
+  housing      Int      @default(0)
+  cadres       Boolean  @default(false) // IPRES cadres (SN)
+  hireDate     DateTime @default(now())
+  cnpsNumber   String?
+  bankAccount  String?
+  active       Boolean  @default(true)
+  endDate      DateTime? // sortie (null = en poste)
+
+  attendance  Attendance[]
+  leaves      LeaveRequest[]
+  payslips    Payslip[]
+}
+
+model Attendance {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime
+  checkIn    String?  // "08:32"
+  checkOut   String?
+  hours      Float    @default(8)
+  status     String   @default("present") // present | absent | leave | late
+}
+
+model LeaveRequest {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  startDate  DateTime
+  endDate    DateTime
+  type       String    @default("conge") // conge | maladie | maternite
+  days       Int // jours ouverts (dimanche exclu), calculÃ©s Ã  la saisie
+  status     String    @default("pending") // pending | approved | rejected
+  reason     String?   // motif saisi Ã  la demande
+  note       String?   // dÃ©cision (motif de refus p. ex.)
+  decidedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId, startDate])
+}
+
+model PayPeriod {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  period    String // "2025-06"
+  country   String
+  status    String   @default("validated") // open | validated
+  totalsJson String? // totaux agrÃ©gÃ©s
+  createdAt DateTime @default(now())
+
+  payslips Payslip[]
+}
+
+model Payslip {
+  id            String   @id @default(cuid())
+  payPeriodId   String
+  payPeriod     PayPeriod @relation(fields: [payPeriodId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  baseSalary    Int
+  hoursWorked   Float    @default(173.33)
+  grossSalary   Int
+  cnpsEmployee  Int      @default(0)
+  cnpsEmployer  Int      @default(0)
+  incomeTax     Int      @default(0) // IGR (CI) ou IR (SN)
+  cn            Int      @default(0) // Contribution Nationale CI
+  netSalary     Int
+  detailsJson   String   // dÃ©tail complet lignes
+  createdAt     DateTime @default(now())
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Compta SYSCOHADA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model ChartAccount {
+  id       String  @id @default(cuid())
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code     String // "701000"
+  classe   Int // 1..9
+  label    String
+  type     String // actif | passif | charge | produit
+  system   Boolean @default(true) // compte du plan SYSCOHADA prÃ©-chargÃ©
+
+  entries JournalLine[]
+}
+
+model JournalEntry {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  journalCode String  @default("CA") // VE (ventes) | BQ (banque) | CA (caisse) | PA (paie) | OD
+  date       DateTime
+  reference  String
+  description String
+  sourceType String? // sale | payroll | manual
+  sourceId   String?
+  lines      JournalLine[]
+  createdAt  DateTime @default(now())
+}
+
+model JournalLine {
+  id        String       @id @default(cuid())
+  entryId   String
+  entry     JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId String
+  account   ChartAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  debit     Int          @default(0)
+  credit    Int          @default(0)
+  label     String?
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ SÃ©curitÃ© / ConformitÃ© â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Consent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // health_data | photo_storage | marketing | whatsapp | share_scans
+  // Pour type = share_scans: institut concernÃ© par le partage des self-scans
+  // (null pour les consentements globaux du compte).
+  tenantId  String?
+  granted   Boolean
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, type, tenantId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  userId      String?
+  action      String
+  entity      String
+  entityId    String?
+  detailsJson String?
+  createdAt   DateTime @default(now())
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone]) // vÃ©rification OTP par tÃ©lÃ©phone
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Console â€” passkeys & dÃ©fis WebAuthn (t. 130) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// PasskeyCredential: un appareil enregistrÃ© par la fondatrice pour ouvrir la
+// Console KÃ¨nÃ¨. La clÃ© publique COSE est stockÃ©e en base64url; la partie
+// privÃ©e ne quitte JAMAIS l'appareil (enclave sÃ©curisÃ©e / clÃ© USB).
+// `credentialId` est l'identifiant WebAuthn (base64url), unique.
+model PasskeyCredential {
+  id           String    @id @default(cuid())
+  credentialId String    @unique // base64url â€” id WebAuthn
+  userId       String
+  publicKey    String // clÃ© publique COSE, base64url
+  counter      Int       @default(0) // anti-rejeu (signe de compteur)
+  transports   String? // "internal" | "hybrid" | "usb"â€¦ (csv)
+  deviceType   String? // singleDevice | multiDevice
+  backedUp     Boolean   @default(false)
+  name         String? // Ã©tiquette console (Â« MacBook de la fondatrice Â»)
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// WebauthnChallenge: dÃ©fi Ã©phÃ©mÃ¨re d'une cÃ©rÃ©monie WebAuthn (login ou
+// register), consommÃ© Ã  la vÃ©rification, expirÃ© aprÃ¨s 5 min â€” purge paresseuse
+// par la route qui en crÃ©e un (mÃªme hygiÃ¨ne que OtpCode).
+model WebauthnChallenge {
+  id        String   @id @default(cuid())
+  phone     String
+  challenge String
+  purpose   String // login | register
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone, purpose])
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ SÃ©curitÃ© â€” journal d'audit (t. 86-d) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Journal lÃ©ger des Ã©vÃ©nements sensibles (OTP, connexions, paiements, accÃ¨s
+// consoleâ€¦). `phone` est TOUJOURS stockÃ© MASQUÃ‰ (ex. Â« +225 07â€¢â€¢â€¢â€¢â€¢04 Â») â€”
+// jamais de numÃ©ro complet ; `detail` reste court (â‰¤ 180 chars), sans secret.
+// Prune paresseux cÃ´tÃ© serveur : > 90 jours d'anciennetÃ© = supprimÃ©.
+model SecurityEvent {
+  id      String   @id @default(cuid())
+  ts      DateTime @default(now())
+  kind    String   // otp_request | login_success | login_failed | login_locked | logout | pro_register | payment_confirm | admin_access | push_subscribe | upload_reject
+  phone   String?  // MASQUÃ‰ avant stockage (ex. +225 07â€¢â€¢â€¢â€¢â€¢04) â€” JAMAIS de numÃ©ro complet
+  userId  String?
+  ip      String?
+  detail  String?  // court, sans secret
+
+  @@index([ts]) // visionneuse admin : les 80 plus rÃ©cents, ts desc
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Cercle KÃ¨nÃ¨ (t. 83-b) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Le cercle des tÃ©moignages : les voix de celles qui tissent avant. Contenu
+// public de dÃ©monstration (POC) â€” prÃ©nom + initiale, jamais de nom complet,
+// aucune donnÃ©e personnelle rÃ©elle, aucune relation : la carte est servie
+// telle quelle par GET /api/testimonials (seed paresseux au premier appel).
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  author    String // « Aminata K. » — prénom + initiale, jamais le nom complet
+  city      String // « Cocody », « Yamoussoukro »…
+  zone      String? // zone concernée (visage, dos, cuir chevelu…)
+  text      String // 140-260 caractères, vécu concret
+  months    Int // durée du parcours en mois (« 4 mois avec Kènè »)
+  rating    Int // 4 ou 5
+  threads   Int? // fils d'or de l'utilisatrice si connue
+  featured  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// ─────────────────────────── Idempotence Webhooks Fintech ───────────────────────────
+// Enregistre les événements webhooks reçus de Wave, Orange Money, WiniPayer, etc.
+// Garantit qu'un événement renvoyé (retry automatique) n'est JAMAIS exécuté deux fois
+// (protection absolue contre les doubles débits, doubles ventes et sur-crédits).
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String   // "wave" | "orange" | "winipayer" | "africastalking"
+  eventId     String   // Identifiant de transaction ou signature unique externe
+  processedAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([provider, eventId])
+}
+
+

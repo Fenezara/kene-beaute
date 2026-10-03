@@ -51,6 +51,10 @@ export function categoryThread(cat: string): number {
       return 2; // baobab
     case "savon":
       return 4; // mélanine
+    case "solaire":
+      return 0; // or (protection solaire dorée)
+    case "capillaire":
+      return 2; // baobab (naturel / végétal)
     default:
       return -1;
   }

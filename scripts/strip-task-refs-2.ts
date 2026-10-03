@@ -43,7 +43,7 @@ function cleanComment(text: string): string {
   return out;
 }
 
-function process(source: string): { out: string; changes: number } {
+function processSource(source: string): { out: string; changes: number } {
   let result = "";
   let i = 0;
   let changes = 0;
@@ -110,7 +110,7 @@ async function main() {
   const touched: string[] = [];
   for (const file of files.sort()) {
     const src = await readFile(file, "utf8");
-    const { out, changes } = process(src);
+    const { out, changes } = processSource(src);
     if (changes > 0 && out !== src) {
       await writeFile(file, out);
       total += changes;

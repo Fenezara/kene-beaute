@@ -1,63 +1,87 @@
 "use client";
-// Kènè Cliente — Profil: identité, profil peau rééditable, wallet complet, parrainage — ÉCLAT 2026.
+// Kènè Cliente — Profil: identité, profil peau rééditable, avantages, parrainage — ÉCLAT 2026.
 // Les réglages (langue, notifications, sécurité, RGPD, PWA, espace entreprise,
 // déconnexion) vivent désormais dans SettingsScreen — lien discret
 // en pied d'écran vers l'onglet « parametres ».
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowDownLeft, ArrowLeft, ArrowUpRight, BadgeCheck, Camera, Check, Loader2, MapPin,
-  Pencil, Phone, Plus, Settings, Sparkles, Trash2, Wallet as WalletIcon,
+  Baby, BadgeCheck, Calendar, Camera, Check, Coins, Gift, Heart, Loader2, MapPin,
+  MessageCircle, Pencil, Phone, Plus, Settings, Sparkles, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { apiGet, apiPatch, apiPost, resizeImage } from "@/lib/kene/api";
-import { formatDate, xof, CASHBACK_RATE } from "@/lib/kene/format";
+import { formatDate, xof } from "@/lib/kene/format";
 import { useT } from "@/lib/kene/use-t";
 import type { GoldThreads } from "@/lib/kene/gold-threads";
-import { MOMO_OPERATORS } from "@/lib/kene/rfm";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { KenteIdentity } from "@/components/kene/loom/KenteIdentity";
 import { Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import { useKene, type SessionUser } from "@/store/kene";
-import type { ApiUser, ApiWallet, ApiWalletTx } from "./types";
-import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES } from "./types";
+import type { ApiUser } from "./types";
+import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES, diagImgSrc } from "./types";
 import { SectionTitle } from "./bits";
 import { ParrainageCard } from "./ParrainageCard";
 import { PassportCard } from "./PassportCard";
 import { SharesCard } from "./SharesCard";
+import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
+import { cn } from "@/lib/utils";
 
 /** SessionUser + goals (string JSON) renvoyé par PATCH profile */
 type ClientUser = SessionUser & { goals?: string | null };
 
-const REASON_LABELS: Record<string, string> = {
-  cashback: "Cashback commande",
-  referral: "Bonus parrainage",
-  topup: "Approvisionnement",
-  payment: "Paiement",
-  refund: "Remboursement RDV",
-};
 
 export function ProfileScreen() {
-  const user = useKene((s) => s.user) as ClientUser;
+  const user = useKene((s) => s.user) as ClientUser | null;
   const setUser = useKene((s) => s.setUser);
   const setClientTab = useKene((s) => s.setClientTab);
   const { t } = useT();
 
   const [edit, setEdit] = useState(false);
-  const [name, setName] = useState(user.name);
-  const [city, setCity] = useState(user.city ?? "");
+  const [name, setName] = useState(user?.name ?? "");
+  const [city, setCity] = useState(user?.city ?? "");
+  const [district, setDistrict] = useState(user?.district ?? "");
+  const [birthDate, setBirthDate] = useState(user?.birthDate ?? "");
+  const [pregnant, setPregnant] = useState(Boolean(user?.pregnant));
+  const [preferredChannel, setPreferredChannel] = useState(user?.preferredChannel ?? "whatsapp");
+  const [beautyBudget, setBeautyBudget] = useState(user?.beautyBudget ?? "15-35k");
+  const [savingPrefs, setSavingPrefs] = useState(false);
   const [savingId, setSavingId] = useState(false);
+
+  // Sync state if user prop changes
+  useEffect(() => {
+    if (user) {
+      setName(user.name ?? "");
+      setCity(user.city ?? "");
+      setDistrict(user.district ?? "");
+      setBirthDate(user.birthDate ?? "");
+      setPregnant(Boolean(user.pregnant));
+      setPreferredChannel(user.preferredChannel ?? "whatsapp");
+      setBeautyBudget(user.beautyBudget ?? "15-35k");
+    }
+  }, [user]);
 
   // — photo de profil: aperçu local immédiat (data URL) + upload.
   // `hasAvatar` suit le store: la photo vit en base, servie par
   // /api/media/user/:id — jamais dans le state permanent.
-  const [hasAvatar, setHasAvatar] = useState(Boolean(user.hasAvatar));
+  const [hasAvatar, setHasAvatar] = useState(Boolean(user?.hasAvatar));
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [userDiagnoses, setUserDiagnoses] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    apiGet<{ diagnoses: any[] }>(`/api/diagnoses?userId=${user.id}`)
+      .then((res) => {
+        setUserDiagnoses(res.diagnoses ?? []);
+      })
+      .catch(() => {});
+  }, [user?.id]);
+
   async function onPickAvatar(file: File | undefined) {
-    if (!file) return;
+    if (!file || !user?.id) return;
     if (file.size > 8 * 1024 * 1024) {
       toast.error("Photo trop lourde — choisis une image plus légère");
       return;
@@ -80,6 +104,7 @@ export function ProfileScreen() {
   }
 
   async function removeAvatar() {
+    if (!user?.id) return;
     setAvatarBusy(true);
     try {
       await apiPatch("/api/auth/profile", { userId: user.id, avatarData: null });
@@ -94,52 +119,45 @@ export function ProfileScreen() {
     }
   }
 
-  const avatarSrc = avatarPreview ?? (hasAvatar ? `/api/media/user/${user.id}` : null);
+  const avatarSrc = avatarPreview ?? (hasAvatar && user?.id ? `/api/media/user/${user.id}` : null);
 
-  const [fitz, setFitz] = useState(user.fitzpatrick ?? "V");
-  const [skinType, setSkinType] = useState(user.skinType ?? "mixte");
-  const [allergies, setAllergies] = useState(user.allergies ?? "");
+  const [fitz, setFitz] = useState(user?.fitzpatrick ?? "V");
+  const [skinType, setSkinType] = useState(user?.skinType ?? "mixte");
+  const [allergies, setAllergies] = useState(user?.allergies ?? "");
   const [goals, setGoals] = useState<string[]>(() => {
     try {
-      return (JSON.parse(user.goals ?? "[]") as { id: string }[]).map((g) => g.id);
+      const parsed = JSON.parse(user?.goals ?? "[]");
+      if (Array.isArray(parsed)) {
+        return parsed.map((g: any) => (typeof g === "object" && g ? g.id : String(g)));
+      }
+      return [];
     } catch {
       return [];
     }
   });
   const [savingSkin, setSavingSkin] = useState(false);
 
-  const [wallet, setWallet] = useState<ApiWallet | null>(null);
-  const [txs, setTxs] = useState<ApiWalletTx[] | null>(null);
   const [gold, setGold] = useState<GoldThreads | null>(null);
-  const [topup, setTopup] = useState(false);
-  const [amount, setAmount] = useState(5000);
-  const [method, setMethod] = useState<"wave" | "orange">("wave");
-  const [topupState, setTopupState] = useState<"idle" | "processing" | "done">("idle");
-  const [topupBusy, setTopupBusy] = useState(false);
-
-  const loadWallet = useCallback(() => {
-    apiGet<{ wallet: ApiWallet; transactions: ApiWalletTx[] }>(`/api/wallet?userId=${user.id}`)
-      .then((r) => { setWallet(r.wallet); setTxs(r.transactions ?? []); })
-      .catch(() => setTxs([]));
-  }, [user.id]);
 
   // Fils d'Or — non bloquant: la section s'efface si indisponible.
   useEffect(() => {
+    if (!user?.id) return;
     let alive = true;
     apiGet<GoldThreads>(`/api/gold-threads?userId=${user.id}`)
       .then((g) => { if (alive) setGold(g); })
       .catch(() => {});
     return () => { alive = false; };
-  }, [user.id]);
-
-  useEffect(() => {
-    loadWallet();
-  }, [loadWallet]);
+  }, [user?.id]);
 
   async function saveIdentity() {
     setSavingId(true);
     try {
-      const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", { userId: user.id, name: name.trim() || undefined, city: city.trim() || undefined });
+      const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {
+        userId: user.id,
+        name: name.trim() || undefined,
+        city: city.trim() || undefined,
+        district: district.trim() || undefined,
+      });
       setUser({ ...user, ...r.user } as SessionUser);
       setEdit(false);
       toast.success("Profil mis à jour");
@@ -147,6 +165,28 @@ export function ProfileScreen() {
       toast.error(e instanceof Error ? e.message : "Mise à jour impossible");
     } finally {
       setSavingId(false);
+    }
+  }
+
+  async function savePreferences() {
+    setSavingPrefs(true);
+    try {
+      const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {
+        userId: user.id,
+        district: district.trim() || null,
+        birthDate: birthDate.trim() || null,
+        pregnant,
+        preferredChannel,
+        beautyBudget: beautyBudget || null,
+      });
+      setUser({ ...user, ...r.user } as SessionUser);
+      toast.success("Privilèges & préférences enregistrés", {
+        description: "Tes instituts partenaires adapteront désormais tes soins et offres.",
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Enregistrement impossible");
+    } finally {
+      setSavingPrefs(false);
     }
   }
 
@@ -169,42 +209,12 @@ export function ProfileScreen() {
     }
   }
 
-  async function runTopup() {
-    setTopupBusy(true);
-    setTopupState("processing");
-    try {
-      const r = await apiPost<{ payment: { id: string; confirmToken?: string } }>("/api/wallet/topup", { userId: user.id, amount, method });
-      // Contrat confirmToken (63-b/63-c): un approvisionnement mobile money en
-      // attente porte son jeton — absent, on n'appelle JAMAIS confirm et on
-      // revient au formulaire comme après un échec (aucun crédit fantôme).
-      const confirmToken = r.payment.confirmToken;
-      if (!confirmToken) {
-        setTopupState("idle");
-        toast.error("Paiement impossible — réessaie dans quelques instants");
-        return;
-      }
-      await new Promise((res) => setTimeout(res, 2600));
-      await apiPost("/api/payments/confirm", { paymentId: r.payment.id, confirmToken });
-      setTopupState("done");
-      toast.success(`${xof(amount)} crédités sur ton wallet`);
-      loadWallet();
-    } catch (e) {
-      setTopupState("idle");
-      toast.error(e instanceof Error ? e.message : "Approvisionnement impossible");
-    } finally {
-      setTopupBusy(false);
-    }
-  }
+
+  if (!user) return null;
 
   return (
     <>
       <Reveal className="pt-4 pb-2 flex flex-col gap-6" stagger={0.07}>
-        <RevealItem className="self-start">
-          <button onClick={() => setClientTab("accueil")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label={t("profile.back.aria")}>
-            <ArrowLeft size={15} /> {t("tab.home")}
-          </button>
-        </RevealItem>
-
       {/* Identité */}
       <RevealItem>
         <section aria-labelledby="me-t" className="k-card overflow-hidden rounded-[24px]">
@@ -219,7 +229,7 @@ export function ProfileScreen() {
                   {avatarSrc ? (
                     <img src={avatarSrc} alt={`Photo de profil de ${user.name}`} className="size-full object-cover" />
                   ) : (
-                    user.name.charAt(0)
+                    (user.name || "K").charAt(0)
                   )}
                 </span>
                 {/* Pastille appareil: ouvre le sélecteur de photo */}
@@ -246,7 +256,9 @@ export function ProfileScreen() {
               <div className="min-w-0 flex-1">
                 <p className="font-heading font-black text-[22px] leading-tight truncate">{user.name}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-mono"><Phone size={12} /> {user.phone}</p>
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5"><MapPin size={12} /> {user.city || "Ville non renseignée"}</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                  <MapPin size={12} /> {user.district ? `${user.district} · ${user.city || "Abidjan"}` : user.city || "Ville non renseignée"}
+                </p>
               </div>
               <button onClick={() => setEdit((v) => !v)} aria-label="Modifier mon profil" className="k-chip h-10 w-10 grid place-items-center rounded-full text-muted-foreground hover:text-primary transition-all focus-visible:outline-2 focus-visible:outline-primary">
                 <Pencil size={16} />
@@ -270,9 +282,15 @@ export function ProfileScreen() {
                     <label htmlFor="p-name" className="text-[11px] font-semibold text-muted-foreground">Prénom & nom</label>
                     <input id="p-name" value={name} onChange={(e) => setName(e.target.value)} className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
                   </div>
-                  <div>
-                    <label htmlFor="p-city" className="text-[11px] font-semibold text-muted-foreground">Ville</label>
-                    <input id="p-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Abidjan" className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label htmlFor="p-city" className="text-[11px] font-semibold text-muted-foreground">Ville</label>
+                      <input id="p-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Abidjan" className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+                    </div>
+                    <div>
+                      <label htmlFor="p-district" className="text-[11px] font-semibold text-muted-foreground">Commune / Quartier</label>
+                      <input id="p-district" value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="Cocody, Marcory…" className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+                    </div>
                   </div>
                   <button onClick={saveIdentity} disabled={savingId} className="k-btn-gold h-11 w-full rounded-xl text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                     {savingId ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Enregistrer
@@ -280,6 +298,147 @@ export function ProfileScreen() {
                 </div>
               </motion.div>
             )}
+          </div>
+        </section>
+      </RevealItem>
+
+      {/* ── Informations Privilèges & Sécurité Soins ── */}
+      <RevealItem>
+        <section aria-labelledby="priv-t" className="space-y-2">
+          <SectionTitle icon={<Gift size={16} />}><span id="priv-t">Mes Avantages Privilèges &amp; Sécurité Soins</span></SectionTitle>
+          <div className="k-card rounded-[24px] p-4 sm:p-5 space-y-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Ces informations permettent à tes instituts partenaires de personnaliser tes offres, te gâter le mois de ton anniversaire et sécuriser tes soins cabine.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Anniversaire Privilège */}
+              <div>
+                <label htmlFor="p-birth" className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground/85 mb-1">
+                  <Calendar size={13} className="text-primary" /> Mon Anniversaire Privilège
+                </label>
+                <input
+                  id="p-birth"
+                  type="text"
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  placeholder="Ex : 14/05 ou 14 Mai"
+                  className="k-input h-10 w-full rounded-xl px-3 text-xs focus-visible:outline-2 focus-visible:outline-primary"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">Cadeaux &amp; réductions réservés durant ton mois d&apos;anniversaire 🎂</p>
+              </div>
+
+              {/* Commune / Quartier */}
+              <div>
+                <label htmlFor="p-dist" className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground/85 mb-1">
+                  <MapPin size={13} className="text-primary" /> Commune / Quartier favori
+                </label>
+                <input
+                  id="p-dist"
+                  type="text"
+                  value={district}
+                  onChange={(e) => setDistrict(e.target.value)}
+                  placeholder="Ex : Cocody Angré, Zone 4, Plateau, Almadies…"
+                  className="k-input h-10 w-full rounded-xl px-3 text-xs focus-visible:outline-2 focus-visible:outline-primary"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">Pour t&apos;orienter vers l&apos;institut le plus proche 📍</p>
+              </div>
+            </div>
+
+            {/* Sécurité Maternité (Grossesse / Allaitement) */}
+            <div className="pt-2 border-t border-border/60">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-0.5">
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                    <Baby size={15} className="text-pink-500" /> Es-tu enceinte ou allaitante ?
+                  </p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Indispensable pour ta sécurité : nous adaptons immédiatement les protocoles en cabine et écartons les actifs déconseillés (huiles essentielles fortes, rétinoïdes, acides trop décapants).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPregnant(!pregnant)}
+                  className={cn(
+                    "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border",
+                    pregnant
+                      ? "bg-pink-500/15 border-pink-500/40 text-pink-600 dark:text-pink-400 ring-2 ring-pink-500/20"
+                      : "bg-muted border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {pregnant ? "🌸 Oui, maternité" : "Non"}
+                </button>
+              </div>
+            </div>
+
+            {/* Canal de contact favori */}
+            <div className="pt-2 border-t border-border/60">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground/85 mb-2">
+                <MessageCircle size={13} className="text-primary" /> Canal de contact préféré
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "whatsapp", label: "WhatsApp", icon: "💬" },
+                  { id: "sms", label: "SMS", icon: "📱" },
+                  { id: "call", label: "Appel", icon: "📞" },
+                ].map((ch) => (
+                  <button
+                    key={ch.id}
+                    type="button"
+                    onClick={() => setPreferredChannel(ch.id)}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 h-9 rounded-xl text-xs font-semibold border transition-all",
+                      preferredChannel === ch.id
+                        ? "bg-primary/15 border-primary text-primary font-bold shadow-xs"
+                        : "bg-background border-border text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <span>{ch.icon}</span>
+                    <span>{ch.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Budget mensuel soins */}
+            <div className="pt-2 border-t border-border/60">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground/85 mb-2">
+                <Coins size={13} className="text-primary" /> Budget mensuel moyen alloué à tes soins
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { id: "< 15 000 FCFA", label: "< 15 000 F", desc: "Essentiel" },
+                  { id: "15 000 - 35 000 FCFA", label: "15k - 35k", desc: "Équilibre" },
+                  { id: "35 000 - 75 000 FCFA", label: "35k - 75k", desc: "Intense" },
+                  { id: "> 75 000 FCFA", label: "> 75 000 F", desc: "Prestige" },
+                ].map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setBeautyBudget(b.id)}
+                    className={cn(
+                      "flex flex-col items-center justify-center py-1.5 px-2 rounded-xl text-center border transition-all",
+                      beautyBudget === b.id
+                        ? "bg-gold/15 border-gold text-gold-text font-bold shadow-xs"
+                        : "bg-background border-border text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <span className="text-[11.5px] font-mono leading-tight">{b.label}</span>
+                    <span className="text-[9.5px] opacity-80">{b.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Bouton d'enregistrement */}
+            <button
+              onClick={savePreferences}
+              disabled={savingPrefs}
+              className="k-btn-gold h-10 w-full rounded-xl text-primary-foreground text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60 transition-transform active:scale-[0.99]"
+            >
+              {savingPrefs ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+              Enregistrer mes privilèges &amp; sécurité soins
+            </button>
           </div>
         </section>
       </RevealItem>
@@ -331,6 +490,22 @@ export function ProfileScreen() {
                   Le motif est unique : il est tissé depuis ton histoire, il ne se gagne pas, il se vit.
                 </p>
               </div>
+
+
+              <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex items-center justify-between gap-2">
+                <p className="text-[10px] text-muted-foreground">
+                  Partage ton pagne pour inviter tes amies
+                </p>
+                <button
+                  onClick={() => {
+                    const msg = `Bonjour ! ✨\n\nJ'ai déjà tissé ${gold.threads} fil${gold.threads > 1 ? "s" : ""} d'or sur mon pagne Kente Kènè (Rang : ${gold.rank}) !\n\nRejoins-moi sur Kènè pour découvrir ton profil cutané et recevoir ton cadeau de bienvenue : https://kene.app 🌿`;
+                    openWhatsApp("", msg);
+                  }}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white px-2.5 text-[11px] font-bold transition active:scale-95"
+                >
+                  <MessageCircle size={13} /> Partager mon Kente
+                </button>
+              </div>
             </div>
           </section>
         </RevealItem>
@@ -379,54 +554,45 @@ export function ProfileScreen() {
         </section>
       </RevealItem>
 
-      {/* Wallet */}
-      <RevealItem>
-        <section aria-labelledby="wa-t">
-          <SectionTitle icon={<WalletIcon size={16} />}><span id="wa-t">Mon wallet Kènè</span></SectionTitle>
-          <div className="k-glow-gold relative rounded-[24px] bg-[#1A1410] text-[#F8F1E4] p-5 overflow-hidden">
-            <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-20" />
-            <div className="relative">
-              <p className="text-[10px] uppercase tracking-[0.18em] opacity-70">Solde disponible</p>
-              <p className="font-mono font-black text-3xl mt-1 tabular-nums">{wallet ? xof(wallet.balance) : "···"}</p>
-              <div className="flex items-center gap-2 mt-2 text-[11px] opacity-80">
-                <BadgeCheck size={13} className="text-[#C8951E]" /> Cashback {Math.round((wallet?.cashbackRate ?? CASHBACK_RATE) * 100)} % sur chaque commande
+
+      {/* Comparatif Avant / Après (Split-Slider) */}
+      {(() => {
+        const diagsWithImg = userDiagnoses.filter((d) => Boolean(d?.imageData));
+        if (diagsWithImg.length < 2) return null;
+        const sorted = [...diagsWithImg].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        const beforeDiag = sorted[0];
+        const afterDiag = sorted[sorted.length - 1];
+        return (
+          <RevealItem>
+            <section aria-labelledby="comp-t">
+              <SectionTitle icon={<Sparkles size={16} />}><span id="comp-t">Évolution de ma peau (Avant / Après)</span></SectionTitle>
+              <div className="k-card rounded-[24px] p-4 space-y-3">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Glisse le curseur pour mesurer les progrès de ton épiderme entre ton bilan d&apos;accueil et ton scan le plus récent.
+                </p>
+                <BeforeAfterSlider
+                  before={{
+                    imageUrl: diagImgSrc(beforeDiag.imageData),
+                    label: "Bilan J0 Initial",
+                    date: formatDate(beforeDiag.createdAt),
+                    score: beforeDiag.scoreGlobal,
+                  }}
+                  after={{
+                    imageUrl: diagImgSrc(afterDiag.imageData),
+                    label: "Dernier Bilan",
+                    date: formatDate(afterDiag.createdAt),
+                    score: afterDiag.scoreGlobal,
+                  }}
+                  showSpectralUvToggle={true}
+                />
               </div>
-              <button onClick={() => { setTopup(true); setTopupState("idle"); }} className="k-btn-gold mt-4 h-11 w-full rounded-xl text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-[#C8951E]">
-                <Plus size={16} /> Approvisionner
-              </button>
-            </div>
-          </div>
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">Dernières transactions</p>
-          {txs === null ? (
-            <div className="space-y-2">{[0, 1, 2].map((i) => <Shimmer key={i} className="h-12 rounded-[14px]" />)}</div>
-          ) : txs.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-3">Aucune transaction pour l&apos;instant.</p>
-          ) : (
-            <div className="k-card divide-y divide-border max-h-72 overflow-y-auto scrollbar-thin rounded-[24px]">
-              {txs.map((t) => {
-                const credit = t.type === "credit";
-                return (
-                  <div key={t.id} className="flex items-center gap-3 px-4 py-3">
-                    <span className={`grid place-items-center h-8 w-8 rounded-[10px] shrink-0 ${credit ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
-                      {credit ? <ArrowDownLeft size={15} /> : <ArrowUpRight size={15} />}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold">{REASON_LABELS[t.reason] ?? t.reason}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatDate(t.createdAt, { day: "numeric", month: "short", year: "2-digit" })}</p>
-                    </div>
-                    <span className={`font-mono text-sm font-bold tabular-nums ${credit ? "text-success" : "text-destructive"}`}>
-                      {credit ? "+" : "−"}{xof(t.amount)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      </RevealItem>
+            </section>
+          </RevealItem>
+        );
+      })()}
 
       {/* Parrainage — le fil qui relie les amies */}
-      <ParrainageCard userId={user.id} userName={user.name} onRedeemed={loadWallet} />
+      <ParrainageCard userId={user.id} userName={user.name} />
 
       {/* Passeport de Peau — QR partageable vers les instituts.
  id kene-passport: destination du Pouce d'Or. */}
@@ -448,65 +614,6 @@ export function ProfileScreen() {
         </button>
       </RevealItem>
       </Reveal>
-
-      {/* Sheet approvisionnement */}
-      <Sheet open={topup} onOpenChange={(o) => { setTopup(o); if (!o) setTopupState("idle"); }}>
-        <SheetContent side="bottom" className="max-w-[560px] mx-auto rounded-t-3xl">
-          <SheetHeader className="text-left">
-            <SheetTitle className="font-heading font-black">Approvisionner mon wallet</SheetTitle>
-          </SheetHeader>
-          <div className="px-4 pb-6">
-            {topupState === "idle" && (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Montant</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[2000, 5000, 10000].map((a) => (
-                      <button key={a} onClick={() => setAmount(a)} aria-pressed={amount === a} className={`h-12 rounded-xl font-mono text-sm font-bold tabular-nums transition-all focus-visible:outline-2 focus-visible:outline-primary ${amount === a ? "k-btn-gold text-primary-foreground" : "k-chip"}`}>
-                        {a.toLocaleString("fr-FR")}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Depuis</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {MOMO_OPERATORS.filter((o) => o.code === "wave" || o.code === "orange").map((o) => (
-                      <button key={o.code} onClick={() => setMethod(o.code as "wave" | "orange")} aria-pressed={method === o.code} className={`h-12 rounded-xl border-2 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${method === o.code ? "bg-card" : "border-border bg-card opacity-60"}`} style={{ borderColor: method === o.code ? o.color : undefined }}>
-                        <span className="h-6 w-6 rounded-full grid place-items-center text-[#1A1410] font-black text-[11px]" style={{ backgroundColor: o.color }}>{o.name.charAt(0)}</span>
-                        {o.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <button onClick={runTopup} disabled={topupBusy} className="k-btn-gold h-12 w-full rounded-xl text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                  {topupBusy ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Créditer {xof(amount)}
-                </button>
-              </div>
-            )}
-            {topupState === "processing" && (
-              <div className="flex flex-col items-center gap-4 py-8">
-                <div className="grid place-items-center w-16 h-16 rounded-3xl font-heading font-black text-2xl text-[#1A1410]" style={{ backgroundColor: MOMO_OPERATORS.find((o) => o.code === method)?.color }}>
-                  {MOMO_OPERATORS.find((o) => o.code === method)?.name.charAt(0)}
-                </div>
-                <p className="font-mono text-2xl font-black tabular-nums">{xof(amount)}</p>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Traitement en cours…</div>
-                <p className="text-[10px] text-muted-foreground font-mono">{user.phone}</p>
-              </div>
-            )}
-            {topupState === "done" && (
-              <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center gap-3 py-8 text-center">
-                <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 15 }} className="grid place-items-center h-16 w-16 rounded-full bg-[#346834]">
-                  <Check size={32} className="text-white" strokeWidth={3} />
-                </motion.span>
-                <p className="font-heading font-black text-lg">Wallet crédité</p>
-                <p className="text-xs text-muted-foreground">Nouveau solde mis à disposition immédiatement.</p>
-                <button onClick={() => setTopup(false)} className="k-btn-gold mt-2 h-11 px-6 rounded-xl text-primary-foreground font-semibold text-sm focus-visible:outline-2 focus-visible:outline-primary">Fermer</button>
-              </motion.div>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
     </>
   );
 }

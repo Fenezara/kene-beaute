@@ -19,9 +19,9 @@ export async function GET(req: NextRequest) {
       db.product.findMany({ where: { tenantId: tenant.id }, orderBy: { name: "asc" } }),
       db.inventoryMovement.findMany({
         where: { tenantId: tenant.id },
-        include: { product: { select: { name: true } } },
+        include: { product: { select: { name: true, category: true, image: true } } },
         orderBy: { createdAt: "desc" },
-        take: 30,
+        take: 50,
       }),
     ]);
 

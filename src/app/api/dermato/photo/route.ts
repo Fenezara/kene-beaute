@@ -11,7 +11,8 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const Body = z.object({
-  image: z.string().startsWith("data:image/"),
+  image: z.string().startsWith("data:image/").optional(),
+  images: z.array(z.string().startsWith("data:image/")).min(1).max(5).optional(),
   userId: z.string().optional(),
 });
 
@@ -22,16 +23,28 @@ export async function POST(req: NextRequest) {
   }
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
-    if (!parsed.success) return jsonError("Image invalide (dataURL attendu)", 400);
+    if (!parsed.success) return jsonError("Image(s) invalide(s) (dataURL attendu)", 400);
 
-    // Validation d'upload 2026: MIME + taille + magic bytes.
-    const upload = checkImageDataUrl(parsed.data.image);
-    if (!upload.ok) {
-      void audit({ kind: "upload_reject", ip: clientIp(req), detail: upload.reason });
-      return jsonError(`Photo refusée — ${upload.reason}`, 415);
+    const imgList: string[] = parsed.data.images && parsed.data.images.length > 0
+      ? parsed.data.images
+      : parsed.data.image
+        ? [parsed.data.image]
+        : [];
+
+    if (imgList.length === 0) {
+      return jsonError("Au moins une photo est requise", 400);
     }
 
-    const triage = await triageLesion(parsed.data.image);
+    // Validation d'upload 2026: MIME + taille + magic bytes pour chaque cliché.
+    for (const img of imgList) {
+      const upload = checkImageDataUrl(img);
+      if (!upload.ok) {
+        void audit({ kind: "upload_reject", ip: clientIp(req), detail: upload.reason });
+        return jsonError(`Photo refusée — ${upload.reason}`, 415);
+      }
+    }
+
+    const triage = await triageLesion(imgList);
     return NextResponse.json({ niveau: triage.niveau, message: triage.message });
   } catch (err) {
     console.error("[kene:api:dermato/photo]", err instanceof Error ? err.message : err);

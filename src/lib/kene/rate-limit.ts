@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 // et des tests répétés doivent rester fluides.
 export const OTP_REQUEST = { limit: 10, windowMs: 15 * 60_000 } as const;
 export const OTP_VERIFY = { limit: 12, windowMs: 15 * 60_000 } as const;
+export const LOGIN_PIN = { limit: 15, windowMs: 15 * 60_000 } as const; // connexion rapide par code PIN
 export const DERMATO = { limit: 30, windowMs: 60_000 } as const;
 export const PAYMENTS = { limit: 12, windowMs: 60_000 } as const;
 export const PAYMENTS_CONFIRM = { limit: 20, windowMs: 60_000 } as const; // confirm MoMo 
@@ -21,6 +22,7 @@ export const REFERRAL_REDEEM = { limit: 5, windowMs: 3_600_000 } as const;
 export const TTS = { limit: 12, windowMs: 60_000 } as const;
 export const ASR = { limit: 10, windowMs: 60_000 } as const; // transcription vocale chat 
 export const AUTH_MUTATION = { limit: 20, windowMs: 60_000 } as const;
+export const REVIEWS_POST = { limit: 10, windowMs: 60_000 } as const; // dépôt d'avis vérifié
 
 // ── Routes coûteuses ──
 // VLM client: un scan = une photo analysée par le moteur vision → 6/min
@@ -96,8 +98,12 @@ export function rlKey(req: Request, scope: string): string {
 }
 
 /** Réponse 429 standard Kènè: body JSON { error, retryAfterSec } + header
- * Retry-After (repris par le front pour formater le délai). */
-export function rateLimitResponse(retryAfterSec: number, message: string): NextResponse {
+ * Retry-After (repris par le front pour formater le délai).
+ * @param message — optionnel: message par défaut générique si omis. */
+export function rateLimitResponse(
+  retryAfterSec: number,
+  message = "Trop de requêtes — réessaie dans quelques secondes",
+): NextResponse {
   return NextResponse.json({ error: message, retryAfterSec }, {
     status: 429,
     headers: { "Retry-After": String(retryAfterSec) },

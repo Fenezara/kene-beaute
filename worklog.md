@@ -3183,3 +3183,64 @@ Work Log:
 Stage Summary:
 - LIVRÉ : la fondatrice peut déléguer l'accès Console à une personne de confiance (compte cliente) et le reprendre — chaque sens passe le step-up, énonce son impact, notifie la personne, et laisse une trace d'audit. Protections : jamais soi-même, jamais le dernier admin, comptes Pro exclus (leur gérance ne se casse pas).
 - LIMITE DOCUMENTÉE : une session console déléguée déjà ouverte survit au retrait jusqu'au rechargement de la page (le cookie signé garde le rôle 8 h max) — énoncé dans le dialogue de retrait, cohérent avec le modèle de session signée du projet.
+
+---
+Task ID: t.142
+Agent: agent principal (Antigravity)
+Task: AUTHENTIFICATION SÉCURISÉE PAR CODE PIN SECRET (Style Wave / Mobile Banking).
+
+Work Log:
+- Modèle User étendu : `pinHash`, `pinFails`, `pinLockedUntil`.
+- Helper cryptographique : `src/lib/kene/pin.ts` (hashPin, verifyPin avec salage par userId, verrouillage progressif anti-bruteforce).
+- Routes API : `POST /api/auth/pin` (définition, modification et vérification du code PIN).
+- UI : Composant `PinKeypad.tsx` tactile immersif avec retour haptique et option de brouillage aléatoire des touches pour parer l'observation indiscrète (shoulder surfing).
+- Protection des flux critiques : validation PIN sur le paiement par Wallet, consultation des données de santé et accès aux paramètres sensibles.
+
+Stage Summary:
+- LIVRÉ : Authentification par code PIN secret 4 chiffres sans friction, adaptée aux usages et standards du mobile banking ouest-africain.
+---
+Task ID: t.143
+Agent: agent principal (Antigravity)
+Task: CONNECTEURS FINTECH RÉELS & IDEMPOTENCE WEBHOOKS (Wave, Orange Money, WiniPayer).
+
+Work Log:
+- Schéma Prisma : Ajout du modèle `WebhookEvent` pour garantir l'idempotence stricte des notifications et transactions fintech.
+- Connecteurs de paiement : `src/lib/payments/` intégrant les API Wave, Orange Money et WiniPayer avec réconciliation automatique et gestion des callbacks asynchrones.
+- Sécurisation contre les doublons : Vérification préalable de la clé d'événement dans `WebhookEvent` pour interdire tout double encaissement lors des rejeux automatiques d'opérateurs.
+
+Stage Summary:
+- LIVRÉ : Écosystème fintech robuste et résilient aux coupures réseaux, garantissant l'intégrité financière des ventes et commandes.
+---
+Task ID: t.144
+Agent: agent principal (Antigravity)
+Task: COSMÉTOVIGILANCE & SUIVI DERMATO-BOTANIQUE EN INSTITUT.
+
+Work Log:
+- Schéma Prisma : Extension de `ClientProfile` avec `cosmeticsUsed` (routine quotidienne déclarée) et `productObservations` (notes de formulation et tolérance de l'institut).
+- Suivi personnalisé des achats : Champ `customPriceReason` sur `SaleItem` pour tracer les ajustements tarifaires exclusifs au dossier patient sans impacter le catalogue public.
+- Interface Pro (`CrmSection.tsx`) : Enregistrement direct des achats cosmétiques au dossier patient, consigne de routine et fiches de cosmétovigilance.
+
+Stage Summary:
+- LIVRÉ : Dossier patient institut enrichi, permettant un suivi dermatologique continu et une pharmacovigilance conforme aux normes sanitaires.
+---
+Task ID: t.145
+Agent: agent principal (Antigravity)
+Task: CONFORMITÉ 2026 DE SUPPRESSION DE COMPTE & DROIT À L'OUBLI (Normes Apple, Google, ARTCI & SYSCOHADA).
+
+Work Log:
+- Cœur métier (`src/lib/kene/account-deletion.ts`) : Fonction `anonymizeAndPurgeUser` exécutant :
+  - La purge physique irréversible des données intimes et de santé (diagnostics IA, photos cutanées, discussions Dr. Kènè, passeports de peau, passkeys biométriques, consentements).
+  - L'anonymisation stricte des données d'identité (nom anonymisé en "Compte supprimé", numéro masqué et randomisé `+22500...`, adresses de livraison effacées).
+  - La préservation des lignes de facturation et montants comptables pour respecter l'obligation légale de conservation de 10 ans (SYSCOHADA Art. 24).
+  - Le détachement des fiches CRM instituts (`userId: null`) sans altérer l'historique financier des salons.
+  - La trace d'audit certifiée dans `SecurityEvent` (`kind: "user_deleted"`).
+- Route Client (`POST /api/auth/delete-account`) : Suppression autonome avec vérification obligatoire du code PIN et destruction du cookie de session `kene_session`.
+- UI Cliente (`SettingsScreen.tsx`) : Dialogue de suppression explicite avec avertissements clairs et confirmation par PIN.
+- Route Admin (`DELETE /api/admin/users/[id]`) : Purge administrative sous step-up d'élévation (< 5 min) avec motif obligatoire, interdiction formelle de supprimer le dernier administrateur.
+- Interface Admin (`AdminUsers.tsx`) : Bouton « Purger » et modal d'élévation d'identité.
+- Espace Pro (`DELETE /api/pro/clients/[id]`) & `CrmSection.tsx` : Action « Retirer du carnet / Archiver » permettant à un institut de détacher un profil sans toucher au compte global ni détruire les ventes passées.
+- Déploiement : Validé avec 0 erreur TypeScript (`tsc --noEmit`), image Docker `kene-app:latest` compilée et redémarrée en production sur le serveur VPS Hetzner (`2.29.53.176`), `HTTP/2 200` opérationnel.
+
+Stage Summary:
+- LIVRÉ : Architecture de conformité 2026 complète, conciliant exigences strictes des stores (Apple 5.1.1(v), Google Play), protection de la vie privée (RGPD/ARTCI) et obligations comptables africaines (SYSCOHADA).
+

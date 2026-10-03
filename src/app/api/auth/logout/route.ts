@@ -11,11 +11,18 @@ import { audit, clientIp } from "@/lib/kene/audit";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const sess = sessionFromRequest(req);
-  void audit({ kind: "logout", userId: sess?.userId, ip: clientIp(req) });
-  const res = NextResponse.json({ ok: true });
-  clearSessionCookie(res);
-  // t. 130 — l'élévation (step-up console) meurt avec la session.
-  clearElevationCookie(res);
-  return res;
+  try {
+    const sess = sessionFromRequest(req);
+    void audit({ kind: "logout", userId: sess?.userId, ip: clientIp(req) });
+    const res = NextResponse.json({ ok: true });
+    clearSessionCookie(res);
+    // t. 130 — l'élévation (step-up console) meurt avec la session.
+    clearElevationCookie(res);
+    return res;
+  } catch {
+    const fallback = NextResponse.json({ ok: true });
+    clearSessionCookie(fallback);
+    clearElevationCookie(fallback);
+    return fallback;
+  }
 }

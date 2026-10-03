@@ -60,15 +60,23 @@ export function AdminTenants() {
   );
 
   const [statusFilter, setStatusFilter] = useState<"all" | "online" | "suspended">("all");
+  const [accountTypeFilter, setAccountTypeFilter] = useState<"all" | "real" | "demo">("all");
   // Incrémenté après chaque PATCH réussi → la FICHE ouverte se recharge
   // (elle vit dans TenantSheet avec son propre useApi: la liste seule ne suffit pas).
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const allTenants = useMemo(() => list.data?.tenants ?? [], [list.data]);
+  const realCount = useMemo(() => allTenants.filter((t) => !t.isDemo).length, [allTenants]);
+  const demoCount = useMemo(() => allTenants.filter((t) => t.isDemo).length, [allTenants]);
+
   const rows = useMemo(() => {
-    const all = list.data?.tenants ?? [];
-    if (statusFilter === "online") return all.filter((t) => t.active);
-    if (statusFilter === "suspended") return all.filter((t) => !t.active);
+    let all = allTenants;
+    if (statusFilter === "online") all = all.filter((t) => t.active);
+    if (statusFilter === "suspended") all = all.filter((t) => !t.active);
+    if (accountTypeFilter === "real") all = all.filter((t) => !t.isDemo);
+    if (accountTypeFilter === "demo") all = all.filter((t) => t.isDemo);
     return all;
-  }, [list.data, statusFilter]);
+  }, [allTenants, statusFilter, accountTypeFilter]);
 
   // Fiche détaillée (dialog) + dialog de suspension
   const [openId, setOpenId] = useState<string | null>(null);
@@ -164,6 +172,29 @@ export function AdminTenants() {
         </Button>
       </div>
 
+      {/* Filtres Type d'établissement (Réels vs Démos) */}
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrer par type d'établissement">
+        {([
+          ["all", `Tous les instituts (${allTenants.length})`],
+          ["real", `Établissements Réels (${realCount})`],
+          ["demo", `Comptes Démo (${demoCount})`],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setAccountTypeFilter(key)}
+            aria-pressed={accountTypeFilter === key}
+            className={cn(
+              "min-h-8 rounded-full border px-3 text-xs font-semibold transition-colors",
+              accountTypeFilter === key
+                ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                : "border-border bg-card text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Liste */}
       <Card className="overflow-hidden pt-0">
         <KenteTop />
@@ -203,7 +234,18 @@ export function AdminTenants() {
                   {rows.map((t) => (
                     <TableRow key={t.id} className={cn(!t.active && "opacity-75")}>
                       <TableCell>
-                        <p className="font-medium leading-tight">{t.name}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-medium leading-tight">{t.name}</p>
+                          {t.isDemo ? (
+                            <span className="rounded-full bg-muted/70 text-muted-foreground border border-dashed border-border px-2 py-0.5 text-[9.5px] font-medium">
+                              Compte Démo
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-success/15 text-success border border-success/30 px-2 py-0.5 text-[9.5px] font-semibold">
+                              Établissement Réel
+                            </span>
+                          )}
+                        </div>
                         <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                           <MapPin className="size-3 shrink-0" aria-hidden="true" />
                           {t.city}
@@ -214,9 +256,9 @@ export function AdminTenants() {
                         <p className="text-sm leading-tight">{t.ownerName}</p>
                         <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{t.ownerPhone}</p>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right whitespace-nowrap">
                         <Money value={t.caBoutique30 + t.caPos30} className="text-sm font-semibold" />
-                        <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        <p className="mt-0.5 text-[10px] text-muted-foreground whitespace-nowrap">
                           boutique {xof(t.caBoutique30, { compact: true })} · caisse {xof(t.caPos30, { compact: true })}
                         </p>
                       </TableCell>
@@ -420,33 +462,37 @@ function TenantSheet({
                   <Package className="size-3.5" aria-hidden="true" /> Plan
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Plan de l'institut">
-                  {(["trial", "pro", "business"] as const).map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => setDraftPlan(p)}
-                      aria-pressed={plan === p}
-                      className={cn(
-                        "min-h-11 rounded-full border px-3.5 text-sm font-medium capitalize transition-colors",
-                        plan === p ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:bg-muted",
-                      )}
-                    >
-                      {p}
-                    </button>
-                  ))}
+                  {(["trial", "pro", "business"] as const).map((p) => {
+                    const labelText = p === "trial" ? "Pass Découverte (30j)" : p === "pro" ? "Essentiel" : "Complexe";
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setDraftPlan(p)}
+                        aria-pressed={plan === p}
+                        className={cn(
+                          "min-h-11 rounded-full border px-3.5 text-sm font-medium transition-colors",
+                          plan === p ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:bg-muted",
+                        )}
+                      >
+                        {labelText}
+                      </button>
+                    );
+                  })}
                   <Button
                     size="sm"
                     className="ml-auto h-11"
                     disabled={!planDirty || busy}
-                    onClick={() =>
-                      void patch(t.id, { plan }, `Plan de ${t.name} : ${plan}`).then((okDone) => {
+                    onClick={() => {
+                      const labelText = plan === "trial" ? "Pass Découverte (30j)" : plan === "pro" ? "Essentiel" : "Complexe";
+                      void patch(t.id, { plan }, `Plan de ${t.name} : ${labelText}`).then((okDone) => {
                         if (okDone) setDraftPlan(null);
-                      })
-                    }
+                      });
+                    }}
                   >
                     {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : "Enregistrer"}
                   </Button>
                 </div>
-                <p className="mt-1.5 text-[11px] text-muted-foreground">Essai, Pro ou Business — la tarification Kènè.</p>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">Pass Découverte (30j), Essentiel (Pro) ou Complexe (Business) — tarification SaaS Kènè.</p>
               </div>
             </div>
 

@@ -7,12 +7,18 @@ export interface ApiUser {
   name: string;
   role: string;
   city?: string | null;
+  district?: string | null;
+  birthDate?: string | null;
+  pregnant?: boolean | null;
+  preferredChannel?: string | null;
+  beautyBudget?: string | null;
   skinType?: string | null;
   fitzpatrick?: string | null;
   allergies?: string | null;
   goals?: string | null; // JSON [{id,label}]
   consentHealth?: boolean;
   consentTs?: string | null;
+  hasPin?: boolean;
 }
 
 export interface ApiDiagnosis {
@@ -44,6 +50,9 @@ export interface ApiInstitute {
   // — numéro officiel (bouton WhatsApp) + vitrine réelle éventuelle
   phone?: string;
   hasPhoto?: boolean;
+  address?: string | null;
+  distanceKm?: number | null;
+  coords?: { lat: number; lng: number };
   _count?: { services?: number; reviews?: number };
 }
 
@@ -72,6 +81,14 @@ export interface ApiReview {
   comment?: string | null;
   createdAt: string;
   user?: { name: string } | null;
+  serviceName?: string | null;
+}
+
+export interface ApiReviewSummary {
+  averageRating: number;
+  totalCount: number;
+  breakdown: Record<number, number>;
+  satisfactionRate: number;
 }
 
 export interface ApiSlot {
@@ -93,9 +110,10 @@ export interface ApiAppointment {
   clientName: string;
   clientPhone: string;
   createdAt: string;
-  tenant?: { name: string; city: string; country: string } | null;
+  tenant?: { id?: string; name: string; city: string; country: string } | null;
   service?: { name: string; durationMin: number; price: number } | null;
   resource?: { name: string } | null;
+  review?: { id: string; rating: number; comment?: string | null; createdAt: string } | null;
 }
 
 export interface ApiProduct {
@@ -111,21 +129,20 @@ export interface ApiProduct {
   image: string;
   rating: number;
   reviewCount: number;
-  // — marketplace par institut: null = produit MAISON Kènè,
-  // sinon le produit est vendu par l'institut porté par `tenant`.
+  // — marketplace: chaque produit est vendu par une entreprise partenaire (institut, cabinet, spa)
   tenantId?: string | null;
   tenant?: { id: string; name: string; city: string; type: string; hasPhoto?: boolean } | null;
   // — photo réelle du produit prise par l'institut (prime sur `image`)
   hasPhoto?: boolean;
 }
 
-/** Vendeur du marché: la MAISON Kènè ou un institut partenaire.
+/** Vendeur du marché: un institut ou établissement partenaire certifié.
  * Dérivé des produits réellement en stock (jamais de vendeur vide). */
 export interface ApiSeller {
-  key: string; // "" = maison, sinon tenantId
+  key: string; // tenantId
   name: string;
   city: string | null;
-  maison: boolean; // true = MAISON Kènè (tenantId null)
+  maison?: boolean;
   count: number;
   hasPhoto?: boolean; // — vitrine réelle de l'institut vendeur
 }
@@ -133,6 +150,12 @@ export interface ApiSeller {
 export interface ApiOrder {
   id: string;
   subtotal: number;
+  shippingFee?: number;
+  deliveryCity?: string | null;
+  deliveryArea?: string | null;
+  deliveryAddress?: string | null;
+  deliveryPhone?: string | null;
+  deliveryNotes?: string | null;
   discount?: number;
   couponCode?: string | null;
   cashback: number;
@@ -141,6 +164,7 @@ export interface ApiOrder {
   createdAt: string;
   items?: { id: string; label: string; qty: number; unitPrice: number; total: number }[];
 }
+
 
 export interface ApiPayment {
   id: string;
@@ -151,7 +175,7 @@ export interface ApiPayment {
   ref: string;
   createdAt?: string;
  /** Jeton de confirmation des paiements mobile money en attente (wave/orange):
- * fourni par la création (orders / appointments / wallet topup), exigé par
+ * fourni par la création (orders / appointments), exigé par
  * POST /api/payments/confirm. Absent sur un paiement pending → la cliente
  * ne doit PAS tenter le confirm (contrat 63-b/63-c). */
   confirmToken?: string;
@@ -226,8 +250,12 @@ export interface ChatMsg {
   id: string;
   role: "user" | "assistant";
   content: string;
-  kind?: "text" | "photo";
-  photo?: string; // dataURL côté user
+  kind?: "text" | "photo" | "audio";
+  photo?: string; // dataURL côté user (photo unique)
+  photos?: string[]; // dataURLs multiples (envoi de plusieurs photos)
+  audioUrl?: string; // URL ou dataURL de la note vocale pour réécoute
+  audioDuration?: number; // durée en secondes
+  transcription?: string; // texte transcrit mot à mot
   niveau?: "vert" | "jaune" | "rouge";
   time: number;
 }
@@ -272,20 +300,46 @@ export function parseDiagnosis(resultJson: string): import("@/lib/kene/types").D
   }
 }
 
-/** imageData "data:..." (upload) ou "file:/skin/x.webp" (seed) → src utilisable */
+/** imageData "data:..." (upload), "file:/skin/x.webp" (seed) ou JSON stringifié ["data:..."] → src utilisable */
 export function diagImgSrc(imageData: string): string {
+  if (!imageData) return "";
+  if (imageData.startsWith("[")) {
+    try {
+      const arr = JSON.parse(imageData);
+      if (Array.isArray(arr) && arr[0]) return diagImgSrc(arr[0]);
+    } catch {
+      // ignore
+    }
+  }
   if (imageData.startsWith("data:")) return imageData;
   return imageData.replace(/^file:/, "");
+}
+
+/** Récupère la liste de tous les angles d'images d'un diagnostic */
+export function diagImgSources(imageData: string): string[] {
+  if (!imageData) return [];
+  if (imageData.startsWith("[")) {
+    try {
+      const arr = JSON.parse(imageData);
+      if (Array.isArray(arr)) return arr.map((item) => diagImgSrc(String(item))).filter(Boolean);
+    } catch {
+      // ignore
+    }
+  }
+  const single = diagImgSrc(imageData);
+  return single ? [single] : [];
 }
 
 export const SHOP_CATEGORIES = [
   { id: "", label: "Tout" },
   { id: "serum", label: "Sérums" },
-  { id: "creme", label: "Crèmes" },
+  { id: "creme", label: "Crèmes & Baumes" },
   { id: "huile", label: "Huiles" },
   { id: "gommage", label: "Gommages" },
   { id: "masque", label: "Masques" },
   { id: "savon", label: "Savons" },
+  { id: "solaire", label: "Solaires" },
+  { id: "capillaire", label: "Capillaire" },
 ] as const;
 
 export const SKIN_TYPES = [

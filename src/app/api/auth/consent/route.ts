@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
+import { sanitizeUser } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 
@@ -60,5 +61,5 @@ async function runConsent(parsed: z.infer<typeof Body>, req: NextRequest): Promi
     data: { consentHealth: true, consentTs: new Date() },
   });
 
-  return NextResponse.json({ user: updated });
+  return NextResponse.json({ user: sanitizeUser(updated) });
 }

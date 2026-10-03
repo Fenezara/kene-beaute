@@ -43,6 +43,10 @@ const Body = z.object({
   paymentMethod: z.enum(["wave", "orange", "cash", "card", "wallet"]),
   clientProfileId: z.string().optional(),
   discount: z.number().int().min(0).optional(),
+  appointmentId: z.string().optional(),
+  practitionerName: z.string().optional(),
+  practitionerId: z.string().optional(),
+  depositDeducted: z.number().int().min(0).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -54,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
-    const { tenantId, items, paymentMethod, discount } = parsed.data;
+    const { tenantId, items, paymentMethod, discount, appointmentId, practitionerName, depositDeducted } = parsed.data;
 
     const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) return jsonError("Institut introuvable", 404);
@@ -63,6 +67,18 @@ export async function POST(req: NextRequest) {
     if (parsed.data.clientProfileId) {
       clientProfile = await db.clientProfile.findFirst({ where: { id: parsed.data.clientProfileId, tenantId } });
       if (!clientProfile) return jsonError("Fiche cliente introuvable", 404);
+    }
+
+    // Gestion de la passerelle RDV : vérification et passage au statut 'completed'
+    let linkedAppointment: Awaited<ReturnType<typeof db.appointment.findFirst>> = null;
+    if (appointmentId) {
+      linkedAppointment = await db.appointment.findFirst({ where: { id: appointmentId, tenantId } });
+      if (linkedAppointment && linkedAppointment.status !== "completed") {
+        await db.appointment.update({
+          where: { id: linkedAppointment.id },
+          data: { status: "completed" },
+        });
+      }
     }
 
     // Résolution des lignes (prestations + produits)
@@ -87,25 +103,37 @@ export async function POST(req: NextRequest) {
     const servicesAmount = lines.filter((l) => l.kind === "service").reduce((s, l) => s + l.total, 0);
     const productsAmount = subtotal - servicesAmount;
 
+    // Contexte de traçabilité acompte / praticienne
+    const depositUsed = depositDeducted ?? (linkedAppointment ? linkedAppointment.depositAmount : 0);
+    let payRef = appointmentId ? `RDV #${appointmentId.slice(-6).toUpperCase()}` : null;
+    if (depositUsed > 0) {
+      payRef = payRef ? `${payRef} (Acompte ${depositUsed} F déduit)` : `Acompte ${depositUsed} F déduit`;
+    }
+    const cashier = practitionerName?.trim() || "Caisse 1";
+
     const sale = await db.sale.create({
       data: {
         tenantId,
-        clientProfileId: clientProfile?.id ?? null,
+        clientProfileId: clientProfile?.id ?? linkedAppointment?.clientProfileId ?? null,
         subtotal,
         discount: disc,
         total,
         tvaAmount: tva,
         paymentMethod,
+        paymentRef: payRef,
+        cashierName: cashier,
         status: "completed",
         items: { create: lines.map(({ kind, serviceId, productId, label, qty, unitPrice, total: lineTotal }) => ({ kind, serviceId: serviceId ?? null, productId: productId ?? null, label, qty, unitPrice, total: lineTotal })) },
       },
       include: { items: true },
     });
 
-    // Sorties de stock produits + mouvements
+    // Sorties de stock produits + mouvements (anti-stock négatif sous concurrence)
     for (const l of lines) {
       if (l.kind !== "product" || !l.productId) continue;
-      await db.product.update({ where: { id: l.productId }, data: { stock: { decrement: l.qty } } });
+      const currentProd = await db.product.findUnique({ where: { id: l.productId } });
+      const safeNextStock = Math.max(0, (currentProd?.stock ?? l.qty) - l.qty);
+      await db.product.update({ where: { id: l.productId }, data: { stock: safeNextStock } });
       await db.inventoryMovement.create({
         data: { tenantId, productId: l.productId, type: "out", qty: l.qty, reason: `Vente POS ${sale.id.slice(-6).toUpperCase()}` },
       });

@@ -3,8 +3,8 @@
 // — chaque fiche porte désormais une PHOTO RÉELLE (produit posé sur
 // le comptoir, soin en cabine): upload local redimensionné, stocké en base
 // et servi par /api/media — la photo prime sur le visuel studio si posée.
-import { useRef, useState } from "react";
-import { Camera, Clock, ImageOff, Loader2, MoreVertical, Package, Pencil, Percent, Plus, Power, Sparkles } from "lucide-react";
+import { useRef, useState, useMemo } from "react";
+import { Camera, Clock, ImageOff, Loader2, MoreVertical, Package, Pencil, Percent, Plus, Power, Sparkles, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,12 +21,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { apiGet, apiPatch, apiPost, resizeImage } from "@/lib/kene/api";
 import { xof } from "@/lib/kene/format";
+import {
+  SERVICE_CATEGORIES,
+  PRODUCT_CATEGORIES,
+  getServiceCategoryMeta,
+  getProductCategoryMeta,
+  getCategoryToneBadgeClass,
+} from "@/lib/kene/catalog-taxonomy";
 import { useApi } from "./useApi";
 import { EmptyState, ErrorState, Money, SectionHeader } from "./ui-bits";
 import type { ProCatalog, ProProduct, ProService } from "./types";
 
-const SERVICE_CATS = ["soin", "gommage", "massage", "diagnostic", "consultation"] as const;
-const PRODUCT_CATS = ["serum", "creme", "huile", "gommage", "masque", "savon"] as const;
 const PRODUCT_IMAGES = ["serum-moringa", "baume-karite", "huile-baobab", "gommage-bissap", "masque-aloka", "savon-noir", "brune-nere", "solaire-spf50"] as const;
 
 interface FormState {
@@ -70,12 +75,88 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
   const [existingPhoto, setExistingPhoto] = useState(false);
   const photoInput = useRef<HTMLInputElement>(null);
 
+  const [serviceCatFilter, setServiceCatFilter] = useState<string>("all");
+  const [productCatFilter, setProductCatFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Mode création de catégorie personnalisée
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState("");
+
   const catalog = useApi<ProCatalog>(() => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve({ services: [], products: [] })), [tenantId]);
+
+  // Liste dynamique de toutes les catégories de soins (prédéfinies + personnalisées en base)
+  const allServiceCategories = useMemo(() => {
+    const list = [...SERVICE_CATEGORIES];
+    const existingIds = new Set(SERVICE_CATEGORIES.map((c) => c.id.toLowerCase()));
+    for (const s of catalog.data?.services ?? []) {
+      if (s.category && !existingIds.has(s.category.toLowerCase())) {
+        existingIds.add(s.category.toLowerCase());
+        list.push(getServiceCategoryMeta(s.category));
+      }
+    }
+    return list;
+  }, [catalog.data?.services]);
+
+  // Liste dynamique de toutes les catégories de produits (prédéfinies + personnalisées en base)
+  const allProductCategories = useMemo(() => {
+    const list = [...PRODUCT_CATEGORIES];
+    const existingIds = new Set(PRODUCT_CATEGORIES.map((c) => c.id.toLowerCase()));
+    for (const p of catalog.data?.products ?? []) {
+      if (p.category && !existingIds.has(p.category.toLowerCase())) {
+        existingIds.add(p.category.toLowerCase());
+        list.push(getProductCategoryMeta(p.category));
+      }
+    }
+    return list;
+  }, [catalog.data?.products]);
+
+  const serviceCategoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const s of catalog.data?.services ?? []) {
+      counts[s.category] = (counts[s.category] || 0) + 1;
+    }
+    return counts;
+  }, [catalog.data?.services]);
+
+  const productCategoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of catalog.data?.products ?? []) {
+      counts[p.category] = (counts[p.category] || 0) + 1;
+    }
+    return counts;
+  }, [catalog.data?.products]);
+
+  const filteredServices = useMemo(() => {
+    let list = catalog.data?.services ?? [];
+    if (serviceCatFilter !== "all") {
+      list = list.filter((s) => s.category.toLowerCase() === serviceCatFilter.toLowerCase());
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter((s) => s.name.toLowerCase().includes(q) || (s.botanicals ?? "").toLowerCase().includes(q) || s.category.toLowerCase().includes(q));
+    }
+    return list;
+  }, [catalog.data?.services, serviceCatFilter, searchQuery]);
+
+  const filteredProducts = useMemo(() => {
+    let list = catalog.data?.products ?? [];
+    if (productCatFilter !== "all") {
+      list = list.filter((p) => p.category.toLowerCase() === productCatFilter.toLowerCase());
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter((p) => p.name.toLowerCase().includes(q) || (p.botanicals ?? "").toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+    }
+    return list;
+  }, [catalog.data?.products, productCatFilter, searchQuery]);
 
   function openCreate(type: "service" | "product") {
     setEditType(type);
     setEditId(null);
     setExistingPhoto(false);
+    setIsCustomCategory(false);
+    setCustomCategoryInput("");
     setForm({ ...emptyForm, category: type === "service" ? "soin" : "serum" });
     setDialogOpen(true);
   }
@@ -83,6 +164,10 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
     setEditType(type);
     setEditId(item.id);
     setExistingPhoto(Boolean(item.hasPhoto));
+    const standardList = type === "service" ? SERVICE_CATEGORIES : PRODUCT_CATEGORIES;
+    const isStandard = standardList.some((c) => c.id.toLowerCase() === item.category.toLowerCase());
+    setIsCustomCategory(!isStandard);
+    setCustomCategoryInput(!isStandard ? item.category : "");
     setForm({
       name: item.name,
       category: item.category,
@@ -130,8 +215,13 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
 
   async function submit() {
     const price = Number(form.price);
+    const chosenCategory = (isCustomCategory ? customCategoryInput : form.category).trim();
     if (!form.name.trim() || !price || price <= 0) {
       toast.error("Nom et prix valides requis");
+      return;
+    }
+    if (!chosenCategory) {
+      toast.error("Veuillez renseigner ou choisir une catégorie");
       return;
     }
     setBusy(true);
@@ -143,7 +233,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
         editType === "service"
           ? {
               name: form.name.trim(),
-              category: form.category,
+              category: chosenCategory,
               price,
               durationMin: Number(form.durationMin) || 60,
               commissionPct: Number(form.commissionPct) || 0,
@@ -153,7 +243,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
             }
           : {
               name: form.name.trim(),
-              category: form.category,
+              category: chosenCategory,
               price,
               stock: Number(form.stock) || 0,
               stockAlert: Number(form.stockAlert) || 0,
@@ -206,123 +296,273 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
           ))}
         </div>
       ) : (
-        <Tabs defaultValue="service">
-          <TabsList className="mb-3">
-            <TabsTrigger value="service" className="text-xs gap-1.5"><Sparkles className="size-3.5" aria-hidden="true" /> Soins ({catalog.data?.services.length ?? 0})</TabsTrigger>
-            <TabsTrigger value="product" className="text-xs gap-1.5"><Package className="size-3.5" aria-hidden="true" /> Produits ({catalog.data?.products.length ?? 0})</TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="service" className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <TabsList>
+              <TabsTrigger value="service" className="text-xs gap-1.5">
+                <Sparkles className="size-3.5" aria-hidden="true" /> Soins ({catalog.data?.services.length ?? 0})
+              </TabsTrigger>
+              <TabsTrigger value="product" className="text-xs gap-1.5">
+                <Package className="size-3.5" aria-hidden="true" /> Produits ({catalog.data?.products.length ?? 0})
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="service">
-            {(catalog.data?.services ?? []).length === 0 ? (
-              <EmptyState label="Aucun soin au catalogue" />
+            {/* Barre de recherche instantanée */}
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" aria-hidden="true" />
+              <Input
+                type="text"
+                placeholder="Rechercher par nom, plante..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 pl-8 pr-8 text-xs rounded-full bg-card"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-full"
+                  aria-label="Effacer la recherche"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ══ ONGLET SOINS (SERVICES) ══ */}
+          <TabsContent value="service" className="space-y-3.5">
+            {/* Chips de filtrage par type de soin */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pretty-scroll no-scrollbar -mx-1 px-1">
+              <button
+                type="button"
+                onClick={() => setServiceCatFilter("all")}
+                className={cn(
+                  "shrink-0 h-8 px-3 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 min-h-[36px]",
+                  serviceCatFilter === "all"
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-card text-muted-foreground hover:bg-muted/70 border-border"
+                )}
+              >
+                <span>Tous les soins</span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.2 rounded-full",
+                  serviceCatFilter === "all" ? "bg-white/20 text-white" : "bg-muted text-foreground"
+                )}>
+                  {catalog.data?.services.length ?? 0}
+                </span>
+              </button>
+
+              {allServiceCategories.map((cat) => {
+                const count = serviceCategoryCounts[cat.id] || 0;
+                const isSelected = serviceCatFilter.toLowerCase() === cat.id.toLowerCase();
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setServiceCatFilter(cat.id)}
+                    className={cn(
+                      "shrink-0 h-8 px-3 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 min-h-[36px]",
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-card text-muted-foreground hover:bg-muted/70 border-border"
+                    )}
+                    title={cat.description}
+                  >
+                    <span>{cat.label}</span>
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.2 rounded-full",
+                      isSelected ? "bg-white/20 text-white" : "bg-muted text-foreground"
+                    )}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {filteredServices.length === 0 ? (
+              <EmptyState
+                label={
+                  searchQuery || serviceCatFilter !== "all"
+                    ? "Aucun soin ne correspond à vos filtres"
+                    : "Aucun soin au catalogue"
+                }
+              />
             ) : (
               <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {(catalog.data?.services ?? []).map((s) => (
-                  <Card key={s.id} className={cn("gap-2", !s.active && "opacity-55")}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex min-w-0 gap-2.5">
-                          {/* — vignette du soin si photo posée */}
-                          {s.hasPhoto && (
-                            <span className="size-12 shrink-0 overflow-hidden rounded-[12px] border border-border">
-                              <img src={`/api/media/service/${s.id}`} alt={`Photo du soin ${s.name}`} loading="lazy" className="size-full object-cover" />
-                            </span>
-                          )}
-                          <div className="min-w-0">
-                            <p className="font-heading font-semibold leading-tight">{s.name}</p>
-                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                              <Badge variant="secondary" className="text-[10px] capitalize">{s.category}</Badge>
-                              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                                <Clock className="size-3" aria-hidden="true" /> {s.durationMin} min
-                              </span>
-                              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                                <Percent className="size-3" aria-hidden="true" /> {s.commissionPct} %
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="size-7 shrink-0" aria-label={`Actions pour ${s.name}`}>
-                              <MoreVertical className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEdit("service", s)}>
-                              <Pencil className="size-3.5" /> Modifier
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toggleActive("service", s)}>
-                              <Power className="size-3.5" /> {s.active ? "Désactiver" : "Activer"}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                      <div className="mt-3 flex items-center justify-between">
-                        <Money value={s.price} className="text-lg font-bold text-gold" />
-                        <div className="flex items-center gap-1.5">
-                          <Switch checked={s.active} onCheckedChange={() => toggleActive("service", s)} aria-label={`Activer ${s.name}`} />
-                          <span className="text-[10px] text-muted-foreground">{s.active ? "Actif" : "Inactif"}</span>
-                        </div>
-                      </div>
-                      {s.botanicals && <p className="mt-1.5 text-[11px] text-muted-foreground">Botaniques : {s.botanicals}</p>}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="product">
-            {(catalog.data?.products ?? []).length === 0 ? (
-              <EmptyState label="Aucun produit au catalogue" />
-            ) : (
-              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {(catalog.data?.products ?? []).map((p) => (
-                  <Card key={p.id} className={cn("gap-2", !p.active && "opacity-55")}>
-                    <CardContent className="p-4 flex gap-3">
-                      <div className="size-16 shrink-0 rounded-xl overflow-hidden bg-muted border border-border">
-                        {/* — photo réelle du produit si posée, sinon visuel studio */}
-                        <img src={p.hasPhoto ? `/api/media/product/${p.id}` : p.image} alt={p.name} loading="lazy" className="size-full object-cover" />
-                      </div>
-                      <div className="min-w-0 flex-1">
+                {filteredServices.map((s) => {
+                  const catMeta = getServiceCategoryMeta(s.category);
+                  return (
+                    <Card key={s.id} className={cn("gap-2 hover:border-gold/30 transition-colors", !s.active && "opacity-55")}>
+                      <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-heading font-semibold leading-tight truncate">{p.name}</p>
-                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                              <Badge variant="secondary" className="text-[10px] capitalize">{p.category}</Badge>
-                              <Badge variant="outline" className={cn("text-[10px] font-mono", p.stock <= p.stockAlert ? "bg-bissap/10 text-bissap border-bissap/40" : "text-muted-foreground")}>
-                                Stock {p.stock}
-                              </Badge>
+                          <div className="flex min-w-0 gap-2.5">
+                            {/* — vignette du soin si photo posée */}
+                            {s.hasPhoto && (
+                              <span className="size-12 shrink-0 overflow-hidden rounded-[12px] border border-border">
+                                <img src={`/api/media/service/${s.id}`} alt={`Photo du soin ${s.name}`} loading="lazy" className="size-full object-cover" />
+                              </span>
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-heading font-semibold leading-tight">{s.name}</p>
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                <Badge variant="outline" className={cn("text-[10px] border font-medium", getCategoryToneBadgeClass(catMeta.tone))}>
+                                  {catMeta.label}
+                                </Badge>
+                                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                                  <Clock className="size-3" aria-hidden="true" /> {s.durationMin} min
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                                  <Percent className="size-3" aria-hidden="true" /> {s.commissionPct} %
+                                </span>
+                              </div>
                             </div>
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-7 shrink-0" aria-label={`Actions pour ${p.name}`}>
+                              <Button variant="ghost" size="icon" className="size-7 shrink-0" aria-label={`Actions pour ${s.name}`}>
                                 <MoreVertical className="size-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEdit("product", p)}>
+                              <DropdownMenuItem onClick={() => openEdit("service", s)}>
                                 <Pencil className="size-3.5" /> Modifier
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => toggleActive("product", p)}>
-                                <Power className="size-3.5" /> {p.active ? "Désactiver" : "Activer"}
+                              <DropdownMenuItem onClick={() => toggleActive("service", s)}>
+                                <Power className="size-3.5" /> {s.active ? "Désactiver" : "Activer"}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                        <div className="mt-2.5 flex items-center justify-between">
-                          <Money value={p.price} className="text-lg font-bold text-gold" />
+                        <div className="mt-3 flex items-center justify-between">
+                          <Money value={s.price} className="text-lg font-bold text-gold" />
                           <div className="flex items-center gap-1.5">
-                            <Switch checked={p.active} onCheckedChange={() => toggleActive("product", p)} aria-label={`Activer ${p.name}`} />
-                            <span className="text-[10px] text-muted-foreground">{p.active ? "Actif" : "Inactif"}</span>
+                            <Switch checked={s.active} onCheckedChange={() => toggleActive("service", s)} aria-label={`Activer ${s.name}`} />
+                            <span className="text-[10px] text-muted-foreground">{s.active ? "Actif" : "Inactif"}</span>
                           </div>
                         </div>
-                        {p.botanicals && <p className="mt-1 text-[11px] text-muted-foreground truncate">Botaniques : {p.botanicals}</p>}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        {s.botanicals && <p className="mt-1.5 text-[11px] text-muted-foreground">Botaniques : {s.botanicals}</p>}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ══ ONGLET PRODUITS ══ */}
+          <TabsContent value="product" className="space-y-3.5">
+            {/* Chips de filtrage par type de produit */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pretty-scroll no-scrollbar -mx-1 px-1">
+              <button
+                type="button"
+                onClick={() => setProductCatFilter("all")}
+                className={cn(
+                  "shrink-0 h-8 px-3 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 min-h-[36px]",
+                  productCatFilter === "all"
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-card text-muted-foreground hover:bg-muted/70 border-border"
+                )}
+              >
+                <span>Tous les produits</span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.2 rounded-full",
+                  productCatFilter === "all" ? "bg-white/20 text-white" : "bg-muted text-foreground"
+                )}>
+                  {catalog.data?.products.length ?? 0}
+                </span>
+              </button>
+
+              {allProductCategories.map((cat) => {
+                const count = productCategoryCounts[cat.id] || 0;
+                const isSelected = productCatFilter.toLowerCase() === cat.id.toLowerCase();
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setProductCatFilter(cat.id)}
+                    className={cn(
+                      "shrink-0 h-8 px-3 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 min-h-[36px]",
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-card text-muted-foreground hover:bg-muted/70 border-border"
+                    )}
+                    title={cat.description}
+                  >
+                    <span>{cat.label}</span>
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.2 rounded-full",
+                      isSelected ? "bg-white/20 text-white" : "bg-muted text-foreground"
+                    )}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {filteredProducts.length === 0 ? (
+              <EmptyState
+                label={
+                  searchQuery || productCatFilter !== "all"
+                    ? "Aucun produit ne correspond à vos filtres"
+                    : "Aucun produit au catalogue"
+                }
+              />
+            ) : (
+              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {filteredProducts.map((p) => {
+                  const catMeta = getProductCategoryMeta(p.category);
+                  return (
+                    <Card key={p.id} className={cn("gap-2 hover:border-gold/30 transition-colors", !p.active && "opacity-55")}>
+                      <CardContent className="p-4 flex gap-3">
+                        <div className="size-16 shrink-0 rounded-xl overflow-hidden bg-muted border border-border">
+                          {/* — photo réelle du produit si posée, sinon visuel studio */}
+                          <img src={p.hasPhoto ? `/api/media/product/${p.id}` : p.image} alt={p.name} loading="lazy" className="size-full object-cover" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-heading font-semibold leading-tight truncate">{p.name}</p>
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                <Badge variant="outline" className={cn("text-[10px] border font-medium", getCategoryToneBadgeClass(catMeta.tone))}>
+                                  {catMeta.label}
+                                </Badge>
+                                <Badge variant="outline" className={cn("text-[10px] font-mono", p.stock <= p.stockAlert ? "bg-bissap/10 text-bissap border-bissap/40" : "text-muted-foreground")}>
+                                  Stock {p.stock}
+                                </Badge>
+                              </div>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="size-7 shrink-0" aria-label={`Actions pour ${p.name}`}>
+                                  <MoreVertical className="size-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEdit("product", p)}>
+                                  <Pencil className="size-3.5" /> Modifier
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => toggleActive("product", p)}>
+                                  <Power className="size-3.5" /> {p.active ? "Désactiver" : "Activer"}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          <div className="mt-2.5 flex items-center justify-between">
+                            <Money value={p.price} className="text-lg font-bold text-gold" />
+                            <div className="flex items-center gap-1.5">
+                              <Switch checked={p.active} onCheckedChange={() => toggleActive("product", p)} aria-label={`Activer ${p.name}`} />
+                              <span className="text-[10px] text-muted-foreground">{p.active ? "Actif" : "Inactif"}</span>
+                            </div>
+                          </div>
+                          {p.botanicals && <p className="mt-1 text-[11px] text-muted-foreground truncate">Botaniques : {p.botanicals}</p>}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
@@ -347,15 +587,72 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
                 <Input id="cat-name" value={form.name} onChange={(e) => f("name", e.target.value)} placeholder={editType === "service" ? "Soin éclat Karité" : "Sérum Moringa"} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Catégorie</Label>
-                <Select value={form.category} onValueChange={(v) => f("category", v)}>
-                  <SelectTrigger aria-label="Catégorie"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(editType === "service" ? SERVICE_CATS : PRODUCT_CATS).map((c) => (
-                      <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Catégorie</Label>
+                  {isCustomCategory ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomCategory(false);
+                        f("category", editType === "service" ? "soin" : "serum");
+                      }}
+                      className="text-[11px] text-gold hover:underline font-medium"
+                    >
+                      Choisir dans la liste
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomCategory(true);
+                        setCustomCategoryInput("");
+                        f("category", "");
+                      }}
+                      className="text-[11px] text-gold hover:underline font-semibold flex items-center gap-0.5"
+                    >
+                      <Plus className="size-3" /> Nouvelle
+                    </button>
+                  )}
+                </div>
+
+                {isCustomCategory ? (
+                  <Input
+                    id="cat-custom-input"
+                    autoFocus
+                    value={customCategoryInput}
+                    onChange={(e) => {
+                      setCustomCategoryInput(e.target.value);
+                      f("category", e.target.value);
+                    }}
+                    placeholder={editType === "service" ? "Ex: Cryothérapie, Détatouage..." : "Ex: Brume parfumée, Tisane..."}
+                    className="border-gold/60 focus-visible:ring-gold"
+                  />
+                ) : (
+                  <Select
+                    value={form.category}
+                    onValueChange={(v) => {
+                      if (v === "__new_custom__") {
+                        setIsCustomCategory(true);
+                        setCustomCategoryInput("");
+                        f("category", "");
+                      } else {
+                        f("category", v);
+                      }
+                    }}
+                  >
+                    <SelectTrigger aria-label="Catégorie"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(editType === "service" ? allServiceCategories : allProductCategories).map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__new_custom__" className="text-gold font-semibold">
+                        + Créer une nouvelle catégorie...
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3">

@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
-import { guardUserClaim } from "@/lib/kene/session";
+import { guardUserClaim, sanitizeUser } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { checkPhoto } from "@/lib/kene/photo";
@@ -16,6 +16,11 @@ const Body = z.object({
   userId: z.string().min(1),
   name: z.string().trim().min(1).optional(),
   city: z.string().trim().optional().nullable(),
+  district: z.string().trim().max(100).optional().nullable(),
+  birthDate: z.string().trim().max(20).optional().nullable(),
+  pregnant: z.boolean().optional().nullable(),
+  preferredChannel: z.string().trim().max(20).optional().nullable(),
+  beautyBudget: z.string().trim().max(100).optional().nullable(),
   skinType: z.string().trim().optional().nullable(),
   fitzpatrick: z.string().trim().optional().nullable(),
   allergies: z.string().trim().optional().nullable(),
@@ -83,21 +88,24 @@ async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
 
   const updated = await db.user.update({ where: { id: userId }, data: update });
 
-  // MIROIR PEAU → CRM: le type de peau / phototype déclaré par la
-  // cliente dans SON app doit se répercuter À CHAUD sur toutes ses
-  // fiches ClientProfile (un par institut) — sinon l'institut consulte
-  // un miroir périmé jusqu'au prochain RDV/commande (ensureClientProfile
-  // ne resynchronise qu'à cette occasion).
-  if (update.skinType !== undefined || update.fitzpatrick !== undefined) {
+  // MIROIR CLIENTE → CRM: le type de peau, phototype, quartier, anniversaire,
+  // maternité et préférences déclarés par la cliente se répercutent À CHAUD sur
+  // toutes ses fiches ClientProfile auprès des instituts partenaires.
+  const profileSync: Record<string, unknown> = {};
+  if (update.skinType !== undefined) profileSync.skinType = update.skinType;
+  if (update.fitzpatrick !== undefined) profileSync.fitzpatrick = update.fitzpatrick;
+  if (update.district !== undefined) profileSync.district = update.district;
+  if (update.birthDate !== undefined) profileSync.birthDate = update.birthDate;
+  if (update.pregnant !== undefined) profileSync.pregnant = update.pregnant;
+  if (update.preferredChannel !== undefined) profileSync.preferredChannel = update.preferredChannel;
+  if (update.beautyBudget !== undefined) profileSync.beautyBudget = update.beautyBudget;
+
+  if (Object.keys(profileSync).length > 0) {
     await db.clientProfile.updateMany({
       where: { userId },
-      data: {
-        ...(update.skinType !== undefined ? { skinType: (update.skinType as string | null) ?? null } : {}),
-        ...(update.fitzpatrick !== undefined ? { fitzpatrick: (update.fitzpatrick as string | null) ?? null } : {}),
-      },
+      data: profileSync,
     });
   }
 
-  const { avatarData: _ad, ...safe } = updated;
-  return NextResponse.json({ user: { ...safe, hasAvatar: Boolean(_ad) } });
+  return NextResponse.json({ user: sanitizeUser(updated) });
 }

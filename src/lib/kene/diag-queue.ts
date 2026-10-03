@@ -22,6 +22,7 @@ export interface QueuedDiag {
   userId: string;
   zone: string;
   image: string; // dataUrl JPEG ≤ 820 px (resizeImage)
+  images?: string[]; // clichés multiples éventuels
   fitzpatrick?: string;
   allergies?: string;
   createdAt: number;
@@ -140,6 +141,7 @@ export async function replayDiagQueue(): Promise<number> {
         userId: e.userId,
         zone: e.zone,
         image: e.image,
+        images: e.images,
         fitzpatrick: e.fitzpatrick,
         allergies: e.allergies,
       });

@@ -37,6 +37,11 @@ model User {
   role         String   @default("client") // client | pro | admin
   email        String?
   city         String?
+  district     String? // Commune ou quartier (Cocody, Plateau, etc.)
+  birthDate    String? // Anniversaire privilège (ex: "14/05" ou "1995-05-14")
+  pregnant     Boolean? @default(false) // Grossesse ou allaitement (sécurité protocoles)
+  preferredChannel String? @default("whatsapp") // Canal favori (whatsapp | sms | call)
+  beautyBudget String? // Budget mensuel soins
   skinType     String? // grasse | seche | mixte | normale
   fitzpatrick  String? // III | IV | V | VI
   allergies    String? // texte libre
@@ -53,6 +58,10 @@ model User {
   // Null = compte libre. Le motif est montré à l'utilisatrice au login.
   lockedAt      DateTime?
   lockedReason  String?
+  // Authentification par code PIN secret (style Wave / mobile banking)
+  pinHash       String?
+  pinFails      Int       @default(0)
+  pinLockedUntil DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -177,9 +186,16 @@ model ClientProfile {
   name        String
   phone       String
   email       String?
+  district    String?   // Commune ou quartier
+  birthDate   String?   // Anniversaire privilège
+  pregnant    Boolean?  @default(false) // Grossesse ou allaitement
+  preferredChannel String? @default("whatsapp") // Canal favori (whatsapp | sms | call)
+  beautyBudget String?  // Budget mensuel soins
   skinType    String?
   fitzpatrick String?
   notes       String?
+  cosmeticsUsed       String? // Produits cosmétiques utilisés par la cliente (routine quotidienne)
+  productObservations String? // Observations de l'institut sur les composants des produits cosmétiques achetés
   visitsCount Int       @default(0)
   totalSpent  Int       @default(0)
   lastVisit   DateTime?
@@ -324,6 +340,7 @@ model SaleItem {
   qty       Int     @default(1)
   unitPrice Int
   total     Int
+  customPriceReason String? // Motif d'ajustement du prix dans le dossier patient
 }
 
 model InventoryMovement {
@@ -382,19 +399,25 @@ model Payment {
 }
 
 model Order {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     OrderItem[]
-  subtotal  Int
-  discount  Int      @default(0) // remise coupon appliquée (0 = aucune)
-  couponCode String? // code du coupon appliqué (traçabilité)
-  cashback  Int      @default(0)
-  total     Int
-  paymentId String?  @unique
-  payment   Payment? @relation(fields: [paymentId], references: [id])
-  status    String   @default("pending") // pending | paid | delivered | cancelled
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           OrderItem[]
+  subtotal        Int
+  shippingFee     Int      @default(0) // Frais de livraison (1500 - 3000 FCFA)
+  deliveryCity    String?  // abidjan | dakar
+  deliveryArea    String?  // nom de la commune / quartier
+  deliveryAddress String?  // rue, résidence, repères
+  deliveryPhone   String?  // téléphone de contact pour le coursier
+  deliveryNotes   String?  // consignes particulières de livraison
+  discount        Int      @default(0) // remise coupon appliquée (0 = aucune)
+  couponCode      String?  // code du coupon appliqué (traçabilité)
+  cashback        Int      @default(0)
+  total           Int
+  paymentId       String?  @unique
+  payment         Payment? @relation(fields: [paymentId], references: [id])
+  status          String   @default("pending") // pending | paid | preparing | in_transit | delivered | cancelled
+  createdAt       DateTime @default(now())
 
   @@index([userId, createdAt]) // « Mes commandes » par cliente
 }
@@ -766,3 +789,18 @@ model Testimonial {
   featured  Boolean  @default(true)
   createdAt DateTime @default(now())
 }
+
+// ─────────────────────────── Idempotence Webhooks Fintech ───────────────────────────
+// Enregistre les événements webhooks reçus de Wave, Orange Money, WiniPayer, etc.
+// Garantit qu'un événement renvoyé (retry automatique) n'est JAMAIS exécuté deux fois
+// (protection absolue contre les doubles débits, doubles ventes et sur-crédits).
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String   // "wave" | "orange" | "winipayer" | "africastalking"
+  eventId     String   // Identifiant de transaction ou signature unique externe
+  processedAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([provider, eventId])
+}
+

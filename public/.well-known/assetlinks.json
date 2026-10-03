@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.kene.app",
+      "sha256_cert_fingerprints": [
+        "14:6D:E9:7D:0F:52:AB:FC:02:18:2D:6F:09:A6:49:7E:24:D1:6C:C9:80:C1:2F:56:56:4C:E3:44:63:F5:2A:B5"
+      ]
+    }
+  }
+]

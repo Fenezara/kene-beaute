@@ -6,7 +6,7 @@
 // donner l'accès Console à une cliente de confiance / le retirer (jamais au
 // dernier admin, jamais à soi-même — protections côté serveur).
 import { useEffect, useMemo, useState } from "react";
-import { Crown, Loader2, Lock, LockOpen, Search, ShieldCheck, Users } from "lucide-react";
+import { Crown, Loader2, Lock, LockOpen, Search, ShieldCheck, Users, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -41,17 +41,29 @@ export function AdminUsers() {
   }, [q]);
 
   const [role, setRole] = useState("");
+  const [accountTypeFilter, setAccountTypeFilter] = useState<"all" | "real" | "demo">("all");
   const list = useApi(
     () => apiGet<{ users: AdminUserRow[] }>(`/api/admin/users?q=${encodeURIComponent(dq)}&role=${role}`),
     [dq, role],
   );
 
-  const rows = useMemo(() => list.data?.users ?? [], [list.data]);
+  const allUsers = useMemo(() => list.data?.users ?? [], [list.data]);
+  const realCount = useMemo(() => allUsers.filter((u) => !u.isDemo).length, [allUsers]);
+  const demoCount = useMemo(() => allUsers.filter((u) => u.isDemo).length, [allUsers]);
 
-  // Dialogs de verrouillage + accès Console (t. 141)
+  const rows = useMemo(() => {
+    let all = allUsers;
+    if (accountTypeFilter === "real") all = all.filter((u) => !u.isDemo);
+    if (accountTypeFilter === "demo") all = all.filter((u) => u.isDemo);
+    return all;
+  }, [allUsers, accountTypeFilter]);
+
+  // Dialogs de verrouillage + accès Console (t. 141) + purge légale RGPD/ARTCI
   const [lockFor, setLockFor] = useState<AdminUserRow | null>(null);
   const [promoteFor, setPromoteFor] = useState<AdminUserRow | null>(null);
   const [demoteFor, setDemoteFor] = useState<AdminUserRow | null>(null);
+  const [purgeFor, setPurgeFor] = useState<AdminUserRow | null>(null);
+  const [purgeReason, setPurgeReason] = useState("");
   const [busy, setBusy] = useState(false);
 
   // t. 141 — qui suis-je dans cette console ? (pour ne jamais proposer de
@@ -76,6 +88,23 @@ export function AdminUsers() {
       return true;
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "Action impossible — réessaie");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const purgeUser = async (id: string, reason: string) => {
+    setBusy(true);
+    try {
+      await gate.elevatedDelete(`/api/admin/users/${id}?reason=${encodeURIComponent(reason)}`);
+      toast.success("Compte purgé et anonymisé conformément aux normes RGPD / ARTCI");
+      setPurgeFor(null);
+      setPurgeReason("");
+      await list.refetch();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Suppression impossible — réessaie");
       return false;
     } finally {
       setBusy(false);
@@ -120,6 +149,29 @@ export function AdminUsers() {
         </div>
       </div>
 
+      {/* Filtres Type de compte (Utilisateurs Réels vs Démos) */}
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrer par type de compte">
+        {([
+          ["all", `Tous les comptes (${allUsers.length})`],
+          ["real", `Utilisateurs Réels (${realCount})`],
+          ["demo", `Comptes Démo (${demoCount})`],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setAccountTypeFilter(key)}
+            aria-pressed={accountTypeFilter === key}
+            className={cn(
+              "min-h-9 rounded-full border px-3 text-xs font-medium transition-colors",
+              accountTypeFilter === key
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Liste */}
       <Card className="overflow-hidden pt-0">
         <KenteTop />
@@ -158,7 +210,18 @@ export function AdminUsers() {
                   {rows.map((u) => (
                     <TableRow key={u.id} className={cn(u.lockedAt && "opacity-75")}>
                       <TableCell>
-                        <p className="font-medium leading-tight">{u.name}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-medium leading-tight">{u.name}</p>
+                          {u.isDemo ? (
+                            <span className="rounded-full bg-muted/70 text-muted-foreground border border-dashed border-border px-2 py-0.5 text-[9.5px] font-medium">
+                              Compte Démo
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-success/15 text-success border border-success/30 px-2 py-0.5 text-[9.5px] font-semibold">
+                              Utilisateur Réel
+                            </span>
+                          )}
+                        </div>
                         <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{u.phone}</p>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
@@ -247,6 +310,21 @@ export function AdminUsers() {
                               >
                                 <Lock className="size-4" aria-hidden="true" />
                                 <span className="hidden sm:inline">Verrouiller</span>
+                              </Button>
+                            )}
+                            {u.id !== meId && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-11 px-3 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => {
+                                  setPurgeFor(u);
+                                  setPurgeReason("Demande formelle de suppression (RGPD / ARTCI)");
+                                }}
+                                title="Purger et anonymiser le compte"
+                              >
+                                <Trash2 className="size-4" aria-hidden="true" />
+                                <span className="hidden xl:inline ml-1 text-xs">Purger</span>
                               </Button>
                             )}
                           </span>
@@ -349,6 +427,45 @@ export function AdminUsers() {
             >
               {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <ShieldCheck className="size-4" aria-hidden="true" />}
               Retirer l&apos;accès
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Dialog de purge / anonymisation légale */}
+      <Dialog open={Boolean(purgeFor)} onOpenChange={(o) => (!o ? setPurgeFor(null) : undefined)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-heading text-destructive">
+              <AlertTriangle className="size-5" aria-hidden="true" />
+              Purger le compte de {purgeFor?.name ?? ""} ?
+            </DialogTitle>
+            <DialogDescription className="text-xs leading-relaxed text-muted-foreground">
+              Conforme aux exigences <strong>RGPD (Art. 17)</strong> et <strong>ARTCI</strong>.
+              Les photos et analyses IA de peau, passkeys et notifications seront <strong>définitivement supprimées</strong>.
+              Les commandes et reçus de caisse seront <strong>anonymisés</strong> pour la conformité comptable SYSCOHADA (10 ans).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="purge-reason" className="text-xs font-semibold">Motif légal consigné dans le journal d&apos;audit</Label>
+            <Input
+              id="purge-reason"
+              value={purgeReason}
+              onChange={(e) => setPurgeReason(e.target.value)}
+              placeholder="ex: Demande d'effacement cliente, fraude avérée..."
+              className="h-11 text-xs"
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="h-11" onClick={() => setPurgeFor(null)} disabled={busy}>Annuler</Button>
+            <Button
+              className="h-11 gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={busy || !purgeReason.trim()}
+              onClick={() => {
+                if (purgeFor) void purgeUser(purgeFor.id, purgeReason.trim());
+              }}
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Trash2 className="size-4" aria-hidden="true" />}
+              Purger définitivement
             </Button>
           </DialogFooter>
         </DialogContent>

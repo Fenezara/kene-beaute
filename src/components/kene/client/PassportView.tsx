@@ -27,11 +27,11 @@ interface PassportData {
 const SKIN_LABEL: Record<string, string> = { grasse: "Grasse", seche: "Sèche", mixte: "Mixte", normale: "Normale" };
 const ZONE_LABEL: Record<string, string> = {
   visage: "Visage",
-  dos: "Dos",
+  dos: "Dos & Épaules",
   cuir_chevelu: "Cuir chevelu",
-  mains: "Mains",
-  barbe: "Barbe",
-  naevi: "Grains de beauté",
+  mains: "Mains & Pieds",
+  barbe: "Barbe & Cou",
+  naevi: "Corps & Lésions",
 };
 
 function scoreTone(score: number): string {
@@ -61,9 +61,35 @@ export function PassportGate() {
 
   useEffect(() => {
     if (!token) return;
+
+    // Restauration immédiate depuis le cache local (idéal en cabine de soin à faible couverture 3G/4G)
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(`kene_passport_data_${token}`);
+        if (cached) {
+          setData(JSON.parse(cached));
+        }
+      } catch {}
+    }
+
     apiGet<{ passport: PassportData }>(`/api/passport?token=${encodeURIComponent(token)}`)
-      .then((r) => setData(r.passport))
-      .catch((e) => setError(e instanceof Error ? e.message : "Passeport introuvable"));
+      .then((r) => {
+        setData(r.passport);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`kene_passport_data_${token}`, JSON.stringify(r.passport));
+          } catch {}
+        }
+      })
+      .catch((e) => {
+        // N'affiche l'erreur bloquante que si aucun profil n'a été préalablement mis en cache
+        setData((prev) => {
+          if (!prev) {
+            setError(e instanceof Error ? e.message : "Passeport introuvable");
+          }
+          return prev;
+        });
+      });
   }, [token]);
 
   if (!token || closed) return null;

@@ -9,6 +9,7 @@ import {
   FileText,
   Printer,
   Scale,
+  Sparkles,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -65,6 +66,41 @@ export function PayrollSection({
   const payroll = useApi<PayrollResponse>(
     () => (tenantId ? apiGet<PayrollResponse>(`/api/pro/payroll?tenantId=${tenantId}`) : Promise.resolve({ payPeriods: [] })),
     [tenantId]
+  );
+
+  const commissionsApi = useApi<{
+    period: string;
+    periodLabel: string;
+    practitioners: Array<{
+      employeeId: string;
+      name: string;
+      role: string;
+      servicesRevenue: number;
+      servicesCount: number;
+      serviceCommissionRate: number;
+      serviceCommission: number;
+      productsRevenue: number;
+      productsCount: number;
+      productCommissionRate: number;
+      productCommission: number;
+      totalCommission: number;
+      salesCount: number;
+    }>;
+    unassigned: {
+      salesCount: number;
+      servicesRevenue: number;
+      productsRevenue: number;
+    };
+    summary: {
+      totalSalesCount: number;
+      totalServicesRevenue: number;
+      totalProductsRevenue: number;
+      totalRevenue: number;
+      totalCommissions: number;
+    };
+  }>(
+    () => (tenantId ? apiGet<any>(`/api/pro/payroll/commissions?tenantId=${tenantId}&period=${period}`) : Promise.resolve(null)),
+    [tenantId, period]
   );
 
   const periods = payroll.data?.payPeriods ?? [];
@@ -178,6 +214,85 @@ export function PayrollSection({
             <p className="text-[11px] text-muted-foreground">
               Totaux de la période <span className="font-mono font-semibold text-foreground">{kpis.period}</span> ({kpis.count} bulletin{kpis.count > 1 ? "s" : ""}).
             </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* ── Commissions Praticiennes & Ventes Boutique ── */}
+      <section aria-label="Commissions Praticiennes" className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-heading text-base font-bold flex items-center gap-2">
+            <Sparkles className="size-4 text-gold-text" aria-hidden="true" /> Commissions Praticiennes &amp; Ventes Boutique ({period})
+          </h3>
+          <Badge variant="outline" className="text-xs font-semibold bg-gold/10 text-gold-text border-gold/30">
+            10% Soins · 5% Cosmétiques
+          </Badge>
+        </div>
+        <Card className="overflow-hidden pt-0">
+          <KenteTop />
+          <CardContent className="p-4 space-y-4">
+            {/* KPI Commissions */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="rounded-xl border border-border bg-card p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">CA Soins Cabine</p>
+                <Money value={commissionsApi.data?.summary.totalServicesRevenue ?? 0} className="text-sm font-semibold" />
+                <p className="text-[9px] text-muted-foreground mt-0.5">Prime 10% appliquée</p>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">CA Boutique Cosmétique</p>
+                <Money value={commissionsApi.data?.summary.totalProductsRevenue ?? 0} className="text-sm font-semibold" />
+                <p className="text-[9px] text-muted-foreground mt-0.5">Prime 5% appliquée</p>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">CA Global Attribué</p>
+                <Money value={commissionsApi.data?.summary.totalRevenue ?? 0} className="text-sm font-semibold text-foreground" />
+                <p className="text-[9px] text-muted-foreground mt-0.5">{commissionsApi.data?.summary.totalSalesCount ?? 0} encaissement(s)</p>
+              </div>
+              <div className="rounded-xl border border-gold/40 bg-gold/5 p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Primes Praticiennes</p>
+                <Money value={commissionsApi.data?.summary.totalCommissions ?? 0} className="text-base font-bold text-gold-text" />
+                <p className="text-[9px] text-gold-text/80 mt-0.5">À verser avec le salaire</p>
+              </div>
+            </div>
+
+            {/* Tableau par Praticienne */}
+            {(commissionsApi.data?.practitioners ?? []).length === 0 ? (
+              <EmptyState label="Aucune donnée de commission" sub="Attribuez les praticiennes en caisse pour générer les primes." />
+            ) : (
+              <div className="rounded-xl border border-border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="text-xs font-semibold">Praticienne</TableHead>
+                      <TableHead className="text-xs text-right font-semibold">Soins Réalisés</TableHead>
+                      <TableHead className="text-xs text-right font-semibold">CA Soins</TableHead>
+                      <TableHead className="text-xs text-right text-primary font-bold">Com. Soins (10%)</TableHead>
+                      <TableHead className="text-xs text-right font-semibold">Produits Vendus</TableHead>
+                      <TableHead className="text-xs text-right font-semibold">CA Boutique</TableHead>
+                      <TableHead className="text-xs text-right text-primary font-bold">Com. Vente (5%)</TableHead>
+                      <TableHead className="text-xs text-right font-black text-gold-text">TOTAL PRIME</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {commissionsApi.data?.practitioners.map((pr) => (
+                      <TableRow key={pr.employeeId}>
+                        <TableCell>
+                          <p className="font-semibold text-xs">{pr.name}</p>
+                          <p className="text-[10px] text-muted-foreground capitalize">{ROLE_LABELS[pr.role] ?? pr.role}</p>
+                        </TableCell>
+                        <TableCell className="text-right text-xs font-mono">{pr.servicesCount}</TableCell>
+                        <TableCell className="text-right text-xs font-mono">{xof(pr.servicesRevenue)}</TableCell>
+                        <TableCell className="text-right text-xs font-mono font-bold text-primary">{xof(pr.serviceCommission)}</TableCell>
+                        <TableCell className="text-right text-xs font-mono">{pr.productsCount}</TableCell>
+                        <TableCell className="text-right text-xs font-mono">{xof(pr.productsRevenue)}</TableCell>
+                        <TableCell className="text-right text-xs font-mono font-bold text-primary">{xof(pr.productCommission)}</TableCell>
+                        <TableCell className="text-right text-xs font-mono font-black text-gold-text">{xof(pr.totalCommission)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>

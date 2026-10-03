@@ -25,7 +25,8 @@ function useThumbMode(): boolean {
 export function ThumbBar({ tab }: { tab: string }) {
   const enabled = useThumbMode();
   const setClientTab = useKene((s) => s.setClientTab);
-  const visible = enabled && (tab === "accueil" || tab === "profil");
+  // Pour le MVP épuré : désactivé afin de ne pas masquer le contenu ni entrer en conflit avec la barre de navigation du bas
+  const visible = false;
 
   const goScan = () => {
     haptic(HAPTIC.light);
@@ -52,7 +53,7 @@ export function ThumbBar({ tab }: { tab: string }) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 84, opacity: 0 }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="sticky bottom-[84px] z-20 mt-3 md:hidden"
+          className="sticky bottom-[calc(88px+env(safe-area-inset-bottom,0px))] z-30 mt-3 md:hidden"
         >
           <div
             role="group"

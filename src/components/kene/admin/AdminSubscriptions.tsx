@@ -145,7 +145,7 @@ export function AdminSubscriptions() {
           icon={<Wallet className="size-4" />}
           label="Revenus mensuels"
           value={xof(k?.mrrFcfa ?? 0, { compact: true })}
-          hint="Simulation · mode essai"
+          hint="Abonnements actifs"
         />
         <KpiCard icon={<CalendarClock className="size-4" />} label="Expirent ≤ 7 j" value={String(k?.expiringSoon ?? 0)} monetary={false} />
         <KpiCard icon={<Gift className="size-4" />} label="Mois offerts actifs" value={String(k?.giftActive ?? 0)} monetary={false} hint="Console & parrainage" />
@@ -275,7 +275,7 @@ export function AdminSubscriptions() {
                             colonne Prix est étroite sur mobile et le badge
                             plan / « Offert par la Console » porte déjà l'info. */}
                         <p className="mt-0.5 hidden text-[10px] text-muted-foreground md:block">
-                          {s.source === "console_gift" ? "geste commercial" : s.source === "referral_gift" ? "cadeau parrainage" : "simulation"}
+                          {s.source === "console_gift" ? "geste commercial" : s.source === "referral_gift" ? "cadeau parrainage" : s.source === "winipayer" ? "WiniPayer" : "mobile money"}
                         </p>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
@@ -327,7 +327,7 @@ export function AdminSubscriptions() {
       <p className="flex items-center justify-center gap-1.5 text-center text-[11px] leading-relaxed text-muted-foreground">
         <BadgeCheck className="size-3.5 shrink-0" aria-hidden="true" />
         Historique intouchable (IFRS 15): une annulation clôt la ligne, une offre en ouvre une nouvelle — rien ne s'efface.
-        Paiements en simulation (mode essai).
+        Paiements sécurisés Mobile Money & Cartes.
       </p>
 
       {/* Dialog d'annulation — motif obligatoire, impact énoncé */}

@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
-import { PLAN_DEFS, diagQuotaFor, getActiveSubscription } from "@/lib/kene/plans";
+import { PLAN_DEFS, diagQuotaFor, getActiveSubscription, grantClientWelcomeTrial } from "@/lib/kene/plans";
 import { rateLimit, rlKey, rateLimitResponse, WALLET_TOPUP } from "@/lib/kene/rate-limit";
 
 export async function GET(req: NextRequest) {
@@ -31,13 +31,31 @@ export async function GET(req: NextRequest) {
     // tout le reste (cliente, admin) voit les offres clientes.
     const audience = user.role === "pro" ? "pro" : "client";
 
-    const [sub, quota] = await Promise.all([
-      getActiveSubscription(userId),
-      diagQuotaFor(userId),
-    ]);
+    const tenantId = req.nextUrl.searchParams.get("tenantId");
+
+    let sub = await getActiveSubscription(userId);
+    if (!sub && user.role === "pro") {
+      // Si l'utilisateur est pro (ou employé) sans sub directe, vérifier le tenant et sa gérante
+      const tenant = tenantId
+        ? await db.tenant.findUnique({ where: { id: tenantId } })
+        : await db.tenant.findFirst({ where: { ownerPhone: user.phone, active: true } });
+      if (tenant) {
+        const ownerUser = await db.user.findUnique({ where: { phone: tenant.ownerPhone } });
+        if (ownerUser && ownerUser.id !== userId) {
+          sub = await getActiveSubscription(ownerUser.id);
+        }
+      }
+    }
+
+    if (!sub && user.role === "client") {
+      const trial = await grantClientWelcomeTrial(userId);
+      if (trial) sub = trial;
+    }
+
+    const quota = await diagQuotaFor(userId);
 
     return NextResponse.json({
-      plan: sub?.plan ?? "gratuit",
+      plan: sub?.plan ?? (user.role === "pro" ? "pro_essentiel" : "gratuit"),
       plans: PLAN_DEFS.filter((p) => p.audience === audience),
       quota,
       subscription: sub

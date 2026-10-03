@@ -10,7 +10,7 @@ import { Loader2, Square, Turtle, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import type { DiagnosisResult } from "@/lib/kene/types";
 import { buildNarration, buildNarrationCompact, NARRATION_LANGS, type NarrationLang } from "@/lib/kene/narration";
-import { fetchTtsAudioUrl } from "./ttsAudio";
+import { playSpeech, type SpeechController } from "./ttsAudio";
 
 const SLOW_SPEED = 0.85;
 
@@ -18,7 +18,7 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
   const [slow, setSlow] = useState(false);
   const [lang, setLang] = useState<NarrationLang>("fr");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ctrlRef = useRef<SpeechController | null>(null);
   const narration = useMemo(
     () => (lang === "fr" ? buildNarration(result, { userName }) : buildNarrationCompact(result, { userName })),
     [result, userName, lang],
@@ -27,8 +27,8 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
   // stop + libération au démontage
   useEffect(
     () => () => {
-      audioRef.current?.pause();
-      audioRef.current = null;
+      ctrlRef.current?.stop();
+      ctrlRef.current = null;
     },
     [],
   );
@@ -37,42 +37,40 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
   function switchLang(next: NarrationLang) {
     if (state === "playing") {
       stopAudio();
-      setState("idle");
     }
     setLang(next);
   }
 
   function stopAudio() {
-    const a = audioRef.current;
-    if (a) {
-      a.pause();
-      a.currentTime = 0;
-    }
-    audioRef.current = null;
+    ctrlRef.current?.stop();
+    ctrlRef.current = null;
+    setState("idle");
   }
 
   async function toggle() {
     if (state === "playing") {
       stopAudio();
-      setState("idle");
       return;
     }
     if (state === "loading") return;
     setState("loading");
     try {
-      const url = await fetchTtsAudioUrl(narration, slow ? SLOW_SPEED : 1, lang);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => setState("idle");
-      audio.onerror = () => {
-        setState("idle");
-        toast.error("Lecture impossible");
-      };
-      await audio.play();
-      setState("playing");
-    } catch (e) {
+      ctrlRef.current = await playSpeech({
+        text: narration,
+        speed: slow ? SLOW_SPEED : 1,
+        lang,
+        onStart: () => setState("playing"),
+        onEnd: () => {
+          ctrlRef.current = null;
+          setState("idle");
+        },
+        onError: () => {
+          ctrlRef.current = null;
+          setState("idle");
+        },
+      });
+    } catch {
       setState("idle");
-      toast.error(e instanceof Error ? e.message : "Lecture vocale indisponible");
     }
   }
 

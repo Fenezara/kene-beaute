@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { guardUserClaim } from "@/lib/kene/session";
 import { clientDiagReportPdf, clientDiagReportFilename } from "@/lib/kene/consultation-pdf";
+import { processSpectralAcneImage } from "@/lib/kene/spectral-imaging";
 
 export const runtime = "nodejs";
 
@@ -22,13 +23,20 @@ export async function GET(req: NextRequest) {
 
     const diag = await db.diagnosis.findFirst({
       where: { id, userId, status: "done" },
-      select: { id: true, zone: true, createdAt: true, resultJson: true, user: { select: { name: true } } },
+      select: { id: true, zone: true, imageData: true, createdAt: true, resultJson: true, user: { select: { name: true } } },
     });
     if (!diag) return jsonError("Diagnostic introuvable", 404);
 
+    const spectral = await processSpectralAcneImage(diag.imageData, {
+      clientName: diag.user.name,
+      date: diag.createdAt,
+      zoneLabel: diag.zone,
+    });
+
     const pdf = clientDiagReportPdf({
       userName: diag.user.name,
-      diagnosis: { id: diag.id, zone: diag.zone, createdAt: diag.createdAt, resultJson: diag.resultJson },
+      diagnosis: { id: diag.id, zone: diag.zone, createdAt: diag.createdAt, resultJson: diag.resultJson, imageData: diag.imageData },
+      spectralImage: spectral,
     });
 
     return new NextResponse(new Uint8Array(pdf.data), {

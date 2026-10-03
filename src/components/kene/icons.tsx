@@ -1,4 +1,5 @@
 import React, { useId } from "react";
+import { cn } from "@/lib/utils";
 
 export type IconProps = React.SVGProps<SVGSVGElement> & { size?: number };
 
@@ -274,72 +275,60 @@ export function KeneMark({ size = 40, className = "" }: { size?: number; classNa
   );
 }
 
-/** Emblème de marque Kènè — « le Médaillon Kènè »: portrait de femme en
- * profil, spirales de cheveux et peigne Duafe massif, illustration riche
- * aux ors antiques (concept 04b retenu par la fondatrice,; variante
- * claire assortie générée et validée 9/10). Double livraison claire/sombre
- * sur fond chaud propre: présentation MÉDAILLON (plaque orfévrée) — filet
- * or hairline + coins squircle 26 %, écho du filet crème du KeneMark.
- * Réservé aux grands usages (≥ 56 px: splash, héro d'entrée, com.); pour
- * les petites tailles préférer KeneMark (SVG vectoriel, crisp à toute
- * échelle). next-themes attribute="class" → dark: variants. */
+/** Emblème officiel de marque Kènè — « le Médaillon Kènè » : portrait de femme
+ * en profil aux contours or néon et peigne Duafe sur fond sombre espresso.
+ * Identité visuelle unique et harmonisée dans les deux modes (clair et sombre) :
+ * présentation MÉDAILLON (plaque orfévrée) — bague or 2px, fond contrasté #14100B,
+ * ombre portée orfèvre, parfaitement nette et constante quel que soit le thème. */
 export function KeneEmblem({ size = 96, className = "" }: { size?: number; className?: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`relative inline-block shrink-0 select-none overflow-hidden rounded-[26%] ring-1 ring-[#C8951E]/35 dark:ring-[#E3B04B]/30 ${className}`}
+      className={cn(
+        "relative inline-block shrink-0 select-none overflow-hidden rounded-[26%] ring-2 ring-[#C8951E] dark:ring-[#E3B04B] shadow-[0_2px_12px_rgba(200,149,30,0.30)] dark:shadow-[0_2px_14px_rgba(227,176,75,0.25)] bg-[#14100B]",
+        className
+      )}
       style={{ width: size, height: size }}
     >
-      {/* Livraison claire — portrait riche sur crème chaud */}
-      <img
-        src="/brand/kene-emblem-light.png"
-        alt=""
-        width={size}
-        height={size}
-        decoding="async"
-        draggable={false}
-        className="absolute inset-0 h-full w-full object-cover dark:hidden"
-      />
-      {/* Livraison sombre — portrait riche sur espresso rayonnant */}
       <img
         src="/brand/kene-emblem-dark.png"
-        alt=""
+        alt="Logo Kènè"
         width={size}
         height={size}
+        loading="eager"
         decoding="async"
         draggable={false}
-        className="absolute inset-0 h-full w-full object-cover hidden dark:block"
+        className="absolute inset-0 h-full w-full object-cover"
       />
     </span>
   );
 }
 
-/** Logo complet Kènè — lockup signature: badge Duafe or→terre, wordmark
+/** Logo complet Kènè — lockup signature : badge médaillon original, wordmark
  * « Kènè » Fraunces (0.62×size), filet kente 3 segments or/terre/baobab,
- * devise « Beauté mélanoderme ». Texte en var(--foreground/-muted-foreground). */
-export function KeneLogo({ size = 40, withText = true }: { size?: number; withText?: boolean }) {
+ * devise « Beauté mélanoderme » haute visibilité. */
+export function KeneLogo({ size = 48, withText = true }: { size?: number; withText?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-2.5 select-none">
-      <KeneMark size={size} />
+    <span className="inline-flex items-center gap-3 select-none">
+      <KeneEmblem size={size} />
       {withText && (
-        <span className="flex min-w-0 flex-col items-start leading-none">
+        <span className="flex min-w-0 flex-col items-start leading-none justify-center">
           <span className="inline-flex w-fit flex-col items-start">
             <span
-              className="font-heading font-bold leading-[1.05] tracking-[0.02em]"
-              style={{ color: "var(--foreground)", fontSize: `${(Math.round(size * 0.62 * 100) / 100).toFixed(2)}px` }}
+              className="font-heading font-black leading-[1.05] tracking-[0.02em] text-foreground"
+              style={{ fontSize: `${(Math.round(size * 0.62 * 100) / 100).toFixed(2)}px` }}
             >
               Kènè
             </span>
             {/* Mini filet kente: or / terre / baobab, largeur du wordmark */}
-            <span aria-hidden="true" className="mt-[3px] flex h-[2px] w-full overflow-hidden rounded-full">
+            <span aria-hidden="true" className="mt-1 flex h-[2.5px] w-full min-w-10 overflow-hidden rounded-full">
               <span className="h-full flex-1 bg-[#C8951E]" />
               <span className="h-full flex-1 bg-[#A0522D]" />
               <span className="h-full flex-1 bg-[#3F7D3F]" />
             </span>
           </span>
           <span
-            className="mt-[5px] text-[8.5px] font-semibold uppercase tracking-[0.26em] whitespace-nowrap"
-            style={{ color: "var(--muted-foreground)" }}
+            className="mt-1.5 text-[10.5px] sm:text-[12px] font-extrabold uppercase tracking-[0.13em] whitespace-nowrap text-[#7A5506] dark:text-[#F3C968]"
           >
             Beauté mélanoderme
           </span>
@@ -349,16 +338,13 @@ export function KeneLogo({ size = 40, withText = true }: { size?: number; withTe
   );
 }
 
-/** Lockup Sceau 2026 — le Médaillon Kènè (KeneEmblem) accompagné du
- * wordmark: c'est LE logo officiel de l'app dans les en-têtes et sidebars
- * (cliente, Pro, admin). L'emblème raster vit en double livraison claire/
- * sombre; le wordmark reste en tokens (var(--foreground)) pour s'inverser.
- * `label` accepte un ReactNode (ex. « Kènè <span or>Pro</span> »).
- * `sublabel` = ligne éditoriale optionnelle sous le wordmark. */
+/** Lockup Sceau officiel — le Médaillon Kènè (portrait riche en or antique)
+ * accompagné du wordmark : logo officiel de l'app dans les en-têtes et
+ * sidebars (cliente, Pro, admin). Rendu net, grand format, contrasté et lisible. */
 export function KeneEmblemLockup({
-  size = 44,
+  size = 48,
   label = "Kènè",
-  sublabel,
+  sublabel = "Beauté mélanoderme",
   className = "",
   labelSize,
 }: {
@@ -368,29 +354,92 @@ export function KeneEmblemLockup({
   className?: string;
   labelSize?: number;
 }) {
-  const fontSize = labelSize ?? Math.round(size * 0.46 * 100) / 100;
+  const fontSize = labelSize ?? Math.round(size * 0.52 * 100) / 100;
   return (
-    <span className={`inline-flex min-w-0 items-center gap-2.5 select-none ${className}`}>
+    <span className={cn("inline-flex min-w-0 items-center gap-3 sm:gap-3.5 select-none", className)}>
       <KeneEmblem
         size={size}
-        className="drop-shadow-[0_2px_10px_rgba(200,149,30,0.20)]"
       />
-      <span className="flex min-w-0 flex-col items-start leading-none">
-        <span
-          className="font-heading font-bold leading-[1.05] tracking-[0.02em] truncate"
-          style={{ color: "var(--foreground)", fontSize: `${fontSize.toFixed(2)}px` }}
-        >
-          {label}
+      <span className="flex min-w-0 flex-col items-start leading-none justify-center">
+        <span className="inline-flex w-fit flex-col items-start">
+          <span
+            className="font-heading font-black leading-[1.05] tracking-[0.02em] text-foreground"
+            style={{ fontSize: `${fontSize.toFixed(2)}px` }}
+          >
+            {label}
+          </span>
+          {/* Filet Kente signature: or / terre / baobab */}
+          <span aria-hidden="true" className="mt-1 flex h-[2.5px] w-full min-w-10 overflow-hidden rounded-full">
+            <span className="h-full flex-1 bg-[#C8951E]" />
+            <span className="h-full flex-1 bg-[#A0522D]" />
+            <span className="h-full flex-1 bg-[#3F7D3F]" />
+          </span>
         </span>
         {sublabel != null && (
           <span
-            className="mt-[5px] max-w-full truncate text-[8.5px] font-semibold uppercase tracking-[0.24em] whitespace-nowrap"
-            style={{ color: "var(--muted-foreground)" }}
+            className="mt-1.5 text-[10.5px] sm:text-[12px] font-extrabold uppercase tracking-[0.13em] truncate max-w-[140px] sm:max-w-none text-[#7A5506] dark:text-[#F3C968]"
           >
             {sublabel}
           </span>
         )}
       </span>
     </span>
+  );
+}
+
+/** Cauri sacré — symbole panafricain de prospérité, protection et beauté ancestrale */
+export function CauriIcon(props: IconProps) {
+  const { size, ...rest } = props;
+  return (
+    <svg {...base(size, rest)}>
+      {/* Coque extérieure ovale */}
+      <path d="M12 2.5C7.5 2.5 4.5 6.5 4.5 12c0 5.5 3 9.5 7.5 9.5s7.5-4 7.5-9.5c0-5.5-3-9.5-7.5-9.5Z" />
+      {/* Fente centrale ondulée */}
+      <path d="M12 5.5c-.8 1.5-.6 3.5 0 5s.8 3.5 0 5-1 2.5 0 3" />
+      {/* Crans de dentelure du cauri */}
+      <path d="M9.5 7.5h1.5" />
+      <path d="M13 7.5h1.5" />
+      <path d="M9 10.5h2" />
+      <path d="M13 10.5h2" />
+      <path d="M9 13.5h2" />
+      <path d="M13 13.5h2" />
+      <path d="M9.5 16.5h1.5" />
+      <path d="M13 16.5h1.5" />
+    </svg>
+  );
+}
+
+/** Fleur d'Hibiscus / Bissap — trésor d'antioxydants et d'acides de fruits d'Afrique */
+export function BissapFlowerIcon(props: IconProps) {
+  const { size, ...rest } = props;
+  return (
+    <svg {...base(size, rest)}>
+      {/* 5 pétales épanouis */}
+      <path d="M12 12c-2.5-4-1-8 0-9.5 1 1.5 2.5 5.5 0 9.5Z" />
+      <path d="M12 12c3.5-3 7.5-3 9-1.5-1.5 1.5-5.5 3-9 1.5Z" />
+      <path d="M12 12c2.5 4 4.5 7.5 3.5 9-1.5-.5-4-4.5-3.5-9Z" />
+      <path d="M12 12c-2.5 4-4.5 7.5-3.5 9 1.5-.5 4-4.5 3.5-9Z" />
+      <path d="M12 12c-3.5-3-7.5-3-9-1.5 1.5 1.5 5.5 3 9 1.5Z" />
+      {/* Calice central & pistil */}
+      <circle cx="12" cy="12" r="2.2" fill="currentColor" fillOpacity="0.25" />
+      <circle cx="12" cy="12" r="1.1" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Gousse de Cacao d'Or — nutrition intense et or brun d'Afrique de l'Ouest */
+export function CacaoPodIcon(props: IconProps) {
+  const { size, ...rest } = props;
+  return (
+    <svg {...base(size, rest)}>
+      {/* Pédoncule */}
+      <path d="M12 2v2.5" />
+      {/* Profil de la cabosse effilée */}
+      <path d="M12 4.5C7 5.5 4.5 9.5 4.5 14c0 3.5 3.5 6.5 7.5 8 4-1.5 7.5-4.5 7.5-8 0-4.5-2.5-8.5-7.5-9.5Z" />
+      {/* Sillons longitudinaux caractéristiques */}
+      <path d="M8.5 6.5c-1.8 2.2-2 5-1.5 7.5.5 2.5 2.5 4.5 5 5.5" />
+      <path d="M15.5 6.5c1.8 2.2 2 5 1.5 7.5-.5 2.5-2.5 4.5-5 5.5" />
+      <path d="M12 4.5v17.5" strokeDasharray="1.5 2.5" />
+    </svg>
   );
 }

@@ -30,6 +30,11 @@ export interface SessionUser {
   name: string;
   role: string;
   city?: string | null;
+  district?: string | null;
+  birthDate?: string | null;
+  pregnant?: boolean | null;
+  preferredChannel?: string | null;
+  beautyBudget?: string | null;
   skinType?: string | null;
   fitzpatrick?: string | null;
   allergies?: string | null;
@@ -40,6 +45,8 @@ export interface SessionUser {
   // — poste de l'EMPLOYÉE connectée (estheticienne | dermo_conseillere |
   // caissiere | manager). Absent/null = gérante (accès complet).
   employeeRole?: string | null;
+  // — code PIN secret défini (permet la reconnexion instantanée sans SMS)
+  hasPin?: boolean;
 }
 
 /** Shape réellement persistée (liste blanche du partialize). */
@@ -102,10 +109,11 @@ function sanitizePersisted(raw: unknown): Partial<PersistedKene> {
   else if (p.user && typeof p.user === "object" && typeof (p.user as { id?: unknown }).id === "string" && typeof (p.user as { phone?: unknown }).phone === "string") {
     out.user = p.user as SessionUser;
   }
-  // Espace TOUJOURS cohérent avec le rôle (répare les sessions persistées héritées
-  // avec un space incohérent — ex: cliente dans l'espace pro); sans session
-  // valide → espace cliente (l'onboarding y vit).
-  out.space = out.user ? spaceForRole(out.user.role) : "client";
+  if (out.user?.role === "admin" && (p.space === "pro" || p.space === "client" || p.space === "admin")) {
+    out.space = p.space;
+  } else {
+    out.space = out.user ? spaceForRole(out.user.role) : "client";
+  }
   if (TABS.includes(p.clientTab as ClientTab)) out.clientTab = p.clientTab as ClientTab;
   if (Array.isArray(p.cart)) out.cart = (p.cart as unknown[]).filter(isSaneCartLine);
   else out.cart = [];
@@ -123,19 +131,29 @@ export const useKene = create<KeneState>()(
       proTenantId: null,
       introActive: false,
       _keneHydrated: false,
-      // Isolation: la valeur n'est acceptée QUE si elle correspond
-      // au rôle de la session — sinon elle est clamppée au rôle (exploration
-      // enterée: plus de navigation libre entre espaces).
       setSpace: (space) =>
         set((s) => {
+          // Seul l'administrateur a la possibilité de basculer d'interface
+          if (s.user?.role === "admin") {
+            return { space };
+          }
           const allowed = spaceForRole(s.user?.role);
-          return { space: space === allowed ? space : allowed };
+          return { space: allowed };
         }),
       setIntroActive: (introActive) => set({ introActive }),
       setClientTab: (clientTab) => set({ clientTab }),
       // setUser fait suivre l'espace au rôle (null → « client » = retour
       // onboarding; user pro/admin → ProApp/AdminApp se montent).
-      setUser: (user) => set({ user, space: spaceForRole(user?.role) }),
+      // Si l'utilisateur est admin et qu'un espace valide est déjà actif, on respecte son choix.
+      setUser: (user) =>
+        set((s) => {
+          const keepAdminSpace =
+            user?.role === "admin" && (s.space === "client" || s.space === "pro" || s.space === "admin");
+          return {
+            user,
+            space: keepAdminSpace ? s.space : spaceForRole(user?.role),
+          };
+        }),
       addToCart: (line) =>
         set((s) => {
           const existing = s.cart.find((l) => l.productId === line.productId);

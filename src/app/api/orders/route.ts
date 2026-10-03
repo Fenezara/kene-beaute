@@ -20,12 +20,22 @@ import { pushTenantFeed } from "@/lib/kene/realtime";
 import { guardUserClaim } from "@/lib/kene/session";
 import { ensureClientProfile } from "@/lib/kene/client-link";
 import { rateLimit, rlKey, rateLimitResponse, ORDERS_CREATE } from "@/lib/kene/rate-limit";
+import { createWaveCheckoutSession } from "@/lib/payments/wave";
+import { createOrangeCheckoutSession } from "@/lib/payments/orange";
+import { createWiniPayerPaymentSession } from "@/lib/payments/winipayer";
+import { createSaspayCheckoutSession } from "@/lib/payments/saspay";
+import { calculateShippingFee, getAreaById } from "@/lib/kene/delivery";
 
 const Body = z.object({
   userId: z.string().min(1),
   items: z.array(z.object({ productId: z.string().min(1), qty: z.number().int().min(1).max(20) })).min(1),
-  paymentMethod: z.enum(["wave", "orange", "wallet"]),
+  paymentMethod: z.enum(["wave", "orange", "mtn", "moov", "saspay", "winipayer", "wallet"]),
   couponCode: z.string().trim().max(40).optional(),
+  deliveryCity: z.enum(["abidjan", "dakar"]).optional(),
+  deliveryAreaId: z.string().optional(),
+  deliveryAddress: z.string().trim().max(250).optional(),
+  deliveryPhone: z.string().trim().max(40).optional(),
+  deliveryNotes: z.string().trim().max(250).optional(),
 });
 
 /** Erreur métier à remonter en 400: le throw annule la transaction entière. */
@@ -58,7 +68,17 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
-    const { userId, items, paymentMethod, couponCode } = parsed.data;
+    const {
+      userId,
+      items,
+      paymentMethod,
+      couponCode,
+      deliveryCity,
+      deliveryAreaId,
+      deliveryAddress,
+      deliveryPhone,
+      deliveryNotes,
+    } = parsed.data;
 
     // Session signée (, migration douce): avec cookie, la commande ne
     // peut passer que pour le compte de la session; sans cookie → legacy.
@@ -92,15 +112,19 @@ export async function POST(req: NextRequest) {
       discount = check.discount ?? 0;
       appliedCouponId = check.coupon?.id ?? null;
     }
-    const total = subtotal - discount;
+
+    // Frais de livraison urbaine calculés selon la commune
+    const shippingFee = deliveryCity ? calculateShippingFee(deliveryAreaId) : 0;
+    const total = subtotal - discount + shippingFee;
 
     // Taux de cashback: celui de la wallet de la cliente, sinon le taux par défaut
-    // — appliqué au montant PAYÉ (après remise)
+    // — appliqué au montant PAYÉ (après remise, hors frais de port)
     const wallet = await db.wallet.findUnique({ where: { userId } });
     if (paymentMethod === "wallet" && (!wallet || wallet.balance < total)) {
       return jsonError("Solde wallet insuffisant — rechargez votre wallet Kènè", 400);
     }
-    const cashback = Math.round(total * (wallet?.cashbackRate ?? CASHBACK_RATE));
+    const cashbackBase = Math.max(0, subtotal - discount);
+    const cashback = Math.round(cashbackBase * (wallet?.cashbackRate ?? CASHBACK_RATE));
 
     const orderItemsData = lines.map((l) => ({
       productId: l.product.id,
@@ -115,9 +139,26 @@ export async function POST(req: NextRequest) {
 
     // ─── Transaction atomique: commande + coupon + paiement + wallet + stock ───
     const created = await db.$transaction(async (tx) => {
+      const deliveryAreaName = deliveryAreaId ? (getAreaById(deliveryAreaId)?.name ?? deliveryAreaId) : null;
       const order = await tx.order.create({
-        data: { userId, subtotal, discount, couponCode: appliedCouponId ? couponCode!.toUpperCase() : null, cashback, total, status: paymentMethod === "wallet" ? "paid" : "pending", items: { create: orderItemsData } },
+        data: {
+          userId,
+          subtotal,
+          shippingFee,
+          deliveryCity: deliveryCity ?? null,
+          deliveryArea: deliveryAreaName,
+          deliveryAddress: deliveryAddress ?? null,
+          deliveryPhone: deliveryPhone ?? user.phone,
+          deliveryNotes: deliveryNotes ?? null,
+          discount,
+          couponCode: appliedCouponId ? couponCode!.toUpperCase() : null,
+          cashback,
+          total,
+          status: paymentMethod === "wallet" ? "paid" : "pending",
+          items: { create: orderItemsData },
+        },
       });
+
 
       // Synchronisation App↔Institut: commander un produit d'une
       // entreprise = un « contact » — la cliente de l'app apparaît dans le CRM
@@ -227,7 +268,77 @@ export async function POST(req: NextRequest) {
     const paymentOut = !created.paid && paymentRow && created.confirmToken
       ? paymentWithConfirmToken(paymentRow, created.confirmToken)
       : null;
-    return NextResponse.json({ order: fullOrder, payment: paymentOut, paid: created.paid }, { status: 201 });
+
+    let paymentUrl: string | null = null;
+    let saspayLaunchUrl: string | null = null;
+    let winipayerLaunchUrl: string | null = null;
+    let waveLaunchUrl: string | null = null;
+    let omLaunchUrl: string | null = null;
+
+    if (paymentRow && !created.paid) {
+      const hasSaspay = Boolean(process.env.SASPAY_API_KEY?.trim());
+      const hasWiniPayer = Boolean(process.env.WINIPAYER_MERCHANT_UUID && process.env.WINIPAYER_MERCHANT_TOKEN);
+
+      // 1. Passerelle Live SasPay (officielle multi-opérateurs Wave, Orange, MTN, Moov, Carte)
+      if (hasSaspay && (paymentMethod === "saspay" || paymentMethod === "wave" || paymentMethod === "orange" || paymentMethod === "mtn" || paymentMethod === "moov")) {
+        const sasSession = await createSaspayCheckoutSession({
+          paymentId: paymentRow.id,
+          amount: paymentRow.amount,
+          description: `Commande Kènè #${fullOrder?.id.slice(-6).toUpperCase() ?? ""}`,
+          customerName: user.name,
+          customerEmail: user.email ?? undefined,
+          customerPhone: user.phone,
+        });
+        if (sasSession.checkoutUrl) {
+          paymentUrl = sasSession.checkoutUrl;
+          saspayLaunchUrl = sasSession.checkoutUrl;
+          try {
+            await db.payment.update({
+              where: { id: paymentRow.id },
+              data: { metaJson: JSON.stringify({ orderId: fullOrder?.id, saspayId: sasSession.id }) },
+            });
+          } catch {}
+        }
+      }
+
+      // 2. Passerelle WiniPayer (si explicitement demandée ou si SasPay n'est pas configuré)
+      if (!paymentUrl && (hasWiniPayer && (paymentMethod === "winipayer" || paymentMethod === "wave" || paymentMethod === "orange" || paymentMethod === "mtn" || paymentMethod === "moov"))) {
+        const wpSession = await createWiniPayerPaymentSession({
+          paymentId: paymentRow.id,
+          amount: paymentRow.amount,
+          description: `Commande Kènè ${fullOrder?.id.slice(-6).toUpperCase() ?? ""}`,
+          clientName: user.name,
+          clientPhone: user.phone,
+        });
+        paymentUrl = wpSession.paymentUrl;
+        winipayerLaunchUrl = wpSession.paymentUrl;
+      }
+
+      if (!paymentUrl && paymentMethod === "wave") {
+        const waveSession = await createWaveCheckoutSession({
+          paymentId: paymentRow.id,
+          amount: paymentRow.amount,
+          description: `Commande Kènè ${fullOrder?.id.slice(-6).toUpperCase() ?? ""}`,
+        });
+        waveLaunchUrl = waveSession.waveLaunchUrl ?? paymentUrl;
+        if (!paymentUrl) paymentUrl = waveSession.waveLaunchUrl;
+      } else if (!paymentUrl && paymentMethod === "orange") {
+        const omSession = await createOrangeCheckoutSession({
+          paymentId: paymentRow.id,
+          amount: paymentRow.amount,
+          description: `Commande Kènè ${fullOrder?.id.slice(-6).toUpperCase() ?? ""}`,
+          phone: user.phone,
+        });
+        omLaunchUrl = omSession.omLaunchUrl ?? paymentUrl;
+        if (!paymentUrl) paymentUrl = omSession.omLaunchUrl;
+      }
+    }
+
+    return NextResponse.json(
+      { order: fullOrder, payment: paymentOut, paid: created.paid, paymentUrl, saspayLaunchUrl, winipayerLaunchUrl, waveLaunchUrl, omLaunchUrl },
+      { status: 201 }
+    );
+
   } catch (err) {
     if (err instanceof OrderFlowError) return jsonError(err.message, 400);
     return serverError("orders", err);

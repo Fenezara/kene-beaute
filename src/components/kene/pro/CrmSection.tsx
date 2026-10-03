@@ -4,12 +4,22 @@
 // — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
-import { FileDown, Lock, MessageCircle, Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown, Save, Star } from "lucide-react";
+import { FileDown, Lock, MessageCircle, Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown, Save, Star, Pencil, Plus, ShoppingBag, FlaskConical, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { apiGet, apiPatch } from "@/lib/kene/api";
+import { apiGet, apiPatch, apiPost, apiDelete, ApiError } from "@/lib/kene/api";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -24,8 +34,10 @@ import type { BodyZone } from "@/lib/kene/types";
 import { parseDiagnosis, diagImgSrc } from "@/components/kene/client/types";
 import { parseProDiagnosis } from "@/lib/kene/questionnaire";
 import { waLink } from "@/lib/kene/followups";
+import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { SkinTwinCard, type TwinEntry } from "@/components/kene/skintwin/SkinTwinCard";
 import { ProEvolutionCard } from "@/components/kene/evolution/ProEvolutionCard";
+import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
 import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, InitialAvatar, Money, SectionHeader, KenteTop } from "./ui-bits";
 import { ResultView } from "./DiagnosticsSection";
@@ -76,16 +88,79 @@ function RfmDots({ client }: { client: ProClient }) {
   );
 }
 
-export function CrmSection({ tenantId, onStartDiagnostic }: { tenantId: string; onStartDiagnostic?: (clientId: string) => void }) {
+export function CrmSection({
+  tenantId,
+  onStartDiagnostic,
+  createClientNonce,
+}: {
+  tenantId: string;
+  onStartDiagnostic?: (clientId: string) => void;
+  createClientNonce?: number;
+}) {
   const [query, setQuery] = useState("");
   const q = useDebounced(query);
   const [segment, setSegment] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
 
+  // Création d'une nouvelle cliente depuis le CRM
+  const [createOpen, setCreateOpen] = useState(false);
+  const [seenNonce, setSeenNonce] = useState(0);
+  if (createClientNonce && createClientNonce > seenNonce) {
+    setSeenNonce(createClientNonce);
+    setCreateOpen(true);
+  }
+  const [createName, setCreateName] = useState("");
+  const [createPhone, setCreatePhone] = useState("");
+  const [createEmail, setCreateEmail] = useState("");
+  const [createSkinType, setCreateSkinType] = useState<string>("mixte");
+  const [createNotes, setCreateNotes] = useState("");
+  const [createBusy, setCreateBusy] = useState(false);
+
   const clients = useApi<ProClient[]>(
     () => (tenantId ? apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}${q ? `&q=${encodeURIComponent(q)}` : ""}`).then((r) => r.clients ?? []) : Promise.resolve([])),
     [tenantId, q]
   );
+
+  async function handleCreateClient(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    const name = createName.trim().replace(/\s+/g, " ");
+    const phone = createPhone.trim();
+    if (name.length < 2) {
+      toast.error("Le nom doit comporter au moins 2 caractères");
+      return;
+    }
+    if (phone.replace(/\D/g, "").length < 8) {
+      toast.error("Numéro de téléphone invalide (8 chiffres minimum)");
+      return;
+    }
+    setCreateBusy(true);
+    try {
+      const res = await apiPost<{ client: ProClient; reused: boolean }>("/api/pro/clients", {
+        tenantId,
+        name,
+        phone,
+        email: createEmail.trim() || undefined,
+        skinType: createSkinType || undefined,
+        notes: createNotes.trim() || undefined,
+      });
+      setCreateOpen(false);
+      setCreateName("");
+      setCreatePhone("");
+      setCreateEmail("");
+      setCreateNotes("");
+      await clients.refetch();
+      setOpenId(res.client.id);
+      toast.success(
+        res.reused
+          ? `Fiche cliente existante retrouvée : ${res.client.name}`
+          : `Nouvelle cliente enregistrée : ${res.client.name} ✨`
+      );
+    } catch (err) {
+      proToastError(err, "Impossible d'enregistrer la cliente");
+    } finally {
+      setCreateBusy(false);
+    }
+  }
 
   const filtered = (clients.data ?? []).filter((c) => (segment ? c.rfmSegment === segment : true));
   const all = clients.data ?? [];
@@ -101,9 +176,23 @@ export function CrmSection({ tenantId, onStartDiagnostic }: { tenantId: string; 
         title="CRM"
         sub="Base clientes, segmentation RFM et historique complet"
         actions={
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher nom ou téléphone…" className="pl-8 w-64 bg-card" aria-label="Rechercher une cliente" />
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher nom ou téléphone…" className="pl-8 w-48 sm:w-64 bg-card text-xs h-9" aria-label="Rechercher une cliente" />
+            </div>
+            <Button
+              onClick={() => {
+                setCreateName(query && !/^\+?\d+$/.test(query.replace(/\s/g, "")) ? query : "");
+                setCreatePhone(query && /^\+?\d+$/.test(query.replace(/\s/g, "")) ? query : "");
+                setCreateOpen(true);
+              }}
+              className="k-btn-gold text-primary-foreground font-semibold text-xs h-9 gap-1.5 shrink-0"
+              aria-label="Enregistrer une nouvelle cliente"
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              <span>Nouvelle cliente</span>
+            </Button>
           </div>
         }
       />
@@ -166,7 +255,30 @@ export function CrmSection({ tenantId, onStartDiagnostic }: { tenantId: string; 
             ))}
           </CardContent>
         ) : filtered.length === 0 ? (
-          <CardContent><EmptyState label="Aucune cliente trouvée" sub="Modifiez la recherche ou les filtres de segment." /></CardContent>
+          <CardContent className="p-8 text-center space-y-3">
+            <EmptyState
+              label="Aucune cliente trouvée"
+              sub={q ? `Aucune fiche ne correspond à « ${q} »` : "Votre carnet de clientes est vide pour ce filtre."}
+            />
+            <Button
+              onClick={() => {
+                if (q) {
+                  if (/^\+?\d+$/.test(q.replace(/\s/g, ""))) {
+                    setCreatePhone(q);
+                    setCreateName("");
+                  } else {
+                    setCreateName(q);
+                    setCreatePhone("");
+                  }
+                }
+                setCreateOpen(true);
+              }}
+              className="k-btn-gold text-primary-foreground font-semibold text-xs gap-1.5"
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              <span>{q ? `Créer la fiche de « ${q} »` : "Enregistrer une première cliente"}</span>
+            </Button>
+          </CardContent>
         ) : (
           <div className="overflow-x-auto pretty-scroll">
             <Table>
@@ -224,8 +336,123 @@ export function CrmSection({ tenantId, onStartDiagnostic }: { tenantId: string; 
           tenantId={tenantId}
           onClose={() => setOpenId(null)}
           onStartDiagnostic={onStartDiagnostic}
+          onRefreshClients={clients.refetch}
         />
       )}
+
+      {/* Dialogue d'enregistrement d'une nouvelle cliente */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading font-black text-lg flex items-center gap-2">
+              <UserPlus className="size-5 text-gold-text" aria-hidden="true" />
+              Enregistrer une nouvelle cliente
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              Ajoutez une nouvelle fiche au carnet CRM de votre salon. Elle sera disponible instantanément pour la caisse, l&apos;agenda et les diagnostics en cabine.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateClient} className="space-y-3.5 py-1">
+            <div className="space-y-1.5">
+              <label htmlFor="create-name" className="text-xs font-semibold block text-foreground">
+                Nom complet <span className="text-destructive">*</span>
+              </label>
+              <Input
+                id="create-name"
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                placeholder="Ex. Aminata Touré"
+                className="text-xs"
+                required
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="create-phone" className="text-xs font-semibold block text-foreground">
+                Téléphone mobile <span className="text-destructive">*</span>
+              </label>
+              <Input
+                id="create-phone"
+                value={createPhone}
+                onChange={(e) => setCreatePhone(e.target.value)}
+                placeholder="Ex. 07 01 02 03 04 ou +225 05..."
+                className="text-xs font-mono"
+                inputMode="tel"
+                required
+              />
+              <p className="text-[10.5px] text-muted-foreground">Numéro pour le suivi de routine et les rappels WhatsApp.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1.5">
+                <label htmlFor="create-skin" className="text-xs font-semibold block text-foreground">
+                  Type de peau
+                </label>
+                <select
+                  id="create-skin"
+                  value={createSkinType}
+                  onChange={(e) => setCreateSkinType(e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-xs focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  <option value="mixte">Mixte</option>
+                  <option value="grasse">Grasse</option>
+                  <option value="seche">Sèche</option>
+                  <option value="normale">Normale</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="create-email" className="text-xs font-semibold block text-foreground">
+                  Email (optionnel)
+                </label>
+                <Input
+                  id="create-email"
+                  type="email"
+                  value={createEmail}
+                  onChange={(e) => setCreateEmail(e.target.value)}
+                  placeholder="contact@email.com"
+                  className="text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="create-notes" className="text-xs font-semibold block text-foreground">
+                Notes & Remarques salon
+              </label>
+              <Textarea
+                id="create-notes"
+                value={createNotes}
+                onChange={(e) => setCreateNotes(e.target.value)}
+                placeholder="Préférences de soin, allergies, historique particulier..."
+                className="text-xs resize-none h-18"
+              />
+            </div>
+
+            <DialogFooter className="gap-2 sm:justify-end pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCreateOpen(false)}
+                disabled={createBusy}
+                className="text-xs"
+              >
+                Annuler
+              </Button>
+              <Button
+                type="submit"
+                disabled={createBusy || createName.trim().length < 2 || createPhone.trim().length < 8}
+                className="k-btn-gold text-primary-foreground font-semibold text-xs gap-1.5"
+              >
+                {createBusy ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                Enregistrer la cliente
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -236,18 +463,69 @@ function ClientSheet({
   tenantId,
   onClose,
   onStartDiagnostic,
+  onRefreshClients,
 }: {
   clientId: string;
   tenantId: string;
   onClose: () => void;
   onStartDiagnostic?: (clientId: string) => void;
+  onRefreshClients?: () => void;
 }) {
-  // Notes PRIVÉES: persistées sur la fiche ClientProfile (base) — elles
-  // suivent la cliente sur tous les postes et nourrissent la fiche de
-  // consultation PDF (plus de notes locales par poste).
+  // Notes PRIVÉES: persistées sur la fiche ClientProfile (base)
   const [note, setNote] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
   const [noteLoaded, setNoteLoaded] = useState<string | null>(null);
+
+  // Produits cosmétiques utilisés par la cliente (routine quotidienne)
+  const [cosmeticsUsed, setCosmeticsUsed] = useState("");
+  const [cosmeticsBusy, setCosmeticsBusy] = useState(false);
+
+  // Observations sur les composants des produits achetés en institut
+  const [productObservations, setProductObservations] = useState("");
+  const [obsBusy, setObsBusy] = useState(false);
+
+  // Ajustement de prix d'un produit cosmétique acheté (exclusif au dossier patient)
+  const [editingItem, setEditingItem] = useState<{
+    id: string;
+    saleId: string;
+    label: string;
+    currentPrice: number;
+    qty: number;
+    saleDate: string;
+    reason?: string | null;
+  } | null>(null);
+  const [editPriceValue, setEditPriceValue] = useState("");
+  const [editPriceReason, setEditPriceReason] = useState("");
+  const [editPriceBusy, setEditPriceBusy] = useState(false);
+
+  // Enregistrement direct d'un achat cosmétique au dossier patient
+  const [showAddPurchase, setShowAddPurchase] = useState(false);
+  const [newProdLabel, setNewProdLabel] = useState("");
+  const [newProdPrice, setNewProdPrice] = useState("");
+  const [newProdQty, setNewProdQty] = useState(1);
+  const [newProdMethod, setNewProdMethod] = useState<"cash" | "wave" | "orange" | "card">("cash");
+  const [newProdReason, setNewProdReason] = useState("");
+  const [addPurchaseBusy, setAddPurchaseBusy] = useState(false);
+
+  // Archivage / retrait de la cliente du CRM salon
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+
+  async function handleArchiveClient() {
+    setArchiveBusy(true);
+    try {
+      await apiDelete(`/api/pro/clients/${clientId}?tenantId=${tenantId}`);
+      toast.success("Fiche cliente retirée du carnet du salon");
+      setArchiveConfirmOpen(false);
+      onClose();
+      onRefreshClients?.();
+    } catch (e) {
+      proToastError(e, "Impossible de retirer la cliente");
+    } finally {
+      setArchiveBusy(false);
+    }
+  }
+
   const detail = useApi<ProClientDetail>(
     () => apiGet<ProClientDetail>(`/api/pro/clients/${clientId}?tenantId=${tenantId}`),
     [clientId, tenantId]
@@ -256,11 +534,13 @@ function ClientSheet({
   const d = detail.data;
   const c = d?.client;
 
-  // Edition: la zone part de la note SERVEUR dès que la fiche est chargée
+  // Initialisation synchronisée avec la fiche cliente en base
   useEffect(() => {
     if (c && noteLoaded !== c.id) {
       setNoteLoaded(c.id);
       setNote(c.notes ?? "");
+      setCosmeticsUsed(c.cosmeticsUsed ?? "");
+      setProductObservations(c.productObservations ?? "");
     }
   }, [c, noteLoaded]);
 
@@ -274,6 +554,171 @@ function ClientSheet({
     } finally {
       setNoteBusy(false);
     }
+  }
+
+  async function saveCosmeticsUsed() {
+    setCosmeticsBusy(true);
+    try {
+      await apiPatch(`/api/pro/clients/${clientId}?tenantId=${tenantId}`, {
+        cosmeticsUsed: cosmeticsUsed.trim() || null,
+      });
+      toast.success("Routine cosmétique enregistrée", {
+        description: "Les produits utilisés par la cliente sont conservés au dossier patient.",
+      });
+      detail.refetch();
+      onRefreshClients?.();
+    } catch (e) {
+      proToastError(e, "Enregistrement impossible");
+    } finally {
+      setCosmeticsBusy(false);
+    }
+  }
+
+  async function saveProductObservations() {
+    setObsBusy(true);
+    try {
+      await apiPatch(`/api/pro/clients/${clientId}?tenantId=${tenantId}`, {
+        productObservations: productObservations.trim() || null,
+      });
+      toast.success("Observations composants enregistrées", {
+        description: "Les notes formulatoires et de tolérance sont conservées dans le dossier.",
+      });
+      detail.refetch();
+      onRefreshClients?.();
+    } catch (e) {
+      proToastError(e, "Enregistrement impossible");
+    } finally {
+      setObsBusy(false);
+    }
+  }
+
+  async function submitPriceUpdate() {
+    if (!editingItem) return;
+    const priceNum = parseInt(editPriceValue, 10);
+    if (isNaN(priceNum) || priceNum < 0) {
+      toast.error("Veuillez saisir un prix valide en FCFA");
+      return;
+    }
+    setEditPriceBusy(true);
+    try {
+      await apiPatch(`/api/pro/clients/${clientId}/purchases/${editingItem.id}?tenantId=${tenantId}`, {
+        unitPrice: priceNum,
+        reason: editPriceReason.trim() || "Ajusté dans le dossier patient",
+      });
+      toast.success("Prix ajusté dans le dossier patient", {
+        description: `Nouveau prix de ${xof(priceNum)} appliqué à cet achat de ${c?.name}. Le catalogue général reste inchangé.`,
+      });
+      setEditingItem(null);
+      detail.refetch();
+      onRefreshClients?.();
+    } catch (e) {
+      proToastError(e, "Impossible de modifier le prix");
+    } finally {
+      setEditPriceBusy(false);
+    }
+  }
+
+  async function submitAddPurchase() {
+    if (!newProdLabel.trim()) {
+      toast.error("Veuillez indiquer le nom du produit cosmétique");
+      return;
+    }
+    const priceNum = parseInt(newProdPrice, 10);
+    if (isNaN(priceNum) || priceNum < 0) {
+      toast.error("Veuillez saisir un prix unitaire valide");
+      return;
+    }
+    setAddPurchaseBusy(true);
+    try {
+      await apiPost(`/api/pro/clients/${clientId}/purchases?tenantId=${tenantId}`, {
+        label: newProdLabel.trim(),
+        unitPrice: priceNum,
+        qty: newProdQty,
+        paymentMethod: newProdMethod,
+        reason: newProdReason.trim() || "Achat enregistré au dossier patient",
+      });
+      toast.success("Achat cosmétique consigné", {
+        description: `${newProdLabel} ajouté au suivi d'achat de la patiente.`,
+      });
+      setShowAddPurchase(false);
+      setNewProdLabel("");
+      setNewProdPrice("");
+      setNewProdQty(1);
+      setNewProdReason("");
+      detail.refetch();
+      onRefreshClients?.();
+    } catch (e) {
+      proToastError(e, "Impossible d'enregistrer l'achat");
+    } finally {
+      setAddPurchaseBusy(false);
+    }
+  }
+
+  // Suivi spécifique de tous les achats de produits cosmétiques en institut
+  const cosmeticPurchases = useMemo(() => {
+    if (!d?.sales) return [];
+    const list: Array<{
+      id: string;
+      saleId: string;
+      label: string;
+      qty: number;
+      unitPrice: number;
+      total: number;
+      productId?: string | null;
+      productBotanicals?: string | null;
+      customPriceReason?: string | null;
+      saleDate: string;
+      paymentMethod: string;
+    }> = [];
+
+    for (const s of d.sales) {
+      for (const it of s.items ?? []) {
+        if (it.kind === "product") {
+          list.push({
+            id: it.id || `${s.id}-${it.label}`,
+            saleId: it.saleId || s.id,
+            label: it.label,
+            qty: it.qty,
+            unitPrice: it.unitPrice,
+            total: it.total,
+            productId: it.productId,
+            productBotanicals: it.productBotanicals || (it as { product?: { botanicals?: string } }).product?.botanicals,
+            customPriceReason: it.customPriceReason,
+            saleDate: s.createdAt,
+            paymentMethod: s.paymentMethod,
+          });
+        }
+      }
+    }
+    return list;
+  }, [d?.sales]);
+
+  function handleInsertPurchasedComponents() {
+    const names = new Set<string>();
+    const botanicals = new Set<string>();
+    for (const p of cosmeticPurchases) {
+      names.add(p.label);
+      if (p.productBotanicals) {
+        p.productBotanicals
+          .split(/[,·+]/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .forEach((b) => botanicals.add(b));
+      }
+    }
+    const prodList = Array.from(names).join(" · ") || "Produits cosmétiques achetés en institut";
+    const botList = Array.from(botanicals).join(", ") || "Karité brut, Moringa, Baobab, Bissap";
+
+    const snippet = `[COMPOSANTS DES PRODUITS ACHETÉS EN INSTITUT : ${prodList}]
+• Principes actifs & botaniques : ${botList}
+• Tolérance cutanée constatée : Excellente tolérance, aucune irritation
+• Synergie & conseils d'application : Utilisation régulière le soir sur peau propre
+• Précautions spécifiques notées par l'institut : `;
+
+    setProductObservations((prev) => (prev ? `${prev}\n\n${snippet}` : snippet));
+    toast.info("Composants insérés", {
+      description: "Les actifs des cosmétiques achetés ont été insérés dans la zone d'observation.",
+    });
   }
 
  /* Jumeau de Peau — agrégation 3D des diagnostics de la cliente (toutes zones) */
@@ -318,8 +763,31 @@ function ClientSheet({
                 <InitialAvatar name={c.name} className="size-12 text-sm" />
                 <div className="min-w-0 flex-1">
                   <SheetTitle className="font-heading text-lg leading-tight truncate">{c.name}</SheetTitle>
-                  <SheetDescription className="flex items-center gap-2 font-mono text-xs">
-                    <Phone className="size-3" aria-hidden="true" /> {c.phone}
+                  <SheetDescription className="flex flex-wrap items-center gap-2 font-mono text-xs mt-0.5">
+                    <span className="flex items-center gap-1">
+                      <Phone className="size-3" aria-hidden="true" /> {c.phone}
+                    </span>
+                    {c.district && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-[10.5px] font-sans font-medium text-foreground/80">
+                        <MapPin className="size-3 text-primary" /> {c.district}
+                      </span>
+                    )}
+                    {c.birthDate && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gold/15 text-gold-text text-[10.5px] font-sans font-bold">
+                        🎂 {c.birthDate}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const msg = `Bonjour ${c.name} ! 🌸 Nous espérons que vous allez bien. Votre institut Kènè reste à votre entière disposition pour vos soins et routines dermo-botaniques. ✨`;
+                        openWhatsApp(c.phone, msg);
+                      }}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] text-[11px] font-sans font-bold border border-[#25D366]/30 transition-colors cursor-pointer"
+                      title="Contacter sur WhatsApp"
+                    >
+                      <MessageCircle className="size-3 text-[#25D366]" /> WhatsApp
+                    </button>
                   </SheetDescription>
                 </div>
                 {segmentBadge(c.rfmSegment)}
@@ -341,6 +809,52 @@ function ClientSheet({
             </SheetHeader>
 
             <div className="space-y-4 p-4">
+              {/* Alerte Sécurité Maternité (Grossesse ou Allaitement) */}
+              {c.pregnant && (
+                <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-pink-500/10 border border-pink-500/30 text-pink-800 dark:text-pink-300 text-xs">
+                  <Baby className="size-5 shrink-0 text-pink-500 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-bold">⚠️ Alerte Vigilance Cabine : Cliente enceinte / allaitante</p>
+                    <p className="text-[11px] leading-relaxed opacity-90">
+                      Adapter les protocoles : exclure impérativement les rétinoïdes, acides de fruits à haute concentration (AHA/BHA forts) et les huiles essentielles pures. Privilégier les soins doux, hydratants et apaisants.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Bouton privilège d'anniversaire direct */}
+              {c.birthDate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2 border-gold/40 bg-gold/10 text-gold-text hover:bg-gold/20 font-bold text-xs rounded-xl h-10"
+                  onClick={() => {
+                    const msg = `Joyeux anniversaire ${c.name} ! 🎂🎉 Toute l'équipe de votre institut partenaire vous souhaite le meilleur. Pour fêter cet événement, nous avons le plaisir de vous offrir une remise privilège sur votre prochain soin en cabine ! ✨`;
+                    openWhatsApp(c.phone, msg);
+                  }}
+                >
+                  <Gift className="size-4 text-gold-text" />
+                  Souhaiter son Anniversaire (WhatsApp) · {c.birthDate}
+                </Button>
+              )}
+
+              {/* Badges Préférences & Budget */}
+              {(c.preferredChannel || c.beautyBudget) && (
+                <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-xl bg-muted/50 border border-border/60 text-[11px]">
+                  {c.preferredChannel && (
+                    <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
+                      💬 Contact favori : <strong>{c.preferredChannel === "whatsapp" ? "WhatsApp" : c.preferredChannel === "sms" ? "SMS" : "Appel"}</strong>
+                    </span>
+                  )}
+                  {c.preferredChannel && c.beautyBudget && <span className="text-muted-foreground/60">·</span>}
+                  {c.beautyBudget && (
+                    <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
+                      💎 Budget soins mensuel : <strong className="text-gold-text">{c.beautyBudget}</strong>
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* Actions rapides: fiche papier + WhatsApp direct */}
               <div className="grid grid-cols-[1fr_auto] gap-2">
                 {/* Fiche de consultation papier — pré-remplie pour cette cliente */}
@@ -425,6 +939,34 @@ function ClientSheet({
                   {twinEntries.length > 0 && <SkinTwinCard context="pro" entries={twinEntries} className="mb-4" />}
                   {/* Fil du Temps — courbe d'évolution + lecture pro (séries calculées localement) */}
                   {d.diagnoses.length > 0 && <ProEvolutionCard rows={d.diagnoses} className="mb-4" />}
+                  {/* Curseur Comparatif Avant / Après */}
+                  {d.diagnoses.length >= 2 && (() => {
+                    const sorted = [...d.diagnoses].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                    const beforeDiag = sorted[0];
+                    const afterDiag = sorted[sorted.length - 1];
+                    return (
+                      <div className="mb-4 space-y-1.5">
+                        <h5 className="font-heading text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                          <Sparkles className="size-3 text-gold-text" /> Comparatif Avant / Après (Tactile)
+                        </h5>
+                        <BeforeAfterSlider
+                          before={{
+                            imageUrl: diagImgSrc(beforeDiag.imageData),
+                            label: "Bilan J0 Initial",
+                            date: beforeDiag.createdAt,
+                            score: beforeDiag.scoreGlobal,
+                          }}
+                          after={{
+                            imageUrl: diagImgSrc(afterDiag.imageData),
+                            label: "Bilan Récent",
+                            date: afterDiag.createdAt,
+                            score: afterDiag.scoreGlobal,
+                          }}
+                          showSpectralUvToggle={true}
+                        />
+                      </div>
+                    );
+                  })()}
                   {d.diagnoses.length === 0 ? (
                     <p className="text-xs text-muted-foreground">Aucun diagnostic pour cette cliente.</p>
                   ) : (
@@ -450,14 +992,245 @@ function ClientSheet({
               )}
 
               {/* Onglets */}
-              <Tabs defaultValue="sales">
+              <Tabs defaultValue="cosmetics">
                 <TabsList className="w-full">
+                  <TabsTrigger value="cosmetics" className="text-[11px] flex-1 font-semibold flex items-center justify-center gap-1">
+                    <Sparkles className="size-3 text-gold-text shrink-0" /> Cosmétiques
+                  </TabsTrigger>
                   <TabsTrigger value="sales" className="text-[11px] flex-1">Ventes</TabsTrigger>
                   <TabsTrigger value="appts" className="text-[11px] flex-1">RDV</TabsTrigger>
                   <TabsTrigger value="orders" className="text-[11px] flex-1">Commandes</TabsTrigger>
                   <TabsTrigger value="reviews" className="text-[11px] flex-1">Avis</TabsTrigger>
                   <TabsTrigger value="notes" className="text-[11px] flex-1">Notes</TabsTrigger>
                 </TabsList>
+
+                {/* Onglet Cosmétiques (Produits utilisés, Suivi des achats avec prix modifiable, Observations composants) */}
+                <TabsContent value="cosmetics" className="mt-3 space-y-4">
+                  {/* 1. Produits cosmétiques utilisés par la cliente (Routine quotidienne) */}
+                  <Card className="overflow-hidden border-border bg-card">
+                    <CardContent className="p-3.5 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="grid size-7 place-items-center rounded-lg bg-gold/15 text-gold-text shrink-0">
+                            <Sparkles className="size-3.5" />
+                          </span>
+                          <div>
+                            <h5 className="font-heading text-xs font-bold leading-tight">Cosmétiques utilisés par la cliente</h5>
+                            <p className="text-[10px] text-muted-foreground">Soins appliqués à domicile (nettoyant, sérum, crème, protection solaire…)</p>
+                          </div>
+                        </div>
+                        {cosmeticsUsed.trim() ? (
+                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[9px] px-1.5 shrink-0">
+                            Routine renseignée
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[9px] px-1.5 shrink-0">
+                            À renseigner
+                          </Badge>
+                        )}
+                      </div>
+
+                      <Textarea
+                        rows={3}
+                        value={cosmeticsUsed}
+                        onChange={(e) => setCosmeticsUsed(e.target.value)}
+                        placeholder="Ex: Matin : Savon doux Karité, Sérum hydratant acide hyaluronique, Crème solaire SPF50. Soir : Huile Baobab démaquillante, Baume nuit nourrissant…"
+                        className="text-xs leading-relaxed"
+                        aria-label="Produits cosmétiques utilisés au quotidien"
+                      />
+
+                      {/* Suggestions rapides */}
+                      <div className="space-y-1">
+                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Ajouts rapides :</span>
+                        <div className="flex flex-wrap gap-1">
+                          {[
+                            "Sérum éclat Moringa",
+                            "Baume nuit Karité bio",
+                            "Savon noir traditionnel",
+                            "Gel nettoyant doux",
+                            "Crème solaire SPF50",
+                            "Huile sèche Baobab",
+                            "Brume tonique Néré",
+                            "Gommage doux Bissap",
+                          ].map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => {
+                                setCosmeticsUsed((prev) => (prev ? `${prev.trim()}, ${tag}` : tag));
+                              }}
+                              className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-gold/15 hover:text-gold-text hover:border-gold/30 transition-colors cursor-pointer"
+                            >
+                              + {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <p className="text-[10px] text-muted-foreground">Enregistré au dossier · Imprimé sur la fiche PDF</p>
+                        <Button
+                          size="sm"
+                          className="gap-1.5 h-8 font-semibold text-xs"
+                          disabled={cosmeticsBusy}
+                          onClick={() => void saveCosmeticsUsed()}
+                        >
+                          <Save className="size-3.5" aria-hidden="true" />
+                          {cosmeticsBusy ? "Enregistrement…" : "Enregistrer la routine"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* 2. Suivi de chaque achat cosmétique effectué en institut avec prix modifiable */}
+                  <Card className="overflow-hidden border-border bg-card">
+                    <CardContent className="p-3.5 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="grid size-7 place-items-center rounded-lg bg-primary/15 text-primary shrink-0">
+                            <ShoppingBag className="size-3.5" />
+                          </span>
+                          <div>
+                            <h5 className="font-heading text-xs font-bold leading-tight">Suivi des achats cosmétiques en institut</h5>
+                            <p className="text-[10px] text-muted-foreground">Prix modifiable exclusivement dans le dossier patient (catalogue général protégé)</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge variant="outline" className="text-[9px] px-1.5 font-mono">
+                            {cosmeticPurchases.length} achat{cosmeticPurchases.length > 1 ? "s" : ""}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[10px] gap-1 px-2 border-primary/30 text-primary hover:bg-primary/10"
+                            onClick={() => setShowAddPurchase(true)}
+                          >
+                            <Plus className="size-3" /> Ajouter
+                          </Button>
+                        </div>
+                      </div>
+
+                      {cosmeticPurchases.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-border p-4 text-center space-y-2">
+                          <p className="text-xs text-muted-foreground">Aucun achat de produit cosmétique consigné pour cette cliente.</p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs gap-1"
+                            onClick={() => setShowAddPurchase(true)}
+                          >
+                            <Plus className="size-3.5" /> Enregistrer un achat cosmétique
+                          </Button>
+                        </div>
+                      ) : (
+                        <ul className="space-y-2 max-h-72 overflow-y-auto pretty-scroll pr-1">
+                          {cosmeticPurchases.map((it) => (
+                            <li key={it.id} className="rounded-xl border border-border bg-muted/20 p-2.5 space-y-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-medium text-foreground truncate">{it.label}</p>
+                                  <p className="text-[10px] text-muted-foreground font-mono">
+                                    {formatDate(it.saleDate, { day: "numeric", month: "short", year: "numeric" })} · {it.qty} unité{it.qty > 1 ? "s" : ""}
+                                    {it.paymentMethod ? ` · ${it.paymentMethod}` : ""}
+                                  </p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="font-mono text-xs font-bold text-gold-text">{xof(it.total)}</p>
+                                  <p className="font-mono text-[9px] text-muted-foreground">({xof(it.unitPrice)} / u)</p>
+                                </div>
+                              </div>
+
+                              {it.productBotanicals && (
+                                <p className="text-[10px] text-muted-foreground bg-muted/40 rounded px-1.5 py-0.5 truncate">
+                                  🌿 <span className="font-medium text-foreground">Composants :</span> {it.productBotanicals}
+                                </p>
+                              )}
+
+                              {it.customPriceReason && (
+                                <p className="text-[9px] text-gold-text bg-gold/10 rounded px-1.5 py-0.5 flex items-center gap-1">
+                                  <Lock className="size-2.5 shrink-0" /> Prix dossier patient : {it.customPriceReason}
+                                </p>
+                              )}
+
+                              <div className="pt-1 flex justify-end">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 text-[10px] gap-1 px-2 text-muted-foreground hover:text-foreground hover:border-gold/50 cursor-pointer"
+                                  onClick={() => {
+                                    setEditingItem({
+                                      id: it.id,
+                                      saleId: it.saleId,
+                                      label: it.label,
+                                      currentPrice: it.unitPrice,
+                                      qty: it.qty,
+                                      saleDate: it.saleDate,
+                                      reason: it.customPriceReason,
+                                    });
+                                    setEditPriceValue(String(it.unitPrice));
+                                    setEditPriceReason(it.customPriceReason ?? "");
+                                  }}
+                                  title="Modifier le prix facturé à cette cliente uniquement"
+                                >
+                                  <Pencil className="size-2.5 text-gold-text" /> Modifier le prix patiente
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* 3. Zone de texte observation pour noter les composants des produits achetés */}
+                  <Card className="overflow-hidden border-border bg-card">
+                    <CardContent className="p-3.5 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="grid size-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <FlaskConical className="size-3.5" />
+                          </span>
+                          <div>
+                            <h5 className="font-heading text-xs font-bold leading-tight">Observations composants des produits achetés</h5>
+                            <p className="text-[10px] text-muted-foreground">Composants, actifs botaniques, tolérance cutanée & conseils</p>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-[10px] gap-1 px-2 border-gold/30 text-gold-text hover:bg-gold/10 cursor-pointer"
+                          onClick={handleInsertPurchasedComponents}
+                          title="Extraire et insérer les actifs des cosmétiques achetés"
+                        >
+                          <Sparkles className="size-3" /> Insérer composants
+                        </Button>
+                      </div>
+
+                      <Textarea
+                        rows={4}
+                        value={productObservations}
+                        onChange={(e) => setProductObservations(e.target.value)}
+                        placeholder="Notez ici les composants des différents cosmétiques achetés dans votre institut (Karité, Moringa, acide hyaluronique, filtres minéraux…), tolérance observée, posologie et précautions formulatoires…"
+                        className="text-xs font-sans leading-relaxed"
+                        aria-label="Observations sur les composants des produits cosmétiques achetés"
+                      />
+
+                      <div className="flex items-center justify-between pt-1">
+                        <p className="text-[10px] text-muted-foreground">Visible sur tous les postes · Synchronisé avec la fiche PDF</p>
+                        <Button
+                          size="sm"
+                          className="gap-1.5 h-8 font-semibold text-xs"
+                          disabled={obsBusy}
+                          onClick={() => void saveProductObservations()}
+                        >
+                          <Save className="size-3.5" aria-hidden="true" />
+                          {obsBusy ? "Enregistrement…" : "Enregistrer les observations"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
                 <TabsContent value="sales" className="mt-3">
                   {d.sales.length === 0 ? (
                     <EmptyState label="Aucune vente" />
@@ -469,7 +1242,38 @@ function ClientSheet({
                             <span className="text-[11px] text-muted-foreground font-mono">{formatDate(s.createdAt)} {formatTime(s.createdAt)}</span>
                             <Money value={s.total} className="text-xs font-semibold" />
                           </div>
-                          <p className="mt-1 text-xs">{s.items.map((it) => `${it.qty}× ${it.label}`).join(" · ")}</p>
+                          <div className="mt-1 space-y-1">
+                            {s.items.map((it, idx) => (
+                              <div key={idx} className="flex items-center justify-between text-xs">
+                                <span>{it.qty}× {it.label}</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono text-muted-foreground">{xof(it.total)}</span>
+                                  {it.kind === "product" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingItem({
+                                          id: it.id || `${s.id}-${it.label}`,
+                                          saleId: it.saleId || s.id,
+                                          label: it.label,
+                                          currentPrice: it.unitPrice,
+                                          qty: it.qty,
+                                          saleDate: s.createdAt,
+                                          reason: it.customPriceReason,
+                                        });
+                                        setEditPriceValue(String(it.unitPrice));
+                                        setEditPriceReason(it.customPriceReason ?? "");
+                                      }}
+                                      className="inline-flex items-center gap-0.5 text-[9px] text-gold-text hover:underline cursor-pointer ml-1"
+                                      title="Modifier le prix dans le dossier patient"
+                                    >
+                                      <Pencil className="size-2.5" /> Prix patiente
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -556,6 +1360,226 @@ function ClientSheet({
                   </div>
                 </TabsContent>
               </Tabs>
+
+              {/* Dialogue d'édition de prix pour un achat cosmétique (exclusif au dossier patient) */}
+              {editingItem && (
+                <Dialog open onOpenChange={(o) => !o && setEditingItem(null)}>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="font-heading flex items-center gap-2 text-base">
+                        <Pencil className="size-4 text-gold-text" />
+                        Ajuster le prix dans le dossier patient
+                      </DialogTitle>
+                      <DialogDescription className="text-xs">
+                        {editingItem.label} · Achat du {formatDate(editingItem.saleDate)}
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3 py-2">
+                      <div className="rounded-xl border border-gold/30 bg-gold/10 p-3 text-xs leading-relaxed text-foreground">
+                        <p className="flex items-center gap-1.5 font-bold text-gold-text">
+                          <Lock className="size-3.5" /> Modification exclusive au dossier patient
+                        </p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          Ce prix est ajusté <strong>uniquement pour cet achat de {c?.name}</strong> dans sa fiche cliente.
+                          Le prix catalogue général de l&apos;institut reste <strong>strictement inchangé</strong>.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <span className="text-[10px] uppercase text-muted-foreground">Prix actuel facturé</span>
+                          <p className="font-mono text-sm font-semibold">{xof(editingItem.currentPrice)}</p>
+                        </div>
+                        <div className="rounded-lg bg-muted/50 p-2">
+                          <span className="text-[10px] uppercase text-muted-foreground">Quantité</span>
+                          <p className="font-mono text-sm font-semibold">{editingItem.qty} unité(s)</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Nouveau prix unitaire (FCFA) *</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="500"
+                          value={editPriceValue}
+                          onChange={(e) => setEditPriceValue(e.target.value)}
+                          placeholder="Ex: 8500"
+                          className="font-mono font-semibold"
+                          autoFocus
+                        />
+                        {editPriceValue && !isNaN(parseInt(editPriceValue, 10)) && (
+                          <p className="text-[10px] text-muted-foreground">
+                            Nouveau total pour {editingItem.qty} unité(s) :{" "}
+                            <strong className="text-foreground">{xof(parseInt(editPriceValue, 10) * editingItem.qty)}</strong>
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Motif de l&apos;ajustement (optionnel)</label>
+                        <Input
+                          value={editPriceReason}
+                          onChange={(e) => setEditPriceReason(e.target.value)}
+                          placeholder="Ex: Tarif fidélité, pack routine cabine, remise spéciale…"
+                        />
+                      </div>
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:gap-0">
+                      <Button variant="outline" size="sm" onClick={() => setEditingItem(null)} disabled={editPriceBusy}>
+                        Annuler
+                      </Button>
+                      <Button size="sm" onClick={() => void submitPriceUpdate()} disabled={editPriceBusy} className="gap-1.5 font-semibold">
+                        {editPriceBusy ? "Enregistrement…" : "Valider le nouveau prix"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+
+              {/* Dialogue d'ajout d'achat cosmétique direct */}
+              {showAddPurchase && (
+                <Dialog open onOpenChange={(o) => !o && setShowAddPurchase(false)}>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="font-heading flex items-center gap-2 text-base">
+                        <ShoppingBag className="size-4 text-gold-text" />
+                        Enregistrer un achat cosmétique au dossier
+                      </DialogTitle>
+                      <DialogDescription className="text-xs">
+                        Consigner un produit cosmétique pour {c?.name} avec prix sur-mesure.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3 py-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Nom du produit cosmétique *</label>
+                        <Input
+                          value={newProdLabel}
+                          onChange={(e) => setNewProdLabel(e.target.value)}
+                          placeholder="Ex: Baume Nuit Karité Bio 100ml"
+                          autoFocus
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium">Prix unitaire facturé (FCFA) *</label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="500"
+                            value={newProdPrice}
+                            onChange={(e) => setNewProdPrice(e.target.value)}
+                            placeholder="10000"
+                            className="font-mono font-semibold"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium">Quantité</label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="50"
+                            value={newProdQty}
+                            onChange={(e) => setNewProdQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                            className="font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Règlement</label>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {(["cash", "wave", "orange", "card"] as const).map((m) => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setNewProdMethod(m)}
+                              className={cn(
+                                "rounded-lg border px-2 py-1.5 text-xs font-semibold capitalize transition-colors cursor-pointer",
+                                newProdMethod === m
+                                  ? "border-primary bg-primary/15 text-primary"
+                                  : "border-border bg-card text-muted-foreground hover:bg-muted"
+                              )}
+                            >
+                              {m === "cash" ? "Espèces" : m}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Motif / Note (optionnel)</label>
+                        <Input
+                          value={newProdReason}
+                          onChange={(e) => setNewProdReason(e.target.value)}
+                          placeholder="Ex: Tarif sur-mesure dermo-conseil"
+                        />
+                      </div>
+                    </div>
+
+                    <DialogFooter className="gap-2 sm:gap-0">
+                      <Button variant="outline" size="sm" onClick={() => setShowAddPurchase(false)} disabled={addPurchaseBusy}>
+                        Annuler
+                      </Button>
+                      <Button size="sm" onClick={() => void submitAddPurchase()} disabled={addPurchaseBusy} className="gap-1.5 font-semibold">
+                        {addPurchaseBusy ? "Enregistrement…" : "Enregistrer l'achat"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+
+              {/* Option d'archivage / retrait de la cliente du CRM salon */}
+              <div className="pt-4 mt-2 border-t border-border flex items-center justify-between gap-2">
+                <span className="text-[11px] text-muted-foreground">
+                  Retirer de mon carnet d&apos;institut
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-[11px] text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5 font-bold"
+                  onClick={() => setArchiveConfirmOpen(true)}
+                >
+                  <Trash2 className="size-3.5" />
+                  Archiver du salon
+                </Button>
+              </div>
+
+              {/* Dialogue de confirmation d'archivage CRM */}
+              <AlertDialog open={archiveConfirmOpen} onOpenChange={setArchiveConfirmOpen}>
+                <AlertDialogContent className="sm:max-w-md">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="font-heading font-bold text-base flex items-center gap-2 text-destructive">
+                      <AlertTriangle className="size-4 shrink-0" />
+                      Retirer {c?.name ?? "cette cliente"} de votre salon ?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-xs leading-relaxed space-y-1.5">
+                      <span className="block">
+                        Cette action retire la cliente du carnet de votre institut et efface ses notes internes.
+                      </span>
+                      <span className="block text-muted-foreground text-[11px]">
+                        Conformément aux normes comptables SYSCOHADA, les ventes de caisse et reçus passés restent archivés pour le bilan de l&apos;institut.
+                      </span>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={archiveBusy}>Annuler</AlertDialogCancel>
+                    <Button
+                      variant="destructive"
+                      disabled={archiveBusy}
+                      onClick={handleArchiveClient}
+                      className="h-10 text-xs font-bold gap-1.5"
+                    >
+                      {archiveBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                      Confirmer le retrait
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </>
         )}

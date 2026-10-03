@@ -6,11 +6,13 @@
 // Mariam » et les E2E continuent de fonctionner à l'identique.
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { randomInt } from "node:crypto";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, OTP_REQUEST } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { audit, clientIp, sha256Hex } from "@/lib/kene/audit";
+import { sendOtpSms } from "@/lib/sms";
 
 const Body = z.object({ phone: z.string().min(5) });
 
@@ -65,7 +67,9 @@ async function runRequest(parsed: z.infer<typeof Body>, req: NextRequest): Promi
   // Invalide les anciens codes non utilisés pour ce numéro
   await db.otpCode.updateMany({ where: { phone, used: false }, data: { used: true } });
 
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  // Code OTP 6 chiffres — CSPRNG (randomInt de node:crypto) pour garantir
+  // l'imprévisibilité cryptographique.
+  const code = String(randomInt(100000, 1000000));
   await db.otpCode.create({
     data: {
       phone,
@@ -74,13 +78,44 @@ async function runRequest(parsed: z.infer<typeof Body>, req: NextRequest): Promi
     },
   });
 
-  // Journal d'audit: numéro MASQUÉ (le masquage vit dans audit), + IP
-  void audit({ kind: "otp_request", phone, ip: clientIp(req) });
+  // Envoi du SMS réel via Africa's Talking / Zavu / Termii (ou simulation si aucune clé ou échec)
+  const smsResult = await sendOtpSms({ phone, code, expiresInMin: 5 });
 
-  // OTP simulé: le code brut n'existe qu'en mémoire de réponse, et
-  // UNIQUEMENT hors production — en prod, il part par SMS et ne revient
-  // jamais dans le body (le front affiche alors la zone de saisie seule).
-  const payload: { ok: true; devCode?: string } = { ok: true };
-  if (process.env.NODE_ENV !== "production") payload.devCode = code;
+  // Une livraison SMS est considérée réussie si le provider est réel et qu'aucune erreur n'est survenue
+  const realSmsDelivered = Boolean(
+    smsResult.success &&
+    !smsResult.simulated &&
+    smsResult.provider !== "simulation" &&
+    !smsResult.error
+  );
+
+  // Journal d'audit: numéro MASQUÉ (le masquage vit dans audit), + IP
+  void audit({
+    kind: "otp_request",
+    phone,
+    ip: clientIp(req),
+    detail: realSmsDelivered
+      ? `${smsResult.provider}_sent:${smsResult.messageId ?? "ok"}`
+      : `fallback_onscreen:${smsResult.provider}:${smsResult.error ?? "simulated"}`,
+  });
+
+  // Exigence formelle Kènè :
+  // Si l'envoi réel des SMS ne passe pas (solde insuffisant, opérateur cellulaire en échec,
+  // simulation ou erreur de passerelle), on déclenche AUTOMATIQUEMENT le code de confirmation
+  // instantané directement à l'écran pour TOUS les utilisateurs sans jamais bloquer l'accès.
+  // Les détails techniques (erreur fournisseur, passerelle) restent confinés aux logs d'audit serveur.
+  const payload: {
+    ok: true;
+    smsSent: boolean;
+    devCode?: string;
+  } = {
+    ok: true,
+    smsSent: realSmsDelivered,
+  };
+
+  if (!realSmsDelivered || process.env.NODE_ENV !== "production") {
+    payload.devCode = code;
+  }
+
   return NextResponse.json(payload);
 }

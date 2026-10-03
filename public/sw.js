@@ -11,18 +11,22 @@
  *    réseau direct, JAMAIS de cache (les écritures et secrets ne se mettent pas en cache).
  */
 
-const VERSION = "kene-sw-v7";
-const PRECACHE = "kene-precache-v7";
-const DATA_CACHE = "kene-data-v7";
-const IMG_CACHE = "kene-img-v7";
-const STATIC_CACHE = "kene-static-v7"; // chunks /_next/ (SWR t. 61)
+const VERSION = "kene-sw-v15";
+const PRECACHE = "kene-precache-v15";
+const DATA_CACHE = "kene-data-v15";
+const IMG_CACHE = "kene-img-v15";
+const STATIC_CACHE = "kene-static-v15"; // chunks /_next/ (SWR t. 61)
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
 const PRECACHE_URLS = [
   "/",
+  "/favicon.ico",
+  "/brand/kene-emblem-light.png",
+  "/brand/kene-emblem-dark.png",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
+  "/icons/icon-maskable-192.png",
   "/icons/icon-maskable-512.png",
   "/icons/apple-touch-icon.png",
 ];
@@ -39,16 +43,16 @@ const DATA_API_PREFIXES = [
   "/api/appointments",
   "/api/wallet",
   "/api/coupons",
+  "/api/passport",
 ];
 
 /** Dossiers d'images statiques (cache-first). */
-const IMG_URL_PREFIXES = ["/hero/", "/products/", "/instituts/", "/skin/"];
+const IMG_URL_PREFIXES = ["/hero/", "/products/", "/instituts/", "/skin/", "/brand/", "/icons/"];
 
 /* ───────────────────────── Install / activate ───────────────────────── */
 
 self.addEventListener("install", (event) => {
-  // Pas de skipWaiting ici : la bascule vers la nouvelle version reste
-  // contrôlée par le message "SKIP_WAITING" (toast côté UI).
+  self.skipWaiting();
   event.waitUntil(
     (async () => {
       const cache = await caches.open(PRECACHE);
@@ -337,7 +341,7 @@ async function cacheFirstImage(req) {
 function isImageRequest(url, req) {
   if (IMG_URL_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) return true;
   if (req.destination === "image") return true;
-  return /\.(?:png|jpe?g|webp|avif|gif|svg)$/i.test(url.pathname);
+  return /\.(?:png|jpe?g|webp|avif|gif|svg|ico)$/i.test(url.pathname);
 }
 
 function isImageResponse(res) {

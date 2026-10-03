@@ -24,7 +24,7 @@ import { PwaProvider } from "@/components/kene/pwa/PwaProvider";
 import { ConsoleEntry, ConsoleRedirect, useEntryKind } from "@/components/kene/admin/ConsoleEntry";
 import { Toaster } from "@/components/ui/sonner";
 
-// Espaces Pro / Admin: chunks séparés, chargés à l'entrée de l'espace
+// Espaces Pro / Admin / Pin: chunks séparés, chargés à l'entrée de l'espace
 // (exports nommés → default attendu par next/dynamic). AdminApp est chargé
 // par ConsoleEntry (t. 130) — la console ne vit QUE derrière /console.
 const ProApp = dynamic(() => import("@/components/kene/pro/ProApp").then((m) => ({ default: m.ProApp })), {
@@ -32,11 +32,23 @@ const ProApp = dynamic(() => import("@/components/kene/pro/ProApp").then((m) => 
   loading: () => <BootSkeleton />,
 });
 
+const PinEntry = dynamic(() => import("@/components/kene/auth/PinEntry").then((m) => ({ default: m.PinEntry })), {
+  ssr: false,
+  loading: () => <BootSkeleton />,
+});
+
+const AdminApp = dynamic(() => import("@/components/kene/admin/AdminApp").then((m) => ({ default: m.AdminApp })), {
+  ssr: false,
+  loading: () => <BootSkeleton />,
+});
+
 export default function Page() {
   const space = useKene((s) => s.space);
+  const user = useKene((s) => s.user);
+  const hydrated = useKene((s) => s._keneHydrated);
   // t. 130 — porte dédiée: « /console » (rewrite middleware) monte l'écran
-  // de connexion console; null → BootSkeleton le temps de la résolution
-  // client (zéro flash: SSR et hydratation passent sur null).
+  // de connexion console; « /pin » monte l'écran dédié de code secret;
+  // null → BootSkeleton le temps de la résolution client (zéro flash).
   const entry = useEntryKind();
 
   return (
@@ -50,17 +62,30 @@ export default function Page() {
         </a>
 
         <main id="contenu" className="w-full">
-          {entry === null && <BootSkeleton />}
-          {entry === "console" && <ConsoleEntry />}
-          {entry === "app" && (
+          {(!hydrated || entry === null) && <BootSkeleton />}
+
+          {/* RÈGLE ABSOLUE : Pour l'administrateur connecté, le choix d'interface (space) prime TOUJOURS */}
+          {hydrated && entry !== null && user?.role === "admin" && (
             <>
               {space === "client" && <ClientApp />}
               {space === "pro" && <ProApp />}
-              {/* t. 130 — l'espace admin n'existe PLUS hors de son lien
-                  dédié: une session admin sur la vitrine est redirigée
-                  vers /console (la vitrine ne connecte plus les comptes
-                  admin — otp/verify contexte « app »). */}
-              {space === "admin" && <ConsoleRedirect />}
+              {space === "admin" && <AdminApp />}
+            </>
+          )}
+
+          {/* Utilisateurs non-administrateurs ou déconnectés */}
+          {hydrated && entry !== null && user?.role !== "admin" && (
+            <>
+              {entry === "console" && <ConsoleEntry />}
+              {entry === "pin" && <PinEntry />}
+              {entry === "pro" && <ProApp />}
+              {entry === "app" && (
+                <>
+                  {space === "client" && <ClientApp />}
+                  {space === "pro" && <ProApp />}
+                  {space === "admin" && <ConsoleEntry />}
+                </>
+              )}
             </>
           )}
         </main>

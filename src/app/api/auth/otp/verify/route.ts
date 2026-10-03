@@ -15,15 +15,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, genRef, notify } from "@/lib/kene/server";
-import { setSessionCookie } from "@/lib/kene/session";
+import { setSessionCookie, sanitizeUser } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, OTP_VERIFY } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { audit, clientIp, sha256Hex, hashEqual } from "@/lib/kene/audit";
+import { hashPin } from "@/lib/kene/pin";
+import { grantClientWelcomeTrial } from "@/lib/kene/plans";
 
 const Body = z.object({
   phone: z.string().min(5),
   code: z.string().length(6),
   name: z.string().trim().min(1).optional(),
+  pin: z.string().min(4).max(6).optional(),
   // t. 130 — D'OÙ vient la connexion: "app" (landing publique, défaut) ou
   // "console" (lien dédié /console). Séparation des portes: un compte admin
   // ne s'ouvre PLUS depuis la vitrine publique, et le lien console n'ouvre
@@ -97,7 +100,7 @@ export async function GET(req: NextRequest) {
 /** Cœur partagé POST/GET. */
 async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<NextResponse> {
   const phone = data.phone.replace(/\s+/g, "").trim();
-  const { code, name } = data;
+  const { code, name, pin } = data;
   const ip = clientIp(req);
 
   // Verrouillage: numéro bloqué par ses 5 échecs → 429 direct
@@ -163,9 +166,6 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
       void audit({ kind: "login_failed", phone, ip, detail: "lien console — compte non admin" });
       return jsonError("Ce lien ouvre la Console Kènè — ton compte vit dans l'app Kènè", 403);
     }
-  } else if (willBeAdmin) {
-    void audit({ kind: "login_failed", phone, ip, detail: "vitrine publique — compte console" });
-    return jsonError("La Console Kènè s'ouvre depuis son lien dédié (/console)", 403);
   }
 
   // — EMPLOYÉE de l'app (compte créé par sa gérante via l'embauche):
@@ -185,13 +185,28 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
         name: name || "Nouvelle cliente",
         role: ownerTenant || employeeLink ? "pro" : "client",
         referralCode: genRef("KENE"),
+        pinHash: pin ? hashPin(pin) : null,
       },
     });
-  } else if (name && (!user.name || user.name === "Nouvelle cliente")) {
-    user = await db.user.update({ where: { id: user.id }, data: { name } });
-  } else if (employeeLink && user.role !== "pro") {
-    // compte pré-existant (cliente) devenu employée: rôle pro
-    user = await db.user.update({ where: { id: user.id }, data: { role: "pro" } });
+    if (user.role === "client") {
+      await grantClientWelcomeTrial(user.id).catch(() => null);
+    }
+  } else {
+    const updateData: { name?: string; role?: string; pinHash?: string; pinFails?: number; pinLockedUntil?: null } = {};
+    if (name && (!user.name || user.name === "Nouvelle cliente")) {
+      updateData.name = name;
+    }
+    if (employeeLink && user.role !== "pro") {
+      updateData.role = "pro";
+    }
+    if (pin) {
+      updateData.pinHash = hashPin(pin);
+      updateData.pinFails = 0;
+      updateData.pinLockedUntil = null;
+    }
+    if (Object.keys(updateData).length > 0) {
+      user = await db.user.update({ where: { id: user.id }, data: updateData });
+    }
   }
 
   // ── t. 128 — Modération Console Kènè (AVANT de poser le cookie) ──
@@ -259,7 +274,8 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   // — une EMPLOYÉE reçoit l'institut de son employeur + son poste
   // (`employeeRole`): le front ouvre l'espace Pro filtré sur ses sections.
   const response = NextResponse.json({
-    user,
+    user: sanitizeUser(user),
+    hasPin: Boolean(user.pinHash),
     tenant: ownerTenant
       ? { id: ownerTenant.id, name: ownerTenant.name }
       : employeeLink

@@ -22,6 +22,7 @@ import { useT } from "@/lib/kene/use-t";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useKene, type SessionUser } from "@/store/kene";
 import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES, type ApiProRegisterResponse, type ApiUser, readSession } from "./types";
+import { PinKeypad } from "./PinKeypad";
 
 const slide = { initial: { x: 60, opacity: 0 }, animate: { x: 0, opacity: 1 }, exit: { x: -60, opacity: 0 } };
 
@@ -55,6 +56,7 @@ export function Onboarding({
   initialPhone,
   initialDevCode,
   initialStep,
+  isResetPin,
   onBack,
 }: {
   initialMode?: "client" | "pro";
@@ -62,6 +64,7 @@ export function Onboarding({
  /** Pont pavé numérique: code déjà demandé → étape OTP directe. */
   initialDevCode?: string;
   initialStep?: 0 | 1;
+  isResetPin?: boolean;
   onBack?: () => void;
 } = {}) {
   const setUser = useKene((s) => s.setUser);
@@ -108,6 +111,13 @@ export function Onboarding({
   const [country, setCountry] = useState<"CI" | "SN">("CI");
   const [ownerName, setOwnerName] = useState("");
   const [savingPro, setSavingPro] = useState(false);
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [pendingAuth, setPendingAuth] = useState<{
+    user: ApiUser;
+    hasPin?: boolean;
+    tenant: { id: string; name: string } | null;
+    employeeRole?: string | null;
+  } | null>(null);
   const otpRef = useRef<HTMLInputElement>(null);
 
   const digits = phone.replace(/\D/g, "");
@@ -137,8 +147,13 @@ export function Onboarding({
   async function requestCode(p = `+225${digits}`) {
     setLoading(true);
     try {
-      const res = await apiPost<{ ok: boolean; devCode: string }>("/api/auth/otp/request", { phone: p });
-      setDevCode(res.devCode);
+      const res = await apiPost<{ ok: boolean; devCode?: string; smsSent?: boolean }>("/api/auth/otp/request", { phone: p });
+      setDevCode(res.devCode ?? "");
+      if (res.devCode) {
+        toast.info("Code instantané affiché à l'écran ✨");
+      } else {
+        toast.success("Code envoyé par SMS");
+      }
       return true;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Envoi impossible");
@@ -166,71 +181,87 @@ export function Onboarding({
     }
   }
 
+  async function proceedAfterAuth(v: {
+    user: ApiUser;
+    tenant: { id: string; name: string } | null;
+    employeeRole?: string | null;
+  }) {
+    // Mémoire du dernier compte: clé dédiée kene-last-account,
+    // locale à l'appareil, survit à la déconnexion → carte « Contente de
+    // te revoir » sur la page d'accueil. Aucun effet si le stockage refuse.
+    rememberAccount({ phone: `+225${digits}`, name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" });
+    setAuthId(v.user.id);
+    if (!v.user.name || v.user.name === "Nouvelle cliente") setIsNew(true);
+    if (mode === "pro") {
+      // — incident « La Dermo ne passe pas »: une GÉRANTE EXISTANTE
+      // (rôle pro + institut) entre DIRECTEMENT dans son espace avec SON
+      // institut. Avant: elle tombait sur le formulaire « Crée ton espace
+      // entreprise » comme une nouvelle inscrite — son institut existant
+      // n'aboutissait nulle part. Le formulaire ne reste désormais QUE pour
+      // les VÉRITABLES nouvelles inscriptions.
+      if (v.user.role === "pro" && v.tenant?.id) {
+        setUser({ ...v.user, employeeRole: v.employeeRole ?? null } as SessionUser);
+        setProTenantId(v.tenant.id);
+        setSpace("pro");
+        toast.success(
+          v.employeeRole
+            ? `Bienvenue ${v.user.name.split(" ")[0]} — « ${v.tenant.name} » t'attend (${v.employeeRole === "manager" ? "manager" : v.employeeRole.replace("_", " ")})`
+            : `Bienvenue ${v.user.name.split(" ")[0]} — « ${v.tenant.name} » t'attend`
+        );
+        return;
+      }
+      // Mode entreprise: JAMAIS de questionnaire peau (phototype/objectifs/
+      // consent santé = diagnostic IA cliente uniquement) — directement le
+      // formulaire institut après l'OTP. Le prénom connu pré-remplit la
+      // gérante, le parrainage reste réservé au mode cliente.
+      if (v.user.name && v.user.name !== "Nouvelle cliente") {
+        setName(v.user.name.split(" ")[0]);
+        setOwnerName(v.user.name);
+      }
+      setStep(2);
+      return;
+    }
+    // Isolation des comptes: un numéro de gérante ou d'admin
+    // qui se connecte ici atterrit directement dans SON espace — jamais
+    // dans le questionnaire peau ni le parrainage (réservés aux clientes).
+    // setUser fait suivre l'espace au rôle (clamp store) → ProApp/AdminApp
+    // se monte, Onboarding se démonte.
+    if (v.user.role === "pro" || v.user.role === "admin") {
+      setUser({ ...v.user, employeeRole: v.employeeRole ?? null } as SessionUser);
+      toast.success(
+        v.user.role === "pro"
+          ? `Bienvenue ${v.user.name.split(" ")[0]} — ton espace entreprise t'attend`
+          : `Bienvenue ${v.user.name.split(" ")[0]}`
+      );
+      return;
+    }
+    const fresh = v.user.consentHealth && v.user.skinType;
+    if (!fresh) {
+      if (v.user.name && v.user.name !== "Nouvelle cliente") setName(v.user.name.split(" ")[0]);
+      setStep(2);
+    } else {
+      // Compte déjà complet: échange du code AVANT l'entrée (données fraîches)
+      const ref = await tryReferral(v.user.id);
+      setUser(v.user as SessionUser);
+      toast.success(`Bienvenue ${v.user.name.split(" ")[0]}`);
+      announceReferral(ref);
+    }
+  }
+
   async function verify(code = otp) {
     if (code.length !== 6) return;
     setLoading(true);
     try {
-      const v = await apiPost<{ user: ApiUser; tenant: { id: string; name: string } | null; employeeRole?: string | null }>("/api/auth/otp/verify", { phone: `+225${digits}`, code, name: name.trim() || undefined });
-      // Mémoire du dernier compte: clé dédiée kene-last-account,
-      // locale à l'appareil, survit à la déconnexion → carte « Contente de
-      // te revoir » sur la page d'accueil. Aucun effet si le stockage refuse.
-      rememberAccount({ phone: `+225${digits}`, name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" });
-      setAuthId(v.user.id);
-      if (!v.user.name || v.user.name === "Nouvelle cliente") setIsNew(true);
-      if (mode === "pro") {
-        // — incident « La Dermo ne passe pas »: une GÉRANTE EXISTANTE
-        // (rôle pro + institut) entre DIRECTEMENT dans son espace avec SON
-        // institut. Avant: elle tombait sur le formulaire « Crée ton espace
-        // entreprise » comme une nouvelle inscrite — son institut existant
-        // n'aboutissait nulle part. Le formulaire ne reste désormais QUE pour
-        // les VÉRITABLES nouvelles inscriptions.
-        if (v.user.role === "pro" && v.tenant?.id) {
-          setUser({ ...v.user, employeeRole: v.employeeRole ?? null } as SessionUser);
-          setProTenantId(v.tenant.id);
-          setSpace("pro");
-          toast.success(
-            v.employeeRole
-              ? `Bienvenue ${v.user.name.split(" ")[0]} — « ${v.tenant.name} » t'attend (${v.employeeRole === "manager" ? "manager" : v.employeeRole.replace("_", " ")})`
-              : `Bienvenue ${v.user.name.split(" ")[0]} — « ${v.tenant.name} » t'attend`
-          );
-          return;
-        }
-        // Mode entreprise: JAMAIS de questionnaire peau (phototype/objectifs/
-        // consent santé = diagnostic IA cliente uniquement) — directement le
-        // formulaire institut après l'OTP. Le prénom connu pré-remplit la
-        // gérante, le parrainage reste réservé au mode cliente.
-        if (v.user.name && v.user.name !== "Nouvelle cliente") {
-          setName(v.user.name.split(" ")[0]);
-          setOwnerName(v.user.name);
-        }
-        setStep(2);
+      const v = await apiPost<{ user: ApiUser; hasPin?: boolean; tenant: { id: string; name: string } | null; employeeRole?: string | null }>("/api/auth/otp/verify", { phone: `+225${digits}`, code, name: name.trim() || undefined });
+      
+      // Si le compte n'a pas encore de code secret OU s'il s'agit d'une réinitialisation ("Code oublié ?")
+      if (!v.hasPin || isResetPin) {
+        setPendingAuth(v);
+        setShowPinSetup(true);
         return;
       }
-      // Isolation des comptes: un numéro de gérante ou d'admin
-      // qui se connecte ici atterrit directement dans SON espace — jamais
-      // dans le questionnaire peau ni le parrainage (réservés aux clientes).
-      // setUser fait suivre l'espace au rôle (clamp store) → ProApp/AdminApp
-      // se monte, Onboarding se démonte.
-      if (v.user.role === "pro" || v.user.role === "admin") {
-        setUser({ ...v.user, employeeRole: v.employeeRole ?? null } as SessionUser);
-        toast.success(
-          v.user.role === "pro"
-            ? `Bienvenue ${v.user.name.split(" ")[0]} — ton espace entreprise t'attend`
-            : `Bienvenue ${v.user.name.split(" ")[0]}`
-        );
-        return;
-      }
-      const fresh = v.user.consentHealth && v.user.skinType;
-      if (!fresh) {
-        if (v.user.name && v.user.name !== "Nouvelle cliente") setName(v.user.name.split(" ")[0]);
-        setStep(2);
-      } else {
-        // Compte déjà complet: échange du code AVANT l'entrée (données fraîches)
-        const ref = await tryReferral(v.user.id);
-        setUser(v.user as SessionUser);
-        toast.success(`Bienvenue ${v.user.name.split(" ")[0]}`);
-        announceReferral(ref);
-      }
+
+      await proceedAfterAuth(v);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Code invalide");
       setOtp("");
@@ -244,7 +275,7 @@ export function Onboarding({
 
  /**
  * Échange du code parrain saisi à l'étape OTP — AVANT setUser: les données
- * fraîches (wallet crédité, badge non-lus) doivent être visibles dès que
+ * fraîches (remise bienvenue, badge non-lus) doivent être visibles dès que
  * l'accueil se monte. Renvoie le résultat, l'annonce (toasts) revient à
  * l'appelant APRÈS l'entrée dans l'app (ordre narratif).
  */
@@ -264,7 +295,7 @@ export function Onboarding({
   function announceReferral(ref: Awaited<ReturnType<typeof tryReferral>>) {
     if (!ref) return;
     if (ref.ok) {
-      toast.success(`Cadeau de bienvenue : ${xof(ref.gift)} crédités 💛`, {
+      toast.success(`Cadeau de bienvenue : ${xof(ref.gift)} offerts 💛`, {
         description: `Merci ${ref.parrainName.split(" ")[0]} ! Elle recevra sa récompense dès ta première commande.`,
       });
     } else {
@@ -286,7 +317,7 @@ export function Onboarding({
         goals: goals.map((id) => ({ id, label: SKIN_GOALS.find((g) => g.id === id)?.label ?? id })),
       });
       // Le Fil du Parrainage commence ici: cadeau de bienvenue dès l'inscription.
-      // Échange AVANT setUser → l'accueil se monte avec le wallet déjà crédité
+      // Échange AVANT setUser → l'accueil se monte avec le cadeau de bienvenue validé
       // et la cloche déjà badgée; l'annonce suit l'entrée (ordre narratif).
       const ref = await tryReferral(authId);
       // Le prénom choisi ici devient celui de la carte de reconnexion.
@@ -358,8 +389,39 @@ export function Onboarding({
     }
   }
 
+  if (showPinSetup && pendingAuth) {
+    return (
+      <PinKeypad
+        phone={`+225${digits}`}
+        name={pendingAuth.user.name}
+        mode={mode}
+        isSetup={true}
+        onConfirm={async (pin) => {
+          try {
+            await apiPost("/api/auth/pin", {
+              phone: `+225${digits}`,
+              pin,
+              otpCode: otp,
+            });
+            toast.success("Code secret configuré avec succès ! ✨");
+            setShowPinSetup(false);
+            await proceedAfterAuth(pendingAuth);
+            return true;
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement du code");
+            return false;
+          }
+        }}
+        onBack={() => {
+          setShowPinSetup(false);
+          void proceedAfterAuth(pendingAuth);
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="relative isolate mx-auto w-full max-w-[430px] min-h-[80vh] overflow-hidden">
+    <div className="relative isolate mx-auto w-full max-w-[430px] sm:max-w-[500px] md:max-w-[560px] min-h-[80vh] overflow-hidden">
       {/* Atmosphère ÉCLAT 2026 — l'écran de connexion vit sur l'aurora plein
  cadre (fixed, -z-10) comme l'app connectée; isolate garantit que les
  lueurs passent au-dessus du fond de page, sous le contenu. */}
@@ -386,7 +448,7 @@ export function Onboarding({
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/25 to-transparent" />
                 <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
                   {/* Sceau 2026 — emblème officiel + wordmark sur l'accueil à compte */}
-                  <KeneEmblemLockup size={48} sublabel="Beauté mélanoderme" />
+                  <KeneEmblemLockup size={52} labelSize={26} sublabel="Beauté mélanoderme" />
                 </div>
               </div>
               <div className="px-5 -mt-2 pb-8 flex flex-col gap-5 flex-1">
@@ -548,19 +610,21 @@ export function Onboarding({
                   Continuer
                 </PrimaryCTA>
               </RevealItem>
-              <RevealItem>
-                <div className="mt-6 rounded-[22px] border border-dashed border-primary/50 p-[4px]">
-                  <div className="k-card rounded-[18px] p-3.5 text-center">
-                    <p className="text-[10px] uppercase tracking-[0.14em] text-primary font-semibold">Code de vérification</p>
-                    <button onClick={() => { setOtp(devCode); setTimeout(() => verify(devCode), 250); }} className="mt-2 font-mono text-2xl font-black tracking-[0.3em] text-primary hover:scale-105 active:scale-95 transition-transform" aria-label={`Code reçu ${devCode}, remplir automatiquement`}>
-                      {devCode}
-                    </button>
-                    <p className="text-[11px] text-muted-foreground mt-1">En mode essai, ton code s&apos;affiche ici — touche-le pour le remplir</p>
+              {Boolean(devCode) && (
+                <RevealItem>
+                  <div className="mt-6 rounded-[22px] border border-dashed border-primary/50 p-[4px]">
+                    <div className="k-card rounded-[18px] p-3.5 text-center">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-primary font-semibold">Code de confirmation instantané</p>
+                      <button onClick={() => { setOtp(devCode); setTimeout(() => verify(devCode), 250); }} className="mt-2 font-mono text-2xl font-black tracking-[0.3em] text-primary hover:scale-105 active:scale-95 transition-transform" aria-label={`Code reçu ${devCode}, remplir automatiquement`}>
+                        {devCode}
+                      </button>
+                      <p className="text-[11px] text-muted-foreground mt-1">Touche pour insérer automatiquement</p>
+                    </div>
                   </div>
-                </div>
-              </RevealItem>
+                </RevealItem>
+              )}
               <RevealItem>
-                <button onClick={async () => { if (await requestCode(`+225${digits}`)) toast.success("Nouveau code envoyé"); }} className="mt-4 mx-auto inline-flex items-center min-h-11 px-3 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded">
+                <button onClick={async () => { await requestCode(`+225${digits}`); }} className="mt-4 mx-auto inline-flex items-center min-h-11 px-3 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded">
                   Renvoyer le code
                 </button>
               </RevealItem>
@@ -583,7 +647,7 @@ export function Onboarding({
                       aria-describedby="parrain-hint"
                     />
                     <p id="parrain-hint" className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                      {xof(FILLEUL_GIFT)} de bienvenue crédités sur ton wallet dès ton inscription — et ta parraine reçoit sa récompense à ta première commande.
+                      {xof(FILLEUL_GIFT)} de bienvenue offerts dès ton inscription — et ta parraine reçoit sa récompense à ta première commande.
                     </p>
                   </div>
                 </RevealItem>

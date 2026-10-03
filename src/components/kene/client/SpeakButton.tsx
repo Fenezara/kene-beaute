@@ -3,8 +3,7 @@
 // Utilise le cache TTS partagé (ttsAudio.ts): plusieurs écoutes = 1 seul appel réseau.
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Square, Volume2 } from "lucide-react";
-import { toast } from "sonner";
-import { fetchTtsAudioUrl } from "./ttsAudio";
+import { playSpeech, type SpeechController } from "./ttsAudio";
 
 export function SpeakButton({
   text,
@@ -18,42 +17,41 @@ export function SpeakButton({
   className?: string;
 }) {
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ctrlRef = useRef<SpeechController | null>(null);
 
   useEffect(
     () => () => {
-      audioRef.current?.pause();
-      audioRef.current = null;
+      ctrlRef.current?.stop();
+      ctrlRef.current = null;
     },
     [],
   );
 
   async function toggle() {
     if (state === "playing") {
-      const a = audioRef.current;
-      if (a) {
-        a.pause();
-        a.currentTime = 0;
-      }
+      ctrlRef.current?.stop();
+      ctrlRef.current = null;
       setState("idle");
       return;
     }
     if (state === "loading") return;
     setState("loading");
     try {
-      const url = await fetchTtsAudioUrl(text, speed);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => setState("idle");
-      audio.onerror = () => {
-        setState("idle");
-        toast.error("Lecture impossible");
-      };
-      await audio.play();
-      setState("playing");
-    } catch (e) {
+      ctrlRef.current = await playSpeech({
+        text,
+        speed,
+        onStart: () => setState("playing"),
+        onEnd: () => {
+          ctrlRef.current = null;
+          setState("idle");
+        },
+        onError: () => {
+          ctrlRef.current = null;
+          setState("idle");
+        },
+      });
+    } catch {
       setState("idle");
-      toast.error(e instanceof Error ? e.message : "Lecture vocale indisponible");
     }
   }
 

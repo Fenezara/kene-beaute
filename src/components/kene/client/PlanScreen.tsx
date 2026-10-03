@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, BadgeCheck, Check, Crown, Loader2, Sparkles, TrendingUp, Trophy, Zap,
+  ArrowLeft, BadgeCheck, Check, CheckCircle2, Clock, Crown, Loader2, ShieldCheck, Sparkles, TrendingUp, Trophy, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -63,8 +63,9 @@ export function PlanScreen() {
   const [data, setData] = useState<SubsData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Flow d'activation (Sheet mobile money simulé) ──
+  // ── Flow d'activation & renouvellement (Sheet mobile money) ──
   const [sheet, setSheet] = useState(false);
+  const [sheetMode, setSheetMode] = useState<"activate" | "renew">("activate");
   const [operator, setOperator] = useState<"wave" | "orange" | "mtn">("wave");
   const [state, setState] = useState<"idle" | "processing" | "done">("idle");
   const [busy, setBusy] = useState(false);
@@ -85,57 +86,61 @@ export function PlanScreen() {
   const isPlus = data?.plan === "kene_plus";
   const quota = data?.quota;
 
- /** Confirme l'activation (paiement SIMULÉ) → POST activate → succès. */
-  async function confirmActivation() {
+  /** Confirme l'activation ou le renouvellement → POST activate/renew → passerelle ou succès. */
+  async function confirmPayment() {
     setBusy(true);
     setState("processing");
     try {
-      const r = await apiPost<{ subscription: ApiSubscription }>("/api/subscriptions/activate", {
+      const endpoint = sheetMode === "renew" ? "/api/subscriptions/renew" : "/api/subscriptions/activate";
+      const r = await apiPost<{ subscription?: ApiSubscription; checkoutUrl?: string; paymentUrl?: string; mode?: string }>(endpoint, {
         userId: user.id,
         plan: "kene_plus",
+        source: operator,
       });
-      // Petite latence de « paiement » pour l'illusion de flux momo (simulée).
-      await new Promise((res) => setTimeout(res, 1600));
-      setState("done");
-      setExpiresAt(r.subscription.expiresAt);
-      toast.success("Kènè+ activé — diagnostics illimités ✨", {
-        description: `Actif jusqu'au ${fmtJJMM(r.subscription.expiresAt)} · paiement en mode essai`,
-      });
-      load(); // statut + quota rafraîchis (illimité)
+
+      const checkout = r.checkoutUrl || r.paymentUrl;
+      if (checkout) {
+        toast.info("Redirection vers la passerelle de paiement...", {
+          description: "Finalisez votre règlement de 2 500 FCFA par Mobile Money ou Carte 💳",
+        });
+        window.location.href = checkout;
+        return;
+      }
+
+      if (r.subscription) {
+        // Petite latence pour confirmer le paiement
+        await new Promise((res) => setTimeout(res, 800));
+        setState("done");
+        setExpiresAt(r.subscription.expiresAt);
+        toast.success(
+          sheetMode === "renew"
+            ? "Abonnement renouvelé avec succès ✨"
+            : "Kènè+ activé — diagnostics illimités ✨",
+          {
+            description: `Actif jusqu'au ${fmtJJMM(r.subscription.expiresAt)} · abonnement prolongé`,
+          }
+        );
+        load(); // statut + quota rafraîchis (illimité)
+      }
     } catch (e) {
       setState("idle");
-      toast.error(e instanceof Error ? e.message : "Activation impossible");
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : sheetMode === "renew"
+            ? "Renouvellement impossible"
+            : "Activation impossible"
+      );
     } finally {
       setBusy(false);
-    }
-  }
-
-  // ── Flow de renouvellement (t. 138 — deux tapes depuis la carte active) ──
-  const [renewBusy, setRenewBusy] = useState(false);
-
-  /** Renouvelle +30 jours (paiement SIMULÉ) → POST renew → toast + reload. */
-  async function renew() {
-    setRenewBusy(true);
-    try {
-      const r = await apiPost<{ subscription: ApiSubscription }>("/api/subscriptions/renew", {
-        userId: user.id,
-      });
-      toast.success("Abonnement renouvelé — merci 💛", {
-        description: `Actif jusqu'au ${fmtJJMM(r.subscription.expiresAt)} · paiement en mode essai`,
-      });
-      load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Renouvellement impossible");
-    } finally {
-      setRenewBusy(false);
     }
   }
 
   return (
     <Reveal className="pt-4 pb-2 flex flex-col gap-6" stagger={0.07}>
       <RevealItem className="self-start">
-        <button onClick={() => setClientTab("accueil")} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label="Retour à l'accueil">
-          <ArrowLeft size={15} /> Accueil
+        <button onClick={() => setClientTab("parametres")} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1" aria-label="Retour aux paramètres">
+          <ArrowLeft size={15} /> Retour
         </button>
       </RevealItem>
 
@@ -225,11 +230,16 @@ export function PlanScreen() {
                 <Crown size={22} />
               </span>
               <div className="flex-1 min-w-0">
-                <p id="plus-active-t" className="font-heading font-black text-lg leading-tight flex items-center gap-2">
+                <p id="plus-active-t" className="font-heading font-black text-lg leading-tight flex items-center gap-2 flex-wrap">
                   Kènè+ <Check size={17} className="text-success" aria-hidden="true" />
+                  {data.subscription.source === "welcome_trial" && (
+                    <span className="rounded-full bg-gold/20 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">Pass Découverte 30j</span>
+                  )}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {plusDef.tagline} · {xof(plusDef.priceFcfa)}/mois
+                  {data.subscription.source === "welcome_trial"
+                    ? "30 jours offerts pour explorer tous les privilèges · 0 FCFA"
+                    : `${plusDef.tagline} · ${xof(plusDef.priceFcfa)}/mois`}
                 </p>
               </div>
             </div>
@@ -249,21 +259,27 @@ export function PlanScreen() {
             </ul>
             <p className="mt-4 flex items-start gap-1.5 rounded-xl bg-success/10 px-3 py-2.5 text-[11px] text-success leading-snug">
               <BadgeCheck size={14} className="mt-px shrink-0" aria-hidden="true" />
-              Ton abonnement est actif jusqu&apos;au {fmtJJMM(data.subscription.expiresAt)} — sans engagement, il expire naturellement à cette date (aucun prélèvement automatique, jamais).
+              {data.subscription.source === "welcome_trial"
+                ? `Ton Pass Découverte de 30 jours est actif jusqu'au ${fmtJJMM(data.subscription.expiresAt)} — sans engagement, aucun prélèvement automatique.`
+                : `Ton abonnement est actif jusqu'au ${fmtJJMM(data.subscription.expiresAt)} — sans engagement, il expire naturellement à cette date (aucun prélèvement automatique, jamais).`}
             </p>
             {/* t. 138 — renouvellement en deux tapes: la carte J-3 de l'accueil
                 et le rappel automatique mènent ici. Jours raccordés (IFRS 15). */}
             <button
-              onClick={() => void renew()}
-              disabled={renewBusy}
+              onClick={() => {
+                setSheetMode("renew");
+                setSheet(true);
+                setState("idle");
+              }}
+              disabled={busy}
               className="k-btn-gold mt-3 h-12 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              aria-label={`Renouveler Kènè+ pour 30 jours supplémentaires — ${plusDef ? xof(plusDef.priceFcfa) : "2 500 F"} par mois, paiement en mode essai`}
+              aria-label={`Renouveler Kènè+ pour 30 jours supplémentaires — ${plusDef ? xof(plusDef.priceFcfa) : "2 500 F"} par mois`}
             >
-              {renewBusy ? <Loader2 size={16} className="animate-spin" /> : <Crown size={16} />}
+              <Crown size={16} />
               Renouveler +30 jours · {plusDef ? xof(plusDef.priceFcfa) : "2 500 F"}
             </button>
             <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-              Les 30 jours se raccordent après ton échéance actuelle · paiement mobile money en mode essai, aucun débit réel.
+              Les 30 jours se raccordent après ton échéance actuelle · paiement sécurisé Mobile Money.
             </p>
           </section>
         </RevealItem>
@@ -306,18 +322,130 @@ export function PlanScreen() {
               </p>
 
               <button
-                onClick={() => { setSheet(true); setState("idle"); }}
+                onClick={() => {
+                  setSheetMode("activate");
+                  setSheet(true);
+                  setState("idle");
+                }}
                 className="k-btn-gold mt-4 h-12 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <Crown size={16} /> Activer Kènè+
               </button>
               <p className="mt-2 text-center text-[10px] text-muted-foreground">
-                Paiement mobile money en mode essai — aucun débit réel.
+                Paiement sécurisé par Mobile Money (Wave, Orange, MTN, Moov) & Carte.
               </p>
             </div>
           </section>
         </RevealItem>
       ))}
+
+      {/* Tableau comparatif Gratuit vs Kènè+ */}
+      <RevealItem>
+        <section aria-labelledby="client-plan-comp-t" className="k-card rounded-[24px] p-5 space-y-4">
+          <div>
+            <h3 id="client-plan-comp-t" className="font-heading font-black text-base">
+              Comparatif des formules
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Choisissez l&apos;accompagnement adapté à votre routine beauté.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-border/60">
+                  <th className="py-2.5 px-2 font-bold text-muted-foreground">Privilèges beauté</th>
+                  <th className="py-2.5 px-2 font-bold text-center w-24 text-muted-foreground">Gratuit</th>
+                  <th className="py-2.5 px-2 font-bold text-center w-28 text-gold-text">Kènè+</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Bilan de peau IA par photo</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">1 scan / mois</td>
+                  <td className="py-2.5 px-2 text-center text-success font-bold">⚡ Illimité</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Suivi de l&apos;évolution & courbe d&apos;éclat</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">— Non</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Inclus</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Dr Kènè (Assistant dermo-botanique)</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">Standard</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">👑 Prioritaire</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Passeport de Peau digital (partage salon)</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">Basique</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Fiche 360°</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Défis & rituels botaniques personnalisés</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">— Non</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Inclus</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Réservation en institut & Boutique en ligne</td>
+                  <td className="py-2.5 px-2 text-center text-success font-bold">✓ Inclus</td>
+                  <td className="py-2.5 px-2 text-center text-success font-bold">✓ Inclus</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </RevealItem>
+
+      {/* 3 Garanties de sérénité */}
+      <RevealItem>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="k-card rounded-2xl p-3 text-center space-y-1">
+            <Clock size={16} className="mx-auto text-gold-text" />
+            <p className="text-[11px] font-bold">30 jours</p>
+            <p className="text-[9px] text-muted-foreground">Période mensuelle sans engagement</p>
+          </div>
+          <div className="k-card rounded-2xl p-3 text-center space-y-1">
+            <CheckCircle2 size={16} className="mx-auto text-success" />
+            <p className="text-[11px] font-bold">Mobile Money</p>
+            <p className="text-[9px] text-muted-foreground">Wave · Orange · MTN en 1 clic</p>
+          </div>
+          <div className="k-card rounded-2xl p-3 text-center space-y-1">
+            <ShieldCheck size={16} className="mx-auto text-terre" />
+            <p className="text-[11px] font-bold">Zéro surprise</p>
+            <p className="text-[9px] text-muted-foreground">Aucun prélèvement automatique</p>
+          </div>
+        </div>
+      </RevealItem>
+
+      {/* Questions fréquentes des utilisatrices */}
+      <RevealItem>
+        <section aria-labelledby="client-faq-t" className="k-card rounded-[24px] p-5 space-y-3">
+          <h3 id="client-faq-t" className="font-heading font-black text-sm">
+            Questions fréquentes
+          </h3>
+          <div className="space-y-2.5 text-xs">
+            <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
+              <p className="font-bold text-foreground">Suis-je obligée de m&apos;abonner pour utiliser Kènè ?</p>
+              <p className="text-muted-foreground leading-relaxed">
+                Non ! Vous pouvez utiliser Kènè <strong>gratuitement et sans limite de temps</strong> pour réserver vos soins en institut, acheter vos produits préférés et réaliser 1 diagnostic photo complet par mois.
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
+              <p className="font-bold text-foreground">Pourquoi choisir Kènè+ à 2 500 FCFA ?</p>
+              <p className="text-muted-foreground leading-relaxed">
+                Kènè+ est idéal si vous traitez une affection cutanée (taches pigmentaires, acné, sécheresse) et souhaitez suivre les progrès de votre peau semaine après semaine, scanner vos zones dès que nécessaire et bénéficier des conseils illimités du Dr Kènè.
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
+              <p className="font-bold text-foreground">Que se passe-t-il à la fin des 30 jours ?</p>
+              <p className="text-muted-foreground leading-relaxed">
+                Votre pass s&apos;arrête naturellement sans aucun frais supplémentaire. Votre compte redevient gratuit et l&apos;ensemble de votre historique reste sauvegardé.
+              </p>
+            </div>
+          </div>
+        </section>
+      </RevealItem>
 
       {/* Note de bas d'écran: l'offre Pro vit sur un compte entreprise dédié. */}
       <RevealItem>
@@ -326,19 +454,21 @@ export function PlanScreen() {
         </p>
       </RevealItem>
 
-      {/* Sheet d'activation — mobile money EN MODE ESSAI.
- Opérateurs en pastilles texte stylées (aucune image externe),
- numéro pré-rempli, mention « aucun débit réel » à chaque étape. */}
+      {/* Sheet d'activation & renouvellement — Mobile Money & Carte via WiniPayer */}
       <Sheet open={sheet} onOpenChange={(o) => { setSheet(o); if (!o) setState("idle"); }}>
         <SheetContent side="bottom" className="max-w-[560px] mx-auto rounded-t-3xl">
           <SheetHeader className="text-left">
-            <SheetTitle className="font-heading font-black">Activer Kènè+</SheetTitle>
+            <SheetTitle className="font-heading font-black">
+              {sheetMode === "renew" ? "Renouveler Kènè+" : "Activer Kènè+"}
+            </SheetTitle>
           </SheetHeader>
           <div className="px-4 pb-6">
             {state === "idle" && (
               <div className="space-y-4">
-                <p className="rounded-xl bg-[#6B2416]/10 border border-[#6B2416]/20 px-3 py-2.5 text-[11px] font-semibold text-terre leading-snug">
-                  Mode essai : aucun débit réel. Le paiement mobile money certifié arrive bientôt.
+                <p className="rounded-xl bg-gold/10 border border-gold/30 px-3 py-2.5 text-[11px] font-semibold text-gold-text leading-snug">
+                  {sheetMode === "renew"
+                    ? "Tes 30 jours supplémentaires se raccordent directement à ton échéance (aucun jour perdu)."
+                    : "Paiement sécurisé par Mobile Money (Wave, Orange, MTN, Moov) & Carte bancaire via WiniPayer."}
                 </p>
                 <div>
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Opérateur</p>
@@ -360,15 +490,20 @@ export function PlanScreen() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Numéro débité (simulation)</p>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Numéro Mobile Money</p>
                   <p className="k-input h-12 rounded-xl px-3 flex items-center font-mono text-sm tabular-nums">{user.phone}</p>
                 </div>
                 <p className="flex items-baseline justify-between px-1">
-                  <span className="text-xs text-muted-foreground">Montant mensuel</span>
+                  <span className="text-xs text-muted-foreground">{sheetMode === "renew" ? "Montant renouvellement (+30 j)" : "Montant mensuel"}</span>
                   <span className="font-mono font-black text-xl tabular-nums text-gold-text">{plusDef ? plusDef.priceFcfa.toLocaleString("fr-FR") : "2 500"} FCFA</span>
                 </p>
-                <button onClick={confirmActivation} disabled={busy} className="k-btn-gold h-12 w-full rounded-xl text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                  {busy ? <Loader2 size={16} className="animate-spin" /> : <Crown size={16} />} Confirmer (simulation)
+                <button
+                  onClick={confirmPayment}
+                  disabled={busy}
+                  className="k-btn-gold h-12 w-full rounded-xl text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                  {busy ? <Loader2 size={16} className="animate-spin" /> : <Crown size={16} />}
+                  {sheetMode === "renew" ? "Confirmer et renouveler (+30 jours)" : "Confirmer et payer"}
                 </button>
               </div>
             )}
@@ -387,11 +522,13 @@ export function PlanScreen() {
                 <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 15 }} className="grid place-items-center h-16 w-16 rounded-full bg-[#346834]">
                   <Check size={32} className="text-white" strokeWidth={3} />
                 </motion.span>
-                <p className="font-heading font-black text-lg">Kènè+ activé</p>
+                <p className="font-heading font-black text-lg">
+                  {sheetMode === "renew" ? "Kènè+ renouvelé ✨" : "Kènè+ activé ✨"}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   Actif jusqu&apos;au {expiresAt ? fmtJJMM(expiresAt) : "—"} · diagnostics illimités dès maintenant.
                 </p>
-                <p className="text-[10px] text-muted-foreground">Paiement en mode essai — aucun débit réel.</p>
+                <p className="text-[10px] text-muted-foreground">Paiement sécurisé par Mobile Money.</p>
                 <button onClick={() => setSheet(false)} className="k-btn-gold mt-2 h-11 px-6 rounded-xl text-primary-foreground font-semibold text-sm focus-visible:outline-2 focus-visible:outline-primary">Fermer</button>
               </motion.div>
             )}

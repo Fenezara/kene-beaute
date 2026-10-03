@@ -30,7 +30,7 @@ const GREEN: RGB = [0.13, 0.45, 0.28];
 const RED: RGB = [0.72, 0.26, 0.18];
 export { INK, SOFT, GOLD, GOLD_DARK, GOLD_BAND, CREAM, CARD, LINE, GREEN, RED };
 export { PAGE_W, PAGE_H, M_X, M_RIGHT, CONTENT_W, CONTENT_TOP };
-
+export { wrapText };
 export type Font = "regular" | "bold" | "oblique";
 
 // ─────────────── Encodage WinAnsi (cp1252) ───────────────
@@ -182,6 +182,10 @@ class ByteBuf {
     this.chunks.push(a);
     this.len += a.length;
   }
+  appendBytes(bytes: Uint8Array): void {
+    this.chunks.push(bytes);
+    this.len += bytes.length;
+  }
   get length(): number {
     return this.len;
   }
@@ -277,6 +281,18 @@ export class PdfDoc {
     this.op(`${color.map((v) => fmtPt(v)).join(" ")} RG ${fmtPt(lw)} w ${fmtPt(x1)} ${fmtPt(PAGE_H - y1)} m ${fmtPt(x2)} ${fmtPt(PAGE_H - y2)} l S`);
   }
 
+  private images: Map<string, { data: Uint8Array; width: number; height: number }> = new Map();
+
+  /** Enregistre une image JPEG (XObject DCTDecode) disponible pour tout le document */
+  addImage(id: string, jpegBytes: Uint8Array, width: number, height: number): void {
+    this.images.set(id, { data: jpegBytes, width, height });
+  }
+
+  /** Affiche une image enregistrée aux coordonnées x, y avec dimensions w, h (points PDF) */
+  drawImage(id: string, x: number, y: number, w: number, h: number): void {
+    this.op(`q ${fmtPt(w)} 0 0 ${fmtPt(h)} ${fmtPt(x)} ${fmtPt(PAGE_H - y - h)} cm /${id} Do Q`);
+  }
+
   // — sérialisation —
   finish(): { data: Uint8Array; pages: number } {
     this.newPage();
@@ -300,15 +316,35 @@ export class PdfDoc {
       buf.append(`${offsets.length} 0 obj\n${body}\nendobj\n`);
     };
 
-    const kids = pageStreams.map((_, i) => `${6 + 2 * i} 0 R`).join(" ");
+    const imgList = Array.from(this.images.entries());
+    const imgCount = imgList.length;
+    const pageObjStart = 6 + imgCount;
+
+    const kids = pageStreams.map((_, i) => `${pageObjStart + 2 * i} 0 R`).join(" ");
     obj(`<< /Type /Catalog /Pages 2 0 R >>`);
     obj(`<< /Type /Pages /Count ${total} /Kids [${kids}] >>`);
     obj(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`);
     obj(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`);
     obj(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>`);
+
+    // XObjects images
+    imgList.forEach(([_, img]) => {
+      const header = `<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.data.length} >>\nstream\n`;
+      offsets.push(buf.length);
+      buf.append(`${offsets.length} 0 obj\n${header}`);
+      buf.appendBytes(img.data);
+      buf.append(`\nendstream\nendobj\n`);
+    });
+
+    const xObjDict = imgCount > 0
+      ? ` /XObject << ${imgList.map(([id], idx) => `/${id} ${6 + idx} 0 R`).join(" ")} >>`
+      : "";
+
     pageStreams.forEach((stream, i) => {
+      const pageObjNum = pageObjStart + 2 * i;
+      const contentObjNum = pageObjNum + 1;
       obj(
-        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmtPt(PAGE_W)} ${fmtPt(PAGE_H)}] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents ${7 + 2 * i} 0 R >>`
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${fmtPt(PAGE_W)} ${fmtPt(PAGE_H)}] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >>${xObjDict} >> /Contents ${contentObjNum} 0 R >>`
       );
       obj(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
     });

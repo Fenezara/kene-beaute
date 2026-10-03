@@ -29,6 +29,7 @@ import { jsonError, serverError, notify } from "@/lib/kene/server";
 import { sessionFromRequest, guardAdminElevated } from "@/lib/kene/session";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
+import { anonymizeAndPurgeUser } from "@/lib/kene/account-deletion";
 
 export const runtime = "nodejs";
 
@@ -167,3 +168,42 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return serverError("admin/user:patch", err);
   }
 }
+
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const rl = rateLimit(rlKey(req, "admin:user:delete"), ADMIN_STATS);
+  if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop d'actions — réessaie dans une minute");
+
+  const guard = guardAdminElevated(req);
+  if (guard) return guard;
+
+  try {
+    const { id } = await ctx.params;
+    const sess = sessionFromRequest(req);
+    if (!sess) return jsonError("Session requise", 401);
+
+    if (id === sess.userId) {
+      return jsonError("Tu ne peux pas supprimer ton propre compte administrateur depuis la Console", 400);
+    }
+
+    const reasonParam = req.nextUrl.searchParams.get("reason");
+    const json = await req.json().catch(() => ({}));
+    const reason = (reasonParam || (typeof json.reason === "string" ? json.reason : null) || "Purge administrative").trim();
+
+    const ip = clientIp(req);
+    const result = await anonymizeAndPurgeUser(id, {
+      triggeredBy: "admin",
+      adminId: sess.userId,
+      reason,
+      ip,
+    });
+
+    if (!result.ok) {
+      return jsonError(result.message || "Impossible de purger le compte", 400);
+    }
+
+    return NextResponse.json({ ok: true, message: "Compte purgé et anonymisé avec succès" });
+  } catch (err) {
+    return serverError("admin/user:delete", err);
+  }
+}
+

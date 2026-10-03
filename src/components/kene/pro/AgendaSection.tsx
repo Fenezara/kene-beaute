@@ -9,6 +9,8 @@ import {
   Banknote,
   CalendarDays,
   CheckCircle2,
+  FileText,
+  MessageCircle,
   XCircle,
   UserX,
   CalendarClock,
@@ -29,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { apiGet, apiPost, apiPatch } from "@/lib/kene/api";
 import { addDays, startOfWeek, formatDate, formatTime, xof } from "@/lib/kene/format";
+import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, Money, SectionHeader } from "./ui-bits";
 import type { ProAppointment, ProCatalog, ProClient } from "./types";
@@ -380,6 +383,34 @@ function ApptDetailDialog({
           {appt.notes && (
             <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">{appt.notes}</p>
           )}
+
+          {/* Relais WhatsApp & Pass Cabine */}
+          <div className="space-y-2 pt-2 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const appUrl = typeof window !== "undefined" ? window.location.origin : "https://kene.app";
+                const passUrl = `${appUrl}/api/appointments/pass?id=${encodeURIComponent(appt.id)}`;
+                const msg = `Bonjour ${appt.clientName} ! 💆‍♀️\n\nVotre rendez-vous pour votre soin *${appt.service.name}* est prévu le *${formatDate(appt.startAt)}* à *${formatTime(appt.startAt)}*.\n\nPraticienne : ${appt.resource.name}\nVotre Pass d'accès : ${passUrl}\n\nEn cas d'empêchement, merci de nous prévenir au plus tôt. Prenez soin de vous ! ✨`;
+                openWhatsApp(appt.clientPhone, msg);
+              }}
+              className="w-full h-10 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/40 font-bold text-xs flex items-center justify-center gap-2"
+            >
+              <MessageCircle className="size-4 text-[#25D366]" />
+              Rappeler sur WhatsApp (J-1)
+            </Button>
+
+            <a
+              href={`/api/appointments/pass?id=${encodeURIComponent(appt.id)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full h-9 rounded-xl border border-border bg-muted/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-2 hover:bg-muted transition-colors"
+            >
+              <FileText className="size-3.5 text-primary" />
+              Consulter le Pass Cabine (PDF avec QR code)
+            </a>
+          </div>
         </div>
 
         {!resched ? (

@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import type { DiagnosisResult, Indicator } from "@/lib/kene/types";
 import { scoreColor, scoreVar } from "@/lib/kene/format";
 import { numberToFrench } from "@/lib/kene/narration";
-import { fetchTtsAudioUrl } from "./ttsAudio";
+import { playSpeech, type SpeechController } from "./ttsAudio";
 
 /* ── Picto par mot-clé (nom d'indicateur → icône + libellé court) ── */
 type Picto = { icon: ComponentType<{ size?: number; className?: string }>; label: string };
@@ -73,7 +73,7 @@ function levelShort(pct: number): string {
 export function PictoSummary({ result, zoneLabel }: { result: DiagnosisResult; zoneLabel: string }) {
   const [playingIdx, setPlayingIdx] = useState<number | null>(null);
   const [loadingIdx, setLoadingIdx] = useState<number | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ctrlRef = useRef<SpeechController | null>(null);
 
   // 6 priorités max (les scores santé les plus bas)
   const tiles = useMemo(
@@ -95,8 +95,8 @@ export function PictoSummary({ result, zoneLabel }: { result: DiagnosisResult; z
   );
 
   const stop = () => {
-    audioRef.current?.pause();
-    audioRef.current = null;
+    ctrlRef.current?.stop();
+    ctrlRef.current = null;
   };
 
   async function speak(i: number, phrase: string) {
@@ -110,18 +110,21 @@ export function PictoSummary({ result, zoneLabel }: { result: DiagnosisResult; z
     if (loadingIdx !== null) return;
     setLoadingIdx(i);
     try {
-      const url = await fetchTtsAudioUrl(phrase, 0.92);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => setPlayingIdx(null);
-      audio.onerror = () => {
-        setPlayingIdx(null);
-        toast.error("Lecture impossible");
-      };
-      await audio.play();
-      setPlayingIdx(i);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Lecture vocale indisponible");
+      ctrlRef.current = await playSpeech({
+        text: phrase,
+        speed: 0.92,
+        onStart: () => setPlayingIdx(i),
+        onEnd: () => {
+          ctrlRef.current = null;
+          setPlayingIdx((cur) => (cur === i ? null : cur));
+        },
+        onError: () => {
+          ctrlRef.current = null;
+          setPlayingIdx((cur) => (cur === i ? null : cur));
+        },
+      });
+    } catch {
+      setPlayingIdx(null);
     } finally {
       setLoadingIdx(null);
     }

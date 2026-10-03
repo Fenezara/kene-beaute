@@ -14,6 +14,7 @@ import { serverError, slugify } from "@/lib/kene/server";
 import { sessionFromRequest } from "@/lib/kene/session";
 import { toCsv, csvDate, type CsvCell } from "@/lib/accounting/csv";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
+import { isDemoAccount } from "@/lib/kene/demo";
 
 export const runtime = "nodejs";
 
@@ -93,17 +94,23 @@ export async function GET(req: NextRequest) {
           clientsCrm,
           employees,
           products,
+          isDemo: isDemoAccount(t.ownerPhone),
         };
       }),
     );
 
+    const type = req.nextUrl.searchParams.get("type")?.trim() ?? "";
+
     // Recherche insensible casse/accents (pattern SQLite du projet)
-    const filtered = q
+    let filtered = q
       ? rows.filter((r) =>
           [r.name, r.city, r.ownerName, r.ownerPhone, r.phone]
             .some((f) => f && (f.toLowerCase().includes(q) || slugify(f).includes(slugify(q)))),
         )
       : rows;
+
+    if (type === "real") filtered = filtered.filter((r) => !r.isDemo);
+    if (type === "demo") filtered = filtered.filter((r) => r.isDemo);
 
     // Tri: CA total 30 j décroissant — la console montre d'abord ce qui vit.
     filtered.sort((a, b) => b.caBoutique30 + b.caPos30 - (a.caBoutique30 + a.caPos30));
@@ -111,7 +118,7 @@ export async function GET(req: NextRequest) {
     // t. 140 — EXPORT CSV instituts: le réseau au complet avec ses KPIs de
     // gestion (CA 30 j, commission, plan, équipe) — hors recherche éventuelle.
     if (req.nextUrl.searchParams.get("format") === "csv") {
-      const PLAN: Record<string, string> = { trial: "Essai", pro: "Pro", business: "Business" };
+      const PLAN: Record<string, string> = { trial: "Pass Découverte", pro: "Essentiel", business: "Complexe" };
       const rowsCsv: CsvCell[][] = [
         ["Console Kènè — Instituts partenaires"],
         ["Réseau complet avec KPIs de gestion (CA 30 jours, commission, plan, équipe)"],

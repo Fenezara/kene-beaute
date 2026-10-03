@@ -68,7 +68,7 @@ export function SessionKeeper() {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        if (e instanceof ApiError && e.status === 404) {
+        if (e instanceof ApiError && (e.status === 404 || e.status === 401)) {
           clearCart();
           setUser(null);
           setSpace("client");

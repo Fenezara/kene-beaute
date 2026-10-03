@@ -9,6 +9,7 @@
 // sur disque (inerte, convention projet, comme market/* en).
 import { useEffect, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 /* ───────────────────────── Fils de kente vivants ─────────────────────────
  3 courbes Bézier or/terre/bissap qui se dessinent + perles aux extrémités,
@@ -90,10 +91,10 @@ function KenteThreads({ first }: { first: boolean }) {
  Même langage visuel que la carte kente de la boutique (fond atelier +
  armure + fils d'or) — l'a validée au VLM, la rend compacte:
  badge chapitre en haut, message du chapitre en bas, fils vivants derrière. */
-export function LoomSection({ first }: { first: boolean }) {
+export function LoomSection({ first, className }: { first: boolean; className?: string }) {
   return (
-    <section aria-label="Le tissage — chaque geste est un fil" className="relative mt-3">
-      <div className="relative mx-4 h-[92px] overflow-hidden rounded-[22px] border border-border shadow-md sm:mx-6 sm:h-[104px]">
+    <section aria-label="Le tissage — chaque geste est un fil" className={cn("relative mt-3 w-full", className)}>
+      <div className="relative h-[92px] overflow-hidden rounded-[22px] border border-border shadow-md sm:h-[104px] lg:h-[110px]">
         {/* fond mélanine « atelier du tisserand » */}
         <div className="absolute inset-0 bg-[radial-gradient(120%_130%_at_50%_115%,#3A2A1A_0%,#241A10_62%,#1A1410_100%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(closest-side_at_50%_40%,rgba(200,149,30,0.12),transparent_80%)]" />

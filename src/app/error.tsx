@@ -8,7 +8,7 @@
 
 import { useEffect } from "react";
 import { HeartHandshake, RefreshCw, RotateCcw } from "lucide-react";
-import { KeneLogo } from "@/components/kene/icons";
+import { KeneEmblemLockup } from "@/components/kene/icons";
 
 export default function KeneError({
   error,
@@ -28,8 +28,8 @@ export default function KeneError({
       className="min-h-dvh bg-background text-foreground grid place-items-center px-4 py-10"
     >
       <div className="w-full max-w-md flex flex-col items-center text-center gap-5">
-        {/* Wordmark brandé — Ojuju via font-heading */}
-        <KeneLogo size={48} withText />
+        {/* Sceau officiel Kènè */}
+        <KeneEmblemLockup size={52} sublabel="Beauté mélanoderme" />
 
         <span
           aria-hidden="true"

@@ -1,15 +1,18 @@
 "use client";
-// Kènè Cliente — Boutique: catalogue, fiche produit, panier, checkout Wave/Orange/Wallet simulé
+// Kènè Cliente — Boutique: catalogue, fiche produit, panier, checkout Wave/Orange/MoMo
 // + « Mes commandes »: historique des commandes enregistrées (consultation par la cliente).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, Building2, Crown, Heart, History, Loader2, Lock, Minus, Plus, Search, ShoppingBag, Store, Tag, Trash2, TriangleAlert, X } from "lucide-react";
+import { BadgeCheck, Building2, Crown, FileText, Heart, History, Loader2, Lock, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Store, Tag, Trash2, TriangleAlert, Truck, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
-import { xof, CASHBACK_RATE, formatDate, formatTime } from "@/lib/kene/format";
+import { xof, formatDate, formatTime } from "@/lib/kene/format";
+import { getDeliveryAreas, calculateShippingFee, ORDER_DELIVERY_STATUSES } from "@/lib/kene/delivery";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { MOMO_OPERATORS } from "@/lib/kene/rfm";
+import { buildWhatsAppCartOrderMessage, openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
 import { Chip, PrimaryCTA, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
 import { useFavorites } from "@/store/favorites";
@@ -17,13 +20,18 @@ import { useSecurity } from "@/store/security";
 import { KenteWeaveCard } from "@/components/kene/weave/KenteWeaveCard";
 import { KeneMark } from "@/components/kene/icons";
 import { categoryThread } from "@/components/kene/weave/threads";
-import type { ApiOrder, ApiPayment, ApiProduct, ApiSeller, ApiWallet } from "./types";
+import { cn } from "@/lib/utils";
+import {
+  getProductCategoryMeta,
+  getCategoryToneBadgeClass,
+} from "@/lib/kene/catalog-taxonomy";
+import type { ApiOrder, ApiPayment, ApiProduct, ApiSeller } from "./types";
 import { SHOP_CATEGORIES } from "./types";
 import { EmptyBlock, Stars, SuccessBurst } from "./bits";
 import { FavButton } from "./FavButton";
 import { SecureVerify } from "./SecureVerify";
 
-type PayMethod = "wave" | "orange" | "wallet";
+type PayMethod = "wave" | "orange";
 
 /* Coupon validé au checkout (aperçu local — la consommation a lieu à la commande) */
 interface AppliedPromo {
@@ -46,8 +54,7 @@ export function ShopScreen() {
 
   const [products, setProducts] = useState<ApiProduct[] | null>(null);
   const [cat, setCat] = useState("");
-  // — la boutique est organisée PAR INSTITUT: "" = tout le marché,
-  // "maison" = MAISON Kènè, sinon le tenantId de l'institut vendeur choisi.
+  // — la boutique est organisée PAR INSTITUT: "" = tous les instituts partenaires, sinon le tenantId de l'institut vendeur choisi.
   const [institut, setInstitut] = useState("");
   const [q, setQ] = useState("");
   const [favOnly, setFavOnly] = useState(false); // filtre « ♥ Favoris » (cumulable avec catégorie + recherche)
@@ -55,10 +62,6 @@ export function ShopScreen() {
   const [detail, setDetail] = useState<ApiProduct | null>(null);
   const [qty, setQty] = useState(1);
   const [checkout, setCheckout] = useState(false);
-  const [wallet, setWallet] = useState<ApiWallet | null>(null);
-  // Fin des échecs silencieux: solde inconnu → encart discret + Réessayer
-  // (plus jamais un « … » éternel sur le bouton Wallet du checkout).
-  const [walletError, setWalletError] = useState(false);
   const [payState, setPayState] = useState<{ phase: "processing" | "success"; method: PayMethod; amount: number } | null>(null);
   const [paying, setPaying] = useState(false);
 
@@ -112,55 +115,51 @@ export function ShopScreen() {
       .catch(() => setOrders((prev) => prev ?? []));
   }, [user.id]);
 
+  // ── Livraison Urbaine (Abidjan & Dakar) ──
+  const [delivCity, setDelivCity] = useState<"abidjan" | "dakar">("abidjan");
+  const [delivAreaId, setDelivAreaId] = useState<string>("ci-cocody");
+  const [delivAddress, setDelivAddress] = useState<string>("");
+  const [delivPhone, setDelivPhone] = useState<string>(user?.phone || "");
+  const [delivNotes, setDelivNotes] = useState<string>("");
+
+  const shippingFee = calculateShippingFee(delivAreaId);
   const subtotal = cart.reduce((s, l) => s + l.price * l.qty, 0);
- /* Coupon invalidé si le panier a changé depuis la validation (remise recalculée
- * sur un autre sous-total) — la cliente re-valide, jamais de surprise serveur. */
+  /* Coupon invalidé si le panier a changé depuis la validation (remise recalculée
+   * sur un autre sous-total) — la cliente re-valide, jamais de surprise serveur. */
   const livePromo = promo && promo.subtotal === subtotal ? promo : null;
   const discount = livePromo?.discount ?? 0;
-  const total = subtotal - discount;
- /* taux de cashback réellement appliqué (wallet de la cliente, sinon défaut) */
-  const cashbackRate = wallet?.cashbackRate ?? CASHBACK_RATE;
-
- /* Solde wallet — échec explicite (walletError) plutôt que silence: le
- * bouton Wallet reste désactivé tant que le solde est inconnu. */
-  const loadWallet = useCallback(() => {
-    apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`)
-      .then((r) => { setWallet(r.wallet); setWalletError(false); })
-      .catch(() => setWalletError(true));
-  }, [user.id]);
-
+  const total = subtotal - discount + (cart.length > 0 ? shippingFee : 0);
   useEffect(() => {
     apiGet<{ products: ApiProduct[] }>("/api/shop/products")
       .then((r) => setProducts(r.products ?? []))
       .catch(() => setProducts([]));
-    loadWallet();
     refreshOrders();
     apiGet<{ subscription: { plan: string } | null }>(`/api/subscriptions?userId=${user.id}`)
       .then((r) => setHasSub(Boolean(r.subscription)))
       .catch(() => setHasSub(null));
-  }, [user.id, refreshOrders, loadWallet]);
+  }, [user.id, refreshOrders]);
 
- /* Les vendeurs du marché — MAISON Kènè d'abord, puis les instituts
- * partenaires par nom. Dérivés des produits réellement en stock: un
- * institut sans produit disponible n'apparaît pas. */
+  /* Les vendeurs du marché — Exclusivement les instituts & entreprises partenaires.
+   * Le fondateur (Dermo TIC) est l'éditeur de l'application et ne vend aucun produit.
+   * Seules les entreprises partenaires ayant un compte entreprise vendent des produits. */
   const sellers = useMemo<ApiSeller[]>(() => {
     const map = new Map<string, ApiSeller>();
     for (const p of products ?? []) {
-      const key = p.tenant?.id ?? "";
+      if (!p.tenant) continue;
+      const key = p.tenant.id;
       const cur = map.get(key);
       if (cur) cur.count += 1;
       else
         map.set(key, {
           key,
-          name: p.tenant?.name ?? "MAISON Kènè",
-          city: p.tenant?.city ?? null,
-          maison: !p.tenant,
+          name: p.tenant.name,
+          city: p.tenant.city ?? null,
+          maison: false,
           count: 1,
-          // — vitrine réelle de l'institut pour la carte vendeur
-          hasPhoto: Boolean(p.tenant?.hasPhoto),
+          hasPhoto: Boolean(p.tenant.hasPhoto),
         });
     }
-    return [...map.values()].sort((a, b) => (a.maison === b.maison ? a.name.localeCompare(b.name, "fr") : a.maison ? -1 : 1));
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "fr"));
   }, [products]);
 
   const filtered = useMemo(() => {
@@ -168,25 +167,24 @@ export function ShopScreen() {
     return (products ?? []).filter(
       (p) =>
         (!cat || p.category === cat) &&
-        (institut === "" || (institut === "maison" ? !p.tenant : p.tenant?.id === institut)) &&
+        (institut === "" || p.tenant?.id === institut) &&
         (!favOnly || favs.includes(p.id)) &&
         (!nq || `${p.name} ${p.botanicals} ${p.description}`.toLowerCase().includes(nq))
     );
   }, [products, cat, institut, q, favOnly, favs]);
 
- /* Le catalogue organisé PAR INSTITUT: une section par vendeur (maison
- * incluse) — la cliente voit qui vend quoi, groupe par groupe. */
+  /* Le catalogue organisé PAR INSTITUT: une section par institut partenaire. */
   const grouped = useMemo(
     () =>
       sellers
-        .map((seller) => ({ seller, items: filtered.filter((p) => (p.tenant?.id ?? "") === seller.key) }))
+        .map((seller) => ({ seller, items: filtered.filter((p) => p.tenant?.id === seller.key) }))
         .filter((g) => g.items.length > 0),
     [sellers, filtered]
   );
 
- /* libellé du vendeur sélectionné (légende du fil + messages vides) */
+  /* libellé du vendeur sélectionné (légende du fil + messages vides) */
   const institutLabel =
-    institut === "" ? null : institut === "maison" ? "MAISON Kènè" : sellers.find((s) => s.key === institut)?.name ?? null;
+    institut === "" ? null : sellers.find((s) => s.key === institut)?.name ?? null;
 
  /* le fil de la catégorie — la navette l'illumine dans la bande tissée */
   const weaveCaption =
@@ -238,17 +236,64 @@ export function ShopScreen() {
     setPaying(true);
     try {
       const items = cart.map((l) => ({ productId: l.productId, qty: l.qty }));
-      const r = await apiPost<{ order: ApiOrder; payment: ApiPayment | null; paid: boolean }>("/api/orders", {
+      const r = await apiPost<{
+        order: ApiOrder;
+        payment: ApiPayment | null;
+        paid: boolean;
+        paymentUrl?: string | null;
+        saspayLaunchUrl?: string | null;
+        winipayerLaunchUrl?: string | null;
+        waveLaunchUrl?: string | null;
+        omLaunchUrl?: string | null;
+      }>("/api/orders", {
         userId: user.id,
         items,
         paymentMethod: method,
+        deliveryCity: delivCity,
+        deliveryAreaId: delivAreaId,
+        deliveryAddress: delivAddress.trim() || undefined,
+        deliveryPhone: delivPhone.trim() || undefined,
+        deliveryNotes: delivNotes.trim() || undefined,
         ...(livePromo ? { couponCode: livePromo.code } : {}),
       });
       const amount = r.order.total;
-      if (method !== "wallet" && r.payment) {
-        // Contrat confirmToken (63-b/63-c): un paiement mobile money en attente
-        // porte son jeton — absent, on n'appelle JAMAIS confirm et on rollback
-        // l'état UI comme un échec de paiement (panier intact, aucun overlay).
+
+      // Si SasPay ou WiniPayer a généré un lien de paiement sécurisé, redirection directe vers le checkout
+      const checkoutUrl = r.paymentUrl || r.saspayLaunchUrl || r.winipayerLaunchUrl;
+      if (checkoutUrl) {
+        clearCart();
+        setPromo(null);
+        setCheckout(false);
+        toast.info("Ouverture du paiement sécurisé...", {
+          description: "Finalise ta commande par Mobile Money ou Carte bancaire 💳",
+        });
+        window.location.href = checkoutUrl;
+        return;
+      }
+
+      // Si Wave réel a généré une session de paiement, redirection directe vers l'app Wave
+      if (r.waveLaunchUrl) {
+        clearCart();
+        setPromo(null);
+        setCheckout(false);
+        toast.info("Ouverture de Wave pour finaliser le paiement...");
+        window.location.href = r.waveLaunchUrl;
+        return;
+      }
+
+      // Si Orange Money a généré une URL de paiement, redirection vers le guichet Orange
+      if (r.omLaunchUrl) {
+        clearCart();
+        setPromo(null);
+        setCheckout(false);
+        toast.info("Ouverture d'Orange Money Web Payment...");
+        window.location.href = r.omLaunchUrl;
+        return;
+      }
+
+
+      if (r.payment) {
+        // Contrat confirmToken: un paiement mobile money en attente porte son jeton
         const confirmToken = r.payment.confirmToken;
         if (!confirmToken) {
           setCheckout(false);
@@ -258,11 +303,10 @@ export function ShopScreen() {
         setCheckout(false);
         setPayState({ phase: "processing", method, amount });
         await new Promise((res) => setTimeout(res, 3000));
-        const c = await apiPost<{ payment: ApiPayment; order?: ApiOrder; wallet?: ApiWallet }>("/api/payments/confirm", { paymentId: r.payment.id, confirmToken });
-        if (c.wallet) { setWallet(c.wallet); setWalletError(false); }
+        await apiPost<{ payment: ApiPayment; order?: ApiOrder }>("/api/payments/confirm", { paymentId: r.payment.id, confirmToken });
       } else {
         setCheckout(false);
-        setPayState({ phase: "processing", method: "wallet", amount });
+        setPayState({ phase: "processing", method, amount });
         await new Promise((res) => setTimeout(res, 1200));
       }
       setPayState({ phase: "success", method, amount });
@@ -270,12 +314,7 @@ export function ShopScreen() {
       clearCart();
       setPromo(null); // le coupon est consommé: remise à zéro pour la prochaine commande
       void refreshOrders(); // la nouvelle commande apparaît dans « Mes commandes »
-      const cb = r.order.cashback;
-      toast.success(cb > 0 ? `Commande confirmée — cashback ${xof(cb)} crédité sur ton wallet` : "Commande confirmée et payée");
-      if (method === "wallet") {
-        const w = await apiGet<{ wallet: ApiWallet }>(`/api/wallet?userId=${user.id}`).catch(() => null);
-        if (w) setWallet(w.wallet);
-      }
+      toast.success("Commande confirmée et payée");
     } catch (e) {
       setPayState(null);
       toast.error(e instanceof Error ? e.message : "Paiement impossible");
@@ -291,14 +330,21 @@ export function ShopScreen() {
       <Reveal>
         <RevealItem>
           <header className="flex items-center justify-between">
-            <h1 className="flex items-center gap-2 font-heading font-black text-xl tracking-tight">
-              {/* Mark de marque — signature vectorielle de la boutique */}
-              <span aria-hidden="true">
-                <KeneMark size={26} />
-              </span>
-              Boutique Kènè
-            </h1>
-            <span className="k-chip rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-gold-text">Cashback {Math.round(cashbackRate * 100)} %</span>
+            <div className="flex items-center gap-2">
+              <h1 className="md:hidden flex items-center gap-2 font-heading font-black text-xl tracking-tight">
+                <span aria-hidden="true">
+                  <KeneMark size={26} />
+                </span>
+                Boutique Kènè
+              </h1>
+              <p className="hidden md:flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                <span aria-hidden="true">
+                  <KeneMark size={20} />
+                </span>
+                Formulations botaniques certifiées mélanodermes
+              </p>
+            </div>
+            <span className="k-chip rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-gold-text">Soins Botaniques Certifiés</span>
           </header>
         </RevealItem>
         <RevealItem>
@@ -336,8 +382,8 @@ export function ShopScreen() {
       <Reveal>
         <RevealItem>
           {/* — Acheter selon l'institut: le marché est organisé par
- vendeur (MAISON Kènè + instituts partenaires). La carte choisie
- filtre tout le catalogue sur CET institut. */}
+             vendeur (instituts partenaires certifiés). La carte choisie
+             filtre tout le catalogue sur CET institut. */}
           {products === null ? (
             <div className="mt-3 flex gap-2" aria-hidden="true">
               {[0, 1, 2].map((i) => (
@@ -359,8 +405,8 @@ export function ShopScreen() {
                   <SellerCard
                     key={s.key}
                     seller={s}
-                    selected={institut === (s.maison ? "maison" : s.key)}
-                    onClick={() => { setInstitut(s.maison ? "maison" : s.key); haptic(HAPTIC.tap); }}
+                    selected={institut === s.key}
+                    onClick={() => { setInstitut(s.key); haptic(HAPTIC.tap); }}
                   />
                 ))}
               </div>
@@ -368,12 +414,6 @@ export function ShopScreen() {
           )}
         </RevealItem>
 
-        <RevealItem>
-          {/* Le Fil de Kente — hero tissé compact, le fil de la catégorie s'illumine */}
-          <div className="mt-3">
-            <KenteWeaveCard highlightIndex={cat ? categoryThread(cat) : -1} caption={weaveCaption} />
-          </div>
-        </RevealItem>
 
         <RevealItem>
           {/* Recherche */}
@@ -462,16 +502,11 @@ export function ShopScreen() {
           />
         )
       ) : (
- /* Catalogue organisé PAR INSTITUT: une section par vendeur —
- la MAISON Kènè ouvre le marché, chaque institut partenaire suit. */
+        /* Catalogue organisé PAR ÉTABLISSEMENT : chaque institut partenaire vend ses produits. */
         grouped.map(({ seller, items }) => (
           <section key={seller.key} aria-label={`Soins vendus par ${seller.name}`} className="mt-5 first:mt-0">
             <header className="mb-3 flex items-center gap-2">
-              {seller.maison ? (
-                <KeneMark size={16} />
-              ) : (
-                <Building2 size={14} className="shrink-0 text-terre" aria-hidden="true" />
-              )}
+              <Building2 size={14} className="shrink-0 text-terre" aria-hidden="true" />
               <h3 className="font-heading text-sm font-black tracking-tight">{seller.name}</h3>
               <span className="whitespace-nowrap text-[10px] font-semibold text-muted-foreground">
                 {seller.city ? `${seller.city} · ` : ""}{items.length} soin{items.length > 1 ? "s" : ""}
@@ -518,6 +553,11 @@ export function ShopScreen() {
               </div>
               <img src={detail.hasPhoto ? `/api/media/product/${detail.id}` : detail.image} alt={detail.name} className="aspect-square w-full object-cover px-0" />
               <SheetHeader className="px-5 pt-4 text-left">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="outline" className={cn("text-[10px] px-2 py-0.5 border font-medium", getCategoryToneBadgeClass(getProductCategoryMeta(detail.category).tone))}>
+                    {getProductCategoryMeta(detail.category).label}
+                  </Badge>
+                </div>
                 <SheetTitle className="font-heading font-black text-lg leading-tight">{detail.name}</SheetTitle>
                 <div className="flex items-center gap-2">
                   <Stars rating={detail.rating} />
@@ -525,15 +565,11 @@ export function ShopScreen() {
                 </div>
               </SheetHeader>
               <div className="px-5 pb-6 space-y-4">
-                {/* Vendeur — l'institut (ou la maison) qui vend ce soin */}
+                {/* Vendeur — l'institut partenaire certifié qui vend ce soin */}
                 <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#C8951E]/30 bg-karite px-2.5 py-1">
-                  {detail.tenant ? (
-                    <Building2 size={12} className="shrink-0 text-terre" aria-hidden="true" />
-                  ) : (
-                    <span className="shrink-0" aria-hidden="true"><KeneMark size={12} /></span>
-                  )}
+                  <Building2 size={12} className="shrink-0 text-terre" aria-hidden="true" />
                   <span className="truncate text-[10px] font-bold text-terre">
-                    Vendu par {detail.tenant?.name ?? "MAISON Kènè"}{detail.tenant?.city ? ` · ${detail.tenant.city}` : ""}
+                    Vendu par {detail.tenant?.name ?? "Institut partenaire certifié"}{detail.tenant?.city ? ` · ${detail.tenant.city}` : ""}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">{detail.description}</p>
@@ -553,14 +589,40 @@ export function ShopScreen() {
                     <button onClick={() => setQty((n) => Math.min(detail.stock, n + 1))} className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted active:scale-90 transition-all" aria-label="Augmenter la quantité"><Plus size={16} /></button>
                   </div>
                 </div>
-                <PrimaryCTA
-                  onClick={() => { addToCart({ productId: detail.id, name: detail.name, price: detail.price, qty, image: detail.hasPhoto ? `/api/media/product/${detail.id}` : detail.image }); toast.success(`${qty} × ${detail.name} ajouté au panier`); setDetail(null); }}
-                  className="h-12 w-full"
-                >
-                  <Plus size={17} aria-hidden="true" /> Ajouter au panier — {xof(detail.price * qty)}
-                </PrimaryCTA>
+                <div className="flex flex-col gap-2">
+                  <PrimaryCTA
+                    onClick={() => { addToCart({ productId: detail.id, name: detail.name, price: detail.price, qty, image: detail.hasPhoto ? `/api/media/product/${detail.id}` : detail.image }); toast.success(`${qty} × ${detail.name} ajouté au panier`); setDetail(null); }}
+                    className="h-12 w-full"
+                  >
+                    <Plus size={17} aria-hidden="true" /> Ajouter au panier — {xof(detail.price * qty)}
+                  </PrimaryCTA>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addToCart({ productId: detail.id, name: detail.name, price: detail.price, qty, image: detail.hasPhoto ? `/api/media/product/${detail.id}` : detail.image });
+                      setDetail(null);
+                      setCheckout(true);
+                    }}
+                    className="h-11 w-full rounded-2xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs flex items-center justify-center gap-1.5 transition-colors active:scale-95"
+                  >
+                    <ShoppingBag size={15} /> Commander directement (Express)
+                  </button>
+                </div>
                 {/* Favori — action secondaire de la fiche produit (persistante, par appareil) */}
                 <FavButton variant="inline" productId={detail.id} productName={detail.name} />
+
+                {/* Partage WhatsApp viral du soin */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const origin = typeof window !== "undefined" ? window.location.origin : "https://kene.app";
+                    const msg = `Coucou ! 🌸 Je viens de repérer ce soin dermo-botanique sur Kènè :\n\n✨ *${detail.name}* (${xof(detail.price)})\n${detail.description ? `\n« ${detail.description.slice(0, 140)}... »\n` : ""}\nÀ découvrir sur ${origin} 🌿`;
+                    openWhatsApp("", msg);
+                  }}
+                  className="mt-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold text-[#25D366] hover:text-[#20bd5a] py-1.5 active:scale-95 transition-transform"
+                >
+                  <MessageCircle size={14} /> Partager ce soin sur WhatsApp
+                </button>
               </div>
             </>
           )}
@@ -637,6 +699,87 @@ export function ShopScreen() {
               </div>
             )}
 
+            {/* ── Section Destination de Livraison Urbaine (Abidjan / Dakar) ── */}
+            <div className="k-card rounded-[24px] p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-2 font-heading text-xs font-bold text-foreground">
+                  <Truck size={15} className="text-primary" /> Destination de livraison
+                </span>
+                <span className="font-mono text-[11px] font-bold text-primary">
+                  +{xof(shippingFee)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDelivCity("abidjan");
+                    setDelivAreaId("ci-cocody");
+                  }}
+                  className={`h-10 rounded-xl text-xs font-bold transition-all border ${
+                    delivCity === "abidjan"
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  🇨🇮 Abidjan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDelivCity("dakar");
+                    setDelivAreaId("sn-plateau");
+                  }}
+                  className={`h-10 rounded-xl text-xs font-bold transition-all border ${
+                    delivCity === "dakar"
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  🇸🇳 Dakar
+                </button>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
+                  Commune / Quartier
+                </label>
+                <select
+                  value={delivAreaId}
+                  onChange={(e) => setDelivAreaId(e.target.value)}
+                  className="k-input h-11 w-full rounded-xl px-3 text-xs bg-card"
+                >
+                  {getDeliveryAreas(delivCity).map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} · {xof(a.fee)} ({a.delayHours})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <input
+                  value={delivAddress}
+                  onChange={(e) => setDelivAddress(e.target.value)}
+                  placeholder="Adresse (rue, nom de résidence, N° apt)"
+                  className="k-input h-11 w-full rounded-xl px-3 text-xs"
+                />
+                <input
+                  value={delivNotes}
+                  onChange={(e) => setDelivNotes(e.target.value)}
+                  placeholder="Repères utiles (ex: face pharmacie, portail blanc)"
+                  className="k-input h-11 w-full rounded-xl px-3 text-xs"
+                />
+                <input
+                  value={delivPhone}
+                  onChange={(e) => setDelivPhone(e.target.value)}
+                  placeholder="Téléphone de contact pour le coursier"
+                  className="k-input h-11 w-full rounded-xl px-3 text-xs font-mono"
+                />
+              </div>
+            </div>
+
             <div className="k-card k-card-hero space-y-1.5 rounded-[24px] p-4 text-xs">
               <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span className="font-mono font-semibold tabular-nums">{xof(subtotal)}</span></div>
               {discount > 0 && (
@@ -645,9 +788,13 @@ export function ShopScreen() {
                   <span className="font-mono font-semibold tabular-nums">−{xof(discount)}</span>
                 </div>
               )}
-              <div className="flex justify-between"><span className="text-muted-foreground">Cashback estimé ({Math.round(cashbackRate * 100)} %)</span><span className="font-mono font-semibold tabular-nums text-[#3F7D3F]">+{xof(Math.round(total * cashbackRate))}</span></div>
+              <div className="flex justify-between text-muted-foreground">
+                <span className="flex items-center gap-1"><Truck size={12} /> Livraison ({delivCity === "abidjan" ? "Abidjan" : "Dakar"})</span>
+                <span className="font-mono font-semibold tabular-nums">+{xof(shippingFee)}</span>
+              </div>
               <div className="flex justify-between border-t border-border pt-1.5 text-sm"><span className="font-semibold">Total à payer</span><span className="font-mono font-black tabular-nums text-primary">{xof(total)}</span></div>
             </div>
+
 
             <div>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Mode de paiement</p>
@@ -667,25 +814,38 @@ export function ShopScreen() {
                     </button>
                   );
                 })}
+
+                {/* Commande directe via WhatsApp (Commerce conversationnel) */}
+                <div className="relative py-1 flex items-center justify-center">
+                  <span className="h-[1px] w-full bg-border" />
+                  <span className="bg-card px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">ou</span>
+                </div>
                 <button
-                  onClick={() => startPay("wallet")}
-                  disabled={paying || (wallet?.balance ?? 0) < total}
-                  className="w-full h-12 rounded-xl border-2 border-melanine bg-card flex items-center gap-3 px-4 font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.success);
+                    const area = getDeliveryAreas(delivCity).find((a) => a.id === delivAreaId);
+                    const msg = buildWhatsAppCartOrderMessage({
+                      clientName: user.name,
+                      items: cart.map((c) => ({ name: c.name, qty: c.qty, price: c.price })),
+                      subtotal,
+                      discount,
+                      promoCode: livePromo?.code,
+                      shippingFee,
+                      city: delivCity,
+                      areaName: area?.name,
+                      address: delivAddress,
+                      notes: delivNotes,
+                      phone: delivPhone || user.phone,
+                      total,
+                    });
+                    openWhatsApp("", msg);
+                    toast.success("Ouverture de WhatsApp avec ta commande prête 🌿");
+                  }}
+                  className="w-full h-12 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white flex items-center justify-center gap-2 font-bold text-sm shadow-md active:scale-[0.98] transition-all"
                 >
-                  <span className="h-7 w-7 rounded-full grid place-items-center bg-melanine text-[#C8951E] shrink-0 font-heading font-black text-xs">K</span>
-                  Wallet Kènè
-                  <span className="ml-auto font-mono text-[11px] text-muted-foreground">{wallet ? xof(wallet.balance) : walletError ? "indisponible" : "…"}</span>
+                  <MessageCircle size={18} /> Commander via WhatsApp
                 </button>
-                {wallet && wallet.balance < total && <p className="text-[10px] text-destructive text-center">Solde insuffisant — approvisionne ton wallet depuis ton profil.</p>}
-                {walletError && (
-                  <div role="alert" className="rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 flex items-center gap-2.5">
-                    <TriangleAlert size={14} className="text-terre shrink-0" aria-hidden="true" />
-                    <p className="flex-1 min-w-0 text-[11px] text-muted-foreground leading-snug">Solde indisponible — réessaie</p>
-                    <button onClick={loadWallet} className="k-btn-gold h-11 shrink-0 rounded-xl px-3.5 text-xs font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary">
-                      Réessayer
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -726,13 +886,13 @@ export function ShopScreen() {
                   <div className="grid place-items-center w-20 h-20 rounded-3xl font-heading font-black text-3xl text-[#1A1410] shadow-lg" style={{ backgroundColor: op(payState.method)?.color ?? "#C8951E" }}>
                     {(op(payState.method)?.name ?? "K").charAt(0)}
                   </div>
-                  <p className="font-heading font-bold text-lg text-[#F8F1E4]">{op(payState.method)?.name ?? "Wallet Kènè"}</p>
+                  <p className="font-heading font-bold text-lg text-[#F8F1E4]">{op(payState.method)?.name ?? "Paiement sécurisé"}</p>
                   <p className="font-mono text-3xl font-black text-[#F8F1E4]">{xof(payState.amount)}</p>
                   <p className="text-[11px] text-[#F8F1E4]/70 font-mono">+{user.phone.slice(0, 9)}···</p>
                   <div className="flex items-center gap-2 text-sm text-[#F8F1E4]/80">
                     <Loader2 size={16} className="animate-spin" aria-hidden="true" /> Traitement en cours…
                   </div>
-                  <p className="text-[10px] text-[#F8F1E4]/60">Paiement mobile money — mode essai</p>
+                  <p className="text-[10px] text-[#F8F1E4]/60">Paiement sécurisé · Mobile Money & Carte</p>
                 </div>
               ) : (
                 <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 260, damping: 18 }} className="flex flex-col items-center gap-4 text-center py-6">
@@ -740,7 +900,7 @@ export function ShopScreen() {
                   <p className="font-heading font-black text-xl text-[#F8F1E4]">Paiement réussi</p>
                   <p className="font-mono text-sm font-bold text-[#F8F1E4]/90">{xof(payState.amount)}</p>
                   <p className="text-xs text-[#F8F1E4]/70 max-w-[300px] leading-relaxed">
-                    Commande confirmée. <span className="flex items-center gap-1 justify-center mt-1 text-gold-text dark:text-[#E3B454] font-semibold"><BadgeCheck size={13} aria-hidden="true" /> Cashback {xof(Math.round(payState.amount * cashbackRate))} crédité sur ton wallet Kènè</span>
+                    Commande confirmée. Ton institut partenaire prépare ta commande.
                   </p>
                   {/* t. 138 — PARCOURS CONVERSION: le moment commande (une
                       acheteuse a déjà prouvé son engagement). Une seule offre
@@ -778,27 +938,27 @@ export function ShopScreen() {
 
 /* ══════════════ Vendeurs du marché ══════════════ */
 
-/** Carte vendeur — « Tout le marché » (sans `seller`) ou un institut /
- * la MAISON Kènè (avec `seller`). Le tap filtre le catalogue sur ce vendeur. */
+/** Carte vendeur — « Tous les instituts » (sans `seller`) ou un institut partenaire (avec `seller`).
+ * Le tap filtre le catalogue sur ce vendeur. Seules les entreprises partenaires vendent des produits. */
 function SellerCard({ seller, selected, onClick, totalCount }: {
   seller?: ApiSeller;
   selected: boolean;
   onClick: () => void;
-  totalCount?: number; // pour la carte « Tout le marché »
+  totalCount?: number;
 }) {
-  const name = seller?.name ?? "Tout le marché";
+  const name = seller?.name ?? "Tous les instituts";
   const sub = seller
     ? `${seller.city ? `${seller.city} · ` : ""}${seller.count} soin${seller.count > 1 ? "s" : ""}`
-    : `${totalCount ?? 0} soins · tous les vendeurs`;
- /* Sélection = le traitement signature de l'app (k-btn-gold, comme les chips
- * de catégories): impossible de rater quel institut filtre le catalogue. */
+    : `${totalCount ?? 0} soins · tous les instituts`;
+  /* Sélection = le traitement signature de l'app (k-btn-gold, comme les chips
+   * de catégories): impossible de rater quel institut filtre le catalogue. */
   const metaCls = selected ? "text-primary-foreground/75" : "text-muted-foreground";
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      aria-label={seller ? `Voir les produits de ${name}` : "Voir tous les produits du marché"}
+      aria-label={seller ? `Voir les produits de ${name}` : "Voir les produits de tous les instituts partenaires"}
       className={`min-w-[142px] shrink-0 rounded-[20px] border p-3 text-left transition-all focus-visible:outline-2 focus-visible:outline-primary ${
         selected
           ? "k-btn-gold border-primary/60 text-primary-foreground"
@@ -807,10 +967,8 @@ function SellerCard({ seller, selected, onClick, totalCount }: {
     >
       <span className="flex items-center gap-1.5">
         {seller ? (
-          seller.maison ? (
-            <KeneMark size={13} />
-          ) : seller.hasPhoto ? (
- /* — vignette de la vitrine réelle de l'institut */
+          seller.hasPhoto ? (
+            /* — vignette de la vitrine réelle de l'institut */
             <img src={`/api/media/tenant/${seller.key}`} alt="" className="size-[18px] rounded-md object-cover" loading="lazy" />
           ) : (
             <Building2 size={13} className={selected ? "text-primary-foreground/80" : "text-terre"} aria-hidden="true" />
@@ -819,7 +977,7 @@ function SellerCard({ seller, selected, onClick, totalCount }: {
           <Store size={13} className={selected ? "text-primary-foreground/80" : "text-primary"} aria-hidden="true" />
         )}
         <span className={`text-[9px] font-bold uppercase tracking-wide ${metaCls}`}>
-          {seller ? (seller.maison ? "Marque maison" : "Institut partenaire") : "Tous les vendeurs"}
+          {seller ? "Institut partenaire" : "Tous les instituts"}
         </span>
       </span>
       <p className="mt-1 truncate font-heading text-xs font-bold leading-tight tracking-tight">{name}</p>
@@ -839,8 +997,8 @@ function ProductGrid({ items, onCardTap, burst }: {
   return (
     <Reveal className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
       {items.map((p) => (
- /* Wrapper relatif: le cœur est un FRÈRE de la carte (jamais de <button>
- imbriqué — HTML valide, focus/a11y propres), posé sur l'image en absolu. */
+        /* Wrapper relatif: le cœur est un FRÈRE de la carte (jamais de <button>
+        imbriqué — HTML valide, focus/a11y propres), posé sur l'image en absolu. */
         <RevealItem key={p.id} className="relative">
           <div className="k-card k-card-hover rounded-[24px] p-2.5 pb-2">
             <button
@@ -853,9 +1011,9 @@ function ProductGrid({ items, onCardTap, burst }: {
                 <img src={p.hasPhoto ? `/api/media/product/${p.id}` : p.image} alt={p.name} loading="lazy" className="aspect-square w-full rounded-[18px] object-cover" />
                 {/* Dégradé bas subtil — profondeur derrière le badge prix flottant */}
                 <div aria-hidden="true" className="absolute inset-0 rounded-[18px] bg-gradient-to-t from-black/25 via-transparent to-transparent" />
-                {/* Badge vendeur — l'institut (ou la maison) qui vend ce soin */}
-                <span className="absolute left-2 top-2 max-w-[75%] truncate rounded-full bg-[#1A1410]/72 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-[#F8F1E4] backdrop-blur-[2px]">
-                  {p.tenant?.name ?? "MAISON Kènè"}
+                {/* Badge vendeur — l'institut partenaire qui vend ce soin */}
+                <span className="absolute left-2 top-2 max-w-[calc(100%-48px)] truncate rounded-full bg-[#1A1410]/72 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-[#F8F1E4] backdrop-blur-[2px]">
+                  {p.tenant?.name ?? "Institut partenaire"}
                 </span>
                 {/* Burst double-tap — panier kente qui jaillit sous le doigt */}
                 {burst?.id === p.id && (
@@ -878,6 +1036,11 @@ function ProductGrid({ items, onCardTap, burst }: {
                 <span className="k-chip absolute bottom-2.5 left-2.5 rounded-full px-2.5 py-1 font-mono text-[11px] font-bold text-gold-text">{xof(p.price)}</span>
               </div>
               <div className="pt-2">
+                <div className="flex items-center gap-1 mb-1">
+                  <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 h-4 border font-medium", getCategoryToneBadgeClass(getProductCategoryMeta(p.category).tone))}>
+                    {getProductCategoryMeta(p.category).shortLabel}
+                  </Badge>
+                </div>
                 <p className="font-heading text-sm font-bold leading-tight tracking-tight line-clamp-2 min-h-9">{p.name}</p>
                 <p className="text-[10px] text-terre mt-1 truncate">{p.botanicals}</p>
               </div>
@@ -933,7 +1096,7 @@ function OrdersView({ orders, onRefresh, onShop }: { orders: ApiOrder[] | null; 
         <EmptyBlock
           icon={<History size={22} />}
           title="Aucune commande pour l'instant"
-          text="Tes commandes boutique s'enregistrent ici — articles, remises et cashback."
+          text="Tes commandes boutique s'enregistrent ici — articles, remises et suivi de livraison."
           cta={
             <button onClick={onShop} className="k-btn-gold h-11 rounded-xl px-6 text-sm font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary">
               Découvrir le catalogue
@@ -958,6 +1121,11 @@ function OrdersView({ orders, onRefresh, onShop }: { orders: ApiOrder[] | null; 
                 <div className="min-w-0">
                   <p className="font-mono text-xs font-bold tracking-wide">N° {o.id.slice(-6).toUpperCase()}</p>
                   <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{formatDate(o.createdAt)} · {formatTime(o.createdAt)}</p>
+                  {o.deliveryArea && (
+                    <p className="text-[10px] text-primary flex items-center gap-1 mt-1 truncate">
+                      <MapPin size={10} aria-hidden="true" /> {o.deliveryArea} {o.deliveryCity ? `· ${o.deliveryCity === "abidjan" ? "Abidjan" : "Dakar"}` : ""}
+                    </p>
+                  )}
                 </div>
                 <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${st.cls}`}>{st.label}</span>
               </div>
@@ -981,6 +1149,12 @@ function OrdersView({ orders, onRefresh, onShop }: { orders: ApiOrder[] | null; 
                     <span className="font-mono">−{xof(o.discount)}</span>
                   </div>
                 )}
+                {!!o.shippingFee && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span className="flex items-center gap-1"><Truck size={11} /> Livraison express</span>
+                    <span className="font-mono">+{xof(o.shippingFee)}</span>
+                  </div>
+                )}
                 {!!o.cashback && o.status !== "pending" && (
                   <div className="flex justify-between text-[#3F7D3F]">
                     <span>Cashback crédité</span>
@@ -993,9 +1167,25 @@ function OrdersView({ orders, onRefresh, onShop }: { orders: ApiOrder[] | null; 
                 </div>
               </div>
 
-              {o.status === "pending" && (
+              <div className="flex items-center justify-between gap-2 pt-0.5">
+                <a
+                  href={`/api/orders/invoice?id=${o.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 px-3 py-2 text-xs font-bold text-primary transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+                  aria-label={`Télécharger la facture PDF pour la commande N° ${o.id.slice(-6).toUpperCase()}`}
+                >
+                  <FileText size={14} aria-hidden="true" />
+                  <span>Facture / Reçu PDF</span>
+                </a>
+              </div>
+
+              {ORDER_DELIVERY_STATUSES[o.status] ? (
+                <p className="text-[10px] text-muted-foreground leading-snug">{ORDER_DELIVERY_STATUSES[o.status].description}</p>
+              ) : o.status === "pending" && (
                 <p className="text-[10px] text-muted-foreground leading-snug">Paiement mobile money à confirmer — la commande passera à « Payée » dès réception.</p>
               )}
+
             </div>
           </article>
           </RevealItem>

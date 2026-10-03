@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { guardUserClaim } from "@/lib/kene/session";
-import { seedOf } from "@/lib/kene/gold-threads";
+import { seedOf, computeBenefits } from "@/lib/kene/gold-threads";
 
 /** Échelons de rang — le vocabulaire du métier à tisser. */
 function rankOf(threads: number): string {
@@ -57,12 +57,18 @@ export async function GET(req: NextRequest) {
     const next = Math.ceil((threads + 1) / 5) * 5;
     const remaining = next - threads;
 
+    const benefits = computeBenefits(threads);
+    const nextBenefit = benefits.find((b) => !b.unlocked);
+    const nextReward = nextBenefit ? nextBenefit.reward : "Tous les privilèges royaux débloqués ✨";
+
     return NextResponse.json({
       threads,
       rank: rankOf(threads),
       items,
       seed: seedOf(userId),
       milestone: { next, remaining, progress: threads > 0 ? threads / next : 0 },
+      benefits,
+      nextReward,
     });
   } catch (err) {
     return serverError("gold-threads:get", err);

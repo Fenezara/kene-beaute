@@ -51,6 +51,8 @@ export async function GET(req: NextRequest) {
         skinType: client.skinType,
         fitzpatrick: client.fitzpatrick,
         notes: client.notes,
+        cosmeticsUsed: client.cosmeticsUsed,
+        productObservations: client.productObservations,
         appAccount: Boolean(client.userId),
         scansShared,
         scans: scans.map((s) => ({ zone: s.zone, score: s.scoreGlobal, date: s.createdAt.toISOString() })),

@@ -21,14 +21,9 @@ function notify() {
   }
 }
 
-/** Défaut: pointeur grossier (téléphone) → activé; souris → éteint. */
+/** Défaut: désactivé par défaut pour préserver une barre de navigation unique et épurée (activable dans Paramètres). */
 export function thumbModeDefault(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.matchMedia?.("(pointer: coarse)").matches ?? false;
-  } catch {
-    return false;
-  }
+  return false;
 }
 
 /** Snapshot synchrone (useSyncExternalStore). */

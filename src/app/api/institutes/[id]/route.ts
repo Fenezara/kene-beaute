@@ -50,9 +50,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       }),
       db.review.findMany({
         where: { tenantId: id },
-        include: { user: { select: { name: true } } },
+        include: {
+          user: { select: { name: true } },
+          appointment: { select: { service: { select: { name: true } } } },
+        },
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: 30,
       }),
     ]);
 
@@ -69,7 +72,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       // part jamais dans le payload, /api/media/service/:id la sert.
       services: services.map(({ photoData: pd, ...s }) => ({ ...s, hasPhoto: Boolean(pd) })),
       resources,
-      reviews,
+      reviews: reviews.map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        createdAt: r.createdAt.toISOString(),
+        user: r.user ? { name: r.user.name } : null,
+        serviceName: r.appointment?.service?.name ?? null,
+      })),
     });
   } catch (err) {
     return serverError("institutes/[id]", err);

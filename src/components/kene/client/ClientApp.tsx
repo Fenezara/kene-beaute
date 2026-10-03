@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
 import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
 import { formatTime } from "@/lib/kene/format";
-import { KeneEmblem, KeneEmblemLockup, NeaOnnimIcon } from "@/components/kene/icons";
+import { KeneEmblem, KeneEmblemLockup, KeneMark, NeaOnnimIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { AuroraBackdrop, IconBadge } from "@/components/kene/ui2026";
 import { useKene, type ClientTab } from "@/store/kene";
@@ -32,6 +32,8 @@ import { HomeScreen } from "./HomeScreen";
 import { ProfileScreen } from "./ProfileScreen";
 import { ScreenBoundary } from "./ScreenBoundary";
 import { BootSkeleton } from "./BootSkeleton";
+import { PaymentReturnHandler } from "./PaymentReturnHandler";
+import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { cn } from "@/lib/utils";
 
 /** Navigation latérale (desktop) — libellés façon Instagram web.
@@ -146,9 +148,6 @@ export function ClientApp() {
   const pullStart = useRef<{ y: number; x: number; atTop: boolean } | null>(null);
   const wasRefreshing = useRef(false);
 
-  // ─── Swipe horizontal entre onglets (TikTok) ───
-  const swipeStart = useRef<{ x: number; y: number; ok: boolean } | null>(null);
-
   // ─── Direction de transition (sens de navigation) + connectivité ───
   const [navDir, setNavDir] = useState<1 | -1>(1);
   const [online, setOnline] = useState(true);
@@ -164,6 +163,21 @@ export function ClientApp() {
       window.removeEventListener("offline", update);
     };
   }, []);
+
+  // Deep-linking / Raccourcis PWA (shortcuts) : ouverture directe d'un onglet via ?tab=...
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const targetTab = params.get("tab")?.toLowerCase();
+      const VALID_TABS: ClientTab[] = ["accueil", "diagnostic", "boutique", "rdv", "chat", "profil", "parametres", "abonnement", "legal"];
+      if (targetTab && VALID_TABS.includes(targetTab as ClientTab)) {
+        setClientTab(targetTab as ClientTab);
+      }
+    } catch {
+      // noop
+    }
+  }, [setClientTab]);
 
   // File d'attente offline du diagnostic: les photos mises en
   // attente partent TOUTES SEULES au retour du réseau — peu importe l'écran
@@ -236,14 +250,13 @@ export function ClientApp() {
   }
 
   // ─── Gestes tactiles du conteneur de flux ───
+  // Note : Le balayage horizontal (swipe gauche/droite) est désactivé
+  // pour empêcher tout changement intempestif de page lors du défilement.
+  // Seul le tirage vertical d'actualisation (pull-to-refresh) est conservé.
   const onTouchStart = (e: React.TouchEvent) => {
     const el = scrollRef.current;
     const t = e.touches[0];
     pullStart.current = { y: t.clientY, x: t.clientX, atTop: !el || el.scrollTop <= 0 };
-    // le swipe est ignoré s'il démarre dans une rangée horizontale scrollable
-    const target = e.target as HTMLElement;
-    const inScrollRow = !!target.closest("[data-scroll-row]");
-    swipeStart.current = { x: t.clientX, y: t.clientY, ok: !inScrollRow };
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
@@ -257,8 +270,8 @@ export function ClientApp() {
     setPull(Math.min(dy / 2.2, 96)); // résistif: l'icône s'alourdit en fin de course
   };
 
-  const onTouchEnd = (e: React.TouchEvent) => {
-    // 1) fin de tirage → actualisation si seuil franchi
+  const onTouchEnd = () => {
+    // Fin de tirage → actualisation si seuil franchi
     const dist = pull;
     pullStart.current = null;
     if (dist > 56) {
@@ -269,22 +282,6 @@ export function ClientApp() {
       setRefreshKey((k) => k + 1);
     } else {
       setPull(0);
-    }
-    // 2) swipe horizontal → onglet voisin
-    const s = swipeStart.current;
-    swipeStart.current = null;
-    if (!s || !s.ok || refreshing) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - s.x;
-    const dy = t.clientY - s.y;
-    if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
-    const idx = SWIPE_ORDER.indexOf(tab as ClientTab);
-    if (idx < 0) return;
-    const next = dx < 0 ? SWIPE_ORDER[idx + 1] : SWIPE_ORDER[idx - 1];
-    if (next) {
-      setNavDir(dx < 0 ? 1 : -1);
-      haptic(HAPTIC.tap);
-      setClientTab(next);
     }
   };
 
@@ -330,19 +327,14 @@ export function ClientApp() {
       {/* ───────── Rail latéral tablette + desktop (md+) — chrome verre ───────── */}
       <aside
         aria-label="Navigation principale"
-        className="hidden md:flex w-[84px] xl:w-[248px] shrink-0 flex-col k-chrome"
+        className="hidden md:flex w-[240px] xl:w-[260px] shrink-0 flex-col k-chrome"
       >
-        <div className="h-16 flex items-center px-4 xl:px-5 border-b border-border/60">
-          {/* Lockup Sceau 2026 — emblème + wordmark en xl, emblème seul en md */}
-          <span className="hidden xl:block">
-            <KeneEmblemLockup size={44} sublabel="Beauté mélanoderme" />
-          </span>
-          <span className="xl:hidden mx-auto">
-            <KeneEmblem size={44} />
-          </span>
+        <div className="h-16 lg:h-18 flex items-center px-4 lg:px-5 border-b border-border/60">
+          {/* Lockup Sceau officiel en haut à gauche — Logo + Nom + Slogan toujours visibles */}
+          <KeneEmblemLockup size={48} labelSize={24} sublabel="Beauté mélanoderme" />
         </div>
 
-        <nav className="flex-1 overflow-y-auto pretty-scroll px-2.5 xl:px-4 py-4 flex flex-col gap-1.5">
+        <nav className="flex-1 overflow-y-auto pretty-scroll px-3 py-4 flex flex-col gap-1.5">
           {NAV_DESKTOP.map((n) => {
             const active = tab === n.tab;
             const Icon = n.icon;
@@ -353,14 +345,12 @@ export function ClientApp() {
                   onClick={() => goTab(n.tab)}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "k-cta flex flex-col items-center gap-1 py-2.5 rounded-2xl text-[#FFF9EC] focus-visible:outline-2 focus-visible:outline-primary",
-                    "xl:flex-row xl:items-center xl:justify-start xl:gap-3 xl:px-3 xl:h-12",
+                    "k-cta flex flex-row items-center justify-start gap-3 px-3 h-12 rounded-2xl text-[#FFF9EC] focus-visible:outline-2 focus-visible:outline-primary",
                     active && "outline-2 outline-[#FFF9EC]/80",
                   )}
                 >
-                  <NeaOnnimIcon size={22} className="xl:hidden" />
-                  <NeaOnnimIcon size={19} className="hidden xl:block" />
-                  <span className="text-[10px] xl:text-sm font-semibold xl:font-bold tracking-wide">{t(n.labelKey)}</span>
+                  <NeaOnnimIcon size={20} />
+                  <span className="text-sm font-bold tracking-wide">{t(n.labelKey)}</span>
                 </button>
               );
             }
@@ -371,14 +361,12 @@ export function ClientApp() {
                 aria-current={active ? "page" : undefined}
                 aria-label={`${t(n.labelKey)}${n.tab === "chat" && chatUnread ? " — 1 nouveau message" : ""}${n.tab === "boutique" && cartCount > 0 ? ` — ${cartCount} article${cartCount > 1 ? "s" : ""} au panier` : ""}`}
                 className={cn(
-                  "relative flex flex-col xl:flex-row items-center justify-center xl:justify-start gap-1 xl:gap-3.5 py-2.5 xl:py-0 xl:h-12 xl:px-3 rounded-2xl transition-colors focus-visible:outline-2 focus-visible:outline-primary",
+                  "relative flex flex-row items-center justify-start gap-3.5 h-12 px-3 rounded-2xl transition-colors focus-visible:outline-2 focus-visible:outline-primary",
                   active ? "bg-primary/12 text-primary" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
                 )}
               >
                 <span className="relative">
-                  {/* md: squircle teinté (IconBadge); xl: icône nue alignée au libellé */}
-                  <Icon className={cn("hidden xl:block size-[22px]", active && "font-bold")} />
-                  <IconBadge icon={<Icon className="size-[22px]" />} className="xl:hidden" />
+                  <Icon className={cn("size-[22px]", active && "font-bold")} />
                   {n.tab === "chat" && chatUnread && (
                     <span className="absolute -top-1 -right-1.5 h-2.5 w-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-card" aria-hidden="true" />
                   )}
@@ -394,19 +382,21 @@ export function ClientApp() {
                     </motion.span>
                   )}
                 </span>
-                <span className={cn("text-[10px] xl:text-[15px]", active ? "font-bold" : "font-medium")}>{t(n.labelKey)}</span>
-                {active && <motion.span layoutId="side-indicator" className="k-rail-line hidden xl:block absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full" aria-hidden="true" />}
+                <span className={cn("text-[14px] xl:text-[15px]", active ? "font-bold" : "font-medium")}>{t(n.labelKey)}</span>
+                {active && <motion.span layoutId="side-indicator" className="k-rail-line absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full" aria-hidden="true" />}
               </button>
             );
           })}
         </nav>
 
-        {/* Bas de sidebar: micro légal (l'isolation des comptes a
- retiré la bascule libre vers les espaces Pro/Admin — chaque compte
- n'accède qu'à son propre espace). */}
-        <div className="border-t border-border/60 p-2.5 xl:p-4">
-          <p className="hidden xl:block px-3 pt-2 text-[10px] leading-relaxed text-muted-foreground/70">
-            Kènè — paiements en mode essai · estimations IA non médicales
+        {/* Bas de sidebar: sélecteur d'interface + micro légal */}
+        <div className="border-t border-border/60 p-3 xl:p-4 space-y-3">
+          <div className="space-y-1.5">
+            <span className="text-[10px] uppercase font-bold text-muted-foreground/80 tracking-wider">Interfaces Kènè</span>
+            <SpaceSwitcher variant="pills" className="w-full justify-between" />
+          </div>
+          <p className="px-1 text-[10px] leading-relaxed text-muted-foreground/70">
+            Kènè — paiements sécurisés Mobile Money & Carte · estimations IA non médicales
           </p>
         </div>
       </aside>
@@ -414,22 +404,23 @@ export function ClientApp() {
       {/* ───────── Colonne principale ───────── */}
       <div className="relative flex-1 min-w-0 flex flex-col h-full">
         {/* Header unique responsive: mobile = logo + actions; desktop = titre + actions.
- k-chrome = verre blur+saturate (le CSS gère le filet et l'ombre). */}
-        <header className="shrink-0 z-40 k-chrome">
+ k-chrome = verre blur+saturate (le CSS gère le filet et l'ombre). Safe-area mobile garantie (≥ 36px). */}
+        <header className="shrink-0 z-40 k-chrome pt-8 sm:pt-4 md:pt-0 [padding-top:max(env(safe-area-inset-top,0px),2.25rem)] md:[padding-top:env(safe-area-inset-top,0px)]">
           <div className="h-14 sm:h-16 flex items-center justify-between gap-2 px-3 sm:px-5">
-            <div className="md:hidden">
-              {/* Lockup Sceau 2026 — le Médaillon Kènè sur chaque écran mobile */}
-              <KeneEmblemLockup size={36} labelSize={19} />
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="md:hidden shrink-0">
+                {/* Lockup Sceau officiel — le Médaillon Kènè + nom + devise responsive */}
+                <KeneEmblemLockup size={38} labelSize={19} sublabel={<span className="hidden sm:inline">Beauté mélanoderme</span>} />
+              </div>
+              <div className="hidden md:flex items-baseline gap-2.5 min-w-0 flex-1 overflow-hidden">
+                <h1 className="font-heading font-bold tracking-tight text-lg xl:text-xl truncate text-foreground">{t(TITLES[tab])}</h1>
+                <p className="text-xs font-semibold text-gold-text dark:text-[#E3B04B] truncate hidden lg:inline">
+                  {tab === "accueil" ? "Tableau de bord cutané & soins" : tab === "chat" ? "Éducation cutanée · en ligne" : "Kènè — Beauté mélanoderme"}
+                </p>
+              </div>
             </div>
-            {/* h1 de vue: présent pour les lecteurs d'écran à TOUS les formats
- (sr-only mobile, visible md+ — un seul h1 par vue) */}
-            <div className="flex items-baseline gap-2.5 min-w-0">
-              <h1 className="sr-only md:not-sr-only md:font-heading md:font-bold md:tracking-tight md:text-lg xl:text-xl truncate">{t(TITLES[tab])}</h1>
-              <p className="hidden xl:block text-[11px] text-muted-foreground truncate">
-                {tab === "accueil" ? `${t("home.greeting")} ${first} ✨` : tab === "chat" ? "Éducation cutanée · en ligne" : "Kènè — la beauté mélanoderme"}
-              </p>
-            </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              <SpaceSwitcher variant="compact" />
               {/* Cloche notifications: flux temps réel (notify-service) —
  lazy: socket.io + Sheet chargés dans leur propre chunk */}
               <Suspense fallback={<BellLoading />}>
@@ -467,13 +458,13 @@ export function ClientApp() {
         </header>
 
         {/* Zone de flux — scroll interne (l'app ne scrolle jamais le document)
- Gestes: tirer-actualiser + balayage horizontal entre onglets (tactile) */}
+            Gestes: tirer-actualiser vertical uniquement. Balayage horizontal verrouillé (touch-pan-y, overscroll-x-none). */}
         <div
           ref={scrollRef}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
-          className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain pretty-scroll"
+          className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain overscroll-x-none touch-pan-y pretty-scroll"
         >
           {/* Indicateur pull-to-refresh (Instagram) — icône qui descend avec le doigt */}
           {(pull > 0 || refreshing) && (
@@ -565,7 +556,7 @@ export function ClientApp() {
         {/* ───────── Tab-bar mobile flottante — chrome verre 2026 + blob actif ───────── */}
         <nav
           aria-label="Navigation principale mobile"
-          className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom)]"
+          className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]"
         >
           <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-5 h-[64px] rounded-[30px] k-chrome">
             {NAV_MOBILE.map((n) => {
@@ -680,12 +671,15 @@ export function ClientApp() {
           {/* Mentions légales */}
           <div className="mt-auto k-card rounded-[24px] p-4 text-[11px] leading-relaxed text-muted-foreground">
             <p className="font-heading font-bold text-xs text-foreground/80 mb-1.5">Kènè — v1.0</p>
-            <p>Paiements Wave / Orange Money en mode essai · estimations IA non médicales.</p>
-            <p className="mt-1">Conforme CNPS CI / IPM SN / SYSCOHADA.</p>
+            <p>Paiements sécurisés Mobile Money &amp; Carte · estimations IA non médicales.</p>
+            <p className="mt-1">Données personnelles protégées · Soins dermo-cosmétiques certifiés.</p>
             <p className="mt-2 font-heading text-primary">« La beauté mélanoderme, enfin comprise. »</p>
           </div>
         </aside>
       )}
+
+      {/* Célébration & Réconciliation automatique au retour de WiniPayer / Wave */}
+      <PaymentReturnHandler />
     </div>
   );
 }

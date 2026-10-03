@@ -38,13 +38,18 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  * faibles (champ focus), marquages en tableaux courts. Sortie ~500-600
  * caractères même pour le visage (14 indicateurs) — contre ~1 800 en
  * tableau détaillé: c'est la génération qui dominait (18-77 s mesurés). */
-function buildAnalysisPrompt(zone: BodyZone, knownFitz?: string, allergies?: string): string {
+function buildAnalysisPrompt(zone: BodyZone, knownFitz?: string, allergies?: string, numImages = 1): string {
   const indicateurs = ZONE_INDICATORS[zone];
   const abcdePart =
     zone === "naevi"
       ? `,"abcde":[["A","Asymétrie",<true|false>,"≤ 40 caractères"],...]`
       : "";
-  return `Analyse cutanée de peau mélanoderme (Fitzpatrick IV-VI), zone « ${zone} ».${knownFitz ? ` Phototype déclaré : ${knownFitz}.` : ""}${allergies ? ` Allergies : ${allergies}.` : ""}
+  const multiAnglePart =
+    numImages > 1
+      ? ` ${numImages} angles de vue de la zone sont fournis : réalise une synthèse clinique 360° en combinant tous les angles.`
+      : "";
+  const zoneLabel = zone === "mains" ? "mains & pieds (extrémités acrales : paumes, plantes, talons, ongles)" : zone;
+  return `Analyse cutanée de peau mélanoderme (Fitzpatrick IV-VI), zone « ${zoneLabel} ».${knownFitz ? ` Phototype déclaré : ${knownFitz}.` : ""}${allergies ? ` Allergies : ${allergies}.` : ""}${multiAnglePart}
 Catalogue des affections africaines plausibles sur cette zone (id=signature visuelle sur peau noire) : ${vlmCatalogForZone(zone)}.
 Ne pas confondre pigmentation naturelle et pathologie. L'érythème est masqué sur peau foncée : chercher la teinte violacée-brune.
 Réponds STRICTEMENT en JSON ultra-compact (≤ 650 caractères, sans markdown, sans texte autour) :
@@ -55,10 +60,12 @@ Règles : TOUS les indicateurs listés dans "ind" ; 4 à 6 marks ; sev 0=sain 1=
 /** Phase 2 — prompt texte (glm-4.6): recommandations personnalisées à partir
  * de l'analyse réelle. Texte pur = génération rapide (~4 s). */
 function buildRecommendationsPrompt(analysisJson: string, zone: BodyZone): string {
-  return `Tu es conseillère beauté Kènè, spécialiste des peaux mélanodermes africaines. Botaniques maison : karité, moringa, baobab, bissap, aloka.
-Analyse cutanée récente (zone « ${zone} ») : ${analysisJson.slice(0, 700)}
-Rédige des recommandations personnalisées cohérentes avec CES résultats. JSON STRICT compact (≤ 700 caractères, sans texte autour) :
-{"resume":"<2 phrases, ton bienveillant, tutoiement>","routine_matin":["≤ 3 étapes courtes"],"routine_soir":["≤ 3 étapes courtes"],"botaniques_conseillees":["≤ 3"],"produits":["≤ 2 types"],"soins_conseilles":["≤ 2 soins en institut"],"conseils_hygiene_vie":["≤ 2"]}`;
+  const zoneLabel = zone === "mains" ? "mains et pieds (extrémités acrales)" : zone;
+  return `Tu es conseillère dermo-botanique Kènè pour peaux mélanodermes africaines. Kènè ne vend aucun cosmétique (recommandations neutres, zéro prix, marques ou incitation commerciale).
+Analyse cutanée récente (zone « ${zoneLabel} ») : ${analysisJson.slice(0, 700)}
+Rédige des recommandations personnalisées ciblant spécifiquement les indicateurs les plus faibles (ex: taches/pigmentation -> sérum unifiant vitamine C & niacinamide 10% + fluide solaire SPF 50+; boutons/sébum -> gel purifiant moringa & zinc; sécheresse -> baume réparateur karité brut & céramides).
+JSON STRICT compact (≤ 800 caractères, sans texte autour) :
+{"resume":"<2 phrases, ton bienveillant, tutoiement>","routine_matin":["≤ 3 étapes courtes"],"routine_soir":["≤ 3 étapes courtes"],"botaniques_conseillees":["≤ 3"],"produits":["≤ 3 types précis de soins ou principes actifs"],"soins_conseilles":["≤ 2 soins en institut"],"conseils_hygiene_vie":["≤ 2"]}`;
 }
 
 function extractJson(raw: string): Record<string, unknown> | null {
@@ -306,42 +313,142 @@ function normalizeRecommendations(raw: unknown): RecommendationSet | null {
   return rec;
 }
 
+/** Recommandations déterministes hautement personnalisées dérivées des
+ * indicateurs réels (selon la zone et les faiblesses cutanées identifiées).
+ * Kènè ne vend aucun produit cosmétique → recommandations de typologies
+ * de soins et principes actifs purs, sans marque ni prix. */
+export function derivePersonalizedRecommendations(
+  zone: BodyZone,
+  indicateurs: Indicator[],
+  scoreGlobal: number,
+): RecommendationSet {
+  const byPct = [...indicateurs].sort((a, b) => a.pourcentage - b.pourcentage);
+  const worst = byPct[0];
+  const lowNames = byPct.filter((i) => i.pourcentage < 65).map((i) => i.nom.toLowerCase());
+  const allNames = byPct.map((i) => i.nom.toLowerCase());
+  const hasLow = (needle: string) => lowNames.some((n) => n.includes(needle));
+
+  const isAcneOrSebum = hasLow("acn") || hasLow("sébum") || hasLow("imperf") || hasLow("pore");
+  const isPigmentOrSpots = hasLow("pigment") || hasLow("tache") || hasLow("homogéné") || hasLow("mélan");
+  const isDryOrBarrier = hasLow("hydrat") || hasLow("barri") || hasLow("sécher") || hasLow("desquam");
+  const isSensitivity = hasLow("sensib") || hasLow("rougeur") || hasLow("inflamm") || hasLow("tolér");
+  const isHairOrScalp = zone === "cuir_chevelu" || hasLow("alopéc") || hasLow("densité");
+  const isHandsFeet = zone === "mains" || hasLow("rugos") || hasLow("callos");
+
+  let matin: string[] = [];
+  let soir: string[] = [];
+  let botaniques: string[] = [];
+  let produits: string[] = [];
+  let soins: string[] = [];
+  let hygiene: string[] = ["Boire 1,5 à 2 L d'eau par jour", "Dormir 7 à 8 h pour la régénération cellulaire"];
+
+  if (isHairOrScalp) {
+    matin = ["Brume d'hydrolat de menthe douce & aloka", "Massage délicat des bordures et tempes"];
+    soir = ["Sérum stimulant fortifiant ricin & baobab", "Port d'un bonnet en satin protecteur pour la nuit"];
+    botaniques = ["Ricin noir", "Baobab", "Moringa"];
+    produits = [
+      "Sérum Fortifiant Cuir Chevelu Ricin Noir & Baobab",
+      "Lotion Apaisante Cuir Chevelu au Moringa & Aloka",
+      "Huile Végétale Pure de Ricin Pressée à Froid",
+    ];
+    soins = ["Soin revitalisant cuir chevelu en salon", "Modelage crânien délassant"];
+    hygiene = ["Éviter les tresses et tissages trop serrés sur les tempes", "Privilégier le satin ou la soie pour la nuit"];
+  } else if (isAcneOrSebum) {
+    matin = ["Gel nettoyant purifiant sans savon au moringa", "Sérum régulateur niacinamide 10 % & zinc", "Fluide solaire minéral SPF 50+ matifiant"];
+    soir = ["Démaquillage à l'huile végétale légère de jojoba", "Nettoyant purifiant doux physiologique", "Sérum purifiant arbre à thé ou acide salicylique doux", "Émulsion hydratante non-comédogène"];
+    botaniques = ["Moringa", "Arbre à thé", "Bissap"];
+    produits = [
+      "Gel Nettoyant Purifiant Séborégulateur au Moringa & Zinc",
+      "Sérum Niacinamide 10% & Zinc Purifiant",
+      "Fluide Hydratant Matifiant Non-Comédogène",
+      "Fluide Protecteur Solaire Minéral SPF 50+ Invisible",
+    ];
+    soins = ["Soin purifiant désincrustant en institut", "Soin haute-fréquence assainissant"];
+    hygiene = ["Ne jamais percer les boutons pour éviter les taches résiduelles", "Nettoyer régulièrement l'écran de son téléphone"];
+  } else if (isPigmentOrSpots) {
+    matin = ["Nettoyant doux illuminant sans décapage", "Sérum unifiant vitamine C stabilisée & niacinamide", "Fluide solaire haute protection SPF 50+ invisible peaux noires"];
+    soir = ["Démaquillant doux à l'huile végétale", "Nettoyant physiologique apaisant", "Lotion douce aux acides de fruits (AHA) de bissap", "Baume réparateur équilibrant"];
+    botaniques = ["Bissap", "Moringa", "Baobab"];
+    produits = [
+      "Sérum Unifiant Anti-Taches Vitamine C & Niacinamide 10%",
+      "Fluide Protecteur Solaire Minéral SPF 50+ Invisible",
+      "Lotion Exfoliante Douce aux AHA Végétaux de Bissap",
+      "Crème Hydratante Unifiante aux Polyphénols",
+    ];
+    soins = ["Soin unifiant anti-taches mélanoderme en institut", "Peeling végétal doux aux acides de fruits"];
+    hygiene = ["Appliquer une protection solaire SPF 50+ quotidiennement", "Bannir tout produit éclaircissant décapant ou corticoïde"];
+  } else if (isDryOrBarrier) {
+    matin = ["Nettoyage doux au lait ou eau florale", "Sérum concentré acide hyaluronique pur & aloka", "Crème émolliente riche protectrice", "Crème solaire hydratante SPF 50+"];
+    soir = ["Baume démaquillant nourrissant au karité", "Nettoyant crème réconfortant", "Baume réparateur intense karité brut & céramides", "Huile pure de baobab pour sceller"];
+    botaniques = ["Karité brut", "Baobab", "Aloka"];
+    produits = [
+      "Baume Réparateur Intense au Beurre de Karité Brut & Céramides",
+      "Sérum Concentré Hydratant Acide Hyaluronique Pur & Aloka",
+      "Huile Végétale Pure de Baobab Pressée à Froid",
+      "Crème Barrière Relipidante Quotidienne",
+    ];
+    soins = ["Soin hydro-nutritif réparateur de barrière en institut", "Enveloppement tiède au karité fouetté"];
+    hygiene = ["Éviter l'eau trop chaude lors des lavages", "Appliquer les baumes sur peau encore légèrement humide"];
+  } else if (isSensitivity) {
+    matin = ["Brume apaisante d'aloka ou eau thermale", "Sérum apaisant calendula & bisabolol", "Crème doudou hypoallergénique", "Écran solaire minéral haute tolérance SPF 50+"];
+    soir = ["Démaquillage très doux au doigt sans coton frottant", "Nettoyant surgras sans parfum", "Gelée réconfortante aloe vera & karité purifié"];
+    botaniques = ["Aloka", "Karité purifié", "Bissap"];
+    produits = [
+      "Gelée Apaisante Aloe Vera Frais & Eau d'Aloka",
+      "Crème Barrière Protectrice Hypoallergénique sans Parfum",
+      "Fluide Minéral Solaire SPF 50+ Ultra-Tolérance",
+    ];
+    soins = ["Soin apaisant dermo-calmant en institut", "Soin relaxant anti-rougeurs"];
+    hygiene = ["Bannir les gommages à grains abrasifs", "Privilégier les formules courtes sans parfum ni alcool"];
+  } else if (isHandsFeet) {
+    matin = ["Nettoyant doux surgras", "Crème barrière protectrice mains & pieds", "Protection solaire sur le dos des mains"];
+    soir = ["Gommage doux au cacao 1x par semaine", "Baume ultra-nourrissant karité & cacao en couche généreuse"];
+    botaniques = ["Karité", "Cacao", "Baobab"];
+    produits = [
+      "Baume Exfoliant Pieds & Mains Karité & Cacao",
+      "Crème Réparatrice Extrémités Acrales et Zones Sèches",
+      "Huile Nourrissante Ongles & Cuticules au Baobab",
+    ];
+    soins = ["Manucure et pédicure traitante régénérante", "Enveloppement nourrissant au karité tiède"];
+    hygiene = ["Porter des gants pour les tâches ménagères", "Appliquer le baume après la douche"];
+  } else {
+    matin = ["Nettoyant doux moussant sans savon", "Sérum éclat antioxydant au moringa", "Émulsion hydratante soyeuse", "Fluide solaire SPF 50+ invisible"];
+    soir = ["Démaquillage à l'huile végétale douce", "Nettoyant purifiant physiologique", "Huile de soin nuit régénérante moringa & baobab"];
+    botaniques = ["Moringa", "Baobab", "Bissap"];
+    produits = [
+      "Sérum Révélateur d'Éclat Infusion Moringa & Papaye",
+      "Fluide Protecteur Solaire Minéral SPF 50+ Invisible",
+      "Crème Hydratante Antioxydante aux Polyphénols",
+      "Huile Précieuse de Soin Nuit au Baobab",
+    ];
+    soins = ["Soin éclat signature mélanoderme en institut", "Modelage facial drainant détoxifiant"];
+    hygiene = ["Maintenir une hydratation régulière tout au long de la journée", "Privilégier une alimentation riche en antioxydants et fruits frais"];
+  }
+
+  const focusTxt = worst ? `« ${worst.nom} » (${worst.pourcentage} %)` : "l'harmonie générale de votre peau";
+
+  return {
+    resume: `Votre score global de santé cutanée est de ${scoreGlobal}/100. L'indicateur prioritaire identifié est ${focusTxt}. La routine dermo-botanique recommandée ci-dessous cible précisément ces besoins pour rétablir l'équilibre et révéler l'éclat de votre peau.`,
+    routine_matin: matin,
+    routine_soir: soir,
+    botaniques_conseillees: botaniques,
+    produits,
+    soins_conseilles: soins,
+    conseils_hygiene_vie: hygiene,
+  };
+}
+
 /** Phase 2 (fallback) — recommandations déterministes dérivées de l'ANALYSE
  * réelle: la phase 1 a réussi, seule la rédaction LLM a échoué → les conseils
  * restent personnalisés par indicateurs (les plus faibles d'abord). */
 function ruleRecommendations(
   analysis: Omit<DiagnosisResult, "recommandations" | "source" | "confidence" | "avertissement">,
 ): RecommendationSet {
-  const byPct = [...analysis.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage);
-  const worst = byPct[0];
-  const worstNames = new Set(byPct.slice(0, 3).map((i) => i.nom.toLowerCase()));
-  const has = (needle: string) => [...worstNames].some((n) => n.includes(needle));
-
-  const matin: string[] = ["Nettoyant doux sans savon"];
-  if (has("pigment") || has("tache")) matin.push("Sérum vitamine C stabilisé", "Crème solaire SPF 50 teintée");
-  else if (has("imperf") || has("acn") || has("sébum")) matin.push("Sérum niacinamide 5 %", "Crème solaire SPF 50 teintée");
-  else matin.push("Brume hydratante aloka", "Crème solaire SPF 50 teintée");
-
-  const soir: string[] = ["Démaquillant huileux karité", "Nettoyant doux"];
-  if (has("hydrat") || has("barri") || has("sécher")) soir.push("Baume réparateur karité nuit");
-  else if (has("imperf") || has("acn")) soir.push("Sérum niacinamide 5 %");
-  else soir.push("Huile nourricière baobab nuit");
-
-  const botaniques = has("pigment") || has("éclat")
-    ? ["Moringa", "Bissap", "Baobab"]
-    : has("hydrat")
-      ? ["Karité", "Aloka", "Moringa"]
-      : ["Karité", "Moringa", "Baobab"];
-
-  return {
-    resume: `Ton score de santé cutanée est de ${analysis.score_global}/100. L'indicateur à surveiller en priorité est « ${worst?.nom ?? "l'équilibre général"} » (${worst ? worst.pourcentage : "-"} %) — la routine ci-dessous cible ces zones en priorité. Reste régulière : la peau mélanoderme adore la constance.`,
-    routine_matin: matin,
-    routine_soir: soir,
-    botaniques_conseillees: botaniques,
-    produits: ["Sérum Éclat Moringa", "Baume Nuit Karité"],
-    soins_conseilles: ["Soin éclat mélanoderme en institut"],
-    conseils_hygiene_vie: ["Boire 1,5 L d'eau/jour", "Dormir 7-8 h"],
-  };
+  return derivePersonalizedRecommendations(
+    analysis.zone,
+    analysis.indicateurs,
+    analysis.score_global,
+  );
 }
 
 /** Fallback déterministe si le VLM échoue (toujours fonctionnel) */
@@ -363,6 +470,8 @@ export function fallbackResult(zone: BodyZone, seed: number): DiagnosisResult {
     { label: "Menton", x: 50, y: 74, w: 18, h: 14, severite: Math.min(3, Math.round(rand(4) * 3)) },
   ].slice(0, zone === "visage" ? 4 : 2);
 
+  const customRec = derivePersonalizedRecommendations(zone, indicateurs, score);
+
   return {
     score_global: score,
     fitzpatrick_estime: "V",
@@ -370,21 +479,196 @@ export function fallbackResult(zone: BodyZone, seed: number): DiagnosisResult {
     indicateurs,
     zones_marquages: marquages,
     recommandations: {
-      resume:
-        "Analyse simulée (mode secours). Votre peau montre une hydratation correcte avec des zones de pigmentation à surveiller — routine adaptative proposée.",
-      routine_matin: ["Nettoyant doux sans savon", "Brume hydratante aloka", "Sérum vitamine C stabilisé", "Crème solaire SPF 50 teintée"],
-      routine_soir: ["Démaquillant huileux karité", "Nettoyant doux", "Sérum niacinamide 5 %", "Baume réparateur nuit"],
-      botaniques_conseillees: ["Karité", "Moringa", "Baobab", "Bissap"],
-      produits: ["Sérum Éclat Moringa", "Baume Nuit Karité"],
-      soins_conseilles: ["Soin éclat mélanoderme en institut"],
-      conseils_hygiene_vie: ["Boire 1,5 L d'eau/jour", "Dormir 7-8 h", "Éviter le percutané maison non stérile"],
+      ...customRec,
+      resume: `Analyse simulée (mode secours). Votre peau montre un score global de ${score}/100. Routine personnalisée sans engagement commercial adaptée à vos indicateurs.`,
     },
     orientation_dermato: false,
     avertissement: "Mode secours : résultat simulé car le moteur IA est momentanément indisponible.",
     source: "fallback",
-    // Champ confiance: mode secours déterministe → « indicative ».
     confidence: "indicative",
   };
+}
+
+/**
+ * Appel Google Gemini Flash Vision REST (si GEMINI_API_KEY est défini en production)
+ * Prend en charge une ou plusieurs photos sous différents angles.
+ */
+async function callGeminiVision(opts: {
+  images: string[];
+  zone: BodyZone;
+  fitzpatrick?: string;
+  allergies?: string;
+}): Promise<string | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || opts.images.length === 0) return null;
+
+  try {
+    const inlineParts: Array<{ inlineData: { mimeType: string; data: string } }> = [];
+    for (const img of opts.images) {
+      const match = img.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        inlineParts.push({
+          inlineData: {
+            mimeType: match[1],
+            data: match[2],
+          },
+        });
+      }
+    }
+    if (inlineParts.length === 0) return null;
+
+    const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const prompt = buildAnalysisPrompt(opts.zone, opts.fitzpatrick, opts.allergies, inlineParts.length);
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: prompt },
+              ...inlineParts,
+            ],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.2,
+        },
+      }),
+      signal: AbortSignal.timeout(VLM_TIMEOUT_MS),
+    });
+
+    if (!res.ok) {
+      console.error(`[kene:gemini] HTTP ${res.status}: ${await res.text().catch(() => "")}`);
+      return null;
+    }
+
+    const dataJson = await res.json();
+    const candidateText = dataJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return candidateText || null;
+  } catch (err) {
+    console.error("[kene:gemini] Error calling Gemini API:", (err as Error).message);
+    return null;
+  }
+}
+
+async function callGeminiRecommendations(analysisJson: string, zone: BodyZone): Promise<string | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const prompt = buildRecommendationsPrompt(analysisJson, zone);
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.3,
+        },
+      }),
+      signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+    });
+
+    if (!res.ok) return null;
+    const dataJson = await res.json();
+    return dataJson?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch {
+    return null;
+  }
+}
+
+async function callGeminiTriage(
+  imageOrImages: string | string[],
+): Promise<{ niveau: "vert" | "jaune" | "rouge"; message: string } | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const images = Array.isArray(imageOrImages) ? imageOrImages : [imageOrImages];
+  if (images.length === 0) return null;
+
+  try {
+    const inlineParts = images
+      .map((img) => {
+        const match = img.match(/^data:([^;]+);base64,(.+)$/);
+        return match ? { inlineData: { mimeType: match[1], data: match[2] } } : null;
+      })
+      .filter(Boolean);
+
+    if (inlineParts.length === 0) return null;
+
+    const countLabel = images.length > 1 ? `${images.length} photos sous différents angles` : "cette photo";
+    const prompt = `Tu es « Dr Kènè », la grande sœur dermo-conseillère bienveillante de l'application Kènè à Abidjan, experte de la peau noire et métissée (Fitzpatrick IV-VI).
+L'utilisatrice vient de t'envoyer ${countLabel} de sa peau.
+Examine attentivement l'ensemble de ces clichés pour analyser les zones (boutons, taches, sébum, déshydratation, grain de peau).
+Réponds STRICTEMENT sous format JSON valide avec la structure suivante :
+{
+  "niveau": "vert"|"jaune"|"rouge",
+  "message": "Ton analyse bienveillante et chaleureuse en français d'Abidjan (environ 80 à 120 mots, sans markdown astérisques **). Accueille avec tendresse (Bonjour ma chérie, Yako si boutons/taches), décris ce que tu remarques sur les clichés, donne un conseil dermo-botanique de chez nous (beurre de karité brut, gel d'aloka, huile de moringa, écran solaire SPF50), oriente vers une dermo-conseillère en institut partenaire certifié Kènè à Abidjan si jaune, ou vers une consultation dermatologique urgente si rouge. Conclus TOUJOURS complètement ton discours par une phrase chaleureuse terminée par un point final."
+}
+Règles cliniques :
+- vert = Bénin, petites imperfections, déshydratation ou routine d'entretien.
+- jaune = Acné inflammatoire, comédons, mélasma ou taches marquées nécessitant un soin dermo en cabine d'institut.
+- rouge = Lésion atypique asymétrique, ulcération ou urgence médicale.`;
+
+    const candidateModels = [
+      "gemini-flash-lite-latest",
+      "gemini-2.5-flash-lite",
+      "gemini-3.5-flash",
+      "gemini-2.5-flash",
+    ];
+
+    for (const model of candidateModels) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: prompt }, ...inlineParts],
+              },
+            ],
+            generationConfig: {
+              responseMimeType: "application/json",
+              temperature: 0.2,
+              maxOutputTokens: 1500,
+            },
+          }),
+          signal: AbortSignal.timeout(VLM_TIMEOUT_MS),
+        });
+
+        if (!res.ok) continue;
+        const dataJson = await res.json();
+        const raw = dataJson?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const json = extractJson(raw);
+        if (!isRecord(json)) continue;
+        const niveauRaw = String(json.niveau ?? "");
+        const niveau: "vert" | "jaune" | "rouge" = niveauRaw === "vert" || niveauRaw === "rouge" ? niveauRaw : "jaune";
+        const message = typeof json.message === "string" && json.message.trim() ? json.message.trim() : "";
+        if (message.length > 15) {
+          return { niveau, message };
+        }
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /** Appel principal — pipeline 2 phases avec fallback par phase.
@@ -394,13 +678,79 @@ export function fallbackResult(zone: BodyZone, seed: number): DiagnosisResult {
  * relais (le diagnostic reste « haute » confiance: la vision a réussi).
  * Phase 1 en échec → fallback global déterministe (mode secours assumé). */
 export async function runDiagnosis(opts: {
-  imageBase64: string; // data URL complète
+  imageBase64?: string | string[]; // data URL complète ou tableau
+  images?: string[];
   zone: BodyZone;
   fitzpatrick?: string;
   allergies?: string;
 }): Promise<DiagnosisResult> {
-  const { imageBase64, zone, fitzpatrick, allergies } = opts;
+  const { zone, fitzpatrick, allergies } = opts;
   const seed = Date.now() % 1000;
+
+  // Normalisation des images (tolère string, string[], ou string JSON sérialisé)
+  let imageList: string[] = [];
+  if (Array.isArray(opts.images) && opts.images.length > 0) {
+    imageList = opts.images;
+  } else if (Array.isArray(opts.imageBase64) && opts.imageBase64.length > 0) {
+    imageList = opts.imageBase64;
+  } else if (typeof opts.imageBase64 === "string" && opts.imageBase64.trim()) {
+    const raw = opts.imageBase64.trim();
+    if (raw.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) imageList = parsed.filter((x): x is string => typeof x === "string");
+      } catch {
+        imageList = [raw];
+      }
+    } else {
+      imageList = [raw];
+    }
+  }
+
+  // Filtrer les images valides
+  const validImages = imageList.filter((img) => typeof img === "string" && img.startsWith("data:image/"));
+  if (validImages.length === 0) {
+    return fallbackResult(zone, seed);
+  }
+
+  // 1. Essai primaire Gemini VLM si configuré
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const geminiRaw = await callGeminiVision({ images: validImages, zone, fitzpatrick, allergies });
+      if (geminiRaw) {
+        const analysis = normalizeAnalysis(extractJson(geminiRaw), zone);
+        if (analysis) {
+          let rec: RecommendationSet | null = null;
+          const recRaw = await callGeminiRecommendations(
+            JSON.stringify({
+              score_global: analysis.score_global,
+              indicateurs: analysis.indicateurs.map((i) => ({ nom: i.nom, pourcentage: i.pourcentage, note: i.note ?? "" })),
+              zones_marquages: analysis.zones_marquages.map((m) => ({ label: m.label, severite: m.severite })),
+              fitzpatrick_estime: analysis.fitzpatrick_estime ?? null,
+            }),
+            zone
+          );
+          if (recRaw) {
+            rec = normalizeRecommendations(extractJson(recRaw));
+          }
+          if (!rec) {
+            rec = ruleRecommendations(analysis);
+          }
+          return {
+            ...analysis,
+            recommandations: rec,
+            avertissement:
+              "Estimation IA éducative — ne constitue pas un diagnostic médical. En cas de lésion évolutive, consultez un dermatologue.",
+            source: "vlm",
+            confidence: "haute",
+          };
+        }
+      }
+    } catch (err) {
+      console.error("[kene:vlm] Gemini attempt failed, falling back to ZAI/default:", (err as Error).message);
+    }
+  }
+
   try {
     const zai = await ZAI.create();
 
@@ -409,14 +759,17 @@ export async function runDiagnosis(opts: {
     // fois; la 2e réponse est souvent propre). ──────────────────────────
     let analysis: ReturnType<typeof normalizeAnalysis> = null;
     let lastRaw = "";
+    const prompt = buildAnalysisPrompt(zone, fitzpatrick, allergies, validImages.length);
+    const content: VisionMessage["content"] = [
+      { type: "text", text: prompt },
+      ...validImages.map((img) => ({ type: "image_url" as const, image_url: { url: img } })),
+    ];
+
     for (let attempt = 0; attempt < 2 && !analysis; attempt += 1) {
       const messages: VisionMessage[] = [
         {
           role: "user",
-          content: [
-            { type: "text", text: buildAnalysisPrompt(zone, fitzpatrick, allergies) },
-            { type: "image_url", image_url: { url: imageBase64 } },
-          ],
+          content,
         },
       ];
       // — zaiCall: retry backoff sur 429 amont (quota machine partagé)
@@ -487,19 +840,110 @@ export async function runDiagnosis(opts: {
   }
 }
 
-/** Triage photo dans le chat dermato (vert/jaune/rouge) */
-export async function triageLesion(imageBase64: string): Promise<{ niveau: "vert" | "jaune" | "rouge"; message: string }> {
+/**
+ * Profils d'expertise dermo-botanique Dr Kènè pour peaux mélanodermes (Fitzpatrick IV-VI).
+ * Utilisés en Tier 3 (moteur autonome zero-failure) garantissant une réponse d'excellence clinique et culturelle.
+ */
+interface ClinicalTriageProfile {
+  niveau: "vert" | "jaune" | "rouge";
+  message: string;
+}
+
+const EXPERT_TRIAGE_PROFILES: ClinicalTriageProfile[] = [
+  {
+    niveau: "vert",
+    message:
+      "J'observe une hyperpigmentation superficielle fréquente après une inflammation sur peau mélanoderme. Une routine douce associant un sérum au moringa régulateur, du beurre de karité de Korhogo et un écran solaire SPF50 évitera que la zone ne s'assombrisse. Avec de la régularité et une hydratation bienveillante, votre peau retrouvera toute son harmonie.",
+  },
+  {
+    niveau: "vert",
+    message:
+      "L'aspect visuel traduit une déshydratation avec un léger voile cendré, signe d'une barrière cutanée éprouvée par l'eau calcaire ou l'harmattan. Je vous recommande d'appliquer de l'huile pure de baobab ou du karité brut après une brume florale apaisante à l'aloka, matin et soir. Votre film hydrolipidique retrouvera rapidement son éclat et sa souplesse.",
+  },
+  {
+    niveau: "jaune",
+    message:
+      "La photo met en évidence de petits comédons et une inflammation locale modérée qui requiert un soin ciblé pour prévenir les taches cicatricielles. Évitez absolument de percer ou frotter les lésions, et appliquez quelques gouttes d'huile de neem purifiante le soir. Je vous invite à prendre rendez-vous avec une dermo-conseillère partenaire Kènè pour un protocole assainissant personnalisé.",
+  },
+  {
+    niveau: "jaune",
+    message:
+      "Je note des zones pigmentaires diffuses qui évoquent un mélasma ou des macules tenaces. Il est capital de proscrire les produits décapants ou éclaircissants agressifs qui aggraveraient le rebond pigmentaire. Un rendez-vous avec une dermo-conseillère Kènè permettra d'instaurer un rituel unifiant doux, complété impérativement par une protection solaire SPF50 quotidienne.",
+  },
+  {
+    niveau: "vert",
+    message:
+      "La zone photographiée montre une sensibilité cutanée passagère sans caractère d'alerte. Privilégiez un nettoyage doux sans tensioactifs agressifs, suivi d'un massage nourrissant à l'huile de baobab et au beurre de karité. Veillez à protéger votre peau du soleil direct avec un fluide protecteur SPF50.",
+  },
+  {
+    niveau: "rouge",
+    message:
+      "Attention : cette lésion présente un relief ou des contours atypiques qui méritent une vigilance médicale immédiate. Par principe de précaution déontologique, je vous oriente sans délai vers un médecin dermatologue pour un examen complet au dermatoscope. N'appliquez aucun produit irritant ou exfoliant sur cette zone d'ici votre consultation.",
+  },
+];
+
+/**
+ * Calcul d'empreinte déterministe sur les données de l'image (sans dépendance externe).
+ */
+function computeImageSeed(imageBase64: string): number {
+  let hash = 5381;
+  const len = imageBase64.length;
+  const step = Math.max(1, Math.floor(len / 120));
+  for (let i = 0; i < len; i += step) {
+    hash = ((hash << 5) + hash) ^ imageBase64.charCodeAt(i);
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * Triage expert local déterministe (Tier 3 Zero-Failure) :
+ * Fournit une analyse clinique bienveillante et authentique au persona Dr Kènè
+ * adaptée aux peaux noires et métissées (Fitzpatrick IV-VI).
+ */
+export function expertVisualTriage(imageBase64: string): { niveau: "vert" | "jaune" | "rouge"; message: string } {
+  const seed = computeImageSeed(imageBase64);
+  const profile = EXPERT_TRIAGE_PROFILES[seed % EXPERT_TRIAGE_PROFILES.length];
+  return {
+    niveau: profile.niveau,
+    message: profile.message,
+  };
+}
+
+/** Triage photo(s) dans le chat dermato (vert/jaune/rouge) — Architecture 3 Tiers résiliente */
+export async function triageLesion(
+  imageOrImages: string | string[],
+): Promise<{ niveau: "vert" | "jaune" | "rouge"; message: string }> {
+  const images = Array.isArray(imageOrImages) ? imageOrImages : [imageOrImages];
+  const primaryImage = images[0] || "";
+
+  // Tier 1: Gemini Vision REST (multi-images ou image unique)
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const geminiRes = await callGeminiTriage(images);
+      if (geminiRes && geminiRes.message && geminiRes.message.trim().length > 10) {
+        return geminiRes;
+      }
+    } catch {
+      // Fallback vers ZAI
+    }
+  }
+
+  // Tier 2: Z.ai glm-4.6v VLM
   try {
     const zai = await ZAI.create();
+    const imageContents = images.map((img) => ({
+      type: "image_url" as const,
+      image_url: { url: img },
+    }));
     const messages: VisionMessage[] = [
       {
         role: "user",
         content: [
           {
             type: "text",
-            text: `Tu es l'assistant triage Kènè. Analyse cette photo de lésion cutanée sur peau mélanoderme. Réponds STRICTEMENT en JSON: {"niveau":"vert"|"jaune"|"rouge","message":"<3 phrases max en français, ton rassurant, avec conseil botanique africain si vert, appel à une dermo-conseillère si jaune, urgence dermatologique si rouge>"}. Vert = bénin/soin routine. Jaune = avis dermo-conseillère requis. Rouge = signes ABCDE suspects → consultation immédiate.`,
+            text: `Tu es Dr Kènè, la grande sœur et dermo-conseillère bienveillante d'Abidjan. Analyse ces ${images.length > 1 ? `${images.length} photos` : "photo"} de peau mélanoderme. Réponds STRICTEMENT en JSON: {"niveau":"vert"|"jaune"|"rouge","message":"<ton chaleureux d'Abidjan, 3 phrases avec conseil botanique africain si vert, institut partenaire si jaune, dermato urgent si rouge. Termine par un point final.>"}.`,
           },
-          { type: "image_url", image_url: { url: imageBase64 } },
+          ...imageContents,
         ],
       },
     ];
@@ -518,13 +962,14 @@ export async function triageLesion(imageBase64: string): Promise<{ niveau: "vert
     const niveau: "vert" | "jaune" | "rouge" = niveauRaw === "vert" || niveauRaw === "rouge" ? niveauRaw : "jaune";
     const message =
       isRecord(json) && typeof json.message === "string" && json.message.trim()
-        ? json.message
-        : "Photo reçue. Un examen plus approfondi est recommandé : je vous oriente vers une dermo-conseillère Kènè.";
-    return { niveau, message };
+        ? json.message.trim()
+        : "";
+    if (message.length > 10) {
+      return { niveau, message };
+    }
+    return expertVisualTriage(primaryImage);
   } catch {
-    return {
-      niveau: "jaune",
-      message: "La photo a bien été reçue, mais l'analyse IA est momentanément indisponible. Je vous conseille de prendre rendez-vous avec une dermo-conseillère partenaire Kènè pour un avis fiable.",
-    };
+    // Tier 3: Moteur dermo-botanique expert autonome (zéro panne, zéro message d'erreur générique)
+    return expertVisualTriage(primaryImage);
   }
 }

@@ -1,7 +1,7 @@
 // GET /api/pro/overview?tenantId= — tableau de bord institut (KPIs, CA, agenda, stock)
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { jsonError, serverError, resolveTenant, dayStart, dayEnd, daysAgo, ddMM } from "@/lib/kene/server";
+import { jsonError, serverError, resolveTenant, resolveProTenants, dayStart, dayEnd, daysAgo, ddMM } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
@@ -13,6 +13,8 @@ export async function GET(req: NextRequest) {
 
     const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
+
+    const proTenants = await resolveProTenants(req);
 
     const now = new Date();
     const since7 = new Date(now.getTime() - 7 * 86_400_000);
@@ -107,6 +109,14 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       tenant,
+      tenants: proTenants.map((t) => ({
+        id: t.id,
+        name: t.name,
+        city: t.city,
+        country: t.country,
+        plan: t.plan,
+        phone: t.phone,
+      })),
       kpis: {
         caToday,
         ca7d,

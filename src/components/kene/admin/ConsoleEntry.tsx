@@ -20,7 +20,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSyncExternalStore } from "react";
-import { ArrowRight, Fingerprint, KeyRound, Loader2, MessageSquareText, ShieldCheck, Smartphone } from "lucide-react";
+import { ArrowLeft, ArrowRight, Fingerprint, KeyRound, Loader2, MessageSquareText, ShieldCheck, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, ApiError } from "@/lib/kene/api";
 import { rememberAccount } from "@/lib/kene/last-account";
@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { BootSkeleton } from "@/components/kene/client/BootSkeleton";
-import { KeneEmblem } from "@/components/kene/icons";
+import { KeneEmblem, KeneEmblemLockup } from "@/components/kene/icons";
 import { useKene, type SessionUser } from "@/store/kene";
 import type { ApiUser } from "@/components/kene/client/types";
 
@@ -42,7 +42,7 @@ const AdminApp = dynamic(() => import("@/components/kene/admin/AdminApp").then((
 
 // ─────────────── Détection de l'entrée (/console vs vitrine) ───────────────
 
-export type EntryKind = "console" | "app" | null;
+export type EntryKind = "console" | "pin" | "app" | "pro" | null;
 
 /** Abonnement popstate: les changements de pathname hors SPA (liens <a>,
  * back/forward) re-résolvent l'entrée — les navigations internes à l'app ne
@@ -52,9 +52,13 @@ function subscribeEntry(cb: () => void): () => void {
   return () => window.removeEventListener("popstate", cb);
 }
 
-/** Snapshot client: « console » si l'URL est /console, « app » sinon. */
+/** Snapshot client: « console » si l'URL est /console, « pin » si /pin, « pro » si /pro, « app » sinon. */
 function entrySnapshot(): Exclude<EntryKind, null> {
-  return window.location.pathname.replace(/\/+$/, "") === "/console" ? "console" : "app";
+  const p = window.location.pathname.replace(/\/+$/, "");
+  if (p === "/console") return "console";
+  if (p === "/pin") return "pin";
+  if (p === "/pro") return "pro";
+  return "app";
 }
 
 /** « console » si l'URL courante est /console, « app » sinon, null au rendu
@@ -70,33 +74,11 @@ export function useEntryKind(): EntryKind {
 
 export function ConsoleEntry() {
   const user = useKene((s) => s.user);
+  const setUser = useKene((s) => s.setUser);
 
   if (user?.role === "admin") return <AdminApp />;
 
-  if (user) {
-    // Session NON-admin sur le lien console: orientation claire, aucun
-    // indice au-delà de ce que la personne sait déjà (elle est connectée).
-    return (
-      <div className="flex min-h-dvh items-center justify-center px-4">
-        <div className="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card text-center">
-          <div aria-hidden="true" className="kente-band h-1.5 w-full" />
-          <div className="space-y-4 px-6 py-8">
-            <KeneEmblem size={56} className="mx-auto" />
-            <h1 className="font-heading text-xl font-bold">Ce lien ouvre la Console Kènè</h1>
-            <p className="text-sm text-muted-foreground">
-              Ton compte ({user.name}) vit dans l&apos;app Kènè — clientes, instituts et boutique.
-              La console est l&apos;espace d&apos;administration de la plateforme.
-            </p>
-            <Button asChild className="w-full">
-              <a href="/">Ouvrir l&apos;app Kènè</a>
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return <ConsoleLogin />;
+  return <ConsoleLogin currentUser={user} onLogout={() => setUser(null)} />;
 }
 
 /** Session admin ouverte sur la vitrine « / » → redirection vers /console. */
@@ -116,7 +98,7 @@ export function ConsoleRedirect() {
 
 // ─────────────── Connexion console ───────────────
 
-function ConsoleLogin() {
+function ConsoleLogin({ currentUser, onLogout }: { currentUser?: SessionUser | null; onLogout?: () => void }) {
   const setUser = useKene((s) => s.setUser);
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [phone, setPhone] = useState("");
@@ -167,7 +149,11 @@ function ConsoleLogin() {
       // de la préview sont bloqués).
       await sendCode();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Connexion impossible — réessaie");
+      if (e instanceof ApiError) {
+        toast.error("Connexion impossible", { description: e.message });
+      } else {
+        toast.error("Erreur réseau — réessaie");
+      }
     } finally {
       setLoading(false);
     }
@@ -176,29 +162,38 @@ function ConsoleLogin() {
   async function sendCode() {
     setSending(true);
     try {
-      const res = await apiPost<{ ok: boolean; devCode: string }>("/api/auth/otp/request", { phone: phoneE164 });
-      setDevCode(res.devCode ?? "");
+      const r = await apiPost<{ ok: boolean; devCode?: string; smsSent?: boolean }>("/api/auth/otp/request", { phone: phoneE164 });
+      setDevCode(r.devCode || "");
       setStep("code");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Envoi impossible");
+      if (r.devCode) {
+        toast.info("Code instantané affiché à l'écran ✨");
+      } else {
+        toast.success("Code de sécurité envoyé");
+      }
     } finally {
       setSending(false);
     }
   }
 
-  async function verifyCode(c = code) {
-    if (c.length !== 6) return;
+  async function verifyCode(value = code) {
+    if (value.length !== 6) return;
     setLoading(true);
     try {
-      // contexte « console »: le serveur n'ouvre QUE les comptes admin ici.
-      const v = await apiPost<{ user: ApiUser }>("/api/auth/otp/verify", {
+      // Contexte « console »: l'arbitrage serveur refuse tout compte non-admin
+      // sur ce lien (séparation stricte de la vitrine publique).
+      const r = await apiPost<{ user: ApiUser }>("/api/auth/otp/verify", {
         phone: phoneE164,
-        code: c,
+        code: value,
         context: "console",
       });
-      finish(v.user);
+      finish(r.user);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Code invalide — réessaie");
+      if (e instanceof ApiError) {
+        toast.error("Code refusé", { description: e.message });
+      } else {
+        toast.error("Vérification impossible — réessaie");
+      }
+      setCode("");
     } finally {
       setLoading(false);
     }
@@ -211,18 +206,30 @@ function ConsoleLogin() {
           <div aria-hidden="true" className="kente-band h-1.5 w-full" />
           <div className="space-y-5 px-6 py-8 sm:px-8">
             <div className="flex flex-col items-center gap-3 text-center">
-              <KeneEmblem size={64} className="drop-shadow-[0_2px_10px_rgba(200,149,30,0.22)]" />
-              <div>
-                <h1 className="font-heading text-2xl font-bold tracking-tight">Console Kènè</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Pilotage de la plateforme — lien dédié d&apos;administration
-                </p>
-              </div>
+              <KeneEmblemLockup size={56} label="Console Kènè" labelSize={24} sublabel="Beauté mélanoderme · Pilotage" />
               <span className="inline-flex items-center gap-1.5 rounded-full border border-finance/30 bg-finance/15 px-2.5 py-0.5 text-[11px] font-medium text-finance">
                 <ShieldCheck className="size-3" aria-hidden="true" />
-                Session sécurisée · 8 h
+                Espace administrateur · Session 8 h
               </span>
             </div>
+
+            {currentUser && (
+              <div className="rounded-xl border border-border bg-muted/60 p-3 text-xs text-muted-foreground flex items-center justify-between gap-2">
+                <span className="truncate">
+                  Compte actif : <strong className="text-foreground">{currentUser.name || currentUser.phone}</strong> ({currentUser.role === "pro" ? "espace pro" : "espace cliente"})
+                </span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+                    onLogout?.();
+                  }}
+                  className="shrink-0 text-primary underline font-medium hover:text-foreground text-[11px]"
+                >
+                  Déconnecter
+                </button>
+              </div>
+            )}
 
             {step === "phone" ? (
               <div className="space-y-3">
@@ -308,7 +315,7 @@ function ConsoleLogin() {
                       >
                         {devCode}
                       </button>
-                      <p className="mt-1 text-[11px] text-muted-foreground">En mode essai, ton code s&apos;affiche ici — touche-le pour le remplir</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">Code de confirmation instantané — touche pour insérer</p>
                     </div>
                   </div>
                 )}
@@ -318,6 +325,15 @@ function ConsoleLogin() {
                 </p>
               </div>
             )}
+            <div className="pt-2 border-t border-border/40 text-center">
+              <a
+                href="/"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors hover:underline"
+              >
+                <ArrowLeft size={13} />
+                <span>Retourner à l&apos;application Kènè</span>
+              </a>
+            </div>
           </div>
         </div>
         <p className="mt-4 text-center text-[11px] leading-relaxed text-muted-foreground">

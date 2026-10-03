@@ -116,7 +116,8 @@ export async function GET(req: NextRequest) {
     // modification — l'export reflète la base telle quelle.
     if (req.nextUrl.searchParams.get("format") === "csv") {
       const SRC: Record<string, string> = {
-        momo_sim: "Paiement (simulation)",
+        momo_sim: "Mobile Money",
+        winipayer: "WiniPayer",
         console_gift: "Offert Console",
         referral_gift: "Cadeau parrainage",
       };
@@ -129,7 +130,7 @@ export async function GET(req: NextRequest) {
       const rowsCsv: CsvCell[][] = [
         ["Console Kènè — Abonnements Kènè+ & Pro"],
         ["Historique complet (IFRS 15) — inclut les lignes clôturées, rien ne s'efface"],
-        [`Édité le ${csvDate(new Date())} · ${rows.length} lignes · montants en FCFA · paiements en simulation (mode essai)`],
+        [`Édité le ${csvDate(new Date())} · ${rows.length} lignes · montants en FCFA · paiements Mobile Money & Carte`],
         [],
         ["Créée le", "Abonnée", "Téléphone", "Rôle", "Plan", "Prix F/mois", "Source", "Statut ligne", "Statut réel", "Début", "Échéance"],
       ];
@@ -150,7 +151,7 @@ export async function GET(req: NextRequest) {
       }
       rowsCsv.push(
         [],
-        ["MRR actif (simulation)", `${kpis.mrrFcfa} F/mois`],
+        ["MRR actif", `${kpis.mrrFcfa} F/mois`],
         ["Abonnées actives", kpis.activeCount],
         ["Mois offerts actifs", kpis.giftActive],
       );

@@ -84,6 +84,20 @@ const Body = z.object({
   message: z.string().max(600).optional(),
 });
 
+const BatchBody = z.object({
+  tenantId: z.string().min(1),
+  batch: z.array(
+    z.object({
+      dedupKey: z.string().min(3),
+      clientProfileId: z.string().optional(),
+      clientPhone: z.string().min(6).optional(),
+      clientName: z.string().optional(),
+      message: z.string().max(600).optional(),
+    })
+  ),
+  via: z.enum(["sms", "whatsapp"]),
+});
+
 export async function POST(req: NextRequest) {
   try {
     // Session signée (, migration douce): avec cookie, le traitement
@@ -91,7 +105,55 @@ export async function POST(req: NextRequest) {
     const guard = guardProRole(req, "pro:followups:post");
     if (guard) return guard;
 
-    const parsed = Body.safeParse(await req.json().catch(() => null));
+    const json = await req.json().catch(() => null);
+
+    // Traitement par lot (campagne de relance groupée SMS / WhatsApp)
+    const parsedBatch = BatchBody.safeParse(json);
+    if (parsedBatch.success) {
+      const { tenantId, batch, via } = parsedBatch.data;
+      const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
+      if (!tenant) return jsonError("Institut introuvable", 404);
+
+      let processed = 0;
+      for (const item of batch) {
+        await db.followUpMark.upsert({
+          where: { tenantId_dedupKey: { tenantId, dedupKey: item.dedupKey } },
+          create: { tenantId, dedupKey: item.dedupKey, status: "done", via },
+          update: { status: "done", via },
+        });
+
+        if (item.clientPhone) {
+          let userId: string | null = null;
+          if (item.clientProfileId) {
+            const profile = await db.clientProfile.findUnique({ where: { id: item.clientProfileId }, select: { userId: true } });
+            userId = profile?.userId ?? null;
+          }
+          await notify({
+            userId,
+            tenantId,
+            channel: via === "sms" ? "sms" : "whatsapp",
+            toPhone: item.clientPhone,
+            message: item.message ?? `Kènè : relance de ${item.clientName ?? "la cliente"}.`,
+            status: "sent",
+          });
+        }
+        processed++;
+      }
+
+      await db.auditLog.create({
+        data: {
+          tenantId,
+          action: "followup_batch",
+          entity: "followup",
+          entityId: `batch_${Date.now()}`,
+          detailsJson: JSON.stringify({ count: processed, via }),
+        },
+      });
+
+      return NextResponse.json({ ok: true, processed });
+    }
+
+    const parsed = Body.safeParse(json);
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, dedupKey, status, via, note, clientProfileId, clientPhone, clientName, message } = parsed.data;
 
@@ -149,8 +211,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Relance WhatsApp → notification journalisée (visible dans l'historique client)
-    if (via === "whatsapp" && clientPhone) {
+    // Relance WhatsApp ou SMS → notification journalisée (et envoyée immédiatement via Zavu / Termii si SMS)
+    if ((via === "whatsapp" || via === "sms") && clientPhone) {
       let userId: string | null = null;
       if (clientProfileId) {
         const profile = await db.clientProfile.findUnique({ where: { id: clientProfileId }, select: { userId: true } });
@@ -159,7 +221,7 @@ export async function POST(req: NextRequest) {
       await notify({
         userId,
         tenantId,
-        channel: "whatsapp",
+        channel: via === "sms" ? "sms" : "whatsapp",
         toPhone: clientPhone,
         message: message ?? `Kènè : relance de ${clientName ?? "la cliente"} (${dedupKey}).`,
         status: "sent",

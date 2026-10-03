@@ -133,9 +133,8 @@ const GET_BRIDGE_PARAM = "_g";
 /** Taille max d'un payload transportable en query string (URL safe). */
 const GET_BRIDGE_MAX_CHARS = 6_000;
 
-/** Timeout par défaut d'un POST client: les routes critiques répondent en
- * < 1 s côté serveur — un POST muet au-delà de 8 s est bloqué en amont. */
-const POST_TIMEOUT_MS = 8_000;
+/** Timeout par défaut d'un POST client: 45 s pour accommoder la 3G/4G et les analyses IA */
+const POST_TIMEOUT_MS = 45_000;
 
 /** Erreur interne: le POST n'a rien dit à temps (transport pendu). */
 class PostTimeoutError extends Error {
@@ -165,6 +164,7 @@ const BRIDGEABLE_ROUTES = new Set([
   "/api/referral/redeem", // parrainage — inscription cliente 
   "/api/auth/pro/register", // inscription entreprise 
   "/api/subscriptions/activate", // activation plan 
+  "/api/subscriptions/renew", // renouvellement plan 
   "/api/admin/elevate", // t. 130 — step-up console (dialogue code frais)
   "/api/admin/passkey/login/options", // t. 130 — connexion console par passkey
   "/api/admin/passkey/login/verify", // t. 130 (assertion ~1 ko — tient en query)
