@@ -150,6 +150,7 @@ export function ProfileScreen() {
   }, [user?.id]);
 
   async function saveIdentity() {
+    if (!user) return;
     setSavingId(true);
     try {
       const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {
@@ -169,6 +170,7 @@ export function ProfileScreen() {
   }
 
   async function savePreferences() {
+    if (!user) return;
     setSavingPrefs(true);
     try {
       const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {
@@ -191,6 +193,7 @@ export function ProfileScreen() {
   }
 
   async function saveSkin() {
+    if (!user) return;
     setSavingSkin(true);
     try {
       const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {

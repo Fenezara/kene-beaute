@@ -72,7 +72,7 @@ async function synthesizeWithEdgeTts(
     rateStr = pct >= 0 ? `+${pct}%` : `${pct}%`;
   }
 
-  await tts.setMetadata(selectedVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3, {
+  await (tts as any).setMetadata(selectedVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3, {
     rate: rateStr,
     pitch: "-1Hz",
     volume: "100%",
@@ -150,6 +150,7 @@ export async function POST(req: NextRequest) {
     const voiceRaw = parsed.data.voice ?? DEFAULT_NEURAL_VOICE;
     const voice = NEURAL_VOICES.has(voiceRaw) ? voiceRaw : DEFAULT_NEURAL_VOICE;
     const speed = parsed.data.speed ?? 1;
+    const lang = parsed.data.lang ?? "fr";
 
     if (!text) return NextResponse.json({ error: "Texte requis" }, { status: 400 });
     if (text.length > MAX_TEXT) {
