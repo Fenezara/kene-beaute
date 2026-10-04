@@ -675,7 +675,14 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
 
         {/* 3. Conseils de prise de vue compacts & clairs */}
         <div className="mb-4 rounded-2xl bg-muted/30 border border-border/40 p-3">
-          <p className="text-[11px] font-bold text-foreground mb-1.5">Conseils pour l&apos;angle « {activeSlot.label} » :</p>
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <p className="text-[11px] font-bold text-foreground">Conseils pour l&apos;angle « {activeSlot.label} » :</p>
+            <AudioGuideButton
+              text={`Conseils pour l'angle ${activeSlot.label} : premièrement, utilise une bonne lumière naturelle de jour. Deuxièmement, place ton appareil à environ 30 centimètres avec une image bien nette. Troisièmement, assure-toi que ta peau est démaquillée et propre.`}
+              label="Écouter les conseils"
+              compact
+            />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span className="grid place-items-center size-4 rounded-full bg-primary/20 text-primary font-mono text-[9px] font-bold shrink-0">1</span>
@@ -1209,6 +1216,48 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
         </RevealItem>
       )}
 
+
+      {/* Jumeau de Peau — Skin Twin 3D interactif avec projection temporelle (S+0 → S+12) */}
+      <RevealItem className="mt-5">
+        <SkinTwinCard
+          projection
+          entries={[
+            {
+              id: diag.id,
+              zone: r.zone,
+              score: r.score_global,
+              fitz: r.fitzpatrick_estime,
+              marks: r.zones_marquages,
+              date: diag.createdAt,
+              indicators: r.indicateurs,
+            },
+          ]}
+        />
+      </RevealItem>
+
+      {/* Voyage dans ma peau en 3D (Descente à travers les 3 couches cutanées) */}
+      <RevealItem className="mt-4">
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setDescentOpen(true)}
+          className="relative w-full overflow-hidden rounded-[24px] bg-gradient-to-br from-[#241A10] to-[#1A1410] text-left ring-1 ring-[#C8951E]/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary shadow-md active:scale-[0.99] transition-all"
+          aria-label="Ouvrir la Descente de Peau — traverser les trois couches de ma peau en 3D"
+        >
+          <div aria-hidden="true" className="h-1.5 w-full" style={{ backgroundImage: "linear-gradient(90deg, #8D5524 0 33%, #C99B6E 33% 66%, #F0DFC2 66% 100%)" }} />
+          <div className="flex items-center gap-3 p-4">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#C8951E]/15 text-[#E3B04B]">
+              <Layers size={24} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-heading font-bold text-sm text-[#F8F1E4]">Voyage dans ma peau en 3D</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-[#F8F1E4]/65">
+                Descends à travers l&apos;épiderme, le derme et l&apos;hypoderme — éclairés par tes {r.indicateurs.length} indicateurs.
+              </p>
+            </div>
+            <ChevronRight size={18} className="shrink-0 text-[#E3B04B]" aria-hidden="true" />
+          </div>
+        </motion.button>
+      </RevealItem>
 
       {/* Tabs spectraux */}
       <RevealItem className="mt-5">
