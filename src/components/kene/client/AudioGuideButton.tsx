@@ -1,13 +1,9 @@
 "use client";
-// Kènè — Guide Audio Oralisé & Bienveillant en langues africaines
-// Permet l'écoute vocale des instructions (zone, capture, etc.) en Français, Dioula, Baoulé, Bété et Wolof.
+// Kènè — Guide Audio Oralisé & Bienveillant en français naturel haute fidélité.
+// Permet l'écoute vocale des instructions (zone, capture, etc.).
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Globe, Loader2, Square, Volume2 } from "lucide-react";
-import { toast } from "sonner";
-import { NARRATION_LANGS, type NarrationLang } from "@/lib/kene/narration";
+import { Loader2, Square, Volume2 } from "lucide-react";
 import { playSpeech, type SpeechController } from "./ttsAudio";
-
-const LANG_STORAGE_KEY = "kene_audio_guide_lang";
 
 interface AudioGuideButtonProps {
   text: string;
@@ -23,21 +19,7 @@ export function AudioGuideButton({
   compact = false,
 }: AudioGuideButtonProps) {
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
-  const [lang, setLang] = useState<NarrationLang>("fr");
-  const [menuOpen, setMenuOpen] = useState(false);
   const ctrlRef = useRef<SpeechController | null>(null);
-
-  // Charger la langue préférée depuis localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(LANG_STORAGE_KEY) as NarrationLang | null;
-      if (saved && NARRATION_LANGS.some((l) => l.code === saved)) {
-        setLang(saved);
-      }
-    } catch {
-      // Ignorer si localStorage n'est pas accessible
-    }
-  }, []);
 
   // Nettoyage au démontage
   useEffect(() => {
@@ -65,7 +47,7 @@ export function AudioGuideButton({
       ctrlRef.current = await playSpeech({
         text,
         speed: 1,
-        lang,
+        lang: "fr",
         onStart: () => setState("playing"),
         onEnd: () => {
           ctrlRef.current = null;
@@ -81,23 +63,6 @@ export function AudioGuideButton({
     }
   }
 
-  function handleSelectLang(nextLang: NarrationLang) {
-    if (state === "playing") {
-      stopAudio();
-    }
-    setLang(nextLang);
-    setMenuOpen(false);
-    try {
-      localStorage.setItem(LANG_STORAGE_KEY, nextLang);
-    } catch {
-      // no-op
-    }
-    const l = NARRATION_LANGS.find((item) => item.code === nextLang);
-    toast.success(`Guide audio en ${l?.label ?? nextLang}`);
-  }
-
-  const activeLangDef = NARRATION_LANGS.find((l) => l.code === lang) ?? NARRATION_LANGS[0];
-
   return (
     <div className={`relative inline-flex items-center gap-1.5 ${className}`}>
       {/* Bouton de lecture */}
@@ -105,7 +70,7 @@ export function AudioGuideButton({
         type="button"
         onClick={togglePlay}
         disabled={state === "loading"}
-        aria-label={state === "playing" ? `Arrêter le guide audio (${activeLangDef.label})` : `Écouter les instructions en ${activeLangDef.label}`}
+        aria-label={state === "playing" ? "Arrêter le guide audio" : "Écouter les conseils vocaux"}
         className={`inline-flex items-center justify-center gap-2 rounded-full border transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 ${
           state === "playing"
             ? "border-primary bg-primary text-primary-foreground shadow-md animate-pulse"
@@ -129,50 +94,7 @@ export function AudioGuideButton({
           </>
         )}
       </button>
-
-      {/* Sélecteur de langue */}
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label={`Changer la langue du guide vocal (actuellement ${activeLangDef.label})`}
-          className="inline-flex items-center gap-1 h-9 px-2.5 rounded-full border border-border bg-card text-muted-foreground hover:text-foreground text-[11px] font-bold active:scale-95 transition-all"
-        >
-          <Globe size={12} className="text-primary" aria-hidden="true" />
-          <span>{activeLangDef.code.toUpperCase()}</span>
-          <ChevronDown size={11} className={`transition-transform ${menuOpen ? "rotate-180" : ""}`} />
-        </button>
-
-        {menuOpen && (
-          <>
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setMenuOpen(false)}
-              aria-hidden="true"
-            />
-            <div className="absolute right-0 top-full mt-1.5 z-50 min-w-[150px] rounded-2xl border border-border bg-card p-1.5 shadow-xl animate-in fade-in zoom-in-95">
-              <p className="px-2.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Langue orale
-              </p>
-              {NARRATION_LANGS.map((item) => (
-                <button
-                  key={item.code}
-                  type="button"
-                  onClick={() => handleSelectLang(item.code)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition-colors ${
-                    lang === item.code
-                      ? "bg-primary text-primary-foreground font-bold"
-                      : "hover:bg-muted text-foreground"
-                  }`}
-                >
-                  <span>{item.label}</span>
-                  {lang === item.code && <span className="text-[10px]">✓</span>}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
     </div>
   );
 }
+

@@ -302,7 +302,7 @@ export function SettingsScreen() {
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{t("lang.selector.note")}</p>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3 grid grid-cols-1 gap-2">
               {LANGS.map((l) => {
                 const active = lang === l.id;
                 return (

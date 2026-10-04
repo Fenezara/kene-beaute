@@ -1,8 +1,6 @@
 // Kènè — POST /api/tts: synthèse vocale naturelle haute fidélité (Palier 1 : EdgeTTS Neural, Palier 2 : ZAI SDK, Palier 3 : Fallback navigateur).
 // Voix par défaut : fr-FR-DeniseNeural (voix humaine, chaleureuse, naturelle, sans intonation robotique).
-// Entrée { text ≤ 1200 (contrat), voice?, speed 0.5-2?, lang fr|dy|bq|bt } → audio/mpeg ou audio/wav.
-// lang = fr (défaut) | dy (dioula) | bq (baoulé) | bt (bété):
-// le texte est d'abord traduit par LLM (cache serveur), puis synthétisé.
+// Entrée { text ≤ 1200 (contrat), voice?, speed 0.5-2?, lang "fr"? } → audio/mpeg ou audio/wav.
 // Cache mémoire FIFO plafonné (les narrations de diagnostic reviennent souvent).
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -21,29 +19,21 @@ const NEURAL_VOICES = new Set([
 ]);
 const DEFAULT_NEURAL_VOICE = "fr-FR-DeniseNeural";
 
-const LANG_NAME: Record<string, string> = {
-  dy: "dioula ivoirien",
-  bq: "baoulé (baoulé de Côte d'Ivoire)",
-  bt: "bété (bété de Côte d'Ivoire)",
-  wo: "wolof (wolof du Sénégal)",
-};
 const TTS_TIMEOUT_MS = 45_000;
 const MAX_TEXT_ZOD = 4000;
 const MAX_TEXT = 3500;
 const CACHE_MAX_BYTES = 32 * 1024 * 1024; // ~32 Mo de cache audio
-const TR_CACHE_MAX = 128; // traductions LLM mémorisées
 
 const Body = z.object({
   text: z.string().min(1).max(MAX_TEXT_ZOD),
   voice: z.string().max(60).optional(),
   speed: z.number().min(0.5).max(2).optional(),
-  lang: z.enum(["fr", "dy", "bq", "bt", "wo"]).optional(),
+  lang: z.enum(["fr"]).optional(),
 });
 
 type Entry = { buf: Buffer; bytes: number; contentType: string };
 const cache = new Map<string, Entry>(); // Map = ordre d'insertion → éviction FIFO
 let cacheBytes = 0;
-const trCache = new Map<string, string>(); // hash(text|lang) → traduction
 
 function fnv1a(s: string): string {
   let h = 0x811c9dc5;
@@ -121,82 +111,6 @@ async function synthesizeWithEdgeTts(
   });
 }
 
-/** Traduction LLM du texte narratif vers une langue ivoirienne (orthographe latine).
- * Multi-paliers : Gemini REST → Z.ai SDK → erreur */
-async function translateLocal(text: string, lang: string): Promise<string> {
-  const key = fnv1a(`${lang}|${text}`);
-  const hit = trCache.get(key);
-  if (hit) return hit;
-
-  const trSystemPrompt =
-    `Tu traduis des phrases orales d'une application de beauté (diagnostic de peau) du français vers le ${LANG_NAME[lang]}. ` +
-    "Règles : phrases très courtes et parlées ; orthographe latine simple lisible par un moteur de synthèse vocale français ; " +
-    "garde les nombres en toutes lettres ; garde les noms propres tels quels ; ne traduis pas le nom « Kènè ». " +
-    "Réponds UNIQUEMENT avec la traduction, sans guillemets ni commentaire.";
-
-  let out: string | null = null;
-
-  // Palier 1 : Gemini REST
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey && !out) {
-    try {
-      const model = (process.env.GEMINI_MODEL && process.env.GEMINI_MODEL !== "gemini-1.5-flash") ? process.env.GEMINI_MODEL : "gemini-3.5-flash";
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: trSystemPrompt }] },
-            contents: [{ role: "user", parts: [{ text }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 500 },
-          }),
-          signal: AbortSignal.timeout(TTS_TIMEOUT_MS),
-        },
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (raw) out = raw.trim().replace(/^["'«»]+|["'«»]+$/g, "");
-      }
-    } catch {
-      // Gemini échoué, bascule sur ZAI
-    }
-  }
-
-  // Palier 2 : Z.ai SDK
-  if (!out) {
-    try {
-      const zai = await ZAI.create();
-      const completion = await zaiCall(
-        () =>
-          zai.chat.completions.create({
-            messages: [
-              { role: "system", content: trSystemPrompt },
-              { role: "user", content: text },
-            ],
-            thinking: { type: "disabled" },
-          }),
-        { label: "tts:traduction", timeoutMs: TTS_TIMEOUT_MS, busyRetries: 1 },
-      );
-      const raw = (completion.choices[0]?.message?.content ?? "").trim().replace(/^["'«»]+|["'«»]+$/g, "");
-      if (raw) out = raw;
-    } catch {
-      // ZAI échoué aussi
-    }
-  }
-
-  if (!out) throw new Error("Traduction vide");
-
-  trCache.set(key, out);
-  while (trCache.size > TR_CACHE_MAX) {
-    const first = trCache.keys().next().value;
-    if (first === undefined) break;
-    trCache.delete(first);
-  }
-  return out;
-}
-
 function audioResponse(buf: Buffer, contentType = "audio/mpeg"): NextResponse {
   return new NextResponse(new Uint8Array(buf), {
     status: 200,
@@ -225,41 +139,28 @@ export async function POST(req: NextRequest) {
         );
       }
       if (field === "lang") {
-        return NextResponse.json({ error: "Langue invalide (fr, dy, bq ou bt)" }, { status: 400 });
+        return NextResponse.json({ error: "Langue invalide (fr)" }, { status: 400 });
       }
       if (field === "speed") {
         return NextResponse.json({ error: "Vitesse invalide (0,5 à 2)" }, { status: 400 });
       }
       return NextResponse.json({ error: "Corps de requête invalide" }, { status: 400 });
     }
-    let text = parsed.data.text.trim();
+    const text = parsed.data.text.trim();
     const voiceRaw = parsed.data.voice ?? DEFAULT_NEURAL_VOICE;
     const voice = NEURAL_VOICES.has(voiceRaw) ? voiceRaw : DEFAULT_NEURAL_VOICE;
     const speed = parsed.data.speed ?? 1;
-    const lang = parsed.data.lang ?? "fr";
 
     if (!text) return NextResponse.json({ error: "Texte requis" }, { status: 400 });
     if (text.length > MAX_TEXT) {
       return NextResponse.json({ error: `Texte trop long (max ${MAX_TEXT} caractères)` }, { status: 400 });
     }
 
-    // Traduction vers une langue locale (avant synthèse) — multi-paliers
-    if (lang !== "fr") {
-      try {
-        text = await translateLocal(text, lang);
-      } catch {
-        return NextResponse.json(
-          { error: `Traduction ${lang === "dy" ? "dioula" : lang === "bq" ? "baoulé" : lang === "wo" ? "wolof" : "bété"} indisponible — réessaie dans un instant` },
-          { status: 502 },
-        );
-      }
-    }
-
     const cleanText = cleanTextForSpeech(text);
     if (!cleanText) return NextResponse.json({ error: "Texte requis" }, { status: 400 });
 
-    // cache hit (après traduction : la clé porte le texte nettoyé synthétisé)
-    const key = fnv1a(`${voice}|${speed}|${lang}|${cleanText}`);
+    // cache hit (la clé porte la voix, la vitesse et le texte nettoyé)
+    const key = fnv1a(`${voice}|${speed}|${cleanText}`);
     const hit = cache.get(key);
     if (hit) return audioResponse(hit.buf, hit.contentType);
 

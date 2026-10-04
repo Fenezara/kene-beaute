@@ -75,16 +75,12 @@ export function fnv1a(s: string): string {
 
 const ORDINALS = ["Première priorité", "Deuxième priorité", "Troisième priorité"];
 
-/** Langues de narration parlée disponibles (FR + langues ivoiriennes) */
+/** Langue de narration parlée disponible (Français naturel haute fidélité) */
 export const NARRATION_LANGS = [
   { code: "fr", label: "Français" },
-  { code: "dy", label: "Dioula" },
-  { code: "bq", label: "Baoulé" },
-  { code: "bt", label: "Bété" },
-  { code: "wo", label: "Wolof" },
 ] as const;
 
-export type NarrationLang = (typeof NARRATION_LANGS)[number]["code"];
+export type NarrationLang = "fr";
 
 /**
  * Narration COURTE (≤ 420 chars) pour les langues locales:

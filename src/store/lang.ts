@@ -1,5 +1,5 @@
 "use client";
-// Kènè — langue de l'interface (i18n UI): fr | dy | bq | bt.
+// Kènè — langue de l'interface (i18n UI): fr (Français standard).
 // Store séparé du store applicatif (kene.ts): la langue est une préférence
 // transverse, indépendante de la session et du panier.
 // skipHydration: le HTML serveur est rendu en français (état initial), la

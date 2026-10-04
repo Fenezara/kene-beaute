@@ -8,8 +8,8 @@ import { fnv1a } from "@/lib/kene/narration";
 const BLOB_CACHE_MAX = 8;
 const blobCache = new Map<string, string>();
 
-/** Récupère (ou met en cache) l'URL audio d'un texte. speed 0.5-2 (0.85 = lent), lang fr|dy|bq|bt|wo. */
-export async function fetchTtsAudioUrl(text: string, speed = 1, lang: "fr" | "dy" | "bq" | "bt" | "wo" = "fr"): Promise<string> {
+/** Récupère (ou met en cache) l'URL audio d'un texte. speed 0.5-2 (0.85 = lent), lang fr. */
+export async function fetchTtsAudioUrl(text: string, speed = 1, lang: "fr" = "fr"): Promise<string> {
   const key = `${lang}|${speed === 1 ? "n" : speed}|${fnv1a(text)}`;
   const hit = blobCache.get(key);
   if (hit) return hit;
@@ -75,7 +75,7 @@ export async function playSpeech({
 }: {
   text: string;
   speed?: number;
-  lang?: "fr" | "dy" | "bq" | "bt" | "wo";
+  lang?: "fr";
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (err?: unknown) => void;
