@@ -439,9 +439,9 @@ export function ChatScreen() {
       const payload = await toAsrBlob(blob);
       const audioBase64 = await blobToBase64(payload);
 
-      // Historique des messages pour conserver le fil clinique
-      const history = [...messages, userVoiceMsg]
-        .slice(-8)
+      // Historique des messages précédents pour conserver le fil clinique
+      const history = messages
+        .slice(-10)
         .map((m) => ({ role: m.role, content: m.transcription || m.content }));
 
       // Envoi direct de l'audio à Dr. Kènè (aucun intermédiaire textuel dans le champ)
@@ -527,10 +527,10 @@ export function ChatScreen() {
     add(mine); // le store re-sème le message d'accueil si le fil est vide
     setSending(true);
     try {
-      // Transport compact: 8 derniers messages avec texte complet préservé
+      // Transport compact: 10 derniers messages avec texte complet préservé (incluant transcriptions vocales)
       const history = [...messages, mine]
-        .slice(-8)
-        .map((m) => ({ role: m.role, content: m.content.slice(0, 1500) }));
+        .slice(-10)
+        .map((m) => ({ role: m.role, content: (m.transcription || m.content).slice(0, 1500) }));
       const r = await apiPost<{ reply: string }>("/api/dermato/chat", { messages: history, userId: user.id }, { timeoutMs: 35_000 });
       add({ id: nid(), role: "assistant", content: r.reply, kind: "text", time: Date.now() });
       notifyChatNew();

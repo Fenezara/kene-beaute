@@ -34,7 +34,11 @@ function cleanTranscriptionText(raw: string): string {
     .trim();
 
   // Si le modèle a transcrit mot pour mot "silence" ou n'a détecté aucune parole
-  if (/^(silence|inaudible|vide|aucun son)[\s.]*$/i.test(cleaned)) {
+  if (
+    /^(silence|inaudible|vide|aucun son)[\s.]*$/i.test(cleaned) ||
+    cleaned.toLowerCase().includes("retranscris") ||
+    cleaned.toLowerCase().includes("aucun son")
+  ) {
     return "";
   }
   return cleaned;
@@ -71,7 +75,7 @@ async function callGeminiAsr(buf: Buffer, mimeType?: string): Promise<string | n
                 "Tu es un système de transcription automatique de la parole (Speech-to-Text / ASR) en français pour des utilisateurs en Côte d'Ivoire et Afrique de l'Ouest. " +
                 "Ton rôle est de retranscrire avec exactitude, mot à mot, ce qui est prononcé dans l'enregistrement audio. " +
                 "N'ajoute AUCUN commentaire, AUCUNE formule de politesse, AUCUNE explication, AUCUN guillemet, AUCUN tiret. " +
-                "Si l'enregistrement ne contient que du silence, un bruit de fond sans parole ou est inaudible, renvoie strictement une chaîne vide sans aucun caractère.",
+                "Si l'enregistrement ne contient que du silence, un bruit de fond sans parole ou est inaudible, réponds UNIQUEMENT par : SILENCE.",
             },
           ],
         },
@@ -86,7 +90,7 @@ async function callGeminiAsr(buf: Buffer, mimeType?: string): Promise<string | n
                 },
               },
               {
-                text: "Retranscris fidèlement le contenu oral de cet enregistrement audio en texte français brut.",
+                text: "Écoute cet enregistrement et retranscris mot à mot ce qui est prononcé en français. Si silencieux, réponds SILENCE.",
               },
             ],
           },

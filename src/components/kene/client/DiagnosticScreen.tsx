@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Droplets, FileDown, GitCompareArrows, Hand, History,
-  ImagePlus, Layers, Leaf, Loader2, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldCheck, Sparkles, Sun, Sunrise, TriangleAlert, WifiOff, X,
+  ImagePlus, Leaf, Loader2, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldCheck, Sparkles, Sun, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
@@ -16,8 +16,6 @@ import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/
 import { AdinkraSky } from "@/components/kene/constellation/AdinkraSky";
 import { diagQueueCount, enqueueDiag, subscribeDiagQueue } from "@/lib/kene/diag-queue";
 import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
-import { SkinTwinCard } from "@/components/kene/skintwin/SkinTwinCard";
-import { SkinDescent } from "@/components/kene/descent/SkinDescent";
 import { EvolutionCard } from "@/components/kene/evolution/EvolutionCard";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
 import { VoiceNarration } from "./VoiceNarration";
@@ -1025,7 +1023,6 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
   const [selectedImgIdx, setSelectedImgIdx] = useState(0);
   const currentImg = allImages[selectedImgIdx] || diagImgSrc(diag.imageData);
   const [ritualOpen, setRitualOpen] = useState(false);
-  const [descentOpen, setDescentOpen] = useState(false);
   const [beautyCardOpen, setBeautyCardOpen] = useState(false);
   const [glossary, setGlossary] = useState<GlossaryEntry | null>(null);
   // t. 138 — le moment diagnostic: la fin d'un résultat réussi est LE moment
@@ -1216,48 +1213,6 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
         </RevealItem>
       )}
 
-
-      {/* Jumeau de Peau — Skin Twin 3D interactif avec projection temporelle (S+0 → S+12) */}
-      <RevealItem className="mt-5">
-        <SkinTwinCard
-          projection
-          entries={[
-            {
-              id: diag.id,
-              zone: r.zone,
-              score: r.score_global,
-              fitz: r.fitzpatrick_estime,
-              marks: r.zones_marquages,
-              date: diag.createdAt,
-              indicators: r.indicateurs,
-            },
-          ]}
-        />
-      </RevealItem>
-
-      {/* Voyage dans ma peau en 3D (Descente à travers les 3 couches cutanées) */}
-      <RevealItem className="mt-4">
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setDescentOpen(true)}
-          className="relative w-full overflow-hidden rounded-[24px] bg-gradient-to-br from-[#241A10] to-[#1A1410] text-left ring-1 ring-[#C8951E]/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary shadow-md active:scale-[0.99] transition-all"
-          aria-label="Ouvrir la Descente de Peau — traverser les trois couches de ma peau en 3D"
-        >
-          <div aria-hidden="true" className="h-1.5 w-full" style={{ backgroundImage: "linear-gradient(90deg, #8D5524 0 33%, #C99B6E 33% 66%, #F0DFC2 66% 100%)" }} />
-          <div className="flex items-center gap-3 p-4">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#C8951E]/15 text-[#E3B04B]">
-              <Layers size={24} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-heading font-bold text-sm text-[#F8F1E4]">Voyage dans ma peau en 3D</p>
-              <p className="mt-0.5 text-[11px] leading-snug text-[#F8F1E4]/65">
-                Descends à travers l&apos;épiderme, le derme et l&apos;hypoderme — éclairés par tes {r.indicateurs.length} indicateurs.
-              </p>
-            </div>
-            <ChevronRight size={18} className="shrink-0 text-[#E3B04B]" aria-hidden="true" />
-          </div>
-        </motion.button>
-      </RevealItem>
 
       {/* Tabs spectraux */}
       <RevealItem className="mt-5">
@@ -1591,17 +1546,6 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
           products={products}
           userName={user.name}
           onClose={() => setRitualOpen(false)}
-        />
-      )}
-
-      {/* Descente de Peau — overlay plein cadre, se referme à la
- remontée (Échap inclus). */}
-      {descentOpen && (
-        <SkinDescent
-          indicators={r.indicateurs}
-          score={r.score_global}
-          zoneLabel={BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone}
-          onClose={() => setDescentOpen(false)}
         />
       )}
 

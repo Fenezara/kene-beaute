@@ -5,8 +5,8 @@
 // 2. Palier 2 : Z.ai SDK (si .z-ai-config est présent)
 // 3. Palier 3 : Moteur Expert Dermatologique Kènè (autonome, basé sur knowledge.ts + conditions.ts)
 //
-// RÈGLE ABSOLUE : Dr Kènè ne renvoie JAMAIS d'erreur 502 ni de message d'échec générique.
-// Elle assure toujours une écoute bienveillante, des conseils concrets et une orientation claire.
+// RÈGLE ABSOLUE : Dr Kènè écoute attentivement, comprend avec exactitude les textes
+// et notes vocales, et répond directement et précisément à la question posée.
 
 import ZAI from "z-ai-web-dev-sdk";
 import { zaiCall } from "@/lib/ai/zai-retry";
@@ -15,33 +15,43 @@ import { ATLAS_DIGEST } from "@/lib/kene/conditions";
 
 const CHAT_TIMEOUT_MS = 30_000;
 
-export const SYSTEM_PROMPT = `Tu es « Dr Kènè », la dermo-conseillère et grande sœur bienveillante de l'application Kènè à Abidjan (Côte d'Ivoire), experte dévouée de la peau noire et métissée africaine (Fitzpatrick IV-VI).
+export const SYSTEM_PROMPT = `Tu es « Dr Kènè », la dermo-conseillère et grande sœur bienveillante de référence de l'application Kènè à Abidjan (Côte d'Ivoire), experte dévouée de la peau noire et métissée africaine (phototypes Fitzpatrick IV à VI).
 
-═══ IDENTITÉ & TONALITÉ : 100% IVOIRIENNE ET AFRICAINE (JAMAIS EUROPÉENNE NI ROBOTIQUE) ═══
-- Tu t'exprimes avec le cœur, la chaleur humaine et le parler vrai d'une VRAIE GRANDE SŒUR D'ABIDJAN.
-- Bannis tout ton froid, distant, guindé, médical ou européen. Tu n'es pas une intelligence artificielle de Paris, tu es chez toi en Côte d'Ivoire.
-- Adopte les expressions douces, naturelles et réconfortantes du français ivoirien d'Abidjan :
-  * Accueille avec tendresse : « Bonjour ma chérie », « Ah ma sœur », « Coucou ma fille », « Yako pour ce qui t'arrive ».
-  * Fais preuve d'empathie vraie : « Yako » quand elle souffre de boutons, de taches ou de démangeaisons. « Ne te décourage surtout pas, ça va aller ».
-  * Utilise les tournures naturelles d'ici : « Tu as vu comment le soleil d'Abidjan tape fort là ? », « L'eau d'ici avec la chaleur humide », « Ne fatigue pas ta peau avec des produits bizarres ou décapants », « Prends ton temps deh », « On va arranger ça doucement doucement ».
-  * Mets en valeur nos trésors botaniques d'Afrique : le vrai beurre de karité pur non raffiné de chez nous, l'huile de moringa pure, le gel d'aloka (l'aloès doux d'ici), l'huile de baobab.
-  * Rappelle l'écran solaire sans sermon : « un bon écran solaire SPF 50 qui ne laisse pas de traces blanches de fantôme sur notre peau noire ».
-- BANNI ABSOLUMENT LE STYLE ROBOT :
-  * JAMAIS de listes à puces (aucun « • », aucun tiret, aucun numéro 1, 2, 3).
-  * Parle en 1 ou 2 paragraphes fluides, chantants et bien rythmés (environ 100 à 140 mots).
-  * Fais des phrases courtes avec de bonnes virgules pour que la voix respire naturellement.
+═══ RÈGLE FONDAMENTALE N°1 : COMPRÉHENSION EXACTE & RÉPONSE PERTINENTE (ÉCOUTE ACTIVE) ═══
+- Réponds TOUJOURS avec exactitude, précision et clarté à la QUESTION EXACTE ou au PROPOS posé par l'utilisatrice.
+- Ne réponds JAMAIS à côté de la plaque ni avec un discours générique préfabriqué.
+- Analyse attentivement ce que l'utilisatrice te dit ou te demande :
+  * Si elle te pose une question précise (ex: choix d'un savon, utilisation du rétinol ou de la niacinamide, fréquence d'un gommage, prix d'un soin, prise de rendez-vous, institut, peau qui pèle, cernes, vergetures) : réponds DIRECTEMENT sur ce sujet précis dès la première phrase avec des explications concrètes et adaptées à la peau noire.
+  * Si elle partage une inquiétude cutanée ou une souffrance (acné, taches sombres, brûlures après décapage, démangeaisons, alopécie) : commence par un mot de réconfort chaleureux (« Yako ma chérie », « Ne t'inquiète pas, on est ensemble »), puis donne le protocole de soin doux adapté.
+  * Si c'est le tout premier message ou une salutation (« Bonjour », « Salut ») : salue avec douceur (« Bonjour ma chérie », « Coucou ma sœur ») et demande-lui ce qui préoccupe sa peau aujourd'hui.
+  * Si c'est la suite d'une conversation (messages précédents déjà échangés) : NE RÉPÈTE PAS les salutations (« Bonjour ») ni les mêmes généralités à chaque réplique ! Enchaîne directement et naturellement sur ce qu'elle vient de dire comme dans une vraie conversation.
+  * Pour les soins en cabine et instituts : rappelle qu'elle peut prendre rendez-vous auprès de nos instituts partenaires certifiés Kènè à Abidjan (comme le Cabinet LA DERMO) directement dans l'onglet « Instituts / RDV » de l'application.
+  * Pour les cosmétiques et soins recommandés : elle peut les retrouver directement dans l'onglet « Boutique » de l'application.
+  * Adapte la longueur : fais des réponses complètes mais digestes (généralement entre 60 et 130 mots selon la question). Ne meuble pas inutilement avec des redondances si la question est simple.
 
-═══ RÈGLE D'OR : ACHÈVEMENT INTÉGRAL DU DISCOURS ═══
-- Tu dois TOUJOURS terminer complètement et rigoureusement ton discours, chacune de tes phrases et ta réflexion.
-- Il est STRICTEMENT INTERDIT de t'arrêter au milieu d'une phrase, de couper un mot ou de laisser une pensée en suspens.
-- Conclus TOUJOURS avec une phrase complète de soutien bienveillante terminée par un point final (ex : « Prends grand soin de toi ma chérie, on est ensemble ! » ou « Ça va aller, prends ton temps deh ! »).
+═══ IDENTITÉ & TONALITÉ : GRANDE SŒUR EXPERTE D'ABIDJAN ═══
+- Tu t'exprimes avec le cœur, la chaleur humaine et le parler vrai d'une grande sœur d'Abidjan :
+  * Chaleureuse, respectueuse, complice et bienveillante.
+  * Français ivoirien fluide, élégant et naturel (touches douces : « ma chérie », « ma sœur », « deh », « doucement doucement », « on est ensemble »).
+  * Bannis tout ton froid, distant, condescendant ou impersonnel.
+- STYLE D'ÉCRITURE :
+  * Pas de listes à puces robotiques (pas de « • », de tirets d'énumération ou de 1. 2. 3.).
+  * Privilégie 1 à 2 paragraphes fluides, bien rythmés, avec une ponctuation naturelle pour une lecture agréable et une narration vocale fluide.
+  * RÈGLE D'OR : Termine TOUJOURS complètement et rigoureusement chaque phrase et pensée par un point final.
 
-═══ RÈGLES DE SÉCURITÉ CUTANÉE ═══
-1. Tu ne prescris JAMAIS de médicament chimique (corticoïde, antifongique oral, antibiotique). Tu conseilles des soins doux et orientes vers un médecin ou dermatologue si besoin.
-2. Tu ne poses jamais de diagnostic médical fermé : « ça ressemble souvent à… » est autorisé.
-3. Signe d'urgence (visage ou lèvres enflés, étouffement, grosse fièvre avec rougeur chaude) → « ma sœur, va tout de suite au centre de santé ou à l'hôpital le plus proche ».
-4. Zéro jugement sur le décapage/tchatcho ou les produits éclaircissants du marché : accueil, douceur, réparation de la barrière protectrice avec le karité.
-5. Soin esthétique (taches, routine, éclat) → propose aussi de passer dans un institut partenaire certifié Kènè à Abidjan pour un soin cabine.
+═══ EXPERTISE DERMO-COSMÉTIQUE PEAUX NOIRES & TRÉSORS AFRICAINS ═══
+- Connais parfaitement les spécificités de la peau noire (Fitzpatrick IV-VI) :
+  * Tendance forte à l'hyperpigmentation post-inflammatoire (la moindre agression ou bouton laisse une tache sombre).
+  * Vulnérabilité aux gommages à gros grains et décapants qui stimulent la mélanogénèse réactionnelle.
+  * Besoin d'un écran solaire invisible sans traces blanches de fantôme (SPF 50).
+  * Barrière lipidique spécifique : valorise nos trésors botaniques purs d'Afrique de l'Ouest (beurre de karité brut non raffiné, huile de moringa, huile de baobab, aloe vera / aloka doux, eau florale de bissap).
+  * Actifs cosmétiques modernes recommandés : niacinamide (éclat et séborégulation), acide azélaïque (taches et rougeurs), acide salicylique doux (pores et sébum), vitamine C stabilisée, céramides, acide hyaluronique.
+
+═══ RÈGLES DE SÉCURITÉ & SANTÉ ═══
+- Tu es une conseillère bienveillante en dermo-cosmétique, tu ne remplaces pas un médecin.
+- Tu ne prescris JAMAIS de médicaments soumis à ordonnance (antibiotiques oraux, corticoïdes, etc.).
+- Face à un signe d'alerte grave (visage ou lèvres enflés, étouffement, grosse fièvre avec rougeur chaude et douloureuse, plaie étendue qui ne cicatrise pas) : oriente immédiatement vers un service d'urgence médicale ou un centre de santé.
+- Respect absolu de la personne : zéro jugement sur le passé cosmétique (décapage, crèmes éclaircissantes). Offre un accompagnement bienveillant vers la réparation et la régénération de la peau.
 
 ${KNOWLEDGE_DIGEST}
 
@@ -58,6 +68,9 @@ export function tidyReply(raw: string): string {
     .replace(/^[•\-\*·]\s+/gm, "")      // supprimer les puces mécaniques
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+  // Retirer un éventuel préfixe "Dr Kènè :" ou "Dr. Kènè :"
+  cleaned = cleaned.replace(/^Dr\.?\s*K[èe]n[èe]\s*:\s*/i, "");
 
   // Sécurité anti-coupure : si le modèle s'est arrêté brutalement sans ponctuation finale
   if (cleaned && !/[.!?…✨]$/.test(cleaned)) {
@@ -81,18 +94,14 @@ export type ChatMessage = {
   content: string;
 };
 
-const FALLBACK_MODELS = [
-  "gemini-flash-lite-latest",
-  "gemini-2.5-flash-lite",
-  "gemini-3.5-flash",
-  "gemini-2.5-flash",
-];
-
 function getCandidateModels(): string[] {
   const preferred = process.env.GEMINI_MODEL?.trim();
   const models = [
     preferred && preferred !== "gemini-1.5-flash" && preferred !== "gemini-2.0-flash" ? preferred : null,
-    ...FALLBACK_MODELS,
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-2.5-pro",
   ].filter(Boolean) as string[];
   return Array.from(new Set(models));
 }
@@ -103,18 +112,29 @@ async function callGeminiChat(messages: ChatMessage[]): Promise<string | null> {
   if (!apiKey) return null;
 
   try {
-    const history = messages.slice(-20);
+    const history = messages.slice(-16);
 
-    const contents = history.map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
+    const rawContents = history.map((m) => ({
+      role: (m.role === "assistant" ? "model" : "user") as "user" | "model",
       parts: [{ text: m.content }],
     }));
 
-    // Google Gemini REST exige que le premier tour provienne impérativement du rôle 'user'
-    while (contents.length > 0 && contents[0].role === "model") {
-      contents.shift();
+    // Google Gemini REST exige impérativement que le premier tour provienne du rôle 'user'
+    while (rawContents.length > 0 && rawContents[0].role === "model") {
+      rawContents.shift();
     }
-    if (contents.length === 0) return null;
+    if (rawContents.length === 0) return null;
+
+    // Fusionner les messages consécutifs du même rôle pour garantir une alternance stricte user / model
+    const contents: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }> = [];
+    for (const item of rawContents) {
+      const last = contents[contents.length - 1];
+      if (last && last.role === item.role) {
+        last.parts.push(...item.parts);
+      } else {
+        contents.push({ role: item.role, parts: [...item.parts] });
+      }
+    }
 
     const models = getCandidateModels();
 
@@ -164,7 +184,7 @@ async function callGeminiChat(messages: ChatMessage[]): Promise<string | null> {
 async function callZaiChatSafe(messages: ChatMessage[]): Promise<string | null> {
   try {
     const zai = await ZAI.create();
-    const history = messages.slice(-20);
+    const history = messages.slice(-16);
     const completion = await zaiCall(
       () =>
         zai.chat.completions.create({
@@ -242,7 +262,16 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
     );
   }
 
-  // 5. DÉPIGMENTATION VOLONTAIRE / DÉCAPAGE / PEAU ABÎMÉE / TCHATCHO
+  // 5. SAVON / NETTOYANT / GEL NETTOYANT
+  if (/savon|nettoyant|gel lavant|pain dermatologique|syndet/.test(text)) {
+    return (
+      "Pour le visage, ma chérie, évite absolument les savons décapants ordinaires qui assèchent et font rebondir le sébum. " +
+      "Choisis un pain dermatologique surgras sans savon (syndet) ou un gel moussant doux au pH neutre. " +
+      "Lave-toi avec de l'eau tiède sans frotter fort avec un gant rugueux. Tu peux retrouver d'excellents nettoyants doux certifiés dans l'onglet Boutique de l'application."
+    );
+  }
+
+  // 6. DÉPIGMENTATION VOLONTAIRE / DÉCAPAGE / PEAU ABÎMÉE / TCHATCHO
   if (/depigment|decap|eclaircis|tchatcho|hydroquinone|cortico|clobetasol|abim|brul/.test(text)) {
     return (
       "Yako du fond du cœur ma chérie, et merci pour ta confiance. Ici tu es chez toi, zéro honte et zéro jugement : on va réparer ta peau ensemble doucement doucement. " +
@@ -252,7 +281,7 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
     );
   }
 
-  // 6. PEAU SÈCHE / TIRAILLEMENTS / HARMATTAN
+  // 7. PEAU SÈCHE / TIRAILLEMENTS / HARMATTAN
   if (/sech|seche|tirail|deshydrat|pele|harmattan|rugueu|cendre/.test(text)) {
     return (
       "C'est vrai qu'avec l'harmattan ou la climatisation à Abidjan, notre peau noire s'assèche vite et prend un reflet gris cendré. " +
@@ -261,7 +290,7 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
     );
   }
 
-  // 7. CHEVEUX / ALOPÉCIE DE TRACTION / TEMPES
+  // 8. CHEVEUX / ALOPÉCIE DE TRACTION / TEMPES
   if (/cheveu|alopecie|traction|tempe|chute|tresse|tissage|cuir chevelu/.test(text)) {
     return (
       "Yako ma sœur ! La perte de cheveux sur les tempes là, c'est très souvent les nattes trop tirées ou les mèches lourdes qui fatiguent la racine. " +
@@ -271,7 +300,7 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
     );
   }
 
-  // 8. DÉMANGEAISONS / ECZÉMA / MYCOSES / TACHES BLANCHES
+  // 9. DÉMANGEAISONS / ECZÉMA / MYCOSES / TACHES BLANCHES
   if (/gratt|demange|eczema|dartre|mycose|champignon|pityriasis|tache blanche|tache claire/.test(text)) {
     return (
       "Yako pour les démangeaisons ma chérie ! Avec l'humidité de chez nous, les petites plaques claires et les mycoses arrivent très vite. " +
@@ -281,7 +310,25 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
     );
   }
 
-  // 9. BOTANIQUES AFRICAINES
+  // 10. INSTITUTS / RENDEZ-VOUS / SOINS EN CABINE
+  if (/institut|rendez[- ]vous|rdv|soin|cabine|reserver|reservation|dermo|adresse|cabinet/.test(text)) {
+    return (
+      "Tu peux prendre ton rendez-vous directement dans l'application Kènè auprès de nos instituts partenaires certifiés à Abidjan, notamment le Cabinet LA DERMO. " +
+      "Les praticiennes d'ici connaissent parfaitement la peau noire et adaptent le protocole de soin à ton phototype sans agresser la peau. " +
+      "Rends-toi simplement dans l'onglet « Instituts » de l'application pour choisir ton créneau et ton soin préféré tranquillement ✨."
+    );
+  }
+
+  // 11. BOUTIQUE / PRIX / ACHAT PRODUITS
+  if (/prix|tarif|combien|acheter|commander|produit|boutique|creme|serum/.test(text)) {
+    return (
+      "Pour commander nos soins dermo-cosmétiques formulés spécialement pour la peau mélanoderme, tu peux te rendre directement dans l'onglet « Boutique » de l'application. " +
+      "Tous les prix en FCFA y sont indiqués en toute transparence, avec livraison rapide partout à Abidjan et en Côte d'Ivoire. " +
+      "Dis-moi ce que tu cherches exactement et je te guide vers le meilleur soin pour ton teint ✨."
+    );
+  }
+
+  // 12. BOTANIQUES AFRICAINES
   if (/karite|moringa|baobab|bissap|aloka|plante|naturel|botanique/.test(text)) {
     return (
       "Nos plantes de chez nous sont de véritables bénédictions pour la peau mélanoderme ! " +
@@ -291,21 +338,12 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
     );
   }
 
-  // 10. INSTITUTS / RENDEZ-VOUS / SOINS
-  if (/institut|rendez[- ]vous|rdv|soin|cabine|reserver|reservation|dermo/.test(text)) {
-    return (
-      "Tu peux prendre ton rendez-vous directement dans l'application Kènè auprès de nos instituts partenaires certifiés à Abidjan, comme le Cabinet LA DERMO. " +
-      "Les praticiennes d'ici connaissent parfaitement la peau noire et adaptent le soin à ton phototype sans produits agressifs. " +
-      "Va juste dans l'onglet Instituts pour réserver ton créneau tranquillement."
-    );
-  }
-
-  // 11. ROUTINE & RÉPONSE GÉNÉRALE BIENVEILLANTE
+  // 13. ROUTINE & RÉPONSE GÉNÉRALE BIENVEILLANTE
   return (
-    "Pour avoir un joli teint propre et lumineux, pas besoin de compliquer les choses ma chérie. " +
-    "La base pour nous à Abidjan : un nettoyage doux sans savon matin et soir, " +
-    "une bonne hydratation avec un gel léger comme l'aloka ou l'huile de moringa, et un écran solaire SPF 50 tous les matins avant de sortir au soleil. " +
-    "Le soir, nourris avec un peu de karité pur. Raconte-moi ce que tu veux améliorer en priorité et on avance ensemble ✨."
+    "Pour prendre soin de ta peau avec amour, voici la règle d'or pour nous à Abidjan : " +
+    "un nettoyage doux sans savon matin et soir, une bonne hydratation avec un gel léger ou quelques gouttes d'huile végétale pure, " +
+    "et un écran solaire SPF 50 tous les matins pour te protéger du soleil fort. " +
+    "Dis-moi ce qui te préoccupe en particulier sur ton visage ou ton corps, et on avance ensemble pas à pas ✨."
   );
 }
 
@@ -315,10 +353,87 @@ export interface DrKeneAudioResponse {
 }
 
 /**
+ * Retranscrit un audio oral en texte brut français via Gemini STT haute précision.
+ * Détecte les silences et élimine les hallucinations.
+ */
+async function transcribeAudio(audioBase64: string, mimeType: string): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return "";
+
+  let cleanMime = (mimeType || "").split(";")[0]?.trim().toLowerCase();
+  if (!cleanMime || !cleanMime.startsWith("audio/")) cleanMime = "audio/wav";
+
+  const models = getCandidateModels();
+
+  for (const model of models) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  { inlineData: { mimeType: cleanMime, data: audioBase64 } },
+                  {
+                    text:
+                      "Écoute très attentivement cet enregistrement audio en français (Afrique de l'Ouest / Côte d'Ivoire). " +
+                      "Retranscris avec une fidélité absolue, mot à mot, l'intégralité des paroles prononcées par la personne. " +
+                      "RÈGLES STRICTES :\n" +
+                      "- Retranscris uniquement les propos prononcés, sans AUCUN commentaire, sans guillemets, sans formule d'introduction.\n" +
+                      "- Si l'enregistrement est totalement silencieux, ne contient que du souffle, du bruit de fond sans parole compréhensible, ou est inaudible, réponds UNIQUEMENT par le mot : SILENCE.",
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 1000,
+            },
+          }),
+          signal: AbortSignal.timeout(20_000),
+        },
+      );
+
+      if (!res.ok) {
+        console.warn(`[kene:transcribe] HTTP ${res.status} sur ${model}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const cleaned = rawText.trim();
+
+      // Détection de silence ou audio inaudible
+      if (
+        !cleaned ||
+        /^silence[\s.]*$/i.test(cleaned) ||
+        /^(inaudible|aucun son|vide)[\s.]*$/i.test(cleaned) ||
+        cleaned.toLowerCase().includes("retranscris avec une fidélité")
+      ) {
+        return "";
+      }
+
+      // Nettoyer d'éventuels guillemets
+      const finalTranscription = cleaned.replace(/^["'«»“]+|["'«»”]+$/g, "").trim();
+      if (finalTranscription) {
+        return finalTranscription;
+      }
+    } catch (err) {
+      console.warn(`[kene:transcribe] Échec sur ${model}:`, (err as Error).message);
+    }
+  }
+
+  return "";
+}
+
+/**
  * Traitement direct d'une note vocale pour Dr. Kènè :
- * 1. Palier 1 : Écoute et compréhension directe multimodale par Gemini (retourne transcription + réponse en JSON)
- * 2. Palier 2 : Retranscription ASR puis réponse experte
- * 3. Palier 3 : Filet de sécurité bienveillant
+ * 1. Écoute et transcription haute fidélité ASR
+ * 2. Compréhension clinique et réponse sur-mesure de Dr. Kènè
  */
 export async function getDrKeneAudioReply(
   audioBase64: string,
@@ -326,118 +441,35 @@ export async function getDrKeneAudioReply(
   history: ChatMessage[] = [],
   userId?: string,
 ): Promise<DrKeneAudioResponse> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  // 1. Retranscription fidèle de la note vocale
+  const transcription = await transcribeAudio(audioBase64, mimeType);
 
-  let cleanMime = (mimeType || "").split(";")[0]?.trim().toLowerCase();
-  if (!cleanMime || !cleanMime.startsWith("audio/")) cleanMime = "audio/wav";
-
-  // Palier 1 : Compréhension audio multimodale directe via Gemini (avec cascade de modèles)
-  if (apiKey) {
-    try {
-      const historyContents = history.slice(-10).map((m) => ({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      }));
-
-      // Google Gemini REST exige impérativement que le premier élément soit de rôle 'user'
-      while (historyContents.length > 0 && historyContents[0].role === "model") {
-        historyContents.shift();
-      }
-
-      const contents = [
-        ...historyContents,
-        {
-          role: "user",
-          parts: [
-            { inlineData: { mimeType: cleanMime, data: audioBase64 } },
-            { text: "Voici ma note vocale. Écoute mon message et réponds-moi en tant que Dr. Kènè." },
-          ],
-        },
-      ];
-
-      const audioPrompt = `${SYSTEM_PROMPT}
-
-═══ DIRECTIVE SPÉCIFIQUE NOTE VOCALE ═══
-L'utilisatrice vient de t'envoyer un message vocal (note vocale).
-Écoute attentivement ce qu'elle dit.
-Réponds STRICTEMENT sous format JSON valide avec la structure suivante :
-{
-  "transcription": "Retranscription fidèle mot à mot en français de ce que dit l'utilisatrice",
-  "reply": "Ta réponse chaleureuse et bienveillante en français d'Abidjan (100 à 140 mots, sans markdown astérisques **, discours et phrases TOUJOURS complètement terminés par un point final)"
-}
-Si la note vocale ne contient que du silence ou est inaudible, renvoie "transcription": "" et dans "reply" un mot doux demandant de répéter.`;
-
-      const models = getCandidateModels();
-
-      for (const model of models) {
-        try {
-          const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                systemInstruction: { parts: [{ text: audioPrompt }] },
-                contents,
-                generationConfig: {
-                  temperature: 0.3,
-                  maxOutputTokens: 2500,
-                  responseMimeType: "application/json",
-                },
-              }),
-              signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
-            },
-          );
-
-          if (res.status === 429) {
-            console.warn(`[kene:audio-chat] Quota dépassé sur ${model} (429), essai du modèle suivant...`);
-            continue;
-          }
-
-          if (!res.ok) {
-            console.warn(`[kene:audio-chat] HTTP ${res.status} sur ${model}`);
-            continue;
-          }
-
-          const data = await res.json();
-          const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawJson) {
-            try {
-              const parsed = JSON.parse(rawJson);
-              const reply = tidyReply(parsed.reply || "");
-              const transcription = String(parsed.transcription || "").trim();
-              if (reply) {
-                return { reply, transcription };
-              }
-            } catch {
-              const match = rawJson.match(/\{[\s\S]*\}/);
-              if (match) {
-                const parsed = JSON.parse(match[0]);
-                const reply = tidyReply(parsed.reply || "");
-                const transcription = String(parsed.transcription || "").trim();
-                if (reply) {
-                  return { reply, transcription };
-                }
-              }
-            }
-          }
-        } catch (err) {
-          console.warn(`[kene:audio-chat] Échec appel sur modèle ${model}:`, (err as Error).message);
-        }
-      }
-    } catch (err) {
-      console.warn("[kene:audio-chat] Palier multimodal Gemini direct échoué :", err);
-    }
+  // Cas 1 : Audio silencieux ou non audible
+  if (!transcription) {
+    return {
+      transcription: "",
+      reply:
+        "Pardon ma chérie, je n'ai pas bien entendu ta note vocale ou c'était un peu trop silencieux. Tu peux me la réenregistrer en parlant bien près du micro ou m'écrire ton message directement ? Je t'écoute avec attention ✨ !",
+    };
   }
 
-  // Palier 2 : Tente un secours par réponse textuelle par défaut
-  const fallbackReply = generateDrKeneKnowledgeReply(
-    [...history, { role: "user", content: "conseil" }],
-    userId,
-  );
+  // Cas 2 : Parole reconnue avec succès
+  // Filtrer les anciens messages génériques "Note vocale" de l'historique
+  const cleanHistory = history
+    .filter((m) => !/^Note vocale\s*\(/i.test(m.content))
+    .slice(-10);
+
+  const fullConversation: ChatMessage[] = [
+    ...cleanHistory,
+    { role: "user", content: transcription },
+  ];
+
+  // Obtenir la réponse experte, ciblée et chaleureuse de Dr. Kènè
+  const reply = await getDrKeneReply(fullConversation, userId);
+
   return {
-    reply: fallbackReply,
-    transcription: "Note vocale reçue",
+    transcription,
+    reply,
   };
 }
 
@@ -465,4 +497,3 @@ export async function getDrKeneReply(messages: ChatMessage[], userId?: string): 
   // Palier 3 : Moteur Expert Dermatologique Kènè
   return generateDrKeneKnowledgeReply(messages, userId);
 }
-
