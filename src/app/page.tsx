@@ -27,10 +27,7 @@ import { Toaster } from "@/components/ui/sonner";
 // Espaces Pro / Admin / Pin: chunks séparés, chargés à l'entrée de l'espace
 // (exports nommés → default attendu par next/dynamic). AdminApp est chargé
 // par ConsoleEntry (t. 130) — la console ne vit QUE derrière /console.
-const ProApp = dynamic(() => import("@/components/kene/pro/ProApp").then((m) => ({ default: m.ProApp })), {
-  ssr: false,
-  loading: () => <BootSkeleton />,
-});
+import { ProApp } from "@/components/kene/pro/ProApp";
 
 const PinEntry = dynamic(() => import("@/components/kene/auth/PinEntry").then((m) => ({ default: m.PinEntry })), {
   ssr: false,

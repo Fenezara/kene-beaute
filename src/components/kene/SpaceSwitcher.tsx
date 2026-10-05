@@ -7,6 +7,7 @@ import { Smartphone, BriefcaseBusiness, ShieldCheck, ChevronDown, Loader2, LogOu
 import { toast } from "sonner";
 import { useKene, type Space } from "@/store/kene";
 import { performLogout } from "@/lib/kene/logout";
+import { DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,7 +70,7 @@ export function SpaceSwitcher({
 
     // Si bascule vers Pro et pas d'institut mémorisé, sélectionner l'institut par défaut
     if (target === "pro" && !useKene.getState().proTenantId) {
-      useKene.getState().setProTenantId(user?.tenantId || "cmtjdaiij000aqimiwwz2rkfk");
+      useKene.getState().setProTenantId(user?.tenantId || DEFAULT_FALLBACK_TENANT_ID);
     }
 
     setSpace(target);
