@@ -11,11 +11,11 @@
  *    réseau direct, JAMAIS de cache (les écritures et secrets ne se mettent pas en cache).
  */
 
-const VERSION = "kene-sw-v15";
-const PRECACHE = "kene-precache-v15";
-const DATA_CACHE = "kene-data-v15";
-const IMG_CACHE = "kene-img-v15";
-const STATIC_CACHE = "kene-static-v15"; // chunks /_next/ (SWR t. 61)
+const VERSION = "kene-sw-v16";
+const PRECACHE = "kene-precache-v16";
+const DATA_CACHE = "kene-data-v16";
+const IMG_CACHE = "kene-img-v16";
+const STATIC_CACHE = "kene-static-v16"; // chunks /_next/ (SWR t. 61)
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
@@ -33,7 +33,8 @@ const PRECACHE_URLS = [
 
 /** API de lecture : network-first + réplication offline. T. 61 : appointments
  * et wallet ajoutés — HomeScreen les charge avec diagnoses (sans .catch) : un
- * seul 502 hors-ligne faisait tomber toute la carte score de l'accueil. */
+ * seul 502 hors-ligne faisait tomber toute la carte score de l'accueil.
+ * Espace entreprise : /api/pro ajouté pour résilience offline (Dashboard, CRM, Agenda, Caisse, etc.). */
 const DATA_API_PREFIXES = [
   "/api/diagnoses",
   "/api/shop",
@@ -44,6 +45,7 @@ const DATA_API_PREFIXES = [
   "/api/wallet",
   "/api/coupons",
   "/api/passport",
+  "/api/pro",
 ];
 
 /** Dossiers d'images statiques (cache-first). */
@@ -237,7 +239,13 @@ async function networkFirstData(req) {
         const cache = await caches.open(DATA_CACHE);
         // En-têtes assainis : Vary RSC (Next) casserait le match hors-ligne et
         // content-encoding gzip corromprait le re-service (corps déjà décodé).
-        await cache.put(req, await sanitizeForCache(networkRes));
+        const sanitized = await sanitizeForCache(networkRes);
+        // Sauvegarde résiliente : par req.url d'abord (évite le rejet TypeError du mode no-store)
+        try {
+          await cache.put(req.url, sanitized.clone());
+        } catch {
+          await cache.put(req, sanitized);
+        }
       } catch {
         /* quota dépassé ou corps illisible → on sert quand même le réseau */
       }
@@ -247,7 +255,10 @@ async function networkFirstData(req) {
     /* réseau injoignable → on tente le cache ci-dessous */
   }
   // Échec réseau OU réponse 4xx/5xx → cache runtime si disponible.
-  const cached = await caches.match(req, { cacheName: DATA_CACHE });
+  let cached = await caches.match(req.url, { cacheName: DATA_CACHE });
+  if (!cached) {
+    cached = await caches.match(req, { cacheName: DATA_CACHE });
+  }
   if (cached) {
     const body = await cached.text();
     const headers = new Headers(cached.headers);

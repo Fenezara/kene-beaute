@@ -220,7 +220,21 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
 
       {/* Liste */}
       {data.error && !data.data ? (
-        <Card><CardContent className="p-4"><ErrorState message={`Relances indisponibles : ${data.error}`} onRetry={data.refetch} /></CardContent></Card>
+        typeof navigator !== "undefined" && !navigator.onLine ? (
+          <Card>
+            <CardContent className="p-8 text-center space-y-3">
+              <EmptyState
+                label="Relances hors-ligne"
+                sub="Le suivi des relances clientes n'a pas encore été synchronisé sur cet appareil. Vos relances s'afficheront dès la reconnexion."
+              />
+              <Button onClick={data.refetch} variant="outline" className="text-xs">
+                Réessayer la connexion
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card><CardContent className="p-4"><ErrorState message={`Relances indisponibles : ${data.error}`} onRetry={data.refetch} /></CardContent></Card>
+        )
       ) : data.loading && !data.data ? (
         <div className="space-y-3" aria-busy="true" aria-label="Chargement des relances">
           {[0, 1, 2].map((i) => <div key={i} className="h-24 rounded-2xl bg-muted animate-pulse" />)}

@@ -193,7 +193,19 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
       </div>
 
       {list.error && !list.data ? (
-        <ErrorState message={`Agenda indisponible : ${list.error}`} onRetry={list.refetch} />
+        typeof navigator !== "undefined" && !navigator.onLine ? (
+          <Card className="p-8 text-center space-y-3">
+            <EmptyState
+              label="Agenda hors-ligne"
+              sub="Les rendez-vous n'ont pas encore été synchronisés sur cet appareil pour cette période. Vos réservations s'afficheront automatiquement dès la reconnexion."
+            />
+            <Button onClick={list.refetch} variant="outline" className="text-xs">
+              Réessayer la connexion
+            </Button>
+          </Card>
+        ) : (
+          <ErrorState message={`Agenda indisponible : ${list.error}`} onRetry={list.refetch} />
+        )
       ) : list.loading && !list.data ? (
         <Skeleton className="h-[480px] w-full" />
       ) : (

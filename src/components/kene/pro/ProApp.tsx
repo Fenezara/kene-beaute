@@ -7,10 +7,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, Stethoscope, TicketPercent, UserPlus } from "lucide-react";
+import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, Stethoscope, TicketPercent, UserPlus, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
+import { isOnline } from "@/lib/kene/ux";
 import { KeneEmblem, KeneEmblemLockup, KeneMark, DuafeIcon, SankofaIcon, AbanIcon, OsramIcon, KenteIcon, FihankraIcon, BaouleIcon, NkonsonkonsonIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -109,6 +110,19 @@ export function ProApp() {
   // Modal de l'Assistante de la Maman (Débriefing & dispatch 1-tap)
   const [mamanAssistantOpen, setMamanAssistantOpen] = useState(false);
 
+  // Détection de connectivité réseau pour la résilience offline (façon Wave)
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    const update = () => setOnline(isOnline());
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+
   const overview = useApi<ProOverview>(
     () => apiGet<ProOverview>(`/api/pro/overview${proTenantId ? `?tenantId=${proTenantId}` : ""}`),
     [proTenantId]
@@ -120,20 +134,52 @@ export function ProApp() {
     if (!proTenantId && overview.data?.tenant?.id) setProTenantId(overview.data.tenant.id);
   }, [proTenantId, overview.data, setProTenantId]);
 
-  // AUTO-GUÉRISON: un institut mémorisé (localStorage) disparu ou ÉTRANGER
-  // (: l'ancien bug pouvait y persister l'id du « premier institut de
-  // la base ») ne doit jamais bloquer l'espace Pro — on oublie la préférence
-  // périmée: la résolution sans id renvoie désormais l'institut de la gérante.
+  // AUTO-GUÉRISON : un institut mémorisé disparu ne doit JAMAIS être effacé
+  // si le navigateur est hors-ligne ou s'il s'agit d'une instabilité réseau passagère.
   const healedRef = useRef(false);
   useEffect(() => {
+    if (!online || !isOnline()) return;
     if (overview.error && proTenantId && !healedRef.current) {
+      const isNetworkErr = /hors-ligne|instable|réseau|network|failed to fetch/i.test(overview.error);
+      if (isNetworkErr) return;
+
       healedRef.current = true;
       setProTenantId(null);
       toast.info("Institut mémorisé périmé — ton institut est rechargé");
     }
-  }, [overview.error, proTenantId, setProTenantId]);
+  }, [overview.error, proTenantId, setProTenantId, online]);
 
-  const tid = proTenantId ?? overview.data?.tenant.id ?? "";
+  const tid = proTenantId ?? overview.data?.tenant?.id ?? sessionUser?.tenantId ?? "";
+
+  // Pré-remplissage du cache hors-ligne pour l'espace entreprise (CRM, catalogue, stock, etc.)
+  // Assure la disponibilité immédiate des écrans même si la connexion est coupée en cours de journée
+  useEffect(() => {
+    if (!tid || !online || !isOnline()) return;
+    const timer = window.setTimeout(() => {
+      const endpoints = [
+        `/api/pro/overview?tenantId=${tid}`,
+        `/api/pro/clients?tenantId=${tid}`,
+        `/api/pro/catalog?tenantId=${tid}`,
+        `/api/pro/stock?tenantId=${tid}`,
+        `/api/pro/employees?tenantId=${tid}`,
+        `/api/pro/sales?tenantId=${tid}`,
+      ];
+      endpoints.forEach((ep) => {
+        void apiGet(ep).catch(() => {});
+      });
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [tid, online]);
+
+  // Rafraîchissement automatique dès que le réseau revient
+  useEffect(() => {
+    const handleOnline = () => {
+      void refetchRef.current?.();
+      setRefreshKey((k) => k + 1);
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, []);
 
  /* ── Temps réel institut (room tenant:{tid}) ─────────────────────────
  * join-tenant à la connexion (et à chaque changement d'institut);
@@ -490,6 +536,14 @@ export function ProApp() {
           </nav>
         </div>
       </header>
+
+      {/* Bandeau hors-ligne — résilience réseau façon Wave (Tableau de bord, CRM, Caisse, etc.) */}
+      {!online && (
+        <div role="status" className="flex items-center justify-center gap-2 bg-gold/15 text-gold-text text-[11px] font-semibold py-1.5 px-3 border-b border-gold/30">
+          <WifiOff size={13} aria-hidden="true" />
+          Mode hors-ligne — Vos données locales (Tableau de bord, CRM, Caisse) restent disponibles
+        </div>
+      )}
 
       {/* ───────── 2. CORPS : RAIL LATÉRAL FIN (68 px) + CONTENU PRINCIPAL ───────── */}
       <div className="flex-1 flex flex-row min-w-0">

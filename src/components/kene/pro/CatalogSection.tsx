@@ -288,7 +288,19 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
       />
 
       {catalog.error && !catalog.data ? (
-        <ErrorState message={`Catalogue indisponible : ${catalog.error}`} onRetry={catalog.refetch} />
+        typeof navigator !== "undefined" && !navigator.onLine ? (
+          <Card className="p-8 text-center space-y-3">
+            <EmptyState
+              label="Catalogue hors-ligne"
+              sub="Vos prestations et produits n'ont pas encore été synchronisés sur cet appareil. Ils s'afficheront dès la reconnexion."
+            />
+            <Button onClick={catalog.refetch} variant="outline" className="text-xs">
+              Réessayer la connexion
+            </Button>
+          </Card>
+        ) : (
+          <ErrorState message={`Catalogue indisponible : ${catalog.error}`} onRetry={catalog.refetch} />
+        )
       ) : catalog.loading && !catalog.data ? (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (

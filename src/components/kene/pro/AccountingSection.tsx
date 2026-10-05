@@ -229,6 +229,22 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
   }
 
   if (acc.error && !acc.data) {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return (
+        <div className="space-y-4">
+          <SectionHeader title="Compta" sub="SYSCOHADA révisé — journal, grand livre, balance, liasse" />
+          <Card className="p-8 text-center space-y-3">
+            <EmptyState
+              label="Comptabilité hors-ligne"
+              sub="Les écritures et balances SYSCOHADA n'ont pas encore été synchronisées sur cet appareil. Vos données s'afficheront dès la reconnexion."
+            />
+            <Button onClick={acc.refetch} variant="outline" className="text-xs">
+              Réessayer la connexion
+            </Button>
+          </Card>
+        </div>
+      );
+    }
     return (
       <div className="space-y-4">
         <SectionHeader title="Compta" sub="SYSCOHADA révisé — journal, grand livre, balance, liasse" />

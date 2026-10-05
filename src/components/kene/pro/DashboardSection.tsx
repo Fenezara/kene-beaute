@@ -95,6 +95,19 @@ export function DashboardSection({
   const filteredReviews = reviewsFilter === "all" ? allReviews : allReviews.filter((r) => r.rating === reviewsFilter);
 
   if (overview.error && !data) {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return (
+        <Card className="p-8 text-center space-y-3">
+          <EmptyState
+            label="Tableau de bord hors-ligne"
+            sub="Les indicateurs d'activité n'ont pas encore été synchronisés sur cet appareil. Vos données s'afficheront automatiquement dès la reconnexion à internet."
+          />
+          <Button onClick={overview.refetch} variant="outline" className="text-xs">
+            Réessayer la connexion
+          </Button>
+        </Card>
+      );
+    }
     return <ErrorState message={`Tableau de bord indisponible : ${overview.error}`} onRetry={overview.refetch} />;
   }
 

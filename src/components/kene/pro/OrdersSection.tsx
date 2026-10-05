@@ -108,9 +108,21 @@ export function OrdersSection({ tenantId, tenantName = "Institut", refreshKey }:
       {/* Liste */}
       <Card className="overflow-hidden">
         {orders.error && !data ? (
-          <CardContent className="p-4">
-            <ErrorState message={`Commandes indisponibles : ${orders.error}`} onRetry={orders.refetch} />
-          </CardContent>
+          typeof navigator !== "undefined" && !navigator.onLine ? (
+            <CardContent className="p-8 text-center space-y-3">
+              <EmptyState
+                label="Commandes hors-ligne"
+                sub="Les commandes en ligne n'ont pas encore été synchronisées sur cet appareil. Elles s'afficheront dès la reconnexion."
+              />
+              <Button onClick={orders.refetch} variant="outline" className="text-xs">
+                Réessayer la connexion
+              </Button>
+            </CardContent>
+          ) : (
+            <CardContent className="p-4">
+              <ErrorState message={`Commandes indisponibles : ${orders.error}`} onRetry={orders.refetch} />
+            </CardContent>
+          )
         ) : orders.loading && !data ? (
           <CardContent className="p-4 space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (

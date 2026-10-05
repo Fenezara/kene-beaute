@@ -117,7 +117,33 @@ export function CrmSection({
   const [createBusy, setCreateBusy] = useState(false);
 
   const clients = useApi<ProClient[]>(
-    () => (tenantId ? apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}${q ? `&q=${encodeURIComponent(q)}` : ""}`).then((r) => r.clients ?? []) : Promise.resolve([])),
+    async () => {
+      if (!tenantId) return [];
+      try {
+        const res = await apiGet<{ clients: ProClient[] }>(
+          `/api/pro/clients?tenantId=${tenantId}${q ? `&q=${encodeURIComponent(q)}` : ""}`
+        );
+        return res.clients ?? [];
+      } catch (err) {
+        // En cas d'échec (ex: recherche hors-ligne non présente dans le cache),
+        // on tente de charger la liste complète en cache et de filtrer localement
+        if (q) {
+          try {
+            const fallbackRes = await apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`);
+            const allClients = fallbackRes.clients ?? [];
+            const term = q.toLowerCase().trim();
+            return allClients.filter(
+              (c) =>
+                c.name.toLowerCase().includes(term) ||
+                (c.phone && c.phone.includes(term))
+            );
+          } catch {
+            // continuer vers throw originel
+          }
+        }
+        throw err;
+      }
+    },
     [tenantId, q]
   );
 
@@ -247,7 +273,19 @@ export function CrmSection({
       {/* Table */}
       <Card className="overflow-hidden">
         {clients.error && !clients.data ? (
-          <CardContent className="p-4"><ErrorState message={`CRM indisponible : ${clients.error}`} onRetry={clients.refetch} /></CardContent>
+          typeof navigator !== "undefined" && !navigator.onLine ? (
+            <CardContent className="p-8 text-center space-y-3">
+              <EmptyState
+                label="CRM hors-ligne"
+                sub="Le carnet de clientes n'a pas encore été synchronisé sur cet appareil. Connectez-vous à internet pour le charger."
+              />
+              <Button onClick={clients.refetch} variant="outline" className="text-xs">
+                Réessayer la connexion
+              </Button>
+            </CardContent>
+          ) : (
+            <CardContent className="p-4"><ErrorState message={`CRM indisponible : ${clients.error}`} onRetry={clients.refetch} /></CardContent>
+          )
         ) : clients.loading && !clients.data ? (
           <CardContent className="p-4 space-y-2">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -742,20 +780,34 @@ function ClientSheet({
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" aria-describedby={undefined} className="w-full sm:max-w-lg overflow-y-auto pretty-scroll p-0">
-        {detail.error ? (
-          <div className="p-4">
-            {/* Titre sr-only: Radix exige un SheetTitle dès l'ouverture, même en état d'erreur */}
-            <SheetTitle className="sr-only">Fiche cliente indisponible</SheetTitle>
-            <ErrorState message={`Fiche indisponible : ${detail.error}`} onRetry={detail.refetch} />
-          </div>
-        ) : detail.loading || !d || !c ? (
-          <div className="space-y-3 p-4">
-            {/* Titre sr-only: présent dès le squelette de chargement (exigence Radix a11y) */}
-            <SheetTitle className="sr-only">Chargement de la fiche cliente…</SheetTitle>
-            <Skeleton className="h-20" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-64" />
-          </div>
+        {!d || !c ? (
+          detail.error ? (
+            <div className="p-4">
+              {/* Titre sr-only: Radix exige un SheetTitle dès l'ouverture, même en état d'erreur */}
+              <SheetTitle className="sr-only">Fiche cliente indisponible</SheetTitle>
+              {typeof navigator !== "undefined" && !navigator.onLine ? (
+                <div className="py-6 text-center space-y-3">
+                  <EmptyState
+                    label="Fiche hors-ligne"
+                    sub="Cette fiche cliente n'a pas encore été consultée en ligne sur cet appareil."
+                  />
+                  <Button onClick={detail.refetch} variant="outline" className="text-xs">
+                    Réessayer la connexion
+                  </Button>
+                </div>
+              ) : (
+                <ErrorState message={`Fiche indisponible : ${detail.error}`} onRetry={detail.refetch} />
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3 p-4">
+              {/* Titre sr-only: présent dès le squelette de chargement (exigence Radix a11y) */}
+              <SheetTitle className="sr-only">Chargement de la fiche cliente…</SheetTitle>
+              <Skeleton className="h-20" />
+              <Skeleton className="h-24" />
+              <Skeleton className="h-64" />
+            </div>
+          )
         ) : (
           <>
             <SheetHeader className="p-4 pb-3 border-b border-border bg-muted/40">

@@ -461,7 +461,19 @@ export function StockSection({ tenantId, onNavigate }: { tenantId: string; onNav
 
       {/* ───────── Corps : Inventaire & Mouvements ───────── */}
       {stock.error && !stock.data ? (
-        <ErrorState message={`Stock indisponible : ${stock.error}`} onRetry={stock.refetch} />
+        typeof navigator !== "undefined" && !navigator.onLine ? (
+          <Card className="p-8 text-center space-y-3">
+            <EmptyState
+              label="Stock hors-ligne"
+              sub="L'inventaire de vos produits n'a pas encore été synchronisé sur cet appareil. Vos stocks s'afficheront dès la reconnexion."
+            />
+            <Button onClick={stock.refetch} variant="outline" className="text-xs">
+              Réessayer la connexion
+            </Button>
+          </Card>
+        ) : (
+          <ErrorState message={`Stock indisponible : ${stock.error}`} onRetry={stock.refetch} />
+        )
       ) : stock.loading && !stock.data ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (

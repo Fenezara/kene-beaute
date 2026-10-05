@@ -307,9 +307,21 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
       {/* Historique */}
       <Card className="overflow-hidden">
         {list.error && !list.data ? (
-          <CardContent className="p-4">
-            <ErrorState message={`Diagnostics indisponibles : ${list.error}`} onRetry={list.refetch} />
-          </CardContent>
+          typeof navigator !== "undefined" && !navigator.onLine ? (
+            <CardContent className="p-8 text-center space-y-3">
+              <EmptyState
+                label="Diagnostics hors-ligne"
+                sub="L'historique des diagnostics cabine n'a pas encore été synchronisé sur cet appareil. Vos analyses s'afficheront dès la reconnexion."
+              />
+              <Button onClick={list.refetch} variant="outline" className="text-xs">
+                Réessayer la connexion
+              </Button>
+            </CardContent>
+          ) : (
+            <CardContent className="p-4">
+              <ErrorState message={`Diagnostics indisponibles : ${list.error}`} onRetry={list.refetch} />
+            </CardContent>
+          )
         ) : list.loading && !list.data ? (
           <CardContent className="p-4 space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (

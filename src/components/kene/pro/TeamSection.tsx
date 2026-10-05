@@ -227,7 +227,19 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
 
       {/* ── Fiches ── */}
       {employees.error && !employees.data ? (
-        <ErrorState message={`Équipe indisponible : ${employees.error}`} onRetry={employees.refetch} />
+        typeof navigator !== "undefined" && !navigator.onLine ? (
+          <Card className="p-8 text-center space-y-3">
+            <EmptyState
+              label="Équipe hors-ligne"
+              sub="La liste des employées n'a pas encore été synchronisée sur cet appareil. Vos fiches s'afficheront dès la reconnexion."
+            />
+            <Button onClick={employees.refetch} variant="outline" className="text-xs">
+              Réessayer la connexion
+            </Button>
+          </Card>
+        ) : (
+          <ErrorState message={`Équipe indisponible : ${employees.error}`} onRetry={employees.refetch} />
+        )
       ) : employees.loading && !employees.data ? (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {Array.from({ length: 3 }).map((_, i) => (

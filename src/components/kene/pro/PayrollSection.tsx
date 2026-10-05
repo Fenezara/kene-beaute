@@ -303,7 +303,19 @@ export function PayrollSection({
           <FileText className="size-4 text-primary" aria-hidden="true" /> Périodes & bulletins
         </h3>
         {payroll.error && !payroll.data ? (
-          <ErrorState message={`Paie indisponible : ${payroll.error}`} onRetry={payroll.refetch} />
+          typeof navigator !== "undefined" && !navigator.onLine ? (
+            <Card className="p-8 text-center space-y-3">
+              <EmptyState
+                label="Paie hors-ligne"
+                sub="Les bulletins et périodes de paie n'ont pas encore été synchronisés sur cet appareil. Vos données s'afficheront dès la reconnexion."
+              />
+              <Button onClick={payroll.refetch} variant="outline" className="text-xs">
+                Réessayer la connexion
+              </Button>
+            </Card>
+          ) : (
+            <ErrorState message={`Paie indisponible : ${payroll.error}`} onRetry={payroll.refetch} />
+          )
         ) : payroll.loading && !payroll.data ? (
           <Skeleton className="h-48" />
         ) : periods.length === 0 ? (
