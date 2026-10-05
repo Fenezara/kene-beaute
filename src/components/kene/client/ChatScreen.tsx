@@ -148,6 +148,48 @@ const TRIAGE = {
   rouge: { border: "border-l-4 border-bissap", bg: "bg-bissap/5", text: "text-destructive", Icon: OctagonAlert, cta: "Voir les instituts", tab: "rdv" as const },
 };
 
+/* ── Mémorisation permanente de l'autorisation matériel (accordée une fois pour toutes) ── */
+const HARDWARE_PERM_KEY = "kene-hardware-permission-granted";
+
+function isHardwarePermGranted(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(HARDWARE_PERM_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function saveHardwarePermGranted(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(HARDWARE_PERM_KEY, "true");
+  } catch {}
+}
+
+/** Déverrouillage préventif de l'AudioContext pour les navigateurs mobiles (iOS Safari / Android Chrome)
+ * afin que la réponse vocale automatique de Dr. Kènè démarre immédiatement sans blocage autoplay. */
+function primeAudioContext() {
+  if (typeof window === "undefined") return;
+  try {
+    const Ctx =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (Ctx) {
+      const ctx = new Ctx();
+      if (ctx.state === "suspended") void ctx.resume();
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+    }
+    if (typeof window.speechSynthesis !== "undefined") {
+      window.speechSynthesis.resume();
+    }
+  } catch {}
+}
+
 /* Ids uniques entre sessions: un simple compteur entrerait en collision avec
  les ids persistés ("m1" déjà pris par un ancien message) → préfixe horodaté. */
 let idCounter = 0;
@@ -381,6 +423,7 @@ export function ChatScreen() {
 
   function stopRecording() {
     if (micState !== "recording") return;
+    primeAudioContext(); // Déverrouillage AudioContext pour mobile afin d'autoriser l'autoplay de la réponse
     clearMicTimers();
     const rec = recorderRef.current;
     if (rec?.state === "recording") rec.stop(); // → onstop → sendAudioRecording
@@ -466,15 +509,18 @@ export function ChatScreen() {
       }
 
       // 3. Réponse directe et bienveillante de Dr. Kènè
+      const assistantMsgId = nid();
       add({
-        id: nid(),
+        id: assistantMsgId,
         role: "assistant",
         content: r.reply,
         kind: "text",
         time: Date.now(),
       });
       notifyChatNew();
-      speak(r.reply);
+      // LECTURE AUDIO AUTOMATIQUE : L'utilisateur s'est exprimé en audio,
+      // la lecture vocale de la réponse de Dr. Kènè démarre immédiatement et automatiquement !
+      speak(r.reply, true, assistantMsgId);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur lors de l'envoi de la note vocale");
       add({
@@ -491,33 +537,57 @@ export function ChatScreen() {
   }
 
   const currentAudioCtrlRef = useRef<SpeechController | null>(null);
+  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
+
+  const stopCurrentSpeech = useCallback(() => {
+    currentAudioCtrlRef.current?.stop();
+    currentAudioCtrlRef.current = null;
+    stopBrowserVoice();
+    setPlayingMsgId(null);
+  }, []);
 
   useEffect(() => {
     return () => {
       currentAudioCtrlRef.current?.stop();
       currentAudioCtrlRef.current = null;
       stopBrowserVoice();
+      setPlayingMsgId(null);
     };
   }, []);
 
-  const speak = useCallback((text: string) => {
-    if (!ttsOn || typeof window === "undefined") return;
-    currentAudioCtrlRef.current?.stop();
-    void playSpeech({
-      text,
-      speed: 1,
-      lang: "fr",
-      onStart: () => {},
-      onEnd: () => {
-        currentAudioCtrlRef.current = null;
-      },
-      onError: () => {
-        currentAudioCtrlRef.current = null;
-      },
-    }).then((ctrl) => {
-      currentAudioCtrlRef.current = ctrl;
-    });
-  }, [ttsOn]);
+  const speak = useCallback(
+    (text: string, force = false, messageId?: string) => {
+      if ((!ttsOn && !force) || typeof window === "undefined") return;
+      currentAudioCtrlRef.current?.stop();
+      currentAudioCtrlRef.current = null;
+      stopBrowserVoice();
+      if (messageId) setPlayingMsgId(messageId);
+
+      void playSpeech({
+        text,
+        speed: 1,
+        lang: "fr",
+        onStart: () => {
+          if (messageId) setPlayingMsgId(messageId);
+        },
+        onEnd: () => {
+          currentAudioCtrlRef.current = null;
+          setPlayingMsgId(null);
+        },
+        onError: () => {
+          currentAudioCtrlRef.current = null;
+          setPlayingMsgId(null);
+        },
+      })
+        .then((ctrl) => {
+          currentAudioCtrlRef.current = ctrl;
+        })
+        .catch(() => {
+          setPlayingMsgId(null);
+        });
+    },
+    [ttsOn]
+  );
 
   async function send(text?: string) {
     const content = (text ?? input).trim();
@@ -626,9 +696,7 @@ export function ChatScreen() {
             setTtsOn((v) => {
               const next = !v;
               if (!next) {
-                currentAudioCtrlRef.current?.stop();
-                currentAudioCtrlRef.current = null;
-                stopBrowserVoice();
+                stopCurrentSpeech();
               }
               return next;
             });
@@ -704,11 +772,36 @@ export function ChatScreen() {
                   )}
                   <div className="flex items-center justify-between gap-3 mt-1.5 px-0.5">
                     <p className="text-[9px] text-muted-foreground">Dr. Kènè · {new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
-                    <SpeakButton
-                      text={m.content}
-                      label="Écouter"
-                      className="h-7 px-2.5 text-[10px] min-h-0 border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-full"
-                    />
+                    {playingMsgId === m.id ? (
+                      <button
+                        type="button"
+                        onClick={stopCurrentSpeech}
+                        aria-label="Arrêter la voix de Dr. Kènè"
+                        className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold shadow-xs active:scale-95 transition-all"
+                      >
+                        <span className="flex items-end gap-[2px] h-3 mr-0.5" aria-hidden="true">
+                          {[0, 1, 2, 3].map((i) => (
+                            <span
+                              key={i}
+                              className="w-[2px] h-full bg-primary-foreground rounded-full animate-pulse"
+                              style={{ animationDelay: `${i * 150}ms` }}
+                            />
+                          ))}
+                        </span>
+                        <Square size={10} className="fill-current" />
+                        <span>Pause</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => speak(m.content, true, m.id)}
+                        aria-label="Écouter la réponse de Dr. Kènè"
+                        className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[10px] font-bold min-h-0 border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary rounded-full active:scale-95 transition-all"
+                      >
+                        <Volume2 size={12} />
+                        <span>Écouter</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -790,10 +883,16 @@ export function ChatScreen() {
             </>
           ) : (
             <>
-              {/* Micro: demande d'autorisation explicite puis enregistrement */}
+              {/* Micro: si déjà autorisé, enregistrement DIRECT sans redemander. Sinon, autorisation une fois pour toutes */}
               <button
                 type="button"
-                onClick={() => setMicPermOpen(true)}
+                onClick={() => {
+                  if (isHardwarePermGranted()) {
+                    void startRecording();
+                  } else {
+                    setMicPermOpen(true);
+                  }
+                }}
                 disabled={micState === "transcribing"}
                 aria-label="Parler à Dr. Kènè"
                 title="Enregistrer et envoyer une note vocale à Dr. Kènè"
@@ -897,9 +996,11 @@ export function ChatScreen() {
                   </span>
                   <div>
                     <h3 id="camera-perm-title" className="font-heading font-black text-sm text-foreground">
-                      Autorisation Caméra &amp; Photo
+                      {isHardwarePermGranted() ? "Choisir une photo" : "Autorisation Caméra & Photo"}
                     </h3>
-                    <p className="text-[11px] text-muted-foreground">Consultation Dr. Kènè</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {isHardwarePermGranted() ? "Pour votre échange avec Dr. Kènè" : "Consultation Dr. Kènè"}
+                    </p>
                   </div>
                 </div>
                 <button
@@ -912,24 +1013,27 @@ export function ChatScreen() {
                 </button>
               </div>
 
-              <div className="my-4 space-y-3">
-                <p className="text-xs text-foreground/90 leading-relaxed">
-                  Pour examiner les spécificités de votre peau (texture, pores, taches pigmentaires, imperfections) et vous guider avec précision, Dr. Kènè a besoin d&apos;accéder à votre caméra ou à votre galerie photo.
-                </p>
-
-                <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/25 p-3 flex items-start gap-2.5 text-[11px] text-emerald-800 dark:text-emerald-300">
-                  <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                  <p className="leading-snug">
-                    <strong className="font-bold">Confidentialité médicale garantie :</strong> vos photos sont strictement utilisées pour votre diagnostic dermo-conseil instantané. Elles ne sont ni vendues ni diffusées à des tiers.
+              {!isHardwarePermGranted() && (
+                <div className="my-4 space-y-3">
+                  <p className="text-xs text-foreground/90 leading-relaxed">
+                    Pour examiner les spécificités de votre peau (texture, pores, taches pigmentaires, imperfections) et vous guider avec précision, Dr. Kènè a besoin d&apos;accéder à votre caméra ou à votre galerie photo.
                   </p>
-                </div>
-              </div>
 
-              <div className="space-y-2.5 pt-1">
+                  <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/25 p-3 flex items-start gap-2.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+                    <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <p className="leading-snug">
+                      <strong className="font-bold">Confidentialité médicale garantie :</strong> vos photos sont strictement utilisées pour votre diagnostic dermo-conseil instantané. L&apos;autorisation est enregistrée une fois pour toutes.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className={`space-y-2.5 ${isHardwarePermGranted() ? "pt-3" : "pt-1"}`}>
                 {/* Option 1: Live Camera (avec guide facial et contrôle d'éclairage) */}
                 <button
                   type="button"
                   onClick={() => {
+                    saveHardwarePermGranted();
                     setCameraPermOpen(false);
                     setLiveCamOpen(true);
                   }}
@@ -958,6 +1062,7 @@ export function ChatScreen() {
                 <button
                   type="button"
                   onClick={() => {
+                    saveHardwarePermGranted();
                     setCameraPermOpen(false);
                     nativeCameraInputRef.current?.click();
                   }}
@@ -978,6 +1083,7 @@ export function ChatScreen() {
                 <button
                   type="button"
                   onClick={() => {
+                    saveHardwarePermGranted();
                     setCameraPermOpen(false);
                     galleryInputRef.current?.click();
                   }}
@@ -1053,7 +1159,7 @@ export function ChatScreen() {
                 <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/25 p-3 flex items-start gap-2.5 text-[11px] text-emerald-800 dark:text-emerald-300">
                   <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                   <p className="leading-snug">
-                    <strong className="font-bold">Confidentialité médicale garantie :</strong> votre note vocale est transmise directement et de façon sécurisée à Dr. Kènè pour formuler son conseil dermatologique.
+                    <strong className="font-bold">Confidentialité médicale garantie :</strong> votre note vocale est transmise directement et de façon sécurisée à Dr. Kènè pour formuler son conseil dermatologique. L&apos;autorisation est accordée une fois pour toutes.
                   </p>
                 </div>
               </div>
@@ -1062,13 +1168,14 @@ export function ChatScreen() {
                 <button
                   type="button"
                   onClick={() => {
+                    saveHardwarePermGranted();
                     setMicPermOpen(false);
                     void startRecording();
                   }}
                   className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all hover:opacity-90"
                 >
                   <Mic size={18} />
-                  Autoriser et enregistrer ma note vocale
+                  Autoriser une fois pour toutes et enregistrer
                 </button>
                 <button
                   type="button"
