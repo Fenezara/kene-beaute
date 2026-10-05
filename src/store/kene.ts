@@ -113,6 +113,8 @@ function sanitizePersisted(raw: unknown): Partial<PersistedKene> {
   }
   if (out.user?.role === "admin" && (p.space === "pro" || p.space === "client" || p.space === "admin")) {
     out.space = p.space;
+  } else if (out.user?.role === "pro" && (p.space === "pro" || p.space === "client")) {
+    out.space = p.space;
   } else {
     out.space = out.user ? spaceForRole(out.user.role) : "client";
   }

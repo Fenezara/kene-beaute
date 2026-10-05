@@ -70,8 +70,21 @@ export default function Page() {
             </>
           )}
 
-          {/* Utilisateurs non-administrateurs ou déconnectés */}
-          {hydrated && entry !== null && user?.role !== "admin" && (
+          {/* Utilisateurs Pro connectés : le choix d'interface (space) prime (Espace Beauté personnel vs Espace Institut) */}
+          {hydrated && entry !== null && user?.role === "pro" && (
+            <>
+              {entry === "pin" && <PinEntry />}
+              {entry !== "pin" && (
+                <>
+                  {space === "client" && <ClientApp />}
+                  {space === "pro" && <ProApp />}
+                </>
+              )}
+            </>
+          )}
+
+          {/* Utilisateurs non-administrateurs et non-pro (clientes grand public ou déconnectés) */}
+          {hydrated && entry !== null && user?.role !== "admin" && user?.role !== "pro" && (
             <>
               {entry === "console" && <ConsoleEntry />}
               {entry === "pin" && <PinEntry />}

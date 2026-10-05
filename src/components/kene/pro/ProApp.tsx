@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, Stethoscope, TicketPercent, UserPlus, WifiOff } from "lucide-react";
+import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, Sparkles, Stethoscope, TicketPercent, UserPlus, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -92,11 +92,21 @@ function looksLikeLive(f: unknown): f is ProLive {
 export function ProApp() {
   const proTenantId = useKene((s) => s.proTenantId);
   const setProTenantId = useKene((s) => s.setProTenantId);
+  const setSpace = useKene((s) => s.setSpace);
   // Compte de session: alimente le chip de la sidebar. Depuis
   // l'isolation des comptes, l'espace Pro n'est monté QUE pour une
   // session de rôle « pro » — le fallback « Fatou Koné » reste défensif
   // (aucun risque si un jour l'espace est ouvert sans session).
   const sessionUser = useKene((s) => s.user);
+
+  function goToClientSpace() {
+    setSpace("client");
+    if (typeof window !== "undefined") {
+      window.history.pushState(null, "", "/");
+      window.dispatchEvent(new Event("popstate"));
+    }
+    toast.success("Bienvenue dans ton Espace Beauté personnel 🌸");
+  }
   const [section, setSection] = useState<ProSectionId>("dashboard");
   const [salesTab, setSalesTab] = useState<"pos" | "orders">("pos");
   const [catalogTab, setCatalogTab] = useState<"products" | "stock" | "promos">("products");
@@ -440,6 +450,18 @@ export function ProApp() {
               </span>
             )}
 
+            {/* Bouton direct Mon Espace Beauté */}
+            <button
+              type="button"
+              onClick={goToClientSpace}
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 sm:px-3 rounded-full text-xs font-semibold bg-gradient-to-r from-primary/10 via-primary/15 to-gold/10 hover:from-primary/20 hover:to-gold/20 text-primary border border-primary/30 transition-all shadow-xs active:scale-95 shrink-0"
+              title="Accéder à Mon Espace Beauté personnel (Soins, IA & Rituels)"
+            >
+              <Sparkles className="size-3.5 text-primary shrink-0" />
+              <span className="hidden sm:inline">Mon Espace Beauté 🌸</span>
+              <span className="sm:hidden">Beauté 🌸</span>
+            </button>
+
             {/* Sélecteur d'interfaces Kènè */}
             <SpaceSwitcher variant="compact" />
 
@@ -517,6 +539,16 @@ export function ProApp() {
             aria-label="Navigation App Pro (mobile)"
             className="flex gap-1.5 overflow-x-auto no-scrollbar [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)]"
           >
+            {/* Accès rapide direct Espace Beauté personnel sur mobile */}
+            <button
+              type="button"
+              onClick={goToClientSpace}
+              className="relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 min-h-9 text-xs font-bold bg-primary/15 text-primary border border-primary/30 shadow-xs active:scale-95 transition-all"
+              title="Accéder à Mon Espace Beauté"
+            >
+              <Sparkles className="size-3.5" />
+              <span>Espace Beauté 🌸</span>
+            </button>
             {nav.map((item) => {
               const badge = navBadges[item.id];
               return (
@@ -609,6 +641,28 @@ export function ProApp() {
             })}
           </nav>
 
+          {/* Accès direct Mon Espace Beauté */}
+          <div className="p-2 border-t border-border/40">
+            <button
+              type="button"
+              onClick={goToClientSpace}
+              className={cn(
+                "w-full flex items-center gap-2.5 rounded-xl p-2.5 text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/25 transition-all active:scale-95 shadow-xs",
+                sidebarExpanded ? "justify-start px-3" : "justify-center"
+              )}
+              title="Basculer vers Mon Espace Beauté (Soins & Rituels personnels)"
+              aria-label="Basculer vers Mon Espace Beauté"
+            >
+              <Sparkles size={16} className="text-primary shrink-0" />
+              {sidebarExpanded && (
+                <div className="flex flex-col text-left leading-tight truncate">
+                  <span className="truncate">Mon Espace Beauté</span>
+                  <span className="text-[10px] text-muted-foreground font-normal">Personnel 🌸</span>
+                </div>
+              )}
+            </button>
+          </div>
+
           {/* Bouton bascule plier / déplier en bas du rail */}
           <div className="p-2 border-t border-border/40">
             <button
@@ -677,6 +731,14 @@ export function ProApp() {
                 className="flex-1 sm:flex-initial h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
               >
                 <UserPlus size={16} /> + Cliente
+              </button>
+              <button
+                type="button"
+                onClick={goToClientSpace}
+                className="hidden xl:flex h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
+                title="Mon Espace Beauté (Soins & Rituels personnels)"
+              >
+                <Sparkles size={15} /> Mon Espace Beauté 🌸
               </button>
             </div>
           </div>
