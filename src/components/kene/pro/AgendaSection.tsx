@@ -34,6 +34,7 @@ import { addDays, startOfWeek, formatDate, formatTime, xof } from "@/lib/kene/fo
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, Money, SectionHeader } from "./ui-bits";
+import { DEFAULT_FALLBACK_CATALOG, DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
 import type { ProAppointment, ProCatalog, ProClient } from "./types";
 
 const OPEN = 9;
@@ -82,11 +83,13 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
 
   const catalog = useApi<ProCatalog>(
     () => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve({ services: [], products: [] })),
-    [tenantId]
+    [tenantId],
+    { cacheKey: `kene_pro_catalog_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_CATALOG }
   );
   const clients = useApi<ProClient[]>(
     () => (tenantId ? apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`).then((r) => r.clients ?? []) : Promise.resolve([])),
-    [tenantId, createOpen]
+    [tenantId, createOpen],
+    { cacheKey: `kene_pro_clients_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_CLIENTS }
   );
 
   // Praticiennes déduites des RDV: fenêtre large (30 j passés → 45 j à venir)

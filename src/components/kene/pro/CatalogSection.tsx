@@ -30,6 +30,7 @@ import {
 } from "@/lib/kene/catalog-taxonomy";
 import { useApi } from "./useApi";
 import { EmptyState, ErrorState, Money, SectionHeader } from "./ui-bits";
+import { DEFAULT_FALLBACK_CATALOG } from "@/lib/kene/fallback-catalog";
 import type { ProCatalog, ProProduct, ProService } from "./types";
 
 const PRODUCT_IMAGES = ["serum-moringa", "baume-karite", "huile-baobab", "gommage-bissap", "masque-aloka", "savon-noir", "brune-nere", "solaire-spf50"] as const;
@@ -83,7 +84,11 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState("");
 
-  const catalog = useApi<ProCatalog>(() => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve({ services: [], products: [] })), [tenantId]);
+  const catalog = useApi<ProCatalog>(
+    () => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve({ services: [], products: [] })),
+    [tenantId],
+    { cacheKey: `kene_pro_catalog_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_CATALOG }
+  );
 
   // Liste dynamique de toutes les catégories de soins (prédéfinies + personnalisées en base)
   const allServiceCategories = useMemo(() => {

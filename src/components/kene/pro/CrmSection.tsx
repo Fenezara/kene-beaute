@@ -43,6 +43,7 @@ import { ApptStatusBadge, EmptyState, ErrorState, InitialAvatar, Money, SectionH
 import { ResultView } from "./DiagnosticsSection";
 import { OrderStatusBadge } from "./OrdersSection";
 import { proToastError } from "./ProApp";
+import { DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
 import type { ProClient, ProClientDetail, ProDiagnosisItem } from "./types";
 
 function useDebounced<T>(value: T, delay = 350): T {
@@ -144,7 +145,8 @@ export function CrmSection({
         throw err;
       }
     },
-    [tenantId, q]
+    [tenantId, q],
+    { cacheKey: `kene_pro_clients_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_CLIENTS }
   );
 
   async function handleCreateClient(e?: React.FormEvent) {

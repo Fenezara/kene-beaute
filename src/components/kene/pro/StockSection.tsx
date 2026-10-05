@@ -80,7 +80,8 @@ export function StockSection({ tenantId, onNavigate }: { tenantId: string; onNav
 
   const stock = useApi<StockResponse>(
     () => (tenantId ? apiGet<StockResponse>(`/api/pro/stock?tenantId=${tenantId}`) : Promise.resolve({ products: [], movements: [] })),
-    [tenantId]
+    [tenantId],
+    { cacheKey: `kene_pro_stock_${tenantId || "default"}` }
   );
 
   const products = stock.data?.products ?? [];

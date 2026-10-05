@@ -125,7 +125,8 @@ export function ProApp() {
 
   const overview = useApi<ProOverview>(
     () => apiGet<ProOverview>(`/api/pro/overview${proTenantId ? `?tenantId=${proTenantId}` : ""}`),
-    [proTenantId]
+    [proTenantId],
+    { cacheKey: `kene_pro_overview_${proTenantId || "default"}` }
   );
 
   // Première résolution serveur: le tenant de la session est mémorisé

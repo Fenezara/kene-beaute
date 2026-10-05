@@ -119,6 +119,7 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
         ? apiGet<EmployeesResponse>(`/api/pro/employees?tenantId=${tenantId}`)
         : Promise.resolve({ employees: [], attendanceToday: [] }),
     [tenantId],
+    { cacheKey: `kene_pro_employees_${tenantId || "default"}` }
   );
   const leaves = useApi<LeavesResponse>(
     () =>
