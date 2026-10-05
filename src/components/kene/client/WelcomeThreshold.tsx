@@ -148,15 +148,20 @@ export function WelcomeThreshold() {
     }
     setLast(readLastAccount());
 
-    // Si on arrive depuis la page /pin avec une demande de réinitialisation de code
+    // Si on arrive depuis la page /pin ou avec un numéro pré-rempli
     try {
       const p = new URLSearchParams(window.location.search);
-      if (p.get("resetPin") === "1" && p.get("phone")) {
-        const targetPhone = p.get("phone")!;
-        const targetMode = (p.get("mode") as "client" | "pro") || "client";
+      const queryPhone = p.get("phone");
+      const targetMode = (p.get("mode") as "client" | "pro") || "client";
+      if (p.get("resetPin") === "1" && queryPhone) {
         setKeypadMode(targetMode);
-        void requestOtp(targetPhone).then((devCode) => {
-          setStage({ phase: "signin", mode: targetMode, phone: targetPhone, devCode, isResetPin: true });
+        void requestOtp(queryPhone).then((devCode) => {
+          setStage({ phase: "signin", mode: targetMode, phone: queryPhone, devCode, isResetPin: true });
+        });
+      } else if (queryPhone) {
+        setKeypadMode(targetMode);
+        void requestOtp(queryPhone).then((devCode) => {
+          setStage({ phase: "signin", mode: targetMode, phone: queryPhone, devCode });
         });
       }
     } catch {
@@ -188,13 +193,14 @@ export function WelcomeThreshold() {
 
     // Vérifie si le compte possède un code secret configuré
     try {
-      const check = await apiPost<{ ok: boolean; exists: boolean; hasPin: boolean; name?: string }>(
+      const check = await apiPost<{ ok: boolean; exists: boolean; hasPin: boolean; name?: string; role?: string; isEmployee?: boolean }>(
         "/api/auth/check-phone",
         { phone }
       );
+      const effectiveMode = check.role === "pro" || check.isEmployee || mode === "pro" ? "pro" : "client";
       if (check.exists && check.hasPin) {
         // Bascule directe in-place vers la saisie du PIN (zéro rechargement ni redirection)
-        setStage({ phase: "pin", mode, phone, name: check.name ?? acc.name });
+        setStage({ phase: "pin", mode: effectiveMode, phone, name: check.name ?? acc.name });
         return;
       }
     } catch {
@@ -211,20 +217,31 @@ export function WelcomeThreshold() {
     const phone = `+225${digits}`;
     try {
       // 1) Vérifie si le compte existe et a un code secret PIN
-      const check = await apiPost<{ ok: boolean; exists: boolean; hasPin: boolean; name?: string; isPinLocked?: boolean }>(
-        "/api/auth/check-phone",
-        { phone }
-      );
+      const check = await apiPost<{
+        ok: boolean;
+        exists: boolean;
+        hasPin: boolean;
+        name?: string;
+        isPinLocked?: boolean;
+        role?: string;
+        isEmployee?: boolean;
+        employeeRole?: string;
+        tenant?: { id: string; name: string };
+      }>("/api/auth/check-phone", { phone });
+
+      // Auto-détection du mode : si le numéro appartient à un compte pro ou employé, basculer AUTOMATIQUEMENT en mode "pro" !
+      const effectiveMode: "client" | "pro" =
+        check.role === "pro" || check.isEmployee || keypadMode === "pro" ? "pro" : "client";
 
       if (check.exists && check.hasPin) {
-        // Compte avec code PIN -> bascule in-place directe vers la saisie du PIN (zéro SMS, fluidité absolue !)
-        setStage({ phase: "pin", mode: keypadMode, phone, name: check.name });
+        // Compte avec code PIN -> bascule in-place directe vers la saisie du PIN
+        setStage({ phase: "pin", mode: effectiveMode, phone, name: check.name });
         return;
       }
 
       // 2) Nouveau compte ou compte sans code secret -> envoi SMS OTP pour création / initialisation
       const devCode = await requestOtp(phone);
-      setStage({ phase: "signin", mode: keypadMode, phone, devCode });
+      setStage({ phase: "signin", mode: effectiveMode, phone, devCode });
       if (devCode) {
         toast.info("Code instantané affiché à l'écran ✨");
       } else {
@@ -244,20 +261,33 @@ export function WelcomeThreshold() {
         employeeRole?: string | null;
       }>("/api/auth/login", { phone, pin });
 
+      const isPro = res.user.role === "pro" || Boolean(res.employeeRole) || Boolean(res.tenant?.id);
+      const targetRole = res.user.role === "admin" ? "admin" : isPro ? "pro" : "client";
+
       rememberAccount({
         phone,
         name: res.user.name,
-        role: res.user.role === "pro" || res.user.role === "admin" ? res.user.role : "client",
+        role: targetRole,
       });
 
-      setUser(res.user as SessionUser);
+      const sessionUser: SessionUser = {
+        ...res.user,
+        role: targetRole,
+        employeeRole: res.employeeRole ?? null,
+      };
+
+      setUser(sessionUser);
       if (res.tenant?.id) {
         setProTenantId(res.tenant.id);
       }
-      const targetSpace = res.user.role === "pro" ? "pro" : res.user.role === "admin" ? "admin" : "client";
+      const targetSpace = targetRole === "admin" ? "admin" : isPro ? "pro" : "client";
       setSpace(targetSpace);
 
-      toast.success(`Bienvenue ${res.user.name.split(" ")[0]} 💛`);
+      toast.success(
+        res.employeeRole
+          ? `Bienvenue ${res.user.name.split(" ")[0]} — « ${res.tenant?.name ?? "Espace Pro"} » t'attend`
+          : `Bienvenue ${res.user.name.split(" ")[0]} 💛`
+      );
       return true;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Code secret incorrect");

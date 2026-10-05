@@ -186,34 +186,46 @@ export function Onboarding({
     tenant: { id: string; name: string } | null;
     employeeRole?: string | null;
   }) {
-    // Mémoire du dernier compte: clé dédiée kene-last-account,
-    // locale à l'appareil, survit à la déconnexion → carte « Contente de
-    // te revoir » sur la page d'accueil. Aucun effet si le stockage refuse.
-    rememberAccount({ phone: `+225${digits}`, name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" });
-    setAuthId(v.user.id);
-    if (!v.user.name || v.user.name === "Nouvelle cliente") setIsNew(true);
-    if (mode === "pro") {
-      // — incident « La Dermo ne passe pas »: une GÉRANTE EXISTANTE
-      // (rôle pro + institut) entre DIRECTEMENT dans son espace avec SON
-      // institut. Avant: elle tombait sur le formulaire « Crée ton espace
-      // entreprise » comme une nouvelle inscrite — son institut existant
-      // n'aboutissait nulle part. Le formulaire ne reste désormais QUE pour
-      // les VÉRITABLES nouvelles inscriptions.
-      if (v.user.role === "pro" && v.tenant?.id) {
-        setUser({ ...v.user, employeeRole: v.employeeRole ?? null } as SessionUser);
+    // 1) Si le compte est PRO, possède un rôle employé ou est rattaché à un institut :
+    // Atterrissage DIRECT dans l'espace Pro (ni questionnaire peau, ni formulaire d'inscription salon) !
+    const isProOrEmployee = v.user.role === "pro" || Boolean(v.employeeRole) || Boolean(v.tenant?.id);
+
+    if (isProOrEmployee) {
+      const proUser: SessionUser = {
+        ...v.user,
+        role: "pro",
+        employeeRole: v.employeeRole ?? null,
+      };
+      rememberAccount({
+        phone: `+225${digits}`,
+        name: proUser.name,
+        role: "pro",
+      });
+      setUser(proUser);
+      if (v.tenant?.id) {
         setProTenantId(v.tenant.id);
-        setSpace("pro");
-        toast.success(
-          v.employeeRole
-            ? `Bienvenue ${v.user.name.split(" ")[0]} — « ${v.tenant.name} » t'attend (${v.employeeRole === "manager" ? "manager" : v.employeeRole.replace("_", " ")})`
-            : `Bienvenue ${v.user.name.split(" ")[0]} — « ${v.tenant.name} » t'attend`
-        );
-        return;
       }
-      // Mode entreprise: JAMAIS de questionnaire peau (phototype/objectifs/
-      // consent santé = diagnostic IA cliente uniquement) — directement le
-      // formulaire institut après l'OTP. Le prénom connu pré-remplit la
-      // gérante, le parrainage reste réservé au mode cliente.
+      setSpace("pro");
+      toast.success(
+        v.employeeRole
+          ? `Bienvenue ${proUser.name.split(" ")[0]} — « ${v.tenant?.name ?? "Espace Pro"} » t'attend (${v.employeeRole === "manager" ? "manager" : v.employeeRole.replace("_", " ")})`
+          : `Bienvenue ${proUser.name.split(" ")[0]} — « ${v.tenant?.name ?? "Espace Pro"} » t'attend`
+      );
+      return;
+    }
+
+    // 2) Si le compte est administrateur
+    if (v.user.role === "admin") {
+      rememberAccount({ phone: `+225${digits}`, name: v.user.name, role: "admin" });
+      setUser({ ...v.user, employeeRole: null } as SessionUser);
+      setSpace("admin");
+      toast.success(`Bienvenue ${v.user.name.split(" ")[0]}`);
+      return;
+    }
+
+    // 3) Mode Pro sélectionné manuellement mais sans institut existant -> Formulaire institut
+    if (mode === "pro") {
+      setAuthId(v.user.id);
       if (v.user.name && v.user.name !== "Nouvelle cliente") {
         setName(v.user.name.split(" ")[0]);
         setOwnerName(v.user.name);
@@ -221,20 +233,11 @@ export function Onboarding({
       setStep(2);
       return;
     }
-    // Isolation des comptes: un numéro de gérante ou d'admin
-    // qui se connecte ici atterrit directement dans SON espace — jamais
-    // dans le questionnaire peau ni le parrainage (réservés aux clientes).
-    // setUser fait suivre l'espace au rôle (clamp store) → ProApp/AdminApp
-    // se monte, Onboarding se démonte.
-    if (v.user.role === "pro" || v.user.role === "admin") {
-      setUser({ ...v.user, employeeRole: v.employeeRole ?? null } as SessionUser);
-      toast.success(
-        v.user.role === "pro"
-          ? `Bienvenue ${v.user.name.split(" ")[0]} — ton espace entreprise t'attend`
-          : `Bienvenue ${v.user.name.split(" ")[0]}`
-      );
-      return;
-    }
+
+    // 4) Compte Cliente standard
+    rememberAccount({ phone: `+225${digits}`, name: v.user.name, role: "client" });
+    setAuthId(v.user.id);
+    if (!v.user.name || v.user.name === "Nouvelle cliente") setIsNew(true);
     const fresh = v.user.consentHealth && v.user.skinType;
     if (!fresh) {
       if (v.user.name && v.user.name !== "Nouvelle cliente") setName(v.user.name.split(" ")[0]);

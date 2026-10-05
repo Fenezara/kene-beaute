@@ -112,6 +112,14 @@ export async function POST(req: NextRequest) {
         if (alreadyEmployee && alreadyEmployee.tenantId !== tenantId) {
           return jsonError("Ce numéro est déjà employée dans un autre institut", 409);
         }
+        // Toujours promouvoir le compte en rôle pro et mettre à jour le nom
+        await db.user.update({
+          where: { id: existing.id },
+          data: {
+            role: "pro",
+            ...((!existing.name || existing.name === "Nouvelle cliente") ? { name } : {}),
+          },
+        });
         accountUserId = existing.id;
       } else {
         const created = await db.user.create({
@@ -202,6 +210,14 @@ export async function PATCH(req: NextRequest) {
           if (alreadyEmployee && alreadyEmployee.id !== employee.id) {
             return jsonError("Ce numéro est déjà liée à une autre fiche employée", 409);
           }
+          // Toujours promouvoir le compte en rôle pro et mettre à jour le nom
+          await db.user.update({
+            where: { id: existing.id },
+            data: {
+              role: "pro",
+              ...((!existing.name || existing.name === "Nouvelle cliente") ? { name: fields.name ?? employee.name } : {}),
+            },
+          });
           accountUserId = existing.id;
         } else {
           const created = await db.user.create({

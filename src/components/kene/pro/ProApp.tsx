@@ -62,10 +62,10 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
  * sont ni affichées ni atteignables (redirection auto si la section
  * courante n'est pas autorisée — p.ex. après un changement de compte). */
 const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
-  estheticienne: ["assistant", "agenda", "diagnostic", "parametres"],
-  dermo_conseillere: ["assistant", "agenda", "diagnostic", "crm", "relances", "parametres"],
-  caissiere: ["assistant", "caisse", "catalogue", "parametres"],
-  manager: ["dashboard", "assistant", "agenda", "diagnostic", "caisse", "crm", "relances", "equipe", "catalogue", "parametres"],
+  estheticienne: ["agenda", "diagnostic", "assistant", "parametres"],
+  dermo_conseillere: ["agenda", "diagnostic", "crm", "relances", "assistant", "parametres"],
+  caissiere: ["caisse", "catalogue", "assistant", "parametres"],
+  manager: ["dashboard", "agenda", "diagnostic", "caisse", "crm", "relances", "equipe", "catalogue", "assistant", "parametres"],
 };
 const EMPLOYEE_ROLE_LABELS: Record<string, string> = {
   estheticienne: "Esthéticienne",

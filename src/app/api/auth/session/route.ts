@@ -40,25 +40,16 @@ export async function GET(req: NextRequest) {
       // expirée » → le SessionKeeper fait une déconnexion douce (zéro casse
       // front: le refus de connexion détaillé viendra du verify OTP).
       if (user.lockedAt) return jsonError("Session expirée", 404);
-      const emp0 = user.role === "pro"
-        ? await db.employee.findFirst({ where: { userId: user.id, active: true } })
-        : null;
-      const tenant0 = user.role === "pro"
-        ? (await db.tenant.findFirst({ where: { ownerPhone: user.phone } })) ??
-          (emp0 ? await db.tenant.findUnique({ where: { id: emp0.tenantId } }) : null)
-        : null;
-      if (tenant0 && !tenant0.active) return jsonError("Session expirée", 404);
-      //: l'institut de la gérante suit la session — le front peut
-      // re-poser proTenantId au boot sans requête supplémentaire.
-      //: une EMPLOYÉE (pas gérante) résout l'institut de son EMPLOYEUR
-      // + son poste — la session restaurée est identique à un login frais.
-      const emp = user.role === "pro"
-        ? await db.employee.findFirst({ where: { userId: user.id, active: true } })
-        : null;
+      let emp = await db.employee.findFirst({ where: { userId: user.id, active: true } });
+      if (emp && user.role !== "pro") {
+        await db.user.update({ where: { id: user.id }, data: { role: "pro" } });
+        user.role = "pro";
+      }
       const tenant = user.role === "pro"
         ? (await db.tenant.findFirst({ where: { ownerPhone: user.phone } })) ??
           (emp ? await db.tenant.findUnique({ where: { id: emp.tenantId } }) : null)
         : null;
+      if (tenant && !tenant.active) return jsonError("Session expirée", 404);
       const res = NextResponse.json({ user: sanitizeUser(user), tenant: tenant ? { id: tenant.id, name: tenant.name } : null, employeeRole: emp ? emp.role : null });
       setSessionCookie(res, user);
       return res;

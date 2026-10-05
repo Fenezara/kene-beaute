@@ -60,13 +60,38 @@ async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
   });
 
   if (!user) {
+    const ownerTenant = await db.tenant.findFirst({
+      where: { ownerPhone: phone, active: true },
+      select: { id: true, name: true },
+    });
     return NextResponse.json({
       ok: true,
       exists: false,
       hasPin: false,
+      role: ownerTenant ? "pro" : "client",
+      tenant: ownerTenant ?? null,
       maskedPhone: maskPhone(phone),
     });
   }
+
+  // Vérifier si ce compte est une employée active d'un institut
+  const employeeLink = await db.employee.findFirst({
+    where: { userId: user.id, active: true },
+    include: { tenant: { select: { id: true, name: true, active: true } } },
+  });
+
+  const ownerTenant = await db.tenant.findFirst({
+    where: { ownerPhone: phone, active: true },
+    select: { id: true, name: true },
+  });
+
+  // Auto-promotion en rôle 'pro' si rattaché à une fiche employée
+  if (employeeLink && user.role !== "pro") {
+    await db.user.update({ where: { id: user.id }, data: { role: "pro" } });
+    user.role = "pro";
+  }
+
+  const effectiveRole = user.role === "admin" ? "admin" : (ownerTenant || employeeLink || user.role === "pro") ? "pro" : "client";
 
   // Vérifier si le compte est temporairement bloqué suite à des erreurs de PIN
   const isPinLocked = Boolean(user.pinLockedUntil && user.pinLockedUntil > new Date());
@@ -78,7 +103,10 @@ async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
     isPinLocked,
     isAccountLocked: Boolean(user.lockedAt),
     name: user.name && user.name !== "Nouvelle cliente" ? user.name : undefined,
-    role: user.role,
+    role: effectiveRole,
+    isEmployee: Boolean(employeeLink),
+    employeeRole: employeeLink?.role ?? null,
+    tenant: ownerTenant ?? (employeeLink?.tenant ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name } : null),
     maskedPhone: maskPhone(phone),
   });
 }

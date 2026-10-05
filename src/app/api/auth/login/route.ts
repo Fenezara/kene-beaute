@@ -156,6 +156,11 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
     include: { tenant: { select: { id: true, name: true, active: true, suspendedReason: true } } },
   });
 
+  if (employeeLink && user.role !== "pro") {
+    await db.user.update({ where: { id: user.id }, data: { role: "pro" } });
+    user.role = "pro";
+  }
+
   const employerTenant = ownerTenant ?? (employeeLink ? employeeLink.tenant : null);
   if (employerTenant && !employerTenant.active) {
     void audit({
