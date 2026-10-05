@@ -1,11 +1,10 @@
 "use client";
 // Kènè — Le Sanctuaire 3D Africain: Animation procédurale temps réel pilotée par le défilement.
 //
-// 4 Chapitres Cosmiques & Métaphoriques au fil du scroll:
-// 1. [0.00 - 0.28] La Poussière Cosmique de Mélanine (Vortex de particules or, karité, bissap)
-// 2. [0.24 - 0.58] Le Métier à Tisser & La Navette d'Or (Chaîne, trame kente et navette lumineuse)
-// 3. [0.54 - 0.82] Le Sanctuaire Botanique 3D (Karité, Baobab, Moringa, Bissap en suspension orbitale)
-// 4. [0.78 - 1.00] Le Sceau Royal Adinkra Duafe (Médaillon d'orfèvrerie Akan et anneaux concentriques)
+// 3 Chapitres Cosmiques & Métaphoriques au fil du scroll:
+// 1. [0.00 - 0.38] La Poussière Cosmique de Mélanine (Vortex de particules or, karité, bissap)
+// 2. [0.28 - 0.72] Le Sanctuaire Botanique 3D (Karité, Baobab, Moringa, Bissap en suspension orbitale)
+// 3. [0.65 - 1.00] Le Sceau Royal Adinkra Duafe (Médaillon d'orfèvrerie Akan et anneaux concentriques)
 //
 // Budget & Performance:
 // • Zéro asset 3D externe (100 % procédural, 0 ko de téléchargement réseau supplémentaire)
@@ -16,8 +15,8 @@
 import { useMemo, useRef, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { motion, useReducedMotion } from "framer-motion";
-import { Sparkles, Compass, Eye, ShieldCheck } from "lucide-react";
+import { useReducedMotion } from "framer-motion";
+import { Sparkles, Eye, ShieldCheck } from "lucide-react";
 
 type ProgressRef = React.RefObject<number>;
 
@@ -124,113 +123,7 @@ function MelaninCosmos({ progressRef }: { progressRef: ProgressRef }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   2. LE MÉTIER À TISSER LA TRICOTURE ROYALE (Chapitre 2 : 0.24 → 0.58)
-   ───────────────────────────────────────────────────────────── */
-function LoomThreads({ progressRef }: { progressRef: ProgressRef }) {
-  const group = useRef<THREE.Group>(null);
-  const warpMeshes = useRef<(THREE.Mesh | null)[]>([]);
-  const shuttle = useRef<THREE.Mesh>(null);
-  const shuttleLight = useRef<THREE.PointLight>(null);
-  const shuttlePos = useRef(new THREE.Vector3());
-
-  // Fils verticaux de chaîne (7 tubes kente)
-  const warps = useMemo(() => {
-    return PALETTE_KENTE.map((color, i) => {
-      const x = -0.75 + (i / (PALETTE_KENTE.length - 1)) * 1.5;
-      const pts: THREE.Vector3[] = [];
-      for (let k = 0; k <= 7; k++) {
-        const y = -1.5 + (k / 7) * 3.0;
-        pts.push(new THREE.Vector3(x + Math.sin(k * 1.4 + i) * 0.03, y, Math.cos(k * 1.1 + i * 1.8) * 0.025));
-      }
-      const curve = new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.5);
-      const geometry = new THREE.TubeGeometry(curve, 48, 0.016, 6, false);
-      return { geometry, color, count: geometry.index ? geometry.index.count : 0 };
-    });
-  }, []);
-
-  // Fil horizontal de trame avec trajectoire de la navette
-  const weft = useMemo(() => {
-    const pts: THREE.Vector3[] = [];
-    for (let k = 0; k <= 9; k++) {
-      const x = -1.2 + (k / 9) * 2.4;
-      pts.push(new THREE.Vector3(x, Math.sin(k * 1.8) * 0.08, Math.cos(k * 2.2) * 0.04));
-    }
-    const curve = new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.5);
-    const geometry = new THREE.TubeGeometry(curve, 60, 0.022, 6, false);
-    return { geometry, curve, count: geometry.index ? geometry.index.count : 0 };
-  }, []);
-
-  useFrame((state) => {
-    const p = progressRef.current ?? 0;
-    const loomIn = seg(p, 0.22, 0.44);
-    const loomOut = 1 - seg(p, 0.52, 0.62);
-    const vis = easeInOut(loomIn) * loomOut;
-
-    if (group.current) {
-      group.current.visible = vis > 0.01;
-      group.current.position.y = (1 - easeOut(loomIn)) * -0.6;
-      group.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.2) * 0.08;
-    }
-
-    // Révélation progressive des fils de chaîne
-    warpMeshes.current.forEach((m, i) => {
-      if (!m) return;
-      const reveal = clamp01((loomIn - i * 0.08) / 0.6);
-      m.geometry.setDrawRange(0, Math.floor((warps[i].count * easeOut(reveal)) / 3) * 3);
-      const mat = m.material as THREE.MeshStandardMaterial;
-      mat.opacity = 0.95 * vis;
-    });
-
-    // Course de la navette lumineuse
-    const shuttleProg = seg(p, 0.30, 0.52);
-    if (shuttle.current && shuttleLight.current) {
-      const active = shuttleProg > 0.01 && shuttleProg < 0.99 && vis > 0.05;
-      shuttle.current.visible = active;
-      shuttleLight.current.visible = active;
-      if (active) {
-        weft.curve.getPointAt(clamp01(shuttleProg), shuttlePos.current);
-        shuttle.current.position.copy(shuttlePos.current);
-        shuttleLight.current.position.copy(shuttlePos.current);
-        shuttleLight.current.intensity = 8 * vis;
-        shuttle.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 12) * 0.2);
-      }
-    }
-  });
-
-  return (
-    <group ref={group} position={[0, 0, 0]}>
-      {warps.map((w, i) => (
-        <mesh
-          key={i}
-          ref={(el) => {
-            warpMeshes.current[i] = el;
-          }}
-          geometry={w.geometry}
-        >
-          <meshStandardMaterial
-            color={w.color}
-            metalness={0.65}
-            roughness={0.35}
-            emissive={w.color}
-            emissiveIntensity={0.15}
-            transparent
-            opacity={0}
-          />
-        </mesh>
-      ))}
-
-      {/* Navette dorée éclatante */}
-      <mesh ref={shuttle} visible={false}>
-        <sphereGeometry args={[0.065, 12, 12]} />
-        <meshBasicMaterial color="#FFF9EC" transparent opacity={0.95} />
-      </mesh>
-      <pointLight ref={shuttleLight} color="#E3B04B" intensity={0} distance={3.2} decay={2} />
-    </group>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────
-   3. LE SANCTUAIRE BOTANIQUE SACRÉ 3D (Chapitre 3 : 0.52 → 0.82)
+   2. LE SANCTUAIRE BOTANIQUE SACRÉ 3D (Chapitre 2 : 0.32 → 0.72)
    ───────────────────────────────────────────────────────────── */
 function BotanicalSanctuary({ progressRef }: { progressRef: ProgressRef }) {
   const group = useRef<THREE.Group>(null);
@@ -238,8 +131,8 @@ function BotanicalSanctuary({ progressRef }: { progressRef: ProgressRef }) {
 
   useFrame((state, delta) => {
     const p = progressRef.current ?? 0;
-    const botIn = seg(p, 0.50, 0.68);
-    const botOut = 1 - seg(p, 0.78, 0.86);
+    const botIn = seg(p, 0.28, 0.46);
+    const botOut = 1 - seg(p, 0.68, 0.78);
     const vis = easeInOut(botIn) * botOut;
 
     if (group.current) {
@@ -329,7 +222,7 @@ function BotanicalSanctuary({ progressRef }: { progressRef: ProgressRef }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   4. LE SCEAU ROYAL ADINKRA DUAFE (Chapitre 4 : 0.76 → 1.00)
+   3. LE SCEAU ROYAL ADINKRA DUAFE (Chapitre 3 : 0.65 → 1.00)
    ───────────────────────────────────────────────────────────── */
 function AdinkraMedallion({ progressRef }: { progressRef: ProgressRef }) {
   const group = useRef<THREE.Group>(null);
@@ -382,7 +275,7 @@ function AdinkraMedallion({ progressRef }: { progressRef: ProgressRef }) {
 
   useFrame((state) => {
     const p = progressRef.current ?? 0;
-    const reveal = seg(p, 0.74, 0.94);
+    const reveal = seg(p, 0.66, 0.94);
     const conv = easeInOut(reveal);
 
     if (attr.current) {
@@ -494,10 +387,9 @@ export function AfricanScrollSanctuary3D({
       progressRef.current = p;
 
       // Déduction du chapitre pour les légendes
-      if (p < 0.28) setCurrentChapter(0);
-      else if (p < 0.56) setCurrentChapter(1);
-      else if (p < 0.82) setCurrentChapter(2);
-      else setCurrentChapter(3);
+      if (p < 0.38) setCurrentChapter(0);
+      else if (p < 0.72) setCurrentChapter(1);
+      else setCurrentChapter(2);
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -517,19 +409,13 @@ export function AfricanScrollSanctuary3D({
       icon: Sparkles,
     },
     {
-      badge: "Savoir Ancestral 02",
-      title: "La Navette & Le Tissage Kente",
-      desc: "Chaque rituel cutané est un fil d'or tissé au cœur de ta routine sacrée.",
-      icon: Compass,
-    },
-    {
-      badge: "Pharmacopée 03",
+      badge: "Pharmacopée 02",
       title: "Le Sanctuaire Botanique",
       desc: "Karité de Korhogo, Baobab millénaire, Bissap royal et Moringa pur d'Afrique.",
       icon: Eye,
     },
     {
-      badge: "Couronnement 04",
+      badge: "Couronnement 03",
       title: "Le Sceau Royal Duafe",
       desc: "Le peigne Adinkra, symbole éternel de la beauté, de la propreté et de la souveraineté.",
       icon: ShieldCheck,
@@ -563,7 +449,6 @@ export function AfricanScrollSanctuary3D({
             <pointLight position={[-3, -2, 2]} intensity={5} color="#A0522D" />
             <AdaptiveCamera />
             <MelaninCosmos progressRef={progressRef} />
-            <LoomThreads progressRef={progressRef} />
             <BotanicalSanctuary progressRef={progressRef} />
             <AdinkraMedallion progressRef={progressRef} />
           </Canvas>
@@ -597,9 +482,9 @@ export function AfricanScrollSanctuary3D({
           {current.desc}
         </p>
 
-        {/* Barre de progression du tissage au scroll */}
+        {/* Barre de progression du sanctuaire au scroll */}
         <div className="mt-3 flex items-center gap-2">
-          {[0, 1, 2, 3].map((step) => (
+          {[0, 1, 2].map((step) => (
             <div
               key={step}
               className={`h-1 flex-1 rounded-full transition-all duration-300 ${

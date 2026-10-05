@@ -28,7 +28,6 @@ import {
 import { AuroraBackdrop, Eyebrow, GlassCard, Reveal, RevealItem } from "@/components/kene/ui2026";
 import { DuafeIcon, KeneEmblem, KeneEmblemLockup, KeneMark, CauriIcon } from "@/components/kene/icons";
 import { useKene, type SessionUser } from "@/store/kene";
-import { LoomSection } from "@/components/kene/loom/LoomSection";
 import { AfricanScrollSanctuary3D } from "@/components/kene/3d/AfricanScrollSanctuary3D";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { Onboarding } from "./Onboarding";
@@ -553,10 +552,9 @@ export function WelcomeThreshold() {
                 )}
               </AnimatePresence>
 
-              {/* ── Le Sanctuaire 3D & La Navette d'Or (Fresque vivante au défilement) ── */}
-              <div className="mt-6 sm:mt-8 lg:mt-10 w-full space-y-4">
+              {/* ── Le Sanctuaire 3D (Fresque vivante au défilement) ── */}
+              <div className="mt-6 sm:mt-8 lg:mt-10 w-full">
                 <AfricanScrollSanctuary3D />
-                <LoomSection first={first} />
               </div>
 
               {/* ── Les Tarifs & Abonnements Kènè (Section Éditoriale Complète) ── */}
