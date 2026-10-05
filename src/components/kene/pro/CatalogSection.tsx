@@ -85,7 +85,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
   const [customCategoryInput, setCustomCategoryInput] = useState("");
 
   const catalog = useApi<ProCatalog>(
-    () => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve({ services: [], products: [] })),
+    () => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve(DEFAULT_FALLBACK_CATALOG)),
     [tenantId],
     { cacheKey: `kene_pro_catalog_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_CATALOG }
   );

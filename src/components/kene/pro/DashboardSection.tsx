@@ -95,16 +95,24 @@ export function DashboardSection({
   const filteredReviews = reviewsFilter === "all" ? allReviews : allReviews.filter((r) => r.rating === reviewsFilter);
 
   if (overview.error && !data) {
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const isNetwork =
+      /network|failed to fetch|hors-ligne|load failed|offline/i.test(overview.error) ||
+      (typeof navigator !== "undefined" && !navigator.onLine);
+    if (isNetwork) {
       return (
-        <Card className="p-8 text-center space-y-3">
+        <Card className="p-8 text-center space-y-4">
           <EmptyState
             label="Tableau de bord hors-ligne"
-            sub="Les indicateurs d'activité n'ont pas encore été synchronisés sur cet appareil. Vos données s'afficheront automatiquement dès la reconnexion à internet."
+            sub="Vos outils d'établissement restent opérationnels. Vous pouvez encaisser vos ventes à la Caisse et consulter le carnet de clientes sans interruption."
           />
-          <Button onClick={overview.refetch} variant="outline" className="text-xs">
-            Réessayer la connexion
-          </Button>
+          <div className="flex justify-center gap-3">
+            <Button onClick={() => onNavigate("caisse")} className="k-btn-gold text-xs font-bold">
+              Ouvrir la Caisse POS
+            </Button>
+            <Button onClick={() => onNavigate("crm")} variant="outline" className="text-xs font-semibold">
+              Carnet de Clientes
+            </Button>
+          </div>
         </Card>
       );
     }

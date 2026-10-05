@@ -51,6 +51,7 @@ import { apiGet, apiPatch, apiPost } from "@/lib/kene/api";
 import { xof, formatDate } from "@/lib/kene/format";
 import { useApi } from "./useApi";
 import { EmptyState, ErrorState, KpiCard, Money, SectionHeader } from "./ui-bits";
+import { DEFAULT_FALLBACK_TEAM } from "@/lib/kene/fallback-catalog";
 import type { EmployeesResponse, LeaveBalance, LeavesResponse, ProEmployee, ProLeave } from "./types";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -117,9 +118,9 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
     () =>
       tenantId
         ? apiGet<EmployeesResponse>(`/api/pro/employees?tenantId=${tenantId}`)
-        : Promise.resolve({ employees: [], attendanceToday: [] }),
+        : Promise.resolve(DEFAULT_FALLBACK_TEAM),
     [tenantId],
-    { cacheKey: `kene_pro_employees_${tenantId || "default"}` }
+    { cacheKey: `kene_pro_employees_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_TEAM }
   );
   const leaves = useApi<LeavesResponse>(
     () =>

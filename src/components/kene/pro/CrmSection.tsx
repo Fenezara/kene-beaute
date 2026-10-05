@@ -119,7 +119,7 @@ export function CrmSection({
 
   const clients = useApi<ProClient[]>(
     async () => {
-      if (!tenantId) return [];
+      if (!tenantId) return DEFAULT_FALLBACK_CLIENTS;
       try {
         const res = await apiGet<{ clients: ProClient[] }>(
           `/api/pro/clients?tenantId=${tenantId}${q ? `&q=${encodeURIComponent(q)}` : ""}`
@@ -142,7 +142,7 @@ export function CrmSection({
             // continuer vers throw originel
           }
         }
-        throw err;
+        return DEFAULT_FALLBACK_CLIENTS;
       }
     },
     [tenantId, q],

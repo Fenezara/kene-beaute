@@ -33,7 +33,7 @@ import {
 } from "@/lib/kene/catalog-taxonomy";
 import { useApi } from "./useApi";
 import { EmptyState, ErrorState, KenteTop, SectionHeader } from "./ui-bits";
-import { DEFAULT_FALLBACK_CATALOG, DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
+import { DEFAULT_FALLBACK_CATALOG, DEFAULT_FALLBACK_CLIENTS, DEFAULT_FALLBACK_TEAM } from "@/lib/kene/fallback-catalog";
 import type { EmployeesResponse, PaymentMethod, ProCatalog, ProClient, ProSale, SalesResponse } from "./types";
 
 interface TicketLine {
@@ -124,12 +124,12 @@ export function PosSection({
   const [syncingOffline, setSyncingOffline] = useState(false);
 
   const catalog = useApi<ProCatalog>(
-    () => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve({ services: [], products: [] })),
+    () => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve(DEFAULT_FALLBACK_CATALOG)),
     [tenantId],
     { cacheKey: `kene_pro_catalog_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_CATALOG }
   );
   const clients = useApi<ProClient[]>(
-    () => (tenantId ? apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`).then((r) => r.clients ?? []) : Promise.resolve([])),
+    () => (tenantId ? apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`).then((r) => r.clients ?? []) : Promise.resolve(DEFAULT_FALLBACK_CLIENTS)),
     [tenantId],
     { cacheKey: `kene_pro_clients_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_CLIENTS }
   );
@@ -140,9 +140,9 @@ export function PosSection({
   );
 
   const team = useApi<EmployeesResponse>(
-    () => (tenantId ? apiGet<EmployeesResponse>(`/api/pro/employees?tenantId=${tenantId}`) : Promise.resolve({ employees: [], attendanceToday: [] })),
+    () => (tenantId ? apiGet<EmployeesResponse>(`/api/pro/employees?tenantId=${tenantId}`) : Promise.resolve(DEFAULT_FALLBACK_TEAM)),
     [tenantId],
-    { cacheKey: `kene_pro_employees_${tenantId || "default"}` }
+    { cacheKey: `kene_pro_employees_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_TEAM }
   );
 
   const todayAppointments = useApi<{ appointments: any[] }>(() => {

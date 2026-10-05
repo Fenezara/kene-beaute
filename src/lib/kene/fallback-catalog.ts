@@ -1,8 +1,16 @@
 // Kènè Pro — Catalogue & Clientes de secours hors-ligne
-// Assure que la Caisse POS, le Catalogue et le CRM disposent TOUJOURS de prestations
-// et produits réels sélectionnables à Abidjan & Dakar même sans connexion internet.
+// Assure que la Caisse POS, le Catalogue, le CRM, le Stock et le Tableau de bord
+// disposent TOUJOURS de données réelles sélectionnables à Abidjan & Dakar même sans connexion internet.
 
-import type { ProCatalog, ProClient } from "@/components/kene/pro/types";
+import type {
+  ProCatalog,
+  ProClient,
+  ProOverview,
+  EmployeesResponse,
+  StockResponse,
+} from "@/components/kene/pro/types";
+
+export const DEFAULT_FALLBACK_TENANT_ID = "cmts1w5ui0008oww7hm3v18oo";
 
 export const DEFAULT_FALLBACK_CATALOG: ProCatalog = {
   services: [
@@ -130,3 +138,72 @@ export const DEFAULT_FALLBACK_CLIENTS: ProClient[] = [
     createdAt: new Date().toISOString(),
   },
 ];
+
+export const DEFAULT_FALLBACK_OVERVIEW: ProOverview = {
+  tenant: {
+    id: DEFAULT_FALLBACK_TENANT_ID,
+    name: "Cabinet LA DERMO",
+    city: "Abidjan",
+    country: "CI",
+    plan: "business",
+  },
+  tenants: [
+    {
+      id: DEFAULT_FALLBACK_TENANT_ID,
+      name: "Cabinet LA DERMO",
+      city: "Abidjan",
+      country: "CI",
+      plan: "business",
+    },
+  ],
+  kpis: {
+    caToday: 0,
+    ca7d: 0,
+    ca30d: 0,
+    avgBasket: 0,
+    appointmentsToday: 0,
+    newClients30d: 0,
+    occupancyPct: 0,
+  },
+  todayAppointments: [],
+  recentReviews: [],
+  stockAlerts: [],
+  chart: [],
+  paymentSplit: [],
+  topServices: [],
+};
+
+export const DEFAULT_FALLBACK_STOCK: StockResponse = {
+  products: DEFAULT_FALLBACK_CATALOG.products,
+  movements: [],
+};
+
+export const DEFAULT_FALLBACK_TEAM: EmployeesResponse = {
+  employees: [
+    {
+      id: "emp_fondatrice",
+      name: "Déborah",
+      role: "manager",
+      accountPhone: "+2250504195071",
+      active: true,
+      country: "CI",
+      baseSalary: 250000,
+      transport: 30000,
+      contractType: "CDI",
+      hireDate: "2024-01-01",
+    },
+    {
+      id: "emp_estheticienne",
+      name: "Aminata",
+      role: "estheticienne",
+      accountPhone: "+2250700000001",
+      active: true,
+      country: "CI",
+      baseSalary: 150000,
+      transport: 25000,
+      contractType: "CDI",
+      hireDate: "2024-01-01",
+    },
+  ],
+  attendanceToday: [],
+};

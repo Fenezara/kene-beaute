@@ -42,6 +42,7 @@ import {
 } from "@/lib/kene/catalog-taxonomy";
 import { useApi } from "./useApi";
 import { EmptyState, ErrorState, KenteTop, Money, SectionHeader } from "./ui-bits";
+import { DEFAULT_FALLBACK_STOCK } from "@/lib/kene/fallback-catalog";
 import type { ProSectionId } from "./ProApp";
 import type { StockResponse, ProProduct } from "./types";
 
@@ -79,9 +80,9 @@ export function StockSection({ tenantId, onNavigate }: { tenantId: string; onNav
   const [healthFilter, setHealthFilter] = useState<"all" | "healthy" | "alert" | "out">("all");
 
   const stock = useApi<StockResponse>(
-    () => (tenantId ? apiGet<StockResponse>(`/api/pro/stock?tenantId=${tenantId}`) : Promise.resolve({ products: [], movements: [] })),
+    () => (tenantId ? apiGet<StockResponse>(`/api/pro/stock?tenantId=${tenantId}`) : Promise.resolve(DEFAULT_FALLBACK_STOCK)),
     [tenantId],
-    { cacheKey: `kene_pro_stock_${tenantId || "default"}` }
+    { cacheKey: `kene_pro_stock_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_STOCK }
   );
 
   const products = stock.data?.products ?? [];

@@ -82,12 +82,12 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
   );
 
   const catalog = useApi<ProCatalog>(
-    () => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve({ services: [], products: [] })),
+    () => (tenantId ? apiGet<ProCatalog>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve(DEFAULT_FALLBACK_CATALOG)),
     [tenantId],
     { cacheKey: `kene_pro_catalog_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_CATALOG }
   );
   const clients = useApi<ProClient[]>(
-    () => (tenantId ? apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`).then((r) => r.clients ?? []) : Promise.resolve([])),
+    () => (tenantId ? apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`).then((r) => r.clients ?? []) : Promise.resolve(DEFAULT_FALLBACK_CLIENTS)),
     [tenantId, createOpen],
     { cacheKey: `kene_pro_clients_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_CLIENTS }
   );

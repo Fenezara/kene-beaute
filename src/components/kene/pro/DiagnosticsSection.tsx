@@ -158,7 +158,8 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
       tenantId
         ? apiGet<{ diagnoses: ProDiagnosisItem[]; kpis: ProDiagnosesKpis }>(`/api/pro/diagnoses?tenantId=${tenantId}`)
         : Promise.resolve({ diagnoses: [], kpis: EMPTY_KPIS }),
-    [tenantId, refreshKey]
+    [tenantId, refreshKey],
+    { cacheKey: `kene_pro_diagnoses_${tenantId || "default"}`, fallbackData: { diagnoses: [], kpis: EMPTY_KPIS } }
   );
 
   const diagnoses = list.data?.diagnoses ?? [];

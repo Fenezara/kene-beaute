@@ -20,6 +20,7 @@ import { AuroraBackdrop, Eyebrow, Shimmer } from "@/components/kene/ui2026";
 import { cn } from "@/lib/utils";
 import { useApi } from "./useApi";
 import type { ProOverview, ProLive } from "./types";
+import { DEFAULT_FALLBACK_OVERVIEW, DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { CreateBranchDialog } from "./CreateBranchDialog";
 import { DashboardSection } from "./DashboardSection";
@@ -126,14 +127,22 @@ export function ProApp() {
   const overview = useApi<ProOverview>(
     () => apiGet<ProOverview>(`/api/pro/overview${proTenantId ? `?tenantId=${proTenantId}` : ""}`),
     [proTenantId],
-    { cacheKey: `kene_pro_overview_${proTenantId || "default"}` }
+    {
+      cacheKey: `kene_pro_overview_${proTenantId || "default"}`,
+      fallbackData: DEFAULT_FALLBACK_OVERVIEW,
+    }
   );
 
   // Première résolution serveur: le tenant de la session est mémorisé
   // (: le serveur renvoie l'institut de LA GÉRANTE, pas un « défaut »)
   useEffect(() => {
-    if (!proTenantId && overview.data?.tenant?.id) setProTenantId(overview.data.tenant.id);
-  }, [proTenantId, overview.data, setProTenantId]);
+    if (!proTenantId && overview.data?.tenant?.id) {
+      setProTenantId(overview.data.tenant.id);
+    } else if (!proTenantId) {
+      const activeId = sessionUser?.tenantId || DEFAULT_FALLBACK_TENANT_ID;
+      if (activeId) setProTenantId(activeId);
+    }
+  }, [proTenantId, overview.data, sessionUser?.tenantId, setProTenantId]);
 
   // AUTO-GUÉRISON : un institut mémorisé disparu ne doit JAMAIS être effacé
   // si le navigateur est hors-ligne ou s'il s'agit d'une instabilité réseau passagère.
@@ -150,7 +159,7 @@ export function ProApp() {
     }
   }, [overview.error, proTenantId, setProTenantId, online]);
 
-  const tid = proTenantId ?? overview.data?.tenant?.id ?? sessionUser?.tenantId ?? "";
+  const tid = proTenantId || overview.data?.tenant?.id || sessionUser?.tenantId || DEFAULT_FALLBACK_TENANT_ID;
 
   // Pré-remplissage du cache hors-ligne pour l'espace entreprise (CRM, catalogue, stock, etc.)
   // Assure la disponibilité immédiate des écrans même si la connexion est coupée en cours de journée
@@ -672,7 +681,7 @@ export function ProApp() {
             </div>
           </div>
 
-          {overview.error && activeSection === "dashboard" && (
+          {overview.error && !/network|failed to fetch|hors-ligne|load failed|offline/i.test(overview.error) && activeSection === "dashboard" && (
             <div className="mb-4 rounded-2xl border border-bissap/30 bg-bissap/5 px-4 py-2.5 text-sm text-bissap">
               Impossible de charger l&apos;institut : {overview.error}
             </div>

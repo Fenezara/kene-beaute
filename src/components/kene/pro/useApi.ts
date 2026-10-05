@@ -1,5 +1,5 @@
 "use client";
-// Kènè Pro — hook de fetch local (loading / error / refetch)
+// Kènè Pro — hook de fetch local (loading / error / refetch) avec persistance synchrone et résilience hors-ligne
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface UseApiResult<T> {
@@ -10,7 +10,7 @@ export interface UseApiResult<T> {
   setData: React.Dispatch<React.SetStateAction<T | null>>;
 }
 
-/** Fetch declaratif avec support de persistance locale hors-ligne et fallback */
+/** Fetch déclaratif avec support de persistance locale hors-ligne et fallback */
 export function useApi<T>(
   fn: () => Promise<T>,
   deps: unknown[] = [],
@@ -35,7 +35,12 @@ export function useApi<T>(
   const [error, setError] = useState<string | null>(null);
   const fnRef = useRef(fn);
   fnRef.current = fn;
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const fallbackRef = useRef(fallbackData);
+  fallbackRef.current = fallbackData;
   const alive = useRef(true);
+
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -44,24 +49,43 @@ export function useApi<T>(
   }, []);
 
   const load = useCallback(async () => {
-    if (!data) setLoading(true);
+    if (!dataRef.current) setLoading(true);
     setError(null);
     try {
       const d = await fnRef.current();
       if (alive.current) {
-        setData(d);
-        if (typeof window !== "undefined" && cacheKey && d) {
-          try {
-            window.localStorage.setItem(cacheKey, JSON.stringify(d));
-          } catch {
-            // quota dépassé ignoré
+        if (d !== null && d !== undefined) {
+          setData(d);
+          dataRef.current = d;
+          if (typeof window !== "undefined" && cacheKey) {
+            try {
+              window.localStorage.setItem(cacheKey, JSON.stringify(d));
+            } catch {
+              // quota dépassé ignoré
+            }
           }
         }
       }
     } catch (e) {
       if (alive.current) {
-        // Si des données sont déjà en mémoire ou en cache local, ne pas casser l'affichage
-        if (!data) {
+        const isNetworkErr =
+          e instanceof Error &&
+          (/network|failed to fetch|hors-ligne|load failed|offline/i.test(e.message) ||
+            e.name === "TypeError" ||
+            e.name === "NetworkError");
+
+        // Si des données de secours existent et que les données actuelles sont vides, peupler le fallback
+        if (!dataRef.current && fallbackRef.current) {
+          setData(fallbackRef.current);
+          dataRef.current = fallbackRef.current;
+        }
+
+        // Si nous avons des données (en cache ou fallback) ou qu'il s'agit d'une coupure réseau,
+        // ne JAMAIS exposer d'erreur bloquante qui casserait l'interface de travail
+        if (dataRef.current || fallbackRef.current || isNetworkErr) {
+          // On garde l'écran propre et pleinement utilisable
+          setError(null);
+        } else {
           setError(e instanceof Error ? e.message : "Une erreur est survenue");
         }
       }
