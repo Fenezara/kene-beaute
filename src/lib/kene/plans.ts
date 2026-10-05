@@ -40,7 +40,7 @@ export const PLAN_DEFS: readonly PlanDef[] = [
     perks: [
       "Diagnostics illimités",
       "Suivi de l'évolution de ta peau",
-      "Dr. Kènè prioritaire",
+      "Dermo Kènè prioritaire",
       "Défis & routines personnalisées",
     ],
     badge: "Le plus choisi",
@@ -139,7 +139,7 @@ export async function grantClientWelcomeTrial(userId: string): Promise<Subscript
     userId: user.id,
     channel: "whatsapp",
     toPhone: user.phone,
-    message: `Bienvenue sur Kènè ✨ Nous t'offrons 30 jours de Pass Kènè+ gratuit ! Profite de diagnostics illimités et des conseils du Dr Kènè jusqu'au ${ddMM(expiresAt)} 💛`,
+    message: `Bienvenue sur Kènè ✨ Nous t'offrons 30 jours de Pass Kènè+ gratuit ! Profite de diagnostics illimités et des conseils de Dermo Kènè jusqu'au ${ddMM(expiresAt)} 💛`,
   }).catch(() => null);
 
   return sub;

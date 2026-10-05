@@ -91,7 +91,7 @@ function PortalCard({
         <div className="min-w-0">
           <p className="font-heading text-[15px] font-black leading-tight text-[#FFF9EC] sm:text-[17px] md:text-[19px]">{title}</p>
           <p className="mt-1 hidden text-[10.5px] text-[#FFF9EC]/75 sm:block">
-            {mode === "client" ? "Diagnostic IA · Dr. Kènè · Boutique" : "Agenda · Caisse · CRM clientes"}
+            {mode === "client" ? "Diagnostic IA · Dermo Kènè · Boutique" : "Agenda · Caisse · CRM clientes"}
           </p>
         </div>
         <span className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-btn-gold px-3.5 text-[11px] font-bold text-primary-foreground">
@@ -436,7 +436,7 @@ export function WelcomeThreshold() {
                   </h1>
                   <motion.p className="mt-3 max-w-[48ch] text-[12.5px] sm:text-[13.5px] lg:text-[14px] leading-relaxed text-muted-foreground"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.62 * d }}>
-                    Diagnostic IA vision, coach Dr. Kènè, boutique botanique et instituts partenaires —
+                    Diagnostic IA vision, coach Dermo Kènè, boutique botanique et instituts partenaires —
                     pensés pour les teints Fitzpatrick&nbsp;IV–VI.
                   </motion.p>
                   <div className="flex sm:hidden items-center gap-2 mt-4">
@@ -740,7 +740,7 @@ export function WelcomeThreshold() {
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Conseils bienveillants Dr Kènè</strong> (phytothérapie ouest-africaine)</span>
+                                  <span><strong>Conseils bienveillants Dermo Kènè</strong> (phytothérapie ouest-africaine)</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
@@ -789,7 +789,7 @@ export function WelcomeThreshold() {
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Dr Kènè prioritaire</strong> avec rituels beauté personnalisés</span>
+                                  <span><strong>Dermo Kènè prioritaire</strong> avec rituels beauté personnalisés</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
@@ -841,7 +841,7 @@ export function WelcomeThreshold() {
                                 <td className="py-2.5 px-2 text-center text-success font-bold">⭐ Illimité</td>
                               </tr>
                               <tr>
-                                <td className="py-2.5 px-3 font-medium">Dr Kènè IA (Conseils dermo-botaniques)</td>
+                                <td className="py-2.5 px-3 font-medium">Dermo Kènè IA (Conseils dermo-botaniques)</td>
                                 <td className="py-2.5 px-2 text-center text-muted-foreground">Standard</td>
                                 <td className="py-2.5 px-2 text-center text-gold-text font-bold">⭐ Prioritaire &amp; Illimité</td>
                               </tr>

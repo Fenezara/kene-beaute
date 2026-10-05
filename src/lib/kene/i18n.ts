@@ -34,14 +34,14 @@ const FR: Dict = {
   "tab.chat": "Messages",
   "tab.profile": "Profil",
   "nav.scan.aria": "Scanner ma peau — diagnostic IA",
-  "nav.chat.aria": "Dr. Kènè — chat",
+  "nav.chat.aria": "Dermo Kènè — chat",
 
   // Titres d'écran (h1 du header ClientApp)
   "title.home": "Accueil",
   "title.diag": "Diagnostic IA",
   "title.shop": "Boutique",
   "title.rdv": "Rendez-vous",
-  "title.chat": "Dr. Kènè",
+  "title.chat": "Dermo Kènè",
   "title.profile": "Mon profil",
   "title.parametres": "Paramètres",
 
@@ -65,7 +65,7 @@ const FR: Dict = {
 
   // Onboarding — écran 1 (téléphone)
   "onboarding.title": "La beauté mélanoderme, enfin comprise.",
-  "onboarding.subtitle": "Diagnostic IA multi-zones, boutique botaniques, instituts partenaires et coach Dr. Kènè — pensés pour les peaux Fitzpatrick IV–VI.",
+  "onboarding.subtitle": "Diagnostic IA multi-zones, boutique botaniques, instituts partenaires et coach Dermo Kènè — pensés pour les peaux Fitzpatrick IV–VI.",
   "onboarding.phone.label": "Mon numéro",
   "onboarding.cta": "Recevoir mon code",
   "onboarding.legal": "En continuant, tu acceptes les conditions Kènè. Données santé chiffrées, jamais revendues.",

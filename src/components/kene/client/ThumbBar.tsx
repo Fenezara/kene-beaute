@@ -73,11 +73,11 @@ export function ThumbBar({ tab }: { tab: string }) {
                 <button
                   type="button"
                   onClick={goChat}
-                  aria-label="Discuter avec Dr Kènè"
+                  aria-label="Discuter avec Dermo Kènè"
                   className="k-chip flex h-12 shrink-0 items-center gap-1.5 rounded-[18px] px-3.5 text-[12px] font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
                 >
                   <MessageCircle size={16} className="text-primary" aria-hidden="true" />
-                  <span className="truncate">Dr Kènè</span>
+                  <span className="truncate">Dermo Kènè</span>
                 </button>
               </>
             ) : (

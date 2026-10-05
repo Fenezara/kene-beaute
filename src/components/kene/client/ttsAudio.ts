@@ -49,9 +49,13 @@ export async function fetchTtsAudioUrl(text: string, speed = 1, lang: "fr" = "fr
   return url;
 }
 
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+
 // Référence globale pour éviter le garbage collection prématuré dans Chrome/Chromium et mobiles
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 let activeAudioElement: HTMLAudioElement | null = null;
+let sharedAudioElement: HTMLAudioElement | null = null;
 let activeBufferSource: AudioBufferSourceNode | null = null;
 let sharedAudioCtx: AudioContext | null = null;
 let speechHeartbeat: ReturnType<typeof setInterval> | null = null;
@@ -61,12 +65,43 @@ export interface SpeechController {
 }
 
 /**
+ * Retourne l'unique lecteur audio singleton de l'application.
+ * Conserver un élément Audio unique pré-activé garantit que les navigateurs mobiles
+ * n'imposent aucun blocage d'autoplay lors des réponses asynchrones de l'IA.
+ */
+export function getSharedAudioPlayer(): HTMLAudioElement | null {
+  if (typeof window === "undefined") return null;
+  if (!sharedAudioElement) {
+    const el = new Audio();
+    el.setAttribute("playsinline", "true");
+    el.setAttribute("webkit-playsinline", "true");
+    el.preload = "auto";
+    sharedAudioElement = el;
+  }
+  return sharedAudioElement;
+}
+
+/**
  * Déverrouille préventivement le moteur audio matériel lors d'un tap / geste utilisateur.
- * Une fois déverrouillé, l'AudioContext reste actif pendant toute la session de navigation
- * et permet de lire l'audio de Dr. Kènè sans aucun blocage d'autoplay des navigateurs mobiles.
+ * Une fois amorcé, le lecteur et l'AudioContext restent actifs pendant toute la session
+ * et permettent de lire la voix sans coupure ni blocage.
  */
 export function unlockAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
+
+  // 1. Amorçage du lecteur Audio singleton
+  try {
+    const player = getSharedAudioPlayer();
+    if (player && (!player.src || player.src.startsWith("data:"))) {
+      player.src = SILENT_WAV;
+      const p = player.play();
+      if (p !== undefined) {
+        p.catch(() => {});
+      }
+    }
+  } catch {}
+
+  // 2. Déverrouillage Web Audio API
   try {
     const Ctx =
       window.AudioContext ||
@@ -78,7 +113,6 @@ export function unlockAudioContext(): AudioContext | null {
     if (sharedAudioCtx.state === "suspended") {
       void sharedAudioCtx.resume();
     }
-    // Joue un micro échantillon silencieux pour forcer iOS Safari et Android à réveiller le DSP matériel
     try {
       const buffer = sharedAudioCtx.createBuffer(1, 1, 22050);
       const source = sharedAudioCtx.createBufferSource();
@@ -87,7 +121,7 @@ export function unlockAudioContext(): AudioContext | null {
       source.start(0);
     } catch {}
 
-    // Déverrouille aussi la synthèse vocale intégrée
+    // 3. Déverrouillage de la synthèse vocale intégrée
     if ("speechSynthesis" in window) {
       try {
         window.speechSynthesis.resume();
@@ -101,9 +135,9 @@ export function unlockAudioContext(): AudioContext | null {
 
 /**
  * Joueur vocal universel Kènè :
- * 1. Tente d'abord le streaming audio Cloud haute fidélité (/api/tts).
- * 2. Joue via Web Audio API (AudioContext déverrouillé) : 100% immunisé contre les blocages autoplay mobiles.
- * 3. En repli, tente HTMLAudioElement puis Web Speech API du navigateur.
+ * 1. Priorité 1 : Streaming direct via l'élément Audio singleton pré-activé.
+ * 2. Priorité 2 : Web Audio API avec décodage mémoire (pour les flux bruts).
+ * 3. Repli : Synthèse vocale native intégrée de l'appareil (Web Speech API).
  * -> Zéro coupure de discours, clarté vocale maximale garantie.
  */
 export async function playSpeech({
@@ -125,6 +159,7 @@ export async function playSpeech({
 
   // Réveille immédiatement le contexte audio
   const ctx = unlockAudioContext();
+  const player = getSharedAudioPlayer();
 
   // Arrête toute synthèse vocale ou son en cours
   stopBrowserVoice();
@@ -135,6 +170,55 @@ export async function playSpeech({
     let audioUrl = blobCache.get(key);
     let audioBlob: Blob | null = null;
 
+    // A. URL de streaming direct GET pour démarrage audio instantané
+    const directStreamUrl =
+      text.length <= 1500
+        ? `/api/tts?text=${encodeURIComponent(text)}&speed=${speed}&lang=${lang}`
+        : null;
+
+    // Tentative de lecture directe via l'élément HTMLAudio pré-autorisé
+    if (player && (audioUrl || directStreamUrl) && !isStopped) {
+      activeAudioElement = player;
+      player.src = audioUrl || directStreamUrl!;
+      player.playbackRate = speed;
+      player.onplay = () => onStart?.();
+      player.onended = () => {
+        if (activeAudioElement === player) {
+          activeAudioElement = null;
+        }
+        onEnd?.();
+      };
+      player.onerror = () => {
+        if (activeAudioElement === player) {
+          activeAudioElement = null;
+        }
+        if (!isStopped) {
+          fallbackBrowser();
+        }
+      };
+
+      try {
+        const playPromise = player.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+        }
+        return {
+          stop: () => {
+            isStopped = true;
+            if (activeAudioElement === player) {
+              player.pause();
+              player.currentTime = 0;
+              activeAudioElement = null;
+            }
+            onEnd?.();
+          },
+        };
+      } catch (playerErr) {
+        console.warn("[playSpeech] Tentative fallback via WebAudio suite à:", playerErr);
+      }
+    }
+
+    // Si le streaming direct n'était pas suffisant, on charge le blob pour WebAudio
     if (!audioUrl) {
       const controller = new AbortController();
       const fetchTimer = setTimeout(() => controller.abort(), 35_000);
@@ -167,14 +251,14 @@ export async function playSpeech({
           }
         }
       }
-    } else {
+    } else if (!audioBlob) {
       try {
         const cachedRes = await fetch(audioUrl);
         audioBlob = await cachedRes.blob();
       } catch {}
     }
 
-    // A. Priorité absolue : Web Audio API (immunisé contre le blocage d'autoplay asynchrone mobile)
+    // B. Priorité Web Audio API (décodage direct)
     if (audioBlob && !isStopped && ctx) {
       try {
         if (ctx.state === "suspended") {
@@ -213,42 +297,8 @@ export async function playSpeech({
           };
         }
       } catch (webaudioErr) {
-        console.warn("[playSpeech] Repli sur HTMLAudioElement suite à erreur WebAudio:", webaudioErr);
+        console.warn("[playSpeech] Erreur décodage WebAudio:", webaudioErr);
       }
-    }
-
-    // B. Repli HTMLAudioElement
-    if (audioUrl && !isStopped) {
-      const audio = new Audio(audioUrl);
-      activeAudioElement = audio;
-      audio.playbackRate = speed;
-      audio.onplay = () => onStart?.();
-      audio.onended = () => {
-        if (activeAudioElement === audio) {
-          activeAudioElement = null;
-        }
-        onEnd?.();
-      };
-      audio.onerror = () => {
-        if (activeAudioElement === audio) {
-          activeAudioElement = null;
-        }
-        if (!isStopped) {
-          fallbackBrowser();
-        }
-      };
-      await audio.play();
-      return {
-        stop: () => {
-          isStopped = true;
-          if (activeAudioElement === audio) {
-            audio.pause();
-            audio.currentTime = 0;
-            activeAudioElement = null;
-          }
-          onEnd?.();
-        },
-      };
     }
   } catch (err) {
     console.warn("[playSpeech] Cloud TTS indisponible, bascule sur la voix du navigateur:", err);

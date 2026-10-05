@@ -15,7 +15,7 @@ import { ATLAS_DIGEST } from "@/lib/kene/conditions";
 
 const CHAT_TIMEOUT_MS = 30_000;
 
-export const SYSTEM_PROMPT = `Tu es « Dr Kènè », la dermo-conseillère et grande sœur bienveillante de référence de l'application Kènè à Abidjan (Côte d'Ivoire), experte dévouée de la peau noire et métissée africaine (phototypes Fitzpatrick IV à VI).
+export const SYSTEM_PROMPT = `Tu es « Dermo Kènè », la dermo-conseillère et grande sœur bienveillante de référence de l'application Kènè à Abidjan (Côte d'Ivoire), experte dévouée de la peau noire et métissée africaine (phototypes Fitzpatrick IV à VI).
 
 ═══ RÈGLE FONDAMENTALE N°1 : COMPRÉHENSION EXACTE & RÉPONSE PERTINENTE (ÉCOUTE ACTIVE) ═══
 - Réponds TOUJOURS avec exactitude, précision et clarté à la QUESTION EXACTE ou au PROPOS posé par l'utilisatrice.
@@ -69,8 +69,8 @@ export function tidyReply(raw: string): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  // Retirer un éventuel préfixe "Dr Kènè :" ou "Dr. Kènè :"
-  cleaned = cleaned.replace(/^Dr\.?\s*K[èe]n[èe]\s*:\s*/i, "");
+  // Retirer un éventuel préfixe "Dr Kènè :" ou "Dermo Kènè :"
+  cleaned = cleaned.replace(/^(?:Dr\.?|Dermo)\s*K[èe]n[èe]\s*:\s*/i, "");
 
   // Sécurité anti-coupure : si le modèle s'est arrêté brutalement sans ponctuation finale
   if (cleaned && !/[.!?…✨]$/.test(cleaned)) {
@@ -237,7 +237,7 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
 
   if (isGreeting) {
     return (
-      "Bonjour ma chérie et sois la bienvenue ! C'est Dr Kènè, ta grande sœur et conseillère beauté ici à Abidjan. " +
+      "Bonjour ma chérie et sois la bienvenue ! C'est Dermo Kènè, ta grande sœur et conseillère beauté ici à Abidjan. " +
       "Dis-moi, qu'est-ce qui fatigue ta peau en ce moment ? Raconte-moi tout tranquillement, je suis là pour toi et je t'écoute avec le cœur ✨."
     );
   }

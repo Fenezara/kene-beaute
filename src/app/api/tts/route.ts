@@ -122,6 +122,114 @@ function audioResponse(buf: Buffer, contentType = "audio/mpeg"): NextResponse {
   });
 }
 
+async function processTts(data: {
+  text: string;
+  voice?: string;
+  speed?: number;
+  lang?: "fr";
+}): Promise<NextResponse> {
+  const text = data.text.trim();
+  const voiceRaw = data.voice ?? DEFAULT_NEURAL_VOICE;
+  const voice = NEURAL_VOICES.has(voiceRaw) ? voiceRaw : DEFAULT_NEURAL_VOICE;
+  const speed = data.speed ?? 1;
+  const lang = data.lang ?? "fr";
+
+  if (!text) return NextResponse.json({ error: "Texte requis" }, { status: 400 });
+  if (text.length > MAX_TEXT) {
+    return NextResponse.json({ error: `Texte trop long (max ${MAX_TEXT} caractères)` }, { status: 400 });
+  }
+
+  const cleanText = cleanTextForSpeech(text);
+  if (!cleanText) return NextResponse.json({ error: "Texte requis" }, { status: 400 });
+
+  // cache hit (la clé porte la voix, la vitesse et le texte nettoyé)
+  const key = fnv1a(`${voice}|${speed}|${cleanText}`);
+  const hit = cache.get(key);
+  if (hit) return audioResponse(hit.buf, hit.contentType);
+
+  // Palier 1 : Voix humaine neurale haute fidélité (Microsoft Azure Neural via MsEdgeTTS)
+  try {
+    const edgeBuf = await synthesizeWithEdgeTts(cleanText, voice, speed);
+    if (edgeBuf && edgeBuf.length > 500) {
+      cache.set(key, { buf: edgeBuf, bytes: edgeBuf.length, contentType: "audio/mpeg" });
+      cacheBytes += edgeBuf.length;
+      while (cacheBytes > CACHE_MAX_BYTES && cache.size > 1) {
+        const first = cache.keys().next().value;
+        if (first === undefined) break;
+        const e = cache.get(first);
+        cache.delete(first);
+        if (e) cacheBytes -= e.bytes;
+      }
+      return audioResponse(edgeBuf, "audio/mpeg");
+    }
+  } catch (edgeErr) {
+    console.warn("[api/tts] Palier 1 EdgeTTS indisponible, essai du palier ZAI :", (edgeErr as Error).message);
+  }
+
+  // Palier 2 : ZAI SDK (si disponible)
+  try {
+    const zai = await ZAI.create();
+    const buf = await zaiCall(
+      () =>
+        (async () => {
+          const response = await zai.audio.tts.create({
+            input: cleanText,
+            voice: "tongtong",
+            speed,
+            response_format: "wav",
+            stream: false,
+          });
+          const arrayBuffer = await response.arrayBuffer();
+          return Buffer.from(new Uint8Array(arrayBuffer));
+        })(),
+      { label: "tts:synthese", timeoutMs: TTS_TIMEOUT_MS, busyRetries: 2 },
+    );
+    if (buf && buf.length >= 100) {
+      cache.set(key, { buf, bytes: buf.length, contentType: "audio/wav" });
+      cacheBytes += buf.length;
+      while (cacheBytes > CACHE_MAX_BYTES && cache.size > 1) {
+        const first = cache.keys().next().value;
+        if (first === undefined) break;
+        const e = cache.get(first);
+        cache.delete(first);
+        if (e) cacheBytes -= e.bytes;
+      }
+      return audioResponse(buf, "audio/wav");
+    }
+  } catch (zaiErr) {
+    if (zaiErr instanceof UpstreamBusyError) {
+      console.warn("[api/tts] ZAI busy, fallback browser TTS");
+    }
+  }
+
+  // Palier 3 : Fallback navigateur
+  return NextResponse.json({ fallback: "browser", text: cleanText, lang }, { status: 200 });
+}
+
+export async function GET(req: NextRequest) {
+  const rl = rateLimit(rlKey(req, "tts"), TTS);
+  if (!rl.ok) {
+    return rateLimitResponse(rl.retryAfterSec, "Synthèse vocale très sollicitée — reprends dans quelques secondes");
+  }
+  try {
+    const url = new URL(req.url);
+    const text = url.searchParams.get("text") || "";
+    const speedRaw = parseFloat(url.searchParams.get("speed") || "1");
+    const speed = isNaN(speedRaw) ? 1 : Math.max(0.5, Math.min(2, speedRaw));
+    const lang = (url.searchParams.get("lang") || "fr") as "fr";
+    const voice = url.searchParams.get("voice") || DEFAULT_NEURAL_VOICE;
+
+    if (!text.trim()) {
+      return NextResponse.json({ error: "Texte requis" }, { status: 400 });
+    }
+
+    return await processTts({ text, speed, lang, voice });
+  } catch (e) {
+    console.error("[api/tts:GET] Unexpected error:", e);
+    return NextResponse.json({ error: "Synthèse vocale indisponible" }, { status: 502 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "tts"), TTS);
   if (!rl.ok) {
@@ -146,85 +254,9 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ error: "Corps de requête invalide" }, { status: 400 });
     }
-    const text = parsed.data.text.trim();
-    const voiceRaw = parsed.data.voice ?? DEFAULT_NEURAL_VOICE;
-    const voice = NEURAL_VOICES.has(voiceRaw) ? voiceRaw : DEFAULT_NEURAL_VOICE;
-    const speed = parsed.data.speed ?? 1;
-    const lang = parsed.data.lang ?? "fr";
-
-    if (!text) return NextResponse.json({ error: "Texte requis" }, { status: 400 });
-    if (text.length > MAX_TEXT) {
-      return NextResponse.json({ error: `Texte trop long (max ${MAX_TEXT} caractères)` }, { status: 400 });
-    }
-
-    const cleanText = cleanTextForSpeech(text);
-    if (!cleanText) return NextResponse.json({ error: "Texte requis" }, { status: 400 });
-
-    // cache hit (la clé porte la voix, la vitesse et le texte nettoyé)
-    const key = fnv1a(`${voice}|${speed}|${cleanText}`);
-    const hit = cache.get(key);
-    if (hit) return audioResponse(hit.buf, hit.contentType);
-
-    // Palier 1 : Voix humaine neurale haute fidélité (Microsoft Azure Neural via MsEdgeTTS)
-    // Voix naturelle, chaleureuse, vivante, avec respirations et intonations réalistes
-    try {
-      const edgeBuf = await synthesizeWithEdgeTts(cleanText, voice, speed);
-      if (edgeBuf && edgeBuf.length > 500) {
-        cache.set(key, { buf: edgeBuf, bytes: edgeBuf.length, contentType: "audio/mpeg" });
-        cacheBytes += edgeBuf.length;
-        while (cacheBytes > CACHE_MAX_BYTES && cache.size > 1) {
-          const first = cache.keys().next().value;
-          if (first === undefined) break;
-          const e = cache.get(first);
-          cache.delete(first);
-          if (e) cacheBytes -= e.bytes;
-        }
-        return audioResponse(edgeBuf, "audio/mpeg");
-      }
-    } catch (edgeErr) {
-      console.warn("[api/tts] Palier 1 EdgeTTS indisponible, essai du palier ZAI :", (edgeErr as Error).message);
-    }
-
-    // Palier 2 : ZAI SDK (si disponible)
-    try {
-      const zai = await ZAI.create();
-      const buf = await zaiCall(
-        () =>
-          (async () => {
-            const response = await zai.audio.tts.create({
-              input: cleanText,
-              voice: "tongtong",
-              speed,
-              response_format: "wav",
-              stream: false,
-            });
-            const arrayBuffer = await response.arrayBuffer();
-            return Buffer.from(new Uint8Array(arrayBuffer));
-          })(),
-        { label: "tts:synthese", timeoutMs: TTS_TIMEOUT_MS, busyRetries: 2 },
-      );
-      if (buf && buf.length >= 100) {
-        cache.set(key, { buf, bytes: buf.length, contentType: "audio/wav" });
-        cacheBytes += buf.length;
-        while (cacheBytes > CACHE_MAX_BYTES && cache.size > 1) {
-          const first = cache.keys().next().value;
-          if (first === undefined) break;
-          const e = cache.get(first);
-          cache.delete(first);
-          if (e) cacheBytes -= e.bytes;
-        }
-        return audioResponse(buf, "audio/wav");
-      }
-    } catch (zaiErr) {
-      if (zaiErr instanceof UpstreamBusyError) {
-        console.warn("[api/tts] ZAI busy, fallback browser TTS");
-      }
-    }
-
-    // Palier 3 : Fallback navigateur
-    return NextResponse.json({ fallback: "browser", text: cleanText, lang }, { status: 200 });
+    return await processTts(parsed.data);
   } catch (e) {
-    console.error("[api/tts] Unexpected error:", e);
+    console.error("[api/tts:POST] Unexpected error:", e);
     return NextResponse.json({ error: "Synthèse vocale indisponible, réessaie dans un instant" }, { status: 502 });
   }
 }

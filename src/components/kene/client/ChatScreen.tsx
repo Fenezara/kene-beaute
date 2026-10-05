@@ -554,6 +554,10 @@ export function ChatScreen() {
         lang: "fr",
         onStart: () => {
           if (messageId) setPlayingMsgId(messageId);
+          toast.info("🔊 Dermo Kènè vous répond à voix haute", {
+            description: "Conseil : vérifiez que le son de votre téléphone est activé (bouton silencieux / vibreur désactivé).",
+            duration: 4500,
+          });
         },
         onEnd: () => {
           currentAudioCtrlRef.current = null;
@@ -670,7 +674,7 @@ export function ChatScreen() {
           <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#346834] border-2 border-background" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1 md:hidden">
-          <p className="font-heading font-bold text-sm">Dr. Kènè <span className="text-[10px] font-mono font-bold bg-primary/15 text-primary px-1.5 py-0.2 rounded-md">IA</span></p>
+          <p className="font-heading font-bold text-sm">Dermo Kènè <span className="text-[10px] font-mono font-bold bg-primary/15 text-primary px-1.5 py-0.2 rounded-md">IA</span></p>
           <p className="text-[11px] text-success font-semibold">Conseillère dermo-cosmétique · En ligne</p>
         </div>
         <div className="hidden md:flex items-center gap-2 min-w-0 flex-1">
@@ -689,7 +693,7 @@ export function ChatScreen() {
           }}
           aria-pressed={ttsOn}
           aria-label={ttsOn ? "Désactiver la lecture vocale" : "Activer la lecture vocale"}
-          title={ttsOn ? "Voix automatique activée (cliquer pour couper)" : "Activer la voix de Dr. Kènè"}
+          title={ttsOn ? "Voix automatique activée (cliquer pour couper)" : "Activer la voix de Dermo Kènè"}
           className={`h-10 w-10 grid place-items-center rounded-full active:scale-90 transition-all focus-visible:outline-2 focus-visible:outline-primary ${ttsOn ? "bg-primary text-primary-foreground shadow-sm" : "border border-border bg-card text-muted-foreground"}`}
         >
           {ttsOn ? <Volume2 size={17} /> : <VolumeX size={17} />}
@@ -757,12 +761,12 @@ export function ChatScreen() {
                     </button>
                   )}
                   <div className="flex items-center justify-between gap-3 mt-1.5 px-0.5">
-                    <p className="text-[9px] text-muted-foreground">Dr. Kènè · {new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                    <p className="text-[9px] text-muted-foreground">Dermo Kènè · {new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
                     {playingMsgId === m.id ? (
                       <button
                         type="button"
                         onClick={stopCurrentSpeech}
-                        aria-label="Arrêter la voix de Dr. Kènè"
+                        aria-label="Arrêter la voix de Dermo Kènè"
                         className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold shadow-xs active:scale-95 transition-all"
                       >
                         <span className="flex items-end gap-[2px] h-3 mr-0.5" aria-hidden="true">
@@ -784,7 +788,7 @@ export function ChatScreen() {
                           unlockAudioContext();
                           speak(m.content, true, m.id);
                         }}
-                        aria-label="Écouter la réponse de Dr. Kènè"
+                        aria-label="Écouter la réponse de Dermo Kènè"
                         className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[10px] font-bold min-h-0 border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary rounded-full active:scale-95 transition-all"
                       >
                         <Volume2 size={12} />
@@ -800,7 +804,7 @@ export function ChatScreen() {
           {sending && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="self-start flex items-end gap-2">
               <IconBadge icon={<NeaOnnimIcon size={14} />} size="sm" tone="gold" className="h-8 w-8 rounded-[10px]" />
-              <div className="k-card rounded-[20px] rounded-bl-[6px] px-4 py-3 flex gap-1.5" aria-label="Dr. Kènè écrit">
+              <div className="k-card rounded-[20px] rounded-bl-[6px] px-4 py-3 flex gap-1.5" aria-label="Dermo Kènè écrit">
                 {[0, 1, 2].map((i) => (
                   <motion.span key={i} className="h-1.5 w-1.5 rounded-full bg-primary" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.15 }} />
                 ))}
@@ -859,12 +863,12 @@ export function ChatScreen() {
                 <span className="ml-auto text-[10px] text-muted-foreground shrink-0 font-medium" aria-hidden="true">max 30 s</span>
               </div>
 
-              {/* Bouton ENVOYER direct de la note vocale à Dr. Kènè */}
+              {/* Bouton ENVOYER direct de la note vocale à Dermo Kènè */}
               <button
                 type="button"
                 onClick={stopRecording}
-                aria-label="Envoyer la note vocale à Dr. Kènè"
-                title="Envoyer la note vocale à Dr. Kènè"
+                aria-label="Envoyer la note vocale à Dermo Kènè"
+                title="Envoyer la note vocale à Dermo Kènè"
                 className="k-btn-gold h-12 w-12 grid place-items-center rounded-full text-primary-foreground active:scale-90 transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-primary shadow-md"
               >
                 <Send size={18} />
@@ -883,8 +887,8 @@ export function ChatScreen() {
                   }
                 }}
                 disabled={micState === "transcribing"}
-                aria-label="Parler à Dr. Kènè"
-                title="Enregistrer et envoyer une note vocale à Dr. Kènè"
+                aria-label="Parler à Dermo Kènè"
+                title="Enregistrer et envoyer une note vocale à Dermo Kènè"
                 className="h-11 w-11 grid place-items-center rounded-full shrink-0 text-muted-foreground hover:bg-muted active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40"
               >
                 {micState === "transcribing" ? <Loader2 size={18} className="animate-spin text-primary" aria-hidden="true" /> : <Mic size={19} />}
@@ -893,8 +897,8 @@ export function ChatScreen() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); send(); } }}
-                placeholder="Écris ou envoie une note vocale à Dr. Kènè…"
-                aria-label="Message pour Dr. Kènè"
+                placeholder="Écris ou envoie une note vocale à Dermo Kènè…"
+                aria-label="Message pour Dermo Kènè"
                 className="k-input h-12 min-w-0 flex-1 rounded-2xl px-3.5 text-sm outline-none placeholder:text-muted-foreground/70"
               />
               {/* Caméra: demande d'autorisation explicite + choix Caméra Live / Galerie */}
@@ -902,8 +906,8 @@ export function ChatScreen() {
                 type="button"
                 onClick={() => setCameraPermOpen(true)}
                 disabled={photoBusy}
-                aria-label="Envoyer une photo à Dr. Kènè"
-                title="Envoyer une photo à Dr. Kènè"
+                aria-label="Envoyer une photo à Dermo Kènè"
+                title="Envoyer une photo à Dermo Kènè"
                 className="h-12 w-12 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
               >
                 {photoBusy ? <Loader2 size={19} className="animate-spin text-primary" /> : <Camera size={19} />}
@@ -988,7 +992,7 @@ export function ChatScreen() {
                       {isHardwarePermGranted() ? "Choisir une photo" : "Autorisation Caméra & Photo"}
                     </h3>
                     <p className="text-[11px] text-muted-foreground">
-                      {isHardwarePermGranted() ? "Pour votre échange avec Dr. Kènè" : "Consultation Dr. Kènè"}
+                      {isHardwarePermGranted() ? "Pour votre échange avec Dermo Kènè" : "Conseil Dermo Kènè"}
                     </p>
                   </div>
                 </div>
@@ -1005,7 +1009,7 @@ export function ChatScreen() {
               {!isHardwarePermGranted() && (
                 <div className="my-4 space-y-3">
                   <p className="text-xs text-foreground/90 leading-relaxed">
-                    Pour examiner les spécificités de votre peau (texture, pores, taches pigmentaires, imperfections) et vous guider avec précision, Dr. Kènè a besoin d&apos;accéder à votre caméra ou à votre galerie photo.
+                    Pour examiner les spécificités de votre peau (texture, pores, taches pigmentaires, imperfections) et vous guider avec précision, Dermo Kènè a besoin d&apos;accéder à votre caméra ou à votre galerie photo.
                   </p>
 
                   <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/25 p-3 flex items-start gap-2.5 text-[11px] text-emerald-800 dark:text-emerald-300">
@@ -1127,7 +1131,7 @@ export function ChatScreen() {
                     <h3 id="mic-perm-title" className="font-heading font-black text-sm text-foreground">
                       Autorisation Microphone
                     </h3>
-                    <p className="text-[11px] text-muted-foreground">Note vocale pour Dr. Kènè</p>
+                    <p className="text-[11px] text-muted-foreground">Note vocale pour Dermo Kènè</p>
                   </div>
                 </div>
                 <button
@@ -1142,13 +1146,13 @@ export function ChatScreen() {
 
               <div className="my-4 space-y-3">
                 <p className="text-xs text-foreground/90 leading-relaxed">
-                  Dr. Kènè a besoin d&apos;accéder au microphone de votre téléphone pour vous permettre d&apos;envoyer des notes vocales directement dans la conversation.
+                  Dermo Kènè a besoin d&apos;accéder au microphone de votre téléphone pour vous permettre d&apos;envoyer des notes vocales directement dans la conversation.
                 </p>
 
                 <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/25 p-3 flex items-start gap-2.5 text-[11px] text-emerald-800 dark:text-emerald-300">
                   <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                   <p className="leading-snug">
-                    <strong className="font-bold">Confidentialité médicale garantie :</strong> votre note vocale est transmise directement et de façon sécurisée à Dr. Kènè pour formuler son conseil dermatologique. L&apos;autorisation est accordée une fois pour toutes.
+                    <strong className="font-bold">Confidentialité médicale garantie :</strong> votre note vocale est transmise directement et de façon sécurisée à Dermo Kènè pour formuler son conseil dermo-cosmétique. L&apos;autorisation est accordée une fois pour toutes.
                   </p>
                 </div>
               </div>
