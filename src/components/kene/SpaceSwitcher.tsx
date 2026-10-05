@@ -3,7 +3,7 @@
 // Permet de basculer instantanément entre toutes les interfaces de la plateforme.
 
 import { useState } from "react";
-import { Smartphone, BriefcaseBusiness, ShieldCheck, ChevronDown, Loader2, LogOut } from "lucide-react";
+import { Smartphone, BriefcaseBusiness, ShieldCheck, ChevronDown, Loader2, LogOut, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useKene, type Space } from "@/store/kene";
 import { performLogout } from "@/lib/kene/logout";
@@ -18,18 +18,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export const SPACES: {
-  id: Space;
-  label: string;
-  badge: string;
-  desc: string;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  { id: "client", label: "Cliente", badge: "Grand Public", desc: "Diagnostic IA, boutique, RDV, chat", icon: Smartphone },
-  { id: "pro", label: "Pro", badge: "Institut & Caisse", desc: "Caisse POS, TVA, agenda, stock, CRM", icon: BriefcaseBusiness },
-  { id: "admin", label: "Admin", badge: "Console", desc: "Pilotage plateforme, abonnements", icon: ShieldCheck },
-];
-
 export function SpaceSwitcher({
   className,
   variant = "pills",
@@ -42,12 +30,38 @@ export function SpaceSwitcher({
   const setSpace = useKene((s) => s.setSpace);
   const [switching, setSwitching] = useState<Space | null>(null);
 
-  // RÈGLE FORMELLE : Seul l'administrateur a la possibilité de basculer d'interface
-  if (user?.role !== "admin") {
+  // RÈGLE : Seuls les administrateurs et les professionnels/employés d'institut
+  // ont accès au sélecteur d'interface (mode dual pour les employées).
+  if (user?.role !== "admin" && user?.role !== "pro") {
     return null;
   }
 
-  const current = SPACES.find((s) => s.id === space) || SPACES[0];
+  const isPro = user?.role === "pro";
+
+  const availableSpaces = isPro
+    ? [
+        {
+          id: "client" as Space,
+          label: "Mon Espace Beauté",
+          badge: "Personnel",
+          desc: "Mon diagnostic cutané, Dr. Kènè IA & rituels",
+          icon: Sparkles,
+        },
+        {
+          id: "pro" as Space,
+          label: "Espace Institut",
+          badge: "Travail",
+          desc: "Cabine, fiches clientes, soins & planning",
+          icon: BriefcaseBusiness,
+        },
+      ]
+    : [
+        { id: "client" as Space, label: "Cliente", badge: "Grand Public", desc: "Diagnostic IA, boutique, RDV, chat", icon: Smartphone },
+        { id: "pro" as Space, label: "Pro", badge: "Institut & Caisse", desc: "Caisse POS, TVA, agenda, stock, CRM", icon: BriefcaseBusiness },
+        { id: "admin" as Space, label: "Admin", badge: "Console", desc: "Pilotage plateforme, abonnements", icon: ShieldCheck },
+      ];
+
+  const current = availableSpaces.find((s) => s.id === space) || availableSpaces[0];
 
   function handleSwitch(target: Space) {
     if (target === space || switching) return;
@@ -55,7 +69,7 @@ export function SpaceSwitcher({
 
     // Si bascule vers Pro et pas d'institut mémorisé, sélectionner l'institut par défaut
     if (target === "pro" && !useKene.getState().proTenantId) {
-      useKene.getState().setProTenantId("cmtjdaiij000aqimiwwz2rkfk");
+      useKene.getState().setProTenantId(user?.tenantId || "cmtjdaiij000aqimiwwz2rkfk");
     }
 
     setSpace(target);
@@ -71,9 +85,11 @@ export function SpaceSwitcher({
 
     toast.success(
       target === "pro"
-        ? "Basculé vers l'Espace Pro (Institut & Caisse)"
+        ? "Basculé vers l'Espace Institut"
         : target === "admin"
         ? "Basculé vers la Console Administrateur"
+        : isPro
+        ? "Bienvenue dans ton Espace Beauté personnel 🌸"
         : "Basculé vers l'Espace Cliente"
     );
     setSwitching(null);
@@ -94,17 +110,17 @@ export function SpaceSwitcher({
             ) : (
               <current.icon className="size-3.5 text-primary" />
             )}
-            <span className="text-[11px] text-muted-foreground font-normal">Interface :</span>
+            <span className="text-[11px] text-muted-foreground font-normal">Espace :</span>
             <span className="font-bold text-foreground">{current.label}</span>
             <ChevronDown className="size-3 opacity-60 ml-0.5 text-primary" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 rounded-2xl shadow-xl p-1.5">
+        <DropdownMenuContent align="end" className="w-60 rounded-2xl shadow-xl p-1.5">
           <DropdownMenuLabel className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1">
-            Basculer d&apos;interface
+            {isPro ? "Changer d'univers" : "Basculer d'interface"}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {SPACES.map((s) => {
+          {availableSpaces.map((s) => {
             const Icon = s.icon;
             const active = space === s.id;
             return (
@@ -131,7 +147,7 @@ export function SpaceSwitcher({
           })}
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onClick={() => performLogout({ redirectUrl: "/console" })}
+            onClick={() => performLogout({ redirectUrl: "/" })}
             className="flex items-center gap-2.5 p-2 rounded-xl text-xs cursor-pointer font-medium text-destructive hover:bg-destructive/10 transition-colors"
           >
             <div className="grid size-7 place-items-center rounded-lg bg-destructive/10 text-destructive">
@@ -155,7 +171,7 @@ export function SpaceSwitcher({
         className
       )}
     >
-      {SPACES.map((s) => {
+      {availableSpaces.map((s) => {
         const Icon = s.icon;
         const active = space === s.id;
         const isThisSwitching = switching === s.id;

@@ -45,6 +45,8 @@ export interface SessionUser {
   // — poste de l'EMPLOYÉE connectée (estheticienne | dermo_conseillere |
   // caissiere | manager). Absent/null = gérante (accès complet).
   employeeRole?: string | null;
+  // — établissement rattaché pour l'employée / pro
+  tenantId?: string | null;
   // — code PIN secret défini (permet la reconnexion instantanée sans SMS)
   hasPin?: boolean;
 }
@@ -133,9 +135,15 @@ export const useKene = create<KeneState>()(
       _keneHydrated: false,
       setSpace: (space) =>
         set((s) => {
-          // Seul l'administrateur a la possibilité de basculer d'interface
+          // L'administrateur a accès à tous les espaces
           if (s.user?.role === "admin") {
             return { space };
+          }
+          // Les utilisateurs Pro (gérants et employés d'institut) ont accès à leur espace Pro ET à leur espace personnel Client
+          if (s.user?.role === "pro") {
+            if (space === "pro" || space === "client") {
+              return { space };
+            }
           }
           const allowed = spaceForRole(s.user?.role);
           return { space: allowed };
@@ -144,14 +152,16 @@ export const useKene = create<KeneState>()(
       setClientTab: (clientTab) => set({ clientTab }),
       // setUser fait suivre l'espace au rôle (null → « client » = retour
       // onboarding; user pro/admin → ProApp/AdminApp se montent).
-      // Si l'utilisateur est admin et qu'un espace valide est déjà actif, on respecte son choix.
+      // Si l'utilisateur est admin ou pro et qu'un espace autorisé est déjà actif, on respecte son choix.
       setUser: (user) =>
         set((s) => {
           const keepAdminSpace =
             user?.role === "admin" && (s.space === "client" || s.space === "pro" || s.space === "admin");
+          const keepProSpace =
+            user?.role === "pro" && (s.space === "client" || s.space === "pro");
           return {
             user,
-            space: keepAdminSpace ? s.space : spaceForRole(user?.role),
+            space: keepAdminSpace || keepProSpace ? s.space : spaceForRole(user?.role),
           };
         }),
       addToCart: (line) =>
