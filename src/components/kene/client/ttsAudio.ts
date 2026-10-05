@@ -52,6 +52,8 @@ export async function fetchTtsAudioUrl(text: string, speed = 1, lang: "fr" = "fr
 // Référence globale pour éviter le garbage collection prématuré dans Chrome/Chromium et mobiles
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 let activeAudioElement: HTMLAudioElement | null = null;
+let activeBufferSource: AudioBufferSourceNode | null = null;
+let sharedAudioCtx: AudioContext | null = null;
 let speechHeartbeat: ReturnType<typeof setInterval> | null = null;
 
 export interface SpeechController {
@@ -59,11 +61,50 @@ export interface SpeechController {
 }
 
 /**
+ * Déverrouille préventivement le moteur audio matériel lors d'un tap / geste utilisateur.
+ * Une fois déverrouillé, l'AudioContext reste actif pendant toute la session de navigation
+ * et permet de lire l'audio de Dr. Kènè sans aucun blocage d'autoplay des navigateurs mobiles.
+ */
+export function unlockAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const Ctx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return null;
+    if (!sharedAudioCtx || sharedAudioCtx.state === "closed") {
+      sharedAudioCtx = new Ctx();
+    }
+    if (sharedAudioCtx.state === "suspended") {
+      void sharedAudioCtx.resume();
+    }
+    // Joue un micro échantillon silencieux pour forcer iOS Safari et Android à réveiller le DSP matériel
+    try {
+      const buffer = sharedAudioCtx.createBuffer(1, 1, 22050);
+      const source = sharedAudioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(sharedAudioCtx.destination);
+      source.start(0);
+    } catch {}
+
+    // Déverrouille aussi la synthèse vocale intégrée
+    if ("speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.resume();
+      } catch {}
+    }
+    return sharedAudioCtx;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
  * Joueur vocal universel Kènè :
  * 1. Tente d'abord le streaming audio Cloud haute fidélité (/api/tts).
- * 2. Si le cloud est indisponible ou demande un repli navigateur, bascule IMMÉDIATEMENT
- *    et en toute transparence sur la synthèse vocale intégrée de l'appareil (Web Speech API).
- * -> Zéro coupure de discours, intégrité complète du message garanti.
+ * 2. Joue via Web Audio API (AudioContext déverrouillé) : 100% immunisé contre les blocages autoplay mobiles.
+ * 3. En repli, tente HTMLAudioElement puis Web Speech API du navigateur.
+ * -> Zéro coupure de discours, clarté vocale maximale garantie.
  */
 export async function playSpeech({
   text,
@@ -82,6 +123,9 @@ export async function playSpeech({
 }): Promise<SpeechController> {
   let isStopped = false;
 
+  // Réveille immédiatement le contexte audio
+  const ctx = unlockAudioContext();
+
   // Arrête toute synthèse vocale ou son en cours
   stopBrowserVoice();
 
@@ -89,6 +133,7 @@ export async function playSpeech({
   try {
     const key = `${lang}|${speed === 1 ? "n" : speed}|${fnv1a(text)}`;
     let audioUrl = blobCache.get(key);
+    let audioBlob: Blob | null = null;
 
     if (!audioUrl) {
       const controller = new AbortController();
@@ -99,7 +144,7 @@ export async function playSpeech({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, speed, lang }),
         signal: controller.signal,
-      }).catch((e) => {
+      }).catch(() => {
         clearTimeout(fetchTimer);
         return null;
       });
@@ -111,6 +156,7 @@ export async function playSpeech({
         if (contentType.includes("audio")) {
           const blob = await res.blob();
           if (blob.size >= 100) {
+            audioBlob = blob;
             audioUrl = URL.createObjectURL(blob);
             blobCache.set(key, audioUrl);
           }
@@ -121,8 +167,57 @@ export async function playSpeech({
           }
         }
       }
+    } else {
+      try {
+        const cachedRes = await fetch(audioUrl);
+        audioBlob = await cachedRes.blob();
+      } catch {}
     }
 
+    // A. Priorité absolue : Web Audio API (immunisé contre le blocage d'autoplay asynchrone mobile)
+    if (audioBlob && !isStopped && ctx) {
+      try {
+        if (ctx.state === "suspended") {
+          await ctx.resume();
+        }
+        const arrayBuf = await audioBlob.arrayBuffer();
+        const decodedBuffer = await ctx.decodeAudioData(arrayBuf);
+        if (!isStopped) {
+          const source = ctx.createBufferSource();
+          activeBufferSource = source;
+          source.buffer = decodedBuffer;
+          if (speed && speed !== 1) {
+            source.playbackRate.value = speed;
+          }
+          source.connect(ctx.destination);
+          source.onended = () => {
+            if (activeBufferSource === source) {
+              activeBufferSource = null;
+            }
+            onEnd?.();
+          };
+          source.start(0);
+          onStart?.();
+          return {
+            stop: () => {
+              isStopped = true;
+              if (activeBufferSource === source) {
+                try {
+                  source.stop();
+                  source.disconnect();
+                } catch {}
+                activeBufferSource = null;
+              }
+              onEnd?.();
+            },
+          };
+        }
+      } catch (webaudioErr) {
+        console.warn("[playSpeech] Repli sur HTMLAudioElement suite à erreur WebAudio:", webaudioErr);
+      }
+    }
+
+    // B. Repli HTMLAudioElement
     if (audioUrl && !isStopped) {
       const audio = new Audio(audioUrl);
       activeAudioElement = audio;
@@ -191,13 +286,22 @@ export async function playSpeech({
 /** Arrête toute synthèse vocale et tout audio en cours */
 export function stopBrowserVoice() {
   if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
   }
   if (speechHeartbeat) {
     clearInterval(speechHeartbeat);
     speechHeartbeat = null;
   }
   activeUtterance = null;
+  if (activeBufferSource) {
+    try {
+      activeBufferSource.stop();
+      activeBufferSource.disconnect();
+    } catch {}
+    activeBufferSource = null;
+  }
   if (activeAudioElement) {
     try {
       activeAudioElement.pause();

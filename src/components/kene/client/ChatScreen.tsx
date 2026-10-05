@@ -48,7 +48,7 @@ import { useKene } from "@/store/kene";
 import { useChat } from "@/store/chat";
 import type { ChatMsg } from "./types";
 import { LiveCameraModal } from "./LiveCameraModal";
-import { playSpeech, stopBrowserVoice, type SpeechController } from "./ttsAudio";
+import { playSpeech, stopBrowserVoice, unlockAudioContext, type SpeechController } from "./ttsAudio";
 import { SpeakButton } from "./SpeakButton";
 
 const SUGGESTIONS = [
@@ -170,24 +170,7 @@ function saveHardwarePermGranted(): void {
 /** Déverrouillage préventif de l'AudioContext pour les navigateurs mobiles (iOS Safari / Android Chrome)
  * afin que la réponse vocale automatique de Dr. Kènè démarre immédiatement sans blocage autoplay. */
 function primeAudioContext() {
-  if (typeof window === "undefined") return;
-  try {
-    const Ctx =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (Ctx) {
-      const ctx = new Ctx();
-      if (ctx.state === "suspended") void ctx.resume();
-      const buf = ctx.createBuffer(1, 1, 22050);
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.start(0);
-    }
-    if (typeof window.speechSynthesis !== "undefined") {
-      window.speechSynthesis.resume();
-    }
-  } catch {}
+  unlockAudioContext();
 }
 
 /* Ids uniques entre sessions: un simple compteur entrerait en collision avec
@@ -382,6 +365,7 @@ export function ChatScreen() {
   );
 
   async function startRecording() {
+    unlockAudioContext();
     if (micState !== "idle") return;
     if (
       typeof window === "undefined" ||
@@ -558,6 +542,7 @@ export function ChatScreen() {
   const speak = useCallback(
     (text: string, force = false, messageId?: string) => {
       if ((!ttsOn && !force) || typeof window === "undefined") return;
+      unlockAudioContext();
       currentAudioCtrlRef.current?.stop();
       currentAudioCtrlRef.current = null;
       stopBrowserVoice();
@@ -590,6 +575,7 @@ export function ChatScreen() {
   );
 
   async function send(text?: string) {
+    unlockAudioContext();
     const content = (text ?? input).trim();
     if (!content || sending) return;
     setInput("");
@@ -794,7 +780,10 @@ export function ChatScreen() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => speak(m.content, true, m.id)}
+                        onClick={() => {
+                          unlockAudioContext();
+                          speak(m.content, true, m.id);
+                        }}
                         aria-label="Écouter la réponse de Dr. Kènè"
                         className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[10px] font-bold min-h-0 border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary rounded-full active:scale-95 transition-all"
                       >
