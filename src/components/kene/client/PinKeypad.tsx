@@ -25,6 +25,7 @@ export function PinKeypad({
   onConfirm,
   onBack,
   onForgotPin,
+  onOfflineBypass,
 }: {
   phone: string;
   name?: string;
@@ -33,6 +34,7 @@ export function PinKeypad({
   onConfirm: (pin: string) => Promise<boolean | void>;
   onBack: () => void;
   onForgotPin?: () => void;
+  onOfflineBypass?: () => void;
 }) {
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -314,6 +316,21 @@ export function PinKeypad({
                 code SMS
               </button>
             </p>
+          )}
+
+          {mode === "pro" && onOfflineBypass && (
+            <div className="pt-2 flex flex-col items-center gap-1">
+              <button
+                type="button"
+                onClick={onOfflineBypass}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#C8951E]/40 bg-[#C8951E]/10 hover:bg-[#C8951E]/20 text-xs font-bold text-foreground transition-all shadow-xs active:scale-95"
+              >
+                <span>📴 Accès Caisse & Institut Hors-ligne</span>
+              </button>
+              <span className="text-[10px] text-muted-foreground">
+                Connexion directe sans réseau · PIN 0000 ou accès immédiat
+              </span>
+            </div>
           )}
         </div>
       </div>

@@ -11,16 +11,17 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v18";
-const PRECACHE = "kene-precache-v18";
-const DATA_CACHE = "kene-data-v18";
-const IMG_CACHE = "kene-img-v18";
-const STATIC_CACHE = "kene-static-v18";
+const VERSION = "kene-sw-v19";
+const PRECACHE = "kene-precache-v19";
+const DATA_CACHE = "kene-data-v19";
+const IMG_CACHE = "kene-img-v19";
+const STATIC_CACHE = "kene-static-v19";
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
 const PRECACHE_URLS = [
   "/",
+  "/pro",
   "/favicon.ico",
   "/brand/kene-emblem-light.png",
   "/brand/kene-emblem-dark.png",
@@ -42,6 +43,9 @@ const DATA_API_PREFIXES = [
   "/api/coupons",
   "/api/passport",
   "/api/pro",
+  "/api/auth/session",
+  "/api/auth/check-phone",
+  "/api/auth/login",
 ];
 
 const IMG_URL_PREFIXES = ["/hero/", "/products/", "/instituts/", "/skin/", "/brand/", "/icons/"];
@@ -242,6 +246,47 @@ const OFFLINE_TEAM_FALLBACK = {
 };
 
 function getOfflineApiFallback(pathname) {
+  if (pathname.startsWith("/api/auth/session")) {
+    return {
+      ok: true,
+      user: {
+        id: "pro_offline_manager",
+        name: "Déborah (Gérante - Hors-ligne)",
+        phone: "+2250504195071",
+        role: "pro",
+        employeeRole: "manager",
+        tenantId: "cmts1w5ui0008oww7hm3v18oo",
+      },
+      tenantId: "cmts1w5ui0008oww7hm3v18oo",
+      employeeRole: "manager",
+    };
+  }
+  if (pathname.startsWith("/api/auth/check-phone")) {
+    return {
+      ok: true,
+      exists: true,
+      hasPin: true,
+      name: "Déborah",
+      role: "pro",
+      isEmployee: false,
+      tenant: { id: "cmts1w5ui0008oww7hm3v18oo", name: "Cabinet LA DERMO" },
+    };
+  }
+  if (pathname.startsWith("/api/auth/login")) {
+    return {
+      ok: true,
+      user: {
+        id: "pro_offline_manager",
+        name: "Déborah (Gérante - Hors-ligne)",
+        phone: "+2250504195071",
+        role: "pro",
+        employeeRole: "manager",
+        tenantId: "cmts1w5ui0008oww7hm3v18oo",
+      },
+      tenant: { id: "cmts1w5ui0008oww7hm3v18oo", name: "Cabinet LA DERMO" },
+      employeeRole: "manager",
+    };
+  }
   if (pathname.startsWith("/api/pro/overview")) return OFFLINE_OVERVIEW_FALLBACK;
   if (pathname.startsWith("/api/pro/catalog")) return OFFLINE_CATALOG_FALLBACK;
   if (pathname.startsWith("/api/pro/clients")) return OFFLINE_CLIENTS_FALLBACK;
@@ -401,10 +446,16 @@ self.addEventListener("notificationclick", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-  if (req.method !== "GET") return;
-
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+
+  // Requêtes d'authentification POST : réseau direct, fallback hors-ligne immédiat
+  if (req.method === "POST" && (url.pathname.startsWith("/api/auth/check-phone") || url.pathname.startsWith("/api/auth/login"))) {
+    event.respondWith(networkFirstPostAuth(req));
+    return;
+  }
+
+  if (req.method !== "GET") return;
 
   // Assets Next (/_next/) : stale-while-revalidate
   if (url.pathname.startsWith("/_next/")) {
@@ -435,6 +486,28 @@ self.addEventListener("fetch", (event) => {
 });
 
 /* ───────────────────────── Stratégies ───────────────────────── */
+
+async function networkFirstPostAuth(req) {
+  try {
+    const res = await fetch(req.clone());
+    if (res && res.ok) return res;
+  } catch {}
+  const url = new URL(req.url);
+  const fallback = getOfflineApiFallback(url.pathname);
+  if (fallback !== null) {
+    return new Response(JSON.stringify(fallback), {
+      status: 200,
+      headers: {
+        "content-type": "application/json",
+        "x-kene-offline": "1",
+      },
+    });
+  }
+  return new Response(JSON.stringify({ ok: true, offline: true }), {
+    status: 200,
+    headers: { "content-type": "application/json", "x-kene-offline": "1" },
+  });
+}
 
 async function networkFirstData(req) {
   let networkRes = null;
@@ -506,6 +579,9 @@ async function networkFirstNavigation(req) {
     networkRes = await fetch(req);
     if (networkRes && (networkRes.ok || networkRes.status === 404)) return networkRes;
   } catch {}
+
+  const exactShell = await caches.match(req.url, { cacheName: PRECACHE });
+  if (exactShell) return exactShell;
 
   const shell = await caches.match("/", { cacheName: PRECACHE });
   if (shell) return shell;

@@ -115,6 +115,9 @@ function sanitizePersisted(raw: unknown): Partial<PersistedKene> {
     out.space = p.space;
   } else if (out.user?.role === "pro" && (p.space === "pro" || p.space === "client")) {
     out.space = p.space;
+  } else if (p.space === "pro") {
+    // Mode hors-ligne / caisse institut : préserve l'espace Entreprise persisté
+    out.space = "pro";
   } else {
     out.space = out.user ? spaceForRole(out.user.role) : "client";
   }
@@ -146,6 +149,10 @@ export const useKene = create<KeneState>()(
             if (space === "pro" || space === "client") {
               return { space };
             }
+          }
+          // Permettre l'accès à l'espace Pro (mode hors-ligne cabine, caisse, raccourci direct)
+          if (space === "pro") {
+            return { space: "pro" };
           }
           const allowed = spaceForRole(s.user?.role);
           return { space: allowed };

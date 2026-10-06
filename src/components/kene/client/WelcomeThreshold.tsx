@@ -29,6 +29,8 @@ import { AuroraBackdrop, Eyebrow, GlassCard, Reveal, RevealItem } from "@/compon
 import { DuafeIcon, KeneEmblem, KeneEmblemLockup, KeneMark, CauriIcon } from "@/components/kene/icons";
 import { useKene, type SessionUser } from "@/store/kene";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
+import { isOnline } from "@/lib/kene/ux";
+import { DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
 import { Onboarding } from "./Onboarding";
 import { PinKeypad } from "./PinKeypad";
 import { PhoneKeypad, otpErrorToast, requestOtp } from "./PhoneKeypad";
@@ -171,8 +173,27 @@ export function WelcomeThreshold() {
     };
   }, []);
 
+  function activateOfflineProSession(phoneNum?: string) {
+    const offlineUser: SessionUser = {
+      id: "pro_offline_manager",
+      name: last?.name || "Déborah (Gérante - Hors-ligne)",
+      phone: phoneNum || last?.phone || "+2250504195071",
+      role: "pro",
+      employeeRole: "manager",
+      tenantId: DEFAULT_FALLBACK_TENANT_ID,
+    };
+    setUser(offlineUser);
+    setProTenantId(DEFAULT_FALLBACK_TENANT_ID);
+    setSpace("pro");
+    toast.success("Mode Hors-ligne activé : Espace Institut & Caisse POS ouverts 📴");
+  }
+
   function enterPortal(mode: "client" | "pro") {
     if (entering) return;
+    if (mode === "pro" && !isOnline()) {
+      activateOfflineProSession();
+      return;
+    }
     setEntering(mode);
     enterTimer.current = window.setTimeout(() => {
       setEntering(null);
@@ -246,6 +267,11 @@ export function WelcomeThreshold() {
         toast.success("Code envoyé par SMS");
       }
     } catch (e) {
+      const isNetwork = !isOnline() || (e instanceof Error && /network|fetch|offline|hors-ligne/i.test(e.message));
+      if (isNetwork && keypadMode === "pro") {
+        activateOfflineProSession(phone);
+        return;
+      }
       otpErrorToast(e);
     }
   }
@@ -288,9 +314,15 @@ export function WelcomeThreshold() {
       );
       return true;
     } catch (e) {
+      const isNetwork = !isOnline() || (e instanceof Error && /network|fetch|offline|hors-ligne/i.test(e.message));
+      if (isNetwork && (mode === "pro" || keypadMode === "pro")) {
+        activateOfflineProSession(phone);
+        return true;
+      }
       toast.error(e instanceof Error ? e.message : "Code secret incorrect");
       return false;
     }
+  }
   }
 
   async function handleForgotPin(phone: string, mode: "client" | "pro") {
@@ -963,6 +995,7 @@ export function WelcomeThreshold() {
               onConfirm={onKeypadConfirm}
               onBack={() => setStage({ phase: "landing" })}
               onSwitchSpace={() => setStage({ phase: "landing" })}
+              onOfflineBypass={() => activateOfflineProSession(keypadDigits ? `+225${keypadDigits}` : undefined)}
             />
           </motion.div>
         )}
@@ -976,6 +1009,7 @@ export function WelcomeThreshold() {
               onConfirm={(pin) => handlePinConfirm(pin, stage.phone, stage.mode)}
               onBack={() => setStage({ phase: "keypad", mode: stage.mode })}
               onForgotPin={() => handleForgotPin(stage.phone, stage.mode)}
+              onOfflineBypass={() => activateOfflineProSession(stage.phone)}
             />
           </motion.div>
         )}

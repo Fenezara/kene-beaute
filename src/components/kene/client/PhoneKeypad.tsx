@@ -37,12 +37,14 @@ export function PhoneKeypad({
   onConfirm,
   onBack,
   onSwitchSpace,
+  onOfflineBypass,
 }: {
   mode: "client" | "pro";
   initialDigits?: string;
   onConfirm: (digits: string) => Promise<void>;
   onBack: () => void;
   onSwitchSpace: () => void;
+  onOfflineBypass?: () => void;
 }) {
   const [digits, setDigits] = useState(initialDigits.slice(0, MAX_DIGITS));
   const [loading, setLoading] = useState(false);
@@ -209,6 +211,21 @@ export function PhoneKeypad({
         <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[10.5px] text-muted-foreground/80">
           <ArrowLeft size={12} aria-hidden="true" /> Tu peux aussi taper au clavier
         </p>
+
+        {mode === "pro" && onOfflineBypass && (
+          <div className="mt-4 pt-3 border-t border-border/40 flex flex-col items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onOfflineBypass}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#C8951E]/40 bg-[#C8951E]/10 hover:bg-[#C8951E]/20 text-xs font-bold text-foreground transition-all shadow-xs active:scale-95"
+            >
+              <span>📴 Ouvrir la Caisse & Cabine Hors-ligne</span>
+            </button>
+            <span className="text-[10px] text-muted-foreground text-center">
+              Accès salon sans réseau · Ventes, fiches clientes et stock locaux
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

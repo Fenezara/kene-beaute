@@ -450,6 +450,17 @@ export function ProApp() {
               </span>
             )}
 
+            {(!online || !isOnline()) && (
+              <span
+                title="Mode Hors-ligne — Caisse POS, Catalogue & Clientes locaux opérationnels"
+                className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-semibold text-amber-500 shadow-xs"
+              >
+                <WifiOff className="size-3 text-amber-500" />
+                <span className="hidden sm:inline">Hors-ligne (Caisse active)</span>
+                <span className="sm:hidden">Hors-ligne</span>
+              </span>
+            )}
+
             {/* Bouton direct Mon Espace Beauté */}
             <button
               type="button"

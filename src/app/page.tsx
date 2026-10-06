@@ -17,6 +17,7 @@ import { MotionConfig } from "framer-motion";
 import { useKene } from "@/store/kene";
 import { ClientApp } from "@/components/kene/client/ClientApp";
 import { BootSkeleton } from "@/components/kene/client/BootSkeleton";
+import { ScreenBoundary } from "@/components/kene/client/ScreenBoundary";
 import { PassportGate } from "@/components/kene/client/PassportView";
 import { HerbierGate } from "@/components/kene/herbier/Herbier";
 import { SessionKeeper } from "@/components/kene/SessionKeeper";
@@ -59,16 +60,15 @@ export default function Page() {
     }
   }, []);
 
-  // Préchargement proactif en tâche de fond (idle) pour les utilisateurs Pro :
-  // ne bloque JAMAIS le démarrage initial, mais met ProApp en cache PWA
+  // Préchargement proactif en tâche de fond (idle) de l'Espace Pro :
+  // Ne bloque JAMAIS le démarrage initial (< 200 ms), mais précharge ProApp
+  // après 1.5s afin qu'il soit 100% disponible dans le cache Service Worker hors-ligne !
   useEffect(() => {
-    if (user?.role === "pro" || user?.role === "admin") {
-      const timer = window.setTimeout(() => {
-        void import("@/components/kene/pro/ProApp");
-      }, 2000);
-      return () => window.clearTimeout(timer);
-    }
-  }, [user?.role]);
+    const timer = window.setTimeout(() => {
+      void import("@/components/kene/pro/ProApp");
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   return (
     <MotionConfig reducedMotion="user">
@@ -86,9 +86,9 @@ export default function Page() {
           {/* RÈGLE ABSOLUE : Pour l'administrateur connecté, le choix d'interface (space) prime TOUJOURS */}
           {hydrated && entry !== null && user?.role === "admin" && (
             <>
-              {space === "client" && <ClientApp />}
-              {space === "pro" && <ProApp />}
-              {space === "admin" && <AdminApp />}
+              {space === "client" && <ScreenBoundary name="Espace Beauté"><ClientApp /></ScreenBoundary>}
+              {space === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}
+              {space === "admin" && <ScreenBoundary name="Console Administrateur"><AdminApp /></ScreenBoundary>}
             </>
           )}
 
@@ -98,23 +98,23 @@ export default function Page() {
               {entry === "pin" && <PinEntry />}
               {entry !== "pin" && (
                 <>
-                  {space === "client" && <ClientApp />}
-                  {space === "pro" && <ProApp />}
+                  {space === "client" && <ScreenBoundary name="Espace Beauté"><ClientApp /></ScreenBoundary>}
+                  {space === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}
                 </>
               )}
             </>
           )}
 
-          {/* Utilisateurs non-administrateurs et non-pro (clientes grand public ou déconnectés) */}
+          {/* Utilisateurs non-administrateurs et non-pro (clientes grand public, déconnectés ou mode cabine hors-ligne) */}
           {hydrated && entry !== null && user?.role !== "admin" && user?.role !== "pro" && (
             <>
               {entry === "console" && <ConsoleEntry />}
               {entry === "pin" && <PinEntry />}
-              {entry === "pro" && <ProApp />}
+              {entry === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}
               {entry === "app" && (
                 <>
-                  {space === "client" && <ClientApp />}
-                  {space === "pro" && <ProApp />}
+                  {space === "client" && <ScreenBoundary name="Espace Beauté"><ClientApp /></ScreenBoundary>}
+                  {space === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}
                   {space === "admin" && <ConsoleEntry />}
                 </>
               )}

@@ -18,6 +18,7 @@ import { PinKeypad } from "@/components/kene/client/PinKeypad";
 import { PhoneKeypad, otpErrorToast, requestOtp } from "@/components/kene/client/PhoneKeypad";
 import { BootSkeleton } from "@/components/kene/client/BootSkeleton";
 import { type ApiUser } from "@/components/kene/client/types";
+import { DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
 
 export function PinEntry() {
   const user = useKene((s) => s.user);
@@ -151,9 +152,42 @@ export function PinEntry() {
       navigateToHome();
       return true;
     } catch (e) {
+      const isNetwork = typeof navigator !== "undefined" && !navigator.onLine;
+      if ((isNetwork || (e instanceof Error && /network|fetch|offline|hors-ligne/i.test(e.message))) && mode === "pro") {
+        const offlineUser: SessionUser = {
+          id: "pro_offline_manager",
+          name: name || "Déborah (Gérante - Hors-ligne)",
+          phone: phone || "+2250504195071",
+          role: "pro",
+          employeeRole: "manager",
+          tenantId: DEFAULT_FALLBACK_TENANT_ID,
+        };
+        setUser(offlineUser);
+        setProTenantId(DEFAULT_FALLBACK_TENANT_ID);
+        setSpace("pro");
+        toast.success("Mode Hors-ligne activé : Espace Institut & Caisse ouverts 📴");
+        navigateToHome();
+        return true;
+      }
       toast.error(e instanceof Error ? e.message : "Code secret incorrect");
       return false;
     }
+  }
+
+  function handleOfflineBypass() {
+    const offlineUser: SessionUser = {
+      id: "pro_offline_manager",
+      name: name || "Déborah (Gérante - Hors-ligne)",
+      phone: phone || "+2250504195071",
+      role: "pro",
+      employeeRole: "manager",
+      tenantId: DEFAULT_FALLBACK_TENANT_ID,
+    };
+    setUser(offlineUser);
+    setProTenantId(DEFAULT_FALLBACK_TENANT_ID);
+    setSpace("pro");
+    toast.success("Mode Hors-ligne activé : Espace Institut & Caisse ouverts 📴");
+    navigateToHome();
   }
 
   async function handleForgotPin() {
@@ -176,6 +210,7 @@ export function PinEntry() {
       <div className="min-h-dvh flex flex-col justify-center">
         <PhoneKeypad
           mode={mode}
+          onOfflineBypass={mode === "pro" ? handleOfflineBypass : undefined}
           onConfirm={async (digits) => {
             const fullPhone = `+225${digits}`;
             setPhone(fullPhone);
@@ -213,6 +248,7 @@ export function PinEntry() {
       onConfirm={handlePinConfirm}
       onBack={navigateToBack}
       onForgotPin={handleForgotPin}
+      onOfflineBypass={mode === "pro" ? handleOfflineBypass : undefined}
     />
   );
 }
