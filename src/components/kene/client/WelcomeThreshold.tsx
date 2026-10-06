@@ -323,7 +323,6 @@ export function WelcomeThreshold() {
       return false;
     }
   }
-  }
 
   async function handleForgotPin(phone: string, mode: "client" | "pro") {
     try {
