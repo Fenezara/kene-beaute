@@ -60,8 +60,8 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, items, paymentMethod, discount, appointmentId, practitionerName, depositDeducted } = parsed.data;
 
-    const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) return jsonError("Institut introuvable", 404);
+    const tenant = await resolveTenant(req, tenantId);
+    if (!tenant) return jsonError("Institut introuvable ou non autorisé", 404);
 
     let clientProfile: Awaited<ReturnType<typeof db.clientProfile.findFirst>> = null;
     if (parsed.data.clientProfileId) {

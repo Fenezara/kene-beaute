@@ -4,10 +4,12 @@
 // 2. Déclenchement atomique et idempotent de executePaymentSuccess()
 // 3. Traçabilité dans le journal d'audit
 
+import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { executePaymentSuccess } from "@/lib/kene/payment-core";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { claimWebhookEvent } from "@/lib/payments/idempotency";
+import { verifyWiniPayerTransaction } from "@/lib/payments/winipayer";
 import { db } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
@@ -55,6 +57,18 @@ export async function POST(req: NextRequest) {
       });
     }
     return NextResponse.json({ received: true, status: rawStatus });
+  }
+
+  // Double-vérification de sécurité (defense-in-depth) :
+  // Si les identifiants marchands sont configurés en production, on interroge l'API WiniPayer
+  // pour s'assurer que la transaction a RÉELLEMENT été payée (anti-spoofing de webhook).
+  if (process.env.WINIPAYER_MERCHANT_UUID && process.env.WINIPAYER_MERCHANT_TOKEN) {
+    const invoiceUuid = String(data.transaction_id || data.id || payment.ref || paymentId);
+    const verification = await verifyWiniPayerTransaction(invoiceUuid);
+    if (!verification.isPaid) {
+      console.warn(`[WiniPayer Webhook] Rejet de confirmation non certifiée par l'API pour ${paymentId}`);
+      return NextResponse.json({ error: "Transaction unverified by provider" }, { status: 403 });
+    }
   }
 
   // Verrou d'idempotence strict (anti-double traitement sur rejeu WiniPayer)

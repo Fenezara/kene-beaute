@@ -65,8 +65,8 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return jsonError("Corps de requête invalide (name + price requis)", 400);
     const { tenantId, type, data } = parsed.data;
 
-    const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) return jsonError("Institut introuvable", 404);
+    const tenant = await resolveTenant(req, tenantId);
+    if (!tenant) return jsonError("Institut introuvable ou non autorisé", 404);
 
     if (data.photoData !== undefined) {
       const check = checkPhoto(data.photoData, "photo");
@@ -133,8 +133,8 @@ export async function PATCH(req: NextRequest) {
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, type, id, data } = parsed.data;
 
-    const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) return jsonError("Institut introuvable", 404);
+    const tenant = await resolveTenant(req, tenantId);
+    if (!tenant) return jsonError("Institut introuvable ou non autorisé", 404);
 
     if (PHOTO_FIELD in data) {
       const check = checkPhoto(data[PHOTO_FIELD], "photo");

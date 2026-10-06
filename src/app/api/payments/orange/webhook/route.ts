@@ -1,5 +1,6 @@
 // POST /api/payments/orange/webhook — Webhook officiel Orange Money Web Payment
 // Traite les notifications de succès et valide les transactions de façon atomique et idempotente.
+import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { executePaymentSuccess } from "@/lib/kene/payment-core";
 import { claimWebhookEvent } from "@/lib/payments/idempotency";
@@ -32,8 +33,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: "ok", note: "idempotent_duplicate" }, { status: 200 });
     }
 
-    // Si Orange confirme le succès (ou en simulation si le webhook est testé)
-    const isSuccess = !body.status || body.status.toUpperCase() === "SUCCESS" || body.status.toUpperCase() === "COMPLETED";
+    // Vérification cryptographique en temps constant si un secret de webhook est configuré
+    const webhookSecret = process.env.ORANGE_MONEY_WEBHOOK_SECRET?.trim();
+    if (webhookSecret) {
+      const authHeader = req.headers.get("authorization") || req.headers.get("x-orange-token") || "";
+      const expected = Buffer.from(webhookSecret);
+      const actual = Buffer.from(authHeader.replace(/^Bearer\s+/i, ""));
+      const isMatch = expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+      if (!isMatch) {
+        return NextResponse.json({ error: "Invalid webhook credentials" }, { status: 401 });
+      }
+    }
+
+    // Le statut doit être EXPLICITEMENT valide (interdiction formelle du fallback !body.status)
+    const rawStatus = (body.status ?? "").trim().toUpperCase();
+    const isSuccess = rawStatus === "SUCCESS" || rawStatus === "COMPLETED";
 
     if (isSuccess) {
       const result = await executePaymentSuccess(paymentId);

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { executePaymentSuccess } from "@/lib/kene/payment-core";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { claimWebhookEvent } from "@/lib/payments/idempotency";
+import { verifySaspayPayment } from "@/lib/payments/saspay";
 import { db } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
@@ -64,6 +65,18 @@ export async function POST(req: NextRequest) {
       });
     }
     return NextResponse.json({ received: true, status: rawStatus });
+  }
+
+  // Double-vérification de sécurité (defense-in-depth) :
+  // Si la clé API est configurée, on interroge l'API SasPay pour s'assurer que
+  // la transaction a RÉELLEMENT été payée (anti-spoofing de webhook).
+  if (process.env.SASPAY_API_KEY) {
+    const sessionToVerify = String(sessionId || payment.ref || paymentId);
+    const verification = await verifySaspayPayment(sessionToVerify);
+    if (!verification.isPaid) {
+      console.warn(`[SasPay Webhook] Rejet de confirmation non certifiée par l'API pour ${paymentId}`);
+      return NextResponse.json({ error: "Transaction unverified by provider" }, { status: 403 });
+    }
   }
 
   // Idempotence stricte (anti double-traitement)

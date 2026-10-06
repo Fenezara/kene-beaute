@@ -123,7 +123,25 @@ export async function redeemCoupon(
     // contrainte unique → déjà utilisée par cette cliente
     return { ok: false, error: "Tu as déjà utilisé ce code promo 😉" };
   }
-  await client.coupon.update({ where: { id: couponId }, data: { usedCount: { increment: 1 } } });
+
+  // Incrément atomique avec vérification stricte de quota (anti-race condition / TOCTOU)
+  if (coupon.maxUses > 0) {
+    const res = await client.coupon.updateMany({
+      where: {
+        id: couponId,
+        usedCount: { lt: coupon.maxUses },
+      },
+      data: { usedCount: { increment: 1 } },
+    });
+    if (res.count === 0) {
+      // Si une requête concurrente a épuisé le quota au même instant, on annule la rédemption
+      await client.couponRedemption.deleteMany({ where: { couponId, orderId } });
+      return { ok: false, error: "Ce code promo a atteint sa limite d'utilisations" };
+    }
+  } else {
+    await client.coupon.update({ where: { id: couponId }, data: { usedCount: { increment: 1 } } });
+  }
+
   return { ok: true, discount };
 }
 

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { splitTVA, saleJournalLines } from "@/lib/accounting/syscohada";
-import { jsonError, serverError, overlaps, dayEnd, createJournalEntry, recomputeClientRfm, genRef, notify } from "@/lib/kene/server";
+import { jsonError, serverError, resolveTenant, overlaps, dayEnd, createJournalEntry, recomputeClientRfm, genRef, notify } from "@/lib/kene/server";
 import { pushTenantFeed } from "@/lib/kene/realtime";
 import { guardProRole } from "@/lib/kene/session";
 
@@ -31,6 +31,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       include: { service: true, resource: true, clientProfile: true },
     });
     if (!appointment) return jsonError("Rendez-vous introuvable", 404);
+
+    // Isolation multi-tenant stricte (anti-IDOR / BOLA) :
+    // Une professionnelle ne peut modifier QUE les rendez-vous de son propre institut.
+    const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
+    if (!tenant || appointment.tenantId !== tenant.id) {
+      return jsonError("Rendez-vous introuvable", 404);
+    }
 
     // ── reschedule: déplacer le RDV (vérif chevauchement) ──
     if (action === "reschedule") {
