@@ -212,17 +212,16 @@ export const useKene = create<KeneState>()(
 );
 
 // ── Déclenchement de la relecture (une seule fois, après le premier rendu) ──
-// Le shell applicatif peut appeler useKene.persist.rehydrate à son montage
-// (idempotent); ce filet garantit la relecture même sans lui: l'événement
-// « load » arrive toujours après l'hydratation React, donc aucun mismatch.
+// Le shell applicatif appelle useKene.persist.rehydrate dès son premier montage.
+// Ce filet assure la relecture au plus vite dès l'interactivité du DOM.
 if (typeof window !== "undefined") {
   const kick = () => {
     if (!useKene.persist.hasHydrated()) void useKene.persist.rehydrate();
   };
-  if (document.readyState === "complete") {
-    // Module évalué après le chargement (HMR, import dynamique) → micro-délai.
-    window.setTimeout(kick, 0);
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    queueMicrotask(kick);
   } else {
+    document.addEventListener("DOMContentLoaded", kick, { once: true });
     window.addEventListener("load", kick, { once: true });
   }
 }

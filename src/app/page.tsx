@@ -11,6 +11,7 @@
 // rejoignent le bundle client UNIQUEMENT quand on y entre. Le gating `space`
 // reste identique, seul le chargement change. BootSkeleton pendant l'attente.
 
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { MotionConfig } from "framer-motion";
 import { useKene } from "@/store/kene";
@@ -27,7 +28,10 @@ import { Toaster } from "@/components/ui/sonner";
 // Espaces Pro / Admin / Pin: chunks séparés, chargés à l'entrée de l'espace
 // (exports nommés → default attendu par next/dynamic). AdminApp est chargé
 // par ConsoleEntry (t. 130) — la console ne vit QUE derrière /console.
-import { ProApp } from "@/components/kene/pro/ProApp";
+const ProApp = dynamic(() => import("@/components/kene/pro/ProApp").then((m) => ({ default: m.ProApp })), {
+  ssr: false,
+  loading: () => <BootSkeleton />,
+});
 
 const PinEntry = dynamic(() => import("@/components/kene/auth/PinEntry").then((m) => ({ default: m.PinEntry })), {
   ssr: false,
@@ -47,6 +51,24 @@ export default function Page() {
   // de connexion console; « /pin » monte l'écran dédié de code secret;
   // null → BootSkeleton le temps de la résolution client (zéro flash).
   const entry = useEntryKind();
+
+  // Déclenchement immédiat de la réhydratation du store dès le premier montage React
+  useEffect(() => {
+    if (!useKene.persist.hasHydrated()) {
+      void useKene.persist.rehydrate();
+    }
+  }, []);
+
+  // Préchargement proactif en tâche de fond (idle) pour les utilisateurs Pro :
+  // ne bloque JAMAIS le démarrage initial, mais met ProApp en cache PWA
+  useEffect(() => {
+    if (user?.role === "pro" || user?.role === "admin") {
+      const timer = window.setTimeout(() => {
+        void import("@/components/kene/pro/ProApp");
+      }, 2000);
+      return () => window.clearTimeout(timer);
+    }
+  }, [user?.role]);
 
   return (
     <MotionConfig reducedMotion="user">
