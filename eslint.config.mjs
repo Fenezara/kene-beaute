@@ -23,6 +23,14 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "react/display-name": "off",
     "react/prop-types": "off",
     "react-compiler/react-compiler": "off",
+    // Règles strictes « React Compiler » (eslint-plugin-react-hooks v6+): elles ne
+    // signalent pas des bugs d'exécution mais des patterns d'initialisation après
+    // montage (hydratation, localStorage, fetch) utilisés volontairement. Gardées
+    // en avertissement pour rester visibles; à migrer écran par écran, avec tests.
+    "react-hooks/set-state-in-effect": "warn",
+    "react-hooks/immutability": "warn",
+    "react-hooks/refs": "warn",
+    "react-hooks/preserve-manual-memoization": "warn",
     
     // Next.js rules
     "@next/next/no-img-element": "off",
@@ -42,6 +50,12 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-undef": "off",
     "no-unreachable": "off",
     "no-useless-escape": "off",
+  },
+}, {
+  // Scripts CLI Node (CommonJS) — hors code applicatif
+  files: ["scripts/**/*.js", "scratch/**/*.js"],
+  rules: {
+    "@typescript-eslint/no-require-imports": "off",
   },
 }, {
   ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]

@@ -34,12 +34,18 @@ export function useApi<T>(
   const [loading, setLoading] = useState(() => !data);
   const [error, setError] = useState<string | null>(null);
   const fnRef = useRef(fn);
-  fnRef.current = fn;
   const dataRef = useRef(data);
-  dataRef.current = data;
   const fallbackRef = useRef(fallbackData);
-  fallbackRef.current = fallbackData;
   const alive = useRef(true);
+
+  // Synchronisation des refs APRÈS le rendu (jamais pendant). Déclaré avant
+  // l'effet de chargement ci-dessous: à chaque commit, fnRef/fallbackRef sont
+  // à jour avant que load() ne s'exécute.
+  useEffect(() => {
+    fnRef.current = fn;
+    dataRef.current = data;
+    fallbackRef.current = fallbackData;
+  });
 
   useEffect(() => {
     alive.current = true;
@@ -92,6 +98,8 @@ export function useApi<T>(
     } finally {
       if (alive.current) setLoading(false);
     }
+    // `deps` dynamique = contrat public de useApi (les appelants fournissent leur propre liste).
+    // eslint-disable-next-line react-hooks/use-memo
   }, deps);
 
   useEffect(() => {
