@@ -27,18 +27,10 @@ import { ConsoleEntry, ConsoleRedirect, useEntryKind } from "@/components/kene/a
 import { Toaster } from "@/components/ui/sonner";
 
 // Espaces Pro / Admin / Pin: chunks séparés, chargés à l'entrée de l'espace
-// (exports nommés → default attendu par next/dynamic). AdminApp est chargé
-// par ConsoleEntry (t. 130) — la console ne vit QUE derrière /console.
-const ProApp = dynamic(() => import("@/components/kene/pro/ProApp").then((m) => ({ default: m.ProApp })), {
-  ssr: false,
-  loading: () => <BootSkeleton />,
-});
+import { ProApp } from "@/components/kene/pro/ProApp";
+import { PinEntry } from "@/components/kene/auth/PinEntry";
 
-const PinEntry = dynamic(() => import("@/components/kene/auth/PinEntry").then((m) => ({ default: m.PinEntry })), {
-  ssr: false,
-  loading: () => <BootSkeleton />,
-});
-
+// Console Admin: uniquement derrière /console (recharts ~100 ko gz)
 const AdminApp = dynamic(() => import("@/components/kene/admin/AdminApp").then((m) => ({ default: m.AdminApp })), {
   ssr: false,
   loading: () => <BootSkeleton />,
@@ -58,16 +50,6 @@ export default function Page() {
     if (!useKene.persist.hasHydrated()) {
       void useKene.persist.rehydrate();
     }
-  }, []);
-
-  // Préchargement proactif en tâche de fond (idle) de l'Espace Pro :
-  // Ne bloque JAMAIS le démarrage initial (< 200 ms), mais précharge ProApp
-  // après 1.5s afin qu'il soit 100% disponible dans le cache Service Worker hors-ligne !
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void import("@/components/kene/pro/ProApp");
-    }, 1500);
-    return () => window.clearTimeout(timer);
   }, []);
 
   return (
