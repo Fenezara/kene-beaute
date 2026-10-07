@@ -20,7 +20,7 @@ function welcomeMsg(): ChatMsg {
     id: "w1",
     role: "assistant",
     content:
-      "Bonjour ma chérie ! C'est Dermo Kènè, ta grande sœur et dermo-conseillère ici à Abidjan. Pose-moi toutes tes questions sur ta peau — boutons, taches, éclat ou hydratation — ou envoie-moi une photo ou une note vocale. Je t'écoute avec le cœur et on va prendre soin de toi ensemble ✨.",
+      "Bonjour ma chérie ! C'est Dermo Kènè, ta grande sœur et dermo-conseillère ici à Abidjan. Pose-moi toutes tes questions sur ta peau — boutons, taches, éclat ou hydratation — ou envoie-moi une photo ou une note vocale. Je t'écoute avec le cœur et on va prendre soin de toi ensemble 🌿.",
     kind: "text",
     time: Date.now(),
   };

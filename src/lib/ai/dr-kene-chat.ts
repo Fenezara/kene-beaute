@@ -78,7 +78,7 @@ export function tidyReply(raw: string): string {
   cleaned = cleaned.replace(/^(?:Dr\.?|Dermo)\s*K[èe]n[èe]\s*:\s*/i, "");
 
   // Sécurité anti-coupure : si le modèle s'est arrêté brutalement sans ponctuation finale
-  if (cleaned && !/[.!?…✨]$/.test(cleaned)) {
+  if (cleaned && !/[.!?…]$/.test(cleaned)) {
     const lastPunctuation = Math.max(
       cleaned.lastIndexOf("."),
       cleaned.lastIndexOf("!"),
@@ -243,7 +243,7 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
   if (isGreeting) {
     return (
       "Bonjour ma chérie et sois la bienvenue ! C'est Dermo Kènè, ta grande sœur et conseillère beauté ici à Abidjan. " +
-      "Dis-moi, qu'est-ce qui fatigue ta peau en ce moment ? Raconte-moi tout tranquillement, je suis là pour toi et je t'écoute avec le cœur ✨."
+      "Dis-moi, qu'est-ce qui fatigue ta peau en ce moment ? Raconte-moi tout tranquillement, je suis là pour toi et je t'écoute avec le cœur 🌿."
     );
   }
 
@@ -253,7 +253,7 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
       "Yako ma chérie pour les taches ! Tu sais, sur notre peau noire, dès qu'il y a un petit bouton, une blessure ou un frottement, la mélanine monte d'un coup et laisse une tache sombre. " +
       "Ne panique surtout pas, ça s'en va avec un peu de patience. Le secret numéro un à Abidjan, c'est de mettre un bon écran solaire SPF 50 tous les matins pour que le soleil ne vienne pas fixer la noirceur des taches. " +
       "Le soir, utilise un soin doux à la niacinamide et ne fais jamais de gommages durs qui agressent le visage. " +
-      "Tu peux aussi réserver un soin éclat dans nos instituts partenaires certifiés Kènè ici à Abidjan ✨."
+      "Tu peux aussi réserver un soin éclat dans nos instituts partenaires certifiés Kènè ici à Abidjan 🌿."
     );
   }
 
@@ -320,7 +320,7 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
     return (
       "Tu peux prendre ton rendez-vous directement dans l'application Kènè auprès de nos instituts partenaires certifiés à Abidjan, notamment le Cabinet LA DERMO. " +
       "Les praticiennes d'ici connaissent parfaitement la peau noire et adaptent le protocole de soin à ton phototype sans agresser la peau. " +
-      "Rends-toi simplement dans l'onglet « Instituts » de l'application pour choisir ton créneau et ton soin préféré tranquillement ✨."
+      "Rends-toi simplement dans l'onglet « Instituts » de l'application pour choisir ton créneau et ton soin préféré tranquillement 🌿."
     );
   }
 
@@ -329,7 +329,7 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
     return (
       "Pour commander nos soins dermo-cosmétiques formulés spécialement pour la peau mélanoderme, tu peux te rendre directement dans l'onglet « Boutique » de l'application. " +
       "Tous les prix en FCFA y sont indiqués en toute transparence, avec livraison rapide partout à Abidjan et en Côte d'Ivoire. " +
-      "Dis-moi ce que tu cherches exactement et je te guide vers le meilleur soin pour ton teint ✨."
+      "Dis-moi ce que tu cherches exactement et je te guide vers le meilleur soin pour ton teint 🌿."
     );
   }
 
@@ -348,7 +348,7 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
     "Pour prendre soin de ta peau avec amour, voici la règle d'or pour nous à Abidjan : " +
     "un nettoyage doux sans savon matin et soir, une bonne hydratation avec un gel léger ou quelques gouttes d'huile végétale pure, " +
     "et un écran solaire SPF 50 tous les matins pour te protéger du soleil fort. " +
-    "Dis-moi ce qui te préoccupe en particulier sur ton visage ou ton corps, et on avance ensemble pas à pas ✨."
+    "Dis-moi ce qui te préoccupe en particulier sur ton visage ou ton corps, et on avance ensemble pas à pas 🌿."
   );
 }
 
@@ -454,7 +454,7 @@ export async function getDrKeneAudioReply(
     return {
       transcription: "",
       reply:
-        "Pardon ma chérie, je n'ai pas bien entendu ta note vocale ou c'était un peu trop silencieux. Tu peux me la réenregistrer en parlant bien près du micro ou m'écrire ton message directement ? Je t'écoute avec attention ✨ !",
+        "Pardon ma chérie, je n'ai pas bien entendu ta note vocale ou c'était un peu trop silencieux. Tu peux me la réenregistrer en parlant bien près du micro ou m'écrire ton message directement ? Je t'écoute avec attention 🌿 !",
     };
   }
 

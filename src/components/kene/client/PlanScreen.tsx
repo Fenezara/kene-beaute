@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, BadgeCheck, Check, CheckCircle2, Clock, Crown, Loader2, ShieldCheck, Sparkles, TrendingUp, Trophy, Zap,
+  ArrowLeft, BadgeCheck, Check, CheckCircle2, Clock, Crown, Loader2, ShieldCheck, TrendingUp, Trophy, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -17,6 +17,7 @@ import { xof } from "@/lib/kene/format";
 import { MOMO_OPERATORS } from "@/lib/kene/rfm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { IconBadge, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
+import { CauriIcon } from "@/components/kene/icons";
 import { useKene, type SessionUser } from "@/store/kene";
 
 /* ─── Contrat API ─── */
@@ -47,7 +48,7 @@ interface SubsData {
 
 /** Icônes des perks Kènè+ — mappées par index sur l'ordre stable de
  * PLAN_DEFS (diagnostics illimités, suivi évolution, priorité, défis). */
-const PLUS_PERK_ICONS = [Sparkles, TrendingUp, Zap, Trophy] as const;
+const PLUS_PERK_ICONS = [CauriIcon, TrendingUp, Zap, Trophy] as const;
 
 /** « 25/03 » à partir d'une date ISO — pas de dépendance locale floue. */
 function fmtJJMM(iso: string): string {
@@ -114,8 +115,8 @@ export function PlanScreen() {
         setExpiresAt(r.subscription.expiresAt);
         toast.success(
           sheetMode === "renew"
-            ? "Abonnement renouvelé avec succès ✨"
-            : "Kènè+ activé — diagnostics illimités ✨",
+            ? "Abonnement renouvelé avec succès"
+            : "Kènè+ activé — diagnostics illimités",
           {
             description: `Actif jusqu'au ${fmtJJMM(r.subscription.expiresAt)} · abonnement prolongé`,
           }
@@ -148,7 +149,7 @@ export function PlanScreen() {
       {error && (
         <RevealItem>
           <section role="alert" className="k-card rounded-[24px] p-4 flex items-center gap-3">
-            <IconBadge icon={<Sparkles size={19} />} tone="bissap" />
+            <IconBadge icon={<CauriIcon size={19} />} tone="bissap" />
             <div className="flex-1">
               <p className="text-xs font-bold">Abonnement indisponible</p>
               <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{error}</p>
@@ -245,7 +246,7 @@ export function PlanScreen() {
             </div>
             <ul className="mt-4 space-y-2.5">
               {plusDef.perks.map((perk, i) => {
-                const Icon = PLUS_PERK_ICONS[i] ?? Sparkles;
+                const Icon = PLUS_PERK_ICONS[i] ?? CauriIcon;
                 return (
                   <li key={perk} className="flex items-center gap-2.5 text-sm">
                     <span className="grid place-items-center h-7 w-7 rounded-[10px] bg-success/15 text-success shrink-0">
@@ -304,7 +305,7 @@ export function PlanScreen() {
 
               <ul className="mt-4 space-y-2.5">
                 {plusDef.perks.map((perk, i) => {
-                  const Icon = PLUS_PERK_ICONS[i] ?? Sparkles;
+                  const Icon = PLUS_PERK_ICONS[i] ?? CauriIcon;
                   return (
                     <li key={perk} className="flex items-center gap-2.5 text-sm">
                       <span className="grid place-items-center h-7 w-7 rounded-[10px] bg-gold/15 text-gold-text shrink-0">
@@ -523,7 +524,7 @@ export function PlanScreen() {
                   <Check size={32} className="text-white" strokeWidth={3} />
                 </motion.span>
                 <p className="font-heading font-black text-lg">
-                  {sheetMode === "renew" ? "Kènè+ renouvelé ✨" : "Kènè+ activé ✨"}
+                  {sheetMode === "renew" ? "Kènè+ renouvelé" : "Kènè+ activé"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Actif jusqu&apos;au {expiresAt ? fmtJJMM(expiresAt) : "—"} · diagnostics illimités dès maintenant.

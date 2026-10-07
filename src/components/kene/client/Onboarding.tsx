@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowRight, BriefcaseBusiness, Check, ChevronLeft, Flower2, Gift, Loader2, MessageSquareText, ShieldCheck, Smartphone, Sparkles, Stethoscope,
+  ArrowRight, BriefcaseBusiness, Check, ChevronLeft, Flower2, Gift, Loader2, MessageSquareText, ShieldCheck, Smartphone, Stethoscope,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError, apiGet, apiPatch, apiPost } from "@/lib/kene/api";
@@ -17,7 +17,7 @@ import { rememberAccount } from "@/lib/kene/last-account";
 import { xof } from "@/lib/kene/format";
 import { FILLEUL_GIFT } from "@/lib/kene/referral";
 import { AuroraBackdrop, Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Reveal, RevealItem } from "@/components/kene/ui2026";
-import { KeneEmblemLockup } from "@/components/kene/icons";
+import { CauriIcon, KeneEmblemLockup } from "@/components/kene/icons";
 import { useT } from "@/lib/kene/use-t";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useKene, type SessionUser } from "@/store/kene";
@@ -33,7 +33,7 @@ const PRO_TYPES: {
   hint: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
 }[] = [
-  { id: "institut", label: "Institut de beauté", hint: "Soins visage & corps", icon: Sparkles },
+  { id: "institut", label: "Institut de beauté", hint: "Soins visage & corps", icon: CauriIcon },
   { id: "spa", label: "Spa", hint: "Détente & bien-être", icon: Flower2 },
   { id: "dermo_conseil", label: "Dermo-conseil", hint: "Conseil peau expert", icon: Stethoscope },
 ];
@@ -150,7 +150,7 @@ export function Onboarding({
       const res = await apiPost<{ ok: boolean; devCode?: string; smsSent?: boolean }>("/api/auth/otp/request", { phone: p });
       setDevCode(res.devCode ?? "");
       if (res.devCode) {
-        toast.info("Code instantané affiché à l'écran ✨");
+        toast.info("Code instantané affiché à l'écran");
       } else {
         toast.success("Code envoyé par SMS");
       }
@@ -406,7 +406,7 @@ export function Onboarding({
               pin,
               otpCode: otp,
             });
-            toast.success("Code secret configuré avec succès ! ✨");
+            toast.success("Code secret configuré avec succès !");
             setShowPinSetup(false);
             await proceedAfterAuth(pendingAuth);
             return true;
@@ -815,7 +815,7 @@ export function Onboarding({
               <RevealItem>
                 <section aria-labelledby="fitz-t">
                   <h2 id="fitz-t" className="text-sm font-semibold mb-2 flex items-center gap-2">
-                    <IconBadge icon={<Sparkles size={14} />} size="sm" tone="gold" /> Phototype Fitzpatrick
+                    <IconBadge icon={<CauriIcon size={14} />} size="sm" tone="gold" /> Phototype Fitzpatrick
                   </h2>
                   <div className="grid grid-cols-3 gap-2">
                     {FITZPATRICK_CARDS.map((f) => (

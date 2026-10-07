@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import {
   AlertTriangle, Camera, ChevronLeft, ChevronRight, Compass, FileDown, Filter, ImagePlus, Info,
   Layers, Loader2, OctagonAlert, PenLine, Printer, Search, Share2, ShieldCheck,
-  ShoppingBag, SlidersHorizontal, Sparkles, Stethoscope, Trash2, UserPlus, Users,
+  ShoppingBag, SlidersHorizontal, Stethoscope, Trash2, UserPlus, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,7 @@ import { SkinProjectionCurve } from "./diagnostic/SkinProjectionCurve";
 import { PhotoScanAnimation } from "./diagnostic/PhotoScanAnimation";
 import { useApi } from "./useApi";
 import type { EmployeesResponse, ProClient, ProDiagnosesKpis, ProDiagnosisItem } from "./types";
+import { CauriIcon } from "@/components/kene/icons";
 import { EmptyState, ErrorState, InitialAvatar, KenteTop, SectionHeader } from "./ui-bits";
 import type { ProSectionId } from "./ProApp";
 
@@ -72,7 +73,7 @@ function buildWhatsAppDiagUrl(clientName: string, phone: string, result: ProDiag
       : digits;
   const botaniques = result.recommandations.botaniques_conseillees?.join(", ") || "Karité, Moringa, Baobab";
   const soins = result.recommandations.soins_conseilles?.slice(0, 2).join(" • ") || "Soin dermo-botanique";
-  const text = `Bonjour ${clientName.split(" ")[0]} 🌸\n\nVoici votre bilan de peau personnalisé réalisé en institut${tenantName ? ` chez « ${tenantName} »` : ""} :\n\n📊 Score santé cutanée : ${result.score_global}/100\n📍 Zone : ${result.zone.replace("_", " ")}\n🌿 Botaniques clés : ${botaniques}\n💆‍♀️ Soin cabine conseillé : ${soins}\n\nRetrouvez votre protocole complet et vos progrès sur l'application Kènè ! ✨`;
+  const text = `Bonjour ${clientName.split(" ")[0]} 🌸\n\nVoici votre bilan de peau personnalisé réalisé en institut${tenantName ? ` chez « ${tenantName} »` : ""} :\n\n📊 Score santé cutanée : ${result.score_global}/100\n📍 Zone : ${result.zone.replace("_", " ")}\n🌿 Botaniques clés : ${botaniques}\n💆‍♀️ Soin cabine conseillé : ${soins}\n\nRetrouvez votre protocole complet et vos progrès sur l'application Kènè ! 🌿`;
   return `https://wa.me/${target}?text=${encodeURIComponent(text)}`;
 }
 
@@ -227,11 +228,11 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
         <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start sm:items-center gap-3">
             <span className="grid size-10 place-items-center rounded-xl bg-gold/15 text-gold-text shrink-0">
-              <Sparkles className="size-5" aria-hidden="true" />
+              <CauriIcon className="size-5" aria-hidden="true" />
             </span>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              <span className="font-semibold text-foreground">Entretien + observation VLM fusionnés.</span> Le questionnaire
-              capture ce que la cliente <em>déclare</em> (38 %), la photo de cabine apporte ce que l&apos;IA{" "}
+              <span className="font-semibold text-foreground">Entretien + observation biométrique fusionnés.</span> Le questionnaire
+              capture ce que la cliente <em>déclare</em> (38 %), la photo de cabine apporte ce que la lecture spectrale{" "}
               <em>observe</em> (62 %). Les bilans intègrent la <strong>Descente de Peau 3D au scroll</strong>, l&apos;analyse multi-spectrale et l&apos;envoi WhatsApp.
             </p>
           </div>
@@ -241,8 +242,8 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-3">
         <KpiStat icon={<Stethoscope className="size-4" />} label="Diagnostics" value={String(kpis.total)} hint={`${kpis.monthCount} ce mois-ci`} />
-        <KpiStat icon={<Sparkles className="size-4" />} label="Score moyen" value={`${kpis.avgScore}/100`} hint="santé de peau fusionnée" monetary={false} />
-        <KpiStat icon={<Camera className="size-4" />} label="Avec photo IA" value={`${kpis.photoShare} %`} hint="analyse VLM couplée" monetary={false} />
+        <KpiStat icon={<CauriIcon className="size-4" />} label="Score moyen" value={`${kpis.avgScore}/100`} hint="santé de peau fusionnée" monetary={false} />
+        <KpiStat icon={<Camera className="size-4" />} label="Avec photo spectrale" value={`${kpis.photoShare} %`} hint="analyse biométrique couplée" monetary={false} />
       </div>
 
       {/* Barre de recherche et filtres de consultation */}
@@ -277,7 +278,7 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
               [
                 ["all", "Tous"],
                 ["danger", "Vigilances"],
-                ["photo", "Photo IA"],
+                ["photo", "Scan photo"],
                 ["entretien", "Entretien"],
               ] as const
             ).map(([val, label]) => (
@@ -376,7 +377,7 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
                       </Badge>
                     )}
                     <Badge variant="outline" className={cn("text-[10px]", d.vlmUsed ? "bg-gold/10 text-gold-text border-gold/30" : "bg-muted text-muted-foreground")}>
-                      {d.vlmUsed ? "Photo IA" : "Entretien"}
+                      {d.vlmUsed ? "Scan photo" : "Entretien"}
                     </Badge>
                     <div className="text-right shrink-0">
                       <p className="font-mono text-sm font-bold tabular-nums" style={{ color: scoreVar(d.scoreGlobal) }}>
@@ -1517,11 +1518,11 @@ function PhotoStep({
           Retour
         </Button>
         <Button onClick={onSubmit} disabled={busy} className="flex-1 gap-1.5 font-semibold k-btn-gold text-primary-foreground">
-          <Sparkles className="size-4" aria-hidden="true" />
+          <CauriIcon className="size-4" aria-hidden="true" />
           {totalPhotos > 1
-            ? `Lancer l'analyse 3D & VLM 360° (${totalPhotos} photos)`
+            ? `Lancer l'analyse spectrale 360° (${totalPhotos} photos)`
             : totalPhotos === 1
-            ? "Lancer l'analyse 3D & VLM"
+            ? "Lancer l'analyse spectrale & volumétrique"
             : "Analyser sans photo"}
         </Button>
       </div>
@@ -1702,7 +1703,7 @@ export function ResultView({
               )}
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <Badge variant="outline" className={cn("text-[10px]", result.source.includes("vlm") ? "bg-gold/10 text-gold-text border-gold/30" : "bg-muted text-muted-foreground")}>
-                  {result.source === "vlm+questionnaire" ? "Entretien + photo IA" : "Entretien seul"}
+                  {result.source === "vlm+questionnaire" ? "Entretien + scan photo" : "Entretien seul"}
                 </Badge>
                 {result.questionnaire && (
                   <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">

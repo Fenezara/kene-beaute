@@ -407,7 +407,7 @@ function ApptDetailDialog({
               onClick={() => {
                 const appUrl = typeof window !== "undefined" ? window.location.origin : "https://kene.app";
                 const passUrl = `${appUrl}/api/appointments/pass?id=${encodeURIComponent(appt.id)}`;
-                const msg = `Bonjour ${appt.clientName} ! 💆‍♀️\n\nVotre rendez-vous pour votre soin *${appt.service.name}* est prévu le *${formatDate(appt.startAt)}* à *${formatTime(appt.startAt)}*.\n\nPraticienne : ${appt.resource.name}\nVotre Pass d'accès : ${passUrl}\n\nEn cas d'empêchement, merci de nous prévenir au plus tôt. Prenez soin de vous ! ✨`;
+                const msg = `Bonjour ${appt.clientName} ! 💆‍♀️\n\nVotre rendez-vous pour votre soin *${appt.service.name}* est prévu le *${formatDate(appt.startAt)}* à *${formatTime(appt.startAt)}*.\n\nPraticienne : ${appt.resource.name}\nVotre Pass d'accès : ${passUrl}\n\nEn cas d'empêchement, merci de nous prévenir au plus tôt. Prenez soin de vous ! 🌿`;
                 openWhatsApp(appt.clientPhone, msg);
               }}
               className="w-full h-10 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/40 font-bold text-xs flex items-center justify-center gap-2"

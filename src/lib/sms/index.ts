@@ -39,7 +39,7 @@ export async function sendOtpSms({
   const hasZavu = Boolean(process.env.ZAVU_API_KEY?.trim());
   const hasTermii = Boolean(process.env.TERMII_API_KEY?.trim());
 
-  const message = `Kènè ✨ Ton code de validation est : ${code} (valable ${expiresInMin} min). Ne le partage à personne.`;
+  const message = `Kènè : Ton code de validation est : ${code} (valable ${expiresInMin} min). Ne le partage à personne.`;
 
   let lastError: string | undefined;
 

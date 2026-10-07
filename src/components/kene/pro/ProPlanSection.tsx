@@ -110,7 +110,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
         await new Promise((res) => setTimeout(res, 800));
         setState("done");
         setExpiresAt(r.subscription.expiresAt);
-        toast.success(`${targetDef?.name ?? "Abonnement"} validé ✨`, {
+        toast.success(`${targetDef?.name ?? "Abonnement"} validé 🌿`, {
           description: `Actif jusqu'au ${fmtJJMM(r.subscription.expiresAt)} · facturation certifiée`,
         });
         load();
@@ -520,7 +520,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                 <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 300, damping: 15 }} className="grid place-items-center h-16 w-16 rounded-full bg-[#346834]">
                   <Check size={32} className="text-white" strokeWidth={3} />
                 </motion.span>
-                <p className="font-heading font-black text-lg">{targetDef?.name ?? "Abonnement"} activé ✨</p>
+                <p className="font-heading font-black text-lg">{targetDef?.name ?? "Abonnement"} activé 🌿</p>
                 <p className="text-xs text-muted-foreground">
                   Actif jusqu&apos;au {expiresAt ? fmtJJMM(expiresAt) : "—"} · facturation certifiée.
                 </p>

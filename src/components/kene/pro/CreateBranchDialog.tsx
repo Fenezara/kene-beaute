@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiPost } from "@/lib/kene/api";
 import { toast } from "sonner";
-import { Building2, Loader2, Sparkles } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
 
 interface CreateBranchDialogProps {
   open: boolean;
@@ -199,7 +199,7 @@ export function CreateBranchDialog({ open, onOpenChange, onSuccess }: CreateBran
                 </>
               ) : (
                 <>
-                  <Sparkles className="size-4" />
+                  <Building2 className="size-4" />
                   Créer l&apos;établissement
                 </>
               )}

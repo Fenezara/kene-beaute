@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Eye, Layers, Sparkles, ZoomIn, ZoomOut } from "lucide-react";
+import { Eye, Layers, ZoomIn, ZoomOut } from "lucide-react";
+import { KeneSunIcon } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
 import { SPECTRAL_VIEWS, type ZoneMark } from "@/lib/kene/types";
 
@@ -193,7 +194,7 @@ export function SpectralViewer({ photo, zoneMarks = [], zoneLabel }: SpectralVie
 
         {/* Badge descriptif du spectre actif en bas */}
         <div className="absolute bottom-2.5 left-2.5 right-2.5 bg-black/80 backdrop-blur-md rounded-xl p-2 border border-white/10 text-white flex items-center gap-2">
-          <Sparkles className="size-3.5 text-gold shrink-0" />
+          <KeneSunIcon className="size-3.5 text-gold-text shrink-0" />
           <p className="text-[11px] leading-tight text-white/90">
             <strong className="text-gold">{currentDef.label} :</strong> {currentDef.desc}
           </p>

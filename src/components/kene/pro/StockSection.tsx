@@ -17,10 +17,10 @@ import {
   PackageX,
   Search,
   ShoppingBag,
-  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
+import { BissapFlowerIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -398,7 +398,7 @@ export function StockSection({ tenantId, onNavigate }: { tenantId: string; onNav
               )}
               title="Consommables techniques réservés aux soins en cabine"
             >
-              <Sparkles className="size-3 text-primary" /> Cabine ({cabinProducts.length})
+              <BissapFlowerIcon className="size-3 text-primary" /> Cabine ({cabinProducts.length})
             </button>
           </div>
 
@@ -601,7 +601,7 @@ export function StockSection({ tenantId, onNavigate }: { tenantId: string; onNav
                                 >
                                   {isCabin ? (
                                     <>
-                                      <Sparkles className="size-2.5" /> Cabine
+                                      <BissapFlowerIcon className="size-2.5" /> Cabine
                                     </>
                                   ) : (
                                     <>
@@ -920,7 +920,7 @@ export function StockSection({ tenantId, onNavigate }: { tenantId: string; onNav
                       onClick={() => setReason("Utilisation en cabine (Protocole de soin)")}
                       className="text-[10px] px-2 py-1 rounded-md border border-primary/30 bg-primary/5 hover:bg-primary/15 text-primary transition-colors"
                     >
-                      ✨ Soin en cabine
+                      🌿 Soin en cabine
                     </button>
                     <button
                       type="button"

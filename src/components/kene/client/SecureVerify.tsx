@@ -54,7 +54,7 @@ function SecureVerifyDialog({ phone, amount, onVerified, onCancel }: Omit<Secure
         setDevCode(r.devCode || "");
         setRequesting(false);
         if (r.devCode) {
-          toast.info("Code instantané affiché à l'écran ✨");
+          toast.info("Code instantané affiché à l'écran");
         } else {
           toast.success("Code envoyé par SMS");
         }
@@ -76,7 +76,7 @@ function SecureVerifyDialog({ phone, amount, onVerified, onCancel }: Omit<Secure
       setDevCode(r.devCode || "");
       setOtp("");
       if (r.devCode) {
-        toast.info("Code instantané affiché à l'écran ✨");
+        toast.info("Code instantané affiché à l'écran");
       } else {
         toast.success("Nouveau code envoyé par SMS");
       }

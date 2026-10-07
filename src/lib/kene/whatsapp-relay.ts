@@ -95,7 +95,7 @@ Votre rendez-vous pour *${input.serviceName}* est confirmé chez *${input.tenant
 📍 *Lieu* : ${input.addressOrLandmark || "En institut"}
 
 En cas d'imprévu ou pour nous localiser, vous pouvez nous joindre au ${input.tenantPhone || "l'institut"}.
-Prenez soin de vous et à très vite ! ✨`;
+Prenez soin de vous et à très vite ! 🌿`;
 }
 
 export interface WhatsAppDeliveryInput {
@@ -140,7 +140,7 @@ Voici mon *Passeport de Peau Kènè* numérique :
 
 Scannez ce lien ou le QR code pour adapter le protocole de soin en cabine (phototype, allergies signalées, score cutané) en toute confidentialité et sans transfert de photo.
 
-Prenez soin de vous ! ✨
+Prenez soin de vous ! 🌿
 — Kènè, la beauté mélanoderme`;
 }
 
@@ -181,7 +181,7 @@ ${promoText}
 📍 *Adresse de livraison* : ${input.address || "À préciser avec le coursier"}
 ${input.notes ? `🧭 *Repères* : ${input.notes}\n` : ""}📞 *Numéro de contact* : ${input.phone || "Mon numéro WhatsApp"}
 
-Merci de me confirmer la prise en charge et les modalités de livraison ! ✨`;
+Merci de me confirmer la prise en charge et les modalités de livraison ! 🌿`;
 }
 
 export interface WhatsAppDiagnosisShareInput {
@@ -212,7 +212,7 @@ Fais ton diagnostic gratuit et profite d'un cadeau de bienvenue de *1 000 FCFA* 
 
 👉 Découvre ta routine ici : ${url}?ref=${refCode}
 
-Prends soin de ta peau mélanoderme ! ✨`;
+Prends soin de ta peau mélanoderme ! 🌿`;
 }
 
 

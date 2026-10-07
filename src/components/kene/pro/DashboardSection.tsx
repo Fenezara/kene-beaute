@@ -5,7 +5,6 @@ import {
   Banknote,
   CalendarCheck,
   Percent,
-  Sparkles,
   UserPlus,
   AlertTriangle,
   ArrowRight,
@@ -19,6 +18,7 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CauriIcon } from "@/components/kene/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -188,7 +188,7 @@ export function DashboardSection({
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <KpiCard icon={<Banknote className="size-4" />} label="CA du jour" value={xof(k.caToday)} />
         <KpiCard icon={<TrendingUp className="size-4" />} label="CA 7 jours" value={xof(k.ca7d, { compact: true })} hint={`${xof(k.ca30d, { compact: true })} sur 30 j`} />
-        <KpiCard icon={<Sparkles className="size-4" />} label="Panier moyen" value={xof(k.avgBasket)} />
+        <KpiCard icon={<CauriIcon className="size-4" />} label="Panier moyen" value={xof(k.avgBasket)} />
         <KpiCard icon={<CalendarCheck className="size-4" />} label="RDV aujourd'hui" value={String(k.appointmentsToday)} monetary={false} />
         <KpiCard icon={<UserPlus className="size-4" />} label="Nouvelles clientes 30 j" value={String(k.newClients30d)} monetary={false} />
         <KpiCard icon={<Percent className="size-4" />} label="Occupation" value={`${Math.round(k.occupancyPct)} %`} monetary={false} />

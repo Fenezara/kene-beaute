@@ -7,7 +7,6 @@ import {
   Mic,
   MicOff,
   Send,
-  Sparkles,
   Volume2,
   VolumeX,
   Loader2,
@@ -28,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { CauriIcon } from "@/components/kene/icons";
 import { apiPost } from "@/lib/kene/api";
 import { xof } from "@/lib/kene/format";
 import { fetchTtsAudioUrl, speakBrowserVoice, stopBrowserVoice } from "../client/ttsAudio";
@@ -122,7 +122,7 @@ export function AssistantSection({
         text: text.trim(),
       });
       setDebrief(res.debrief);
-      toast.success("Débriefing analysé avec succès ! ✨");
+      toast.success("Débriefing analysé avec succès !");
       if (res.debrief.vocalSummary) {
         void togglePlayVocalSummary(res.debrief.vocalSummary);
       }
@@ -179,7 +179,7 @@ export function AssistantSection({
               className="k-btn-gold h-12 px-6 rounded-2xl font-bold text-primary-foreground shadow-lg flex items-center gap-2.5 text-sm"
             >
               <Mic size={18} className="animate-pulse" />
-              <span>Dicter au micro ✨</span>
+              <span>Dicter au micro</span>
             </Button>
             <Button
               type="button"
@@ -198,7 +198,7 @@ export function AssistantSection({
       <div className="rounded-3xl border border-border bg-card/80 p-5 sm:p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-            <Sparkles size={18} className="text-[#C8951E]" />
+            <CauriIcon size={18} className="text-[#C8951E]" />
             <span>Votre Débriefing (oral ou tapé)</span>
           </h2>
           <span className="text-xs text-muted-foreground hidden sm:inline">
@@ -241,7 +241,7 @@ export function AssistantSection({
           >
             {loading ? (
               <>
-                <Sparkles size={16} className="animate-spin" />
+                <Loader2 size={16} className="animate-spin" />
                 <span>Analyse en cours...</span>
               </>
             ) : (
@@ -437,11 +437,11 @@ export function AssistantSection({
               {executed ? (
                 <>
                   <CheckCircle2 size={18} className="text-white" />
-                  <span>Enregistré avec succès ! ✨</span>
+                  <span>Enregistré avec succès !</span>
                 </>
               ) : executing ? (
                 <>
-                  <Sparkles size={18} className="animate-spin" />
+                  <Loader2 size={18} className="animate-spin" />
                   <span>Enregistrement dans tous les onglets...</span>
                 </>
               ) : (
@@ -469,7 +469,7 @@ export function AssistantSection({
             { id: "relances" as ProSectionId, label: "Relances", icon: Bell },
             { id: "equipe" as ProSectionId, label: "Équipe", icon: UserCheck },
             { id: "compta" as ProSectionId, label: "Compta", icon: BookOpen },
-            { id: "dashboard" as ProSectionId, label: "Tableau de bord", icon: Sparkles },
+            { id: "dashboard" as ProSectionId, label: "Tableau de bord", icon: CauriIcon },
           ].map((item) => (
             <button
               key={item.id}
@@ -496,7 +496,7 @@ export function AssistantSection({
           onClose={() => setModalOpen(false)}
           onActionExecuted={() => {
             setModalOpen(false);
-            toast.success("Point enregistré avec succès dans tous les onglets ! ✨");
+            toast.success("Point enregistré avec succès dans tous les onglets !");
           }}
         />
       )}

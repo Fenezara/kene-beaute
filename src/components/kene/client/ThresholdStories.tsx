@@ -21,10 +21,10 @@ interface StoryCard {
 const STORIES: StoryCard[] = [
   {
     img: "/skin/guide-visage-1.webp",
-    imgAlt: "Analyse de peau par l'intelligence artificielle",
+    imgAlt: "Lecture spectrale et bilan de peau Kènè",
     num: "01",
     title: "Ton visage, écouté",
-    sub: "Diagnostic IA vision, zone par zone — pensé pour les teints Fitzpatrick IV–VI.",
+    sub: "Lecture spectrale zone par zone — pensée pour les teints Fitzpatrick IV–VI.",
   },
   {
     img: "/products/serum-moringa.webp",

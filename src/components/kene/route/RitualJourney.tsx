@@ -3,11 +3,11 @@
 // (overlay plein cadre ≤430px — 7 étapes: le fil, 4 stations, l'institut, le tissage)
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, CalendarPlus, Check, Moon, ShoppingBag, Sparkles, Sunrise, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarPlus, Check, Moon, ShoppingBag, Sunrise, X } from "lucide-react";
 import { toast } from "sonner";
 import { xof, CASHBACK_RATE } from "@/lib/kene/format";
 import { BODY_ZONES, type DiagnosisResult } from "@/lib/kene/types";
-import { NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
+import { CauriIcon, NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
 import { useKene } from "@/store/kene";
 import type { ApiProduct } from "@/components/kene/client/types";
 import { buildRitual, ritualTotal, shade, type StationPick } from "./ritual";
@@ -107,7 +107,7 @@ function StationScreen({ index, station, kept, onToggle }: { index: number; stat
       {station.focus.length > 0 && (
         <div className="mt-4">
           <p className="text-[11px] font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-            <Sparkles size={12} style={{ color: def.thread }} /> Ta peau demande
+            <CauriIcon size={12} style={{ color: def.thread }} /> Ta peau demande
           </p>
           <div className="flex flex-wrap gap-2">
             {station.focus.map((f) => (
@@ -169,7 +169,7 @@ function ProductPick({ pick, thread, kept, onToggle }: { pick: StationPick; thre
       </div>
       {pick.fromAi && (
         <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-primary">
-          <Sparkles size={9} /> Choix de l&apos;IA sur ta photo
+          <CauriIcon size={9} /> Recommandé selon ton scan cutané
         </p>
       )}
     </motion.div>

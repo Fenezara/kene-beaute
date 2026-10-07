@@ -3,7 +3,7 @@
 // + « Mes commandes »: historique des commandes enregistrées (consultation par la cliente).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, Building2, Crown, FileText, Heart, History, Loader2, Lock, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Sparkles, Store, Tag, Trash2, TriangleAlert, Truck, X } from "lucide-react";
+import { BadgeCheck, Building2, Crown, FileText, Heart, History, Loader2, Lock, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Store, Tag, Trash2, TriangleAlert, Truck, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof, formatDate, formatTime } from "@/lib/kene/format";
@@ -18,7 +18,7 @@ import { useKene } from "@/store/kene";
 import { useFavorites } from "@/store/favorites";
 import { useSecurity } from "@/store/security";
 import { KenteWeaveCard } from "@/components/kene/weave/KenteWeaveCard";
-import { KeneMark } from "@/components/kene/icons";
+import { KeneMark, BissapFlowerIcon, CauriIcon } from "@/components/kene/icons";
 import { categoryThread } from "@/components/kene/weave/threads";
 import { cn } from "@/lib/utils";
 import {
@@ -550,7 +550,7 @@ export function ShopScreen() {
               onClick={() => { setCat((prev) => (prev === "packs" ? "" : "packs")); haptic(HAPTIC.tap); }}
               className="min-h-11 shrink-0 font-bold"
             >
-              <Sparkles size={13} className={cat === "packs" ? "text-primary-foreground" : "text-gold-text"} aria-hidden="true" />
+              <BissapFlowerIcon size={13} className={cat === "packs" ? "text-primary-foreground" : "text-gold-text"} aria-hidden="true" />
               Packs Routines{routinePacks.length > 0 ? ` (${routinePacks.length})` : ""}
             </Chip>
             {SHOP_CATEGORIES.map((c) => (
@@ -577,7 +577,7 @@ export function ShopScreen() {
               <div className="flex items-center justify-between gap-2 mb-2.5">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="grid place-items-center size-6 rounded-lg bg-primary/10 text-primary shrink-0">
-                    <Sparkles size={13} aria-hidden="true" />
+                    <BissapFlowerIcon size={13} aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
                     <h3 className="font-heading font-black text-xs text-foreground truncate">
@@ -628,7 +628,7 @@ export function ShopScreen() {
         <div className="space-y-4">
           <header className="mb-2">
             <h3 className="font-heading font-black text-base text-foreground flex items-center gap-2">
-              <Sparkles size={18} className="text-gold-text" aria-hidden="true" />
+              <BissapFlowerIcon size={18} className="text-gold-text" aria-hidden="true" />
               Routines Complètes &amp; Synergies Botaniques
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -637,7 +637,7 @@ export function ShopScreen() {
           </header>
           {routinePacks.length === 0 ? (
             <EmptyBlock
-              icon={<Sparkles size={22} />}
+              icon={<BissapFlowerIcon size={22} />}
               title="Aucun pack disponible"
               text="Les routines complètes sont en cours de composition pour ce catalogue."
             />
@@ -807,7 +807,7 @@ export function ShopScreen() {
                   type="button"
                   onClick={() => {
                     const origin = typeof window !== "undefined" ? window.location.origin : "https://kene.app";
-                    const msg = `Coucou ! 🌸 Je viens de repérer ce soin dermo-botanique sur Kènè :\n\n✨ *${detail.name}* (${xof(detail.price)})\n${detail.description ? `\n« ${detail.description.slice(0, 140)}... »\n` : ""}\nÀ découvrir sur ${origin} 🌿`;
+                    const msg = `Coucou ! 🌸 Je viens de repérer ce soin dermo-botanique sur Kènè :\n\n🌿 *${detail.name}* (${xof(detail.price)})\n${detail.description ? `\n« ${detail.description.slice(0, 140)}... »\n` : ""}\nÀ découvrir sur ${origin} 🌿`;
                     openWhatsApp("", msg);
                   }}
                   className="mt-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold text-[#25D366] hover:text-[#20bd5a] py-1.5 active:scale-95 transition-transform"
@@ -1145,7 +1145,7 @@ function RoutinePackCard({ pack, onAddPack, onSelectProduct }: RoutinePackCardPr
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1">
             <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-primary">
-              <Sparkles size={11} aria-hidden="true" /> {pack.badge}
+              <BissapFlowerIcon size={11} aria-hidden="true" /> {pack.badge}
             </span>
             <h4 className="font-heading font-black text-sm text-foreground leading-tight">{pack.name}</h4>
           </div>

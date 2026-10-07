@@ -25,7 +25,6 @@ import {
   RefreshCw,
   Send,
   ShoppingBag,
-  Sparkles,
   Square,
   Stethoscope,
   Trash2,
@@ -38,6 +37,7 @@ import {
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof } from "@/lib/kene/format";
+import { CauriIcon } from "@/components/kene/icons";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { fetchTtsAudioUrl, speakBrowserVoice, stopBrowserVoice } from "../client/ttsAudio";
@@ -238,7 +238,7 @@ export function MamanAssistantModal({
         text: text.trim(),
       });
       setDebrief(res.debrief);
-      toast.success("Point analysé avec succès ✨");
+      toast.success("Point analysé avec succès");
       // Démarrer la lecture vocale bienveillante pour la Maman
       if (res.debrief.vocalSummary) {
         void playVocalSummary(res.debrief.vocalSummary);
@@ -346,7 +346,7 @@ export function MamanAssistantModal({
                 tab === "action" ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Sparkles size={14} /> Débriefing d&apos;action
+              <CauriIcon size={14} /> Débriefing d&apos;action
             </button>
             <button
               type="button"
@@ -441,7 +441,7 @@ export function MamanAssistantModal({
                       </>
                     ) : (
                       <>
-                        <Sparkles size={16} /> Analyser & Préparer les Onglets
+                        <CauriIcon size={16} /> Analyser & Préparer les Onglets
                       </>
                     )}
                   </button>
@@ -655,7 +655,7 @@ export function MamanAssistantModal({
                   </div>
                   <div>
                     <h3 className="font-heading font-black text-xl text-white">
-                      C&apos;est enregistré, Maman ! ✨
+                      C&apos;est enregistré, Maman ! 👑
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
                       La caisse, le stock, la fiche cliente et l&apos;agenda ont été mis à jour instantanément.
@@ -667,7 +667,7 @@ export function MamanAssistantModal({
                     <button
                       type="button"
                       onClick={() => {
-                        const msg = `Bonjour ${debrief.client?.name} ! 🌸\n\nMerci infiniment pour votre passage chez *${tenantName}*.\n\n🧾 *Soins & Produits* : ${debrief.sale?.items.map((i) => i.label).join(", ")}\n💰 *Total réglé* : ${xof(debrief.sale?.paidAmount || 0)}\n${debrief.sale?.remainingDebt ? `⚠️ *Reste à compléter* : ${xof(debrief.sale.remainingDebt)}\n` : ""}\nPrenez bien soin de vous ! ✨\n— *${tenantName}*`;
+                        const msg = `Bonjour ${debrief.client?.name} ! 🌸\n\nMerci infiniment pour votre passage chez *${tenantName}*.\n\n🧾 *Soins & Produits* : ${debrief.sale?.items.map((i) => i.label).join(", ")}\n💰 *Total réglé* : ${xof(debrief.sale?.paidAmount || 0)}\n${debrief.sale?.remainingDebt ? `⚠️ *Reste à compléter* : ${xof(debrief.sale.remainingDebt)}\n` : ""}\nPrenez bien soin de vous ! 🌿\n— *${tenantName}*`;
                         openWhatsApp(debrief.client?.phone || "", msg);
                       }}
                       className="w-full max-w-xs mx-auto h-11 rounded-2xl bg-[#25D366] text-white text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition shadow-lg"

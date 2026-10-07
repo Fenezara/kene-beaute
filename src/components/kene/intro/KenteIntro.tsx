@@ -7,8 +7,8 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import Lenis from "lenis";
-import { ChevronDown, Sparkles, X } from "lucide-react";
-import { KeneEmblemLockup } from "@/components/kene/icons";
+import { ChevronDown, X } from "lucide-react";
+import { KeneEmblemLockup, KeneSunIcon } from "@/components/kene/icons";
 import { useKene } from "@/store/kene";
 import { CHAPTERS, chapterT, easeOut } from "./chapters";
 import { markIntroDone } from "./introState";
@@ -29,7 +29,7 @@ function Cta({ onClick, label = "Commencer mon histoire" }: { onClick: () => voi
       onClick={onClick}
       className="pointer-events-auto mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#C8951E] px-8 font-heading font-bold text-[15px] text-[#1A1410] shadow-lg shadow-[#C8951E]/30 transition-all hover:brightness-110 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F8F1E4]"
     >
-      <Sparkles size={17} />
+      <KeneSunIcon size={17} />
       {label}
     </button>
   );

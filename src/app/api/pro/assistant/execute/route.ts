@@ -353,7 +353,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      message: "Point validé et enregistré dans tous les onglets avec succès ✨",
+      message: "Point validé et enregistré dans tous les onglets avec succès ✅",
       results,
     });
   } catch (err) {

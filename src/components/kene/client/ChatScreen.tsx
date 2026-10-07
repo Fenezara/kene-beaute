@@ -33,7 +33,6 @@ import {
   Send,
   ShieldCheck,
   Smartphone,
-  Sparkles,
   Square,
   TriangleAlert,
   Volume2,
@@ -42,7 +41,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, resizeImage } from "@/lib/kene/api";
-import { KeneEmblem, NeaOnnimIcon } from "@/components/kene/icons";
+import { KeneEmblem, NeaOnnimIcon, CauriIcon } from "@/components/kene/icons";
 import { Chip, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
 import { useChat } from "@/store/chat";
@@ -59,7 +58,7 @@ export interface QuickSuggestion {
 }
 
 export const THEMED_SUGGESTIONS: QuickSuggestion[] = [
-  { theme: "Taches", question: "Comment estomper mes taches d'hyperpigmentation ?", iconText: "✨" },
+  { theme: "Taches", question: "Comment estomper mes taches d'hyperpigmentation ?", iconText: "🪞" },
   { theme: "Sébum", question: "Ma peau brille à midi, quelle routine matifiante adopter ?", iconText: "💧" },
   { theme: "Solaire", question: "Faut-il vraiment mettre une crème solaire sur peau noire ?", iconText: "☀️" },
   { theme: "Actifs", question: "Peut-on associer Niacinamide et Vitamine C sans risque ?", iconText: "🌿" },
@@ -1091,7 +1090,7 @@ export function ChatScreen() {
                       </p>
                     </div>
                   </div>
-                  <Sparkles size={16} className="text-primary shrink-0 mr-1" />
+                  <CauriIcon size={16} className="text-primary shrink-0 mr-1" />
                 </button>
 
                 {/* Option 2: Appareil photo natif smartphone */}

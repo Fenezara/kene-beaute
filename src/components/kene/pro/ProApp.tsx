@@ -7,12 +7,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, Sparkles, Stethoscope, TicketPercent, UserPlus, WifiOff } from "lucide-react";
+import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, Stethoscope, TicketPercent, UserPlus, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
 import { isOnline } from "@/lib/kene/ux";
-import { KeneEmblem, KeneEmblemLockup, KeneMark, DuafeIcon, SankofaIcon, AbanIcon, OsramIcon, KenteIcon, FihankraIcon, BaouleIcon, NkonsonkonsonIcon } from "@/components/kene/icons";
+import { CauriIcon, KeneEmblem, KeneEmblemLockup, KeneMark, DuafeIcon, SankofaIcon, AbanIcon, OsramIcon, KenteIcon, FihankraIcon, BaouleIcon, NkonsonkonsonIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -466,9 +466,9 @@ export function ProApp() {
               type="button"
               onClick={goToClientSpace}
               className="inline-flex items-center gap-1.5 h-8 px-2.5 sm:px-3 rounded-full text-xs font-semibold bg-gradient-to-r from-primary/10 via-primary/15 to-gold/10 hover:from-primary/20 hover:to-gold/20 text-primary border border-primary/30 transition-all shadow-xs active:scale-95 shrink-0"
-              title="Accéder à Mon Espace Beauté personnel (Soins, IA & Rituels)"
+              title="Accéder à Mon Espace Beauté personnel (Soins, Diagnostic & Rituels)"
             >
-              <Sparkles className="size-3.5 text-primary shrink-0" />
+              <CauriIcon className="size-3.5 text-primary shrink-0" />
               <span className="hidden sm:inline">Mon Espace Beauté 🌸</span>
               <span className="sm:hidden">Beauté 🌸</span>
             </button>
@@ -557,7 +557,7 @@ export function ProApp() {
               className="relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 min-h-9 text-xs font-bold bg-primary/15 text-primary border border-primary/30 shadow-xs active:scale-95 transition-all"
               title="Accéder à Mon Espace Beauté"
             >
-              <Sparkles className="size-3.5" />
+              <CauriIcon className="size-3.5" />
               <span>Espace Beauté 🌸</span>
             </button>
             {nav.map((item) => {
@@ -664,7 +664,7 @@ export function ProApp() {
               title="Basculer vers Mon Espace Beauté (Soins & Rituels personnels)"
               aria-label="Basculer vers Mon Espace Beauté"
             >
-              <Sparkles size={16} className="text-primary shrink-0" />
+              <CauriIcon size={16} className="text-primary shrink-0" />
               {sidebarExpanded && (
                 <div className="flex flex-col text-left leading-tight truncate">
                   <span className="truncate">Mon Espace Beauté</span>
@@ -710,7 +710,7 @@ export function ProApp() {
                 onClick={() => openSection("assistant")}
                 className="flex-1 sm:flex-initial h-9 px-3.5 rounded-xl border border-[#C8951E]/60 bg-gradient-to-r from-[#C8951E]/25 via-gold/15 to-transparent hover:from-[#C8951E]/35 text-foreground text-xs font-black flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
               >
-                <Crown size={15} className="text-[#C8951E]" /> Assistante Maman ✨
+                <Crown size={15} className="text-[#C8951E]" /> Assistante Maman 👑
               </button>
               <button
                 type="button"
@@ -749,7 +749,7 @@ export function ProApp() {
                 className="hidden xl:flex h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
                 title="Mon Espace Beauté (Soins & Rituels personnels)"
               >
-                <Sparkles size={15} /> Mon Espace Beauté 🌸
+                <CauriIcon size={15} /> Mon Espace Beauté 🌸
               </button>
             </div>
           </div>

@@ -10,7 +10,8 @@
 // (annuaire, boutique, fiche cliente) — upload local redimensionné.
 import { useEffect, useRef, useSyncExternalStore, useState } from "react";
 import { useTheme } from "next-themes";
-import { Building2, Camera, Check, ChevronRight, CreditCard, Crown, ImageOff, Languages, Loader2, LogOut, Moon, Phone, Receipt, Sparkles, SunMedium } from "lucide-react";
+import { Building2, Camera, Check, ChevronRight, CreditCard, Crown, ImageOff, Languages, Loader2, LogOut, Moon, Phone, Receipt, SunMedium } from "lucide-react";
+import { DuafeIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
@@ -422,14 +423,14 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         </button>
       </div>
 
-      {/* Espace Beauté personnel (diagnostic IA, Dr. Kènè & soins) */}
+      {/* Espace Beauté personnel (bilan dermo-biométrique, Dr. Kènè & soins) */}
       <div className="k-card rounded-[20px] p-4 bg-gradient-to-br from-primary/5 via-card to-gold/5 border border-primary/20">
         <div className="flex items-center gap-3">
-          <IconBadge icon={<Sparkles size={18} />} tone="gold" />
+          <IconBadge icon={<DuafeIcon size={18} />} tone="gold" />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold">Mon Espace Beauté personnel</p>
             <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-              Accède à ton espace beauté personnel : diagnostic cutané IA, Dr. Kènè, boutique et rituels.
+              Accède à ton espace beauté personnel : bilan dermo-biométrique, Dr. Kènè, boutique et rituels.
             </p>
           </div>
         </div>
@@ -444,7 +445,7 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
           }}
           className="mt-3 h-11 w-full rounded-xl k-btn-gold text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary shadow-xs"
         >
-          <Sparkles size={16} /> Ouvrir Mon Espace Beauté 🌸
+          <DuafeIcon size={16} /> Ouvrir Mon Espace Beauté 🌸
         </button>
       </div>
 

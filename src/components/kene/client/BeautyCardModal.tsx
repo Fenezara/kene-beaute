@@ -2,7 +2,7 @@
 // Kènè — Carte Beauté & Routine pour Statut / Story WhatsApp & Instagram
 // Permet d'exporter et partager visuellement son diagnostic cutané avec code de parrainage.
 import { useRef, useState } from "react";
-import { Check, Download, MessageCircle, Share2, Sparkles, X } from "lucide-react";
+import { Check, Download, MessageCircle, Share2, X } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate, scoreColor } from "@/lib/kene/format";
 import { buildWhatsAppDiagnosisShareMessage, openWhatsApp } from "@/lib/kene/whatsapp-relay";

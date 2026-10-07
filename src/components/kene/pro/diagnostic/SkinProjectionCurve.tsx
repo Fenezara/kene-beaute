@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { TrendingUp, Sparkles, Calendar, Award } from "lucide-react";
+import { TrendingUp, Calendar, Award } from "lucide-react";
+import { BissapFlowerIcon } from "@/components/kene/icons";
 import { scoreVar } from "@/lib/kene/format";
 
 interface SkinProjectionCurveProps {
@@ -119,7 +120,7 @@ export function SkinProjectionCurve({
               </div>
 
               <div className="pt-1 border-t border-border/40 flex items-center gap-1 text-[9.5px] text-gold-text font-medium">
-                <Sparkles className="size-3 shrink-0" />
+                <BissapFlowerIcon className="size-3 shrink-0" />
                 <span className="truncate">{m.botanique}</span>
               </div>
             </div>
@@ -130,7 +131,7 @@ export function SkinProjectionCurve({
       {/* Recommandation de suivi en salon & relance */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-xl bg-gold/10 border border-gold/20">
         <p className="text-xs text-muted-foreground leading-relaxed">
-          <strong className="text-foreground">Conseil praticienne :</strong> Fixez le rendez-vous de consolidation à <strong>J+30</strong> pour mesurer les progrès au VLM et ajuster les dosages.
+          <strong className="text-foreground">Conseil praticienne :</strong> Fixez le rendez-vous de consolidation à <strong>J+30</strong> pour mesurer les progrès au bilan spectral et ajuster les dosages.
         </p>
         {onBookFollowUp && (
           <button

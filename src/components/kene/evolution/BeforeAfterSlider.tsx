@@ -5,7 +5,8 @@
 // avec un séparateur tactile fluide et bascule multi-spectrale (Porphyrines & Sébum).
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Sparkles, Eye, Columns, Split, ArrowLeftRight, TrendingUp } from "lucide-react";
+import { Eye, Columns, Split, ArrowLeftRight, TrendingUp } from "lucide-react";
+import { KeneSunIcon } from "@/components/kene/icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -147,7 +148,7 @@ export function BeforeAfterSlider({
               onClick={() => setSpectralMode(!spectralMode)}
               title="Activer la fluorescence UV (Porphyrines & Sébum)"
             >
-              <Sparkles className="size-3.5" />
+              <KeneSunIcon className="size-3.5" />
               <span className="hidden sm:inline">Vue UV</span>
             </Button>
           )}

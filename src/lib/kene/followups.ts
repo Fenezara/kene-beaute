@@ -249,7 +249,7 @@ export function buildRelanceMessage(
     case "post_protocol":
       return `Bonjour ${first} 🧴 Ici ${ctx.tenantName} : ton protocole personnalisé suit son cours. Un contrôle rapide vers le ${date} permettra d'ajuster ta routine et de mesurer les progrès. On t'attend ! — L'équipe ${ctx.tenantName} · Kènè`;
     case "post_soin":
-      return `Bonjour ${first} ✨ La peau renouvelle son cycle en ~4 semaines : le moment idéal pour ton soin de suite approche (vers le ${date}). On te garde un créneau chez ${ctx.tenantName} !`;
+      return `Bonjour ${first} 🌸 La peau renouvelle son cycle en ~4 semaines : le moment idéal pour ton soin de suite approche (vers le ${date}). On te garde un créneau chez ${ctx.tenantName} !`;
     case "post_purchase":
       return `Bonjour ${first} 🌿 J'espère que ${ctx.detail} te plaisent ! Des questions sur l'application (matin/soir, quantités) ? Réponds ici, notre esthéticienne te conseille avec plaisir. — ${ctx.tenantName}`;
     case "inactive":

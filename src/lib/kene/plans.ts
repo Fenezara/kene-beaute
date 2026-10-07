@@ -139,7 +139,7 @@ export async function grantClientWelcomeTrial(userId: string): Promise<Subscript
     userId: user.id,
     channel: "whatsapp",
     toPhone: user.phone,
-    message: `Bienvenue sur Kènè ✨ Nous t'offrons 30 jours de Pass Kènè+ gratuit ! Profite de diagnostics illimités et des conseils de Dermo Kènè jusqu'au ${ddMM(expiresAt)} 💛`,
+    message: `Bienvenue sur Kènè 🌿 Nous t'offrons 30 jours de Pass Kènè+ gratuit ! Profite de diagnostics illimités et des conseils de Dermo Kènè jusqu'au ${ddMM(expiresAt)} 💛`,
   }).catch(() => null);
 
   return sub;

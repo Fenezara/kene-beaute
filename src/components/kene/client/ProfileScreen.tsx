@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Baby, BadgeCheck, Calendar, Camera, Check, Coins, Gift, Heart, Loader2, MapPin,
-  MessageCircle, Pencil, Phone, Plus, Settings, Sparkles, Trash2,
+  MessageCircle, Pencil, Phone, Plus, Settings, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
@@ -17,6 +17,7 @@ import { useT } from "@/lib/kene/use-t";
 import type { GoldThreads } from "@/lib/kene/gold-threads";
 import { KenteIdentity } from "@/components/kene/loom/KenteIdentity";
 import { Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
+import { CauriIcon, KenteIcon, SankofaIcon } from "@/components/kene/icons";
 import { useKene, type SessionUser } from "@/store/kene";
 import type { ApiUser } from "./types";
 import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES, diagImgSrc } from "./types";
@@ -450,7 +451,7 @@ export function ProfileScreen() {
       {gold && (
         <RevealItem>
           <section aria-labelledby="kt-t">
-            <SectionTitle icon={<Sparkles size={16} />}><span id="kt-t">Mon kente identitaire</span></SectionTitle>
+            <SectionTitle icon={<KenteIcon size={16} />}><span id="kt-t">Mon kente identitaire</span></SectionTitle>
             <div className="k-card overflow-hidden rounded-[24px]">
               <div className="p-4 pb-3">
                 <div className="rounded-[12px] ring-1 ring-border/80">
@@ -501,7 +502,7 @@ export function ProfileScreen() {
                 </p>
                 <button
                   onClick={() => {
-                    const msg = `Bonjour ! ✨\n\nJ'ai déjà tissé ${gold.threads} fil${gold.threads > 1 ? "s" : ""} d'or sur mon pagne Kente Kènè (Rang : ${gold.rank}) !\n\nRejoins-moi sur Kènè pour découvrir ton profil cutané et recevoir ton cadeau de bienvenue : https://kene.app 🌿`;
+                    const msg = `Bonjour ! 👑\n\nJ'ai déjà tissé ${gold.threads} fil${gold.threads > 1 ? "s" : ""} d'or sur mon pagne Kente Kènè (Rang : ${gold.rank}) !\n\nRejoins-moi sur Kènè pour découvrir ton profil cutané et recevoir ton cadeau de bienvenue : https://kene.app 🌿`;
                     openWhatsApp("", msg);
                   }}
                   className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white px-2.5 text-[11px] font-bold transition active:scale-95"
@@ -517,7 +518,7 @@ export function ProfileScreen() {
       {/* Profil peau */}
       <RevealItem>
         <section aria-labelledby="skin-t">
-          <SectionTitle icon={<Sparkles size={16} />}><span id="skin-t">Mon profil peau</span></SectionTitle>
+          <SectionTitle icon={<CauriIcon size={16} />}><span id="skin-t">Mon profil peau</span></SectionTitle>
           <div className="k-card rounded-[24px] p-4 space-y-4">
             <div>
               <p className="text-[11px] font-semibold text-muted-foreground mb-2">Phototype Fitzpatrick</p>
@@ -568,7 +569,7 @@ export function ProfileScreen() {
         return (
           <RevealItem>
             <section aria-labelledby="comp-t">
-              <SectionTitle icon={<Sparkles size={16} />}><span id="comp-t">Évolution de ma peau (Avant / Après)</span></SectionTitle>
+              <SectionTitle icon={<SankofaIcon size={16} />}><span id="comp-t">Évolution de ma peau (Avant / Après)</span></SectionTitle>
               <div className="k-card rounded-[24px] p-4 space-y-3">
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Glisse le curseur pour mesurer les progrès de ton épiderme entre ton bilan d&apos;accueil et ton scan le plus récent.

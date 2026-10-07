@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowRight, BriefcaseBusiness, Building2, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Loader2, LogIn, Play, ShieldCheck, Sparkles, X,
+  ArrowRight, BriefcaseBusiness, Building2, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Loader2, LogIn, Play, ShieldCheck, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -93,7 +93,7 @@ function PortalCard({
         <div className="min-w-0">
           <p className="font-heading text-[15px] font-black leading-tight text-[#FFF9EC] sm:text-[17px] md:text-[19px]">{title}</p>
           <p className="mt-1 hidden text-[10.5px] text-[#FFF9EC]/75 sm:block">
-            {mode === "client" ? "Diagnostic IA · Dermo Kènè · Boutique" : "Agenda · Caisse · CRM clientes"}
+            {mode === "client" ? "Bilan Dermo · Dermo Kènè · Boutique" : "Agenda · Caisse · CRM clientes"}
           </p>
         </div>
         <span className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-btn-gold px-3.5 text-[11px] font-bold text-primary-foreground">
@@ -262,7 +262,7 @@ export function WelcomeThreshold() {
       const devCode = await requestOtp(phone);
       setStage({ phase: "signin", mode: effectiveMode, phone, devCode });
       if (devCode) {
-        toast.info("Code instantané affiché à l'écran ✨");
+        toast.info("Code instantané affiché à l'écran");
       } else {
         toast.success("Code envoyé par SMS");
       }
@@ -330,7 +330,7 @@ export function WelcomeThreshold() {
       const devCode = await requestOtp(phone);
       setStage({ phase: "signin", mode, phone, devCode, isResetPin: true });
       if (devCode) {
-        toast.info("Code instantané affiché à l'écran ✨");
+        toast.info("Code instantané affiché à l'écran");
       } else {
         toast.success("Code de vérification envoyé par SMS");
       }
@@ -401,7 +401,7 @@ export function WelcomeThreshold() {
                         disabled={exploring}
                         className="inline-flex h-9 items-center gap-1.5 rounded-full bg-secondary/60 hover:bg-secondary px-3.5 text-[11.5px] font-medium text-foreground transition-colors"
                       >
-                        {exploring ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-gold-text" />}
+                        {exploring ? <Loader2 size={12} className="animate-spin" /> : <CauriIcon size={12} className="text-gold-text" />}
                         <span className="hidden xs:inline">Explorer sans inscription</span>
                         <span className="xs:hidden">Démo</span>
                       </button>
@@ -440,7 +440,7 @@ export function WelcomeThreshold() {
 
                   <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 * d, duration: 0.5 }}>
                     <Eyebrow>
-                      Akwaba ✨ {greet} à Kènè
+                      Akwaba · {greet} à Kènè
                     </Eyebrow>
                   </motion.div>
                   <h1 className="mt-2 font-heading text-[30px] font-black leading-[1.04] tracking-tight text-foreground sm:text-[38px] lg:text-[46px] xl:text-[50px]">
@@ -467,7 +467,7 @@ export function WelcomeThreshold() {
                   </h1>
                   <motion.p className="mt-3 max-w-[48ch] text-[12.5px] sm:text-[13.5px] lg:text-[14px] leading-relaxed text-muted-foreground"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.62 * d }}>
-                    Diagnostic IA vision, coach Dermo Kènè, boutique botanique et instituts partenaires —
+                    Bilan dermo-biométrique, coach Dermo Kènè, boutique botanique et instituts partenaires —
                     pensés pour les teints Fitzpatrick&nbsp;IV–VI.
                   </motion.p>
                   <div className="flex sm:hidden items-center gap-2 mt-4">
@@ -767,7 +767,7 @@ export function WelcomeThreshold() {
                               <ul className="space-y-2 text-xs pt-2">
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>1 Diagnostic IA complet par mois</strong> (score, type et zone)</span>
+                                  <span><strong>1 Bilan dermo-biométrique complet par mois</strong> (score, type et zone)</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
@@ -973,7 +973,7 @@ export function WelcomeThreshold() {
                     disabled={exploring}
                     className="sm:hidden flex min-h-11 items-center gap-2 rounded-full px-4 text-[12px] font-semibold text-foreground/75 underline underline-offset-4 decoration-dotted hover:text-primary disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary"
                   >
-                    {exploring ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} aria-hidden="true" />}
+                    {exploring ? <Loader2 size={14} className="animate-spin" /> : <CauriIcon size={14} aria-hidden="true" />}
                     Explorer Kènè — sans inscription
                   </button>
                 )}

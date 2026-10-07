@@ -7,7 +7,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Sparkles,
   MapPin,
   CheckCircle2,
   ChevronRight,
@@ -262,7 +261,7 @@ export function BotanicalCompass({ className = "" }: { className?: string }) {
               {/* Vertu & Action Cutanée */}
               <div className="mt-4 p-3.5 rounded-2xl bg-primary/10 border border-primary/20">
                 <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <Sparkles size={13} className="text-primary" /> {selected.virtue}
+                  <BissapFlowerIcon size={13} className="text-primary" /> {selected.virtue}
                 </p>
                 <p className="text-[11.5px] text-muted-foreground mt-1 leading-relaxed">
                   {selected.action}

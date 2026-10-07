@@ -203,7 +203,7 @@ export async function POST(req: NextRequest) {
         tenantId: tenant.id,
         channel: "whatsapp",
         toPhone: client.phone,
-        message: `Kènè ✨ ${prenom}, ton diagnostic à l'institut ${tenant.name} est enregistré : score ${result.score_global}/100. ${
+        message: `Kènè 🌿 ${prenom}, ton diagnostic à l'institut ${tenant.name} est enregistré : score ${result.score_global}/100. ${
           result.questionnaire.flags.some((f) => f.level === "danger" || f.level === "warn")
             ? "Des points de vigilance ont été notés — ta praticienne te les expliquera."
             : "Ta praticienne a la routine détaillée pour toi."

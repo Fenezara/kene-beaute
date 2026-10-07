@@ -2,7 +2,8 @@
 // Kènè Pro — Caisse POS: catalogue cliquable, ticket, paiement mobile money, ticket thermique imprimable
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Loader2, MessageCircle, Minus, Plus, Printer, ReceiptText, Search, Trash2, Wallet, User, UserRoundPlus, Sparkles, X, Bluetooth, Share2, WifiOff, RefreshCw, Lock, CalendarCheck, AlertTriangle, FileText, CheckCircle2 } from "lucide-react";
+import { Check, Loader2, MessageCircle, Minus, Plus, Printer, ReceiptText, Search, Trash2, Wallet, User, UserRoundPlus, X, Bluetooth, Share2, WifiOff, RefreshCw, Lock, CalendarCheck, AlertTriangle, FileText, CheckCircle2 } from "lucide-react";
+import { CauriIcon, KeneSunIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -564,7 +565,7 @@ export function PosSection({
                   <div className="rounded-xl border border-primary/25 bg-primary/5 p-2.5 space-y-1.5 shadow-xs">
                     <div className="flex items-center justify-between">
                       <p className="text-[11px] font-bold text-primary flex items-center gap-1.5">
-                        <Sparkles className="size-3.5" /> Accès express caisse (1 clic) :
+                        <KeneSunIcon className="size-3.5" /> Accès express caisse (1 clic) :
                       </p>
                       <span className="text-[10px] text-muted-foreground hidden sm:inline">Ajout direct au ticket</span>
                     </div>
@@ -962,7 +963,7 @@ export function PosSection({
             {/* Praticienne (pour calcul automatique des commissions de paie) */}
             <div className="space-y-1">
               <Label htmlFor="pos-practitioner" className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Sparkles className="size-3 text-gold-text" aria-hidden="true" /> Praticienne (Commissions)
+                <CauriIcon className="size-3 text-gold-text" aria-hidden="true" /> Praticienne (Commissions)
               </Label>
               <Select value={practitionerName || "__none"} onValueChange={(v) => setPractitionerName(v === "__none" ? "" : v)}>
                 <SelectTrigger id="pos-practitioner" className="h-8 text-xs">
@@ -1081,7 +1082,7 @@ export function PosSection({
                     m.cls
                   )}
                 >
-                  {m.code === "wave" || m.code === "orange" ? <Wallet className="size-4" aria-hidden="true" /> : m.code === "cash" ? <ReceiptText className="size-4" aria-hidden="true" /> : <Sparkles className="size-4" aria-hidden="true" />}
+                  {m.code === "wave" || m.code === "orange" ? <Wallet className="size-4" aria-hidden="true" /> : m.code === "cash" ? <ReceiptText className="size-4" aria-hidden="true" /> : <CauriIcon className="size-4" aria-hidden="true" />}
                   {m.label}
                 </button>
               ))}

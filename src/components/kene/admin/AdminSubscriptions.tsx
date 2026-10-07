@@ -11,7 +11,7 @@
 // (ASVS V2.7 — le dialogue « Confirme ton identité » s'ouvre si besoin).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle, BadgeCheck, CalendarClock, Download, Gift, Loader2, Search, Sparkles,
+  AlertTriangle, BadgeCheck, CalendarClock, Download, Gift, Loader2, Search,
   Ban, CreditCard, Users, Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -433,7 +433,7 @@ function GiftSubDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-heading text-gold">
-            <Sparkles className="size-5" aria-hidden="true" />
+            <Gift className="size-5" aria-hidden="true" />
             Offrir 30 jours à {first} ?
           </DialogTitle>
           <DialogDescription>

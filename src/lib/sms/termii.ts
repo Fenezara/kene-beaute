@@ -51,7 +51,7 @@ export async function sendOtpSms({
   const apiKey = process.env.TERMII_API_KEY?.trim();
   const senderId = process.env.TERMII_SENDER_ID?.trim() || "Kene";
   const normalizedPhone = formatWestAfricaPhone(phone);
-  const message = `Kènè ✨ Ton code de validation est : ${code} (valable ${expiresInMin} min). Ne le partage à personne.`;
+  const message = `Kènè : Ton code de validation est : ${code} (valable ${expiresInMin} min). Ne le partage à personne.`;
 
   // Mode simulation si clé non configurée
   if (!apiKey) {

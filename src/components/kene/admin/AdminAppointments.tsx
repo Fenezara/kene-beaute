@@ -18,12 +18,12 @@ import {
   Phone,
   RefreshCw,
   Search,
-  Sparkles,
   User,
   UserX,
   XCircle,
   Building2,
 } from "lucide-react";
+import { CauriIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -185,7 +185,7 @@ export function AdminAppointments() {
             monetary={false}
           />
           <KpiCard
-            icon={<Sparkles className="size-4" />}
+            icon={<CauriIcon className="size-4" />}
             label="Acomptes Encaissés (SasPay)"
             value={xof(data.stats.totalDepositAmount, { compact: true })}
             monetary={false}
@@ -339,7 +339,7 @@ export function AdminAppointments() {
                     {/* Colonne 3 : Prestation & Acompte SasPay */}
                     <div className="space-y-1.5 p-3 rounded-xl bg-muted/40 border border-border/50">
                       <p className="font-bold uppercase tracking-wider text-[10px] text-muted-foreground flex items-center gap-1.5">
-                        <Sparkles className="size-3 text-primary" />
+                        <CauriIcon className="size-3 text-primary" />
                         Soin &amp; Acompte
                       </p>
                       <p className="font-semibold text-foreground truncate">{a.service.name}</p>
@@ -366,7 +366,7 @@ export function AdminAppointments() {
                       onClick={() => {
                         const appUrl = typeof window !== "undefined" ? window.location.origin : "https://kene-beaute.com";
                         const passUrl = `${appUrl}/api/appointments/pass?id=${encodeURIComponent(a.id)}`;
-                        const msg = `Bonjour ${a.clientName} ! ✨ C'est l'équipe Kènè. Votre rendez-vous pour *${a.service.name}* chez *${a.tenant.name}* est bien programmé pour le ${formatDate(a.startAt)} à ${formatTime(a.startAt)}.\n\nVotre Pass Rendez-Vous officiel : ${passUrl}`;
+                        const msg = `Bonjour ${a.clientName} ! 🌿 C'est l'équipe Kènè. Votre rendez-vous pour *${a.service.name}* chez *${a.tenant.name}* est bien programmé pour le ${formatDate(a.startAt)} à ${formatTime(a.startAt)}.\n\nVotre Pass Rendez-Vous officiel : ${passUrl}`;
                         openWhatsApp(a.clientPhone, msg);
                       }}
                       className="h-8 rounded-lg text-xs gap-1.5 text-[#128C7E] dark:text-[#25D366] border-[#25D366]/30 hover:bg-[#25D366]/10"

@@ -166,7 +166,7 @@ function ConsoleLogin({ currentUser, onLogout }: { currentUser?: SessionUser | n
       setDevCode(r.devCode || "");
       setStep("code");
       if (r.devCode) {
-        toast.info("Code instantané affiché à l'écran ✨");
+        toast.info("Code instantané affiché à l'écran ⚡");
       } else {
         toast.success("Code de sécurité envoyé");
       }

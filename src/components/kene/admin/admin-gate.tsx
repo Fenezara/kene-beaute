@@ -130,7 +130,7 @@ export function AdminGateProvider({ children }: { children: ReactNode }) {
       setDevCode(res.devCode ?? "");
       setPhase("code");
       if (res.devCode) {
-        toast.info("Code instantané affiché à l'écran ✨");
+        toast.info("Code instantané affiché à l'écran ⚡");
       } else {
         toast.success("Code envoyé par SMS");
       }

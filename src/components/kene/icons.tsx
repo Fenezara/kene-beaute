@@ -443,3 +443,22 @@ export function CacaoPodIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** KeneSun — Soleil d'Or Kènè : clarté, santé et éclat solaire (racine mandingue Kènè) */
+export function KeneSunIcon(props: IconProps) {
+  const { size, ...rest } = props;
+  return (
+    <svg {...base(size, rest)}>
+      <circle cx="12" cy="12" r="4.5" />
+      <path d="M12 2.5v2.5" />
+      <path d="M12 19v2.5" />
+      <path d="M2.5 12h2.5" />
+      <path d="M19 12h2.5" />
+      <path d="m5.3 5.3 1.8 1.8" />
+      <path d="m16.9 16.9 1.8 1.8" />
+      <path d="m5.3 18.7 1.8-1.8" />
+      <path d="m16.9 7.1 1.8-1.8" />
+    </svg>
+  );
+}
+

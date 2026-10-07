@@ -15,7 +15,6 @@ import {
   CloudSun,
   Crown,
   MapPin,
-  Sparkles,
   Star,
   SunMedium,
   Wind,
@@ -23,7 +22,7 @@ import {
 import { apiGet } from "@/lib/kene/api";
 import { formatDate, formatTime, xof } from "@/lib/kene/format";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
-import { KeneEmblem, SankofaIcon } from "@/components/kene/icons";
+import { KeneEmblem, SankofaIcon, CauriIcon } from "@/components/kene/icons";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
 import { Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import { useT } from "@/lib/kene/use-t";
@@ -218,7 +217,7 @@ export function HomeScreen({
             />
             <p className="text-[11px] uppercase tracking-[0.16em] text-primary font-semibold">{t("home.greeting")}</p>
             <h2 className="font-heading font-black text-[27px] sm:text-[29px] leading-tight tracking-tight truncate">
-              <span className="kente-text-flow inline-block pr-1">{first}</span> ✨
+              <span className="kente-text-flow inline-block pr-1">{first}</span>
             </h2>
             <p className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
               <MapPin size={11} /> {user.city || "Abidjan"} · {user.fitzpatrick ? `Fitzpatrick ${user.fitzpatrick}` : "Phototype à définir"}
@@ -458,7 +457,7 @@ export function HomeScreen({
       <RevealItem>
         <section aria-labelledby="reco-t">
           <SectionTitle
-            icon={<Sparkles size={16} />}
+            icon={<CauriIcon size={16} className="text-gold-text" />}
             action={
               <button
                 onClick={() => setClientTab("boutique")}

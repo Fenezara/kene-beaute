@@ -1,9 +1,9 @@
 "use client";
 // Kènè Pro — Relances « Le Fil du Retour »: post-protocole, soins de suivi,
-// satisfaction produits et réactivation des clientes inactives — dérivées de l'activité réelle.
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Archive, BellRing, CalendarCheck, Check, Loader2, MessageCircle, Phone, Send, Sparkles, Undo2, Zap } from "lucide-react";
+import { Archive, BellRing, CalendarCheck, Check, Loader2, MessageCircle, Phone, Send, Undo2, Zap, Clock } from "lucide-react";
+import { KeneSunIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -181,7 +181,7 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
               </Button>
             )}
             <Badge variant="outline" className="gap-1.5 bg-muted/60 text-muted-foreground">
-              <Sparkles className="size-3" aria-hidden="true" /> {todoTotal} à traiter · auto
+              <KeneSunIcon className="size-3" aria-hidden="true" /> {todoTotal} à traiter · auto
             </Badge>
           </div>
         }
@@ -191,7 +191,7 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KpiCard icon={<BellRing className="size-4" />} label="En retard" value={String(counts.late)} hint="À relancer en priorité" monetary={false} />
         <KpiCard icon={<CalendarCheck className="size-4" />} label="Cette semaine" value={String(counts.week)} hint="Échéance ≤ 7 jours" monetary={false} />
-        <KpiCard icon={<Sparkles className="size-4" />} label="À venir" value={String(counts.upcoming)} hint="Plus d'une semaine" monetary={false} />
+        <KpiCard icon={<Clock className="size-4" />} label="À venir" value={String(counts.upcoming)} hint="Plus d'une semaine" monetary={false} />
         <KpiCard icon={<Check className="size-4" />} label="Traitées" value={String(counts.done)} hint="Relances closes" monetary={false} />
       </div>
 
@@ -245,7 +245,7 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
           <CardContent>
             <EmptyState
               label={todoTotal === 0 ? "Aucune relance à faire" : "Rien dans ce panier"}
-              sub={todoTotal === 0 ? "Toutes vos clientes sont à jour — le fil du retour est tranquille ✨" : "Les relances de ce filtre sont vides."}
+              sub={todoTotal === 0 ? "Toutes vos clientes sont à jour — le fil du retour est tranquille 🌿" : "Les relances de ce filtre sont vides."}
             />
           </CardContent>
         </Card>

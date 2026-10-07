@@ -4,12 +4,12 @@ import { motion } from "framer-motion";
 import {
   ScanFace,
   PersonStanding,
-  Sparkles,
   Hand,
   Brush,
   Cross,
   Check,
 } from "lucide-react";
+import { DuafeIcon } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 
@@ -21,7 +21,7 @@ interface SkinZoneSelectorProps {
 const ZONE_ICONS: Record<BodyZone, React.ComponentType<{ className?: string }>> = {
   visage: ScanFace,
   dos: PersonStanding,
-  cuir_chevelu: Sparkles,
+  cuir_chevelu: DuafeIcon,
   mains: Hand,
   barbe: Brush,
   naevi: Cross,

@@ -3,13 +3,14 @@
 // échange le code d'une amie (cadeau de bienvenue immédiat, bonus parrain à sa 1ʳᵉ commande).
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Check, Copy, Gift, HeartHandshake, Loader2, Send, Sparkles } from "lucide-react";
+import { Check, Copy, Gift, HeartHandshake, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { formatDate, xof } from "@/lib/kene/format";
 import { FILLEUL_GIFT, PARRAIN_REWARD, referralWaLink, type ReferralSummary } from "@/lib/kene/referral";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CauriIcon } from "@/components/kene/icons";
 import { SectionTitle } from "./bits";
 
 export function ParrainageCard({ userId, userName, onRedeemed }: { userId: string; userName: string; onRedeemed?: () => void }) {
@@ -106,7 +107,7 @@ export function ParrainageCard({ userId, userName, onRedeemed }: { userId: strin
                 </button>
               </div>
               <p className="text-[11px] opacity-80 mt-2 leading-relaxed">
-                <Sparkles size={11} className="inline -mt-0.5 mr-1 text-[#C8951E]" aria-hidden="true" />
+                <CauriIcon size={11} className="inline -mt-0.5 mr-1 text-[#C8951E]" aria-hidden="true" />
                 {shareLead} : ton amie reçoit <span className="font-bold text-[#E3B454]">{xof(FILLEUL_GIFT)}</span> à l&apos;inscription, toi <span className="font-bold text-[#E3B454]">{xof(PARRAIN_REWARD)}</span> dès sa 1ʳᵉ commande <strong className="text-[#E3B454] font-bold">+ 1 Fil d&apos;Or</strong> tissé sur ton Kente.
               </p>
               <button onClick={shareWhatsapp} className="mt-4 h-11 w-full rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#25D366]">

@@ -249,7 +249,7 @@ export async function POST(req: NextRequest) {
         tenantId,
         channel: "whatsapp",
         toPhone: clientPhone,
-        message: `Kènè ✨ ${first}, petit rappel : ${service.name} chez ${tenant.name} le ${new Date(start).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}. Préviens-nous si tu dois déplacer, sinon on t'attend avec plaisir !`,
+        message: `Kènè 🌿 ${first}, petit rappel : ${service.name} chez ${tenant.name} le ${new Date(start).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}. Préviens-nous si tu dois déplacer, sinon on t'attend avec plaisir !`,
         status: "scheduled",
         scheduledAt: new Date(new Date(start).getTime() - 24 * 3_600_000),
         metaJson: JSON.stringify({ apptId: appointment.id }),

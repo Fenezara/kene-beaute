@@ -8,16 +8,16 @@ test.describe("Settings Screen & Pro CRM Verification in Production", () => {
 
     console.log("Starting Client Settings verification...");
 
-    // Initialize mock client session directly in localStorage
-    await page.addInitScript(() => {
+    // 1. Perform express login to establish real session cookie
+    const expressRes = await page.request.get("https://kene-beaute.com/api/auth/express?role=client");
+    expect(expressRes.ok()).toBeTruthy();
+    const data = await expressRes.json();
+
+    // 2. Initialize client session in localStorage
+    await page.addInitScript((userData) => {
       const store = {
         state: {
-          user: {
-            id: "usr_mariam_demo",
-            name: "Mariam Diallo",
-            phone: "+2250701020304",
-            role: "client",
-          },
+          user: userData,
           space: "client",
           clientTab: "parametres",
           theme: "light",
@@ -27,21 +27,21 @@ test.describe("Settings Screen & Pro CRM Verification in Production", () => {
         version: 0,
       };
       window.localStorage.setItem("kene-store", JSON.stringify(store));
-    });
+    }, data.user);
 
     // Navigate to Settings
     await page.goto("https://kene-beaute.com/?tab=parametres", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(2000);
 
     // Verify 4 thematic group headers (with scroll into view for Reveal animation)
-    const group1 = page.locator("text=Mon Compte & Sécurité");
+    const group1 = page.locator("text=Mon Compte & Sécurité").first();
+    await expect(group1).toBeVisible({ timeout: 15000 });
     await group1.scrollIntoViewIfNeeded();
-    await expect(group1).toBeVisible({ timeout: 10000 });
     console.log("PASS: Group 1 'Mon Compte & Sécurité' is visible");
 
-    const group2 = page.locator("text=Préférences & Affichage");
+    const group2 = page.locator("text=Préférences & Affichage").first();
+    await expect(group2).toBeVisible({ timeout: 15000 });
     await group2.scrollIntoViewIfNeeded();
-    await expect(group2).toBeVisible({ timeout: 10000 });
     console.log("PASS: Group 2 'Préférences & Affichage' is visible");
 
     // Verify Granular Notification Preferences inside Group 2

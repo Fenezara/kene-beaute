@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Droplets, FileDown, GitCompareArrows, Hand, History,
-  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldCheck, Sparkles, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
+  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
@@ -12,7 +12,7 @@ import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
 import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
 import { cn } from "@/lib/utils";
 import { BODY_ZONES, SPECTRAL_VIEWS, ZONE_PHOTO_SLOTS, type AtlasLevel, type BodyZone, type DiagnosisResult, type Indicator, type SuspectedCondition, type ZonePhotoSlot } from "@/lib/kene/types";
-import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon } from "@/components/kene/icons";
+import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon, CauriIcon, DuafeIcon, KeneSunIcon } from "@/components/kene/icons";
 import { AdinkraSky } from "@/components/kene/constellation/AdinkraSky";
 import { diagQueueCount, enqueueDiag, subscribeDiagQueue } from "@/lib/kene/diag-queue";
 import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
@@ -38,7 +38,7 @@ import { EmptyBlock, ScoreChip, ScoreGauge } from "./bits";
 const ZONE_ICONS: Record<BodyZone, React.ComponentType<{ size?: number; className?: string }>> = {
   visage: ScanFace,
   dos: PersonStanding,
-  cuir_chevelu: Sparkles,
+  cuir_chevelu: DuafeIcon,
   mains: Hand,
   barbe: Brush,
   naevi: Cross,
@@ -59,7 +59,7 @@ const ZONE_TONES: Record<BodyZone, "gold" | "terre" | "bissap" | "success"> = {
 // (202), l'analyse VLM tourne côté serveur, le protocole se constitue à la fin.
 const ANALYSIS_STEPS = [
   "Envoi de la photo",
-  "Analyse IA en cours…",
+  "Lecture spectrale en cours…",
   "Constitution du protocole",
 ];
 
@@ -727,8 +727,8 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
               {/* Badge de confirmation de pré-analyse */}
               <div className="mt-3 flex items-center justify-between rounded-2xl bg-[#3F7D3F]/10 border border-[#3F7D3F]/30 px-3.5 py-2.5 text-xs text-[#3F7D3F] font-bold">
                 <span className="flex items-center gap-2">
-                  <Sparkles size={15} className="shrink-0" />
-                  <span>Angle « {activeSlot.label} » cadré & prêt</span>
+                  <Check size={15} className="shrink-0" />
+                  <span>Angle « {activeSlot.label} » cadré &amp; prêt</span>
                 </span>
                 {totalCaptured > 1 && (
                   <span className="text-[10px] bg-[#3F7D3F]/20 px-2 py-0.5 rounded-full uppercase">
@@ -770,7 +770,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                   onClick={useGuidePhoto}
                   className="h-12 rounded-2xl border border-border/60 bg-muted/20 hover:bg-muted/40 text-xs font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
                 >
-                  <Sparkles size={15} className="text-primary" /> Exemple « {activeSlot.label} »
+                  <CauriIcon size={15} className="text-primary" /> Exemple « {activeSlot.label} »
                 </button>
               </div>
             </div>
@@ -815,12 +815,12 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
               setImage(dataUrl);
               const nextEmpty = slots.find((s) => s.id !== activeSlotId && !slotImages[s.id]);
               if (nextEmpty) {
-                toast.success(`Photo « ${activeSlot.label} » capturée ✨`, {
+                toast.success(`Photo « ${activeSlot.label} » capturée`, {
                   description: `Angle suivant suggéré : « ${nextEmpty.label} » pour une analyse 360°.`,
                 });
                 setActiveSlotId(nextEmpty.id);
               } else {
-                toast.success(`Photo « ${activeSlot.label} » capturée avec succès ✨`);
+                toast.success(`Photo « ${activeSlot.label} » capturée avec succès`);
               }
             }}
             onClose={() => setLiveCamOpen(false)}
@@ -830,8 +830,8 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         {/* Synthèse multi-photos avant lancement */}
         {totalCaptured > 1 ? (
           <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/10 p-3 flex items-center gap-2.5 text-xs text-primary font-bold">
-            <Sparkles size={16} className="shrink-0" />
-            <span>Synthèse multi-angles activée : {totalCaptured} photos seront analysées conjointement par l&apos;IA 360°.</span>
+            <CauriIcon size={16} className="shrink-0" />
+            <span>Synthèse multi-angles activée : {totalCaptured} photos combinées en cartographie 360°.</span>
           </div>
         ) : totalCaptured === 1 ? (
           <div className="mt-4 rounded-2xl border border-border/50 bg-muted/20 p-2.5 flex items-center justify-between text-[11px] text-muted-foreground">
@@ -861,7 +861,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           {totalCaptured > 1
             ? `Lancer le diagnostic 360° (${totalCaptured} photos)`
             : totalCaptured === 1
-            ? `Lancer l'analyse IA (${zoneDef.label})`
+            ? `Lancer le diagnostic (${zoneDef.label})`
             : "Prends au moins une photo pour analyser"}
         </PrimaryCTA>
 
@@ -869,7 +869,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         {quotaUpsell && (
           <GlassCard className="mt-5 rounded-[24px] p-5">
             <div className="flex items-center gap-3">
-              <IconBadge icon={<Sparkles size={20} />} tone="gold" />
+              <IconBadge icon={<Crown size={20} />} tone="gold" />
               <p className="font-heading font-black text-sm">Ton diagnostic gratuit du mois est utilisé</p>
             </div>
             <p className="mt-2.5 text-xs text-muted-foreground leading-relaxed">
@@ -880,7 +880,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
               onClick={() => setClientTab("abonnement")}
               className="mt-4 h-11 w-full rounded-2xl k-btn-gold text-sm font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
             >
-              <Sparkles size={15} /> Découvrir Kènè+
+              <Crown size={15} /> Découvrir Kènè+
             </button>
           </GlassCard>
         )}
@@ -1092,7 +1092,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
     if (n.includes("moringa")) return <MoringaIcon size={13} />;
     if (n.includes("karite")) return <KariteIcon size={13} />;
     if (n.includes("baobab")) return <BaobabIcon size={13} />;
-    return <Sparkles size={13} />;
+    return <CauriIcon size={13} />;
   };
 
   const getCareMeta = (rec: string): { icon: React.ReactNode; moment: string; purpose: string; actives: string[] } => {
@@ -1107,7 +1107,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
     }
     if (n.includes("nettoy") || n.includes("savon") || n.includes("mousse") || n.includes("gel")) {
       return {
-        icon: <Sparkles size={17} />,
+        icon: <Droplets size={17} />,
         moment: "Matin & Soir",
         purpose: "Élimine le sébum, la sueur et les impuretés en douceur tout en respectant le film protecteur de l'épiderme.",
         actives: ["Moringa", "Zinc PCA", "Tensioactifs doux"],
@@ -1115,7 +1115,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
     }
     if (n.includes("tache") || n.includes("unifi") || n.includes("vitamine c") || n.includes("niacinamide") || n.includes("aha") || n.includes("azelai")) {
       return {
-        icon: <Sparkles size={17} />,
+        icon: <KeneSunIcon size={17} />,
         moment: "Matin ou Soir",
         purpose: "Régule la production de mélanine, atténue les taches post-inflammatoires et unifie le grain de peau sans décapage.",
         actives: ["Niacinamide 10%", "Vitamine C stabilisée", "AHA de bissap"],
@@ -1154,7 +1154,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
       };
     }
     return {
-      icon: <Sparkles size={17} />,
+      icon: <CauriIcon size={17} />,
       moment: "Soin ciblé",
       purpose: "Formulation spécifique apportant les nutriments essentiels recommandés pour rééquilibrer votre zone cutanée.",
       actives: ["Botaniques africains", "Vitamines protectrices"],
@@ -1180,7 +1180,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
                 <h2 className="font-heading font-black text-lg">{BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone}</h2>
                 {r.fitzpatrick_estime && <span className="rounded-full bg-melanine text-[#F8F1E4] px-2 py-0.5 text-[10px] font-bold">Fitz {r.fitzpatrick_estime}</span>}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">{formatDate(diag.createdAt)} · {r.source === "vlm" ? "Analyse VLM" : "Analyse heuristique"} · {r.indicateurs.length} indicateurs</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{formatDate(diag.createdAt)} · {r.source === "vlm" ? "Lecture biométrique spectrale" : "Diagnostic cutané"} · {r.indicateurs.length} indicateurs</p>
               <div className="flex gap-1.5 mt-2 flex-wrap">
                 <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: scoreColor(r.score_global), color: readableTextColor(scoreColor(r.score_global)) }}>
                   {r.score_global >= 80 ? "Excellente santé" : r.score_global >= 60 ? "Bon équilibre" : r.score_global >= 40 ? "Points à surveiller" : "Besoin de soin"}
@@ -1190,7 +1190,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
                   className={`k-chip inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${confidence === "haute" ? "text-success" : "text-terre"}`}
                 >
                   {confidence === "haute" ? (
-                    <><Sparkles size={11} aria-hidden="true" /> Fiabilité : Haute (analyse IA vision)</>
+                    <><CauriIcon size={11} className="text-success" aria-hidden="true" /> Fiabilité : Haute (lecture biométrique spectrale)</>
                   ) : (
                     <><WifiOff size={11} aria-hidden="true" /> Mode indicatif (hors ligne)</>
                   )}
@@ -1407,7 +1407,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                    <Sparkles size={14} className="text-primary" />
+                    <CauriIcon size={14} className="text-primary" />
                     Soins &amp; Actifs recommandés pour votre peau
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1475,7 +1475,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="grid place-items-center size-8 rounded-xl bg-primary/20 text-primary shrink-0">
-                    <Sparkles size={16} />
+                    <Building2 size={16} />
                   </span>
                   <div>
                     <p className="font-heading font-bold text-xs text-foreground">
@@ -1622,7 +1622,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
           className="k-btn-gold mt-3 h-12 w-full rounded-2xl text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-[0.99] transition-all focus-visible:outline-2 focus-visible:outline-primary"
           aria-label="Télécharger ma Recommandation Botanique & Pass Cabine avec QR Code en PDF"
         >
-          <Sparkles size={16} /> Recommandation Botanique &amp; Pass Cabine (PDF)
+          <CauriIcon size={16} /> Recommandation Botanique &amp; Pass Cabine (PDF)
         </button>
         <button
           onClick={() => {
@@ -1630,7 +1630,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
             const pdfUrl = `${origin}/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`;
             const botanicals = diag.result.recommandations?.botaniques_conseillees?.slice(0, 3).join(", ") || "Actifs apaisants";
             const zoneLabel = BODY_ZONES.find((z) => z.id === diag.result.zone)?.label || diag.result.zone;
-            const msg = `Bonjour ! 🌿\n\nVoici ma *Recommandation Dermo-Botanique & Pass Cabine Kènè* :\n\n📊 *Score Cutané* : ${diag.result.score_global}/100\n📍 *Zone analysée* : ${zoneLabel}\n🌱 *Actifs botaniques recommandés* : ${botanicals}\n\n📄 *Télécharger ma Recommandation & Pass Cabine (PDF)* :\n${pdfUrl}\n\nÀ présenter en institut partenaire pour adapter mon protocole de soin en cabine. ✨\n— Kènè, la beauté mélanoderme`;
+            const msg = `Bonjour ! 🌿\n\nVoici ma *Recommandation Dermo-Botanique & Pass Cabine Kènè* :\n\n📊 *Score Cutané* : ${diag.result.score_global}/100\n📍 *Zone analysée* : ${zoneLabel}\n🌱 *Actifs botaniques recommandés* : ${botanicals}\n\n📄 *Télécharger ma Recommandation & Pass Cabine (PDF)* :\n${pdfUrl}\n\nÀ présenter en institut partenaire pour adapter mon protocole de soin en cabine.\n— Kènè, la beauté mélanoderme`;
             openWhatsApp(user?.phone || "", msg);
           }}
           className="mt-2.5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-bold shadow-md transition active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-[#25D366]"
@@ -1645,7 +1645,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
           className="k-card k-card-hover mt-2.5 h-12 w-full rounded-2xl border-2 border-[#C8951E]/50 bg-gradient-to-r from-[#C8951E]/15 via-gold/10 to-transparent text-foreground text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.99] transition-all focus-visible:outline-2 focus-visible:outline-primary"
           aria-label="Partager ma Routine et Carte Beauté sur WhatsApp et Story"
         >
-          <Share2 size={16} className="text-[#C8951E]" /> Partager ma Routine & Carte Beauté ✨
+          <Share2 size={16} className="text-[#C8951E]" /> Partager ma Routine & Carte Beauté
         </button>
 
         <button
@@ -1688,7 +1688,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
 /* ══════════════ Hypothèse de l'atlas africain ══════════════ */
 const HYP_LEVEL: Record<AtlasLevel, { chip: string; label: string; icon: React.ReactNode }> = {
   educatif: { chip: "border-success/45 bg-success/5 text-success", label: "Éducatif", icon: <Check size={12} /> },
-  institut: { chip: "border-primary/45 bg-primary/5 text-primary", label: "Institut partenaire", icon: <Sparkles size={12} /> },
+  institut: { chip: "border-primary/45 bg-primary/5 text-primary", label: "Institut partenaire", icon: <Building2 size={12} /> },
   dermato: { chip: "border-[#A0522D]/50 bg-[#A0522D]/5 text-[#A0522D]", label: "Avis dermatologique", icon: <PersonStanding size={12} /> },
   urgence: { chip: "border-[#8B1A3B]/60 bg-[#8B1A3B]/10 text-[#8B1A3B]", label: "Urgence", icon: <TriangleAlert size={12} /> },
 };

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Scan,
-  Sparkles,
   Layers,
   CheckCircle2,
   Cpu,
@@ -12,6 +11,7 @@ import {
   ShieldCheck,
   Stethoscope,
 } from "lucide-react";
+import { BissapFlowerIcon, CauriIcon } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
 
 interface PhotoScanAnimationProps {
@@ -43,15 +43,15 @@ const SCAN_PHASES = [
   },
   {
     step: 3,
-    title: "Fusion déclaratif cabine & observation VLM",
-    desc: "Pondération 38 % entretien + 62 % vision IA",
+    title: "Fusion déclaratif cabine & observation clinique",
+    desc: "Pondération 38 % entretien + 62 % lecture spectrale",
     icon: Cpu,
   },
   {
     step: 4,
     title: "Recommandations botaniques & actifs",
     desc: "Karité de Korhogo, Moringa, Baobab, Kinkéliba",
-    icon: Sparkles,
+    icon: BissapFlowerIcon,
   },
 ];
 
@@ -233,8 +233,8 @@ export function PhotoScanAnimation({
       <div className="space-y-1.5 px-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <Sparkles className="size-3.5 text-gold" />
-            <span>Moteur dermo-botanique Kènè VLM</span>
+            <CauriIcon className="size-3.5 text-gold-text" />
+            <span>Bilan dermo-botanique Kènè</span>
           </span>
           <span className="font-mono font-bold text-foreground">{progress} %</span>
         </div>

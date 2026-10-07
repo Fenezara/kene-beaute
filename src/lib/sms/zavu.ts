@@ -133,7 +133,7 @@ export async function sendZavuOtpSms(
   code: string,
   expiresInMin = 5,
 ): Promise<ZavuSendResult> {
-  const text = `Kènè ✨ Ton code de validation est : ${code} (valable ${expiresInMin} min). Ne le partage à personne.`;
+  const text = `Kènè : Ton code de validation est : ${code} (valable ${expiresInMin} min). Ne le partage à personne.`;
   return sendZavuMessage({
     phone,
     text,

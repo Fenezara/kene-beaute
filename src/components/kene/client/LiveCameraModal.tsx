@@ -2,7 +2,7 @@
 // Kènè — Mode Selfie Caméra Live avec guide facial ovale & contrôle d'éclairage
 // Permet un cadrage optimal et instantané pour l'analyse cutanée VLM.
 import { useEffect, useRef, useState } from "react";
-import { Camera, FlipHorizontal, Lightbulb, Loader2, Sparkles, SwitchCamera, X } from "lucide-react";
+import { Camera, FlipHorizontal, Lightbulb, Loader2, SwitchCamera, X } from "lucide-react";
 import { toast } from "sonner";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 
@@ -258,7 +258,7 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
                   >
                     <Lightbulb size={12} />
                     {lighting === "optimal"
-                      ? "Éclairage optimal pour l'analyse ✨"
+                      ? "Éclairage optimal pour l'analyse"
                       : lighting === "faible"
                         ? "Lumière faible — approche-toi d'une fenêtre ☀️"
                         : "Lumière trop vive / contre-jour ⚠️"}

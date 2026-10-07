@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
 
     const benefits = computeBenefits(threads);
     const nextBenefit = benefits.find((b) => !b.unlocked);
-    const nextReward = nextBenefit ? nextBenefit.reward : "Tous les privilèges royaux débloqués ✨";
+    const nextReward = nextBenefit ? nextBenefit.reward : "Tous les privilèges royaux débloqués 👑";
 
     return NextResponse.json({
       threads,

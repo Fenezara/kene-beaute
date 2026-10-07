@@ -5,13 +5,14 @@
 import { useMemo, useRef, useState, type ComponentType } from "react";
 import { motion } from "framer-motion";
 import {
-  Activity, Droplets, Flame, Leaf, Loader2, Moon, Shield, Sparkles, Volume2, Waves, Zap, CircleDot,
+  Activity, Droplets, Flame, Leaf, Loader2, Moon, Shield, Volume2, Waves, Zap, CircleDot,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { DiagnosisResult, Indicator } from "@/lib/kene/types";
 import { scoreColor, scoreVar } from "@/lib/kene/format";
 import { numberToFrench } from "@/lib/kene/narration";
 import { playSpeech, type SpeechController } from "./ttsAudio";
+import { CauriIcon, KeneSunIcon } from "@/components/kene/icons";
 
 /* ── Picto par mot-clé (nom d'indicateur → icône + libellé court) ── */
 type Picto = { icon: ComponentType<{ size?: number; className?: string }>; label: string };
@@ -23,8 +24,8 @@ const KEYWORD_PICTOS: [string, Picto][] = [
   ["élasticit", { icon: Activity, label: "Raffermer" }],
   ["fermeté", { icon: Activity, label: "Raffermer" }],
   ["ridule", { icon: Activity, label: "Raffermer" }],
-  ["éclat", { icon: Sparkles, label: "Éclairer" }],
-  ["uniformité", { icon: Sparkles, label: "Éclairer" }],
+  ["éclat", { icon: KeneSunIcon, label: "Éclat" }],
+  ["uniformité", { icon: KeneSunIcon, label: "Uniformité" }],
   ["tache", { icon: CircleDot, label: "Taches" }],
   ["pigment", { icon: CircleDot, label: "Taches" }],
   ["acné", { icon: Zap, label: "Boutons" }],
@@ -59,7 +60,7 @@ const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u
 function pictoFor(name: string): Picto {
   const n = norm(name);
   for (const [kw, p] of KEYWORD_PICTOS) if (n.includes(norm(kw))) return p;
-  return { icon: Sparkles, label: name.split(/[ /(]/)[0] };
+  return { icon: CauriIcon, label: name.split(/[ /(]/)[0] };
 }
 
 /** Verdict très court parlé pour une priorité */
@@ -139,7 +140,7 @@ export function PictoSummary({ result, zoneLabel }: { result: DiagnosisResult; z
     >
       <div className="flex items-center justify-between gap-2 mb-3">
         <p className="font-heading font-bold text-sm flex items-center gap-2">
-          <Sparkles size={16} className="text-primary" aria-hidden="true" /> Le résumé en pictos
+          <CauriIcon size={16} className="text-primary" aria-hidden="true" /> Le résumé en pictos
         </p>
         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
           {zoneLabel} · {numberToFrench(result.score_global)} / cent

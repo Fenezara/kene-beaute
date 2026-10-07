@@ -5,10 +5,10 @@
 // dans l'URL jusqu'à fermeture par l'utilisatrice (replaceState nettoie).
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, BadgeCheck, Loader2, MapPin, ShieldCheck, Sparkles, TriangleAlert } from "lucide-react";
+import { ArrowRight, BadgeCheck, Loader2, MapPin, ShieldCheck, TriangleAlert } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
 import { formatDate } from "@/lib/kene/format";
-import { KeneEmblem } from "@/components/kene/icons";
+import { KeneEmblem, KenteIcon } from "@/components/kene/icons";
 import { KenteIdentity } from "@/components/kene/loom/KenteIdentity";
 
 interface PassportData {
@@ -238,7 +238,7 @@ export function PassportGate() {
                 <div className="mt-3.5">
                   <div className="flex items-center justify-between text-[10.5px] text-[#F8F1E4]/65">
                     <span className="flex items-center gap-1.5">
-                      <Sparkles size={11} className="text-[#C8951E]" aria-hidden="true" /> Kente identitaire
+                      <KenteIcon size={11} className="text-[#C8951E]" aria-hidden="true" /> Kente identitaire
                     </span>
                     <span className="font-bold text-[#C8951E]">{data.threads} fil{data.threads > 1 ? "s" : ""} d&apos;or</span>
                   </div>

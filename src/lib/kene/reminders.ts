@@ -11,12 +11,12 @@ export const APPT_REMINDER_HOURS = 24; // J-1
 /** Rappel « contrôle de protocole » — créé quand un diagnostic IA est terminé. */
 export function protocolReminderMessage(first: string, tenantNames: string[] | null, zone: string, score: number): string {
   const where = tenantNames && tenantNames.length > 0 ? ` chez ${tenantNames.slice(0, 2).join(" ou ")}` : "";
-  return `Kènè 🧴 ${first}, ton protocole ${zone} (score ${score}/100) suit son cours. Dans 3 semaines, refais ton diagnostic IA${where} pour mesurer tes progrès et ajuster ta routine — ça prend 2 minutes.`;
+  return `Kènè 🧴 ${first}, ton protocole ${zone} (score ${score}/100) suit son cours. Dans 3 semaines, refais ton bilan dermo-biométrique${where} pour mesurer tes progrès et ajuster ta routine — ça prend 2 minutes.`;
 }
 
 /** Rappel « RDV J-1 » — créé quand un RDV est confirmé. */
 export function apptReminderMessage(first: string, serviceName: string, tenantName: string, startAt: Date): string {
-  return `Kènè ✨ ${first}, petit rappel : ${serviceName} chez ${tenantName} ${formatDate(startAt, { weekday: "long", day: "numeric", month: "long" })} à ${formatTime(startAt)}. Préviens-nous si tu dois déplacer, sinon on t'attend avec plaisir !`;
+  return `Kènè 🌸 ${first}, petit rappel : ${serviceName} chez ${tenantName} ${formatDate(startAt, { weekday: "long", day: "numeric", month: "long" })} à ${formatTime(startAt)}. Préviens-nous si tu dois déplacer, sinon on t'attend avec plaisir !`;
 }
 
 /** Moment de déclenchement du rappel J-1 (24 h avant le RDV, borné au futur). */

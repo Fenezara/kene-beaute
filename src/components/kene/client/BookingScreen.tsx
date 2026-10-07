@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Compass, FileText, Loader2, LocateFixed, Lock, MapPin,
-  MessageCircle, MessageSquareQuote, ShieldCheck, Sparkles, Star, TriangleAlert, Users, X,
+  MessageCircle, MessageSquareQuote, ShieldCheck, Star, TriangleAlert, Users, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -12,7 +12,7 @@ import { addDays, formatDate, formatTime, xof, DEPOSIT_RATE } from "@/lib/kene/f
 import { cancellationRefund } from "@/lib/kene/rfm";
 import { waLink } from "@/lib/kene/followups";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
-import { SankofaIcon } from "@/components/kene/icons";
+import { CauriIcon, SankofaIcon } from "@/components/kene/icons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -761,7 +761,7 @@ export function BookingScreen() {
                         <span className="font-semibold text-foreground leading-tight">Praticiennes certifiées Kènè</span>
                       </div>
                       <div className="rounded-2xl border border-gold/25 bg-gold/5 p-2.5 flex items-center gap-2.5">
-                        <Sparkles size={18} className="text-gold-text shrink-0" />
+                        <CauriIcon size={18} className="text-gold-text shrink-0" />
                         <span className="font-semibold text-foreground leading-tight">Avis 100% clientes vérifiées</span>
                       </div>
                     </div>

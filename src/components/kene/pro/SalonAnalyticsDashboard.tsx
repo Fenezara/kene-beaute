@@ -13,7 +13,7 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
-  Sparkles,
+  Crown,
   ArrowUpRight,
   CreditCard,
   Smartphone,
@@ -333,8 +333,8 @@ export function SalonAnalyticsDashboard({
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-heading font-bold flex items-center gap-2">
-            <Sparkles className="size-4 text-gold" />
-            Soins Stars & Rentabilité des Prestations
+            <Crown className="size-4 text-gold-text" />
+            Soins Signatures &amp; Rentabilité des Prestations
           </CardTitle>
           <CardDescription className="text-xs">
             Volume de rendez-vous honorés et chiffre d&apos;affaires généré.

@@ -144,7 +144,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           tenantId: appointment.tenantId,
           channel: "sms",
           toPhone: client.phone,
-          message: `Kènè : merci pour votre visite — ${appointment.service.name} ✨ Prenez soin de vous, à très vite.`,
+          message: `Kènè : merci pour votre visite — ${appointment.service.name} 🌿 Prenez soin de vous, à très vite.`,
         });
       }
     }

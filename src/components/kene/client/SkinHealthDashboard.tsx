@@ -13,7 +13,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Droplets,
   ShieldCheck,
-  Sparkles,
   Sun,
   Activity,
   Flame,
@@ -31,7 +30,7 @@ import {
 } from "lucide-react";
 import { formatDate, scoreColor } from "@/lib/kene/format";
 import { BODY_ZONES, type BodyZone, type DiagnosisResult, type Indicator } from "@/lib/kene/types";
-import { CauriIcon, DuafeIcon, NeaOnnimIcon } from "@/components/kene/icons";
+import { CauriIcon, DuafeIcon, KeneSunIcon, NeaOnnimIcon } from "@/components/kene/icons";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { useKene, type SessionUser } from "@/store/kene";
 import { VoiceNarration } from "./VoiceNarration";
@@ -131,7 +130,7 @@ export function SkinHealthDashboard({
           shortDesc: "Réflectance & équilibre mélanique",
           score: pigmentScore,
           status: pigmentScore >= 75 ? "Très unifiée" : pigmentScore >= 60 ? "Taches légères" : "PIH active",
-          icon: Sparkles,
+          icon: KeneSunIcon,
           color: "#C8951E",
           bgLight: "rgba(200,149,30,0.12)",
           recommendation:
@@ -199,7 +198,7 @@ export function SkinHealthDashboard({
         shortDesc: `Phototype Fitzpatrick ${fitz}`,
         score: basePigment,
         status: "Sensible aux PIH",
-        icon: Sparkles,
+        icon: KeneSunIcon,
         color: "#C8951E",
         bgLight: "rgba(200,149,30,0.12)",
         recommendation: "Les peaux mélanodermes créent facilement des taches en réponse aux boutons.",
@@ -288,7 +287,7 @@ export function SkinHealthDashboard({
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C8951E]/15 text-[#C8951E] text-[9.5px] font-bold uppercase tracking-wider">
-                    <Sparkles size={10} /> Profil estimé
+                    <CauriIcon size={10} /> Profil estimé
                   </span>
                 )}
               </div>
@@ -446,7 +445,7 @@ export function SkinHealthDashboard({
                 Débloque tes constantes réelles par scan photo
               </p>
               <p className="text-[11px] text-muted-foreground">
-                Analyse IA vision en 30 secondes certifiée sur peaux mélanodermes
+                Bilan spectral en 30 secondes certifié sur peaux mélanodermes
               </p>
             </div>
             <button

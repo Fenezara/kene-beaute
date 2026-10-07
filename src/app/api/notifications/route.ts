@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
         tenantId: a.tenant?.id ?? null,
         channel: "whatsapp",
         toPhone: user.phone,
-        message: `Kènè ✨ ${first}, petit rappel : ${a.service?.name ?? "ton soin"} chez ${a.tenant?.name ?? "l'institut"} le ${new Date(a.startAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}. Préviens-nous si tu dois déplacer, sinon on t'attend avec plaisir !`,
+        message: `Kènè 🌿 ${first}, petit rappel : ${a.service?.name ?? "ton soin"} chez ${a.tenant?.name ?? "l'institut"} le ${new Date(a.startAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}. Préviens-nous si tu dois déplacer, sinon on t'attend avec plaisir !`,
         status: "scheduled",
         scheduledAt: fireAt,
         metaJson: JSON.stringify({ apptId: a.id }),

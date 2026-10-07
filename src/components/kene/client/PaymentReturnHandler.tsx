@@ -17,7 +17,6 @@ import {
   MessageCircle,
   QrCode,
   ShoppingBag,
-  Sparkles,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -28,7 +27,7 @@ import { apiGet } from "@/lib/kene/api";
 import { xof, formatDate, formatTime } from "@/lib/kene/format";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { useKene } from "@/store/kene";
-import { KeneEmblem } from "@/components/kene/icons";
+import { CauriIcon, KeneEmblem } from "@/components/kene/icons";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 
 interface VerifyResult {
@@ -129,16 +128,16 @@ export function PaymentReturnHandler() {
               <KeneEmblem size={44} />
             </span>
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-xs font-bold uppercase tracking-wider mb-2">
-              <Sparkles className="size-3.5 text-amber-300" />
+              <CauriIcon className="size-3.5 text-amber-300" />
               Paiement Confirmé
             </span>
             <DialogTitle className="font-heading text-xl sm:text-2xl font-black text-white">
               {result?.purpose === "appointment_deposit"
                 ? "Acompte Réglé avec Succès"
                 : result?.purpose === "subscription_renew"
-                ? "Kènè+ Renouvelé ✨"
+                ? "Kènè+ Renouvelé"
                 : result?.purpose === "subscription_activate"
-                ? "Kènè+ Activé ✨"
+                ? "Kènè+ Activé"
                 : "Transaction Validée"}
             </DialogTitle>
             <p className="text-white/80 text-xs mt-1">
@@ -207,7 +206,7 @@ export function PaymentReturnHandler() {
                   </div>
                   {result.order.cashback > 0 && (
                     <div className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-                      <Sparkles className="size-3.5" />
+                      <CauriIcon className="size-3.5" />
                       +{xof(result.order.cashback)} de remise fidélité offerte !
                     </div>
                   )}
@@ -222,7 +221,7 @@ export function PaymentReturnHandler() {
                     {result.purpose === "subscription_renew" ? "Renouvellement +30 Jours" : "Pass Kènè+ Activé"}
                   </div>
                   <p className="font-heading font-black text-sm text-foreground">
-                    Diagnostics IA & Suivi d&apos;Évolution Illimités
+                    Diagnostics dermo-biométriques &amp; Suivi d&apos;Évolution Illimités
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     Votre compte bénéficie immédiatement de l&apos;accès illimité au Dr Kènè, aux bilans photographiques et à l&apos;ensemble des privilèges premium.

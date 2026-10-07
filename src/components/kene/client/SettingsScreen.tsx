@@ -35,7 +35,6 @@ import {
   Shield,
   ShieldCheck,
   Smartphone,
-  Sparkles,
   SunMedium,
   Trash2,
   User,
@@ -561,7 +560,7 @@ export function SettingsScreen() {
             <IconBadge icon={<ShieldCheck size={19} />} tone={user.consentHealth ? "success" : "bissap"} />
             <div className="flex-1">
               <p className="text-xs font-semibold">Consentement données santé</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{user.consentHealth ? "Accordé — photos et diagnostics utilisés uniquement pour tes analyses." : "Non accordé — requis pour le diagnostic IA."}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{user.consentHealth ? "Accordé — photos et diagnostics utilisés uniquement pour tes analyses." : "Non accordé — requis pour le bilan dermo-biométrique."}</p>
             </div>
             <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${user.consentHealth ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
               {user.consentHealth ? "Actif" : "Inactif"}
@@ -749,7 +748,7 @@ export function SettingsScreen() {
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs leading-relaxed space-y-2">
               <span className="block">
-                Cette action est <strong>immédiate et irréversible</strong>. Tes photos de diagnostic cutané, tes historiques d&apos;analyse IA et tes données personnelles seront définitivement purgés.
+                Cette action est <strong>immédiate et irréversible</strong>. Tes photos de diagnostic cutané, tes historiques de bilans dermo-biométriques et tes données personnelles seront définitivement purgés.
               </span>
               {user?.hasPin && (
                 <span className="block text-foreground font-semibold pt-1">

@@ -4,7 +4,8 @@
 // le comptoir, soin en cabine): upload local redimensionné, stocké en base
 // et servi par /api/media — la photo prime sur le visuel studio si posée.
 import { useRef, useState, useMemo } from "react";
-import { Camera, Clock, ImageOff, Loader2, MoreVertical, Package, Pencil, Percent, Plus, Power, Sparkles, Search, X } from "lucide-react";
+import { Camera, Clock, ImageOff, Loader2, MoreVertical, Package, Pencil, Percent, Plus, Power, Search, X } from "lucide-react";
+import { BissapFlowerIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -317,7 +318,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <TabsList>
               <TabsTrigger value="service" className="text-xs gap-1.5">
-                <Sparkles className="size-3.5" aria-hidden="true" /> Soins ({catalog.data?.services.length ?? 0})
+                <BissapFlowerIcon className="size-3.5" aria-hidden="true" /> Soins ({catalog.data?.services.length ?? 0})
               </TabsTrigger>
               <TabsTrigger value="product" className="text-xs gap-1.5">
                 <Package className="size-3.5" aria-hidden="true" /> Produits ({catalog.data?.products.length ?? 0})
@@ -713,7 +714,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
                     <img src={`/api/media/${editType}/${editId}`} alt="Photo actuelle" className="size-full object-cover" />
                   ) : (
                     <span className="grid size-full place-items-center text-muted-foreground">
-                      {editType === "service" ? <Sparkles size={20} aria-hidden="true" /> : <Package size={20} aria-hidden="true" />}
+                      {editType === "service" ? <BissapFlowerIcon className="size-5" aria-hidden="true" /> : <Package size={20} aria-hidden="true" />}
                     </span>
                   )}
                   {photoBusy && (

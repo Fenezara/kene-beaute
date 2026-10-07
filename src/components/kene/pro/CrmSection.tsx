@@ -1,10 +1,11 @@
 "use client";
 // Kènè Pro — CRM: recherche, segments RFM, fiche cliente (ventes, RDV,
-// commandes boutique, avis, diagnostics IA, diagnostics en institut, notes)
+// commandes boutique, avis, bilans dermo-cliniques, diagnostics en institut, notes)
 // — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
-import { FileDown, Lock, MessageCircle, Phone, Search, Sparkles, Stethoscope, Users, Wallet, ChevronDown, Save, Star, Pencil, Plus, ShoppingBag, FlaskConical, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin } from "lucide-react";
+import { Crown, FileDown, Lock, MessageCircle, Phone, Search, Stethoscope, Users, Wallet, ChevronDown, Save, Star, Pencil, Plus, ShoppingBag, FlaskConical, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin } from "lucide-react";
+import { BissapFlowerIcon, SankofaIcon } from "@/components/kene/icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -185,7 +186,7 @@ export function CrmSection({
       toast.success(
         res.reused
           ? `Fiche cliente existante retrouvée : ${res.client.name}`
-          : `Nouvelle cliente enregistrée : ${res.client.name} ✨`
+          : `Nouvelle cliente enregistrée : ${res.client.name}`
       );
     } catch (err) {
       proToastError(err, "Impossible d'enregistrer la cliente");
@@ -246,7 +247,7 @@ export function CrmSection({
         {[
           { icon: <Users className="size-4" />, label: "Clientes", value: String(totalClients) },
           { icon: <Wallet className="size-4" />, label: "Panier moyen", value: xof(avgBasket) },
-          { icon: <Sparkles className="size-4" />, label: "Champions RFM", value: String(champions) },
+          { icon: <Crown className="size-4" />, label: "Champions RFM", value: String(champions) },
         ].map((s) => (
           <Card key={s.label} className="overflow-hidden pt-0">
             <KenteTop />
@@ -908,7 +909,7 @@ function ClientSheet({
                     <button
                       type="button"
                       onClick={() => {
-                        const msg = `Bonjour ${c.name} ! 🌸 Nous espérons que vous allez bien. Votre institut Kènè reste à votre entière disposition pour vos soins et routines dermo-botaniques. ✨`;
+                        const msg = `Bonjour ${c.name} ! 🌸 Nous espérons que vous allez bien. Votre institut Kènè reste à votre entière disposition pour vos soins et routines dermo-botaniques. 🌿`;
                         openWhatsApp(c.phone, msg);
                       }}
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] text-[11px] font-sans font-bold border border-[#25D366]/30 transition-colors cursor-pointer"
@@ -957,7 +958,7 @@ function ClientSheet({
                   size="sm"
                   className="w-full gap-2 border-gold/40 bg-gold/10 text-gold-text hover:bg-gold/20 font-bold text-xs rounded-xl h-10"
                   onClick={() => {
-                    const msg = `Joyeux anniversaire ${c.name} ! 🎂🎉 Toute l'équipe de votre institut partenaire vous souhaite le meilleur. Pour fêter cet événement, nous avons le plaisir de vous offrir une remise privilège sur votre prochain soin en cabine ! ✨`;
+                    const msg = `Joyeux anniversaire ${c.name} ! 🎂🎉 Toute l'équipe de votre institut partenaire vous souhaite le meilleur. Pour fêter cet événement, nous avons le plaisir de vous offrir une remise privilège sur votre prochain soin en cabine ! 🌿`;
                     openWhatsApp(c.phone, msg);
                   }}
                 >
@@ -1075,7 +1076,7 @@ function ClientSheet({
                     return (
                       <div className="mb-4 space-y-1.5">
                         <h5 className="font-heading text-xs font-bold text-muted-foreground flex items-center gap-1.5">
-                          <Sparkles className="size-3 text-gold-text" /> Comparatif Avant / Après (Tactile)
+                          <SankofaIcon className="size-3 text-gold-text" /> Comparatif Avant / Après (Tactile)
                         </h5>
                         <BeforeAfterSlider
                           before={{
@@ -1123,7 +1124,7 @@ function ClientSheet({
               <Tabs defaultValue="cosmetics">
                 <TabsList className="w-full">
                   <TabsTrigger value="cosmetics" className="text-[11px] flex-1 font-semibold flex items-center justify-center gap-1">
-                    <Sparkles className="size-3 text-gold-text shrink-0" /> Cosmétiques
+                    <BissapFlowerIcon className="size-3 text-gold-text shrink-0" /> Cosmétiques
                   </TabsTrigger>
                   <TabsTrigger value="sales" className="text-[11px] flex-1">Ventes</TabsTrigger>
                   <TabsTrigger value="appts" className="text-[11px] flex-1">RDV</TabsTrigger>
@@ -1140,7 +1141,7 @@ function ClientSheet({
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="grid size-7 place-items-center rounded-lg bg-gold/15 text-gold-text shrink-0">
-                            <Sparkles className="size-3.5" />
+                            <BissapFlowerIcon className="size-3.5" />
                           </span>
                           <div>
                             <h5 className="font-heading text-xs font-bold leading-tight">Cosmétiques utilisés par la cliente</h5>
@@ -1330,7 +1331,7 @@ function ClientSheet({
                           onClick={handleInsertPurchasedComponents}
                           title="Extraire et insérer les actifs des cosmétiques achetés"
                         >
-                          <Sparkles className="size-3" /> Insérer composants
+                          <BissapFlowerIcon className="size-3" /> Insérer composants
                         </Button>
                       </div>
 
@@ -1743,7 +1744,7 @@ function InstituteDiagRow({ item }: { item: ProDiagnosisItem }) {
           </p>
           <p className="text-[10px] text-muted-foreground font-mono">
             {formatDate(item.createdAt, { day: "2-digit", month: "short", year: "2-digit" })}
-            {item.vlmUsed ? " · photo IA" : " · entretien"}
+            {item.vlmUsed ? " · bilan spectral" : " · entretien"}
             {flags.length > 0 ? ` · ${flags.length} vigilance${flags.length > 1 ? "s" : ""}` : ""}
           </p>
         </div>

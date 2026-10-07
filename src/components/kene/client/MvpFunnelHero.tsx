@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import {
-  Sparkles,
   ScanFace,
   ChevronRight,
   ShieldCheck,
@@ -15,6 +14,7 @@ import { useKene } from "@/store/kene";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { scoreColor } from "@/lib/kene/format";
+import { CauriIcon } from "@/components/kene/icons";
 import type { ApiDiagnosis } from "./types";
 
 interface MvpFunnelHeroProps {
@@ -62,8 +62,8 @@ export function MvpFunnelHero({
             {/* Badge supérieur */}
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C8951E]/20 border border-[#C8951E]/40 px-3 py-1 text-[10.5px] font-black uppercase tracking-wider text-[#E3B04B]">
-                <Sparkles size={12} className="animate-pulse" />
-                1ère IA Dermo-Botanique Africaine
+                <CauriIcon size={12} className="animate-pulse" />
+                Haute Précision Dermo-Botanique Africaine
               </span>
             </div>
 
@@ -89,7 +89,7 @@ export function MvpFunnelHero({
                 </span>
                 <div className="text-left">
                   <span className="block leading-tight font-black">Lancer mon Diagnostic Gratuit</span>
-                  <span className="block text-[10.5px] font-semibold opacity-85">Analyse IA immédiate · Zéro frais</span>
+                  <span className="block text-[10.5px] font-semibold opacity-85">Bilan dermo-biométrique · Zéro frais</span>
                 </div>
               </div>
               <ChevronRight size={20} className="transition-transform group-hover:translate-x-1" />

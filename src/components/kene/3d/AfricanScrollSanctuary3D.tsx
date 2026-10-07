@@ -16,7 +16,8 @@ import { useMemo, useRef, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useReducedMotion } from "framer-motion";
-import { Sparkles, Eye, ShieldCheck } from "lucide-react";
+import { Eye, ShieldCheck } from "lucide-react";
+import { KeneSunIcon, DuafeIcon } from "@/components/kene/icons";
 
 type ProgressRef = React.RefObject<number>;
 
@@ -406,7 +407,7 @@ export function AfricanScrollSanctuary3D({
       badge: "Cosmologie 01",
       title: "La Mélanine Cosmique",
       desc: "Chaque grain de mélanine est un joyau d'adaptation et de résistance lumineuse.",
-      icon: Sparkles,
+      icon: KeneSunIcon,
     },
     {
       badge: "Pharmacopée 02",
@@ -418,7 +419,7 @@ export function AfricanScrollSanctuary3D({
       badge: "Couronnement 03",
       title: "Le Sceau Royal Duafe",
       desc: "Le peigne Adinkra, symbole éternel de la beauté, de la propreté et de la souveraineté.",
-      icon: ShieldCheck,
+      icon: DuafeIcon,
     },
   ];
 

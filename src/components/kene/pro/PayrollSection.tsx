@@ -9,9 +9,9 @@ import {
   FileText,
   Printer,
   Scale,
-  Sparkles,
   Users,
 } from "lucide-react";
+import { CauriIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -222,7 +222,7 @@ export function PayrollSection({
       <section aria-label="Commissions Praticiennes" className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-heading text-base font-bold flex items-center gap-2">
-            <Sparkles className="size-4 text-gold-text" aria-hidden="true" /> Commissions Praticiennes &amp; Ventes Boutique ({period})
+            <CauriIcon className="size-4 text-gold-text" aria-hidden="true" /> Commissions Praticiennes &amp; Ventes Boutique ({period})
           </h3>
           <Badge variant="outline" className="text-xs font-semibold bg-gold/10 text-gold-text border-gold/30">
             10% Soins · 5% Cosmétiques

@@ -144,7 +144,7 @@ export async function executePaymentSuccess(paymentId: string): Promise<PaymentE
             tenantId: updated.tenantId,
             channel: "whatsapp",
             toPhone: updated.clientPhone,
-            message: `Kènè ✨ petit rappel : ${svc?.name ?? "ton soin"} chez ${tnt?.name ?? "l'institut"} le ${new Date(updated.startAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}. Préviens-nous si tu dois déplacer, sinon on t'attend avec plaisir !`,
+            message: `Kènè 🌿 petit rappel : ${svc?.name ?? "ton soin"} chez ${tnt?.name ?? "l'institut"} le ${new Date(updated.startAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}. Préviens-nous si tu dois déplacer, sinon on t'attend avec plaisir !`,
             status: "scheduled",
             scheduledAt: fireAt.getTime() > Date.now() ? fireAt : new Date(),
             metaJson: JSON.stringify({ apptId: updated.id }),

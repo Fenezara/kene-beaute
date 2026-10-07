@@ -3,11 +3,12 @@
 // Permet de basculer instantanément entre toutes les interfaces de la plateforme.
 
 import { useState } from "react";
-import { Smartphone, BriefcaseBusiness, ShieldCheck, ChevronDown, Loader2, LogOut, Sparkles } from "lucide-react";
+import { Smartphone, BriefcaseBusiness, ShieldCheck, ChevronDown, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useKene, type Space } from "@/store/kene";
 import { performLogout } from "@/lib/kene/logout";
 import { DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
+import { CauriIcon } from "@/components/kene/icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,8 +46,8 @@ export function SpaceSwitcher({
           id: "client" as Space,
           label: "Mon Espace Beauté",
           badge: "Personnel",
-          desc: "Mon diagnostic cutané, Dr. Kènè IA & rituels",
-          icon: Sparkles,
+          desc: "Mon diagnostic cutané, Dr. Kènè & rituels",
+          icon: CauriIcon,
         },
         {
           id: "pro" as Space,
@@ -57,7 +58,7 @@ export function SpaceSwitcher({
         },
       ]
     : [
-        { id: "client" as Space, label: "Cliente", badge: "Grand Public", desc: "Diagnostic IA, boutique, RDV, chat", icon: Smartphone },
+        { id: "client" as Space, label: "Cliente", badge: "Grand Public", desc: "Diagnostic dermo-biométrique, boutique, RDV, chat", icon: Smartphone },
         { id: "pro" as Space, label: "Pro", badge: "Institut & Caisse", desc: "Caisse POS, TVA, agenda, stock, CRM", icon: BriefcaseBusiness },
         { id: "admin" as Space, label: "Admin", badge: "Console", desc: "Pilotage plateforme, abonnements", icon: ShieldCheck },
       ];
