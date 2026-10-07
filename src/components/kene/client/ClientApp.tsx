@@ -82,24 +82,15 @@ const TITLES: Record<ScreenTab, string> = {
 /** Ordre de balayage mobile (swipe horizontal gauche/droite — TikTok-like) */
 const SWIPE_ORDER: ClientTab[] = ["accueil", "boutique", "diagnostic", "rdv", "profil"];
 
-// ─── Code splitting par onglet ───
-// Les écrans lourds rejoignent le bundle uniquement à la demande: le premier
-// clic Diagnostic / Boutique / RDV / Chat télécharge le chunk dédié (visible
-// dans l'onglet Network du navigateur). HomeScreen et Onboarding restent
-// eager (premier rendu complet). Exports nommés → default attendu par lazy.
-const DiagnosticScreen = lazy(() => import("./DiagnosticScreen").then((m) => ({ default: m.DiagnosticScreen })));
-const ShopScreen = lazy(() => import("./ShopScreen").then((m) => ({ default: m.ShopScreen })));
-const BookingScreen = lazy(() => import("./BookingScreen").then((m) => ({ default: m.BookingScreen })));
-const ChatScreen = lazy(() => import("./ChatScreen").then((m) => ({ default: m.ChatScreen })));
-// Paramètres: écran de réglages standard — lazy comme les autres
-// écrans lourds, chunk dédié au premier clic sur l'engrenage du header.
-const SettingsScreen = lazy(() => import("./SettingsScreen").then((m) => ({ default: m.SettingsScreen })));
-// Abonnement & Mentions légales: écrans cachés (même pattern que
-// Paramètres), chunks dédiés au premier clic depuis l'écran Paramètres.
-const PlanScreen = lazy(() => import("./PlanScreen").then((m) => ({ default: m.PlanScreen })));
-const LegalScreen = lazy(() => import("./LegalScreen").then((m) => ({ default: m.LegalScreen })));
-// Cloche + Sheet notifications: lazy aussi (socket.io du header sort du premier rendu)
-const NotificationCenter = lazy(() => import("./NotificationCenter").then((m) => ({ default: m.NotificationCenter })));
+// ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
+import { DiagnosticScreen } from "./DiagnosticScreen";
+import { ShopScreen } from "./ShopScreen";
+import { BookingScreen } from "./BookingScreen";
+import { ChatScreen } from "./ChatScreen";
+import { SettingsScreen } from "./SettingsScreen";
+import { PlanScreen } from "./PlanScreen";
+import { LegalScreen } from "./LegalScreen";
+import { NotificationCenter } from "./NotificationCenter";
 
 /** Squelette d'attente d'onglet — spinner discret pendant le chargement du chunk */
 function TabLoading() {
