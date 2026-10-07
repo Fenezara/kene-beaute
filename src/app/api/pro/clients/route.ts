@@ -14,6 +14,7 @@ const Body = z.object({
   name: z.string().min(1).max(80),
   phone: z.string().min(6).max(30),
   email: z.string().email().optional().or(z.literal("")),
+  district: z.string().optional(),
   skinType: z.string().optional(),
   fitzpatrick: z.string().optional(),
   notes: z.string().optional(),
@@ -96,8 +97,9 @@ export async function POST(req: NextRequest) {
       : null;
     if (existing) {
       // Mettre à jour les informations complémentaires si fournies
-      const updateData: { email?: string; notes?: string; skinType?: string; fitzpatrick?: string } = {};
+      const updateData: { email?: string; district?: string; notes?: string; skinType?: string; fitzpatrick?: string } = {};
       if (parsed.data.email && !existing.email) updateData.email = parsed.data.email;
+      if (parsed.data.district && !existing.district) updateData.district = parsed.data.district;
       if (parsed.data.skinType && !existing.skinType) updateData.skinType = parsed.data.skinType;
       if (parsed.data.fitzpatrick && !existing.fitzpatrick) updateData.fitzpatrick = parsed.data.fitzpatrick;
       if (parsed.data.notes && !existing.notes) updateData.notes = parsed.data.notes;
@@ -125,6 +127,7 @@ export async function POST(req: NextRequest) {
         name,
         phone,
         email: parsed.data.email?.trim() || null,
+        district: parsed.data.district?.trim() || null,
         skinType: parsed.data.skinType?.trim() || null,
         fitzpatrick: parsed.data.fitzpatrick?.trim() || null,
         rfmSegment: "Nouveau",

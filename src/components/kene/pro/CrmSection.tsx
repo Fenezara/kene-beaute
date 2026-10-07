@@ -101,6 +101,7 @@ export function CrmSection({
   const [query, setQuery] = useState("");
   const q = useDebounced(query);
   const [segment, setSegment] = useState<string | null>(null);
+  const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
 
   // Création d'une nouvelle cliente depuis le CRM
@@ -113,6 +114,7 @@ export function CrmSection({
   const [createName, setCreateName] = useState("");
   const [createPhone, setCreatePhone] = useState("");
   const [createEmail, setCreateEmail] = useState("");
+  const [createDistrict, setCreateDistrict] = useState("");
   const [createSkinType, setCreateSkinType] = useState<string>("mixte");
   const [createNotes, setCreateNotes] = useState("");
   const [createBusy, setCreateBusy] = useState(false);
@@ -168,6 +170,7 @@ export function CrmSection({
         name,
         phone,
         email: createEmail.trim() || undefined,
+        district: createDistrict.trim() || undefined,
         skinType: createSkinType || undefined,
         notes: createNotes.trim() || undefined,
       });
@@ -175,6 +178,7 @@ export function CrmSection({
       setCreateName("");
       setCreatePhone("");
       setCreateEmail("");
+      setCreateDistrict("");
       setCreateNotes("");
       await clients.refetch();
       setOpenId(res.client.id);
@@ -190,7 +194,19 @@ export function CrmSection({
     }
   }
 
-  const filtered = (clients.data ?? []).filter((c) => (segment ? c.rfmSegment === segment : true));
+  const availableDistricts = useMemo(() => {
+    const set = new Set<string>();
+    (clients.data ?? []).forEach((c) => {
+      if (c.district && c.district.trim()) set.add(c.district.trim());
+    });
+    return Array.from(set).sort();
+  }, [clients.data]);
+
+  const filtered = (clients.data ?? []).filter(
+    (c) =>
+      (segment ? c.rfmSegment === segment : true) &&
+      (!selectedDistrict || c.district === selectedDistrict)
+  );
   const all = clients.data ?? [];
   const totalClients = all.length;
   const totalSpent = all.reduce((s, c) => s + c.totalSpent, 0);
@@ -272,6 +288,43 @@ export function CrmSection({
         })}
       </div>
 
+      {/* Filtres quartiers / communes */}
+      {availableDistricts.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 pt-0.5" role="group" aria-label="Filtrer par quartier ou zone">
+          <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1 shrink-0 pl-1 mr-0.5">
+            <MapPin className="size-3 text-gold-text" aria-hidden="true" />
+            Zone :
+          </span>
+          <button
+            onClick={() => setSelectedDistrict(null)}
+            className={cn(
+              "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+              !selectedDistrict ? "bg-primary/15 text-primary border border-primary/30 font-semibold" : "bg-muted/50 text-muted-foreground hover:text-foreground border border-transparent"
+            )}
+          >
+            Toutes les zones ({all.length})
+          </button>
+          {availableDistricts.map((dist) => {
+            const count = all.filter((c) => c.district === dist).length;
+            return (
+              <button
+                key={dist}
+                onClick={() => setSelectedDistrict(selectedDistrict === dist ? null : dist)}
+                aria-pressed={selectedDistrict === dist}
+                className={cn(
+                  "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium border transition-colors",
+                  selectedDistrict === dist
+                    ? "bg-gold/15 text-gold-text border-gold/40 font-semibold"
+                    : "bg-card border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {dist} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Table */}
       <Card className="overflow-hidden">
         {clients.error && !clients.data ? (
@@ -352,8 +405,16 @@ export function CrmSection({
                         <InitialAvatar name={c.name} />
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{c.name}</p>
-                          <p className="truncate text-[10px] text-muted-foreground sm:hidden font-mono">{c.phone}</p>
-                          {c.skinType && <p className="hidden lg:block text-[10px] text-muted-foreground capitalize">Peau {c.skinType}</p>}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="truncate text-[10px] text-muted-foreground sm:hidden font-mono">{c.phone}</p>
+                            {c.district && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground font-medium">
+                                <MapPin className="size-2.5 text-gold-text shrink-0" aria-hidden="true" />
+                                <span className="truncate max-w-[120px]">{c.district}</span>
+                              </span>
+                            )}
+                            {c.skinType && <p className="hidden lg:block text-[10px] text-muted-foreground capitalize">· Peau {c.skinType}</p>}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
@@ -456,6 +517,19 @@ export function CrmSection({
                   className="text-xs"
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="create-district" className="text-xs font-semibold block text-foreground">
+                Quartier / Commune (optionnel)
+              </label>
+              <Input
+                id="create-district"
+                value={createDistrict}
+                onChange={(e) => setCreateDistrict(e.target.value)}
+                placeholder="Ex. Cocody, Plateau, Marcory, Yopougon, Almadies…"
+                className="text-xs"
+              />
             </div>
 
             <div className="space-y-1.5">

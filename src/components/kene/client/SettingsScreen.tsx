@@ -13,8 +13,32 @@
 import { useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import {
-  ArrowLeft, Bell, Building2, Check, ChevronRight, Crown, Download, Hand, Languages, Loader2, LogOut, MapPin,
-  Moon, Pencil, Phone, Scale, ShieldCheck, Smartphone, SunMedium, Trash2, AlertTriangle,
+  AlertTriangle,
+  ArrowLeft,
+  Bell,
+  Building2,
+  Check,
+  ChevronRight,
+  Crown,
+  Download,
+  Hand,
+  Languages,
+  Loader2,
+  Lock,
+  LogOut,
+  MapPin,
+  Moon,
+  Palette,
+  Pencil,
+  Phone,
+  Scale,
+  Shield,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  SunMedium,
+  Trash2,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
@@ -33,6 +57,7 @@ import { useSecurity } from "@/store/security";
 import { useInstallPrompt } from "@/components/kene/pwa/use-install";
 import { getThumbMode, setThumbMode, subscribeThumbMode } from "@/lib/kene/thumb-mode";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
+import { cn } from "@/lib/utils";
 
 /* ─── Porte d'hydratation (thème) ───
  * false pendant le rendu serveur + l'hydratation, true ensuite: l'état actif
@@ -78,6 +103,30 @@ function serverPerm(): NotifPerm {
   return "unsupported";
 }
 
+function SettingsGroupHeader({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 pt-3 pb-1 border-b border-border/50">
+      <span className="grid place-items-center size-7 rounded-xl bg-primary/10 text-primary shrink-0">
+        <Icon size={15} />
+      </span>
+      <div className="min-w-0">
+        <h3 className="font-heading font-black text-xs uppercase tracking-wider text-foreground">
+          {title}
+        </h3>
+        <p className="text-[10.5px] text-muted-foreground">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsScreen() {
   const user = useKene((s) => s.user) as SessionUser;
   const setUser = useKene((s) => s.setUser);
@@ -93,6 +142,29 @@ export function SettingsScreen() {
 
   // ── Permission notifications ──
   const notifPerm = useSyncExternalStore(subscribePerm, readPerm, serverPerm);
+
+  // Préférences de notifications granulaires
+  const [notifPrefs, setNotifPrefs] = useState<{ reminders: boolean; weather: boolean; promos: boolean }>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("kene_notif_prefs");
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return { reminders: true, weather: true, promos: false };
+  });
+
+  const toggleNotifPref = (k: "reminders" | "weather" | "promos") => {
+    haptic(HAPTIC.light);
+    setNotifPrefs((prev) => {
+      const next = { ...prev, [k]: !prev[k] };
+      try {
+        localStorage.setItem("kene_notif_prefs", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    toast.success("Préférences de notification mises à jour");
+  };
 
   const [exportBusy, setExportBusy] = useState(false);
   // Confirmation « Créer un compte entreprise » (isolation des comptes)
@@ -233,6 +305,15 @@ export function SettingsScreen() {
           </button>
         </RevealItem>
 
+        {/* ───────── GROUPE 1 : MON COMPTE & SÉCURITÉ ───────── */}
+        <RevealItem>
+          <SettingsGroupHeader
+            icon={User}
+            title="Mon Compte & Sécurité"
+            subtitle="Identité, coordonnées et protection des paiements"
+          />
+        </RevealItem>
+
         {/* Compte */}
         <RevealItem>
           <section aria-labelledby="set-acc-t" className="k-card overflow-hidden rounded-[24px]">
@@ -262,7 +343,39 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
-        {/* Apparence — Clair/Sombre (next-themes, valeurs light/dark uniquement) */}
+        {/* Sécurité renforcée — 2FA-lite: code SMS avant chaque paiement */}
+        <RevealItem>
+          <section aria-labelledby="sec-t" className="k-card rounded-[24px] p-4">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={secureEnabled}
+              aria-label="Sécurité renforcée avant paiement"
+              onClick={toggleSecure}
+              className="w-full flex items-center gap-3 rounded-xl text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <IconBadge icon={<ShieldCheck size={19} />} tone="gold" />
+              <span className="flex-1 min-w-0 py-1.5">
+                <span id="sec-t" className="block text-xs font-bold">Sécurité renforcée (2FA)</span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">Exige un code par SMS avant chaque paiement — même si quelqu&apos;un manipule ton téléphone.</span>
+              </span>
+              <span aria-hidden="true" className={`pointer-events-none ml-auto inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${secureEnabled ? "bg-primary" : "bg-input"}`}>
+                <span className={`block size-5 rounded-full bg-[#FFF9EC] shadow transition-transform duration-200 ${secureEnabled ? "translate-x-5" : "translate-x-0"}`} />
+              </span>
+            </button>
+          </section>
+        </RevealItem>
+
+        {/* ───────── GROUPE 2 : PRÉFÉRENCES & AFFICHAGE ───────── */}
+        <RevealItem>
+          <SettingsGroupHeader
+            icon={Palette}
+            title="Préférences & Affichage"
+            subtitle="Confort visuel, langue et alertes personnalisées"
+          />
+        </RevealItem>
+
+        {/* Apparence — Clair/Sombre */}
         <RevealItem>
           <section aria-labelledby="set-look-t" className="k-card rounded-[24px] p-4">
             <div className="flex items-center gap-3">
@@ -291,8 +404,7 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
-        {/* Langue de l'interface — i18n UI, indépendante de la lecture vocale
- (la langue TTS se règle dans les pilules du résumé vocal, accueil) */}
+        {/* Langue de l'interface */}
         <RevealItem>
           <section aria-labelledby="lang-t" className="k-card rounded-[24px] p-4">
             <div className="flex items-center gap-3">
@@ -330,67 +442,7 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
-        {/* Notifications — permission navigateur (carte masquée si l'API
- n'existe pas sur cet appareil; pas d'abonnement push dans cette version) */}
-        {notifPerm !== "unsupported" && (
-          <RevealItem>
-            <section aria-labelledby="set-notif-t" className="k-card rounded-[24px] p-4">
-              <div className="flex items-center gap-3">
-                <IconBadge icon={<Bell size={19} />} tone="gold" />
-                <div className="flex-1 min-w-0">
-                  <p id="set-notif-t" className="text-xs font-bold">Notifications</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Rappels de rendez-vous, suivis de diagnostic et surprises — sur cet appareil.</p>
-                </div>
-                {notifPerm === "granted" && (
-                  <span className="rounded-full bg-success/15 text-success px-2.5 py-1 text-[10px] font-bold">Activées</span>
-                )}
-              </div>
-              {notifPerm === "default" && (
-                <button
-                  onClick={() => void enableNotifications()}
-                  className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                >
-                  <Bell size={15} /> Activer les notifications
-                </button>
-              )}
-              {notifPerm === "denied" && (
-                <p className="mt-3 text-[11px] text-muted-foreground leading-snug">
-                  Réactive-les dans les réglages du navigateur (icône cadenas à gauche de l&apos;adresse) si tu changes d&apos;avis.
-                </p>
-              )}
-            </section>
-          </RevealItem>
-        )}
-
-        {/* Sécurité renforcée — 2FA-lite: code SMS avant chaque paiement.
- Toute la rangée est le bouton (cible ≥ 40 px); l'indicateur est un
- pseudo-switch purement décoratif (un vrai Switch shadcn rendrait un
- <button> imbriqué — HTML invalide + erreur d'hydratation). */}
-        <RevealItem>
-          <section aria-labelledby="sec-t" className="k-card rounded-[24px] p-4">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={secureEnabled}
-              aria-label="Sécurité renforcée avant paiement"
-              onClick={toggleSecure}
-              className="w-full flex items-center gap-3 rounded-xl text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              <IconBadge icon={<ShieldCheck size={19} />} tone="gold" />
-          <span className="flex-1 min-w-0 py-1.5">
-            <span id="sec-t" className="block text-xs font-bold">Sécurité renforcée</span>
-            <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">Exige un code par SMS avant chaque paiement — même si quelqu&apos;un a ton téléphone.</span>
-          </span>
-          <span aria-hidden="true" className={`pointer-events-none ml-auto inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${secureEnabled ? "bg-primary" : "bg-input"}`}>
-            <span className={`block size-5 rounded-full bg-[#FFF9EC] shadow transition-transform duration-200 ${secureEnabled ? "translate-x-5" : "translate-x-0"}`} />
-          </span>
-            </button>
-          </section>
-        </RevealItem>
-
-        {/* Pouce d'Or — mode une main: les actions primaires de
- l'écran restent sous le pouce (barre collante au-dessus de la nav).
- Même pattern accessibilité que la sécurité: rangée-bouton entière. */}
+        {/* Pouce d'Or — mode une main */}
         <RevealItem>
           <section aria-labelledby="thumb-t" className="k-card rounded-[24px] p-4">
             <button
@@ -419,6 +471,88 @@ export function SettingsScreen() {
               </span>
             </button>
           </section>
+        </RevealItem>
+
+        {/* Notifications — permission navigateur & contrôles granulaires */}
+        {notifPerm !== "unsupported" && (
+          <RevealItem>
+            <section aria-labelledby="set-notif-t" className="k-card rounded-[24px] p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <IconBadge icon={<Bell size={19} />} tone="gold" />
+                <div className="flex-1 min-w-0">
+                  <p id="set-notif-t" className="text-xs font-bold">Notifications</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                    Rappels de rendez-vous, dermo-météo et exclusivités instituts.
+                  </p>
+                </div>
+                {notifPerm === "granted" && (
+                  <span className="rounded-full bg-success/15 text-success px-2.5 py-1 text-[10px] font-bold">
+                    Système actif
+                  </span>
+                )}
+              </div>
+
+              {notifPerm === "default" && (
+                <button
+                  onClick={() => void enableNotifications()}
+                  className="k-btn-gold h-10 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  <Bell size={14} /> Activer les notifications de l&apos;appareil
+                </button>
+              )}
+
+              {notifPerm === "denied" && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-snug bg-amber-500/10 p-2.5 rounded-xl">
+                  Notifications bloquées dans votre navigateur. Débloquez-les via l&apos;icône cadenas si vous souhaitez recevoir les alertes.
+                </p>
+              )}
+
+              {/* Préférences thématiques granulaires */}
+              <div className="pt-2 border-t border-border/60 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Canaux personnalisés :
+                </p>
+                {[
+                  { key: "reminders" as const, label: "Rappels de soins & rendez-vous", desc: "Suivi post-soin cabine et dates importantes" },
+                  { key: "weather" as const, label: "Conseil Dermo-Météo & UV", desc: "Adaptation au climat local et forte exposition UV" },
+                  { key: "promos" as const, label: "Offres & Événements instituts", desc: "Nouveautés et privilèges des partenaires" },
+                ].map((item) => (
+                  <div key={item.key} className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-background/50 border border-border/40">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-foreground truncate">{item.label}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{item.desc}</p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={notifPrefs[item.key]}
+                      onClick={() => toggleNotifPref(item.key)}
+                      className={cn(
+                        "inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-primary",
+                        notifPrefs[item.key] ? "bg-primary" : "bg-input"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "block size-4 rounded-full bg-white shadow-sm transition-transform duration-150",
+                          notifPrefs[item.key] ? "translate-x-4" : "translate-x-0"
+                        )}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </RevealItem>
+        )}
+
+        {/* ───────── GROUPE 3 : CONFIDENTIALITÉ & DONNÉES ───────── */}
+        <RevealItem>
+          <SettingsGroupHeader
+            icon={Shield}
+            title="Confidentialité & Données"
+            subtitle="Protection de votre vie privée, consentement santé et droits"
+          />
         </RevealItem>
 
         {/* Confidentialité & données — statut du consentement santé */}
@@ -457,101 +591,7 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
-        {/* Application — installation PWA sur l'écran d'accueil */}
-        <RevealItem>
-          <section aria-labelledby="app-t" className="k-card rounded-[24px] p-4">
-            <div className="flex items-center gap-3">
-              <IconBadge icon={<Smartphone size={19} />} tone="gold" />
-          <div className="flex-1 min-w-0">
-            <p id="app-t" className="text-xs font-bold">Application</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Installe Kènè sur ton écran d&apos;accueil : un tap pour ouvrir, et tes diagnostics restent consultables même hors-ligne.</p>
-          </div>
-        </div>
-        {isStandalone ? (
-          <p className="mt-3 rounded-xl bg-success/10 text-success text-xs font-semibold px-3 min-h-10 flex items-center gap-2">
-            <Check size={15} className="shrink-0" /> Kènè est déjà installée sur ton téléphone
-          </p>
-        ) : (
-            <button
-              onClick={() => void installApp()}
-              className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              <Download size={15} /> Installer Kènè
-            </button>
-          )}
-        </section>
-      </RevealItem>
-
-        {/* Espace entreprise — compte DÉDIÉ séparé du compte cliente (isolation
- stricte): plus d'entrée directe vers l'espace Pro, une
- information honnête + un départ assisté vers l'inscription. */}
-        <RevealItem>
-          <section aria-labelledby="prosignup-t" className="rounded-[24px] border-2 border-dashed border-primary/40 bg-primary/5 p-4">
-            <p id="prosignup-t" className="flex items-center gap-2 font-heading font-bold text-sm text-primary">
-              <Building2 size={17} aria-hidden="true" /> Vous dirigez un institut ou un spa ?
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Rejoignez les établissements partenaires Kènè pour accueillir vos clientes et proposer vos soins cabine.
-            </p>
-            <button
-              onClick={() => setProSignup(true)}
-              className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              Créer mon compte entreprise
-            </button>
-          </section>
-        </RevealItem>
-
-        {/* Abonnement — offres Kènè+ et quota diagnostics: écran
- caché « abonnement » (même porte que Paramètres, depuis ici). */}
-        <RevealItem>
-          <section aria-labelledby="sub-t" className="k-card rounded-[24px] p-2">
-            <button
-              onClick={() => setClientTab("abonnement" as ClientTab)}
-              className="w-full flex items-center gap-3 rounded-[18px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              <IconBadge icon={<Crown size={19} />} tone="gold" />
-              <span className="flex-1 min-w-0">
-                <span id="sub-t" className="block text-xs font-bold">Abonnement</span>
-                <span className="block text-[11px] text-muted-foreground mt-0.5">Offres, quota diagnostics</span>
-              </span>
-              <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
-            </button>
-          </section>
-        </RevealItem>
-
-        {/* Mentions légales — éditeur, santé, RGPD, cadre CI/SN,
- paiements simulés: écran caché « legal ». */}
-        <RevealItem>
-          <section aria-labelledby="legal-t" className="k-card rounded-[24px] p-2">
-            <button
-              onClick={() => setClientTab("legal" as ClientTab)}
-              className="w-full flex items-center gap-3 rounded-[18px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              <IconBadge icon={<Scale size={19} />} tone="terre" />
-              <span className="flex-1 min-w-0">
-                <span id="legal-t" className="block text-xs font-bold">Mentions légales</span>
-                <span className="block text-[11px] text-muted-foreground mt-0.5">RGPD, santé, paiements</span>
-              </span>
-              <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
-            </button>
-          </section>
-        </RevealItem>
-
-
-        {/* Déconnexion — le panier est vidé AVANT de perdre la session: la
- prochaine utilisatrice du téléphone n'hérite de rien. La session
- SERVEUR (cookie httpOnly signé,) est fermée dans la foulée. */}
-        <RevealItem>
-          <button
-            onClick={() => void performLogout({ redirectUrl: "/", message: "À bientôt sur Kènè" })}
-            className="h-12 rounded-2xl border border-destructive/40 bg-destructive/10 text-destructive text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive w-full"
-          >
-            <LogOut size={16} /> Déconnexion
-          </button>
-        </RevealItem>
-
-        {/* Zone Confidentialité / Droit à l'oubli — Suppression de compte (conforme Apple 5.1.1(v) et ARTCI) */}
+        {/* Zone Confidentialité / Droit à l'oubli — Suppression de compte */}
         <RevealItem>
           <section aria-labelledby="delete-account-t" className="rounded-[24px] border border-destructive/25 bg-destructive/5 p-4 space-y-2.5">
             <div className="flex items-center gap-2 text-destructive font-bold text-xs">
@@ -572,6 +612,92 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
+        {/* ───────── GROUPE 4 : ÉCOSYSTÈME KÈNÈ & INFORMATIONS ───────── */}
+        <RevealItem>
+          <SettingsGroupHeader
+            icon={Building2}
+            title="Écosystème Kènè & Légal"
+            subtitle="Espace partenaires, abonnement et informations légales"
+          />
+        </RevealItem>
+
+        {/* Espace entreprise */}
+        <RevealItem>
+          <section aria-labelledby="prosignup-t" className="rounded-[24px] border-2 border-dashed border-primary/40 bg-primary/5 p-4">
+            <p id="prosignup-t" className="flex items-center gap-2 font-heading font-bold text-sm text-primary">
+              <Building2 size={17} aria-hidden="true" /> Vous dirigez un institut ou un spa ?
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Rejoignez les établissements partenaires Kènè pour accueillir vos clientes et proposer vos soins cabine.
+            </p>
+            <button
+              onClick={() => setProSignup(true)}
+              className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              Créer mon compte entreprise
+            </button>
+          </section>
+        </RevealItem>
+
+        {/* Abonnement */}
+        <RevealItem>
+          <section aria-labelledby="sub-t" className="k-card rounded-[24px] p-2">
+            <button
+              onClick={() => setClientTab("abonnement" as ClientTab)}
+              className="w-full flex items-center gap-3 rounded-[18px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <IconBadge icon={<Crown size={19} />} tone="gold" />
+              <span className="flex-1 min-w-0">
+                <span id="sub-t" className="block text-xs font-bold">Abonnement Kènè+</span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">Offres, quota diagnostics et privilèges</span>
+              </span>
+              <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
+            </button>
+          </section>
+        </RevealItem>
+
+        {/* Application — installation PWA sur l'écran d'accueil */}
+        <RevealItem>
+          <section aria-labelledby="app-t" className="k-card rounded-[24px] p-4">
+            <div className="flex items-center gap-3">
+              <IconBadge icon={<Smartphone size={19} />} tone="gold" />
+              <div className="flex-1 min-w-0">
+                <p id="app-t" className="text-xs font-bold">Application</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Installe Kènè sur ton écran d&apos;accueil : un tap pour ouvrir, et tes diagnostics restent consultables même hors-ligne.</p>
+              </div>
+            </div>
+            {isStandalone ? (
+              <p className="mt-3 rounded-xl bg-success/10 text-success text-xs font-semibold px-3 min-h-10 flex items-center gap-2">
+                <Check size={15} className="shrink-0" /> Kènè est déjà installée sur ton téléphone
+              </p>
+            ) : (
+              <button
+                onClick={() => void installApp()}
+                className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <Download size={15} /> Installer Kènè
+              </button>
+            )}
+          </section>
+        </RevealItem>
+
+        {/* Mentions légales */}
+        <RevealItem>
+          <section aria-labelledby="legal-t" className="k-card rounded-[24px] p-2">
+            <button
+              onClick={() => setClientTab("legal" as ClientTab)}
+              className="w-full flex items-center gap-3 rounded-[18px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <IconBadge icon={<Scale size={19} />} tone="terre" />
+              <span className="flex-1 min-w-0">
+                <span id="legal-t" className="block text-xs font-bold">Mentions légales</span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">RGPD, cadre sanitaire, conditions</span>
+              </span>
+              <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
+            </button>
+          </section>
+        </RevealItem>
+
         {/* À propos */}
         <RevealItem>
           <section aria-labelledby="about-t" className="k-card rounded-[24px] p-5 text-center">
@@ -583,6 +709,16 @@ export function SettingsScreen() {
               Les produits et soins sont vendus et exécutés exclusivement par les instituts et cabinets partenaires certifiés.
             </p>
           </section>
+        </RevealItem>
+
+        {/* Déconnexion */}
+        <RevealItem>
+          <button
+            onClick={() => void performLogout({ redirectUrl: "/", message: "À bientôt sur Kènè" })}
+            className="h-12 rounded-2xl border border-destructive/40 bg-destructive/10 text-destructive text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive w-full"
+          >
+            <LogOut size={16} /> Déconnexion
+          </button>
         </RevealItem>
       </Reveal>
 

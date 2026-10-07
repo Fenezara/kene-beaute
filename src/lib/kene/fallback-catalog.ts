@@ -132,6 +132,7 @@ export const DEFAULT_FALLBACK_CLIENTS: ProClient[] = [
     id: "cli_comptoir_express",
     name: "Passage Comptoir (Sans RDV)",
     phone: "+22500000000",
+    district: "Plateau",
     visitsCount: 1,
     totalSpent: 0,
     rfmSegment: "Nouveaux",
