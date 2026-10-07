@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Compass, FileText, Loader2, LocateFixed, Lock, MapPin,
-  MessageCircle, MessageSquareQuote, Star, TriangleAlert, Users, X,
+  MessageCircle, MessageSquareQuote, ShieldCheck, Sparkles, Star, TriangleAlert, Users, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -166,32 +166,62 @@ export function BookingScreen() {
     if (tab === "mine") loadMine();
   }, [tab, loadMine]);
 
-  async function openInstitute(i: ApiInstitute) {
-    setInst(i);
+  const openInstituteById = useCallback(async (id: string, serviceName?: string) => {
+    setTab("book");
     setService(null);
     setSlot(null);
     setSlots(null);
     setServiceCatFilter("all");
     setDetailLoading(true);
-    // État de partage self-scans pour CET institut (non bloquant: pas de
-    // case affichée si l'état est inconnu ou si la cliente n'a aucun scan).
     apiGet<{ scansTotal: number; shares: { tenantId: string; granted: boolean }[] }>(`/api/auth/shares?userId=${user.id}`)
       .then((r) => {
-        const mine = r.shares.find((s) => s.tenantId === i.id);
+        const mine = r.shares.find((s) => s.tenantId === id);
         setScanShare({ granted: mine?.granted ?? false, initial: mine?.granted ?? false, scansTotal: r.scansTotal });
       })
       .catch(() => setScanShare(null));
     try {
-      const r = await apiGet<{ institute: ApiInstitute; services: ApiService[]; resources: ApiResource[]; reviews: ApiReview[] }>(`/api/institutes/${i.id}`);
+      const r = await apiGet<{ institute: ApiInstitute; services: ApiService[]; resources: ApiResource[]; reviews: ApiReview[] }>(`/api/institutes/${id}`);
+      setInst(r.institute);
       setServices(r.services ?? []);
       setResources(r.resources ?? []);
       setReviews(r.reviews ?? []);
+      if (serviceName) {
+        const match = (r.services ?? []).find((s) => s.name.toLowerCase().includes(serviceName.toLowerCase()));
+        if (match) setService(match);
+      }
     } catch {
       toast.error("Institut indisponible");
       setInst(null);
     } finally {
       setDetailLoading(false);
     }
+  }, [user.id]);
+
+  useEffect(() => {
+    const handleSelect = (e: CustomEvent<{ instituteId: string; serviceName?: string }>) => {
+      if (e.detail?.instituteId) {
+        openInstituteById(e.detail.instituteId, e.detail.serviceName);
+      }
+    };
+    window.addEventListener("kene:select-institute" as any, handleSelect as any);
+
+    if (typeof window !== "undefined") {
+      const pId = window.sessionStorage.getItem("kene_pending_institute");
+      const pSvc = window.sessionStorage.getItem("kene_pending_service");
+      if (pId) {
+        window.sessionStorage.removeItem("kene_pending_institute");
+        if (pSvc) window.sessionStorage.removeItem("kene_pending_service");
+        openInstituteById(pId, pSvc || undefined);
+      }
+    }
+
+    return () => {
+      window.removeEventListener("kene:select-institute" as any, handleSelect as any);
+    };
+  }, [openInstituteById]);
+
+  async function openInstitute(i: ApiInstitute) {
+    return openInstituteById(i.id);
   }
 
   const refreshCurrentInstitute = useCallback(async (tenantId: string) => {
@@ -718,6 +748,49 @@ export function BookingScreen() {
                       )}
                     </div>
                   </RevealItem>
+
+                  {/* Gages d'Excellence & Confiance Kènè */}
+                  <RevealItem>
+                    <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-2.5 flex items-center gap-2.5">
+                        <ShieldCheck size={18} className="text-primary shrink-0" />
+                        <span className="font-semibold text-foreground leading-tight">Protocoles adaptés phototypes IV à VI</span>
+                      </div>
+                      <div className="rounded-2xl border border-[#3F7D3F]/25 bg-[#3F7D3F]/5 p-2.5 flex items-center gap-2.5">
+                        <BadgeCheck size={18} className="text-[#3F7D3F] shrink-0" />
+                        <span className="font-semibold text-foreground leading-tight">Praticiennes certifiées Kènè</span>
+                      </div>
+                      <div className="rounded-2xl border border-gold/25 bg-gold/5 p-2.5 flex items-center gap-2.5">
+                        <Sparkles size={18} className="text-gold-text shrink-0" />
+                        <span className="font-semibold text-foreground leading-tight">Avis 100% clientes vérifiées</span>
+                      </div>
+                    </div>
+                  </RevealItem>
+
+                  {/* L'Équipe & Spécialistes du salon */}
+                  {resources.length > 0 && (
+                    <RevealItem>
+                      <div className="mt-4 k-card rounded-[22px] p-3.5 border border-border/80">
+                        <div className="flex items-center gap-2 mb-2.5">
+                          <Users size={16} className="text-primary" />
+                          <p className="text-xs font-bold text-foreground">Équipe &amp; Praticiennes du salon ({resources.length})</p>
+                        </div>
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                          {resources.map((res) => (
+                            <div key={res.id} className="flex items-center gap-2.5 rounded-xl bg-muted/40 border border-border/60 px-3 py-2 shrink-0">
+                              <span className="size-7 rounded-full bg-primary/20 text-primary font-bold text-xs grid place-items-center shrink-0">
+                                {res.name.charAt(0)}
+                              </span>
+                              <div>
+                                <p className="font-semibold text-xs leading-tight text-foreground">{res.name}</p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">{res.role || "Praticienne dermo-esthétique"}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </RevealItem>
+                  )}
 
                   {/* Services — cartes radio avec filtres par catégorie */}
                   <RevealItem>

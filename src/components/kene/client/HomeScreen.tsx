@@ -8,12 +8,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Building2,
   CalendarClock,
   CalendarDays,
   ChevronRight,
   Crown,
   MapPin,
   Sparkles,
+  Star,
 } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
 import { formatDate, formatTime, xof } from "@/lib/kene/format";
@@ -25,7 +27,7 @@ import { useT } from "@/lib/kene/use-t";
 import { useKene } from "@/store/kene";
 import { MvpFunnelHero } from "./MvpFunnelHero";
 import { SkinHealthDashboard } from "./SkinHealthDashboard";
-import type { ApiAppointment, ApiDiagnosis, ApiProduct } from "./types";
+import type { ApiAppointment, ApiDiagnosis, ApiInstitute, ApiProduct } from "./types";
 import { parseDiagnosis } from "./types";
 import { ScrollFadeRow, SectionTitle, Stars } from "./bits";
 
@@ -33,6 +35,7 @@ interface HomeData {
   diagnoses: ApiDiagnosis[];
   appointments: ApiAppointment[];
   products: ApiProduct[];
+  institutes: ApiInstitute[];
   subscription: {
     plan: string;
     expiresAt?: string | null;
@@ -59,17 +62,19 @@ export function HomeScreen({
     let alive = true;
     (async () => {
       try {
-        const [d, a, p, s] = await Promise.all([
+        const [d, a, p, s, insts] = await Promise.all([
           apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`),
           apiGet<{ appointments: ApiAppointment[] }>(`/api/appointments?userId=${user.id}`),
           apiGet<{ products: ApiProduct[] }>("/api/shop/products"),
           apiGet<{ plan: string; subscription: { plan: string; expiresAt: string } | null }>(`/api/subscriptions?userId=${user.id}`).catch(() => null),
+          apiGet<{ institutes: ApiInstitute[] }>("/api/institutes").catch(() => ({ institutes: [] })),
         ]);
         if (alive) {
           setData({
             diagnoses: d.diagnoses ?? [],
             appointments: a.appointments ?? [],
             products: p.products ?? [],
+            institutes: insts?.institutes ?? [],
             subscription: s?.subscription ?? null,
           });
           onRefreshed?.();
@@ -313,6 +318,71 @@ export function HomeScreen({
               </div>
               <ChevronRight size={16} className="text-primary" />
             </button>
+          )}
+        </section>
+      </RevealItem>
+
+      {/* ───── Salons & Instituts partenaires ───── */}
+      <RevealItem>
+        <section aria-labelledby="institutes-t">
+          <SectionTitle
+            icon={<Building2 size={16} />}
+            action={
+              <button
+                onClick={() => setClientTab("rdv")}
+                className="text-[11px] font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1"
+              >
+                Tous les instituts ({data?.institutes?.length ?? 0})
+              </button>
+            }
+          >
+            <span id="institutes-t">Instituts &amp; Salons partenaires</span>
+          </SectionTitle>
+          {!data ? (
+            <Shimmer className="h-44 rounded-[24px]" />
+          ) : data.institutes.length === 0 ? (
+            <div className="rounded-[24px] border border-dashed border-border bg-card/60 p-4 text-center text-xs text-muted-foreground">
+              Les instituts partenaires Kènè arrivent bientôt dans votre ville.
+            </div>
+          ) : (
+            <ScrollFadeRow label="Instituts partenaires — fais défiler" className="flex gap-3 overflow-x-auto no-scrollbar pb-2 snap-x pr-1">
+              {data.institutes.map((inst) => (
+                <button
+                  key={inst.id}
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      window.sessionStorage.setItem("kene_pending_institute", inst.id);
+                      window.dispatchEvent(new CustomEvent("kene:select-institute", { detail: { instituteId: inst.id } }));
+                    }
+                    setClientTab("rdv");
+                  }}
+                  className="snap-start shrink-0 w-60 sm:w-64 text-left k-card k-card-hover rounded-[24px] overflow-hidden active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary border border-border/80 shadow-xs"
+                >
+                  <div className="relative h-32 w-full">
+                    <img src={inst.image} alt={inst.name} loading="lazy" className="h-full w-full object-cover" />
+                    <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+                    <span className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-xs px-2 py-0.5 text-[10px] font-bold text-white">
+                      <Star size={10} className="fill-[#C8951E] text-[#C8951E]" /> {inst.rating.toFixed(1)}
+                    </span>
+                    <div className="absolute bottom-2.5 left-3 right-3 text-white">
+                      <p className="font-heading font-bold text-xs leading-tight truncate">{inst.name}</p>
+                      <p className="text-[10px] text-white/80 flex items-center gap-1 mt-0.5 truncate">
+                        <MapPin size={9} /> {inst.address || `${inst.city}, ${inst.country}`}
+                        {inst.distanceKm !== null && inst.distanceKm !== undefined && (
+                          <span className="text-[#8FD18F] font-mono font-bold">· {inst.distanceKm} km</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-3 flex items-center justify-between text-[11px] bg-card/50">
+                    <span className="text-muted-foreground truncate">{inst._count?.services ?? 0} soins disponibles</span>
+                    <span className="text-primary font-bold flex items-center gap-0.5 shrink-0">
+                      Découvrir <ChevronRight size={13} />
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </ScrollFadeRow>
           )}
         </section>
       </RevealItem>

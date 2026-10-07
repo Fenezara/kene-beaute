@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Droplets, FileDown, GitCompareArrows, Hand, History,
-  ImagePlus, Leaf, Loader2, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldCheck, Sparkles, Sun, Sunrise, TriangleAlert, WifiOff, X,
+  ArrowLeft, BadgeCheck, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Droplets, FileDown, GitCompareArrows, Hand, History,
+  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldCheck, Sparkles, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
@@ -31,7 +31,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useKene } from "@/store/kene";
 import { Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
-import type { ApiDiagnosis, ApiProduct } from "./types";
+import type { ApiDiagnosis, ApiInstitute, ApiProduct } from "./types";
 import { diagImgSrc, diagImgSources, parseDiagnosis } from "./types";
 import { EmptyBlock, ScoreChip, ScoreGauge } from "./bits";
 
@@ -1016,6 +1016,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
 
 /* ══════════════ Résultat VISIA-like ══════════════ */
 function ResultView({ diag, products, productsError, onRetryProducts, onNewZone, onHistory }: { diag: { id: string; result: DiagnosisResult; imageData: string; createdAt: string }; products: ApiProduct[]; productsError: boolean; onRetryProducts: () => void; onNewZone: () => void; onHistory: () => void }) {
+  const r = diag.result;
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
   const [view, setView] = useState<string>("standard");
@@ -1036,7 +1037,49 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
       .catch(() => { if (alive) setHasSub(null); });
     return () => { alive = false; };
   }, [user.id]);
-  const r = diag.result;
+
+  // Recommandation intelligente post-diagnostic :
+  // STRICTEMENT LIMITÉE aux clientes dont le compte, le dossier ou elles-mêmes
+  // ne sont PAS rattachés ou partagés à une entreprise partenaire.
+  const [isAttachedOrShared, setIsAttachedOrShared] = useState<boolean | null>(null);
+  const [recommendedInstitute, setRecommendedInstitute] = useState<ApiInstitute | null>(null);
+  const [recommendedSoin, setRecommendedSoin] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const diagAny = diag as unknown as { institut?: string; practitioner?: string };
+    if (user.tenantId || diagAny.institut || diagAny.practitioner) {
+      setIsAttachedOrShared(true);
+      return;
+    }
+
+    Promise.all([
+      apiGet<{ shares: Array<{ tenantId: string }> }>(`/api/auth/shares?userId=${encodeURIComponent(user.id)}`).catch(() => ({ shares: [] })),
+      apiGet<{ appointments: Array<{ id: string }> }>(`/api/appointments?userId=${encodeURIComponent(user.id)}`).catch(() => ({ appointments: [] })),
+      apiGet<{ institutes: ApiInstitute[] }>("/api/institutes").catch(() => ({ institutes: [] })),
+    ]).then(([sharesRes, apptsRes, instRes]) => {
+      if (!alive) return;
+      const hasShares = (sharesRes.shares?.length ?? 0) > 0;
+      const hasAppts = (apptsRes.appointments?.length ?? 0) > 0;
+      const attached = hasShares || hasAppts;
+      setIsAttachedOrShared(attached);
+
+      // Recommandation intelligente UNIQUEMENT si NON rattachée et NON partagée
+      if (!attached && (instRes.institutes?.length ?? 0) > 0) {
+        const firstCare = r.recommandations.soins_conseilles?.[0] || "Soin Éclat Mélanoderme";
+        setRecommendedSoin(firstCare);
+
+        const cityNorm = (user.city || "").toLowerCase().trim();
+        const inCity = instRes.institutes.filter(
+          (i) => cityNorm && (i.city.toLowerCase().includes(cityNorm) || (i.address && i.address.toLowerCase().includes(cityNorm)))
+        );
+        const best = inCity.length > 0 ? inCity[0] : instRes.institutes[0];
+        setRecommendedInstitute(best);
+      }
+    });
+
+    return () => { alive = false; };
+  }, [user.id, user.tenantId, user.city, diag, r]);
   // Fiabilité: champ posé par le worker dans resultJson; les
   // anciens diagnostics n'en ont pas → dérivé de `source` (déjà présent).
   const confidence = r.confidence ?? (r.source === "vlm" ? "haute" : "indicative");
@@ -1423,6 +1466,81 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Recommandation intelligente post-diagnostic — Uniquement clientes NON rattachées */}
+          {!isAttachedOrShared && recommendedInstitute && (
+            <div className="mt-5 k-card rounded-[24px] p-4 border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card shadow-xs">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="grid place-items-center size-8 rounded-xl bg-primary/20 text-primary shrink-0">
+                    <Sparkles size={16} />
+                  </span>
+                  <div>
+                    <p className="font-heading font-bold text-xs text-foreground">
+                      Recommandation Institut Kènè pour votre peau
+                    </p>
+                    <p className="text-[10.5px] text-muted-foreground">
+                      Partenaire dermo-cosmétique agréé adapté à vos indicateurs
+                    </p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-2.5 py-0.5 text-[10px] font-bold shrink-0">
+                  <BadgeCheck size={12} /> Partenaire Kènè
+                </span>
+              </div>
+
+              <div className="mt-3.5 flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-2xl bg-muted/40 border border-border/70 p-3">
+                <img
+                  src={recommendedInstitute.image}
+                  alt={recommendedInstitute.name}
+                  className="h-20 w-full sm:w-24 rounded-xl object-cover shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-heading font-bold text-xs text-foreground truncate">
+                      {recommendedInstitute.name}
+                    </p>
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-gold-text shrink-0">
+                      <Star size={11} className="fill-[#C8951E] text-[#C8951E]" /> {recommendedInstitute.rating.toFixed(1)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
+                    <MapPin size={10} /> {recommendedInstitute.address || `${recommendedInstitute.city}, ${recommendedInstitute.country}`}
+                    {recommendedInstitute.distanceKm !== null && recommendedInstitute.distanceKm !== undefined && (
+                      <span className="text-[#3F7D3F] font-mono font-bold">· {recommendedInstitute.distanceKm} km</span>
+                    )}
+                  </p>
+                  {recommendedSoin && (
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-semibold text-muted-foreground">Soin ciblé conseillé :</span>
+                      <span className="text-[10.5px] font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                        {recommendedSoin}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.sessionStorage.setItem("kene_pending_institute", recommendedInstitute.id);
+                    if (recommendedSoin) window.sessionStorage.setItem("kene_pending_service", recommendedSoin);
+                    window.dispatchEvent(
+                      new CustomEvent("kene:select-institute", {
+                        detail: { instituteId: recommendedInstitute.id, serviceName: recommendedSoin },
+                      })
+                    );
+                  }
+                  setClientTab("rdv");
+                }}
+                className="mt-3.5 h-11 w-full rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-xs"
+              >
+                <CalendarPlus size={15} /> Réserver ce soin à l&apos;institut
+              </button>
             </div>
           )}
 
