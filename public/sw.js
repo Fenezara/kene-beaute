@@ -11,11 +11,11 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v21";
-const PRECACHE = "kene-precache-v21";
-const DATA_CACHE = "kene-data-v21";
-const IMG_CACHE = "kene-img-v21";
-const STATIC_CACHE = "kene-static-v21";
+const VERSION = "kene-sw-v22";
+const PRECACHE = "kene-precache-v22";
+const DATA_CACHE = "kene-data-v22";
+const IMG_CACHE = "kene-img-v22";
+const STATIC_CACHE = "kene-static-v22";
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
@@ -299,7 +299,7 @@ function getOfflineApiFallback(pathname) {
   if (pathname.startsWith("/api/shop")) return { products: [] };
   if (pathname.startsWith("/api/appointments")) return { appointments: [] };
   if (pathname.startsWith("/api/wallet")) return { balance: 0, transactions: [] };
-  if (pathname.startsWith("/api/notifications")) return { notifications: [] };
+  if (pathname.startsWith("/api/notifications")) return { scheduled: [], sent: [], created: 0, unread: 0 };
   if (pathname.startsWith("/api/coupons")) return { coupons: [] };
   if (pathname.startsWith("/api/passport")) return { passport: null };
   return null;

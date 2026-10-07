@@ -70,9 +70,15 @@ export function NotificationCenter({
     async (showSpinner: boolean) => {
       if (showSpinner) setLoading(true);
       try {
-        const f = await apiGet<ApiReminderFeed>(`/api/notifications?userId=${userId}`);
-        setFeed(f);
-        prevUnreadRef.current = f.unread;
+        const f = await apiGet<Partial<ApiReminderFeed>>(`/api/notifications?userId=${userId}`);
+        const safeFeed: ApiReminderFeed = {
+          unread: typeof f?.unread === "number" ? f.unread : 0,
+          created: typeof f?.created === "number" ? f.created : 0,
+          sent: Array.isArray(f?.sent) ? f.sent : [],
+          scheduled: Array.isArray(f?.scheduled) ? f.scheduled : [],
+        };
+        setFeed(safeFeed);
+        prevUnreadRef.current = safeFeed.unread;
         setErr(null);
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Chargement impossible");
@@ -307,7 +313,7 @@ export function NotificationCenter({
                   Réessayer
                 </Button>
               </div>
-            ) : !feed || (feed.scheduled.length === 0 && feed.sent.length === 0) ? (
+            ) : !feed || ((feed.scheduled?.length ?? 0) === 0 && (feed.sent?.length ?? 0) === 0) ? (
               <div className="rounded-2xl border border-dashed border-border bg-card/60 p-5 text-center">
                 <BellRing size={22} className="mx-auto text-primary" aria-hidden="true" />
                 <p className="mt-2 text-xs font-semibold">Aucune notification pour l&apos;instant</p>
@@ -318,13 +324,13 @@ export function NotificationCenter({
             ) : (
               <>
                 {/* ── À venir ── */}
-                {feed.scheduled.length > 0 && (
+                {(feed.scheduled?.length ?? 0) > 0 && (
                   <section aria-labelledby="nc-upcoming" className="pt-1">
                     <p id="nc-upcoming" className="text-[10px] uppercase tracking-[0.14em] font-bold text-[#3F7D3F] mb-2">
-                      À venir ({feed.scheduled.length})
+                      À venir ({feed.scheduled?.length ?? 0})
                     </p>
                     <ul className="space-y-2.5">
-                      {feed.scheduled.map((m) => (
+                      {feed.scheduled?.map((m) => (
                         <li
                           key={m.id}
                           className="flex items-start gap-3 rounded-2xl border border-[#3F7D3F]/25 bg-[#3F7D3F]/5 p-3.5"
@@ -350,14 +356,14 @@ export function NotificationCenter({
                 )}
 
                 {/* ── Reçues ── */}
-                {feed.sent.length > 0 && (
+                {(feed.sent?.length ?? 0) > 0 && (
                   <section aria-labelledby="nc-sent">
                     <p id="nc-sent" className="text-[10px] uppercase tracking-[0.14em] font-bold text-muted-foreground mb-2">
-                      Reçues ({feed.sent.length})
+                      Reçues ({feed.sent?.length ?? 0})
                     </p>
                     <ul className="space-y-2.5">
                       <AnimatePresence initial={false}>
-                        {feed.sent.map((m) => {
+                        {feed.sent?.map((m) => {
                           const isUnread = !m.readAt;
                           return (
                             <motion.li
