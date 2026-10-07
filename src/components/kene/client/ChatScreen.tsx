@@ -47,14 +47,25 @@ import { Chip, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
 import { useChat } from "@/store/chat";
 import type { ChatMsg } from "./types";
+import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { LiveCameraModal } from "./LiveCameraModal";
 import { playSpeech, stopBrowserVoice, unlockAudioContext, type SpeechController } from "./ttsAudio";
 import { SpeakButton } from "./SpeakButton";
 
-const SUGGESTIONS = [
-  "Comment effacer mes taches brunes ?",
-  "Quelle routine pour ma peau grasse ?",
-  "Le beurre de karité donne-t-il des boutons ?",
+export interface QuickSuggestion {
+  theme: string;
+  question: string;
+  iconText: string;
+}
+
+export const THEMED_SUGGESTIONS: QuickSuggestion[] = [
+  { theme: "Taches", question: "Comment estomper mes taches d'hyperpigmentation ?", iconText: "✨" },
+  { theme: "Sébum", question: "Ma peau brille à midi, quelle routine matifiante adopter ?", iconText: "💧" },
+  { theme: "Solaire", question: "Faut-il vraiment mettre une crème solaire sur peau noire ?", iconText: "☀️" },
+  { theme: "Actifs", question: "Peut-on associer Niacinamide et Vitamine C sans risque ?", iconText: "🌿" },
+  { theme: "Boutons", question: "Comment éviter les cicatrices noires après un bouton ?", iconText: "🛡️" },
+  { theme: "Cheveux", question: "Que faire pour fortifier mes bordures de tempes ?", iconText: "👑" },
+  { theme: "Karité", question: "Le beurre de karité est-il adapté à ma zone T ?", iconText: "🌰" },
 ];
 
 /** Contrat badge cloche chat (63-a): un message de Dr. Kènè vient d'arriver
@@ -815,13 +826,45 @@ export function ChatScreen() {
         </div>
       </div>
 
-      {/* Suggestions initiales */}
+      {/* Suggestions initiales complètes si conversation vide */}
       {messages.length <= 1 && !sending && (
         <div className="flex flex-col gap-2 py-3">
-          {SUGGESTIONS.map((s) => (
-            <Chip key={s} selected={false} onClick={() => send(s)} className="self-start text-left">
-              {s}
-            </Chip>
+          <p className="text-xs text-muted-foreground font-medium">Questions fréquentes pour démarrer :</p>
+          <div className="flex flex-col gap-2">
+            {THEMED_SUGGESTIONS.slice(0, 3).map((s) => (
+              <Chip
+                key={s.question}
+                selected={false}
+                onClick={() => {
+                  haptic(HAPTIC.light);
+                  send(s.question);
+                }}
+                className="self-start text-left"
+              >
+                {s.iconText} {s.question}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Ruban horizontal de questions thématiques rapides toujours accessible */}
+      {!sending && (
+        <div className="pt-2 pb-1 overflow-x-auto no-scrollbar flex items-center gap-2 -mx-1 px-1">
+          {THEMED_SUGGESTIONS.map((s) => (
+            <button
+              key={s.theme}
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.light);
+                send(s.question);
+              }}
+              title={s.question}
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-border/70 bg-card/85 hover:bg-primary/10 hover:border-primary/40 active:scale-95 transition-all text-foreground shadow-2xs"
+            >
+              <span aria-hidden="true" className="text-sm">{s.iconText}</span>
+              <span className="font-semibold">{s.theme}</span>
+            </button>
           ))}
         </div>
       )}

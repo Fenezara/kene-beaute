@@ -3,7 +3,7 @@
 // + « Mes commandes »: historique des commandes enregistrées (consultation par la cliente).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, Building2, Crown, FileText, Heart, History, Loader2, Lock, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Store, Tag, Trash2, TriangleAlert, Truck, X } from "lucide-react";
+import { BadgeCheck, Building2, Crown, FileText, Heart, History, Loader2, Lock, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Sparkles, Store, Tag, Trash2, TriangleAlert, Truck, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof, formatDate, formatTime } from "@/lib/kene/format";
@@ -30,6 +30,16 @@ import { SHOP_CATEGORIES } from "./types";
 import { EmptyBlock, Stars, SuccessBurst } from "./bits";
 import { FavButton } from "./FavButton";
 import { SecureVerify } from "./SecureVerify";
+
+export interface RoutinePack {
+  id: string;
+  name: string;
+  badge: string;
+  goal: string;
+  description: string;
+  items: ApiProduct[];
+  totalPrice: number;
+}
 
 type PayMethod = "wave" | "orange";
 
@@ -162,11 +172,111 @@ export function ShopScreen() {
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "fr"));
   }, [products]);
 
+  /* Packs Routines formulés à partir des produits partenaires réels */
+  const routinePacks = useMemo<RoutinePack[]>(() => {
+    if (!products || products.length === 0) return [];
+
+    // 1. Pack Éclat & Anti-Taches PIH
+    const eclatItems: ApiProduct[] = [];
+    const savon = products.find((p) => p.category === "savon" || p.name.toLowerCase().includes("savon"));
+    const serumEclat = products.find(
+      (p) =>
+        (p.category === "serum" || p.name.toLowerCase().includes("sérum")) &&
+        (p.name.toLowerCase().includes("moringa") ||
+          p.name.toLowerCase().includes("éclat") ||
+          p.description.toLowerCase().includes("vitamine c") ||
+          p.botanicals.toLowerCase().includes("vitamine c"))
+    );
+    const solaire = products.find(
+      (p) => p.category === "solaire" || p.name.toLowerCase().includes("solaire") || p.name.toLowerCase().includes("spf")
+    );
+    if (savon) eclatItems.push(savon);
+    if (serumEclat && !eclatItems.some((i) => i.id === serumEclat.id)) eclatItems.push(serumEclat);
+    if (solaire && !eclatItems.some((i) => i.id === solaire.id)) eclatItems.push(solaire);
+
+    // 2. Pack Nutrition Intense Karité & Baobab
+    const nutritionItems: ApiProduct[] = [];
+    const baume = products.find(
+      (p) =>
+        p.name.toLowerCase().includes("karité") ||
+        (p.category === "creme" && p.name.toLowerCase().includes("baume")) ||
+        p.botanicals.toLowerCase().includes("karité")
+    );
+    const huile = products.find(
+      (p) => p.category === "huile" || p.name.toLowerCase().includes("baobab") || p.name.toLowerCase().includes("huile")
+    );
+    if (baume) nutritionItems.push(baume);
+    if (huile && !nutritionItems.some((i) => i.id === huile.id)) nutritionItems.push(huile);
+
+    // 3. Pack Pureté & Détox Visage
+    const pureteItems: ApiProduct[] = [];
+    const masque = products.find(
+      (p) => p.category === "masque" || p.name.toLowerCase().includes("argile") || p.name.toLowerCase().includes("masque")
+    );
+    const gommage = products.find(
+      (p) => p.category === "gommage" || p.name.toLowerCase().includes("bissap") || p.name.toLowerCase().includes("gommage")
+    );
+    if (masque) pureteItems.push(masque);
+    if (gommage && !pureteItems.some((i) => i.id === gommage.id)) pureteItems.push(gommage);
+
+    const packs: RoutinePack[] = [];
+    if (eclatItems.length >= 2) {
+      packs.push({
+        id: "pack-eclat",
+        name: "Pack Éclat & Anti-Taches PIH",
+        badge: "Coup de Cœur Dermo",
+        goal: "Cibler l'hyperpigmentation & unifier le teint",
+        description: "Nettoyage purifiant doux, sérum antioxydant concentré et photoprotection SPF 50 sans film blanc.",
+        items: eclatItems,
+        totalPrice: eclatItems.reduce((acc, it) => acc + it.price, 0),
+      });
+    }
+    if (nutritionItems.length >= 2) {
+      packs.push({
+        id: "pack-nutrition",
+        name: "Pack Nutrition Intense Karité-Baobab",
+        badge: "Barrière Cutanée",
+        goal: "Réparer les peaux sèches & tiraillements",
+        description: "Synergie de beurres et huiles nobles pour reconstituer les lipides de la barrière épidermique.",
+        items: nutritionItems,
+        totalPrice: nutritionItems.reduce((acc, it) => acc + it.price, 0),
+      });
+    }
+    if (pureteItems.length >= 2) {
+      packs.push({
+        id: "pack-purete",
+        name: "Pack Pureté & Détox Visage",
+        badge: "Spécial Zone T",
+        goal: "Désincruster et affiner le grain de peau",
+        description: "Argile purifiante et exfoliation enzymatique douce au bissap pour matifier sans agresser.",
+        items: pureteItems,
+        totalPrice: pureteItems.reduce((acc, it) => acc + it.price, 0),
+      });
+    }
+    return packs;
+  }, [products]);
+
+  const addPackToCart = (pack: RoutinePack) => {
+    pack.items.forEach((p) => {
+      addToCart({
+        productId: p.id,
+        name: p.name,
+        price: p.price,
+        qty: 1,
+        image: p.hasPhoto ? `/api/media/product/${p.id}` : p.image,
+      });
+    });
+    haptic(HAPTIC.success);
+    toast.success(`${pack.name} ajouté !`, {
+      description: `${pack.items.length} soins ajoutés au panier en 1 geste (${xof(pack.totalPrice)})`,
+    });
+  };
+
   const filtered = useMemo(() => {
     const nq = q.trim().toLowerCase();
     return (products ?? []).filter(
       (p) =>
-        (!cat || p.category === cat) &&
+        (!cat || cat === "packs" || p.category === cat) &&
         (institut === "" || p.tenant?.id === institut) &&
         (!favOnly || favs.includes(p.id)) &&
         (!nq || `${p.name} ${p.botanicals} ${p.description}`.toLowerCase().includes(nq))
@@ -186,17 +296,19 @@ export function ShopScreen() {
   const institutLabel =
     institut === "" ? null : sellers.find((s) => s.key === institut)?.name ?? null;
 
- /* le fil de la catégorie — la navette l'illumine dans la bande tissée */
+  /* le fil de la catégorie — la navette l'illumine dans la bande tissée */
   const weaveCaption =
     products === null
       ? "La navette monte le métier…"
-      : `${filtered.length} soin${filtered.length > 1 ? "s" : ""}${
-          institutLabel
-            ? ` · ${institutLabel}`
-            : cat
-              ? ` · ${SHOP_CATEGORIES.find((c) => c.id === cat)?.label.toLowerCase() ?? cat}`
-              : " au catalogue"
-        }${favOnly ? " · favoris" : ""}`;
+      : cat === "packs"
+        ? `${routinePacks.length} pack${routinePacks.length > 1 ? "s" : ""} routine · rituels complets`
+        : `${filtered.length} soin${filtered.length > 1 ? "s" : ""}${
+            institutLabel
+              ? ` · ${institutLabel}`
+              : cat
+                ? ` · ${SHOP_CATEGORIES.find((c) => c.id === cat)?.label.toLowerCase() ?? cat}`
+                : " au catalogue"
+          }${favOnly ? " · favoris" : ""}`;
 
  /* Applique un code promo: aperçu de remise sans consommer le coupon
  * (la consommation a lieu à la commande — toutes les gardes côté serveur). */
@@ -433,6 +545,14 @@ export function ShopScreen() {
         <RevealItem>
           {/* Filtres: catégories + favoris (bascules aria-pressed, cumulables) — Chip verre→or 2026 */}
           <div className="flex gap-2 overflow-x-auto py-3 scrollbar-thin -mx-1 px-1" role="group" aria-label="Filtres de la boutique">
+            <Chip
+              selected={cat === "packs"}
+              onClick={() => { setCat((prev) => (prev === "packs" ? "" : "packs")); haptic(HAPTIC.tap); }}
+              className="min-h-11 shrink-0 font-bold"
+            >
+              <Sparkles size={13} className={cat === "packs" ? "text-primary-foreground" : "text-gold-text"} aria-hidden="true" />
+              Packs Routines{routinePacks.length > 0 ? ` (${routinePacks.length})` : ""}
+            </Chip>
             {SHOP_CATEGORIES.map((c) => (
               <Chip key={c.id} selected={cat === c.id} onClick={() => setCat(c.id)} className="min-h-11 shrink-0">
                 {c.label}
@@ -449,6 +569,47 @@ export function ShopScreen() {
             </Chip>
           </div>
         </RevealItem>
+
+        {/* Section vedette : Packs Routines Clés en Main (affichée en vue globale) */}
+        {cat === "" && !q && institut === "" && !favOnly && routinePacks.length > 0 && (
+          <RevealItem>
+            <div className="mt-2 mb-3 rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/5 via-card to-primary/5 p-3.5 shadow-2xs">
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="grid place-items-center size-6 rounded-lg bg-primary/10 text-primary shrink-0">
+                    <Sparkles size={13} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="font-heading font-black text-xs text-foreground truncate">
+                      Packs Routines Clés en Main
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      Rituels dermo complets · 1 clic pour tout ajouter au panier
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setCat("packs"); haptic(HAPTIC.tap); }}
+                  className="shrink-0 text-[11px] font-bold text-primary hover:underline px-2.5 py-0.5 rounded-full bg-primary/10 focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  Voir tout ({routinePacks.length})
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {routinePacks.slice(0, 2).map((pack) => (
+                  <RoutinePackCard
+                    key={pack.id}
+                    pack={pack}
+                    onAddPack={addPackToCart}
+                    onSelectProduct={(p) => { setDetail(p); setQty(1); }}
+                  />
+                ))}
+              </div>
+            </div>
+          </RevealItem>
+        )}
       </Reveal>
 
       <div ref={gridRef} className="scroll-mt-4">
@@ -462,6 +623,36 @@ export function ShopScreen() {
               <Shimmer className="h-3 w-2/3 rounded" />
             </div>
           ))}
+        </div>
+      ) : cat === "packs" ? (
+        <div className="space-y-4">
+          <header className="mb-2">
+            <h3 className="font-heading font-black text-base text-foreground flex items-center gap-2">
+              <Sparkles size={18} className="text-gold-text" aria-hidden="true" />
+              Routines Complètes &amp; Synergies Botaniques
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Formules clés en main créées avec nos instituts partenaires pour un protocole dermo-cosmétique sans conflit d&apos;actifs.
+            </p>
+          </header>
+          {routinePacks.length === 0 ? (
+            <EmptyBlock
+              icon={<Sparkles size={22} />}
+              title="Aucun pack disponible"
+              text="Les routines complètes sont en cours de composition pour ce catalogue."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {routinePacks.map((pack) => (
+                <RoutinePackCard
+                  key={pack.id}
+                  pack={pack}
+                  onAddPack={addPackToCart}
+                  onSelectProduct={(p) => { setDetail(p); setQty(1); }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       ) : filtered.length === 0 ? (
         favOnly && favs.length === 0 ? (
@@ -933,6 +1124,84 @@ export function ShopScreen() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+/* ══════════════ Packs Routines Complètes ══════════════ */
+
+interface RoutinePackCardProps {
+  pack: RoutinePack;
+  onAddPack: (p: RoutinePack) => void;
+  onSelectProduct: (p: ApiProduct) => void;
+}
+
+function RoutinePackCard({ pack, onAddPack, onSelectProduct }: RoutinePackCardProps) {
+  return (
+    <article
+      aria-label={`${pack.name} — ${pack.items.length} soins, total ${xof(pack.totalPrice)}`}
+      className="k-card rounded-[22px] p-4 flex flex-col justify-between border border-border/80 bg-gradient-to-b from-card via-card/90 to-card shadow-xs"
+    >
+      <div>
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-primary">
+              <Sparkles size={11} aria-hidden="true" /> {pack.badge}
+            </span>
+            <h4 className="font-heading font-black text-sm text-foreground leading-tight">{pack.name}</h4>
+          </div>
+          <span className="shrink-0 font-mono font-bold text-[11px] px-2 py-0.5 rounded-full bg-muted text-foreground">
+            {pack.items.length} soins
+          </span>
+        </div>
+        <p className="mt-1.5 text-xs text-primary font-medium">{pack.goal}</p>
+        <p className="mt-1 text-[11px] text-muted-foreground leading-snug">{pack.description}</p>
+
+        {/* Mini vignettes des soins inclus */}
+        <div className="mt-3.5 space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            Soins composant la routine :
+          </p>
+          <div className="grid grid-cols-1 gap-2">
+            {pack.items.map((item, idx) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSelectProduct(item)}
+                className="flex items-center gap-2.5 p-2 rounded-xl bg-background/50 hover:bg-background border border-border/60 text-left transition-colors group focus-visible:outline-2 focus-visible:outline-primary"
+              >
+                <img
+                  src={item.hasPhoto ? `/api/media/product/${item.id}` : item.image}
+                  alt={item.name}
+                  className="size-9 rounded-lg object-cover shrink-0 border border-border/40"
+                  loading="lazy"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                    {idx + 1}. {item.name}
+                  </p>
+                  <p className="font-mono text-[11px] text-muted-foreground">{xof(item.price)}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-3">
+        <div>
+          <span className="text-[10px] uppercase font-bold text-muted-foreground block">Total Routine</span>
+          <span className="font-mono font-black text-sm sm:text-base text-primary">{xof(pack.totalPrice)}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => onAddPack(pack)}
+          className="k-btn-gold h-10 px-3.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-xs active:scale-95 transition-transform text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          <ShoppingBag size={14} aria-hidden="true" />
+          <span>Ajouter la routine</span>
+        </button>
+      </div>
+    </article>
   );
 }
 

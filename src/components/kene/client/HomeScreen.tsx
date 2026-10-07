@@ -12,10 +12,13 @@ import {
   CalendarClock,
   CalendarDays,
   ChevronRight,
+  CloudSun,
   Crown,
   MapPin,
   Sparkles,
   Star,
+  SunMedium,
+  Wind,
 } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
 import { formatDate, formatTime, xof } from "@/lib/kene/format";
@@ -170,6 +173,39 @@ export function HomeScreen({
     return null;
   }, [data?.subscription]);
 
+  /** Conseil Climat & Dermo-Météo contextualisé pour peau mélanoderme */
+  const weatherAdvisory = useMemo(() => {
+    const city = (user.city || user.district || "Abidjan").toLowerCase();
+    if (city.includes("dakar") || city.includes("senegal") || city.includes("ngor") || city.includes("almadie")) {
+      return {
+        cityLabel: "Dakar · Climat océanique & alizés",
+        temp: "27°C",
+        humidity: "62%",
+        uv: "UV 7 · Élevé",
+        advice: "Particules & brise marine : applique un sérum antioxydant (Moringa/Vitamine C) et scelle l'hydratation le soir.",
+        icon: <Wind size={15} className="text-[#3F7D3F]" />,
+      };
+    }
+    if (city.includes("bouake") || city.includes("yamoussoukro") || city.includes("korhogo")) {
+      return {
+        cityLabel: "Intérieur · Climat chaud & ensoleillé",
+        temp: "32°C",
+        humidity: "48%",
+        uv: "UV 9 · Très fort",
+        advice: "Ensoleillement marqué : brumise dans la journée et répare ta barrière cutanée au beurre de karité au coucher.",
+        icon: <SunMedium size={15} className="text-gold-text" />,
+      };
+    }
+    return {
+      cityLabel: `${user.city ? user.city : "Abidjan"} · Humidité tropicale`,
+      temp: "29°C",
+      humidity: "84%",
+      uv: "UV 8 · Très fort",
+      advice: "Forte humidité stimulant le sébum : préférez un nettoyage doux au zinc, texture fluide légère et écran solaire SPF 50.",
+      icon: <CloudSun size={15} className="text-primary" />,
+    };
+  }, [user.city, user.district]);
+
   return (
     <Reveal className="flex flex-col gap-6 pt-1">
       {/* ───── Salutation épurée ───── */}
@@ -241,6 +277,37 @@ export function HomeScreen({
           </div>
         </RevealItem>
       )}
+
+      {/* ───── Conseil Dermo-Météo du Jour ───── */}
+      <RevealItem>
+        <div className="rounded-[22px] border border-border/80 bg-gradient-to-r from-card/90 via-card/60 to-card/90 backdrop-blur-xs p-3.5 shadow-xs">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="grid place-items-center size-8 rounded-xl bg-primary/10 text-primary shrink-0">
+                {weatherAdvisory.icon}
+              </span>
+              <div className="min-w-0">
+                <p className="font-heading font-bold text-xs text-foreground truncate">
+                  {weatherAdvisory.cityLabel}
+                </p>
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                  <span className="font-semibold text-foreground">{weatherAdvisory.temp}</span>
+                  <span>·</span>
+                  <span>Humidité {weatherAdvisory.humidity}</span>
+                  <span>·</span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">{weatherAdvisory.uv}</span>
+                </div>
+              </div>
+            </div>
+            <span className="shrink-0 text-[9.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+              Météo &amp; Peau
+            </span>
+          </div>
+          <p className="mt-2.5 text-[11px] text-muted-foreground leading-snug pl-2 border-l-2 border-primary/50">
+            {weatherAdvisory.advice}
+          </p>
+        </div>
+      </RevealItem>
 
       {/* ───── Cœur MVP : Hero Diagnostic + Rituel 3 Étapes + Concierge WhatsApp ───── */}
       <RevealItem>
