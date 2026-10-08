@@ -97,7 +97,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
 
   const load = useCallback(() => {
     setError(null);
-    apiGet<SubsData>(`/api/subscriptions?userId=${encodeURIComponent(user.id)}&tenantId=${encodeURIComponent(tenantId)}`)
+    apiGet<SubsData>(`/api/subscriptions?userId=${encodeURIComponent(user.id)}&tenantId=${encodeURIComponent(tenantId)}&audience=pro`)
       .then((r) => setData(r))
       .catch((e) => setError(e instanceof Error ? e.message : "Abonnement indisponible"));
   }, [user.id, tenantId]);
@@ -124,14 +124,14 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
     activeSub && (activeSub.source === "welcome_offer" || activeSub.source === "welcome_trial" || activeSub.priceFcfa === 0)
   );
 
-  const currentTargetPrice = targetDef?.nextTierPrice ?? targetDef?.priceFcfa ?? 10000;
+  const isSamePlan = activePlan === targetPlan || (activePlan === "pro_essentiel" && targetPlan === "pro_institut");
+  const currentTargetPrice = isSamePlan ? (targetDef?.nextTierPrice ?? targetDef?.priceFcfa ?? 10000) : (targetDef?.priceFcfa ?? 10000);
 
   /** Confirmation de souscription ou renouvellement Pro */
   async function confirmPayment() {
     setBusy(true);
     setState("processing");
     try {
-      const isSamePlan = activePlan === targetPlan || (activePlan === "pro_essentiel" && targetPlan === "pro_institut");
       const endpoint = isSamePlan ? "/api/subscriptions/renew" : "/api/subscriptions/activate";
 
       const r = await apiPost<{ subscription?: ApiSubscription; checkoutUrl?: string; paymentUrl?: string }>(endpoint, {
@@ -316,25 +316,33 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
               <div className="pt-1">
                 <div className="flex items-baseline gap-1.5">
                   <span className="font-mono font-black text-2xl text-gold-text">
-                    {starter.nextTierPrice ? starter.nextTierPrice.toLocaleString("fr-FR") : starter.priceFcfa.toLocaleString("fr-FR")}
+                    {starter.priceFcfa.toLocaleString("fr-FR")}
                   </span>
                   <span className="text-xs text-muted-foreground font-semibold">FCFA / mois</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Descend de 10 000 F à <strong>5 000 F/mois à vie</strong>
+                  Tarif Mois 1 · Descend de 10 000 F à <strong>5 000 F/mois à vie</strong>
                 </p>
+                {activePlan === "pro_starter" && starter.nextTierPrice && (
+                  <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-success/15 text-success border border-success/30 px-2 py-0.5 text-[10px] font-bold">
+                    ✓ Votre tarif de renouvellement : {starter.nextTierPrice.toLocaleString("fr-FR")} F
+                  </span>
+                )}
               </div>
 
               {/* Échelle dégressive */}
               <div className="rounded-xl border border-border/60 bg-muted/20 p-2.5 space-y-1.5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Échelle de fidélité mensuelle</p>
                 <div className="grid grid-cols-6 gap-1 text-center">
-                  {starter.tiers.filter((t) => t.month > 0).map((t) => (
-                    <div key={t.month} className="rounded-lg bg-card p-1 border border-border/40">
-                      <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
-                      <p className="text-[10px] font-black font-mono text-foreground">{t.priceFcfa / 1000}k</p>
-                    </div>
-                  ))}
+                  {starter.tiers.filter((t) => t.month > 0).map((t) => {
+                    const isCurrent = activePlan === "pro_starter" && ((starter.consecutiveMonths ?? 0) === t.month || ((starter.consecutiveMonths ?? 0) >= 6 && t.month === 6));
+                    return (
+                      <div key={t.month} className={`rounded-lg p-1 border transition-all ${isCurrent ? "bg-primary/20 border-primary font-bold" : "bg-card border-border/40"}`}>
+                        <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
+                        <p className="text-[10px] font-black font-mono text-foreground">{t.priceFcfa / 1000}k</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -361,7 +369,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                 <Crown size={14} />
                 {activePlan === "pro_starter"
                   ? `Renouveler Starter (${xof(starter.nextTierPrice ?? starter.priceFcfa)})`
-                  : `Choisir Pro Starter (${xof(starter.nextTierPrice ?? starter.priceFcfa)})`}
+                  : `Choisir Pro Starter (${xof(starter.priceFcfa)})`}
               </button>
             </div>
           </div>
@@ -384,25 +392,33 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
               <div className="pt-1">
                 <div className="flex items-baseline gap-1.5">
                   <span className="font-mono font-black text-2xl text-gold-text">
-                    {institut.nextTierPrice ? institut.nextTierPrice.toLocaleString("fr-FR") : institut.priceFcfa.toLocaleString("fr-FR")}
+                    {institut.priceFcfa.toLocaleString("fr-FR")}
                   </span>
                   <span className="text-xs text-muted-foreground font-semibold">FCFA / mois</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Descend de 20 000 F à <strong>10 000 F/mois à vie</strong>
+                  Tarif Mois 1 · Descend de 20 000 F à <strong>10 000 F/mois à vie</strong>
                 </p>
+                {(activePlan === "pro_institut" || activePlan === "pro_essentiel") && institut.nextTierPrice && (
+                  <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-gold/20 text-gold-text border border-gold/40 px-2 py-0.5 text-[10px] font-bold">
+                    ✓ Votre tarif de renouvellement : {institut.nextTierPrice.toLocaleString("fr-FR")} F
+                  </span>
+                )}
               </div>
 
               {/* Échelle dégressive */}
               <div className="rounded-xl border border-gold/30 bg-gold/10 p-2.5 space-y-1.5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-gold-text">Échelle de fidélité mensuelle</p>
                 <div className="grid grid-cols-6 gap-1 text-center">
-                  {institut.tiers.filter((t) => t.month > 0).map((t) => (
-                    <div key={t.month} className="rounded-lg bg-card p-1 border border-gold/30">
-                      <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
-                      <p className="text-[10px] font-black font-mono text-gold-text">{t.priceFcfa / 1000}k</p>
-                    </div>
-                  ))}
+                  {institut.tiers.filter((t) => t.month > 0).map((t) => {
+                    const isCurrent = (activePlan === "pro_institut" || activePlan === "pro_essentiel") && ((institut.consecutiveMonths ?? 0) === t.month || ((institut.consecutiveMonths ?? 0) >= 6 && t.month === 6));
+                    return (
+                      <div key={t.month} className={`rounded-lg p-1 border transition-all ${isCurrent ? "bg-gold/30 border-gold font-bold" : "bg-card border-gold/30"}`}>
+                        <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
+                        <p className="text-[10px] font-black font-mono text-gold-text">{t.priceFcfa / 1000}k</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -429,7 +445,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                 <Crown size={14} />
                 {activePlan === "pro_institut" || activePlan === "pro_essentiel"
                   ? `Renouveler Institut (${xof(institut.nextTierPrice ?? institut.priceFcfa)})`
-                  : `Choisir Pro Institut (${xof(institut.nextTierPrice ?? institut.priceFcfa)})`}
+                  : `Choisir Pro Institut (${xof(institut.priceFcfa)})`}
               </button>
             </div>
           </div>
@@ -449,25 +465,33 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
               <div className="pt-1">
                 <div className="flex items-baseline gap-1.5">
                   <span className="font-mono font-black text-2xl text-gold-text">
-                    {complexe.nextTierPrice ? complexe.nextTierPrice.toLocaleString("fr-FR") : complexe.priceFcfa.toLocaleString("fr-FR")}
+                    {complexe.priceFcfa.toLocaleString("fr-FR")}
                   </span>
                   <span className="text-xs text-muted-foreground font-semibold">FCFA / mois</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Descend de 30 000 F à <strong>20 000 F/mois à vie</strong>
+                  Tarif Mois 1 · Descend de 30 000 F à <strong>20 000 F/mois à vie</strong>
                 </p>
+                {activePlan === "pro_complexe" && complexe.nextTierPrice && (
+                  <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-terre/20 text-terre border border-terre/40 px-2 py-0.5 text-[10px] font-bold">
+                    ✓ Votre tarif de renouvellement : {complexe.nextTierPrice.toLocaleString("fr-FR")} F
+                  </span>
+                )}
               </div>
 
               {/* Échelle dégressive */}
               <div className="rounded-xl border border-border/60 bg-muted/20 p-2.5 space-y-1.5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Échelle de fidélité mensuelle</p>
                 <div className="grid grid-cols-6 gap-1 text-center">
-                  {complexe.tiers.filter((t) => t.month > 0).map((t) => (
-                    <div key={t.month} className="rounded-lg bg-card p-1 border border-border/40">
-                      <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
-                      <p className="text-[10px] font-black font-mono text-foreground">{(t.priceFcfa / 1000).toLocaleString("fr-FR")}k</p>
-                    </div>
-                  ))}
+                  {complexe.tiers.filter((t) => t.month > 0).map((t) => {
+                    const isCurrent = activePlan === "pro_complexe" && ((complexe.consecutiveMonths ?? 0) === t.month || ((complexe.consecutiveMonths ?? 0) >= 6 && t.month === 6));
+                    return (
+                      <div key={t.month} className={`rounded-lg p-1 border transition-all ${isCurrent ? "bg-terre/20 border-terre font-bold" : "bg-card border-border/40"}`}>
+                        <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
+                        <p className="text-[10px] font-black font-mono text-foreground">{t.priceFcfa / 1000}k</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -494,7 +518,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                 <Crown size={14} />
                 {activePlan === "pro_complexe"
                   ? `Renouveler Complexe (${xof(complexe.nextTierPrice ?? complexe.priceFcfa)})`
-                  : `Choisir Pro Complexe (${xof(complexe.nextTierPrice ?? complexe.priceFcfa)})`}
+                  : `Choisir Pro Complexe (${xof(complexe.priceFcfa)})`}
               </button>
             </div>
           </div>
@@ -633,7 +657,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
               <br />
               • <strong>Pro Institut :</strong> de 20 000 F à 10 000 F/mois à vie (-2 000 F/mois).
               <br />
-              • <strong>Pro Complexe :</strong> de 30 000 F à 20 000 F/mois à vie (-2 500 F/mois, plancher 20 000 F atteint dès le 5e mois).
+              • <strong>Pro Complexe :</strong> de 30 000 F à 20 000 F/mois à vie (-2 000 F/mois).
             </p>
           </div>
 

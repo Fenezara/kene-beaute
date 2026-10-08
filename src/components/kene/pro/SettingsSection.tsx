@@ -10,12 +10,12 @@
 // (annuaire, boutique, fiche cliente) — upload local redimensionné.
 import { useEffect, useRef, useSyncExternalStore, useState } from "react";
 import { useTheme } from "next-themes";
-import { Building2, Camera, Check, ChevronRight, CreditCard, Crown, ImageOff, Languages, Loader2, LogOut, Moon, Phone, Receipt, SunMedium } from "lucide-react";
+import { Building2, Camera, Check, ChevronRight, CreditCard, Crown, ImageOff, Languages, Loader2, LogOut, Moon, Phone, Receipt, Sparkles, SunMedium } from "lucide-react";
 import { DuafeIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
-import { apiGet, apiPost, apiPatch, resizeImage } from "@/lib/kene/api";
+import { apiGet, apiPatch, apiPost, resizeImage } from "@/lib/kene/api";
 import { Badge } from "@/components/ui/badge";
 import { Eyebrow, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
@@ -72,7 +72,7 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
     toast.success("Modes de paiement caisse mis à jour");
   }
 
-  // ── Photo de vitrine ──
+  // ── Photo de vitrine & Présentation de l'établissement ──
   // Le visuel ACTUEL vient de l'annuaire public (image + hasPhoto), l'aperçu
   // local d'un upload frais prend le dessus le temps de la requête.
   const [currentImage, setCurrentImage] = useState<string | null>(null);
@@ -81,86 +81,43 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
   const [photoBusy, setPhotoBusy] = useState(false);
   const photoInput = useRef<HTMLInputElement>(null);
 
-  // ── Vitrine & Présentation de l'établissement (modifiables par la gérante) ──
-  const [profileName, setProfileName] = useState(tenantName);
-  const [profileCity, setProfileCity] = useState(tenantCity ?? "");
-  const [profileAddress, setProfileAddress] = useState("");
-  const [profilePhone, setProfilePhone] = useState("");
-  const [profileDescription, setProfileDescription] = useState("");
-  const [profileOpeningHour, setProfileOpeningHour] = useState(9);
-  const [profileClosingHour, setProfileClosingHour] = useState(19);
-  const [profileSaving, setProfileSaving] = useState(false);
+  const [description, setDescription] = useState("");
+  const [descBusy, setDescBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    apiGet<{
-      tenants: {
-        id: string;
-        name: string;
-        city: string;
-        address?: string | null;
-        phone?: string | null;
-        description?: string | null;
-        openingHour?: number;
-        closingHour?: number;
-        hasPhoto?: boolean;
-      }[];
-    }>("/api/pro/tenants")
-      .then((r) => {
-        if (!alive) return;
-        const mine = r.tenants?.find((t) => t.id === tenantId);
-        if (mine) {
-          if (mine.name) setProfileName(mine.name);
-          if (mine.city) setProfileCity(mine.city);
-          if (mine.address) setProfileAddress(mine.address);
-          if (mine.phone) setProfilePhone(mine.phone);
-          if (mine.description) setProfileDescription(mine.description);
-          if (typeof mine.openingHour === "number") setProfileOpeningHour(mine.openingHour);
-          if (typeof mine.closingHour === "number") setProfileClosingHour(mine.closingHour);
-          if (typeof mine.hasPhoto === "boolean") setHasPhoto(mine.hasPhoto);
-        }
-      })
-      .catch(() => {});
-
-    apiGet<{ institutes: { id: string; image: string; hasPhoto?: boolean }[] }>("/api/institutes")
+    apiGet<{ institutes: { id: string; image: string; hasPhoto?: boolean; description?: string }[] }>("/api/institutes")
       .then((r) => {
         if (!alive) return;
         const mine = r.institutes.find((i) => i.id === tenantId);
         if (mine) {
           setCurrentImage(mine.image);
           setHasPhoto(Boolean(mine.hasPhoto));
+          if (mine.description) {
+            setDescription(mine.description);
+          }
         }
       })
-      .catch(() => {});
+      .catch(() => {}); // non bloquant: la carte affiche l'état vide
     return () => {
       alive = false;
     };
-  }, [tenantId, tenantName, tenantCity]);
+  }, [tenantId]);
 
-  async function saveProfile() {
-    if (!profileName.trim()) {
-      toast.error("Le nom de l'établissement ne peut pas être vide");
-      return;
-    }
-    setProfileSaving(true);
+  async function handleSaveDescription() {
+    setDescBusy(true);
     try {
-      await apiPatch<{ ok: boolean }>("/api/pro/tenants", {
+      await apiPatch("/api/pro/tenants", {
         tenantId,
-        name: profileName.trim(),
-        description: profileDescription.trim() || null,
-        city: profileCity.trim(),
-        address: profileAddress.trim() || null,
-        phone: profilePhone.trim() || undefined,
-        openingHour: Number(profileOpeningHour),
-        closingHour: Number(profileClosingHour),
+        description: description.trim(),
       });
-      toast.success("Vitrine mise à jour avec succès !", {
-        description: "Votre description et vos coordonnées sont visibles immédiatement par vos clientes dans l'annuaire et la prise de RDV.",
+      toast.success("Présentation de l'établissement mise à jour 🌿", {
+        description: "Elle est désormais consultable par vos clientes sur votre fiche institut.",
       });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur de mise à jour");
+      toast.error(e instanceof Error ? e.message : "Impossible d'enregistrer la description");
     } finally {
-      setProfileSaving(false);
+      setDescBusy(false);
     }
   }
 
@@ -322,141 +279,48 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         </div>
       </div>
 
-      {/* Présentation & Vitrine de l'établissement (visible par toutes les clientes) */}
-      {isOwner && (
-        <div className="k-card rounded-[20px] p-4 sm:p-5 space-y-4 border border-border/80">
-          <div className="flex items-center gap-3">
-            <IconBadge icon={<Building2 size={18} />} tone="gold" />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-bold text-foreground">Vitrine &amp; Présentation de l&apos;établissement</p>
-                <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold">
-                  Visible côté client
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                Ces informations sont affichées dans l&apos;annuaire Kènè, la fiche de réservation et les rappels de vos clientes.
-              </p>
+      {/* Présentation de l'établissement — description visible côté cliente */}
+      <div className="k-card rounded-[20px] p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <IconBadge icon={<Sparkles size={18} />} tone="gold" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-bold text-foreground">Présentation &amp; Savoir-faire</p>
+              <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold">
+                Visible côté client
+              </span>
             </div>
-          </div>
-
-          <div className="space-y-3 pt-1">
-            {/* Nom de l'établissement */}
-            <div>
-              <label className="text-xs font-semibold text-foreground">Nom public de l&apos;établissement</label>
-              <input
-                type="text"
-                value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
-                placeholder="Ex : Institut Kènè Beauté Cocody"
-                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium focus-visible:outline-2 focus-visible:outline-primary"
-              />
-            </div>
-
-            {/* Description / Présentation */}
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-foreground">Description &amp; Philosophie des soins</label>
-                <span className="text-[10px] text-muted-foreground">{profileDescription.length}/600</span>
-              </div>
-              <textarea
-                rows={3}
-                value={profileDescription}
-                onChange={(e) => setProfileDescription(e.target.value)}
-                maxLength={600}
-                placeholder="Présentez votre institut aux clientes : votre expertise des peaux mélanodermes, l'accueil, vos rituels phares..."
-                className="mt-1 w-full rounded-xl border border-border bg-background p-3 text-xs leading-relaxed focus-visible:outline-2 focus-visible:outline-primary resize-none"
-              />
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                Texte affiché en haut de votre fiche de réservation dans l&apos;application cliente.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Ville / Quartier */}
-              <div>
-                <label className="text-xs font-semibold text-foreground">Ville ou Quartier</label>
-                <input
-                  type="text"
-                  value={profileCity}
-                  onChange={(e) => setProfileCity(e.target.value)}
-                  placeholder="Ex : Cocody Vallon, Abidjan"
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium focus-visible:outline-2 focus-visible:outline-primary"
-                />
-              </div>
-
-              {/* Téléphone / WhatsApp direct */}
-              <div>
-                <label className="text-xs font-semibold text-foreground">Téléphone / WhatsApp direct</label>
-                <input
-                  type="tel"
-                  value={profilePhone}
-                  onChange={(e) => setProfilePhone(e.target.value)}
-                  placeholder="Ex : +225 07 00 00 00 00"
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium focus-visible:outline-2 focus-visible:outline-primary"
-                />
-              </div>
-            </div>
-
-            {/* Adresse géographique */}
-            <div>
-              <label className="text-xs font-semibold text-foreground">Adresse géographique</label>
-              <input
-                type="text"
-                value={profileAddress}
-                onChange={(e) => setProfileAddress(e.target.value)}
-                placeholder="Ex : Rue des Jardins, face pharmacie du Vallon"
-                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium focus-visible:outline-2 focus-visible:outline-primary"
-              />
-            </div>
-
-            {/* Horaires d'ouverture */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-foreground">Heure d&apos;ouverture</label>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <input
-                    type="number"
-                    min={6}
-                    max={23}
-                    value={profileOpeningHour}
-                    onChange={(e) => setProfileOpeningHour(Number(e.target.value))}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono font-bold focus-visible:outline-2 focus-visible:outline-primary"
-                  />
-                  <span className="text-xs text-muted-foreground font-semibold">h</span>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-foreground">Heure de fermeture</label>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <input
-                    type="number"
-                    min={6}
-                    max={23}
-                    value={profileClosingHour}
-                    onChange={(e) => setProfileClosingHour(Number(e.target.value))}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono font-bold focus-visible:outline-2 focus-visible:outline-primary"
-                  />
-                  <span className="text-xs text-muted-foreground font-semibold">h</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Bouton Sauvegarder */}
-            <div className="pt-2 flex justify-end">
-              <button
-                type="button"
-                onClick={saveProfile}
-                disabled={profileSaving}
-                className="h-11 px-5 rounded-xl k-btn-gold text-primary-foreground font-bold text-xs inline-flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm disabled:opacity-60"
-              >
-                {profileSaving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-                Enregistrer la vitrine
-              </button>
-            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+              Décrivez l&apos;histoire, les rituels signature et l&apos;expertise de {tenantName}. Vos clientes la découvriront lors de la réservation.
+            </p>
           </div>
         </div>
-      )}
+
+        <div className="space-y-2 pt-1">
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={600}
+            rows={4}
+            placeholder="Ex : Institut dermo-botanique de référence à Cocody. Rituels éclat anti-taches, gommages régénérants au beurre de karité brut de Korhogo, bilans de peau haute précision..."
+            className="w-full rounded-xl border border-border bg-background p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary resize-none"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] text-muted-foreground">
+              {description.length} / 600 caractères
+            </span>
+            <button
+              type="button"
+              onClick={handleSaveDescription}
+              disabled={descBusy}
+              className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 shadow-sm"
+            >
+              {descBusy ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
+              Enregistrer la présentation
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Affichage — Clair/Sombre (mêmes boutons que l'app cliente, cohérence) */}
       <div className="k-card rounded-[20px] p-4">

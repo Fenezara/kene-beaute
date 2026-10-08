@@ -29,12 +29,19 @@ export async function GET(req: NextRequest) {
 
     // Audience: l'espace Pro vit sur les comptes entreprise (rôle "pro");
     // tout le reste (cliente, admin) voit les offres clientes.
-    const audience = user.role === "pro" ? "pro" : "client";
+    // L'écran client peut forcer audience=client (même si le user est pro dans l'espace Beauté).
+    const audienceParam = req.nextUrl.searchParams.get("audience");
+    const audience = audienceParam === "client" ? "client" : audienceParam === "pro" ? "pro" : (user.role === "pro" ? "pro" : "client");
 
     const tenantId = req.nextUrl.searchParams.get("tenantId");
 
     let sub = await getActiveSubscription(userId);
-    if (!sub && user.role === "pro") {
+    if (audience === "client" && sub && sub.plan !== "kene_plus") {
+      // Pour la vue cliente, un abonnement pro ne fait pas foi de Kènè+
+      sub = null;
+    }
+
+    if (!sub && audience === "pro" && user.role === "pro") {
       // Si l'utilisateur est pro (ou employé) sans sub directe, vérifier le tenant et sa gérante
       const tenant = tenantId
         ? await db.tenant.findUnique({ where: { id: tenantId } })
@@ -53,14 +60,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    if (!sub && user.role === "client") {
+    if (!sub && audience === "client") {
       const trial = await grantClientWelcomeTrial(userId);
       if (trial) sub = trial;
     }
 
     const quota = await diagQuotaFor(userId);
 
-    const activePlanId = sub?.plan ?? (user.role === "pro" ? "pro_starter" : "kene_plus");
+    const activePlanId = sub?.plan ?? (audience === "pro" ? "pro_starter" : "kene_plus");
     const activeLoyalty = await getLoyaltyStatus(userId, activePlanId);
 
     const plansWithLoyalty = await Promise.all(
@@ -85,7 +92,7 @@ export async function GET(req: NextRequest) {
       : 0;
 
     return NextResponse.json({
-      plan: sub?.plan ?? (user.role === "pro" ? "pro_starter" : "gratuit"),
+      plan: sub?.plan ?? (audience === "pro" ? "pro_starter" : "gratuit"),
       plans: plansWithLoyalty,
       quota,
       loyalty: activeLoyalty,

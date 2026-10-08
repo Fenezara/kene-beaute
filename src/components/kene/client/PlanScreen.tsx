@@ -74,6 +74,35 @@ interface SubsData {
   subscription: ApiSubscription | null;
 }
 
+const DEFAULT_PLUS_DEF: ApiPlanDef = {
+  id: "kene_plus",
+  audience: "client",
+  name: "Kènè+",
+  tagline: "L'intelligence dermo-botanique illimitée pour sublimer votre peau",
+  priceFcfa: 5000,
+  minPriceFcfa: 2500,
+  trialDays: 30,
+  tiers: [
+    { month: 0, priceFcfa: 0, label: "Mois Découverte (30j offerts)" },
+    { month: 1, priceFcfa: 5000, label: "Mois 1" },
+    { month: 2, priceFcfa: 4500, label: "Mois 2" },
+    { month: 3, priceFcfa: 4000, label: "Mois 3" },
+    { month: 4, priceFcfa: 3500, label: "Mois 4" },
+    { month: 5, priceFcfa: 3000, label: "Mois 5" },
+    { month: 6, priceFcfa: 2500, label: "Mois 6+ (à vie)" },
+  ],
+  perks: [
+    "1er mois 100% gratuit avec accès complet à toutes les fonctionnalités",
+    "Diagnostics dermo-biométriques illimités (visage, dos, mains)",
+    "Dermo Kènè illimitée 24h/24 & 7j/7 (texte et notes vocales)",
+    "Comparatif tactile Avant/Après & visualiseur multi-spectral",
+    "Tarif dégressif à la fidélité : descend de 5 000 F à 2 500 F/mois",
+    "Remises exclusives de 5% à 10% sur toute la Boutique",
+    "Coupe-file et accueil VIP dans les instituts partenaires",
+  ],
+  badge: "Le plus choisi",
+};
+
 /** Icônes des perks Kènè+ — mappées par index sur l'ordre stable de
  * PLAN_DEFS (diagnostics illimités, suivi évolution, priorité, défis). */
 const PLUS_PERK_ICONS = [Clock, CauriIcon, Zap, TrendingUp, Crown, Trophy, Crown] as const;
@@ -102,7 +131,7 @@ export function PlanScreen() {
 
   const load = useCallback(() => {
     setError(null);
-    apiGet<SubsData>(`/api/subscriptions?userId=${encodeURIComponent(user.id)}`)
+    apiGet<SubsData>(`/api/subscriptions?userId=${encodeURIComponent(user.id)}&audience=client`)
       .then((r) => setData(r))
       .catch((e) => setError(e instanceof Error ? e.message : "Abonnement indisponible"));
   }, [user.id]);
@@ -111,9 +140,9 @@ export function PlanScreen() {
     load();
   }, [load]);
 
-  const plusDef = data?.plans.find((p) => p.id === "kene_plus") ?? null;
+  const plusDef = data?.plans?.find((p) => p.id === "kene_plus") ?? DEFAULT_PLUS_DEF;
   const isPlus = data?.plan === "kene_plus";
-  const quota = data?.quota;
+  const quota = data?.quota ?? { quota: 1, used: 0, remaining: 1, plan: "gratuit" };
 
   const currentChargePrice = plusDef?.nextTierPrice ?? (data?.loyalty?.nextTierPrice || plusDef?.priceFcfa || 5000);
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Compass, FileText, Loader2, LocateFixed, Lock, MapPin,
-  MessageCircle, MessageSquareQuote, ShieldCheck, Star, TriangleAlert, Users, X,
+  MessageCircle, MessageSquareQuote, ShieldCheck, Sparkles, Star, TriangleAlert, Users, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -588,6 +588,11 @@ export function BookingScreen() {
                             </span>
                           </div>
                         </div>
+                        {i.description && (
+                          <p className="px-1.5 pt-2 text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                            {i.description}
+                          </p>
+                        )}
                         <div className="flex items-center justify-between px-1.5 py-2.5 text-[11px] text-muted-foreground">
                           <span
                             role="button"
@@ -657,9 +662,19 @@ export function BookingScreen() {
                     </div>
                   </div>
                 </RevealItem>
-                <RevealItem>
-                  {inst.description && <p className="text-xs text-muted-foreground leading-relaxed mt-3">{inst.description}</p>}
-                </RevealItem>
+                {inst.description && (
+                  <RevealItem>
+                    <div className="k-card mt-3 rounded-[20px] p-3.5 border border-border/70 bg-card/60 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={14} className="text-gold-text shrink-0" />
+                        <h4 className="text-xs font-bold text-foreground">À propos de l&apos;institut</h4>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {inst.description}
+                      </p>
+                    </div>
+                  </RevealItem>
+                )}
 
                 {/* — WhatsApp direct cliente → institut: message
  pré-rempli, sans quitter l'app (lien wa.me officiel). */}

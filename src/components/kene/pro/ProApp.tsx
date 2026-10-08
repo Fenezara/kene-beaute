@@ -700,36 +700,36 @@ export function ProApp() {
         {/* ───────── Zone contenu principal scrollable en interne (zéro décalage / zéro rebond) ───────── */}
         <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overscroll-y-none overscroll-contain touch-pan-y pretty-scroll flex flex-col p-3 sm:p-5 lg:p-6">
           {/* ⚡ Barre d'actions express praticienne (Encaisser, RDV, Scan) */}
-          <div className="mb-4 rounded-2xl border border-border/80 bg-card/75 p-2.5 sm:p-3 backdrop-blur-md shadow-sm flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider pl-1 hidden sm:inline shrink-0">
-              ⚡ Accès rapide :
-            </span>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="mb-4 rounded-2xl border border-border/80 bg-card/75 p-2 sm:p-2.5 backdrop-blur-md shadow-sm">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider pl-1 shrink-0 flex items-center gap-1">
+                ⚡ Accès rapide :
+              </span>
               <button
                 type="button"
                 onClick={() => openSection("assistant")}
-                className="flex-1 sm:flex-initial h-9 px-3.5 rounded-xl border border-[#C8951E]/60 bg-gradient-to-r from-[#C8951E]/25 via-gold/15 to-transparent hover:from-[#C8951E]/35 text-foreground text-xs font-black flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
+                className="h-9 px-3.5 rounded-xl border border-[#C8951E]/60 bg-gradient-to-r from-[#C8951E]/25 via-gold/15 to-transparent hover:from-[#C8951E]/35 text-foreground text-xs font-black flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
               >
                 <Crown size={15} className="text-[#C8951E]" /> Assistante Maman 👑
               </button>
               <button
                 type="button"
                 onClick={() => openSection("caisse")}
-                className="flex-1 sm:flex-initial h-9 px-3.5 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
+                className="h-9 px-3.5 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
               >
                 <AbanIcon size={16} /> Encaisser
               </button>
               <button
                 type="button"
                 onClick={() => openSection("agenda")}
-                className="flex-1 sm:flex-initial h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
+                className="h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
               >
                 <SankofaIcon size={16} /> Nouveau RDV
               </button>
               <button
                 type="button"
                 onClick={() => openSection("diagnostic")}
-                className="flex-1 sm:flex-initial h-9 px-3.5 rounded-xl border border-border bg-card text-foreground hover:bg-muted text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
+                className="h-9 px-3.5 rounded-xl border border-border bg-card text-foreground hover:bg-muted text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
               >
                 <Stethoscope size={16} /> Scan Cabine
               </button>
@@ -739,14 +739,14 @@ export function ProApp() {
                   setCrmCreateNonce(Date.now());
                   openSection("crm");
                 }}
-                className="flex-1 sm:flex-initial h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
+                className="h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
               >
                 <UserPlus size={16} /> + Cliente
               </button>
               <button
                 type="button"
                 onClick={goToClientSpace}
-                className="hidden xl:flex h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
+                className="h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
                 title="Mon Espace Beauté (Soins & Rituels personnels)"
               >
                 <CauriIcon size={15} /> Mon Espace Beauté 🌸
