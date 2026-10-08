@@ -41,10 +41,12 @@ function excerpt(s: string, max = 70): string {
 export function NotificationCenter({
   userId,
   onLiveFeed,
+  className,
 }: {
   userId: string;
  /** Appelé à chaque fil reçu en temps réel (badge + liste à jour) */
   onLiveFeed?: (feed: ApiReminderFeed) => void;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [feed, setFeed] = useState<ApiReminderFeed | null>(null);
@@ -248,14 +250,17 @@ export function NotificationCenter({
       <button
         onClick={() => onOpenChange(true)}
         aria-label={unread > 0 ? `Notifications — ${unread} non lue${unread > 1 ? "s" : ""}` : "Notifications"}
-        className="relative h-11 w-11 grid place-items-center rounded-full bg-card border border-border text-foreground shadow-sm active:scale-95 transition-transform focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+        className={cn(
+          "relative h-8 w-8 sm:h-9 sm:w-9 shrink-0 grid place-items-center rounded-full bg-card border border-border text-foreground shadow-sm active:scale-95 transition-transform focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+          className
+        )}
       >
-        <Bell size={20} strokeWidth={1.9} aria-hidden="true" />
+        <Bell className="size-3.5 sm:size-4" strokeWidth={1.9} aria-hidden="true" />
         {unread > 0 && (
           <span
             role="status"
             aria-live="polite"
-            className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-[#8B1A3B] text-[#FFF9EC] text-[10px] font-black grid place-items-center ring-2 ring-background"
+            className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-[#8B1A3B] text-[#FFF9EC] text-[9px] font-black grid place-items-center ring-2 ring-background"
           >
             {unread > 9 ? "9+" : unread}
           </span>

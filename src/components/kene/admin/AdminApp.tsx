@@ -221,7 +221,7 @@ function ConsoleHeader() {
 
 function BadgeConsole() {
   return (
-    <span className="inline-flex items-center rounded-full border border-finance/30 bg-finance/15 px-2.5 py-0.5 text-xs font-medium text-finance">
+    <span className="hidden sm:inline-flex items-center rounded-full border border-finance/30 bg-finance/15 px-2.5 py-0.5 text-xs font-medium text-finance">
       Espace administrateur
     </span>
   );

@@ -382,7 +382,7 @@ export function WelcomeThreshold() {
               {/* ── En-tête / Marque & Sélecteur d'interfaces ── */}
               <Reveal y={12}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <KeneEmblemLockup size={56} labelSize={28} sublabel="Beauté mélanoderme" />
+                  <KeneEmblemLockup size={44} labelSize={22} sublabel="Beauté mélanoderme" hideSublabelOnMobile={true} />
 
                   {/* Sélecteur d'interfaces & Actions rapides */}
                   <div className="flex items-center gap-2">

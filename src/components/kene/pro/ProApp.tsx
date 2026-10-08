@@ -370,19 +370,20 @@ export function ProApp() {
       {/* ───────── 1. BANDEAU SUPÉRIEUR PLEINE LARGEUR (TOP BAR) ───────── */}
       {/* Porteur officiel du Logo + Nom + Slogan en haut à gauche en continu sur PC, tablette et mobile */}
       <header className="sticky top-0 z-40 w-full k-chrome border-b border-border/60 pt-8 sm:pt-4 md:pt-0 [padding-top:max(env(safe-area-inset-top,0px),2.25rem)] md:[padding-top:env(safe-area-inset-top,0px)]">
-        <div className="flex h-16 items-center justify-between gap-3 px-3.5 sm:px-5 lg:px-6">
-          {/* TOUT EN HAUT À GAUCHE : Logo Médaillon officiel (42px) + Nom + Slogan */}
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="flex h-14 sm:h-16 items-center justify-between gap-2 sm:gap-3 px-2.5 sm:px-5 lg:px-6">
+          {/* TOUT EN HAUT À GAUCHE : Logo Médaillon officiel + Nom */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <KeneEmblemLockup
-              size={42}
-              labelSize={20}
+              size={36}
+              labelSize={18}
               label={<>Kènè <span className="text-gold-text">Pro</span></>}
               sublabel="Beauté mélanoderme"
+              hideSublabelOnMobile={true}
             />
           </div>
 
           {/* À DROITE : Sélecteur d'établissement + Direct + Thème + Console + Profil */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Sélecteur d'établissement (masqué sur mobile très étroit, visible dès sm) */}
             <div className="hidden sm:block">
               <Select
@@ -461,16 +462,15 @@ export function ProApp() {
               </span>
             )}
 
-            {/* Bouton direct Mon Espace Beauté */}
+            {/* Bouton direct Mon Espace Beauté (affiché sur grand écran md+, sur mobile SpaceSwitcher et la nav s'en chargent) */}
             <button
               type="button"
               onClick={goToClientSpace}
-              className="inline-flex items-center gap-1.5 h-8 px-2.5 sm:px-3 rounded-full text-xs font-semibold bg-gradient-to-r from-primary/10 via-primary/15 to-gold/10 hover:from-primary/20 hover:to-gold/20 text-primary border border-primary/30 transition-all shadow-xs active:scale-95 shrink-0"
+              className="hidden md:inline-flex items-center gap-1.5 h-8 px-2.5 sm:px-3 rounded-full text-xs font-semibold bg-gradient-to-r from-primary/10 via-primary/15 to-gold/10 hover:from-primary/20 hover:to-gold/20 text-primary border border-primary/30 transition-all shadow-xs active:scale-95 shrink-0"
               title="Accéder à Mon Espace Beauté personnel (Soins, Diagnostic & Rituels)"
             >
               <CauriIcon className="size-3.5 text-primary shrink-0" />
-              <span className="hidden sm:inline">Mon Espace Beauté 🌸</span>
-              <span className="sm:hidden">Beauté 🌸</span>
+              <span>Mon Espace Beauté 🌸</span>
             </button>
 
             {/* Sélecteur d'interfaces Kènè */}
@@ -554,11 +554,11 @@ export function ProApp() {
             <button
               type="button"
               onClick={goToClientSpace}
-              className="relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 min-h-9 text-xs font-bold bg-primary/15 text-primary border border-primary/30 shadow-xs active:scale-95 transition-all"
+              className="relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 min-h-8 text-xs font-bold bg-primary/15 text-primary border border-primary/30 shadow-xs active:scale-95 transition-all"
               title="Accéder à Mon Espace Beauté"
             >
               <CauriIcon className="size-3.5" />
-              <span>Espace Beauté 🌸</span>
+              <span>Beauté 🌸</span>
             </button>
             {nav.map((item) => {
               const badge = navBadges[item.id];

@@ -347,16 +347,18 @@ export function KeneEmblemLockup({
   sublabel = "Beauté mélanoderme",
   className = "",
   labelSize,
+  hideSublabelOnMobile = false,
 }: {
   size?: number;
   label?: React.ReactNode;
   sublabel?: React.ReactNode;
   className?: string;
   labelSize?: number;
+  hideSublabelOnMobile?: boolean;
 }) {
   const fontSize = labelSize ?? Math.round(size * 0.52 * 100) / 100;
   return (
-    <span className={cn("inline-flex min-w-0 items-center gap-3 sm:gap-3.5 select-none", className)}>
+    <span className={cn("inline-flex min-w-0 items-center gap-2.5 sm:gap-3.5 select-none", className)}>
       <KeneEmblem
         size={size}
       />
@@ -377,7 +379,10 @@ export function KeneEmblemLockup({
         </span>
         {sublabel != null && (
           <span
-            className="mt-1.5 text-[10.5px] sm:text-[12px] font-extrabold uppercase tracking-[0.13em] truncate max-w-[140px] sm:max-w-none text-[#7A5506] dark:text-[#F3C968]"
+            className={cn(
+              "mt-1.5 text-[10.5px] sm:text-[12px] font-extrabold uppercase tracking-[0.13em] truncate max-w-[140px] sm:max-w-none text-[#7A5506] dark:text-[#F3C968]",
+              hideSublabelOnMobile && "hidden md:inline"
+            )}
           >
             {sublabel}
           </span>

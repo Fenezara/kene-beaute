@@ -107,8 +107,8 @@ function TabLoading() {
 /** Cloche en attente — même empreinte (h-11 w-11) que le bouton final: zéro décalage du header */
 function BellLoading() {
   return (
-    <span role="status" aria-busy="true" className="grid place-items-center h-11 w-11">
-      <Loader2 size={20} className="animate-spin text-muted-foreground" aria-hidden="true" />
+    <span role="status" aria-busy="true" className="grid place-items-center h-8 w-8 sm:h-9 sm:w-9 shrink-0">
+      <Loader2 size={16} className="animate-spin text-muted-foreground" aria-hidden="true" />
       <span className="sr-only">Chargement…</span>
     </span>
   );
@@ -397,11 +397,11 @@ export function ClientApp() {
         {/* Header unique responsive: mobile = logo + actions; desktop = titre + actions.
  k-chrome = verre blur+saturate (le CSS gère le filet et l'ombre). Safe-area mobile garantie (≥ 36px). */}
         <header className="shrink-0 z-40 k-chrome pt-8 sm:pt-4 md:pt-0 [padding-top:max(env(safe-area-inset-top,0px),2.25rem)] md:[padding-top:env(safe-area-inset-top,0px)]">
-          <div className="h-14 sm:h-16 flex items-center justify-between gap-2 px-3 sm:px-5">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3 px-2.5 sm:px-5">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <div className="md:hidden shrink-0">
-                {/* Lockup Sceau officiel — le Médaillon Kènè + nom + devise responsive */}
-                <KeneEmblemLockup size={38} labelSize={19} sublabel={<span className="hidden sm:inline">Beauté mélanoderme</span>} />
+                {/* Lockup Sceau officiel compact — le Médaillon Kènè + nom sans sous-titre écrasant */}
+                <KeneEmblemLockup size={34} labelSize={17} sublabel={null} />
               </div>
               <div className="hidden md:flex items-baseline gap-2.5 min-w-0 flex-1 overflow-hidden">
                 <h1 className="font-heading font-bold tracking-tight text-lg xl:text-xl truncate text-foreground">{t(TITLES[tab])}</h1>
@@ -417,23 +417,21 @@ export function ClientApp() {
               <Suspense fallback={<BellLoading />}>
                 <NotificationCenter userId={user.id} />
               </Suspense>
-              {/* Engrenage Paramètres — visible à TOUS les formats,
- même pattern que le bouton chat mobile (l'écran vit dans
- l'onglet « parametres », hors tab-bar et hors balayage). */}
+              {/* Engrenage Paramètres — visible à TOUS les formats */}
               <button
                 onClick={() => goTab("parametres")}
                 aria-label={t("title.parametres")}
-                className="relative grid place-items-center h-11 w-11 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition focus-visible:outline-2 focus-visible:outline-primary"
+                className="relative grid place-items-center h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition focus-visible:outline-2 focus-visible:outline-primary"
               >
-                <Settings size={21} />
+                <Settings className="size-4 sm:size-5" />
               </button>
               <button
                 onClick={() => goTab("chat")}
                 aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
-                className="md:hidden relative grid place-items-center h-11 w-11 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition focus-visible:outline-2 focus-visible:outline-primary"
+                className="md:hidden relative grid place-items-center h-8 w-8 shrink-0 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition focus-visible:outline-2 focus-visible:outline-primary"
               >
-                <MessageCircle size={21} />
-                {chatUnread && <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-background" aria-hidden="true" />}
+                <MessageCircle className="size-4" />
+                {chatUnread && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#8B1A3B] ring-2 ring-background" aria-hidden="true" />}
               </button>
               <ThemeToggle />
             </div>

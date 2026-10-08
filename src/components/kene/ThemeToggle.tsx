@@ -3,6 +3,7 @@
 import { Moon, SunMedium } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /**
  * Anti-mismatch d'hydratation: `resolvedTheme` vaut `undefined` côté serveur mais
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
  * (accessibilité) et une action fixe. Pas d'état local ni d'effet → conforme à
  * react-hooks/set-state-in-effect.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string } = {}) {
   const { setTheme } = useTheme();
 
   return (
@@ -21,19 +22,19 @@ export function ThemeToggle() {
         variant="outline"
         size="icon"
         aria-label="Passer en mode sombre"
-        className="size-11 rounded-full border-border bg-card/70 dark:hidden"
+        className={cn("size-8 sm:size-9 rounded-full border-border bg-card/70 dark:hidden shrink-0", className)}
         onClick={() => setTheme("dark")}
       >
-        <Moon className="size-4" />
+        <Moon className="size-3.5 sm:size-4" />
       </Button>
       <Button
         variant="outline"
         size="icon"
         aria-label="Passer en mode clair"
-        className="size-11 rounded-full border-border bg-card/70 hidden dark:flex"
+        className={cn("size-8 sm:size-9 rounded-full border-border bg-card/70 hidden dark:flex shrink-0", className)}
         onClick={() => setTheme("light")}
       >
-        <SunMedium className="size-4" />
+        <SunMedium className="size-3.5 sm:size-4" />
       </Button>
     </>
   );

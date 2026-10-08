@@ -45,6 +45,7 @@ export function SpaceSwitcher({
         {
           id: "client" as Space,
           label: "Mon Espace Beauté",
+          shortLabel: "Beauté",
           badge: "Personnel",
           desc: "Mon diagnostic cutané, Dr. Kènè & rituels",
           icon: CauriIcon,
@@ -52,15 +53,16 @@ export function SpaceSwitcher({
         {
           id: "pro" as Space,
           label: "Espace Institut",
+          shortLabel: "Institut",
           badge: "Travail",
           desc: "Cabine, fiches clientes, soins & planning",
           icon: BriefcaseBusiness,
         },
       ]
     : [
-        { id: "client" as Space, label: "Cliente", badge: "Grand Public", desc: "Diagnostic dermo-biométrique, boutique, RDV, chat", icon: Smartphone },
-        { id: "pro" as Space, label: "Pro", badge: "Institut & Caisse", desc: "Caisse POS, TVA, agenda, stock, CRM", icon: BriefcaseBusiness },
-        { id: "admin" as Space, label: "Admin", badge: "Console", desc: "Pilotage plateforme, abonnements", icon: ShieldCheck },
+        { id: "client" as Space, label: "Cliente", shortLabel: "Cliente", badge: "Grand Public", desc: "Diagnostic dermo-biométrique, boutique, RDV, chat", icon: Smartphone },
+        { id: "pro" as Space, label: "Pro", shortLabel: "Pro", badge: "Institut & Caisse", desc: "Caisse POS, TVA, agenda, stock, CRM", icon: BriefcaseBusiness },
+        { id: "admin" as Space, label: "Admin", shortLabel: "Admin", badge: "Console", desc: "Pilotage plateforme, abonnements", icon: ShieldCheck },
       ];
 
   const current = availableSpaces.find((s) => s.id === space) || availableSpaces[0];
@@ -105,16 +107,20 @@ export function SpaceSwitcher({
             variant="outline"
             size="sm"
             disabled={switching !== null}
-            className={cn("h-8 rounded-full gap-1.5 px-3 text-xs font-semibold bg-background/90 backdrop-blur border-primary/40 shadow-xs hover:border-primary transition-all", className)}
+            className={cn(
+              "h-8 rounded-full gap-1 sm:gap-1.5 px-2 sm:px-3 text-xs font-semibold bg-background/90 backdrop-blur border-primary/40 shadow-xs hover:border-primary transition-all shrink-0 whitespace-nowrap",
+              className
+            )}
           >
             {switching ? (
-              <Loader2 className="size-3.5 animate-spin text-primary" />
+              <Loader2 className="size-3.5 animate-spin text-primary shrink-0" />
             ) : (
-              <current.icon className="size-3.5 text-primary" />
+              <current.icon className="size-3.5 text-primary shrink-0" />
             )}
-            <span className="text-[11px] text-muted-foreground font-normal">Espace :</span>
-            <span className="font-bold text-foreground">{current.label}</span>
-            <ChevronDown className="size-3 opacity-60 ml-0.5 text-primary" />
+            <span className="hidden sm:inline text-[11px] text-muted-foreground font-normal">Espace :</span>
+            <span className="font-bold text-foreground hidden sm:inline">{current.label}</span>
+            <span className="font-bold text-foreground sm:hidden">{current.shortLabel}</span>
+            <ChevronDown className="size-3 opacity-60 ml-0.5 text-primary shrink-0" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60 rounded-2xl shadow-xl p-1.5">
