@@ -57,6 +57,27 @@ export async function GET(req: NextRequest) {
     const totalSales = activeSales.reduce((acc, s) => acc + s.total, 0);
     const { tva, ht } = splitTVA(totalSales);
 
+    // Dépenses / Sorties de caisse en espèces du jour
+    const expenseLogs = await db.auditLog.findMany({
+      where: {
+        tenantId: tenant.id,
+        entity: "cash_expense",
+        action: "disbursement",
+        createdAt: { gte: start, lte: end },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const expensesList = expenseLogs.map((log) => {
+      try {
+        return JSON.parse(log.detailsJson ?? "{}");
+      } catch {
+        return null;
+      }
+    }).filter(Boolean);
+
+    const cashExpenses = expensesList.reduce((acc: number, x: any) => acc + (Number(x.amount) || 0), 0);
+
     // Historique des dernières clôtures Z enregistrées
     const pastClosures = await db.auditLog.findMany({
       where: {
@@ -80,6 +101,8 @@ export async function GET(req: NextRequest) {
       date: targetDate.toISOString(),
       salesCount: activeSales.length,
       cashSales,
+      cashExpenses,
+      expensesList,
       waveSales,
       orangeSales,
       cardSales,
@@ -152,8 +175,26 @@ export async function POST(req: NextRequest) {
       else if (s.paymentMethod === "wallet") walletSales += s.total;
     }
 
+    // Sorties de caisse en espèces du jour
+    const expenseLogs = await db.auditLog.findMany({
+      where: {
+        tenantId: tenant.id,
+        entity: "cash_expense",
+        action: "disbursement",
+        createdAt: { gte: start, lte: end },
+      },
+    });
+    const cashExpenses = expenseLogs.reduce((acc, log) => {
+      try {
+        const d = JSON.parse(log.detailsJson ?? "{}");
+        return acc + (Number(d.amount) || 0);
+      } catch {
+        return acc;
+      }
+    }, 0);
+
     const totalSales = sales.reduce((acc, s) => acc + s.total, 0);
-    const expectedCashInDrawer = openingCash + cashSales;
+    const expectedCashInDrawer = openingCash + cashSales - cashExpenses;
     const cashVariance = countedCash - expectedCashInDrawer;
 
     const closureRecord = {
@@ -166,6 +207,7 @@ export async function POST(req: NextRequest) {
       closedBy,
       openingCash,
       cashSales,
+      cashExpenses,
       expectedCash: expectedCashInDrawer,
       countedCash,
       cashVariance,

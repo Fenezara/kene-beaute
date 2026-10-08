@@ -2,7 +2,7 @@
 // Kènè Pro — Caisse POS: catalogue cliquable, ticket, paiement mobile money, ticket thermique imprimable
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Loader2, MessageCircle, Minus, Plus, Printer, ReceiptText, Search, Trash2, Wallet, User, UserRoundPlus, X, Bluetooth, Share2, WifiOff, RefreshCw, Lock, CalendarCheck, AlertTriangle, FileText, CheckCircle2 } from "lucide-react";
+import { Check, Loader2, MessageCircle, Minus, Plus, Printer, ReceiptText, Search, Trash2, Wallet, User, UserRoundPlus, X, Bluetooth, Share2, WifiOff, RefreshCw, Lock, CalendarCheck, AlertTriangle, FileText, CheckCircle2, ArrowDownCircle } from "lucide-react";
 import { CauriIcon, KeneSunIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -111,6 +111,16 @@ export function PosSection({
   const [closureNotes, setClosureNotes] = useState<string>("");
   const [closureResponsible, setClosureResponsible] = useState<string>("Responsable caisse");
   const [closureData, setClosureData] = useState<any>(null);
+
+  // Décaissements / Sorties de caisse d'espèces
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const [expenseAmount, setExpenseAmount] = useState<string>("");
+  const [expenseReason, setExpenseReason] = useState<string>("");
+  const [expenseCategory, setExpenseCategory] = useState<string>("fournitures");
+  const [expenseBeneficiary, setExpenseBeneficiary] = useState<string>("");
+  const [expenseSubmitting, setExpenseSubmitting] = useState(false);
+  const [todayExpenses, setTodayExpenses] = useState<{ expenses: any[]; totalAmount: number; count: number } | null>(null);
+  const [expenseLoading, setExpenseLoading] = useState(false);
 
   // Cliente express — mode saisie allégé (2 champs) pour les praticiennes peu administratives
   const [expressOpen, setExpressOpen] = useState(false);
@@ -363,6 +373,57 @@ export function PosSection({
     }
   };
 
+  const loadExpenses = async () => {
+    if (!tenantId) return;
+    setExpenseLoading(true);
+    try {
+      const res = await apiGet<{ expenses: any[]; totalAmount: number; count: number }>(
+        `/api/pro/caisse/expense?tenantId=${tenantId}`
+      );
+      setTodayExpenses(res);
+    } catch {
+      // non bloquant
+    } finally {
+      setExpenseLoading(false);
+    }
+  };
+
+  const handleRecordExpense = async () => {
+    if (!tenantId) return;
+    const amount = Number(expenseAmount);
+    if (!amount || isNaN(amount) || amount <= 0) {
+      toast.error("Veuillez saisir un montant valide (en FCFA)");
+      return;
+    }
+    if (!expenseReason.trim() || expenseReason.trim().length < 2) {
+      toast.error("Veuillez préciser le motif de la sortie d'argent");
+      return;
+    }
+
+    setExpenseSubmitting(true);
+    try {
+      await apiPost<{ success: boolean; entry: any }>("/api/pro/caisse/expense", {
+        tenantId,
+        amount,
+        reason: expenseReason.trim(),
+        category: expenseCategory,
+        beneficiary: expenseBeneficiary.trim() || undefined,
+      });
+
+      toast.success(`Sortie de caisse de ${xof(amount)} enregistrée avec succès !`);
+      setExpenseAmount("");
+      setExpenseReason("");
+      setExpenseBeneficiary("");
+      setExpenseCategory("fournitures");
+      void loadExpenses();
+      void loadClosureData();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement");
+    } finally {
+      setExpenseSubmitting(false);
+    }
+  };
+
   const handleValidateClosure = async () => {
     if (!tenantId) return;
     const opening = Number(closureInitialCash) || 0;
@@ -394,6 +455,7 @@ export function PosSection({
           closedBy: res.closure.closedBy,
           openingCash: res.closure.openingCash,
           cashSales: res.closure.cashSales,
+          cashExpenses: res.closure.cashExpenses,
           countedCash: res.closure.countedCash,
           cashVariance: res.closure.cashVariance,
           waveSales: res.closure.waveSales,
@@ -503,7 +565,20 @@ export function PosSection({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SectionHeader title="Caisse" sub="Encaissement soins & produits — Wave, Orange Money, espèces, carte" />
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setExpenseOpen(true);
+              void loadExpenses();
+            }}
+            className="h-8 gap-1.5 text-xs font-semibold border-rose-400/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+          >
+            <ArrowDownCircle className="size-3.5" />
+            Sortie de Caisse / Dépense
+          </Button>
+
           <Button
             size="sm"
             variant="outline"
@@ -1386,7 +1461,7 @@ export function PosSection({
           ) : (
             <div className="space-y-5">
               {/* Synthèse globale */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 <div className="rounded-xl border bg-card p-3">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Tickets Vente</p>
                   <p className="font-mono text-xl font-black mt-0.5">{closureData?.salesCount ?? 0}</p>
@@ -1398,6 +1473,12 @@ export function PosSection({
                 <div className="rounded-xl border bg-card p-3">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Ventes Espèces</p>
                   <p className="font-mono text-lg font-bold text-success mt-0.5">{xof(closureData?.cashSales ?? 0)}</p>
+                </div>
+                <div className="rounded-xl border bg-card p-3">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Sorties Caisse</p>
+                  <p className={cn("font-mono text-lg font-bold mt-0.5", (closureData?.cashExpenses ?? 0) > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground")}>
+                    {(closureData?.cashExpenses ?? 0) > 0 ? `-${xof(closureData.cashExpenses)}` : "0 F"}
+                  </p>
                 </div>
                 <div className="rounded-xl border bg-card p-3">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
@@ -1415,25 +1496,29 @@ export function PosSection({
                   <h4 className="text-xs font-bold uppercase tracking-wide text-primary flex items-center gap-1.5">
                     <ReceiptText className="size-4" /> Pointage Tiroir-Caisse (Espèces)
                   </h4>
-                  {closureCountedCash.trim() !== "" && (
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "text-xs font-mono font-bold px-2.5 py-0.5",
-                        Number(closureCountedCash) - ((Number(closureInitialCash) || 0) + (closureData?.cashSales ?? 0)) === 0
-                          ? "bg-emerald-500/20 text-emerald-700 border-emerald-500/40"
-                          : Number(closureCountedCash) - ((Number(closureInitialCash) || 0) + (closureData?.cashSales ?? 0)) > 0
-                          ? "bg-blue-500/20 text-blue-700 border-blue-500/40"
-                          : "bg-red-500/20 text-red-700 border-red-500/40"
-                      )}
-                    >
-                      {Number(closureCountedCash) - ((Number(closureInitialCash) || 0) + (closureData?.cashSales ?? 0)) === 0
-                        ? "✓ Écart 0 F (Caisse conforme)"
-                        : Number(closureCountedCash) - ((Number(closureInitialCash) || 0) + (closureData?.cashSales ?? 0)) > 0
-                        ? `+${xof(Number(closureCountedCash) - ((Number(closureInitialCash) || 0) + (closureData?.cashSales ?? 0)))} (Excédent)`
-                        : `${xof(Number(closureCountedCash) - ((Number(closureInitialCash) || 0) + (closureData?.cashSales ?? 0)))} (Déficit)`}
-                    </Badge>
-                  )}
+                  {closureCountedCash.trim() !== "" && (() => {
+                    const expTotal = (Number(closureInitialCash) || 0) + (closureData?.cashSales ?? 0) - (closureData?.cashExpenses ?? 0);
+                    const diff = Number(closureCountedCash) - expTotal;
+                    return (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-xs font-mono font-bold px-2.5 py-0.5",
+                          diff === 0
+                            ? "bg-emerald-500/20 text-emerald-700 border-emerald-500/40"
+                            : diff > 0
+                            ? "bg-blue-500/20 text-blue-700 border-blue-500/40"
+                            : "bg-red-500/20 text-red-700 border-red-500/40"
+                        )}
+                      >
+                        {diff === 0
+                          ? "✓ Écart 0 F (Caisse conforme)"
+                          : diff > 0
+                          ? `+${xof(diff)} (Excédent)`
+                          : `${xof(diff)} (Déficit)`}
+                      </Badge>
+                    );
+                  })()}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1463,7 +1548,12 @@ export function PosSection({
                       className="font-mono text-sm border-primary/50 focus:border-primary font-bold"
                     />
                     <p className="text-[10px] text-muted-foreground">
-                      Total attendu théorique : {xof((Number(closureInitialCash) || 0) + (closureData?.cashSales ?? 0))}
+                      Total attendu théorique : {xof((Number(closureInitialCash) || 0) + (closureData?.cashSales ?? 0) - (closureData?.cashExpenses ?? 0))}
+                      {(closureData?.cashExpenses ?? 0) > 0 && (
+                        <span className="text-rose-600 dark:text-rose-400 ml-1 font-semibold">
+                          (avec -{xof(closureData.cashExpenses)} de sorties déduites)
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -1566,7 +1656,8 @@ export function PosSection({
                   if (!closureData) return;
                   const opening = Number(closureInitialCash) || 0;
                   const counted = Number(closureCountedCash) || 0;
-                  const expected = opening + (closureData.cashSales ?? 0);
+                  const expExpenses = closureData.cashExpenses ?? 0;
+                  const expected = opening + (closureData.cashSales ?? 0) - expExpenses;
                   openCashClosurePrintWindow(
                     {
                       tenantName,
@@ -1576,6 +1667,7 @@ export function PosSection({
                       closedBy: closureResponsible || "Responsable caisse",
                       openingCash: opening,
                       cashSales: closureData.cashSales ?? 0,
+                      cashExpenses: expExpenses,
                       countedCash: counted,
                       cashVariance: counted - expected,
                       waveSales: closureData.waveSales ?? 0,
@@ -1605,6 +1697,170 @@ export function PosSection({
                 Valider &amp; Clôturer la Caisse
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal Décaissement / Sortie de Caisse d'Espèces ── */}
+      <Dialog open={expenseOpen} onOpenChange={setExpenseOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto pretty-scroll p-6">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+              <ArrowDownCircle className="size-5" />
+              <DialogTitle className="font-heading text-lg">Sortie de Caisse / Dépense d&apos;Espèces</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs">
+              Enregistrez tout décaissement d&apos;espèces depuis le tiroir (achats urgents, transport, avance...).
+              L&apos;écriture comptable SYSCOHADA (Journal Caisse CA) et la déduction du rapport Z sont automatiques.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-1">
+            {/* Montant & Boutons rapides */}
+            <div className="space-y-2">
+              <Label htmlFor="expense-amount" className="text-xs font-bold text-foreground">
+                Montant décaissé (FCFA) *
+              </Label>
+              <div className="relative">
+                <Input
+                  id="expense-amount"
+                  inputMode="numeric"
+                  value={expenseAmount}
+                  onChange={(e) => setExpenseAmount(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="Ex: 5000"
+                  className="font-mono text-base font-bold pr-14 border-rose-300 dark:border-rose-900/50 focus:border-rose-500"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground font-mono">
+                  FCFA
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[11px] text-muted-foreground mr-1">Raccourcis :</span>
+                {[1000, 2000, 5000, 10000, 20000].map((quick) => (
+                  <button
+                    key={quick}
+                    type="button"
+                    onClick={() => setExpenseAmount(String(quick))}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-xs font-mono font-semibold border transition-all active:scale-95",
+                      expenseAmount === String(quick)
+                        ? "bg-rose-600 text-white border-rose-600 shadow-xs"
+                        : "bg-muted/50 hover:bg-muted border-border text-foreground"
+                    )}
+                  >
+                    {xof(quick)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Motif */}
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-reason" className="text-xs font-bold text-foreground">
+                Motif / Justification *
+              </Label>
+              <Input
+                id="expense-reason"
+                value={expenseReason}
+                onChange={(e) => setExpenseReason(e.target.value)}
+                placeholder="Ex: Achat lingettes et coton pour cabine 2"
+                className="text-sm"
+              />
+            </div>
+
+            {/* Catégorie comptable */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-foreground">
+                Catégorie comptable SYSCOHADA
+              </Label>
+              <Select value={expenseCategory} onValueChange={setExpenseCategory}>
+                <SelectTrigger className="text-xs h-9">
+                  <SelectValue placeholder="Sélectionnez une catégorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fournitures">Fournitures &amp; Consommables (compte 605 - cotons, gants...)</SelectItem>
+                  <SelectItem value="cabine">Produits de Soin Cabine (compte 602 - cire, crèmes...)</SelectItem>
+                  <SelectItem value="transport">Transport &amp; Courses (compte 626 - taxi, livraison...)</SelectItem>
+                  <SelectItem value="pause">Pause &amp; Collation équipe (compte 605 - eau, café...)</SelectItem>
+                  <SelectItem value="entretien">Entretien &amp; Réparations (compte 615 - plomberie, ménage...)</SelectItem>
+                  <SelectItem value="avance">Avance sur salaire / Acompte (compte 421)</SelectItem>
+                  <SelectItem value="autre">Autre charge d&apos;exploitation (compte 605)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Bénéficiaire / Pris par */}
+            <div className="space-y-1.5">
+              <Label htmlFor="expense-beneficiary" className="text-xs">
+                Pris par / Bénéficiaire (optionnel)
+              </Label>
+              <Input
+                id="expense-beneficiary"
+                value={expenseBeneficiary}
+                onChange={(e) => setExpenseBeneficiary(e.target.value)}
+                placeholder="Ex: Aminata (esthéticienne), Chauffeur, Plombier..."
+                className="text-xs"
+              />
+            </div>
+
+            {/* Historique des sorties du jour */}
+            <div className="rounded-xl border bg-muted/30 p-3 space-y-2 mt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground">
+                  Sorties enregistrées aujourd&apos;hui
+                </span>
+                <span className="text-xs font-mono font-bold text-rose-600 dark:text-rose-400">
+                  Total : -{xof(todayExpenses?.totalAmount ?? 0)}
+                </span>
+              </div>
+              {expenseLoading ? (
+                <div className="py-2 text-center text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+                  <Loader2 className="size-3.5 animate-spin" /> Chargement...
+                </div>
+              ) : (todayExpenses?.expenses ?? []).length === 0 ? (
+                <p className="text-[11px] text-muted-foreground italic">
+                  Aucune sortie d&apos;espèces effectuée aujourd&apos;hui.
+                </p>
+              ) : (
+                <div className="max-h-32 overflow-y-auto pretty-scroll space-y-1.5 pr-1">
+                  {todayExpenses?.expenses.map((exp: any) => (
+                    <div
+                      key={exp.id}
+                      className="flex items-center justify-between text-xs p-2 rounded-lg bg-background border"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <p className="font-semibold truncate">{exp.description}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {formatTime(exp.date)} · {exp.chargeAccount}
+                        </p>
+                      </div>
+                      <span className="font-mono font-bold text-rose-600 dark:text-rose-400 shrink-0">
+                        -{xof(exp.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-between pt-3 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setExpenseOpen(false)}
+            >
+              Fermer
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleRecordExpense}
+              disabled={expenseSubmitting || !expenseAmount || Number(expenseAmount) <= 0 || !expenseReason.trim()}
+              className="gap-1.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {expenseSubmitting ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowDownCircle className="size-3.5" />}
+              Enregistrer la sortie ({xof(Number(expenseAmount) || 0)})
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

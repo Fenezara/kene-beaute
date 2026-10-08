@@ -13,6 +13,7 @@ export interface CashClosureData {
   closedBy: string;
   openingCash: number;
   cashSales: number;
+  cashExpenses?: number;
   countedCash: number;
   cashVariance: number;
   waveSales: number;
@@ -101,8 +102,12 @@ export function buildCashClosureEscPosBinary(data: CashClosureData, format: Ther
   write("1. POINTAGE TIROIR-CAISSE (ESPECES)\n");
   raw(0x1b, 0x45, 0x00);
   write(padCols("Fond de caisse initial :", fmtFcfa(data.openingCash)) + "\n");
-  write(padCols("Ventes especes journe :", `+${fmtFcfa(data.cashSales)}`) + "\n");
-  write(padCols("Especes theoriques attendues :", fmtFcfa(data.openingCash + data.cashSales)) + "\n");
+  write(padCols("Ventes especes journee :", `+${fmtFcfa(data.cashSales)}`) + "\n");
+  if (data.cashExpenses && data.cashExpenses > 0) {
+    write(padCols("Sorties caisse (depenses) :", `-${fmtFcfa(data.cashExpenses)}`) + "\n");
+  }
+  const expTotal = data.openingCash + data.cashSales - (data.cashExpenses || 0);
+  write(padCols("Especes theoriques attendues :", fmtFcfa(expTotal)) + "\n");
   raw(0x1b, 0x45, 0x01);
   write(padCols("Especes physiques comptees :", fmtFcfa(data.countedCash)) + "\n");
   raw(0x1b, 0x45, 0x00);
@@ -210,7 +215,10 @@ export function generateCashClosureHtml(data: CashClosureData, format: ThermalFo
   <div class="bold">1. POINTAGE TIROIR-CAISSE (ESPÈCES)</div>
   <div class="flex-row"><span>Fond de caisse initial :</span><span>${fmtFcfa(data.openingCash)}</span></div>
   <div class="flex-row"><span>Ventes espèces journée :</span><span>+${fmtFcfa(data.cashSales)}</span></div>
-  <div class="flex-row" style="font-style: italic;"><span>Espèces théoriques attendues :</span><span>${fmtFcfa(data.openingCash + data.cashSales)}</span></div>
+  ${data.cashExpenses && data.cashExpenses > 0 ? `
+  <div class="flex-row" style="color: #c00;"><span>Sorties caisse (dépenses) :</span><span>-${fmtFcfa(data.cashExpenses)}</span></div>
+  ` : ""}
+  <div class="flex-row" style="font-style: italic;"><span>Espèces théoriques attendues :</span><span>${fmtFcfa(data.openingCash + data.cashSales - (data.cashExpenses || 0))}</span></div>
   <div class="flex-row bold" style="margin-top: 2px;"><span>Espèces physiques comptées :</span><span>${fmtFcfa(data.countedCash)}</span></div>
   
   <div class="box" style="${varianceClass}">
