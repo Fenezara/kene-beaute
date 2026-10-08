@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, FlipHorizontal, Lightbulb, Loader2, SwitchCamera, X } from "lucide-react";
 import { toast } from "sonner";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
+import { saveHardwarePermGranted } from "@/lib/kene/hardware-perm";
 
 interface LiveCameraModalProps {
   zoneLabel: string;
@@ -57,6 +58,7 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
         }
 
         streamRef.current = stream;
+        saveHardwarePermGranted();
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.play().catch(() => {});

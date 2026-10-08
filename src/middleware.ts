@@ -72,7 +72,7 @@ const SECURITY_HEADERS: ReadonlyArray<readonly [string, string]> = [
   // et les périphériques de caisse; le reste verrouillé.
   [
     "Permissions-Policy",
-    "camera=(self), microphone=(self), bluetooth=(self), usb=(self), geolocation=(), payment=(), serial=(), idle-detection=()",
+    "camera=(self), microphone=(self), bluetooth=(self), usb=(self), geolocation=(self), payment=(), serial=(), idle-detection=()",
   ],
   ["X-DNS-Prefetch-Control", "off"],
   // COOP « same-origin-allow-popups »: isole le contexte browsing tout en

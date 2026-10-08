@@ -50,6 +50,7 @@ import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { LiveCameraModal } from "./LiveCameraModal";
 import { playSpeech, stopBrowserVoice, unlockAudioContext, type SpeechController } from "./ttsAudio";
 import { SpeakButton } from "./SpeakButton";
+import { isHardwarePermGranted, saveHardwarePermGranted, syncHardwarePermissions } from "@/lib/kene/hardware-perm";
 
 export interface QuickSuggestion {
   theme: string;
@@ -158,24 +159,7 @@ const TRIAGE = {
   rouge: { border: "border-l-4 border-bissap", bg: "bg-bissap/5", text: "text-destructive", Icon: OctagonAlert, cta: "Voir les instituts", tab: "rdv" as const },
 };
 
-/* ── Mémorisation permanente de l'autorisation matériel (accordée une fois pour toutes) ── */
-const HARDWARE_PERM_KEY = "kene-hardware-permission-granted";
-
-function isHardwarePermGranted(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return localStorage.getItem(HARDWARE_PERM_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function saveHardwarePermGranted(): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(HARDWARE_PERM_KEY, "true");
-  } catch {}
-}
+/* ── Déverrouillage audio préventif mobile ── */
 
 /** Déverrouillage préventif de l'AudioContext pour les navigateurs mobiles (iOS Safari / Android Chrome)
  * afin que la réponse vocale automatique de Dr. Kènè démarre immédiatement sans blocage autoplay. */
@@ -302,9 +286,8 @@ export function ChatScreen() {
   const [micState, setMicState] = useState<MicState>("idle");
   const [micElapsed, setMicElapsed] = useState(0);
 
-  // Modals d'autorisation explicite matériel
-  const [cameraPermOpen, setCameraPermOpen] = useState(false);
-  const [micPermOpen, setMicPermOpen] = useState(false);
+  // Sélecteur de source photo & Caméra Live (zéro modal bloquant de permission)
+  const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   const [micHelpOpen, setMicHelpOpen] = useState(false);
   const [liveCamOpen, setLiveCamOpen] = useState(false);
 
@@ -317,6 +300,11 @@ export function ChatScreen() {
   const cancelledRef = useRef(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Synchronisation proactive avec les permissions réelles du navigateur / appareil
+  useEffect(() => {
+    void syncHardwarePermissions();
+  }, []);
 
   // Rehydratation paresseuse et idempotente (pattern use-t.ts): le premier
   // montage relit le localStorage persisté; les montages suivants ne
@@ -388,6 +376,7 @@ export function ChatScreen() {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      saveHardwarePermGranted();
       streamRef.current = stream;
       const mime = pickRecorderMime();
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
@@ -918,15 +907,11 @@ export function ChatScreen() {
             </>
           ) : (
             <>
-              {/* Micro: si déjà autorisé, enregistrement DIRECT sans redemander. Sinon, autorisation une fois pour toutes */}
+              {/* Micro: Enregistrement vocal direct sans modal intermédiaire */}
               <button
                 type="button"
                 onClick={() => {
-                  if (isHardwarePermGranted()) {
-                    void startRecording();
-                  } else {
-                    setMicPermOpen(true);
-                  }
+                  void startRecording();
                 }}
                 disabled={micState === "transcribing"}
                 aria-label="Parler à Dermo Kènè"
@@ -943,10 +928,10 @@ export function ChatScreen() {
                 aria-label="Message pour Dermo Kènè"
                 className="k-input h-12 min-w-0 flex-1 rounded-2xl px-3.5 text-sm outline-none placeholder:text-muted-foreground/70"
               />
-              {/* Caméra: demande d'autorisation explicite + choix Caméra Live / Galerie */}
+              {/* Photo: Choix de la source (Caméra Live ou Galerie) */}
               <button
                 type="button"
-                onClick={() => setCameraPermOpen(true)}
+                onClick={() => setPhotoPickerOpen(true)}
                 disabled={photoBusy}
                 aria-label="Envoyer une photo à Dermo Kènè"
                 title="Envoyer une photo à Dermo Kènè"
@@ -1010,9 +995,9 @@ export function ChatScreen() {
         />
       )}
 
-      {/* ── Modal d'autorisation Caméra & Choix ── */}
+      {/* ── Sélecteur de source Photo (Live / Appareil natif / Galerie) ── */}
       <AnimatePresence>
-        {cameraPermOpen && (
+        {photoPickerOpen && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, y: 40, scale: 0.96 }}
@@ -1022,7 +1007,7 @@ export function ChatScreen() {
               className="relative w-full max-w-lg rounded-t-[32px] sm:rounded-[32px] bg-card border border-border shadow-2xl p-5 sm:p-6 pb-8 sm:pb-6 overflow-hidden"
               role="dialog"
               aria-modal="true"
-              aria-labelledby="camera-perm-title"
+              aria-labelledby="photo-picker-title"
             >
               <div className="flex items-center justify-between pb-3 border-b border-border/60">
                 <div className="flex items-center gap-3">
@@ -1030,17 +1015,17 @@ export function ChatScreen() {
                     <Camera size={20} />
                   </span>
                   <div>
-                    <h3 id="camera-perm-title" className="font-heading font-black text-sm text-foreground">
-                      {isHardwarePermGranted() ? "Choisir une photo" : "Autorisation Caméra & Photo"}
+                    <h3 id="photo-picker-title" className="font-heading font-black text-sm text-foreground">
+                      Joindre une photo
                     </h3>
                     <p className="text-[11px] text-muted-foreground">
-                      {isHardwarePermGranted() ? "Pour votre échange avec Dermo Kènè" : "Conseil Dermo Kènè"}
+                      Pour votre échange avec Dermo Kènè
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setCameraPermOpen(false)}
+                  onClick={() => setPhotoPickerOpen(false)}
                   className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted text-muted-foreground active:scale-95 transition-all"
                   aria-label="Fermer"
                 >
@@ -1048,28 +1033,13 @@ export function ChatScreen() {
                 </button>
               </div>
 
-              {!isHardwarePermGranted() && (
-                <div className="my-4 space-y-3">
-                  <p className="text-xs text-foreground/90 leading-relaxed">
-                    Pour examiner les spécificités de votre peau (texture, pores, taches pigmentaires, imperfections) et vous guider avec précision, Dermo Kènè a besoin d&apos;accéder à votre caméra ou à votre galerie photo.
-                  </p>
-
-                  <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/25 p-3 flex items-start gap-2.5 text-[11px] text-emerald-800 dark:text-emerald-300">
-                    <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <p className="leading-snug">
-                      <strong className="font-bold">Confidentialité médicale garantie :</strong> vos photos sont strictement utilisées pour votre diagnostic dermo-conseil instantané. L&apos;autorisation est enregistrée une fois pour toutes.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div className={`space-y-2.5 ${isHardwarePermGranted() ? "pt-3" : "pt-1"}`}>
+              <div className="space-y-2.5 pt-3">
                 {/* Option 1: Live Camera (avec guide facial et contrôle d'éclairage) */}
                 <button
                   type="button"
                   onClick={() => {
                     saveHardwarePermGranted();
-                    setCameraPermOpen(false);
+                    setPhotoPickerOpen(false);
                     setLiveCamOpen(true);
                   }}
                   className="w-full flex items-center justify-between p-3.5 rounded-2xl border-2 border-primary/60 bg-primary/10 hover:bg-primary/15 text-left active:scale-[0.99] transition-all group shadow-sm"
@@ -1098,7 +1068,7 @@ export function ChatScreen() {
                   type="button"
                   onClick={() => {
                     saveHardwarePermGranted();
-                    setCameraPermOpen(false);
+                    setPhotoPickerOpen(false);
                     nativeCameraInputRef.current?.click();
                   }}
                   className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-border bg-card hover:bg-muted/50 text-left active:scale-[0.99] transition-all"
@@ -1119,7 +1089,7 @@ export function ChatScreen() {
                   type="button"
                   onClick={() => {
                     saveHardwarePermGranted();
-                    setCameraPermOpen(false);
+                    setPhotoPickerOpen(false);
                     galleryInputRef.current?.click();
                   }}
                   className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-border bg-card hover:bg-muted/50 text-left active:scale-[0.99] transition-all"
@@ -1128,7 +1098,7 @@ export function ChatScreen() {
                     <ImagePlus size={19} />
                   </span>
                   <div>
-                    <span className="text-xs font-bold text-foreground">Choisir dans la galerie (une ou plusieurs photos)</span>
+                    <span className="text-xs font-bold text-foreground">Choisir dans la galerie</span>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
                       Sélectionnez une ou plusieurs photos (face, profil, gros plan)
                     </p>
@@ -1139,82 +1109,7 @@ export function ChatScreen() {
               <div className="mt-4 pt-3 border-t border-border/60">
                 <button
                   type="button"
-                  onClick={() => setCameraPermOpen(false)}
-                  className="w-full h-10 rounded-xl text-xs font-semibold text-muted-foreground hover:bg-muted active:scale-95 transition-all"
-                >
-                  Annuler
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Modal d'autorisation Microphone ── */}
-      <AnimatePresence>
-        {micPermOpen && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, y: 40, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 40, scale: 0.96 }}
-              transition={{ duration: 0.2 }}
-              className="relative w-full max-w-md rounded-t-[32px] sm:rounded-[32px] bg-card border border-border shadow-2xl p-5 sm:p-6 pb-8 sm:pb-6 overflow-hidden"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="mic-perm-title"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-border/60">
-                <div className="flex items-center gap-3">
-                  <span className="relative h-10 w-10 rounded-2xl bg-primary/15 text-primary grid place-items-center shadow-sm">
-                    <Mic size={20} />
-                  </span>
-                  <div>
-                    <h3 id="mic-perm-title" className="font-heading font-black text-sm text-foreground">
-                      Autorisation Microphone
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground">Note vocale pour Dermo Kènè</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setMicPermOpen(false)}
-                  className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted text-muted-foreground active:scale-95 transition-all"
-                  aria-label="Fermer"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="my-4 space-y-3">
-                <p className="text-xs text-foreground/90 leading-relaxed">
-                  Dermo Kènè a besoin d&apos;accéder au microphone de votre téléphone pour vous permettre d&apos;envoyer des notes vocales directement dans la conversation.
-                </p>
-
-                <div className="rounded-2xl bg-emerald-500/10 border border-emerald-500/25 p-3 flex items-start gap-2.5 text-[11px] text-emerald-800 dark:text-emerald-300">
-                  <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                  <p className="leading-snug">
-                    <strong className="font-bold">Confidentialité médicale garantie :</strong> votre note vocale est transmise directement et de façon sécurisée à Dermo Kènè pour formuler son conseil dermo-cosmétique. L&apos;autorisation est accordée une fois pour toutes.
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    saveHardwarePermGranted();
-                    setMicPermOpen(false);
-                    void startRecording();
-                  }}
-                  className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all hover:opacity-90"
-                >
-                  <Mic size={18} />
-                  Autoriser une fois pour toutes et enregistrer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMicPermOpen(false)}
+                  onClick={() => setPhotoPickerOpen(false)}
                   className="w-full h-10 rounded-xl text-xs font-semibold text-muted-foreground hover:bg-muted active:scale-95 transition-all"
                 >
                   Annuler
