@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { genRef, jsonError, serverError } from "@/lib/kene/server";
-import { activatePlan, diagQuotaFor, planDefById } from "@/lib/kene/plans";
+import { activatePlan, diagQuotaFor, planDefById, computeConsecutiveMonths, getPlanTierPrice } from "@/lib/kene/plans";
 import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { createSaspayCheckoutSession } from "@/lib/payments/saspay";
@@ -87,12 +87,15 @@ async function runActivate(data: z.infer<typeof Body>): Promise<NextResponse> {
   const hasSaspay = Boolean(process.env.SASPAY_API_KEY?.trim());
   const hasWiniPayer = Boolean(process.env.WINIPAYER_MERCHANT_UUID && process.env.WINIPAYER_MERCHANT_TOKEN);
 
+  const consecutiveMonths = await computeConsecutiveMonths(user.id, def.id);
+  const priceToCharge = getPlanTierPrice(def.id, consecutiveMonths);
+
   // Si le plan est payant et qu'une passerelle est configurée
-  if (def.priceFcfa > 0 && (hasSaspay || hasWiniPayer)) {
+  if (priceToCharge > 0 && (hasSaspay || hasWiniPayer)) {
     const payment = await db.payment.create({
       data: {
         userId: user.id,
-        amount: def.priceFcfa,
+        amount: priceToCharge,
         purpose: "subscription_activate",
         status: "pending",
         method: data.source || "saspay",
@@ -100,6 +103,8 @@ async function runActivate(data: z.infer<typeof Body>): Promise<NextResponse> {
         metaJson: JSON.stringify({
           userId: user.id,
           planId: def.id,
+          consecutiveMonths,
+          priceFcfa: priceToCharge,
           source: data.source || "saspay",
         }),
       },

@@ -11,11 +11,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
-import { PLAN_DEFS, diagQuotaFor, getActiveSubscription, grantClientWelcomeTrial } from "@/lib/kene/plans";
+import { PLAN_DEFS, diagQuotaFor, getActiveSubscription, grantClientWelcomeTrial, grantProWelcomeTrial, getLoyaltyStatus } from "@/lib/kene/plans";
 import { rateLimit, rlKey, rateLimitResponse, WALLET_TOPUP } from "@/lib/kene/rate-limit";
 
 export async function GET(req: NextRequest) {
-  // Pattern rate-limit d'une route existante (wallet/topup,): la
+  // Pattern rate-limit d'une route existante (wallet/topup): la
   // lecture est bon marché mais reste bornée (anti-scan du userId).
   const rl = rateLimit(rlKey(req, "subscriptions:read"), WALLET_TOPUP);
   if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop de requêtes — patiente quelques secondes");
@@ -45,6 +45,12 @@ export async function GET(req: NextRequest) {
           sub = await getActiveSubscription(ownerUser.id);
         }
       }
+
+      // Si toujours aucun abonnement actif : accorder le mois d'essai pro 30j 100% gratuit !
+      if (!sub) {
+        const proTrial = await grantProWelcomeTrial(userId, tenant?.id);
+        if (proTrial) sub = proTrial;
+      }
     }
 
     if (!sub && user.role === "client") {
@@ -54,10 +60,35 @@ export async function GET(req: NextRequest) {
 
     const quota = await diagQuotaFor(userId);
 
+    const activePlanId = sub?.plan ?? (user.role === "pro" ? "pro_starter" : "kene_plus");
+    const activeLoyalty = await getLoyaltyStatus(userId, activePlanId);
+
+    const plansWithLoyalty = await Promise.all(
+      PLAN_DEFS.filter((p) => p.audience === audience).map(async (p) => {
+        const loyalty = await getLoyaltyStatus(userId, p.id);
+        return {
+          ...p,
+          consecutiveMonths: loyalty.consecutiveMonths,
+          currentTierPrice: loyalty.currentTierPrice,
+          nextTierPrice: loyalty.nextTierPrice,
+          isTrial: loyalty.isTrial,
+          trialDaysLeft: loyalty.trialDaysLeft,
+        };
+      })
+    );
+
+    const isSubTrial = sub
+      ? sub.source === "welcome_trial" || sub.source === "welcome_offer" || sub.priceFcfa === 0
+      : false;
+    const trialDaysLeft = sub && isSubTrial
+      ? Math.max(0, Math.ceil((new Date(sub.expiresAt).getTime() - Date.now()) / (24 * 3600 * 1000)))
+      : 0;
+
     return NextResponse.json({
-      plan: sub?.plan ?? (user.role === "pro" ? "pro_essentiel" : "gratuit"),
-      plans: PLAN_DEFS.filter((p) => p.audience === audience),
+      plan: sub?.plan ?? (user.role === "pro" ? "pro_starter" : "gratuit"),
+      plans: plansWithLoyalty,
       quota,
+      loyalty: activeLoyalty,
       subscription: sub
         ? {
             id: sub.id,
@@ -65,6 +96,8 @@ export async function GET(req: NextRequest) {
             status: sub.status,
             priceFcfa: sub.priceFcfa,
             source: sub.source,
+            isTrial: isSubTrial,
+            trialDaysLeft,
             startedAt: sub.startedAt,
             expiresAt: sub.expiresAt,
           }

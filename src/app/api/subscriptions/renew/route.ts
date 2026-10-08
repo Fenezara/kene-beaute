@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { genRef, jsonError, serverError } from "@/lib/kene/server";
-import { renewPlan, diagQuotaFor, planDefById, getActiveSubscription } from "@/lib/kene/plans";
+import { renewPlan, diagQuotaFor, planDefById, getActiveSubscription, computeConsecutiveMonths, getPlanTierPrice } from "@/lib/kene/plans";
 import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { createSaspayCheckoutSession } from "@/lib/payments/saspay";
@@ -69,12 +69,15 @@ async function runRenew(data: z.infer<typeof Body>): Promise<NextResponse> {
   const hasSaspay = Boolean(process.env.SASPAY_API_KEY?.trim());
   const hasWiniPayer = Boolean(process.env.WINIPAYER_MERCHANT_UUID && process.env.WINIPAYER_MERCHANT_TOKEN);
 
+  const consecutiveMonths = await computeConsecutiveMonths(user.id, def.id);
+  const priceToCharge = getPlanTierPrice(def.id, consecutiveMonths);
+
   // Si SasPay ou WiniPayer est actif, on initie la passerelle de paiement en ligne réelle
   if (hasSaspay || hasWiniPayer) {
     const payment = await db.payment.create({
       data: {
         userId: user.id,
-        amount: def.priceFcfa,
+        amount: priceToCharge,
         purpose: "subscription_renew",
         status: "pending",
         method: source || "saspay",
@@ -82,6 +85,8 @@ async function runRenew(data: z.infer<typeof Body>): Promise<NextResponse> {
         metaJson: JSON.stringify({
           userId: user.id,
           planId: def.id,
+          consecutiveMonths,
+          priceFcfa: priceToCharge,
           source: source || "saspay",
         }),
       },

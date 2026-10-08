@@ -20,7 +20,7 @@ import { rateLimit, rlKey, rateLimitResponse, OTP_VERIFY } from "@/lib/kene/rate
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { audit, clientIp, sha256Hex, hashEqual } from "@/lib/kene/audit";
 import { hashPin } from "@/lib/kene/pin";
-import { grantClientWelcomeTrial } from "@/lib/kene/plans";
+import { grantClientWelcomeTrial, grantProWelcomeTrial } from "@/lib/kene/plans";
 
 const Body = z.object({
   phone: z.string().min(5),
@@ -190,6 +190,8 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
     });
     if (user.role === "client") {
       await grantClientWelcomeTrial(user.id).catch(() => null);
+    } else if (user.role === "pro") {
+      await grantProWelcomeTrial(user.id, ownerTenant?.id).catch(() => null);
     }
   } else {
     const updateData: { name?: string; role?: string; pinHash?: string; pinFails?: number; pinLockedUntil?: null } = {};

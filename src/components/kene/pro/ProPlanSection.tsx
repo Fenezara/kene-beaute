@@ -1,53 +1,80 @@
 "use client";
-// Kènè Pro — Abonnement & facturation: offres pro « Essentiel »
-// (15 000 FCFA/mois — RDV, clients, catalogue, boutique) et « Complexe »
-// (45 000 FCFA/mois — + paie CNPS/IPM, comptabilité SYSCOHADA,
-// multi-établissements). Paiement mobile money SIMULÉ (même flow honnête que
-// l'app cliente: chips opérateurs, « paiement en mode essai »).
-// Sans ligne d'abonnement active, Essentiel est affiché comme « plan
-// actuel pendant l'essai » (aucune facturation réelle).
+// Kènè Pro — Abonnement & facturation
+// Offres Pro : Pro Starter (10 000 F -> 5 000 F), Pro Institut (20 000 F -> 10 000 F), Pro Complexe (30 000 F -> 20 000 F).
+// 1er mois 100% gratuit (30 jours, 0 FCFA) avec accès complet à toutes les fonctionnalités.
+// Règle de fidélité : tarif dégressif chaque mois. Si un mois est sauté sans payer (+5 jours de grâce Mobile Money),
+// le tarif redémarre au Mois 1.
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  BadgeCheck, Building2, Calculator, CalendarCheck, Check, CheckCircle2, Clock, Crown, Loader2, ShoppingBag, Users,
+  BadgeCheck, Building2, Calculator, CalendarCheck, Check, CheckCircle2, Clock, Crown, HelpCircle, Loader2, ShieldCheck, UserCheck, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
+import { xof } from "@/lib/kene/format";
 import { MOMO_OPERATORS } from "@/lib/kene/rfm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { IconBadge, Shimmer } from "@/components/kene/ui2026";
+import { CauriIcon } from "@/components/kene/icons";
 import { useKene, type SessionUser } from "@/store/kene";
 import { SectionHeader } from "./ui-bits";
 
-/* ─── Contrat API ( — audience pro) ─── */
+/* ─── Contrat API ─── */
+interface ApiPlanTier {
+  month: number;
+  priceFcfa: number;
+  label: string;
+}
+
 interface ApiPlanDef {
   id: string;
   audience: "client" | "pro";
   name: string;
   tagline: string;
   priceFcfa: number;
+  minPriceFcfa: number;
+  trialDays: number;
+  tiers: ApiPlanTier[];
   perks: string[];
   badge?: string;
+  consecutiveMonths?: number;
+  currentTierPrice?: number;
+  nextTierPrice?: number;
+  isTrial?: boolean;
+  trialDaysLeft?: number;
 }
+
 interface ApiSubscription {
   id: string;
   plan: string;
   status: string;
   priceFcfa: number;
   source: string;
+  isTrial?: boolean;
+  trialDaysLeft?: number;
   startedAt: string;
   expiresAt: string;
 }
+
+interface LoyaltyInfo {
+  isTrial: boolean;
+  trialDaysLeft: number;
+  consecutiveMonths: number;
+  currentTierMonth: number;
+  nextTierMonth: number;
+  currentTierPrice: number;
+  nextTierPrice: number;
+  floorPrice: number;
+  graceDays: number;
+}
+
 interface SubsData {
   plan: string;
   plans: ApiPlanDef[];
   quota: { quota: number; used: number; remaining: number; plan: string };
+  loyalty?: LoyaltyInfo;
   subscription: ApiSubscription | null;
 }
-
-/** Icônes des perks — mappées par index sur l'ordre stable de PLAN_DEFS. */
-const ESSENTIEL_PERK_ICONS = [CalendarCheck, Users, ShoppingBag, ShoppingBag] as const;
-const COMPLEXE_PERK_ICONS = [Check, BadgeCheck, Calculator, Building2] as const;
 
 function fmtJJMM(iso: string): string {
   const d = new Date(iso);
@@ -55,14 +82,14 @@ function fmtJJMM(iso: string): string {
 }
 
 export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; tenantName: string }) {
-  const user = useKene((s) => s.user) as SessionUser; // rôle « pro » garanti ici (isolation 69-a)
+  const user = useKene((s) => s.user) as SessionUser;
 
   const [data, setData] = useState<SubsData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Flow de paiement / renouvellement Pro
   const [sheet, setSheet] = useState(false);
-  const [targetPlan, setTargetPlan] = useState<"pro_essentiel" | "pro_complexe">("pro_essentiel");
+  const [targetPlan, setTargetPlan] = useState<"pro_starter" | "pro_institut" | "pro_complexe">("pro_institut");
   const [operator, setOperator] = useState<"wave" | "orange" | "mtn">("wave");
   const [state, setState] = useState<"idle" | "processing" | "done">("idle");
   const [busy, setBusy] = useState(false);
@@ -79,18 +106,34 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
     load();
   }, [load]);
 
-  const essentiel = data?.plans.find((p) => p.id === "pro_essentiel") ?? null;
+  const starter = data?.plans.find((p) => p.id === "pro_starter") ?? null;
+  const institut = data?.plans.find((p) => p.id === "pro_institut" || p.id === "pro_essentiel") ?? null;
   const complexe = data?.plans.find((p) => p.id === "pro_complexe") ?? null;
-  const activePlan = data?.plan === "pro_complexe" || data?.plan === "pro_essentiel" ? data.plan : null;
-  const activeSub = activePlan ? data?.subscription : null;
-  const targetDef = targetPlan === "pro_complexe" ? complexe : essentiel;
 
-  /** Confirmation de souscription ou renouvellement Pro (redirection passerelle ou direct) */
+  const activePlan = data?.plan ?? null;
+  const activeSub = data?.subscription ?? null;
+
+  const targetDef =
+    targetPlan === "pro_starter"
+      ? starter
+      : targetPlan === "pro_complexe"
+      ? complexe
+      : institut;
+
+  const isTrialActive = Boolean(
+    activeSub && (activeSub.source === "welcome_offer" || activeSub.source === "welcome_trial" || activeSub.priceFcfa === 0)
+  );
+
+  const currentTargetPrice = targetDef?.nextTierPrice ?? targetDef?.priceFcfa ?? 10000;
+
+  /** Confirmation de souscription ou renouvellement Pro */
   async function confirmPayment() {
     setBusy(true);
     setState("processing");
     try {
-      const endpoint = activePlan === targetPlan ? "/api/subscriptions/renew" : "/api/subscriptions/activate";
+      const isSamePlan = activePlan === targetPlan || (activePlan === "pro_essentiel" && targetPlan === "pro_institut");
+      const endpoint = isSamePlan ? "/api/subscriptions/renew" : "/api/subscriptions/activate";
+
       const r = await apiPost<{ subscription?: ApiSubscription; checkoutUrl?: string; paymentUrl?: string }>(endpoint, {
         userId: user.id,
         plan: targetPlan,
@@ -100,7 +143,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
       const checkout = r.checkoutUrl || r.paymentUrl;
       if (checkout) {
         toast.info("Redirection vers la passerelle de facturation...", {
-          description: `Règlement de l'abonnement ${targetDef?.name ?? ""} (${targetDef ? targetDef.priceFcfa.toLocaleString("fr-FR") : ""} FCFA).`,
+          description: `Règlement de l'abonnement ${targetDef?.name ?? ""} (${xof(currentTargetPrice)}).`,
         });
         window.location.href = checkout;
         return;
@@ -124,349 +167,498 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
   }
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="max-w-5xl space-y-5">
       <SectionHeader
-        title="Abonnement & facturation"
-        sub={`Offres Essentiel / Complexe de ${tenantName} — facturation certifiée`}
+        title="Abonnement & Facturation Établissement"
+        sub={`Gestion des formules et de la fidélité pour ${tenantName} — facturation certifiée`}
       />
 
-      {/* Bannière explicative Pass Découverte 30 jours */}
-      <div className="k-card rounded-[22px] p-4 sm:p-5 border-l-4 border-l-gold bg-gold/5 space-y-2.5">
+      {/* Bannière 1er mois 100% gratuit */}
+      <div className="k-card rounded-[24px] p-5 border-l-4 border-l-gold bg-gold/5 space-y-3">
         <div className="flex items-center gap-3">
-          <span className="grid place-items-center h-9 w-9 rounded-xl bg-gold/20 text-gold-text shrink-0">
-            <Clock size={19} />
+          <span className="grid place-items-center h-10 w-10 rounded-xl bg-gold/20 text-gold-text shrink-0">
+            <Clock size={20} />
           </span>
-          <div>
-            <h3 className="font-heading text-sm sm:text-[15px] font-bold text-foreground">
-              Pass Découverte 30 jours offert pour tout nouvel établissement
+          <div className="flex-1">
+            <h3 className="font-heading text-sm sm:text-base font-bold text-foreground flex items-center gap-2 flex-wrap">
+              1er mois 100% gratuit (Pass Découverte 30 jours)
+              <span className="rounded-full bg-success/15 text-success px-2.5 py-0.5 text-[10px] font-bold">
+                0 FCFA d'engagement
+              </span>
             </h3>
-            <p className="text-[11px] sm:text-xs text-muted-foreground">
-              Accès complet et immédiat à l&apos;ensemble de la plateforme · 0 FCFA d&apos;engagement · Aucune carte bancaire requise
+            <p className="text-[11.5px] sm:text-xs text-muted-foreground mt-0.5">
+              Accès illimité à <strong>100% des fonctionnalités Pro</strong> (Caisse POS, Agenda 24/7, CRM, Stock, SYSCOHADA, Paie CNPS) sans carte bancaire ni prélèvement surprise.
             </p>
           </div>
         </div>
+
         <div className="grid sm:grid-cols-3 gap-2 pt-1 text-[11px] text-muted-foreground">
-          <div className="flex items-center gap-2 bg-background/60 rounded-xl p-2.5 border border-border/50">
+          <div className="flex items-center gap-2 bg-background/70 rounded-xl p-2.5 border border-border/50">
             <CheckCircle2 size={15} className="text-success shrink-0" />
-            <span>Plan Essentiel offert pendant 30 jours</span>
+            <span>Toutes fonctionnalités débloquées</span>
           </div>
-          <div className="flex items-center gap-2 bg-background/60 rounded-xl p-2.5 border border-border/50">
+          <div className="flex items-center gap-2 bg-background/70 rounded-xl p-2.5 border border-border/50">
             <CheckCircle2 size={15} className="text-success shrink-0" />
-            <span>Test grandeur nature Caisse & Agenda</span>
+            <span>Tarif dégressif à la fidélité ensuite</span>
           </div>
-          <div className="flex items-center gap-2 bg-background/60 rounded-xl p-2.5 border border-border/50">
+          <div className="flex items-center gap-2 bg-background/70 rounded-xl p-2.5 border border-border/50">
             <CheckCircle2 size={15} className="text-success shrink-0" />
-            <span>Aucun prélèvement automatique surprise</span>
+            <span>Tolérance Mobile Money +5 jours</span>
           </div>
         </div>
       </div>
 
-      {/* Erreur datée + ré-essai (pattern ErrorState maison) */}
+      {/* Erreur datée + ré-essai */}
       {error && (
         <div role="alert" className="k-card rounded-[20px] p-4 flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold">Abonnement indisponible</p>
             <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{error}</p>
           </div>
-          <button onClick={load} className="k-btn-gold h-11 px-4 rounded-xl text-primary-foreground text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+          <button
+            onClick={load}
+            className="k-btn-gold h-11 px-4 rounded-xl text-primary-foreground text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
             Réessayer
           </button>
         </div>
       )}
 
-      {/* Statut courant — Essentiel affiché actif pendant le pass découverte */}
+      {/* Statut actuel de l'établissement */}
       {!error && (data === null ? (
         <div className="k-card rounded-[20px] p-4 space-y-3" role="status" aria-busy="true">
           <Shimmer className="h-4 w-32" />
           <Shimmer className="h-7 w-48" />
           <Shimmer className="h-3 w-full" />
-          <span className="sr-only">Chargement de l&apos;abonnement…</span>
+          <span className="sr-only">Chargement de l'abonnement…</span>
         </div>
       ) : (
-        <div className="k-card rounded-[20px] p-4">
-          <div className="flex items-center gap-3">
-            <IconBadge icon={<Crown size={18} />} tone="gold" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold">Plan actuel</p>
-              <p className="font-heading text-[17px] font-bold leading-tight truncate">
-                {activePlan === "pro_complexe" ? "Complexe" : activePlan === "pro_essentiel" ? "Essentiel" : "Pass Découverte"}
-                {activeSub ? (
-                  <span className="ml-2 rounded-full bg-gold/15 text-gold-text px-2 py-0.5 text-[10px] font-bold align-middle">Actif</span>
+        <div className="k-card rounded-[22px] p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <IconBadge icon={<Crown size={20} />} tone="gold" />
+            <div>
+              <p className="text-xs font-bold text-muted-foreground">Formule active de l'établissement</p>
+              <p className="font-heading text-lg font-black leading-tight flex items-center gap-2 flex-wrap">
+                {activePlan === "pro_complexe"
+                  ? "Pro Complexe"
+                  : activePlan === "pro_starter"
+                  ? "Pro Starter"
+                  : "Pro Institut"}
+                {isTrialActive ? (
+                  <span className="rounded-full bg-gold/15 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">
+                    Pass Découverte 30j (0 FCFA)
+                  </span>
+                ) : activeSub ? (
+                  <span className="rounded-full bg-success/15 text-success px-2.5 py-0.5 text-[10px] font-bold">
+                    Actif · Palier Mois {(data.loyalty?.consecutiveMonths ?? 0) + 1}
+                  </span>
                 ) : (
-                  <span className="ml-2 rounded-full bg-gold/15 text-gold-text px-2 py-0.5 text-[10px] font-bold align-middle">Offert · Pass Découverte 30j</span>
+                  <span className="rounded-full bg-muted text-muted-foreground px-2.5 py-0.5 text-[10px] font-bold">
+                    Standard
+                  </span>
                 )}
               </p>
             </div>
           </div>
-          <p className="mt-3 flex items-start gap-1.5 text-[11px] text-muted-foreground leading-snug">
-            <BadgeCheck size={13} className="mt-px shrink-0 text-gold-text" aria-hidden="true" />
-            {activeSub
-              ? `Ton abonnement est actif jusqu'au ${fmtJJMM(activeSub.expiresAt)} — il se renouvelle chaque mois (facturation certifiée).`
-              : "Le plan Essentiel est offert pendant votre Pass Découverte de 30 jours — explorez agenda, CRM, caisse, catalogue et boutique en toute liberté."}
-          </p>
+
+          <div className="text-left sm:text-right text-xs text-muted-foreground">
+            {activeSub ? (
+              <p>
+                Échéance : <strong>{fmtJJMM(activeSub.expiresAt)}</strong>
+                {activeSub.trialDaysLeft ? ` (reste ${activeSub.trialDaysLeft}j)` : ""}
+              </p>
+            ) : (
+              <p>Aucun abonnement en cours</p>
+            )}
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Renouvellement souple par Mobile Money (Wave, Orange, MTN, Moov)
+            </p>
+          </div>
         </div>
       ))}
 
-      {/* Comparatif Essentiel / Complexe */}
-      {!error && (essentiel === null || complexe === null ? (
-        <div className="grid gap-4 md:grid-cols-2" role="status" aria-busy="true" aria-label="Chargement des offres">
-          <div className="k-card rounded-[20px] p-4 space-y-3"><Shimmer className="h-5 w-28" /><Shimmer className="h-8 w-32" /><Shimmer className="h-24 w-full" /></div>
-          <div className="k-card rounded-[20px] p-4 space-y-3"><Shimmer className="h-5 w-28" /><Shimmer className="h-8 w-32" /><Shimmer className="h-24 w-full" /></div>
+      {/* Règle du tarif dégressif à la fidélité */}
+      <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <Crown size={15} className="text-gold-text" />
+          <h4 className="font-heading text-xs font-bold text-foreground">
+            Principe de l'Abonnement Dégressif à la Fidélité
+          </h4>
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          Chaque mois d'abonnement renouvelé sans interruption réduit automatiquement votre mensualité jusqu'à son <strong>tarif plancher à vie</strong> (Mois 6+).
+          <br />
+          ⚠️ <strong>Règle du mois sauté :</strong> Si vous sautez un mois sans payer, une période de grâce de <strong>5 jours (J+5)</strong> est tolérée pour votre réapprovisionnement Mobile Money. Au-delà, le tarif de fidélité se réinitialise au prix de départ du Mois 1.
+        </p>
+      </div>
+
+      {/* Grille des 3 offres Pro */}
+      {!error && (starter === null || institut === null || complexe === null ? (
+        <div className="grid gap-4 md:grid-cols-3" role="status" aria-busy="true">
+          <div className="k-card rounded-[20px] p-4 space-y-3"><Shimmer className="h-5 w-28" /><Shimmer className="h-8 w-32" /><Shimmer className="h-28 w-full" /></div>
+          <div className="k-card rounded-[20px] p-4 space-y-3"><Shimmer className="h-5 w-28" /><Shimmer className="h-8 w-32" /><Shimmer className="h-28 w-full" /></div>
+          <div className="k-card rounded-[20px] p-4 space-y-3"><Shimmer className="h-5 w-28" /><Shimmer className="h-8 w-32" /><Shimmer className="h-28 w-full" /></div>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Essentiel */}
-          <div className="k-card rounded-[20px] p-4 sm:p-5 flex flex-col justify-between">
-            <div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {/* 1. Pro Starter */}
+          <div className="k-card rounded-[22px] p-5 flex flex-col justify-between space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="font-heading text-[17px] font-bold">{essentiel.name}</p>
-                <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-[10px] font-bold text-gold-text">
-                  {activeSub?.plan === "pro_essentiel" ? "Actif" : "Offert · Pass Découverte"}
+                <p className="font-heading text-lg font-bold text-foreground">{starter.name}</p>
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                  Solo & Indépendant
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">{essentiel.tagline}</p>
-              <div className="mt-2 rounded-xl bg-muted/40 p-2 text-[11px] text-muted-foreground">
-                🎯 <strong>Pour qui ?</strong> Salons indépendants, esthéticiennes installées et instituts de quartier (1 établissement).
+              <p className="text-[11px] text-muted-foreground leading-snug">{starter.tagline}</p>
+
+              {/* Prix */}
+              <div className="pt-1">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-mono font-black text-2xl text-gold-text">
+                    {starter.nextTierPrice ? starter.nextTierPrice.toLocaleString("fr-FR") : starter.priceFcfa.toLocaleString("fr-FR")}
+                  </span>
+                  <span className="text-xs text-muted-foreground font-semibold">FCFA / mois</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Descend de 10 000 F à <strong>5 000 F/mois à vie</strong>
+                </p>
               </div>
-              <p className="mt-3 flex items-baseline gap-1.5">
-                <span className="font-mono font-black text-2xl tabular-nums text-gold-text">{essentiel.priceFcfa.toLocaleString("fr-FR")}</span>
-                <span className="text-[11px] font-semibold text-muted-foreground">FCFA / mois</span>
-              </p>
-              <ul className="mt-4 space-y-2">
-                {essentiel.perks.map((perk, i) => {
-                  const Icon = ESSENTIEL_PERK_ICONS[i] ?? Check;
-                  return (
-                    <li key={perk} className="flex items-center gap-2.5 text-[13px]">
-                      <span className="grid place-items-center h-6 w-6 rounded-[9px] bg-terre/10 text-terre shrink-0">
-                        <Icon size={14} aria-hidden="true" />
-                      </span>
-                      <span className="flex-1">{perk}</span>
-                    </li>
-                  );
-                })}
+
+              {/* Échelle dégressive */}
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-2.5 space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Échelle de fidélité mensuelle</p>
+                <div className="grid grid-cols-6 gap-1 text-center">
+                  {starter.tiers.filter((t) => t.month > 0).map((t) => (
+                    <div key={t.month} className="rounded-lg bg-card p-1 border border-border/40">
+                      <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
+                      <p className="text-[10px] font-black font-mono text-foreground">{t.priceFcfa / 1000}k</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Avantages */}
+              <ul className="space-y-2 text-xs pt-1">
+                {starter.perks.map((perk) => (
+                  <li key={perk} className="flex items-start gap-2">
+                    <Check size={14} className="text-success mt-0.5 shrink-0" />
+                    <span className="text-[12px]">{perk}</span>
+                  </li>
+                ))}
               </ul>
             </div>
-            <div className="mt-5 pt-3 border-t border-border/50 space-y-2">
+
+            <div className="pt-3 border-t border-border/50">
               <button
                 onClick={() => {
-                  setTargetPlan("pro_essentiel");
+                  setTargetPlan("pro_starter");
                   setSheet(true);
                   setState("idle");
                 }}
-                className="w-full h-11 rounded-xl bg-terre/15 hover:bg-terre/25 text-terre border border-terre/30 font-bold text-xs inline-flex items-center justify-center gap-2 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
+                className="w-full h-11 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border font-bold text-xs inline-flex items-center justify-center gap-2 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
               >
-                <Crown size={15} />
-                {activeSub?.plan === "pro_essentiel" ? "Renouveler Essentiel (15 000 FCFA)" : "Régler mon abonnement Essentiel (15 000 FCFA)"}
+                <Crown size={14} />
+                {activePlan === "pro_starter"
+                  ? `Renouveler Starter (${xof(starter.nextTierPrice ?? starter.priceFcfa)})`
+                  : `Choisir Pro Starter (${xof(starter.nextTierPrice ?? starter.priceFcfa)})`}
               </button>
-              <p className="text-center text-[10px] text-muted-foreground">
-                Sans prélèvement automatique · Facture entreprise déductible
-              </p>
             </div>
           </div>
 
-          {/* Complexe — recommandé, CTA upgrade (paiement sécurisé) */}
-          <div className="k-card k-glow-gold rounded-[20px] p-4 sm:p-5 relative flex flex-col justify-between">
-            <div>
-              {complexe.badge && (
-                <span className="absolute -top-2.5 right-4 rounded-full bg-primary text-primary-foreground px-2.5 py-0.5 text-[10px] font-bold shadow">{complexe.badge}</span>
-              )}
+          {/* 2. Pro Institut (Recommandé) */}
+          <div className="k-card k-glow-gold rounded-[22px] p-5 flex flex-col justify-between space-y-4 relative border-2 border-gold/50 bg-gold/5">
+            <span className="absolute -top-2.5 right-4 rounded-full bg-primary text-primary-foreground px-2.5 py-0.5 text-[10px] font-bold shadow">
+              Recommandé Salons
+            </span>
+            <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="font-heading text-[17px] font-bold">{complexe.name}</p>
+                <p className="font-heading text-lg font-bold text-foreground">{institut.name}</p>
+                <span className="rounded-full bg-gold/20 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">
+                  Multi-praticiennes
+                </span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">{complexe.tagline}</p>
-              <div className="mt-2 rounded-xl bg-gold/10 p-2 text-[11px] text-gold-text">
-                ⭐ <strong>Pour qui ?</strong> Établissements avec personnel déclaré, cliniques dermo, spas ou réseaux multi-succursales.
+              <p className="text-[11px] text-muted-foreground leading-snug">{institut.tagline}</p>
+
+              {/* Prix */}
+              <div className="pt-1">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-mono font-black text-2xl text-gold-text">
+                    {institut.nextTierPrice ? institut.nextTierPrice.toLocaleString("fr-FR") : institut.priceFcfa.toLocaleString("fr-FR")}
+                  </span>
+                  <span className="text-xs text-muted-foreground font-semibold">FCFA / mois</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Descend de 20 000 F à <strong>10 000 F/mois à vie</strong>
+                </p>
               </div>
-              <p className="mt-3 flex items-baseline gap-1.5">
-                <span className="font-mono font-black text-2xl tabular-nums text-gold-text">{complexe.priceFcfa.toLocaleString("fr-FR")}</span>
-                <span className="text-[11px] font-semibold text-muted-foreground">FCFA / mois</span>
-              </p>
-              <ul className="mt-4 space-y-2">
-                {complexe.perks.map((perk, i) => {
-                  const Icon = COMPLEXE_PERK_ICONS[i] ?? Check;
-                  return (
-                    <li key={perk} className="flex items-center gap-2.5 text-[13px]">
-                      <span className="grid place-items-center h-6 w-6 rounded-[9px] bg-gold/15 text-gold-text shrink-0">
-                        <Icon size={14} aria-hidden="true" />
-                      </span>
-                      <span className="flex-1 font-medium">{perk}</span>
-                    </li>
-                  );
-                })}
+
+              {/* Échelle dégressive */}
+              <div className="rounded-xl border border-gold/30 bg-gold/10 p-2.5 space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gold-text">Échelle de fidélité mensuelle</p>
+                <div className="grid grid-cols-6 gap-1 text-center">
+                  {institut.tiers.filter((t) => t.month > 0).map((t) => (
+                    <div key={t.month} className="rounded-lg bg-card p-1 border border-gold/30">
+                      <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
+                      <p className="text-[10px] font-black font-mono text-gold-text">{t.priceFcfa / 1000}k</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Avantages */}
+              <ul className="space-y-2 text-xs pt-1">
+                {institut.perks.map((perk) => (
+                  <li key={perk} className="flex items-start gap-2">
+                    <Check size={14} className="text-success mt-0.5 shrink-0" />
+                    <span className="text-[12px] font-medium">{perk}</span>
+                  </li>
+                ))}
               </ul>
             </div>
-            <div className="mt-5 space-y-2">
+
+            <div className="pt-3 border-t border-border/50">
+              <button
+                onClick={() => {
+                  setTargetPlan("pro_institut");
+                  setSheet(true);
+                  setState("idle");
+                }}
+                className="w-full h-11 rounded-xl k-btn-gold text-primary-foreground font-bold text-xs inline-flex items-center justify-center gap-2 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary shadow"
+              >
+                <Crown size={14} />
+                {activePlan === "pro_institut" || activePlan === "pro_essentiel"
+                  ? `Renouveler Institut (${xof(institut.nextTierPrice ?? institut.priceFcfa)})`
+                  : `Choisir Pro Institut (${xof(institut.nextTierPrice ?? institut.priceFcfa)})`}
+              </button>
+            </div>
+          </div>
+
+          {/* 3. Pro Complexe (Excellence) */}
+          <div className="k-card rounded-[22px] p-5 flex flex-col justify-between space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-heading text-lg font-bold text-foreground">{complexe.name}</p>
+                <span className="rounded-full bg-gold/15 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">
+                  Excellence & Réseau
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-snug">{complexe.tagline}</p>
+
+              {/* Prix */}
+              <div className="pt-1">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="font-mono font-black text-2xl text-gold-text">
+                    {complexe.nextTierPrice ? complexe.nextTierPrice.toLocaleString("fr-FR") : complexe.priceFcfa.toLocaleString("fr-FR")}
+                  </span>
+                  <span className="text-xs text-muted-foreground font-semibold">FCFA / mois</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Descend de 30 000 F à <strong>20 000 F/mois à vie</strong>
+                </p>
+              </div>
+
+              {/* Échelle dégressive */}
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-2.5 space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Échelle de fidélité mensuelle</p>
+                <div className="grid grid-cols-6 gap-1 text-center">
+                  {complexe.tiers.filter((t) => t.month > 0).map((t) => (
+                    <div key={t.month} className="rounded-lg bg-card p-1 border border-border/40">
+                      <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
+                      <p className="text-[10px] font-black font-mono text-foreground">{t.priceFcfa / 1000}k</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Avantages */}
+              <ul className="space-y-2 text-xs pt-1">
+                {complexe.perks.map((perk) => (
+                  <li key={perk} className="flex items-start gap-2">
+                    <Check size={14} className="text-success mt-0.5 shrink-0" />
+                    <span className="text-[12px]">{perk}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="pt-3 border-t border-border/50">
               <button
                 onClick={() => {
                   setTargetPlan("pro_complexe");
                   setSheet(true);
                   setState("idle");
                 }}
-                className="k-btn-gold h-11 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95 transition-all"
+                className="w-full h-11 rounded-xl bg-terre/15 hover:bg-terre/25 text-terre border border-terre/30 font-bold text-xs inline-flex items-center justify-center gap-2 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
               >
-                <Crown size={15} /> {activePlan === "pro_complexe" ? "Prolonger Complexe (45 000 FCFA)" : "Passer à Complexe (45 000 FCFA)"}
+                <Crown size={14} />
+                {activePlan === "pro_complexe"
+                  ? `Renouveler Complexe (${xof(complexe.nextTierPrice ?? complexe.priceFcfa)})`
+                  : `Choisir Pro Complexe (${xof(complexe.nextTierPrice ?? complexe.priceFcfa)})`}
               </button>
-              <p className="text-center text-[10px] text-muted-foreground">Facturation sécurisée Mobile Money & Carte.</p>
             </div>
           </div>
         </div>
       ))}
 
       {/* Matrice comparative détaillée des fonctionnalités */}
-      <div className="k-card rounded-[22px] p-4 sm:p-6 space-y-4">
+      <div className="k-card rounded-[22px] p-5 space-y-4">
         <div>
-          <h3 className="font-heading text-base font-bold text-foreground">Tableau comparatif détaillé des fonctionnalités</h3>
-          <p className="text-xs text-muted-foreground">Retrouvez en un coup d&apos;œil ce que comprend chaque formule pour votre institut.</p>
+          <h3 className="font-heading text-base font-bold text-foreground">Tableau comparatif détaillé des 3 formules</h3>
+          <p className="text-xs text-muted-foreground">Choisissez l'outil parfaitement dimensionné pour votre établissement.</p>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-border/60">
-                <th className="py-2.5 px-3 font-bold text-muted-foreground">Fonctionnalité & Module</th>
-                <th className="py-2.5 px-3 font-bold text-center w-28 text-terre">Essentiel</th>
-                <th className="py-2.5 px-3 font-bold text-center w-28 text-gold-text">Complexe</th>
+                <th className="py-2.5 px-3 font-bold text-muted-foreground">Fonctionnalités & Modules</th>
+                <th className="py-2.5 px-3 font-bold text-center w-28 text-foreground">Starter</th>
+                <th className="py-2.5 px-3 font-bold text-center w-28 text-gold-text">Institut</th>
+                <th className="py-2.5 px-3 font-bold text-center w-28 text-terre">Complexe</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
               <tr className="bg-muted/20">
-                <td colSpan={3} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
-                  1. Gestion Quotidienne & Clientèle
+                <td colSpan={4} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
+                  1. Capacité & Infrastructure
                 </td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium">Agenda en ligne 24/7 & gestion des rendez-vous</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 font-medium">1er mois 100% offert (Pass Découverte)</td>
+                <td className="py-2 px-3 text-center text-success font-bold">30j (0 F)</td>
+                <td className="py-2 px-3 text-center text-success font-bold">30j (0 F)</td>
+                <td className="py-2 px-3 text-center text-success font-bold">30j (0 F)</td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium">Caisse enregistreuse POS tactile & tickets de caisse</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 font-medium">Tarif fidélité dégressif (M1 → M6+)</td>
+                <td className="py-2 px-3 text-center font-mono font-bold">10k → 5k</td>
+                <td className="py-2 px-3 text-center font-mono font-bold text-gold-text">20k → 10k</td>
+                <td className="py-2 px-3 text-center font-mono font-bold text-terre">30k → 20k</td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium">Fiches clientes CRM 360° & segmentation RFM</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 font-medium">Praticiennes & Cabines de soin</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">1 Praticienne</td>
+                <td className="py-2 px-3 text-center font-bold">Jusqu'à 6</td>
+                <td className="py-2 px-3 text-center text-gold-text font-bold">Illimitées</td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium">Stock & Inventaire (séparation Revente vs Cabine)</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
-              </tr>
-              <tr>
-                <td className="py-2.5 px-3 font-medium">Boutique en ligne Kènè & click-and-collect</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 font-medium">Nombre d'établissements / succursales</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">1 salon</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">1 salon</td>
+                <td className="py-2 px-3 text-center text-gold-text font-bold">Multi-succursales</td>
               </tr>
 
               <tr className="bg-muted/20">
-                <td colSpan={3} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
-                  2. Expertise Cutanée & Fidélisation
+                <td colSpan={4} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
+                  2. Gestion Quotidienne & Clientèle
                 </td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium">Diagnostics cabine assistés par IA Dr Kènè</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 font-medium">Agenda en ligne 24/7 & réservations clientes</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium">Relances automatiques WhatsApp post-soin</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 font-medium">Acomptes Mobile Money anti-désistement</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium">Coupons promotionnels & codes de réduction</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
-                <td className="py-2.5 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 font-medium">Caisse enregistreuse POS tactile & tickets Bluetooth</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Basique</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
+              </tr>
+              <tr>
+                <td className="py-2 px-3 font-medium">Gestion des stocks (Revente vs Cabine)</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Basique</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
+              </tr>
+              <tr>
+                <td className="py-2 px-3 font-medium">CRM avancé & segmentation RFM</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Fiches simples</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
               </tr>
 
               <tr className="bg-muted/20">
-                <td colSpan={3} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
-                  3. Gestion Sociale, Comptable & Réseau
+                <td colSpan={4} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
+                  3. Gestion Sociale & Comptabilité OHADA
                 </td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium">
-                  <strong>Paie sociale réglementaire</strong> (CNPS Côte d&apos;Ivoire / IPRES & IPM Sénégal)
-                </td>
-                <td className="py-2.5 px-3 text-center text-muted-foreground font-semibold">— Non inclus</td>
-                <td className="py-2.5 px-3 text-center text-gold-text font-bold">⭐ Inclus</td>
+                <td className="py-2 px-3 font-medium">Paie RH certifiée CNPS (CI) / IPRES (SN) & commissions</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
+                <td className="py-2 px-3 text-center text-gold-text font-bold">⭐ Inclus</td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium">
-                  <strong>Comptabilité SYSCOHADA</strong> (Plan OHADA, Journal, Grand Livre, Bilan)
-                </td>
-                <td className="py-2.5 px-3 text-center text-muted-foreground font-semibold">— Non inclus</td>
-                <td className="py-2.5 px-3 text-center text-gold-text font-bold">⭐ Inclus</td>
+                <td className="py-2 px-3 font-medium">Comptabilité SYSCOHADA (Clôtures, TVA, Bilan)</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
+                <td className="py-2 px-3 text-center text-gold-text font-bold">⭐ Inclus</td>
               </tr>
               <tr>
-                <td className="py-2.5 px-3 font-medium">
-                  <strong>Multi-établissements</strong> (plusieurs succursales sous un même compte gérante)
-                </td>
-                <td className="py-2.5 px-3 text-center text-muted-foreground">1 salon unique</td>
-                <td className="py-2.5 px-3 text-center text-gold-text font-bold">⭐ Illimité</td>
+                <td className="py-2 px-3 font-medium">Assistant vocal gérante « Maman Kènè »</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
+                <td className="py-2 px-3 text-center text-gold-text font-bold">⭐ Inclus</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Foire aux questions (FAQ) Spéciale Établissements */}
-      <div className="k-card rounded-[22px] p-4 sm:p-6 space-y-3.5">
-        <h3 className="font-heading text-base font-bold text-foreground">Foire aux questions des Instituts & Salons</h3>
-        
+      {/* Foire aux questions (FAQ) */}
+      <div className="k-card rounded-[22px] p-5 space-y-3.5">
+        <h3 className="font-heading text-base font-bold text-foreground">Foire aux questions des Professionnels</h3>
         <div className="space-y-3 text-xs">
           <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
-            <p className="font-bold text-foreground">⏱️ Combien de temps dure le Pass Découverte offert ?</p>
+            <p className="font-bold text-foreground">⏱️ Le Pass Découverte de 30 jours donne-t-il accès à TOUTES les fonctionnalités ?</p>
             <p className="text-muted-foreground leading-relaxed">
-              Le Pass Découverte dure <strong>30 jours complets</strong> à compter de l&apos;ouverture de votre compte. Durant ce mois offert, vous bénéficiez de toutes les fonctionnalités pour tester votre caisse, inscrire votre personnel et accueillir vos premières réservations.
+              <strong>Oui, absolument à 100%.</strong> Pendant votre mois d'essai offert de 30 jours (0 FCFA), aucune fonctionnalité n'est bridée. Vous pouvez tester la caisse enregistreuse tactile, l'agenda synchronisé, la paie CNPS, les fiches clientes et la comptabilité SYSCOHADA sans restriction.
             </p>
           </div>
 
           <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
-            <p className="font-bold text-foreground">💳 Y a-t-il un prélèvement automatique ou un risque de débit surprise ?</p>
+            <p className="font-bold text-foreground">📉 Comment fonctionne la dégressivité des tarifs à la fidélité ?</p>
             <p className="text-muted-foreground leading-relaxed">
-              <strong>Aucun.</strong> Aucune carte bancaire n&apos;est demandée. À la fin des 30 jours, votre compte ne sera pas débité à votre insu. Vous décidez vous-même de poursuivre en réglant via Mobile Money (Wave, Orange Money, MTN MoMo).
+              Après les 30 jours offerts, chaque mois renouvelé sans interruption fait baisser votre tarif mensuel jusqu'au tarif plancher à vie (Mois 6+) :
+              <br />
+              • <strong>Pro Starter :</strong> de 10 000 F à 5 000 F/mois à vie (-1 000 F/mois).
+              <br />
+              • <strong>Pro Institut :</strong> de 20 000 F à 10 000 F/mois à vie (-2 000 F/mois).
+              <br />
+              • <strong>Pro Complexe :</strong> de 30 000 F à 20 000 F/mois à vie (-2 000 F/mois).
             </p>
           </div>
 
           <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
-            <p className="font-bold text-foreground">🏢 Comment choisir entre le plan Essentiel et le plan Complexe ?</p>
+            <p className="font-bold text-foreground">⚠️ Que se passe-t-il si un mois est sauté sans payer ?</p>
             <p className="text-muted-foreground leading-relaxed">
-              Si vous gérez un seul salon indépendant, le plan <strong>Essentiel (15 000 FCFA/mois)</strong> couvre 100% de vos besoins quotidiens. Si vous avez des employées déclarées à la CNPS / IPRES, si vous devez tenir une comptabilité OHADA ou si vous ouvrez plusieurs succursales, le plan <strong>Complexe (45 000 FCFA/mois)</strong> est la formule recommandée.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
-            <p className="font-bold text-foreground">🔄 Mes données sont-elles conservées si je tarde à renouveler ?</p>
-            <p className="text-muted-foreground leading-relaxed">
-              Oui, l&apos;ensemble de votre historique (catalogue de soins, fiches clientes, ventes passées et stocks) reste précieusement conservé et sécurisé en base de données.
+              Pour tenir compte des réalités Mobile Money locales, nous accordons une <strong>période de grâce de 5 jours</strong> après l'échéance. Si vous renouvelez dans ces 5 jours, votre continuité de fidélité est préservée. Au-delà de ces 5 jours sans renouvellement, la continuité est rompue et le tarif redémarre au tarif du Mois 1 lors de votre réactivation. Vos données ne sont jamais supprimées.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Note honnête */}
-      <p className="text-[11px] leading-relaxed text-muted-foreground px-1">
-        Les offres Kènè+ clientes vivent dans l&apos;app cliente — chaque espace gère son propre abonnement (isolation des comptes).
-      </p>
-
-      {/* Sheet upgrade — mobile money SIMULÉ (même flow honnête que cliente) */}
+      {/* Sheet de paiement Mobile Money Pro */}
       <Sheet open={sheet} onOpenChange={(o) => { setSheet(o); if (!o) setState("idle"); }}>
         <SheetContent side="bottom" className="max-w-[560px] mx-auto rounded-t-3xl">
           <SheetHeader className="text-left">
             <SheetTitle className="font-heading font-black">
-              {targetPlan === "pro_complexe"
-                ? (activePlan === "pro_complexe" ? "Prolonger le plan Complexe" : "Passer au plan Complexe")
-                : (activePlan === "pro_essentiel" ? "Renouveler le plan Essentiel" : "Régler l'abonnement Essentiel")}
+              Facturation {targetDef?.name ?? "Abonnement Pro"}
             </SheetTitle>
           </SheetHeader>
           <div className="px-4 pb-6">
             {state === "idle" && (
               <div className="space-y-4">
                 <p className="rounded-xl bg-gold/10 border border-gold/30 px-3 py-2.5 text-[11px] font-semibold text-gold-text leading-snug">
-                  Facturation sécurisée en direct par Mobile Money (Wave, Orange, MTN, Moov) & Carte bancaire via passerelle certifiée.
+                  Facturation sécurisée par Mobile Money (Wave, Orange, MTN, Moov) & Carte bancaire via SasPay/WiniPayer.
                 </p>
                 <div>
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Opérateur</p>
@@ -494,12 +686,16 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                 <p className="flex items-baseline justify-between px-1">
                   <span className="text-xs text-muted-foreground">Montant de facturation</span>
                   <span className="font-mono font-black text-xl tabular-nums text-gold-text">
-                    {targetDef ? targetDef.priceFcfa.toLocaleString("fr-FR") : (targetPlan === "pro_complexe" ? "45 000" : "15 000")} FCFA
+                    {currentTargetPrice.toLocaleString("fr-FR")} FCFA
                   </span>
                 </p>
-                <button onClick={confirmPayment} disabled={busy} className="k-btn-gold h-12 w-full rounded-xl text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                <button
+                  onClick={confirmPayment}
+                  disabled={busy}
+                  className="k-btn-gold h-12 w-full rounded-xl text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
                   {busy ? <Loader2 size={16} className="animate-spin" /> : <Crown size={16} />}
-                  {activePlan === targetPlan ? "Confirmer et renouveler" : "Confirmer et payer"}
+                  Confirmer et régler ({xof(currentTargetPrice)})
                 </button>
               </div>
             )}
@@ -508,9 +704,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                 <div className="grid place-items-center w-16 h-16 rounded-3xl font-heading font-black text-2xl text-[#1A1410]" style={{ backgroundColor: MOMO_OPERATORS.find((o) => o.code === operator)?.color }}>
                   {MOMO_OPERATORS.find((o) => o.code === operator)?.name.charAt(0)}
                 </div>
-                <p className="font-mono text-2xl font-black tabular-nums">
-                  {targetDef ? targetDef.priceFcfa.toLocaleString("fr-FR") : (targetPlan === "pro_complexe" ? "45 000" : "15 000")} FCFA
-                </p>
+                <p className="font-mono text-2xl font-black tabular-nums">{currentTargetPrice.toLocaleString("fr-FR")} FCFA</p>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Traitement en cours…</div>
                 <p className="text-[10px] text-muted-foreground font-mono">{user.phone}</p>
               </div>

@@ -23,7 +23,7 @@ import { jsonError, serverError, genRef } from "@/lib/kene/server";
 import { setSessionCookie, sanitizeUser, sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, OTP_REQUEST } from "@/lib/kene/rate-limit";
 import { audit, clientIp } from "@/lib/kene/audit";
-import { grantClientWelcomeTrial } from "@/lib/kene/plans";
+import { grantClientWelcomeTrial, grantProWelcomeTrial } from "@/lib/kene/plans";
 
 export const runtime = "nodejs";
 
@@ -72,6 +72,8 @@ export async function GET(req: NextRequest) {
       });
       if (user.role === "client") {
         await grantClientWelcomeTrial(user.id).catch(() => null);
+      } else if (user.role === "pro") {
+        await grantProWelcomeTrial(user.id).catch(() => null);
       }
     }
 

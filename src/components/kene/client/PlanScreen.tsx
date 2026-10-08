@@ -21,14 +21,28 @@ import { CauriIcon } from "@/components/kene/icons";
 import { useKene, type SessionUser } from "@/store/kene";
 
 /* ─── Contrat API ─── */
+interface ApiPlanTier {
+  month: number;
+  priceFcfa: number;
+  label: string;
+}
+
 interface ApiPlanDef {
   id: string;
   audience: "client" | "pro";
   name: string;
   tagline: string;
   priceFcfa: number;
+  minPriceFcfa: number;
+  trialDays: number;
+  tiers: ApiPlanTier[];
   perks: string[];
   badge?: string;
+  consecutiveMonths?: number;
+  currentTierPrice?: number;
+  nextTierPrice?: number;
+  isTrial?: boolean;
+  trialDaysLeft?: number;
 }
 interface ApiSubscription {
   id: string;
@@ -36,19 +50,33 @@ interface ApiSubscription {
   status: string;
   priceFcfa: number;
   source: string;
+  isTrial?: boolean;
+  trialDaysLeft?: number;
   startedAt: string;
   expiresAt: string;
+}
+interface LoyaltyInfo {
+  isTrial: boolean;
+  trialDaysLeft: number;
+  consecutiveMonths: number;
+  currentTierMonth: number;
+  nextTierMonth: number;
+  currentTierPrice: number;
+  nextTierPrice: number;
+  floorPrice: number;
+  graceDays: number;
 }
 interface SubsData {
   plan: string;
   plans: ApiPlanDef[];
   quota: { quota: number; used: number; remaining: number; plan: string };
+  loyalty?: LoyaltyInfo;
   subscription: ApiSubscription | null;
 }
 
 /** Icônes des perks Kènè+ — mappées par index sur l'ordre stable de
  * PLAN_DEFS (diagnostics illimités, suivi évolution, priorité, défis). */
-const PLUS_PERK_ICONS = [CauriIcon, TrendingUp, Zap, Trophy] as const;
+const PLUS_PERK_ICONS = [Clock, CauriIcon, Zap, TrendingUp, Crown, Trophy, Crown] as const;
 
 /** « 25/03 » à partir d'une date ISO — pas de dépendance locale floue. */
 function fmtJJMM(iso: string): string {
@@ -87,6 +115,8 @@ export function PlanScreen() {
   const isPlus = data?.plan === "kene_plus";
   const quota = data?.quota;
 
+  const currentChargePrice = plusDef?.nextTierPrice ?? (data?.loyalty?.nextTierPrice || plusDef?.priceFcfa || 5000);
+
   /** Confirme l'activation ou le renouvellement → POST activate/renew → passerelle ou succès. */
   async function confirmPayment() {
     setBusy(true);
@@ -102,7 +132,7 @@ export function PlanScreen() {
       const checkout = r.checkoutUrl || r.paymentUrl;
       if (checkout) {
         toast.info("Redirection vers la passerelle de paiement...", {
-          description: "Finalisez votre règlement de 2 500 FCFA par Mobile Money ou Carte 💳",
+          description: `Finalisez votre règlement de ${xof(currentChargePrice)} par Mobile Money ou Carte 💳`,
         });
         window.location.href = checkout;
         return;
@@ -211,7 +241,7 @@ export function PlanScreen() {
         </RevealItem>
       ))}
 
-      {/* Section Kènè+ — halo or, 4 perks, prix, CTA (ou carte active) */}
+      {/* Section Kènè+ — halo or, perks, échelle dégressive, CTA (ou carte active) */}
       {!error && (plusDef === null ? (
         <RevealItem>
           <div className="k-card rounded-[24px] p-5 space-y-4" role="status" aria-busy="true" aria-label="Chargement des offres">
@@ -222,10 +252,9 @@ export function PlanScreen() {
           </div>
         </RevealItem>
       ) : isPlus && data?.subscription ? (
- /* Déjà abonnée: carte active (badge, expiration, renouvellement simulé,
- perks cochées) — honnêteté sur le paiement en mode essai. */
+        /* Déjà abonnée: carte active avec jauge de fidélité et tarif dégressif */
         <RevealItem>
-          <section aria-labelledby="plus-active-t" className="k-card k-glow-gold rounded-[24px] p-5">
+          <section aria-labelledby="plus-active-t" className="k-card k-glow-gold rounded-[24px] p-5 space-y-5">
             <div className="flex items-center gap-3">
               <span className="k-glow-gold grid place-items-center h-12 w-12 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC]">
                 <Crown size={22} />
@@ -234,17 +263,61 @@ export function PlanScreen() {
                 <p id="plus-active-t" className="font-heading font-black text-lg leading-tight flex items-center gap-2 flex-wrap">
                   Kènè+ <Check size={17} className="text-success" aria-hidden="true" />
                   {data.subscription.source === "welcome_trial" && (
-                    <span className="rounded-full bg-gold/20 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">Pass Découverte 30j</span>
+                    <span className="rounded-full bg-gold/20 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">Pass Découverte 30j (0 FCFA)</span>
                   )}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   {data.subscription.source === "welcome_trial"
-                    ? "30 jours offerts pour explorer tous les privilèges · 0 FCFA"
-                    : `${plusDef.tagline} · ${xof(plusDef.priceFcfa)}/mois`}
+                    ? "30 jours offerts pour explorer tous les privilèges sans limite"
+                    : `${plusDef.tagline} · Tarif fidélité : ${xof(currentChargePrice)}/mois`}
                 </p>
               </div>
             </div>
-            <ul className="mt-4 space-y-2.5">
+
+            {/* Échelle de Fidélité Dégressive */}
+            <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Crown size={14} className="text-gold-text" />
+                  Échelle de fidélité dégressive (5 000 F → 2 500 F)
+                </p>
+                <span className="rounded-full bg-gold/15 text-gold-text px-2 py-0.5 text-[10px] font-bold">
+                  {data.subscription.source === "welcome_trial"
+                    ? "Mois Découverte actif"
+                    : `Palier Mois ${(data.loyalty?.consecutiveMonths ?? 0) + 1}`}
+                </span>
+              </div>
+
+              {/* Paliers visuels */}
+              <div className="grid grid-cols-6 gap-1.5 pt-1">
+                {plusDef.tiers.filter((t) => t.month > 0).map((tier) => {
+                  const currentM = data.loyalty?.consecutiveMonths ?? 0;
+                  const isReached = currentM >= tier.month;
+                  const isNext = currentM + 1 === tier.month;
+                  return (
+                    <div
+                      key={tier.month}
+                      className={`rounded-xl p-2 text-center border transition-all ${
+                        isReached
+                          ? "bg-gold/20 border-gold/60 text-gold-text shadow-sm"
+                          : isNext
+                          ? "bg-background border-gold/40 text-foreground ring-1 ring-gold/40"
+                          : "bg-muted/20 border-border/40 text-muted-foreground opacity-60"
+                      }`}
+                    >
+                      <p className="text-[10px] font-bold">M{tier.month}</p>
+                      <p className="text-[11px] font-black font-mono">{tier.priceFcfa / 1000}k</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="text-[10.5px] text-muted-foreground leading-snug">
+                🌿 <strong>Règle de continuité :</strong> chaque mois payé réduit votre tarif de 500 F jusqu'à <strong>2 500 F/mois à vie</strong>. En cas de mois sauté sans paiement (+5 jours de grâce Mobile Money), le tarif redémarre au Mois 1 (5 000 F).
+              </p>
+            </div>
+
+            <ul className="space-y-2.5">
               {plusDef.perks.map((perk, i) => {
                 const Icon = PLUS_PERK_ICONS[i] ?? CauriIcon;
                 return (
@@ -252,20 +325,21 @@ export function PlanScreen() {
                     <span className="grid place-items-center h-7 w-7 rounded-[10px] bg-success/15 text-success shrink-0">
                       <Check size={15} strokeWidth={3} aria-hidden="true" />
                     </span>
-                    <span className="flex-1">{perk}</span>
+                    <span className="flex-1 text-xs sm:text-sm">{perk}</span>
                     <Icon size={15} className="text-muted-foreground/60 shrink-0" aria-hidden="true" />
                   </li>
                 );
               })}
             </ul>
-            <p className="mt-4 flex items-start gap-1.5 rounded-xl bg-success/10 px-3 py-2.5 text-[11px] text-success leading-snug">
+
+            <p className="flex items-start gap-1.5 rounded-xl bg-success/10 px-3 py-2.5 text-[11px] text-success leading-snug">
               <BadgeCheck size={14} className="mt-px shrink-0" aria-hidden="true" />
               {data.subscription.source === "welcome_trial"
                 ? `Ton Pass Découverte de 30 jours est actif jusqu'au ${fmtJJMM(data.subscription.expiresAt)} — sans engagement, aucun prélèvement automatique.`
                 : `Ton abonnement est actif jusqu'au ${fmtJJMM(data.subscription.expiresAt)} — sans engagement, il expire naturellement à cette date (aucun prélèvement automatique, jamais).`}
             </p>
-            {/* t. 138 — renouvellement en deux tapes: la carte J-3 de l'accueil
-                et le rappel automatique mènent ici. Jours raccordés (IFRS 15). */}
+
+            {/* Bouton de renouvellement dynamique */}
             <button
               onClick={() => {
                 setSheetMode("renew");
@@ -273,23 +347,23 @@ export function PlanScreen() {
                 setState("idle");
               }}
               disabled={busy}
-              className="k-btn-gold mt-3 h-12 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              aria-label={`Renouveler Kènè+ pour 30 jours supplémentaires — ${plusDef ? xof(plusDef.priceFcfa) : "2 500 F"} par mois`}
+              className="k-btn-gold mt-2 h-12 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              aria-label={`Renouveler Kènè+ pour 30 jours supplémentaires — ${xof(currentChargePrice)} par mois`}
             >
               <Crown size={16} />
-              Renouveler +30 jours · {plusDef ? xof(plusDef.priceFcfa) : "2 500 F"}
+              Renouveler +30 jours · {xof(currentChargePrice)}
             </button>
-            <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-              Les 30 jours se raccordent après ton échéance actuelle · paiement sécurisé Mobile Money.
+            <p className="text-center text-[10px] text-muted-foreground">
+              Les 30 jours se raccordent après ton échéance actuelle · tarif préservé sans interruption.
             </p>
           </section>
         </RevealItem>
       ) : (
- /* Offre: carte halo or + perks + prix + CTA k-btn-gold. */
+        /* Offre Kènè+: carte halo or + perks + échelle + prix + CTA */
         <RevealItem>
           <section aria-labelledby="plus-offer-t" className="k-card k-glow-gold overflow-hidden rounded-[24px]">
             <div className="kente-band h-1.5 w-full" aria-hidden="true" />
-            <div className="p-5">
+            <div className="p-5 space-y-5">
               <div className="flex items-center gap-3">
                 <span className="k-glow-gold grid place-items-center h-12 w-12 rounded-full bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-[#FFF9EC]">
                   <Crown size={22} />
@@ -303,7 +377,37 @@ export function PlanScreen() {
                 </div>
               </div>
 
-              <ul className="mt-4 space-y-2.5">
+              {/* Bannière 1er mois 100% gratuit */}
+              <div className="rounded-2xl border border-success/30 bg-success/10 p-3.5 flex items-center gap-3">
+                <span className="grid place-items-center h-8 w-8 rounded-xl bg-success/20 text-success shrink-0">
+                  <CheckCircle2 size={18} />
+                </span>
+                <div className="text-xs">
+                  <p className="font-bold text-success">1er mois 100% gratuit (Pass Découverte 30j)</p>
+                  <p className="text-[11px] text-muted-foreground">Accès illimité à toutes les fonctionnalités · 0 FCFA d'engagement</p>
+                </div>
+              </div>
+
+              {/* Échelle dégressive */}
+              <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-2.5">
+                <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Crown size={14} className="text-gold-text" />
+                  Tarif dégressif à la fidélité (5 000 F → 2 500 F/mois)
+                </p>
+                <div className="grid grid-cols-6 gap-1.5 pt-1">
+                  {plusDef.tiers.filter((t) => t.month > 0).map((tier) => (
+                    <div key={tier.month} className="rounded-xl p-2 text-center border bg-card border-border/60">
+                      <p className="text-[10px] font-bold text-muted-foreground">M{tier.month}</p>
+                      <p className="text-[11px] font-black font-mono text-gold-text">{tier.priceFcfa / 1000}k</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10.5px] text-muted-foreground leading-snug">
+                  Chaque mois renouvelé réduit votre tarif de 500 F jusqu'à <strong>2 500 F/mois à vie</strong>. Si un mois est sauté (+5j de tolérance), retour au tarif Mois 1.
+                </p>
+              </div>
+
+              <ul className="space-y-2.5">
                 {plusDef.perks.map((perk, i) => {
                   const Icon = PLUS_PERK_ICONS[i] ?? CauriIcon;
                   return (
@@ -311,30 +415,33 @@ export function PlanScreen() {
                       <span className="grid place-items-center h-7 w-7 rounded-[10px] bg-gold/15 text-gold-text shrink-0">
                         <Icon size={15} aria-hidden="true" />
                       </span>
-                      <span className="flex-1">{perk}</span>
+                      <span className="flex-1 text-xs sm:text-sm">{perk}</span>
                     </li>
                   );
                 })}
               </ul>
 
-              <p className="mt-5 flex items-baseline gap-1.5">
-                <span className="font-mono font-black text-3xl tabular-nums text-gold-text">{plusDef.priceFcfa.toLocaleString("fr-FR")}</span>
-                <span className="text-xs font-semibold text-muted-foreground">FCFA / mois</span>
-              </p>
+              <div className="pt-2 border-t border-border/50">
+                <p className="flex items-baseline gap-1.5">
+                  <span className="font-mono font-black text-3xl tabular-nums text-gold-text">{currentChargePrice.toLocaleString("fr-FR")}</span>
+                  <span className="text-xs font-semibold text-muted-foreground">FCFA / mois</span>
+                  <span className="ml-auto text-xs text-muted-foreground line-through">5 000 FCFA</span>
+                </p>
 
-              <button
-                onClick={() => {
-                  setSheetMode("activate");
-                  setSheet(true);
-                  setState("idle");
-                }}
-                className="k-btn-gold mt-4 h-12 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                <Crown size={16} /> Activer Kènè+
-              </button>
-              <p className="mt-2 text-center text-[10px] text-muted-foreground">
-                Paiement sécurisé par Mobile Money (Wave, Orange, MTN, Moov) & Carte.
-              </p>
+                <button
+                  onClick={() => {
+                    setSheetMode("activate");
+                    setSheet(true);
+                    setState("idle");
+                  }}
+                  className="k-btn-gold mt-4 h-12 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                  <Crown size={16} /> Activer Kènè+ ({xof(currentChargePrice)})
+                </button>
+                <p className="mt-2 text-center text-[10px] text-muted-foreground">
+                  Paiement sécurisé par Mobile Money (Wave, Orange, MTN, Moov) & Carte via SasPay/WiniPayer.
+                </p>
+              </div>
             </div>
           </section>
         </RevealItem>
@@ -363,7 +470,17 @@ export function PlanScreen() {
               </thead>
               <tbody className="divide-y divide-border/40">
                 <tr>
-                  <td className="py-2.5 px-2 font-medium">Bilan de peau IA par photo</td>
+                  <td className="py-2.5 px-2 font-medium">1er mois 100% gratuit (Pass Découverte)</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">— Compte standard</td>
+                  <td className="py-2.5 px-2 text-center text-success font-bold">🎁 30j offerts (0 F)</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Tarif fidélité dégressif</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">0 F à vie</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">5 000 F → 2 500 F/m</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Bilan de peau par photo</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">1 scan / mois</td>
                   <td className="py-2.5 px-2 text-center text-success font-bold">⚡ Illimité</td>
                 </tr>
@@ -373,9 +490,9 @@ export function PlanScreen() {
                   <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Inclus</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-2 font-medium">Dr Kènè (Assistant dermo-botanique)</td>
+                  <td className="py-2.5 px-2 font-medium">Dermo Kènè (Conseils botaniques & routines)</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">Standard</td>
-                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">👑 Prioritaire</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">👑 Prioritaire 24/7</td>
                 </tr>
                 <tr>
                   <td className="py-2.5 px-2 font-medium">Passeport de Peau digital (partage salon)</td>
@@ -403,8 +520,8 @@ export function PlanScreen() {
         <div className="grid grid-cols-3 gap-2">
           <div className="k-card rounded-2xl p-3 text-center space-y-1">
             <Clock size={16} className="mx-auto text-gold-text" />
-            <p className="text-[11px] font-bold">30 jours</p>
-            <p className="text-[9px] text-muted-foreground">Période mensuelle sans engagement</p>
+            <p className="text-[11px] font-bold">30 jours offerts</p>
+            <p className="text-[9px] text-muted-foreground">1er mois 100% gratuit sans engagement</p>
           </div>
           <div className="k-card rounded-2xl p-3 text-center space-y-1">
             <CheckCircle2 size={16} className="mx-auto text-success" />
@@ -413,8 +530,8 @@ export function PlanScreen() {
           </div>
           <div className="k-card rounded-2xl p-3 text-center space-y-1">
             <ShieldCheck size={16} className="mx-auto text-terre" />
-            <p className="text-[11px] font-bold">Zéro surprise</p>
-            <p className="text-[9px] text-muted-foreground">Aucun prélèvement automatique</p>
+            <p className="text-[11px] font-bold">Tarif dégressif</p>
+            <p className="text-[9px] text-muted-foreground">Descend jusqu'à 2 500 F à vie</p>
           </div>
         </div>
       </RevealItem>
@@ -433,15 +550,15 @@ export function PlanScreen() {
               </p>
             </div>
             <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
-              <p className="font-bold text-foreground">Pourquoi choisir Kènè+ à 2 500 FCFA ?</p>
+              <p className="font-bold text-foreground">Comment fonctionne le mois gratuit et le tarif dégressif de 5 000 F à 2 500 F ?</p>
               <p className="text-muted-foreground leading-relaxed">
-                Kènè+ est idéal si vous traitez une affection cutanée (taches pigmentaires, acné, sécheresse) et souhaitez suivre les progrès de votre peau semaine après semaine, scanner vos zones dès que nécessaire et bénéficier des conseils illimités du Dr Kènè.
+                Votre tout 1er mois est <strong>100% offert (30 jours, 0 FCFA)</strong> pour explorer tous les privilèges. Ensuite, votre 1er mois payé débute à 5 000 FCFA, le 2e passe à 4 500 FCFA, et ainsi de suite de -500 FCFA par mois jusqu'au 6e mois où votre tarif devient <strong>2 500 FCFA/mois à vie</strong> tant que vous renouvelez sans interruption (avec 5 jours de tolérance Mobile Money).
               </p>
             </div>
             <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
-              <p className="font-bold text-foreground">Que se passe-t-il à la fin des 30 jours ?</p>
+              <p className="font-bold text-foreground">Que se passe-t-il si je saute un mois sans payer ?</p>
               <p className="text-muted-foreground leading-relaxed">
-                Votre pass s&apos;arrête naturellement sans aucun frais supplémentaire. Votre compte redevient gratuit et l&apos;ensemble de votre historique reste sauvegardé.
+                Si vous ne renouvelez pas dans les 5 jours suivant l'échéance, la continuité de fidélité est interrompue. Votre compte repasse en mode gratuit sans frais. Lorsque vous choisirez de vous réabonner, le tarif redémarrera au Mois 1 (5 000 FCFA).
               </p>
             </div>
           </div>
@@ -496,7 +613,7 @@ export function PlanScreen() {
                 </div>
                 <p className="flex items-baseline justify-between px-1">
                   <span className="text-xs text-muted-foreground">{sheetMode === "renew" ? "Montant renouvellement (+30 j)" : "Montant mensuel"}</span>
-                  <span className="font-mono font-black text-xl tabular-nums text-gold-text">{plusDef ? plusDef.priceFcfa.toLocaleString("fr-FR") : "2 500"} FCFA</span>
+                  <span className="font-mono font-black text-xl tabular-nums text-gold-text">{currentChargePrice.toLocaleString("fr-FR")} FCFA</span>
                 </p>
                 <button
                   onClick={confirmPayment}
@@ -504,7 +621,7 @@ export function PlanScreen() {
                   className="k-btn-gold h-12 w-full rounded-xl text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                   {busy ? <Loader2 size={16} className="animate-spin" /> : <Crown size={16} />}
-                  {sheetMode === "renew" ? "Confirmer et renouveler (+30 jours)" : "Confirmer et payer"}
+                  {sheetMode === "renew" ? `Confirmer et renouveler (${xof(currentChargePrice)})` : `Confirmer et payer (${xof(currentChargePrice)})`}
                 </button>
               </div>
             )}
@@ -513,7 +630,7 @@ export function PlanScreen() {
                 <div className="grid place-items-center w-16 h-16 rounded-3xl font-heading font-black text-2xl text-[#1A1410]" style={{ backgroundColor: MOMO_OPERATORS.find((o) => o.code === operator)?.color }}>
                   {MOMO_OPERATORS.find((o) => o.code === operator)?.name.charAt(0)}
                 </div>
-                <p className="font-mono text-2xl font-black tabular-nums">{plusDef ? plusDef.priceFcfa.toLocaleString("fr-FR") : "2 500"} FCFA</p>
+                <p className="font-mono text-2xl font-black tabular-nums">{currentChargePrice.toLocaleString("fr-FR")} FCFA</p>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Traitement en cours…</div>
                 <p className="text-[10px] text-muted-foreground font-mono">{user.phone}</p>
               </div>

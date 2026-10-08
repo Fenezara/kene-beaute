@@ -639,107 +639,163 @@ export function WelcomeThreshold() {
                               <Clock size={16} />
                             </span>
                             <p className="font-heading font-bold text-foreground text-sm">
-                              30 jours offerts pour tout nouvel établissement
+                              30 jours offerts pour tout nouvel établissement (100% débloqué)
                             </p>
                           </div>
                           <p className="text-[11.5px] text-muted-foreground leading-relaxed">
-                            Le plan <strong>Essentiel (15 000 FCFA)</strong> est offert d&apos;office pendant 30 jours. Vous configurez votre institut, testez la caisse enregistreuse, la prise de rendez-vous en ligne, le stock et les fiches clientes sans carte bancaire et sans aucun prélèvement surprise.
+                            Le <strong>Pass Découverte 30 jours (0 FCFA)</strong> débloque l'intégralité des fonctionnalités Pro (Caisse POS tactile, Agenda 24/7, Stock, CRM, SYSCOHADA, Paie CNPS) sans carte bancaire et sans aucun prélèvement surprise.
                           </p>
                         </div>
 
-                        {/* Grille des 2 offres Entreprise : Essentiel & Complexe */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Carte Essentiel */}
+                        {/* Grille des 3 offres Entreprise : Starter, Institut & Complexe */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                          {/* 1. Pro Starter */}
                           <div className="rounded-2xl border border-border bg-card/70 p-4 sm:p-5 flex flex-col justify-between space-y-4">
                             <div className="space-y-2.5">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-heading text-[16px] sm:text-[17px] font-bold">Pro Essentiel</span>
-                                <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-[10px] font-bold text-gold-text">
-                                  30 jours offerts
+                                <span className="font-heading text-[16px] font-bold">Pro Starter</span>
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-[9.5px] font-bold text-muted-foreground">
+                                  Solo
                                 </span>
                               </div>
-                              <p className="text-[11.5px] text-muted-foreground leading-snug">
-                                Idéal pour les salons indépendants, esthéticiennes installées et instituts de quartier (1 établissement).
+                              <p className="text-[11px] text-muted-foreground leading-snug">
+                                Praticienne solo, dermo-conseil indépendant & cabine dédiée.
                               </p>
-                              <div className="flex items-baseline gap-1.5 pt-1">
-                                <span className="font-mono text-2xl font-black text-gold-text">15 000</span>
-                                <span className="text-xs text-muted-foreground font-semibold">FCFA / mois après les 30 jours offerts</span>
+                              <div className="pt-1">
+                                <div className="flex items-baseline gap-1.5">
+                                  <span className="font-mono text-xl font-black text-gold-text">10 000</span>
+                                  <span className="text-[11px] text-muted-foreground font-semibold">FCFA / mois</span>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  Descend à <strong>5 000 F/mois à vie</strong>
+                                </p>
                               </div>
-                              <ul className="space-y-2 text-xs pt-2">
+                              <ul className="space-y-1.5 text-xs pt-1">
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Agenda en ligne 24/7</strong> : Prise de rendez-vous autonome par vos clientes</span>
+                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]"><strong>Agenda en ligne 24/7</strong></span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Caisse POS tactile</strong> : Ventes, encaissements et tickets Bluetooth</span>
+                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]">Acomptes Mobile Money anti no-show</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>CRM Clientes 360°</strong> : Fiches, historique de soin et relances</span>
+                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]">Fiches clientes & historique</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Stock séparé</strong> : Distinction nette Revente Boutique vs Cabine</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Diagnostics IA en cabine</strong> : Analyses assistées par le Dr Kènè</span>
+                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]">Rappels WhatsApp & SMS</span>
                                 </li>
                               </ul>
                             </div>
                             <button
                               type="button"
                               onClick={() => enterPortal("pro")}
-                              className="w-full h-11 rounded-xl k-chip hover:bg-muted text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                              className="w-full h-10 rounded-xl k-chip hover:bg-muted text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
                             >
-                              <span>Démarrer le Pass Pro (30j offerts)</span>
+                              <span>Choisir Starter</span>
                               <ArrowRight size={13} />
                             </button>
                           </div>
 
-                          {/* Carte Complexe */}
-                          <div className="rounded-2xl border border-gold/50 bg-gold/10 p-4 sm:p-5 flex flex-col justify-between space-y-4 relative">
-                            <span className="absolute -top-2.5 right-4 rounded-full bg-primary text-primary-foreground px-2.5 py-0.5 text-[10px] font-bold shadow">
-                              Recommandé structures & réseaux
+                          {/* 2. Pro Institut */}
+                          <div className="rounded-2xl border-2 border-gold/50 bg-gold/10 p-4 sm:p-5 flex flex-col justify-between space-y-4 relative shadow-sm">
+                            <span className="absolute -top-2.5 right-3 rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-[9.5px] font-bold shadow">
+                              Recommandé Salons
                             </span>
                             <div className="space-y-2.5">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-heading text-[16px] sm:text-[17px] font-bold">Pro Complexe</span>
+                                <span className="font-heading text-[16px] font-bold">Pro Institut</span>
                               </div>
-                              <p className="text-[11.5px] text-muted-foreground leading-snug">
-                                Pour les établissements avec personnel déclaré, cliniques dermo, spas ou réseaux multi-succursales.
+                              <p className="text-[11px] text-muted-foreground leading-snug">
+                                Le cœur de gestion des salons & instituts (jusqu'à 6 praticiennes).
                               </p>
-                              <div className="flex items-baseline gap-1.5 pt-1">
-                                <span className="font-mono text-2xl font-black text-gold-text">45 000</span>
-                                <span className="text-xs text-muted-foreground font-semibold">FCFA / mois</span>
+                              <div className="pt-1">
+                                <div className="flex items-baseline gap-1.5">
+                                  <span className="font-mono text-xl font-black text-gold-text">20 000</span>
+                                  <span className="text-[11px] text-muted-foreground font-semibold">FCFA / mois</span>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  Descend à <strong>10 000 F/mois à vie</strong>
+                                </p>
                               </div>
-                              <ul className="space-y-2 text-xs pt-2">
+                              <ul className="space-y-1.5 text-xs pt-1">
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Tout le plan Essentiel</strong> inclus</span>
+                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]">Tout Pro Starter inclus</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Paie sociale déclarative</strong> : CNPS (Côte d&apos;Ivoire) / IPRES & IPM (Sénégal)</span>
+                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]"><strong>Caisse POS tactile</strong> & tickets</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Comptabilité SYSCOHADA</strong> : Plan de comptes OHADA, Journal, Bilan</span>
+                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]">Stocks Revente vs Cabine</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Multi-établissements</strong> : Pilotez plusieurs succursales depuis un seul compte</span>
+                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]">CRM & segmentation RFM</span>
                                 </li>
                               </ul>
                             </div>
                             <button
                               type="button"
                               onClick={() => enterPortal("pro")}
-                              className="w-full h-11 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-2"
+                              className="w-full h-10 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 shadow"
                             >
-                              <Crown size={14} />
-                              <span>Découvrir l&apos;espace Pro</span>
+                              <span>Choisir Institut</span>
+                              <ArrowRight size={13} />
+                            </button>
+                          </div>
+
+                          {/* 3. Pro Complexe */}
+                          <div className="rounded-2xl border border-border bg-card/70 p-4 sm:p-5 flex flex-col justify-between space-y-4">
+                            <div className="space-y-2.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-heading text-[16px] font-bold">Pro Complexe</span>
+                                <span className="rounded-full bg-gold/15 text-gold-text px-2 py-0.5 text-[9.5px] font-bold">
+                                  Excellence
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground leading-snug">
+                                Spas, cliniques dermo, multi-succursales & personnel déclaré.
+                              </p>
+                              <div className="pt-1">
+                                <div className="flex items-baseline gap-1.5">
+                                  <span className="font-mono text-xl font-black text-gold-text">30 000</span>
+                                  <span className="text-[11px] text-muted-foreground font-semibold">FCFA / mois</span>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  Descend à <strong>20 000 F/mois à vie</strong>
+                                </p>
+                              </div>
+                              <ul className="space-y-1.5 text-xs pt-1">
+                                <li className="flex items-start gap-2">
+                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]">Tout Pro Institut inclus</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]"><strong>Paie CNPS / IPRES</strong> déclarative</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]"><strong>Comptabilité SYSCOHADA</strong></span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]">Multi-établissements illimité</span>
+                                </li>
+                              </ul>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => enterPortal("pro")}
+                              className="w-full h-10 rounded-xl k-chip hover:bg-muted text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                            >
+                              <span>Choisir Complexe</span>
+                              <ArrowRight size={13} />
                             </button>
                           </div>
                         </div>
@@ -767,7 +823,7 @@ export function WelcomeThreshold() {
                               <ul className="space-y-2 text-xs pt-2">
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>1 Bilan dermo-biométrique complet par mois</strong> (score, type et zone)</span>
+                                  <span><strong>1 Bilan dermo-biométrique par mois</strong> (score, type et zone)</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
@@ -796,35 +852,40 @@ export function WelcomeThreshold() {
                           {/* Carte Kènè+ */}
                           <div className="rounded-2xl border border-gold/50 bg-gold/10 p-4 sm:p-5 flex flex-col justify-between space-y-4 relative">
                             <span className="absolute -top-2.5 right-4 rounded-full bg-primary text-primary-foreground px-2.5 py-0.5 text-[10px] font-bold shadow">
-                              Pass Dermo Privilège
+                              30j offerts puis dégressif
                             </span>
                             <div className="space-y-2.5">
                               <div className="flex items-center justify-between gap-2">
                                 <span className="font-heading text-[16px] sm:text-[17px] font-bold">Pass Kènè+</span>
                               </div>
                               <p className="text-[11.5px] text-muted-foreground leading-snug">
-                                Pour celles qui traitent des taches pigmentaires, de l&apos;acné ou souhaitent un suivi dermo intensif.
+                                Bilans dermo-biométriques illimités, suivi d'évolution & privilèges boutique.
                               </p>
-                              <div className="flex items-baseline gap-1.5 pt-1">
-                                <span className="font-mono text-2xl font-black text-gold-text">2 500</span>
-                                <span className="text-xs text-muted-foreground font-semibold">FCFA / mois</span>
+                              <div className="pt-1">
+                                <div className="flex items-baseline gap-1.5">
+                                  <span className="font-mono text-2xl font-black text-gold-text">5 000 → 2 500</span>
+                                  <span className="text-xs text-muted-foreground font-semibold">FCFA / mois</span>
+                                </div>
+                                <p className="text-[10.5px] text-muted-foreground mt-0.5">
+                                  <strong>1er mois 100% offert (0 FCFA)</strong>, puis descend jusqu'à 2 500 F à vie !
+                                </p>
                               </div>
                               <ul className="space-y-2 text-xs pt-2">
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Diagnostics IA illimités</strong> : Scannez vos zones sans aucune restriction</span>
+                                  <span><strong>Bilans dermo illimités</strong> : Scannez vos zones sans aucune restriction</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Courbe d&apos;évolution & avant/après</strong> pour mesurer vos progrès</span>
+                                  <span><strong>Courbe d&apos;évolution & avant/après</strong> tactile pour mesurer vos progrès</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Dermo Kènè prioritaire</strong> avec rituels beauté personnalisés</span>
+                                  <span><strong>Dermo Kènè prioritaire 24/7</strong> avec rituels botaniques personnalisés</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Passeport de Peau 360°</strong> partagé avec votre esthéticienne en cabine</span>
+                                  <span><strong>Passeport de Peau 360°</strong> & remises VIP sur la Boutique</span>
                                 </li>
                               </ul>
                             </div>
@@ -834,7 +895,7 @@ export function WelcomeThreshold() {
                               className="w-full h-11 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-2"
                             >
                               <Crown size={14} />
-                              <span>Rejoindre Kènè+</span>
+                              <span>Tester 30 jours gratuitement</span>
                             </button>
                           </div>
                         </div>
