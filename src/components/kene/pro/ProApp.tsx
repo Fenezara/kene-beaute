@@ -40,6 +40,7 @@ import { TeamSection } from "./TeamSection";
 import { OrdersSection } from "./OrdersSection";
 import { MamanAssistantModal } from "./MamanAssistantModal";
 import { AssistantSection } from "./AssistantSection";
+import { formatRole, ROLE_LABELS } from "@/lib/kene/hr-constants";
 
 export type ProSectionId = "dashboard" | "assistant" | "agenda" | "diagnostic" | "caisse" | "orders" | "crm" | "relances" | "equipe" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
 
@@ -66,14 +67,14 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
 const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
   estheticienne: ["agenda", "diagnostic", "assistant", "parametres"],
   dermo_conseillere: ["agenda", "diagnostic", "crm", "relances", "assistant", "parametres"],
+  coiffeuse: ["agenda", "diagnostic", "assistant", "parametres"],
+  prothesiste_ongulaire: ["agenda", "diagnostic", "assistant", "parametres"],
+  masseuse: ["agenda", "diagnostic", "assistant", "parametres"],
   caissiere: ["caisse", "catalogue", "assistant", "parametres"],
+  receptionniste: ["agenda", "caisse", "crm", "relances", "assistant", "parametres"],
+  responsable_stock: ["catalogue", "stock", "assistant", "parametres"],
   manager: ["dashboard", "agenda", "diagnostic", "caisse", "crm", "relances", "equipe", "catalogue", "assistant", "parametres"],
-};
-const EMPLOYEE_ROLE_LABELS: Record<string, string> = {
-  estheticienne: "Esthéticienne",
-  dermo_conseillere: "Dermo-conseillère",
-  caissiere: "Caissière",
-  manager: "Manager",
+  apprentie: ["agenda", "diagnostic", "assistant", "parametres"],
 };
 
 const PLAN_STYLES: Record<string, string> = {
@@ -311,7 +312,9 @@ export function ProApp() {
 
   // — sections du poste (employée) vs tout (gérante).
   const employeeRole = sessionUser?.employeeRole ?? null;
-  const allowedIds = employeeRole ? EMPLOYEE_SECTIONS[employeeRole] ?? ["parametres"] : null;
+  const allowedIds = employeeRole
+    ? EMPLOYEE_SECTIONS[employeeRole] ?? ["agenda", "diagnostic", "assistant", "parametres"]
+    : null;
   const nav = allowedIds ? NAV.filter((n) => allowedIds.includes(n.id)) : NAV;
   // Une employée n'atterrit jamais sur une section interdite: la section
   // ACTIVE est dérivée (clamp) — pas de redirection, pas d'effet, la valeur
@@ -350,7 +353,7 @@ export function ProApp() {
   const chipRole = isAdmin
     ? "👑 Patronne / Admin"
     : employeeRole
-    ? EMPLOYEE_ROLE_LABELS[employeeRole] ?? "Employée"
+    ? formatRole(employeeRole)
     : proOwner
       ? "Fondatrice / Gérante"
       : "Gérante";

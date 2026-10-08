@@ -28,13 +28,7 @@ import type { PayrollLine } from "@/lib/payroll";
 import { useApi } from "./useApi";
 import { EmptyState, ErrorState, KenteTop, Money, SectionHeader } from "./ui-bits";
 import type { ProPayPeriod, ProPayslip, PayrollResponse, PayslipDetails } from "./types";
-
-const ROLE_LABELS: Record<string, string> = {
-  estheticienne: "Esthéticienne",
-  dermo_conseillere: "Dermo-conseillère",
-  caissiere: "Caissière",
-  manager: "Manager",
-};
+import { formatRole } from "@/lib/kene/hr-constants";
 
 function parseDetails(ps: ProPayslip): PayslipDetails {
   try {
@@ -278,7 +272,7 @@ export function PayrollSection({
                       <TableRow key={pr.employeeId}>
                         <TableCell>
                           <p className="font-semibold text-xs">{pr.name}</p>
-                          <p className="text-[10px] text-muted-foreground capitalize">{ROLE_LABELS[pr.role] ?? pr.role}</p>
+                          <p className="text-[10px] text-muted-foreground capitalize">{formatRole(pr.role)}</p>
                         </TableCell>
                         <TableCell className="text-right text-xs font-mono">{pr.servicesCount}</TableCell>
                         <TableCell className="text-right text-xs font-mono">{xof(pr.servicesRevenue)}</TableCell>
@@ -378,7 +372,7 @@ export function PayrollSection({
                               <TableRow key={slip.id}>
                                 <TableCell>
                                   <p className="text-sm font-medium">{slip.employee.name}</p>
-                                  <p className="text-[10px] text-muted-foreground">{ROLE_LABELS[slip.employee.role] ?? slip.employee.role}</p>
+                                  <p className="text-[10px] text-muted-foreground">{formatRole(slip.employee.role)}</p>
                                 </TableCell>
                                 <TableCell className="text-right"><Money value={slip.grossSalary} className="text-xs" /></TableCell>
                                 <TableCell className="text-right hidden sm:table-cell"><Money value={slip.cnpsEmployee} className="text-xs" /></TableCell>
@@ -449,7 +443,7 @@ function PayslipDialog({ slip, periodLabel, tenantName, country, onClose }: { sl
           {/* Employé */}
           <div className="grid grid-cols-2 gap-x-6 gap-y-1 border-b border-black/40 py-3 text-[11px]">
             <p><span className="font-semibold">Salarié :</span> {slip.employee.name}</p>
-            <p><span className="font-semibold">Fonction :</span> {ROLE_LABELS[slip.employee.role] ?? slip.employee.role}</p>
+            <p><span className="font-semibold">Fonction :</span> {formatRole(slip.employee.role)}</p>
             <p><span className="font-semibold">Matricule {country === "SN" ? "IPRES" : "CNPS"} :</span> <span className="font-mono">{slip.employee.cnpsNumber ?? "EN ATTENTE"}</span></p>
             <p><span className="font-semibold">Régime :</span> {details.regime ?? (country === "SN" ? "IPM + IPRES + IR (Sénégal)" : "CNPS Côte d'Ivoire + IGR + CN")}</p>
           </div>

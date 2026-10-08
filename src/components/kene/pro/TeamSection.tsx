@@ -53,15 +53,14 @@ import { useApi } from "./useApi";
 import { EmptyState, ErrorState, KpiCard, Money, SectionHeader } from "./ui-bits";
 import { DEFAULT_FALLBACK_TEAM } from "@/lib/kene/fallback-catalog";
 import type { EmployeesResponse, LeaveBalance, LeavesResponse, ProEmployee, ProLeave } from "./types";
-
-const ROLE_LABELS: Record<string, string> = {
-  estheticienne: "Esthéticienne",
-  dermo_conseillere: "Dermo-conseillère",
-  caissiere: "Caissière",
-  manager: "Manager",
-};
-const ROLES = Object.keys(ROLE_LABELS);
-const CONTRACTS = ["CDI", "CDD", "Stage"] as const;
+import {
+  PREDEFINED_ROLES,
+  ROLE_LABELS,
+  PREDEFINED_CONTRACTS,
+  CONTRACT_LABELS,
+  formatRole,
+  formatContract,
+} from "@/lib/kene/hr-constants";
 
 const ATTENDANCE_STYLES: Record<string, { label: string; cls: string }> = {
   present: { label: "Présente", cls: "bg-success/15 text-success border-success/30" },
@@ -73,9 +72,19 @@ const ATTENDANCE_STYLES: Record<string, { label: string; cls: string }> = {
 const ROLE_HINTS: Record<string, string> = {
   estheticienne: "Agenda et Diagnostic.",
   dermo_conseillere: "Agenda, Diagnostic, CRM et Relances.",
+  coiffeuse: "Agenda, Diagnostics capillaires et Soins.",
+  prothesiste_ongulaire: "Agenda et Soins des ongles.",
+  masseuse: "Agenda, Soins corps et Massages.",
   caissiere: "Caisse, Catalogue, Promos et Stock.",
+  receptionniste: "Accueil, Agenda, Caisse et CRM.",
+  responsable_stock: "Catalogue et Stock.",
   manager: "toute la gestion (hors paie et compta).",
+  apprentie: "Agenda, Diagnostic et Assistant.",
 };
+
+function getRoleHint(role: string): string {
+  return ROLE_HINTS[role] ?? "Agenda, Diagnostics en cabine et Assistant.";
+}
 
 const LEAVE_TYPES: { value: string; label: string }[] = [
   { value: "conge", label: "Congé annuel" },
@@ -275,8 +284,8 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                       <div className="min-w-0">
                         <p className="font-heading font-semibold leading-tight truncate">{emp.name}</p>
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                          <Badge variant="secondary" className="text-[10px]">{ROLE_LABELS[emp.role] ?? emp.role}</Badge>
-                          <Badge variant="outline" className="text-[10px]">{emp.contractType}</Badge>
+                          <Badge variant="secondary" className="text-[10px]">{formatRole(emp.role)}</Badge>
+                          <Badge variant="outline" className="text-[10px]">{formatContract(emp.contractType)}</Badge>
                           <Badge variant="outline" className="text-[10px] font-mono bg-muted">{emp.country}</Badge>
                         </div>
                       </div>
@@ -576,8 +585,10 @@ function HireDialog({
 }) {
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
-  const [role, setRole] = useState("estheticienne");
-  const [contractType, setContractType] = useState("CDI");
+  const [selectedRole, setSelectedRole] = useState("estheticienne");
+  const [customRole, setCustomRole] = useState("");
+  const [selectedContract, setSelectedContract] = useState("CDI");
+  const [customContract, setCustomContract] = useState("");
   const [country, setCountry] = useState(defaultCountry === "SN" ? "SN" : "CI");
   const [baseSalary, setBaseSalary] = useState("");
   const [transport, setTransport] = useState("");
@@ -585,9 +596,20 @@ function HireDialog({
   const [cadres, setCadres] = useState(false);
   const [phone, setPhone] = useState("");
 
+  const finalRole = selectedRole === "custom" ? (customRole.trim() || "Collaboratrice") : selectedRole;
+  const finalContract = selectedContract === "custom" ? (customContract.trim() || "Contrat") : selectedContract;
+
   async function submit() {
-    if (!name.trim() || !baseSalary) {
+    if (!name.trim() || baseSalary === "") {
       toast.error("Nom complet et salaire de base sont obligatoires");
+      return;
+    }
+    if (selectedRole === "custom" && !customRole.trim()) {
+      toast.error("Veuillez préciser l'intitulé de votre poste personnalisé");
+      return;
+    }
+    if (selectedContract === "custom" && !customContract.trim()) {
+      toast.error("Veuillez préciser le type de contrat personnalisé");
       return;
     }
     setBusy(true);
@@ -595,8 +617,8 @@ function HireDialog({
       const r = await apiPost<{ account: { created: boolean; phone: string } | null }>("/api/pro/employees", {
         tenantId,
         name: name.trim(),
-        role,
-        contractType,
+        role: finalRole,
+        contractType: finalContract,
         country,
         baseSalary: Number(baseSalary),
         transport: transport ? Number(transport) : 0,
@@ -605,13 +627,14 @@ function HireDialog({
         ...(phone.trim() ? { phone: phone.trim() } : {}),
       });
       if (r.account?.created) {
-        toast.success(`${name.trim()} rejoint l'équipe`, {
+        toast.success(`${name.trim()} rejoint l'équipe (${formatRole(finalRole)})`, {
           description: `Compte app créé (${phone.trim()}) — elle se connecte avec ce numéro (code SMS) et voit les sections de son poste.`,
         });
       } else {
-        toast.success(`${name.trim()} rejoint l'équipe`);
+        toast.success(`${name.trim()} rejoint l'équipe (${formatRole(finalRole)})`);
       }
-      setName(""); setBaseSalary(""); setTransport(""); setHousing(""); setCadres(false); setPhone("");
+      setName(""); setSelectedRole("estheticienne"); setCustomRole(""); setSelectedContract("CDI"); setCustomContract("");
+      setBaseSalary(""); setTransport(""); setHousing(""); setCadres(false); setPhone("");
       onOpenChange(false);
       await onCreated();
     } catch (e) {
@@ -623,11 +646,11 @@ function HireDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto pretty-scroll">
         <DialogHeader>
           <DialogTitle className="font-heading">Embaucher une collaboratrice</DialogTitle>
           <DialogDescription>
-            Le régime de paie (CI/SN) détermine automatiquement les cotisations.
+            Poste métier, contrat (CDI, CDD, Freelance...) et grille salariale de l'institut.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -638,25 +661,48 @@ function HireDialog({
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Poste</Label>
-              <Select value={role} onValueChange={setRole}>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger aria-label="Poste"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
+                  {PREDEFINED_ROLES.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
                   ))}
+                  <SelectItem value="custom" className="font-semibold text-primary">
+                    ➕ Autre poste (personnalisé)...
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {selectedRole === "custom" && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-2.5 space-y-1">
+              <Label htmlFor="h-custom-role" className="text-xs font-semibold text-primary">
+                Intitulé du poste personnalisé
+              </Label>
+              <Input
+                id="h-custom-role"
+                value={customRole}
+                onChange={(e) => setCustomRole(e.target.value)}
+                placeholder="Ex: Barbière, Coloriste VIP, Animatrice..."
+                className="bg-card text-xs h-8"
+                autoFocus
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Contrat</Label>
-              <Select value={contractType} onValueChange={setContractType}>
+              <Select value={selectedContract} onValueChange={setSelectedContract}>
                 <SelectTrigger aria-label="Contrat"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CONTRACTS.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  {PREDEFINED_CONTRACTS.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                   ))}
+                  <SelectItem value="custom" className="font-semibold text-primary">
+                    ➕ Autre contrat...
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -675,6 +721,23 @@ function HireDialog({
               <Input id="h-salary" inputMode="numeric" value={baseSalary} onChange={(e) => setBaseSalary(e.target.value.replace(/[^0-9]/g, ""))} className="font-mono" placeholder="120000" />
             </div>
           </div>
+
+          {selectedContract === "custom" && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-2.5 space-y-1">
+              <Label htmlFor="h-custom-contract" className="text-xs font-semibold text-primary">
+                Type de contrat personnalisé
+              </Label>
+              <Input
+                id="h-custom-contract"
+                value={customContract}
+                onChange={(e) => setCustomContract(e.target.value)}
+                placeholder="Ex: Alternance, Temps partiel 20h, Vacation..."
+                className="bg-card text-xs h-8"
+                autoFocus
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="h-transport" className="text-xs">Transport (FCFA)</Label>
@@ -706,7 +769,7 @@ function HireDialog({
             />
             <p className="text-[10px] text-muted-foreground mt-1.5">
               Avec son numéro, elle se connecte à l&apos;app par code SMS et accède à l&apos;espace Pro selon son poste —{" "}
-              {ROLE_HINTS[role]}
+              {getRoleHint(finalRole)}
             </p>
           </div>
           <Button disabled={busy} onClick={submit} className="w-full font-semibold gap-1.5">
@@ -730,11 +793,15 @@ function EditDialog({
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) {
-  // Monté par clé (key={employee.id}) : le formulaire s'initialise de la fiche.
+  const isPredefinedRole = PREDEFINED_ROLES.some((r) => r.value === employee.role);
+  const isPredefinedContract = PREDEFINED_CONTRACTS.some((c) => c.value === employee.contractType);
+
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState(employee.name);
-  const [role, setRole] = useState(employee.role);
-  const [contractType, setContractType] = useState(employee.contractType);
+  const [selectedRole, setSelectedRole] = useState(isPredefinedRole ? employee.role : "custom");
+  const [customRole, setCustomRole] = useState(isPredefinedRole ? "" : employee.role);
+  const [selectedContract, setSelectedContract] = useState(isPredefinedContract ? employee.contractType : "custom");
+  const [customContract, setCustomContract] = useState(isPredefinedContract ? "" : employee.contractType);
   const [country, setCountry] = useState(employee.country);
   const [baseSalary, setBaseSalary] = useState(String(employee.baseSalary));
   const [transport, setTransport] = useState(String(employee.transport ?? 0));
@@ -744,9 +811,20 @@ function EditDialog({
   const [bankAccount, setBankAccount] = useState(employee.bankAccount ?? "");
   const [phone, setPhone] = useState(employee.accountPhone ?? "");
 
+  const finalRole = selectedRole === "custom" ? (customRole.trim() || "Collaboratrice") : selectedRole;
+  const finalContract = selectedContract === "custom" ? (customContract.trim() || "Contrat") : selectedContract;
+
   async function submit() {
-    if (!name.trim() || !baseSalary) {
+    if (!name.trim() || baseSalary === "") {
       toast.error("Nom complet et salaire de base sont obligatoires");
+      return;
+    }
+    if (selectedRole === "custom" && !customRole.trim()) {
+      toast.error("Veuillez préciser l'intitulé de votre poste personnalisé");
+      return;
+    }
+    if (selectedContract === "custom" && !customContract.trim()) {
+      toast.error("Veuillez préciser le type de contrat personnalisé");
       return;
     }
     setBusy(true);
@@ -755,8 +833,8 @@ function EditDialog({
         tenantId,
         id: employee.id,
         name: name.trim(),
-        role,
-        contractType,
+        role: finalRole,
+        contractType: finalContract,
         country,
         baseSalary: Number(baseSalary),
         transport: transport ? Number(transport) : 0,
@@ -766,7 +844,7 @@ function EditDialog({
         bankAccount: bankAccount.trim() || null,
         ...(phone.trim() ? { phone: phone.trim() } : { phone: null }),
       });
-      toast.success(`Fiche mise à jour — ${name.trim()}`);
+      toast.success(`Fiche mise à jour — ${name.trim()} (${formatRole(finalRole)})`);
       onClose();
       await onSaved();
     } catch (e) {
@@ -782,7 +860,7 @@ function EditDialog({
         <DialogHeader>
           <DialogTitle className="font-heading">Modifier la fiche</DialogTitle>
           <DialogDescription>
-            {`${ROLE_LABELS[employee.role] ?? employee.role} · ${employee.contractType} · depuis ${formatDate(employee.hireDate)}`}
+            {`${formatRole(employee.role)} · ${formatContract(employee.contractType)} · depuis ${formatDate(employee.hireDate)}`}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -793,25 +871,48 @@ function EditDialog({
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Poste</Label>
-              <Select value={role} onValueChange={setRole}>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger aria-label="Poste"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
+                  {PREDEFINED_ROLES.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
                   ))}
+                  <SelectItem value="custom" className="font-semibold text-primary">
+                    ➕ Autre poste (personnalisé)...
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {selectedRole === "custom" && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-2.5 space-y-1">
+              <Label htmlFor="e-custom-role" className="text-xs font-semibold text-primary">
+                Intitulé du poste personnalisé
+              </Label>
+              <Input
+                id="e-custom-role"
+                value={customRole}
+                onChange={(e) => setCustomRole(e.target.value)}
+                placeholder="Ex: Barbière, Coloriste VIP, Animatrice..."
+                className="bg-card text-xs h-8"
+                autoFocus
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Contrat</Label>
-              <Select value={contractType} onValueChange={setContractType}>
+              <Select value={selectedContract} onValueChange={setSelectedContract}>
                 <SelectTrigger aria-label="Contrat"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CONTRACTS.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  {PREDEFINED_CONTRACTS.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                   ))}
+                  <SelectItem value="custom" className="font-semibold text-primary">
+                    ➕ Autre contrat...
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -830,6 +931,23 @@ function EditDialog({
               <Input id="e-salary" inputMode="numeric" value={baseSalary} onChange={(e) => setBaseSalary(e.target.value.replace(/[^0-9]/g, ""))} className="font-mono" />
             </div>
           </div>
+
+          {selectedContract === "custom" && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-2.5 space-y-1">
+              <Label htmlFor="e-custom-contract" className="text-xs font-semibold text-primary">
+                Type de contrat personnalisé
+              </Label>
+              <Input
+                id="e-custom-contract"
+                value={customContract}
+                onChange={(e) => setCustomContract(e.target.value)}
+                placeholder="Ex: Alternance, Temps partiel 20h, Vacation..."
+                className="bg-card text-xs h-8"
+                autoFocus
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="e-transport" className="text-xs">Transport (FCFA)</Label>
@@ -871,7 +989,7 @@ function EditDialog({
             />
             <p className="text-[10px] text-muted-foreground mt-1.5">
               Vidé = délier le compte app (elle ne peut plus se connecter à l&apos;espace Pro).{" "}
-              {phone.trim() ? `Elle voit : ${ROLE_HINTS[role]}` : ""}
+              {phone.trim() ? `Elle voit : ${getRoleHint(finalRole)}` : ""}
             </p>
           </div>
           <Button disabled={busy} onClick={submit} className="w-full font-semibold gap-1.5">
@@ -953,7 +1071,7 @@ function LeaveDialog({
               <SelectContent>
                 {actives.map((e) => (
                   <SelectItem key={e.id} value={e.id}>
-                    {e.name} — {ROLE_LABELS[e.role] ?? e.role}
+                    {e.name} — {formatRole(e.role)}
                   </SelectItem>
                 ))}
               </SelectContent>
