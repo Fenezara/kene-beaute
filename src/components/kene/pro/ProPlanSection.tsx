@@ -465,7 +465,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                   {complexe.tiers.filter((t) => t.month > 0).map((t) => (
                     <div key={t.month} className="rounded-lg bg-card p-1 border border-border/40">
                       <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
-                      <p className="text-[10px] font-black font-mono text-foreground">{t.priceFcfa / 1000}k</p>
+                      <p className="text-[10px] font-black font-mono text-foreground">{(t.priceFcfa / 1000).toLocaleString("fr-FR")}k</p>
                     </div>
                   ))}
                 </div>
@@ -633,7 +633,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
               <br />
               • <strong>Pro Institut :</strong> de 20 000 F à 10 000 F/mois à vie (-2 000 F/mois).
               <br />
-              • <strong>Pro Complexe :</strong> de 30 000 F à 20 000 F/mois à vie (-2 000 F/mois).
+              • <strong>Pro Complexe :</strong> de 30 000 F à 20 000 F/mois à vie (-2 500 F/mois, plancher 20 000 F atteint dès le 5e mois).
             </p>
           </div>
 

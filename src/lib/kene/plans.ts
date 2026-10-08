@@ -136,10 +136,10 @@ export const PLAN_DEFS: readonly PlanDef[] = [
     tiers: [
       { month: 0, priceFcfa: 0, label: "Mois Découverte (30j offerts)" },
       { month: 1, priceFcfa: 30000, label: "Mois 1" },
-      { month: 2, priceFcfa: 28000, label: "Mois 2" },
-      { month: 3, priceFcfa: 26000, label: "Mois 3" },
-      { month: 4, priceFcfa: 24000, label: "Mois 4" },
-      { month: 5, priceFcfa: 22000, label: "Mois 5" },
+      { month: 2, priceFcfa: 27500, label: "Mois 2" },
+      { month: 3, priceFcfa: 25000, label: "Mois 3" },
+      { month: 4, priceFcfa: 22500, label: "Mois 4" },
+      { month: 5, priceFcfa: 20000, label: "Mois 5 (Palier fidélité)" },
       { month: 6, priceFcfa: 20000, label: "Mois 6+ (à vie)" },
     ],
     perks: [

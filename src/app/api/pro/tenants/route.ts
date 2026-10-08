@@ -28,6 +28,32 @@ const CreateTenantBody = z.object({
   phone: z.string().trim().min(8).max(30).optional(),
 });
 
+const UpdateTenantBody = z.object({
+  tenantId: z.string().min(1, "Identifiant d'établissement requis"),
+  name: z
+    .string()
+    .trim()
+    .min(3, "Le nom de l'établissement doit comporter au moins 3 caractères")
+    .max(70, "Le nom ne peut pas dépasser 70 caractères")
+    .optional(),
+  description: z
+    .string()
+    .trim()
+    .max(600, "La description ne peut pas dépasser 600 caractères")
+    .optional()
+    .nullable(),
+  city: z
+    .string()
+    .trim()
+    .min(2, "La ville ou le quartier doit comporter au moins 2 caractères")
+    .max(60, "La ville ou quartier ne peut pas dépasser 60 caractères")
+    .optional(),
+  address: z.string().trim().max(200).optional().nullable(),
+  phone: z.string().trim().min(8, "Numéro de téléphone trop court").max(30).optional(),
+  openingHour: z.number().int().min(0).max(23).optional(),
+  closingHour: z.number().int().min(0).max(23).optional(),
+});
+
 type InstituteType = "institut" | "spa" | "dermo_conseil";
 
 const DESCRIPTIONS: Record<InstituteType, string> = {
@@ -146,6 +172,10 @@ export async function GET(req: NextRequest) {
         plan: t.plan,
         rating: t.rating,
         reviewCount: t.reviewCount,
+        description: t.description,
+        openingHour: t.openingHour,
+        closingHour: t.closingHour,
+        hasPhoto: Boolean(t.photoData),
         active: t.active,
       })),
     });
@@ -243,3 +273,65 @@ export async function POST(req: NextRequest) {
     return serverError("pro/tenants:post", err);
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  const guard = guardProRole(req, "pro:tenants:patch");
+  if (guard) return guard;
+
+  const sess = sessionFromRequest(req);
+  if (!sess || (sess.role !== "pro" && sess.role !== "admin")) {
+    return jsonError("Session professionnelle requise", 401);
+  }
+
+  try {
+    const raw = await req.json().catch(() => null);
+    const parsed = UpdateTenantBody.safeParse(raw);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      return jsonError(issue?.message ?? "Données de modification invalides", 400);
+    }
+
+    const { tenantId, name, description, city, address, phone, openingHour, closingHour } = parsed.data;
+
+    // Vérification des droits : soit admin, soit la gérante est propriétaire (ownerPhone)
+    const existing = await db.tenant.findUnique({ where: { id: tenantId } });
+    if (!existing) return jsonError("Établissement introuvable", 404);
+
+    if (sess.role !== "admin" && existing.ownerPhone !== sess.phone) {
+      return jsonError("Seule la gérante ou fondatrice peut modifier la vitrine de cet établissement", 403);
+    }
+
+    const updated = await db.tenant.update({
+      where: { id: tenantId },
+      data: {
+        ...(name !== undefined ? { name } : {}),
+        ...(description !== undefined ? { description: description?.trim() || null } : {}),
+        ...(city !== undefined ? { city } : {}),
+        ...(address !== undefined ? { address: address?.trim() || null } : {}),
+        ...(phone && phone.trim() ? { phone: phone.trim() } : {}),
+        ...(openingHour !== undefined ? { openingHour } : {}),
+        ...(closingHour !== undefined ? { closingHour } : {}),
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      tenant: {
+        id: updated.id,
+        name: updated.name,
+        type: updated.type,
+        city: updated.city,
+        country: updated.country,
+        address: updated.address,
+        phone: updated.phone,
+        plan: updated.plan,
+        description: updated.description,
+        openingHour: updated.openingHour,
+        closingHour: updated.closingHour,
+      },
+    });
+  } catch (err) {
+    return serverError("pro/tenants:patch", err);
+  }
+}
+
