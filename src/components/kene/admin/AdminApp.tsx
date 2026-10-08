@@ -102,7 +102,7 @@ export function AdminApp() {
 
   return (
     <AdminGateProvider>
-    <div className="mx-auto max-w-6xl px-3 sm:px-6 py-6 space-y-5 min-h-screen">
+    <div className="mx-auto max-w-6xl px-3 sm:px-6 py-6 space-y-5 min-h-screen overscroll-none">
       <ConsoleHeader />
 
       {/* Onglets — pills larges (44 px+), icône + libellé, scroll horizontal mobile */}

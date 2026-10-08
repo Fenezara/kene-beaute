@@ -310,7 +310,7 @@ export function ClientApp() {
   const first = user.name.split(" ")[0];
 
   return (
-    <div className="h-dvh flex overflow-hidden">
+    <div className="h-dvh flex overflow-hidden overscroll-none select-none">
       {/* Atmosphère ÉCLAT 2026 — lueurs aurora derrière tout le shell (le fond
  de page vient du body: ce div reste transparent pour laisser passer
  la couche fixe -z-10, light et dark). */}
@@ -453,7 +453,7 @@ export function ClientApp() {
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
-          className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain overscroll-x-none touch-pan-y pretty-scroll"
+          className="relative flex-1 min-h-0 overflow-y-auto overscroll-y-none overscroll-contain overscroll-x-none touch-pan-y pretty-scroll"
         >
           {/* Indicateur pull-to-refresh (Instagram) — icône qui descend avec le doigt */}
           {(pull > 0 || refreshing) && (

@@ -167,6 +167,13 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html,
+  body {
+    height: 100%;
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
+  }
   html {
     scroll-behavior: smooth;
     touch-action: pan-x pan-y;
@@ -187,6 +194,8 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
   }
   h1, h2, h3, h4, h5, h6, .font-heading {
     font-family: var(--font-display), ui-serif, Georgia, serif;

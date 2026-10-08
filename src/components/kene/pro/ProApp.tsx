@@ -363,13 +363,13 @@ export function ProApp() {
       .join("") || "FK";
 
   return (
-    <div className="w-full min-h-screen flex flex-col">
+    <div className="h-dvh w-full flex flex-col overflow-hidden overscroll-none select-none">
       {/* Atmosphère ÉCLAT 2026 — lueurs aurora derrière tout l'espace Pro */}
       <AuroraBackdrop />
 
       {/* ───────── 1. BANDEAU SUPÉRIEUR PLEINE LARGEUR (TOP BAR) ───────── */}
       {/* Porteur officiel du Logo + Nom + Slogan en haut à gauche en continu sur PC, tablette et mobile */}
-      <header className="sticky top-0 z-40 w-full k-chrome border-b border-border/60 pt-8 sm:pt-4 md:pt-0 [padding-top:max(env(safe-area-inset-top,0px),2.25rem)] md:[padding-top:env(safe-area-inset-top,0px)]">
+      <header className="shrink-0 z-40 w-full k-chrome border-b border-border/60 pt-8 sm:pt-4 md:pt-0 [padding-top:max(env(safe-area-inset-top,0px),2.25rem)] md:[padding-top:env(safe-area-inset-top,0px)]">
         <div className="flex h-14 sm:h-16 items-center justify-between gap-2 sm:gap-3 px-2.5 sm:px-5 lg:px-6">
           {/* TOUT EN HAUT À GAUCHE : Logo Médaillon officiel + Nom */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -599,11 +599,11 @@ export function ProApp() {
       )}
 
       {/* ───────── 2. CORPS : RAIL LATÉRAL FIN (68 px) + CONTENU PRINCIPAL ───────── */}
-      <div className="flex-1 flex flex-row min-w-0">
+      <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
         {/* Rail de navigation compact 68 px (avec toggle possible vers 220 px) */}
         <aside
           className={cn(
-            "hidden md:flex flex-col shrink-0 k-chrome text-foreground sticky top-[calc(4rem+env(safe-area-inset-top,0px))] self-start h-[calc(100vh-4rem-env(safe-area-inset-top,0px))] overflow-y-auto pretty-scroll border-r border-border/60 transition-all duration-300",
+            "hidden md:flex flex-col shrink-0 k-chrome text-foreground h-full overflow-y-auto overscroll-contain pretty-scroll border-r border-border/60 transition-all duration-300",
             sidebarExpanded ? "w-[220px]" : "w-[68px]"
           )}
         >
@@ -697,8 +697,8 @@ export function ProApp() {
           </div>
         </aside>
 
-        {/* ───────── Zone contenu principal ───────── */}
-        <div className="flex-1 min-w-0 flex flex-col p-3 sm:p-5 lg:p-6">
+        {/* ───────── Zone contenu principal scrollable en interne (zéro décalage / zéro rebond) ───────── */}
+        <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overscroll-y-none overscroll-contain touch-pan-y pretty-scroll flex flex-col p-3 sm:p-5 lg:p-6">
           {/* ⚡ Barre d'actions express praticienne (Encaisser, RDV, Scan) */}
           <div className="mb-4 rounded-2xl border border-border/80 bg-card/75 p-2.5 sm:p-3 backdrop-blur-md shadow-sm flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider pl-1 hidden sm:inline shrink-0">
@@ -926,7 +926,7 @@ export function ProApp() {
               </div>
             )}
           </motion.div>
-        </div>
+        </main>
       </div>
 
       <CreateBranchDialog
