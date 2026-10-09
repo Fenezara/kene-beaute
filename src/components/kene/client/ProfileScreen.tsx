@@ -26,6 +26,7 @@ import { ParrainageCard } from "./ParrainageCard";
 import { PassportCard } from "./PassportCard";
 import { SharesCard } from "./SharesCard";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
+import { ContactKeneModal } from "./ContactKeneModal";
 import { cn } from "@/lib/utils";
 
 /** SessionUser + goals (string JSON) renvoyé par PATCH profile */
@@ -48,6 +49,7 @@ export function ProfileScreen() {
   const [beautyBudget, setBeautyBudget] = useState(user?.beautyBudget ?? "15-35k");
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [savingId, setSavingId] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   // Sync state if user prop changes
   useEffect(() => {
@@ -609,15 +611,29 @@ export function ProfileScreen() {
         <SharesCard userId={user.id} userName={user.name} />
       </RevealItem>
 
-      {/* Passerelle Paramètres — les réglages de l'application
- (apparence, langue, notifications, sécurité, RGPD, PWA, session)
- vivent désormais dans l'onglet dédié: lien discret en pied de profil. */}
-      <RevealItem className="self-center pt-1">
-        <button onClick={() => setClientTab("parametres")} className="inline-flex items-center gap-1.5 min-h-10 px-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors rounded focus-visible:outline-2 focus-visible:outline-primary">
+      {/* Passerelle Paramètres & Contactez-nous */}
+      <RevealItem className="self-center pt-1 flex items-center justify-center gap-3">
+        <button
+          onClick={() => setContactOpen(true)}
+          className="inline-flex items-center gap-1.5 min-h-10 px-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors rounded focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          <MessageCircle size={13} className="text-primary" /> Contactez-nous (Support Kènè)
+        </button>
+        <span className="text-muted-foreground/30 text-xs">·</span>
+        <button
+          onClick={() => setClientTab("parametres")}
+          className="inline-flex items-center gap-1.5 min-h-10 px-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors rounded focus-visible:outline-2 focus-visible:outline-primary"
+        >
           <Settings size={13} /> Paramètres de l&apos;application
         </button>
       </RevealItem>
       </Reveal>
+
+      <ContactKeneModal
+        open={contactOpen}
+        onOpenChange={setContactOpen}
+        userName={user.name}
+      />
     </>
   );
 }

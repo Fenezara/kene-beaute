@@ -38,7 +38,9 @@ import {
   SunMedium,
   Trash2,
   User,
+  MessageCircle,
 } from "lucide-react";
+import { ContactKeneModal } from "./ContactKeneModal";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
@@ -172,6 +174,7 @@ export function SettingsScreen() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePin, setDeletePin] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   async function handleDeleteAccount() {
     setDeleting(true);
@@ -680,6 +683,23 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
+        {/* Contactez-nous — Support officiel Kènè */}
+        <RevealItem>
+          <section aria-labelledby="contact-t" className="k-card rounded-[24px] p-2">
+            <button
+              onClick={() => setContactOpen(true)}
+              className="w-full flex items-center gap-3 rounded-[18px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <IconBadge icon={<MessageCircle size={19} />} tone="gold" />
+              <span className="flex-1 min-w-0">
+                <span id="contact-t" className="block text-xs font-bold">Contactez-nous (Support Kènè)</span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">Assistance technique, questions &amp; WhatsApp officiel (+225 07 48 89 42 70)</span>
+              </span>
+              <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
+            </button>
+          </section>
+        </RevealItem>
+
         {/* Mentions légales */}
         <RevealItem>
           <section aria-labelledby="legal-t" className="k-card rounded-[24px] p-2">
@@ -789,6 +809,12 @@ export function SettingsScreen() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ContactKeneModal
+        open={contactOpen}
+        onOpenChange={setContactOpen}
+        userName={user?.name}
+      />
     </>
   );
 }

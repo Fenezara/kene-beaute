@@ -20,6 +20,8 @@ const PUBLIC_TENANT_SELECT = {
   address: true,
   country: true,
   phone: true,
+  ownerName: true,
+  ownerPhone: true,
   rating: true,
   reviewCount: true,
   description: true,

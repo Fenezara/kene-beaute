@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   ScanFace,
@@ -9,34 +10,81 @@ import {
   CheckCircle2,
   MessageCircle,
   Leaf,
+  Store,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { scoreColor } from "@/lib/kene/format";
 import { CauriIcon } from "@/components/kene/icons";
-import type { ApiDiagnosis } from "./types";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import type { ApiDiagnosis, ApiInstitute } from "./types";
 
 interface MvpFunnelHeroProps {
   lastDiag: ApiDiagnosis | null;
   globalScore: number | null;
+  institutes?: ApiInstitute[];
+  defaultInstituteId?: string;
   onStartScan: () => void;
   onOpenRoutine: () => void;
+  onOpenContactKene?: () => void;
 }
 
 export function MvpFunnelHero({
   lastDiag,
   globalScore,
+  institutes = [],
+  defaultInstituteId,
   onStartScan,
   onOpenRoutine,
+  onOpenContactKene,
 }: MvpFunnelHeroProps) {
   const user = useKene((s) => s.user)!;
 
-  // Message WhatsApp pour l'assistance dermo-botanique Kènè
-  const handleOpenWhatsApp = () => {
+  const [selectedInstituteId, setSelectedInstituteId] = useState<string>(() => {
+    if (defaultInstituteId) return defaultInstituteId;
+    if (institutes.length > 0) return institutes[0].id;
+    return "";
+  });
+  const [selectorOpen, setSelectorOpen] = useState(false);
+
+  useEffect(() => {
+    if (defaultInstituteId) {
+      setSelectedInstituteId(defaultInstituteId);
+    } else if (!selectedInstituteId && institutes.length > 0) {
+      const userCity = (user?.city || "").toLowerCase().trim();
+      const match = userCity ? institutes.find((i) => i.city.toLowerCase().includes(userCity)) : null;
+      setSelectedInstituteId(match?.id ?? institutes[0].id);
+    }
+  }, [defaultInstituteId, institutes, selectedInstituteId, user?.city]);
+
+  const currentInstitute = useMemo(() => {
+    if (!institutes || institutes.length === 0) return null;
+    return institutes.find((i) => i.id === selectedInstituteId) || institutes[0] || null;
+  }, [institutes, selectedInstituteId]);
+
+  // Ouverture WhatsApp vers la première responsable de l'institut partenaire
+  const handleOpenInstituteWhatsApp = () => {
     haptic(HAPTIC.tap);
-    const text = `Bonjour l'équipe Kènè ! 🌿 Je suis ${user.name || "une cliente"}. J'ai une question sur l'utilisation de l'application ou l'orientation vers un institut partenaire.`;
-    openWhatsApp("+2250748894270", text, "CI");
+    if (!currentInstitute) {
+      toast.info("Aucun institut partenaire disponible pour le moment");
+      return;
+    }
+
+    const targetPhone = currentInstitute.ownerPhone?.trim() || currentInstitute.phone?.trim();
+    if (!targetPhone) {
+      toast.error(`Coordonnées WhatsApp de ${currentInstitute.name} indisponibles`);
+      return;
+    }
+
+    const managerName = currentInstitute.ownerName?.trim();
+    const instName = currentInstitute.name?.trim() || "votre institut";
+    const text = `Bonjour ${managerName ? `Mme ${managerName} (${instName})` : instName} ! 🌿 Je suis ${user.name || "une cliente"} sur l'application Kènè. J'aimerais échanger avec vous concernant mes soins et recommandations personnalisées.`;
+    const country = currentInstitute.country === "SN" ? "SN" : "CI";
+
+    openWhatsApp(targetPhone, text, country);
   };
 
   const handleStartScan = () => {
@@ -176,33 +224,118 @@ export function MvpFunnelHero({
         </section>
       )}
 
-
-      {/* ───── 3. LE CONCIERGE BEAUTÉ WHATSAPP EXPRESS ───── */}
+      {/* ───── 3. ÉCHANGER AVEC LA RESPONSABLE DE L'INSTITUT SUR WHATSAPP ───── */}
       <section
-        aria-label="Conseillère Kènè sur WhatsApp"
-        className="rounded-2xl border border-[#25D366]/30 bg-[#25D366]/5 p-3.5 sm:p-4 flex items-center justify-between gap-3"
+        aria-label="Contacter la responsable de l'institut"
+        className="rounded-2xl border border-[#25D366]/30 bg-[#25D366]/5 p-3.5 sm:p-4 flex flex-col gap-2.5"
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#25D366] text-white shadow-sm">
-            <MessageCircle size={20} />
-          </span>
-          <div className="min-w-0">
-            <p className="font-heading font-bold text-xs sm:text-sm text-foreground truncate">
-              Une question ? Support Kènè sur WhatsApp
-            </p>
-            <p className="text-[10.5px] text-muted-foreground truncate">
-              Assistance technique &amp; orientation vers les instituts partenaires
-            </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#25D366] text-white shadow-sm">
+              <MessageCircle size={20} />
+            </span>
+            <div className="min-w-0">
+              <p className="font-heading font-bold text-xs sm:text-sm text-foreground truncate">
+                Une question ? Échanger avec la responsable
+              </p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {currentInstitute ? (
+                    <>
+                      <span className="font-semibold text-foreground">{currentInstitute.name}</span>
+                      {currentInstitute.ownerName && (
+                        <span> · {currentInstitute.ownerName}</span>
+                      )}
+                    </>
+                  ) : (
+                    "Institut partenaire · Conseil personnalisé & soins"
+                  )}
+                </p>
+                {institutes.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectorOpen(true)}
+                    className="text-[10px] font-bold text-primary underline underline-offset-2 hover:opacity-80"
+                  >
+                    (Changer)
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={handleOpenInstituteWhatsApp}
+            className="shrink-0 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-[11px] px-3.5 py-2 flex items-center gap-1.5 shadow-xs transition-transform active:scale-95"
+          >
+            <MessageCircle size={14} />
+            Discuter
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleOpenWhatsApp}
-          className="shrink-0 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-[11px] px-3 py-2 flex items-center gap-1 shadow-xs transition-transform active:scale-95"
-        >
-          Discuter
-        </button>
+
+        {/* Passerelle vers le Support Kènè */}
+        {onOpenContactKene && (
+          <div className="pt-2 border-t border-[#25D366]/20 flex items-center justify-between text-[10.5px] text-muted-foreground">
+            <span>Une question sur l&apos;application Kènè ?</span>
+            <button
+              type="button"
+              onClick={onOpenContactKene}
+              className="font-bold text-primary hover:underline"
+            >
+              Contactez le support Kènè →
+            </button>
+          </div>
+        )}
       </section>
+
+      {/* Dialogue de sélection de l'institut partenaire */}
+      <Dialog open={selectorOpen} onOpenChange={setSelectorOpen}>
+        <DialogContent className="max-w-md p-5 rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-heading font-bold text-base flex items-center gap-2">
+              <Store size={18} className="text-primary" />
+              Choisir votre institut partenaire
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Sélectionnez l&apos;établissement avec lequel vous souhaitez échanger directement sur WhatsApp.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-72 overflow-y-auto pretty-scroll space-y-2 py-2 pr-1">
+            {institutes.map((inst) => {
+              const active = inst.id === currentInstitute?.id;
+              return (
+                <button
+                  key={inst.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedInstituteId(inst.id);
+                    setSelectorOpen(false);
+                    toast.success(`Institut sélectionné : ${inst.name}`);
+                  }}
+                  className={cn(
+                    "w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between gap-3",
+                    active
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border hover:bg-muted/50 bg-card"
+                  )}
+                >
+                  <div className="min-w-0">
+                    <p className="font-heading font-bold text-xs text-foreground truncate">{inst.name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {inst.city} · {inst.ownerName ? `Gérante : ${inst.ownerName}` : "Institut certifié"}
+                    </p>
+                  </div>
+                  {active && (
+                    <span className="grid size-6 place-items-center rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">
+                      ✓
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

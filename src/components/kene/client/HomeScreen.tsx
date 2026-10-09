@@ -29,6 +29,7 @@ import { useT } from "@/lib/kene/use-t";
 import { useKene } from "@/store/kene";
 import { MvpFunnelHero } from "./MvpFunnelHero";
 import { SkinHealthDashboard } from "./SkinHealthDashboard";
+import { ContactKeneModal } from "./ContactKeneModal";
 import type { ApiAppointment, ApiDiagnosis, ApiInstitute, ApiProduct } from "./types";
 import { parseDiagnosis } from "./types";
 import { ScrollFadeRow, SectionTitle, Stars } from "./bits";
@@ -59,6 +60,7 @@ export function HomeScreen({
   const [data, setData] = useState<HomeData | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [ritualOpen, setRitualOpen] = useState(false);
+  const [contactKeneOpen, setContactKeneOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -313,6 +315,8 @@ export function HomeScreen({
         <MvpFunnelHero
           lastDiag={multi.last ?? null}
           globalScore={multi.score}
+          institutes={data?.institutes ?? []}
+          defaultInstituteId={nextAppt?.tenantId || nextAppt?.tenant?.id}
           onStartScan={() => onScanZone("visage")}
           onOpenRoutine={() => {
             if (lastResult && multi.last) {
@@ -321,6 +325,7 @@ export function HomeScreen({
               setClientTab("boutique");
             }
           }}
+          onOpenContactKene={() => setContactKeneOpen(true)}
         />
       </RevealItem>
 
@@ -516,6 +521,12 @@ export function HomeScreen({
           onClose={() => setRitualOpen(false)}
         />
       )}
+
+      <ContactKeneModal
+        open={contactKeneOpen}
+        onOpenChange={setContactKeneOpen}
+        userName={user.name}
+      />
     </Reveal>
   );
 }

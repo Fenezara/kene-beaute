@@ -49,6 +49,8 @@ export interface ApiInstitute {
   image: string;
   // — numéro officiel (bouton WhatsApp) + vitrine réelle éventuelle
   phone?: string;
+  ownerName?: string | null;
+  ownerPhone?: string | null;
   hasPhoto?: boolean;
   address?: string | null;
   distanceKm?: number | null;
