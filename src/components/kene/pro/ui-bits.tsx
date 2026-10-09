@@ -49,7 +49,7 @@ export function KpiCard({
         <IconBadge icon={icon} size="sm" tone={monetary ? "gold" : "terre"} />
       </div>
       <p className="mt-3 font-mono text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-gold-text truncate" title={value}>{value}</p>
-      {hint && <p className="mt-1 text-[11px] text-muted-foreground truncate" title={hint}>{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-muted-foreground truncate" title={hint}>{hint}</p>}
     </div>
   );
 }
@@ -65,7 +65,7 @@ export const APPT_STATUS: Record<string, { label: string; cls: string }> = {
 
 export function ApptStatusBadge({ status }: { status: string }) {
   const s = APPT_STATUS[status] ?? { label: status, cls: "bg-muted text-muted-foreground" };
-  return <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ring-current/15", s.cls)}>{s.label}</span>;
+  return <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ring-current/15", s.cls)}>{s.label}</span>;
 }
 
 /** Badge code journal compta */
@@ -77,7 +77,7 @@ export function JournalBadge({ code }: { code: string }) {
     PA: "bg-terre/15 text-terre",
     OD: "bg-muted text-muted-foreground",
   };
-  return <span className={cn("rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ring-1 ring-inset ring-current/15", map[code] ?? map.OD)}>{code}</span>;
+  return <span className={cn("rounded-full px-2.5 py-0.5 font-mono text-xs font-semibold ring-1 ring-inset ring-current/15", map[code] ?? map.OD)}>{code}</span>;
 }
 
 /** Badge classe SYSCOHADA */
@@ -94,7 +94,7 @@ export function ClasseBadge({ classe }: { classe: number }) {
     9: "bg-muted text-muted-foreground",
   };
   return (
-    <span className={cn("rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ring-1 ring-inset ring-current/15", colors[classe] ?? "bg-muted text-muted-foreground")}>
+    <span className={cn("rounded-full px-2.5 py-0.5 font-mono text-xs font-semibold ring-1 ring-inset ring-current/15", colors[classe] ?? "bg-muted text-muted-foreground")}>
       Classe {classe}
     </span>
   );

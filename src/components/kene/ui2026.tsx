@@ -146,7 +146,7 @@ export function IconBadge({
  ──────────────────────────────────────────────────────────────── */
 export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <p className={cn("text-[10px] font-bold uppercase tracking-[0.2em] text-gold-text", className)}>{children}</p>
+    <p className={cn("text-xs font-bold uppercase tracking-[0.15em] text-gold-text", className)}>{children}</p>
   );
 }
 

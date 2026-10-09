@@ -641,23 +641,23 @@ export function BookingScreen() {
                       <button
                         type="button"
                         onClick={() => openReviewsModal(inst)}
-                        className="k-chip inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold hover:bg-primary/10 transition-colors"
+                        className="k-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold hover:bg-primary/10 transition-colors"
                         title="Consulter les avis vérifiés"
                       >
-                        <Star size={11} className="fill-[#C8951E] text-[#C8951E]" aria-hidden="true" />
+                        <Star size={12} className="fill-[#C8951E] text-[#C8951E]" aria-hidden="true" />
                         <span className="font-bold">{inst.rating.toFixed(1)}</span>
                         <span className="text-muted-foreground">({inst.reviewCount} avis)</span>
                       </button>
-                      <span className="k-chip inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold">
-                        <MapPin size={11} aria-hidden="true" /> {inst.address || inst.city}
+                      <span className="k-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold">
+                        <MapPin size={12} aria-hidden="true" /> {inst.address || inst.city}
                       </span>
                       {inst.distanceKm !== null && inst.distanceKm !== undefined && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] dark:text-[#8FD18F] border border-[#3F7D3F]/30 px-2.5 py-1 text-[11px] font-bold font-mono">
-                          <LocateFixed size={11} /> {inst.distanceKm} km d&apos;ici
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] dark:text-[#8FD18F] border border-[#3F7D3F]/30 px-3 py-1 text-xs font-bold font-mono">
+                          <LocateFixed size={12} /> {inst.distanceKm} km d&apos;ici
                         </span>
                       )}
-                      <span className="k-chip inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold">
-                        <Clock size={11} aria-hidden="true" /> {inst.openingHour}h–{inst.closingHour}h
+                      <span className="k-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold">
+                        <Clock size={12} aria-hidden="true" /> {inst.openingHour}h–{inst.closingHour}h
                       </span>
                     </div>
                   </div>
@@ -723,7 +723,7 @@ export function BookingScreen() {
                               setRating(5);
                               setComment("");
                             }}
-                            className="h-8 px-2.5 rounded-full border border-[#C8951E]/40 text-[#C8951E] text-[11px] font-bold hover:bg-[#C8951E]/10 transition-colors active:scale-95"
+                            className="h-8 px-3 rounded-full border border-[#C8951E]/40 text-[#C8951E] text-xs font-bold hover:bg-[#C8951E]/10 transition-colors active:scale-95"
                           >
                             Noter
                           </button>
@@ -731,7 +731,7 @@ export function BookingScreen() {
                             <button
                               type="button"
                               onClick={() => openReviewsModal(inst)}
-                              className="h-8 px-3 rounded-full bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-bold transition-colors active:scale-95"
+                              className="h-8 px-3.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors active:scale-95"
                             >
                               Tous les avis ({reviews.length})
                             </button>
@@ -743,17 +743,17 @@ export function BookingScreen() {
                         <div className="mt-3 pt-3 border-t border-border/50">
                           <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
                             {reviews.slice(0, 5).map((rv) => (
-                              <div key={rv.id} className="rounded-2xl bg-muted/40 p-2.5 shrink-0 w-52 border border-border/40 space-y-1">
+                              <div key={rv.id} className="rounded-2xl bg-muted/40 p-2.5 shrink-0 w-56 border border-border/40 space-y-1">
                                 <div className="flex items-center justify-between gap-1">
-                                  <span className="text-[11px] font-bold truncate">{rv.user?.name ?? "Cliente Kènè"}</span>
-                                  <Stars rating={rv.rating} size={8} />
+                                  <span className="text-xs font-bold truncate">{rv.user?.name ?? "Cliente Kènè"}</span>
+                                  <Stars rating={rv.rating} size={9} />
                                 </div>
                                 {rv.serviceName && (
-                                  <p className="text-[9px] text-[#3F7D3F] dark:text-[#8FD18F] font-semibold flex items-center gap-0.5 truncate">
-                                    <BadgeCheck size={10} className="shrink-0" /> {rv.serviceName}
+                                  <p className="text-xs text-[#3F7D3F] dark:text-[#8FD18F] font-semibold flex items-center gap-0.5 truncate">
+                                    <BadgeCheck size={12} className="shrink-0" /> {rv.serviceName}
                                   </p>
                                 )}
-                                <p className="text-[10px] text-muted-foreground line-clamp-2 italic leading-tight">
+                                <p className="text-xs text-muted-foreground line-clamp-2 italic leading-snug">
                                   « {rv.comment || "Très satisfaite de la prestation."} »
                                 </p>
                               </div>

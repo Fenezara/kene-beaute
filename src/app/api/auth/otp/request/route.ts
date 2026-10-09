@@ -99,11 +99,13 @@ async function runRequest(parsed: z.infer<typeof Body>, req: NextRequest): Promi
       : `fallback_onscreen:${smsResult.provider}:${smsResult.error ?? "simulated"}`,
   });
 
-  // Exigence formelle Kènè :
-  // Si l'envoi réel des SMS ne passe pas (solde insuffisant, opérateur cellulaire en échec,
-  // simulation ou erreur de passerelle), on déclenche AUTOMATIQUEMENT le code de confirmation
-  // instantané directement à l'écran pour TOUS les utilisateurs sans jamais bloquer l'accès.
-  // Les détails techniques (erreur fournisseur, passerelle) restent confinés aux logs d'audit serveur.
+  // Sécurité renforcée Kènè :
+  // Le code de secours à l'écran (devCode) est STRICTEMENT INTERDIT pour les comptes
+  // administrateurs et désactivé en production pour empêcher tout détournement de compte.
+  // En production, les utilisateurs sans SMS peuvent utiliser le mode « Explorer sans compte ».
+  const existingUser = await db.user.findUnique({ where: { phone } });
+  const isAdminAccount = existingUser?.role === "admin" || phone === "+2250748894270";
+
   const payload: {
     ok: true;
     smsSent: boolean;
@@ -113,7 +115,7 @@ async function runRequest(parsed: z.infer<typeof Body>, req: NextRequest): Promi
     smsSent: realSmsDelivered,
   };
 
-  if (!realSmsDelivered || process.env.NODE_ENV !== "production") {
+  if (!isAdminAccount && process.env.NODE_ENV !== "production") {
     payload.devCode = code;
   }
 

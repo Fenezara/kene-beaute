@@ -279,22 +279,22 @@ export function ProfileScreen() {
                       type="button"
                       onClick={() => void removeAvatar()}
                       disabled={avatarBusy}
-                      className="k-chip inline-flex items-center gap-1.5 rounded-full px-3 min-h-9 text-[11px] font-semibold hover:text-destructive focus-visible:outline-2 focus-visible:outline-primary"
+                      className="k-chip inline-flex items-center gap-1.5 rounded-full px-3.5 min-h-9 text-xs font-semibold hover:text-destructive focus-visible:outline-2 focus-visible:outline-primary"
                     >
-                      <Trash2 size={12} aria-hidden="true" /> Retirer ma photo de profil
+                      <Trash2 size={13} aria-hidden="true" /> Retirer ma photo de profil
                     </button>
                   )}
                   <div>
-                    <label htmlFor="p-name" className="text-[11px] font-semibold text-muted-foreground">Prénom & nom</label>
+                    <label htmlFor="p-name" className="text-xs font-semibold text-muted-foreground">Prénom & nom</label>
                     <input id="p-name" value={name} onChange={(e) => setName(e.target.value)} className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label htmlFor="p-city" className="text-[11px] font-semibold text-muted-foreground">Ville</label>
+                      <label htmlFor="p-city" className="text-xs font-semibold text-muted-foreground">Ville</label>
                       <input id="p-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Abidjan" className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
                     </div>
                     <div>
-                      <label htmlFor="p-district" className="text-[11px] font-semibold text-muted-foreground">Commune / Quartier</label>
+                      <label htmlFor="p-district" className="text-xs font-semibold text-muted-foreground">Commune / Quartier</label>
                       <input id="p-district" value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="Cocody, Marcory…" className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
                     </div>
                   </div>
@@ -320,8 +320,8 @@ export function ProfileScreen() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Anniversaire Privilège */}
               <div>
-                <label htmlFor="p-birth" className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground/85 mb-1">
-                  <Calendar size={13} className="text-primary" /> Mon Anniversaire Privilège
+                <label htmlFor="p-birth" className="flex items-center gap-1.5 text-xs font-semibold text-foreground/90 mb-1">
+                  <Calendar size={14} className="text-primary" /> Mon Anniversaire Privilège
                 </label>
                 <input
                   id="p-birth"
@@ -331,13 +331,13 @@ export function ProfileScreen() {
                   placeholder="Ex : 14/05 ou 14 Mai"
                   className="k-input h-10 w-full rounded-xl px-3 text-xs focus-visible:outline-2 focus-visible:outline-primary"
                 />
-                <p className="text-[10px] text-muted-foreground mt-1">Cadeaux &amp; réductions réservés durant ton mois d&apos;anniversaire 🎂</p>
+                <p className="text-xs text-muted-foreground mt-1">Cadeaux &amp; réductions réservés durant ton mois d&apos;anniversaire 🎂</p>
               </div>
 
               {/* Commune / Quartier */}
               <div>
-                <label htmlFor="p-dist" className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground/85 mb-1">
-                  <MapPin size={13} className="text-primary" /> Commune / Quartier favori
+                <label htmlFor="p-dist" className="flex items-center gap-1.5 text-xs font-semibold text-foreground/90 mb-1">
+                  <MapPin size={14} className="text-primary" /> Commune / Quartier favori
                 </label>
                 <input
                   id="p-dist"
@@ -347,7 +347,7 @@ export function ProfileScreen() {
                   placeholder="Ex : Cocody Angré, Zone 4, Plateau, Almadies…"
                   className="k-input h-10 w-full rounded-xl px-3 text-xs focus-visible:outline-2 focus-visible:outline-primary"
                 />
-                <p className="text-[10px] text-muted-foreground mt-1">Pour t&apos;orienter vers l&apos;institut le plus proche 📍</p>
+                <p className="text-xs text-muted-foreground mt-1">Pour t&apos;orienter vers l&apos;institut le plus proche 📍</p>
               </div>
             </div>
 
@@ -358,7 +358,7 @@ export function ProfileScreen() {
                   <p className="flex items-center gap-1.5 text-xs font-bold text-foreground">
                     <Baby size={15} className="text-pink-500" /> Es-tu enceinte ou allaitante ?
                   </p>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     Indispensable pour ta sécurité : nous adaptons immédiatement les protocoles en cabine et écartons les actifs déconseillés (huiles essentielles fortes, rétinoïdes, acides trop décapants).
                   </p>
                 </div>
@@ -379,8 +379,8 @@ export function ProfileScreen() {
 
             {/* Canal de contact favori */}
             <div className="pt-2 border-t border-border/60">
-              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground/85 mb-2">
-                <MessageCircle size={13} className="text-primary" /> Canal de contact préféré
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground/90 mb-2">
+                <MessageCircle size={14} className="text-primary" /> Canal de contact préféré
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {[
@@ -408,8 +408,8 @@ export function ProfileScreen() {
 
             {/* Budget mensuel soins */}
             <div className="pt-2 border-t border-border/60">
-              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground/85 mb-2">
-                <Coins size={13} className="text-primary" /> Budget mensuel moyen alloué à tes soins
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground/90 mb-2">
+                <Coins size={14} className="text-primary" /> Budget mensuel moyen alloué à tes soins
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[

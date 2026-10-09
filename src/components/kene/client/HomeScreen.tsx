@@ -217,12 +217,12 @@ export function HomeScreen({
               aria-hidden="true"
               className="mb-1.5 block h-[3px] w-10 rounded-full bg-gradient-to-r from-[#C8951E] via-[#A0522D] to-[#3F7D3F] opacity-80"
             />
-            <p className="text-[11px] uppercase tracking-[0.16em] text-primary font-semibold">{t("home.greeting")}</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-primary font-semibold">{t("home.greeting")}</p>
             <h2 className="font-heading font-black text-[27px] sm:text-[29px] leading-tight tracking-tight truncate">
               <span className="kente-text-flow inline-block pr-1">{first}</span>
             </h2>
-            <p className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
-              <MapPin size={11} /> {user.city || "Abidjan"} · {user.fitzpatrick ? `Fitzpatrick ${user.fitzpatrick}` : "Phototype à définir"}
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 font-medium">
+              <MapPin size={13} className="text-primary/80" /> {user.city || "Abidjan"} · {user.fitzpatrick ? `Fitzpatrick ${user.fitzpatrick}` : "Phototype à définir"}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -260,11 +260,11 @@ export function HomeScreen({
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="font-heading font-black text-sm text-foreground">{subNotice.title}</p>
-                  <span className="rounded-full bg-gold/20 text-gold-text px-2 py-0.5 text-[10px] font-bold">
+                  <span className="rounded-full bg-gold/20 text-gold-text px-2 py-0.5 text-xs font-bold">
                     {subNotice.badge}
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
                   {subNotice.description}
                 </p>
               </div>
@@ -291,7 +291,7 @@ export function HomeScreen({
                 <p className="font-heading font-bold text-xs text-foreground truncate">
                   {weatherAdvisory.cityLabel}
                 </p>
-                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                   <span className="font-semibold text-foreground">{weatherAdvisory.temp}</span>
                   <span>·</span>
                   <span>Humidité {weatherAdvisory.humidity}</span>
@@ -300,11 +300,11 @@ export function HomeScreen({
                 </div>
               </div>
             </div>
-            <span className="shrink-0 text-[9.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+            <span className="shrink-0 text-[10.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
               Météo &amp; Peau
             </span>
           </div>
-          <p className="mt-2.5 text-[11px] text-muted-foreground leading-snug pl-2 border-l-2 border-primary/50">
+          <p className="mt-2.5 text-xs text-muted-foreground leading-relaxed pl-2 border-l-2 border-primary/50">
             {weatherAdvisory.advice}
           </p>
         </div>
@@ -369,7 +369,7 @@ export function HomeScreen({
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-mono text-sm font-bold text-primary">{formatTime(nextAppt.startAt)}</p>
-                  <p className="text-[11px] text-muted-foreground">{formatDate(nextAppt.startAt, { day: "numeric", month: "short" })}</p>
+                  <p className="text-xs text-muted-foreground">{formatDate(nextAppt.startAt, { day: "numeric", month: "short" })}</p>
                 </div>
               </div>
             </button>
@@ -383,8 +383,8 @@ export function HomeScreen({
                   <CalendarDays size={18} />
                 </span>
                 <div className="text-left">
-                  <p className="text-xs font-bold text-foreground">Prendre RDV en salon</p>
-                  <p className="text-[11px] text-muted-foreground">Soins personnalisés dans les instituts partenaires</p>
+                  <p className="text-sm font-bold text-foreground">Prendre RDV en salon</p>
+                  <p className="text-xs text-muted-foreground">Soins personnalisés dans les instituts partenaires</p>
                 </div>
               </div>
               <ChevronRight size={16} className="text-primary" />
@@ -401,7 +401,7 @@ export function HomeScreen({
             action={
               <button
                 onClick={() => setClientTab("rdv")}
-                className="text-[11px] font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1"
+                className="text-xs font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1"
               >
                 Tous les instituts ({data?.institutes?.length ?? 0})
               </button>
@@ -432,20 +432,20 @@ export function HomeScreen({
                   <div className="relative h-32 w-full">
                     <img src={inst.image} alt={inst.name} loading="lazy" className="h-full w-full object-cover" />
                     <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
-                    <span className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-xs px-2 py-0.5 text-[10px] font-bold text-white">
-                      <Star size={10} className="fill-[#C8951E] text-[#C8951E]" /> {inst.rating.toFixed(1)}
+                    <span className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-xs px-2.5 py-0.5 text-xs font-bold text-white">
+                      <Star size={11} className="fill-[#C8951E] text-[#C8951E]" /> {inst.rating.toFixed(1)}
                     </span>
                     <div className="absolute bottom-2.5 left-3 right-3 text-white">
-                      <p className="font-heading font-bold text-xs leading-tight truncate">{inst.name}</p>
-                      <p className="text-[10px] text-white/80 flex items-center gap-1 mt-0.5 truncate">
-                        <MapPin size={9} /> {inst.address || `${inst.city}, ${inst.country}`}
+                      <p className="font-heading font-bold text-sm leading-tight truncate">{inst.name}</p>
+                      <p className="text-xs text-white/90 flex items-center gap-1 mt-0.5 truncate">
+                        <MapPin size={11} /> {inst.address || `${inst.city}, ${inst.country}`}
                         {inst.distanceKm !== null && inst.distanceKm !== undefined && (
                           <span className="text-[#8FD18F] font-mono font-bold">· {inst.distanceKm} km</span>
                         )}
                       </p>
                     </div>
                   </div>
-                  <div className="p-3 flex items-center justify-between text-[11px] bg-card/50">
+                  <div className="p-3 flex items-center justify-between text-xs bg-card/50 font-medium">
                     <span className="text-muted-foreground truncate">{inst._count?.services ?? 0} soins disponibles</span>
                     <span className="text-primary font-bold flex items-center gap-0.5 shrink-0">
                       Découvrir <ChevronRight size={13} />
@@ -487,10 +487,10 @@ export function HomeScreen({
                   <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full object-cover" />
                   <div className="p-2.5">
                     <p className="text-xs font-semibold leading-tight line-clamp-2 min-h-8">{p.name}</p>
-                    <p className="text-[10px] text-terre mt-0.5 truncate">{p.botanicals}</p>
+                    <p className="text-xs text-terre mt-0.5 truncate font-medium">{p.botanicals}</p>
                     <div className="flex flex-wrap items-center justify-between gap-1 mt-1.5">
                       <span className="font-mono text-xs font-bold whitespace-nowrap text-gold-text">{xof(p.price)}</span>
-                      <Stars rating={p.rating} size={9} />
+                      <Stars rating={p.rating} size={10} />
                     </div>
                   </div>
                 </button>
@@ -504,10 +504,10 @@ export function HomeScreen({
       <RevealItem>
         <footer className="pt-4 pb-2 text-center">
           <div aria-hidden="true" className="kente-band-soft h-[3px] w-24 mx-auto rounded-full mb-3" />
-          <p suppressHydrationWarning className="text-[10px] text-muted-foreground">
+          <p suppressHydrationWarning className="text-xs text-muted-foreground font-medium">
             © {new Date().getFullYear()} Kènè · Développé par Dermo TIC — « La beauté mélanoderme, enfin comprise. »
           </p>
-          <p className="text-[10px] text-muted-foreground/70 mt-1">
+          <p className="text-xs text-muted-foreground/80 mt-1">
             Plateforme technologique éditée par Dermo TIC · Vente des produits et soins assurée exclusivement par les instituts partenaires agréés
           </p>
         </footer>

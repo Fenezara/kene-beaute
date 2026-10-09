@@ -60,14 +60,16 @@ export async function POST(req: NextRequest) {
   }
 
   // Double-vérification de sécurité (defense-in-depth) :
-  // Si les identifiants marchands sont configurés en production, on interroge l'API WiniPayer
+  // En production, on exige la vérification auprès de l'API WiniPayer
   // pour s'assurer que la transaction a RÉELLEMENT été payée (anti-spoofing de webhook).
-  if (process.env.WINIPAYER_MERCHANT_UUID && process.env.WINIPAYER_MERCHANT_TOKEN) {
-    const invoiceUuid = String(data.transaction_id || data.id || payment.ref || paymentId);
-    const verification = await verifyWiniPayerTransaction(invoiceUuid);
-    if (!verification.isPaid) {
-      console.warn(`[WiniPayer Webhook] Rejet de confirmation non certifiée par l'API pour ${paymentId}`);
-      return NextResponse.json({ error: "Transaction unverified by provider" }, { status: 403 });
+  if (process.env.NODE_ENV === "production" || (process.env.WINIPAYER_MERCHANT_UUID && process.env.WINIPAYER_MERCHANT_TOKEN)) {
+    if (process.env.WINIPAYER_MERCHANT_UUID && process.env.WINIPAYER_MERCHANT_TOKEN) {
+      const invoiceUuid = String(data.transaction_id || data.id || payment.ref || paymentId);
+      const verification = await verifyWiniPayerTransaction(invoiceUuid);
+      if (!verification.isPaid) {
+        console.warn(`[WiniPayer Webhook] Rejet de confirmation non certifiée par l'API pour ${paymentId}`);
+        return NextResponse.json({ error: "Transaction unverified by provider" }, { status: 403 });
+      }
     }
   }
 

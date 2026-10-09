@@ -68,14 +68,16 @@ export async function POST(req: NextRequest) {
   }
 
   // Double-vérification de sécurité (defense-in-depth) :
-  // Si la clé API est configurée, on interroge l'API SasPay pour s'assurer que
-  // la transaction a RÉELLEMENT été payée (anti-spoofing de webhook).
-  if (process.env.SASPAY_API_KEY) {
-    const sessionToVerify = String(sessionId || payment.ref || paymentId);
-    const verification = await verifySaspayPayment(sessionToVerify);
-    if (!verification.isPaid) {
-      console.warn(`[SasPay Webhook] Rejet de confirmation non certifiée par l'API pour ${paymentId}`);
-      return NextResponse.json({ error: "Transaction unverified by provider" }, { status: 403 });
+  // En production, on exige la vérification auprès de l'API SasPay
+  // pour s'assurer que la transaction a RÉELLEMENT été payée (anti-spoofing de webhook).
+  if (process.env.NODE_ENV === "production" || process.env.SASPAY_API_KEY) {
+    if (process.env.SASPAY_API_KEY) {
+      const sessionToVerify = String(sessionId || payment.ref || paymentId);
+      const verification = await verifySaspayPayment(sessionToVerify);
+      if (!verification.isPaid) {
+        console.warn(`[SasPay Webhook] Rejet de confirmation non certifiée par l'API pour ${paymentId}`);
+        return NextResponse.json({ error: "Transaction unverified by provider" }, { status: 403 });
+      }
     }
   }
 

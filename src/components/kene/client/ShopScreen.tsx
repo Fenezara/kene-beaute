@@ -745,34 +745,34 @@ export function ShopScreen() {
               <img src={detail.hasPhoto ? `/api/media/product/${detail.id}` : detail.image} alt={detail.name} className="aspect-square w-full object-cover px-0" />
               <SheetHeader className="px-5 pt-4 text-left">
                 <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className={cn("text-[10px] px-2 py-0.5 border font-medium", getCategoryToneBadgeClass(getProductCategoryMeta(detail.category).tone))}>
+                  <Badge variant="outline" className={cn("text-xs px-2.5 py-0.5 border font-semibold", getCategoryToneBadgeClass(getProductCategoryMeta(detail.category).tone))}>
                     {getProductCategoryMeta(detail.category).label}
                   </Badge>
                 </div>
                 <SheetTitle className="font-heading font-black text-lg leading-tight">{detail.name}</SheetTitle>
                 <div className="flex items-center gap-2">
                   <Stars rating={detail.rating} />
-                  <span className="text-[11px] text-muted-foreground">{detail.rating.toFixed(1)} ({detail.reviewCount} avis)</span>
+                  <span className="text-xs text-muted-foreground">{detail.rating.toFixed(1)} ({detail.reviewCount} avis)</span>
                 </div>
               </SheetHeader>
               <div className="px-5 pb-6 space-y-4">
                 {/* Vendeur — l'institut partenaire certifié qui vend ce soin */}
-                <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#C8951E]/30 bg-karite px-2.5 py-1">
-                  <Building2 size={12} className="shrink-0 text-terre" aria-hidden="true" />
-                  <span className="truncate text-[10px] font-bold text-terre">
+                <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#C8951E]/30 bg-karite px-3 py-1">
+                  <Building2 size={13} className="shrink-0 text-terre" aria-hidden="true" />
+                  <span className="truncate text-xs font-bold text-terre">
                     Vendu par {detail.tenant?.name ?? "Institut partenaire certifié"}{detail.tenant?.city ? ` · ${detail.tenant.city}` : ""}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{detail.description}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{detail.description}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {detail.botanicals.split(/[,;]/).map((b, i) => (
-                    <span key={i} className="rounded-full bg-karite border border-[#C8951E]/30 px-2.5 py-1 text-[10px] font-semibold text-terre">{b.trim()}</span>
+                    <span key={i} className="rounded-full bg-karite border border-[#C8951E]/30 px-3 py-1 text-xs font-semibold text-terre">{b.trim()}</span>
                   ))}
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-mono text-xl font-black tabular-nums text-primary">{xof(detail.price)}</p>
-                    {detail.compareAt && detail.compareAt > detail.price && <p className="text-[11px] text-muted-foreground line-through">{xof(detail.compareAt)}</p>}
+                    {detail.compareAt && detail.compareAt > detail.price && <p className="text-xs text-muted-foreground line-through">{xof(detail.compareAt)}</p>}
                   </div>
                   <div className="flex items-center gap-3 rounded-full border border-border px-2 py-1.5">
                     <button onClick={() => setQty((n) => Math.max(1, n - 1))} className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted active:scale-90 transition-all" aria-label="Diminuer la quantité"><Minus size={16} /></button>
@@ -833,7 +833,7 @@ export function ShopScreen() {
                   <img src={l.image} alt={l.name} className="h-12 w-12 rounded-lg object-cover" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold leading-tight line-clamp-2">{l.name}</p>
-                    <p className="font-mono text-[11px] text-muted-foreground mt-0.5">{xof(l.price)} × {l.qty}</p>
+                    <p className="font-mono text-xs text-muted-foreground mt-0.5">{xof(l.price)} × {l.qty}</p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => setCartQty(l.productId, l.qty - 1)} className="h-8 w-8 grid place-items-center rounded-full border border-border active:scale-90 transition-transform" aria-label={`Retirer un ${l.name}`}><Minus size={13} /></button>
@@ -853,7 +853,7 @@ export function ShopScreen() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold font-mono tracking-wide">{livePromo.code}</p>
-                  <p className="text-[11px] text-[#3F7D3F] leading-tight">
+                  <p className="text-xs text-[#3F7D3F] font-semibold leading-tight">
                     {livePromo.label ? `${livePromo.label} · ` : ""}−{xof(livePromo.discount)}
                   </p>
                 </div>
@@ -933,13 +933,13 @@ export function ShopScreen() {
               </div>
 
               <div>
-                <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">
                   Commune / Quartier
                 </label>
                 <select
                   value={delivAreaId}
                   onChange={(e) => setDelivAreaId(e.target.value)}
-                  className="k-input h-11 w-full rounded-xl px-3 text-xs bg-card"
+                  className="k-input h-11 w-full rounded-xl px-3 text-sm bg-card"
                 >
                   {getDeliveryAreas(delivCity).map((a) => (
                     <option key={a.id} value={a.id}>
@@ -954,19 +954,19 @@ export function ShopScreen() {
                   value={delivAddress}
                   onChange={(e) => setDelivAddress(e.target.value)}
                   placeholder="Adresse (rue, nom de résidence, N° apt)"
-                  className="k-input h-11 w-full rounded-xl px-3 text-xs"
+                  className="k-input h-11 w-full rounded-xl px-3 text-sm"
                 />
                 <input
                   value={delivNotes}
                   onChange={(e) => setDelivNotes(e.target.value)}
                   placeholder="Repères utiles (ex: face pharmacie, portail blanc)"
-                  className="k-input h-11 w-full rounded-xl px-3 text-xs"
+                  className="k-input h-11 w-full rounded-xl px-3 text-sm"
                 />
                 <input
                   value={delivPhone}
                   onChange={(e) => setDelivPhone(e.target.value)}
                   placeholder="Téléphone de contact pour le coursier"
-                  className="k-input h-11 w-full rounded-xl px-3 text-xs font-mono"
+                  className="k-input h-11 w-full rounded-xl px-3 text-sm font-mono"
                 />
               </div>
             </div>
@@ -988,10 +988,10 @@ export function ShopScreen() {
 
 
             <div>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Mode de paiement</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Mode de paiement</p>
               {securityEnabled && (
-                <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1">
-                  <Lock size={10} aria-hidden="true" /> Vérification par code activée
+                <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-xs font-bold px-2.5 py-1">
+                  <Lock size={11} aria-hidden="true" /> Vérification par code activée
                 </p>
               )}
               <div className="space-y-2">
@@ -1001,7 +1001,7 @@ export function ShopScreen() {
                     <button key={m} onClick={() => startPay(m)} disabled={paying} className="w-full h-12 rounded-xl border-2 bg-card flex items-center gap-3 px-4 font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" style={{ borderColor: o.color }}>
                       <span className="h-7 w-7 rounded-full grid place-items-center font-heading font-black text-[#1A1410] text-xs shrink-0" style={{ backgroundColor: o.color }}>{o.name.charAt(0)}</span>
                       {o.name}
-                      <span className="ml-auto text-[10px] font-normal text-muted-foreground">{o.hint}</span>
+                      <span className="ml-auto text-xs font-medium text-muted-foreground">{o.hint}</span>
                     </button>
                   );
                 })}
@@ -1009,7 +1009,7 @@ export function ShopScreen() {
                 {/* Commande directe via WhatsApp (Commerce conversationnel) */}
                 <div className="relative py-1 flex items-center justify-center">
                   <span className="h-[1px] w-full bg-border" />
-                  <span className="bg-card px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">ou</span>
+                  <span className="bg-card px-3 text-xs font-bold text-muted-foreground uppercase tracking-wider">ou</span>
                 </div>
                 <button
                   type="button"

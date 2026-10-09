@@ -383,10 +383,10 @@ export function ClientApp() {
         {/* Bas de sidebar: sélecteur d'interface + micro légal */}
         <div className="border-t border-border/60 p-3 xl:p-4 space-y-3">
           <div className="space-y-1.5">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground/80 tracking-wider">Interfaces Kènè</span>
+            <span className="text-xs uppercase font-bold text-muted-foreground/80 tracking-wider">Interfaces Kènè</span>
             <SpaceSwitcher variant="pills" className="w-full justify-between" />
           </div>
-          <p className="px-1 text-[10px] leading-relaxed text-muted-foreground/70">
+          <p className="px-1 text-xs leading-relaxed text-muted-foreground/75">
             Kènè — paiements sécurisés Mobile Money & Carte · estimations IA non médicales
           </p>
         </div>
@@ -568,7 +568,7 @@ export function ClientApp() {
                     >
                       <NeaOnnimIcon size={23} />
                     </span>
-                    <span className={cn("text-[10px] font-semibold mt-0.5", active ? "text-primary" : "text-muted-foreground")}>{t(n.labelKey)}</span>
+                    <span className={cn("text-xs font-semibold mt-0.5", active ? "text-primary font-bold" : "text-muted-foreground")}>{t(n.labelKey)}</span>
                   </button>
                 );
               }
@@ -600,13 +600,13 @@ export function ClientApp() {
                       initial={{ scale: 0.4 }}
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 500, damping: 18 }}
-                      className="absolute -top-1 -right-1.5 h-4 min-w-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-black grid place-items-center ring-2 ring-background" aria-hidden="true"
+                      className="absolute -top-1 -right-1.5 h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-black grid place-items-center ring-2 ring-background" aria-hidden="true"
                     >
                       {cartCount}
                     </motion.span>
                   )}
                 </span>
-                <span className={cn("text-[10px]", active ? "font-bold" : "font-semibold")}>{t(n.labelKey)}</span>
+                <span className={cn("text-xs tracking-tight", active ? "font-bold text-primary" : "font-semibold")}>{t(n.labelKey)}</span>
               </button>
             );
           })}

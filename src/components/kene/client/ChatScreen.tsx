@@ -673,8 +673,8 @@ export function ChatScreen() {
           <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#346834] border-2 border-background" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1 md:hidden">
-          <p className="font-heading font-bold text-sm">Dermo Kènè <span className="text-[10px] font-mono font-bold bg-primary/15 text-primary px-1.5 py-0.2 rounded-md">IA</span></p>
-          <p className="text-[11px] text-success font-semibold">Conseillère dermo-cosmétique · En ligne</p>
+          <p className="font-heading font-bold text-sm">Dermo Kènè <span className="text-xs font-mono font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded-md">IA</span></p>
+          <p className="text-xs text-success font-semibold">Conseillère dermo-cosmétique · En ligne</p>
         </div>
         <div className="hidden md:flex items-center gap-2 min-w-0 flex-1">
           <span className="h-2 w-2 rounded-full bg-[#346834] animate-pulse" aria-hidden="true" />
@@ -725,10 +725,10 @@ export function ChatScreen() {
                     <AudioMessageBubble message={m} />
                   ) : (
                     <div className="k-cta rounded-[20px] rounded-br-[6px] px-3.5 py-2.5 text-[#FFF9EC]">
-                      <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
                     </div>
                   )}
-                  <p className="text-[9px] text-muted-foreground text-right mt-1">{new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                  <p className="text-xs text-muted-foreground text-right mt-1 font-medium">{new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
                 </motion.div>
               );
             }
@@ -743,30 +743,30 @@ export function ChatScreen() {
                     )}
                     <div className="relative">
                       {tri && (
-                        <p className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide ${tri.text} mb-1.5`}>
-                          <tri.Icon size={13} />
+                        <p className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-wide ${tri.text} mb-1.5`}>
+                          <tri.Icon size={14} />
                           {m.niveau === "vert" ? "Rassurant" : m.niveau === "jaune" ? "À surveiller" : "Consultation conseillée"}
                         </p>
                       )}
-                      <p className="text-[13px] leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
                     </div>
                   </div>
                   {tri && (
                     <button
                       onClick={() => setClientTab(tri.tab)}
-                      className={`mt-1.5 h-9 px-3.5 rounded-full ${tri.text} border ${m.niveau === "vert" ? "border-[#346834]/50 bg-[#346834]/10" : m.niveau === "jaune" ? "border-[#C8951E]/50 bg-[#C8951E]/10" : "border-[#8B1A3B]/50 bg-[#8B1A3B]/10"} text-[11px] font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary`}
+                      className={`mt-1.5 h-9 px-3.5 rounded-full ${tri.text} border ${m.niveau === "vert" ? "border-[#346834]/50 bg-[#346834]/10" : m.niveau === "jaune" ? "border-[#C8951E]/50 bg-[#C8951E]/10" : "border-[#8B1A3B]/50 bg-[#8B1A3B]/10"} text-xs font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary`}
                     >
                       {tri.cta} →
                     </button>
                   )}
                   <div className="flex items-center justify-between gap-3 mt-1.5 px-0.5">
-                    <p className="text-[9px] text-muted-foreground">Dermo Kènè · {new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                    <p className="text-xs text-muted-foreground font-medium">Dermo Kènè · {new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
                     {playingMsgId === m.id ? (
                       <button
                         type="button"
                         onClick={stopCurrentSpeech}
                         aria-label="Arrêter la voix de Dermo Kènè"
-                        className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold shadow-xs active:scale-95 transition-all"
+                        className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-xs active:scale-95 transition-all"
                       >
                         <span className="flex items-end gap-[2px] h-3 mr-0.5" aria-hidden="true">
                           {[0, 1, 2, 3].map((i) => (

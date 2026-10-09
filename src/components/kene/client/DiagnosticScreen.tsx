@@ -1372,18 +1372,18 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
 
           <div className="grid grid-cols-2 gap-3 mt-4">
             <div className="k-card k-card-hover rounded-[20px] p-3.5">
-              <p className="flex items-center gap-1.5 text-[11px] font-bold text-gold-text uppercase tracking-wide"><Sunrise size={13} /> Matin</p>
+              <p className="flex items-center gap-1.5 text-xs font-bold text-gold-text uppercase tracking-wide"><Sunrise size={14} /> Matin</p>
               <ul className="mt-2 space-y-1.5">
                 {r.recommandations.routine_matin.slice(0, 4).map((s, i) => (
-                  <li key={i} className="text-[11px] leading-snug flex gap-1.5"><span className="text-primary font-mono">{i + 1}.</span> {s}</li>
+                  <li key={i} className="text-xs leading-relaxed flex gap-1.5"><span className="text-primary font-mono font-bold">{i + 1}.</span> {s}</li>
                 ))}
               </ul>
             </div>
             <div className="k-card k-card-hover rounded-[20px] p-3.5">
-              <p className="flex items-center gap-1.5 text-[11px] font-bold text-terre uppercase tracking-wide"><Moon size={13} /> Soir</p>
+              <p className="flex items-center gap-1.5 text-xs font-bold text-terre uppercase tracking-wide"><Moon size={14} /> Soir</p>
               <ul className="mt-2 space-y-1.5">
                 {r.recommandations.routine_soir.slice(0, 4).map((s, i) => (
-                  <li key={i} className="text-[11px] leading-snug flex gap-1.5"><span className="text-terre font-mono">{i + 1}.</span> {s}</li>
+                  <li key={i} className="text-xs leading-relaxed flex gap-1.5"><span className="text-terre font-mono font-bold">{i + 1}.</span> {s}</li>
                 ))}
               </ul>
             </div>
@@ -1391,10 +1391,10 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
 
           {r.recommandations.botaniques_conseillees.length > 0 && (
             <div className="mt-4">
-              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Botaniques africaines pour toi</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">Botaniques africaines pour toi</p>
               <div className="flex flex-wrap gap-2">
                 {r.recommandations.botaniques_conseillees.map((b, i) => (
-                  <span key={i} className="k-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold text-terre">
+                  <span key={i} className="k-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-terre">
                     {botanicIcon(b)} {b}
                   </span>
                 ))}
@@ -1406,20 +1406,20 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
             <div className="mt-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <p className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
                     <CauriIcon size={14} className="text-primary" />
                     Soins &amp; Actifs recommandés pour votre peau
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Typologies de soins adaptées à votre profil cutané · Sans marque commerciale
                   </p>
                 </div>
               </div>
 
               {/* Note d'indépendance dermo-conseil */}
-              <div className="rounded-2xl bg-primary/5 border border-primary/20 p-3 flex items-start gap-2.5 text-[11px]">
+              <div className="rounded-2xl bg-primary/5 border border-primary/20 p-3.5 flex items-start gap-2.5 text-xs">
                 <ShieldCheck size={16} className="text-primary shrink-0 mt-0.5" />
-                <p className="text-muted-foreground leading-snug">
+                <p className="text-muted-foreground leading-relaxed">
                   <strong className="text-foreground font-semibold">Indépendance Kènè :</strong> L&apos;application Kènè ne vend aucun produit cosmétique. Ces typologies de soins et principes actifs sont des recommandations dermo-cosmétiques objectives, disponibles en pharmacie, parapharmacie ou auprès de vos instituts partenaires habituels.
                 </p>
               </div>
