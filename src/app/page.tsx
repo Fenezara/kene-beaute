@@ -11,7 +11,7 @@
 // rejoignent le bundle client UNIQUEMENT quand on y entre. Le gating `space`
 // reste identique, seul le chargement change. BootSkeleton pendant l'attente.
 
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { MotionConfig } from "framer-motion";
 import { useKene } from "@/store/kene";
@@ -24,6 +24,8 @@ import { SessionKeeper } from "@/components/kene/SessionKeeper";
 import { TransportProbe } from "@/components/kene/TransportProbe";
 import { PwaProvider } from "@/components/kene/pwa/PwaProvider";
 import { ConsoleEntry, ConsoleRedirect, useEntryKind } from "@/components/kene/admin/ConsoleEntry";
+import { MaintenanceScreen } from "@/components/kene/MaintenanceScreen";
+import type { MaintenanceConfig } from "@/lib/kene/maintenance";
 import { Toaster } from "@/components/ui/sonner";
 
 // Espaces Pro / Admin / Pin: chunks séparés, chargés à l'entrée de l'espace
@@ -52,9 +54,73 @@ export default function Page() {
     }
   }, []);
 
+  // Mode Maintenance plateforme — vérifié au chargement, au focus et toutes les 30s
+  const [maintenance, setMaintenance] = useState<MaintenanceConfig | null>(null);
+
+  const checkMaintenance = useCallback(async () => {
+    try {
+      const res = await fetch("/api/system/maintenance", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.config) {
+          setMaintenance(data.config);
+        }
+      }
+    } catch {
+      // Tolérance réseau
+    }
+  }, []);
+
+  useEffect(() => {
+    void checkMaintenance();
+    const onFocus = () => void checkMaintenance();
+    window.addEventListener("focus", onFocus);
+    const timer = setInterval(onFocus, 30000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      clearInterval(timer);
+    };
+  }, [checkMaintenance]);
+
+  // Si le mode maintenance est actif et que l'utilisateur n'est PAS administrateur connecté
+  // et n'est PAS sur la porte secrète /console : on affiche l'écran d'attente officiel
+  if (hydrated && maintenance?.enabled && user?.role !== "admin" && entry !== "console") {
+    return (
+      <MotionConfig reducedMotion="user">
+        <div className="min-h-dvh bg-background text-foreground">
+          <MaintenanceScreen config={maintenance} onRefresh={checkMaintenance} />
+          <Toaster position="top-center" richColors closeButton />
+        </div>
+      </MotionConfig>
+    );
+  }
+
   return (
     <MotionConfig reducedMotion="user">
       <div className="min-h-dvh bg-background text-foreground">
+        {/* Bandeau d'alerte discret pour l'administrateur quand la maintenance est active */}
+        {maintenance?.enabled && user?.role === "admin" && (
+          <div className="sticky top-0 z-[100] flex items-center justify-between gap-3 border-b border-rose-500/40 bg-rose-600/95 px-4 py-2 text-xs font-medium text-white shadow-md backdrop-blur">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+              </span>
+              <span className="truncate">
+                <strong>Mode Maintenance ACTIF :</strong> L&apos;application est masquée pour le public et les pros. Vous naviguez avec l&apos;accès fondateur prioritaire.
+              </span>
+            </div>
+            {space !== "admin" && (
+              <button
+                onClick={() => useKene.getState().setSpace("admin")}
+                className="shrink-0 rounded-md bg-white/20 hover:bg-white/30 px-2.5 py-1 text-[11px] font-bold text-white transition-colors"
+              >
+                Gérer la maintenance
+              </button>
+            )}
+          </div>
+        )}
+
         <a
           href="#contenu"
           className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:rounded-lg focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"

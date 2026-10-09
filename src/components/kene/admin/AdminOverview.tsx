@@ -14,6 +14,7 @@ import { xof } from "@/lib/kene/format";
 import { useApi } from "@/components/kene/pro/useApi";
 import { useKene } from "@/store/kene";
 import { EmptyState, KpiCard, Money, dayLabel } from "@/components/kene/pro/ui-bits";
+import { AdminMaintenanceControl } from "./AdminMaintenanceControl";
 import type { AdminStats } from "@/components/kene/pro/types";
 
 interface ConnectorsData {
@@ -96,6 +97,10 @@ export function AdminOverview({ stats }: { stats: ReturnType<typeof useApi<Admin
           </div>
         </div>
       </div>
+
+      {/* 🛑 Contrôle du Mode Maintenance & Affiche Clientèle */}
+      <AdminMaintenanceControl />
+
       {/* KPIs — t. 135: la monétisation rejoint la vue d'ensemble (MRR simulé,
           fallbacks 0: le cache mémoire peut servir un snapshot antérieur). */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-3">
