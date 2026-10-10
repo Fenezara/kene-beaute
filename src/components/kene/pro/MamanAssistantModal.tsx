@@ -2,8 +2,9 @@
 // Kènè Pro — L'Assistante Intelligente de la Maman
 // Permet à la gérante de dicter ou taper son point après chaque soin/vente/dépense,
 // et renseigne automatiquement tous les onglets (Caisse, Stock, CRM, Agenda, Équipe, Relance, Compta).
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { MamanOrb3D, type OrbState } from "./MamanOrb3D";
 import {
   AlertTriangle,
   ArrowRight,
@@ -104,6 +105,15 @@ export function MamanAssistantModal({
     vocalSummary: string;
   } | null>(null);
   const [loadingDaily, setLoadingDaily] = useState(false);
+
+  // État 3D de l'Orbe Sacré
+  const orbState: OrbState = useMemo(() => {
+    if (executionDone) return "success";
+    if (audioState === "playing") return "speaking";
+    if (analyzing || executing) return "analyzing";
+    if (isListening) return "listening";
+    return "idle";
+  }, [executionDone, audioState, analyzing, executing, isListening]);
 
   // Nettoyage audio
   useEffect(() => {
@@ -371,6 +381,19 @@ export function MamanAssistantModal({
             <>
               {!debrief && !executionDone && (
                 <div className="space-y-3">
+                  {/* L'Orbe Sacré Cauri 3D dans la modale */}
+                  <div className="flex flex-col items-center justify-center py-1">
+                    <MamanOrb3D
+                      state={orbState}
+                      onClick={toggleListening}
+                      size={180}
+                      className="mx-auto"
+                    />
+                    <p className="text-[11px] font-semibold text-[#E8C9A0] mt-1">
+                      {isListening ? "🎙️ L'Orbe écoute… Parlez librement" : "✨ Touchez l'Orbe ou cliquez pour dicter"}
+                    </p>
+                  </div>
+
                   {/* Zone de saisie principale avec micro */}
                   <div className="relative rounded-[22px] border border-[#C8951E]/40 bg-[#1F1712] p-3.5 focus-within:ring-2 focus-within:ring-[#C8951E]/60 transition-all">
                     <textarea
