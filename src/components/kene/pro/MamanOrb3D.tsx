@@ -17,6 +17,7 @@ export interface MamanOrb3DProps {
   className?: string;
   size?: number;
   interactive?: boolean;
+  audioLevel?: number;
 }
 
 /* ───────────────────────── Géométrie Procédurale du Cauri ───────────────────────── */
@@ -255,7 +256,7 @@ function AkanSolarRings({ state }: { state: OrbState }) {
 
 /* ───────────────────────── Cœur du Cauri Sacré ───────────────────────── */
 
-function SacredCowrieCore({ state }: { state: OrbState }) {
+function SacredCowrieCore({ state, audioLevel = 0 }: { state: OrbState; audioLevel?: number }) {
   const cowrieGeo = useMemo(() => createCowrieGeometry(), []);
   const meshRef = useRef<THREE.Mesh>(null);
   const glowLightRef = useRef<THREE.PointLight>(null);
@@ -264,10 +265,11 @@ function SacredCowrieCore({ state }: { state: OrbState }) {
     if (!meshRef.current) return;
     const t = clock.getElapsedTime();
 
-    // Respiration organique du cauri
+    // Respiration organique du cauri & pulsation réactive à la voix
     let scalePulse = 1.0;
     if (state === "listening") {
-      scalePulse = 1.0 + Math.sin(t * 7) * 0.08 + Math.cos(t * 11) * 0.03;
+      const voiceBoost = Math.min(audioLevel * 0.45, 0.4);
+      scalePulse = 1.0 + voiceBoost + Math.sin(t * 7) * 0.08 + Math.cos(t * 11) * 0.03;
     } else if (state === "analyzing") {
       scalePulse = 0.94 + Math.sin(t * 14) * 0.04;
     } else if (state === "speaking") {
@@ -284,7 +286,8 @@ function SacredCowrieCore({ state }: { state: OrbState }) {
 
     if (glowLightRef.current) {
       if (state === "listening") {
-        glowLightRef.current.intensity = 3.6 + Math.sin(t * 8) * 0.9;
+        const lightBoost = audioLevel * 3.5;
+        glowLightRef.current.intensity = 3.6 + lightBoost + Math.sin(t * 8) * 0.9;
       } else if (state === "analyzing") {
         glowLightRef.current.intensity = 4.2 + Math.sin(t * 15) * 1.2;
       } else if (state === "speaking") {
@@ -340,7 +343,7 @@ function SacredCowrieCore({ state }: { state: OrbState }) {
 
 /* ───────────────────────── Scène Principale & Suivi Gyroscopique ───────────────────────── */
 
-function SceneContent({ state }: { state: OrbState }) {
+function SceneContent({ state, audioLevel = 0 }: { state: OrbState; audioLevel?: number }) {
   const rootGroup = useRef<THREE.Group>(null);
   const { pointer } = useThree();
 
@@ -361,7 +364,7 @@ function SceneContent({ state }: { state: OrbState }) {
       <pointLight position={[-3, -2, -2]} color="#8B1A3B" intensity={1.8} distance={6} />
 
       {/* 1. Le Cœur Cauri Sacré */}
-      <SacredCowrieCore state={state} />
+      <SacredCowrieCore state={state} audioLevel={audioLevel} />
 
       {/* 2. Les Anneaux Solaires Akan & Adinkra */}
       <AkanSolarRings state={state} />
@@ -380,6 +383,7 @@ export function MamanOrb3D({
   className,
   size = 280,
   interactive = true,
+  audioLevel = 0,
 }: MamanOrb3DProps) {
   const [hasWebGL, setHasWebGL] = useState(true);
 
@@ -426,7 +430,7 @@ export function MamanOrb3D({
             dpr={[1, 1.5]}
             gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
           >
-            <SceneContent state={state} />
+            <SceneContent state={state} audioLevel={audioLevel} />
           </Canvas>
         </div>
       ) : (

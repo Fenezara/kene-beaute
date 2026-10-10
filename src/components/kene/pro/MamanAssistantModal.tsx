@@ -41,7 +41,8 @@ import { xof } from "@/lib/kene/format";
 import { CauriIcon } from "@/components/kene/icons";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
-import { fetchTtsAudioUrl, speakBrowserVoice, stopBrowserVoice } from "../client/ttsAudio";
+import { fetchTtsAudioUrl, speakBrowserVoice, stopBrowserVoice, unlockAudioContext } from "../client/ttsAudio";
+import { pickRecorderMime, transcribeAudioBlob } from "@/lib/kene/audio-recorder";
 import type { DebriefResult } from "@/app/api/pro/assistant/debrief/route";
 
 interface MamanAssistantModalProps {
@@ -82,13 +83,23 @@ export function MamanAssistantModal({
   const [text, setText] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [executing, setExecuting] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const [debrief, setDebrief] = useState<DebriefResult | null>(null);
   const [executionDone, setExecutionDone] = useState(false);
 
   // État audio TTS pour écouter le retour vocal de l'Assistante
   const [audioState, setAudioState] = useState<"idle" | "loading" | "playing">("idle");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const speechRecognitionRef = useRef<any>(null);
 
   // Données du Point du Soir
   const [dailyData, setDailyData] = useState<{
@@ -110,71 +121,194 @@ export function MamanAssistantModal({
   const orbState: OrbState = useMemo(() => {
     if (executionDone) return "success";
     if (audioState === "playing") return "speaking";
-    if (analyzing || executing) return "analyzing";
-    if (isListening) return "listening";
+    if (analyzing || executing || isTranscribing) return "analyzing";
+    if (isRecording) return "listening";
     return "idle";
-  }, [executionDone, audioState, analyzing, executing, isListening]);
+  }, [executionDone, audioState, analyzing, executing, isTranscribing, isRecording]);
+
+  function stopVoiceRecording() {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    setAudioLevel(0);
+
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch {}
+      speechRecognitionRef.current = null;
+    }
+
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach((track) => track.stop());
+      audioStreamRef.current = null;
+    }
+
+    if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
+      try {
+        void audioCtxRef.current.close();
+      } catch {}
+      audioCtxRef.current = null;
+    }
+  }
 
   // Nettoyage audio
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
       audioRef.current = null;
+      stopVoiceRecording();
     };
   }, []);
 
-  // Initialisation Web Speech Recognition
-  const recognitionRef = useRef<any>(null);
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const reco = new SpeechRecognition();
-        reco.continuous = true;
-        reco.interimResults = true;
-        reco.lang = "fr-FR";
+  async function startListening() {
+    unlockAudioContext();
+    audioRef.current?.pause();
+    stopBrowserVoice();
+    setAudioState("idle");
 
-        reco.onresult = (event: any) => {
-          let currentTranscript = "";
-          for (let i = 0; i < event.results.length; i++) {
-            currentTranscript += event.results[i][0].transcript + " ";
-          }
-          setText(currentTranscript.trim());
-        };
-
-        reco.onerror = () => {
-          setIsListening(false);
-        };
-
-        reco.onend = () => {
-          setIsListening(false);
-        };
-
-        recognitionRef.current = reco;
-      }
-    }
-  }, []);
-
-  function toggleListening() {
-    if (!recognitionRef.current) {
-      toast.error("La reconnaissance vocale n'est pas supportée par votre navigateur");
+    if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      toast.error("Votre navigateur ne permet pas l'enregistrement audio direct");
       return;
     }
 
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-      haptic(HAPTIC.light);
-    } else {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
+
+      audioStreamRef.current = stream;
+      audioChunksRef.current = [];
+
       try {
-        recognitionRef.current.start();
-        setIsListening(true);
-        haptic(HAPTIC.success);
-        toast.info("J'écoute, Maman… Parle naturellement 🎙️");
-      } catch {
-        recognitionRef.current.stop();
-        setIsListening(false);
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          audioCtxRef.current = ctx;
+          const source = ctx.createMediaStreamSource(stream);
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 64;
+          source.connect(analyser);
+          analyserRef.current = analyser;
+
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          const updateVolume = () => {
+            if (!analyserRef.current) return;
+            analyserRef.current.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            const avg = sum / dataArray.length;
+            setAudioLevel(Math.min(1, Math.max(0, avg / 80)));
+            animFrameRef.current = requestAnimationFrame(updateVolume);
+          };
+          updateVolume();
+        }
+      } catch {}
+
+      const mime = pickRecorderMime();
+      const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const chunks = audioChunksRef.current;
+        const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+
+        const currentText = text.trim();
+        if (currentText.length >= 6) {
+          setIsTranscribing(false);
+          setIsRecording(false);
+          haptic(HAPTIC.success);
+          void handleAnalyze(currentText);
+          return;
+        }
+
+        if (blob.size > 800) {
+          setIsTranscribing(true);
+          try {
+            const transcribed = await transcribeAudioBlob(blob);
+            setIsTranscribing(false);
+            if (transcribed.trim()) {
+              setText(transcribed.trim());
+              haptic(HAPTIC.success);
+              void handleAnalyze(transcribed.trim());
+            } else {
+              toast.info("Aucune parole distincte captée — Vous pouvez dicter à nouveau ou écrire.");
+            }
+          } catch {
+            setIsTranscribing(false);
+            toast.error("Impossible de transcrire l'audio — Veuillez écrire votre texte.");
+          }
+        } else {
+          toast.info("Enregistrement très court — Parlez librement, Maman.");
+        }
+
+        setIsRecording(false);
+      };
+
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        try {
+          const reco = new SpeechRecognition();
+          reco.continuous = true;
+          reco.interimResults = true;
+          reco.lang = "fr-FR";
+
+          reco.onresult = (event: any) => {
+            let transcript = "";
+            for (let i = 0; i < event.results.length; i++) {
+              transcript += event.results[i][0].transcript + " ";
+            }
+            setText(transcript.trim());
+          };
+
+          reco.onerror = () => {};
+          reco.start();
+          speechRecognitionRef.current = reco;
+        } catch {}
       }
+
+      setText("");
+      setDebrief(null);
+      setExecutionDone(false);
+      setIsRecording(true);
+      recorder.start(250);
+
+      haptic(HAPTIC.success);
+      toast.info("J'écoute, Maman… Parle naturellement 🎙️");
+    } catch (err: any) {
+      stopVoiceRecording();
+      setIsRecording(false);
+      if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError") {
+        toast.error("Accès micro refusé — Veuillez l'autoriser dans les paramètres du navigateur.");
+      } else {
+        toast.error("Impossible d'activer le microphone.");
+      }
+    }
+  }
+
+  function stopListening() {
+    if (!isRecording) return;
+    haptic(HAPTIC.light);
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state === "recording") {
+      rec.stop();
+    }
+    stopVoiceRecording();
+  }
+
+  function toggleListening() {
+    if (isRecording) {
+      stopListening();
+    } else {
+      void startListening();
     }
   }
 
@@ -188,6 +322,7 @@ export function MamanAssistantModal({
     }
 
     setAudioState("loading");
+    unlockAudioContext();
 
     // 1) Essayer le TTS cloud (si disponible)
     try {
@@ -228,15 +363,15 @@ export function MamanAssistantModal({
   }
 
   // Analyser le débriefing
-  async function handleAnalyze() {
-    if (!text.trim()) {
+  async function handleAnalyze(overrideText?: string) {
+    const query = (overrideText ?? text).trim();
+    if (!query) {
       toast.error("Maman, dis-moi ou écris ce qui s'est passé !");
       return;
     }
 
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
+    if (isRecording) {
+      stopListening();
     }
 
     setAnalyzing(true);
@@ -245,7 +380,7 @@ export function MamanAssistantModal({
     try {
       const res = await apiPost<{ debrief: DebriefResult }>("/api/pro/assistant/debrief", {
         tenantId,
-        text: text.trim(),
+        text: query,
       });
       setDebrief(res.debrief);
       toast.success("Point analysé avec succès");
@@ -259,6 +394,8 @@ export function MamanAssistantModal({
       setAnalyzing(false);
     }
   }
+
+
 
   // Exécuter et enregistrer dans tous les onglets
   async function handleExecute() {
@@ -387,10 +524,11 @@ export function MamanAssistantModal({
                       state={orbState}
                       onClick={toggleListening}
                       size={180}
+                      audioLevel={audioLevel}
                       className="mx-auto"
                     />
                     <p className="text-[11px] font-semibold text-[#E8C9A0] mt-1">
-                      {isListening ? "🎙️ L'Orbe écoute… Parlez librement" : "✨ Touchez l'Orbe ou cliquez pour dicter"}
+                      {isRecording ? "🎙️ L'Orbe écoute… Parlez librement" : "✨ Touchez l'Orbe ou cliquez pour dicter"}
                     </p>
                   </div>
 
@@ -410,13 +548,13 @@ export function MamanAssistantModal({
                         type="button"
                         onClick={toggleListening}
                         className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                          isListening
+                          isRecording
                             ? "bg-red-500 text-white animate-pulse shadow-lg"
                             : "bg-[#C8951E]/20 text-[#C8951E] hover:bg-[#C8951E]/30"
                         }`}
                       >
-                        {isListening ? <MicOff size={15} /> : <Mic size={15} />}
-                        <span>{isListening ? "J'écoute, Maman… (Arrêter)" : "Dicter au micro"}</span>
+                        {isRecording ? <MicOff size={15} /> : <Mic size={15} />}
+                        <span>{isRecording ? "J'écoute, Maman… (Arrêter)" : "Dicter au micro"}</span>
                       </button>
 
                       {text && (
@@ -454,7 +592,7 @@ export function MamanAssistantModal({
                   {/* Bouton d'analyse */}
                   <button
                     type="button"
-                    onClick={handleAnalyze}
+                    onClick={() => handleAnalyze()}
                     disabled={analyzing || !text.trim()}
                     className="w-full h-12 rounded-2xl k-btn-gold font-heading font-black text-sm text-primary-foreground flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 active:scale-[0.99] transition-all"
                   >
