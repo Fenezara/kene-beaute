@@ -11,14 +11,12 @@
 // Résilience + code splitting: chaque écran d'onglet vit derrière une
 // ScreenBoundary (erreur locale = carte inline, l'app reste vivante) et les écrans
 // lourds sont lazy (chunk dédié au premier clic — HomeScreen/Onboarding eager).
-// Gate d'hydratation: BootSkeleton tant que le store persisté n'est pas relu.
-
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CalendarDays, Home, Loader2, MessageCircle, Settings, ShoppingBag, User, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
-import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
+import { HAPTIC, haptic, isOnline, useNetworkOnline } from "@/lib/kene/ux";
 import { formatTime } from "@/lib/kene/format";
 import { KeneEmblem, KeneEmblemLockup, KeneMark, NeaOnnimIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
@@ -141,19 +139,8 @@ export function ClientApp() {
 
   // ─── Direction de transition (sens de navigation) + connectivité ───
   const [navDir, setNavDir] = useState<1 | -1>(1);
-  const [online, setOnline] = useState(true);
-
-  // Bandeau hors-ligne — résilience réseau façon Wave
-  useEffect(() => {
-    const update = () => setOnline(isOnline());
-    update();
-    window.addEventListener("online", update);
-    window.addEventListener("offline", update);
-    return () => {
-      window.removeEventListener("online", update);
-      window.removeEventListener("offline", update);
-    };
-  }, []);
+  // Bandeau hors-ligne anti-faux-positifs — résilience réseau façon Wave
+  const online = useNetworkOnline();
 
   // Deep-linking / Raccourcis PWA (shortcuts) : ouverture directe d'un onglet via ?tab=...
   useEffect(() => {

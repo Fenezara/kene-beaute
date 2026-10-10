@@ -11,7 +11,7 @@ import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard,
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
-import { isOnline } from "@/lib/kene/ux";
+import { isOnline, useNetworkOnline } from "@/lib/kene/ux";
 import { CauriIcon, KeneEmblem, KeneEmblemLockup, KeneMark, DuafeIcon, SankofaIcon, AbanIcon, OsramIcon, KenteIcon, FihankraIcon, BaouleIcon, NkonsonkonsonIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -122,18 +122,8 @@ export function ProApp() {
   // Modal de l'Assistante de la Maman (Débriefing & dispatch 1-tap)
   const [mamanAssistantOpen, setMamanAssistantOpen] = useState(false);
 
-  // Détection de connectivité réseau pour la résilience offline (façon Wave)
-  const [online, setOnline] = useState(true);
-  useEffect(() => {
-    const update = () => setOnline(isOnline());
-    update();
-    window.addEventListener("online", update);
-    window.addEventListener("offline", update);
-    return () => {
-      window.removeEventListener("online", update);
-      window.removeEventListener("offline", update);
-    };
-  }, []);
+  // Détection de connectivité réseau anti-faux-positifs (façon Wave)
+  const online = useNetworkOnline();
 
   const overview = useApi<ProOverview>(
     () => apiGet<ProOverview>(`/api/pro/overview${proTenantId ? `?tenantId=${proTenantId}` : ""}`),
@@ -159,7 +149,7 @@ export function ProApp() {
   // si le navigateur est hors-ligne ou s'il s'agit d'une instabilité réseau passagère.
   const healedRef = useRef(false);
   useEffect(() => {
-    if (!online || !isOnline()) return;
+    if (!online) return;
     if (overview.error && proTenantId && !healedRef.current) {
       const isNetworkErr = /hors-ligne|instable|réseau|network|failed to fetch/i.test(overview.error);
       if (isNetworkErr) return;
@@ -175,7 +165,7 @@ export function ProApp() {
   // Pré-remplissage du cache hors-ligne pour l'espace entreprise (CRM, catalogue, stock, etc.)
   // Assure la disponibilité immédiate des écrans même si la connexion est coupée en cours de journée
   useEffect(() => {
-    if (!tid || !online || !isOnline()) return;
+    if (!tid || !online) return;
     const timer = window.setTimeout(() => {
       const endpoints = [
         `/api/pro/overview?tenantId=${tid}`,
@@ -454,7 +444,7 @@ export function ProApp() {
               </span>
             )}
 
-            {(!online || !isOnline()) && (
+            {!online && (
               <span
                 title="Mode Hors-ligne — Caisse POS, Catalogue & Clientes locaux opérationnels"
                 className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 text-xs font-semibold text-amber-500 shadow-xs"

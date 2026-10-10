@@ -11,11 +11,11 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v24";
-const PRECACHE = "kene-precache-v24";
-const DATA_CACHE = "kene-data-v24";
-const IMG_CACHE = "kene-img-v24";
-const STATIC_CACHE = "kene-static-v24";
+const VERSION = "kene-sw-v25";
+const PRECACHE = "kene-precache-v25";
+const DATA_CACHE = "kene-data-v25";
+const IMG_CACHE = "kene-img-v25";
+const STATIC_CACHE = "kene-static-v25";
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
@@ -490,8 +490,10 @@ self.addEventListener("fetch", (event) => {
 async function networkFirstPostAuth(req) {
   try {
     const res = await fetch(req.clone());
-    if (res && res.ok) return res;
+    // Si le serveur a répondu (200, 400, 401, 500...), renvoyer la réponse réelle du serveur
+    if (res) return res;
   } catch {}
+  // Échec réseau avéré (déconnecté d'internet)
   const url = new URL(req.url);
   const fallback = getOfflineApiFallback(url.pathname);
   if (fallback !== null) {
@@ -504,7 +506,7 @@ async function networkFirstPostAuth(req) {
     });
   }
   return new Response(JSON.stringify({ ok: true, offline: true }), {
-    status: 200,
+    status: 503,
     headers: { "content-type": "application/json", "x-kene-offline": "1" },
   });
 }
@@ -515,23 +517,32 @@ async function networkFirstData(req) {
 
   try {
     networkRes = await fetch(req);
-    if (networkRes && networkRes.ok) {
-      try {
-        const cache = await caches.open(DATA_CACHE);
-        const sanitized = await sanitizeForCache(networkRes);
+    // 1) Réponse 2xx ou 304 : mise en cache runtime si 200 et retour immédiat
+    if (networkRes && (networkRes.ok || networkRes.status === 304)) {
+      if (networkRes.ok && networkRes.status === 200) {
         try {
-          await cache.put(req.url, sanitized.clone());
-        } catch {
-          await cache.put(req, sanitized);
-        }
-      } catch {}
+          const cache = await caches.open(DATA_CACHE);
+          const sanitized = await sanitizeForCache(networkRes);
+          try {
+            await cache.put(req.url, sanitized.clone());
+          } catch {
+            await cache.put(req, sanitized);
+          }
+        } catch {}
+      }
       return networkRes;
     }
+    // 2) Erreurs client 4xx (401 non authentifié, 403 interdit, 404 introuvable, 429...) :
+    // Le serveur est en ligne et a répondu de façon explicite. Ne JAMAIS masquer par du cache ou un mock hors-ligne !
+    if (networkRes && networkRes.status >= 400 && networkRes.status < 500) {
+      return networkRes;
+    }
+    // 3) Pour les erreurs 5xx (500, 502 gateway), tenter le cache de secours ci-dessous si présent.
   } catch {
-    /* réseau injoignable */
+    /* réseau réellement injoignable (offline, DNS, timeout) */
   }
 
-  // Échec réseau ou offline : recherche dans le cache
+  // Échec réseau avéré ou erreur 5xx : recherche dans le cache
   let cached = await caches.match(req.url, { cacheName: DATA_CACHE });
   if (!cached) {
     cached = await caches.match(req, { cacheName: DATA_CACHE });
@@ -554,7 +565,10 @@ async function networkFirstData(req) {
     });
   }
 
-  // Pas de cache : renvoyer le fallback JSON au lieu de lever une exception
+  // Si le serveur a répondu (ex. 500 ou 502) et qu'aucun cache n'existe, renvoyer la réponse serveur
+  if (networkRes) return networkRes;
+
+  // Pas de cache et réseau totalement coupé : renvoyer le fallback JSON de secours
   const fallback = getOfflineApiFallback(url.pathname);
   if (fallback !== null) {
     return new Response(JSON.stringify(fallback), {
@@ -566,9 +580,8 @@ async function networkFirstData(req) {
     });
   }
 
-  if (networkRes) return networkRes;
   return new Response(JSON.stringify({ error: "hors-ligne", offline: true }), {
-    status: 200,
+    status: 503,
     headers: { "content-type": "application/json", "x-kene-offline": "1" },
   });
 }

@@ -24,6 +24,7 @@ import { openCashClosurePrintWindow, CashClosureData } from "@/lib/hardware/cash
 import { getTenantPosSettings, type TenantPosSettings } from "@/lib/kene/tenant-settings";
 import { printDirectWebBluetooth } from "@/lib/hardware/bluetooth-escpos";
 import { saveOfflineSale, getPendingOfflineSales, syncOfflineSales, isNetworkOnline } from "@/lib/pos/offline-queue";
+import { useNetworkOnline } from "@/lib/kene/ux";
 import { openWhatsApp, buildWhatsAppReceiptMessage } from "@/lib/kene/whatsapp-relay";
 import {
   SERVICE_CATEGORIES,
@@ -130,7 +131,7 @@ export function PosSection({
 
   // Matériel & Résilience réseau
   const [bluetoothPrinting, setBluetoothPrinting] = useState(false);
-  const [online, setOnline] = useState(true);
+  const online = useNetworkOnline();
   const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
   const [syncingOffline, setSyncingOffline] = useState(false);
 
@@ -272,24 +273,11 @@ export function PosSection({
   }, [tenantId, syncingOffline, checkOfflineCount, sales]);
 
   useEffect(() => {
-    setOnline(isNetworkOnline());
     void checkOfflineCount();
-
-    const onOnline = () => {
-      setOnline(true);
+    if (online) {
       void handleSyncOffline();
-    };
-    const onOffline = () => {
-      setOnline(false);
-    };
-
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
-    return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
-    };
-  }, [checkOfflineCount, handleSyncOffline]);
+    }
+  }, [online, checkOfflineCount, handleSyncOffline]);
 
   function addLine(kind: "service" | "product", id: string, label: string, unitPrice: number) {
     setLines((ls) => {

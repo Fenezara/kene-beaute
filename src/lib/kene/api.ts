@@ -15,12 +15,6 @@ export class ApiError extends Error {
   }
 }
 
-// ─────────────── Toasts réseau centralisés ───────────────
-// Hors-ligne (header posé par le service worker): max 1 toast / 30 s,
-// variable module-level — le flux continue avec les données du cache.
-let lastOfflineToastAt = 0;
-const OFFLINE_TOAST_THROTTLE_MS = 30_000;
-
 /** "45 s" | "1 min 30 s" | "15 min" — joli et lisible. */
 function formatDelay(sec: number): string {
   if (sec < 60) return `${Math.max(1, Math.round(sec))} s`;
@@ -37,10 +31,11 @@ function retryAfterSec(body: { error?: string; retryAfterSec?: number } | null, 
 }
 
 async function handle<T>(res: Response): Promise<T> {
-  // Réponse servie depuis le cache hors-ligne → simple info, flux normal.
-  if (res.headers.get("x-kene-offline") === "1" && Date.now() - lastOfflineToastAt > OFFLINE_TOAST_THROTTLE_MS) {
-    lastOfflineToastAt = Date.now();
-    toast.info("Mode hors-ligne", { description: "Données affichées depuis le cache" });
+  // Réponse réseau réussie : notification d'activité réseau pour les écouteurs de statut
+  if (typeof window !== "undefined" && res.ok && res.headers.get("x-kene-offline") !== "1") {
+    try {
+      window.dispatchEvent(new Event("kene:network:alive"));
+    } catch {}
   }
 
   const text = await res.text();
