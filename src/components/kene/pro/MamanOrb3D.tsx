@@ -1,8 +1,9 @@
 "use client";
-// Kènè Pro — L'Orbe d'Or & Cauri Sacré 3D (Assistante Maman)
-// Inspiré des symboles royaux Akan, du Cauri sacré (prospérité & parole féconde)
-// et du tissage Kente. Rendu 100 % procédural WebGL / Three.js sans asset externe.
-// Zéro lag, DPR borné à 1.5, réactif au toucher et à la voix.
+// Kènè Pro — L'Orbe d'Or & Cauri Sacré 3D Majestueux (Secrétaire IA Maman)
+// Inspiré des symboles royaux Akan (Ashanti), du Cauri sacré (prospérité & parole féconde),
+// des astrolabes royaux d'or et du tissage Kente.
+// Rendu 100 % procédural WebGL / Three.js sans asset externe.
+// Zéro lag, DPR borné à 1.5, réactif au toucher, au regard et au timbre de voix en direct.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -20,11 +21,11 @@ export interface MamanOrb3DProps {
   audioLevel?: number;
 }
 
-/* ───────────────────────── Géométrie Procédurale du Cauri ───────────────────────── */
+/* ───────────────────────── Géométrie Procédurale du Cauri Sacré ───────────────────────── */
 
 function createCowrieGeometry(): THREE.BufferGeometry {
-  const widthSegments = 48;
-  const heightSegments = 32;
+  const widthSegments = 56;
+  const heightSegments = 36;
   const geo = new THREE.SphereGeometry(1, widthSegments, heightSegments);
   const pos = geo.attributes.position as THREE.BufferAttribute;
   const v = new THREE.Vector3();
@@ -32,30 +33,30 @@ function createCowrieGeometry(): THREE.BufferGeometry {
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i);
 
-    // Forme allongée le long de Y (ovale royal)
-    v.y *= 1.35;
-    // Profil ovoïde : plus large au sommet qu'à la base
-    const yNorm = (v.y + 1.35) / 2.7; // 0..1
-    const eggFactor = 0.86 + 0.28 * Math.sin(Math.max(0, Math.min(1, yNorm)) * Math.PI);
+    // Forme allongée le long de Y (ovale royal Ashanti)
+    v.y *= 1.38;
+    // Profil ovoïde : sommet plus large et arrondi que la base
+    const yNorm = (v.y + 1.38) / 2.76; // 0..1
+    const eggFactor = 0.88 + 0.3 * Math.sin(Math.max(0, Math.min(1, yNorm)) * Math.PI);
     v.x *= eggFactor;
 
-    // Face ventrale (Z > 0) : fente du cauri sacré
+    // Face ventrale (Z > 0) : fente médiane sacrée du Cauri
     if (v.z > 0) {
-      v.z *= 0.72; // aplatissement ventral
+      v.z *= 0.7; // aplatissement ventral délicat
       const distFromCenter = Math.abs(v.x);
-      // Fente médiane rentrante
-      const slitDepth = 0.44 * Math.exp(-(distFromCenter * distFromCenter) / 0.052);
+      // Fente médiane rentrante profonde
+      const slitDepth = 0.46 * Math.exp(-(distFromCenter * distFromCenter) / 0.048);
       v.z -= slitDepth;
 
-      // Dentelures délicates le long des lèvres de la fente
-      if (distFromCenter < 0.36 && Math.abs(v.y) < 1.05) {
-        const teethFreq = 16.0;
-        const teeth = 0.042 * Math.cos(v.y * teethFreq) * (1.0 - distFromCenter / 0.36);
+      // Dentelures ciselées le long des lèvres de la fente (symbole de parole)
+      if (distFromCenter < 0.38 && Math.abs(v.y) < 1.1) {
+        const teethFreq = 18.0;
+        const teeth = 0.046 * Math.cos(v.y * teethFreq) * (1.0 - distFromCenter / 0.38);
         v.z += teeth;
       }
     } else {
-      // Face dorsale (Z < 0) : dôme bombé de nacre
-      v.z *= 0.96;
+      // Face dorsale (Z < 0) : dôme bombé de nacre ivoire polie
+      v.z *= 0.98;
     }
 
     pos.setXYZ(i, v.x, v.y, v.z);
@@ -65,20 +66,27 @@ function createCowrieGeometry(): THREE.BufferGeometry {
   return geo;
 }
 
-/* ───────────────────────── Particules d'Or & Harmattan ───────────────────────── */
+/* ───────────────────────── Particules d'Or & Brume de l'Harmattan ───────────────────────── */
 
-function HarmattanParticles({ state }: { state: OrbState }) {
-  const count = 160;
+function HarmattanParticles({
+  state,
+  audioLevel = 0,
+}: {
+  state: OrbState;
+  audioLevel?: number;
+}) {
+  const count = 220;
   const pointsRef = useRef<THREE.Points>(null);
 
-  const [positions, initialPositions, speeds] = useMemo(() => {
+  const [positions, initialPositions, speeds, phases] = useMemo(() => {
     const pos = new Float32Array(count * 3);
     const initPos = new Float32Array(count * 3);
     const spd = new Float32Array(count);
+    const phs = new Float32Array(count);
 
     for (let i = 0; i < count; i++) {
-      // Distribution sphérique autour de l'orbe
-      const radius = 1.35 + Math.random() * 1.15;
+      // Distribution sphérique stratifiée autour de l'orbe
+      const radius = 1.3 + Math.random() * 1.35;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
 
@@ -94,10 +102,11 @@ function HarmattanParticles({ state }: { state: OrbState }) {
       initPos[i * 3 + 1] = y;
       initPos[i * 3 + 2] = z;
 
-      spd[i] = 0.4 + Math.random() * 0.8;
+      spd[i] = 0.35 + Math.random() * 0.9;
+      phs[i] = Math.random() * Math.PI * 2;
     }
 
-    return [pos, initPos, spd];
+    return [pos, initPos, spd, phs];
   }, []);
 
   const geo = useMemo(() => {
@@ -115,6 +124,7 @@ function HarmattanParticles({ state }: { state: OrbState }) {
     const isListening = state === "listening";
     const isAnalyzing = state === "analyzing";
     const isSuccess = state === "success";
+    const isSpeaking = state === "speaking";
 
     for (let i = 0; i < count; i++) {
       const idx = i * 3;
@@ -122,31 +132,40 @@ function HarmattanParticles({ state }: { state: OrbState }) {
       const origY = initialPositions[idx + 1];
       const origZ = initialPositions[idx + 2];
       const s = speeds[i];
+      const p = phases[i];
 
-      // Rotation orbitale continue
-      const angle = t * 0.35 * s * (isAnalyzing ? 3.0 : 1.0);
+      // Rotation orbitale gyroscopique continue
+      const speedMult = isAnalyzing ? 3.2 : isListening ? 1.6 : 0.9;
+      const angle = t * 0.32 * s * speedMult + p * 0.1;
       const cosA = Math.cos(angle);
       const sinA = Math.sin(angle);
 
       let curX = origX * cosA - origZ * sinA;
       let curZ = origX * sinA + origZ * cosA;
-      let curY = origY + Math.sin(t * 1.5 + i) * 0.08;
+      let curY = origY + Math.sin(t * 1.6 + p) * 0.09;
 
       if (isListening) {
-        // Ondulation harmonique réactive à la voix
-        const pulse = 1.0 + Math.sin(t * 8 + i * 0.5) * 0.18;
+        // Ondulation harmonique réactive au volume sonore de la voix
+        const voiceBoost = audioLevel * 0.55;
+        const pulse = 1.0 + voiceBoost + Math.sin(t * 9 + i * 0.4) * 0.16;
         curX *= pulse;
         curY *= pulse;
         curZ *= pulse;
       } else if (isAnalyzing) {
-        // Vortex de tissage : convergence vers le cauri
-        const converge = 0.72 + Math.sin(t * 4 + i) * 0.12;
+        // Vortex de tissage : convergence centrifuge vers le cauri
+        const converge = 0.74 + Math.sin(t * 5 + i * 0.3) * 0.14;
         curX *= converge;
         curY *= converge;
         curZ *= converge;
+      } else if (isSpeaking) {
+        // Ondes de transmission bienveillante
+        const wave = 1.05 + Math.sin(t * 4 + i * 0.6) * 0.08;
+        curX *= wave;
+        curY *= wave;
+        curZ *= wave;
       } else if (isSuccess) {
-        // Éclat d'or triomphal
-        const burst = 1.35 + Math.sin(t * 5 + i) * 0.1;
+        // Éclat d'or triomphal scellé
+        const burst = 1.38 + Math.sin(t * 6 + i) * 0.12;
         curX *= burst;
         curY *= burst;
         curZ *= burst;
@@ -163,10 +182,18 @@ function HarmattanParticles({ state }: { state: OrbState }) {
   return (
     <points ref={pointsRef} geometry={geo}>
       <pointsMaterial
-        color={state === "listening" ? "#FFC107" : state === "analyzing" ? "#E07A2B" : "#FFDF80"}
-        size={state === "listening" ? 0.055 : 0.042}
+        color={
+          state === "listening"
+            ? "#FFD700"
+            : state === "analyzing"
+            ? "#FF8C00"
+            : state === "success"
+            ? "#10B981"
+            : "#FFDF80"
+        }
+        size={state === "listening" ? 0.058 : 0.046}
         transparent
-        opacity={state === "analyzing" ? 0.85 : 0.65}
+        opacity={state === "analyzing" ? 0.9 : 0.7}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
       />
@@ -174,73 +201,127 @@ function HarmattanParticles({ state }: { state: OrbState }) {
   );
 }
 
-/* ───────────────────────── Anneaux Solaires Akan & Adinkra ───────────────────────── */
+/* ───────────────────────── Astrolabe Royal : Triple Anneau Gyroscopique Akan & Ashanti ───────────────────────── */
 
-function AkanSolarRings({ state }: { state: OrbState }) {
+function RoyalAkanSolarRings({
+  state,
+  audioLevel = 0,
+}: {
+  state: OrbState;
+  audioLevel?: number;
+}) {
   const innerRingRef = useRef<THREE.Group>(null);
+  const midRingRef = useRef<THREE.Group>(null);
   const outerRingRef = useRef<THREE.Group>(null);
 
-  // Perles d'or Akan réparties sur les anneaux (symboles de clans Abusua)
+  // Perles d'or Akan (symboles de clans royaux Ashanti & perles de fertilité)
   const innerBeads = useMemo(() => {
     return Array.from({ length: 8 }, (_, i) => {
       const angle = (i / 8) * Math.PI * 2;
-      return [Math.cos(angle) * 1.48, Math.sin(angle) * 1.48, 0] as [number, number, number];
+      return [Math.cos(angle) * 1.46, Math.sin(angle) * 1.46, 0] as [number, number, number];
+    });
+  }, []);
+
+  const midBeads = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => {
+      const angle = (i / 12) * Math.PI * 2;
+      return [Math.cos(angle) * 1.72, Math.sin(angle) * 1.72, 0] as [number, number, number];
     });
   }, []);
 
   const outerBeads = useMemo(() => {
     return Array.from({ length: 6 }, (_, i) => {
       const angle = (i / 6) * Math.PI * 2;
-      return [Math.cos(angle) * 1.76, Math.sin(angle) * 1.76, 0] as [number, number, number];
+      return [Math.cos(angle) * 1.98, Math.sin(angle) * 1.98, 0] as [number, number, number];
     });
   }, []);
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
-    const speedMult = state === "analyzing" ? 2.6 : state === "listening" ? 1.4 : 0.8;
+    const speedMult = state === "analyzing" ? 2.8 : state === "listening" ? 1.6 : 0.85;
+    const voiceExpansion = 1.0 + (state === "listening" ? audioLevel * 0.18 : 0);
 
+    // 1. Anneau intérieur Akan
     if (innerRingRef.current) {
-      innerRingRef.current.rotation.z = t * 0.45 * speedMult;
-      innerRingRef.current.rotation.x = Math.PI / 3.8 + Math.sin(t * 0.6) * 0.08;
+      innerRingRef.current.rotation.z = t * 0.48 * speedMult;
+      innerRingRef.current.rotation.x = Math.PI / 3.6 + Math.sin(t * 0.6) * 0.08;
+      innerRingRef.current.scale.set(voiceExpansion, voiceExpansion, voiceExpansion);
     }
 
+    // 2. Anneau équatorial médian Ashanti (orbite transversale)
+    if (midRingRef.current) {
+      midRingRef.current.rotation.x = -t * 0.38 * speedMult;
+      midRingRef.current.rotation.y = Math.PI / 4 + Math.cos(t * 0.5) * 0.1;
+      midRingRef.current.scale.set(voiceExpansion * 1.02, voiceExpansion * 1.02, voiceExpansion * 1.02);
+    }
+
+    // 3. Anneau extérieur Adinkra (gyroscopique souverain)
     if (outerRingRef.current) {
-      outerRingRef.current.rotation.y = -t * 0.35 * speedMult;
-      outerRingRef.current.rotation.z = Math.PI / 4 + Math.cos(t * 0.5) * 0.07;
+      outerRingRef.current.rotation.y = t * 0.32 * speedMult;
+      outerRingRef.current.rotation.z = Math.PI / 5 + Math.sin(t * 0.4) * 0.08;
+      outerRingRef.current.scale.set(voiceExpansion * 1.04, voiceExpansion * 1.04, voiceExpansion * 1.04);
     }
   });
 
   const goldMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: state === "listening" ? "#FFC107" : "#C8951E",
-        emissive: state === "listening" ? "#8B5A00" : "#3D2600",
-        metalness: 0.88,
-        roughness: 0.22,
+        color:
+          state === "listening"
+            ? "#FFD700"
+            : state === "analyzing"
+            ? "#FF9800"
+            : state === "success"
+            ? "#10B981"
+            : "#C8951E",
+        emissive:
+          state === "listening"
+            ? "#996515"
+            : state === "analyzing"
+            ? "#8B4500"
+            : state === "success"
+            ? "#065F46"
+            : "#3D2600",
+        metalness: 0.92,
+        roughness: 0.18,
       }),
     [state]
   );
 
   return (
     <>
-      {/* Anneau intérieur Akan */}
+      {/* Anneau 1 : Intérieur Akan */}
       <group ref={innerRingRef}>
         <mesh>
-          <torusGeometry args={[1.48, 0.02, 16, 64]} />
+          <torusGeometry args={[1.46, 0.022, 16, 64]} />
           <primitive object={goldMat} attach="material" />
         </mesh>
         {innerBeads.map((pos, idx) => (
           <mesh key={idx} position={pos}>
-            <sphereGeometry args={[0.045, 12, 12]} />
+            <sphereGeometry args={[0.048, 14, 14]} />
             <primitive object={goldMat} attach="material" />
           </mesh>
         ))}
       </group>
 
-      {/* Anneau extérieur Adinkra (gyroscopique) */}
+      {/* Anneau 2 : Équatorial Médian Ashanti (12 joyaux) */}
+      <group ref={midRingRef}>
+        <mesh>
+          <torusGeometry args={[1.72, 0.018, 16, 64]} />
+          <primitive object={goldMat} attach="material" />
+        </mesh>
+        {midBeads.map((pos, idx) => (
+          <mesh key={idx} position={pos}>
+            <sphereGeometry args={[0.04, 14, 14]} />
+            <primitive object={goldMat} attach="material" />
+          </mesh>
+        ))}
+      </group>
+
+      {/* Anneau 3 : Extérieur Adinkra (gyroscopique) */}
       <group ref={outerRingRef}>
         <mesh>
-          <torusGeometry args={[1.76, 0.016, 16, 64]} />
+          <torusGeometry args={[1.98, 0.015, 16, 64]} />
           <primitive object={goldMat} attach="material" />
         </mesh>
         {outerBeads.map((pos, idx) => (
@@ -254,86 +335,135 @@ function AkanSolarRings({ state }: { state: OrbState }) {
   );
 }
 
-/* ───────────────────────── Cœur du Cauri Sacré ───────────────────────── */
+/* ───────────────────────── Cœur du Cauri Sacré Sublime ───────────────────────── */
 
-function SacredCowrieCore({ state, audioLevel = 0 }: { state: OrbState; audioLevel?: number }) {
+function SacredCowrieCore({
+  state,
+  audioLevel = 0,
+}: {
+  state: OrbState;
+  audioLevel?: number;
+}) {
   const cowrieGeo = useMemo(() => createCowrieGeometry(), []);
   const meshRef = useRef<THREE.Mesh>(null);
   const glowLightRef = useRef<THREE.PointLight>(null);
+  const secondaryLightRef = useRef<THREE.PointLight>(null);
 
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     const t = clock.getElapsedTime();
 
-    // Respiration organique du cauri & pulsation réactive à la voix
+    // Respiration organique vivante du Cauri & pulsation au rythme de la voix
     let scalePulse = 1.0;
     if (state === "listening") {
-      const voiceBoost = Math.min(audioLevel * 0.45, 0.4);
-      scalePulse = 1.0 + voiceBoost + Math.sin(t * 7) * 0.08 + Math.cos(t * 11) * 0.03;
+      const voiceBoost = Math.min(audioLevel * 0.55, 0.45);
+      scalePulse = 1.0 + voiceBoost + Math.sin(t * 7.5) * 0.07 + Math.cos(t * 11) * 0.03;
     } else if (state === "analyzing") {
-      scalePulse = 0.94 + Math.sin(t * 14) * 0.04;
+      scalePulse = 0.94 + Math.sin(t * 15) * 0.045;
     } else if (state === "speaking") {
-      scalePulse = 1.02 + Math.sin(t * 4.5) * 0.05;
+      scalePulse = 1.03 + Math.sin(t * 4.8) * 0.055;
+    } else if (state === "success") {
+      scalePulse = 1.06 + Math.sin(t * 3.0) * 0.03;
     } else {
-      scalePulse = 1.0 + Math.sin(t * 1.8) * 0.03;
+      scalePulse = 1.0 + Math.sin(t * 2.0) * 0.035;
     }
 
     meshRef.current.scale.set(scalePulse, scalePulse, scalePulse);
 
-    // Oscillation douce en veille, orientation vivante
-    meshRef.current.rotation.y = Math.sin(t * 0.5) * 0.18;
-    meshRef.current.rotation.x = Math.cos(t * 0.4) * 0.12;
+    // Oscillation magnétique douce et vivante
+    meshRef.current.rotation.y = Math.sin(t * 0.55) * 0.19;
+    meshRef.current.rotation.x = Math.cos(t * 0.45) * 0.13;
 
+    // Lumière intérieure dorée émanant de la fente
     if (glowLightRef.current) {
       if (state === "listening") {
-        const lightBoost = audioLevel * 3.5;
-        glowLightRef.current.intensity = 3.6 + lightBoost + Math.sin(t * 8) * 0.9;
+        const lightBoost = audioLevel * 4.2;
+        glowLightRef.current.intensity = 3.8 + lightBoost + Math.sin(t * 8) * 0.8;
       } else if (state === "analyzing") {
-        glowLightRef.current.intensity = 4.2 + Math.sin(t * 15) * 1.2;
+        glowLightRef.current.intensity = 4.5 + Math.sin(t * 16) * 1.3;
       } else if (state === "speaking") {
-        glowLightRef.current.intensity = 2.8 + Math.sin(t * 5) * 0.6;
+        glowLightRef.current.intensity = 3.0 + Math.sin(t * 5.5) * 0.7;
+      } else if (state === "success") {
+        glowLightRef.current.intensity = 4.2 + Math.sin(t * 4) * 0.5;
       } else {
-        glowLightRef.current.intensity = 1.8 + Math.sin(t * 2) * 0.4;
+        glowLightRef.current.intensity = 2.0 + Math.sin(t * 2.2) * 0.4;
       }
+    }
+
+    if (secondaryLightRef.current) {
+      secondaryLightRef.current.intensity =
+        state === "listening" ? 2.5 + audioLevel * 2 : state === "analyzing" ? 3.0 : 1.4;
     }
   });
 
   const cowrieMaterial = useMemo(() => {
     return new THREE.MeshStandardMaterial({
-      color: state === "listening" ? "#FFF8E7" : "#FBF7EF", // Nacre royale d'ivoire
+      color:
+        state === "listening"
+          ? "#FFF9E6"
+          : state === "success"
+          ? "#F0FDF4"
+          : "#FBF7EF", // Nacre royale d'ivoire poli
       emissive:
         state === "listening"
-          ? "#B87333"
+          ? "#C8861E"
           : state === "analyzing"
           ? "#E07A2B"
           : state === "speaking"
           ? "#A0522D"
+          : state === "success"
+          ? "#059669"
           : "#664422",
-      roughness: 0.18,
-      metalness: 0.32,
+      roughness: 0.14,
+      metalness: 0.38,
     });
   }, [state]);
 
   return (
     <group>
-      {/* Cœur lumineux intérieur pulsant par la fente */}
+      {/* 1. Cœur lumineux intérieur pulsant par la fente sacrée */}
       <pointLight
         ref={glowLightRef}
-        color={state === "listening" ? "#FFC107" : state === "analyzing" ? "#FF8C00" : "#FFDF80"}
-        distance={4.5}
+        color={
+          state === "listening"
+            ? "#FFD700"
+            : state === "analyzing"
+            ? "#FF8C00"
+            : state === "success"
+            ? "#34D399"
+            : "#FFDF80"
+        }
+        distance={4.8}
         decay={2}
       />
 
-      {/* Orbe Cauri principal */}
+      {/* 2. Lumière secondaire zénithale de nacre */}
+      <pointLight
+        ref={secondaryLightRef}
+        position={[0, 1.2, 0.8]}
+        color={state === "listening" ? "#FFF3C4" : "#FFE0B2"}
+        distance={3.2}
+        decay={2}
+      />
+
+      {/* 3. Orbe Cauri principal */}
       <mesh ref={meshRef} geometry={cowrieGeo} material={cowrieMaterial} />
 
-      {/* Halo interne incandescent (feu de forge d'or) */}
-      <mesh scale={0.48}>
+      {/* 4. Halo interne incandescent (feu de forge d'or) */}
+      <mesh scale={0.52}>
         <sphereGeometry args={[1, 24, 24]} />
         <meshBasicMaterial
-          color={state === "listening" ? "#FFD700" : state === "analyzing" ? "#FF6F00" : "#C8951E"}
+          color={
+            state === "listening"
+              ? "#FFD700"
+              : state === "analyzing"
+              ? "#FF6F00"
+              : state === "success"
+              ? "#10B981"
+              : "#C8951E"
+          }
           transparent
-          opacity={state === "listening" ? 0.75 : 0.55}
+          opacity={state === "listening" ? 0.8 : 0.58}
           blending={THREE.AdditiveBlending}
         />
       </mesh>
@@ -343,34 +473,48 @@ function SacredCowrieCore({ state, audioLevel = 0 }: { state: OrbState; audioLev
 
 /* ───────────────────────── Scène Principale & Suivi Gyroscopique ───────────────────────── */
 
-function SceneContent({ state, audioLevel = 0 }: { state: OrbState; audioLevel?: number }) {
+function SceneContent({
+  state,
+  audioLevel = 0,
+}: {
+  state: OrbState;
+  audioLevel?: number;
+}) {
   const rootGroup = useRef<THREE.Group>(null);
   const { pointer } = useThree();
 
   useFrame(() => {
     if (!rootGroup.current) return;
-    // Parallaxe subtile suivant le pointeur / doigt de l'utilisatrice
-    rootGroup.current.rotation.y = THREE.MathUtils.lerp(rootGroup.current.rotation.y, pointer.x * 0.35, 0.05);
-    rootGroup.current.rotation.x = THREE.MathUtils.lerp(rootGroup.current.rotation.x, -pointer.y * 0.35, 0.05);
+    // Parallaxe gyroscopique fluide et magnétique suivant le pointeur / toucher
+    rootGroup.current.rotation.y = THREE.MathUtils.lerp(
+      rootGroup.current.rotation.y,
+      pointer.x * 0.38,
+      0.06
+    );
+    rootGroup.current.rotation.x = THREE.MathUtils.lerp(
+      rootGroup.current.rotation.x,
+      -pointer.y * 0.38,
+      0.06
+    );
   });
 
   return (
     <group ref={rootGroup} position={[0, 0, 0]}>
-      {/* Lumière ambiante chaude terracotta / or */}
-      <ambientLight color="#FFF3E0" intensity={0.9} />
-      {/* Éclairage directionnel zénithal (Soleil d'Abidjan) */}
-      <directionalLight position={[3, 4, 3]} color="#FFE0B2" intensity={1.4} />
-      {/* Lumière de contre-jour Kente pourpre royale */}
-      <pointLight position={[-3, -2, -2]} color="#8B1A3B" intensity={1.8} distance={6} />
+      {/* Lumière d'ambiance chaude terracotta & or royal */}
+      <ambientLight color="#FFF5EB" intensity={0.95} />
+      {/* Éclairage directionnel zénithal (Soleil éclatant d'Abidjan) */}
+      <directionalLight position={[3.5, 4.5, 3.5]} color="#FFE8CC" intensity={1.5} />
+      {/* Contre-jour Kente pourpre royale */}
+      <pointLight position={[-3.5, -2.5, -2]} color="#8B1A3B" intensity={2.0} distance={7} />
 
-      {/* 1. Le Cœur Cauri Sacré */}
+      {/* 1. Le Cœur Cauri Sacré Sublime */}
       <SacredCowrieCore state={state} audioLevel={audioLevel} />
 
-      {/* 2. Les Anneaux Solaires Akan & Adinkra */}
-      <AkanSolarRings state={state} />
+      {/* 2. L'Astrolabe Royal : Triple Anneau Gyroscopique Akan */}
+      <RoyalAkanSolarRings state={state} audioLevel={audioLevel} />
 
-      {/* 3. Le Nuage de Particules Harmattan */}
-      <HarmattanParticles state={state} />
+      {/* 3. L'Essaim de Particules d'Or Harmattan */}
+      <HarmattanParticles state={state} audioLevel={audioLevel} />
     </group>
   );
 }
@@ -408,25 +552,30 @@ export function MamanOrb3D({
       )}
       role="button"
       tabIndex={0}
-      aria-label="Orbe Sacré de l'Assistante Maman — Toucher pour dicter"
+      aria-label="Orbe Sacré de la Secrétaire IA Maman — Toucher pour dicter"
     >
-      {/* ─── Halo d'ambiance cosmique d'arrière-plan ─── */}
+      {/* ─── Halo d'ambiance cosmique royal d'arrière-plan ─── */}
       <div
         className={cn(
-          "absolute inset-0 rounded-full blur-2xl transition-all duration-700 pointer-events-none",
-          state === "listening" && "bg-gradient-to-tr from-[#FFC107]/40 via-[#FF9800]/30 to-[#8B1A3B]/40 scale-125 animate-pulse",
-          state === "analyzing" && "bg-gradient-to-tr from-[#E07A2B]/45 via-[#C8951E]/40 to-[#8B1A3B]/35 scale-115",
-          state === "speaking" && "bg-gradient-to-tr from-[#C8951E]/35 via-[#4A90E2]/25 to-[#FAF3E0]/30 scale-110",
-          state === "success" && "bg-gradient-to-tr from-[#10B981]/40 via-[#FFD700]/40 to-[#C8951E]/30 scale-130",
-          state === "idle" && "bg-gradient-to-tr from-[#C8951E]/20 via-[#A0522D]/15 to-transparent scale-100 group-hover:scale-110"
+          "absolute inset-0 rounded-full blur-3xl transition-all duration-700 pointer-events-none",
+          state === "listening" &&
+            "bg-gradient-to-tr from-[#FFC107]/50 via-[#FF9800]/40 to-[#8B1A3B]/45 scale-135 animate-pulse",
+          state === "analyzing" &&
+            "bg-gradient-to-tr from-[#E07A2B]/55 via-[#C8951E]/45 to-[#8B1A3B]/40 scale-125",
+          state === "speaking" &&
+            "bg-gradient-to-tr from-[#C8951E]/40 via-[#4A90E2]/30 to-[#FAF3E0]/35 scale-120",
+          state === "success" &&
+            "bg-gradient-to-tr from-[#10B981]/50 via-[#FFD700]/45 to-[#C8951E]/35 scale-140",
+          state === "idle" &&
+            "bg-gradient-to-tr from-[#C8951E]/25 via-[#A0522D]/20 to-transparent scale-105 group-hover:scale-115"
         )}
       />
 
       {/* ─── Rendu 3D WebGL (Three.js) ─── */}
       {hasWebGL ? (
-        <div className="w-full h-full relative z-10 transition-transform duration-300 group-hover:scale-[1.03] group-active:scale-95">
+        <div className="w-full h-full relative z-10 transition-transform duration-300 group-hover:scale-[1.04] group-active:scale-95">
           <Canvas
-            camera={{ position: [0, 0, 4.3], fov: 46 }}
+            camera={{ position: [0, 0, 4.4], fov: 46 }}
             dpr={[1, 1.5]}
             gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
           >
@@ -434,20 +583,20 @@ export function MamanOrb3D({
           </Canvas>
         </div>
       ) : (
-        /* Fallback 2D gracieux si WebGL non supporté */
-        <div className="relative z-10 w-44 h-44 rounded-full bg-gradient-to-br from-[#FFE4A0] via-[#C8951E] to-[#8B1A3B] p-1 shadow-2xl animate-pulse flex items-center justify-center">
+        /* Fallback 2D gracieux si WebGL indisponible */
+        <div className="relative z-10 w-48 h-48 rounded-full bg-gradient-to-br from-[#FFE4A0] via-[#C8951E] to-[#8B1A3B] p-1 shadow-2xl animate-pulse flex items-center justify-center">
           <div className="w-full h-full rounded-full bg-card flex flex-col items-center justify-center p-4 text-center">
-            <span className="text-4xl mb-1">🐚</span>
+            <span className="text-5xl mb-1">🐚</span>
             <span className="text-xs font-bold text-foreground">Orbe Cauri Sacré</span>
           </div>
         </div>
       )}
 
-      {/* ─── Onde Sonore Pulsante en mode écoute (SVG Réactif) ─── */}
+      {/* ─── Ondes Sonores Réactives en mode écoute (SVG Pulsant) ─── */}
       {state === "listening" && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
-          <span className="absolute w-full h-full rounded-full border-2 border-[#FFC107]/60 animate-ping opacity-75" />
-          <span className="absolute w-[85%] h-[85%] rounded-full border border-[#E07A2B]/40 animate-pulse" />
+          <span className="absolute w-full h-full rounded-full border-2 border-[#FFC107]/70 animate-ping opacity-75" />
+          <span className="absolute w-[88%] h-[88%] rounded-full border border-[#E07A2B]/50 animate-pulse" />
         </div>
       )}
     </div>

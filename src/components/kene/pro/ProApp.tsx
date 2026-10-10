@@ -693,10 +693,10 @@ export function ProApp() {
         {/* ───────── Zone contenu principal scrollable en interne (zéro décalage / zéro rebond) ───────── */}
         <main
           className={cn(
-            "flex-1 min-w-0 min-h-0 flex flex-col",
+            "flex-1 min-w-0 min-h-0 flex flex-col overflow-y-auto overscroll-y-none overscroll-contain touch-pan-y pretty-scroll",
             activeSection === "assistant"
-              ? "p-2 sm:p-4 overflow-hidden"
-              : "overflow-y-auto overscroll-y-none overscroll-contain touch-pan-y pretty-scroll p-3 sm:p-5 lg:p-6"
+              ? "p-2 sm:p-4 lg:p-5"
+              : "p-3 sm:p-5 lg:p-6"
           )}
         >
           {/* ⚡ Barre d'actions express praticienne (Encaisser, RDV, Scan) — masquée sur l'écran Assistante dédiée */}
