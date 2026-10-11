@@ -112,9 +112,10 @@ export interface ApiAppointment {
   clientName: string;
   clientPhone: string;
   createdAt: string;
-  tenant?: { id?: string; name: string; city: string; country: string } | null;
-  service?: { name: string; durationMin: number; price: number } | null;
-  resource?: { name: string } | null;
+  notes?: string | null;
+  tenant?: { id?: string; name: string; city: string; country: string; phone?: string | null; address?: string | null } | null;
+  service?: { id?: string; name: string; category?: string; durationMin: number; price: number; description?: string | null } | null;
+  resource?: { id?: string; name: string; role?: string; color?: string } | null;
   review?: { id: string; rating: number; comment?: string | null; createdAt: string } | null;
 }
 

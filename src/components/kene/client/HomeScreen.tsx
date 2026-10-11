@@ -30,6 +30,7 @@ import { useT } from "@/lib/kene/use-t";
 import { useKene } from "@/store/kene";
 import { MvpFunnelHero } from "./MvpFunnelHero";
 import { SkinHealthDashboard } from "./SkinHealthDashboard";
+import { AppointmentsCareSection } from "./AppointmentsCareSection";
 import { ContactKeneModal } from "./ContactKeneModal";
 import type { ApiAppointment, ApiDiagnosis, ApiInstitute, ApiProduct } from "./types";
 import { parseDiagnosis } from "./types";
@@ -317,6 +318,14 @@ export function HomeScreen({
             }
           }}
           onOpenContactKene={() => setContactKeneOpen(true)}
+        />
+      </RevealItem>
+
+      {/* ───── Mes Moments de Soin & Rendez-vous (Consultation, Contrôle, Soin éclat, Coiffure, Onglerie) ───── */}
+      <RevealItem>
+        <AppointmentsCareSection
+          appointments={data?.appointments ?? []}
+          onBookCare={() => openWhatsAppAppointmentInquiry()}
         />
       </RevealItem>
 

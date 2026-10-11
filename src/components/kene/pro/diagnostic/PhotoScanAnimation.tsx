@@ -9,7 +9,7 @@ import {
   Cpu,
   Eye,
   ShieldCheck,
-  Stethoscope,
+  ScanFace,
 } from "lucide-react";
 import { BissapFlowerIcon, CauriIcon } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,7 @@ const SCAN_PHASES = [
   },
   {
     step: 3,
-    title: "Fusion déclaratif cabine & observation clinique",
+    title: "Fusion déclaratif cabine & observation dermo-botanique",
     desc: "Pondération 38 % entretien + 62 % lecture spectrale",
     icon: Cpu,
   },
@@ -157,7 +157,7 @@ export function PhotoScanAnimation({
         ) : (
           <div className="w-full h-full grid place-items-center bg-gradient-to-b from-[#241A10] to-[#120B06] text-gold/40">
             <div className="relative grid place-items-center">
-              <Stethoscope className="size-20 stroke-[1.2] text-gold/30 animate-pulse" />
+              <ScanFace className="size-20 stroke-[1.2] text-gold/30 animate-pulse" />
               <span className="mt-3 font-mono text-[11px] uppercase tracking-widest text-gold/60">
                 Cartographie {zoneLabel}
               </span>

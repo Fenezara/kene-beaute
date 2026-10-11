@@ -135,7 +135,7 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
       setHasPhoto(true);
       setCurrentImage(`/api/media/tenant/${tenantId}`);
       toast.success("Photo de vitrine mise à jour", {
-        description: "Elle remplace le visuel par défaut dans l'annuaire et la boutique.",
+        description: "Elle personnalise la vitrine de votre institut dans l'écosystème Kènè.",
       });
     } catch (e) {
       setPhotoPreview(null);
@@ -489,14 +489,14 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         </button>
       </div>
 
-      {/* Espace Beauté personnel (bilan dermo-biométrique, Dr. Kènè & soins) */}
+      {/* Espace Beauté personnel (bilan dermo-biométrique, Dermo Kènè & soins) */}
       <div className="k-card rounded-[20px] p-4 bg-gradient-to-br from-primary/5 via-card to-gold/5 border border-primary/20">
         <div className="flex items-center gap-3">
           <IconBadge icon={<DuafeIcon size={18} />} tone="gold" />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold">Mon Espace Beauté personnel</p>
             <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-              Accède à ton espace beauté personnel : bilan dermo-biométrique, Dermo Kènè, boutique et rituels.
+              Accède à ton espace beauté personnel : bilan dermo-biométrique, Dermo Kènè, soins et rituels.
             </p>
           </div>
         </div>

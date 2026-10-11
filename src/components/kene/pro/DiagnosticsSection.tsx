@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import {
   AlertTriangle, Camera, ChevronLeft, ChevronRight, Compass, FileDown, Filter, ImagePlus, Info,
   Layers, Loader2, OctagonAlert, PenLine, Printer, Search, Share2, ShieldCheck,
-  ShoppingBag, SlidersHorizontal, Stethoscope, Trash2, UserPlus, Users,
+  ShoppingBag, SlidersHorizontal, ScanFace, Trash2, UserPlus, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -215,7 +215,7 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
               Fiche vierge
             </Button>
             <Button onClick={() => setWizardOpen(true)} className="gap-2 font-semibold k-btn-gold text-primary-foreground" aria-label="Lancer un nouveau diagnostic en cabine">
-              <Stethoscope className="size-4" aria-hidden="true" />
+              <ScanFace className="size-4" aria-hidden="true" />
               Nouveau diagnostic
             </Button>
           </div>
@@ -241,7 +241,7 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
 
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-3">
-        <KpiStat icon={<Stethoscope className="size-4" />} label="Diagnostics" value={String(kpis.total)} hint={`${kpis.monthCount} ce mois-ci`} />
+        <KpiStat icon={<ScanFace className="size-4" />} label="Diagnostics" value={String(kpis.total)} hint={`${kpis.monthCount} ce mois-ci`} />
         <KpiStat icon={<CauriIcon className="size-4" />} label="Score moyen" value={`${kpis.avgScore}/100`} hint="santé de peau fusionnée" monetary={false} />
         <KpiStat icon={<Camera className="size-4" />} label="Avec photo spectrale" value={`${kpis.photoShare} %`} hint="analyse biométrique couplée" monetary={false} />
       </div>
@@ -343,7 +343,7 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
             {diagnoses.length === 0 && (
               <div className="mt-3 flex justify-center">
                 <Button size="sm" onClick={() => setWizardOpen(true)} className="gap-1.5 k-btn-gold text-primary-foreground font-semibold">
-                  <Stethoscope className="size-3.5" aria-hidden="true" />
+                  <ScanFace className="size-3.5" aria-hidden="true" />
                   Premier diagnostic
                 </Button>
               </div>
@@ -1148,7 +1148,7 @@ function ClientStep({
           <div className="rounded-lg bg-bissap/15 border border-bissap/30 p-2.5 space-y-1 mt-2">
             <p className="text-xs font-bold text-bissap flex items-center gap-1">
               <OctagonAlert className="size-3.5 shrink-0" />
-              Contre-indications cliniques identifiées :
+              Sensibilités &amp; contre-indications identifiées :
             </p>
             {safetyEvaluation.blockers.map((b, i) => (
               <p key={i} className="text-[11px] text-bissap leading-tight font-medium">
@@ -1735,7 +1735,7 @@ export function ResultView({
                   <Layers className="size-4" />
                 </span>
                 <span className="text-[10.5px] font-bold uppercase tracking-wider text-gold">
-                  Immersion 3D Clinique Kènè
+                  Immersion 3D Dermo-Botanique Kènè
                 </span>
               </div>
               <h4 className="font-heading font-black text-base sm:text-lg text-[#FFF9EC]">

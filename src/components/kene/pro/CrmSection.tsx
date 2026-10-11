@@ -1,10 +1,10 @@
 "use client";
 // Kènè Pro — CRM: recherche, segments RFM, fiche cliente (ventes, RDV,
-// commandes boutique, avis, bilans dermo-cliniques, diagnostics en institut, notes)
+// commandes, avis, bilans dermo-botaniques, diagnostics en institut, notes)
 // — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
-import { Crown, FileDown, Lock, MessageCircle, Phone, Search, Stethoscope, Users, Wallet, ChevronDown, Save, Star, Pencil, Plus, ShoppingBag, FlaskConical, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin } from "lucide-react";
+import { Crown, FileDown, Lock, MessageCircle, Phone, Search, Sparkles, Users, Wallet, ChevronDown, Save, Star, Pencil, Plus, ShoppingBag, FlaskConical, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin } from "lucide-react";
 import { BissapFlowerIcon, SankofaIcon } from "@/components/kene/icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1028,7 +1028,7 @@ function ClientSheet({
                       className="gap-1.5 font-semibold"
                       aria-label={`Lancer un diagnostic en cabine pour ${c.name}`}
                     >
-                      <Stethoscope className="size-3.5" aria-hidden="true" />
+                      <Sparkles className="size-3.5" aria-hidden="true" />
                       Lancer un diagnostic
                     </Button>
                   )}

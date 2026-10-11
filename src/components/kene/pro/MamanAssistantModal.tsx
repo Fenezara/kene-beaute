@@ -27,7 +27,6 @@ import {
   Send,
   ShoppingBag,
   Square,
-  Stethoscope,
   Trash2,
   UserCheck,
   Users,

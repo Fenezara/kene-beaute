@@ -76,7 +76,7 @@ export function SpectralViewer({ photo, zoneMarks = [], zoneLabel }: SpectralVie
               Analyse Multi-Spectrale en Cabine
             </h4>
             <p className="text-[11px] text-muted-foreground">
-              Observation clinique de la zone {zoneLabel} sous 4 longueurs d&apos;onde optiques
+              Observation dermo-botanique de la zone {zoneLabel} sous 4 longueurs d&apos;onde optiques
             </p>
           </div>
         </div>

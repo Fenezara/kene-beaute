@@ -31,9 +31,9 @@ const CreateBody = z.object({
 });
 
 const APPT_INCLUDE = {
-  tenant: { select: { id: true, name: true, city: true, country: true } },
-  service: { select: { name: true, durationMin: true, price: true } },
-  resource: { select: { name: true } },
+  tenant: { select: { id: true, name: true, city: true, country: true, phone: true, address: true } },
+  service: { select: { id: true, name: true, category: true, durationMin: true, price: true, description: true } },
+  resource: { select: { id: true, name: true, role: true, color: true } },
   review: { select: { id: true, rating: true, comment: true, createdAt: true } },
 } as const;
 
@@ -47,14 +47,45 @@ export async function GET(req: NextRequest) {
     const guard = guardUserClaim(req, "appointments:get", userId);
     if (guard) return guard;
 
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, phone: true },
+    });
+
     const since = new Date();
     since.setDate(since.getDate() - 30);
 
+    const orClauses: Array<Record<string, unknown>> = [{ userId }];
+
+    if (user?.phone) {
+      const rawPhone = user.phone.trim();
+      const digits = rawPhone.replace(/\D/g, "");
+      orClauses.push({ clientPhone: rawPhone });
+      orClauses.push({ clientPhone: user.phone });
+      orClauses.push({ clientPhone: rawPhone.replace(/\s+/g, "") });
+      if (digits.length >= 8) {
+        orClauses.push({ clientPhone: { contains: digits.slice(-8) } });
+      }
+    }
+
     const appointments = await db.appointment.findMany({
-      where: { userId, startAt: { gte: since } },
+      where: {
+        OR: orClauses,
+        startAt: { gte: since },
+      },
       include: APPT_INCLUDE,
       orderBy: { startAt: "asc" },
     });
+
+    // Backfill automatique du userId sur les RDV saisis par l'institut via numéro
+    const toBackfill = appointments.filter((a) => !a.userId).map((a) => a.id);
+    if (toBackfill.length > 0) {
+      await db.appointment.updateMany({
+        where: { id: { in: toBackfill } },
+        data: { userId },
+      }).catch(() => null);
+    }
+
     return NextResponse.json({ appointments });
   } catch (err) {
     return serverError("appointments:get", err);

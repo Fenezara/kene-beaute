@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, Stethoscope, TicketPercent, UserPlus, WifiOff } from "lucide-react";
+import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, ScanFace, TicketPercent, UserPlus, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -48,7 +48,7 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
   { id: "assistant", label: "👑 Secrétaire IA", icon: Crown, hint: "Débriefing vocal & point" },
   { id: "agenda", label: "Agenda", icon: SankofaIcon, hint: "Rendez-vous" },
-  { id: "diagnostic", label: "Diagnostic", icon: Stethoscope, hint: "En cabine + questionnaire" },
+  { id: "diagnostic", label: "Diagnostic", icon: ScanFace, hint: "En cabine + questionnaire" },
   { id: "caisse", label: "Ventes & Caisse", icon: AbanIcon, hint: "Caisse POS · Commandes en ligne" },
   { id: "crm", label: "CRM", icon: OsramIcon, hint: "Clientes & fidélité" },
   { id: "relances", label: "Relances", icon: BellRing, hint: "Suivi post-protocole" },
@@ -732,7 +732,7 @@ export function ProApp() {
                   onClick={() => openSection("diagnostic")}
                   className="h-9 px-3.5 rounded-xl border border-border bg-card text-foreground hover:bg-muted text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
                 >
-                  <Stethoscope size={16} /> Scan Cabine
+                  <ScanFace size={16} /> Scan Cabine
                 </button>
                 <button
                   type="button"

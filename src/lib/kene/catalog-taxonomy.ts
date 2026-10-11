@@ -51,14 +51,21 @@ export const SERVICE_CATEGORIES: readonly CategoryMeta[] = [
     id: "consultation",
     label: "Consultations & Dermo-Conseil",
     shortLabel: "Consultations",
-    description: "Entretien personnalisé, ordonnances cosmétiques et suivi d'évolution post-protocole.",
+    description: "Entretien personnalisé, protocoles de soin et suivi d'évolution post-protocole.",
     tone: "purple",
+  },
+  {
+    id: "controle",
+    label: "Contrôles & Évolution Cutanée",
+    shortLabel: "Contrôles",
+    description: "Séance de suivi bienveillant de l'évolution de la barrière cutanée post-protocole.",
+    tone: "gold",
   },
   {
     id: "onglerie",
     label: "Mains, Pieds & Onglerie",
     shortLabel: "Mains & Pieds",
-    description: "Soins nourrissants des mains au karité, manucure et pédicure orientale relaxante.",
+    description: "Soins nourrissants des mains au karité, manucure et pédicure relaxante.",
     tone: "terre",
   },
 ] as const;
