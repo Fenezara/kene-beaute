@@ -17,7 +17,7 @@
 // CONFORMITÉ MATÉRIEL: Demande d'autorisation explicite pour chaque accès
 // au matériel du téléphone (Microphone & Caméra/Galerie) avec garantie de
 // confidentialité médicale stricte.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Camera,
@@ -38,6 +38,13 @@ import {
   Volume2,
   VolumeX,
   X,
+  Sparkles,
+  Calendar,
+  ShoppingBag,
+  MessageCircle,
+  CheckCircle2,
+  HelpCircle,
+  Lightbulb,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, resizeImage } from "@/lib/kene/api";
@@ -51,6 +58,8 @@ import { LiveCameraModal } from "./LiveCameraModal";
 import { playSpeech, stopBrowserVoice, unlockAudioContext, type SpeechController } from "./ttsAudio";
 import { SpeakButton } from "./SpeakButton";
 import { isHardwarePermGranted, saveHardwarePermGranted, syncHardwarePermissions } from "@/lib/kene/hardware-perm";
+import { DrKeneOrb3D, type DrKeneOrbState } from "./DrKeneOrb3D";
+import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 
 export interface QuickSuggestion {
   theme: string;
@@ -286,6 +295,13 @@ export function ChatScreen() {
   const [micState, setMicState] = useState<MicState>("idle");
   const [micElapsed, setMicElapsed] = useState(0);
 
+  // Mode de vue : "orb" (Sanctuaire de Consultation Orbe 3D) ou "thread" (Fil complet)
+  const [viewMode, setViewMode] = useState<"orb" | "thread">("orb");
+  const [audioLevel, setAudioLevel] = useState(0);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+
   // Sélecteur de source photo & Caméra Live (zéro modal bloquant de permission)
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   const [micHelpOpen, setMicHelpOpen] = useState(false);
@@ -300,6 +316,20 @@ export function ChatScreen() {
   const cancelledRef = useRef(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Dernier message du Dr. Kènè pour la carte de prescription
+  const lastAssistantMessage = useMemo(() => {
+    return [...messages].reverse().find((m) => m.role === "assistant");
+  }, [messages]);
+
+  // État dynamique de l'Orbe 3D du Dr. Kènè
+  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
+  const orbState: DrKeneOrbState = useMemo(() => {
+    if (sending || photoBusy) return "analyzing";
+    if (micState === "recording") return "listening";
+    if (playingMsgId) return "speaking";
+    return "idle";
+  }, [sending, photoBusy, micState, playingMsgId]);
 
   // Synchronisation proactive avec les permissions réelles du navigateur / appareil
   useEffect(() => {
@@ -334,6 +364,17 @@ export function ChatScreen() {
   /** Rendu du flux: le micro s'éteint réellement (getUserMedia +
    * recorder.stream, tous deux référencés — même objet en pratique). */
   function releaseStream() {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
+      try {
+        void audioCtxRef.current.close();
+      } catch {}
+      audioCtxRef.current = null;
+    }
+    setAudioLevel(0);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
@@ -378,6 +419,33 @@ export function ChatScreen() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       saveHardwarePermGranted();
       streamRef.current = stream;
+
+      // Mesure de volume Web Audio pour animer l'Orbe 3D en temps réel
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          audioCtxRef.current = ctx;
+          const source = ctx.createMediaStreamSource(stream);
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 64;
+          source.connect(analyser);
+          analyserRef.current = analyser;
+
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          const updateVolume = () => {
+            if (!analyserRef.current) return;
+            analyserRef.current.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            const avg = sum / dataArray.length;
+            setAudioLevel(Math.min(1, Math.max(0, avg / 70)));
+            animFrameRef.current = requestAnimationFrame(updateVolume);
+          };
+          updateVolume();
+        }
+      } catch {}
+
       const mime = pickRecorderMime();
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
       recorderRef.current = rec;
@@ -520,7 +588,6 @@ export function ChatScreen() {
   }
 
   const currentAudioCtrlRef = useRef<SpeechController | null>(null);
-  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
 
   const stopCurrentSpeech = useCallback(() => {
     currentAudioCtrlRef.current?.stop();
@@ -664,42 +731,346 @@ export function ChatScreen() {
 
   return (
     <div className="flex flex-col min-h-[68vh] pt-4">
-      <header className="flex items-center gap-3 pb-3 border-b border-border">
-        <span className="relative shrink-0">
-          {/* Sceau 2026 — le Médaillon Kènè est l'avatar du Dr. Kènè */}
-          <span className="k-glow-gold inline-grid rounded-[14px]">
-            <KeneEmblem size={40} />
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+        <div className="flex items-center gap-3">
+          <span className="relative shrink-0">
+            {/* Sceau 2026 — le Médaillon Kènè est l'avatar du Dr. Kènè */}
+            <span className="k-glow-gold inline-grid rounded-[14px]">
+              <KeneEmblem size={40} />
+            </span>
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background animate-pulse" aria-hidden="true" />
           </span>
-          <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#346834] border-2 border-background" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1 md:hidden">
-          <p className="font-heading font-bold text-sm">Dermo Kènè <span className="text-xs font-mono font-bold bg-primary/15 text-primary px-1.5 py-0.5 rounded-md">IA</span></p>
-          <p className="text-xs text-success font-semibold">Conseillère dermo-cosmétique · En ligne</p>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading font-black text-sm sm:text-base text-foreground">
+                Dr. Kènè
+              </h2>
+              <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                Dermo-Conseil IA
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Experte peaux noires &amp; métissées · Écoute audio &amp; diagnostic
+            </p>
+          </div>
         </div>
-        <div className="hidden md:flex items-center gap-2 min-w-0 flex-1">
-          <span className="h-2 w-2 rounded-full bg-[#346834] animate-pulse" aria-hidden="true" />
-          <p className="text-xs text-muted-foreground font-medium">Assistant dermo-conseil IA &amp; éducation cutanée (non-médecin)</p>
+
+        {/* Sélecteur de rituel (Orbe Sacré vs Fil complet) */}
+        <div className="flex items-center gap-2 self-start sm:self-center">
+          <div className="flex bg-muted/60 p-1 rounded-2xl border border-border/80 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode("orb");
+                haptic(HAPTIC.light);
+              }}
+              className={`h-9 px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+                viewMode === "orb"
+                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm scale-100"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Sparkles size={14} className={viewMode === "orb" ? "text-amber-300 animate-spin" : ""} />
+              <span>Orbe de Consultation</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode("thread");
+                haptic(HAPTIC.light);
+              }}
+              className={`h-9 px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+                viewMode === "thread"
+                  ? "bg-primary text-primary-foreground shadow-sm scale-100"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <MessageCircle size={14} />
+              <span>Fil complet ({messages.length})</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setTtsOn((v) => {
+                const next = !v;
+                if (!next) {
+                  stopCurrentSpeech();
+                } else if (lastAssistantMessage) {
+                  speak(lastAssistantMessage.content, true, lastAssistantMessage.id);
+                }
+                return next;
+              });
+            }}
+            aria-pressed={ttsOn}
+            aria-label={ttsOn ? "Désactiver la lecture vocale" : "Activer la lecture vocale"}
+            title={ttsOn ? "Voix automatique activée (cliquer pour couper)" : "Activer la voix du Dr. Kènè"}
+            className={`h-9 w-9 grid place-items-center rounded-xl active:scale-90 transition-all ${
+              ttsOn ? "bg-emerald-600 text-white shadow-sm" : "border border-border bg-card text-muted-foreground"
+            }`}
+          >
+            {ttsOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          </button>
         </div>
-        <button
-          onClick={() => {
-            setTtsOn((v) => {
-              const next = !v;
-              if (!next) {
-                stopCurrentSpeech();
-              }
-              return next;
-            });
-          }}
-          aria-pressed={ttsOn}
-          aria-label={ttsOn ? "Désactiver la lecture vocale" : "Activer la lecture vocale"}
-          title={ttsOn ? "Voix automatique activée (cliquer pour couper)" : "Activer la voix de Dermo Kènè"}
-          className={`h-10 w-10 grid place-items-center rounded-full active:scale-90 transition-all focus-visible:outline-2 focus-visible:outline-primary ${ttsOn ? "bg-primary text-primary-foreground shadow-sm" : "border border-border bg-card text-muted-foreground"}`}
-        >
-          {ttsOn ? <Volume2 size={17} /> : <VolumeX size={17} />}
-        </button>
       </header>
 
-      {/* Fil de discussion */}
+      {/* ─── SCÈNE 1 : LE SANCTUAIRE DE CONSULTATION ORBE DU DR. KÈNÈ ─── */}
+      {viewMode === "orb" ? (
+        <div className="py-4 space-y-5 animate-in fade-in duration-300">
+          {/* Scène centrale de l'Orbe Sacré Émeraude & Or */}
+          <div className="relative rounded-[32px] border border-border/80 bg-card p-6 sm:p-8 shadow-md flex flex-col items-center justify-center text-center overflow-hidden">
+            {/* Lueur d'ambiance émeraude et dorée */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 sm:w-80 h-72 sm:h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+
+            {/* L'Orbe 3D interactif du Dr. Kènè */}
+            <div className="relative z-10 mb-2">
+              <DrKeneOrb3D
+                state={orbState}
+                onClick={() => {
+                  if (micState === "recording") {
+                    stopRecording();
+                  } else {
+                    void startRecording();
+                  }
+                }}
+                size={270}
+                audioLevel={audioLevel}
+                className="transition-transform active:scale-95 mx-auto"
+              />
+            </div>
+
+            {/* Statut dynamique parlant du Dr. Kènè */}
+            <div className="relative z-10 space-y-3 max-w-lg mx-auto">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/80 border border-border/80 text-xs font-semibold text-foreground shadow-xs">
+                {micState === "recording" ? (
+                  <>
+                    <span className="size-2 rounded-full bg-red-500 animate-ping" />
+                    <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                      {mmss(micElapsed)}
+                    </span>
+                    <span>· Le Dr. Kènè vous écoute… Parlez naturellement</span>
+                  </>
+                ) : sending || photoBusy ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin text-emerald-500" />
+                    <span>Le Dr. Kènè analyse vos symptômes cutanés…</span>
+                  </>
+                ) : playingMsgId ? (
+                  <>
+                    <Volume2 size={14} className="text-emerald-500 animate-pulse" />
+                    <span>Le Dr. Kènè vous répond à la voix… 🔊</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} className="text-[#C8951E]" />
+                    <span>Touchez l&apos;Orbe ou le micro pour consulter le Dr. Kènè</span>
+                  </>
+                )}
+              </div>
+
+              {/* Boutons d'interaction tactiles & vocaux */}
+              <div className="pt-1 flex flex-wrap items-center justify-center gap-3">
+                {micState === "recording" ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={stopRecording}
+                      className="h-13 px-6 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 text-white font-black text-sm flex items-center gap-2.5 shadow-lg active:scale-95 animate-pulse"
+                    >
+                      <Square size={16} fill="currentColor" />
+                      <span>Terminer &amp; Écouter l&apos;analyse</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelRecording}
+                      className="h-13 px-4 rounded-2xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-bold"
+                    >
+                      Annuler
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void startRecording()}
+                      disabled={sending || photoBusy}
+                      className="h-13 px-6 sm:px-7 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#C8951E] text-white font-heading font-black text-sm flex items-center gap-2.5 shadow-lg hover:scale-102 active:scale-95 transition-all"
+                    >
+                      <Mic size={18} />
+                      <span>Parler au Dr. Kènè 🎙️</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPhotoPickerOpen(true)}
+                      disabled={sending || photoBusy}
+                      className="h-13 px-5 rounded-2xl border border-border/80 bg-muted/40 hover:bg-muted text-foreground font-bold text-xs flex items-center gap-2 active:scale-95 transition-all"
+                    >
+                      <Camera size={16} className="text-emerald-600 dark:text-emerald-400" />
+                      <span>Montrer ma peau</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Saisie textuelle rapide repliable sous l'Orbe */}
+            {micState !== "recording" && (
+              <div className="relative z-10 w-full max-w-xl mt-4 pt-3 border-t border-border/60">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        send();
+                      }
+                    }}
+                    placeholder="Ou écrivez votre préoccupation ici…"
+                    className="h-11 min-w-0 flex-1 rounded-xl bg-muted/30 border border-border px-3.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => send()}
+                    disabled={!input.trim() || sending}
+                    className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold disabled:opacity-40 flex items-center gap-1.5 transition-all"
+                  >
+                    <Send size={14} />
+                    <span>Envoyer</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Fiche de Prescription Dermo & Réponse du Dr. Kènè */}
+          {lastAssistantMessage && (
+            <div className="space-y-3 rounded-[28px] border border-emerald-500/40 bg-card p-5 sm:p-6 shadow-md animate-in fade-in slide-in-from-bottom-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/80">
+                <div className="flex items-center gap-2.5">
+                  <span className="size-9 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 grid place-items-center font-bold">
+                    🌿
+                  </span>
+                  <div>
+                    <h3 className="font-heading font-black text-sm text-foreground flex items-center gap-2">
+                      Prescription &amp; Conseils du Dr. Kènè
+                      {lastAssistantMessage.niveau && (
+                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                          lastAssistantMessage.niveau === "vert"
+                            ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                            : lastAssistantMessage.niveau === "jaune"
+                            ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                            : "bg-red-500/20 text-red-600 dark:text-red-400"
+                        }`}>
+                          {lastAssistantMessage.niveau === "vert" ? "Rassurant" : lastAssistantMessage.niveau === "jaune" ? "À surveiller" : "Consultation recommandée"}
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Analyse dermo-cosmétique adaptée aux phototypes IV à VI
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bouton de lecture / écoute vocale */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (playingMsgId === lastAssistantMessage.id) {
+                      stopCurrentSpeech();
+                    } else {
+                      speak(lastAssistantMessage.content, true, lastAssistantMessage.id);
+                    }
+                  }}
+                  className={`h-9 px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 self-start sm:self-center transition-all ${
+                    playingMsgId === lastAssistantMessage.id
+                      ? "bg-emerald-600 text-white animate-pulse"
+                      : "border border-border bg-muted/40 hover:bg-muted text-foreground"
+                  }`}
+                >
+                  {playingMsgId === lastAssistantMessage.id ? (
+                    <>
+                      <VolumeX size={14} />
+                      <span>Arrêter la voix</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 size={14} className="text-emerald-600 dark:text-emerald-400" />
+                      <span>Écouter le Dr. Kènè</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Texte de consultation */}
+              <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
+                {lastAssistantMessage.content}
+              </p>
+
+              {/* Actions 1-Tap : RDV cabine, Boutique, WhatsApp */}
+              <div className="pt-3 border-t border-border/60 flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.light);
+                    setClientTab("rdv");
+                  }}
+                  className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
+                >
+                  <Calendar size={14} />
+                  <span>Prendre RDV en institut</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.light);
+                    setClientTab("boutique");
+                  }}
+                  className="h-10 px-4 rounded-xl border border-border bg-muted/40 hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <ShoppingBag size={14} className="text-[#C8951E]" />
+                  <span>Voir mes actifs en boutique</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const msg = `Bonjour Dr. Kènè ! 🌿 Voici le protocole de soin cutané recommandé :\n\n${lastAssistantMessage.content}\n\nPrenez bien soin de ma peau !`;
+                    openWhatsApp("", msg);
+                  }}
+                  className="h-10 px-3.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 border border-[#25D366]/40 text-[#25D366] text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <MessageCircle size={14} />
+                  <span>Recevoir sur WhatsApp</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Suggestions thématiques rapides de salon en 1-Tap */}
+          <div className="rounded-[24px] border border-border/80 bg-card p-4 space-y-2.5">
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <Lightbulb size={13} className="text-[#C8951E]" />
+              <span>Questions fréquentes au Dr. Kènè (test en 1 clic) :</span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {THEMED_SUGGESTIONS.map((sug, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => void send(sug.question)}
+                  className="px-3 py-1.5 rounded-xl border border-border/80 bg-muted/30 hover:bg-muted text-xs font-semibold text-foreground flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs"
+                >
+                  <span>{sug.iconText}</span>
+                  <span>{sug.theme}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Fil de discussion */}
       <div className="relative flex-1 overflow-y-auto py-4 max-h-[56vh]" aria-live="polite">
         <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-50 pointer-events-none" />
         <div className="relative flex flex-col gap-3">
@@ -956,6 +1327,8 @@ export function ChatScreen() {
           <span>Orientation dermo-cosmétique IA · Ne pose aucun diagnostic médical et ne remplace pas un dermatologue</span>
         </p>
       </div>
+        </>
+      )}
 
       {/* Hidden inputs pour la capture photo et galerie */}
       <input
