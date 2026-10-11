@@ -1,6 +1,6 @@
 // Kènè — Abonnements & monétisation (lib serveur,).
 // Plans: cliente « Kènè+ » (2 500 FCFA/mois — diagnostics illimités, suivi
-// évolution, Dr. Kènè prioritaire, défis routines); pro « Essentiel »
+// évolution, Dermo Kènè prioritaire, défis routines); pro « Essentiel »
 // (15 000 FCFA/mois — RDV, clients, catalogue, boutique) et « Complexe »
 // (45 000 FCFA/mois — + paie CNPS/IPM, comptabilité SYSCOHADA,
 // multi-établissements).

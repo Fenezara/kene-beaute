@@ -496,7 +496,7 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold">Mon Espace Beauté personnel</p>
             <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-              Accède à ton espace beauté personnel : bilan dermo-biométrique, Dr. Kènè, boutique et rituels.
+              Accède à ton espace beauté personnel : bilan dermo-biométrique, Dermo Kènè, boutique et rituels.
             </p>
           </div>
         </div>

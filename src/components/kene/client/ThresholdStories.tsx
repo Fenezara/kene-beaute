@@ -30,15 +30,15 @@ const STORIES: StoryCard[] = [
     img: "/products/serum-moringa.webp",
     imgAlt: "Sérum botanique Kènè",
     num: "02",
-    title: "Dr. Kènè, ta coach",
+    title: "Dermo Kènè, ta coach",
     sub: "Elle répond à tes questions beauté, 7j/7 — et tu peux lui parler à la voix.",
   },
   {
     img: "/instituts/institut-baobab.webp",
     imgAlt: "Institut partenaire Kènè",
     num: "03",
-    title: "Boutique & instituts",
-    sub: "Routines botaniques, rendez-vous en deux gestes — Abidjan & Dakar.",
+    title: "Soins & Conciergerie WhatsApp",
+    sub: "Commandes de cosmétiques et rendez-vous cabine en direct sur WhatsApp.",
   },
 ];
 

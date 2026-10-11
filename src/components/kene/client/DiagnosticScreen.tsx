@@ -7,7 +7,7 @@ import {
   ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
+import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
 import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
 import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
 import { cn } from "@/lib/utils";
@@ -1218,13 +1218,13 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
       {r.hypotheses && r.hypotheses.length > 0 && (
         <RevealItem className="mt-4">
           <section aria-labelledby="hyp-t">
-            <h2 id="hyp-t" className="font-heading font-bold text-base">Dr Kènè pense reconnaître…</h2>
+            <h2 id="hyp-t" className="font-heading font-bold text-base">Dermo Kènè pense reconnaître…</h2>
             <p className="mt-1 mb-3 text-[11px] leading-snug text-muted-foreground">
               Ce que la photo lui rappelle, parmi {r.hypotheses.length === 1 ? "les affections de peau noire" : "2 affections de peau noire"} — une hypothèse à faire confirmer, pas un diagnostic.
             </p>
             <div className="space-y-3">
               {r.hypotheses.map((h) => (
-                <HypothesisCard key={h.id} h={h} onAsk={askGlossary} onRdv={() => setClientTab("rdv")} />
+                <HypothesisCard key={h.id} h={h} onAsk={askGlossary} onRdv={() => openWhatsAppAppointmentInquiry({ serviceName: h.nom })} />
               ))}
             </div>
           </section>
@@ -1249,8 +1249,8 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
                 ))}
               </div>
             )}
-            <button onClick={() => setClientTab("rdv")} className="mt-3 h-11 w-full rounded-xl bg-[#8B1A3B] text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#8B1A3B]">
-              <CalendarPlus size={16} /> Prendre RDV avec un institut partenaire
+            <button onClick={() => openWhatsAppAppointmentInquiry({ serviceName: "Bilan cutané et orientation institut" })} className="mt-3 h-11 w-full rounded-xl bg-[#8B1A3B] text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#8B1A3B]">
+              <MessageCircle size={16} /> Prendre RDV avec un institut partenaire via WhatsApp
             </button>
           </motion.div>
         </RevealItem>
@@ -1466,6 +1466,16 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
                   );
                 })}
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const routineSummary = r.recommandations.produits.join("\n• ");
+                  openWhatsAppProductOrderInquiry({ summary: `• ${routineSummary}` });
+                }}
+                className="mt-3.5 h-11 w-full rounded-2xl bg-[#25D366]/15 hover:bg-[#25D366]/25 border border-[#25D366]/50 text-[#128C7E] dark:text-[#25D366] text-xs font-bold flex items-center justify-center gap-2 active:scale-98 transition-all"
+              >
+                <MessageCircle size={15} /> Commander ces soins botaniques sur WhatsApp
+              </button>
             </div>
           )}
 
@@ -1526,20 +1536,14 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
               <button
                 type="button"
                 onClick={() => {
-                  if (typeof window !== "undefined") {
-                    window.sessionStorage.setItem("kene_pending_institute", recommendedInstitute.id);
-                    if (recommendedSoin) window.sessionStorage.setItem("kene_pending_service", recommendedSoin);
-                    window.dispatchEvent(
-                      new CustomEvent("kene:select-institute", {
-                        detail: { instituteId: recommendedInstitute.id, serviceName: recommendedSoin },
-                      })
-                    );
-                  }
-                  setClientTab("rdv");
+                  openWhatsAppAppointmentInquiry({
+                    instituteName: recommendedInstitute.name,
+                    serviceName: recommendedSoin ?? undefined,
+                  });
                 }}
-                className="mt-3.5 h-11 w-full rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-xs"
+                className="mt-3.5 h-11 w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-xs"
               >
-                <CalendarPlus size={15} /> Réserver ce soin à l&apos;institut
+                <MessageCircle size={15} /> Réserver ce soin via WhatsApp
               </button>
             </div>
           )}
@@ -1549,8 +1553,12 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
               <p className="text-[11px] font-semibold text-muted-foreground mb-2">Soins en institut</p>
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
                 {r.recommandations.soins_conseilles.map((s, i) => (
-                  <button key={i} onClick={() => setClientTab("rdv")} className="k-chip shrink-0 rounded-full border-success/50 bg-success/10 px-3.5 py-2 text-[11px] font-semibold text-success flex items-center gap-1 focus-visible:outline-2 focus-visible:outline-[#346834]">
-                    <CalendarPlus size={13} /> {s} · Réserver
+                  <button
+                    key={i}
+                    onClick={() => openWhatsAppAppointmentInquiry({ serviceName: s })}
+                    className="k-chip shrink-0 rounded-full border-success/50 bg-success/10 px-3.5 py-2 text-[11px] font-semibold text-success flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-[#346834]"
+                  >
+                    <MessageCircle size={13} /> {s} · Réserver (WhatsApp)
                   </button>
                 ))}
               </div>
@@ -1589,7 +1597,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
               <div className="min-w-0 flex-1">
                 <p className="font-heading font-black text-[15px] leading-tight">Continue avec Kènè+</p>
                 <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                  Diagnostics illimités, suivi d&apos;évolution de ta peau, Dr. Kènè prioritaire — le plan gratuit s&apos;arrête à 1 diagnostic par mois.
+                  Diagnostics illimités, suivi d&apos;évolution de ta peau, Dermo Kènè prioritaire — le plan gratuit s&apos;arrête à 1 diagnostic par mois.
                 </p>
               </div>
               <p className="shrink-0 text-right">

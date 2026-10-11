@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   if (!rl.ok) {
     return rateLimitResponse(
       rl.retryAfterSec,
-      "Dr. Kènè est très sollicitée — reprends dans quelques secondes",
+      "Dermo Kènè est très sollicitée — reprends dans quelques secondes",
     );
   }
   let parsedData: z.infer<typeof Body> | undefined;
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
   if (!rl.ok) {
     return rateLimitResponse(
       rl.retryAfterSec,
-      "Dr. Kènè est très sollicitée — reprends dans quelques secondes",
+      "Dermo Kènè est très sollicitée — reprends dans quelques secondes",
     );
   }
   let parsedData: z.infer<typeof Body> | undefined;
@@ -70,9 +70,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/** Cœur partagé POST/GET : traitement texte ou audio direct pour Dr. Kènè */
+/** Cœur partagé POST/GET : traitement texte ou audio direct pour Dermo Kènè */
 async function runChat(parsed: z.infer<typeof Body>): Promise<NextResponse> {
-  // Cas 1 : Note vocale directe (l'audio est envoyé directement à Dr. Kènè)
+  // Cas 1 : Note vocale directe (l'audio est envoyé directement à Dermo Kènè)
   if (parsed.audio) {
     const audioResult = await getDrKeneAudioReply(
       parsed.audio,
@@ -87,7 +87,7 @@ async function runChat(parsed: z.infer<typeof Body>): Promise<NextResponse> {
   }
 
   // Cas 2 : Message texte standard
-  const messages = parsed.messages ?? [{ role: "user", content: "Bonjour Dr. Kènè" }];
+  const messages = parsed.messages ?? [{ role: "user", content: "Bonjour Dermo Kènè" }];
   const reply = await getDrKeneReply(messages, parsed.userId);
   return NextResponse.json({ reply });
 }

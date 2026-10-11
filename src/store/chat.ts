@@ -1,5 +1,5 @@
 "use client";
-// Kènè — conversation Dr. Kènè (chat), persistée par appareil.
+// Kènè — conversation Dermo Kènè (chat), persistée par appareil.
 // skipHydration: le HTML serveur et l'hydratation passent sur l'état initial
 // (fil vide), le localStorage est relu AU PREMIER MONTAGE de ChatScreen
 // (pattern use-t.ts / lang.ts) — zéro mismatch d'hydratation.
@@ -12,7 +12,7 @@ import type { ChatMsg } from "@/components/kene/client/types";
 /** Nombre max de messages conservés (les plus vieux glissent hors du fil). */
 const MAX_MESSAGES = 60;
 
-/** Message d'accueil de Dr. Kènè — seed du fil (et re-seed après reset).
+/** Message d'accueil de Dermo Kènè — seed du fil (et re-seed après reset).
  * L'horodatage est posé au moment du seed (heure réelle de début de fil);
  * une fois persisté, le w1 conserve son heure d'origine. */
 function welcomeMsg(): ChatMsg {
@@ -20,7 +20,7 @@ function welcomeMsg(): ChatMsg {
     id: "w1",
     role: "assistant",
     content:
-      "Bonjour ma chérie ! C'est Dermo Kènè, ta grande sœur et dermo-conseillère ici à Abidjan. Pose-moi toutes tes questions sur ta peau — boutons, taches, éclat ou hydratation — ou envoie-moi une photo ou une note vocale. Je t'écoute avec le cœur et on va prendre soin de toi ensemble 🌿.",
+      "Bonjour ! C'est Dermo Kènè, votre conseillère dermo-cosmétique dévouée ici à Abidjan. Posez-moi toutes vos questions sur votre peau — boutons, taches, éclat ou hydratation — ou envoyez-moi une photo ou une note vocale. Je vous écoute avec bienveillance pour sublimer votre peau mélanoderme 🌿.",
     kind: "text",
     time: Date.now(),
   };

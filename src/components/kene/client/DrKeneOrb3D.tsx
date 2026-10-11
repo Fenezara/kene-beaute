@@ -456,7 +456,7 @@ export function DrKeneOrb3D({
       )}
       role="button"
       tabIndex={0}
-      aria-label="Orbe Sacré de Consultation du Dr. Kènè — Toucher pour parler"
+      aria-label="Orbe Sacré de Dermo Kènè — Toucher pour parler"
     >
       {/* ─── Halo d'ambiance clinique émeraude & or ─── */}
       <div

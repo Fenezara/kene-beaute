@@ -47,7 +47,7 @@ export function SpaceSwitcher({
           label: "Mon Espace Beauté",
           shortLabel: "Beauté",
           badge: "Personnel",
-          desc: "Mon diagnostic cutané, Dr. Kènè & rituels",
+          desc: "Mon diagnostic cutané, Dermo Kènè & rituels",
           icon: CauriIcon,
         },
         {

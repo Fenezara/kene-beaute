@@ -382,7 +382,7 @@ function CancelSubDialog({
             Annuler {target?.planLabel ?? ""} de {first} ?
           </DialogTitle>
           <DialogDescription>
-            {first} perd immédiatement ses avantages ({target?.planLabel === "Kènè+" ? "diagnostics illimités, suivi, Dr. Kènè prioritaire" : "outils de gestion de l'institut"}) et
+            {first} perd immédiatement ses avantages ({target?.planLabel === "Kènè+" ? "diagnostics illimités, suivi, Dermo Kènè prioritaire" : "outils de gestion de l'institut"}) et
             reçoit ton motif par notification. Ses données restent intactes — elle peut se réabonner
             librement. La ligne reste dans l&apos;historique (jamais supprimée).
           </DialogDescription>

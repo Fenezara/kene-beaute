@@ -224,7 +224,7 @@ export function PaymentReturnHandler() {
                     Diagnostics dermo-biométriques &amp; Suivi d&apos;Évolution Illimités
                   </p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Votre compte bénéficie immédiatement de l&apos;accès illimité au Dr Kènè, aux bilans photographiques et à l&apos;ensemble des privilèges premium.
+                    Votre compte bénéficie immédiatement de l&apos;accès illimité à Dermo Kènè, aux bilans photographiques et à l&apos;ensemble des privilèges premium.
                   </p>
                 </div>
               )}

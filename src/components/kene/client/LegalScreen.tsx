@@ -49,19 +49,19 @@ export function LegalScreen() {
         </section>
       </RevealItem>
 
-      {/* 2 — Avertissement médical renforcé & IA Dr. Kènè */}
+      {/* 2 — Avertissement de pratique dermo-cosmétique & IA Dermo Kènè */}
       <RevealItem>
         <section aria-labelledby="leg-med-t" className="k-card rounded-[24px] p-4">
           <div className="flex items-center gap-3">
             <IconBadge icon={<Stethoscope size={19} />} tone="bissap" />
-            <p id="leg-med-t" className="text-xs font-bold">Avertissement médical &amp; Dr. Kènè IA</p>
+            <p id="leg-med-t" className="text-xs font-bold">Cadre dermo-cosmétique &amp; Dermo Kènè IA</p>
           </div>
           <div className="mt-3 text-[13px] leading-relaxed space-y-2">
             <p className="font-semibold text-primary">
-              Kènè et l&apos;assistant « Dr. Kènè IA » constituent un outil d&apos;ORIENTATION DERMO-COSMÉTIQUE et d&apos;éducation cutanée.
+              Kènè et l&apos;assistante « Dermo Kènè IA » constituent un outil d&apos;ORIENTATION DERMO-COSMÉTIQUE et d&apos;éducation cutanée.
             </p>
             <p className="text-xs leading-relaxed">
-              Dr. Kènè IA est un algorithme d&apos;intelligence artificielle et <strong>n&apos;est pas un médecin</strong>. Il ne pose aucun diagnostic médical, ne traite aucune pathologie dermatologique et ne délivre aucune ordonnance médicale au sens de la législation médicale (notamment l&apos;article 376 du Code Pénal ivoirien relatif à l&apos;exercice illégal de la médecine).
+              Dermo Kènè IA est une technologie d&apos;intelligence artificielle dermo-conseil et <strong>n&apos;est pas un médecin</strong>. Elle ne pose aucun diagnostic médical, ne traite aucune pathologie dermatologique et ne délivre aucune ordonnance médicale au sens de la législation médicale (notamment l&apos;article 376 du Code Pénal ivoirien relatif à l&apos;exercice illégal de la médecine).
             </p>
             <p className="text-xs leading-relaxed">
               Les fiches d&apos;analyses cutanées, « Recommandations Dermo-Botaniques » et « Protocoles de Soin » générés sont de nature strictement cosmétique et consultative.

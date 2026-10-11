@@ -34,11 +34,39 @@ export function createWhatsAppLink(phone: string, message: string, defaultCountr
   return formattedPhone ? `https://wa.me/${formattedPhone}?text=${encodedText}` : `https://wa.me/?text=${encodedText}`;
 }
 
+/** Numéro de contact WhatsApp Business officiel Kènè */
+export const KENE_SUPPORT_PHONE = "+2250748894270";
+
 /** Ouvre WhatsApp (application native ou WhatsApp Web) dans un nouvel onglet */
 export function openWhatsApp(phone: string, message: string, defaultCountry: "CI" | "SN" = "CI"): void {
   if (typeof window === "undefined") return;
   const url = createWhatsAppLink(phone, message, defaultCountry);
   window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/** Ouvre WhatsApp directement pour commander des produits botaniques ou une routine recommandée */
+export function openWhatsAppProductOrderInquiry(details?: { productName?: string; summary?: string; clientName?: string }): void {
+  const greeting = details?.clientName ? `Bonjour l'équipe Kènè ! Je suis ${details.clientName}. 🌿` : "Bonjour l'équipe Kènè ! 🌿";
+  const itemText = details?.productName ? `\n\nProduit souhaité : *${details.productName}*` : "";
+  const routineText = details?.summary ? `\n\nRoutine / soins recommandés :\n${details.summary}` : "";
+  const msg = `${greeting}
+Je souhaite commander des produits botaniques de soin cutané Kènè.${itemText}${routineText}
+
+Pouvez-vous m'indiquer la disponibilité, les tarifs et les modalités de livraison à Abidjan ? Merci beaucoup ! ✨`;
+  openWhatsApp(KENE_SUPPORT_PHONE, msg, "CI");
+}
+
+/** Ouvre WhatsApp directement pour prendre rendez-vous en institut partenaire pour un soin cabine */
+export function openWhatsAppAppointmentInquiry(details?: { serviceName?: string; instituteName?: string; clientName?: string; datePref?: string }): void {
+  const greeting = details?.clientName ? `Bonjour l'équipe Kènè ! Je suis ${details.clientName}. 💆‍♀️` : "Bonjour l'équipe Kènè ! 💆‍♀️";
+  const serviceText = details?.serviceName ? `\n• Soin souhaité : *${details.serviceName}*` : "";
+  const instText = details?.instituteName ? `\n• Institut préféré : *${details.instituteName}*` : "";
+  const dateText = details?.datePref ? `\n• Date / créneau souhaité : *${details.datePref}*` : "";
+  const msg = `${greeting}
+Je souhaite prendre rendez-vous pour un soin en institut partenaire Kènè :${serviceText}${instText}${dateText}
+
+Quels sont vos créneaux disponibles cette semaine ? Merci de me confirmer ! 🌿`;
+  openWhatsApp(KENE_SUPPORT_PHONE, msg, "CI");
 }
 
 // ─────────────── Modèles de messages ───────────────

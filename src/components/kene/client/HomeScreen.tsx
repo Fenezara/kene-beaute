@@ -15,10 +15,12 @@ import {
   CloudSun,
   Crown,
   MapPin,
+  MessageCircle,
   Star,
   SunMedium,
   Wind,
 } from "lucide-react";
+import { openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
 import { apiGet } from "@/lib/kene/api";
 import { formatDate, formatTime, xof } from "@/lib/kene/format";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
@@ -166,7 +168,7 @@ export function HomeScreen({
         type: "expired" as const,
         title: "Pass Kènè+ arrivé à terme",
         badge: "Expiré",
-        description: "Tes diagnostics illimités et ton suivi Dr Kènè sont en pause. Réactive Kènè+ pour continuer.",
+        description: "Tes diagnostics illimités et ton suivi Dermo Kènè sont en pause. Réactive Kènè+ pour continuer.",
         btnText: "Réactiver (2 500 F)",
       };
     }
@@ -322,7 +324,7 @@ export function HomeScreen({
             if (lastResult && multi.last) {
               setRitualOpen(true);
             } else {
-              setClientTab("boutique");
+              openWhatsAppProductOrderInquiry();
             }
           }}
           onOpenContactKene={() => setContactKeneOpen(true)}
@@ -346,50 +348,25 @@ export function HomeScreen({
       <RevealItem>
         <section aria-labelledby="rdv-t">
           <SectionTitle icon={<SankofaIcon size={17} />}>
-            <span id="rdv-t">{t("home.rdv.title")}</span>
+            <span id="rdv-t">Prendre Rendez-vous en institut</span>
           </SectionTitle>
-          {!data ? (
-            <Shimmer className="h-24 rounded-[24px]" />
-          ) : nextAppt ? (
-            <button
-              onClick={() => setClientTab("rdv")}
-              className="w-full text-left k-card k-card-hover rounded-[24px] p-4 active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="grid place-items-center h-11 w-11 rounded-xl bg-primary/10 text-primary shrink-0">
-                    <CalendarClock size={20} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-sm truncate">{nextAppt.service?.name ?? "Soin en institut"}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {nextAppt.tenant?.name} · {nextAppt.resource?.name}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="font-mono text-sm font-bold text-primary">{formatTime(nextAppt.startAt)}</p>
-                  <p className="text-xs text-muted-foreground">{formatDate(nextAppt.startAt, { day: "numeric", month: "short" })}</p>
-                </div>
+          <button
+            onClick={() => openWhatsAppAppointmentInquiry()}
+            className="w-full rounded-[24px] border border-emerald-500/30 bg-card/70 p-4 flex items-center justify-between active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary shadow-xs"
+          >
+            <div className="flex items-center gap-3">
+              <span className="grid place-items-center h-10 w-10 rounded-xl bg-[#25D366]/15 text-[#25D366]">
+                <MessageCircle size={18} />
+              </span>
+              <div className="text-left">
+                <p className="text-sm font-bold text-foreground">Prendre RDV en salon via WhatsApp</p>
+                <p className="text-xs text-muted-foreground">Soins personnalisés dans les instituts partenaires d&apos;Abidjan</p>
               </div>
-            </button>
-          ) : (
-            <button
-              onClick={() => setClientTab("rdv")}
-              className="w-full rounded-[24px] border border-dashed border-border bg-card/60 p-4 flex items-center justify-between active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              <div className="flex items-center gap-3">
-                <span className="grid place-items-center h-10 w-10 rounded-xl bg-gold/15 text-gold-text">
-                  <CalendarDays size={18} />
-                </span>
-                <div className="text-left">
-                  <p className="text-sm font-bold text-foreground">Prendre RDV en salon</p>
-                  <p className="text-xs text-muted-foreground">Soins personnalisés dans les instituts partenaires</p>
-                </div>
-              </div>
-              <ChevronRight size={16} className="text-primary" />
-            </button>
-          )}
+            </div>
+            <span className="text-xs font-bold text-[#128C7E] dark:text-[#25D366] flex items-center gap-0.5">
+              Réserver <ChevronRight size={16} />
+            </span>
+          </button>
         </section>
       </RevealItem>
 
@@ -400,10 +377,11 @@ export function HomeScreen({
             icon={<Building2 size={16} />}
             action={
               <button
-                onClick={() => setClientTab("rdv")}
-                className="text-xs font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1"
+                onClick={() => openWhatsAppAppointmentInquiry()}
+                className="text-xs font-bold text-[#128C7E] dark:text-[#25D366] hover:underline flex items-center gap-1 focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1"
               >
-                Tous les instituts ({data?.institutes?.length ?? 0})
+                <MessageCircle size={13} />
+                <span>Prendre RDV (WhatsApp)</span>
               </button>
             }
           >
@@ -420,13 +398,7 @@ export function HomeScreen({
               {data.institutes.map((inst) => (
                 <button
                   key={inst.id}
-                  onClick={() => {
-                    if (typeof window !== "undefined") {
-                      window.sessionStorage.setItem("kene_pending_institute", inst.id);
-                      window.dispatchEvent(new CustomEvent("kene:select-institute", { detail: { instituteId: inst.id } }));
-                    }
-                    setClientTab("rdv");
-                  }}
+                  onClick={() => openWhatsAppAppointmentInquiry({ instituteName: inst.name })}
                   className="snap-start shrink-0 w-60 sm:w-64 text-left k-card k-card-hover rounded-[24px] overflow-hidden active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary border border-border/80 shadow-xs"
                 >
                   <div className="relative h-32 w-full">
@@ -446,9 +418,9 @@ export function HomeScreen({
                     </div>
                   </div>
                   <div className="p-3 flex items-center justify-between text-xs bg-card/50 font-medium">
-                    <span className="text-muted-foreground truncate">{inst._count?.services ?? 0} soins disponibles</span>
-                    <span className="text-primary font-bold flex items-center gap-0.5 shrink-0">
-                      Découvrir <ChevronRight size={13} />
+                    <span className="text-muted-foreground truncate">{inst._count?.services ?? 0} soins en cabine</span>
+                    <span className="text-[#128C7E] dark:text-[#25D366] font-bold flex items-center gap-1 shrink-0">
+                      <MessageCircle size={13} /> Réserver
                     </span>
                   </div>
                 </button>
@@ -465,10 +437,11 @@ export function HomeScreen({
             icon={<CauriIcon size={16} className="text-gold-text" />}
             action={
               <button
-                onClick={() => setClientTab("boutique")}
-                className="text-[11px] font-semibold text-primary focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1"
+                onClick={() => openWhatsAppProductOrderInquiry()}
+                className="text-xs font-bold text-[#128C7E] dark:text-[#25D366] hover:underline flex items-center gap-1 focus-visible:outline-2 focus-visible:outline-primary rounded min-h-10 px-1"
               >
-                {t("home.shop.cta")}
+                <MessageCircle size={13} />
+                <span>Commander sur WhatsApp</span>
               </button>
             }
           >
@@ -481,7 +454,7 @@ export function HomeScreen({
               {reco.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => setClientTab("boutique")}
+                  onClick={() => openWhatsAppProductOrderInquiry({ productName: p.name })}
                   className="snap-start shrink-0 w-40 sm:w-44 text-left k-card k-card-hover rounded-[24px] overflow-hidden active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
                 >
                   <img src={p.image} alt={p.name} loading="lazy" className="aspect-square w-full object-cover" />
@@ -490,7 +463,9 @@ export function HomeScreen({
                     <p className="text-xs text-terre mt-0.5 truncate font-medium">{p.botanicals}</p>
                     <div className="flex flex-wrap items-center justify-between gap-1 mt-1.5">
                       <span className="font-mono text-xs font-bold whitespace-nowrap text-gold-text">{xof(p.price)}</span>
-                      <Stars rating={p.rating} size={10} />
+                      <span className="text-[10px] font-bold text-[#128C7E] dark:text-[#25D366] flex items-center gap-0.5">
+                        <MessageCircle size={10} /> Commander
+                      </span>
                     </div>
                   </div>
                 </button>

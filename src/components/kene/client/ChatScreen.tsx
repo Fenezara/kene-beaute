@@ -59,7 +59,7 @@ import { playSpeech, stopBrowserVoice, unlockAudioContext, type SpeechController
 import { SpeakButton } from "./SpeakButton";
 import { isHardwarePermGranted, saveHardwarePermGranted, syncHardwarePermissions } from "@/lib/kene/hardware-perm";
 import { DrKeneOrb3D, type DrKeneOrbState } from "./DrKeneOrb3D";
-import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
+import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
 
 export interface QuickSuggestion {
   theme: string;
@@ -163,9 +163,9 @@ async function toAsrBlob(blob: Blob): Promise<Blob> {
 }
 
 const TRIAGE = {
-  vert: { border: "border-l-4 border-success", bg: "bg-success/5", text: "text-success", Icon: CircleCheck, cta: "Voir la boutique", tab: "boutique" as const },
-  jaune: { border: "border-l-4 border-gold", bg: "bg-gold/5", text: "text-gold-text", Icon: TriangleAlert, cta: "Prendre RDV", tab: "rdv" as const },
-  rouge: { border: "border-l-4 border-bissap", bg: "bg-bissap/5", text: "text-destructive", Icon: OctagonAlert, cta: "Voir les instituts", tab: "rdv" as const },
+  vert: { border: "border-l-4 border-success", bg: "bg-success/5", text: "text-success", Icon: CircleCheck, cta: "Commander les soins (WhatsApp)" },
+  jaune: { border: "border-l-4 border-gold", bg: "bg-gold/5", text: "text-gold-text", Icon: TriangleAlert, cta: "Prendre RDV (WhatsApp)" },
+  rouge: { border: "border-l-4 border-bissap", bg: "bg-bissap/5", text: "text-destructive", Icon: OctagonAlert, cta: "Prendre RDV en institut (WhatsApp)" },
 };
 
 /* ── Déverrouillage audio préventif mobile ── */
@@ -743,7 +743,7 @@ export function ChatScreen() {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-heading font-black text-sm sm:text-base text-foreground">
-                Dr. Kènè
+                Dermo Kènè
               </h2>
               <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                 Dermo-Conseil IA
@@ -805,7 +805,7 @@ export function ChatScreen() {
             }}
             aria-pressed={ttsOn}
             aria-label={ttsOn ? "Désactiver la lecture vocale" : "Activer la lecture vocale"}
-            title={ttsOn ? "Voix automatique activée (cliquer pour couper)" : "Activer la voix du Dr. Kènè"}
+            title={ttsOn ? "Voix automatique activée (cliquer pour couper)" : "Activer la voix de Dermo Kènè"}
             className={`h-9 w-9 grid place-items-center rounded-xl active:scale-90 transition-all ${
               ttsOn ? "bg-emerald-600 text-white shadow-sm" : "border border-border bg-card text-muted-foreground"
             }`}
@@ -849,22 +849,22 @@ export function ChatScreen() {
                     <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                       {mmss(micElapsed)}
                     </span>
-                    <span>· Le Dr. Kènè vous écoute… Parlez naturellement</span>
+                    <span>· Dermo Kènè vous écoute… Parlez naturellement</span>
                   </>
                 ) : sending || photoBusy ? (
                   <>
                     <Loader2 size={14} className="animate-spin text-emerald-500" />
-                    <span>Le Dr. Kènè analyse vos symptômes cutanés…</span>
+                    <span>Dermo Kènè analyse vos besoins cutanés…</span>
                   </>
                 ) : playingMsgId ? (
                   <>
                     <Volume2 size={14} className="text-emerald-500 animate-pulse" />
-                    <span>Le Dr. Kènè vous répond à la voix… 🔊</span>
+                    <span>Dermo Kènè vous répond à la voix… 🔊</span>
                   </>
                 ) : (
                   <>
                     <Sparkles size={14} className="text-[#C8951E]" />
-                    <span>Touchez l&apos;Orbe ou le micro pour consulter le Dr. Kènè</span>
+                    <span>Touchez l&apos;Orbe ou le micro pour échanger avec Dermo Kènè</span>
                   </>
                 )}
               </div>
@@ -898,7 +898,7 @@ export function ChatScreen() {
                       className="h-13 px-6 sm:px-7 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#C8951E] text-white font-heading font-black text-sm flex items-center gap-2.5 shadow-lg hover:scale-102 active:scale-95 transition-all"
                     >
                       <Mic size={18} />
-                      <span>Parler au Dr. Kènè 🎙️</span>
+                      <span>Parler à Dermo Kènè 🎙️</span>
                     </button>
                     <button
                       type="button"
@@ -944,7 +944,7 @@ export function ChatScreen() {
             )}
           </div>
 
-          {/* Fiche de Prescription Dermo & Réponse du Dr. Kènè */}
+          {/* Fiche de Conseils Dermo & Routine de Dermo Kènè */}
           {lastAssistantMessage && (
             <div className="space-y-3 rounded-[28px] border border-emerald-500/40 bg-card p-5 sm:p-6 shadow-md animate-in fade-in slide-in-from-bottom-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/80">
@@ -954,7 +954,7 @@ export function ChatScreen() {
                   </span>
                   <div>
                     <h3 className="font-heading font-black text-sm text-foreground flex items-center gap-2">
-                      Prescription &amp; Conseils du Dr. Kènè
+                      Conseils &amp; Routine de Dermo Kènè
                       {lastAssistantMessage.niveau && (
                         <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                           lastAssistantMessage.niveau === "vert"
@@ -997,7 +997,7 @@ export function ChatScreen() {
                   ) : (
                     <>
                       <Volume2 size={14} className="text-emerald-600 dark:text-emerald-400" />
-                      <span>Écouter le Dr. Kènè</span>
+                      <span>Écouter Dermo Kènè</span>
                     </>
                   )}
                 </button>
@@ -1008,34 +1008,34 @@ export function ChatScreen() {
                 {lastAssistantMessage.content}
               </p>
 
-              {/* Actions 1-Tap : RDV cabine, Boutique, WhatsApp */}
+              {/* Actions 1-Tap : Commande soins sur WhatsApp, RDV en institut sur WhatsApp, Réception WhatsApp */}
               <div className="pt-3 border-t border-border/60 flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
                   onClick={() => {
                     haptic(HAPTIC.light);
-                    setClientTab("rdv");
+                    openWhatsAppProductOrderInquiry({ summary: lastAssistantMessage.content });
                   }}
                   className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
                 >
-                  <Calendar size={14} />
-                  <span>Prendre RDV en institut</span>
+                  <ShoppingBag size={14} />
+                  <span>Commander mes soins sur WhatsApp</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     haptic(HAPTIC.light);
-                    setClientTab("boutique");
+                    openWhatsAppAppointmentInquiry({ serviceName: "Protocole recommandé par Dermo Kènè" });
                   }}
                   className="h-10 px-4 rounded-xl border border-border bg-muted/40 hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all"
                 >
-                  <ShoppingBag size={14} className="text-[#C8951E]" />
-                  <span>Voir mes actifs en boutique</span>
+                  <Calendar size={14} className="text-[#25D366]" />
+                  <span>Prendre RDV en salon (WhatsApp)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    const msg = `Bonjour Dr. Kènè ! 🌿 Voici le protocole de soin cutané recommandé :\n\n${lastAssistantMessage.content}\n\nPrenez bien soin de ma peau !`;
+                    const msg = `Bonjour Dermo Kènè ! 🌿 Voici les conseils et routine de soin recommandée :\n\n${lastAssistantMessage.content}\n\nPrenez bien soin de ma peau !`;
                     openWhatsApp("", msg);
                   }}
                   className="h-10 px-3.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 border border-[#25D366]/40 text-[#25D366] text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all"
@@ -1051,7 +1051,7 @@ export function ChatScreen() {
           <div className="rounded-[24px] border border-border/80 bg-card p-4 space-y-2.5">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
               <Lightbulb size={13} className="text-[#C8951E]" />
-              <span>Questions fréquentes au Dr. Kènè (test en 1 clic) :</span>
+              <span>Questions fréquentes à Dermo Kènè (test en 1 clic) :</span>
             </p>
             <div className="flex flex-wrap gap-2">
               {THEMED_SUGGESTIONS.map((sug, i) => (
@@ -1124,10 +1124,17 @@ export function ChatScreen() {
                   </div>
                   {tri && (
                     <button
-                      onClick={() => setClientTab(tri.tab)}
-                      className={`mt-1.5 h-9 px-3.5 rounded-full ${tri.text} border ${m.niveau === "vert" ? "border-[#346834]/50 bg-[#346834]/10" : m.niveau === "jaune" ? "border-[#C8951E]/50 bg-[#C8951E]/10" : "border-[#8B1A3B]/50 bg-[#8B1A3B]/10"} text-xs font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary`}
+                      onClick={() => {
+                        if (m.niveau === "vert") {
+                          openWhatsAppProductOrderInquiry({ summary: m.content });
+                        } else {
+                          openWhatsAppAppointmentInquiry({ serviceName: "Protocole conseillé par Dermo Kènè" });
+                        }
+                      }}
+                      className={`mt-1.5 h-9 px-3.5 rounded-full ${tri.text} border ${m.niveau === "vert" ? "border-[#346834]/50 bg-[#346834]/10" : m.niveau === "jaune" ? "border-[#C8951E]/50 bg-[#C8951E]/10" : "border-[#8B1A3B]/50 bg-[#8B1A3B]/10"} text-xs font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary flex items-center gap-1.5`}
                     >
-                      {tri.cta} →
+                      <MessageCircle size={13} />
+                      <span>{tri.cta}</span>
                     </button>
                   )}
                   <div className="flex items-center justify-between gap-3 mt-1.5 px-0.5">

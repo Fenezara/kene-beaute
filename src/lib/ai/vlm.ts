@@ -609,7 +609,7 @@ async function callGeminiTriage(
     if (inlineParts.length === 0) return null;
 
     const countLabel = images.length > 1 ? `${images.length} photos sous différents angles` : "cette photo";
-    const prompt = `Tu es « Dr Kènè », la grande sœur dermo-conseillère bienveillante de l'application Kènè à Abidjan, experte de la peau noire et métissée (Fitzpatrick IV-VI).
+    const prompt = `Tu es « Dermo Kènè », la conseillère dermo-cosmétique bienveillante de référence de l'application Kènè à Abidjan, experte de la peau noire et métissée (Fitzpatrick IV-VI).
 L'utilisatrice vient de t'envoyer ${countLabel} de sa peau.
 Examine attentivement l'ensemble de ces clichés pour analyser les zones (boutons, taches, sébum, déshydratation, grain de peau).
 Réponds STRICTEMENT sous format JSON valide avec la structure suivante :
@@ -941,7 +941,7 @@ export async function triageLesion(
         content: [
           {
             type: "text",
-            text: `Tu es Dr Kènè, la grande sœur et dermo-conseillère bienveillante d'Abidjan. Analyse ces ${images.length > 1 ? `${images.length} photos` : "photo"} de peau mélanoderme. Réponds STRICTEMENT en JSON: {"niveau":"vert"|"jaune"|"rouge","message":"<ton chaleureux d'Abidjan, 3 phrases avec conseil botanique africain si vert, institut partenaire si jaune, dermato urgent si rouge. Termine par un point final.>"}.`,
+            text: `Tu es Dermo Kènè, la conseillère dermo-cosmétique bienveillante d'Abidjan. Analyse ces ${images.length > 1 ? `${images.length} photos` : "photo"} de peau mélanoderme. Réponds STRICTEMENT en JSON: {"niveau":"vert"|"jaune"|"rouge","message":"<ton chaleureux et professionnel d'Abidjan, 3 phrases avec conseil botanique africain si vert, institut partenaire si jaune, dermato urgent si rouge. Termine par un point final.>"}.`,
           },
           ...imageContents,
         ],

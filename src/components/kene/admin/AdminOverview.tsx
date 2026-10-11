@@ -277,7 +277,7 @@ export function AdminOverview({ stats }: { stats: ReturnType<typeof useApi<Admin
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold text-xs flex items-center gap-1.5">
                     <Cpu className="size-3.5 text-purple-500" />
-                    Dermo-IA Dr Kènè
+                    Dermo-IA Dermo Kènè
                   </span>
                   <Badge
                     variant="outline"

@@ -19,7 +19,7 @@ const Body = z.object({
 export async function POST(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "dermato:photo"), DERMATO);
   if (!rl.ok) {
-    return rateLimitResponse(rl.retryAfterSec, "Dr. Kènè est très sollicitée — reprends dans quelques secondes");
+    return rateLimitResponse(rl.retryAfterSec, "Dermo Kènè est très sollicitée — reprends dans quelques secondes");
   }
   try {
     const parsed = Body.safeParse(await req.json().catch(() => null));

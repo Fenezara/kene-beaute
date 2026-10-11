@@ -32,25 +32,22 @@ import { ScreenBoundary } from "./ScreenBoundary";
 import { BootSkeleton } from "./BootSkeleton";
 import { PaymentReturnHandler } from "./PaymentReturnHandler";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
+import { openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
 import { cn } from "@/lib/utils";
 
-/** Navigation latérale (desktop) — libellés façon Instagram web.
- * labelKey = clé i18n (repli français) — t résout à l'affichage. */
+/** Navigation latérale (desktop) — 4 destinations clés */
 const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
   { tab: "accueil", labelKey: "tab.home", icon: Home },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
-  { tab: "boutique", labelKey: "tab.shop", icon: ShoppingBag },
-  { tab: "rdv", labelKey: "tab.rdv", icon: CalendarDays },
   { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
-/** Tab-bar mobile — 5 emplacements, CTA scan central surélevé (TikTok-like) */
+/** Tab-bar mobile — 4 emplacements épurés avec CTA scan central surélevé */
 const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
   { tab: "accueil", labelKey: "tab.home", icon: Home },
-  { tab: "boutique", labelKey: "tab.shop.short", icon: ShoppingBag },
+  { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
-  { tab: "rdv", labelKey: "tab.rdv.short", icon: CalendarDays },
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
@@ -77,8 +74,8 @@ const TITLES: Record<ScreenTab, string> = {
   legal: "Mentions légales",
 };
 
-/** Ordre de balayage mobile (swipe horizontal gauche/droite — TikTok-like) */
-const SWIPE_ORDER: ClientTab[] = ["accueil", "boutique", "diagnostic", "rdv", "profil"];
+/** Ordre de balayage mobile (swipe horizontal gauche/droite) */
+const SWIPE_ORDER: ClientTab[] = ["accueil", "chat", "diagnostic", "profil"];
 
 // ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
 import { DiagnosticScreen } from "./DiagnosticScreen";
@@ -148,7 +145,7 @@ export function ClientApp() {
     try {
       const params = new URLSearchParams(window.location.search);
       const targetTab = params.get("tab")?.toLowerCase();
-      const VALID_TABS: ClientTab[] = ["accueil", "diagnostic", "boutique", "rdv", "chat", "profil", "parametres", "abonnement", "legal"];
+      const VALID_TABS: ClientTab[] = ["accueil", "diagnostic", "chat", "profil", "parametres", "abonnement", "legal"];
       if (targetTab && VALID_TABS.includes(targetTab as ClientTab)) {
         setClientTab(targetTab as ClientTab);
       }
@@ -156,6 +153,13 @@ export function ClientApp() {
       // noop
     }
   }, [setClientTab]);
+
+  // Redirection automatique : boutique et rendez-vous passent par WhatsApp
+  useEffect(() => {
+    if (tab === "boutique" || tab === "rdv") {
+      setClientTab("accueil");
+    }
+  }, [tab, setClientTab]);
 
   // File d'attente offline du diagnostic: les photos mises en
   // attente partent TOUTES SEULES au retour du réseau — peu importe l'écran
@@ -630,17 +634,17 @@ export function ClientApp() {
               <NeaOnnimIcon size={20} />
               <p className="text-xs font-bold mt-1.5 leading-tight">Scanner<br />ma peau</p>
             </button>
-            <button onClick={() => goTab("boutique")} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Boutique">
-              <ShoppingBag size={20} className="text-primary" />
-              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Boutique<br />botaniques</p>
-            </button>
-            <button onClick={() => goTab("rdv")} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Rendez-vous">
-              <CalendarDays size={20} className="text-primary" />
-              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Prendre<br />RDV</p>
-            </button>
-            <button onClick={() => goTab("chat")} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Dr. Kènè — chat">
+            <button onClick={() => goTab("chat")} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Dermo Kènè — Dermo-Conseil IA">
               <MessageCircle size={20} className="text-primary" />
-              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Dr. Kènè<br />chat IA</p>
+              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Dermo Kènè<br />Conseil IA</p>
+            </button>
+            <button onClick={() => openWhatsAppProductOrderInquiry()} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-[#25D366]/30 bg-[#25D366]/5" aria-label="Commander par WhatsApp">
+              <ShoppingBag size={20} className="text-[#25D366]" />
+              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Commander<br /><span className="text-[#25D366] font-bold">WhatsApp 💬</span></p>
+            </button>
+            <button onClick={() => openWhatsAppAppointmentInquiry()} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-[#25D366]/30 bg-[#25D366]/5" aria-label="Prendre RDV par WhatsApp">
+              <CalendarDays size={20} className="text-[#25D366]" />
+              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Prendre RDV<br /><span className="text-[#25D366] font-bold">WhatsApp 💆‍♀️</span></p>
             </button>
           </div>
 

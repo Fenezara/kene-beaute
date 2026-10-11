@@ -433,7 +433,7 @@ export function SkinHealthDashboard({
             className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:underline self-start sm:self-auto"
           >
             <MessageCircle size={13} />
-            Demander au Dr. Kènè
+            Demander à Dermo Kènè
           </button>
         </div>
 
