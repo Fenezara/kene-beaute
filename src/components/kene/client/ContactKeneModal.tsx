@@ -120,7 +120,7 @@ export function ContactKeneModal({ open, onOpenChange, userName }: ContactKeneMo
             <div className="rounded-xl bg-muted/60 p-2.5 text-[10.5px] text-muted-foreground leading-relaxed flex items-start gap-2">
               <ShieldCheck size={14} className="text-primary shrink-0 mt-0.5" />
               <span>
-                <strong>Précision soins &amp; cabine :</strong> Pour toute question sur vos diagnostics, soins en cabine ou ordonnance de produits, contactez directement la responsable de votre institut partenaire depuis votre accueil.
+                <strong>Précision soins &amp; cabine :</strong> Pour toute question sur vos diagnostics, soins en cabine ou recommandations de rituels et soins, contactez directement votre institut partenaire depuis votre accueil.
               </span>
             </div>
           </div>

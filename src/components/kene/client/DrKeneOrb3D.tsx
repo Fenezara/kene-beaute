@@ -1,6 +1,6 @@
 "use client";
-// Kènè Cliente — L'Orbe Sacré de Consultation du Dr. Kènè (Émeraude Botanique & Cauri d'Or 3D)
-// Incarnation visuelle et vivante du Dr. Kènè :
+// Kènè Cliente — L'Orbe Sacré de Consultation de Dermo Kènè (Émeraude Botanique & Cauri d'Or 3D)
+// Incarnation visuelle et vivante de Dermo Kènè :
 // • Cœur Émeraude Végétale (Moringa, Aloe Vera, régénération cellulaire cutanée)
 // • Double Anneau Gyroscopique d'Or Akan (noblesse, protection mélanique et éclat du teint)
 // • Cauri Sacré de Nacre Céleste en lévitation centrale
@@ -201,7 +201,7 @@ function SacredCowrieNodule({
     m.rotation.y += delta * 0.35;
     m.rotation.x = Math.sin(Date.now() * 0.0014) * 0.12;
 
-    // Teinte et émissivité selon l'activité du Dr. Kènè
+    // Teinte et émissivité selon l'activité de Dermo Kènè
     const mat = m.material as THREE.MeshPhysicalMaterial;
     if (state === "listening") {
       mat.emissive.set("#10B981");

@@ -121,7 +121,11 @@ function sanitizePersisted(raw: unknown): Partial<PersistedKene> {
   } else {
     out.space = out.user ? spaceForRole(out.user.role) : "client";
   }
-  if (TABS.includes(p.clientTab as ClientTab)) out.clientTab = p.clientTab as ClientTab;
+  if (p.clientTab === "boutique" || p.clientTab === "rdv") {
+    out.clientTab = "accueil";
+  } else if (TABS.includes(p.clientTab as ClientTab)) {
+    out.clientTab = p.clientTab as ClientTab;
+  }
   if (Array.isArray(p.cart)) out.cart = (p.cart as unknown[]).filter(isSaneCartLine);
   else out.cart = [];
   if (typeof p.proTenantId === "string") out.proTenantId = p.proTenantId;
@@ -158,7 +162,8 @@ export const useKene = create<KeneState>()(
           return { space: allowed };
         }),
       setIntroActive: (introActive) => set({ introActive }),
-      setClientTab: (clientTab) => set({ clientTab }),
+      setClientTab: (clientTab) =>
+        set({ clientTab: clientTab === "boutique" || clientTab === "rdv" ? "accueil" : clientTab }),
       // setUser fait suivre l'espace au rôle (null → « client » = retour
       // onboarding; user pro/admin → ProApp/AdminApp se montent).
       // Si l'utilisateur est admin ou pro et qu'un espace autorisé est déjà actif, on respecte son choix.

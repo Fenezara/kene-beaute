@@ -37,7 +37,7 @@ export const SERVICE_CATEGORIES: readonly CategoryMeta[] = [
     id: "diagnostic",
     label: "Diagnostics & Bilans de Peau",
     shortLabel: "Diagnostics",
-    description: "Bilans dermo-botaniques approfondis, analyse caméra et prescriptions de rituels sur mesure.",
+    description: "Bilans dermo-botaniques approfondis, analyse caméra et protocoles de rituels sur mesure.",
     tone: "blue",
   },
   {

@@ -3,11 +3,12 @@
 // (overlay plein cadre ≤430px — 7 étapes: le fil, 4 stations, l'institut, le tissage)
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, CalendarPlus, Check, Moon, ShoppingBag, Sunrise, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarPlus, Check, MessageCircle, Moon, ShoppingBag, Sunrise, X } from "lucide-react";
 import { toast } from "sonner";
 import { xof, CASHBACK_RATE } from "@/lib/kene/format";
 import { BODY_ZONES, type DiagnosisResult } from "@/lib/kene/types";
 import { CauriIcon, NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
+import { openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
 import { useKene } from "@/store/kene";
 import type { ApiProduct } from "@/components/kene/client/types";
 import { buildRitual, ritualTotal, shade, type StationPick } from "./ritual";
@@ -383,28 +384,23 @@ export function RitualJourney({
                         <li key={p.product.id} className="flex items-center gap-2.5">
                           <img src={p.product.image} alt="" loading="lazy" className="h-8 w-8 rounded-lg object-cover shrink-0" aria-hidden="true" />
                           <span className="text-[11.5px] font-semibold min-w-0 flex-1 truncate">{p.product.name}</span>
-                          <span className="font-mono text-[11px] font-bold">{xof(p.product.price)}</span>
                           <button onClick={() => toggle(p.product.id)} aria-label={`Retirer ${p.product.name}`} className="h-7 w-7 grid place-items-center rounded-full text-muted-foreground hover:text-destructive active:scale-90 transition-transform focus-visible:outline-2 focus-visible:outline-destructive">
                             <X size={13} />
                           </button>
                         </li>
                       ))}
                     </ul>
-                    <div className="mt-3 pt-3 border-t border-dashed border-border flex items-center justify-between">
-                      <span className="text-xs font-semibold">Total du rituel</span>
-                      <span className="font-mono text-base font-black text-primary">{xof(total)}</span>
-                    </div>
                   </div>
                 )}
 
                 <button
                   onClick={() => {
                     onClose();
-                    setClientTab("rdv");
+                    openWhatsAppAppointmentInquiry();
                   }}
                   className="mt-4 w-full h-11 rounded-xl border border-[#3F7D3F]/50 text-[#3F7D3F] text-xs font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#3F7D3F]"
                 >
-                  <CalendarPlus size={14} /> Réserver le soin en institut
+                  <CalendarPlus size={14} /> Réserver le soin en cabine (WhatsApp)
                 </button>
               </div>
             )}
@@ -434,12 +430,18 @@ export function RitualJourney({
             </button>
           ) : (
             <button
-              onClick={weaveCart}
+              onClick={() => {
+                onClose();
+                const pickedNames = keptPicks.map((p) => p.product.name).join(", ");
+                openWhatsAppProductOrderInquiry({
+                  productName: `Rituel tissé personnalisé (${pickedNames || "Actifs botaniques"})`,
+                });
+              }}
               disabled={keptPicks.length === 0}
               className="h-14 flex-1 rounded-2xl bg-primary text-primary-foreground font-heading font-black text-base shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              <ShoppingBag size={18} />
-              {keptPicks.length > 0 ? `Tisser mon panier · ${xof(total)}` : "Aucun fil retenu"}
+              <MessageCircle size={18} />
+              {keptPicks.length > 0 ? "Recevoir mon rituel sur WhatsApp" : "Aucun fil retenu"}
             </button>
           )}
         </div>

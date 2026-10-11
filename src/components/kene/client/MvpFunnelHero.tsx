@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   MessageCircle,
   Leaf,
-  Store,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
@@ -18,7 +17,6 @@ import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { scoreColor } from "@/lib/kene/format";
 import { CauriIcon } from "@/components/kene/icons";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { ApiDiagnosis, ApiInstitute } from "./types";
 
@@ -43,27 +41,19 @@ export function MvpFunnelHero({
 }: MvpFunnelHeroProps) {
   const user = useKene((s) => s.user)!;
 
-  const [selectedInstituteId, setSelectedInstituteId] = useState<string>(() => {
-    if (defaultInstituteId) return defaultInstituteId;
-    if (institutes.length > 0) return institutes[0].id;
-    return "";
-  });
-  const [selectorOpen, setSelectorOpen] = useState(false);
-
-  useEffect(() => {
-    if (defaultInstituteId) {
-      setSelectedInstituteId(defaultInstituteId);
-    } else if (!selectedInstituteId && institutes.length > 0) {
-      const userCity = (user?.city || "").toLowerCase().trim();
-      const match = userCity ? institutes.find((i) => i.city.toLowerCase().includes(userCity)) : null;
-      setSelectedInstituteId(match?.id ?? institutes[0].id);
-    }
-  }, [defaultInstituteId, institutes, selectedInstituteId, user?.city]);
-
   const currentInstitute = useMemo(() => {
     if (!institutes || institutes.length === 0) return null;
-    return institutes.find((i) => i.id === selectedInstituteId) || institutes[0] || null;
-  }, [institutes, selectedInstituteId]);
+    if (defaultInstituteId) {
+      const found = institutes.find((i) => i.id === defaultInstituteId);
+      if (found) return found;
+    }
+    const userCity = (user?.city || "").toLowerCase().trim();
+    if (userCity) {
+      const match = institutes.find((i) => i.city.toLowerCase().includes(userCity));
+      if (match) return match;
+    }
+    return institutes[0] || null;
+  }, [defaultInstituteId, institutes, user?.city]);
 
   // Ouverture WhatsApp vers la première responsable de l'institut partenaire
   const handleOpenInstituteWhatsApp = () => {
@@ -137,7 +127,7 @@ export function MvpFunnelHero({
                 </span>
                 <div className="text-left">
                   <span className="block leading-tight font-black">Lancer mon Diagnostic Gratuit</span>
-                  <span className="block text-[10.5px] font-semibold opacity-85">Bilan dermo-biométrique · Zéro frais</span>
+                  <span className="block text-[10.5px] font-semibold opacity-85">Bilan dermo-botanique personnalisé · Gratuit</span>
                 </div>
               </div>
               <ChevronRight size={20} className="transition-transform group-hover:translate-x-1" />
@@ -224,118 +214,49 @@ export function MvpFunnelHero({
         </section>
       )}
 
-      {/* ───── 3. ÉCHANGER AVEC LA RESPONSABLE DE L'INSTITUT SUR WHATSAPP ───── */}
+      {/* ───── 3. CONCIERGERIE PRIVÉE KÈNÈ (WHATSAPP DÉDIÉ) ───── */}
       <section
-        aria-label="Contacter la responsable de l'institut"
-        className="rounded-2xl border border-[#25D366]/30 bg-[#25D366]/5 p-3.5 sm:p-4 flex flex-col gap-2.5"
+        aria-label="Conciergerie Privée Kènè"
+        className="rounded-[24px] border border-[#25D366]/30 bg-gradient-to-br from-[#25D366]/10 via-[#25D366]/5 to-transparent p-4 sm:p-5 flex flex-col gap-3 shadow-sm"
       >
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#25D366] text-white shadow-sm">
-              <MessageCircle size={20} />
+          <div className="flex items-center gap-3.5 min-w-0">
+            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#25D366] text-white shadow-md">
+              <MessageCircle size={22} />
             </span>
             <div className="min-w-0">
-              <p className="font-heading font-bold text-xs sm:text-sm text-foreground truncate">
-                Une question ? Échanger avec la responsable
+              <p className="font-heading font-black text-sm text-foreground truncate">
+                Conciergerie Privée Kènè
               </p>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <p className="text-[11px] text-muted-foreground truncate">
-                  {currentInstitute ? (
-                    <>
-                      <span className="font-semibold text-foreground">{currentInstitute.name}</span>
-                      {currentInstitute.ownerName && (
-                        <span> · {currentInstitute.ownerName}</span>
-                      )}
-                    </>
-                  ) : (
-                    "Institut partenaire · Conseil personnalisé & soins"
-                  )}
-                </p>
-                {institutes.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectorOpen(true)}
-                    className="text-[10px] font-bold text-primary underline underline-offset-2 hover:opacity-80"
-                  >
-                    (Changer)
-                  </button>
-                )}
-              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                Une question, un rituel sur-mesure ou envie d&apos;un soin en cabine ?
+              </p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleOpenInstituteWhatsApp}
-            className="shrink-0 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-[11px] px-3.5 py-2 flex items-center gap-1.5 shadow-xs transition-transform active:scale-95"
+            className="shrink-0 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs px-4 py-2.5 flex items-center gap-2 shadow-sm transition-transform active:scale-95"
           >
-            <MessageCircle size={14} />
-            Discuter
+            <MessageCircle size={15} />
+            Échanger
           </button>
         </div>
 
-        {/* Passerelle vers le Support Kènè */}
+        {/* Passerelle vers le Support d'écoute Kènè */}
         {onOpenContactKene && (
-          <div className="pt-2 border-t border-[#25D366]/20 flex items-center justify-between text-[10.5px] text-muted-foreground">
-            <span>Une question sur l&apos;application Kènè ?</span>
+          <div className="pt-2 border-t border-[#25D366]/20 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Besoin d&apos;aide ou d&apos;orientation ?</span>
             <button
               type="button"
               onClick={onOpenContactKene}
               className="font-bold text-primary hover:underline"
             >
-              Contactez le support Kènè →
+              Écoute &amp; Support Kènè →
             </button>
           </div>
         )}
       </section>
-
-      {/* Dialogue de sélection de l'institut partenaire */}
-      <Dialog open={selectorOpen} onOpenChange={setSelectorOpen}>
-        <DialogContent className="max-w-md p-5 rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="font-heading font-bold text-base flex items-center gap-2">
-              <Store size={18} className="text-primary" />
-              Choisir votre institut partenaire
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Sélectionnez l&apos;établissement avec lequel vous souhaitez échanger directement sur WhatsApp.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-72 overflow-y-auto pretty-scroll space-y-2 py-2 pr-1">
-            {institutes.map((inst) => {
-              const active = inst.id === currentInstitute?.id;
-              return (
-                <button
-                  key={inst.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedInstituteId(inst.id);
-                    setSelectorOpen(false);
-                    toast.success(`Institut sélectionné : ${inst.name}`);
-                  }}
-                  className={cn(
-                    "w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between gap-3",
-                    active
-                      ? "border-primary bg-primary/5 ring-1 ring-primary"
-                      : "border-border hover:bg-muted/50 bg-card"
-                  )}
-                >
-                  <div className="min-w-0">
-                    <p className="font-heading font-bold text-xs text-foreground truncate">{inst.name}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {inst.city} · {inst.ownerName ? `Gérante : ${inst.ownerName}` : "Institut certifié"}
-                    </p>
-                  </div>
-                  {active && (
-                    <span className="grid size-6 place-items-center rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">
-                      ✓
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

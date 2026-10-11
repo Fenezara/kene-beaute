@@ -538,7 +538,7 @@ export function ClientApp() {
           aria-label="Navigation principale mobile"
           className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]"
         >
-          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-5 h-[64px] rounded-[30px] k-chrome">
+          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-4 h-[64px] rounded-[30px] k-chrome">
             {NAV_MOBILE.map((n) => {
               const active = tab === n.tab;
               const Icon = n.icon;
@@ -568,7 +568,7 @@ export function ClientApp() {
                   key={n.tab}
                   onClick={() => goTab(n.tab)}
                   aria-current={active ? "page" : undefined}
-                  aria-label={t(n.labelKey) + (n.tab === "boutique" && cartCount > 0 ? ` — ${cartCount} article${cartCount > 1 ? "s" : ""} au panier` : "")}
+                  aria-label={t(n.labelKey)}
                   className={cn(
                     "relative flex flex-col items-center justify-center gap-1 h-full transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
                     active ? "text-primary" : "text-muted-foreground",
@@ -585,17 +585,6 @@ export function ClientApp() {
                     />
                   )}
                   <Icon className="relative size-[22px]" />
-                  {n.tab === "boutique" && cartCount > 0 && (
-                    <motion.span
-                      key={cartCount}
-                      initial={{ scale: 0.4 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 18 }}
-                      className="absolute -top-1 -right-1.5 h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-black grid place-items-center ring-2 ring-background" aria-hidden="true"
-                    >
-                      {cartCount}
-                    </motion.span>
-                  )}
                 </span>
                 <span className={cn("text-xs tracking-tight", active ? "font-bold text-primary" : "font-semibold")}>{t(n.labelKey)}</span>
               </button>
@@ -638,13 +627,13 @@ export function ClientApp() {
               <MessageCircle size={20} className="text-primary" />
               <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Dermo Kènè<br />Conseil IA</p>
             </button>
-            <button onClick={() => openWhatsAppProductOrderInquiry()} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-[#25D366]/30 bg-[#25D366]/5" aria-label="Commander par WhatsApp">
+            <button onClick={() => openWhatsAppProductOrderInquiry()} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-[#25D366]/30 bg-[#25D366]/5" aria-label="Mon rituel de soin par WhatsApp">
               <ShoppingBag size={20} className="text-[#25D366]" />
-              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Commander<br /><span className="text-[#25D366] font-bold">WhatsApp 💬</span></p>
+              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Mon Rituel<br /><span className="text-[#25D366] font-bold">WhatsApp 🌿</span></p>
             </button>
-            <button onClick={() => openWhatsAppAppointmentInquiry()} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-[#25D366]/30 bg-[#25D366]/5" aria-label="Prendre RDV par WhatsApp">
+            <button onClick={() => openWhatsAppAppointmentInquiry()} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-[#25D366]/30 bg-[#25D366]/5" aria-label="Soin en cabine par WhatsApp">
               <CalendarDays size={20} className="text-[#25D366]" />
-              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Prendre RDV<br /><span className="text-[#25D366] font-bold">WhatsApp 💆‍♀️</span></p>
+              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Soin Cabine<br /><span className="text-[#25D366] font-bold">WhatsApp 💆‍♀️</span></p>
             </button>
           </div>
 

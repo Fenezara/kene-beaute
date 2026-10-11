@@ -6,7 +6,7 @@
 // 2. Les 4 Piliers Vitaux (Hydratation, Barrière Lipidique, Homogénéité PIH, Pureté Sébacée)
 // 3. Météo Cutanée & Protection UV selon le phototype mélanoderme
 // 4. L'Alerte Prioritaire du Jour & Geste Clé
-// 5. Suivi des zones scannées & bouton d'accès au diagnostic complet / Dr. Kènè
+// 5. Suivi des zones scannées & bouton d'accès au diagnostic complet / Dermo Kènè
 
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
