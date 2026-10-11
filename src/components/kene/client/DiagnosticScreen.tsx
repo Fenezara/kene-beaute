@@ -1479,6 +1479,40 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
             </div>
           )}
 
+          {/* Institut Référent notifié du diagnostic */}
+          {user.selectedTenant && (
+            <div className="mt-5 k-card rounded-[24px] p-4 border border-[#3F7D3F]/30 bg-gradient-to-br from-[#3F7D3F]/10 via-card to-card shadow-xs">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="grid place-items-center size-8 rounded-xl bg-[#3F7D3F]/20 text-[#3F7D3F] shrink-0">
+                    <Building2 size={16} />
+                  </span>
+                  <div>
+                    <p className="font-heading font-bold text-xs text-foreground">
+                      Mon Institut Référent notifié ✅
+                    </p>
+                    <p className="text-[10.5px] text-muted-foreground">
+                      Votre bilan a été transmis à {user.selectedTenant.name} ({user.selectedTenant.city})
+                    </p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] px-2.5 py-0.5 text-[10px] font-bold shrink-0">
+                  Transmis
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const phone = user.selectedTenant?.phone || "2250700000000";
+                  openWhatsApp(phone, `Bonjour ${user.selectedTenant?.name} ! 🌸\nJe viens de finaliser mon bilan de peau (${r.score_global}/100) sur l'application Kènè. Je souhaite programmer mon soin.`);
+                }}
+                className="mt-3.5 h-11 w-full rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold flex items-center justify-center gap-2 active:scale-98 transition-all shadow-xs"
+              >
+                <MessageCircle size={15} /> Échanger avec mon institut sur WhatsApp
+              </button>
+            </div>
+          )}
+
           {/* Recommandation intelligente post-diagnostic — Uniquement clientes NON rattachées */}
           {!isAttachedOrShared && recommendedInstitute && (
             <div className="mt-5 k-card rounded-[24px] p-4 border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card shadow-xs">

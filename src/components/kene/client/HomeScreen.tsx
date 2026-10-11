@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Building2,
   ChevronRight,
   CloudSun,
   Crown,
@@ -20,7 +21,7 @@ import {
   Sunrise,
   Wind,
 } from "lucide-react";
-import { openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
+import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
 import { apiGet } from "@/lib/kene/api";
 import { formatDate, formatTime } from "@/lib/kene/format";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
@@ -195,6 +196,12 @@ export function HomeScreen({
       icon: <CloudSun size={15} className="text-primary" />,
     };
   }, [user.city, user.district]);
+
+  /** Institut partenaire coché par la cliente */
+  const selectedInst = useMemo(() => {
+    if (!user.selectedTenantId || !data?.institutes) return null;
+    return data.institutes.find((i) => i.id === user.selectedTenantId) ?? null;
+  }, [user.selectedTenantId, data?.institutes]);
 
   return (
     <Reveal className="flex flex-col gap-6 pt-1">
@@ -477,6 +484,75 @@ export function HomeScreen({
           </button>
         </section>
       </RevealItem>
+
+      {/* ───── Mon Institut Partenaire Référent (Coché) ou Découverte ───── */}
+      {selectedInst ? (
+        <RevealItem>
+          <section aria-labelledby="mon-institut-t" className="rounded-[24px] border border-primary/30 bg-primary/5 p-4 sm:p-5 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+              <div className="flex items-start gap-3 min-w-0">
+                <span className="grid size-10 place-items-center rounded-2xl bg-primary text-primary-foreground shrink-0 mt-0.5 shadow-xs">
+                  <Building2 size={18} />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10.5px] font-bold uppercase tracking-wider text-primary">Mon Institut Référent Coché ✅</span>
+                  </div>
+                  <h3 id="mon-institut-t" className="font-heading font-black text-sm sm:text-base text-foreground mt-0.5 truncate">
+                    {selectedInst.name}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    📍 {selectedInst.city} {selectedInst.address ? `· ${selectedInst.address}` : ""}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setClientTab("instituts")}
+                  className="h-9 px-3.5 rounded-xl border border-border bg-card hover:bg-accent text-foreground text-xs font-semibold transition-colors"
+                >
+                  Changer
+                </button>
+                <button
+                  onClick={() => {
+                    const phone = selectedInst.phone || selectedInst.ownerPhone || "2250700000000";
+                    openWhatsApp(phone, `Bonjour ${selectedInst.name} ! 🌸\nJe suis cliente Kènè (${user.name}). Je souhaite échanger avec vous.`);
+                  }}
+                  className="h-9 px-3.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                >
+                  <MessageCircle size={14} />
+                  WhatsApp
+                </button>
+              </div>
+            </div>
+          </section>
+        </RevealItem>
+      ) : (
+        <RevealItem>
+          <section aria-labelledby="choisir-institut-t" className="rounded-[24px] border border-border/80 bg-card/60 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-xs">
+            <div className="flex items-start gap-3 min-w-0">
+              <span className="grid size-10 place-items-center rounded-2xl bg-gold/15 text-gold-text shrink-0 mt-0.5">
+                <Building2 size={18} />
+              </span>
+              <div className="min-w-0">
+                <h3 id="choisir-institut-t" className="font-heading font-bold text-sm text-foreground">
+                  Choisis ton institut partenaire
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  Retrouve tous les instituts agréés et coche ton institut référent pour qu&apos;il reçoive tes bilans de peau.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setClientTab("instituts")}
+              className="shrink-0 h-10 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+            >
+              <Building2 size={14} />
+              Voir les instituts
+            </button>
+          </section>
+        </RevealItem>
+      )}
 
       {/* ───── Fin de fil — mentions légales & confiance ───── */}
       <RevealItem>

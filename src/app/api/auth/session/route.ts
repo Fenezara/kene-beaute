@@ -33,7 +33,10 @@ export async function GET(req: NextRequest) {
     // (même shape JSON { user } — rien ne casse côté SessionKeeper).
     const sess = sessionFromRequest(req);
     if (sess) {
-      const user = await db.user.findUnique({ where: { id: sess.userId } });
+      const user = await db.user.findUnique({
+        where: { id: sess.userId },
+        include: { selectedTenant: { select: { id: true, name: true, city: true, phone: true, address: true } } },
+      });
       if (!user) return jsonError("Session expirée", 404);
       // t. 128 — modération Console: un compte verrouillé (ou un institut
       // suspendu) ne doit pas restaurer sa session au boot. 404 « Session

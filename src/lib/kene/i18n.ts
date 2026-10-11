@@ -31,13 +31,15 @@ const FR: Dict = {
   "tab.shop.short": "Boutik",
   "tab.rdv": "Rendez-vous",
   "tab.rdv.short": "RDV",
-  "tab.chat": "Messages",
+  "tab.institutes": "Instituts",
+  "tab.chat": "Dermo Kènè",
   "tab.profile": "Profil",
   "nav.scan.aria": "Scanner ma peau — diagnostic IA",
-  "nav.chat.aria": "Dermo Kènè — chat",
+  "nav.chat.aria": "Dermo Kènè — guide dermo-botanique",
 
   // Titres d'écran (h1 du header ClientApp)
   "title.home": "Accueil",
+  "title.institutes": "Instituts & Salons Partenaires",
   "title.diag": "Diagnostic IA",
   "title.shop": "Boutique",
   "title.rdv": "Rendez-vous",

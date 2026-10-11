@@ -13,7 +13,7 @@
 // lourds sont lazy (chunk dédié au premier clic — HomeScreen/Onboarding eager).
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarDays, Home, Loader2, MessageCircle, Settings, ShoppingBag, User, WifiOff } from "lucide-react";
+import { Building2, CalendarDays, Home, Loader2, MessageCircle, Settings, ShoppingBag, User, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
 import { HAPTIC, haptic, isOnline, useNetworkOnline } from "@/lib/kene/ux";
@@ -35,19 +35,21 @@ import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
 import { cn } from "@/lib/utils";
 
-/** Navigation latérale (desktop) — 4 destinations clés */
+/** Navigation latérale (desktop & tablette) — 5 destinations clés */
 const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
   { tab: "accueil", labelKey: "tab.home", icon: Home },
+  { tab: "instituts", labelKey: "tab.institutes", icon: Building2 },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
   { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
-/** Tab-bar mobile — 4 emplacements épurés avec CTA scan central surélevé */
+/** Tab-bar mobile — 5 emplacements équilibrés avec CTA scan central surélevé */
 const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
   { tab: "accueil", labelKey: "tab.home", icon: Home },
-  { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
+  { tab: "instituts", labelKey: "tab.institutes", icon: Building2 },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
+  { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
@@ -62,6 +64,7 @@ type ScreenTab = ClientTab | "abonnement" | "legal";
 
 const TITLES: Record<ScreenTab, string> = {
   accueil: "title.home",
+  instituts: "title.institutes",
   diagnostic: "title.diag",
   boutique: "title.shop",
   rdv: "title.rdv",
@@ -75,9 +78,10 @@ const TITLES: Record<ScreenTab, string> = {
 };
 
 /** Ordre de balayage mobile (swipe horizontal gauche/droite) */
-const SWIPE_ORDER: ClientTab[] = ["accueil", "chat", "diagnostic", "profil"];
+const SWIPE_ORDER: ClientTab[] = ["accueil", "instituts", "diagnostic", "chat", "profil"];
 
 // ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
+import { InstitutesScreen } from "./InstitutesScreen";
 import { DiagnosticScreen } from "./DiagnosticScreen";
 import { ShopScreen } from "./ShopScreen";
 import { BookingScreen } from "./BookingScreen";
@@ -145,7 +149,7 @@ export function ClientApp() {
     try {
       const params = new URLSearchParams(window.location.search);
       const targetTab = params.get("tab")?.toLowerCase();
-      const VALID_TABS: ClientTab[] = ["accueil", "diagnostic", "chat", "profil", "parametres", "abonnement", "legal"];
+      const VALID_TABS: ClientTab[] = ["accueil", "instituts", "diagnostic", "chat", "profil", "parametres", "abonnement", "legal"];
       if (targetTab && VALID_TABS.includes(targetTab as ClientTab)) {
         setClientTab(targetTab as ClientTab);
       }
@@ -309,14 +313,19 @@ export function ClientApp() {
       {/* ───────── Rail latéral tablette + desktop (md+) — chrome verre ───────── */}
       <aside
         aria-label="Navigation principale"
-        className="hidden md:flex w-[240px] xl:w-[260px] shrink-0 flex-col k-chrome"
+        className="hidden md:flex w-[84px] lg:w-[240px] xl:w-[260px] shrink-0 flex-col k-chrome transition-[width] duration-200"
       >
-        <div className="h-16 lg:h-18 flex items-center px-4 lg:px-5 border-b border-border/60">
-          {/* Lockup Sceau officiel en haut à gauche — Logo + Nom + Slogan toujours visibles */}
-          <KeneEmblemLockup size={48} labelSize={24} sublabel="Beauté mélanoderme" />
+        <div className="h-16 lg:h-18 flex items-center justify-center lg:justify-start px-2 lg:px-5 border-b border-border/60">
+          {/* Logo en haut à gauche : icône médaillon sur tablette, lockup complet avec slogan sur grand écran */}
+          <div className="hidden lg:block">
+            <KeneEmblemLockup size={46} labelSize={23} sublabel="Beauté mélanoderme" />
+          </div>
+          <div className="lg:hidden" title="Kènè — Beauté mélanoderme">
+            <KeneEmblem size={38} />
+          </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto pretty-scroll px-3 py-4 flex flex-col gap-1.5">
+        <nav className="flex-1 overflow-y-auto pretty-scroll px-2 lg:px-3 py-4 flex flex-col gap-1.5">
           {NAV_DESKTOP.map((n) => {
             const active = tab === n.tab;
             const Icon = n.icon;
@@ -326,13 +335,14 @@ export function ClientApp() {
                   key={n.tab}
                   onClick={() => goTab(n.tab)}
                   aria-current={active ? "page" : undefined}
+                  title={t(n.labelKey)}
                   className={cn(
-                    "k-cta flex flex-row items-center justify-start gap-3 px-3 h-12 rounded-2xl text-[#FFF9EC] focus-visible:outline-2 focus-visible:outline-primary",
+                    "k-cta flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 px-2 lg:px-3 h-14 lg:h-12 rounded-2xl text-[#FFF9EC] focus-visible:outline-2 focus-visible:outline-primary transition-all",
                     active && "outline-2 outline-[#FFF9EC]/80",
                   )}
                 >
-                  <NeaOnnimIcon size={20} />
-                  <span className="text-sm font-bold tracking-wide">{t(n.labelKey)}</span>
+                  <NeaOnnimIcon size={20} className="shrink-0" />
+                  <span className="text-[10.5px] lg:text-sm font-bold tracking-wide truncate max-w-full">{t(n.labelKey)}</span>
                 </button>
               );
             }
@@ -341,30 +351,20 @@ export function ClientApp() {
                 key={n.tab}
                 onClick={() => goTab(n.tab)}
                 aria-current={active ? "page" : undefined}
-                aria-label={`${t(n.labelKey)}${n.tab === "chat" && chatUnread ? " — 1 nouveau message" : ""}${n.tab === "boutique" && cartCount > 0 ? ` — ${cartCount} article${cartCount > 1 ? "s" : ""} au panier` : ""}`}
+                aria-label={`${t(n.labelKey)}${n.tab === "chat" && chatUnread ? " — 1 nouveau message" : ""}`}
+                title={t(n.labelKey)}
                 className={cn(
-                  "relative flex flex-row items-center justify-start gap-3.5 h-12 px-3 rounded-2xl transition-colors focus-visible:outline-2 focus-visible:outline-primary",
+                  "relative flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3.5 h-14 lg:h-12 px-2 lg:px-3 rounded-2xl transition-colors focus-visible:outline-2 focus-visible:outline-primary",
                   active ? "bg-primary/12 text-primary" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
                 )}
               >
-                <span className="relative">
+                <span className="relative shrink-0">
                   <Icon className={cn("size-[22px]", active && "font-bold")} />
                   {n.tab === "chat" && chatUnread && (
                     <span className="absolute -top-1 -right-1.5 h-2.5 w-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-card" aria-hidden="true" />
                   )}
-                  {n.tab === "boutique" && cartCount > 0 && (
-                    <motion.span
-                      key={cartCount}
-                      initial={{ scale: 0.4 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 18 }}
-                      className="absolute -top-1.5 -right-2 h-4 min-w-4 px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-black grid place-items-center ring-2 ring-card" aria-hidden="true"
-                    >
-                      {cartCount}
-                    </motion.span>
-                  )}
                 </span>
-                <span className={cn("text-[14px] xl:text-[15px]", active ? "font-bold" : "font-medium")}>{t(n.labelKey)}</span>
+                <span className={cn("text-[10px] lg:text-[14px] xl:text-[15px] truncate max-w-full", active ? "font-bold" : "font-medium")}>{t(n.labelKey)}</span>
                 {active && <motion.span layoutId="side-indicator" className="k-rail-line absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full" aria-hidden="true" />}
               </button>
             );
@@ -372,12 +372,17 @@ export function ClientApp() {
         </nav>
 
         {/* Bas de sidebar: sélecteur d'interface + micro légal */}
-        <div className="border-t border-border/60 p-3 xl:p-4 space-y-3">
-          <div className="space-y-1.5">
-            <span className="text-xs uppercase font-bold text-muted-foreground/80 tracking-wider">Interfaces Kènè</span>
-            <SpaceSwitcher variant="pills" className="w-full justify-between" />
+        <div className="border-t border-border/60 p-2 lg:p-3 xl:p-4 space-y-2 lg:space-y-3">
+          <div className="space-y-1">
+            <span className="hidden lg:block text-xs uppercase font-bold text-muted-foreground/80 tracking-wider">Interfaces Kènè</span>
+            <div className="lg:hidden flex justify-center">
+              <SpaceSwitcher variant="compact" />
+            </div>
+            <div className="hidden lg:block">
+              <SpaceSwitcher variant="pills" className="w-full justify-between" />
+            </div>
           </div>
-          <p className="px-1 text-xs leading-relaxed text-muted-foreground/75">
+          <p className="hidden lg:block px-1 text-xs leading-relaxed text-muted-foreground/75">
             Kènè — paiements sécurisés Mobile Money & Carte · estimations IA non médicales
           </p>
         </div>
@@ -483,6 +488,11 @@ export function ClientApp() {
                       <HomeScreen onScanZone={onScanZone} refreshKey={refreshKey} onRefreshed={onRefreshed} />
                     </ScreenBoundary>
                   )}
+                  {tab === "instituts" && (
+                    <ScreenBoundary name="Instituts">
+                      <InstitutesScreen />
+                    </ScreenBoundary>
+                  )}
                   {tab === "diagnostic" && (
                     <ScreenBoundary name="Diagnostic">
                       <DiagnosticScreen pendingZone={pendingZone} onZoneConsumed={onZoneConsumed} />
@@ -538,7 +548,7 @@ export function ClientApp() {
           aria-label="Navigation principale mobile"
           className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]"
         >
-          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-4 h-[64px] rounded-[30px] k-chrome">
+          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-5 h-[64px] rounded-[30px] k-chrome">
             {NAV_MOBILE.map((n) => {
               const active = tab === n.tab;
               const Icon = n.icon;

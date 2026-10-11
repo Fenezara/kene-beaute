@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Baby, BadgeCheck, Calendar, Camera, Check, Coins, Gift, Heart, Loader2, MapPin,
+  Baby, BadgeCheck, Building2, Calendar, Camera, Check, Coins, Gift, Heart, Loader2, MapPin,
   MessageCircle, Pencil, Phone, Plus, Settings, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -348,6 +348,27 @@ export function ProfileScreen() {
                   className="k-input h-10 w-full rounded-xl px-3 text-xs focus-visible:outline-2 focus-visible:outline-primary"
                 />
                 <p className="text-xs text-muted-foreground mt-1">Pour t&apos;orienter vers l&apos;institut le plus proche 📍</p>
+              </div>
+
+              {/* Mon Institut Partenaire Référent */}
+              <div className="pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                      <Building2 size={14} className="text-primary" /> Mon Institut Partenaire Référent
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {user?.selectedTenant?.name || "Aucun institut coché — coche ton institut favori"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setClientTab("instituts")}
+                    className="shrink-0 px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-all shadow-xs"
+                  >
+                    {user?.selectedTenant ? "Modifier" : "Choisir"}
+                  </button>
+                </div>
               </div>
             </div>
 

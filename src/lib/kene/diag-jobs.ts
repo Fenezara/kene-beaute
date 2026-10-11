@@ -95,6 +95,47 @@ export async function processDiagnosisJob(diagnosisId: string): Promise<void> {
       toPhone: user.phone,
       message: `📸 Ton analyse est prête — score ${result.score_global}/100. Ouvre ton diagnostic Kènè.`,
     });
+
+    // ── Notification à l'Entreprise / Institut partenaire ──
+    // L'institut sélectionné (ou l'institut de référence / CRM) reçoit une alerte instantanée
+    try {
+      let targetTenantId: string | null = user.selectedTenantId ?? null;
+      if (!targetTenantId) {
+        const cp = await db.clientProfile.findFirst({
+          where: { OR: [{ userId: user.id }, { phone: user.phone }] },
+          orderBy: { createdAt: "desc" },
+        });
+        targetTenantId = cp?.tenantId ?? null;
+      }
+      if (!targetTenantId) {
+        const firstTenant = await db.tenant.findFirst({ where: { active: true } });
+        targetTenantId = firstTenant?.id ?? null;
+      }
+
+      if (targetTenantId) {
+        const tenant = await db.tenant.findUnique({ where: { id: targetTenantId } });
+        if (tenant && tenant.active) {
+          const zoneLabel = diagnosis.zone.replace("_", " ");
+          await notify({
+            tenantId: tenant.id,
+            channel: "whatsapp",
+            toPhone: tenant.phone || tenant.ownerPhone,
+            message: `🔔 Kènè Pro : Nouveau diagnostic de peau réalisé ! ${user.name} vient d'effectuer son analyse (${zoneLabel} — score ${result.score_global}/100). Sa fiche est consultable dans votre espace Pro.`,
+            metaJson: JSON.stringify({
+              diagId: diagnosis.id,
+              userId: user.id,
+              clientName: user.name,
+              clientPhone: user.phone,
+              zone: diagnosis.zone,
+              score: result.score_global,
+              type: "client_diagnosis_alert",
+            }),
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.warn("[kene:diag-jobs] Notification institut:", notifErr);
+    }
   } catch (err) {
     // Try/catch global: le job ne laisse JAMAIS une ligne en pending éternel
     // côté serveur — l'échec est matérialisé pour le poll front.

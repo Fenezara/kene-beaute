@@ -24,6 +24,7 @@ const Body = z.object({
   skinType: z.string().trim().optional().nullable(),
   fitzpatrick: z.string().trim().optional().nullable(),
   allergies: z.string().trim().optional().nullable(),
+  selectedTenantId: z.string().trim().optional().nullable(),
   goals: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
   // — photo de profil: data URL (nouvelle photo) ou null (retrait).
   // La donnée lourde ne revient JAMAIS dans la réponse: seul `hasAvatar`
@@ -107,5 +108,40 @@ async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
     });
   }
 
-  return NextResponse.json({ user: sanitizeUser(updated) });
+  // Connexion de la cliente à l'institut choisi
+  if (update.selectedTenantId !== undefined && update.selectedTenantId) {
+    const tenantIdStr = String(update.selectedTenantId);
+    const existingProfile = await db.clientProfile.findFirst({
+      where: { tenantId: tenantIdStr, phone: user.phone },
+    });
+    if (existingProfile) {
+      if (!existingProfile.userId) {
+        await db.clientProfile.update({
+          where: { id: existingProfile.id },
+          data: { userId },
+        }).catch(() => null);
+      }
+    } else {
+      await db.clientProfile.create({
+        data: {
+          tenantId: tenantIdStr,
+          userId,
+          name: user.name,
+          phone: user.phone,
+          rfmSegment: "Nouveaux",
+          skinType: user.skinType,
+          fitzpatrick: user.fitzpatrick,
+        },
+      }).catch(() => null);
+    }
+  }
+
+  const refreshed = await db.user.findUnique({
+    where: { id: userId },
+    include: {
+      selectedTenant: { select: { id: true, name: true, city: true, phone: true, address: true } },
+    },
+  });
+
+  return NextResponse.json({ user: sanitizeUser(refreshed ?? updated) });
 }

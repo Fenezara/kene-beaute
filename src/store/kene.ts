@@ -22,7 +22,7 @@ import { persist } from "zustand/middleware";
 import type { CartLine } from "@/lib/kene/types";
 
 export type Space = "client" | "pro" | "admin";
-export type ClientTab = "accueil" | "diagnostic" | "boutique" | "rdv" | "chat" | "profil" | "parametres" | "abonnement" | "legal";
+export type ClientTab = "accueil" | "instituts" | "diagnostic" | "boutique" | "rdv" | "chat" | "profil" | "parametres" | "abonnement" | "legal";
 
 export interface SessionUser {
   id: string;
@@ -38,6 +38,8 @@ export interface SessionUser {
   skinType?: string | null;
   fitzpatrick?: string | null;
   allergies?: string | null;
+  selectedTenantId?: string | null;
+  selectedTenant?: { id: string; name: string; city: string; phone?: string | null; image?: string; address?: string | null } | null;
   consentHealth?: boolean;
   // — photo de profil: la data URL vit en base (jamais dans le
   // store), seul le booléen voyage — l'UI charge /api/media/user/:id.
@@ -75,7 +77,7 @@ interface KeneState extends PersistedKene {
   setProTenantId: (id: string | null) => void;
 }
 
-const TABS: readonly ClientTab[] = ["accueil", "diagnostic", "boutique", "rdv", "chat", "profil", "parametres", "abonnement", "legal"];
+const TABS: readonly ClientTab[] = ["accueil", "instituts", "diagnostic", "boutique", "rdv", "chat", "profil", "parametres", "abonnement", "legal"];
 
 /** Espace autorisé pour un rôle de session — source de vérité
  * unique de l'isolation des comptes: « pro » → espace entreprise, « admin »
