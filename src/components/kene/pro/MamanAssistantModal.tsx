@@ -48,6 +48,7 @@ import type { DebriefResult } from "@/app/api/pro/assistant/debrief/route";
 interface MamanAssistantModalProps {
   tenantId: string;
   tenantName: string;
+  userName?: string;
   isOpen: boolean;
   onClose: () => void;
   onActionExecuted: () => void;
@@ -75,10 +76,15 @@ const QUICK_EXAMPLES = [
 export function MamanAssistantModal({
   tenantId,
   tenantName,
+  userName,
   isOpen,
   onClose,
   onActionExecuted,
 }: MamanAssistantModalProps) {
+  const firstName = useMemo(() => {
+    const raw = (userName || tenantName || "Directrice").trim();
+    return raw.split(/\s+/)[0] || "Directrice";
+  }, [userName, tenantName]);
   const [tab, setTab] = useState<"action" | "daily">("action");
   const [text, setText] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
@@ -246,7 +252,7 @@ export function MamanAssistantModal({
             toast.error("Impossible de transcrire l'audio — Veuillez écrire votre texte.");
           }
         } else {
-          toast.info("Enregistrement très court — Parlez librement, Maman.");
+          toast.info(`Enregistrement très court — Parlez librement, ${firstName}.`);
         }
 
         setIsRecording(false);
@@ -282,7 +288,7 @@ export function MamanAssistantModal({
       recorder.start(250);
 
       haptic(HAPTIC.success);
-      toast.info("J'écoute, Maman… Parle naturellement 🎙️");
+      toast.info(`L'Orbe vous écoute, ${firstName}… Parlez naturellement 🎙️`);
     } catch (err: any) {
       stopVoiceRecording();
       setIsRecording(false);
@@ -366,7 +372,7 @@ export function MamanAssistantModal({
   async function handleAnalyze(overrideText?: string) {
     const query = (overrideText ?? text).trim();
     if (!query) {
-      toast.error("Maman, dis-moi ou écris ce qui s'est passé !");
+      toast.error(`${firstName}, dites-moi ou écrivez ce qui s'est passé !`);
       return;
     }
 
@@ -381,10 +387,11 @@ export function MamanAssistantModal({
       const res = await apiPost<{ debrief: DebriefResult }>("/api/pro/assistant/debrief", {
         tenantId,
         text: query,
+        managerName: firstName,
       });
       setDebrief(res.debrief);
       toast.success("Point analysé avec succès");
-      // Démarrer la lecture vocale bienveillante pour la Maman
+      // Démarrer la lecture vocale bienveillante pour la directrice
       if (res.debrief.vocalSummary) {
         void playVocalSummary(res.debrief.vocalSummary);
       }
@@ -394,8 +401,6 @@ export function MamanAssistantModal({
       setAnalyzing(false);
     }
   }
-
-
 
   // Exécuter et enregistrer dans tous les onglets
   async function handleExecute() {
@@ -412,7 +417,7 @@ export function MamanAssistantModal({
 
       setExecutionDone(true);
       onActionExecuted();
-      toast.success("Tout a été renseigné dans vos onglets, Maman ! 👑");
+      toast.success(`Tout a été renseigné dans vos onglets, ${firstName} ! 👑`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Impossible d'enregistrer le point");
     } finally {
@@ -439,8 +444,8 @@ export function MamanAssistantModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md animate-in fade-in select-none">
-      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-[28px] border-2 border-[#C8951E]/50 bg-[#16110D] text-[#F8F1E4] shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm animate-in fade-in select-none">
+      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-[28px] border border-border/80 bg-card text-foreground shadow-2xl overflow-hidden">
         {/* Liseré Kente signature en haut */}
         <div
           className="h-2 w-full shrink-0"
@@ -451,20 +456,20 @@ export function MamanAssistantModal({
         />
 
         {/* Header */}
-        <header className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/10 shrink-0">
+        <header className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border/80 shrink-0">
           <div className="flex items-center gap-3">
             <span className="grid size-11 place-items-center rounded-2xl bg-gradient-to-tr from-[#C8951E] to-[#E07A2B] text-[#16110D] font-black shadow-lg">
               <Crown size={22} />
             </span>
             <div>
-              <h2 className="font-heading font-black text-base sm:text-lg flex items-center gap-2">
-                Assistante de la Maman
-                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/40">
-                  IA Pro
+              <h2 className="font-heading font-black text-base sm:text-lg flex items-center gap-2 text-foreground">
+                Secrétaire de Direction IA
+                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
+                  {firstName}
                 </span>
               </h2>
               <p className="text-xs text-muted-foreground">
-                Fais ton point oral ou écrit — je m&apos;occupe de tous les onglets
+                Dictez votre point oral ou écrit — je m&apos;occupe de tous vos onglets
               </p>
             </div>
           </div>
@@ -472,7 +477,7 @@ export function MamanAssistantModal({
           <button
             type="button"
             onClick={onClose}
-            className="h-10 w-10 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white transition-all"
+            className="h-10 w-10 grid place-items-center rounded-full bg-muted hover:bg-muted/80 active:scale-95 text-foreground transition-all"
             aria-label="Fermer"
           >
             <X size={20} />
@@ -481,7 +486,7 @@ export function MamanAssistantModal({
 
         {/* Onglets du modal : Action vs Point du Soir */}
         <div className="px-5 pt-3 shrink-0">
-          <div className="grid grid-cols-2 gap-2 bg-white/5 p-1 rounded-2xl border border-white/10 text-xs font-bold">
+          <div className="grid grid-cols-2 gap-2 bg-muted/60 p-1 rounded-2xl border border-border/80 text-xs font-bold">
             <button
               type="button"
               onClick={() => {
@@ -527,22 +532,22 @@ export function MamanAssistantModal({
                       audioLevel={audioLevel}
                       className="mx-auto"
                     />
-                    <p className="text-[11px] font-semibold text-[#E8C9A0] mt-1">
-                      {isRecording ? "🎙️ L'Orbe écoute… Parlez librement" : "✨ Touchez l'Orbe ou cliquez pour dicter"}
+                    <p className="text-[11px] font-semibold text-primary mt-1">
+                      {isRecording ? `🎙️ L'Orbe vous écoute, ${firstName}… Parlez librement` : "✨ Touchez l'Orbe ou cliquez pour dicter"}
                     </p>
                   </div>
 
                   {/* Zone de saisie principale avec micro */}
-                  <div className="relative rounded-[22px] border border-[#C8951E]/40 bg-[#1F1712] p-3.5 focus-within:ring-2 focus-within:ring-[#C8951E]/60 transition-all">
+                  <div className="relative rounded-[22px] border border-border/80 bg-muted/30 focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary/50 p-3.5 transition-all">
                     <textarea
                       value={text}
                       onChange={(e) => setText(e.target.value)}
-                      placeholder="Maman, parle ou écris ton point ici... Exemple : J'ai fait le soin visage éclat à 15 000 F payé par Wave à Tantie Salimata, vendu un baume karité à 8 000 F en espèces..."
+                      placeholder={`Dictez ou écrivez votre point ici, ${firstName}... Exemple : J'ai fait le soin visage éclat à 15 000 F payé par Wave avec Salimata, vendu un baume karité à 8 000 F en espèces...`}
                       rows={4}
                       className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 resize-none outline-none leading-relaxed"
                     />
 
-                    <div className="flex items-center justify-between pt-2 border-t border-white/10 mt-1">
+                    <div className="flex items-center justify-between pt-2 border-t border-border/60 mt-1">
                       {/* Bouton Microphone */}
                       <button
                         type="button"
@@ -554,7 +559,7 @@ export function MamanAssistantModal({
                         }`}
                       >
                         {isRecording ? <MicOff size={15} /> : <Mic size={15} />}
-                        <span>{isRecording ? "J'écoute, Maman… (Arrêter)" : "Dicter au micro"}</span>
+                        <span>{isRecording ? `L'Orbe vous écoute, ${firstName}… (Arrêter)` : "Dicter au micro"}</span>
                       </button>
 
                       {text && (
@@ -580,7 +585,7 @@ export function MamanAssistantModal({
                           key={i}
                           type="button"
                           onClick={() => setText(ex.text)}
-                          className="p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-left transition-all active:scale-[0.98]"
+                          className="p-2.5 rounded-xl border border-border/80 bg-muted/40 hover:bg-muted text-left transition-all active:scale-[0.98]"
                         >
                           <p className="text-xs font-bold text-[#C8951E] leading-tight">{ex.label}</p>
                           <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{ex.text}</p>
@@ -640,13 +645,13 @@ export function MamanAssistantModal({
                   </div>
 
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    Voici ce que je vais renseigner pour vous, Maman :
+                    Voici ce que je vais renseigner pour vous, {firstName} :
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {/* Carte 1 : Caisse (POS) */}
                     {debrief.hasSale && debrief.sale && (
-                      <div className="p-3.5 rounded-2xl border border-border bg-card/80 space-y-1.5">
+                      <div className="p-3.5 rounded-2xl border border-border bg-card space-y-1.5 shadow-xs">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold flex items-center gap-1.5 text-primary">
                             <Coins size={15} /> Caisse (POS)
@@ -663,7 +668,7 @@ export function MamanAssistantModal({
                         </p>
                         {/* Alerte reste à payer / ardoise */}
                         {debrief.sale.remainingDebt > 0 && (
-                          <div className="mt-2 p-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-[11px] text-amber-300 font-bold">
+                          <div className="mt-2 p-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-[11px] text-amber-600 dark:text-amber-400 font-bold">
                             ⚠️ Reste à compléter : {xof(debrief.sale.remainingDebt)} (Inscrit au carnet CRM)
                           </div>
                         )}
@@ -672,12 +677,12 @@ export function MamanAssistantModal({
 
                     {/* Carte 2 : Stock */}
                     {debrief.hasStockMovement && debrief.stock && (
-                      <div className="p-3.5 rounded-2xl border border-border bg-card/80 space-y-1.5">
+                      <div className="p-3.5 rounded-2xl border border-border bg-card space-y-1.5 shadow-xs">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold flex items-center gap-1.5 text-success">
+                          <span className="text-xs font-bold flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                             <Package size={15} /> Stock (Inventaire)
                           </span>
-                          <span className="text-[10px] font-bold text-success">Sortie auto</span>
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Sortie auto</span>
                         </div>
                         {debrief.stock.decrements.map((dec, idx) => (
                           <div key={idx} className="space-y-1 pt-1">
@@ -706,9 +711,9 @@ export function MamanAssistantModal({
 
                     {/* Carte 3 : CRM (Cliente) */}
                     {debrief.hasClient && debrief.client && (
-                      <div className="p-3.5 rounded-2xl border border-border bg-card/80 space-y-1.5">
+                      <div className="p-3.5 rounded-2xl border border-border bg-card space-y-1.5 shadow-xs">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold flex items-center gap-1.5 text-gold-text">
+                          <span className="text-xs font-bold flex items-center gap-1.5 text-primary">
                             <UserCheck size={15} /> CRM (Fiche Cliente)
                           </span>
                           <span className="text-[10px] text-muted-foreground">Visite +1</span>
@@ -724,7 +729,7 @@ export function MamanAssistantModal({
 
                     {/* Carte 4 : Agenda (RDV) */}
                     {debrief.hasAppointment && debrief.appointment && (
-                      <div className="p-3.5 rounded-2xl border border-border bg-card/80 space-y-1.5">
+                      <div className="p-3.5 rounded-2xl border border-border bg-card space-y-1.5 shadow-xs">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold flex items-center gap-1.5 text-primary">
                             <CalendarDays size={15} /> Agenda (Prochain RDV)
@@ -742,7 +747,7 @@ export function MamanAssistantModal({
 
                     {/* Carte 5 : Équipe & Paie */}
                     {debrief.hasTeamCredit && debrief.team && (
-                      <div className="p-3.5 rounded-2xl border border-border bg-card/80 space-y-1.5">
+                      <div className="p-3.5 rounded-2xl border border-border bg-card space-y-1.5 shadow-xs">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
                             <Users size={15} /> Équipe (Paie)
@@ -753,7 +758,7 @@ export function MamanAssistantModal({
                           Commission estimée : <span className="font-mono font-bold text-foreground">+{xof(debrief.team.commissionAmount)}</span>
                         </p>
                         {debrief.team.tipAmount > 0 && (
-                          <p className="text-[11px] text-gold-text font-bold">
+                          <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
                             Pourboire cliente : +{xof(debrief.team.tipAmount)}
                           </p>
                         )}
@@ -764,15 +769,15 @@ export function MamanAssistantModal({
                     {debrief.hasExpense && debrief.expense && (
                       <div className="p-3.5 rounded-2xl border border-red-500/30 bg-red-500/10 space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold flex items-center gap-1.5 text-red-400">
+                          <span className="text-xs font-bold flex items-center gap-1.5 text-red-600 dark:text-red-400">
                             <Wallet size={15} /> Sortie Petite Caisse
                           </span>
-                          <span className="text-[10px] font-bold text-red-400">Comptabilisé</span>
+                          <span className="text-[10px] font-bold text-red-600 dark:text-red-400">Comptabilisé</span>
                         </div>
-                        <p className="font-mono font-black text-base text-white">
+                        <p className="font-mono font-black text-base text-foreground">
                           −{xof(debrief.expense.amount)}
                         </p>
-                        <p className="text-[11px] text-red-200/80">
+                        <p className="text-[11px] text-muted-foreground">
                           {debrief.expense.description}
                         </p>
                       </div>
@@ -784,7 +789,7 @@ export function MamanAssistantModal({
                     <button
                       type="button"
                       onClick={() => setDebrief(null)}
-                      className="h-12 px-4 rounded-2xl border border-white/20 hover:bg-white/10 text-xs font-bold"
+                      className="h-12 px-4 rounded-2xl border border-border hover:bg-muted text-xs font-bold text-foreground"
                     >
                       Corriger
                     </button>
@@ -811,12 +816,12 @@ export function MamanAssistantModal({
               {/* Écran de confirmation de réussite */}
               {executionDone && (
                 <div className="text-center py-6 space-y-4 animate-in zoom-in-95">
-                  <div className="size-16 rounded-full bg-emerald-500/20 text-emerald-400 grid place-items-center mx-auto ring-4 ring-emerald-500/30">
+                  <div className="size-16 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 grid place-items-center mx-auto ring-4 ring-emerald-500/30">
                     <CheckCircle2 size={36} />
                   </div>
                   <div>
-                    <h3 className="font-heading font-black text-xl text-white">
-                      C&apos;est enregistré, Maman ! 👑
+                    <h3 className="font-heading font-black text-xl text-foreground">
+                      C&apos;est enregistré, {firstName} ! 👑
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
                       La caisse, le stock, la fiche cliente et l&apos;agenda ont été mis à jour instantanément.
@@ -845,7 +850,7 @@ export function MamanAssistantModal({
                         setExecutionDone(false);
                         setText("");
                       }}
-                      className="px-6 h-11 rounded-2xl border border-white/20 bg-white/5 hover:bg-white/10 text-xs font-bold text-white"
+                      className="px-6 h-11 rounded-2xl border border-border bg-muted/40 hover:bg-muted text-xs font-bold text-foreground"
                     >
                       Faire un autre point
                     </button>
@@ -866,11 +871,11 @@ export function MamanAssistantModal({
               ) : dailyData ? (
                 <div className="space-y-4">
                   {/* Carte Bilan Global */}
-                  <div className="p-4 rounded-2xl border border-[#C8951E]/50 bg-gradient-to-br from-[#C8951E]/20 via-[#1F1712] to-[#120E0C] text-center space-y-1">
+                  <div className="p-4 rounded-2xl border border-[#C8951E]/50 bg-gradient-to-br from-[#C8951E]/15 via-card to-card text-center space-y-1 shadow-xs">
                     <p className="text-xs uppercase font-bold text-[#C8951E] tracking-widest">
                       Chiffre d&apos;Affaires du Jour
                     </p>
-                    <p className="font-heading font-black text-3xl text-white">
+                    <p className="font-heading font-black text-3xl text-foreground">
                       {xof(dailyData.total)}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -882,35 +887,35 @@ export function MamanAssistantModal({
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="p-3 rounded-xl border border-[#1BA5E0]/40 bg-[#1BA5E0]/10">
                       <p className="text-[10px] font-bold text-[#1BA5E0] uppercase">Wave</p>
-                      <p className="font-mono font-black text-sm text-white mt-0.5">{xof(dailyData.waveTotal)}</p>
+                      <p className="font-mono font-black text-sm text-foreground mt-0.5">{xof(dailyData.waveTotal)}</p>
                     </div>
                     <div className="p-3 rounded-xl border border-[#FF6600]/40 bg-[#FF6600]/10">
                       <p className="text-[10px] font-bold text-[#FF6600] uppercase">Orange Money</p>
-                      <p className="font-mono font-black text-sm text-white mt-0.5">{xof(dailyData.orangeTotal)}</p>
+                      <p className="font-mono font-black text-sm text-foreground mt-0.5">{xof(dailyData.orangeTotal)}</p>
                     </div>
                     <div className="p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10">
-                      <p className="text-[10px] font-bold text-emerald-400 uppercase">Espèces Caisse</p>
-                      <p className="font-mono font-black text-sm text-white mt-0.5">{xof(dailyData.cashTotal)}</p>
+                      <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Espèces Caisse</p>
+                      <p className="font-mono font-black text-sm text-foreground mt-0.5">{xof(dailyData.cashTotal)}</p>
                     </div>
                   </div>
 
                   {/* Alertes de Stock de fin de journée */}
                   {dailyData.lowStockProducts.length > 0 ? (
                     <div className="p-3.5 rounded-2xl border border-amber-500/40 bg-amber-500/10 space-y-2">
-                      <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
+                      <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs font-bold">
                         <AlertTriangle size={15} /> {dailyData.lowStockProducts.length} produit(s) à recommander pour demain :
                       </div>
                       <div className="space-y-1">
                         {dailyData.lowStockProducts.map((p) => (
-                          <div key={p.id} className="flex justify-between items-center text-xs text-white">
+                          <div key={p.id} className="flex justify-between items-center text-xs text-foreground">
                             <span>{p.name}</span>
-                            <span className="font-mono font-bold text-amber-300">Reste {p.stock} (Alerte {p.stockAlert})</span>
+                            <span className="font-mono font-bold text-amber-600 dark:text-amber-400">Reste {p.stock} (Alerte {p.stockAlert})</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <div className="p-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-xs font-bold text-center">
+                    <div className="p-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold text-center">
                       ✓ Tous les stocks sont au vert pour demain !
                     </div>
                   )}

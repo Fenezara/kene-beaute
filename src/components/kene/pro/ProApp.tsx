@@ -46,7 +46,7 @@ export type ProSectionId = "dashboard" | "assistant" | "agenda" | "diagnostic" |
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
-  { id: "assistant", label: "👑 Assistante Maman", icon: Crown, hint: "Débriefing vocal & point" },
+  { id: "assistant", label: "👑 Secrétaire IA", icon: Crown, hint: "Débriefing vocal & point" },
   { id: "agenda", label: "Agenda", icon: SankofaIcon, hint: "Rendez-vous" },
   { id: "diagnostic", label: "Diagnostic", icon: Stethoscope, hint: "En cabine + questionnaire" },
   { id: "caisse", label: "Ventes & Caisse", icon: AbanIcon, hint: "Caisse POS · Commandes en ligne" },
@@ -711,7 +711,7 @@ export function ProApp() {
                   onClick={() => openSection("assistant")}
                   className="h-9 px-3.5 rounded-xl border border-[#C8951E]/60 bg-gradient-to-r from-[#C8951E]/25 via-gold/15 to-transparent hover:from-[#C8951E]/35 text-foreground text-xs font-black flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
                 >
-                  <Crown size={15} className="text-[#C8951E]" /> Assistante Maman 👑
+                  <Crown size={15} className="text-[#C8951E]" /> Secrétaire IA 👑
                 </button>
                 <button
                   type="button"
@@ -773,7 +773,13 @@ export function ProApp() {
               <DashboardSection tenantId={tid} overview={overview} loadingOverview={overview.loading} onNavigate={openSection} />
             )}
             {activeSection === "assistant" && (
-              <AssistantSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} onNavigate={openSection} refreshKey={refreshKey} />
+              <AssistantSection
+                tenantId={tid}
+                tenantName={tenant?.name ?? "Institut"}
+                userName={chipName}
+                onNavigate={openSection}
+                refreshKey={refreshKey}
+              />
             )}
             {activeSection === "agenda" && <AgendaSection tenantId={tid} refreshKey={refreshKey} />}
             {activeSection === "diagnostic" && (
@@ -945,17 +951,18 @@ export function ProApp() {
         type="button"
         onClick={() => openSection("assistant")}
         className="fixed bottom-5 right-5 z-40 h-14 w-14 rounded-full bg-gradient-to-tr from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all ring-4 ring-black/40 group"
-        aria-label="Ouvrir l'Assistante de la Maman"
-        title="Assistante de la Maman (Débriefing 1 clic)"
+        aria-label="Ouvrir la Secrétaire IA de Direction"
+        title="Secrétaire IA de Direction (Débriefing 1 clic)"
       >
         <Crown size={26} className="group-hover:rotate-12 transition-transform" />
       </button>
 
-      {/* Modal Assistante de la Maman */}
+      {/* Modal Assistante / Secrétaire de Direction */}
       {mamanAssistantOpen && (
         <MamanAssistantModal
           tenantId={tid}
           tenantName={tenant?.name ?? "Institut"}
+          userName={chipName}
           isOpen={mamanAssistantOpen}
           onClose={() => setMamanAssistantOpen(false)}
           onActionExecuted={() => {

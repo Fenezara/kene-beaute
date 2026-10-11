@@ -1,8 +1,8 @@
 "use client";
-// Kènè Pro — Section Assistante Intelligente de la Maman (Le Cockpit Royal de la Secrétaire IA)
-// Expérience complète, riche et prestigieuse avec l'Orbe Sacré Cauri 3D sublimé,
-// enregistrement audio tout-terrain (MediaRecorder + ASR Gemini / Whisper), réactivité vocale en temps réel,
-// suggestions rapides de salon, 8 départements connectés et rituel du Point du Soir.
+// Kènè Pro — Section Assistante & Secrétaire de Direction IA
+// Expérience complète, lumineuse et personnalisée avec l'Orbe Sacré Cauri 3D sublimé,
+// reconnaissance vocale tout-terrain, raisonnement humain avec questions de clarification interactives,
+// initiatives de gestion proactives, 8 départements connectés et rituel du Point du Soir.
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
@@ -31,7 +31,8 @@ import {
   TrendingUp,
   AlertTriangle,
   X,
-  Radio,
+  HelpCircle,
+  Lightbulb,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +59,7 @@ import type { ProSectionId } from "./ProApp";
 interface AssistantSectionProps {
   tenantId: string;
   tenantName: string;
+  userName?: string;
   onNavigate?: (sec: ProSectionId) => void;
   refreshKey?: number;
 }
@@ -88,8 +90,15 @@ const QUICK_EXAMPLES = [
 export function AssistantSection({
   tenantId,
   tenantName,
+  userName = "Madame",
   onNavigate,
 }: AssistantSectionProps) {
+  // Prénom d'adresse personnalisée de la gérante
+  const firstName = useMemo(() => {
+    const trimmed = (userName || "Madame").trim();
+    return trimmed.split(/\s+/)[0] || "Madame";
+  }, [userName]);
+
   // Mode de travail : Débriefing instantané ou Bilan du soir
   const [activeTab, setActiveTab] = useState<"instant" | "evening">("instant");
 
@@ -199,14 +208,13 @@ export function AssistantSection({
     if (!started) setAudioState("idle");
   }
 
-  /* ───────────────────────── Analyse Débriefing ───────────────────────── */
+  /* ───────────────────────── Analyse Débriefing & Clarification ───────────────────────── */
 
-  const handleAnalyze = useCallback(async (overrideText?: string) => {
+  const handleAnalyze = useCallback(async (overrideText?: string, contextDebrief?: DebriefResult | null) => {
     const query = (overrideText ?? text).trim();
     if (!query || loading) return;
 
     setLoading(true);
-    setDebrief(null);
     setExecuted(false);
     haptic(HAPTIC.medium);
 
@@ -214,12 +222,19 @@ export function AssistantSection({
       const res = await apiPost<{ debrief: DebriefResult }>("/api/pro/assistant/debrief", {
         tenantId,
         text: query,
+        userName,
+        previousDebrief: contextDebrief ?? (debrief?.needsClarification ? debrief : undefined),
       });
 
       setDebrief(res.debrief);
-      toast.success("L'Orbe a pesé et ventilé votre point !");
 
-      // Écoute automatique de la réponse vocale bienveillante
+      if (res.debrief.needsClarification) {
+        toast.info("Votre secrétaire a besoin d'une petite précision");
+      } else {
+        toast.success("Votre secrétaire a préparé et ventilé vos écritures !");
+      }
+
+      // Écoute automatique de la réponse vocale
       if (res.debrief.vocalSummary) {
         void togglePlayVocalSummary(res.debrief.vocalSummary);
       }
@@ -228,7 +243,14 @@ export function AssistantSection({
     } finally {
       setLoading(false);
     }
-  }, [loading, tenantId, text, togglePlayVocalSummary]);
+  }, [loading, tenantId, text, userName, debrief, togglePlayVocalSummary]);
+
+  // Réponse en 1-Tap à une question de clarification
+  function handleClarificationChoice(choiceValue: string) {
+    setText(choiceValue);
+    haptic(HAPTIC.success);
+    void handleAnalyze(choiceValue, debrief);
+  }
 
   /* ───────────────────────── Moteur Vocal Tout-Terrain ───────────────────────── */
 
@@ -355,7 +377,7 @@ export function AssistantSection({
             setIsEditingText(true);
           }
         } else {
-          toast.info("Enregistrement très court — Parlez librement, Maman.");
+          toast.info(`Enregistrement très court — Parlez librement, ${firstName}.`);
         }
 
         setIsRecording(false);
@@ -386,7 +408,9 @@ export function AssistantSection({
       }
 
       setText("");
-      setDebrief(null);
+      if (!debrief?.needsClarification) {
+        setDebrief(null);
+      }
       setExecuted(false);
       setRecordElapsed(0);
       setIsRecording(true);
@@ -397,7 +421,7 @@ export function AssistantSection({
       }, 1000);
 
       haptic(HAPTIC.success);
-      toast.info("L'Orbe écoute, Maman… Parlez librement 🎙️");
+      toast.info(`L'Orbe vous écoute, ${firstName}… Parlez librement 🎙️`);
     } catch (err: any) {
       stopVoiceRecording();
       setIsRecording(false);
@@ -476,31 +500,31 @@ export function AssistantSection({
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16 select-none animate-in fade-in duration-300">
       {/* ─── 1. EN-TÊTE SOUVERAIN AVEC BASCULE DES RITUELS ─── */}
-      <div className="relative overflow-hidden rounded-[32px] border border-[#C8951E]/40 bg-gradient-to-b from-[#1F1712] via-card to-background p-5 sm:p-7 shadow-xl">
+      <div className="relative overflow-hidden rounded-[32px] border border-border/80 bg-card p-5 sm:p-7 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-gradient-to-r from-[#C8951E] via-[#FFD700] to-[#E07A2B] text-[#16110D] font-black px-3.5 py-1 text-xs shadow-md">
+              <Badge className="bg-gradient-to-r from-[#C8951E] via-[#FFD700] to-[#E07A2B] text-[#16110D] font-black px-3.5 py-1 text-xs shadow-xs">
                 👑 ORBE SOUVERAIN · SECRÉTAIRE IA DE DIRECTION
               </Badge>
-              <Badge variant="outline" className="border-[#C8951E]/40 text-[#E8C9A0] text-xs">
+              <Badge variant="outline" className="border-border text-foreground text-xs font-semibold">
                 {tenantName}
               </Badge>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400">
-                <span className="size-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-ping" />
                 Connecté en direct ⚡
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-heading font-black text-foreground tracking-tight">
-              L&apos;Orbe Sacré de la Maman
+              L&apos;Orbe Sacré · Secrétaire de Direction
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
-              Votre secrétaire de direction intelligente. Dictez votre point après chaque soin, vente ou dépense : l&apos;Orbe Cauri écoute votre voix et renseigne instantanément <strong>la Caisse, le Stock, le CRM, l&apos;Agenda, les Relances et la Compta</strong>.
+              Votre secrétaire de direction intelligente. Dictez votre point après chaque soin, vente ou dépense : l&apos;Orbe écoute votre voix et renseigne instantanément <strong>la Caisse, le Stock, le CRM, l&apos;Agenda, les Relances et la Compta</strong>.
             </p>
           </div>
 
           {/* Sélecteur de rituel (Instant vs Bilan du Soir) */}
-          <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/10 shrink-0 self-start md:self-center shadow-inner">
+          <div className="flex bg-muted/60 p-1.5 rounded-2xl border border-border/80 shrink-0 self-start md:self-center shadow-inner">
             <button
               type="button"
               onClick={() => {
@@ -510,7 +534,7 @@ export function AssistantSection({
               }}
               className={`h-11 px-4 sm:px-5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
                 activeTab === "instant"
-                  ? "bg-gradient-to-r from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-lg scale-100"
+                  ? "bg-gradient-to-r from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-md scale-100"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -527,7 +551,7 @@ export function AssistantSection({
               }}
               className={`h-11 px-4 sm:px-5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
                 activeTab === "evening"
-                  ? "bg-gradient-to-r from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-lg scale-100"
+                  ? "bg-gradient-to-r from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-md scale-100"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -541,10 +565,10 @@ export function AssistantSection({
       {/* ─── ONGLET 1 : DÉBRIEFING D'ACTION AVEC L'ORBE SUBLIMÉ ─── */}
       {activeTab === "instant" && (
         <div className="space-y-6">
-          {/* ─── SCÈNE 3D CENTRALE DE L'ORBE SACRÉ ─── */}
-          <div className="relative rounded-[36px] border border-[#C8951E]/30 bg-radial from-[#2A1C12]/85 via-card/95 to-background/90 p-6 sm:p-10 shadow-2xl flex flex-col items-center justify-center text-center overflow-hidden">
-            {/* Lueur d'or ambiante en arrière-plan */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 sm:w-96 h-80 sm:h-96 rounded-full bg-[#C8951E]/15 blur-3xl pointer-events-none" />
+          {/* ─── SCÈNE CENTRALE LUMINEUSE (PARFAITE EN MODE CLAIR & SOMBRE) ─── */}
+          <div className="relative rounded-[36px] border border-border/80 bg-card p-6 sm:p-10 shadow-lg flex flex-col items-center justify-center text-center overflow-hidden">
+            {/* Lueur d'or chaleureuse et lumineuse */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 sm:w-96 h-80 sm:h-96 rounded-full bg-[#C8951E]/10 blur-3xl pointer-events-none" />
 
             {/* L'Orbe 3D Sublimé : Triple Anneau Gyroscopique Ashanti & Cauri Nacré */}
             <div className="relative z-10 mb-2">
@@ -559,33 +583,33 @@ export function AssistantSection({
 
             {/* Légende & Statut Parlant de l'Orbe */}
             <div className="relative z-10 space-y-3.5 max-w-lg mx-auto">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/50 border border-[#C8951E]/30 text-xs font-semibold text-[#E8C9A0] shadow-sm backdrop-blur-md">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/80 dark:bg-muted/40 border border-border/80 text-xs font-semibold text-foreground shadow-xs">
                 {isRecording ? (
                   <>
                     <span className="size-2 rounded-full bg-red-500 animate-ping" />
-                    <span className="font-mono text-amber-300 font-bold">
+                    <span className="font-mono text-amber-600 dark:text-amber-400 font-bold">
                       {formatSeconds(recordElapsed)}
                     </span>
-                    <span>· L&apos;Orbe écoute votre parole… Parlez naturellement</span>
+                    <span>· L&apos;Orbe vous écoute, {firstName}… Parlez naturellement</span>
                   </>
                 ) : isTranscribing ? (
                   <>
-                    <Loader2 size={13} className="animate-spin text-amber-400" />
+                    <Loader2 size={13} className="animate-spin text-amber-500" />
                     <span>Transcription de votre voix en cours…</span>
                   </>
                 ) : loading || executing ? (
                   <>
                     <Loader2 size={13} className="animate-spin text-[#C8951E]" />
-                    <span>L&apos;Orbe pèse l&apos;or et ventile vos écritures…</span>
+                    <span>L&apos;Orbe pèse et ventile vos écritures…</span>
                   </>
                 ) : audioState === "playing" ? (
                   <>
-                    <Volume2 size={13} className="text-emerald-400 animate-pulse" />
-                    <span>L&apos;Assistante vous répond…</span>
+                    <Volume2 size={13} className="text-emerald-500 animate-pulse" />
+                    <span>Votre secrétaire vous répond…</span>
                   </>
                 ) : executed ? (
                   <>
-                    <CheckCircle2 size={13} className="text-emerald-400" />
+                    <CheckCircle2 size={13} className="text-emerald-500" />
                     <span>Point scellé et enregistré avec succès !</span>
                   </>
                 ) : (
@@ -602,7 +626,7 @@ export function AssistantSection({
                   type="button"
                   onClick={toggleListening}
                   disabled={loading || isTranscribing}
-                  className={`h-14 px-8 rounded-2xl font-black text-sm tracking-wide shadow-xl flex items-center gap-3 transition-all ${
+                  className={`h-14 px-8 rounded-2xl font-black text-sm tracking-wide shadow-lg flex items-center gap-3 transition-all ${
                     isRecording
                       ? "bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 text-white animate-pulse hover:brightness-110"
                       : "k-btn-gold text-primary-foreground hover:scale-105 active:scale-95"
@@ -616,7 +640,7 @@ export function AssistantSection({
                   ) : (
                     <>
                       <Mic size={20} className="animate-pulse" />
-                      <span>Parle-moi, Maman… 🎙️</span>
+                      <span>Dictez votre point, {firstName}… 🎙️</span>
                     </>
                   )}
                 </Button>
@@ -627,7 +651,7 @@ export function AssistantSection({
                     variant="outline"
                     onClick={() => handleAnalyze()}
                     disabled={loading || isTranscribing}
-                    className="h-14 px-6 rounded-2xl border-[#C8951E]/40 hover:bg-[#C8951E]/15 text-foreground font-bold text-sm flex items-center gap-2"
+                    className="h-14 px-6 rounded-2xl border-border hover:bg-muted text-foreground font-bold text-sm flex items-center gap-2"
                   >
                     <Send size={18} className="text-[#C8951E]" />
                     <span>Analyser le texte</span>
@@ -636,18 +660,64 @@ export function AssistantSection({
               </div>
             </div>
 
+            {/* ─── QUESTION DE CLARIFICATION INTERACTIVE (PROACTIVITÉ HUMAINE) ─── */}
+            {debrief?.needsClarification && debrief.clarificationQuestion && (
+              <div className="relative z-10 w-full max-w-2xl mt-5 p-4 rounded-2xl border-2 border-amber-500/50 bg-amber-500/10 dark:bg-amber-950/20 text-left space-y-3 animate-in fade-in slide-in-from-bottom-2 shadow-md">
+                <div className="flex items-start gap-2.5">
+                  <div className="size-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                    <HelpCircle size={18} />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Précision demandée par votre secrétaire :</span>
+                    </p>
+                    <p className="text-sm sm:text-base font-semibold text-foreground leading-snug">
+                      &laquo; {debrief.clarificationQuestion} &raquo;
+                    </p>
+                  </div>
+                </div>
+
+                {/* Choix rapides 1-Tap */}
+                {debrief.clarificationOptions && debrief.clarificationOptions.length > 0 && (
+                  <div className="pt-1 flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold text-muted-foreground mr-1">
+                      Répondre en 1 clic :
+                    </span>
+                    {debrief.clarificationOptions.map((opt, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => handleClarificationChoice(opt.value)}
+                        className="px-3.5 py-1.5 rounded-xl bg-card border border-border hover:border-amber-500 text-xs font-bold text-foreground shadow-xs hover:scale-102 active:scale-95 transition-all"
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={toggleListening}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500 text-white text-xs font-bold flex items-center gap-1.5 hover:bg-amber-600 active:scale-95 transition-all"
+                    >
+                      <Mic size={14} />
+                      <span>Répondre à la voix</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Bulle de Retranscription Vocale en Direct */}
             {(text.trim() || isEditingText) && (
-              <div className="relative z-10 w-full max-w-2xl mt-5 p-4 rounded-2xl bg-black/50 border border-[#C8951E]/30 text-left backdrop-blur-md space-y-2 animate-in fade-in slide-in-from-bottom-2 shadow-lg">
+              <div className="relative z-10 w-full max-w-2xl mt-5 p-4 rounded-2xl bg-muted/50 dark:bg-muted/20 border border-border/80 text-left space-y-2 animate-in fade-in slide-in-from-bottom-2 shadow-xs">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-bold flex items-center gap-1.5 text-[#E8C9A0]">
-                    <CauriIcon size={14} /> Votre parole retranscrite :
+                  <span className="font-bold flex items-center gap-1.5 text-foreground">
+                    <CauriIcon size={14} className="text-[#C8951E]" /> Votre parole retranscrite :
                   </span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setIsEditingText(!isEditingText)}
-                      className="flex items-center gap-1 text-[#C8951E] hover:underline"
+                      className="flex items-center gap-1 text-[#C8951E] hover:underline font-semibold"
                     >
                       <Edit3 size={13} />
                       <span>{isEditingText ? "Valider le texte" : "Modifier"}</span>
@@ -671,11 +741,11 @@ export function AssistantSection({
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     rows={3}
-                    className="w-full rounded-xl bg-background/80 text-sm border-border p-3 focus-visible:ring-primary"
+                    className="w-full rounded-xl bg-card text-sm border-border p-3 focus-visible:ring-primary text-foreground"
                     placeholder="Tapez votre compte-rendu ici..."
                   />
                 ) : (
-                  <p className="text-sm text-foreground/95 leading-relaxed font-medium italic">
+                  <p className="text-sm text-foreground leading-relaxed font-medium italic">
                     &laquo; {text} &raquo;
                   </p>
                 )}
@@ -683,8 +753,8 @@ export function AssistantSection({
             )}
 
             {/* ─── SUGGESTIONS RAPIDES DE SALON EN 1-TAP (INDISPENSABLES) ─── */}
-            <div className="relative z-10 w-full max-w-2xl mt-6 pt-5 border-t border-white/10 space-y-3 text-left">
-              <p className="text-xs font-bold text-[#FFD700] uppercase tracking-wider flex items-center gap-1.5">
+            <div className="relative z-10 w-full max-w-2xl mt-6 pt-5 border-t border-border/60 space-y-3 text-left">
+              <p className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles size={14} className="text-[#C8951E]" />
                 <span>Suggestions rapides de salon (test en 1-tap) :</span>
               </p>
@@ -699,15 +769,15 @@ export function AssistantSection({
                       haptic(HAPTIC.light);
                       toast.info(`Exemple « ${ex.tag} » chargé ! Cliquez sur Analyser.`);
                     }}
-                    className="text-left p-3 rounded-2xl bg-white/5 hover:bg-[#C8951E]/15 border border-white/10 hover:border-[#C8951E]/40 transition group space-y-1 shadow-xs"
+                    className="text-left p-3.5 rounded-2xl bg-muted/40 hover:bg-muted border border-border/80 hover:border-[#C8951E]/50 transition group space-y-1 shadow-xs"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#FFD700] group-hover:text-foreground transition-colors">
+                      <span className="text-xs font-bold text-foreground group-hover:text-[#C8951E] transition-colors">
                         {ex.tag}
                       </span>
                       <span className="text-[10px] text-muted-foreground">{ex.desc}</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground group-hover:text-foreground/90 line-clamp-2 leading-relaxed italic">
+                    <p className="text-[11px] text-muted-foreground group-hover:text-foreground line-clamp-2 leading-relaxed italic">
                       &laquo; {ex.text} &raquo;
                     </p>
                   </button>
@@ -718,29 +788,29 @@ export function AssistantSection({
 
           {/* ─── PÉPITES D'OR : RÉSULTATS DU DÉBRIEFING & DISPATCHING ─── */}
           {debrief && (
-            <div className="space-y-6 rounded-[32px] border border-[#C8951E]/40 bg-card p-6 sm:p-8 shadow-2xl animate-in fade-in slide-in-from-bottom-4">
+            <div className="space-y-6 rounded-[32px] border border-[#C8951E]/40 bg-card p-6 sm:p-8 shadow-xl animate-in fade-in slide-in-from-bottom-4">
               {/* Carte de Réponse Vocale de l'Assistante */}
               {debrief.vocalSummary && (
-                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#C8951E]/20 via-[#C8951E]/10 to-transparent border border-[#C8951E]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="p-4 sm:p-5 rounded-2xl bg-[#C8951E]/10 border border-[#C8951E]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-start gap-3.5">
                     <button
                       type="button"
                       onClick={() => togglePlayVocalSummary(debrief.vocalSummary)}
-                      className="size-12 rounded-2xl bg-[#C8951E]/30 hover:bg-[#C8951E]/50 flex items-center justify-center shrink-0 text-[#C8951E] transition-all shadow-md active:scale-95"
-                      title={audioState === "playing" ? "Arrêter la voix" : "Écouter l'Assistante"}
+                      className="size-12 rounded-2xl bg-[#C8951E]/20 hover:bg-[#C8951E]/40 flex items-center justify-center shrink-0 text-[#C8951E] transition-all shadow-xs active:scale-95"
+                      title={audioState === "playing" ? "Arrêter la voix" : "Écouter votre secrétaire"}
                     >
                       {audioState === "loading" ? (
                         <Loader2 size={22} className="animate-spin" />
                       ) : audioState === "playing" ? (
-                        <VolumeX size={22} className="animate-pulse text-amber-400" />
+                        <VolumeX size={22} className="animate-pulse text-amber-500" />
                       ) : (
                         <Volume2 size={22} />
                       )}
                     </button>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <p className="text-xs font-bold text-[#FFD700] uppercase tracking-wider">
-                          👑 Réponse de votre Assistante :
+                        <p className="text-xs font-bold text-foreground uppercase tracking-wider">
+                          👑 Réponse de votre Secrétaire IA :
                         </p>
                         {audioState === "playing" && (
                           <Badge className="bg-emerald-600 text-white text-[10px] py-0 px-2 animate-pulse">
@@ -759,24 +829,56 @@ export function AssistantSection({
                     variant="outline"
                     size="sm"
                     onClick={() => togglePlayVocalSummary(debrief.vocalSummary)}
-                    className="shrink-0 border-[#C8951E]/40 hover:bg-[#C8951E]/20 text-xs font-bold self-end sm:self-center"
+                    className="shrink-0 border-border hover:bg-muted text-xs font-bold self-end sm:self-center"
                   >
                     {audioState === "playing" ? "⏹️ Arrêter" : "🔊 Réécouter"}
                   </Button>
                 </div>
               )}
 
+              {/* ─── INITIATIVES PROACTIVES SUGGÉRÉES ─── */}
+              {debrief.initiatives && debrief.initiatives.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Lightbulb size={14} className="text-[#C8951E]" />
+                    <span>Initiatives proactives proposées par votre secrétaire :</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {debrief.initiatives.map((init, i) => (
+                      <div
+                        key={i}
+                        className="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/5 flex items-start gap-3"
+                      >
+                        <div className="size-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                          {init.type === "stock_reorder" ? (
+                            <Package size={16} />
+                          ) : init.type === "whatsapp_followup" ? (
+                            <Bell size={16} />
+                          ) : (
+                            <Sparkles size={16} />
+                          )}
+                        </div>
+                        <div className="space-y-0.5 min-w-0">
+                          <p className="text-xs font-bold text-foreground">{init.title}</p>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">{init.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Grille des Pépites d'Or ventilées */}
               <div>
                 <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-                  <CheckCircle2 size={18} className="text-emerald-400" />
+                  <CheckCircle2 size={18} className="text-emerald-500" />
                   <span>Pépites d&apos;actions prêtes à ventiler :</span>
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {/* Pépite Caisse */}
                   {debrief.hasSale && debrief.sale && (
-                    <div className="p-4 rounded-2xl border border-[#C8951E]/30 bg-background/80 space-y-1.5 shadow-sm">
+                    <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
                           <Receipt size={15} className="text-[#C8951E]" /> Pépite Caisse
@@ -785,7 +887,7 @@ export function AssistantSection({
                           {debrief.sale.paymentMethod}
                         </Badge>
                       </div>
-                      <p className="font-mono text-lg font-black text-gold-text">
+                      <p className="font-mono text-lg font-black text-foreground">
                         {xof(debrief.sale.total)}
                       </p>
                       <p className="text-[11px] text-muted-foreground">
@@ -796,26 +898,26 @@ export function AssistantSection({
 
                   {/* Pépite Stock */}
                   {debrief.hasStockMovement && debrief.stock?.decrements && (
-                    <div className="p-4 rounded-2xl border border-border bg-background/80 space-y-1.5 shadow-sm">
+                    <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
                       <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
                         <Package size={15} className="text-[#C8951E]" /> Pépite Stock
                       </span>
                       <p className="text-xs font-semibold text-foreground truncate">
                         {debrief.stock.decrements.map((d) => `${d.productName} (-${d.qty})`).join(", ")}
                       </p>
-                      <p className="text-[11px] text-emerald-400 font-medium">Décompte automatique</p>
+                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Décompte automatique</p>
                     </div>
                   )}
 
                   {/* Pépite CRM Cliente */}
                   {debrief.hasClient && debrief.client && (
-                    <div className="p-4 rounded-2xl border border-border bg-background/80 space-y-1.5 shadow-sm">
+                    <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
                       <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
                         <Users size={15} className="text-[#C8951E]" /> Pépite Cliente CRM
                       </span>
                       <p className="text-xs font-bold text-foreground">{debrief.client.name}</p>
                       {debrief.client.debtAmount && debrief.client.debtAmount > 0 ? (
-                        <p className="text-[11px] text-red-400 font-bold">
+                        <p className="text-[11px] text-red-500 font-bold">
                           Reste à payer : {xof(debrief.client.debtAmount)}
                         </p>
                       ) : (
@@ -826,7 +928,7 @@ export function AssistantSection({
 
                   {/* Pépite Agenda */}
                   {debrief.hasAppointment && debrief.appointment && (
-                    <div className="p-4 rounded-2xl border border-border bg-background/80 space-y-1.5 shadow-sm">
+                    <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
                       <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
                         <Calendar size={15} className="text-[#C8951E]" /> Pépite Agenda
                       </span>
@@ -839,11 +941,11 @@ export function AssistantSection({
 
                   {/* Pépite Petite Caisse */}
                   {debrief.hasExpense && debrief.expense && (
-                    <div className="p-4 rounded-2xl border border-border bg-background/80 space-y-1.5 shadow-sm">
+                    <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
                       <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
-                        <Wallet size={15} className="text-amber-400" /> Petite Caisse
+                        <Wallet size={15} className="text-amber-500" /> Petite Caisse
                       </span>
-                      <p className="font-mono text-lg font-black text-amber-400">
+                      <p className="font-mono text-lg font-black text-amber-600 dark:text-amber-400">
                         -{xof(debrief.expense.amount)}
                       </p>
                       <p className="text-[11px] text-muted-foreground truncate">{debrief.expense.description}</p>
@@ -852,7 +954,7 @@ export function AssistantSection({
 
                   {/* Pépite Relance WhatsApp */}
                   {debrief.hasRelance && debrief.relance && (
-                    <div className="p-4 rounded-2xl border border-border bg-background/80 space-y-1.5 shadow-sm">
+                    <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
                       <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
                         <Bell size={15} className="text-[#C8951E]" /> Relance WhatsApp
                       </span>
@@ -866,7 +968,7 @@ export function AssistantSection({
               </div>
 
               {/* Bouton Triomphal de Validation Atomique */}
-              <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border/80">
+              <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Info size={14} className="text-[#C8951E]" />
                   <span>Ventilation garantie dans la Caisse, le Stock, le CRM et la Compta.</span>
@@ -876,7 +978,7 @@ export function AssistantSection({
                   type="button"
                   onClick={handleExecute}
                   disabled={executing || executed}
-                  className="w-full sm:w-auto k-btn-gold h-14 px-10 rounded-2xl font-black text-primary-foreground shadow-2xl flex items-center justify-center gap-3 text-sm transition-all"
+                  className="w-full sm:w-auto k-btn-gold h-14 px-10 rounded-2xl font-black text-primary-foreground shadow-lg flex items-center justify-center gap-3 text-sm transition-all"
                 >
                   {executed ? (
                     <>
@@ -903,8 +1005,8 @@ export function AssistantSection({
 
       {/* ─── ONGLET 2 : LE POINT DU SOIR (RITUEL DE CLÔTURE) ─── */}
       {activeTab === "evening" && (
-        <div className="space-y-6 rounded-[36px] border border-[#C8951E]/40 bg-radial from-[#1E1712] via-card to-background p-6 sm:p-10 shadow-2xl animate-in fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/10">
+        <div className="space-y-6 rounded-[36px] border border-border/80 bg-card p-6 sm:p-10 shadow-lg animate-in fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
             <div className="space-y-1">
               <h2 className="text-xl sm:text-2xl font-heading font-black text-foreground flex items-center gap-2.5">
                 <Moon size={22} className="text-[#FFD700]" />
@@ -946,23 +1048,23 @@ export function AssistantSection({
             <div className="space-y-6">
               {/* Carte Synthèse Vocale */}
               {eveningData.vocalSummary && (
-                <div className="p-5 rounded-2xl bg-[#C8951E]/15 border border-[#C8951E]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="p-5 rounded-2xl bg-[#C8951E]/10 border border-[#C8951E]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-start gap-3.5">
                     <button
                       type="button"
                       onClick={() => togglePlayVocalSummary(eveningData.vocalSummary)}
-                      className="size-12 rounded-2xl bg-[#C8951E]/30 hover:bg-[#C8951E]/50 flex items-center justify-center shrink-0 text-[#C8951E] transition-all shadow-md active:scale-95"
+                      className="size-12 rounded-2xl bg-[#C8951E]/20 hover:bg-[#C8951E]/40 flex items-center justify-center shrink-0 text-[#C8951E] transition-all shadow-xs active:scale-95"
                       title={audioState === "playing" ? "Arrêter la voix" : "Écouter le conte du soir"}
                     >
                       {audioState === "playing" ? (
-                        <VolumeX size={22} className="animate-pulse text-amber-400" />
+                        <VolumeX size={22} className="animate-pulse text-amber-500" />
                       ) : (
                         <Volume2 size={22} />
                       )}
                     </button>
                     <div className="space-y-1">
-                      <p className="text-xs font-bold text-[#FFD700] uppercase tracking-wider">
-                        🌙 Le Conte de Clôture de l&apos;Assistante :
+                      <p className="text-xs font-bold text-foreground uppercase tracking-wider">
+                        🌙 Le Conte de Clôture de votre Secrétaire :
                       </p>
                       <p className="text-sm text-foreground/90 italic leading-relaxed">
                         &laquo; {eveningData.vocalSummary} &raquo;
@@ -975,7 +1077,7 @@ export function AssistantSection({
                     variant="outline"
                     size="sm"
                     onClick={() => togglePlayVocalSummary(eveningData.vocalSummary)}
-                    className="shrink-0 border-[#C8951E]/40 hover:bg-[#C8951E]/20 text-xs font-bold self-end sm:self-center"
+                    className="shrink-0 border-border hover:bg-muted text-xs font-bold self-end sm:self-center"
                   >
                     {audioState === "playing" ? "⏹️ Arrêter" : "🔊 Écouter"}
                   </Button>
@@ -984,11 +1086,11 @@ export function AssistantSection({
 
               {/* Total Journée & Répartition */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 rounded-2xl bg-black/40 border border-[#C8951E]/40 space-y-1">
+                <div className="p-5 rounded-2xl bg-muted/40 border border-border space-y-1">
                   <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
                     <TrendingUp size={14} className="text-[#C8951E]" /> Total Encaissé
                   </span>
-                  <p className="font-mono text-2xl font-black text-gold-text">
+                  <p className="font-mono text-2xl font-black text-foreground">
                     {xof(eveningData.total)}
                   </p>
                   <p className="text-[11px] text-muted-foreground">
@@ -996,24 +1098,24 @@ export function AssistantSection({
                   </p>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-black/40 border border-blue-500/30 space-y-1">
-                  <span className="text-xs text-blue-400 font-semibold">🌊 Wave Money</span>
+                <div className="p-5 rounded-2xl bg-muted/40 border border-blue-500/30 space-y-1">
+                  <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">🌊 Wave Money</span>
                   <p className="font-mono text-xl font-bold text-foreground">
                     {xof(eveningData.waveTotal)}
                   </p>
                   <p className="text-[11px] text-muted-foreground">Paiements directs Wave</p>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-black/40 border border-orange-500/30 space-y-1">
-                  <span className="text-xs text-orange-400 font-semibold">🍊 Orange Money</span>
+                <div className="p-5 rounded-2xl bg-muted/40 border border-orange-500/30 space-y-1">
+                  <span className="text-xs text-orange-600 dark:text-orange-400 font-semibold">🍊 Orange Money</span>
                   <p className="font-mono text-xl font-bold text-foreground">
                     {xof(eveningData.orangeTotal)}
                   </p>
                   <p className="text-[11px] text-muted-foreground">Paiements Orange CI</p>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-black/40 border border-emerald-500/30 space-y-1">
-                  <span className="text-xs text-emerald-400 font-semibold">💵 Espèces en Caisse</span>
+                <div className="p-5 rounded-2xl bg-muted/40 border border-emerald-500/30 space-y-1">
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">💵 Espèces en Caisse</span>
                   <p className="font-mono text-xl font-bold text-foreground">
                     {xof(eveningData.cashTotal)}
                   </p>
@@ -1023,26 +1125,26 @@ export function AssistantSection({
 
               {/* Statistiques Métier */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                <div className="p-4 rounded-xl bg-muted/30 border border-border">
                   <p className="text-2xl font-heading font-black text-foreground">
                     {eveningData.uniqueClientsCount}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">Clientes servies</p>
                 </div>
-                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                <div className="p-4 rounded-xl bg-muted/30 border border-border">
                   <p className="text-2xl font-heading font-black text-[#C8951E]">
                     {eveningData.servicesCount}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">Soins cabine</p>
                 </div>
-                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                <div className="p-4 rounded-xl bg-muted/30 border border-border">
                   <p className="text-2xl font-heading font-black text-[#E07A2B]">
                     {eveningData.productsCount}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">Produits vendus</p>
                 </div>
-                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                  <p className="text-2xl font-heading font-black text-emerald-400">
+                <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                  <p className="text-2xl font-heading font-black text-emerald-600 dark:text-emerald-400">
                     {xof(eveningData.cardTotal)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">Carte Bancaire</p>
@@ -1051,16 +1153,16 @@ export function AssistantSection({
 
               {/* Alertes de Stock Bas */}
               {eveningData.lowStockProducts.length > 0 && (
-                <div className="p-5 rounded-2xl bg-red-950/20 border border-red-500/30 space-y-2">
-                  <div className="flex items-center gap-2 text-red-400 text-xs font-bold">
+                <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/30 space-y-2">
+                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-xs font-bold">
                     <AlertTriangle size={15} />
-                    <span>Attention Maman : {eveningData.lowStockProducts.length} produit(s) en rupture imminente</span>
+                    <span>Attention {firstName} : {eveningData.lowStockProducts.length} produit(s) en rupture imminente</span>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-1">
                     {eveningData.lowStockProducts.map((p) => (
                       <span
                         key={p.id}
-                        className="text-xs bg-red-900/30 text-red-200 border border-red-500/30 px-3 py-1 rounded-xl font-medium"
+                        className="text-xs bg-red-500/20 text-red-700 dark:text-red-200 border border-red-500/30 px-3 py-1 rounded-xl font-medium"
                       >
                         {p.name} : reste {p.stock} unité(s)
                       </span>
@@ -1078,8 +1180,8 @@ export function AssistantSection({
       )}
 
       {/* ─── 4. LES 8 DÉPARTEMENTS CONNECTÉS & PILOTÉS PAR L'ORBE (INDISPENSABLES) ─── */}
-      <div className="rounded-[32px] border border-border/80 bg-card/70 p-6 sm:p-7 space-y-4 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-3">
+      <div className="rounded-[32px] border border-border/80 bg-card p-6 sm:p-7 space-y-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
           <div className="flex items-center gap-2">
             <CauriIcon size={18} className="text-[#C8951E]" />
             <h3 className="text-sm sm:text-base font-heading font-black text-foreground">
@@ -1109,14 +1211,14 @@ export function AssistantSection({
                 haptic(HAPTIC.light);
                 onNavigate?.(item.id);
               }}
-              className="flex items-center justify-between p-3.5 rounded-2xl border border-border/80 bg-background/60 hover:bg-[#C8951E]/10 hover:border-[#C8951E]/40 text-left transition group shadow-xs active:scale-98"
+              className="flex items-center justify-between p-3.5 rounded-2xl border border-border/80 bg-muted/30 hover:bg-muted hover:border-[#C8951E]/50 text-left transition group shadow-2xs active:scale-98"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="size-8 rounded-xl bg-[#C8951E]/15 flex items-center justify-center shrink-0 text-[#C8951E] group-hover:bg-[#C8951E]/25 transition-colors">
                   <item.icon size={16} />
                 </div>
                 <div className="truncate">
-                  <p className="text-xs font-bold text-foreground group-hover:text-[#FFD700] transition-colors truncate">
+                  <p className="text-xs font-bold text-foreground group-hover:text-[#C8951E] transition-colors truncate">
                     {item.label}
                   </p>
                   <p className="text-[10px] text-muted-foreground truncate">{item.desc}</p>

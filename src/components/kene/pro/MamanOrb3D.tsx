@@ -552,7 +552,7 @@ export function MamanOrb3D({
       )}
       role="button"
       tabIndex={0}
-      aria-label="Orbe Sacré de la Secrétaire IA Maman — Toucher pour dicter"
+      aria-label="Orbe Sacré de la Secrétaire IA de Direction — Toucher pour dicter"
     >
       {/* ─── Halo d'ambiance cosmique royal d'arrière-plan ─── */}
       <div

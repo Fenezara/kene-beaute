@@ -627,7 +627,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                 <td className="py-2 px-3 text-center text-gold-text font-bold">⭐ Inclus</td>
               </tr>
               <tr>
-                <td className="py-2 px-3 font-medium">Assistant vocal gérante « Maman Kènè »</td>
+                <td className="py-2 px-3 font-medium">Secrétaire IA de Direction Kènè (Orbe vocal 3D)</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
                 <td className="py-2 px-3 text-center text-gold-text font-bold">⭐ Inclus</td>

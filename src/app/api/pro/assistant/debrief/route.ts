@@ -1,11 +1,14 @@
 // Kènè Pro — POST /api/pro/assistant/debrief
-// Moteur d'analyse IA du débriefing de la Maman (gérante de salon)
+// Moteur d'analyse IA et Secrétaire de Direction Intelligente
 // Architecture multi-paliers (Zero-Failure) :
 //   1. Palier 1 : Google Gemini REST (si GEMINI_API_KEY défini)
 //   2. Palier 2 : Z.ai SDK (si .z-ai-config présent)
 //   3. Palier 3 : Analyseur NLP déterministe (toujours disponible)
-// Reçoit un compte-rendu oralisé ou tapé et découpe automatiquement les actions par onglet :
-// Caisse, Stock, CRM, Agenda, Équipe/Paie, Relances, Petite Caisse et Dépenses.
+// Rôle : Raisonnement proactif de secrétaire humaine d'élite.
+// Pose des questions de clarification si des informations manquent,
+// propose des initiatives (stock bas, relances WhatsApp), et s'adresse toujours
+// avec distinction à la directrice par son nom/prénom (JAMAIS "Maman").
+
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import ZAI from "z-ai-web-dev-sdk";
@@ -20,12 +23,23 @@ export const runtime = "nodejs";
 
 const Body = z.object({
   tenantId: z.string().min(1),
-  text: z.string().min(2).max(2000),
+  text: z.string().min(1).max(2000),
+  userName: z.string().max(100).optional(),
+  managerName: z.string().max(100).optional(),
+  previousDebrief: z.any().optional(),
 });
 
 export interface DebriefResult {
   summary: string;
-  vocalSummary: string; // Texte parlé chaleureux pour le retour audio à la Maman
+  vocalSummary: string; // Texte parlé chaleureux et élégant
+  needsClarification?: boolean; // Vrai si des précisions indispensables manquent
+  clarificationQuestion?: string; // Question orale posée à la gérante
+  clarificationOptions?: Array<{ label: string; value: string }>; // Puces 1-Tap de réponse
+  initiatives?: Array<{
+    type: "stock_reorder" | "whatsapp_followup" | "debt_reminder" | "loyalty";
+    title: string;
+    desc: string;
+  }>;
   hasSale: boolean;
   sale?: {
     items: Array<{
@@ -102,7 +116,7 @@ export async function POST(req: NextRequest) {
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
 
-    const { tenantId, text } = parsed.data;
+    const { tenantId, text, userName, previousDebrief } = parsed.data;
 
     const tenant = await db.tenant.findUnique({
       where: { id: tenantId },
@@ -128,15 +142,28 @@ export async function POST(req: NextRequest) {
     const contextEmployees = tenant.employees.map((e) => ({ id: e.id, name: e.name, role: e.role }));
     const contextClients = recentClients.map((c) => ({ id: c.id, name: c.name, phone: c.phone }));
 
-    // Construire le prompt système (partagé entre paliers)
-    const systemPrompt = buildSystemPrompt(contextServices, contextProducts, contextEmployees, contextClients);
+    const managerName = (parsed.data.managerName || parsed.data.userName)?.trim() || "Madame";
+
+    // Construire le prompt système personnalisé
+    const systemPrompt = buildSystemPrompt(
+      contextServices,
+      contextProducts,
+      contextEmployees,
+      contextClients,
+      managerName
+    );
+
+    let userPromptText = text;
+    if (previousDebrief) {
+      userPromptText = `[CONTEXTE EN COURS DE CLARIFICATION] : ${JSON.stringify(previousDebrief)}\n[NOUVELLE PRÉCISION DE ${managerName}] : "${text}"\nConsigne : Intègre cette précision (ex: moyen de paiement, téléphone ou date), complète l'objet, passe "needsClarification": false si tout est clair maintenant, et mets à jour vocalSummary et les montants.`;
+    }
 
     // Architecture multi-paliers : Gemini → ZAI → Fallback NLP
     let debrief: DebriefResult | null = null;
 
     // Palier 1 : Google Gemini REST
     try {
-      debrief = await callGeminiDebrief(systemPrompt, text);
+      debrief = await callGeminiDebrief(systemPrompt, userPromptText);
       if (debrief) {
         console.log("[assistant:debrief] Palier Gemini ✓");
       }
@@ -147,7 +174,7 @@ export async function POST(req: NextRequest) {
     // Palier 2 : Z.ai SDK
     if (!debrief) {
       try {
-        debrief = await callZaiDebrief(systemPrompt, text);
+        debrief = await callZaiDebrief(systemPrompt, userPromptText);
         if (debrief) {
           console.log("[assistant:debrief] Palier ZAI ✓");
         }
@@ -158,7 +185,7 @@ export async function POST(req: NextRequest) {
 
     // Palier 3 : Analyseur NLP déterministe (toujours disponible)
     if (!debrief) {
-      debrief = fallbackParser(text, tenant, recentClients);
+      debrief = fallbackParser(text, tenant, recentClients, managerName, previousDebrief);
       console.log("[assistant:debrief] Palier NLP déterministe ✓");
     }
 
@@ -175,20 +202,38 @@ function buildSystemPrompt(
   products: Array<{ id: string; name: string; price: number; stock: number }>,
   employees: Array<{ id: string; name: string; role: string }>,
   clients: Array<{ id: string; name: string; phone: string | null }>,
+  managerName: string,
 ): string {
-  return `Tu es l'Assistante d'entreprise intelligente de "La Maman" (la gérante de salon de beauté en Afrique subsaharienne).
-La maman te dicte ou écrit son compte-rendu (débriefing) après un soin, une vente ou une dépense.
-Ton rôle est d'analyser le texte, de faire correspondre avec le catalogue de l'institut, et de structurer les actions pour tous les onglets : Caisse, Stock, CRM, Agenda, Équipe/Paie, Relances, Petite Caisse.
+  return `Tu es la Secrétaire de Direction et Assistante d'Entreprise intelligente de ${managerName} (gérante et directrice d'institut de beauté en Côte d'Ivoire et Afrique de l'Ouest).
+Ton rôle est d'analyser son compte-rendu, de structurer les écritures pour son salon, de faire preuve d'intelligence humaine et de prendre des initiatives de gestion.
 
-RÈGLES IMPORTANTES :
-1. Devises : FCFA / Francs CFA. Les montants peuvent être formulés oralement ("15 mille" = 15000, "25 000 F", "2 briques" = 20000).
-2. Modes de paiement : wave, orange (Orange Money), cash (espèces), card.
-3. Reste à payer / ardoise : Si la cliente ne paie qu'une partie (ex: "donné 10 000 F sur 15 000 F"), calcule paidAmount=10000 et remainingDebt=5000.
-4. Petite caisse : Si la maman dit avoir pris de l'argent dans la caisse pour le salon (ex: "pris 2000 F pour l'eau ou le courant"), configure hasExpense=true.
-5. Pourboires : S'il y a un pourboire pour une employée, isole-le dans tipAmount (distinct du CA salon).
-6. Stock : Tout produit vendu (crème, sérum, baume) doit être décompté du stock.
-7. RDV futur : Si un futur rendez-vous est mentionné ("dans 3 semaines", "vendredi prochain à 14h"), planifie-le dans hasAppointment.
-8. vocalSummary : Rédige une confirmation orale bienveillante et chaleureuse en français (2 à 3 phrases courtes), commençant par "C'est bien noté, Maman !" résumant les montants et les actions.
+RÈGLE D'ADRESSE STRICTE ET IMPÉRATIVE :
+1. Adresse-toi TOUJOURS à elle avec respect et distinction en utilisant son nom ou prénom : "${managerName}".
+2. INTERDICTION ABSOLUE : N'utilise JAMAIS le mot "Maman". Ne dis JAMAIS "Maman" dans aucune réponse ni dans aucun texte.
+3. Commence ton vocalSummary par exemple par "C'est bien noté, ${managerName} !", "Très bien, ${managerName}.", "Compris ${managerName} !".
+
+RAISONNEMENT HUMAIN & PRISES D'INITIATIVES PROACTIVES :
+4. QUESTIONS DE CLARIFICATION :
+   - Si une information financière ou opérationnelle essentielle manque ou est ambiguë, définis "needsClarification": true.
+   - Formule alors une question orale douce et précise dans "clarificationQuestion" (et inclus-la dans "vocalSummary").
+   - Fournis dans "clarificationOptions" 2 à 4 choix rapides en 1-Tap pour l'aider.
+   - Exemples de manques :
+     * Moyen de paiement non précisé pour un soin ou une vente : demande si c'est Wave, Orange Money ou Espèces.
+       clarificationOptions: [{"label": "🌊 Wave", "value": "Payé par Wave"}, {"label": "🍊 Orange Money", "value": "Payé par Orange Money"}, {"label": "💵 Espèces", "value": "Payé en espèces"}]
+     * Ardoise (reste à payer) sans date d'échéance : demande pour quel jour noter le rappel.
+     * Nouvelle cliente sans contact : demande si elle a son numéro pour le reçu WhatsApp.
+   - Si les informations sont claires et suffisantes, "needsClarification" doit être false (ou omis).
+
+5. INITIATIVES DE GESTION :
+   - Alerte Stock : Si un produit vendu laisse le stock à 2 unités ou moins, ajoute dans "initiatives" une proposition de réassort fournisseur.
+   - Relance WhatsApp : Si une prestation cabine (soin visage, peeling, traitement) a été effectuée, propose dans "initiatives" une relance à J+3 pour prendre des nouvelles de sa peau.
+
+RÈGLES MÉTIER :
+6. Devises : FCFA / Francs CFA. ("15 mille" = 15000, "20 000 F", "2 briques" = 20000).
+7. Modes de paiement : wave, orange (Orange Money), cash (espèces), card.
+8. Ardoise / Reste à payer : Calcule distinctement paidAmount et remainingDebt.
+9. Petite caisse : Si prise d'argent pour des dépenses du salon (eau, courant, fournitures), hasExpense=true.
+10. vocalSummary : 2 à 3 phrases parlées chaleureuses, fluides et professionnelles, appelant la gérante par "${managerName}".
 
 CONTEXTE DE L'INSTITUT :
 - Prestations : ${JSON.stringify(services)}
@@ -196,10 +241,14 @@ CONTEXTE DE L'INSTITUT :
 - Équipe : ${JSON.stringify(employees)}
 - Clientes connues : ${JSON.stringify(clients)}
 
-Réponds UNIQUEMENT par un JSON valide respectant cette structure exacte, sans markdown autour :
+Réponds UNIQUEMENT par un JSON valide respectant cette structure exacte, sans balise markdown :
 {
-  "summary": "Résumé concis de l'action",
-  "vocalSummary": "C'est bien noté, Maman ! J'ai préparé ...",
+  "summary": "Résumé concis",
+  "vocalSummary": "C'est bien noté, ${managerName} ! J'ai préparé ...",
+  "needsClarification": boolean,
+  "clarificationQuestion": "Question posée à ${managerName} si information manquante",
+  "clarificationOptions": [{ "label": "string", "value": "string" }],
+  "initiatives": [{ "type": "stock_reorder"|"whatsapp_followup"|"debt_reminder"|"loyalty", "title": "string", "desc": "string" }],
   "hasSale": boolean,
   "sale": {
     "items": [{ "kind": "service"|"product", "id": "string", "label": "string", "qty": number, "unitPrice": number, "total": number }],
@@ -262,7 +311,7 @@ function parseDebriefJson(raw: string): DebriefResult | null {
   return JSON.parse(cleaned) as DebriefResult;
 }
 
-async function callGeminiDebrief(systemPrompt: string, text: string): Promise<DebriefResult | null> {
+async function callGeminiDebrief(systemPrompt: string, userMessage: string): Promise<DebriefResult | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
@@ -274,7 +323,7 @@ async function callGeminiDebrief(systemPrompt: string, text: string): Promise<De
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: "user", parts: [{ text }] }],
+        contents: [{ role: "user", parts: [{ text: userMessage }] }],
         generationConfig: {
           temperature: 0.2,
           maxOutputTokens: 2000,
@@ -297,14 +346,14 @@ async function callGeminiDebrief(systemPrompt: string, text: string): Promise<De
 
 // ─────────────── Palier 2 : Z.ai SDK ───────────────
 
-async function callZaiDebrief(systemPrompt: string, text: string): Promise<DebriefResult | null> {
+async function callZaiDebrief(systemPrompt: string, userMessage: string): Promise<DebriefResult | null> {
   const zai = await ZAI.create();
   const completion = await zaiCall(
     () =>
       zai.chat.completions.create({
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: text },
+          { role: "user", content: userMessage },
         ],
         thinking: { type: "disabled" },
       }),
@@ -323,9 +372,32 @@ function fallbackParser(
     products: Array<{ id: string; name: string; price: number; stock: number }>;
     employees: Array<{ id: string; name: string; role?: string }>;
   },
-  clients: Array<{ id: string; name: string; phone?: string | null }>
+  clients: Array<{ id: string; name: string; phone?: string | null }>,
+  managerName: string,
+  previousDebrief?: any,
 ): DebriefResult {
   const lower = text.toLowerCase();
+
+  // Si on est dans une boucle de clarification et que l'utilisateur a donné le mode de paiement
+  if (previousDebrief && previousDebrief.hasSale) {
+    let method: "wave" | "orange" | "cash" | "card" = previousDebrief.sale?.paymentMethod || "cash";
+    if (lower.includes("wave")) method = "wave";
+    else if (lower.includes("orange") || lower.includes("om")) method = "orange";
+    else if (lower.includes("cash") || lower.includes("espèce") || lower.includes("espece")) method = "cash";
+    else if (lower.includes("carte") || lower.includes("cb")) method = "card";
+
+    return {
+      ...previousDebrief,
+      needsClarification: false,
+      clarificationQuestion: undefined,
+      clarificationOptions: undefined,
+      vocalSummary: `Parfait, ${managerName} ! J'ai bien enregistré le règlement par ${method.toUpperCase()}. Tout est prêt à être scellé.`,
+      sale: {
+        ...previousDebrief.sale,
+        paymentMethod: method,
+      },
+    };
+  }
 
   // 1. Détection de paiement & montants
   const amountMatch = text.match(/(\d[\d\s.,]*)\s*(?:f|cfa|fcfa|mille|francs)/i);
@@ -341,9 +413,20 @@ function fallbackParser(
 
   // Moyen de paiement
   let method: "wave" | "orange" | "cash" | "card" = "cash";
-  if (lower.includes("wave")) method = "wave";
-  else if (lower.includes("orange") || lower.includes("om")) method = "orange";
-  else if (lower.includes("carte") || lower.includes("cb")) method = "card";
+  let hasExplicitPayment = false;
+  if (lower.includes("wave")) {
+    method = "wave";
+    hasExplicitPayment = true;
+  } else if (lower.includes("orange") || lower.includes("om")) {
+    method = "orange";
+    hasExplicitPayment = true;
+  } else if (lower.includes("carte") || lower.includes("cb")) {
+    method = "card";
+    hasExplicitPayment = true;
+  } else if (lower.includes("espèce") || lower.includes("espece") || lower.includes("cash")) {
+    method = "cash";
+    hasExplicitPayment = true;
+  }
 
   // 2. Détection de cliente
   let clientName = "Cliente de passage";
@@ -365,7 +448,7 @@ function fallbackParser(
   if (isExpense && detectedAmount > 0) {
     return {
       summary: `Sortie de petite caisse : ${detectedAmount.toLocaleString("fr-FR")} FCFA`,
-      vocalSummary: `C'est bien noté, Maman ! J'ai enregistré une sortie de caisse de ${detectedAmount.toLocaleString("fr-FR")} francs pour les frais du salon.`,
+      vocalSummary: `C'est bien noté, ${managerName} ! J'ai enregistré une sortie de caisse de ${detectedAmount.toLocaleString("fr-FR")} francs pour les frais du salon.`,
       hasSale: false,
       hasStockMovement: false,
       hasClient: false,
@@ -402,6 +485,8 @@ function fallbackParser(
   }
 
   const stockDecrements: Array<{ productId: string; productName: string; qty: number; currentStock: number; newStock: number; isLowStock: boolean }> = [];
+  const initiatives: Array<{ type: "stock_reorder" | "whatsapp_followup" | "debt_reminder" | "loyalty"; title: string; desc: string }> = [];
+
   if (matchedProduct) {
     items.push({
       kind: "product",
@@ -413,14 +498,24 @@ function fallbackParser(
     });
     subtotal += matchedProduct.price;
 
+    const remainingStock = Math.max(0, matchedProduct.stock - 1);
+    const isLow = remainingStock <= 5;
     stockDecrements.push({
       productId: matchedProduct.id,
       productName: matchedProduct.name,
       qty: 1,
       currentStock: matchedProduct.stock,
-      newStock: Math.max(0, matchedProduct.stock - 1),
-      isLowStock: matchedProduct.stock - 1 <= 5,
+      newStock: remainingStock,
+      isLowStock: isLow,
     });
+
+    if (isLow) {
+      initiatives.push({
+        type: "stock_reorder",
+        title: "Alerte réassort produit",
+        desc: `Il ne reste que ${remainingStock} ${matchedProduct.name} en stock. Prévoir une commande fournisseur ?`,
+      });
+    }
   }
 
   const total = subtotal || (detectedAmount > 0 ? detectedAmount : 15000);
@@ -430,14 +525,45 @@ function fallbackParser(
   // 5. Détection employée
   const matchedEmployee = tenant.employees.find((e) => lower.includes(e.name.toLowerCase()));
   const employeeName = matchedEmployee?.name || tenant.employees[0]?.name || "Équipe";
-  const commission = Math.round(total * 0.1); // 10% commission standard
+  const commission = Math.round(total * 0.1);
 
   // 6. Détection de RDV
   const hasAppt = lower.includes("rdv") || lower.includes("revient") || lower.includes("semaine") || lower.includes("vendredi");
 
+  // Proactivité : Relance WhatsApp
+  if (matchedService) {
+    initiatives.push({
+      type: "whatsapp_followup",
+      title: "Relance WhatsApp post-soin",
+      desc: `Programmer un suivi bienveillant à J+3 pour ${clientName} après son ${matchedService.name} ?`,
+    });
+  }
+
+  // Si le mode de paiement n'a pas été précisé du tout, la secrétaire pose la question !
+  const needsClarification = !hasExplicitPayment;
+  const clarificationQuestion = needsClarification
+    ? `${managerName}, est-ce que ${clientName} a réglé par Wave, Orange Money ou en Espèces ?`
+    : undefined;
+
+  const clarificationOptions = needsClarification
+    ? [
+        { label: "🌊 Wave", value: "Payé par Wave" },
+        { label: "🍊 Orange Money", value: "Payé par Orange Money" },
+        { label: "💵 Espèces", value: "Payé en espèces" },
+      ]
+    : undefined;
+
+  const vocalSummary = needsClarification
+    ? `C'est bien noté, ${managerName} pour le soin de ${clientName} ! Mais dis-moi : est-ce que le montant de ${total.toLocaleString("fr-FR")} francs a été réglé par Wave, Orange Money ou en Espèces ?`
+    : `C'est bien noté, ${managerName} ! J'ai préparé l'encaissement de ${total.toLocaleString("fr-FR")} francs par ${method.toUpperCase()} pour ${clientName}${matchedProduct ? ", décompté le stock" : ""}, et attribué la prestation à ${employeeName}. Tout est prêt à sceller.`;
+
   return {
-    summary: `Prestation avec ${clientName} (${total.toLocaleString("fr-FR")} FCFA par ${method.toUpperCase()})`,
-    vocalSummary: `C'est bien noté, Maman ! J'ai préparé l'encaissement de ${total.toLocaleString("fr-FR")} francs par ${method.toUpperCase()} pour ${clientName}${matchedProduct ? ", décompté le produit du stock" : ""}, et attribué la prestation à ${employeeName}. Tu veux que j'enregistre ?`,
+    summary: `Prestation avec ${clientName} (${total.toLocaleString("fr-FR")} FCFA${hasExplicitPayment ? ` par ${method.toUpperCase()}` : ""})`,
+    vocalSummary,
+    needsClarification,
+    clarificationQuestion,
+    clarificationOptions,
+    initiatives: initiatives.length > 0 ? initiatives : undefined,
     hasSale: true,
     sale: {
       items: items.length > 0 ? items : [{ kind: "service", label: "Prestation salon", qty: 1, unitPrice: total, total }],
@@ -480,8 +606,8 @@ function fallbackParser(
     hasExpense: false,
     hasRelance: true,
     relance: {
-      delayDays: 14,
-      message: `Bonjour ${clientName} ! 🌸 Comment réagit votre peau suite à votre soin chez ${tenant.services[0]?.name ?? "l'institut"} ?`,
+      delayDays: 3,
+      message: `Bonjour ${clientName}, c'est l'équipe de ${tenant.services[0]?.name || "l'institut"}. Comment se porte votre peau suite à votre soin ? N'hésitez pas si vous avez la moindre question !`,
     },
   };
 }

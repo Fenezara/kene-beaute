@@ -150,7 +150,7 @@ export const PLAN_DEFS: readonly PlanDef[] = [
       "Paie RH certifiée CNPS (CI) / IPRES (SN) & calcul commissions",
       "Comptabilité SYSCOHADA (clôtures caisse, TVA, Grand Livre)",
       "Tarif dégressif à la fidélité : descend de 30 000 F à 20 000 F/mois",
-      "Assistant vocal intelligent gérante « Maman Kènè »",
+      "Secrétaire IA de Direction Kènè (Orbe vocal 3D)",
       "Accompagnement VIP & support WhatsApp prioritaire dédié 7j/7",
     ],
     badge: "Excellence",
