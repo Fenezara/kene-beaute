@@ -637,11 +637,33 @@ export function ClientApp() {
               <MessageCircle size={20} className="text-primary" />
               <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Dermo Kènè<br />Conseil IA</p>
             </button>
-            <button onClick={() => openWhatsAppProductOrderInquiry()} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-[#25D366]/30 bg-[#25D366]/5" aria-label="Mon rituel de soin par WhatsApp">
+            <button
+              onClick={() =>
+                openWhatsAppProductOrderInquiry({
+                  tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
+                  instituteName: user?.selectedTenant?.name,
+                  country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
+                })
+              }
+              className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-[#25D366]/30 bg-[#25D366]/5"
+              aria-label="Mon rituel de soin par WhatsApp"
+            >
               <ShoppingBag size={20} className="text-[#25D366]" />
               <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Mon Rituel<br /><span className="text-[#25D366] font-bold">WhatsApp 🌿</span></p>
             </button>
-            <button onClick={() => openWhatsAppAppointmentInquiry()} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-[#25D366]/30 bg-[#25D366]/5" aria-label="Soin en cabine par WhatsApp">
+            <button
+              onClick={() =>
+                openWhatsAppAppointmentInquiry({
+                  serviceCategory: "Soin esthétique",
+                  serviceName: "Soin en cabine & éclat",
+                  tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
+                  instituteName: user?.selectedTenant?.name,
+                  country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
+                })
+              }
+              className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-[#25D366]/30 bg-[#25D366]/5"
+              aria-label="Soin en cabine par WhatsApp"
+            >
               <CalendarDays size={20} className="text-[#25D366]" />
               <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Soin Cabine<br /><span className="text-[#25D366] font-bold">WhatsApp 💆‍♀️</span></p>
             </button>

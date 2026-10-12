@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
         tenantId: true,
         visitsCount: true,
         lastVisit: true,
-        tenant: { select: { id: true, name: true, city: true, active: true, photoData: true } },
+        tenant: { select: { id: true, name: true, city: true, active: true, photoData: true, phone: true, ownerPhone: true, country: true } },
       },
       orderBy: { lastVisit: "desc" },
     });
@@ -56,6 +56,9 @@ export async function GET(req: NextRequest) {
         city: p.tenant.city,
         active: p.tenant.active,
         hasPhoto: Boolean(p.tenant.photoData),
+        phone: p.tenant.phone,
+        ownerPhone: p.tenant.ownerPhone,
+        country: p.tenant.country,
         granted: grantedByTenant.get(p.tenant.id) ?? false,
         visitsCount: p.visitsCount,
         lastVisit: p.lastVisit,

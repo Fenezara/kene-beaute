@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     if (sess) {
       const user = await db.user.findUnique({
         where: { id: sess.userId },
-        include: { selectedTenant: { select: { id: true, name: true, city: true, phone: true, address: true } } },
+        include: { selectedTenant: { select: { id: true, name: true, city: true, phone: true, ownerPhone: true, address: true, country: true } } },
       });
       if (!user) return jsonError("Session expirée", 404);
       // t. 128 — modération Console: un compte verrouillé (ou un institut

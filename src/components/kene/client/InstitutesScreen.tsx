@@ -16,13 +16,15 @@ import {
   MapPin,
   MessageCircle,
   Search,
+  Share2,
   Sparkles,
   Star,
   Store,
+  CalendarPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPatch } from "@/lib/kene/api";
-import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
+import { openWhatsApp, buildWhatsAppInstituteShareMessage, openWhatsAppAppointmentInquiry } from "@/lib/kene/whatsapp-relay";
 import { useKene } from "@/store/kene";
 import { SankofaIcon, CauriIcon, KeneEmblem } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
@@ -97,6 +99,17 @@ export function InstitutesScreen() {
   async function handleToggleSelect(inst: ApiInstitute) {
     const isAlreadySelected = selectedTenantId === inst.id;
     const nextTenantId = isAlreadySelected ? null : inst.id;
+    const nextSelectedTenant = nextTenantId
+      ? {
+          id: inst.id,
+          name: inst.name,
+          city: inst.city,
+          phone: inst.phone || inst.ownerPhone,
+          ownerPhone: inst.ownerPhone,
+          address: inst.address,
+          country: inst.country,
+        }
+      : null;
 
     setSavingId(inst.id);
     try {
@@ -105,22 +118,16 @@ export function InstitutesScreen() {
         selectedTenantId: nextTenantId,
       });
 
-      if (res.user) {
-        setUser({
-          ...user,
-          ...res.user,
-          selectedTenantId: nextTenantId,
-        });
-      } else {
-        setUser({
-          ...user,
-          selectedTenantId: nextTenantId,
-        });
-      }
+      setUser({
+        ...user,
+        ...(res.user || {}),
+        selectedTenantId: nextTenantId,
+        selectedTenant: nextTenantId ? ((res.user as any)?.selectedTenant || nextSelectedTenant) : null,
+      });
 
       if (nextTenantId) {
         toast.success(`Institut partenaire coché ✨`, {
-          description: `${inst.name} est désormais votre institut de référence. Vos prochains diagnostics lui seront notifiés.`,
+          description: `${inst.name} est désormais votre institut de référence. Vos prochains rendez-vous et soins WhatsApp lui seront directement liés.`,
         });
       } else {
         toast.info("Institut décoché", {
@@ -138,7 +145,48 @@ export function InstitutesScreen() {
   function handleWhatsApp(inst: ApiInstitute) {
     const phone = inst.phone || inst.ownerPhone || "2250700000000";
     const msg = `Bonjour ${inst.name} ! 🌸\n\nJe suis cliente sur l'application Kènè (${user.name}). Je souhaite échanger avec vous pour mes rituels de soin dermo-botaniques.\n\nÀ très bientôt ! ✨`;
-    openWhatsApp(phone, msg);
+    openWhatsApp(phone, msg, inst.country === "SN" ? "SN" : "CI");
+  }
+
+  // Partage de l'institut via WhatsApp ou Web Share
+  async function handleShareInstitute(inst: ApiInstitute) {
+    const msg = buildWhatsAppInstituteShareMessage({
+      name: inst.name,
+      city: inst.city,
+      address: inst.address,
+      phone: inst.phone || inst.ownerPhone,
+      description: inst.description,
+    });
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: `${inst.name} · Institut Partenaire Kènè`,
+          text: msg,
+        });
+        toast.success(`Institut partagé 🌸`, {
+          description: `Merci de recommander ${inst.name} !`,
+        });
+        return;
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+      }
+    }
+
+    // Repli WhatsApp direct
+    openWhatsApp("", msg, inst.country === "SN" ? "SN" : "CI");
+    toast.success(`Partage WhatsApp ouvert 🌸`);
+  }
+
+  // Prise de rendez-vous directe avec cet institut
+  function handleBookCareWithInstitute(inst: ApiInstitute) {
+    openWhatsAppAppointmentInquiry({
+      serviceCategory: "Soin esthétique",
+      serviceName: "Soin signature cabine & éclat",
+      instituteName: inst.name,
+      tenantPhone: inst.phone || inst.ownerPhone || undefined,
+      country: inst.country === "SN" ? "SN" : "CI",
+    });
   }
 
   return (
@@ -191,17 +239,36 @@ export function InstitutesScreen() {
             </button>
           </div>
 
-          <div className="mt-3 pt-3 border-t border-primary/20 flex items-center justify-between gap-3">
+          <div className="mt-3 pt-3 border-t border-primary/20 flex flex-wrap items-center justify-between gap-2.5">
             <p className="text-xs text-muted-foreground truncate">
-              Reçoit automatiquement tes diagnostics cutanés.
+              Reçoit automatiquement tes diagnostics &amp; tes rendez-vous.
             </p>
-            <button
-              onClick={() => handleWhatsApp(currentSelectedInst)}
-              className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all shrink-0"
-            >
-              <MessageCircle size={14} />
-              WhatsApp
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => handleShareInstitute(currentSelectedInst)}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-bold transition-all"
+                title="Partager cet institut sur WhatsApp"
+              >
+                <Share2 size={13} />
+                <span>Partager</span>
+              </button>
+              <button
+                onClick={() => handleBookCareWithInstitute(currentSelectedInst)}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs active:scale-95 transition-all"
+                title="Prendre rendez-vous"
+              >
+                <CalendarPlus size={13} />
+                <span>Prendre RDV</span>
+              </button>
+              <button
+                onClick={() => handleWhatsApp(currentSelectedInst)}
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
+                title="Échanger sur WhatsApp"
+              >
+                <MessageCircle size={14} />
+                <span>WhatsApp</span>
+              </button>
+            </div>
           </div>
         </section>
       )}
@@ -331,7 +398,7 @@ export function InstitutesScreen() {
                 </div>
 
                 {/* ───── Coche & Actions en bas de carte ───── */}
-                <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between gap-2.5">
+                <div className="mt-4 pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-2">
                   {/* Case à cocher : Mon Institut Partenaire */}
                   <button
                     type="button"
@@ -356,16 +423,40 @@ export function InstitutesScreen() {
                     <span>{isSelected ? "Mon institut coché ✅" : "Cocher cet institut"}</span>
                   </button>
 
-                  {/* Bouton WhatsApp direct avec l'institut */}
-                  <button
-                    type="button"
-                    onClick={() => handleWhatsApp(inst)}
-                    title={`Échanger sur WhatsApp avec ${inst.name}`}
-                    className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/30 text-xs font-bold transition-colors"
-                  >
-                    <MessageCircle size={14} />
-                    <span>WhatsApp</span>
-                  </button>
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    {/* Bouton Partager */}
+                    <button
+                      type="button"
+                      onClick={() => handleShareInstitute(inst)}
+                      title={`Partager ${inst.name}`}
+                      className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-xl border border-border bg-card/60 hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-bold transition-colors"
+                    >
+                      <Share2 size={13} />
+                      <span className="hidden sm:inline">Partager</span>
+                    </button>
+
+                    {/* Bouton RDV direct */}
+                    <button
+                      type="button"
+                      onClick={() => handleBookCareWithInstitute(inst)}
+                      title={`Prendre RDV chez ${inst.name}`}
+                      className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-bold transition-colors"
+                    >
+                      <CalendarPlus size={13} />
+                      <span>RDV</span>
+                    </button>
+
+                    {/* Bouton WhatsApp direct avec l'institut */}
+                    <button
+                      type="button"
+                      onClick={() => handleWhatsApp(inst)}
+                      title={`Échanger sur WhatsApp avec ${inst.name}`}
+                      className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/30 text-xs font-bold transition-colors"
+                    >
+                      <MessageCircle size={14} />
+                      <span>WhatsApp</span>
+                    </button>
+                  </div>
                 </div>
               </article>
             );

@@ -42,18 +42,42 @@ export function MvpFunnelHero({
   const user = useKene((s) => s.user)!;
 
   const currentInstitute = useMemo(() => {
-    if (!institutes || institutes.length === 0) return null;
+    if (!institutes || institutes.length === 0) {
+      if (user?.selectedTenant) {
+        return {
+          id: user.selectedTenant.id,
+          name: user.selectedTenant.name,
+          city: user.selectedTenant.city,
+          address: user.selectedTenant.address || "",
+          phone: user.selectedTenant.phone || "",
+          ownerPhone: user.selectedTenant.ownerPhone || user.selectedTenant.phone || "",
+          country: user.selectedTenant.country || "CI",
+        } as any;
+      }
+      return null;
+    }
+    // 1. Institut coché explicitement par la cliente
+    if (user?.selectedTenantId) {
+      const selected = institutes.find((i) => i.id === user.selectedTenantId);
+      if (selected) return selected;
+    }
+    if (user?.selectedTenant?.id) {
+      const selected = institutes.find((i) => i.id === user.selectedTenant?.id);
+      if (selected) return selected;
+    }
+    // 2. Institut passé en default
     if (defaultInstituteId) {
       const found = institutes.find((i) => i.id === defaultInstituteId);
       if (found) return found;
     }
+    // 3. Correspondance ville
     const userCity = (user?.city || "").toLowerCase().trim();
     if (userCity) {
       const match = institutes.find((i) => i.city.toLowerCase().includes(userCity));
       if (match) return match;
     }
     return institutes[0] || null;
-  }, [defaultInstituteId, institutes, user?.city]);
+  }, [user?.selectedTenantId, user?.selectedTenant, defaultInstituteId, institutes, user?.city]);
 
   // Ouverture WhatsApp vers la première responsable de l'institut partenaire
   const handleOpenInstituteWhatsApp = () => {

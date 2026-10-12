@@ -139,7 +139,7 @@ async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
   const refreshed = await db.user.findUnique({
     where: { id: userId },
     include: {
-      selectedTenant: { select: { id: true, name: true, city: true, phone: true, address: true } },
+      selectedTenant: { select: { id: true, name: true, city: true, phone: true, ownerPhone: true, address: true, country: true } },
     },
   });
 

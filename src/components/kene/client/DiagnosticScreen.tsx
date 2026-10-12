@@ -1206,6 +1206,11 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
     return () => { alive = false; };
   }, [user.id]);
 
+  const chosenTenant = user.selectedTenant || null;
+  const chosenPhone = chosenTenant?.phone || (chosenTenant as any)?.ownerPhone || undefined;
+  const chosenName = chosenTenant?.name || undefined;
+  const chosenCountry = (((chosenTenant as any)?.country || "CI") as "CI" | "SN");
+
   // Recommandation intelligente post-diagnostic :
   // STRICTEMENT LIMITÉE aux clientes dont le compte, le dossier ou elles-mêmes
   // ne sont PAS rattachés ou partagés à une entreprise partenaire.
@@ -1392,7 +1397,21 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
             </p>
             <div className="space-y-3">
               {r.hypotheses.map((h) => (
-                <HypothesisCard key={h.id} h={h} onAsk={askGlossary} onRdv={() => openWhatsAppAppointmentInquiry({ serviceName: h.nom })} />
+                <HypothesisCard
+                  key={h.id}
+                  h={h}
+                  onAsk={askGlossary}
+                  onRdv={() =>
+                    openWhatsAppAppointmentInquiry({
+                      serviceCategory: "Contrôle dermo",
+                      serviceName: `Contrôle & soin : ${h.nom}`,
+                      instituteName: chosenName,
+                      tenantPhone: chosenPhone,
+                      country: chosenCountry,
+                      scoreGlobal: r.score_global,
+                    })
+                  }
+                />
               ))}
             </div>
           </section>
@@ -1417,8 +1436,20 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
                 ))}
               </div>
             )}
-            <button onClick={() => openWhatsAppAppointmentInquiry({ serviceName: "Bilan cutané et orientation institut" })} className="mt-3 h-11 w-full rounded-xl bg-[#8B1A3B] text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#8B1A3B]">
-              <MessageCircle size={16} /> Prendre RDV avec un institut partenaire via WhatsApp
+            <button
+              onClick={() =>
+                openWhatsAppAppointmentInquiry({
+                  serviceCategory: "Consultation",
+                  serviceName: "Consultation et bilan cutané dermo-botanique",
+                  instituteName: chosenName,
+                  tenantPhone: chosenPhone,
+                  country: chosenCountry,
+                  scoreGlobal: r.score_global,
+                })
+              }
+              className="mt-3 h-11 w-full rounded-xl bg-[#8B1A3B] text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#8B1A3B]"
+            >
+              <MessageCircle size={16} /> Prendre RDV avec mon institut partenaire via WhatsApp
             </button>
           </motion.div>
         </RevealItem>
@@ -1638,7 +1669,12 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
                 type="button"
                 onClick={() => {
                   const routineSummary = r.recommandations.produits.join("\n• ");
-                  openWhatsAppProductOrderInquiry({ summary: `• ${routineSummary}` });
+                  openWhatsAppProductOrderInquiry({
+                    summary: `• ${routineSummary}`,
+                    tenantPhone: chosenPhone,
+                    instituteName: chosenName,
+                    country: chosenCountry,
+                  });
                 }}
                 className="mt-3.5 h-11 w-full rounded-2xl bg-[#25D366]/15 hover:bg-[#25D366]/25 border border-[#25D366]/50 text-[#128C7E] dark:text-[#25D366] text-xs font-bold flex items-center justify-center gap-2 active:scale-98 transition-all"
               >
@@ -1671,8 +1707,9 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
               <button
                 type="button"
                 onClick={() => {
-                  const phone = user.selectedTenant?.phone || "2250700000000";
-                  openWhatsApp(phone, `Bonjour ${user.selectedTenant?.name} ! 🌸\nJe viens de finaliser mon bilan de peau (${r.score_global}/100) sur l'application Kènè. Je souhaite programmer mon soin.`);
+                  const phone = chosenPhone || user.selectedTenant?.phone || (user.selectedTenant as any)?.ownerPhone || "2250700000000";
+                  const name = chosenName || user.selectedTenant?.name || "l'institut";
+                  openWhatsApp(phone, `Bonjour ${name} ! 🌸\nJe viens de finaliser mon bilan de peau (${r.score_global}/100) sur l'application Kènè. Je souhaite programmer mon soin ou contrôle en cabine avec vous.`, chosenCountry);
                 }}
                 className="mt-3.5 h-11 w-full rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold flex items-center justify-center gap-2 active:scale-98 transition-all shadow-xs"
               >
@@ -1741,6 +1778,10 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
                   openWhatsAppAppointmentInquiry({
                     instituteName: recommendedInstitute.name,
                     serviceName: recommendedSoin ?? undefined,
+                    serviceCategory: "Soin esthétique",
+                    tenantPhone: recommendedInstitute.phone || (recommendedInstitute as any).ownerPhone,
+                    country: (recommendedInstitute.country || "CI") as "CI" | "SN",
+                    scoreGlobal: r.score_global,
                   });
                 }}
                 className="mt-3.5 h-11 w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-xs"
@@ -1757,7 +1798,16 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
                 {r.recommandations.soins_conseilles.map((s, i) => (
                   <button
                     key={i}
-                    onClick={() => openWhatsAppAppointmentInquiry({ serviceName: s })}
+                    onClick={() =>
+                      openWhatsAppAppointmentInquiry({
+                        serviceCategory: "Soin esthétique",
+                        serviceName: s,
+                        instituteName: chosenName,
+                        tenantPhone: chosenPhone,
+                        country: chosenCountry,
+                        scoreGlobal: r.score_global,
+                      })
+                    }
                     className="k-chip shrink-0 rounded-full border-success/50 bg-success/10 px-3.5 py-2 text-[11px] font-semibold text-success flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-[#346834]"
                   >
                     <MessageCircle size={13} /> {s} · Réserver (WhatsApp)

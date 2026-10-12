@@ -191,6 +191,7 @@ export function RitualJourney({
 }) {
   const addToCart = useKene((s) => s.addToCart);
   const setClientTab = useKene((s) => s.setClientTab);
+  const user = useKene((s) => s.user);
   const [step, setStep] = useState(0);
   const [kept, setKept] = useState<Record<string, boolean>>({});
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -396,7 +397,14 @@ export function RitualJourney({
                 <button
                   onClick={() => {
                     onClose();
-                    openWhatsAppAppointmentInquiry();
+                    openWhatsAppAppointmentInquiry({
+                      serviceCategory: "Soin esthétique",
+                      serviceName: `Soin cabine & rituel tissé (${zoneLabel})`,
+                      tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
+                      instituteName: user?.selectedTenant?.name,
+                      country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
+                      scoreGlobal: diag.result.score_global,
+                    });
                   }}
                   className="mt-4 w-full h-11 rounded-xl border border-[#3F7D3F]/50 text-[#3F7D3F] text-xs font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-[#3F7D3F]"
                 >
@@ -435,6 +443,9 @@ export function RitualJourney({
                 const pickedNames = keptPicks.map((p) => p.product.name).join(", ");
                 openWhatsAppProductOrderInquiry({
                   productName: `Rituel tissé personnalisé (${pickedNames || "Actifs botaniques"})`,
+                  tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
+                  instituteName: user?.selectedTenant?.name,
+                  country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
                 });
               }}
               disabled={keptPicks.length === 0}

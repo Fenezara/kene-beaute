@@ -200,9 +200,13 @@ export function HomeScreen({
 
   /** Institut partenaire coché par la cliente */
   const selectedInst = useMemo(() => {
-    if (!user.selectedTenantId || !data?.institutes) return null;
-    return data.institutes.find((i) => i.id === user.selectedTenantId) ?? null;
-  }, [user.selectedTenantId, data?.institutes]);
+    if (data?.institutes && user.selectedTenantId) {
+      const match = data.institutes.find((i) => i.id === user.selectedTenantId);
+      if (match) return match;
+    }
+    if (user.selectedTenant) return user.selectedTenant;
+    return null;
+  }, [user.selectedTenantId, user.selectedTenant, data?.institutes]);
 
   return (
     <Reveal className="flex flex-col gap-6 pt-1">
@@ -313,17 +317,16 @@ export function HomeScreen({
           lastDiag={multi.last ?? null}
           globalScore={multi.score}
           institutes={data?.institutes ?? []}
-          defaultInstituteId={nextAppt?.tenantId || nextAppt?.tenant?.id}
+          defaultInstituteId={selectedInst?.id || nextAppt?.tenantId || nextAppt?.tenant?.id}
           onStartScan={() => onScanZone("visage")}
           onOpenRoutine={() => {
-            if (lastResult) {
-              const botanicals = (lastResult.recommandations?.botaniques_conseillees || []).slice(0, 3).join(", ");
-              openWhatsAppProductOrderInquiry({
-                productName: `Rituel formulé sur-mesure (${botanicals || "Actifs botaniques"})`,
-              });
-            } else {
-              openWhatsAppProductOrderInquiry();
-            }
+            const botanicals = lastResult ? (lastResult.recommandations?.botaniques_conseillees || []).slice(0, 3).join(", ") : undefined;
+            openWhatsAppProductOrderInquiry({
+              productName: botanicals ? `Rituel formulé sur-mesure (${botanicals})` : undefined,
+              tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
+              instituteName: selectedInst?.name,
+              country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
+            });
           }}
           onOpenContactKene={() => setContactKeneOpen(true)}
         />
@@ -333,7 +336,16 @@ export function HomeScreen({
       <RevealItem>
         <AppointmentsCareSection
           appointments={data?.appointments ?? []}
-          onBookCare={() => openWhatsAppAppointmentInquiry()}
+          selectedInstitute={selectedInst}
+          onBookCare={() =>
+            openWhatsAppAppointmentInquiry({
+              serviceCategory: "Soin esthétique",
+              serviceName: "Soin en institut partenaire",
+              tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
+              instituteName: selectedInst?.name,
+              country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
+            })
+          }
         />
       </RevealItem>
 
@@ -431,6 +443,9 @@ export function HomeScreen({
                     const botanicals = (lastResult.recommandations?.botaniques_conseillees || []).slice(0, 3).join(", ");
                     openWhatsAppProductOrderInquiry({
                       productName: `Rituel formulé sur-mesure (${botanicals || "Actifs botaniques personnalisés"})`,
+                      tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
+                      instituteName: selectedInst?.name,
+                      country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
                     });
                   }}
                   className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
@@ -453,7 +468,7 @@ export function HomeScreen({
             </span>
             <div className="min-w-0">
               <h3 id="cabine-t" className="font-heading font-black text-sm text-foreground truncate">
-                Soin en Institut Partenaire
+                {selectedInst ? `Soin chez ${selectedInst.name}` : "Soin en Institut Partenaire"}
               </h3>
               <p className="text-xs text-muted-foreground truncate">
                 Soin cabine &amp; massage facial adapté à ta peau.
@@ -461,7 +476,15 @@ export function HomeScreen({
             </div>
           </div>
           <button
-            onClick={() => openWhatsAppAppointmentInquiry()}
+            onClick={() =>
+              openWhatsAppAppointmentInquiry({
+                serviceCategory: "Soin esthétique",
+                serviceName: "Soin signature cabine & éclat",
+                tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
+                instituteName: selectedInst?.name,
+                country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
+              })
+            }
             className="shrink-0 h-9 px-3.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-[#128C7E] dark:text-[#25D366] text-xs font-bold flex items-center gap-1.5 transition-colors"
           >
             <MessageCircle size={14} />
@@ -498,8 +521,9 @@ export function HomeScreen({
                 </button>
                 <button
                   onClick={() => {
-                    const phone = selectedInst.phone || selectedInst.ownerPhone || "2250700000000";
-                    openWhatsApp(phone, `Bonjour ${selectedInst.name} ! 🌸\nJe suis cliente Kènè (${user.name}). Je souhaite échanger avec vous.`);
+                    const phone = selectedInst.phone || (selectedInst as any).ownerPhone || "2250700000000";
+                    const country = ((selectedInst as any).country || "CI") as "CI" | "SN";
+                    openWhatsApp(phone, `Bonjour ${selectedInst.name} ! 🌸\nJe suis cliente Kènè (${user.name}). Je souhaite échanger avec vous.`, country);
                   }}
                   className="h-8 px-3 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold flex items-center gap-1 shadow-xs"
                 >

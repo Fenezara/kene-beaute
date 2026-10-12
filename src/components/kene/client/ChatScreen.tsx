@@ -1014,7 +1014,12 @@ export function ChatScreen() {
                   type="button"
                   onClick={() => {
                     haptic(HAPTIC.light);
-                    openWhatsAppProductOrderInquiry({ summary: lastAssistantMessage.content });
+                    openWhatsAppProductOrderInquiry({
+                      summary: lastAssistantMessage.content,
+                      tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
+                      instituteName: user?.selectedTenant?.name,
+                      country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
+                    });
                   }}
                   className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
                 >
@@ -1025,7 +1030,13 @@ export function ChatScreen() {
                   type="button"
                   onClick={() => {
                     haptic(HAPTIC.light);
-                    openWhatsAppAppointmentInquiry({ serviceName: "Protocole recommandé par Dermo Kènè" });
+                    openWhatsAppAppointmentInquiry({
+                      serviceCategory: "Consultation & Soin",
+                      serviceName: "Protocole recommandé par Dermo Kènè",
+                      tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
+                      instituteName: user?.selectedTenant?.name,
+                      country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
+                    });
                   }}
                   className="h-10 px-4 rounded-xl border border-border bg-muted/40 hover:bg-muted text-foreground text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all"
                 >
@@ -1035,8 +1046,14 @@ export function ChatScreen() {
                 <button
                   type="button"
                   onClick={() => {
-                    const msg = `Bonjour Dermo Kènè ! 🌿 Voici les conseils et routine de soin recommandée :\n\n${lastAssistantMessage.content}\n\nPrenez bien soin de ma peau !`;
-                    openWhatsApp("", msg);
+                    const chosenPhone = user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone;
+                    const chosenName = user?.selectedTenant?.name;
+                    const targetPhone = chosenPhone || user?.phone || "";
+                    const country = ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN";
+                    const msg = chosenName
+                      ? `Bonjour ${chosenName} ! 🌿\n\nVoici le protocole de soin conseillé par Dermo Kènè pour ma peau :\n${lastAssistantMessage.content}\n\nJe souhaite échanger avec vous pour mes soins.`
+                      : `Bonjour Dermo Kènè ! 🌿 Voici les conseils et routine de soin recommandée :\n\n${lastAssistantMessage.content}\n\nPrenez bien soin de ma peau !`;
+                    openWhatsApp(targetPhone, msg, country);
                   }}
                   className="h-10 px-3.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 border border-[#25D366]/40 text-[#25D366] text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all"
                 >
@@ -1125,10 +1142,26 @@ export function ChatScreen() {
                   {tri && (
                     <button
                       onClick={() => {
+                        const chosenTenant = user?.selectedTenant;
+                        const tenantPhone = chosenTenant?.phone || (chosenTenant as any)?.ownerPhone;
+                        const instituteName = chosenTenant?.name;
+                        const country = ((chosenTenant as any)?.country || "CI") as "CI" | "SN";
+
                         if (m.niveau === "vert") {
-                          openWhatsAppProductOrderInquiry({ summary: m.content });
+                          openWhatsAppProductOrderInquiry({
+                            summary: m.content,
+                            tenantPhone,
+                            instituteName,
+                            country,
+                          });
                         } else {
-                          openWhatsAppAppointmentInquiry({ serviceName: "Protocole conseillé par Dermo Kènè" });
+                          openWhatsAppAppointmentInquiry({
+                            serviceCategory: m.niveau === "rouge" ? "Consultation prioritaire" : "Contrôle dermo",
+                            serviceName: "Protocole conseillé par Dermo Kènè",
+                            tenantPhone,
+                            instituteName,
+                            country,
+                          });
                         }
                       }}
                       className={`mt-1.5 h-9 px-3.5 rounded-full ${tri.text} border ${m.niveau === "vert" ? "border-[#346834]/50 bg-[#346834]/10" : m.niveau === "jaune" ? "border-[#C8951E]/50 bg-[#C8951E]/10" : "border-[#8B1A3B]/50 bg-[#8B1A3B]/10"} text-xs font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary flex items-center gap-1.5`}

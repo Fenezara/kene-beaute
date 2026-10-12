@@ -23,16 +23,16 @@ import {
   BellRing,
 } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/kene/format";
-import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
-import { openWhatsAppAppointmentInquiry } from "@/lib/kene/whatsapp-relay";
-import type { ApiAppointment } from "./types";
+import { openWhatsApp, openWhatsAppAppointmentInquiry } from "@/lib/kene/whatsapp-relay";
+import type { ApiAppointment, ApiInstitute } from "./types";
 
 interface AppointmentsCareSectionProps {
   appointments: ApiAppointment[];
   onBookCare?: () => void;
+  selectedInstitute?: ApiInstitute | { id: string; name: string; city: string; phone?: string | null; ownerPhone?: string | null; country?: string | null } | null;
 }
 
-export function AppointmentsCareSection({ appointments, onBookCare }: AppointmentsCareSectionProps) {
+export function AppointmentsCareSection({ appointments, onBookCare, selectedInstitute }: AppointmentsCareSectionProps) {
   const now = Date.now();
 
   // Rendez-vous à venir (non annulés, classés du plus proche au plus lointain)
@@ -159,14 +159,28 @@ export function AppointmentsCareSection({ appointments, onBookCare }: Appointmen
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${fmtIso(start)}/${fmtIso(end)}&details=${details}&location=${location}`;
   }
 
+  // Prise de rendez-vous directe ciblée par catégorie vers l'entreprise choisie
+  function handleBookCategory(category: string, serviceName: string) {
+    const tenantPhone = selectedInstitute?.phone || selectedInstitute?.ownerPhone;
+    openWhatsAppAppointmentInquiry({
+      serviceCategory: category,
+      serviceName,
+      instituteName: selectedInstitute?.name,
+      tenantPhone: tenantPhone || undefined,
+      country: (selectedInstitute?.country || "CI") as "CI" | "SN",
+    });
+  }
+
   // Message WhatsApp pré-rempli pour confirmer auprès de l'institut
   function handleConfirmOnWhatsApp(appt: ApiAppointment) {
-    const tenantPhone = appt.tenant?.phone || "2250700000000";
+    const tenantPhone = appt.tenant?.phone || (appt.tenant as any)?.ownerPhone || selectedInstitute?.phone || selectedInstitute?.ownerPhone || "2250700000000";
+    const instName = appt.tenant?.name || selectedInstitute?.name || "l'institut";
+    const country = ((appt.tenant as any)?.country || selectedInstitute?.country || "CI") as "CI" | "SN";
     const serviceName = appt.service?.name || "mon soin";
     const dateStr = formatDate(appt.startAt);
     const timeStr = formatTime(appt.startAt);
-    const msg = `Bonjour ${appt.tenant?.name || "l'équipe"} ! 🌸\n\nJe confirme ma venue pour mon rendez-vous de soin *${serviceName}* prévu le *${dateStr}* à *${timeStr}* (avec ${appt.resource?.name || "ma praticienne"}).\n\nNom : ${appt.clientName}\nÀ très vite ! ✨`;
-    openWhatsApp(tenantPhone, msg);
+    const msg = `Bonjour ${instName} ! 🌸\n\nJe confirme ma venue pour mon rendez-vous de soin *${serviceName}* prévu le *${dateStr}* à *${timeStr}* (avec ${appt.resource?.name || "ma praticienne"}).\n\nNom : ${appt.clientName}\nÀ très vite ! ✨`;
+    openWhatsApp(tenantPhone, msg, country);
   }
 
   if (upcoming.length === 0) {
@@ -192,16 +206,62 @@ export function AppointmentsCareSection({ appointments, onBookCare }: Appointmen
           </span>
         </div>
 
-        <div className="rounded-2xl border border-dashed border-border/80 bg-muted/20 p-4 text-center space-y-2.5">
+        <div className="rounded-2xl border border-dashed border-border/80 bg-muted/20 p-4 text-center space-y-3">
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
             Aucun rendez-vous planifié. Vos séances réservées sur WhatsApp s&apos;affichent ici avec vos rappels automatiques.
           </p>
+
+          {selectedInstitute && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-semibold text-primary">
+              <span>🎯 Lié à votre institut : {selectedInstitute.name} ({selectedInstitute.city})</span>
+            </div>
+          )}
+
+          {/* Boutons d'accès directs par type de soin vers l'entreprise */}
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+            <button
+              onClick={() => handleBookCategory("Consultation", "Consultation dermo-botanique")}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-bold active:scale-95 transition-all"
+            >
+              <Sparkles size={13} />
+              Consultation
+            </button>
+            <button
+              onClick={() => handleBookCategory("Soin esthétique", "Soin esthétique cabine & éclat")}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-[#C8951E]/15 hover:bg-[#C8951E]/25 text-[#C8951E] dark:text-[#E3B04B] border border-[#C8951E]/30 text-xs font-bold active:scale-95 transition-all"
+            >
+              <Sparkles size={13} />
+              Soin cabine
+            </button>
+            <button
+              onClick={() => handleBookCategory("Contrôle", "Contrôle dermo & suivi cutané")}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold active:scale-95 transition-all"
+            >
+              <CheckCircle2 size={13} />
+              Contrôle
+            </button>
+            <button
+              onClick={() => handleBookCategory("Coiffure", "Coiffure & soin capillaire")}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-[#A0522D]/15 hover:bg-[#A0522D]/25 text-[#A0522D] dark:text-[#E89E78] border-[#A0522D]/30 text-xs font-bold active:scale-95 transition-all"
+            >
+              <Scissors size={13} />
+              Coiffure
+            </button>
+            <button
+              onClick={() => handleBookCategory("Onglerie", "Onglerie & manucure spa")}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-700 dark:text-purple-300 border-purple-500/30 text-xs font-bold active:scale-95 transition-all"
+            >
+              <Hand size={13} />
+              Onglerie
+            </button>
+          </div>
+
           <button
-            onClick={() => onBookCare?.() ?? openWhatsAppAppointmentInquiry()}
+            onClick={() => onBookCare?.() ?? handleBookCategory("Soin en institut", "Prestation personnalisée")}
             className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
           >
             <MessageCircle size={14} />
-            Prendre rendez-vous (WhatsApp)
+            Prendre rendez-vous (WhatsApp) {selectedInstitute ? `avec ${selectedInstitute.name}` : ""}
           </button>
         </div>
       </section>
@@ -424,6 +484,55 @@ export function AppointmentsCareSection({ appointments, onBookCare }: Appointmen
           </div>
         </div>
       )}
+
+      {/* ───── Programmer un autre soin ou contrôle chez l'institut choisi ───── */}
+      <div className="rounded-2xl border border-border/70 bg-card/60 p-3.5 space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            {selectedInstitute ? `Programmer chez ${selectedInstitute.name}` : "Programmer un nouveau soin (WhatsApp)"} :
+          </p>
+          {selectedInstitute && (
+            <span className="text-[10px] text-primary font-semibold">📍 {selectedInstitute.city}</span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => handleBookCategory("Consultation", "Consultation dermo-botanique")}
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[11px] font-bold active:scale-95 transition-all"
+          >
+            <Sparkles size={11} />
+            Consultation
+          </button>
+          <button
+            onClick={() => handleBookCategory("Soin esthétique", "Soin esthétique cabine & éclat")}
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#C8951E]/15 hover:bg-[#C8951E]/25 text-[#C8951E] dark:text-[#E3B04B] border border-[#C8951E]/30 text-[11px] font-bold active:scale-95 transition-all"
+          >
+            <Sparkles size={11} />
+            Soin cabine
+          </button>
+          <button
+            onClick={() => handleBookCategory("Contrôle", "Contrôle dermo & suivi cutané")}
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[11px] font-bold active:scale-95 transition-all"
+          >
+            <CheckCircle2 size={11} />
+            Contrôle
+          </button>
+          <button
+            onClick={() => handleBookCategory("Coiffure", "Coiffure & soin capillaire")}
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#A0522D]/15 hover:bg-[#A0522D]/25 text-[#A0522D] dark:text-[#E89E78] border-[#A0522D]/30 text-[11px] font-bold active:scale-95 transition-all"
+          >
+            <Scissors size={11} />
+            Coiffure
+          </button>
+          <button
+            onClick={() => handleBookCategory("Onglerie", "Onglerie & manucure spa")}
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-700 dark:text-purple-300 border-purple-500/30 text-[11px] font-bold active:scale-95 transition-all"
+          >
+            <Hand size={11} />
+            Onglerie
+          </button>
+        </div>
+      </div>
     </section>
   );
 }

@@ -39,7 +39,7 @@ export interface SessionUser {
   fitzpatrick?: string | null;
   allergies?: string | null;
   selectedTenantId?: string | null;
-  selectedTenant?: { id: string; name: string; city: string; phone?: string | null; image?: string; address?: string | null } | null;
+  selectedTenant?: { id: string; name: string; city: string; phone?: string | null; ownerPhone?: string | null; image?: string; address?: string | null; country?: string | null } | null;
   consentHealth?: boolean;
   // — photo de profil: la data URL vit en base (jamais dans le
   // store), seul le booléen voyage — l'UI charge /api/media/user/:id.

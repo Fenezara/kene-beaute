@@ -5,12 +5,14 @@
 // chaque décision est horodatée (traçabilité RGPD). Le miroir peau
 // (type + phototype) reste partagé: c'est le contexte minimal du soin.
 import { useCallback, useEffect, useState } from "react";
-import { Building2, Check, Loader2, Lock, Share2 } from "lucide-react";
+import { Building2, Check, Loader2, Lock, Share2, MessageCircle, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { formatDate } from "@/lib/kene/format";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { openWhatsApp, openWhatsAppAppointmentInquiry } from "@/lib/kene/whatsapp-relay";
+import { useKene } from "@/store/kene";
 import { SectionTitle } from "./bits";
 
 export interface InstituteShare {
@@ -22,6 +24,9 @@ export interface InstituteShare {
   granted: boolean;
   visitsCount: number;
   lastVisit: string | null;
+  phone?: string | null;
+  ownerPhone?: string | null;
+  country?: string | null;
 }
 
 type SharesData = { scansTotal: number; shares: InstituteShare[] };
@@ -30,6 +35,9 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
   const [data, setData] = useState<SharesData | null>(null);
   const [failed, setFailed] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const user = useKene((s) => s.user);
+  const setUser = useKene((s) => s.setUser);
 
   const load = useCallback(() => {
     apiGet<SharesData>(`/api/auth/shares?userId=${userId}`)
@@ -51,6 +59,23 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
       setData((d) =>
         d ? { ...d, shares: d.shares.map((s) => (s.tenantId === share.tenantId ? { ...s, granted: next } : s)) } : d,
       );
+
+      // Si la cliente n'a pas encore d'institut référent coché, on lie automatiquement celui qu'elle vient de partager
+      if (next && user && !user.selectedTenantId) {
+        setUser({
+          ...user,
+          selectedTenantId: share.tenantId,
+          selectedTenant: {
+            id: share.tenantId,
+            name: share.name,
+            city: share.city,
+            phone: share.phone || share.ownerPhone,
+            ownerPhone: share.ownerPhone,
+            country: share.country,
+          },
+        });
+      }
+
       toast.success(
         next
           ? `Diagnostics partagés avec ${share.name}`
@@ -128,16 +153,49 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
                   )}
                 </p>
               </div>
-              <Switch
-                checked={s.granted}
-                disabled={busyId === s.tenantId}
-                onCheckedChange={(v) => toggle(s, v)}
-                aria-label={
-                  s.granted
-                    ? `Retirer le partage de mes diagnostics avec ${s.name}`
-                    : `Partager mes diagnostics avec ${s.name}`
-                }
-              />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() =>
+                    openWhatsAppAppointmentInquiry({
+                      serviceCategory: "Soin esthétique",
+                      serviceName: "Soin cabine & suivi",
+                      instituteName: s.name,
+                      tenantPhone: s.phone || s.ownerPhone || undefined,
+                      country: (s.country || "CI") as "CI" | "SN",
+                    })
+                  }
+                  title={`Prendre rendez-vous chez ${s.name}`}
+                  className="size-8 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary grid place-items-center transition-colors"
+                >
+                  <CalendarPlus size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const phone = s.phone || s.ownerPhone || "";
+                    openWhatsApp(
+                      phone,
+                      `Bonjour ${s.name} ! 🌸\nJe suis cliente sur l'application Kènè (${userName}). Mes bilans de peau vous sont partagés et je souhaite échanger pour mes soins.`,
+                      (s.country || "CI") as "CI" | "SN"
+                    );
+                  }}
+                  title={`Échanger sur WhatsApp avec ${s.name}`}
+                  className="size-8 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] grid place-items-center transition-colors"
+                >
+                  <MessageCircle size={14} />
+                </button>
+                <Switch
+                  checked={s.granted}
+                  disabled={busyId === s.tenantId}
+                  onCheckedChange={(v) => toggle(s, v)}
+                  aria-label={
+                    s.granted
+                      ? `Retirer le partage de mes diagnostics avec ${s.name}`
+                      : `Partager mes diagnostics avec ${s.name}`
+                  }
+                />
+              </div>
               {busyId === s.tenantId && <Loader2 size={14} className="animate-spin text-muted-foreground" aria-hidden="true" />}
             </div>
           ))}
