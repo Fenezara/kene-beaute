@@ -13,12 +13,12 @@
 // lourds sont lazy (chunk dédié au premier clic — HomeScreen/Onboarding eager).
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Building2, CalendarDays, Home, Loader2, MessageCircle, Settings, ShoppingBag, User, WifiOff } from "lucide-react";
+import { Crown, Home, Loader2, MessageCircle, Settings, Share2, User, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
 import { HAPTIC, haptic, isOnline, useNetworkOnline } from "@/lib/kene/ux";
 import { formatTime } from "@/lib/kene/format";
-import { KeneEmblem, KeneEmblemLockup, KeneMark, NeaOnnimIcon } from "@/components/kene/icons";
+import { KeneEmblem, KeneEmblemLockup, KeneMark, NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { AuroraBackdrop, IconBadge } from "@/components/kene/ui2026";
 import { useKene, type ClientTab } from "@/store/kene";
@@ -32,7 +32,7 @@ import { ScreenBoundary } from "./ScreenBoundary";
 import { BootSkeleton } from "./BootSkeleton";
 import { PaymentReturnHandler } from "./PaymentReturnHandler";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
-import { openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
+import { openWhatsAppAppointmentInquiry } from "@/lib/kene/whatsapp-relay";
 import { cn } from "@/lib/utils";
 
 /** Navigation latérale (desktop & tablette) — 4 destinations clés */
@@ -53,24 +53,18 @@ const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<
 
 /** Onglets d'écran — « abonnement » et « legal » sont des écrans
  * CACHÉS façon « parametres »: hors tab-bar, hors balayage, accès
- * depuis Paramètres (cartes Abonnement / Mentions légales). Ils ne sont PAS
- * ajoutés au type persistable du store (fichier hors périmètre ce sprint):
- * sanitizePersisted ne restaure que les onglets connus → un écran caché ne
- * survit jamais à un rechargement (retour accueil, c'est voulu) — les casts
- * ci-dessous sont purement typés, le runtime est identique. */
+ * depuis Paramètres (cartes Abonnement / Mentions légales). */
 type ScreenTab = ClientTab | "abonnement" | "legal";
 
 const TITLES: Record<ScreenTab, string> = {
   accueil: "title.home",
-  instituts: "title.institutes",
+  instituts: "title.profile",
   diagnostic: "title.diag",
-  boutique: "title.shop",
-  rdv: "title.rdv",
+  boutique: "title.home",
+  rdv: "title.home",
   chat: "title.chat",
   profil: "title.profile",
   parametres: "title.parametres",
-  // FR direct (i18n hors périmètre ce sprint): t replie sur la clé brute →
-  // la chaîne est affichée telle quelle.
   abonnement: "Abonnement",
   legal: "Mentions légales",
 };
@@ -79,10 +73,7 @@ const TITLES: Record<ScreenTab, string> = {
 const SWIPE_ORDER: ClientTab[] = ["accueil", "diagnostic", "chat", "profil"];
 
 // ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
-import { InstitutesScreen } from "./InstitutesScreen";
 import { DiagnosticScreen } from "./DiagnosticScreen";
-import { ShopScreen } from "./ShopScreen";
-import { BookingScreen } from "./BookingScreen";
 import { ChatScreen } from "./ChatScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { PlanScreen } from "./PlanScreen";
@@ -117,7 +108,6 @@ export function ClientApp() {
   // Écran courant étendu aux onglets cachés 71-c (cast typé, cf. ScreenTab).
   const tab = useKene((s) => s.clientTab) as ScreenTab;
   const setClientTab = useKene((s) => s.setClientTab);
-  const cartCount = useKene((s) => s.cart.reduce((n, l) => n + l.qty, 0));
   // Gate d'hydratation kene-store (contrat): _keneHydrated passe à
   // true quand la relecture localStorage est finie (onRehydrateStorage, même
   // en cas d'erreur — la porte ne se verrouille jamais). Typage tolérant: si
@@ -488,24 +478,9 @@ export function ClientApp() {
                       <HomeScreen onScanZone={onScanZone} refreshKey={refreshKey} onRefreshed={onRefreshed} />
                     </ScreenBoundary>
                   )}
-                  {tab === "instituts" && (
-                    <ScreenBoundary name="Instituts">
-                      <InstitutesScreen />
-                    </ScreenBoundary>
-                  )}
                   {tab === "diagnostic" && (
                     <ScreenBoundary name="Diagnostic">
                       <DiagnosticScreen pendingZone={pendingZone} onZoneConsumed={onZoneConsumed} />
-                    </ScreenBoundary>
-                  )}
-                  {tab === "boutique" && (
-                    <ScreenBoundary name="Boutique">
-                      <ShopScreen />
-                    </ScreenBoundary>
-                  )}
-                  {tab === "rdv" && (
-                    <ScreenBoundary name="Rendez-vous">
-                      <BookingScreen />
                     </ScreenBoundary>
                   )}
                   {tab === "chat" && (
@@ -639,33 +614,27 @@ export function ClientApp() {
             </button>
             <button
               onClick={() =>
-                openWhatsAppProductOrderInquiry({
-                  tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
-                  instituteName: user?.selectedTenant?.name,
-                  country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
-                })
-              }
-              className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-[#25D366]/30 bg-[#25D366]/5"
-              aria-label="Mon rituel de soin par WhatsApp"
-            >
-              <ShoppingBag size={20} className="text-[#25D366]" />
-              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Mon Rituel<br /><span className="text-[#25D366] font-bold">WhatsApp 🌿</span></p>
-            </button>
-            <button
-              onClick={() =>
                 openWhatsAppAppointmentInquiry({
                   serviceCategory: "Soin esthétique",
-                  serviceName: "Soin en cabine & éclat",
+                  serviceName: "Soin & diagnostic dermo-botanique",
                   tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
                   instituteName: user?.selectedTenant?.name,
                   country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
                 })
               }
-              className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-[#25D366]/30 bg-[#25D366]/5"
-              aria-label="Soin en cabine par WhatsApp"
+              className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-primary/20 bg-primary/5"
+              aria-label="Secrétaire IA & Rendez-vous"
             >
-              <CalendarDays size={20} className="text-[#25D366]" />
-              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Soin Cabine<br /><span className="text-[#25D366] font-bold">WhatsApp 💆‍♀️</span></p>
+              <Crown size={20} className="text-gold-text" />
+              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Secrétaire IA<br /><span className="text-gold-text font-bold">Rendez-Vous 💆‍♀️</span></p>
+            </button>
+            <button
+              onClick={() => goTab("profil")}
+              className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-primary/20 bg-card"
+              aria-label="Partager avec mes instituts"
+            >
+              <Share2 size={20} className="text-primary" />
+              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Partager<br /><span className="text-primary font-bold">Mes Instituts 🤝</span></p>
             </button>
           </div>
 

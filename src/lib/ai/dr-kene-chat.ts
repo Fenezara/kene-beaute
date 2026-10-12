@@ -318,17 +318,17 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
   // 10. INSTITUTS / RENDEZ-VOUS / SOINS EN CABINE
   if (/institut|rendez[- ]vous|rdv|soin|cabine|reserver|reservation|dermo|adresse|cabinet/.test(text)) {
     return (
-      "Tu peux prendre ton rendez-vous directement dans l'application Kènè auprès de nos instituts partenaires certifiés à Abidjan, notamment le Cabinet LA DERMO. " +
+      "Tu peux échanger directement par WhatsApp avec ton institut partenaire certifié Kènè pour convenir d'un rendez-vous sur-mesure. " +
       "Les praticiennes d'ici connaissent parfaitement la peau noire et adaptent le protocole de soin à ton phototype sans agresser la peau. " +
-      "Rends-toi simplement dans l'onglet « Instituts » de l'application pour choisir ton créneau et ton soin préféré tranquillement 🌿."
+      "Rends-toi dans ton Profil à la section « Partager avec mes instituts » pour choisir ton institut favori et lui transmettre ton bilan de peau 🌿."
     );
   }
 
   // 11. BOUTIQUE / PRIX / ACHAT PRODUITS
   if (/prix|tarif|combien|acheter|commander|produit|boutique|creme|serum/.test(text)) {
     return (
-      "Pour commander nos soins dermo-cosmétiques formulés spécialement pour la peau mélanoderme, tu peux te rendre directement dans l'onglet « Boutique » de l'application. " +
-      "Tous les prix en FCFA y sont indiqués en toute transparence, avec livraison rapide partout à Abidjan et en Côte d'Ivoire. " +
+      "Pour commander nos soins dermo-botaniques formulés spécialement pour la peau mélanoderme, tu peux échanger directement avec ton institut partenaire ou notre concierge Kènè via WhatsApp. " +
+      "Chaque routine est validée sur-mesure d'après ton diagnostic de peau, avec livraison soignée à Abidjan et partout en Côte d'Ivoire. " +
       "Dis-moi ce que tu cherches exactement et je te guide vers le meilleur soin pour ton teint 🌿."
     );
   }

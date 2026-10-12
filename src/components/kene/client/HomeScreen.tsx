@@ -8,34 +8,26 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Building2,
-  ChevronRight,
   CloudSun,
   Crown,
-  Leaf,
   MapPin,
   MessageCircle,
-  Moon,
   Sparkles,
   SunMedium,
-  Sunrise,
   Wind,
 } from "lucide-react";
-import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
+import { openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
 import { apiGet } from "@/lib/kene/api";
-import { formatDate, formatTime } from "@/lib/kene/format";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
-import { KeneEmblem, SankofaIcon, CauriIcon } from "@/components/kene/icons";
-import { Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
+import { KeneEmblem } from "@/components/kene/icons";
+import { Reveal, RevealItem } from "@/components/kene/ui2026";
 import { useT } from "@/lib/kene/use-t";
 import { useKene } from "@/store/kene";
 import { MvpFunnelHero } from "./MvpFunnelHero";
-import { SkinHealthDashboard } from "./SkinHealthDashboard";
 import { AppointmentsCareSection } from "./AppointmentsCareSection";
 import { ContactKeneModal } from "./ContactKeneModal";
 import type { ApiAppointment, ApiDiagnosis, ApiInstitute, ApiProduct } from "./types";
 import { parseDiagnosis } from "./types";
-import { SectionTitle } from "./bits";
 
 interface HomeData {
   diagnoses: ApiDiagnosis[];
@@ -420,181 +412,7 @@ export function HomeScreen({
         </div>
       </RevealItem>
 
-      {/* ───── État Actuel & Constantes de Santé Cutanée en Temps Réel ───── */}
-      <RevealItem>
-        <SkinHealthDashboard
-          user={user}
-          multi={multi}
-          lastResult={lastResult}
-          onScanZone={onScanZone}
-          onOpenFullDiag={() => setClientTab("diagnostic")}
-        />
-      </RevealItem>
-
       {err && <p className="rounded-xl bg-destructive/10 text-destructive text-xs p-3">{err}</p>}
-
-      {/* ───── Mon Protocole Botanique Personnalisé ───── */}
-      {lastResult && (
-        <RevealItem>
-          <section aria-labelledby="rituel-t" className="rounded-[26px] border border-border/80 bg-card/80 p-4 sm:p-5 shadow-xs">
-            <SectionTitle icon={<CauriIcon size={16} className="text-gold-text" />}>
-              <span id="rituel-t">Mon Protocole Botanique</span>
-            </SectionTitle>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3">
-              {/* Rituel Matin */}
-              <div className="rounded-2xl border border-[#C8951E]/20 bg-[#C8951E]/5 p-3 space-y-1">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#C8951E]">
-                  <Sunrise size={14} /> Rituel Matin
-                </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">
-                  {lastResult.recommandations?.routine_matin?.slice(0, 2).join(" · ") || "Nettoyage doux au Moringa & émulsion protectrice"}
-                </p>
-              </div>
-
-              {/* Rituel Soir */}
-              <div className="rounded-2xl border border-terre/20 bg-terre/5 p-3 space-y-1">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-terre">
-                  <Moon size={14} /> Rituel Soir
-                </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">
-                  {lastResult.recommandations?.routine_soir?.slice(0, 2).join(" · ") || "Karité brut pur & régénération nocturne"}
-                </p>
-              </div>
-            </div>
-
-            {/* Actifs clés */}
-            {lastResult.recommandations?.botaniques_conseillees && lastResult.recommandations.botaniques_conseillees.length > 0 && (
-              <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex flex-wrap gap-1.5">
-                  {lastResult.recommandations.botaniques_conseillees.slice(0, 4).map((b) => (
-                    <span key={b} className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
-                      🌿 {b}
-                    </span>
-                  ))}
-                </div>
-                <button
-                  onClick={() => {
-                    const botanicals = (lastResult.recommandations?.botaniques_conseillees || []).slice(0, 3).join(", ");
-                    openWhatsAppProductOrderInquiry({
-                      productName: `Rituel formulé sur-mesure (${botanicals || "Actifs botaniques personnalisés"})`,
-                      tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
-                      instituteName: selectedInst?.name,
-                      country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
-                    });
-                  }}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
-                >
-                  <MessageCircle size={13} />
-                  Commander (WhatsApp)
-                </button>
-              </div>
-            )}
-          </section>
-        </RevealItem>
-      )}
-
-      {/* ───── Soin Signature en Cabine ───── */}
-      <RevealItem>
-        <section aria-labelledby="cabine-t" className="rounded-[22px] border border-border/70 bg-card/60 p-4 flex items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary shrink-0">
-              <SankofaIcon size={16} />
-            </span>
-            <div className="min-w-0">
-              <h3 id="cabine-t" className="font-heading font-black text-sm text-foreground truncate">
-                {selectedInst ? `Soin chez ${selectedInst.name}` : "Soin en Institut Partenaire"}
-              </h3>
-              <p className="text-xs text-muted-foreground truncate">
-                Soin cabine &amp; massage facial adapté à ta peau.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() =>
-              openWhatsAppAppointmentInquiry({
-                serviceCategory: "Soin esthétique",
-                serviceName: "Soin signature cabine & éclat",
-                tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
-                instituteName: selectedInst?.name,
-                country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
-              })
-            }
-            className="shrink-0 h-9 px-3.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-[#128C7E] dark:text-[#25D366] text-xs font-bold flex items-center gap-1.5 transition-colors"
-          >
-            <MessageCircle size={14} />
-            Réserver
-          </button>
-        </section>
-      </RevealItem>
-
-      {/* ───── Mon Institut Partenaire Référent ───── */}
-      {selectedInst ? (
-        <RevealItem>
-          <section aria-labelledby="mon-institut-t" className="rounded-[22px] border border-primary/30 bg-primary/5 p-4 shadow-xs">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shrink-0 shadow-xs">
-                  <Building2 size={16} />
-                </span>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Institut Référent ✅</span>
-                  <h3 id="mon-institut-t" className="font-heading font-black text-sm text-foreground truncate">
-                    {selectedInst.name}
-                  </h3>
-                  <p className="text-xs text-muted-foreground truncate">
-                    📍 {selectedInst.city}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => setClientTab("profil")}
-                  className="h-8 px-3 rounded-lg border border-border bg-card hover:bg-accent text-foreground text-xs font-semibold"
-                >
-                  Changer
-                </button>
-                <button
-                  onClick={() => {
-                    const phone = selectedInst.phone || (selectedInst as any).ownerPhone || "2250700000000";
-                    const country = ((selectedInst as any).country || "CI") as "CI" | "SN";
-                    openWhatsApp(phone, `Bonjour ${selectedInst.name} ! 🌸\nJe suis cliente Kènè (${user.name}). Je souhaite échanger avec vous.`, country);
-                  }}
-                  className="h-8 px-3 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold flex items-center gap-1 shadow-xs"
-                >
-                  <MessageCircle size={13} />
-                  WhatsApp
-                </button>
-              </div>
-            </div>
-          </section>
-        </RevealItem>
-      ) : (
-        <RevealItem>
-          <section aria-labelledby="choisir-institut-t" className="rounded-[22px] border border-border/80 bg-card/60 p-4 flex items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="grid size-9 place-items-center rounded-xl bg-gold/15 text-gold-text shrink-0">
-                <Building2 size={16} />
-              </span>
-              <div className="min-w-0">
-                <h3 id="choisir-institut-t" className="font-heading font-bold text-sm text-foreground truncate">
-                  Choisir mon institut partenaire
-                </h3>
-                <p className="text-xs text-muted-foreground truncate">
-                  Coche ton institut référent dans ton profil pour lui transmettre tes bilans.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setClientTab("profil")}
-              className="shrink-0 h-9 px-3.5 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center gap-1.5 shadow-xs"
-            >
-              <Building2 size={13} />
-              Choisir
-            </button>
-          </section>
-        </RevealItem>
-      )}
 
       {/* ───── Fin de fil — mentions simples ───── */}
       <RevealItem>

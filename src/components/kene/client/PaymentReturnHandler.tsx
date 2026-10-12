@@ -281,24 +281,24 @@ export function PaymentReturnHandler() {
                     variant="outline"
                     onClick={() => {
                       setOpen(false);
-                      setClientTab("rdv");
+                      setClientTab("accueil");
                     }}
                     className="w-full h-11 rounded-2xl font-bold text-xs gap-2 border-border"
                   >
                     <Calendar className="size-4" />
-                    Consulter mes Rendez-Vous
+                    Retour à l&apos;Accueil
                   </Button>
                 ) : result.order ? (
                   <Button
                     variant="outline"
                     onClick={() => {
                       setOpen(false);
-                      setClientTab("boutique");
+                      setClientTab("accueil");
                     }}
                     className="w-full h-11 rounded-2xl font-bold text-xs gap-2 border-border"
                   >
                     <ShoppingBag className="size-4" />
-                    Suivre mes Commandes
+                    Retour à l&apos;Accueil
                   </Button>
                 ) : (result.purpose === "subscription_renew" || result.purpose === "subscription_activate") ? (
                   <Button
