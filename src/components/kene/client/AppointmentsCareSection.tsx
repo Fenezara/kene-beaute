@@ -195,10 +195,15 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
               <CalendarDays size={18} />
             </span>
             <div>
-              <h3 id="care-appts-heading" className="font-heading font-black text-sm sm:text-base text-foreground">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#A0522D]/15 text-[#A0522D] dark:text-[#E89E78] border border-[#A0522D]/30">
+                  🥉 Produit Phare · Secrétaire IA
+                </span>
+              </div>
+              <h3 id="care-appts-heading" className="font-heading font-black text-sm sm:text-base text-foreground mt-0.5">
                 Mes Moments de Soin &amp; Rendez-vous
               </h3>
-              <p className="text-[11px] text-muted-foreground">Consultations, soins cabine, coiffure &amp; onglerie</p>
+              <p className="text-[11px] text-muted-foreground">Coordination intelligente · Rappels WhatsApp J-1 proactifs</p>
             </div>
           </div>
           <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
@@ -331,10 +336,15 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
               <CalendarDays size={18} />
             </span>
             <div>
-              <h3 id="care-appts-heading" className="font-heading font-black text-sm sm:text-base text-foreground">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#A0522D]/15 text-[#A0522D] dark:text-[#E89E78] border border-[#A0522D]/30">
+                  🥉 Produit Phare · Secrétaire IA
+                </span>
+              </div>
+              <h3 id="care-appts-heading" className="font-heading font-black text-sm sm:text-base text-foreground mt-0.5">
                 Mon Prochain Moment de Soin
               </h3>
-              <p className="text-[11px] text-muted-foreground">Enregistré et confirmé avec votre institut</p>
+              <p className="text-[11px] text-muted-foreground">Rappels proactifs WhatsApp &amp; coordination de vos séances</p>
             </div>
           </div>
           <span className={`text-[10.5px] font-bold border px-2.5 py-0.5 rounded-full flex items-center gap-1.5 ${nextMeta.badgeBg}`}>

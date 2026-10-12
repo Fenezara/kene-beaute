@@ -280,6 +280,115 @@ export function HomeScreen({
         </RevealItem>
       )}
 
+      {/* ───── 🥇 PRODUIT PHARE N°1 : HERO DU DIAGNOSTIC DE PEAU & BILAN CUTANÉ ───── */}
+      <RevealItem>
+        <MvpFunnelHero
+          lastDiag={multi.last ?? null}
+          globalScore={multi.score}
+          institutes={data?.institutes ?? []}
+          defaultInstituteId={selectedInst?.id || nextAppt?.tenantId || nextAppt?.tenant?.id}
+          onStartScan={() => onScanZone("visage")}
+          onOpenRoutine={() => {
+            const botanicals = lastResult ? (lastResult.recommandations?.botaniques_conseillees || []).slice(0, 3).join(", ") : undefined;
+            openWhatsAppProductOrderInquiry({
+              productName: botanicals ? `Rituel formulé sur-mesure (${botanicals})` : undefined,
+              tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
+              instituteName: selectedInst?.name,
+              country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
+            });
+          }}
+          onOpenContactKene={() => setContactKeneOpen(true)}
+        />
+      </RevealItem>
+
+      {/* ───── 🥈 PRODUIT PHARE N°2 : DERMO KÈNÈ · L'EXPERTE DERMO-BOTANIQUE 24/7 ───── */}
+      <RevealItem>
+        <section
+          aria-label="Dermo Kènè — Produit phare n°2"
+          className="relative overflow-hidden rounded-[26px] border border-[#C8951E]/40 bg-gradient-to-br from-[#1C1611] via-[#241A14] to-[#18130E] p-4.5 sm:p-5 text-[#FFF9EC] shadow-lg"
+        >
+          {/* Halos dorés subtils */}
+          <div aria-hidden="true" className="absolute -right-8 -top-8 size-36 rounded-full bg-[#C8951E]/15 blur-2xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C8951E]/20 border border-[#C8951E]/40 px-2.5 py-0.5 text-[10.5px] font-black uppercase tracking-wider text-[#FFD875]">
+                <Sparkles size={11} className="animate-pulse" />
+                🥈 Produit Phare · Conseillère IA 24/7
+              </span>
+              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" /> Disponible
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-[#C8951E] via-[#A0522D] to-[#8B1A3B] text-white shrink-0 shadow-md">
+                  <Sparkles size={22} className="animate-pulse" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="font-heading font-black text-base sm:text-lg text-[#FFF9EC] truncate">
+                    Dermo Kènè · Ton Experte Peau
+                  </h3>
+                  <p className="text-xs text-[#EADCC9]/85 line-clamp-2 leading-relaxed">
+                    Pose tes questions beauté à la voix ou par écrit. Analyse d&apos;ingrédients et conseils sur-mesure.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setClientTab("chat")}
+                className="k-btn-gold shrink-0 h-10 px-4 rounded-xl text-primary-foreground text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
+              >
+                <MessageCircle size={15} />
+                Échanger
+              </button>
+            </div>
+
+            {/* Questions fréquentes en 1 clic */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pretty-scroll pt-1 border-t border-[#FFF9EC]/10 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setClientTab("chat")}
+                className="shrink-0 px-2.5 py-1 rounded-lg bg-[#FFF9EC]/10 hover:bg-[#FFF9EC]/20 text-[#EADCC9] font-medium transition-colors"
+              >
+                🧴 Analyser un produit
+              </button>
+              <button
+                type="button"
+                onClick={() => setClientTab("chat")}
+                className="shrink-0 px-2.5 py-1 rounded-lg bg-[#FFF9EC]/10 hover:bg-[#FFF9EC]/20 text-[#EADCC9] font-medium transition-colors"
+              >
+                ✨ Routine anti-taches
+              </button>
+              <button
+                type="button"
+                onClick={() => setClientTab("chat")}
+                className="shrink-0 px-2.5 py-1 rounded-lg bg-[#FFF9EC]/10 hover:bg-[#FFF9EC]/20 text-[#EADCC9] font-medium transition-colors"
+              >
+                🌿 Bienfaits du Moringa
+              </button>
+            </div>
+          </div>
+        </section>
+      </RevealItem>
+
+      {/* ───── 🥉 PRODUIT PHARE N°3 : LA SECRÉTAIRE IA & VOS MOMENTS DE SOIN ───── */}
+      <RevealItem>
+        <AppointmentsCareSection
+          appointments={data?.appointments ?? []}
+          selectedInstitute={selectedInst}
+          onBookCare={() =>
+            openWhatsAppAppointmentInquiry({
+              serviceCategory: "Soin esthétique",
+              serviceName: "Soin en institut partenaire",
+              tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
+              instituteName: selectedInst?.name,
+              country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
+            })
+          }
+        />
+      </RevealItem>
+
       {/* ───── Conseil Dermo-Météo du Jour ───── */}
       <RevealItem>
         <div className="rounded-[22px] border border-border/80 bg-gradient-to-r from-card/90 via-card/60 to-card/90 backdrop-blur-xs p-3.5 shadow-xs">
@@ -309,80 +418,6 @@ export function HomeScreen({
             {weatherAdvisory.advice}
           </p>
         </div>
-      </RevealItem>
-
-      {/* ───── Cœur MVP : Hero Diagnostic + Rituel 3 Étapes + Concierge WhatsApp ───── */}
-      <RevealItem>
-        <MvpFunnelHero
-          lastDiag={multi.last ?? null}
-          globalScore={multi.score}
-          institutes={data?.institutes ?? []}
-          defaultInstituteId={selectedInst?.id || nextAppt?.tenantId || nextAppt?.tenant?.id}
-          onStartScan={() => onScanZone("visage")}
-          onOpenRoutine={() => {
-            const botanicals = lastResult ? (lastResult.recommandations?.botaniques_conseillees || []).slice(0, 3).join(", ") : undefined;
-            openWhatsAppProductOrderInquiry({
-              productName: botanicals ? `Rituel formulé sur-mesure (${botanicals})` : undefined,
-              tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
-              instituteName: selectedInst?.name,
-              country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
-            });
-          }}
-          onOpenContactKene={() => setContactKeneOpen(true)}
-        />
-      </RevealItem>
-
-      {/* ───── Mes Moments de Soin & Rendez-vous ───── */}
-      <RevealItem>
-        <AppointmentsCareSection
-          appointments={data?.appointments ?? []}
-          selectedInstitute={selectedInst}
-          onBookCare={() =>
-            openWhatsAppAppointmentInquiry({
-              serviceCategory: "Soin esthétique",
-              serviceName: "Soin en institut partenaire",
-              tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
-              instituteName: selectedInst?.name,
-              country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
-            })
-          }
-        />
-      </RevealItem>
-
-      {/* ───── Accès Privilégié : Échanger avec Dermo Kènè ───── */}
-      <RevealItem>
-        <section
-          aria-label="Échanger avec Dermo Kènè"
-          className="relative overflow-hidden rounded-[24px] border border-[#C8951E]/30 bg-gradient-to-br from-[#1C1611]/95 via-[#261B14]/90 to-[#18130E]/95 p-4 sm:p-5 text-[#FFF9EC] shadow-md"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-white shrink-0 shadow-md">
-                <Sparkles size={20} className="animate-pulse" />
-              </span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-heading font-black text-sm sm:text-base text-[#FFF9EC] truncate">
-                    Dermo Kènè · Guide IA
-                  </h3>
-                  <span className="rounded-full bg-[#C8951E]/20 border border-[#C8951E]/40 px-2 py-0.5 text-[9.5px] font-bold text-[#E3B04B]">
-                    En direct
-                  </span>
-                </div>
-                <p className="text-xs text-[#EADCC9]/80 truncate mt-0.5">
-                  Pose tes questions beauté à la voix ou par message.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setClientTab("chat")}
-              className="k-btn-gold shrink-0 h-9 px-3.5 rounded-xl text-primary-foreground text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform"
-            >
-              <MessageCircle size={14} />
-              Échanger
-            </button>
-          </div>
-        </section>
       </RevealItem>
 
       {/* ───── État Actuel & Constantes de Santé Cutanée en Temps Réel ───── */}

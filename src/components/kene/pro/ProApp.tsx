@@ -46,9 +46,9 @@ export type ProSectionId = "dashboard" | "assistant" | "agenda" | "diagnostic" |
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
-  { id: "assistant", label: "👑 Secrétaire IA", icon: Crown, hint: "Débriefing vocal & point" },
-  { id: "agenda", label: "Agenda", icon: SankofaIcon, hint: "Rendez-vous" },
-  { id: "diagnostic", label: "Diagnostic", icon: ScanFace, hint: "En cabine + questionnaire" },
+  { id: "diagnostic", label: "📸 Diagnostic Peau", icon: ScanFace, hint: "Produit phare n°1 · En cabine & Ventes" },
+  { id: "assistant", label: "👑 Secrétaire IA", icon: Crown, hint: "Produit phare n°3 · Rappels WhatsApp & Débriefing" },
+  { id: "agenda", label: "Agenda & Soins", icon: SankofaIcon, hint: "Rendez-vous" },
   { id: "caisse", label: "Ventes & Caisse", icon: AbanIcon, hint: "Caisse POS · Commandes en ligne" },
   { id: "crm", label: "CRM", icon: OsramIcon, hint: "Clientes & fidélité" },
   { id: "relances", label: "Relances", icon: BellRing, hint: "Suivi post-protocole" },
@@ -65,16 +65,16 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
  * sont ni affichées ni atteignables (redirection auto si la section
  * courante n'est pas autorisée — p.ex. après un changement de compte). */
 const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
-  estheticienne: ["agenda", "diagnostic", "assistant", "parametres"],
-  dermo_conseillere: ["agenda", "diagnostic", "crm", "relances", "assistant", "parametres"],
+  estheticienne: ["diagnostic", "agenda", "assistant", "parametres"],
+  dermo_conseillere: ["diagnostic", "crm", "agenda", "relances", "assistant", "parametres"],
   coiffeuse: ["agenda", "diagnostic", "assistant", "parametres"],
   prothesiste_ongulaire: ["agenda", "diagnostic", "assistant", "parametres"],
   masseuse: ["agenda", "diagnostic", "assistant", "parametres"],
   caissiere: ["caisse", "catalogue", "assistant", "parametres"],
   receptionniste: ["agenda", "caisse", "crm", "relances", "assistant", "parametres"],
   responsable_stock: ["catalogue", "stock", "assistant", "parametres"],
-  manager: ["dashboard", "agenda", "diagnostic", "caisse", "crm", "relances", "equipe", "catalogue", "assistant", "parametres"],
-  apprentie: ["agenda", "diagnostic", "assistant", "parametres"],
+  manager: ["dashboard", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue", "parametres"],
+  apprentie: ["diagnostic", "agenda", "assistant", "parametres"],
 };
 
 const PLAN_STYLES: Record<string, string> = {
