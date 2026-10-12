@@ -46,6 +46,8 @@ import { parseDiagnosis, diagImgSrc } from "./types";
 import type { ApiDiagnosis, ApiInstitute } from "./types";
 import { useKene, type ClientTab } from "@/store/kene";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
+import { SkinHealthDashboard } from "./SkinHealthDashboard";
+import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 
 interface Props {
   diagnoses?: ApiDiagnosis[];
@@ -59,8 +61,8 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   const setClientTab = useKene((s) => s.setClientTab);
   const user = storeUser || { id: "guest", name: "Ma Peau", fitzpatrick: "V", skinType: "Mixte", city: "Abidjan", pregnant: false, allergies: null as string | null };
 
-  // 4 Sous-vues de l'espace Peau
-  const [activeView, setActiveView] = useState<"dossier" | "live" | "historique" | "avant_apres">("dossier");
+  // 4 Sous-vues de l'espace Peau (par défaut : Santé de ta Peau en Direct !)
+  const [activeView, setActiveView] = useState<"live" | "dossier" | "avant_apres" | "historique">("live");
 
   // Diagnoses gérées localement si non injectées depuis l'extérieur
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>(initialDiagnoses ?? []);
@@ -85,8 +87,27 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
 
   const lastResult = useMemo(() => (lastDiag ? parseDiagnosis(lastDiag.resultJson) : null), [lastDiag]);
 
+  // Cartographie multi-zones de la peau
+  const multi = useMemo(() => {
+    const byZone = new Map<BodyZone, ApiDiagnosis>();
+    diagnoses
+      .filter((d) => d.status === "done")
+      .forEach((d) => {
+        if (!byZone.has(d.zone as BodyZone)) byZone.set(d.zone as BodyZone, d);
+      });
+    const covered = BODY_ZONES.filter((z) => byZone.has(z.id));
+    const missing = BODY_ZONES.filter((z) => !byZone.has(z.id));
+    const weightSum = covered.reduce((s, z) => s + z.weight, 0);
+    const score =
+      covered.length && weightSum > 0
+        ? Math.round(covered.reduce((s, z) => s + (byZone.get(z.id)?.scoreGlobal ?? 0) * z.weight, 0) / weightSum)
+        : (lastDiag?.scoreGlobal ?? 57);
+    const last = covered.length ? byZone.get(covered[0].id) : (lastDiag ?? null);
+    return { byZone, covered, missing, score, last };
+  }, [diagnoses, lastDiag]);
+
   // Score global
-  const globalScore = lastDiag?.scoreGlobal ?? 78;
+  const globalScore = lastDiag?.scoreGlobal ?? multi.score ?? 57;
   const scoreCl = scoreColor(globalScore);
 
   // Partage WhatsApp du Bilan Personnel
@@ -204,23 +225,6 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
           type="button"
           onClick={() => {
             haptic(HAPTIC.light);
-            setActiveView("dossier");
-          }}
-          className={cn(
-            "py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center",
-            activeView === "dossier"
-              ? "bg-card text-foreground shadow-xs border border-border/80"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <FolderHeart size={14} className={activeView === "dossier" ? "text-primary" : ""} />
-          <span className="truncate">Mon Dossier</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            haptic(HAPTIC.light);
             setActiveView("live");
           }}
           className={cn(
@@ -238,17 +242,17 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
           type="button"
           onClick={() => {
             haptic(HAPTIC.light);
-            setActiveView("historique");
+            setActiveView("dossier");
           }}
           className={cn(
             "py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center",
-            activeView === "historique"
+            activeView === "dossier"
               ? "bg-card text-foreground shadow-xs border border-border/80"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <History size={14} className={activeView === "historique" ? "text-primary" : ""} />
-          <span className="truncate">Historique ({diagnoses.length})</span>
+          <FolderHeart size={14} className={activeView === "dossier" ? "text-primary" : ""} />
+          <span className="truncate">Ordonnance &amp; Soins</span>
         </button>
 
         <button
@@ -266,6 +270,23 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         >
           <Images size={14} className={activeView === "avant_apres" ? "text-primary" : ""} />
           <span className="truncate">Avant / Après</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            haptic(HAPTIC.light);
+            setActiveView("historique");
+          }}
+          className={cn(
+            "py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center",
+            activeView === "historique"
+              ? "bg-card text-foreground shadow-xs border border-border/80"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <History size={14} className={activeView === "historique" ? "text-primary" : ""} />
+          <span className="truncate">Historique ({diagnoses.length})</span>
         </button>
       </div>
 
@@ -402,67 +423,16 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
       )}
 
       {/* ═══════════════════════════════════════════════════════════
-          SOUS-VUE 2 : SANTÉ DE MA PEAU EN DIRECT (VISIA-LIKE)
+          SOUS-VUE 1 : SANTÉ DE TA PEAU EN DIRECT (TABLEAU DE BORD BIOMÉTRIQUE)
       ═══════════════════════════════════════════════════════════ */}
       {activeView === "live" && (
-        <div className="space-y-4">
-          <Card className="rounded-[24px] border border-border/80 bg-card p-4 sm:p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Activity className="size-5 text-emerald-500 animate-pulse" />
-                <h3 className="font-heading font-black text-sm sm:text-base text-foreground">
-                  Radar des Biomarqueurs de ma Peau (VISIA-Like)
-                </h3>
-              </div>
-              <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                Mesure en direct
-              </span>
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              Analyse multi-spectrale calibrée spécifiquement pour les peaux mates et mélanodermes (Fitzpatrick III à VI).
-            </p>
-
-            <div className="space-y-3 pt-1">
-              {[
-                { label: "Hydratation & Barrière lipidique", val: 78, color: "bg-sky-500", note: "Barrière saine" },
-                { label: "Homogénéité pigmentaire (Contrôle des taches)", val: 64, color: "bg-amber-500", note: "Amélioration en cours" },
-                { label: "Régulation séborrhéique & Pores resserrés", val: 82, color: "bg-emerald-500", note: "Équilibré" },
-                { label: "Tolérance cutanée & Sensibilité", val: 86, color: "bg-primary", note: "Très tolérant" },
-                { label: "Radiance & Éclat du teint mélanoderme", val: 88, color: "bg-purple-500", note: "Teint lumineux" },
-              ].map((bio, i) => (
-                <div key={i} className="space-y-1">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span>{bio.label}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-muted-foreground">{bio.note}</span>
-                      <span className="font-mono text-primary font-bold">{bio.val}%</span>
-                    </div>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                    <div className={cn("h-full rounded-full transition-all", bio.color)} style={{ width: `${bio.val}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Zones analysées */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            {[
-              { zone: "Front & Zone T", score: 79, desc: "Sébum équilibré" },
-              { zone: "Joues & Pommettes", score: 85, desc: "Texture lisse" },
-              { zone: "Menton & Mâchoire", score: 72, desc: "Légères taches" },
-              { zone: "Cou & Décolleté", score: 88, desc: "Très hydraté" },
-            ].map((z, i) => (
-              <div key={i} className="p-3 rounded-2xl bg-card border border-border/70 text-center space-y-0.5">
-                <p className="text-[10px] text-muted-foreground font-semibold">{z.zone}</p>
-                <p className="text-base font-bold font-heading text-primary">{z.score}/100</p>
-                <p className="text-[10px] text-muted-foreground truncate">{z.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <SkinHealthDashboard
+          user={user as any}
+          multi={multi}
+          lastResult={lastResult}
+          onScanZone={onStartScan || (() => setClientTab("diagnostic"))}
+          onOpenFullDiag={() => setActiveView("dossier")}
+        />
       )}
 
       {/* ═══════════════════════════════════════════════════════════

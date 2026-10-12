@@ -299,34 +299,53 @@ export function SkinHealthDashboard({
             </div>
           </div>
 
-          {/* Bouton de lecture vocale si disponible */}
-          {lastResult && (
-            <div className="shrink-0">
-              <VoiceNarration result={lastResult} userName={user.name} />
-            </div>
-          )}
+          {/* Bouton de lecture vocale */}
+          <div className="shrink-0">
+            <VoiceNarration
+              result={
+                lastResult || ({
+                  score_global: globalScore,
+                  zone: "visage",
+                  indicateurs: [
+                    { nom: "Hydratation", severite: 1, pourcentage: 70 },
+                    { nom: "Barrière lipidique", severite: 1, pourcentage: 50 },
+                    { nom: "Homogénéité & PIH", severite: 1, pourcentage: 54 },
+                    { nom: "Équilibre sébacé", severite: 0, pourcentage: 82 },
+                  ],
+                  zones_marquages: [],
+                  recommandations: {
+                    resume: "Hydratation et renforcement de la barrière cutanée",
+                    routine_matin: ["Nettoyage doux au Moringa", "Écran solaire SPF 50"],
+                    routine_soir: ["Régénération au Karité sauvage pur"],
+                    botaniques_conseillees: ["Moringa", "Karité"],
+                    produits: [],
+                    soins_conseilles: ["Soin dermo-botanique cabine"],
+                    conseils_hygiene_vie: ["Boire 1.5L d'eau par jour"],
+                  },
+                  orientation_dermato: false,
+                  avertissement: "Bilan indicatif personnalisé",
+                  source: "fallback",
+                } as DiagnosisResult)
+              }
+              userName={user.name}
+            />
+          </div>
         </div>
 
         {/* Bloc Score Global & Statut Clinique */}
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-12 gap-4 items-center p-4 rounded-2xl bg-card/60 border border-border/80">
-          <div className="sm:col-span-4 flex items-center justify-center sm:justify-start gap-4">
-            <ScoreGauge score={globalScore} label="Score Global" size={105} />
-            <div className="sm:hidden">
-              <p className="font-heading font-black text-sm text-foreground">{statusLabel}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {hasRealScan ? `${multi.covered.length} zone(s) analysée(s)` : "Basé sur tes déclarations"}
-              </p>
-            </div>
+        <div className="mt-5 grid grid-cols-12 gap-3.5 items-center p-4 sm:p-5 rounded-2xl bg-card/60 border border-border/80">
+          <div className="col-span-5 sm:col-span-4 flex items-center justify-center shrink-0">
+            <ScoreGauge score={globalScore} label="Score Global" size={100} />
           </div>
 
-          <div className="hidden sm:block sm:col-span-8">
-            <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-primary">
+          <div className="col-span-7 sm:col-span-8 min-w-0">
+            <p className="text-[10px] sm:text-[10.5px] font-bold uppercase tracking-[0.14em] text-primary">
               Diagnostic Synthétique
             </p>
-            <h4 className="font-heading font-black text-lg text-foreground mt-0.5">
+            <h4 className="font-heading font-black text-sm sm:text-lg text-foreground mt-0.5 leading-snug">
               {statusLabel}
             </h4>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            <p className="text-[11px] sm:text-xs text-muted-foreground mt-1 leading-relaxed">
               {hasRealScan
                 ? `Indice de vitalité calculé sur l'ensemble de tes zones analysées.`
                 : `Score estimé d'après ton profil. Réalise un scan pour mesurer l'état réel de ta peau.`}
