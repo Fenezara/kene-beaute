@@ -26,10 +26,11 @@ export type Dict = Record<string, string>;
 const FR: Dict = {
   // Onglets (tab-bar mobile + rail desktop)
   "tab.home": "Accueil",
+  "tab.agenda": "Agenda",
   "tab.scan": "Scanner",
   "tab.shop": "Boutique",
   "tab.shop.short": "Boutik",
-  "tab.rdv": "Rendez-vous",
+  "tab.rdv": "Agenda",
   "tab.rdv.short": "RDV",
   "tab.institutes": "Instituts",
   "tab.chat": "Dermo Kènè",
@@ -39,10 +40,11 @@ const FR: Dict = {
 
   // Titres d'écran (h1 du header ClientApp)
   "title.home": "Accueil",
+  "title.agenda": "Agenda & Soins",
   "title.institutes": "Instituts & Salons Partenaires",
   "title.diag": "Diagnostic IA",
   "title.shop": "Boutique",
-  "title.rdv": "Rendez-vous",
+  "title.rdv": "Agenda & Soins",
   "title.chat": "Dermo Kènè",
   "title.profile": "Mon profil",
   "title.parametres": "Paramètres",

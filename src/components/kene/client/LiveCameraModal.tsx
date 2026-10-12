@@ -2,6 +2,7 @@
 // Kènè — Mode Selfie Caméra Live avec guide facial ovale & contrôle d'éclairage
 // Permet un cadrage optimal et instantané pour l'analyse cutanée VLM.
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Camera, FlipHorizontal, Lightbulb, Loader2, SwitchCamera, X } from "lucide-react";
 import { toast } from "sonner";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
@@ -166,8 +167,10 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
     }, 250);
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#120E0C] text-[#F8F1E4] select-none animate-in fade-in duration-200">
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex flex-col bg-[#120E0C] text-[#F8F1E4] select-none animate-in fade-in duration-200">
       {/* Hidden canvas pour analyse de luminosité */}
       <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
 
@@ -272,25 +275,26 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
         )}
       </div>
 
-      {/* Barre inférieure de déclenchement */}
-      <footer className="p-6 pb-8 flex flex-col items-center gap-4 bg-gradient-to-t from-[#120E0C] to-transparent z-20">
+      {/* Barre inférieure de déclenchement — surélevée pour libérer le bouton sous tous les écrans */}
+      <footer className="p-6 pb-[max(env(safe-area-inset-bottom,0px),3.5rem)] flex flex-col items-center gap-4 bg-gradient-to-t from-[#120E0C] via-[#120E0C]/90 to-transparent z-20">
         <p className="text-xs text-white/80 text-center font-medium">
           Aligne ton visage dans l&apos;ovale, détends tes traits et capture
         </p>
 
-        <div className="flex items-center justify-center w-full">
+        <div className="flex items-center justify-center w-full pb-3">
           {/* Déclencheur tactile principal */}
           <button
             type="button"
             disabled={!ready || Boolean(error)}
             onClick={takeSnapshot}
             aria-label="Prendre la photo pour l'analyse"
-            className="group relative h-20 w-20 rounded-full border-4 border-white/80 p-1 flex items-center justify-center active:scale-90 transition-transform disabled:opacity-40"
+            className="group relative h-20 w-20 rounded-full border-4 border-white/80 p-1 flex items-center justify-center active:scale-90 transition-transform disabled:opacity-40 shadow-xl"
           >
             <div className="h-full w-full rounded-full bg-gradient-to-tr from-[#C8951E] to-[#E07A2B] shadow-[0_0_24px_rgba(200,149,30,0.7)] group-hover:scale-95 transition-transform" />
           </button>
         </div>
       </footer>
-    </div>
+    </div>,
+    document.body
   );
 }

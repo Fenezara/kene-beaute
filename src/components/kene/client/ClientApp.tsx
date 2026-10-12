@@ -13,7 +13,7 @@
 // lourds sont lazy (chunk dédié au premier clic — HomeScreen/Onboarding eager).
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Crown, Home, Loader2, MessageCircle, Settings, Share2, User, WifiOff } from "lucide-react";
+import { CalendarDays, Crown, Home, Loader2, MessageCircle, Settings, Share2, User, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
 import { HAPTIC, haptic, isOnline, useNetworkOnline } from "@/lib/kene/ux";
@@ -28,6 +28,7 @@ import { WelcomeThreshold } from "./WelcomeThreshold";
 import { ThumbBar } from "./ThumbBar";
 import { HomeScreen } from "./HomeScreen";
 import { ProfileScreen } from "./ProfileScreen";
+import { AgendaScreen } from "./AgendaScreen";
 import { ScreenBoundary } from "./ScreenBoundary";
 import { BootSkeleton } from "./BootSkeleton";
 import { PaymentReturnHandler } from "./PaymentReturnHandler";
@@ -35,17 +36,19 @@ import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { openWhatsAppAppointmentInquiry } from "@/lib/kene/whatsapp-relay";
 import { cn } from "@/lib/utils";
 
-/** Navigation latérale (desktop & tablette) — 4 destinations clés */
+/** Navigation latérale (desktop & tablette) — destinations clés */
 const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
   { tab: "accueil", labelKey: "tab.home", icon: Home },
+  { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
   { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
-/** Tab-bar mobile — 4 emplacements équilibrés avec CTA scan surélevé */
+/** Tab-bar mobile — 5 emplacements équilibrés avec CTA scan surélevé au centre */
 const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
   { tab: "accueil", labelKey: "tab.home", icon: Home },
+  { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
   { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
   { tab: "profil", labelKey: "tab.profile", icon: User },
@@ -58,10 +61,11 @@ type ScreenTab = ClientTab | "abonnement" | "legal";
 
 const TITLES: Record<ScreenTab, string> = {
   accueil: "title.home",
+  agenda: "title.agenda",
   instituts: "title.profile",
   diagnostic: "title.diag",
   boutique: "title.home",
-  rdv: "title.home",
+  rdv: "title.agenda",
   chat: "title.chat",
   profil: "title.profile",
   parametres: "title.parametres",
@@ -70,7 +74,7 @@ const TITLES: Record<ScreenTab, string> = {
 };
 
 /** Ordre de balayage mobile (swipe horizontal gauche/droite) */
-const SWIPE_ORDER: ClientTab[] = ["accueil", "diagnostic", "chat", "profil"];
+const SWIPE_ORDER: ClientTab[] = ["accueil", "agenda", "diagnostic", "chat", "profil"];
 
 // ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
 import { DiagnosticScreen } from "./DiagnosticScreen";
@@ -137,7 +141,7 @@ export function ClientApp() {
     try {
       const params = new URLSearchParams(window.location.search);
       const targetTab = params.get("tab")?.toLowerCase();
-      const VALID_TABS: ClientTab[] = ["accueil", "diagnostic", "chat", "profil", "parametres", "abonnement", "legal"];
+      const VALID_TABS: ClientTab[] = ["accueil", "agenda", "diagnostic", "chat", "profil", "parametres", "abonnement", "legal"];
       if (targetTab && VALID_TABS.includes(targetTab as ClientTab)) {
         setClientTab(targetTab as ClientTab);
       }
@@ -146,10 +150,12 @@ export function ClientApp() {
     }
   }, [setClientTab]);
 
-  // Redirection automatique : boutique et rdv vers accueil, instituts vers profil
+  // Redirection automatique : boutique vers accueil, rdv vers agenda, instituts vers profil
   useEffect(() => {
-    if (tab === "boutique" || tab === "rdv") {
+    if (tab === "boutique") {
       setClientTab("accueil");
+    } else if (tab === "rdv") {
+      setClientTab("agenda");
     } else if (tab === "instituts") {
       setClientTab("profil");
     }
@@ -478,6 +484,11 @@ export function ClientApp() {
                       <HomeScreen onScanZone={onScanZone} refreshKey={refreshKey} onRefreshed={onRefreshed} />
                     </ScreenBoundary>
                   )}
+                  {(tab === "agenda" || (tab as any) === "rdv") && (
+                    <ScreenBoundary name="Agenda & Dossier Peau">
+                      <AgendaScreen />
+                    </ScreenBoundary>
+                  )}
                   {tab === "diagnostic" && (
                     <ScreenBoundary name="Diagnostic">
                       <DiagnosticScreen pendingZone={pendingZone} onZoneConsumed={onZoneConsumed} />
@@ -523,7 +534,7 @@ export function ClientApp() {
           aria-label="Navigation principale mobile"
           className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]"
         >
-          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-4 h-[64px] rounded-[30px] k-chrome">
+          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-5 h-[64px] rounded-[30px] k-chrome">
             {NAV_MOBILE.map((n) => {
               const active = tab === n.tab;
               const Icon = n.icon;

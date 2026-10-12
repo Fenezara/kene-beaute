@@ -45,15 +45,47 @@ export async function GET(req: NextRequest) {
   try {
     const userId = req.nextUrl.searchParams.get("userId")?.trim() ?? "";
     if (!userId) return jsonError("userId requis", 400);
-    const user = await db.user.findUnique({ where: { id: userId }, select: { id: true } });
+    const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, phone: true } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);
 
+    const orClauses: Array<Record<string, unknown>> = [{ userId }];
+    if (user.phone) {
+      const raw = user.phone.trim();
+      const digits = raw.replace(/\D/g, "");
+      orClauses.push({ deliveryPhone: raw });
+      orClauses.push({ deliveryPhone: raw.replace(/\s+/g, "") });
+      if (digits.length >= 8) {
+        orClauses.push({ deliveryPhone: { contains: digits.slice(-8) } });
+      }
+    }
+
     const orders = await db.order.findMany({
-      where: { userId },
+      where: { OR: orClauses },
       orderBy: { createdAt: "desc" },
-      take: 20,
-      include: { items: { orderBy: { label: "asc" } } },
+      take: 30,
+      include: {
+        items: {
+          orderBy: { label: "asc" },
+          include: {
+            product: {
+              select: {
+                tenantId: true,
+                tenant: { select: { id: true, name: true, city: true, phone: true } },
+              },
+            },
+          },
+        },
+      },
     });
+
+    const toBackfill = orders.filter((o) => !o.userId).map((o) => o.id);
+    if (toBackfill.length > 0) {
+      await db.order.updateMany({
+        where: { id: { in: toBackfill } },
+        data: { userId },
+      }).catch(() => null);
+    }
+
     return NextResponse.json({ orders });
   } catch (err) {
     return serverError("orders GET", err);

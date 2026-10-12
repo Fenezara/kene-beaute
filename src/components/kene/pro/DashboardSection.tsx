@@ -238,7 +238,7 @@ export function DashboardSection({
                   </div>
 
                   <p className="text-xs text-[#EADCC9]/85 leading-relaxed">
-                    Réalisez le bilan cutané avec votre cliente. L&apos;IA génère le protocole cabine et déclenche la vente de cures et produits au comptoir.
+                    Réalisez le bilan cutané avec votre cliente. L&apos;IA génère l&apos;ordonnance beauté et déclenche la vente de cures et produits au comptoir.
                   </p>
                 </div>
 
