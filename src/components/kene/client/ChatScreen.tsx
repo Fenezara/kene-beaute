@@ -290,7 +290,7 @@ export function ChatScreen() {
   const add = useChat((s) => s.add);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [ttsOn, setTtsOn] = useState(false);
+  const [ttsOn, setTtsOn] = useState(true);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [micState, setMicState] = useState<MicState>("idle");
   const [micElapsed, setMicElapsed] = useState(0);
@@ -403,7 +403,7 @@ export function ChatScreen() {
     [],
   );
 
-  async function startRecording() {
+  async function startRecording(isAuto = false) {
     unlockAudioContext();
     if (micState !== "idle") return;
     if (
@@ -412,7 +412,7 @@ export function ChatScreen() {
       !navigator.mediaDevices?.getUserMedia
     ) {
       setMicState("idle");
-      toast.error("L'enregistrement vocal n'est pas supporté par ce navigateur.");
+      if (!isAuto) toast.error("L'enregistrement vocal n'est pas supporté par ce navigateur.");
       return;
     }
     try {
@@ -468,9 +468,22 @@ export function ChatScreen() {
       // Permission refusée / bloquée dans les paramètres du navigateur
       releaseStream();
       setMicState("idle");
-      setMicHelpOpen(true);
+      if (!isAuto) {
+        setMicHelpOpen(true);
+      }
     }
   }
+
+  // Activation du micro par défaut en mode consultation Orbe
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    if (viewMode === "orb") {
+      t = setTimeout(() => {
+        void startRecording(true);
+      }, 600);
+    }
+    return () => clearTimeout(t);
+  }, [viewMode]);
 
   function stopRecording() {
     if (micState !== "recording") return;
@@ -628,6 +641,11 @@ export function ChatScreen() {
         onEnd: () => {
           currentAudioCtrlRef.current = null;
           setPlayingMsgId(null);
+          if (viewMode === "orb") {
+            setTimeout(() => {
+              void startRecording(true);
+            }, 500);
+          }
         },
         onError: () => {
           currentAudioCtrlRef.current = null;
