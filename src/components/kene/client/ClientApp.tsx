@@ -27,9 +27,6 @@ import { useT } from "@/lib/kene/use-t";
 import { WelcomeThreshold } from "./WelcomeThreshold";
 import { ThumbBar } from "./ThumbBar";
 import { HomeScreen } from "./HomeScreen";
-import { ProfileScreen } from "./ProfileScreen";
-import { AgendaScreen } from "./AgendaScreen";
-import { ClientSkinDossierView } from "./ClientSkinDossierView";
 import { ScreenBoundary } from "./ScreenBoundary";
 import { BootSkeleton } from "./BootSkeleton";
 import { PaymentReturnHandler } from "./PaymentReturnHandler";
@@ -79,13 +76,17 @@ const TITLES: Record<ScreenTab, string> = {
 /** Ordre de balayage mobile (swipe horizontal gauche/droite) */
 const SWIPE_ORDER: ClientTab[] = ["accueil", "dossier", "diagnostic", "agenda", "profil"];
 
-// ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
-import { DiagnosticScreen } from "./DiagnosticScreen";
-import { ChatScreen } from "./ChatScreen";
-import { SettingsScreen } from "./SettingsScreen";
-import { PlanScreen } from "./PlanScreen";
-import { LegalScreen } from "./LegalScreen";
-import { NotificationCenter } from "./NotificationCenter";
+// ─── Écrans secondaires chargés à la demande (React.lazy / Code-splitting) ───
+// HomeScreen et WelcomeThreshold restent eager pour un affichage instantané
+const DiagnosticScreen = lazy(() => import("./DiagnosticScreen").then((m) => ({ default: m.DiagnosticScreen })));
+const ChatScreen = lazy(() => import("./ChatScreen").then((m) => ({ default: m.ChatScreen })));
+const AgendaScreen = lazy(() => import("./AgendaScreen").then((m) => ({ default: m.AgendaScreen })));
+const ClientSkinDossierView = lazy(() => import("./ClientSkinDossierView").then((m) => ({ default: m.ClientSkinDossierView })));
+const ProfileScreen = lazy(() => import("./ProfileScreen").then((m) => ({ default: m.ProfileScreen })));
+const SettingsScreen = lazy(() => import("./SettingsScreen").then((m) => ({ default: m.SettingsScreen })));
+const PlanScreen = lazy(() => import("./PlanScreen").then((m) => ({ default: m.PlanScreen })));
+const LegalScreen = lazy(() => import("./LegalScreen").then((m) => ({ default: m.LegalScreen })));
+const NotificationCenter = lazy(() => import("./NotificationCenter").then((m) => ({ default: m.NotificationCenter })));
 
 /** Squelette d'attente d'onglet — spinner discret pendant le chargement du chunk */
 function TabLoading() {
