@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { AuroraBackdrop, Eyebrow, Shimmer } from "@/components/kene/ui2026";
 import { cn } from "@/lib/utils";
 import { useApi } from "./useApi";
+import { HAPTIC, haptic } from "@/lib/kene/ux";
 import type { ProOverview, ProLive } from "./types";
 import { DEFAULT_FALLBACK_OVERVIEW, DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
@@ -699,58 +700,87 @@ export function ProApp() {
               : "p-3 sm:p-5 lg:p-6"
           )}
         >
-          {/* ⚡ Barre d'actions express praticienne (Encaisser, RDV, Scan) — masquée sur l'écran Assistante dédiée */}
+          {/* ⚡ Barre d'actions express praticienne (Encaisser, RDV, Scan) — tactiles & haute visibilité */}
           {activeSection !== "assistant" && (
-            <div className="mb-4 rounded-2xl border border-border/80 bg-card/75 p-2 sm:p-2.5 backdrop-blur-md shadow-sm">
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider pl-1 shrink-0 flex items-center gap-1">
-                  ⚡ Accès rapide :
+            <div className="mb-4 rounded-[22px] border-2 border-primary/25 bg-card/95 p-2.5 sm:p-3 backdrop-blur-md shadow-md">
+              <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-0.5">
+                <span className="text-xs font-black text-primary uppercase tracking-wider pl-1.5 shrink-0 flex items-center gap-1.5">
+                  <span className="grid size-6 place-items-center rounded-lg bg-primary/15 text-primary">⚡</span>
+                  Accès rapide :
                 </span>
-                <button
-                  type="button"
-                  onClick={() => openSection("assistant")}
-                  className="h-9 px-3.5 rounded-xl border border-[#C8951E]/60 bg-gradient-to-r from-[#C8951E]/25 via-gold/15 to-transparent hover:from-[#C8951E]/35 text-foreground text-xs font-black flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
-                >
-                  <Crown size={15} className="text-[#C8951E]" /> Secrétaire IA 👑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openSection("caisse")}
-                  className="h-9 px-3.5 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
-                >
-                  <AbanIcon size={16} /> Encaisser
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openSection("agenda")}
-                  className="h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
-                >
-                  <SankofaIcon size={16} /> Nouveau RDV
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openSection("diagnostic")}
-                  className="h-9 px-3.5 rounded-xl border border-border bg-card text-foreground hover:bg-muted text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
-                >
-                  <ScanFace size={16} /> Scan Cabine
-                </button>
+
+                {/* 1. Secrétaire IA 👑 */}
                 <button
                   type="button"
                   onClick={() => {
+                    haptic(HAPTIC.tap);
+                    openSection("assistant");
+                  }}
+                  className="h-11 sm:h-12 px-4 rounded-xl border-2 border-[#E07A2B]/70 bg-gradient-to-r from-[#E07A2B]/20 via-[#C8951E]/15 to-card hover:from-[#E07A2B]/30 text-foreground text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all shrink-0"
+                >
+                  <Crown size={18} className="text-[#E07A2B]" /> Secrétaire IA 👑
+                </button>
+
+                {/* 2. Encaisser 💳 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    openSection("caisse");
+                  }}
+                  className="h-11 sm:h-12 px-4 rounded-xl border-2 border-emerald-600/60 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all shrink-0"
+                >
+                  <AbanIcon size={19} /> Encaisser
+                </button>
+
+                {/* 3. Nouveau RDV 📅 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    openSection("agenda");
+                  }}
+                  className="h-11 sm:h-12 px-4 rounded-xl border-2 border-primary/50 bg-primary/15 text-primary hover:bg-primary/25 text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all shrink-0"
+                >
+                  <SankofaIcon size={19} /> Nouveau RDV
+                </button>
+
+                {/* 4. Scan Cabine 📸 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    openSection("diagnostic");
+                  }}
+                  className="h-11 sm:h-12 px-4 rounded-xl border-2 border-[#C8951E]/70 bg-[#C8951E]/15 hover:bg-[#C8951E]/25 text-foreground text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all shrink-0"
+                >
+                  <ScanFace size={19} className="text-[#C8951E]" /> Scan Cabine
+                </button>
+
+                {/* 5. + Nouvelle Cliente 👥 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
                     setCrmCreateNonce(Date.now());
                     openSection("crm");
                   }}
-                  className="h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
+                  className="h-11 sm:h-12 px-4 rounded-xl border-2 border-border/90 bg-card hover:bg-muted text-foreground text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all shrink-0"
                 >
-                  <UserPlus size={16} /> + Cliente
+                  <UserPlus size={18} /> + Cliente
                 </button>
+
+                {/* 6. Mon Espace Beauté 🌸 */}
                 <button
                   type="button"
-                  onClick={goToClientSpace}
-                  className="h-9 px-3.5 rounded-xl border border-primary/35 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform shrink-0"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    goToClientSpace();
+                  }}
+                  className="h-11 sm:h-12 px-4 rounded-xl border-2 border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs sm:text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shrink-0"
                   title="Mon Espace Beauté (Soins & Rituels personnels)"
                 >
-                  <CauriIcon size={15} /> Mon Espace Beauté 🌸
+                  <CauriIcon size={17} /> Espace Beauté 🌸
                 </button>
               </div>
             </div>

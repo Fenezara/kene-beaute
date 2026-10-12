@@ -21,7 +21,8 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CauriIcon } from "@/components/kene/icons";
+import { CauriIcon, AbanIcon, SankofaIcon } from "@/components/kene/icons";
+import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -186,150 +187,140 @@ export function DashboardSection({
         <SalonAnalyticsDashboard tenantId={tenantId} data={data} />
       ) : (
         <>
-          {/* ───── LES 3 MOTEURS DE CROISSANCE KÈNÈ POUR L'INSTITUT ───── */}
+          {/* ───── ACCÈS RAPIDE & ACTIONS CABINE EXPRESS (TACTILE & ULTRA-VISIBLE) ───── */}
           <section
-            aria-label="Les 3 moteurs de croissance de l'institut"
-            className="relative overflow-hidden rounded-[26px] border-2 border-[#C8951E]/40 bg-gradient-to-br from-card via-card/95 to-card p-4 sm:p-5 shadow-md"
+            aria-label="Accès rapide et actions express cabine"
+            className="rounded-[24px] border-2 border-primary/20 bg-card p-3.5 sm:p-4.5 shadow-sm space-y-3"
           >
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="grid size-8 place-items-center rounded-xl bg-gold/20 text-gold-text">
-                  <CauriIcon size={16} />
+                <span className="grid size-7 place-items-center rounded-lg bg-primary/15 text-primary font-black text-sm">
+                  ⚡
                 </span>
                 <div>
-                  <h2 className="font-heading font-black text-sm sm:text-base text-foreground flex items-center gap-2">
-                    Le Triptyque Kènè · Vos 3 Moteurs d&apos;Établissement
+                  <h2 className="font-heading font-black text-sm sm:text-base text-foreground tracking-tight">
+                    Accès Rapide · Actions Express en Cabine
                   </h2>
                   <p className="text-[11px] text-muted-foreground">
-                    1. Diagnostic Peau en Cabine · 2. Agenda &amp; Soins · 3. Secrétaire IA &amp; Relances
+                    Touchez un bouton pour lancer l&apos;action immédiatement
                   </p>
                 </div>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-gold/15 text-gold-text border border-gold/30">
-                Piliers de Croissance
+              <span className="hidden sm:inline-flex text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/25">
+                Mode Tactile Actif
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-              {/* 1. DIAGNOSTIC CUTANÉ EN CABINE */}
-              <div className="relative flex flex-col justify-between rounded-2xl border-2 border-[#C8951E]/50 bg-gradient-to-br from-[#1C1611] via-[#2A1F17] to-[#18130E] text-[#FFF9EC] p-4 shadow-lg group">
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C8951E]/25 border border-[#C8951E]/60 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#FFD875]">
-                      <CauriIcon size={11} className="animate-pulse" />
-                      ✨ Moteur N°1
-                    </span>
-                    <span className="text-[10px] font-bold text-[#FFD875] bg-[#FFF9EC]/10 px-2 py-0.5 rounded-full">
-                      +45% panier moyen
-                    </span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
+              {/* 1. Diagnostic Peau Cabine */}
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  onNavigate("diagnostic");
+                }}
+                className="min-h-[64px] sm:min-h-[72px] rounded-2xl border-2 border-[#C8951E]/70 bg-gradient-to-br from-[#C8951E]/20 via-gold/15 to-card hover:from-[#C8951E]/30 p-3 flex items-center gap-3 text-left active:scale-95 transition-all shadow-sm group"
+              >
+                <span className="grid size-11 sm:size-12 place-items-center rounded-xl bg-gradient-to-tr from-[#C8951E] to-[#E07A2B] text-primary-foreground font-black shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                  <ScanFace size={24} />
+                </span>
+                <div className="min-w-0">
+                  <div className="font-heading font-black text-xs sm:text-sm text-foreground truncate">
+                    Diagnostic Peau
                   </div>
-
-                  <div className="flex items-center gap-2.5">
-                    <span className="grid size-10 place-items-center rounded-xl bg-[#C8951E] text-[#1A1410] font-black shrink-0 shadow-md">
-                      <ScanFace size={22} />
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="font-heading font-black text-sm sm:text-base text-[#FFF9EC] leading-tight truncate">
-                        Diagnostic Peau en Cabine
-                      </h3>
-                      <p className="text-[10.5px] text-[#FFD875] font-semibold">Moteur n°1 de Vente &amp; Rituels</p>
-                    </div>
+                  <div className="text-[10.5px] text-[#C8951E] font-bold truncate">
+                    Scan &amp; Ordonnance
                   </div>
-
-                  <p className="text-xs text-[#EADCC9]/85 leading-relaxed">
-                    Réalisez le bilan cutané avec votre cliente. L&apos;IA génère l&apos;ordonnance beauté et déclenche la vente de cures et produits au comptoir.
-                  </p>
                 </div>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => onNavigate("diagnostic")}
-                  className="mt-4 w-full h-10 rounded-xl bg-gradient-to-r from-[#C8951E] via-[#F3C258] to-[#B37F14] hover:brightness-110 text-[#1A1410] font-heading font-black text-xs px-3 shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all"
-                >
-                  <ScanFace size={15} />
-                  Lancer un diagnostic cliente
-                </button>
-              </div>
-
-              {/* 2. AGENDA & PLANNING CABINE */}
-              <div className="relative flex flex-col justify-between rounded-2xl border border-border/80 bg-card/90 p-4 shadow-sm hover:border-primary/40 transition-all">
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/25 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                      <CalendarCheck size={11} />
-                      📅 Moteur N°2
-                    </span>
-                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                      Synchronisé WhatsApp
-                    </span>
+              {/* 2. Encaisser une vente */}
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  onNavigate("caisse");
+                }}
+                className="min-h-[64px] sm:min-h-[72px] rounded-2xl border-2 border-emerald-500/50 bg-gradient-to-br from-emerald-500/15 via-emerald-500/5 to-card hover:from-emerald-500/25 p-3 flex items-center gap-3 text-left active:scale-95 transition-all shadow-sm group"
+              >
+                <span className="grid size-11 sm:size-12 place-items-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                  <AbanIcon size={24} />
+                </span>
+                <div className="min-w-0">
+                  <div className="font-heading font-black text-xs sm:text-sm text-foreground truncate">
+                    Encaisser
                   </div>
-
-                  <div className="flex items-center gap-2.5">
-                    <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary font-black shrink-0">
-                      <CalendarCheck size={20} />
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="font-heading font-black text-sm sm:text-base text-foreground leading-tight truncate">
-                        Agenda &amp; Soins Cabine
-                      </h3>
-                      <p className="text-[10.5px] text-primary font-semibold">Planning &amp; Réservations</p>
-                    </div>
+                  <div className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-bold truncate">
+                    Caisse POS &amp; Ventes
                   </div>
-
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Gérez vos rendez-vous cabine, assignez vos praticiennes et suivez les demandes de soins reçues directement par WhatsApp.
-                  </p>
                 </div>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => onNavigate("agenda")}
-                  className="mt-4 w-full h-10 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary font-heading font-bold text-xs px-3 flex items-center justify-center gap-2 active:scale-95 transition-all"
-                >
-                  <CalendarCheck size={14} />
-                  Consulter l&apos;Agenda Cabine
-                </button>
-              </div>
-
-              {/* 3. SECRÉTAIRE IA DE DIRECTION */}
-              <div className="relative flex flex-col justify-between rounded-2xl border border-border/80 bg-card/90 p-4 shadow-sm hover:border-[#A0522D]/40 transition-all">
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#A0522D]/15 border border-[#A0522D]/30 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#A0522D] dark:text-[#E89E78]">
-                      <Crown size={11} />
-                      👑 Moteur N°3
-                    </span>
-                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                      Zéro no-show
-                    </span>
+              {/* 3. Nouveau Rendez-vous */}
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  onNavigate("agenda");
+                }}
+                className="min-h-[64px] sm:min-h-[72px] rounded-2xl border-2 border-primary/50 bg-gradient-to-br from-primary/15 via-primary/5 to-card hover:from-primary/25 p-3 flex items-center gap-3 text-left active:scale-95 transition-all shadow-sm group"
+              >
+                <span className="grid size-11 sm:size-12 place-items-center rounded-xl bg-gradient-to-tr from-primary to-[#A0522D] text-primary-foreground font-black shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                  <SankofaIcon size={24} />
+                </span>
+                <div className="min-w-0">
+                  <div className="font-heading font-black text-xs sm:text-sm text-foreground truncate">
+                    Nouveau RDV
                   </div>
-
-                  <div className="flex items-center gap-2.5">
-                    <span className="grid size-10 place-items-center rounded-xl bg-[#A0522D]/15 text-[#A0522D] dark:text-[#E89E78] font-black shrink-0">
-                      <Crown size={20} />
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="font-heading font-black text-sm sm:text-base text-foreground leading-tight truncate">
-                        Secrétaire IA du Salon
-                      </h3>
-                      <p className="text-[10.5px] text-[#A0522D] dark:text-[#E89E78] font-semibold">Rappels WhatsApp &amp; Suivi</p>
-                    </div>
+                  <div className="text-[10.5px] text-primary font-bold truncate">
+                    Agenda &amp; Soins
                   </div>
-
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Rappels automatiques J-1 envoyés aux clientes par WhatsApp, relances chaleureuses « Le Fil du Retour » et débriefing vocal du soir.
-                  </p>
                 </div>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => onNavigate("assistant")}
-                  className="mt-4 w-full h-10 rounded-xl bg-foreground hover:bg-foreground/90 text-background font-heading font-bold text-xs px-3 flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xs"
-                >
-                  <Crown size={14} className="text-[#FFD875]" />
-                  Ouvrir la Secrétaire IA
-                </button>
-              </div>
+              {/* 4. Secrétaire IA */}
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  onNavigate("assistant");
+                }}
+                className="min-h-[64px] sm:min-h-[72px] rounded-2xl border-2 border-[#E07A2B]/60 bg-gradient-to-br from-[#E07A2B]/15 via-[#C8951E]/10 to-card hover:from-[#E07A2B]/25 p-3 flex items-center gap-3 text-left active:scale-95 transition-all shadow-sm group"
+              >
+                <span className="grid size-11 sm:size-12 place-items-center rounded-xl bg-gradient-to-tr from-[#E07A2B] to-[#C8951E] text-white font-black shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                  <Crown size={24} />
+                </span>
+                <div className="min-w-0">
+                  <div className="font-heading font-black text-xs sm:text-sm text-foreground truncate">
+                    Secrétaire IA 👑
+                  </div>
+                  <div className="text-[10.5px] text-[#E07A2B] font-bold truncate">
+                    WhatsApp &amp; Relances
+                  </div>
+                </div>
+              </button>
+
+              {/* 5. Carnet Clientes */}
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  onNavigate("crm");
+                }}
+                className="col-span-2 sm:col-span-1 min-h-[64px] sm:min-h-[72px] rounded-2xl border-2 border-border/90 bg-muted/40 hover:bg-muted/70 p-3 flex items-center gap-3 text-left active:scale-95 transition-all shadow-sm group"
+              >
+                <span className="grid size-11 sm:size-12 place-items-center rounded-xl bg-foreground text-background font-black shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                  <UserPlus size={22} />
+                </span>
+                <div className="min-w-0">
+                  <div className="font-heading font-black text-xs sm:text-sm text-foreground truncate">
+                    + Nouvelle Cliente
+                  </div>
+                  <div className="text-[10.5px] text-muted-foreground font-bold truncate">
+                    Dossier &amp; Historique
+                  </div>
+                </div>
+              </button>
             </div>
           </section>
 
