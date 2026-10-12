@@ -231,16 +231,18 @@ export function ScoreRing({
   label = "Score",
   className,
 }: {
-  score: number;
+  score: number | null | undefined;
   size?: number;
   stroke?: number;
   label?: string;
   className?: string;
 }) {
+  const isMeasured = score !== null && score !== undefined && score > 0;
+  const numericScore = isMeasured ? score : 0;
   const r = (size - stroke * 2) / 2;
   const C = 2 * Math.PI * r;
-  const color = scoreColor(score);
-  const gid = `ring-${Math.round(score)}-${size}`;
+  const color = isMeasured ? scoreColor(numericScore) : "var(--muted-foreground)";
+  const gid = `ring-${Math.round(numericScore)}-${size}`;
   const scoreFontSize = Math.max(16, Math.round(size * 0.26));
   const labelFontSize = Math.max(8, Math.round(size * 0.075));
   const labelMaxWidth = Math.round(size * 0.76);
@@ -249,7 +251,7 @@ export function ScoreRing({
       className={cn("relative shrink-0 k-ring-glow", className)}
       style={{ width: size, height: size }}
       role="img"
-      aria-label={`${label} ${score} sur 100`}
+      aria-label={isMeasured ? `${label} ${score} sur 100` : `${label} non mesuré`}
     >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
         <defs>
@@ -265,14 +267,13 @@ export function ScoreRing({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={`url(#${gid})`}
+          stroke={isMeasured ? `url(#${gid})` : "color-mix(in srgb, var(--muted-foreground) 25%, transparent)"}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={C}
           initial={{ strokeDashoffset: C }}
-          animate={{ strokeDashoffset: C * (1 - score / 100) }}
+          animate={{ strokeDashoffset: isMeasured ? C * (1 - numericScore / 100) : C }}
           transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
-          style={{ stroke: `url(#${gid})` }}
         />
       </svg>
       <div className="absolute inset-0 grid place-items-center p-1">
@@ -281,14 +282,14 @@ export function ScoreRing({
             className="font-mono font-bold tabular-nums"
             style={{ fontSize: `${scoreFontSize}px`, color, lineHeight: 1 }}
           >
-            {score}
+            {isMeasured ? score : "--"}
           </div>
           <div
             className="mt-1 font-bold uppercase tracking-wider text-muted-foreground truncate"
             style={{ fontSize: `${labelFontSize}px`, maxWidth: `${labelMaxWidth}px` }}
             title={label}
           >
-            {label}
+            {isMeasured ? label : "En attente"}
           </div>
         </div>
       </div>

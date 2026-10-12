@@ -4,7 +4,7 @@
 // — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
-import { Crown, FileDown, Lock, MessageCircle, Phone, Search, Sparkles, Users, Wallet, ChevronDown, Save, Star, Pencil, Plus, ShoppingBag, FlaskConical, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin } from "lucide-react";
+import { Crown, FileDown, Lock, MessageCircle, Phone, Search, Sparkles, Users, Wallet, ChevronDown, Save, Star, Pencil, Plus, ShoppingBag, FlaskConical, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin, ZoomIn } from "lucide-react";
 import { BissapFlowerIcon, SankofaIcon } from "@/components/kene/icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +39,7 @@ import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { SkinTwinCard, type TwinEntry } from "@/components/kene/skintwin/SkinTwinCard";
 import { ProEvolutionCard } from "@/components/kene/evolution/ProEvolutionCard";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
+import { PhotoLightboxModal, type LightboxPhoto } from "@/components/kene/common/PhotoLightboxModal";
 import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, InitialAvatar, Money, SectionHeader, KenteTop } from "./ui-bits";
 import { ResultView } from "./DiagnosticsSection";
@@ -854,6 +855,26 @@ function ClientSheet({
     [d?.diagnoses],
   );
 
+  // Visionneuse Lightbox HD pour les diagnostics de la cliente (examen clinique plein écran)
+  const [proLightboxIndex, setProLightboxIndex] = useState<number | null>(null);
+  const proPhotosList: LightboxPhoto[] = useMemo(() => {
+    if (!d?.diagnoses) return [];
+    return d.diagnoses
+      .filter((dg) => Boolean(dg.imageData && dg.imageData.trim() !== ""))
+      .map((dg) => {
+        const parsed = parseDiagnosis(dg.resultJson);
+        return {
+          id: dg.id,
+          url: diagImgSrc(dg.imageData),
+          date: dg.createdAt,
+          zone: dg.zone,
+          score: dg.scoreGlobal,
+          institut: null,
+          indicators: parsed?.indicateurs || [],
+        };
+      });
+  }, [d?.diagnoses]);
+
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" aria-describedby={undefined} className="w-full sm:max-w-lg overflow-y-auto pretty-scroll p-0">
@@ -1093,6 +1114,18 @@ function ClientSheet({
                           }}
                           showSpectralUvToggle={true}
                         />
+                        {proPhotosList.length > 0 && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setProLightboxIndex(0)}
+                            className="w-full gap-1.5 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10 rounded-xl h-8 mt-1.5"
+                          >
+                            <ZoomIn className="size-3.5" />
+                            <span>Examiner les clichés en plein écran HD</span>
+                          </Button>
+                        )}
                       </div>
                     );
                   })()}
@@ -1102,13 +1135,24 @@ function ClientSheet({
                     <div className="grid grid-cols-3 gap-2">
                       {d.diagnoses.map((dg) => {
                         const img = diagImgSrc(dg.imageData);
+                        const photoIdx = proPhotosList.findIndex((p) => p.id === dg.id);
                         return (
-                          <div key={dg.id} className="overflow-hidden rounded-xl border border-border bg-card">
-                            <div className="aspect-square bg-muted">
-                              <img src={img} alt={`Diagnostic ${dg.zone}`} className="size-full object-cover" />
+                          <div
+                            key={dg.id}
+                            onClick={() => {
+                              if (photoIdx !== -1) setProLightboxIndex(photoIdx);
+                            }}
+                            className="group relative overflow-hidden rounded-xl border border-border bg-card cursor-pointer hover:border-primary/60 transition-all shadow-xs"
+                            title="Cliquer pour examiner en grand format HD"
+                          >
+                            <div className="aspect-square bg-muted relative">
+                              <img src={img} alt={`Diagnostic ${dg.zone}`} className="size-full object-cover group-hover:scale-105 transition-transform" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                                <ZoomIn className="size-4" />
+                              </div>
                             </div>
                             <div className="p-1.5 text-center">
-                              <p className="text-[10px] font-medium capitalize">{dg.zone.replace("_", " ")}</p>
+                              <p className="text-[10px] font-medium capitalize truncate">{dg.zone.replace("_", " ")}</p>
                               <p className="font-mono text-xs font-bold" style={{ color: scoreVar(dg.scoreGlobal) }}>{dg.scoreGlobal}/100</p>
                               <p className="text-[9px] text-muted-foreground">{formatDate(dg.createdAt, { day: "numeric", month: "short" })}</p>
                             </div>
@@ -1712,6 +1756,15 @@ function ClientSheet({
             </div>
           </>
         )}
+
+        {/* ── Visionneuse Plein Écran HD des Clichés de la Cliente (Espace Pro) ── */}
+        <PhotoLightboxModal
+          isOpen={proLightboxIndex !== null}
+          onClose={() => setProLightboxIndex(null)}
+          photos={proPhotosList}
+          initialIndex={proLightboxIndex ?? 0}
+          titlePrefix={`Dossier ${c?.name ?? "Patiente"}`}
+        />
       </SheetContent>
     </Sheet>
   );

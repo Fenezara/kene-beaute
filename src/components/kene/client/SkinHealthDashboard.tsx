@@ -157,77 +157,68 @@ export function SkinHealthDashboard({
       ];
     }
 
-    // Si nouveau compte / pas de scan : profil estimé d'après onboarding
-    const isOily = user.skinType === "grasse";
-    const isDry = user.skinType === "seche";
-    const fitz = user.fitzpatrick ? String(user.fitzpatrick).toUpperCase() : "V";
-
-    const baseHydra = isDry ? 56 : isOily ? 72 : 68;
-    const baseBarrier = isDry ? 60 : 76;
-    const basePigment = fitz === "VI" ? 64 : fitz === "IV" ? 72 : 68;
-    const baseSebum = isOily ? 54 : isDry ? 82 : 68;
-
+    // Si nouveau compte / pas de scan : constantes à zéro en attente du 1er scan
     return [
       {
         id: "hydratation",
         name: "Hydratation Cutanée",
-        shortDesc: "Estimation selon profil",
-        score: baseHydra,
-        status: baseHydra >= 70 ? "Normale" : "Tendance sèche",
+        shortDesc: "En attente du 1er scan",
+        score: 0,
+        status: "Non mesurée",
         icon: Droplets,
         color: "#2E72D2",
         bgLight: "rgba(46,114,210,0.12)",
-        recommendation: "Mesure estimée. Un scan photo révélera le taux d'hydratation au micron.",
+        recommendation: "Aucune mesure enregistrée. Votre premier scan photo mesurera le taux d'eau transépidermique.",
         source: "profil",
       },
       {
         id: "barriere",
         name: "Barrière Lipidique",
-        shortDesc: "Protection cutanée profilée",
-        score: baseBarrier,
-        status: baseBarrier >= 75 ? "Résiliente" : "À renforcer",
+        shortDesc: "En attente du 1er scan",
+        score: 0,
+        status: "Non mesurée",
         icon: ShieldCheck,
         color: "#3F7D3F",
         bgLight: "rgba(63,125,63,0.12)",
-        recommendation: "Protection essentielle face au soleil et à la déshydratation tropicale.",
+        recommendation: "Aucune mesure enregistrée. Votre premier scan photo évaluera le film protecteur et la résilience cutanée.",
         source: "profil",
       },
       {
         id: "pigmentation",
         name: "Homogénéité & PIH",
-        shortDesc: `Phototype Fitzpatrick ${fitz}`,
-        score: basePigment,
-        status: "Sensible aux PIH",
+        shortDesc: "En attente du 1er scan",
+        score: 0,
+        status: "Non mesurée",
         icon: KeneSunIcon,
         color: "#C8951E",
         bgLight: "rgba(200,149,30,0.12)",
-        recommendation: "Les peaux mélanodermes créent facilement des taches en réponse aux boutons.",
+        recommendation: "Aucune mesure enregistrée. Votre premier scan photo analysera les éventuelles hyperpigmentations post-inflammatoires.",
         source: "profil",
       },
       {
         id: "sebum",
         name: "Équilibre Sébacé & Pores",
-        shortDesc: `Peau ${user.skinType || "mixte"}`,
-        score: baseSebum,
-        status: isOily ? "Sébum actif" : "Régulée",
+        shortDesc: "En attente du 1er scan",
+        score: 0,
+        status: "Non mesurée",
         icon: Activity,
         color: "#E07A2B",
         bgLight: "rgba(224,122,43,0.12)",
-        recommendation: "Les climats chauds et humides augmentent la fluidité du sébum naturel.",
+        recommendation: "Aucune mesure enregistrée. Votre premier scan photo mesurera la pureté des pores et l'activité sébacée.",
         source: "profil",
       },
     ];
-  }, [lastResult, user.skinType, user.fitzpatrick]);
+  }, [lastResult]);
 
-  // 2. Score global effectif ou estimé
+  // 2. Score global effectif ou nul si nouveau compte
   const globalScore = useMemo(() => {
     if (multi.score !== null) return multi.score;
-    const sum = pillars.reduce((acc, p) => acc + p.score, 0);
-    return Math.round(sum / pillars.length);
-  }, [multi.score, pillars]);
+    return null;
+  }, [multi.score]);
 
   // Statut textuel synthétique
   const statusLabel = useMemo(() => {
+    if (globalScore === null) return "En attente de votre 1er bilan cutané";
     if (globalScore >= 80) return "Vitalité Éclatante · Équilibre Optimal";
     if (globalScore >= 68) return "Bonne Santé Cutanée · Maintien Recommandé";
     if (globalScore >= 55) return "Vigilance Légère · Zones à Réhydrater";
@@ -282,48 +273,43 @@ export function SkinHealthDashboard({
                   Santé de ta Peau en Direct
                 </h3>
                 {hasRealScan ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] dark:text-[#6FB96F] text-[9.5px] font-bold uppercase tracking-wider">
-                    <CheckCircle2 size={10} /> Scan certifié
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] dark:text-[#6FB96F] text-[10px] font-bold uppercase tracking-wider">
+                    <CheckCircle2 size={11} /> Scan certifié
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C8951E]/15 text-[#C8951E] text-[9.5px] font-bold uppercase tracking-wider">
-                    <CauriIcon size={10} /> Profil estimé
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#C8951E]/15 text-[#B87F14] dark:text-[#E0B147] text-[10px] font-bold uppercase tracking-wider">
+                    <CauriIcon size={11} /> En attente de scan
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5 font-medium">
                 {hasRealScan && multi.last
                   ? `Dernière analyse biométrique le ${formatDate(multi.last.createdAt, { day: "numeric", month: "long" })}`
-                  : "Pré-bilan d'après ton profil · Réalise ton scan pour affiner"}
+                  : "Aucun scan enregistré · Prenez votre 1ère photo pour démarrer"}
               </p>
             </div>
           </div>
 
-          {/* Bouton de lecture vocale */}
+          {/* Bouton de lecture vocale (uniquement si scan réel ou pour guider) */}
           <div className="shrink-0">
             <VoiceNarration
               result={
                 lastResult || ({
-                  score_global: globalScore,
+                  score_global: globalScore ?? 0,
                   zone: "visage",
-                  indicateurs: [
-                    { nom: "Hydratation", severite: 1, pourcentage: 70 },
-                    { nom: "Barrière lipidique", severite: 1, pourcentage: 50 },
-                    { nom: "Homogénéité & PIH", severite: 1, pourcentage: 54 },
-                    { nom: "Équilibre sébacé", severite: 0, pourcentage: 82 },
-                  ],
+                  indicateurs: [],
                   zones_marquages: [],
                   recommandations: {
-                    resume: "Hydratation et renforcement de la barrière cutanée",
-                    routine_matin: ["Nettoyage doux au Moringa", "Écran solaire SPF 50"],
-                    routine_soir: ["Régénération au Karité sauvage pur"],
+                    resume: "Réalisez votre premier scan pour obtenir une ordonnance sur-mesure",
+                    routine_matin: ["Prépare ta peau pour le premier scan"],
+                    routine_soir: ["Hydratation légère"],
                     botaniques_conseillees: ["Moringa", "Karité"],
                     produits: [],
-                    soins_conseilles: ["Soin dermo-botanique cabine"],
-                    conseils_hygiene_vie: ["Boire 1.5L d'eau par jour"],
+                    soins_conseilles: ["Soin découverte cabine"],
+                    conseils_hygiene_vie: ["Bien nettoyer le visage avant la photo"],
                   },
                   orientation_dermato: false,
-                  avertissement: "Bilan indicatif personnalisé",
+                  avertissement: "En attente de scan initial",
                   source: "fallback",
                 } as DiagnosisResult)
               }
@@ -333,22 +319,22 @@ export function SkinHealthDashboard({
         </div>
 
         {/* Bloc Score Global & Statut Clinique */}
-        <div className="mt-5 grid grid-cols-12 gap-3.5 items-center p-4 sm:p-5 rounded-2xl bg-card/60 border border-border/80">
+        <div className="mt-5 grid grid-cols-12 gap-3.5 items-center p-4 sm:p-5 rounded-2xl bg-card/80 border border-border">
           <div className="col-span-5 sm:col-span-4 flex items-center justify-center shrink-0">
-            <ScoreGauge score={globalScore} label="Score Global" size={100} />
+            <ScoreGauge score={globalScore ?? 0} label="Vitalité Peau" size={105} />
           </div>
 
           <div className="col-span-7 sm:col-span-8 min-w-0">
-            <p className="text-[10px] sm:text-[10.5px] font-bold uppercase tracking-[0.14em] text-primary">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
               Diagnostic Synthétique
             </p>
             <h4 className="font-heading font-black text-sm sm:text-lg text-foreground mt-0.5 leading-snug">
               {statusLabel}
             </h4>
-            <p className="text-[11px] sm:text-xs text-muted-foreground mt-1 leading-relaxed">
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               {hasRealScan
-                ? `Indice de vitalité calculé sur l'ensemble de tes zones analysées.`
-                : `Score estimé d'après ton profil. Réalise un scan pour mesurer l'état réel de ta peau.`}
+                ? `Indice de vitalité calculé sur l'ensemble de vos zones analysées.`
+                : `Aucune mesure cutanée enregistrée. Prenez votre première photo pour révéler l'état clinique de votre peau en 30 secondes.`}
             </p>
           </div>
         </div>
@@ -458,21 +444,21 @@ export function SkinHealthDashboard({
 
         {/* ───── BANDEAU D'APPEL AU SCAN (Si nouveau compte / zones manquantes) ───── */}
         {!hasRealScan ? (
-          <div className="mt-4 pt-4 border-t border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="mt-4 pt-4 border-t border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3 sm:p-4 rounded-2xl border border-amber-500/25">
             <div>
-              <p className="text-xs font-bold text-foreground">
-                Débloque tes constantes réelles par scan photo
+              <p className="text-sm font-black text-foreground">
+                Débloquez vos constantes réelles par scan photo
               </p>
-              <p className="text-[11px] text-muted-foreground">
-                Bilan spectral en 30 secondes certifié sur peaux mélanodermes
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Bilan dermo-spectral en 30 secondes certifié sur peaux mélanodermes
               </p>
             </div>
             <button
               onClick={() => onScanZone("visage")}
-              className="h-10 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-2 shadow-sm focus-visible:outline-2 focus-visible:outline-primary"
+              className="h-11 sm:h-12 px-5 sm:px-6 rounded-2xl bg-gradient-to-r from-[#D4A017] via-[#C8951E] to-[#B87F14] text-amber-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-md hover:brightness-105 active:scale-95 transition-all shrink-0 cursor-pointer border border-amber-400/40"
             >
-              <ScanFace size={16} />
-              Scanner mon visage
+              <ScanFace size={18} className="text-amber-950" />
+              <span>Prendre ma 1ère photo (30 sec)</span>
             </button>
           </div>
         ) : (

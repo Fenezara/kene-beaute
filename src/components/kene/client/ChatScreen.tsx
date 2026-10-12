@@ -417,7 +417,7 @@ export function ChatScreen() {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      saveHardwarePermGranted();
+      saveHardwarePermGranted("mic");
       streamRef.current = stream;
 
       // Mesure de volume Web Audio pour animer l'Orbe 3D en temps réel
@@ -464,11 +464,15 @@ export function ChatScreen() {
       autoStopRef.current = setTimeout(() => {
         if (recorderRef.current?.state === "recording") recorderRef.current.stop();
       }, MAX_RECORD_MS);
-    } catch {
-      // Permission refusée / bloquée dans les paramètres du navigateur
+    } catch (err) {
       releaseStream();
       setMicState("idle");
-      setMicHelpOpen(true);
+      const isDenied = err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
+      if (isDenied && !isHardwarePermGranted("mic")) {
+        setMicHelpOpen(true);
+      } else {
+        toast.info("Microphone prêt — autorisez l'accès si demandé par votre téléphone.");
+      }
     }
   }
 
@@ -1318,35 +1322,42 @@ export function ChatScreen() {
             </>
           ) : (
             <>
-              {/* Micro: Enregistrement vocal direct sans modal intermédiaire */}
+              {/* Micro activé et mis en avant par défaut pour dictée vocale instantanée */}
               <button
                 type="button"
                 onClick={() => {
                   void startRecording();
                 }}
                 disabled={micState === "transcribing"}
-                aria-label="Parler à Dermo Kènè"
-                title="Enregistrer et envoyer une note vocale à Dermo Kènè"
-                className="h-11 w-11 grid place-items-center rounded-full shrink-0 text-muted-foreground hover:bg-muted active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40"
+                aria-label="Parler à Dr Kènè (Microphone actif)"
+                title="Appuyer pour parler à Dr Kènè (vocal activé par défaut)"
+                className="h-12 w-12 grid place-items-center rounded-2xl shrink-0 bg-primary/15 text-primary border border-primary/35 hover:bg-primary/25 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40 shadow-xs cursor-pointer"
               >
-                {micState === "transcribing" ? <Loader2 size={18} className="animate-spin text-primary" aria-hidden="true" /> : <Mic size={19} />}
+                {micState === "transcribing" ? (
+                  <Loader2 size={20} className="animate-spin text-primary" aria-hidden="true" />
+                ) : (
+                  <div className="relative">
+                    <Mic size={21} className="text-primary" />
+                    <span className="absolute -top-1 -right-1 size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  </div>
+                )}
               </button>
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); send(); } }}
-                placeholder="Écris ou envoie une note vocale à Dermo Kènè…"
-                aria-label="Message pour Dermo Kènè"
-                className="k-input h-12 min-w-0 flex-1 rounded-2xl px-3.5 text-sm outline-none placeholder:text-muted-foreground/70"
+                placeholder="Posez votre question ou parlez à Dr Kènè…"
+                aria-label="Message pour Dr Kènè"
+                className="k-input h-12 min-w-0 flex-1 rounded-2xl px-4 text-xs sm:text-sm font-medium outline-none placeholder:text-muted-foreground/80 border border-border/80 focus:border-primary"
               />
               {/* Photo: Choix de la source (Caméra Live ou Galerie) */}
               <button
                 type="button"
                 onClick={() => setPhotoPickerOpen(true)}
                 disabled={photoBusy}
-                aria-label="Envoyer une photo à Dermo Kènè"
-                title="Envoyer une photo à Dermo Kènè"
-                className="h-12 w-12 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+                aria-label="Envoyer une photo à Dr Kènè"
+                title="Envoyer une photo à Dr Kènè"
+                className="h-12 w-12 grid place-items-center rounded-2xl text-foreground/80 hover:bg-muted border border-border/70 active:scale-90 transition-all shrink-0 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50 cursor-pointer"
               >
                 {photoBusy ? <Loader2 size={19} className="animate-spin text-primary" /> : <Camera size={19} />}
               </button>
@@ -1355,15 +1366,15 @@ export function ChatScreen() {
                 onClick={() => send()}
                 disabled={!input.trim() || sending}
                 aria-label="Envoyer"
-                className="k-btn-gold h-12 w-12 grid place-items-center rounded-full text-primary-foreground active:scale-90 transition-all disabled:opacity-50 shrink-0 focus-visible:outline-2 focus-visible:outline-primary"
+                className="bg-gradient-to-r from-[#D4A017] via-[#C8951E] to-[#B87F14] text-amber-950 font-black h-12 w-12 grid place-items-center rounded-2xl active:scale-90 transition-all disabled:opacity-40 shrink-0 focus-visible:outline-2 focus-visible:outline-primary shadow-sm border border-amber-400/30 cursor-pointer"
               >
-                <Send size={18} />
+                <Send size={18} className="text-amber-950" />
               </button>
             </>
           )}
         </div>
-        <p className="mt-2 mb-1 flex items-center justify-center gap-1.5 text-[9.5px] text-muted-foreground text-center px-2">
-          <ShieldCheck size={11} className="text-primary shrink-0" />
+        <p className="mt-2.5 mb-1 flex items-center justify-center gap-1.5 text-[11px] font-medium text-foreground/85 text-center px-2">
+          <ShieldCheck size={13} className="text-primary shrink-0" />
           <span>Orientation dermo-cosmétique IA · Ne pose aucun diagnostic médical et ne remplace pas un dermatologue</span>
         </p>
       </div>

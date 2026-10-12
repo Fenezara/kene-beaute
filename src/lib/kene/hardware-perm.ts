@@ -1,22 +1,47 @@
 // src/lib/kene/hardware-perm.ts
-// Gestion et mémorisation permanente des autorisations matérielles du téléphone (Microphone, Caméra, Localisation)
-// Évite les sollicitations répétitives lorsque l'utilisateur a déjà autorisé le matériel.
+// Gestion et mémorisation permanente des autorisations matérielles du téléphone (Caméra, Microphone, Localisation)
+// RÈGLE : Les autorisations matérielles ne doivent être demandées QU'UNE SEULE FOIS.
+// Une fois accordées, l'application mémorise le statut et ne redemande plus rien.
 
 export const HARDWARE_PERM_KEY = "kene-hardware-permission-granted";
+export const CAMERA_PERM_KEY = "kene-hardware-camera-granted";
+export const MIC_PERM_KEY = "kene-hardware-mic-granted";
+export const GEO_PERM_KEY = "kene-hardware-geo-granted";
 
-export function isHardwarePermGranted(): boolean {
+export type HardwareFeature = "camera" | "mic" | "geo";
+
+export function isHardwarePermGranted(feature?: HardwareFeature): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return localStorage.getItem(HARDWARE_PERM_KEY) === "true";
+    if (!feature) {
+      return (
+        localStorage.getItem(HARDWARE_PERM_KEY) === "true" ||
+        localStorage.getItem(CAMERA_PERM_KEY) === "true" ||
+        localStorage.getItem(MIC_PERM_KEY) === "true"
+      );
+    }
+    const key =
+      feature === "camera"
+        ? CAMERA_PERM_KEY
+        : feature === "mic"
+        ? MIC_PERM_KEY
+        : GEO_PERM_KEY;
+    return (
+      localStorage.getItem(key) === "true" ||
+      localStorage.getItem(HARDWARE_PERM_KEY) === "true"
+    );
   } catch {
     return false;
   }
 }
 
-export function saveHardwarePermGranted(): void {
+export function saveHardwarePermGranted(feature?: HardwareFeature): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(HARDWARE_PERM_KEY, "true");
+    if (feature === "camera") localStorage.setItem(CAMERA_PERM_KEY, "true");
+    if (feature === "mic") localStorage.setItem(MIC_PERM_KEY, "true");
+    if (feature === "geo") localStorage.setItem(GEO_PERM_KEY, "true");
   } catch {}
 }
 
@@ -35,11 +60,15 @@ export async function syncHardwarePermissions(): Promise<boolean> {
       navigator.permissions.query({ name: "camera" as PermissionName }),
     ]);
 
-    const isAnyGranted = results.some(
-      (r) => r.status === "fulfilled" && r.value.state === "granted"
-    );
+    let anyGranted = false;
+    results.forEach((r, idx) => {
+      if (r.status === "fulfilled" && r.value.state === "granted") {
+        anyGranted = true;
+        saveHardwarePermGranted(idx === 0 ? "mic" : "camera");
+      }
+    });
 
-    if (isAnyGranted) {
+    if (anyGranted) {
       saveHardwarePermGranted();
       return true;
     }
