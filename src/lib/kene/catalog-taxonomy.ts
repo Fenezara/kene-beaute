@@ -68,13 +68,6 @@ export const SERVICE_CATEGORIES: readonly CategoryMeta[] = [
     description: "Soins nourrissants des mains au karité, manucure et pédicure relaxante.",
     tone: "terre",
   },
-  {
-    id: "maquillage",
-    label: "Maquillage & Mise en Beauté",
-    shortLabel: "Make-up",
-    description: "Mise en beauté teint parfait, maquillage soirée/mariée, zéro effet masque et cours d'auto-maquillage peaux noires & métisses.",
-    tone: "bissap",
-  },
 ] as const;
 
 export function getServiceCategoryMeta(id: string): CategoryMeta {
@@ -157,13 +150,6 @@ export const PRODUCT_CATEGORIES: readonly CategoryMeta[] = [
     shortLabel: "Capillaire",
     description: "Poudres de chébé, leave-in conditionneurs et beurres fortifiants pour les longueurs.",
     tone: "success",
-  },
-  {
-    id: "makeup",
-    label: "Make-up Dermo-Protecteur & Teint",
-    shortLabel: "Make-up",
-    description: "Sérums teintés SPF 50+, poudres matifiantes au kaolin sans traces blanches, baumes lèvres teintés karité & hibiscus.",
-    tone: "bissap",
   },
 ] as const;
 

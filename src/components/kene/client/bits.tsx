@@ -65,7 +65,7 @@ export function ScrollFadeRow({
 
 /** Jauge circulaire du score santé peau — anneau signature 2026:
  * dégradé or→score→bissap, halo doré, chiffre mono tabulaire. */
-export function ScoreGauge({ score, size = 130, stroke = 11, label = "Score peau" }: { score: number; size?: number; stroke?: number; label?: string }) {
+export function ScoreGauge({ score, size = 130, stroke = 11, label = "Score peau" }: { score: number | null | undefined; size?: number; stroke?: number; label?: string }) {
   return <ScoreRing score={score} size={size} stroke={stroke} label={label} />;
 }
 

@@ -4,7 +4,7 @@
 // — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
-import { Crown, FileDown, Lock, MessageCircle, Phone, Search, Sparkles, Users, Wallet, ChevronDown, Save, Star, Pencil, Plus, ShoppingBag, FlaskConical, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin, ZoomIn } from "lucide-react";
+import { Crown, FileDown, Lock, MessageCircle, Phone, Search, Sparkles, Users, Wallet, ChevronDown, Save, Star, Pencil, Plus, ShoppingBag, FlaskConical, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin } from "lucide-react";
 import { BissapFlowerIcon, SankofaIcon } from "@/components/kene/icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -642,6 +642,10 @@ function ClientSheet({
     }
   }
 
+  // Visionneuse HD plein écran des photos de la cliente
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
   const detail = useApi<ProClientDetail>(
     () => apiGet<ProClientDetail>(`/api/pro/clients/${clientId}?tenantId=${tenantId}`),
     [clientId, tenantId]
@@ -649,6 +653,33 @@ function ClientSheet({
 
   const d = detail.data;
   const c = d?.client;
+
+  const lightboxPhotos: LightboxPhoto[] = useMemo(() => {
+    if (!d?.diagnoses) return [];
+    return d.diagnoses
+      .filter((dg) => Boolean(dg.imageData && dg.imageData.trim()))
+      .map((dg) => {
+        const parsed = parseDiagnosis(dg.resultJson);
+        return {
+          id: dg.id,
+          url: diagImgSrc(dg.imageData),
+          date: dg.createdAt,
+          zone: dg.zone,
+          score: dg.scoreGlobal,
+          indicators: parsed?.indicateurs,
+        };
+      });
+  }, [d?.diagnoses]);
+
+  const openPhotoLightbox = (idxOrId: number | string) => {
+    if (typeof idxOrId === "number") {
+      setLightboxIndex(idxOrId);
+    } else {
+      const idx = lightboxPhotos.findIndex((p) => p.id === idxOrId);
+      setLightboxIndex(idx >= 0 ? idx : 0);
+    }
+    setLightboxOpen(true);
+  };
 
   // Initialisation synchronisée avec la fiche cliente en base
   useEffect(() => {
@@ -854,26 +885,6 @@ function ClientSheet({
       }),
     [d?.diagnoses],
   );
-
-  // Visionneuse Lightbox HD pour les diagnostics de la cliente (examen clinique plein écran)
-  const [proLightboxIndex, setProLightboxIndex] = useState<number | null>(null);
-  const proPhotosList: LightboxPhoto[] = useMemo(() => {
-    if (!d?.diagnoses) return [];
-    return d.diagnoses
-      .filter((dg) => Boolean(dg.imageData && dg.imageData.trim() !== ""))
-      .map((dg) => {
-        const parsed = parseDiagnosis(dg.resultJson);
-        return {
-          id: dg.id,
-          url: diagImgSrc(dg.imageData),
-          date: dg.createdAt,
-          zone: dg.zone,
-          score: dg.scoreGlobal,
-          institut: null,
-          indicators: parsed?.indicateurs || [],
-        };
-      });
-  }, [d?.diagnoses]);
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
@@ -1114,18 +1125,6 @@ function ClientSheet({
                           }}
                           showSpectralUvToggle={true}
                         />
-                        {proPhotosList.length > 0 && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setProLightboxIndex(0)}
-                            className="w-full gap-1.5 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10 rounded-xl h-8 mt-1.5"
-                          >
-                            <ZoomIn className="size-3.5" />
-                            <span>Examiner les clichés en plein écran HD</span>
-                          </Button>
-                        )}
                       </div>
                     );
                   })()}
@@ -1135,26 +1134,23 @@ function ClientSheet({
                     <div className="grid grid-cols-3 gap-2">
                       {d.diagnoses.map((dg) => {
                         const img = diagImgSrc(dg.imageData);
-                        const photoIdx = proPhotosList.findIndex((p) => p.id === dg.id);
                         return (
                           <div
                             key={dg.id}
-                            onClick={() => {
-                              if (photoIdx !== -1) setProLightboxIndex(photoIdx);
-                            }}
-                            className="group relative overflow-hidden rounded-xl border border-border bg-card cursor-pointer hover:border-primary/60 transition-all shadow-xs"
-                            title="Cliquer pour examiner en grand format HD"
+                            onClick={() => openPhotoLightbox(dg.id)}
+                            className="group overflow-hidden rounded-xl border border-border bg-card cursor-pointer hover:border-gold/60 hover:shadow-md transition-all select-none"
+                            title="Cliquer pour examiner la photo en haute définition plein écran"
                           >
-                            <div className="aspect-square bg-muted relative">
+                            <div className="aspect-square bg-muted relative overflow-hidden">
                               <img src={img} alt={`Diagnostic ${dg.zone}`} className="size-full object-cover group-hover:scale-105 transition-transform" />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
-                                <ZoomIn className="size-4" />
+                              <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <span className="p-1 rounded-full bg-black/60 text-white text-[10px] font-bold">🔍 Plein écran</span>
                               </div>
                             </div>
                             <div className="p-1.5 text-center">
-                              <p className="text-[10px] font-medium capitalize truncate">{dg.zone.replace("_", " ")}</p>
+                              <p className="text-[10px] font-bold capitalize text-foreground truncate">{dg.zone.replace("_", " ")}</p>
                               <p className="font-mono text-xs font-bold" style={{ color: scoreVar(dg.scoreGlobal) }}>{dg.scoreGlobal}/100</p>
-                              <p className="text-[9px] text-muted-foreground">{formatDate(dg.createdAt, { day: "numeric", month: "short" })}</p>
+                              <p className="text-[9.5px] text-muted-foreground">{formatDate(dg.createdAt, { day: "numeric", month: "short" })}</p>
                             </div>
                           </div>
                         );
@@ -1756,16 +1752,15 @@ function ClientSheet({
             </div>
           </>
         )}
-
-        {/* ── Visionneuse Plein Écran HD des Clichés de la Cliente (Espace Pro) ── */}
-        <PhotoLightboxModal
-          isOpen={proLightboxIndex !== null}
-          onClose={() => setProLightboxIndex(null)}
-          photos={proPhotosList}
-          initialIndex={proLightboxIndex ?? 0}
-          titlePrefix={`Dossier ${c?.name ?? "Patiente"}`}
-        />
       </SheetContent>
+
+      {/* Visionneuse HD plein écran pour consultation clinique pro */}
+      <PhotoLightboxModal
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        photos={lightboxPhotos}
+        initialIndex={lightboxIndex}
+      />
     </Sheet>
   );
 }

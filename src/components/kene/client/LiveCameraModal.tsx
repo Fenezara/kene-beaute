@@ -59,17 +59,22 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
         }
 
         streamRef.current = stream;
-        saveHardwarePermGranted();
+        saveHardwarePermGranted("camera");
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.play().catch(() => {});
         }
         setReady(true);
-      } catch (err) {
+      } catch (err: any) {
         if (!active) return;
+        const isPermDenied = err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError";
         const msg = err instanceof Error ? err.message : "Impossible d'accéder à la caméra";
         setError(msg);
-        toast.error("Accès caméra indisponible — vérifie tes autorisations");
+        if (isPermDenied) {
+          toast.error("Accès caméra refusé — autorise l'appareil photo dans les paramètres");
+        } else {
+          toast.error("Initialisation de la caméra… réessaie dans un instant");
+        }
       }
     }
 

@@ -237,12 +237,12 @@ export function ScoreRing({
   label?: string;
   className?: string;
 }) {
-  const isMeasured = score !== null && score !== undefined && score > 0;
-  const numericScore = isMeasured ? score : 0;
+  const isMeasured = score !== null && score !== undefined && !isNaN(score);
+  const actualScore = isMeasured ? Math.max(0, Math.min(100, Math.round(score))) : 0;
   const r = (size - stroke * 2) / 2;
   const C = 2 * Math.PI * r;
-  const color = isMeasured ? scoreColor(numericScore) : "var(--muted-foreground)";
-  const gid = `ring-${Math.round(numericScore)}-${size}`;
+  const color = isMeasured ? scoreColor(actualScore) : "var(--muted-foreground)";
+  const gid = `ring-${actualScore}-${size}`;
   const scoreFontSize = Math.max(16, Math.round(size * 0.26));
   const labelFontSize = Math.max(8, Math.round(size * 0.075));
   const labelMaxWidth = Math.round(size * 0.76);
@@ -251,7 +251,7 @@ export function ScoreRing({
       className={cn("relative shrink-0 k-ring-glow", className)}
       style={{ width: size, height: size }}
       role="img"
-      aria-label={isMeasured ? `${label} ${score} sur 100` : `${label} non mesuré`}
+      aria-label={`${label} ${isMeasured ? actualScore : "non mesuré"} sur 100`}
     >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
         <defs>
@@ -262,19 +262,22 @@ export function ScoreRing({
           </linearGradient>
         </defs>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="color-mix(in srgb, var(--foreground) 10%, transparent)" strokeWidth={stroke} />
-        <motion.circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={isMeasured ? `url(#${gid})` : "color-mix(in srgb, var(--muted-foreground) 25%, transparent)"}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={C}
-          initial={{ strokeDashoffset: C }}
-          animate={{ strokeDashoffset: isMeasured ? C * (1 - numericScore / 100) : C }}
-          transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
-        />
+        {isMeasured && actualScore > 0 && (
+          <motion.circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={`url(#${gid})`}
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={C}
+            initial={{ strokeDashoffset: C }}
+            animate={{ strokeDashoffset: C * (1 - actualScore / 100) }}
+            transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
+            style={{ stroke: `url(#${gid})` }}
+          />
+        )}
       </svg>
       <div className="absolute inset-0 grid place-items-center p-1">
         <div className="text-center leading-none flex flex-col items-center justify-center">
@@ -282,7 +285,7 @@ export function ScoreRing({
             className="font-mono font-bold tabular-nums"
             style={{ fontSize: `${scoreFontSize}px`, color, lineHeight: 1 }}
           >
-            {isMeasured ? score : "--"}
+            {isMeasured ? actualScore : "--"}
           </div>
           <div
             className="mt-1 font-bold uppercase tracking-wider text-muted-foreground truncate"

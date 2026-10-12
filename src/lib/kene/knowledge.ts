@@ -703,16 +703,6 @@ export const IVORY_CONTEXT: IvoryContext = {
   },
 };
 
-// ─────────────────────────── Make-up & Sous-Tons (Peaux Mélanodermes) ───────────────────────────
-
-export const MAKEUP_KNOWLEDGE = {
-  undertones: "Sous-tons peaux noires : Chaud (doré, olive), Froid (rougeâtre, acajou), Neutre. Test toujours sur la mâchoire, jamais sur la main.",
-  flashback: "Zéro flashback : bannir les poudres blanches à haute teneur en talc ou silice brute avec flash. Préférer poudres teintées kaolin ou banana powder.",
-  hygiene: "Tolérance cutanée : maquillage non-comédogène impératif. Double nettoyage du soir (baume karité + nettoyant doux) non négociable pour prévenir microkystes et PIH.",
-  services: "Orientation cabine : proposer les prestations et ateliers auto-maquillage sous-tons dans l'onglet Agenda / Instituts partenaires.",
-  digest: "Maquillage peaux foncées : sous-ton chaud/froid/neutre testé mâchoire · poudres teintées kaolin anti-flashback · démaquillage double nettoyage soir impératif · ateliers auto-maquillage réservables en institut",
-};
-
 // ─────────────────────────── Digest (prompt LLM) ───────────────────────────
 // Version condensée, assemblée par code depuis les données ci-dessus.
 // Contrainte: ≤ ~900 mots — compacte mais complète pour un LLM.
@@ -746,9 +736,6 @@ export const KNOWLEDGE_DIGEST: string = [
   "",
   "— SIGNES ROUGES : référer sans délai —",
   digestRedFlags,
-  "",
-  "— MAQUILLAGE & SOUS-TONS (Make-Up Dermo-Compatible) —",
-  MAKEUP_KNOWLEDGE.digest,
   "",
   "— CONTEXTE IVOIRIEN (Abidjan) —",
   `- ${IVORY_CONTEXT.climate.digest}`,

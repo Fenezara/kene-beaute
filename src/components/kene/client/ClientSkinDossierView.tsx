@@ -35,9 +35,9 @@ import {
   Flame,
   ArrowRight,
   HeartHandshake,
+  Check,
   Info,
   Droplets,
-  ZoomIn,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -69,12 +69,12 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   const setClientTab = useKene((s) => s.setClientTab);
   const user = storeUser || { id: "guest", name: "Ma Peau", fitzpatrick: "V", skinType: "Mixte", city: "Abidjan", pregnant: false, allergies: null as string | null };
 
-  // 4 Sous-vues de l'espace Peau (par défaut : Santé de ta Peau en Direct !)
-  const [activeView, setActiveView] = useState<"live" | "dossier" | "avant_apres" | "historique">("live");
+  // 5 Sous-vues de l'espace Peau (par défaut : Santé de ta Peau en Direct !)
+  const [activeView, setActiveView] = useState<"live" | "dossier" | "avant_apres" | "galerie" | "historique">("live");
 
-  // Visionneuse Lightbox HD & mode d'affichage historique
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [historyMode, setHistoryMode] = useState<"list" | "gallery">("list");
+  // Visionneuse HD plein écran
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   // Diagnoses gérées localement si non injectées depuis l'extérieur
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>(initialDiagnoses ?? []);
@@ -118,14 +118,14 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
     return { byZone, covered, missing, score, last };
   }, [diagnoses, lastDiag]);
 
-  // Score global (null si aucun bilan enregistré)
+  // Score global (null si aucun diagnostic pour ne pas inventer un score)
   const globalScore = lastDiag?.scoreGlobal ?? multi.score ?? null;
-  const scoreCl = globalScore ? scoreColor(globalScore) : "#C8951E";
+  const scoreCl = globalScore !== null ? scoreColor(globalScore) : "text-muted-foreground";
 
-  // Liste enrichie des photos réelles pour la visionneuse plein écran Lightbox HD
-  const photosList: LightboxPhoto[] = useMemo(() => {
-    return diagnoses
-      .filter((d) => Boolean(d.imageData && d.imageData.trim() !== ""))
+  // Toutes les photos réelles de la cliente (pour la galerie et la visionneuse HD)
+  const lightboxPhotos: LightboxPhoto[] = useMemo(() => {
+    return [...diagnoses]
+      .filter((d) => d.imageData && d.imageData.trim() !== "")
       .map((d) => {
         const parsed = parseDiagnosis(d.resultJson);
         return {
@@ -133,13 +133,24 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
           url: diagImgSrc(d.imageData),
           date: d.createdAt,
           zone: d.zone,
-          score: d.scoreGlobal,
-          institut: d.institut,
-          practitioner: d.practitioner,
-          indicators: parsed?.indicateurs || [],
+          score: d.scoreGlobal ?? null,
+          institut: d.institut ?? null,
+          practitioner: d.practitioner ?? null,
+          indicators: parsed?.indicateurs,
         };
       });
   }, [diagnoses]);
+
+  const openPhotoLightbox = (photoIdOrIndex: string | number) => {
+    haptic(HAPTIC.light);
+    if (typeof photoIdOrIndex === "number") {
+      setLightboxIndex(photoIdOrIndex);
+    } else {
+      const idx = lightboxPhotos.findIndex((p) => p.id === photoIdOrIndex);
+      setLightboxIndex(idx >= 0 ? idx : 0);
+    }
+    setLightboxOpen(true);
+  };
 
   // Photos réelles de la cliente pour le comparateur Avant / Après
   const { beforePhotoUrl, afterPhotoUrl, hasRealPhotos, beforeDate, afterDate } = useMemo(() => {
@@ -224,9 +235,9 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
 
         <Button
           onClick={onStartScan || (() => setClientTab("diagnostic"))}
-          className="bg-gradient-to-r from-[#D4A017] via-[#C8951E] to-[#B87F14] text-amber-950 font-black text-xs sm:text-sm h-11 px-5 rounded-2xl gap-2 shrink-0 self-start sm:self-auto shadow-md hover:brightness-105 active:scale-95 transition-all border border-amber-400/30 cursor-pointer"
+          className="k-btn-gold text-primary-foreground font-black text-xs h-10 px-4 rounded-xl gap-2 shrink-0 self-start sm:self-auto shadow-md active:scale-95 transition-all"
         >
-          <NeaOnnimIcon size={18} className="text-amber-950" />
+          <NeaOnnimIcon size={18} />
           <span>Nouveau Diagnostic</span>
         </Button>
       </div>
@@ -239,12 +250,12 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               <Award className="size-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider">Vitalité</p>
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Vitalité</p>
               <div className="flex items-baseline gap-1 mt-0.5">
-                <span className={cn("text-lg sm:text-xl font-black font-heading", globalScore ? scoreCl : "text-muted-foreground")}>
+                <span className={cn("text-lg font-black font-heading", scoreCl)}>
                   {globalScore !== null ? globalScore : "--"}
                 </span>
-                <span className="text-[11px] text-muted-foreground font-bold">/100</span>
+                <span className="text-[10px] text-muted-foreground font-bold">/100</span>
               </div>
             </div>
           </CardContent>
@@ -286,16 +297,16 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             <div className="min-w-0">
               <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Ordonnance</p>
               <p className="text-xs font-black font-heading text-gold-text truncate mt-0.5 flex items-center gap-1">
-                <span className="size-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                Active &amp; Validée
+                <span className={cn("size-2 rounded-full inline-block", globalScore !== null ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground")} />
+                {globalScore !== null ? "Active & Validée" : "En attente scan"}
               </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* ───── Barre des 4 Sous-Vues Interactives — Harmonieuse & Tactile ───── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 rounded-[22px] bg-muted/50 border border-border/70 shadow-xs">
+      {/* ───── Barre des 5 Sous-Vues Interactives — Harmonieuse & Tactile ───── */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 p-1.5 rounded-[22px] bg-muted/50 border border-border/70 shadow-xs">
         <button
           type="button"
           onClick={() => {
@@ -303,14 +314,14 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("live");
           }}
           className={cn(
-            "py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 text-center",
+            "py-2.5 px-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer",
             activeView === "live"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
           <Activity size={15} className={activeView === "live" ? "text-emerald-500 animate-pulse" : ""} />
-          <span className="truncate">⚡ Santé en Direct</span>
+          <span className="truncate">⚡ En Direct</span>
         </button>
 
         <button
@@ -320,14 +331,14 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("dossier");
           }}
           className={cn(
-            "py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 text-center",
+            "py-2.5 px-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer",
             activeView === "dossier"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
           <FolderHeart size={15} className={activeView === "dossier" ? "text-primary" : ""} />
-          <span className="truncate">📁 Ordonnance &amp; Soins</span>
+          <span className="truncate">📁 Ordonnance</span>
         </button>
 
         <button
@@ -337,7 +348,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("avant_apres");
           }}
           className={cn(
-            "py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 text-center",
+            "py-2.5 px-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer",
             activeView === "avant_apres"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
@@ -351,10 +362,27 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
           type="button"
           onClick={() => {
             haptic(HAPTIC.tap);
+            setActiveView("galerie");
+          }}
+          className={cn(
+            "py-2.5 px-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer",
+            activeView === "galerie"
+              ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Camera size={15} className={activeView === "galerie" ? "text-primary" : ""} />
+          <span className="truncate">🖼️ Galerie ({lightboxPhotos.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            haptic(HAPTIC.tap);
             setActiveView("historique");
           }}
           className={cn(
-            "py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 text-center",
+            "col-span-2 sm:col-span-1 py-2.5 px-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer",
             activeView === "historique"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
@@ -595,27 +623,18 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               </p>
             </div>
             {hasRealPhotos ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  haptic(HAPTIC.light);
-                  if (photosList.length > 0) setLightboxIndex(0);
-                }}
-                className="gap-1.5 text-xs font-bold border-primary/40 text-primary hover:bg-primary/10 rounded-xl h-8.5"
-              >
-                <ZoomIn size={14} />
-                <span>Plein écran HD</span>
-              </Button>
+              <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-xs font-black self-start sm:self-auto px-3 py-1 rounded-full">
+                +14 pts de vitalité Visia
+              </Badge>
             ) : (
-              <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-xs font-bold self-start sm:self-auto px-3 py-1 rounded-full">
-                Point de départ J0
+              <Badge variant="outline" className="text-xs font-bold text-muted-foreground">
+                Objectif J+30
               </Badge>
             )}
           </div>
 
           {/* Curseur interactif Avant/Après avec les photos réelles de la cliente */}
-          <div className="max-w-md mx-auto pt-2">
+          <div className="max-w-md mx-auto pt-2 space-y-2">
             <BeforeAfterSlider
               beforePhoto={beforePhotoUrl}
               afterPhoto={afterPhotoUrl}
@@ -623,125 +642,163 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               afterLabel={afterDate}
             />
             {hasRealPhotos ? (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-3 pt-2">
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
-                  <CheckCircle2 size={13} /> Photos authentiques issues de vos bilans de peau
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setLightboxIndex(0)}
-                  className="text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <Eye size={13} /> Examiner en grand format HD
-                </button>
-              </div>
-            ) : (
-              <div className="mt-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-center space-y-2">
-                <p className="text-xs text-foreground font-bold">
-                  Votre suivi personnalisé débute ici !
-                </p>
-                <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
-                  Votre première photo sera enregistrée comme votre point de référence initial (J0) pour comparer vos progrès semaine après semaine.
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
+                  ✓ Photos authentiques issues de vos scans et bilans cabine
                 </p>
                 <Button
-                  onClick={onStartScan || (() => setClientTab("diagnostic"))}
-                  className="bg-gradient-to-r from-[#D4A017] via-[#C8951E] to-[#B87F14] text-amber-950 font-black text-xs h-10 px-5 rounded-xl gap-2 shadow-sm border border-amber-400/30 mt-1 cursor-pointer"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => openPhotoLightbox(0)}
+                  className="h-7 text-xs font-bold text-primary gap-1 px-2"
                 >
-                  <ScanFace size={16} />
-                  <span>Prendre ma photo de départ J0</span>
+                  <Eye size={13} />
+                  <span>Agrandir en HD</span>
+                </Button>
+              </div>
+            ) : (
+              <div className="p-3 rounded-2xl bg-muted/40 border border-border/60 text-center space-y-2">
+                <p className="text-xs text-foreground font-semibold">
+                  Prenez votre photo de référence Jour 0 pour démarrer votre historique Avant / Après personnalisé.
+                </p>
+                <Button
+                  size="sm"
+                  onClick={onStartScan || (() => setClientTab("diagnostic"))}
+                  className="k-btn-gold text-primary-foreground text-xs font-black h-9 px-4 rounded-xl gap-1.5 shadow-sm"
+                >
+                  <ScanFace size={15} />
+                  <span>Capturer ma photo Jour 0</span>
                 </Button>
               </div>
             )}
           </div>
 
           {/* Mesure des progrès cutanés objectifs */}
-          {hasRealPhotos && (
-            <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-border/60 text-center">
-              <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
-                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Taches &amp; PIH</p>
-                <p className="text-lg font-black text-emerald-500 font-heading mt-0.5">-34%</p>
-                <p className="text-[10px] text-muted-foreground">atténuation prouvée</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
-                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Hydratation</p>
-                <p className="text-lg font-black text-sky-500 font-heading mt-0.5">+28%</p>
-                <p className="text-[10px] text-muted-foreground">rétention d&apos;eau</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
-                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Luminosité</p>
-                <p className="text-lg font-black text-primary font-heading mt-0.5">+42%</p>
-                <p className="text-[10px] text-muted-foreground">réflectance du teint</p>
-              </div>
+          <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-border/60 text-center">
+            <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
+              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Taches &amp; PIH</p>
+              <p className="text-lg font-black text-emerald-500 font-heading mt-0.5">-34%</p>
+              <p className="text-[10px] text-muted-foreground">atténuation prouvée</p>
+            </div>
+            <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
+              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Hydratation</p>
+              <p className="text-lg font-black text-sky-500 font-heading mt-0.5">+28%</p>
+              <p className="text-[10px] text-muted-foreground">rétention d&apos;eau</p>
+            </div>
+            <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
+              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Luminosité</p>
+              <p className="text-lg font-black text-primary font-heading mt-0.5">+42%</p>
+              <p className="text-[10px] text-muted-foreground">réflectance du teint</p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          SOUS-VUE 4 : GALERIE PHOTOS CUTANÉES DE LA CLIENTE
+      ═══════════════════════════════════════════════════════════ */}
+      {activeView === "galerie" && (
+        <Card className="rounded-[26px] border border-border/80 bg-card p-4 sm:p-5 space-y-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
+            <div>
+              <h3 className="font-heading font-black text-base sm:text-lg text-foreground">
+                Galerie de vos Clichés Cutanés ({lightboxPhotos.length})
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Consultez et agrandissez en haute définition toutes les photos prises lors de vos scans
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={onStartScan || (() => setClientTab("diagnostic"))}
+              className="k-btn-gold text-primary-foreground font-black text-xs h-9 px-3.5 rounded-xl gap-1.5 shrink-0 shadow-sm"
+            >
+              <Camera size={15} />
+              <span>+ Nouvelle Photo</span>
+            </Button>
+          </div>
+
+          {lightboxPhotos.length === 0 ? (
+            <div className="p-8 text-center space-y-3 rounded-2xl border border-dashed border-border/80 bg-muted/20">
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                Aucune photo enregistrée pour le moment. Votre premier scan capturera automatiquement votre cliché biométrique haute définition.
+              </p>
+              <Button
+                onClick={onStartScan || (() => setClientTab("diagnostic"))}
+                className="k-btn-gold text-primary-foreground font-black text-xs h-10 px-4 rounded-xl gap-2 shadow-sm"
+              >
+                <ScanFace size={18} />
+                <span>Prendre ma première photo</span>
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {lightboxPhotos.map((photo, idx) => (
+                <div
+                  key={photo.id}
+                  onClick={() => openPhotoLightbox(idx)}
+                  className="group relative rounded-2xl overflow-hidden border border-border/80 bg-muted/30 cursor-pointer shadow-xs hover:shadow-md transition-all aspect-square flex flex-col justify-end"
+                >
+                  <img
+                    src={photo.url}
+                    alt={`Cliché ${photo.zone || "peau"}`}
+                    loading="lazy"
+                    className="absolute inset-0 size-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+
+                  {/* Bouton loupe centré en hover */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/25">
+                    <span className="p-2.5 rounded-full bg-black/60 text-white backdrop-blur-xs shadow-lg">
+                      <Eye size={18} />
+                    </span>
+                  </div>
+
+                  {/* Bandeau d'infos sur l'image */}
+                  <div className="relative z-10 p-2.5 text-white">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="font-bold text-xs capitalize truncate text-white">
+                        {photo.zone ? photo.zone.replace("_", " ") : "Visage"}
+                      </p>
+                      {photo.score !== null && (
+                        <span className="text-[10px] font-mono font-black px-1.5 py-0.5 rounded-md bg-black/60 text-gold-text">
+                          {photo.score}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-white/80 font-sans mt-0.5">
+                      {formatDate(photo.date, { day: "numeric", month: "short" })}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </Card>
       )}
 
       {/* ═══════════════════════════════════════════════════════════
-          SOUS-VUE 4 : HISTORIQUE COMPLET & GALERIE PHOTOS HD
+          SOUS-VUE 5 : HISTORIQUE COMPLET DES BILANS CUTANÉS
       ═══════════════════════════════════════════════════════════ */}
       {activeView === "historique" && (
         <Card className="rounded-[26px] border border-border/80 bg-card p-4 sm:p-5 space-y-4 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div className="flex items-center justify-between border-b border-border/60 pb-3">
             <div>
-              <h3 className="font-heading font-black text-base sm:text-lg text-foreground flex items-center gap-2">
-                <span>Historique &amp; Clichés Cutanés</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-bold">
-                  {diagnoses.length}
-                </span>
+              <h3 className="font-heading font-black text-base text-foreground">
+                Historique de vos Bilans Cutanés ({diagnoses.length})
               </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Consultez vos bilans et agrandissez vos photos réelles en plein écran haute résolution
+              <p className="text-xs text-muted-foreground">
+                Traçabilité chronologique de tous vos scans biométriques et bilans cabine
               </p>
             </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              {/* Sélecteur Liste vs Galerie Photos */}
-              {photosList.length > 0 && (
-                <div className="flex rounded-xl bg-muted/60 p-0.5 border border-border/70 text-xs font-bold">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      haptic(HAPTIC.light);
-                      setHistoryMode("list");
-                    }}
-                    className={cn(
-                      "px-3 py-1 rounded-lg transition-all",
-                      historyMode === "list"
-                        ? "bg-card text-foreground shadow-xs font-black"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Liste
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      haptic(HAPTIC.light);
-                      setHistoryMode("gallery");
-                    }}
-                    className={cn(
-                      "px-3 py-1 rounded-lg transition-all flex items-center gap-1.5",
-                      historyMode === "gallery"
-                        ? "bg-card text-foreground shadow-xs font-black text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <Images size={13} />
-                    <span>Photos ({photosList.length})</span>
-                  </button>
-                </div>
-              )}
-
-              <Button
-                size="sm"
-                onClick={onStartScan || (() => setClientTab("diagnostic"))}
-                className="bg-gradient-to-r from-[#D4A017] via-[#C8951E] to-[#B87F14] text-amber-950 font-black text-xs h-8.5 px-3 rounded-xl gap-1.5 shadow-xs border border-amber-400/30 cursor-pointer"
-              >
-                <ScanFace size={14} />
-                <span>+ Bilan</span>
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              onClick={onStartScan || (() => setClientTab("diagnostic"))}
+              className="k-btn-gold text-primary-foreground font-black text-xs h-8 gap-1.5"
+            >
+              <ScanFace size={14} />
+              <span>+ Bilan</span>
+            </Button>
           </div>
 
           {diagnoses.length === 0 ? (
@@ -751,113 +808,61 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               </p>
               <Button
                 onClick={onStartScan || (() => setClientTab("diagnostic"))}
-                className="bg-gradient-to-r from-[#D4A017] via-[#C8951E] to-[#B87F14] text-amber-950 font-black text-xs h-10 px-4 rounded-xl gap-2 shadow-sm border border-amber-400/30 cursor-pointer"
+                className="k-btn-gold text-primary-foreground font-black text-xs h-10 px-4 rounded-xl gap-2 shadow-sm"
               >
                 <NeaOnnimIcon size={18} />
                 <span>Scanner ma peau maintenant</span>
               </Button>
             </div>
-          ) : historyMode === "gallery" ? (
-            /* ── MODE GALERIE PHOTOS HD ── */
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground font-medium">
-                Touchez n&apos;importe quelle photo pour l&apos;examiner en plein écran avec zoom haute précision.
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {photosList.map((photo, pIdx) => {
-                  const score = photo.score ?? 75;
-                  const scoreCl = scoreColor(score);
-                  return (
-                    <div
-                      key={photo.id}
-                      onClick={() => {
-                        haptic(HAPTIC.light);
-                        setLightboxIndex(pIdx);
-                      }}
-                      className="group relative aspect-square rounded-2xl overflow-hidden border border-border/80 bg-muted/40 cursor-pointer shadow-xs hover:border-primary/60 transition-all"
-                    >
-                      <img
-                        src={photo.url}
-                        alt={`Photo cutanée ${photo.zone || "visage"}`}
-                        className="size-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                      />
-                      {/* Gradient sombre pour lisibilité */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-between p-2.5">
-                        <div className="flex items-center justify-between">
-                          <span className="capitalize text-[10px] font-black px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-xs">
-                            {photo.zone?.replace("_", " ") || "Visage"}
-                          </span>
-                          <span
-                            className="font-mono text-[10px] font-black px-1.5 py-0.5 rounded-md"
-                            style={{ backgroundColor: `${scoreCl}40`, color: "#FFF" }}
-                          >
-                            {score}/100
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-white">
-                          <p className="text-[10px] text-white/80 font-medium">
-                            {formatDate(photo.date, { day: "numeric", month: "short" })}
-                          </p>
-                          <span className="size-6 rounded-full bg-white/20 group-hover:bg-[#C8951E] group-hover:text-black flex items-center justify-center transition-colors">
-                            <ZoomIn size={12} />
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
           ) : (
-            /* ── MODE LISTE CHRONOLOGIQUE AVEC MINIATURES CLIQUABLES ── */
             <div className="space-y-3">
               {diagnoses.map((diag) => {
-                const diagScore = diag.scoreGlobal ?? 75;
-                const diagScoreCl = scoreColor(diagScore);
-                const hasImg = Boolean(diag.imageData && diag.imageData.trim());
-                const imgUrl = hasImg ? diagImgSrc(diag.imageData) : "";
-                const photoIdx = hasImg ? photosList.findIndex((p) => p.id === diag.id) : -1;
+                const diagScore = diag.scoreGlobal ?? null;
+                const diagScoreCl = diagScore !== null ? scoreColor(diagScore) : "#C8951E";
+                const hasPhoto = Boolean(diag.imageData && diag.imageData.trim());
+                const photoSrc = hasPhoto ? diagImgSrc(diag.imageData) : "";
 
                 return (
                   <div
                     key={diag.id}
-                    className="p-3 sm:p-3.5 rounded-2xl bg-card border border-border/80 hover:border-primary/50 transition-all flex items-center justify-between gap-3 text-xs shadow-xs"
+                    className="p-3.5 sm:p-4 rounded-2xl bg-card border border-border/80 hover:border-primary/50 transition-all flex items-center justify-between gap-3 text-xs shadow-xs"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      {hasImg ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (photoIdx !== -1) {
-                              haptic(HAPTIC.light);
-                              setLightboxIndex(photoIdx);
-                            }
-                          }}
-                          className="relative group size-12 sm:size-14 rounded-xl overflow-hidden shrink-0 border border-border/80 shadow-xs cursor-pointer"
-                          title="Agrandir en plein écran HD"
+                      {/* Vraie photo miniature si présente, cliquable pour ouvrir la Lightbox HD */}
+                      {hasPhoto && photoSrc ? (
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openPhotoLightbox(diag.id)}
+                          className="relative size-12 rounded-xl overflow-hidden border border-border/80 shadow-xs shrink-0 cursor-pointer group"
+                          title="Cliquer pour agrandir la photo en plein écran"
                         >
                           <img
-                            src={imgUrl}
+                            src={photoSrc}
                             alt={`Photo ${diag.zone}`}
                             className="size-full object-cover group-hover:scale-110 transition-transform"
-                            loading="lazy"
                           />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
-                            <ZoomIn size={16} />
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <Eye size={16} className="text-white" />
                           </div>
-                        </button>
+                        </div>
                       ) : (
-                        <span className="grid size-12 sm:size-14 place-items-center rounded-xl bg-primary/10 text-primary shrink-0 shadow-xs">
+                        <span className="grid size-12 place-items-center rounded-xl bg-primary/10 text-primary shrink-0 shadow-xs">
                           <ScanFace size={22} />
                         </span>
                       )}
 
                       <div className="min-w-0">
-                        <p className="font-black text-sm text-foreground capitalize truncate">
-                          Zone {diag.zone?.replace("_", " ") || "Visage"}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-black text-sm text-foreground capitalize truncate">
+                            Zone {diag.zone?.replace("_", " ") || "Visage"}
+                          </p>
+                          {hasPhoto && (
+                            <span className="text-[10px] text-primary font-bold bg-primary/10 px-1.5 py-0.2 rounded-md">
+                              📸 Photo
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
                           {formatDate(diag.createdAt)} · {formatTime(diag.createdAt)}
                           {diag.institut ? ` · Cabine ${diag.institut}` : " · Scan Personnel"}
@@ -865,31 +870,29 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                      <span
-                        className="font-heading font-black text-xs sm:text-sm px-2.5 sm:px-3 py-1 rounded-xl"
-                        style={{
-                          backgroundColor: `${diagScoreCl}15`,
-                          color: diagScoreCl,
-                        }}
-                      >
-                        {diagScore}/100
-                      </span>
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      {diagScore !== null && (
+                        <span
+                          className="font-heading font-black text-sm px-3 py-1 rounded-xl"
+                          style={{
+                            backgroundColor: `${diagScoreCl}15`,
+                            color: diagScoreCl,
+                          }}
+                        >
+                          {diagScore}/100
+                        </span>
+                      )}
 
-                      {hasImg && (
+                      {hasPhoto && (
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => {
-                            if (photoIdx !== -1) {
-                              haptic(HAPTIC.light);
-                              setLightboxIndex(photoIdx);
-                            }
-                          }}
-                          className="h-8.5 px-2 text-xs font-bold rounded-xl text-primary hover:bg-primary/10"
-                          title="Voir la photo en grand"
+                          onClick={() => openPhotoLightbox(diag.id)}
+                          className="h-8.5 px-2.5 text-xs font-bold rounded-xl text-primary hover:bg-primary/10 gap-1"
+                          title="Agrandir la photo en plein écran"
                         >
-                          <ZoomIn size={15} />
+                          <Eye size={14} />
+                          <span className="hidden sm:inline">Photo</span>
                         </Button>
                       )}
 
@@ -901,7 +904,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                           toast.info(`Ordonnance beauté du ${formatDate(diag.createdAt)} chargée`);
                           setActiveView("dossier");
                         }}
-                        className="h-8.5 text-xs font-bold rounded-xl hover:bg-accent border-border"
+                        className="h-8.5 text-xs font-bold rounded-xl hover:bg-accent"
                       >
                         Consulter
                       </Button>
@@ -914,13 +917,12 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         </Card>
       )}
 
-      {/* ── VISIONNEUSE PLEIN ÉCRAN LIGHTBOX HD ── */}
+      {/* ───── VISIONNEUSE PLEIN ÉCRAN HAUTE DÉFINITION (LIGHTBOX HD) ───── */}
       <PhotoLightboxModal
-        isOpen={lightboxIndex !== null}
-        onClose={() => setLightboxIndex(null)}
-        photos={photosList}
-        initialIndex={lightboxIndex ?? 0}
-        titlePrefix="Cliché de Peau Kènè"
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        photos={lightboxPhotos}
+        initialIndex={lightboxIndex}
       />
     </div>
   );

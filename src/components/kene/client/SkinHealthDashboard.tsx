@@ -157,68 +157,69 @@ export function SkinHealthDashboard({
       ];
     }
 
-    // Si nouveau compte / pas de scan : constantes à zéro en attente du 1er scan
+    // Si nouveau compte / pas de scan : les constantes restent à zéro en attente du 1er scan
     return [
       {
         id: "hydratation",
         name: "Hydratation Cutanée",
-        shortDesc: "En attente du 1er scan",
+        shortDesc: "Taux d'eau cutanée",
         score: 0,
-        status: "Non mesurée",
+        status: "En attente du 1er scan",
         icon: Droplets,
         color: "#2E72D2",
         bgLight: "rgba(46,114,210,0.12)",
-        recommendation: "Aucune mesure enregistrée. Votre premier scan photo mesurera le taux d'eau transépidermique.",
+        recommendation: "Cette constante essentielle sera mesurée au micron lors de votre premier scan photo.",
         source: "profil",
       },
       {
         id: "barriere",
         name: "Barrière Lipidique",
-        shortDesc: "En attente du 1er scan",
+        shortDesc: "Céramides & film protecteur",
         score: 0,
-        status: "Non mesurée",
+        status: "En attente du 1er scan",
         icon: ShieldCheck,
         color: "#3F7D3F",
         bgLight: "rgba(63,125,63,0.12)",
-        recommendation: "Aucune mesure enregistrée. Votre premier scan photo évaluera le film protecteur et la résilience cutanée.",
+        recommendation: "Votre résilience cutanée face au climat tropical sera analysée dès votre scan.",
         source: "profil",
       },
       {
         id: "pigmentation",
         name: "Homogénéité & PIH",
-        shortDesc: "En attente du 1er scan",
+        shortDesc: `Phototype Fitzpatrick ${user.fitzpatrick ? String(user.fitzpatrick).toUpperCase() : "V"}`,
         score: 0,
-        status: "Non mesurée",
+        status: "En attente du 1er scan",
         icon: KeneSunIcon,
         color: "#C8951E",
         bgLight: "rgba(200,149,30,0.12)",
-        recommendation: "Aucune mesure enregistrée. Votre premier scan photo analysera les éventuelles hyperpigmentations post-inflammatoires.",
+        recommendation: "L'analyse spectrale cartographiera les zones de taches et l'uniformité mélanique.",
         source: "profil",
       },
       {
         id: "sebum",
         name: "Équilibre Sébacé & Pores",
-        shortDesc: "En attente du 1er scan",
+        shortDesc: "Pores & brillance",
         score: 0,
-        status: "Non mesurée",
+        status: "En attente du 1er scan",
         icon: Activity,
         color: "#E07A2B",
         bgLight: "rgba(224,122,43,0.12)",
-        recommendation: "Aucune mesure enregistrée. Votre premier scan photo mesurera la pureté des pores et l'activité sébacée.",
+        recommendation: "La séborégulation sera quantifiée avec précision pour calibrer votre routine.",
         source: "profil",
       },
     ];
-  }, [lastResult]);
+  }, [lastResult, user.fitzpatrick]);
 
-  // 2. Score global effectif ou nul si nouveau compte
+  // 2. Score global effectif ou null (en attente)
   const globalScore = useMemo(() => {
     if (multi.score !== null) return multi.score;
+    if (lastResult?.score_global) return lastResult.score_global;
     return null;
-  }, [multi.score]);
+  }, [multi.score, lastResult]);
 
   // Statut textuel synthétique
   const statusLabel = useMemo(() => {
-    if (globalScore === null) return "En attente de votre 1er bilan cutané";
+    if (globalScore === null) return "En attente de votre premier scan cutané";
     if (globalScore >= 80) return "Vitalité Éclatante · Équilibre Optimal";
     if (globalScore >= 68) return "Bonne Santé Cutanée · Maintien Recommandé";
     if (globalScore >= 55) return "Vigilance Légère · Zones à Réhydrater";
@@ -273,43 +274,48 @@ export function SkinHealthDashboard({
                   Santé de ta Peau en Direct
                 </h3>
                 {hasRealScan ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] dark:text-[#6FB96F] text-[10px] font-bold uppercase tracking-wider">
-                    <CheckCircle2 size={11} /> Scan certifié
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] dark:text-[#6FB96F] text-[9.5px] font-bold uppercase tracking-wider">
+                    <CheckCircle2 size={10} /> Scan certifié
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#C8951E]/15 text-[#B87F14] dark:text-[#E0B147] text-[10px] font-bold uppercase tracking-wider">
-                    <CauriIcon size={11} /> En attente de scan
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C8951E]/15 text-[#C8951E] text-[9.5px] font-bold uppercase tracking-wider">
+                    <CauriIcon size={10} /> Profil estimé
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+              <p className="text-[11px] text-muted-foreground mt-0.5">
                 {hasRealScan && multi.last
                   ? `Dernière analyse biométrique le ${formatDate(multi.last.createdAt, { day: "numeric", month: "long" })}`
-                  : "Aucun scan enregistré · Prenez votre 1ère photo pour démarrer"}
+                  : "Pré-bilan d'après ton profil · Réalise ton scan pour affiner"}
               </p>
             </div>
           </div>
 
-          {/* Bouton de lecture vocale (uniquement si scan réel ou pour guider) */}
+          {/* Bouton de lecture vocale */}
           <div className="shrink-0">
             <VoiceNarration
               result={
                 lastResult || ({
-                  score_global: globalScore ?? 0,
+                  score_global: globalScore,
                   zone: "visage",
-                  indicateurs: [],
+                  indicateurs: [
+                    { nom: "Hydratation", severite: 1, pourcentage: 70 },
+                    { nom: "Barrière lipidique", severite: 1, pourcentage: 50 },
+                    { nom: "Homogénéité & PIH", severite: 1, pourcentage: 54 },
+                    { nom: "Équilibre sébacé", severite: 0, pourcentage: 82 },
+                  ],
                   zones_marquages: [],
                   recommandations: {
-                    resume: "Réalisez votre premier scan pour obtenir une ordonnance sur-mesure",
-                    routine_matin: ["Prépare ta peau pour le premier scan"],
-                    routine_soir: ["Hydratation légère"],
+                    resume: "Hydratation et renforcement de la barrière cutanée",
+                    routine_matin: ["Nettoyage doux au Moringa", "Écran solaire SPF 50"],
+                    routine_soir: ["Régénération au Karité sauvage pur"],
                     botaniques_conseillees: ["Moringa", "Karité"],
                     produits: [],
-                    soins_conseilles: ["Soin découverte cabine"],
-                    conseils_hygiene_vie: ["Bien nettoyer le visage avant la photo"],
+                    soins_conseilles: ["Soin dermo-botanique cabine"],
+                    conseils_hygiene_vie: ["Boire 1.5L d'eau par jour"],
                   },
                   orientation_dermato: false,
-                  avertissement: "En attente de scan initial",
+                  avertissement: "Bilan indicatif personnalisé",
                   source: "fallback",
                 } as DiagnosisResult)
               }
@@ -319,22 +325,22 @@ export function SkinHealthDashboard({
         </div>
 
         {/* Bloc Score Global & Statut Clinique */}
-        <div className="mt-5 grid grid-cols-12 gap-3.5 items-center p-4 sm:p-5 rounded-2xl bg-card/80 border border-border">
+        <div className="mt-5 grid grid-cols-12 gap-3.5 items-center p-4 sm:p-5 rounded-2xl bg-card/60 border border-border/80">
           <div className="col-span-5 sm:col-span-4 flex items-center justify-center shrink-0">
-            <ScoreGauge score={globalScore ?? 0} label="Vitalité Peau" size={105} />
+            <ScoreGauge score={globalScore} label="Score Global" size={100} />
           </div>
 
           <div className="col-span-7 sm:col-span-8 min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary">
+            <p className="text-[10px] sm:text-[10.5px] font-bold uppercase tracking-[0.14em] text-primary">
               Diagnostic Synthétique
             </p>
             <h4 className="font-heading font-black text-sm sm:text-lg text-foreground mt-0.5 leading-snug">
               {statusLabel}
             </h4>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed font-sans">
               {hasRealScan
                 ? `Indice de vitalité calculé sur l'ensemble de vos zones analysées.`
-                : `Aucune mesure cutanée enregistrée. Prenez votre première photo pour révéler l'état clinique de votre peau en 30 secondes.`}
+                : `Vos constantes cutanées démarreront dès votre première analyse biométrique.`}
             </p>
           </div>
         </div>
@@ -342,11 +348,11 @@ export function SkinHealthDashboard({
         {/* ───── LES 4 PILIERS VITAUX (Jauges & Constantes Cutanées) ───── */}
         <div className="mt-5 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+            <span className="text-xs font-black text-foreground flex items-center gap-1.5 uppercase tracking-wide">
               <CauriIcon size={14} className="text-primary" /> Constantes Cutanées Clés
             </span>
-            <span className="text-[10px] font-semibold text-muted-foreground">
-              Touche une jauge pour le détail
+            <span className="text-[11px] font-semibold text-muted-foreground">
+              {hasRealScan ? "Touche une jauge pour le détail" : "En attente de scan"}
             </span>
           </div>
 
@@ -358,29 +364,29 @@ export function SkinHealthDashboard({
                   key={p.id}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => onPillarClick(p)}
-                  className="rounded-2xl p-3 text-left transition-all border border-border/80 bg-background/50 hover:bg-background flex flex-col justify-between focus-visible:outline-2 focus-visible:outline-primary"
-                  style={{ minHeight: "105px" }}
+                  className="rounded-2xl p-3 text-left transition-all border border-border/80 bg-background/60 hover:bg-background flex flex-col justify-between focus-visible:outline-2 focus-visible:outline-primary shadow-xs"
+                  style={{ minHeight: "110px" }}
                 >
                   <div className="flex items-start justify-between">
                     <span
-                      className="grid place-items-center size-7 rounded-lg"
+                      className="grid place-items-center size-8 rounded-xl shadow-xs"
                       style={{ backgroundColor: p.bgLight, color: p.color }}
                     >
-                      <Icon size={16} />
+                      <Icon size={18} />
                     </span>
                     <span
                       className="font-mono text-sm font-black tabular-nums"
-                      style={{ color: p.color }}
+                      style={{ color: p.score > 0 ? p.color : "var(--muted-foreground)" }}
                     >
-                      {p.score}%
+                      {p.score > 0 ? `${p.score}%` : "--"}
                     </span>
                   </div>
 
-                  <div className="mt-2">
-                    <p className="text-[11.5px] font-bold text-foreground leading-tight truncate">
+                  <div className="mt-2.5">
+                    <p className="text-xs font-bold text-foreground leading-tight truncate">
                       {p.name}
                     </p>
-                    <p className="text-[10px] font-semibold text-muted-foreground mt-0.5">
+                    <p className="text-[10.5px] font-medium text-muted-foreground mt-0.5">
                       {p.status}
                     </p>
                   </div>
@@ -444,21 +450,21 @@ export function SkinHealthDashboard({
 
         {/* ───── BANDEAU D'APPEL AU SCAN (Si nouveau compte / zones manquantes) ───── */}
         {!hasRealScan ? (
-          <div className="mt-4 pt-4 border-t border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3 sm:p-4 rounded-2xl border border-amber-500/25">
+          <div className="mt-4 pt-4 border-t border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <p className="text-sm font-black text-foreground">
-                Débloquez vos constantes réelles par scan photo
+                📸 Calculez vos constantes par scan biométrique
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Bilan dermo-spectral en 30 secondes certifié sur peaux mélanodermes
+              <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+                Bilan spectral en 30 secondes certifié sur peaux mélanodermes
               </p>
             </div>
             <button
               onClick={() => onScanZone("visage")}
-              className="h-11 sm:h-12 px-5 sm:px-6 rounded-2xl bg-gradient-to-r from-[#D4A017] via-[#C8951E] to-[#B87F14] text-amber-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-md hover:brightness-105 active:scale-95 transition-all shrink-0 cursor-pointer border border-amber-400/40"
+              className="h-12 px-5 rounded-2xl k-btn-gold text-primary-foreground text-xs font-black flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
             >
-              <ScanFace size={18} className="text-amber-950" />
-              <span>Prendre ma 1ère photo (30 sec)</span>
+              <ScanFace size={18} />
+              Prendre ma photo & lancer le bilan
             </button>
           </div>
         ) : (
