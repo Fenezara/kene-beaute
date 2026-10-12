@@ -381,6 +381,44 @@ export function HomeScreen({
         />
       </RevealItem>
 
+      {/* ───── 👑 CONCIERGERIE PRIVÉE WHATSAPP 24/7 ───── */}
+      <RevealItem>
+        <section
+          onClick={() => setClientTab("agenda")}
+          aria-label="Conciergerie Privée WhatsApp"
+          className="cursor-pointer group relative overflow-hidden rounded-[24px] border border-[#C8951E]/50 bg-gradient-to-br from-[#1C1611] via-[#241A14] to-[#18130E] p-4 text-[#FFF9EC] shadow-md hover:border-[#C8951E] transition-all"
+        >
+          <div aria-hidden="true" className="absolute -right-6 -top-6 size-28 rounded-full bg-[#C8951E]/15 blur-2xl pointer-events-none" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-[#C8951E] to-[#8B1A3B] text-white shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                <Crown size={20} className="text-[#FFD875]" />
+              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-heading font-black text-sm text-[#FFF9EC] truncate">
+                    Conciergerie Privée WhatsApp
+                  </h4>
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" /> 24/7
+                  </span>
+                </div>
+                <p className="text-xs text-[#EADCC9]/80 truncate mt-0.5">
+                  Rendez-vous VIP, SOS Peau &amp; commandes d&apos;ordonnance beauté
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="k-btn-gold shrink-0 h-9 px-3 rounded-xl text-primary-foreground text-xs font-bold flex items-center gap-1 shadow-sm"
+            >
+              <MessageCircle size={14} />
+              <span>Ouvrir</span>
+            </button>
+          </div>
+        </section>
+      </RevealItem>
+
       {/* ───── Conseil Dermo-Météo du Jour ───── */}
       <RevealItem>
         <div className="rounded-[22px] border border-border/80 bg-gradient-to-r from-card/90 via-card/60 to-card/90 backdrop-blur-xs p-3.5 shadow-xs">

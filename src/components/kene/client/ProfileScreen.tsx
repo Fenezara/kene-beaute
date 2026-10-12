@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Baby, BadgeCheck, Building2, Calendar, Camera, Check, Coins, Gift, Heart, Loader2, MapPin,
+  Baby, BadgeCheck, Building2, Calendar, Camera, Check, ChevronRight, Coins, Crown, Gift, Heart, Loader2, MapPin,
   MessageCircle, Pencil, Phone, Plus, Settings, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -427,6 +427,31 @@ export function ProfileScreen() {
                     <span>{ch.label}</span>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Accès direct Conciergerie Privée WhatsApp */}
+            <div className="pt-2 border-t border-border/60">
+              <div
+                onClick={() => setClientTab("agenda")}
+                className="cursor-pointer group flex items-center justify-between gap-3 p-3 rounded-xl bg-gradient-to-r from-primary/10 via-card to-primary/5 border border-primary/25 hover:border-primary/50 transition-all"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="grid size-9 place-items-center rounded-lg bg-primary/20 text-primary shrink-0 group-hover:scale-105 transition-transform">
+                    <Crown size={18} className="text-[#C8951E]" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-foreground truncate">
+                      Conciergerie Privée WhatsApp 24/7
+                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      Rendez-vous prioritaires, SOS Peau &amp; ordonnance beauté express
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-primary flex items-center gap-0.5 shrink-0">
+                  Ouvrir <ChevronRight size={14} />
+                </span>
               </div>
             </div>
 

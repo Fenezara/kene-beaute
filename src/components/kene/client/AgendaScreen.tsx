@@ -45,6 +45,7 @@ import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { cn } from "@/lib/utils";
 import type { ApiAppointment, ApiDiagnosis, ApiInstitute, ApiProduct } from "./types";
 import { parseDiagnosis, diagImgSrc } from "./types";
+import { ConciergerieWhatsAppSection } from "./ConciergerieWhatsAppSection";
 
 interface OrderItem {
   id: string;
@@ -76,7 +77,7 @@ export function AgendaScreen() {
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
 
-  const [activeSubTab, setActiveSubTab] = useState<"rdv" | "commandes" | "dossier">("rdv");
+  const [activeSubTab, setActiveSubTab] = useState<"rdv" | "commandes" | "dossier" | "conciergerie">("rdv");
   const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>([]);
@@ -232,8 +233,8 @@ export function AgendaScreen() {
         </button>
       </header>
 
-      {/* ───── Sélecteur de sous-onglets : RDV / Commandes / Dossier Peau ───── */}
-      <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60">
+      {/* ───── Sélecteur de sous-onglets : RDV / Commandes / Dossier Peau / Conciergerie VIP ───── */}
+      <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-muted/50 border border-border/60">
         <button
           type="button"
           onClick={() => {
@@ -241,16 +242,16 @@ export function AgendaScreen() {
             setActiveSubTab("rdv");
           }}
           className={cn(
-            "py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+            "py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1",
             activeSubTab === "rdv"
               ? "bg-card text-foreground shadow-xs border border-border/80"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <CalendarDays size={14} className={activeSubTab === "rdv" ? "text-primary" : ""} />
-          <span>Mes RDV</span>
+          <CalendarDays size={13} className={activeSubTab === "rdv" ? "text-primary" : ""} />
+          <span className="truncate">Mes RDV</span>
           {upcomingAppts.length > 0 && (
-            <span className="size-4 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center font-black">
+            <span className="size-4 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center font-black shrink-0">
               {upcomingAppts.length}
             </span>
           )}
@@ -263,16 +264,16 @@ export function AgendaScreen() {
             setActiveSubTab("commandes");
           }}
           className={cn(
-            "py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+            "py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1",
             activeSubTab === "commandes"
               ? "bg-card text-foreground shadow-xs border border-border/80"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <ShoppingBag size={14} className={activeSubTab === "commandes" ? "text-primary" : ""} />
-          <span>Commandes</span>
+          <ShoppingBag size={13} className={activeSubTab === "commandes" ? "text-gold-text" : ""} />
+          <span className="truncate">Achats</span>
           {orders.length > 0 && (
-            <span className="size-4 rounded-full bg-gold/30 text-gold-text text-[10px] grid place-items-center font-bold">
+            <span className="size-4 rounded-full bg-gold/30 text-gold-text text-[10px] grid place-items-center font-bold shrink-0">
               {orders.length}
             </span>
           )}
@@ -285,14 +286,31 @@ export function AgendaScreen() {
             setActiveSubTab("dossier");
           }}
           className={cn(
-            "py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+            "py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1",
             activeSubTab === "dossier"
               ? "bg-card text-foreground shadow-xs border border-border/80"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <FolderHeart size={14} className={activeSubTab === "dossier" ? "text-primary" : ""} />
-          <span>Dossier Peau</span>
+          <FolderHeart size={13} className={activeSubTab === "dossier" ? "text-primary" : ""} />
+          <span className="truncate">Dossier</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            haptic(HAPTIC.tap);
+            setActiveSubTab("conciergerie");
+          }}
+          className={cn(
+            "py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1",
+            activeSubTab === "conciergerie"
+              ? "bg-gradient-to-r from-[#C8951E]/20 to-[#8B1A3B]/20 text-[#C8951E] shadow-xs border border-[#C8951E]/50 font-black"
+              : "text-muted-foreground hover:text-[#C8951E]"
+          )}
+        >
+          <Crown size={13} className={activeSubTab === "conciergerie" ? "text-[#C8951E]" : "text-amber-500"} />
+          <span className="truncate">Concierge</span>
         </button>
       </div>
 
@@ -841,6 +859,16 @@ export function AgendaScreen() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          SOUS-ONGLET 4 : CONCIERGERIE PRIVÉE WHATSAPP 24/7
+      ═══════════════════════════════════════════════════════════ */}
+      {activeSubTab === "conciergerie" && (
+        <ConciergerieWhatsAppSection
+          selectedInstitute={selectedInst}
+          onNavigateTab={setClientTab}
+        />
       )}
     </div>
   );
