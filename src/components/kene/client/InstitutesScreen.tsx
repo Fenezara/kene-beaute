@@ -142,20 +142,18 @@ export function InstitutesScreen() {
   }
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className="space-y-4 pb-8">
       {/* ───── En-tête de la section ───── */}
-      <header className="space-y-2">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
-          <Building2 size={14} />
-          <span>Instituts &amp; Salons Partenaires</span>
+      <header className="space-y-1">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-semibold text-primary">
+          <Building2 size={13} />
+          <span>Instituts &amp; Salons</span>
         </div>
-        <h2 className="font-heading font-black text-2xl sm:text-3xl text-foreground tracking-tight">
-          Choisissez votre Institut Référent
+        <h2 className="font-heading font-black text-xl sm:text-2xl text-foreground tracking-tight">
+          Choisis ton Institut Référent
         </h2>
-        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-          Toutes les entreprises créées sur Kènè sont répertoriées ci-dessous.{" "}
-          <strong>Cochez l&apos;institut qui vous correspond</strong> : il deviendra votre partenaire
-          privilégié et recevra automatiquement une alerte lors de vos analyses de peau.
+        <p className="text-xs text-muted-foreground">
+          Coche ton institut habituel : il recevra tes bilans de peau et tes alertes.
         </p>
       </header>
 
@@ -163,22 +161,22 @@ export function InstitutesScreen() {
       {currentSelectedInst && (
         <section
           aria-label="Mon institut sélectionné"
-          className="rounded-[26px] border-2 border-primary/60 bg-gradient-to-br from-primary/15 via-card to-gold/10 p-4 sm:p-5 shadow-sm relative overflow-hidden"
+          className="rounded-[24px] border-2 border-primary/60 bg-gradient-to-br from-primary/15 via-card to-gold/10 p-4 shadow-sm relative overflow-hidden"
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <span className="grid size-12 place-items-center rounded-2xl bg-primary text-primary-foreground font-black shrink-0 shadow-md">
-                <CheckCircle2 size={24} />
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="grid size-11 place-items-center rounded-2xl bg-primary text-primary-foreground font-black shrink-0 shadow-md">
+                <CheckCircle2 size={22} />
               </span>
               <div className="min-w-0">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-primary flex items-center gap-1.5">
-                  <Sparkles size={11} /> Mon Institut Référent Coché
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-primary flex items-center gap-1">
+                  <Sparkles size={11} /> Mon Institut Référent
                 </span>
-                <h3 className="font-heading font-black text-lg sm:text-xl text-foreground truncate">
+                <h3 className="font-heading font-black text-base sm:text-lg text-foreground truncate">
                   {currentSelectedInst.name}
                 </h3>
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                  <MapPin size={13} className="text-primary shrink-0" />
+                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <MapPin size={12} className="text-primary shrink-0" />
                   <span>{currentSelectedInst.address ? `${currentSelectedInst.address}, ` : ""}{currentSelectedInst.city}</span>
                 </p>
               </div>
@@ -193,16 +191,16 @@ export function InstitutesScreen() {
             </button>
           </div>
 
-          <div className="mt-4 pt-3.5 border-t border-primary/20 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground leading-tight max-w-sm">
-              Cet institut reçoit directement vos bilans de diagnostic pour préparer vos protocoles cabine.
+          <div className="mt-3 pt-3 border-t border-primary/20 flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground truncate">
+              Reçoit automatiquement tes diagnostics cutanés.
             </p>
             <button
               onClick={() => handleWhatsApp(currentSelectedInst)}
-              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all ml-auto"
+              className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all shrink-0"
             >
-              <MessageCircle size={15} />
-              Échanger avec mon institut (WhatsApp)
+              <MessageCircle size={14} />
+              WhatsApp
             </button>
           </div>
         </section>

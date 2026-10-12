@@ -105,13 +105,13 @@ export function MvpFunnelHero({
               </span>
             </div>
 
-            {/* Titre & promesse */}
-            <div className="space-y-1.5">
+            {/* Titre & promesse synthétique */}
+            <div className="space-y-1">
               <h3 className="font-heading font-black text-xl sm:text-2xl leading-tight text-[#FFF9EC] tracking-tight">
-                Comprends ta peau en 30 secondes &amp; révèle son éclat
+                Comprends ta peau en 30 secondes
               </h3>
-              <p className="text-xs sm:text-[13px] text-[#EADCC9]/85 leading-relaxed">
-                Photo selfie instantanée ou 3 questions simples. Un diagnostic bienveillant sans tabou, formulé spécifiquement pour les peaux noires &amp; métissées.
+              <p className="text-xs sm:text-sm text-[#EADCC9]/85 leading-snug">
+                Bilan IA instantané &amp; protocole botanique adapté à ta mélanine.
               </p>
             </div>
 
@@ -126,8 +126,8 @@ export function MvpFunnelHero({
                   <ScanFace size={22} />
                 </span>
                 <div className="text-left">
-                  <span className="block leading-tight font-black">Lancer mon Diagnostic Gratuit</span>
-                  <span className="block text-[10.5px] font-semibold opacity-85">Bilan dermo-botanique personnalisé · Gratuit</span>
+                  <span className="block leading-tight font-black">Scanner ma peau</span>
+                  <span className="block text-[10.5px] font-semibold opacity-85">Photo directe · Analyse gratuite</span>
                 </div>
               </div>
               <ChevronRight size={20} className="transition-transform group-hover:translate-x-1" />
@@ -139,7 +139,7 @@ export function MvpFunnelHero({
                 <span className="flex items-center gap-1 text-[11px] font-bold text-[#E3B04B]">
                   <Zap size={12} /> 30s chrono
                 </span>
-                <span className="text-[9.5px] text-[#EADCC9]/70">Gratuit &amp; direct</span>
+                <span className="text-[9.5px] text-[#EADCC9]/70">Instantané</span>
               </div>
               <div className="flex flex-col items-center gap-0.5">
                 <span className="flex items-center gap-1 text-[11px] font-bold text-[#E3B04B]">
@@ -151,7 +151,7 @@ export function MvpFunnelHero({
                 <span className="flex items-center gap-1 text-[11px] font-bold text-[#E3B04B]">
                   <ShieldCheck size={12} /> 100% privé
                 </span>
-                <span className="text-[9.5px] text-[#EADCC9]/70">Données sécurisées</span>
+                <span className="text-[9.5px] text-[#EADCC9]/70">Sécurisé</span>
               </div>
             </div>
           </div>
@@ -162,17 +162,17 @@ export function MvpFunnelHero({
           aria-label="Mon bilan cutané Kènè"
           className="relative overflow-hidden rounded-[28px] border border-[#C8951E]/30 bg-card/90 p-5 backdrop-blur-md shadow-md"
         >
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <div className="space-y-1 min-w-0 flex-1">
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-primary">
+              <span className="inline-flex items-center gap-1.5 text-[10.5px] font-black uppercase tracking-wider text-primary">
                 <CheckCircle2 size={13} />
-                Ton Bilan Cutané Actif
+                Bilan Cutané Actif
               </span>
-              <h3 className="font-heading font-black text-lg sm:text-xl text-foreground leading-tight">
-                {user.fitzpatrick ? `Phototype Fitzpatrick ${user.fitzpatrick}` : "Profil Cutané Mélanoderme"}
+              <h3 className="font-heading font-black text-lg sm:text-xl text-foreground leading-tight truncate">
+                {user.fitzpatrick ? `Phototype Fitzpatrick ${user.fitzpatrick}` : "Profil Mélanoderme"}
               </h3>
-              <p className="text-xs text-muted-foreground leading-snug">
-                Dernière analyse effectuée avec succès. Ta routine personnalisée est prête.
+              <p className="text-xs text-muted-foreground">
+                Score santé global : <strong className="text-foreground">{globalScore ?? lastDiag.scoreGlobal}/100</strong>
               </p>
             </div>
 
@@ -217,28 +217,28 @@ export function MvpFunnelHero({
       {/* ───── 3. CONCIERGERIE PRIVÉE KÈNÈ (WHATSAPP DÉDIÉ) ───── */}
       <section
         aria-label="Conciergerie Privée Kènè"
-        className="rounded-[24px] border border-[#25D366]/30 bg-gradient-to-br from-[#25D366]/10 via-[#25D366]/5 to-transparent p-4 sm:p-5 flex flex-col gap-3 shadow-sm"
+        className="rounded-[24px] border border-[#25D366]/30 bg-gradient-to-br from-[#25D366]/10 via-[#25D366]/5 to-transparent p-4 sm:p-5 flex flex-col gap-2.5 shadow-sm"
       >
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#25D366] text-white shadow-md">
-              <MessageCircle size={22} />
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#25D366] text-white shadow-md">
+              <MessageCircle size={20} />
             </span>
             <div className="min-w-0">
               <p className="font-heading font-black text-sm text-foreground truncate">
-                Conciergerie Privée Kènè
+                Conciergerie WhatsApp
               </p>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-                Une question, un rituel sur-mesure ou envie d&apos;un soin en cabine ?
+              <p className="text-xs text-muted-foreground truncate">
+                Conseils, soins cabine &amp; commandes en direct
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleOpenInstituteWhatsApp}
-            className="shrink-0 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs px-4 py-2.5 flex items-center gap-2 shadow-sm transition-transform active:scale-95"
+            className="shrink-0 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs px-3.5 py-2 flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
           >
-            <MessageCircle size={15} />
+            <MessageCircle size={14} />
             Échanger
           </button>
         </div>
@@ -246,13 +246,13 @@ export function MvpFunnelHero({
         {/* Passerelle vers le Support d'écoute Kènè */}
         {onOpenContactKene && (
           <div className="pt-2 border-t border-[#25D366]/20 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>Besoin d&apos;aide ou d&apos;orientation ?</span>
+            <span>Besoin d&apos;orientation ?</span>
             <button
               type="button"
               onClick={onOpenContactKene}
               className="font-bold text-primary hover:underline"
             >
-              Écoute &amp; Support Kènè →
+              Support Kènè →
             </button>
           </div>
         )}

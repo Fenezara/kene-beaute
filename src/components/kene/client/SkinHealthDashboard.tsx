@@ -328,8 +328,8 @@ export function SkinHealthDashboard({
             </h4>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               {hasRealScan
-                ? `Synthèse multi-zones pondérée PRD (§8.8). Ton derme conserve un potentiel de régénération soutenu par son indice de mélanine.`
-                : `Ce score d'accueil est une projection de ton phototype. Un scan photo haute résolution permet de mesurer le taux d'hydratation profond au millimètre.`}
+                ? `Indice de vitalité calculé sur l'ensemble de tes zones analysées.`
+                : `Score estimé d'après ton profil. Réalise un scan pour mesurer l'état réel de ta peau.`}
             </p>
           </div>
         </div>

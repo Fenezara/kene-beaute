@@ -192,17 +192,16 @@ export function AppointmentsCareSection({ appointments, onBookCare }: Appointmen
           </span>
         </div>
 
-        <div className="rounded-2xl border border-dashed border-border/80 bg-muted/20 p-4 text-center space-y-3">
-          <p className="text-xs text-muted-foreground leading-relaxed max-w-md mx-auto">
-            Aucun rendez-vous planifié pour l&apos;instant. Lorsque vous échangez par WhatsApp avec notre institut, votre séance
-            (consultation, contrôle, soin éclat, coiffure ou onglerie) apparaît automatiquement ici avec vos rappels.
+        <div className="rounded-2xl border border-dashed border-border/80 bg-muted/20 p-4 text-center space-y-2.5">
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+            Aucun rendez-vous planifié. Vos séances réservées sur WhatsApp s&apos;affichent ici avec vos rappels automatiques.
           </p>
           <button
             onClick={() => onBookCare?.() ?? openWhatsAppAppointmentInquiry()}
-            className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
+            className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
           >
-            <MessageCircle size={15} />
-            Planifier un rendez-vous (WhatsApp)
+            <MessageCircle size={14} />
+            Prendre rendez-vous (WhatsApp)
           </button>
         </div>
       </section>

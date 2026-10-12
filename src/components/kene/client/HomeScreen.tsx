@@ -165,34 +165,35 @@ export function HomeScreen({
   }, [data?.subscription]);
 
   /** Conseil Climat & Dermo-Météo contextualisé pour peau mélanoderme */
+  /** Conseil Climat & Dermo-Météo contextualisé pour peau mélanoderme */
   const weatherAdvisory = useMemo(() => {
     const city = (user.city || user.district || "Abidjan").toLowerCase();
     if (city.includes("dakar") || city.includes("senegal") || city.includes("ngor") || city.includes("almadie")) {
       return {
-        cityLabel: "Dakar · Climat océanique & alizés",
+        cityLabel: "Dakar · Climat océanique",
         temp: "27°C",
         humidity: "62%",
         uv: "UV 7 · Élevé",
-        advice: "Particules & brise marine : applique un sérum antioxydant (Moringa/Vitamine C) et scelle l'hydratation le soir.",
+        advice: "Particules & brise : Sérum antioxydant (Moringa) & hydratation du soir.",
         icon: <Wind size={15} className="text-[#3F7D3F]" />,
       };
     }
     if (city.includes("bouake") || city.includes("yamoussoukro") || city.includes("korhogo")) {
       return {
-        cityLabel: "Intérieur · Climat chaud & ensoleillé",
+        cityLabel: "Intérieur · Ensoleillé",
         temp: "32°C",
         humidity: "48%",
         uv: "UV 9 · Très fort",
-        advice: "Ensoleillement marqué : brumise dans la journée et répare ta barrière cutanée au beurre de karité au coucher.",
+        advice: "Fort ensoleillement : Hydratation active & karité brut au coucher.",
         icon: <SunMedium size={15} className="text-gold-text" />,
       };
     }
     return {
-      cityLabel: `${user.city ? user.city : "Abidjan"} · Humidité tropicale`,
+      cityLabel: `${user.city ? user.city : "Abidjan"} · Humide`,
       temp: "29°C",
       humidity: "84%",
       uv: "UV 8 · Très fort",
-      advice: "Forte humidité stimulant le sébum : préférez un nettoyage doux au zinc, texture fluide légère et écran solaire SPF 50.",
+      advice: "Forte humidité : Nettoyage doux au zinc & écran solaire SPF 50.",
       icon: <CloudSun size={15} className="text-primary" />,
     };
   }, [user.city, user.district]);
@@ -243,31 +244,31 @@ export function HomeScreen({
       {subNotice && (
         <RevealItem>
           <div
-            className={`k-card rounded-[22px] p-4 flex items-center justify-between gap-3.5 border ${
+            className={`k-card rounded-[22px] p-3.5 flex items-center justify-between gap-3 border ${
               subNotice.type === "warning"
                 ? "bg-gradient-to-r from-gold/15 via-gold/10 to-transparent border-gold/40 shadow-sm"
                 : "bg-gradient-to-r from-terre/15 via-terre/10 to-transparent border-terre/40 shadow-sm"
             }`}
           >
-            <div className="flex items-start gap-3 min-w-0">
-              <span className="grid place-items-center h-10 w-10 rounded-2xl bg-gold/20 text-gold-text shrink-0 mt-0.5 shadow-sm">
-                <Crown size={19} />
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="grid place-items-center size-9 rounded-xl bg-gold/20 text-gold-text shrink-0 shadow-sm">
+                <Crown size={18} />
               </span>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="font-heading font-black text-sm text-foreground">{subNotice.title}</p>
-                  <span className="rounded-full bg-gold/20 text-gold-text px-2 py-0.5 text-xs font-bold">
+                  <span className="rounded-full bg-gold/20 text-gold-text px-2 py-0.5 text-[10px] font-bold">
                     {subNotice.badge}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
+                <p className="text-xs text-muted-foreground truncate">
                   {subNotice.description}
                 </p>
               </div>
             </div>
             <button
               onClick={() => setClientTab("abonnement")}
-              className="k-btn-gold shrink-0 h-10 px-3.5 rounded-xl text-primary-foreground text-xs font-bold whitespace-nowrap shadow-sm active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
+              className="k-btn-gold shrink-0 h-9 px-3 rounded-xl text-primary-foreground text-xs font-bold whitespace-nowrap shadow-sm active:scale-95 transition-all"
             >
               {subNotice.btnText}
             </button>
@@ -296,11 +297,11 @@ export function HomeScreen({
                 </div>
               </div>
             </div>
-            <span className="shrink-0 text-[10.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-              Météo &amp; Peau
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+              Météo
             </span>
           </div>
-          <p className="mt-2.5 text-xs text-muted-foreground leading-relaxed pl-2 border-l-2 border-primary/50">
+          <p className="mt-2 text-xs text-muted-foreground pl-2 border-l-2 border-primary/50">
             {weatherAdvisory.advice}
           </p>
         </div>
@@ -328,7 +329,7 @@ export function HomeScreen({
         />
       </RevealItem>
 
-      {/* ───── Mes Moments de Soin & Rendez-vous (Consultation, Contrôle, Soin éclat, Coiffure, Onglerie) ───── */}
+      {/* ───── Mes Moments de Soin & Rendez-vous ───── */}
       <RevealItem>
         <AppointmentsCareSection
           appointments={data?.appointments ?? []}
@@ -340,33 +341,27 @@ export function HomeScreen({
       <RevealItem>
         <section
           aria-label="Échanger avec Dermo Kènè"
-          className="relative overflow-hidden rounded-[26px] border border-[#C8951E]/30 bg-gradient-to-br from-[#1C1611]/95 via-[#261B14]/90 to-[#18130E]/95 p-4 sm:p-5 text-[#FFF9EC] shadow-md"
+          className="relative overflow-hidden rounded-[24px] border border-[#C8951E]/30 bg-gradient-to-br from-[#1C1611]/95 via-[#261B14]/90 to-[#18130E]/95 p-4 sm:p-5 text-[#FFF9EC] shadow-md"
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <span className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-white shrink-0 shadow-md">
-                <Sparkles size={22} className="animate-pulse" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-[#C8951E] to-[#A0522D] text-white shrink-0 shadow-md">
+                <Sparkles size={20} className="animate-pulse" />
               </span>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="font-heading font-black text-sm sm:text-base text-[#FFF9EC] truncate">
-                    Dermo Kènè · Ton Guide
+                    Dermo Kènè · Guide IA
                   </h3>
                   <span className="rounded-full bg-[#C8951E]/20 border border-[#C8951E]/40 px-2 py-0.5 text-[9.5px] font-bold text-[#E3B04B]">
-                    En écoute
+                    En direct
                   </span>
                 </div>
-                <p className="text-xs text-[#EADCC9]/80 mt-0.5 leading-relaxed">
-                  L&apos;intelligence dermo-botanique qui comprend ta mélanine. Pose tes questions à la voix ou par message.
+                <p className="text-xs text-[#EADCC9]/80 truncate mt-0.5">
+                  Pose tes questions beauté à la voix ou par message.
                 </p>
               </div>
             </div>
-          </div>
-
-          <div className="mt-3.5 pt-3 border-t border-[#FFF9EC]/10 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-[#EADCC9]/70 italic truncate">
-              « Comment se porte ta peau aujourd&apos;hui ? »
-            </span>
             <button
               onClick={() => setClientTab("chat")}
               className="k-btn-gold shrink-0 h-9 px-3.5 rounded-xl text-primary-foreground text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform"
@@ -391,7 +386,7 @@ export function HomeScreen({
 
       {err && <p className="rounded-xl bg-destructive/10 text-destructive text-xs p-3">{err}</p>}
 
-      {/* ───── Mon Protocole Botanique Personnalisé (Sans Prix) ───── */}
+      {/* ───── Mon Protocole Botanique Personnalisé ───── */}
       {lastResult && (
         <RevealItem>
           <section aria-labelledby="rituel-t" className="rounded-[26px] border border-border/80 bg-card/80 p-4 sm:p-5 shadow-xs">
@@ -399,117 +394,105 @@ export function HomeScreen({
               <span id="rituel-t">Mon Protocole Botanique</span>
             </SectionTitle>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3">
               {/* Rituel Matin */}
-              <div className="rounded-2xl border border-[#C8951E]/20 bg-[#C8951E]/5 p-3.5 space-y-1.5">
+              <div className="rounded-2xl border border-[#C8951E]/20 bg-[#C8951E]/5 p-3 space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[#C8951E]">
-                  <Sunrise size={14} /> Rituel du Matin · Éveil &amp; Protection
+                  <Sunrise size={14} /> Rituel Matin
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {lastResult.recommandations?.routine_matin?.slice(0, 2).join(" · ") || "Nettoyage doux au Moringa & émulsion hydratante protectrice"}
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {lastResult.recommandations?.routine_matin?.slice(0, 2).join(" · ") || "Nettoyage doux au Moringa & émulsion protectrice"}
                 </p>
               </div>
 
               {/* Rituel Soir */}
-              <div className="rounded-2xl border border-terre/20 bg-terre/5 p-3.5 space-y-1.5">
+              <div className="rounded-2xl border border-terre/20 bg-terre/5 p-3 space-y-1">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-terre">
-                  <Moon size={14} /> Rituel du Soir · Réparation &amp; Nutrition
+                  <Moon size={14} /> Rituel Soir
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {lastResult.recommandations?.routine_soir?.slice(0, 2).join(" · ") || "Soin réparateur Karité pur & scellage de la barrière lipidique"}
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {lastResult.recommandations?.routine_soir?.slice(0, 2).join(" · ") || "Karité brut pur & régénération nocturne"}
                 </p>
               </div>
             </div>
 
             {/* Actifs clés */}
             {lastResult.recommandations?.botaniques_conseillees && lastResult.recommandations.botaniques_conseillees.length > 0 && (
-              <div className="mt-3.5 pt-3 border-t border-border/60">
-                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                  Trésors Botaniques recommandés pour ta peau :
-                </p>
+              <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex flex-wrap gap-1.5">
-                  {lastResult.recommandations.botaniques_conseillees.map((b) => (
-                    <span key={b} className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-semibold text-primary">
+                  {lastResult.recommandations.botaniques_conseillees.slice(0, 4).map((b) => (
+                    <span key={b} className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
                       🌿 {b}
                     </span>
                   ))}
                 </div>
+                <button
+                  onClick={() => {
+                    const botanicals = (lastResult.recommandations?.botaniques_conseillees || []).slice(0, 3).join(", ");
+                    openWhatsAppProductOrderInquiry({
+                      productName: `Rituel formulé sur-mesure (${botanicals || "Actifs botaniques personnalisés"})`,
+                    });
+                  }}
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
+                >
+                  <MessageCircle size={13} />
+                  Commander (WhatsApp)
+                </button>
               </div>
             )}
-
-            {/* Commande de rituel sur-mesure via Conciergerie */}
-            <div className="mt-4 pt-3 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <span className="text-xs text-muted-foreground leading-tight">
-                Envie de recevoir tes soins formulés à base de ces actifs purs ?
-              </span>
-              <button
-                onClick={() => {
-                  const botanicals = (lastResult.recommandations?.botaniques_conseillees || []).slice(0, 3).join(", ");
-                  openWhatsAppProductOrderInquiry({
-                    productName: `Rituel formulé sur-mesure (${botanicals || "Actifs botaniques personnalisés"})`,
-                  });
-                }}
-                className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
-              >
-                <MessageCircle size={15} />
-                Recevoir mon rituel (WhatsApp)
-              </button>
-            </div>
           </section>
         </RevealItem>
       )}
 
-      {/* ───── Soin Signature en Cabine (Instituts Partenaires) ───── */}
+      {/* ───── Soin Signature en Cabine ───── */}
       <RevealItem>
-        <section aria-labelledby="cabine-t" className="rounded-[24px] border border-border/70 bg-card/60 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-xs">
-          <div className="flex items-start gap-3 min-w-0">
-            <span className="grid size-10 place-items-center rounded-2xl bg-primary/10 text-primary shrink-0 mt-0.5">
-              <SankofaIcon size={18} />
+        <section aria-labelledby="cabine-t" className="rounded-[22px] border border-border/70 bg-card/60 p-4 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary shrink-0">
+              <SankofaIcon size={16} />
             </span>
             <div className="min-w-0">
-              <h3 id="cabine-t" className="font-heading font-black text-sm text-foreground">
-                Soin Signature en Institut Partenaire
+              <h3 id="cabine-t" className="font-heading font-black text-sm text-foreground truncate">
+                Soin en Institut Partenaire
               </h3>
-              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                Profite d&apos;un massage facial et d&apos;un soin profond adapté à ta mélanine dans les instituts certifiés Kènè.
+              <p className="text-xs text-muted-foreground truncate">
+                Soin cabine &amp; massage facial adapté à ta peau.
               </p>
             </div>
           </div>
           <button
             onClick={() => openWhatsAppAppointmentInquiry()}
-            className="shrink-0 h-10 px-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-[#128C7E] dark:text-[#25D366] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+            className="shrink-0 h-9 px-3.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-[#128C7E] dark:text-[#25D366] text-xs font-bold flex items-center gap-1.5 transition-colors"
           >
-            <MessageCircle size={15} />
-            Réserver sur WhatsApp
+            <MessageCircle size={14} />
+            Réserver
           </button>
         </section>
       </RevealItem>
 
-      {/* ───── Mon Institut Partenaire Référent (Coché) ou Découverte ───── */}
+      {/* ───── Mon Institut Partenaire Référent ───── */}
       {selectedInst ? (
         <RevealItem>
-          <section aria-labelledby="mon-institut-t" className="rounded-[24px] border border-primary/30 bg-primary/5 p-4 sm:p-5 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-              <div className="flex items-start gap-3 min-w-0">
-                <span className="grid size-10 place-items-center rounded-2xl bg-primary text-primary-foreground shrink-0 mt-0.5 shadow-xs">
-                  <Building2 size={18} />
+          <section aria-labelledby="mon-institut-t" className="rounded-[22px] border border-primary/30 bg-primary/5 p-4 shadow-xs">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground shrink-0 shadow-xs">
+                  <Building2 size={16} />
                 </span>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10.5px] font-bold uppercase tracking-wider text-primary">Mon Institut Référent Coché ✅</span>
-                  </div>
-                  <h3 id="mon-institut-t" className="font-heading font-black text-sm sm:text-base text-foreground mt-0.5 truncate">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Institut Référent ✅</span>
+                  <h3 id="mon-institut-t" className="font-heading font-black text-sm text-foreground truncate">
                     {selectedInst.name}
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                    📍 {selectedInst.city} {selectedInst.address ? `· ${selectedInst.address}` : ""}
+                  <p className="text-xs text-muted-foreground truncate">
+                    📍 {selectedInst.city}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => setClientTab("instituts")}
-                  className="h-9 px-3.5 rounded-xl border border-border bg-card hover:bg-accent text-foreground text-xs font-semibold transition-colors"
+                  className="h-8 px-3 rounded-lg border border-border bg-card hover:bg-accent text-foreground text-xs font-semibold"
                 >
                   Changer
                 </button>
@@ -518,9 +501,9 @@ export function HomeScreen({
                     const phone = selectedInst.phone || selectedInst.ownerPhone || "2250700000000";
                     openWhatsApp(phone, `Bonjour ${selectedInst.name} ! 🌸\nJe suis cliente Kènè (${user.name}). Je souhaite échanger avec vous.`);
                   }}
-                  className="h-9 px-3.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                  className="h-8 px-3 rounded-lg bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold flex items-center gap-1 shadow-xs"
                 >
-                  <MessageCircle size={14} />
+                  <MessageCircle size={13} />
                   WhatsApp
                 </button>
               </div>
@@ -529,40 +512,36 @@ export function HomeScreen({
         </RevealItem>
       ) : (
         <RevealItem>
-          <section aria-labelledby="choisir-institut-t" className="rounded-[24px] border border-border/80 bg-card/60 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 shadow-xs">
-            <div className="flex items-start gap-3 min-w-0">
-              <span className="grid size-10 place-items-center rounded-2xl bg-gold/15 text-gold-text shrink-0 mt-0.5">
-                <Building2 size={18} />
+          <section aria-labelledby="choisir-institut-t" className="rounded-[22px] border border-border/80 bg-card/60 p-4 flex items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="grid size-9 place-items-center rounded-xl bg-gold/15 text-gold-text shrink-0">
+                <Building2 size={16} />
               </span>
               <div className="min-w-0">
-                <h3 id="choisir-institut-t" className="font-heading font-bold text-sm text-foreground">
-                  Choisis ton institut partenaire
+                <h3 id="choisir-institut-t" className="font-heading font-bold text-sm text-foreground truncate">
+                  Choisir mon institut partenaire
                 </h3>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  Retrouve tous les instituts agréés et coche ton institut référent pour qu&apos;il reçoive tes bilans de peau.
+                <p className="text-xs text-muted-foreground truncate">
+                  Transmets tes bilans de peau à ton institut référent.
                 </p>
               </div>
             </div>
             <button
               onClick={() => setClientTab("instituts")}
-              className="shrink-0 h-10 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+              className="shrink-0 h-9 px-3.5 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center gap-1.5 shadow-xs"
             >
-              <Building2 size={14} />
-              Voir les instituts
+              <Building2 size={13} />
+              Choisir
             </button>
           </section>
         </RevealItem>
       )}
 
-      {/* ───── Fin de fil — mentions légales & confiance ───── */}
+      {/* ───── Fin de fil — mentions simples ───── */}
       <RevealItem>
-        <footer className="pt-4 pb-2 text-center">
-          <div aria-hidden="true" className="kente-band-soft h-[3px] w-24 mx-auto rounded-full mb-3" />
+        <footer className="pt-3 pb-2 text-center">
           <p suppressHydrationWarning className="text-xs text-muted-foreground font-medium">
-            © {new Date().getFullYear()} Kènè · Développé par Dermo TIC — « La beauté mélanoderme, enfin comprise. »
-          </p>
-          <p className="text-xs text-muted-foreground/80 mt-1">
-            Plateforme dermo-botanique éditée par Dermo TIC · Soins et protocoles personnalisés en instituts partenaires agréés
+            © {new Date().getFullYear()} Kènè · La beauté mélanoderme, enfin comprise.
           </p>
         </footer>
       </RevealItem>

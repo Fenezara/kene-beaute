@@ -579,8 +579,8 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             <h2 className="font-heading font-black text-lg sm:text-xl text-foreground">
               Quelle zone souhaites-tu analyser ?
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-              Sélectionne la zone cutanée à observer afin d&apos;activer les biomarqueurs IA adaptés à ta peau.
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Choisis la zone pour adapter le modèle IA à ta peau.
             </p>
           </div>
           <AudioGuideButton
@@ -591,7 +591,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         </div>
 
         {/* Grille des 6 zones cutanées */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 mb-4">
           {BODY_ZONES.map((z) => {
             const Icon = ZONE_ICONS[z.id];
             const isSelected = zone === z.id;
@@ -606,7 +606,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                   haptic(HAPTIC.tap);
                 }}
                 className={cn(
-                  "group relative p-3.5 sm:p-4 rounded-2xl border text-left transition-all flex flex-col justify-between min-h-[110px]",
+                  "group relative p-3 sm:p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between min-h-[96px]",
                   isSelected
                     ? "border-primary bg-primary/10 ring-2 ring-primary/40 shadow-sm"
                     : "border-border/60 bg-card/60 hover:bg-card hover:border-border text-muted-foreground hover:text-foreground"
@@ -616,20 +616,20 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                   <div className="flex items-center gap-2.5">
                     <span
                       className={cn(
-                        "grid size-9 sm:size-10 place-items-center rounded-xl transition-colors",
+                        "grid size-9 place-items-center rounded-xl transition-colors",
                         isSelected
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : "bg-muted text-muted-foreground group-hover:text-foreground"
                       )}
                     >
-                      <Icon size={20} />
+                      <Icon size={18} />
                     </span>
                     <div>
                       <span className={cn("block text-sm font-bold", isSelected ? "text-foreground font-black" : "text-foreground")}>
                         {z.label}
                       </span>
                       <span className="text-[10px] font-mono text-muted-foreground">
-                        Pondération : {Math.round(z.weight * 100)}% santé
+                        Poids santé : {Math.round(z.weight * 100)}%
                       </span>
                     </div>
                   </div>
@@ -644,15 +644,15 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                   ) : null}
                 </div>
 
-                <p className="mt-3 text-[11px] text-muted-foreground line-clamp-2 leading-snug">
+                <p className="mt-2 text-[10.5px] text-muted-foreground line-clamp-1 leading-snug">
                   {z.hint}
                 </p>
 
                 {isSelected && (
-                  <div className="mt-2.5 pt-2 border-t border-primary/20 flex items-center justify-between text-[10.5px] text-primary font-bold">
-                    <span>Zone sélectionnée</span>
-                    <span className="text-[10px] uppercase font-extrabold flex items-center gap-0.5">
-                      Prêt <ChevronRight size={12} />
+                  <div className="mt-2 pt-1.5 border-t border-primary/20 flex items-center justify-between text-[10px] text-primary font-bold">
+                    <span>Sélectionné</span>
+                    <span className="uppercase font-extrabold flex items-center gap-0.5">
+                      Prêt <ChevronRight size={11} />
                     </span>
                   </div>
                 )}
@@ -662,24 +662,30 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         </div>
 
         {/* Conseils de préparation pour la zone choisie */}
-        <div className="mb-5 rounded-2xl bg-card/70 border border-border/70 p-3.5 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-bold text-foreground mb-1.5">
-            <ActiveZoneIcon size={16} className="text-primary" />
-            <span>Préparation recommandée pour « {zoneDef.label} » :</span>
+        <div className="mb-4 rounded-2xl bg-card/70 border border-border/70 p-3 shadow-xs">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+              <ActiveZoneIcon size={14} className="text-primary" />
+              <span>Avant de photographier :</span>
+            </span>
+            <span className="text-[10px] uppercase font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+              {zoneDef.label}
+            </span>
           </div>
-          <p className="text-[11.5px] text-muted-foreground leading-relaxed">
-            {zone === "visage"
-              ? "Démaquille soigneusement ta peau, dégage les mèches de cheveux et assure-toi d'être face à une lumière naturelle directe."
-              : zone === "cuir_chevelu"
-              ? "Dégage bien les racines ou la lisière frontale. Évite l'application d'huiles lourdes ou de coiffants juste avant le scan."
-              : zone === "dos"
-              ? "Dégage le haut du dos et les épaules. N'hésite pas à te faire assister ou à utiliser un miroir pour orienter la prise."
-              : zone === "mains"
-              ? "Mains et pieds propres et secs, bien étalés à plat sur une surface neutre sous une lumière franche."
-              : zone === "barbe"
-              ? "Cou bien relevé pour dégager la zone sous-mandibulaire, peau propre et non irritée par un rasage immédiat."
-              : "Isole la zone cutanée ou la tache concernée avec un bon cadrage net et une distance stable d'environ 20 à 30 cm."}
-          </p>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="p-2 rounded-xl bg-muted/30 border border-border/40">
+              <span className="block text-[11px] font-bold text-foreground">Peau propre</span>
+              <span className="block text-[9.5px] text-muted-foreground">Sans maquillage</span>
+            </div>
+            <div className="p-2 rounded-xl bg-muted/30 border border-border/40">
+              <span className="block text-[11px] font-bold text-foreground">Lumière du jour</span>
+              <span className="block text-[9.5px] text-muted-foreground">Bien éclairée</span>
+            </div>
+            <div className="p-2 rounded-xl bg-muted/30 border border-border/40">
+              <span className="block text-[11px] font-bold text-foreground">Distance 30 cm</span>
+              <span className="block text-[9.5px] text-muted-foreground">Image nette</span>
+            </div>
+          </div>
         </div>
 
         {/* Bouton CTA pour passer à la page 2 (Studio de prise de vue) */}
@@ -1579,10 +1585,10 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
               </div>
 
               {/* Note d'indépendance dermo-conseil */}
-              <div className="rounded-2xl bg-primary/5 border border-primary/20 p-3.5 flex items-start gap-2.5 text-xs">
-                <ShieldCheck size={16} className="text-primary shrink-0 mt-0.5" />
-                <p className="text-muted-foreground leading-relaxed">
-                  <strong className="text-foreground font-semibold">Indépendance Kènè :</strong> L&apos;application Kènè ne vend aucun produit cosmétique. Ces typologies de soins et principes actifs sont des recommandations dermo-cosmétiques objectives, disponibles en pharmacie, parapharmacie ou auprès de vos instituts partenaires habituels.
+              <div className="rounded-2xl bg-primary/5 border border-primary/20 px-3.5 py-2 flex items-center gap-2 text-xs">
+                <ShieldCheck size={15} className="text-primary shrink-0" />
+                <p className="text-muted-foreground text-[11px]">
+                  <strong className="text-foreground font-semibold">Conseils neutres &amp; indépendants :</strong> Recommandations d&apos;actifs ciblés pour ta peau, sans vente directe ni marque imposée.
                 </p>
               </div>
 
