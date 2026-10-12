@@ -393,10 +393,10 @@ export function ClientApp() {
  k-chrome = verre blur+saturate (le CSS gère le filet et l'ombre). Safe-area mobile garantie (≥ 36px). */}
         <header className="shrink-0 z-40 k-chrome pt-8 sm:pt-4 md:pt-0 [padding-top:max(env(safe-area-inset-top,0px),2.25rem)] md:[padding-top:env(safe-area-inset-top,0px)]">
           <div className="h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3 px-2.5 sm:px-5">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <div className="md:hidden shrink-0">
                 {/* Lockup Sceau officiel compact — le Médaillon Kènè + nom sans sous-titre écrasant */}
-                <KeneEmblemLockup size={34} labelSize={17} sublabel={null} />
+                <KeneEmblemLockup size={32} labelSize={16} sublabel={null} />
               </div>
               <div className="hidden md:flex items-baseline gap-2.5 min-w-0 flex-1 overflow-hidden">
                 <h1 className="font-heading font-bold tracking-tight text-lg xl:text-xl truncate text-foreground">{t(TITLES[tab])}</h1>
@@ -420,7 +420,7 @@ export function ClientApp() {
               >
                 <Settings className="size-4 sm:size-5" />
               </button>
-              {/* Bouton d'accès direct Dermo Kènè (visible et mis en valeur) */}
+              {/* Bouton d'accès direct Dermo Kènè (icône tactile sur mobile, texte complet dès tablette) */}
               <button
                 type="button"
                 onClick={() => {
@@ -429,19 +429,22 @@ export function ClientApp() {
                 }}
                 aria-label="Discuter avec Dermo Kènè — Dermo-Conseil IA"
                 className={cn(
-                  "relative inline-flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full border text-xs font-bold transition-all active:scale-95 shadow-xs",
+                  "relative inline-flex items-center justify-center gap-1.5 h-8 w-8 sm:w-auto sm:h-9 sm:px-3 rounded-full border text-xs font-bold transition-all active:scale-95 shadow-xs shrink-0",
                   tab === "chat"
                     ? "bg-primary text-primary-foreground border-primary shadow-sm"
                     : "bg-gradient-to-r from-primary/15 via-[#C8951E]/15 to-card border-primary/45 text-foreground hover:bg-primary/20"
                 )}
               >
                 <MessageCircle size={15} className={tab === "chat" ? "text-primary-foreground" : "text-primary"} />
-                <span className="font-heading font-black text-[11px] sm:text-xs tracking-tight">Dermo Kènè</span>
+                <span className="hidden sm:inline font-heading font-black text-xs tracking-tight">Dermo Kènè</span>
                 {chatUnread && (
-                  <span className="size-2 rounded-full bg-[#8B1A3B] animate-pulse ring-1 ring-background" aria-hidden="true" />
+                  <span className="absolute -top-0.5 -right-0.5 sm:static size-2 rounded-full bg-[#8B1A3B] animate-pulse ring-1 ring-background" aria-hidden="true" />
                 )}
               </button>
-              <ThemeToggle />
+              {/* Bascule de thème — visible dès tablette, évite de saturer l'en-tête smartphone */}
+              <div className="hidden sm:block shrink-0">
+                <ThemeToggle />
+              </div>
             </div>
           </div>
           <div aria-hidden="true" className="kente-band-soft h-[2px] w-full" />
