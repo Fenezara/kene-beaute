@@ -161,7 +161,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       setZone(pendingZone);
       setSlotImages({});
       setImage("");
-      setStep(0);
+      setStep(1);
       setDiag(null);
       onZoneConsumed();
     }
@@ -439,7 +439,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       });
       haptic(HAPTIC.light);
       setAnalyzing(false);
-      setStep(0); // la photo reste affichée: la cliente voit qu'elle est gardée
+      setStep(1); // la photo reste affichée dans le studio de capture: la cliente voit qu'elle est gardée
       toast.success("Diagnostic mis en attente", {
         description: q.ok
           ? "Tes photos partiront toutes seules dès que le réseau revient — tu peux même quitter l’app."
@@ -516,7 +516,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             ? "Tes photos partiront toutes seules dès le retour du réseau, sans rien retaper."
             : undefined,
         });
-        setStep(0); // retour capture: la photo est conservée
+        setStep(1); // retour studio photo: la photo est conservée
         return;
       }
       // 403 = quota gratuit atteint (le garde session renvoie 401, jamais
@@ -529,91 +529,253 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             ? e.message
             : "Analyse impossible",
       );
-      setStep(0); // retour capture: la photo est conservée
+      setStep(1); // retour studio photo: la photo est conservée
     }
   }
 
-  /* ─────────── Étape 0 — Studio de Scan Direct (Zone + Capture Unifiée) ─────────── */
+  /* ─────────── Étape 0 — Page 1 : Choix de la zone à scanner ─────────── */
   if (step === 0) {
     const zoneDef = BODY_ZONES.find((z) => z.id === zone) ?? BODY_ZONES[0];
     const ActiveZoneIcon = ZONE_ICONS[zone];
 
     return (
       <div className="pt-2 sm:pt-4">
-        {/* Guide Vocal Oralisé pour l'étape */}
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Studio Scanner Kènè</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold px-2 py-0.5">
-              ÉCLAT 2026
+        {/* Sélecteur d'onglets Scanner */}
+        <div className="mb-4 flex items-center p-1 rounded-2xl bg-muted/50 border border-border/50">
+          <button
+            type="button"
+            className="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-card text-foreground shadow-xs border border-border/60 flex items-center justify-center gap-2"
+          >
+            <ScanFace size={15} className="text-primary" />
+            <span>Nouveau Scan</span>
+          </button>
+          <button
+            type="button"
+            onClick={goHistory}
+            className="flex-1 py-2 px-3 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground flex items-center justify-center gap-2 transition-all"
+          >
+            <History size={15} />
+            <span>Mon Historique</span>
+          </button>
+        </div>
+
+        {/* Stepper indicateur 1 / 2 */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+            <span className="flex items-center gap-1.5 text-primary">
+              <span className="grid size-5 place-items-center rounded-full bg-primary text-primary-foreground text-[10px] font-black">1</span>
+              <span>Page 1 sur 2 : Sélection de la zone</span>
             </span>
+            <span className="text-[11px] text-muted-foreground">Suivant : Prise de vue</span>
+          </div>
+          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all duration-300 w-1/2" />
+          </div>
+        </div>
+
+        {/* Titre & Guide vocal */}
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-heading font-black text-lg sm:text-xl text-foreground">
+              Quelle zone souhaites-tu analyser ?
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Sélectionne la zone cutanée à observer afin d&apos;activer les biomarqueurs IA adaptés à ta peau.
+            </p>
           </div>
           <AudioGuideButton
-            text="Bienvenue dans le Studio Scanner Kènè. Choisis la zone que tu souhaites analyser avec les pastilles en haut, puis prends ta photo en direct ou importe-la."
+            text="Bienvenue dans le Studio Scanner Kènè. Étape 1 : Choisis la zone cutanée que tu souhaites analyser en cliquant sur l'une des cartes, puis clique sur Passer à la prise de vue."
             label="Écouter le guide"
             compact
           />
         </div>
 
-        {/* 1. Sélecteur de zone horizontal interactif (Silky Carousel) */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2 px-0.5">
-            <span className="text-xs font-bold text-foreground">1. Choisis la zone à scanner :</span>
-            <span className="text-[11px] text-primary font-semibold">{zoneDef.label} ({Math.round(zoneDef.weight * 100)}% santé)</span>
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
-            {BODY_ZONES.map((z) => {
-              const Icon = ZONE_ICONS[z.id];
-              const isSelected = zone === z.id;
-              return (
-                <button
-                  key={z.id}
-                  type="button"
-                  onClick={() => {
-                    setZone(z.id);
-                    setSlotImages({});
-                    setImage("");
-                    haptic(HAPTIC.tap);
-                  }}
-                  className={cn(
-                    "flex-shrink-0 flex items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs font-bold transition-all border",
-                    isSelected
-                      ? "border-primary bg-primary/15 text-foreground shadow-sm ring-2 ring-primary/40 scale-[1.02]"
-                      : "border-border/60 bg-card/60 hover:bg-card text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <span className={cn(
-                    "grid size-7 place-items-center rounded-xl transition-colors",
-                    isSelected ? "bg-primary text-primary-foreground shadow-xs" : "bg-muted text-muted-foreground"
-                  )}>
-                    <Icon size={16} />
-                  </span>
-                  <div className="text-left leading-tight">
-                    <span className="block">{z.label}</span>
-                    <span className="text-[9.5px] font-mono text-muted-foreground font-normal">{Math.round(z.weight * 100)}%</span>
-                  </div>
-                  {z.id === "visage" && (
-                    <span className="ml-0.5 text-[9px] font-extrabold uppercase text-gold-text bg-gold/20 px-1.5 py-0.5 rounded-full">
-                      Recommandé
+        {/* Grille des 6 zones cutanées */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-5">
+          {BODY_ZONES.map((z) => {
+            const Icon = ZONE_ICONS[z.id];
+            const isSelected = zone === z.id;
+            return (
+              <button
+                key={z.id}
+                type="button"
+                onClick={() => {
+                  setZone(z.id);
+                  setSlotImages({});
+                  setImage("");
+                  haptic(HAPTIC.tap);
+                }}
+                className={cn(
+                  "group relative p-3.5 sm:p-4 rounded-2xl border text-left transition-all flex flex-col justify-between min-h-[110px]",
+                  isSelected
+                    ? "border-primary bg-primary/10 ring-2 ring-primary/40 shadow-sm"
+                    : "border-border/60 bg-card/60 hover:bg-card hover:border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <div className="flex items-start justify-between gap-2 w-full">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={cn(
+                        "grid size-9 sm:size-10 place-items-center rounded-xl transition-colors",
+                        isSelected
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "bg-muted text-muted-foreground group-hover:text-foreground"
+                      )}
+                    >
+                      <Icon size={20} />
                     </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+                    <div>
+                      <span className={cn("block text-sm font-bold", isSelected ? "text-foreground font-black" : "text-foreground")}>
+                        {z.label}
+                      </span>
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        Pondération : {Math.round(z.weight * 100)}% santé
+                      </span>
+                    </div>
+                  </div>
+                  {isSelected ? (
+                    <span className="grid size-5 place-items-center rounded-full bg-primary text-primary-foreground text-[10px] shrink-0 shadow-xs">
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                  ) : z.id === "visage" ? (
+                    <span className="text-[9px] font-black uppercase text-gold-text bg-gold/15 px-2 py-0.5 rounded-full shrink-0">
+                      Prioritaire
+                    </span>
+                  ) : null}
+                </div>
 
-          {/* Indication contextuelle de la zone choisie */}
-          <div className="mt-2.5 flex items-center gap-2 rounded-xl bg-card/40 border border-border/50 px-3 py-2 text-[11px] text-muted-foreground">
-            <ActiveZoneIcon size={14} className="text-primary shrink-0" />
-            <span className="truncate">{zoneDef.hint}</span>
+                <p className="mt-3 text-[11px] text-muted-foreground line-clamp-2 leading-snug">
+                  {z.hint}
+                </p>
+
+                {isSelected && (
+                  <div className="mt-2.5 pt-2 border-t border-primary/20 flex items-center justify-between text-[10.5px] text-primary font-bold">
+                    <span>Zone sélectionnée</span>
+                    <span className="text-[10px] uppercase font-extrabold flex items-center gap-0.5">
+                      Prêt <ChevronRight size={12} />
+                    </span>
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Conseils de préparation pour la zone choisie */}
+        <div className="mb-5 rounded-2xl bg-card/70 border border-border/70 p-3.5 shadow-xs">
+          <div className="flex items-center gap-2 text-xs font-bold text-foreground mb-1.5">
+            <ActiveZoneIcon size={16} className="text-primary" />
+            <span>Préparation recommandée pour « {zoneDef.label} » :</span>
+          </div>
+          <p className="text-[11.5px] text-muted-foreground leading-relaxed">
+            {zone === "visage"
+              ? "Démaquille soigneusement ta peau, dégage les mèches de cheveux et assure-toi d'être face à une lumière naturelle directe."
+              : zone === "cuir_chevelu"
+              ? "Dégage bien les racines ou la lisière frontale. Évite l'application d'huiles lourdes ou de coiffants juste avant le scan."
+              : zone === "dos"
+              ? "Dégage le haut du dos et les épaules. N'hésite pas à te faire assister ou à utiliser un miroir pour orienter la prise."
+              : zone === "mains"
+              ? "Mains et pieds propres et secs, bien étalés à plat sur une surface neutre sous une lumière franche."
+              : zone === "barbe"
+              ? "Cou bien relevé pour dégager la zone sous-mandibulaire, peau propre et non irritée par un rasage immédiat."
+              : "Isole la zone cutanée ou la tache concernée avec un bon cadrage net et une distance stable d'environ 20 à 30 cm."}
+          </p>
+        </div>
+
+        {/* Bouton CTA pour passer à la page 2 (Studio de prise de vue) */}
+        <PrimaryCTA
+          onClick={() => {
+            haptic(HAPTIC.light);
+            setStep(1);
+          }}
+          className="h-14 w-full rounded-[22px] font-heading font-black text-base shadow-lg flex items-center justify-center gap-2"
+        >
+          <span>Passer à la prise de vue ({zoneDef.label})</span>
+          <ChevronRight size={18} />
+        </PrimaryCTA>
+
+        {/* Raccourci vers l'historique complet */}
+        <button
+          type="button"
+          onClick={goHistory}
+          className="k-card k-card-hover mt-3.5 w-full h-11 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 border border-border/70 text-muted-foreground hover:text-foreground"
+        >
+          <History size={15} className="text-primary" /> Voir mes diagnostics passés & historique
+        </button>
+      </div>
+    );
+  }
+
+  /* ─────────── Étape 1 — Page 2 : Studio de Prise de Vue & Cadrage ─────────── */
+  if (step === 1) {
+    const zoneDef = BODY_ZONES.find((z) => z.id === zone) ?? BODY_ZONES[0];
+    const ActiveZoneIcon = ZONE_ICONS[zone];
+
+    return (
+      <div className="pt-2 sm:pt-4">
+        {/* Sélecteur d'onglets Scanner */}
+        <div className="mb-4 flex items-center p-1 rounded-2xl bg-muted/50 border border-border/50">
+          <button
+            type="button"
+            className="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-card text-foreground shadow-xs border border-border/60 flex items-center justify-center gap-2"
+          >
+            <ScanFace size={15} className="text-primary" />
+            <span>Nouveau Scan</span>
+          </button>
+          <button
+            type="button"
+            onClick={goHistory}
+            className="flex-1 py-2 px-3 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground flex items-center justify-center gap-2 transition-all"
+          >
+            <History size={15} />
+            <span>Mon Historique</span>
+          </button>
+        </div>
+
+        {/* Stepper indicateur 2 / 2 */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+            <button
+              type="button"
+              onClick={() => setStep(0)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+            >
+              <ArrowLeft size={13} />
+              <span>Page 1 : Changer de zone</span>
+            </button>
+            <span className="text-[11px] text-muted-foreground">Étape 2 / 2 · Prise de vue</span>
+          </div>
+          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all duration-300 w-full" />
           </div>
         </div>
 
-        {/* 2. Prises de vue multi-angles */}
+        {/* Badge zone sélectionnée + Guide Vocal */}
+        <div className="mb-4 flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 rounded-2xl bg-primary/12 border border-primary/30 px-3 py-1.5 text-xs font-bold text-foreground">
+              <ActiveZoneIcon size={15} className="text-primary" />
+              <span>Zone : <span className="text-primary">{zoneDef.label}</span> ({Math.round(zoneDef.weight * 100)}% santé)</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStep(0)}
+              className="text-[11px] text-muted-foreground hover:text-primary underline font-medium"
+            >
+              Modifier
+            </button>
+          </div>
+          <AudioGuideButton
+            text={`Étape 2 : Prise de vue pour la zone ${zoneDef.label}. Prends ta photo en direct avec la caméra ou importe-la depuis ta galerie pour l'angle sélectionné, puis lance l'analyse.`}
+            label="Écouter le guide"
+            compact
+          />
+        </div>
+
+        {/* 1. Prises de vue multi-angles */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2 px-0.5">
-            <span className="text-xs font-bold text-foreground">2. Angles de prise de vue :</span>
+            <span className="text-xs font-bold text-foreground">1. Angles de prise de vue :</span>
             <span className="text-[11px] font-semibold text-primary">
               {totalCaptured === 0
                 ? "1 photo min. requise"
@@ -671,7 +833,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           </div>
         </div>
 
-        {/* 3. Conseils de prise de vue compacts & clairs */}
+        {/* 2. Conseils de prise de vue compacts & clairs */}
         <div className="mb-4 rounded-2xl bg-muted/30 border border-border/40 p-3">
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <p className="text-[11px] font-bold text-foreground">Conseils pour l&apos;angle « {activeSlot.label} » :</p>
@@ -697,7 +859,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           </div>
         </div>
 
-        {/* 4. Zone de capture ou prévisualisation */}
+        {/* 3. Zone de capture ou prévisualisation */}
         <div>
           {activeImage ? (
             <div>
@@ -902,13 +1064,13 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           </div>
         )}
 
-        {/* Raccourci vers l'historique complet */}
+        {/* Bouton retour vers page 1 */}
         <button
           type="button"
-          onClick={goHistory}
-          className="k-card k-card-hover mt-5 w-full h-12 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 border border-border/70"
+          onClick={() => setStep(0)}
+          className="k-card k-card-hover mt-4 w-full h-11 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 border border-border/70 text-muted-foreground hover:text-foreground"
         >
-          <History size={16} className="text-primary" /> Voir mes diagnostics passés & historique
+          <ArrowLeft size={14} /> Revenir à l&apos;étape 1 (Changer de zone)
         </button>
       </div>
     );
@@ -1871,11 +2033,33 @@ function HistoryView({
 
   return (
     <div className="pt-4 pb-2">
-      <button onClick={onBack} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4 focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour">
-        <ArrowLeft size={15} /> Nouveau diagnostic
-      </button>
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="font-heading font-black text-xl">Mon historique</h2>
+      {/* Sélecteur d'onglets Scanner */}
+      <div className="mb-4 flex items-center p-1 rounded-2xl bg-muted/50 border border-border/50">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex-1 py-2 px-3 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground flex items-center justify-center gap-2 transition-all"
+        >
+          <ScanFace size={15} />
+          <span>Nouveau Scan</span>
+        </button>
+        <button
+          type="button"
+          className="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-card text-foreground shadow-xs border border-border/60 flex items-center justify-center gap-2"
+        >
+          <History size={15} className="text-primary" />
+          <span>Mon Historique</span>
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <button onClick={onBack} className="inline-flex items-center gap-1 text-xs text-primary font-bold hover:underline focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label="Retour">
+            <ArrowLeft size={14} /> Scanner
+          </button>
+          <span className="text-muted-foreground text-xs">·</span>
+          <h2 className="font-heading font-black text-xl">Mon historique</h2>
+        </div>
         <Chip selected={compareMode} onClick={() => { setCompareMode(!compareMode); setCompareSel([]); }}>
           <GitCompareArrows size={14} /> Comparer
         </Chip>
