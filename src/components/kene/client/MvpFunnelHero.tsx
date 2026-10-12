@@ -109,11 +109,11 @@ export function MvpFunnelHero({
 
   return (
     <div className="flex flex-col gap-4.5">
-      {/* ───── 1. CARTE HERO PRINCIPALE : LE DIAGNOSTIC DE PEAU (PRODUIT PHARE #1) ───── */}
+      {/* ───── 1. CARTE HERO PRINCIPALE : LE DIAGNOSTIC DE PEAU ───── */}
       {!lastDiag ? (
         // ÉTAT 1 : Nouvelle cliente / Bilan de peau offert pour convaincre & convertir
         <section
-          aria-label="Diagnostic cutané Kènè — Produit phare n°1"
+          aria-label="Diagnostic cutané Kènè — Dermo-Botanique Africaine"
           className="relative overflow-hidden rounded-[28px] border-2 border-[#C8951E]/60 bg-gradient-to-br from-[#1C1611] via-[#2A1F17] to-[#18130E] text-[#FFF9EC] p-5 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.35)]"
         >
           {/* Halos dorés & texture bogolan */}
@@ -126,7 +126,7 @@ export function MvpFunnelHero({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C8951E]/25 border border-[#C8951E]/60 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#FFD875] shadow-xs">
                 <CauriIcon size={13} className="animate-pulse" />
-                🥇 Produit Phare · Dermo-Botanique Africaine
+                ✨ Diagnostic IA & Dermo-Botanique Africaine
               </span>
               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#EADCC9]/90 bg-[#FFF9EC]/10 px-2.5 py-0.5 rounded-full">
                 <Sparkles size={11} className="text-[#FFD875]" /> +14 800 bilans réalisés
@@ -212,7 +212,7 @@ export function MvpFunnelHero({
       ) : (
         // ÉTAT 2 : Cliente ayant déjà au moins un diagnostic actif — Valorisation absolue de son score
         <section
-          aria-label="Mon bilan cutané Kènè — Produit phare n°1"
+          aria-label="Mon bilan cutané Kènè — Dermo-Botanique"
           className="relative overflow-hidden rounded-[28px] border-2 border-[#C8951E]/40 bg-gradient-to-br from-card via-card/95 to-card p-5 sm:p-6 backdrop-blur-md shadow-lg"
         >
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

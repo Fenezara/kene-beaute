@@ -197,7 +197,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#A0522D]/15 text-[#A0522D] dark:text-[#E89E78] border border-[#A0522D]/30">
-                  🥉 Produit Phare · Secrétaire IA
+                  👑 Secrétaire IA · Moments de Soin
                 </span>
               </div>
               <h3 id="care-appts-heading" className="font-heading font-black text-sm sm:text-base text-foreground mt-0.5">
@@ -338,7 +338,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#A0522D]/15 text-[#A0522D] dark:text-[#E89E78] border border-[#A0522D]/30">
-                  🥉 Produit Phare · Secrétaire IA
+                  👑 Secrétaire IA · Conciergerie de Soin
                 </span>
               </div>
               <h3 id="care-appts-heading" className="font-heading font-black text-sm sm:text-base text-foreground mt-0.5">

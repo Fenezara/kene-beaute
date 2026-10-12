@@ -272,7 +272,7 @@ export function HomeScreen({
         </RevealItem>
       )}
 
-      {/* ───── 🥇 PRODUIT PHARE N°1 : HERO DU DIAGNOSTIC DE PEAU & BILAN CUTANÉ ───── */}
+      {/* ───── 1. HERO DU DIAGNOSTIC DE PEAU & BILAN CUTANÉ ───── */}
       <RevealItem>
         <MvpFunnelHero
           lastDiag={multi.last ?? null}
@@ -293,10 +293,10 @@ export function HomeScreen({
         />
       </RevealItem>
 
-      {/* ───── 🥈 PRODUIT PHARE N°2 : DERMO KÈNÈ · L'EXPERTE DERMO-BOTANIQUE 24/7 ───── */}
+      {/* ───── 2. DERMO KÈNÈ · L'EXPERTE DERMO-BOTANIQUE 24/7 ───── */}
       <RevealItem>
         <section
-          aria-label="Dermo Kènè — Produit phare n°2"
+          aria-label="Dermo Kènè — Conseillère dermo-botanique 24/7"
           className="relative overflow-hidden rounded-[26px] border border-[#C8951E]/40 bg-gradient-to-br from-[#1C1611] via-[#241A14] to-[#18130E] p-4.5 sm:p-5 text-[#FFF9EC] shadow-lg"
         >
           {/* Halos dorés subtils */}
@@ -306,7 +306,7 @@ export function HomeScreen({
             <div className="flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C8951E]/20 border border-[#C8951E]/40 px-2.5 py-0.5 text-[10.5px] font-black uppercase tracking-wider text-[#FFD875]">
                 <Sparkles size={11} className="animate-pulse" />
-                🥈 Produit Phare · Conseillère IA 24/7
+                ✨ Dermo Kènè · Conseillère IA 24/7
               </span>
               <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
                 <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" /> Disponible
@@ -364,7 +364,7 @@ export function HomeScreen({
         </section>
       </RevealItem>
 
-      {/* ───── 🥉 PRODUIT PHARE N°3 : LA SECRÉTAIRE IA & VOS MOMENTS DE SOIN ───── */}
+      {/* ───── 3. LA SECRÉTAIRE IA & VOS MOMENTS DE SOIN ───── */}
       <RevealItem>
         <AppointmentsCareSection
           appointments={data?.appointments ?? []}

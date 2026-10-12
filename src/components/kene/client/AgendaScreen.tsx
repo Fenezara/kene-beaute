@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import type { ApiAppointment, ApiDiagnosis, ApiInstitute, ApiProduct } from "./types";
 import { parseDiagnosis, diagImgSrc } from "./types";
 import { ConciergerieWhatsAppSection } from "./ConciergerieWhatsAppSection";
+import { ClientSkinDossierView } from "./ClientSkinDossierView";
 
 interface OrderItem {
   id: string;
@@ -686,179 +687,15 @@ export function AgendaScreen() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════
-          SOUS-ONGLET 3 : MON DOSSIER PEAU COMPLET
+          SOUS-ONGLET 3 : MON DOSSIER PEAU & SANTÉ EN DIRECT
       ═══════════════════════════════════════════════════════════ */}
       {activeSubTab === "dossier" && (
-        <div className="flex flex-col gap-4">
-          {/* Fiche d'identité cutanée */}
-          <div className="k-card rounded-[26px] p-5 border border-border/80 shadow-xs space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className="grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-[#C8951E] via-[#A0522D] to-[#8B1A3B] text-white font-heading font-black text-xl shadow-md">
-                  {user.name.charAt(0)}
-                </span>
-                <div>
-                  <h3 className="font-heading font-black text-base text-foreground leading-tight">
-                    {user.name}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Phototype Fitzpatrick {user.fitzpatrick || "V"} · Peau {user.skinType || "mixte"}
-                  </p>
-                </div>
-              </div>
-
-              {lastDiag && (
-                <div
-                  className="grid size-13 place-items-center rounded-2xl font-heading font-black text-lg shadow-sm border-2 shrink-0"
-                  style={{
-                    backgroundColor: `${scoreColor(lastDiag.scoreGlobal)}15`,
-                    color: scoreColor(lastDiag.scoreGlobal),
-                    borderColor: scoreColor(lastDiag.scoreGlobal),
-                  }}
-                >
-                  {lastDiag.scoreGlobal}
-                  <span className="text-[8px] font-bold uppercase tracking-wider block -mt-1 opacity-80">Score</span>
-                </div>
-              )}
-            </div>
-
-            {/* Caractéristiques dermo-botaniques */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-border/60 text-xs">
-              <div className="p-2.5 rounded-xl bg-muted/40">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase block">Phototype</span>
-                <span className="font-bold text-foreground">Fitzpatrick {user.fitzpatrick || "V"}</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-muted/40">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase block">Type de peau</span>
-                <span className="font-bold text-foreground capitalize">{user.skinType || "Mixte"}</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-muted/40">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase block">Zone de vie</span>
-                <span className="font-bold text-foreground">{user.city || "Abidjan"}</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-muted/40">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase block">Maternité</span>
-                <span className="font-bold text-foreground">{user.pregnant ? "🌸 Enceinte" : "Non"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Ordonnance Beauté active */}
-          {lastResult && (
-            <div className="k-card rounded-[26px] p-5 border border-primary/30 shadow-xs space-y-3.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="grid size-8 place-items-center rounded-xl bg-gold/20 text-gold-text">
-                    <Leaf size={16} />
-                  </span>
-                  <div>
-                    <h4 className="font-heading font-black text-sm text-foreground">
-                      Mon Ordonnance Beauté Active
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground">
-                      Délivrée le {formatDate(lastDiag!.createdAt)}
-                    </p>
-                  </div>
-                </div>
-                <span className="rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase px-2.5 py-0.5">
-                  Validée
-                </span>
-              </div>
-
-              {/* Rituels Matin & Soir */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div className="p-3 rounded-2xl bg-gold/5 border border-gold/20 space-y-1">
-                  <span className="text-xs font-bold text-gold-text flex items-center gap-1.5">
-                    ☀️ Rituel Matin
-                  </span>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {lastResult.recommandations?.routine_matin?.slice(0, 3).join(" · ") || "Nettoyage doux au Moringa & écran solaire SPF 50"}
-                  </p>
-                </div>
-                <div className="p-3 rounded-2xl bg-terre/5 border border-terre/20 space-y-1">
-                  <span className="text-xs font-bold text-terre flex items-center gap-1.5">
-                    🌙 Rituel Soir
-                  </span>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {lastResult.recommandations?.routine_soir?.slice(0, 3).join(" · ") || "Karité sauvage pur & régénération nocturne"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Actifs botaniques clés */}
-              {lastResult.recommandations?.botaniques_conseillees && lastResult.recommandations.botaniques_conseillees.length > 0 && (
-                <div className="pt-2 border-t border-border/60">
-                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Actifs purs recommandés :</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {lastResult.recommandations.botaniques_conseillees.map((b) => (
-                      <span key={b} className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
-                        🌿 {b}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Bouton de téléchargement du dossier PDF */}
-              <div className="pt-2 flex items-center justify-between gap-2">
-                <a
-                  href={`/api/diagnoses/prescription?userId=${user.id}&id=${lastDiag!.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground font-bold text-xs flex items-center gap-1.5 shadow-xs"
-                >
-                  <Download size={13} />
-                  Télécharger mon Ordonnance Beauté (PDF)
-                </a>
-
-                <button
-                  type="button"
-                  onClick={() => setClientTab("diagnostic")}
-                  className="h-9 px-3 rounded-xl border border-border text-foreground font-semibold text-xs flex items-center gap-1.5 hover:bg-accent transition-colors"
-                >
-                  <ScanFace size={13} className="text-primary" />
-                  Nouveau Scan
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Historique des bilans précédents */}
-          <div className="rounded-[24px] border border-border/70 p-4 space-y-3">
-            <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-muted-foreground">
-              Historique des bilans cutanés ({diagnoses.length})
-            </h4>
-
-            {diagnoses.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Aucun scan enregistré pour l&apos;instant.</p>
-            ) : (
-              <div className="space-y-2">
-                {diagnoses.slice(0, 4).map((d) => (
-                  <div key={d.id} className="p-3 rounded-xl bg-card border border-border/60 flex items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="grid size-7 place-items-center rounded-lg bg-primary/10 text-primary shrink-0">
-                        <ScanFace size={14} />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-bold text-foreground capitalize truncate">Zone {d.zone}</p>
-                        <p className="text-[10px] text-muted-foreground">{formatDate(d.createdAt)}</p>
-                      </div>
-                    </div>
-                    <span
-                      className="font-heading font-black text-sm px-2 py-0.5 rounded-lg shrink-0"
-                      style={{
-                        backgroundColor: `${scoreColor(d.scoreGlobal)}15`,
-                        color: scoreColor(d.scoreGlobal),
-                      }}
-                    >
-                      {d.scoreGlobal}/100
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <ClientSkinDossierView
+          diagnoses={diagnoses}
+          selectedInstitute={selectedInst}
+          onStartScan={() => setClientTab("diagnostic")}
+          onNavigateTab={setClientTab}
+        />
       )}
 
       {/* ═══════════════════════════════════════════════════════════

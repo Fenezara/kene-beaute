@@ -188,9 +188,9 @@ export function DashboardSection({
         <SalonAnalyticsDashboard tenantId={tenantId} data={data} />
       ) : (
         <>
-          {/* ───── LES 3 PRODUITS PHARES KÈNÈ POUR L'INSTITUT ───── */}
+          {/* ───── LES 3 MOTEURS DE CROISSANCE KÈNÈ POUR L'INSTITUT ───── */}
           <section
-            aria-label="Les 3 produits phares de l'institut"
+            aria-label="Les 3 moteurs de croissance de l'institut"
             className="relative overflow-hidden rounded-[26px] border-2 border-[#C8951E]/40 bg-gradient-to-br from-card via-card/95 to-card p-4 sm:p-5 shadow-md"
           >
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
@@ -213,13 +213,13 @@ export function DashboardSection({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-              {/* 1. DIAGNOSTIC CUTANÉ EN CABINE (PRODUIT PHARE #1) */}
+              {/* 1. DIAGNOSTIC CUTANÉ EN CABINE */}
               <div className="relative flex flex-col justify-between rounded-2xl border-2 border-[#C8951E]/50 bg-gradient-to-br from-[#1C1611] via-[#2A1F17] to-[#18130E] text-[#FFF9EC] p-4 shadow-lg group">
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C8951E]/25 border border-[#C8951E]/60 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#FFD875]">
                       <CauriIcon size={11} className="animate-pulse" />
-                      🥇 Produit Phare #1
+                      ✨ Moteur N°1
                     </span>
                     <span className="text-[10px] font-bold text-[#FFD875] bg-[#FFF9EC]/10 px-2 py-0.5 rounded-full">
                       +45% panier moyen
@@ -253,13 +253,13 @@ export function DashboardSection({
                 </button>
               </div>
 
-              {/* 2. DOSSIERS PEAU & SUIVI CUTANÉ (PRODUIT PHARE #2) */}
+              {/* 2. DOSSIERS PEAU & SUIVI CUTANÉ */}
               <div className="relative flex flex-col justify-between rounded-2xl border border-border/80 bg-card/90 p-4 shadow-sm hover:border-primary/40 transition-all">
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/25 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
                       <FolderHeart size={11} />
-                      🥈 Produit Phare #2
+                      📁 Moteur N°2
                     </span>
                     <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
                       Données en direct
@@ -293,13 +293,13 @@ export function DashboardSection({
                 </button>
               </div>
 
-              {/* 3. SECRÉTAIRE IA DE DIRECTION (PRODUIT PHARE #3) */}
+              {/* 3. SECRÉTAIRE IA DE DIRECTION */}
               <div className="relative flex flex-col justify-between rounded-2xl border border-border/80 bg-card/90 p-4 shadow-sm hover:border-[#A0522D]/40 transition-all">
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-[#A0522D]/15 border border-[#A0522D]/30 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#A0522D] dark:text-[#E89E78]">
                       <Crown size={11} />
-                      🥉 Produit Phare #3
+                      👑 Moteur N°3
                     </span>
                     <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
                       Zéro no-show

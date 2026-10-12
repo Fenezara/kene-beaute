@@ -47,9 +47,9 @@ export type ProSectionId = "dashboard" | "assistant" | "agenda" | "diagnostic" |
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
-  { id: "diagnostic", label: "📸 Diagnostic Peau", icon: ScanFace, hint: "Produit phare n°1 · En cabine & Ventes" },
+  { id: "diagnostic", label: "📸 Diagnostic Peau", icon: ScanFace, hint: "En cabine, ordonnances beauté & ventes" },
   { id: "dossiers", label: "📁 Dossiers Peau & Données", icon: FolderHeart, hint: "Toutes les données de peau, bilans cutanés & dossiers clients" },
-  { id: "assistant", label: "👑 Secrétaire IA", icon: Crown, hint: "Produit phare n°3 · Rappels WhatsApp & Débriefing" },
+  { id: "assistant", label: "👑 Secrétaire IA", icon: Crown, hint: "Rappels WhatsApp 24/7 & Débriefing" },
   { id: "agenda", label: "Agenda & Soins", icon: SankofaIcon, hint: "Rendez-vous" },
   { id: "caisse", label: "Ventes & Caisse", icon: AbanIcon, hint: "Caisse POS · Commandes en ligne" },
   { id: "crm", label: "CRM", icon: OsramIcon, hint: "Clientes & fidélité" },
