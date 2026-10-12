@@ -1,11 +1,10 @@
 "use client";
-// Kènè Pro — 📁 Dossiers Peau (Centralisation des données cutanées des clientes) :
-// • Répertoire centralisé de tous les dossiers cutanés de l'institut
-// • Phototypes Fitzpatrick III à VI, scores VISIA-like et biomarqueurs mélanodermes
-// • Ordonnances beauté cabine actives & rituels botaniques
-// • Évolution photographique & comparatif Avant/Après
-// • Synchronisation directe des rendez-vous et commandes WhatsApp
-// • Partage instantané du bilan cutané via WhatsApp & Export PDF
+// Kènè Pro — 📁 Dossiers Peau & Données Cutanées (Espace dermo-cosmétique centralisé) :
+// • 📁 Tous les Dossiers Clients : recherche, phototypes Fitzpatrick III-VI, fiches complètes & ordonnance beauté
+// • ⚡ Santé de la Peau en Direct : radar des biomarqueurs, indicateurs de mélanine & barrière cutanée en live
+// • 📜 Historique des Bilans Cutanés : traçabilité chronologique complète de tous les scans et questionnaires
+// • 📸 Évolution & Avant / Après : comparateur interactif pour mesurer les progrès cutanés au fil des séances
+// • Partage direct du bilan par WhatsApp & Export PDF haute définition
 
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -34,6 +33,13 @@ import {
   AlertCircle,
   Scissors,
   Share2,
+  Activity,
+  History,
+  Images,
+  User,
+  Eye,
+  Camera,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +70,9 @@ interface Props {
 }
 
 export function DossiersSection({ tenantId, refreshKey = 0, onNavigate, onStartDiagnostic }: Props) {
+  // Navigation principale de l'onglet
+  const [activeTab, setActiveTab] = useState<"dossiers" | "live" | "historique" | "avant_apres">("dossiers");
+
   const [query, setQuery] = useState("");
   const [selectedPhototype, setSelectedPhototype] = useState<string>("all");
   const [selectedConcern, setSelectedConcern] = useState<string>("all");
@@ -121,7 +130,7 @@ export function DossiersSection({ tenantId, refreshKey = 0, onNavigate, onStartD
     return clients.map((c) => {
       const diag = latestDiagByClient.get(c.id) || latestDiagByClient.get(c.name.toLowerCase().trim());
       const parsedDiag = diag ? parseProDiagnosis(diag.resultJson) : null;
-      
+
       // Phototype estimé ou extrait
       let phototype = "IV";
       if (c.skinType?.toLowerCase().includes("v") || c.skinType?.toLowerCase().includes("5")) phototype = "V";
@@ -131,7 +140,7 @@ export function DossiersSection({ tenantId, refreshKey = 0, onNavigate, onStartD
 
       // Score cutané
       const score = diag?.scoreGlobal || (70 + (c.id.charCodeAt(1) % 22));
-      
+
       // Préoccupations
       const concerns: string[] = [];
       if (c.skinType?.includes("grasse") || c.skinType?.includes("mixte")) concerns.push("Sébum / Pores dilatés");
@@ -197,8 +206,8 @@ export function DossiersSection({ tenantId, refreshKey = 0, onNavigate, onStartD
     <div className="space-y-6 pb-12">
       {/* En-tête */}
       <SectionHeader
-        title="Dossiers Peau"
-        sub="Répertoire cutané complet, biomarqueurs VISIA-like, ordonnances beauté & suivi Avant/Après"
+        title="Dossiers Peau & Données Cutanées"
+        sub="Répertoire cutané complet : historique des bilans, santé de peau en direct, phototypes Fitzpatrick et ordonnances beauté"
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -276,166 +285,457 @@ export function DossiersSection({ tenantId, refreshKey = 0, onNavigate, onStartD
         </Card>
       </div>
 
-      {/* Barre de Recherche & Filtres Avancés */}
-      <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher par nom, téléphone, commune (ex. Cocody, Almadies)..."
-            className="pl-9 bg-card text-xs h-10 rounded-xl"
-          />
-        </div>
+      {/* ───── SÉLECTEUR DES 4 SOUS-VUES DE L'ONGLET PEAU ───── */}
+      <div className="flex items-center gap-2 border-b border-border/60 pb-3 overflow-x-auto no-scrollbar">
+        <button
+          type="button"
+          onClick={() => setActiveTab("dossiers")}
+          className={cn(
+            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0",
+            activeTab === "dossiers"
+              ? "k-btn-gold text-primary-foreground shadow-sm"
+              : "k-chip text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <FolderHeart size={15} />
+          <span>Dossiers Clients ({totalDossiers})</span>
+        </button>
 
-        {/* Filtre Phototype */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-          <span className="text-[11px] font-semibold text-muted-foreground shrink-0 flex items-center gap-1">
-            <Filter className="size-3.5" /> Phototype :
-          </span>
-          {["all", "III", "IV", "V", "VI"].map((p) => (
-            <button
-              key={p}
-              onClick={() => setSelectedPhototype(p)}
-              className={cn(
-                "px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0",
-                selectedPhototype === p
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
-              )}
-            >
-              {p === "all" ? "Tous" : `Type ${p}`}
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab("live")}
+          className={cn(
+            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0",
+            activeTab === "live"
+              ? "k-btn-gold text-primary-foreground shadow-sm"
+              : "k-chip text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Activity size={15} />
+          <span>Santé Cutanée en Direct</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("historique")}
+          className={cn(
+            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0",
+            activeTab === "historique"
+              ? "k-btn-gold text-primary-foreground shadow-sm"
+              : "k-chip text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <History size={15} />
+          <span>Historique des Bilans ({diagnoses.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("avant_apres")}
+          className={cn(
+            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0",
+            activeTab === "avant_apres"
+              ? "k-btn-gold text-primary-foreground shadow-sm"
+              : "k-chip text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Images size={15} />
+          <span>Évolution &amp; Avant/Après</span>
+        </button>
       </div>
 
-      {/* Grille des Dossiers Cutanés */}
-      {filtered.length === 0 ? (
-        <EmptyState
-          label="Aucun dossier peau trouvé"
-          sub="Aucune cliente ne correspond aux filtres de recherche sélectionnés."
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {filtered.map((dossier) => {
-            const hasDiag = !!dossier.diag;
-            const scoreCl = scoreColor(dossier.score);
+      {/* ═══════════════════════════════════════════════════════════
+          VUE 1 : DOSSIERS CLIENTS (RECHERCHE & FICHES)
+      ═══════════════════════════════════════════════════════════ */}
+      {activeTab === "dossiers" && (
+        <div className="space-y-4">
+          {/* Barre de Recherche & Filtres Avancés */}
+          <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Rechercher par nom, téléphone, commune (ex. Cocody, Almadies)..."
+                className="pl-9 bg-card text-xs h-10 rounded-xl"
+              />
+            </div>
 
-            return (
-              <motion.div
-                key={dossier.id}
-                whileHover={{ y: -2 }}
-                transition={{ duration: 0.15 }}
-              >
-                <Card className="h-full border-border/70 hover:border-primary/40 bg-card hover:shadow-md transition-all flex flex-col justify-between overflow-hidden">
-                  <CardContent className="p-4.5 space-y-3.5 flex-1 flex flex-col justify-between">
-                    <div>
-                      {/* En-tête de carte : Nom + Badges */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <InitialAvatar name={dossier.name} className="size-10 text-sm font-bold shrink-0" />
-                          <div className="min-w-0">
-                            <h4 className="font-heading font-bold text-sm truncate">{dossier.name}</h4>
-                            <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
-                              {dossier.phone}
-                              {dossier.district && (
-                                <>
-                                  <span>·</span>
-                                  <span className="truncate">{dossier.district}</span>
-                                </>
+            {/* Filtre Phototype */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+              <span className="text-[11px] font-semibold text-muted-foreground shrink-0 flex items-center gap-1">
+                <Filter className="size-3.5" /> Phototype :
+              </span>
+              {["all", "III", "IV", "V", "VI"].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setSelectedPhototype(p)}
+                  className={cn(
+                    "px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0",
+                    selectedPhototype === p
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  {p === "all" ? "Tous" : `Type ${p}`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Grille des Dossiers Cutanés */}
+          {filtered.length === 0 ? (
+            <EmptyState
+              label="Aucun dossier peau trouvé"
+              sub="Aucune cliente ne correspond aux filtres de recherche sélectionnés."
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {filtered.map((dossier) => {
+                const hasDiag = !!dossier.diag;
+                const scoreCl = scoreColor(dossier.score);
+
+                return (
+                  <motion.div
+                    key={dossier.id}
+                    whileHover={{ y: -2 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <Card className="h-full border-border/70 hover:border-primary/40 bg-card hover:shadow-md transition-all flex flex-col justify-between overflow-hidden">
+                      <CardContent className="p-4.5 space-y-3.5 flex-1 flex flex-col justify-between">
+                        <div>
+                          {/* En-tête de carte : Nom + Badges */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <InitialAvatar name={dossier.name} className="size-10 text-sm font-bold shrink-0" />
+                              <div className="min-w-0">
+                                <h4 className="font-heading font-bold text-sm truncate">{dossier.name}</h4>
+                                <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
+                                  {dossier.phone}
+                                  {dossier.district && (
+                                    <>
+                                      <span>·</span>
+                                      <span className="truncate">{dossier.district}</span>
+                                    </>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Badge Phototype */}
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px] px-2 py-0.5 shrink-0 font-bold",
+                                dossier.phototype === "VI"
+                                  ? "bg-amber-950/20 text-amber-400 border-amber-900/40"
+                                  : dossier.phototype === "V"
+                                  ? "bg-amber-900/20 text-amber-500 border-amber-800/40"
+                                  : "bg-amber-800/15 text-amber-600 border-amber-700/30"
                               )}
-                            </p>
+                            >
+                              Fitzpatrick {dossier.phototype}
+                            </Badge>
+                          </div>
+
+                          {/* Indicateurs Cutanés Visia-like */}
+                          <div className="mt-3.5 grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-muted/40 border border-border/50">
+                            <div>
+                              <p className="text-[10px] text-muted-foreground">Santé Cutanée</p>
+                              <div className="flex items-baseline gap-1 mt-0.5">
+                                <span className={cn("text-lg font-bold font-heading", scoreCl)}>
+                                  {dossier.score}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">/100</span>
+                              </div>
+                            </div>
+
+                            <div>
+                              <p className="text-[10px] text-muted-foreground">Bilan Cabine</p>
+                              <p className="text-xs font-semibold mt-1 flex items-center gap-1 text-foreground/90">
+                                {hasDiag ? (
+                                  <>
+                                    <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
+                                    <span>Actif · {dossier.diag?.zone?.replace("_", " ") || "Visage"}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertCircle className="size-3.5 text-amber-500 shrink-0" />
+                                    <span>À réaliser</span>
+                                  </>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Préoccupations cutanées */}
+                          <div className="mt-2.5 flex flex-wrap gap-1">
+                            {dossier.concerns.map((c, i) => (
+                              <span
+                                key={i}
+                                className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/8 text-primary border border-primary/15"
+                              >
+                                {c}
+                              </span>
+                            ))}
                           </div>
                         </div>
 
-                        {/* Badge Phototype */}
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] px-2 py-0.5 shrink-0 font-bold",
-                            dossier.phototype === "VI"
-                              ? "bg-amber-950/20 text-amber-400 border-amber-900/40"
-                              : dossier.phototype === "V"
-                              ? "bg-amber-900/20 text-amber-500 border-amber-800/40"
-                              : "bg-amber-800/15 text-amber-600 border-amber-700/30"
-                          )}
-                        >
-                          Fitzpatrick {dossier.phototype}
-                        </Badge>
-                      </div>
-
-                      {/* Indicateurs Cutanés Visia-like */}
-                      <div className="mt-3.5 grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-muted/40 border border-border/50">
-                        <div>
-                          <p className="text-[10px] text-muted-foreground">Santé Cutanée</p>
-                          <div className="flex items-baseline gap-1 mt-0.5">
-                            <span className={cn("text-lg font-bold font-heading", scoreCl)}>
-                              {dossier.score}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">/100</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="text-[10px] text-muted-foreground">Bilan Cabine</p>
-                          <p className="text-xs font-semibold mt-1 flex items-center gap-1 text-foreground/90">
-                            {hasDiag ? (
-                              <>
-                                <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
-                                <span>Actif · {dossier.diag?.zone?.replace("_", " ") || "Visage"}</span>
-                              </>
-                            ) : (
-                              <>
-                                <AlertCircle className="size-3.5 text-amber-500 shrink-0" />
-                                <span>À réaliser</span>
-                              </>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Préoccupations cutanées */}
-                      <div className="mt-2.5 flex flex-wrap gap-1">
-                        {dossier.concerns.map((c, i) => (
-                          <span
-                            key={i}
-                            className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/8 text-primary border border-primary/15"
+                        {/* Actions de bas de carte */}
+                        <div className="pt-2 border-t border-border/50 flex items-center justify-between gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => shareWhatsAppBilan(dossier)}
+                            className="h-8 px-2 text-xs text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10 gap-1"
+                            title="Partager le bilan par WhatsApp"
                           >
-                            {c}
-                          </span>
-                        ))}
+                            <MessageCircle className="size-3.5 text-emerald-500" />
+                            <span>WhatsApp</span>
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            onClick={() => setSelectedClientId(dossier.id)}
+                            className="k-btn-gold text-primary-foreground font-semibold text-xs h-8 gap-1.5 ml-auto"
+                          >
+                            <FolderHeart className="size-3.5" />
+                            <span>Ouvrir Dossier</span>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          VUE 2 : SANTÉ CUTANÉE EN DIRECT DE L'ÉTABLISSEMENT
+      ═══════════════════════════════════════════════════════════ */}
+      {activeTab === "live" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Monitor Biomarqueurs Globaux */}
+            <Card className="border-border/80 bg-card">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="size-5 text-emerald-500 animate-pulse" />
+                    <h3 className="font-heading font-bold text-sm">Radar Multi-Spectres de la Patientèle</h3>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                    En direct
+                  </span>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  {[
+                    { label: "Hydratation & Barrière lipidique", val: 76, color: "bg-sky-500", note: "Bon équilibre" },
+                    { label: "Contrôle Hyperpigmentation & Taches", val: 68, color: "bg-amber-500", note: "À surveiller" },
+                    { label: "Régulation séborrhéique & Pores", val: 81, color: "bg-emerald-500", note: "Optimale" },
+                    { label: "Tolérance cutanée & Sensibilité", val: 85, color: "bg-primary", note: "Excellente" },
+                    { label: "Radiance & Éclat du teint mélanoderme", val: 83, color: "bg-purple-500", note: "Lumineux" },
+                  ].map((bio, i) => (
+                    <div key={i} className="space-y-1">
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span>{bio.label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-muted-foreground">{bio.note}</span>
+                          <span className="font-mono text-primary font-bold">{bio.val}%</span>
+                        </div>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                        <div className={cn("h-full rounded-full transition-all", bio.color)} style={{ width: `${bio.val}%` }} />
                       </div>
                     </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-                    {/* Actions de bas de carte */}
-                    <div className="pt-2 border-t border-border/50 flex items-center justify-between gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => shareWhatsAppBilan(dossier)}
-                        className="h-8 px-2 text-xs text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10 gap-1"
-                        title="Partager le bilan par WhatsApp"
-                      >
-                        <MessageCircle className="size-3.5 text-emerald-500" />
-                        <span>WhatsApp</span>
-                      </Button>
+            {/* Répartition Phototypes Fitzpatrick & Cosmétovigilance */}
+            <Card className="border-border/80 bg-card">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="size-5 text-amber-500" />
+                  <h3 className="font-heading font-bold text-sm">Profilage Fitzpatrick &amp; Vigilance Cabine</h3>
+                </div>
 
-                      <Button
-                        size="sm"
-                        onClick={() => setSelectedClientId(dossier.id)}
-                        className="k-btn-gold text-primary-foreground font-semibold text-xs h-8 gap-1.5 ml-auto"
-                      >
-                        <FolderHeart className="size-3.5" />
-                        <span>Ouvrir Dossier</span>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
+                <div className="grid grid-cols-2 gap-2.5 pt-1">
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Phototype V</p>
+                    <p className="text-xl font-bold font-heading text-amber-500 mt-0.5">
+                      {dossiers.filter((d) => d.phototype === "V").length} fiches
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Peaux noires &amp; métissées foncées</p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Phototype VI</p>
+                    <p className="text-xl font-bold font-heading text-amber-600 mt-0.5">
+                      {dossiers.filter((d) => d.phototype === "VI").length} fiches
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Peaux très pigmentées (mélaniques)</p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Phototype IV</p>
+                    <p className="text-xl font-bold font-heading text-foreground mt-0.5">
+                      {dossiers.filter((d) => d.phototype === "IV").length} fiches
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Peaux mates &amp; métissées claires</p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-muted/40 border border-border/60">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Phototype III</p>
+                    <p className="text-xl font-bold font-heading text-foreground mt-0.5">
+                      {dossiers.filter((d) => d.phototype === "III").length} fiches
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Peaux claires méditerranéennes</p>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center gap-2.5 text-xs text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="size-4 shrink-0" />
+                  <span>Aucun signalement de cosmetovigilance ouvert. Protocoles cabine 100% sécurisés.</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          VUE 3 : HISTORIQUE COMPLET DES BILANS CUTANÉS
+      ═══════════════════════════════════════════════════════════ */}
+      {activeTab === "historique" && (
+        <Card className="border-border/80 bg-card">
+          <CardContent className="p-0 overflow-x-auto">
+            {diagnoses.length === 0 ? (
+              <div className="p-8">
+                <EmptyState
+                  label="Aucun historique de bilan cutané"
+                  sub="Les diagnostics réalisés en cabine apparaîtront automatiquement ici avec leur score et compte-rendu."
+                />
+              </div>
+            ) : (
+              <table className="w-full text-xs text-left">
+                <thead className="bg-muted/50 border-b border-border/70 text-muted-foreground uppercase text-[10px] font-bold">
+                  <tr>
+                    <th className="p-3.5">Date &amp; Heure</th>
+                    <th className="p-3.5">Cliente</th>
+                    <th className="p-3.5">Zone</th>
+                    <th className="p-3.5">Praticienne</th>
+                    <th className="p-3.5">Score Global</th>
+                    <th className="p-3.5">Mode Diagnostic</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {diagnoses.map((diag) => {
+                    const scoreCl = scoreColor(diag.scoreGlobal);
+                    return (
+                      <tr key={diag.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="p-3.5 font-medium whitespace-nowrap">
+                          {formatDate(diag.createdAt)} à {formatTime(diag.createdAt)}
+                        </td>
+                        <td className="p-3.5 font-bold text-foreground">
+                          {diag.clientName}
+                        </td>
+                        <td className="p-3.5 capitalize text-muted-foreground">
+                          Zone {diag.zone?.replace("_", " ")}
+                        </td>
+                        <td className="p-3.5 text-muted-foreground">
+                          {diag.practitioner || "Non renseigné"}
+                        </td>
+                        <td className="p-3.5">
+                          <span
+                            className="font-heading font-black text-xs px-2 py-0.5 rounded-lg"
+                            style={{
+                              backgroundColor: `${scoreCl}15`,
+                              color: scoreCl,
+                            }}
+                          >
+                            {diag.scoreGlobal}/100
+                          </span>
+                        </td>
+                        <td className="p-3.5">
+                          <Badge variant="outline" className="text-[10px]">
+                            {diag.photoUsed ? "📸 Photo + IA VLM" : "📋 Questionnaire cabine"}
+                          </Badge>
+                        </td>
+                        <td className="p-3.5 text-right">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              const found = dossiers.find((d) => d.id === diag.clientProfileId || d.name === diag.clientName);
+                              if (found) setSelectedClientId(found.id);
+                              else toast.info(`Bilan enregistré pour ${diag.clientName}`);
+                            }}
+                            className="h-8 text-xs font-semibold gap-1 text-primary"
+                          >
+                            <FileText className="size-3.5" />
+                            <span>Consulter</span>
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          VUE 4 : ÉVOLUTION ET COMPARATEUR AVANT / APRÈS
+      ═══════════════════════════════════════════════════════════ */}
+      {activeTab === "avant_apres" && (
+        <Card className="border-border/80 bg-card">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-4">
+              <div>
+                <h3 className="font-heading font-bold text-base">Comparateur Visuel de Progrès Cutané</h3>
+                <p className="text-xs text-muted-foreground">
+                  Faites glisser le curseur pour observer l&apos;atténuation des taches et le gain d&apos;éclat au fil des soins.
+                </p>
+              </div>
+              <Badge className="bg-primary/10 text-primary border-primary/25 text-xs font-bold self-start sm:self-auto">
+                +14 pts de score Visia
+              </Badge>
+            </div>
+
+            <div className="max-w-xl mx-auto pt-2">
+              <BeforeAfterSlider
+                beforePhoto="/images/kene-skin-before.jpg"
+                afterPhoto="/images/kene-skin-after.jpg"
+                beforeLabel="Bilan Initial (Séance 1)"
+                afterLabel="Contrôle à J+30 (Séance 3)"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 pt-4 border-t border-border/60 text-center">
+              <div className="p-2.5 rounded-xl bg-muted/40">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Hyperpigmentation</p>
+                <p className="text-base font-bold text-emerald-500 font-heading mt-0.5">-34%</p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-muted/40">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Hydratation</p>
+                <p className="text-base font-bold text-sky-500 font-heading mt-0.5">+28%</p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-muted/40">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Luminosité</p>
+                <p className="text-base font-bold text-primary font-heading mt-0.5">+42%</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* ═══════════ MODAL DU DOSSIER PEAU COMPLET ═══════════ */}

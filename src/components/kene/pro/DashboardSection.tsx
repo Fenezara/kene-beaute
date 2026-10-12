@@ -19,6 +19,7 @@ import {
   Crown,
   Sparkles,
   Leaf,
+  FolderHeart,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -202,7 +203,7 @@ export function DashboardSection({
                     Le Triptyque Kènè · Vos 3 Moteurs d&apos;Établissement
                   </h2>
                   <p className="text-[11px] text-muted-foreground">
-                    1. Diagnostic Peau en Cabine · 2. Dermo Kènè Pro · 3. Secrétaire IA &amp; Relances
+                    1. Diagnostic Peau en Cabine · 2. Dossiers Peau &amp; Suivi Cutané · 3. Secrétaire IA &amp; Relances
                   </p>
                 </div>
               </div>
@@ -252,43 +253,43 @@ export function DashboardSection({
                 </button>
               </div>
 
-              {/* 2. DERMO KÈNÈ PRO (PRODUIT PHARE #2) */}
+              {/* 2. DOSSIERS PEAU & SUIVI CUTANÉ (PRODUIT PHARE #2) */}
               <div className="relative flex flex-col justify-between rounded-2xl border border-border/80 bg-card/90 p-4 shadow-sm hover:border-primary/40 transition-all">
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/25 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                      <Sparkles size={11} />
+                      <FolderHeart size={11} />
                       🥈 Produit Phare #2
                     </span>
-                    <span className="text-[10px] font-medium text-muted-foreground">
-                      24h/24 &amp; 7j/7
+                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      Données en direct
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2.5">
                     <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary font-black shrink-0">
-                      <Leaf size={20} />
+                      <FolderHeart size={20} />
                     </span>
                     <div className="min-w-0">
                       <h3 className="font-heading font-black text-sm sm:text-base text-foreground leading-tight truncate">
-                        Dermo Kènè Pro
+                        Dossiers Peau &amp; Données
                       </h3>
-                      <p className="text-[10.5px] text-primary font-semibold">Guide Dermo-Scientifique</p>
+                      <p className="text-[10.5px] text-primary font-semibold">Santé cutanée &amp; Bilans clients</p>
                     </div>
                   </div>
 
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    L&apos;experte scientifique de vos praticiennes. Vérification instantanée des contre-indications et protocoles pour peaux mélanodermes.
+                    Centralisation complète : phototypes Fitzpatrick, scores de peau en direct, historique des bilans, ordonnances beauté et évolution Avant/Après.
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => onNavigate("diagnostic")}
+                  onClick={() => onNavigate("dossiers")}
                   className="mt-4 w-full h-10 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary font-heading font-bold text-xs px-3 flex items-center justify-center gap-2 active:scale-95 transition-all"
                 >
-                  <Sparkles size={14} />
-                  Consulter Dermo Kènè Pro
+                  <FolderHeart size={14} />
+                  Consulter les Dossiers Peau
                 </button>
               </div>
 
