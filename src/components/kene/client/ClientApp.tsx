@@ -406,7 +406,7 @@ export function ClientApp() {
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — HAUTE VISIBILITÉ (MOBILE & DESKTOP) */}
+              {/* 👑 BOUTON DR KÈNÈ EN HAUT — GRAND, TACTILE & ULTRA-VISIBLE */}
               <button
                 type="button"
                 onClick={() => {
@@ -414,26 +414,26 @@ export function ClientApp() {
                   goTab("chat");
                 }}
                 aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
-                title="Consulter Dermo Kènè (Conseils & Chat IA 24/7)"
+                title="Consulter Dr Kènè (Conseils dermo-botaniques & Chat IA 24/7)"
                 className={cn(
-                  "relative flex items-center gap-1.5 h-8.5 sm:h-9.5 px-2.5 sm:px-3 rounded-full border-2 transition-all active:scale-95 shadow-xs",
+                  "relative flex items-center gap-2 h-10.5 sm:h-12 px-3.5 sm:px-4.5 rounded-full border-2 transition-all active:scale-95 shadow-md shrink-0",
                   tab === "chat"
-                    ? "bg-gradient-to-r from-[#C8951E] to-[#E07A2B] text-primary-foreground border-transparent shadow-md font-black"
-                    : "border-[#C8951E]/60 bg-gradient-to-r from-[#C8951E]/20 via-gold/15 to-card hover:from-[#C8951E]/30 text-foreground font-bold hover:border-[#C8951E]"
+                    ? "bg-gradient-to-r from-[#C8951E] via-[#F3C258] to-[#B37F14] text-[#1A1410] border-[#FFD875] font-black shadow-lg"
+                    : "border-[#C8951E] bg-gradient-to-r from-[#C8951E]/25 via-gold/20 to-card hover:from-[#C8951E]/35 text-foreground font-black"
                 )}
               >
-                <span className="relative grid place-items-center">
-                  <MessageCircle className="size-4 text-[#C8951E]" />
-                  <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" />
+                <span className="relative grid size-6 place-items-center rounded-full bg-[#C8951E] text-white shadow-xs">
+                  <MessageCircle size={15} className="text-white" />
+                  <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" />
                 </span>
-                <span className="text-[11px] sm:text-xs font-black tracking-tight flex items-center gap-1 text-foreground">
-                  <span>Dermo Kènè</span>
-                  <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-[#C8951E]/25 text-[#C8951E] border border-[#C8951E]/40">
-                    IA
+                <span className="text-xs sm:text-sm font-black tracking-tight flex items-center gap-1.5 text-foreground">
+                  <span>Dr Kènè</span>
+                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-[#C8951E]/30 text-[#C8951E] dark:text-[#FFD875] border border-[#C8951E]/50 uppercase tracking-wider">
+                    24/7
                   </span>
                 </span>
                 {chatUnread && (
-                  <span className="size-2 rounded-full bg-[#8B1A3B] ring-2 ring-background animate-bounce" />
+                  <span className="size-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-background animate-bounce" />
                 )}
               </button>
 
