@@ -308,6 +308,7 @@ export function ChatScreen() {
   const [liveCamOpen, setLiveCamOpen] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const threadContainerRef = useRef<HTMLDivElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -316,6 +317,18 @@ export function ChatScreen() {
   const cancelledRef = useRef(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    requestAnimationFrame(() => {
+      if (threadContainerRef.current) {
+        threadContainerRef.current.scrollTo({
+          top: threadContainerRef.current.scrollHeight,
+          behavior: smooth ? "smooth" : "auto",
+        });
+      }
+      bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
+    });
+  }, []);
 
   // Dernier message du Dr. Kènè pour la carte de prescription
   const lastAssistantMessage = useMemo(() => {
@@ -344,9 +357,14 @@ export function ChatScreen() {
     if (!useChat.persist.hasHydrated()) void useChat.persist.rehydrate();
   }, []);
 
+  // Défilement automatique vers le message le plus récent
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, sending]);
+    if (viewMode === "thread") {
+      scrollToBottom(false);
+      const timer = setTimeout(() => scrollToBottom(true), 60);
+      return () => clearTimeout(timer);
+    }
+  }, [viewMode, messages, sending, scrollToBottom]);
 
   /* ── Micro serveur: machine à états idle → recording → transcribing ── */
 
@@ -796,6 +814,7 @@ export function ChatScreen() {
               onClick={() => {
                 setViewMode("thread");
                 haptic(HAPTIC.light);
+                setTimeout(() => scrollToBottom(true), 40);
               }}
               className={`h-9 px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
                 viewMode === "thread"
@@ -1106,7 +1125,7 @@ export function ChatScreen() {
       ) : (
         <>
           {/* Fil de discussion */}
-      <div className="relative flex-1 overflow-y-auto py-4 max-h-[56vh]" aria-live="polite">
+      <div ref={threadContainerRef} className="relative flex-1 overflow-y-auto py-4 max-h-[56vh]" aria-live="polite">
         <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-50 pointer-events-none" />
         <div className="relative flex flex-col gap-3">
           {messages.map((m) => {
