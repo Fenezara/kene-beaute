@@ -420,13 +420,26 @@ export function ClientApp() {
               >
                 <Settings className="size-4 sm:size-5" />
               </button>
+              {/* Bouton d'accès direct Dermo Kènè (visible et mis en valeur) */}
               <button
-                onClick={() => goTab("chat")}
-                aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
-                className="md:hidden relative grid place-items-center h-8 w-8 shrink-0 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition focus-visible:outline-2 focus-visible:outline-primary"
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  goTab("chat");
+                }}
+                aria-label="Discuter avec Dermo Kènè — Dermo-Conseil IA"
+                className={cn(
+                  "relative inline-flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full border text-xs font-bold transition-all active:scale-95 shadow-xs",
+                  tab === "chat"
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-gradient-to-r from-primary/15 via-[#C8951E]/15 to-card border-primary/45 text-foreground hover:bg-primary/20"
+                )}
               >
-                <MessageCircle className="size-4" />
-                {chatUnread && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#8B1A3B] ring-2 ring-background" aria-hidden="true" />}
+                <MessageCircle size={15} className={tab === "chat" ? "text-primary-foreground" : "text-primary"} />
+                <span className="font-heading font-black text-[11px] sm:text-xs tracking-tight">Dermo Kènè</span>
+                {chatUnread && (
+                  <span className="size-2 rounded-full bg-[#8B1A3B] animate-pulse ring-1 ring-background" aria-hidden="true" />
+                )}
               </button>
               <ThemeToggle />
             </div>

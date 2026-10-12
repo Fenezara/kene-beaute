@@ -44,9 +44,7 @@ import { useKene } from "@/store/kene";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { cn } from "@/lib/utils";
 import type { ApiAppointment, ApiDiagnosis, ApiInstitute, ApiProduct } from "./types";
-import { parseDiagnosis, diagImgSrc } from "./types";
 import { ConciergerieWhatsAppSection } from "./ConciergerieWhatsAppSection";
-import { ClientSkinDossierView } from "./ClientSkinDossierView";
 
 interface OrderItem {
   id: string;
@@ -78,7 +76,7 @@ export function AgendaScreen() {
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
 
-  const [activeSubTab, setActiveSubTab] = useState<"rdv" | "commandes" | "dossier" | "conciergerie">("rdv");
+  const [activeSubTab, setActiveSubTab] = useState<"rdv" | "commandes" | "conciergerie">("rdv");
   const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>([]);
@@ -149,13 +147,7 @@ export function AgendaScreen() {
       .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
   }, [appointments, now]);
 
-  // Dernier diagnostic pour le dossier peau
-  const lastDiag = useMemo(() => {
-    const sorted = [...diagnoses].filter((d) => d.status === "done").sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
-    return sorted[0] ?? null;
-  }, [diagnoses]);
 
-  const lastResult = useMemo(() => (lastDiag ? parseDiagnosis(lastDiag.resultJson) : null), [lastDiag]);
 
   // Alerte proactive J-1 / Jour J
   const nextAppt = upcomingAppts[0] ?? null;
@@ -234,8 +226,8 @@ export function AgendaScreen() {
         </button>
       </header>
 
-      {/* ───── Sélecteur de sous-onglets : RDV / Commandes / Dossier Peau / Conciergerie VIP ───── */}
-      <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-muted/50 border border-border/60">
+      {/* ───── Sélecteur de sous-onglets : RDV / Commandes & Achats / Conciergerie VIP ───── */}
+      <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60">
         <button
           type="button"
           onClick={() => {
@@ -243,16 +235,16 @@ export function AgendaScreen() {
             setActiveSubTab("rdv");
           }}
           className={cn(
-            "py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1",
+            "py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
             activeSubTab === "rdv"
               ? "bg-card text-foreground shadow-xs border border-border/80"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <CalendarDays size={13} className={activeSubTab === "rdv" ? "text-primary" : ""} />
+          <CalendarDays size={14} className={activeSubTab === "rdv" ? "text-primary" : ""} />
           <span className="truncate">Mes RDV</span>
           {upcomingAppts.length > 0 && (
-            <span className="size-4 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center font-black shrink-0">
+            <span className="size-4.5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center font-black shrink-0">
               {upcomingAppts.length}
             </span>
           )}
@@ -265,16 +257,16 @@ export function AgendaScreen() {
             setActiveSubTab("commandes");
           }}
           className={cn(
-            "py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1",
+            "py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
             activeSubTab === "commandes"
               ? "bg-card text-foreground shadow-xs border border-border/80"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <ShoppingBag size={13} className={activeSubTab === "commandes" ? "text-gold-text" : ""} />
-          <span className="truncate">Achats</span>
+          <ShoppingBag size={14} className={activeSubTab === "commandes" ? "text-gold-text" : ""} />
+          <span className="truncate">Commandes</span>
           {orders.length > 0 && (
-            <span className="size-4 rounded-full bg-gold/30 text-gold-text text-[10px] grid place-items-center font-bold shrink-0">
+            <span className="size-4.5 px-1 rounded-full bg-gold/30 text-gold-text text-[10px] grid place-items-center font-bold shrink-0">
               {orders.length}
             </span>
           )}
@@ -284,34 +276,17 @@ export function AgendaScreen() {
           type="button"
           onClick={() => {
             haptic(HAPTIC.tap);
-            setActiveSubTab("dossier");
-          }}
-          className={cn(
-            "py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1",
-            activeSubTab === "dossier"
-              ? "bg-card text-foreground shadow-xs border border-border/80"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <FolderHeart size={13} className={activeSubTab === "dossier" ? "text-primary" : ""} />
-          <span className="truncate">Dossier</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            haptic(HAPTIC.tap);
             setActiveSubTab("conciergerie");
           }}
           className={cn(
-            "py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1",
+            "py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
             activeSubTab === "conciergerie"
               ? "bg-gradient-to-r from-[#C8951E]/20 to-[#8B1A3B]/20 text-[#C8951E] shadow-xs border border-[#C8951E]/50 font-black"
               : "text-muted-foreground hover:text-[#C8951E]"
           )}
         >
-          <Crown size={13} className={activeSubTab === "conciergerie" ? "text-[#C8951E]" : "text-amber-500"} />
-          <span className="truncate">Concierge</span>
+          <Crown size={14} className={activeSubTab === "conciergerie" ? "text-[#C8951E]" : "text-amber-500"} />
+          <span className="truncate">Conciergerie</span>
         </button>
       </div>
 
@@ -584,9 +559,8 @@ export function AgendaScreen() {
               <button
                 type="button"
                 onClick={() => {
-                  const botanicals = lastResult?.recommandations?.botaniques_conseillees?.slice(0, 3).join(", ");
                   openWhatsAppProductOrderInquiry({
-                    productName: botanicals ? `Soins dermo-botaniques (${botanicals})` : "Soins sur-mesure",
+                    productName: "Mon ordonnance beauté & soins sur-mesure",
                     tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
                     instituteName: selectedInst?.name,
                     country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
@@ -687,19 +661,7 @@ export function AgendaScreen() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════
-          SOUS-ONGLET 3 : MON DOSSIER PEAU & SANTÉ EN DIRECT
-      ═══════════════════════════════════════════════════════════ */}
-      {activeSubTab === "dossier" && (
-        <ClientSkinDossierView
-          diagnoses={diagnoses}
-          selectedInstitute={selectedInst}
-          onStartScan={() => setClientTab("diagnostic")}
-          onNavigateTab={setClientTab}
-        />
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════
-          SOUS-ONGLET 4 : CONCIERGERIE PRIVÉE WHATSAPP 24/7
+          SOUS-ONGLET 3 : CONCIERGERIE PRIVÉE WHATSAPP 24/7
       ═══════════════════════════════════════════════════════════ */}
       {activeSubTab === "conciergerie" && (
         <ConciergerieWhatsAppSection
