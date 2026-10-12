@@ -13,7 +13,7 @@
 // lourds sont lazy (chunk dédié au premier clic — HomeScreen/Onboarding eager).
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarDays, Crown, Home, Loader2, MessageCircle, Settings, Share2, User, WifiOff } from "lucide-react";
+import { CalendarDays, Crown, FolderHeart, Home, Loader2, MessageCircle, Settings, Share2, User, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
 import { HAPTIC, haptic, isOnline, useNetworkOnline } from "@/lib/kene/ux";
@@ -29,6 +29,7 @@ import { ThumbBar } from "./ThumbBar";
 import { HomeScreen } from "./HomeScreen";
 import { ProfileScreen } from "./ProfileScreen";
 import { AgendaScreen } from "./AgendaScreen";
+import { ClientSkinDossierView } from "./ClientSkinDossierView";
 import { ScreenBoundary } from "./ScreenBoundary";
 import { BootSkeleton } from "./BootSkeleton";
 import { PaymentReturnHandler } from "./PaymentReturnHandler";
@@ -39,8 +40,9 @@ import { cn } from "@/lib/utils";
 /** Navigation latérale (desktop & tablette) — destinations clés */
 const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
   { tab: "accueil", labelKey: "tab.home", icon: Home },
-  { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
+  { tab: "dossier", labelKey: "tab.dossier", icon: FolderHeart },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
+  { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
   { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
@@ -48,9 +50,9 @@ const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType
 /** Tab-bar mobile — 5 emplacements équilibrés avec CTA scan surélevé au centre */
 const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
   { tab: "accueil", labelKey: "tab.home", icon: Home },
-  { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
+  { tab: "dossier", labelKey: "tab.dossier", icon: FolderHeart },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
-  { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
+  { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
@@ -61,6 +63,7 @@ type ScreenTab = ClientTab | "abonnement" | "legal";
 
 const TITLES: Record<ScreenTab, string> = {
   accueil: "title.home",
+  dossier: "title.dossier",
   agenda: "title.agenda",
   instituts: "title.profile",
   diagnostic: "title.diag",
@@ -74,7 +77,7 @@ const TITLES: Record<ScreenTab, string> = {
 };
 
 /** Ordre de balayage mobile (swipe horizontal gauche/droite) */
-const SWIPE_ORDER: ClientTab[] = ["accueil", "agenda", "diagnostic", "chat", "profil"];
+const SWIPE_ORDER: ClientTab[] = ["accueil", "dossier", "diagnostic", "agenda", "profil"];
 
 // ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
 import { DiagnosticScreen } from "./DiagnosticScreen";
@@ -484,8 +487,16 @@ export function ClientApp() {
                       <HomeScreen onScanZone={onScanZone} refreshKey={refreshKey} onRefreshed={onRefreshed} />
                     </ScreenBoundary>
                   )}
+                  {tab === "dossier" && (
+                    <ScreenBoundary name="Mon Dossier Peau & Données">
+                      <ClientSkinDossierView
+                        onStartScan={() => goTab("diagnostic")}
+                        onNavigateTab={goTab}
+                      />
+                    </ScreenBoundary>
+                  )}
                   {(tab === "agenda" || (tab as any) === "rdv") && (
-                    <ScreenBoundary name="Agenda & Dossier Peau">
+                    <ScreenBoundary name="Agenda & Rendez-vous">
                       <AgendaScreen />
                     </ScreenBoundary>
                   )}

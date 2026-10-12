@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, FolderHeart, LayoutDashboard, Plus, Settings, ShoppingBag, ScanFace, TicketPercent, UserPlus, WifiOff } from "lucide-react";
+import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, ScanFace, TicketPercent, UserPlus, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -27,7 +27,6 @@ import { DashboardSection } from "./DashboardSection";
 import { AgendaSection } from "./AgendaSection";
 import { PosSection } from "./PosSection";
 import { CrmSection } from "./CrmSection";
-import { DossiersSection } from "./DossiersSection";
 import { RelancesSection } from "./RelancesSection";
 import { CatalogSection } from "./CatalogSection";
 import { StockSection } from "./StockSection";
@@ -43,12 +42,11 @@ import { MamanAssistantModal } from "./MamanAssistantModal";
 import { AssistantSection } from "./AssistantSection";
 import { formatRole, ROLE_LABELS } from "@/lib/kene/hr-constants";
 
-export type ProSectionId = "dashboard" | "assistant" | "agenda" | "diagnostic" | "dossiers" | "caisse" | "orders" | "crm" | "relances" | "equipe" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
+export type ProSectionId = "dashboard" | "assistant" | "agenda" | "diagnostic" | "caisse" | "orders" | "crm" | "relances" | "equipe" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
   { id: "diagnostic", label: "📸 Diagnostic Peau", icon: ScanFace, hint: "En cabine, ordonnances beauté & ventes" },
-  { id: "dossiers", label: "📁 Dossiers Peau & Données", icon: FolderHeart, hint: "Toutes les données de peau, bilans cutanés & dossiers clients" },
   { id: "assistant", label: "👑 Secrétaire IA", icon: Crown, hint: "Rappels WhatsApp 24/7 & Débriefing" },
   { id: "agenda", label: "Agenda & Soins", icon: SankofaIcon, hint: "Rendez-vous" },
   { id: "caisse", label: "Ventes & Caisse", icon: AbanIcon, hint: "Caisse POS · Commandes en ligne" },
@@ -67,16 +65,16 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
  * sont ni affichées ni atteignables (redirection auto si la section
  * courante n'est pas autorisée — p.ex. après un changement de compte). */
 const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
-  estheticienne: ["diagnostic", "dossiers", "agenda", "assistant", "parametres"],
-  dermo_conseillere: ["diagnostic", "dossiers", "crm", "agenda", "relances", "assistant", "parametres"],
-  coiffeuse: ["agenda", "diagnostic", "dossiers", "assistant", "parametres"],
-  prothesiste_ongulaire: ["agenda", "diagnostic", "dossiers", "assistant", "parametres"],
-  masseuse: ["agenda", "diagnostic", "dossiers", "assistant", "parametres"],
+  estheticienne: ["diagnostic", "agenda", "assistant", "parametres"],
+  dermo_conseillere: ["diagnostic", "crm", "agenda", "relances", "assistant", "parametres"],
+  coiffeuse: ["agenda", "diagnostic", "assistant", "parametres"],
+  prothesiste_ongulaire: ["agenda", "diagnostic", "assistant", "parametres"],
+  masseuse: ["agenda", "diagnostic", "assistant", "parametres"],
   caissiere: ["caisse", "catalogue", "assistant", "parametres"],
-  receptionniste: ["agenda", "dossiers", "caisse", "crm", "relances", "assistant", "parametres"],
+  receptionniste: ["agenda", "caisse", "crm", "relances", "assistant", "parametres"],
   responsable_stock: ["catalogue", "stock", "assistant", "parametres"],
-  manager: ["dashboard", "diagnostic", "dossiers", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue", "parametres"],
-  apprentie: ["diagnostic", "dossiers", "agenda", "assistant", "parametres"],
+  manager: ["dashboard", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue", "parametres"],
+  apprentie: ["diagnostic", "agenda", "assistant", "parametres"],
 };
 
 const PLAN_STYLES: Record<string, string> = {
@@ -791,17 +789,6 @@ export function ProApp() {
                 preselectCommand={diagCommand}
                 onCommandHandled={() => setDiagCommand(null)}
                 onNavigate={openSection}
-              />
-            )}
-            {activeSection === "dossiers" && (
-              <DossiersSection
-                tenantId={tid}
-                refreshKey={refreshKey}
-                onNavigate={openSection}
-                onStartDiagnostic={(clientId) => {
-                  setDiagCommand({ clientId, nonce: Date.now() });
-                  openSection("diagnostic");
-                }}
               />
             )}
             {(activeSection === "caisse" || activeSection === "orders") && (

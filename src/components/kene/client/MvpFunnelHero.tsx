@@ -11,6 +11,7 @@ import {
   MessageCircle,
   Leaf,
   Sparkles,
+  FolderHeart,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
@@ -41,6 +42,7 @@ export function MvpFunnelHero({
   onOpenContactKene,
 }: MvpFunnelHeroProps) {
   const user = useKene((s) => s.user)!;
+  const setClientTab = useKene((s) => s.setClientTab);
 
   const currentInstitute = useMemo(() => {
     if (!institutes || institutes.length === 0) {
@@ -270,6 +272,17 @@ export function MvpFunnelHero({
             >
               <ScanFace size={16} className="text-primary" />
               Nouveau contrôle de peau (30s)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setClientTab("dossier");
+              }}
+              className="col-span-full flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary font-heading font-bold text-xs py-2.5 px-4 transition-all"
+            >
+              <FolderHeart size={15} />
+              Accéder à mon Dossier Peau &amp; Évolution en Direct →
             </button>
           </div>
           <p className="text-[11px] text-center text-muted-foreground mt-2">

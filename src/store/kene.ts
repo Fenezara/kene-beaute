@@ -22,7 +22,7 @@ import { persist } from "zustand/middleware";
 import type { CartLine } from "@/lib/kene/types";
 
 export type Space = "client" | "pro" | "admin";
-export type ClientTab = "accueil" | "agenda" | "instituts" | "diagnostic" | "boutique" | "rdv" | "chat" | "profil" | "parametres" | "abonnement" | "legal";
+export type ClientTab = "accueil" | "agenda" | "dossier" | "instituts" | "diagnostic" | "boutique" | "rdv" | "chat" | "profil" | "parametres" | "abonnement" | "legal";
 
 export interface SessionUser {
   id: string;

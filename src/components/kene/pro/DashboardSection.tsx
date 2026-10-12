@@ -18,8 +18,6 @@ import {
   ScanFace,
   Crown,
   Sparkles,
-  Leaf,
-  FolderHeart,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -203,7 +201,7 @@ export function DashboardSection({
                     Le Triptyque Kènè · Vos 3 Moteurs d&apos;Établissement
                   </h2>
                   <p className="text-[11px] text-muted-foreground">
-                    1. Diagnostic Peau en Cabine · 2. Dossiers Peau &amp; Suivi Cutané · 3. Secrétaire IA &amp; Relances
+                    1. Diagnostic Peau en Cabine · 2. Agenda &amp; Soins · 3. Secrétaire IA &amp; Relances
                   </p>
                 </div>
               </div>
@@ -253,43 +251,43 @@ export function DashboardSection({
                 </button>
               </div>
 
-              {/* 2. DOSSIERS PEAU & SUIVI CUTANÉ */}
+              {/* 2. AGENDA & PLANNING CABINE */}
               <div className="relative flex flex-col justify-between rounded-2xl border border-border/80 bg-card/90 p-4 shadow-sm hover:border-primary/40 transition-all">
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/25 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                      <FolderHeart size={11} />
-                      📁 Moteur N°2
+                      <CalendarCheck size={11} />
+                      📅 Moteur N°2
                     </span>
                     <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                      Données en direct
+                      Synchronisé WhatsApp
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2.5">
                     <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary font-black shrink-0">
-                      <FolderHeart size={20} />
+                      <CalendarCheck size={20} />
                     </span>
                     <div className="min-w-0">
                       <h3 className="font-heading font-black text-sm sm:text-base text-foreground leading-tight truncate">
-                        Dossiers Peau &amp; Données
+                        Agenda &amp; Soins Cabine
                       </h3>
-                      <p className="text-[10.5px] text-primary font-semibold">Santé cutanée &amp; Bilans clients</p>
+                      <p className="text-[10.5px] text-primary font-semibold">Planning &amp; Réservations</p>
                     </div>
                   </div>
 
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Centralisation complète : phototypes Fitzpatrick, scores de peau en direct, historique des bilans, ordonnances beauté et évolution Avant/Après.
+                    Gérez vos rendez-vous cabine, assignez vos praticiennes et suivez les demandes de soins reçues directement par WhatsApp.
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => onNavigate("dossiers")}
+                  onClick={() => onNavigate("agenda")}
                   className="mt-4 w-full h-10 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary font-heading font-bold text-xs px-3 flex items-center justify-center gap-2 active:scale-95 transition-all"
                 >
-                  <FolderHeart size={14} />
-                  Consulter les Dossiers Peau
+                  <CalendarCheck size={14} />
+                  Consulter l&apos;Agenda Cabine
                 </button>
               </div>
 

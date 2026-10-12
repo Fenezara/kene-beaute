@@ -5,7 +5,7 @@
 // 3. 📜 Historique de mes Bilans Cutanés : Traçabilité chronologique de tous les scans et diagnostics passés
 // 4. 📸 Évolution & Comparateur Avant / Après : Curseur interactif tactile de progrès cutané (-34% taches, +28% hydratation, +42% éclat)
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderHeart,
@@ -39,6 +39,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { formatDate, formatTime, scoreColor } from "@/lib/kene/format";
+import { apiGet } from "@/lib/kene/api";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
 import { parseDiagnosis, diagImgSrc } from "./types";
@@ -47,18 +48,34 @@ import { useKene, type ClientTab } from "@/store/kene";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 
 interface Props {
-  diagnoses: ApiDiagnosis[];
+  diagnoses?: ApiDiagnosis[];
   selectedInstitute?: ApiInstitute | { id: string; name: string; city: string; phone?: string | null; ownerPhone?: string | null; country?: string | null } | null;
   onStartScan?: () => void;
   onNavigateTab?: (tab: ClientTab) => void;
 }
 
-export function ClientSkinDossierView({ diagnoses, selectedInstitute, onStartScan, onNavigateTab }: Props) {
-  const user = useKene((s) => s.user)!;
+export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedInstitute, onStartScan, onNavigateTab }: Props) {
+  const storeUser = useKene((s) => s.user);
   const setClientTab = useKene((s) => s.setClientTab);
+  const user = storeUser || { id: "guest", name: "Ma Peau", fitzpatrick: "V", skinType: "Mixte", city: "Abidjan", pregnant: false, allergies: null as string | null };
 
   // 4 Sous-vues de l'espace Peau
   const [activeView, setActiveView] = useState<"dossier" | "live" | "historique" | "avant_apres">("dossier");
+
+  // Diagnoses gérées localement si non injectées depuis l'extérieur
+  const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>(initialDiagnoses ?? []);
+
+  useEffect(() => {
+    if (initialDiagnoses && initialDiagnoses.length > 0) {
+      setDiagnoses(initialDiagnoses);
+    } else if (storeUser?.id) {
+      apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${storeUser.id}`)
+        .then((res) => {
+          if (res?.diagnoses) setDiagnoses(res.diagnoses);
+        })
+        .catch(() => {});
+    }
+  }, [initialDiagnoses, storeUser?.id]);
 
   // Dernier bilan
   const lastDiag = useMemo(() => {

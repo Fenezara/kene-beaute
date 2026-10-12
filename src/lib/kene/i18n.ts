@@ -27,6 +27,7 @@ const FR: Dict = {
   // Onglets (tab-bar mobile + rail desktop)
   "tab.home": "Accueil",
   "tab.agenda": "Agenda",
+  "tab.dossier": "Dossier Peau",
   "tab.scan": "Scanner",
   "tab.shop": "Boutique",
   "tab.shop.short": "Boutik",
@@ -41,6 +42,7 @@ const FR: Dict = {
   // Titres d'écran (h1 du header ClientApp)
   "title.home": "Accueil",
   "title.agenda": "Agenda & Soins",
+  "title.dossier": "Mon Dossier Peau & Données",
   "title.institutes": "Instituts & Salons Partenaires",
   "title.diag": "Diagnostic IA",
   "title.shop": "Boutique",
