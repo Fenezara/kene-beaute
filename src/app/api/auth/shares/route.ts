@@ -113,11 +113,18 @@ export async function POST(req: NextRequest) {
       select: { id: true },
     });
     if (!profile) {
+      const u = await db.user.findUnique({
+        where: { id: userId },
+        select: { name: true, phone: true, city: true, fitzpatrick: true },
+      });
       profile = await db.clientProfile.create({
         data: {
           userId,
           tenantId,
-          source: "share_opt_in",
+          name: u?.name || "Cliente Kènè",
+          phone: u?.phone || "00000000",
+          district: u?.city || undefined,
+          fitzpatrick: u?.fitzpatrick ? String(u.fitzpatrick) : undefined,
           notes: "Liaison et consentement de partage accordés par la cliente sur Kènè",
         },
         select: { id: true },
