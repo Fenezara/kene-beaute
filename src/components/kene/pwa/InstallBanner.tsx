@@ -8,35 +8,27 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { motion } from "framer-motion";
-import { Download, Share, X } from "lucide-react";
+import { Share, X } from "lucide-react";
 import { toast } from "sonner";
 import { KeneEmblem } from "@/components/kene/icons";
 import { Button } from "@/components/ui/button";
 import { useInstallPrompt } from "./use-install";
 
 const DISMISS_KEY = "kene-install-dismissed";
+/** Délai avant de conclure « pas de prompt natif » (iOS / navigateurs sans support). */
+const PROMPT_GRACE_MS = 3000;
 
-/* ─── Store externe: bannière fermée (localStorage / sessionStorage) ─── */
+/* ─── Store externe: bannière fermée (localStorage) ─── */
 
 function subscribeDismiss(callback: () => void): () => void {
+  // L'événement storage couvre la fermeture depuis un autre onglet.
   window.addEventListener("storage", callback);
   return () => window.removeEventListener("storage", callback);
 }
 
 function readDismissed(): boolean {
   try {
-    if (typeof window === "undefined") return false;
-    if (window.sessionStorage.getItem(DISMISS_KEY) === "1") return true;
-    const val = window.localStorage.getItem(DISMISS_KEY);
-    if (!val) return false;
-    const ts = parseInt(val, 10);
-    if (!isNaN(ts)) {
-      // Masquage temporaire de 24h au maximum après avoir cliqué sur la croix
-      return Date.now() - ts < 24 * 60 * 60 * 1000;
-    }
-    // Ancienne valeur statique "1" : on la purge pour permettre le réaffichage
-    window.localStorage.removeItem(DISMISS_KEY);
-    return false;
+    return window.localStorage.getItem(DISMISS_KEY) === "1";
   } catch {
     return false;
   }
@@ -52,27 +44,31 @@ export function InstallBanner() {
   const storedDismissed = useSyncExternalStore(subscribeDismiss, readDismissed, serverDismissed);
   const [localDismissed, setLocalDismissed] = useState(false);
   const [installed, setInstalled] = useState(false);
+  const [settled, setSettled] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
+    // iOS: aucun beforeinstallprompt n'arrivera — on attend ~3 s avant de
+    // conclure et d'afficher la variante « instructions iPhone ».
+    const timer = window.setTimeout(() => setSettled(true), PROMPT_GRACE_MS);
     const onAppInstalled = () => setInstalled(true);
     window.addEventListener("appinstalled", onAppInstalled);
     return () => {
+      window.clearTimeout(timer);
       window.removeEventListener("appinstalled", onAppInstalled);
     };
   }, []);
 
-  // Visible si l'app n'est pas encore installée (non-standalone), non fermée
-  const visible = !isStandalone && !installed && !(storedDismissed || localDismissed);
+  const showNative = canInstall && !installed;
+  const showIOS = isIOS && settled && !canInstall && !installed;
+  const visible = !(storedDismissed || localDismissed) && !isStandalone && (showNative || showIOS);
 
   function dismiss() {
     setLocalDismissed(true);
     try {
-      window.sessionStorage.setItem(DISMISS_KEY, "1");
-      window.localStorage.setItem(DISMISS_KEY, Date.now().toString());
-      window.dispatchEvent(new Event("storage"));
+      window.localStorage.setItem(DISMISS_KEY, "1");
     } catch {
-      /* mode privé */
+ /* mode privé: la fermeture reste valable pour la session */
     }
   }
 
@@ -82,7 +78,7 @@ export function InstallBanner() {
       if (accepted) toast.success("Kènè installée sur ton écran d'accueil 💛");
       return;
     }
-    // Si pas de prompt natif immédiat (iOS, Firefox, webview...) → afficher les instructions
+    // iOS (ou pas de prompt natif) → instructions.
     setHelpOpen((v) => !v);
   }
 
@@ -107,9 +103,9 @@ export function InstallBanner() {
         <Button
           size="sm"
           onClick={() => void onInstall()}
-          aria-expanded={helpOpen}
-          aria-controls="kene-install-help"
-          className="min-h-10 font-bold"
+          aria-expanded={showIOS ? helpOpen : undefined}
+          aria-controls={showIOS ? "kene-ios-help" : undefined}
+          className="min-h-10"
         >
           Installer
         </Button>
@@ -123,34 +119,21 @@ export function InstallBanner() {
         </button>
       </div>
 
-      {helpOpen && (
+      {showIOS && helpOpen && (
         <motion.div
-          id="kene-install-help"
+          id="kene-ios-help"
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           transition={{ duration: 0.22, ease: "easeOut" }}
           className="overflow-hidden"
         >
           <div className="mt-3 rounded-xl bg-muted/70 px-3 py-3 flex items-start gap-2.5">
-            {isIOS ? (
-              <>
-                <Share size={16} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
-                <p className="text-[11px] leading-relaxed">
-                  Sur iPhone : appuyez sur le bouton <strong>Partager</strong> <span aria-hidden="true">⬆️</span>
-                  <span className="sr-only">flèche vers le haut</span> puis sur «&nbsp;
-                  <strong>Sur l&apos;écran d&apos;accueil</strong>&nbsp;».
-                </p>
-              </>
-            ) : (
-              <>
-                <Download size={16} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
-                <p className="text-[11px] leading-relaxed">
-                  Dans le navigateur : appuyez sur le menu (les 3 points <strong>⋮</strong> ou Partager) puis sur «&nbsp;
-                  <strong>Installer l&apos;application</strong>&nbsp;» ou «&nbsp;
-                  <strong>Ajouter à l&apos;écran d&apos;accueil</strong>&nbsp;».
-                </p>
-              </>
-            )}
+            <Share size={16} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+            <p className="text-[11px] leading-relaxed">
+              Sur iPhone : bouton <strong>Partager</strong> <span aria-hidden="true">⬆️</span>
+              <span className="sr-only">flèche vers le haut</span> puis «&nbsp;
+              <strong>Sur l&apos;écran d&apos;accueil</strong>&nbsp;».
+            </p>
           </div>
         </motion.div>
       )}

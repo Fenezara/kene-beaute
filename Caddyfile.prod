@@ -12,14 +12,6 @@
 kene-beaute.com, www.kene-beaute.com {
 	encode gzip zstd
 
-	# Cache immutable pour les assets statiques Next.js (hachés par build)
-	@static {
-		path /_next/static/* /icons/* /manifest.webmanifest
-	}
-	header @static {
-		Cache-Control "public, max-age=31536000, immutable"
-	}
-
 	# Microservice WebSocket & Notifications push temps réel (notify-service)
 	@notify {
 		query XTransformPort=3004*

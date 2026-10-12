@@ -148,7 +148,6 @@ export function AgendaScreen() {
   }, [appointments, now]);
 
 
-
   // Alerte proactive J-1 / Jour J
   const nextAppt = upcomingAppts[0] ?? null;
   const proactiveReminder = useMemo(() => {

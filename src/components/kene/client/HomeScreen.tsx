@@ -21,7 +21,6 @@ import { apiGet } from "@/lib/kene/api";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 import { KeneEmblem } from "@/components/kene/icons";
 import { Reveal, RevealItem } from "@/components/kene/ui2026";
-import { InstallBanner } from "@/components/kene/pwa/InstallBanner";
 import { useT } from "@/lib/kene/use-t";
 import { useKene } from "@/store/kene";
 import { MvpFunnelHero } from "./MvpFunnelHero";
@@ -272,11 +271,6 @@ export function HomeScreen({
           </div>
         </RevealItem>
       )}
-
-      {/* ───── Bannière d'installation PWA (visible si non installée) ───── */}
-      <RevealItem>
-        <InstallBanner />
-      </RevealItem>
 
       {/* ───── 1. HERO DU DIAGNOSTIC DE PEAU & BILAN CUTANÉ ───── */}
       <RevealItem>

@@ -27,6 +27,9 @@ import { useT } from "@/lib/kene/use-t";
 import { WelcomeThreshold } from "./WelcomeThreshold";
 import { ThumbBar } from "./ThumbBar";
 import { HomeScreen } from "./HomeScreen";
+import { ProfileScreen } from "./ProfileScreen";
+import { AgendaScreen } from "./AgendaScreen";
+import { ClientSkinDossierView } from "./ClientSkinDossierView";
 import { ScreenBoundary } from "./ScreenBoundary";
 import { BootSkeleton } from "./BootSkeleton";
 import { PaymentReturnHandler } from "./PaymentReturnHandler";
@@ -76,17 +79,13 @@ const TITLES: Record<ScreenTab, string> = {
 /** Ordre de balayage mobile (swipe horizontal gauche/droite) */
 const SWIPE_ORDER: ClientTab[] = ["accueil", "dossier", "diagnostic", "agenda", "profil"];
 
-// ─── Écrans secondaires chargés à la demande (React.lazy / Code-splitting) ───
-// HomeScreen et WelcomeThreshold restent eager pour un affichage instantané
-const DiagnosticScreen = lazy(() => import("./DiagnosticScreen").then((m) => ({ default: m.DiagnosticScreen })));
-const ChatScreen = lazy(() => import("./ChatScreen").then((m) => ({ default: m.ChatScreen })));
-const AgendaScreen = lazy(() => import("./AgendaScreen").then((m) => ({ default: m.AgendaScreen })));
-const ClientSkinDossierView = lazy(() => import("./ClientSkinDossierView").then((m) => ({ default: m.ClientSkinDossierView })));
-const ProfileScreen = lazy(() => import("./ProfileScreen").then((m) => ({ default: m.ProfileScreen })));
-const SettingsScreen = lazy(() => import("./SettingsScreen").then((m) => ({ default: m.SettingsScreen })));
-const PlanScreen = lazy(() => import("./PlanScreen").then((m) => ({ default: m.PlanScreen })));
-const LegalScreen = lazy(() => import("./LegalScreen").then((m) => ({ default: m.LegalScreen })));
-const NotificationCenter = lazy(() => import("./NotificationCenter").then((m) => ({ default: m.NotificationCenter })));
+// ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
+import { DiagnosticScreen } from "./DiagnosticScreen";
+import { ChatScreen } from "./ChatScreen";
+import { SettingsScreen } from "./SettingsScreen";
+import { PlanScreen } from "./PlanScreen";
+import { LegalScreen } from "./LegalScreen";
+import { NotificationCenter } from "./NotificationCenter";
 
 /** Squelette d'attente d'onglet — spinner discret pendant le chargement du chunk */
 function TabLoading() {
@@ -394,10 +393,10 @@ export function ClientApp() {
  k-chrome = verre blur+saturate (le CSS gère le filet et l'ombre). Safe-area mobile garantie (≥ 36px). */}
         <header className="shrink-0 z-40 k-chrome pt-8 sm:pt-4 md:pt-0 [padding-top:max(env(safe-area-inset-top,0px),2.25rem)] md:[padding-top:env(safe-area-inset-top,0px)]">
           <div className="h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3 px-2.5 sm:px-5">
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <div className="md:hidden shrink-0">
                 {/* Lockup Sceau officiel compact — le Médaillon Kènè + nom sans sous-titre écrasant */}
-                <KeneEmblemLockup size={32} labelSize={16} sublabel={null} />
+                <KeneEmblemLockup size={34} labelSize={17} sublabel={null} />
               </div>
               <div className="hidden md:flex items-baseline gap-2.5 min-w-0 flex-1 overflow-hidden">
                 <h1 className="font-heading font-bold tracking-tight text-lg xl:text-xl truncate text-foreground">{t(TITLES[tab])}</h1>
@@ -406,7 +405,38 @@ export function ClientApp() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — HAUTE VISIBILITÉ (MOBILE & DESKTOP) */}
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  goTab("chat");
+                }}
+                aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
+                title="Consulter Dermo Kènè (Conseils & Chat IA 24/7)"
+                className={cn(
+                  "relative flex items-center gap-1.5 h-8.5 sm:h-9.5 px-2.5 sm:px-3 rounded-full border-2 transition-all active:scale-95 shadow-xs",
+                  tab === "chat"
+                    ? "bg-gradient-to-r from-[#C8951E] to-[#E07A2B] text-primary-foreground border-transparent shadow-md font-black"
+                    : "border-[#C8951E]/60 bg-gradient-to-r from-[#C8951E]/20 via-gold/15 to-card hover:from-[#C8951E]/30 text-foreground font-bold hover:border-[#C8951E]"
+                )}
+              >
+                <span className="relative grid place-items-center">
+                  <MessageCircle className="size-4 text-[#C8951E]" />
+                  <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" />
+                </span>
+                <span className="text-[11px] sm:text-xs font-black tracking-tight flex items-center gap-1 text-foreground">
+                  <span>Dermo Kènè</span>
+                  <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-[#C8951E]/25 text-[#C8951E] border border-[#C8951E]/40">
+                    IA
+                  </span>
+                </span>
+                {chatUnread && (
+                  <span className="size-2 rounded-full bg-[#8B1A3B] ring-2 ring-background animate-bounce" />
+                )}
+              </button>
+
               <SpaceSwitcher variant="compact" />
               {/* Cloche notifications: flux temps réel (notify-service) —
  lazy: socket.io + Sheet chargés dans leur propre chunk */}
@@ -421,31 +451,7 @@ export function ClientApp() {
               >
                 <Settings className="size-4 sm:size-5" />
               </button>
-              {/* Bouton d'accès direct Dermo Kènè (icône tactile sur mobile, texte complet dès tablette) */}
-              <button
-                type="button"
-                onClick={() => {
-                  haptic(HAPTIC.tap);
-                  goTab("chat");
-                }}
-                aria-label="Discuter avec Dermo Kènè — Dermo-Conseil IA"
-                className={cn(
-                  "relative inline-flex items-center justify-center gap-1.5 h-8 w-8 sm:w-auto sm:h-9 sm:px-3 rounded-full border text-xs font-bold transition-all active:scale-95 shadow-xs shrink-0",
-                  tab === "chat"
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : "bg-gradient-to-r from-primary/15 via-[#C8951E]/15 to-card border-primary/45 text-foreground hover:bg-primary/20"
-                )}
-              >
-                <MessageCircle size={15} className={tab === "chat" ? "text-primary-foreground" : "text-primary"} />
-                <span className="hidden sm:inline font-heading font-black text-xs tracking-tight">Dermo Kènè</span>
-                {chatUnread && (
-                  <span className="absolute -top-0.5 -right-0.5 sm:static size-2 rounded-full bg-[#8B1A3B] animate-pulse ring-1 ring-background" aria-hidden="true" />
-                )}
-              </button>
-              {/* Bascule de thème — visible dès tablette, évite de saturer l'en-tête smartphone */}
-              <div className="hidden sm:block shrink-0">
-                <ThemeToggle />
-              </div>
+              <ThemeToggle />
             </div>
           </div>
           <div aria-hidden="true" className="kente-band-soft h-[2px] w-full" />

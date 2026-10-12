@@ -35,30 +35,25 @@ La dermatologie et la cosmétologie mondiales ont historiquement été formulée
 ## 3. Périmètre Fonctionnel Détaillé
 
 ### 3.1 Espace Cliente (Web Responsive & Android TWA)
-* **Le Seuil, Découverte & Installation PWA** :
+* **Le Seuil & Découverte** :
   - Page d'accueil cinématique sans friction avec hero éditorial.
-  - **Bannière d'installation PWA universelle (InstallBanner)** : invitation non-intrusive en tête de flux dès la première visite hors standalone, avec prompt natif 1-tap (Android/Chrome) ou guide dépliable pas-à-pas (iOS Partager ⬆️ puis « Sur l'écran d'accueil », Android ⋮).
   - Stories vidéo opt-in « Découvrir Kènè en 30 secondes ».
   - Reconnexion express 1-tap basée sur le stockage sécurisé de compte.
   - Mode exploration libre sans inscription obligatoire.
-  - **En-tête responsive compact** : protection anti-chevauchement sur smartphone avec logo Médaillon protégé et accès direct Dermo Kènè.
 * **Moteur d'Analyse Cutanée (Diagnostic IA VLM)** :
   - Cartographie anatomique en **23 zones corporelles** avec buste 3D interactif.
   - Détection et notation sur 100 de 14 indicateurs cutanés (barrière lipidique, HPI, sébum, rougeurs, desquamation).
   - Génération d'une **Ordonnance Dermo-Botanique vectorielle native (PDF)** intégrant le **Pass Cabine QR** pour l'institut.
-* **Consultation Vocale & IA « Dermo Kènè » (Orbe 3D Interactif)** :
-  - Assistant conversationnel dermo-esthétique alimenté par LLM calibré aux phototypes IV à VI.
-  - **Expérience vocale continue par défaut** : microphone ouvert automatiquement à l'entrée dans l'orbe, synthèse vocale (TTS) activée par défaut, reprise automatique de l'écoute après chaque réponse pour un dialogue naturel mains libres.
-  - **Mode fil de discussion avec défilement intelligent** : bouton « Fil complet » basculant sur l'historique complet avec scroll automatique immédiat vers le message le plus récent/actuel.
+* **Conseil Virtuel « Dr. Kènè »** :
+  - Assistant conversationnel dermo-esthétique alimenté par LLM calibré.
   - Triage médical d'urgence en 3 niveaux :
     - 🟢 *Vert* : Routine dermo-botanique maison.
     - 🟡 *Jaune* : Consultation requise auprès d'une dermo-conseillère en institut.
     - 🔴 *Rouge* : Alerte immédiate (signes ABCDE, suspicion de mélanome, brûlure, ochronose) et orientation d'urgence vers un médecin dermatologue.
   - Entrée vocale (ASR) et synthèse vocale (TTS) avec résumé multilingue (Français, Dioula, Baoulé, Bété).
-* **Marketplace, Concierge WhatsApp & Réservations** :
-  - **Module Concierge Beauté & Relais WhatsApp multi-établissements** : prise en charge complète de tous les types d'entreprises partenaires (Instituts, Spas, Salons de coiffure, Dermo-centres esthétiques, Boutiques) avec messages pré-remplis contextualisés pour la réservation et la commande de routines.
+* **Marketplace & Réservations** :
   - Prise de rendez-vous en ligne avec calcul d'acompte anti-no-show.
-  - Boutique dermo-botanique organisée par établissement partenaire.
+  - Boutique dermo-botanique organisée par institut partenaire.
   - Paiement intégré Mobile Money (Wave, Orange Money, MTN) et Wallet Kènè avec cashback automatique de 5 %.
 
 ### 3.2 Espace Pro (Gestion Complète d'Institut — Kènè Pro)

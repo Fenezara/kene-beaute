@@ -28,16 +28,9 @@ import { MaintenanceScreen } from "@/components/kene/MaintenanceScreen";
 import type { MaintenanceConfig } from "@/lib/kene/maintenance";
 import { Toaster } from "@/components/ui/sonner";
 
-// Espaces Pro / Admin / Pin: chunks séparés, chargés à l'entrée de l'espace (code splitting)
-const ProApp = dynamic(() => import("@/components/kene/pro/ProApp").then((m) => ({ default: m.ProApp })), {
-  ssr: false,
-  loading: () => <BootSkeleton />,
-});
-
-const PinEntry = dynamic(() => import("@/components/kene/auth/PinEntry").then((m) => ({ default: m.PinEntry })), {
-  ssr: false,
-  loading: () => <BootSkeleton />,
-});
+// Espaces Pro / Admin / Pin: chunks séparés, chargés à l'entrée de l'espace
+import { ProApp } from "@/components/kene/pro/ProApp";
+import { PinEntry } from "@/components/kene/auth/PinEntry";
 
 // Console Admin: uniquement derrière /console (recharts ~100 ko gz)
 const AdminApp = dynamic(() => import("@/components/kene/admin/AdminApp").then((m) => ({ default: m.AdminApp })), {
