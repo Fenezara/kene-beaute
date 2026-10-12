@@ -3244,3 +3244,48 @@ Work Log:
 Stage Summary:
 - LIVRÉ : Architecture de conformité 2026 complète, conciliant exigences strictes des stores (Apple 5.1.1(v), Google Play), protection de la vie privée (RGPD/ARTCI) et obligations comptables africaines (SYSCOHADA).
 
+---
+Task ID: t.146
+Agent: agent principal (Antigravity)
+Task: ERGONOMIE MOBILE, DERMO KÈNÈ VOCAL CONTINU & NAVIGATION DANS LE SCANNER.
+
+Work Log:
+- En-tête mobile (`ClientApp.tsx`) : Résolution du chevauchement d'éléments sur smartphone (< 640px) :
+  - Bouton d'accès Dermo Kènè compact avec libellé responsive (« Dermo Kènè » au lieu d'un texte trop long).
+  - Masquage de `ThemeToggle` sur petit écran pour libérer l'espace (disponible sur tablette/PC et dans Paramètres).
+  - Protection `shrink-0` sur le logo `KeneEmblemLockup`.
+- Dermo Kènè vocal (`ChatScreen.tsx`) :
+  - Microphone activé par défaut : démarrage automatique de l'enregistrement (`startRecording(true)`) dès le montage en vue Orbe de consultation (`viewMode === "orb"`).
+  - Synthèse vocale (`ttsOn`) activée par défaut à l'initialisation (`true` au lieu de `false`).
+  - Dialogue continu mains libres : réactivation automatique de l'écoute du micro dans le callback `onEnd` de `speak` pour maintenir l'échange en direct sans réappui manuel systématique.
+- Navigation scanner & fil de discussion :
+  - Bouton « Fil complet ({messages.length}) » : défilement automatique immédiat et fluide (`scrollToBottom`) vers le message le plus récent/actuel lors du passage en mode fil.
+  - Ajout de `threadContainerRef` et double tempo (synchrone + RAF) pour garantir l'atterrissage sur le dernier échange même après rendu asynchrone des bulles.
+- Simplification des onglets (`AgendaScreen.tsx`) :
+  - Suppression du sous-onglet redondant « Dossier » dans l'Agenda (accessible directement dans la tab-bar principale).
+- Accès rapide & Accueil (`HomeScreen.tsx`) :
+  - Élargissement des zones tactiles des boutons d'accès rapide (`h-12`, padding généreux).
+  - Suppression des doublons de lignes et épuration des visuels obsolètes.
+
+Stage Summary:
+- LIVRÉ : Expérience mobile sans chevauchement, dialogue vocal Dermo Kènè fluide et continu, et défilement immédiat vers les messages récents dans le scanner.
+
+---
+Task ID: t.147
+Agent: agent principal (Antigravity)
+Task: BANNIÈRE D'INSTALLATION PWA UNIVERSELLE & EXPANSION DU CONCIERGE MULTI-ÉTABLISSEMENTS.
+
+Work Log:
+- Bannière PWA (`InstallBanner.tsx`) :
+  - Réintégration dans le flux d'accueil (`HomeScreen.tsx`) entre la salutation/subNotice et le funnel hero.
+  - Rendu universel : affichage garanti pour tout navigateur web tant que l'application n'est pas installée en mode standalone (`!isStandalone && !installed`).
+  - Détection multi-plateformes : prompt natif si disponible (`canInstall === true`), ou volet d'assistance dépliable avec instructions adaptées (Partager ⬆️ puis « Sur l'écran d'accueil » pour iOS ; menu ⋮ puis « Installer l'application » pour Android, Chrome, Firefox, Samsung Internet et Desktop).
+  - Gestion du masquage : persistance temporaire de 24 heures via horodatage au lieu d'un masquage permanent irréversible lors du clic sur la croix.
+- Écosystème Concierge & WhatsApp :
+  - Prise en compte exhaustive de tous les types d'entreprises du secteur (Instituts, Spas, Salons de coiffure, Dermo-centres esthétiques, Boutiques spécialisées).
+  - Relais WhatsApp automatisés avec messages pré-remplis contextualisés pour la prise de rendez-vous, la commande de produits recommandés par l'IA et le suivi d'ordonnance.
+- Validation & Déploiement :
+  - `npx tsc --noEmit` validé à 0 erreur.
+  - Commit et push sur la branche principale `main`.
+
+
