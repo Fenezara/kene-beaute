@@ -76,7 +76,7 @@ assert(proj.scoreJ30 > proj.scoreJ14, `J30 cycle épidermique amplifie le résul
 assert(proj.scoreJ60 > proj.scoreJ30, `J60 consolidation dermo-botanique maximale (${proj.scoreJ60}/100)`);
 assert(proj.scoreJ60 <= 100, "Le score projeté reste rigoureusement plafonné ≤ 100");
 
-console.log("\n=== 5. Test du Formattage WhatsApp de l'Ordonnance Cabine ===");
+console.log("\n=== 5. Test du Formattage WhatsApp de l'Ordonnance Beauté ===");
 function buildWhatsAppDiagUrl(clientName: string, phone: string, score: number, zone: string) {
   const digits = phone.replace(/\D/g, "");
   const target =
