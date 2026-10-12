@@ -549,7 +549,7 @@ export function HomeScreen({
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={() => setClientTab("instituts")}
+                  onClick={() => setClientTab("profil")}
                   className="h-8 px-3 rounded-lg border border-border bg-card hover:bg-accent text-foreground text-xs font-semibold"
                 >
                   Changer
@@ -581,12 +581,12 @@ export function HomeScreen({
                   Choisir mon institut partenaire
                 </h3>
                 <p className="text-xs text-muted-foreground truncate">
-                  Transmets tes bilans de peau à ton institut référent.
+                  Coche ton institut référent dans ton profil pour lui transmettre tes bilans.
                 </p>
               </div>
             </div>
             <button
-              onClick={() => setClientTab("instituts")}
+              onClick={() => setClientTab("profil")}
               className="shrink-0 h-9 px-3.5 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center gap-1.5 shadow-xs"
             >
               <Building2 size={13} />

@@ -363,7 +363,10 @@ export function ProfileScreen() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setClientTab("instituts")}
+                    onClick={() => {
+                      const el = document.getElementById("kene-shares-section");
+                      el?.scrollIntoView({ behavior: "smooth" });
+                    }}
                     className="shrink-0 px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-all shadow-xs"
                   >
                     {user?.selectedTenant ? "Modifier" : "Choisir"}

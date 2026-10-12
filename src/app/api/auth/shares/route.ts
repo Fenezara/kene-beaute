@@ -24,18 +24,34 @@ export async function GET(req: NextRequest) {
     const user = await db.user.findUnique({ where: { id: userId }, select: { id: true } });
     if (!user) return jsonError("Utilisatrice introuvable", 404);
 
-    // Instituts où la cliente a une fiche CRM (réservation, commande ou caisse).
+    // 1. Tous les instituts partenaires actifs
+    const allTenants = await db.tenant.findMany({
+      where: { active: true },
+      select: {
+        id: true,
+        name: true,
+        city: true,
+        active: true,
+        photoData: true,
+        phone: true,
+        ownerPhone: true,
+        country: true,
+      },
+      orderBy: { name: "asc" },
+    });
+
+    // 2. Fiches profils de la cliente si déjà existantes
     const profiles = await db.clientProfile.findMany({
       where: { userId },
       select: {
         tenantId: true,
         visitsCount: true,
         lastVisit: true,
-        tenant: { select: { id: true, name: true, city: true, active: true, photoData: true, phone: true, ownerPhone: true, country: true } },
       },
-      orderBy: { lastVisit: "desc" },
     });
+    const profileMap = new Map(profiles.map((p) => [p.tenantId, p]));
 
+    // 3. Consentements accordés
     const consents = await db.consent.findMany({
       where: { userId, type: SHARE_SCANS_TYPE, tenantId: { not: null } },
       orderBy: { createdAt: "desc" },
@@ -50,19 +66,22 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       scansTotal,
-      shares: profiles.map((p) => ({
-        tenantId: p.tenant.id,
-        name: p.tenant.name,
-        city: p.tenant.city,
-        active: p.tenant.active,
-        hasPhoto: Boolean(p.tenant.photoData),
-        phone: p.tenant.phone,
-        ownerPhone: p.tenant.ownerPhone,
-        country: p.tenant.country,
-        granted: grantedByTenant.get(p.tenant.id) ?? false,
-        visitsCount: p.visitsCount,
-        lastVisit: p.lastVisit,
-      })),
+      shares: allTenants.map((t) => {
+        const prof = profileMap.get(t.id);
+        return {
+          tenantId: t.id,
+          name: t.name,
+          city: t.city,
+          active: t.active,
+          hasPhoto: Boolean(t.photoData),
+          phone: t.phone,
+          ownerPhone: t.ownerPhone,
+          country: t.country,
+          granted: grantedByTenant.get(t.id) ?? false,
+          visitsCount: prof?.visitsCount ?? 0,
+          lastVisit: prof?.lastVisit ?? null,
+        };
+      }),
     });
   } catch (err) {
     return serverError("auth/shares:get", err);
@@ -88,14 +107,22 @@ export async function POST(req: NextRequest) {
     const guard = guardUserClaim(req, "auth/shares:post", userId);
     if (guard) return guard;
 
-    // La cliente ne peut partager qu'avec un institut dont elle est cliente
-    // (fiche CRM créée par un RDV, une commande ou la caisse) — jamais avec
-    // un institut au hasard.
-    const profile = await db.clientProfile.findFirst({
+    // Création automatique de la fiche si elle n'existe pas encore
+    let profile = await db.clientProfile.findFirst({
       where: { userId, tenantId },
       select: { id: true },
     });
-    if (!profile) return jsonError("Aucune fiche cliente chez cet institut", 404);
+    if (!profile) {
+      profile = await db.clientProfile.create({
+        data: {
+          userId,
+          tenantId,
+          source: "share_opt_in",
+          notes: "Liaison et consentement de partage accordés par la cliente sur Kènè",
+        },
+        select: { id: true },
+      });
+    }
 
     const ip = req.headers.get("x-forwarded-for") ?? undefined;
     await recordScanShare({ userId, tenantId, granted, ip });

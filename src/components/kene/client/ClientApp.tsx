@@ -35,19 +35,17 @@ import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
 import { cn } from "@/lib/utils";
 
-/** Navigation latérale (desktop & tablette) — 5 destinations clés */
+/** Navigation latérale (desktop & tablette) — 4 destinations clés */
 const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
   { tab: "accueil", labelKey: "tab.home", icon: Home },
-  { tab: "instituts", labelKey: "tab.institutes", icon: Building2 },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
   { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
-/** Tab-bar mobile — 5 emplacements équilibrés avec CTA scan central surélevé */
+/** Tab-bar mobile — 4 emplacements équilibrés avec CTA scan surélevé */
 const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
   { tab: "accueil", labelKey: "tab.home", icon: Home },
-  { tab: "instituts", labelKey: "tab.institutes", icon: Building2 },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
   { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
   { tab: "profil", labelKey: "tab.profile", icon: User },
@@ -78,7 +76,7 @@ const TITLES: Record<ScreenTab, string> = {
 };
 
 /** Ordre de balayage mobile (swipe horizontal gauche/droite) */
-const SWIPE_ORDER: ClientTab[] = ["accueil", "instituts", "diagnostic", "chat", "profil"];
+const SWIPE_ORDER: ClientTab[] = ["accueil", "diagnostic", "chat", "profil"];
 
 // ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
 import { InstitutesScreen } from "./InstitutesScreen";
@@ -149,7 +147,7 @@ export function ClientApp() {
     try {
       const params = new URLSearchParams(window.location.search);
       const targetTab = params.get("tab")?.toLowerCase();
-      const VALID_TABS: ClientTab[] = ["accueil", "instituts", "diagnostic", "chat", "profil", "parametres", "abonnement", "legal"];
+      const VALID_TABS: ClientTab[] = ["accueil", "diagnostic", "chat", "profil", "parametres", "abonnement", "legal"];
       if (targetTab && VALID_TABS.includes(targetTab as ClientTab)) {
         setClientTab(targetTab as ClientTab);
       }
@@ -158,10 +156,12 @@ export function ClientApp() {
     }
   }, [setClientTab]);
 
-  // Redirection automatique : boutique et rendez-vous passent par WhatsApp
+  // Redirection automatique : boutique et rdv vers accueil, instituts vers profil
   useEffect(() => {
     if (tab === "boutique" || tab === "rdv") {
       setClientTab("accueil");
+    } else if (tab === "instituts") {
+      setClientTab("profil");
     }
   }, [tab, setClientTab]);
 
@@ -548,7 +548,7 @@ export function ClientApp() {
           aria-label="Navigation principale mobile"
           className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]"
         >
-          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-5 h-[64px] rounded-[30px] k-chrome">
+          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-4 h-[64px] rounded-[30px] k-chrome">
             {NAV_MOBILE.map((n) => {
               const active = tab === n.tab;
               const Icon = n.icon;
