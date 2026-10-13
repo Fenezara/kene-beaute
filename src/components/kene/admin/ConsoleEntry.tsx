@@ -67,7 +67,14 @@ function entrySnapshot(): Exclude<EntryKind, null> {
  * (React re-commit synchrone avec le snapshot client avant le premier paint)
  * et SANS setState-in-effect (linter 2026). */
 export function useEntryKind(): EntryKind {
-  return useSyncExternalStore(subscribeEntry, entrySnapshot, () => null);
+  const storeEntry = useSyncExternalStore(subscribeEntry, entrySnapshot, () => null);
+  const [clientEntry, setClientEntry] = useState<EntryKind>(() => (typeof window !== "undefined" ? entrySnapshot() : null));
+
+  useEffect(() => {
+    setClientEntry(entrySnapshot());
+  }, []);
+
+  return storeEntry ?? clientEntry ?? (typeof window !== "undefined" ? entrySnapshot() : null);
 }
 
 // ─────────────── Porte console ───────────────

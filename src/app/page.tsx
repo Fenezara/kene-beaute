@@ -47,12 +47,22 @@ export default function Page() {
   // null → BootSkeleton le temps de la résolution client (zéro flash).
   const entry = useEntryKind();
 
+  const [mounted, setMounted] = useState(false);
+
   // Déclenchement immédiat de la réhydratation du store dès le premier montage React
   useEffect(() => {
+    setMounted(true);
+    useKene.setState({ _keneHydrated: true });
     if (!useKene.persist.hasHydrated()) {
-      void useKene.persist.rehydrate();
+      void Promise.resolve(useKene.persist.rehydrate()).finally(() => {
+        useKene.setState({ _keneHydrated: true });
+      });
     }
   }, []);
+
+  // Déblocage de secours (anti-blocage infini du splash screen)
+  const isReady = mounted || hydrated;
+  const activeEntry = entry ?? (mounted ? "app" : null);
 
   // Mode Maintenance plateforme — vérifié au chargement, au focus et toutes les 30s
   const [maintenance, setMaintenance] = useState<MaintenanceConfig | null>(null);
@@ -129,10 +139,10 @@ export default function Page() {
         </a>
 
         <main id="contenu" className="w-full">
-          {(!hydrated || entry === null) && <BootSkeleton />}
+          {(!isReady || activeEntry === null) && <BootSkeleton />}
 
           {/* RÈGLE ABSOLUE : Pour l'administrateur connecté, le choix d'interface (space) prime TOUJOURS */}
-          {hydrated && entry !== null && user?.role === "admin" && (
+          {isReady && activeEntry !== null && user?.role === "admin" && (
             <>
               {space === "client" && <ScreenBoundary name="Espace Beauté"><ClientApp /></ScreenBoundary>}
               {space === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}
@@ -141,10 +151,10 @@ export default function Page() {
           )}
 
           {/* Utilisateurs Pro connectés : le choix d'interface (space) prime (Espace Beauté personnel vs Espace Institut) */}
-          {hydrated && entry !== null && user?.role === "pro" && (
+          {isReady && activeEntry !== null && user?.role === "pro" && (
             <>
-              {entry === "pin" && <PinEntry />}
-              {entry !== "pin" && (
+              {activeEntry === "pin" && <PinEntry />}
+              {activeEntry !== "pin" && (
                 <>
                   {space === "client" && <ScreenBoundary name="Espace Beauté"><ClientApp /></ScreenBoundary>}
                   {space === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}
@@ -154,12 +164,12 @@ export default function Page() {
           )}
 
           {/* Utilisateurs non-administrateurs et non-pro (clientes grand public, déconnectés ou mode cabine hors-ligne) */}
-          {hydrated && entry !== null && user?.role !== "admin" && user?.role !== "pro" && (
+          {isReady && activeEntry !== null && user?.role !== "admin" && user?.role !== "pro" && (
             <>
-              {entry === "console" && <ConsoleEntry />}
-              {entry === "pin" && <PinEntry />}
-              {entry === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}
-              {entry === "app" && (
+              {activeEntry === "console" && <ConsoleEntry />}
+              {activeEntry === "pin" && <PinEntry />}
+              {activeEntry === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}
+              {activeEntry === "app" && (
                 <>
                   {space === "client" && <ScreenBoundary name="Espace Beauté"><ClientApp /></ScreenBoundary>}
                   {space === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}

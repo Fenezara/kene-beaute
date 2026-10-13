@@ -230,8 +230,25 @@ export const useKene = create<KeneState>()(
 // Ce filet assure la relecture au plus vite dès l'interactivité du DOM.
 if (typeof window !== "undefined") {
   const kick = () => {
-    if (!useKene.persist.hasHydrated()) void useKene.persist.rehydrate();
+    try {
+      if (!useKene.persist.hasHydrated()) {
+        void Promise.resolve(useKene.persist.rehydrate()).finally(() => {
+          useKene.setState({ _keneHydrated: true });
+        });
+      } else {
+        useKene.setState({ _keneHydrated: true });
+      }
+    } catch {
+      useKene.setState({ _keneHydrated: true });
+    }
   };
+
+  // Déblocage immédiat de sécurité : même si le storage est indisponible ou lent,
+  // l'application ne reste jamais bloquée sur le squelette de chargement.
+  setTimeout(() => {
+    useKene.setState({ _keneHydrated: true });
+  }, 100);
+
   if (document.readyState === "complete" || document.readyState === "interactive") {
     queueMicrotask(kick);
   } else {
@@ -239,3 +256,4 @@ if (typeof window !== "undefined") {
     window.addEventListener("load", kick, { once: true });
   }
 }
+

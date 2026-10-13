@@ -292,9 +292,13 @@ export function ClientApp() {
 
   const onZoneConsumed = useCallback(() => setPendingZone(null), []);
 
-  // Store persisté pas encore relu → squelette d'amorçage (évite le flash
-  // d'onboarding avant la restauration de la session —)
-  if (!hydrated) return <BootSkeleton />;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Store persisté en cours de relecture : squelette d'amorçage uniquement avant le premier paint client
+  if (!mounted && !hydrated) return <BootSkeleton />;
 
   if (!user) {
     // LE SEUIL — une seule page avant les portails: hero cinématique,
