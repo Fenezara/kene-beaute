@@ -10,9 +10,14 @@ export function GuestSaveBanner() {
   const [modalOpen, setModalOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  // Uniquement pour le compte invité ou express (Mariam Diallo par défaut +2250701020304)
+  // Détection d'un compte invité (nouveau format +22500... ou Mariam Diallo legacy)
   const isGuest = Boolean(
-    user && (user.phone === "+2250701020304" || user.id === "guest" || user.phone?.includes("0701020304"))
+    user && (
+      user.phone?.startsWith("+22500") ||
+      user.phone === "+2250701020304" ||
+      user.id === "guest" ||
+      user.name === "Nouvelle invitée"
+    )
   );
 
   if (!isGuest || dismissed) return null;

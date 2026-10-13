@@ -47,33 +47,51 @@ export async function GET(req: NextRequest) {
       targetRole = requestedRole;
     }
 
-    let phoneToUse = EXPRESS_PHONE;
-    let fallbackName = "Mariam Diallo";
-    if (targetRole === "pro") {
-      phoneToUse = "+2250709080706"; // Fatou Koné (Patronne Éclat d'Abidjan)
-      fallbackName = "Fatou Koné";
-    } else if (targetRole === "admin") {
-      phoneToUse = "+2250748894270"; // Fenezara / Console Kènè
-      fallbackName = "Fenezara";
-    }
+    // ── ISOLATION STRICTE DES SESSIONS DÉCOUVERTE ──
+    // Plutôt que de forcer toutes les personnes qui cliquent sur "Découvrir"
+    // sur l'unique compte "+2250701020304" (ce qui mélangeait diagnostics, paniers et historiques),
+    // chaque visiteur reçoit son compte découverte unique et vierge.
+    let user = null;
 
-    let user = await db.user.findUnique({ where: { phone: phoneToUse } });
-    if (!user) {
-      user = await db.user.findFirst({ where: { role: targetRole } });
-    }
-    if (!user) {
-      user = await db.user.create({
-        data: {
-          phone: phoneToUse,
-          name: fallbackName,
-          role: targetRole,
-          referralCode: genRef("KENE"),
-        },
-      });
-      if (user.role === "client") {
+    if (targetRole === "client") {
+      // Si une session existait déjà, on la recharge
+      if (currentSession?.userId) {
+        user = await db.user.findUnique({ where: { id: currentSession.userId } });
+      }
+      // Sinon on génère un compte invité unique et dédié à cet appareil
+      if (!user) {
+        const uniqueGuestId = Math.random().toString(36).substring(2, 9);
+        const uniqueGuestPhone = `+22500${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
+        user = await db.user.create({
+          data: {
+            phone: uniqueGuestPhone,
+            name: "Nouvelle invitée",
+            role: "client",
+            referralCode: genRef("KENE"),
+          },
+        });
         await grantClientWelcomeTrial(user.id).catch(() => null);
-      } else if (user.role === "pro") {
-        await grantProWelcomeTrial(user.id).catch(() => null);
+      }
+    } else {
+      let phoneToUse = targetRole === "pro" ? "+2250709080706" : "+2250748894270";
+      let fallbackName = targetRole === "pro" ? "Fatou Koné" : "Fenezara";
+
+      user = await db.user.findUnique({ where: { phone: phoneToUse } });
+      if (!user) {
+        user = await db.user.findFirst({ where: { role: targetRole } });
+      }
+      if (!user) {
+        user = await db.user.create({
+          data: {
+            phone: phoneToUse,
+            name: fallbackName,
+            role: targetRole,
+            referralCode: genRef("KENE"),
+          },
+        });
+        if (user.role === "pro") {
+          await grantProWelcomeTrial(user.id).catch(() => null);
+        }
       }
     }
 

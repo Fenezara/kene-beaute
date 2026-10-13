@@ -58,8 +58,20 @@ import { LiveCameraModal } from "./LiveCameraModal";
 import { playSpeech, stopBrowserVoice, unlockAudioContext, type SpeechController } from "./ttsAudio";
 import { SpeakButton } from "./SpeakButton";
 import { isHardwarePermGranted, saveHardwarePermGranted, syncHardwarePermissions } from "@/lib/kene/hardware-perm";
-import { DrKeneOrb3D, type DrKeneOrbState } from "./DrKeneOrb3D";
+import type { DrKeneOrbState } from "./DrKeneOrb3D";
+import dynamic from "next/dynamic";
 import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
+
+const DrKeneOrb3D = dynamic(() => import("./DrKeneOrb3D").then((mod) => mod.DrKeneOrb3D), {
+  ssr: false,
+  loading: () => (
+    <div className="relative size-[270px] flex items-center justify-center">
+      <div className="size-36 rounded-full border border-amber-400/40 bg-gradient-to-tr from-emerald-600/30 via-amber-500/20 to-teal-700/20 animate-pulse flex items-center justify-center">
+        <span className="text-3xl animate-bounce">✨</span>
+      </div>
+    </div>
+  ),
+});
 
 export interface QuickSuggestion {
   theme: string;

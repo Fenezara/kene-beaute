@@ -1,4 +1,4 @@
-import React, { useId } from "react";
+import React, { useId, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 export type IconProps = React.SVGProps<SVGSVGElement> & { size?: number };
@@ -281,24 +281,51 @@ export function KeneMark({ size = 40, className = "" }: { size?: number; classNa
  * présentation MÉDAILLON (plaque orfévrée) — bague or 2px, fond contrasté #14100B,
  * ombre portée orfèvre, parfaitement nette et constante quel que soit le thème. */
 export function KeneEmblem({ size = 96, className = "" }: { size?: number; className?: string }) {
+  const [isDayTime, setIsDayTime] = useState(true);
+
+  useEffect(() => {
+    // Calcul de l'heure locale : Journée entre 06h00 et 18h30
+    const h = new Date().getHours();
+    setIsDayTime(h >= 6 && h < 19);
+  }, []);
+
   return (
     <span
       aria-hidden="true"
       className={cn(
-        "relative inline-block shrink-0 select-none overflow-hidden rounded-[26%] ring-2 ring-[#C8951E] dark:ring-[#E3B04B] shadow-[0_2px_12px_rgba(200,149,30,0.30)] dark:shadow-[0_2px_14px_rgba(227,176,75,0.25)] bg-[#14100B]",
+        "relative inline-block shrink-0 select-none overflow-hidden rounded-[26%] ring-2 ring-[#C8951E] dark:ring-[#E3B04B] shadow-[0_2px_12px_rgba(200,149,30,0.30)] dark:shadow-[0_2px_14px_rgba(227,176,75,0.25)] bg-[#FAF5EB] dark:bg-[#14100B]",
         className
       )}
       style={{ width: size, height: size }}
     >
+      {/* Version Journée / Fond Clair */}
       <img
-        src="/brand/kene-emblem-dark.png"
-        alt="Logo Kènè"
+        src="/brand/kene-emblem-light.png"
+        alt="Logo Kènè Journée"
         width={size}
         height={size}
         loading="eager"
         decoding="async"
         draggable={false}
-        className="absolute inset-0 h-full w-full object-cover"
+        className={cn(
+          "absolute inset-0 h-full w-full object-cover transition-opacity duration-700",
+          "dark:opacity-0",
+          !isDayTime && "opacity-0"
+        )}
+      />
+      {/* Version Soirée / Fond Sombre */}
+      <img
+        src="/brand/kene-emblem-dark.png"
+        alt="Logo Kènè Soirée"
+        width={size}
+        height={size}
+        loading="eager"
+        decoding="async"
+        draggable={false}
+        className={cn(
+          "absolute inset-0 h-full w-full object-cover transition-opacity duration-700",
+          isDayTime ? "opacity-0 dark:opacity-100" : "opacity-100"
+        )}
       />
     </span>
   );

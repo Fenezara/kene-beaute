@@ -351,10 +351,10 @@ export function WelcomeThreshold() {
       const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express");
       // Mémoire locale — survit à la déconnexion, jamais envoyée.
       try {
-        localStorage.setItem("kene-last-account", JSON.stringify({ phone: "+2250701020304", name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" }));
+        localStorage.setItem("kene-last-account", JSON.stringify({ phone: v.user.phone, name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" }));
       } catch { /* non bloquant */ }
       setUser(v.user as SessionUser);
-      toast.success(`Bienvenue ${v.user.name.split(" ")[0]} 💛`);
+      toast.success(v.user.name && v.user.name !== "Nouvelle invitée" ? `Bienvenue ${v.user.name.split(" ")[0]} 💛` : "Bienvenue sur Kènè 💛");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Connexion impossible — réessaie");
     } finally {
