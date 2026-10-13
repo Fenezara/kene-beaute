@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, ScanFace, TicketPercent, UserPlus, WifiOff } from "lucide-react";
+import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, ScanFace, TicketPercent, UserPlus, WifiOff, BriefcaseBusiness, LogIn, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -135,21 +135,48 @@ export function ProApp() {
     }
   );
 
-  // Auto-résolution d'accès : si un visiteur ouvre l'espace Pro sans session pro préalable,
-  // initialiser automatiquement la session de démonstration Pro (Fatou Koné / Éclat d'Abidjan)
-  useEffect(() => {
-    if (!sessionUser || (sessionUser.role !== "pro" && sessionUser.role !== "admin")) {
-      apiGet<{ user: any; tenant: { id: string; name: string } | null }>("/api/auth/express?role=pro")
-        .then((res) => {
-          useKene.getState().setUser(res.user);
-          if (res.tenant?.id) {
-            useKene.getState().setProTenantId(res.tenant.id);
-          }
-          void overview.refetch();
-        })
-        .catch(() => undefined);
-    }
-  }, [sessionUser]);
+  // Garde d'authentification stricte : l'Espace Entreprise est réservé aux gérantes et équipes connectées
+  if (!sessionUser || (sessionUser.role !== "pro" && sessionUser.role !== "admin")) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 text-center">
+        <div className="mx-auto max-w-md rounded-3xl border border-border/60 bg-card/80 p-8 shadow-xl backdrop-blur-md">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold/15 text-gold-text">
+            <BriefcaseBusiness size={32} />
+          </div>
+          <h2 className="font-heading text-xl font-bold text-foreground">Accès Espace Entreprise</h2>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+            Cet espace de gestion d&apos;institut est réservé aux professionnelles partenaires Kènè. Veuillez vous identifier avec vos identifiants pour y accéder.
+          </p>
+          <div className="mt-6 flex flex-col gap-3">
+            <button
+              onClick={() => {
+                setSpace("client");
+                if (typeof window !== "undefined") {
+                  window.location.href = "/?mode=pro";
+                }
+              }}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl k-btn-gold text-sm font-bold text-primary-foreground shadow"
+            >
+              <LogIn size={16} />
+              Se connecter avec mes identifiants
+            </button>
+            <button
+              onClick={() => {
+                setSpace("client");
+                if (typeof window !== "undefined") {
+                  window.location.href = "/";
+                }
+              }}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-secondary/80 hover:bg-secondary text-sm font-medium text-foreground transition-colors"
+            >
+              <ArrowLeft size={16} />
+              Retourner à l&apos;Espace Beauté
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Première résolution serveur: le tenant de la session est mémorisé
   // (: le serveur renvoie l'institut de LA GÉRANTE, pas un « défaut »)

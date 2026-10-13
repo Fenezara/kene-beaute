@@ -39,7 +39,10 @@ import {
   Trash2,
   User,
   MessageCircle,
+  LogIn,
+  Sparkles,
 } from "lucide-react";
+import { LinkAccountModal } from "./LinkAccountModal";
 import { ContactKeneModal } from "./ContactKeneModal";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
@@ -169,12 +172,22 @@ export function SettingsScreen() {
   };
 
   const [exportBusy, setExportBusy] = useState(false);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
   // Confirmation « Créer un compte entreprise » (isolation des comptes)
   const [proSignup, setProSignup] = useState(false);
   // Suppression définitive du compte (conforme Apple 5.1.1(v) et RGPD/ARTCI)
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePin, setDeletePin] = useState("");
   const [deleting, setDeleting] = useState(false);
+
+  const isGuest = Boolean(
+    user && (
+      user.phone?.startsWith("+22500") ||
+      user.phone === "+2250701020304" ||
+      user.id === "guest" ||
+      user.name === "Nouvelle invitée"
+    )
+  );
   const [contactOpen, setContactOpen] = useState(false);
 
   async function handleDeleteAccount() {
@@ -332,15 +345,42 @@ export function SettingsScreen() {
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5"><MapPin size={12} /> {user.city || "Ville non renseignée"}</p>
                 </div>
               </div>
-              <button
-                onClick={() => setClientTab("profil")}
-                className="k-btn-gold mt-4 h-11 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                <Pencil size={15} /> Modifier mon profil
-              </button>
+              {isGuest ? (
+                <div className="mt-4 flex flex-col gap-2.5">
+                  <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-2.5 text-xs text-amber-700 dark:text-amber-300">
+                    <p className="font-bold flex items-center gap-1.5">
+                      <Sparkles size={14} /> Mode Découverte (Compte Invité)
+                    </p>
+                    <p className="text-[11px] mt-0.5 opacity-90">
+                      Vous explorez Kènè sans engagement. Liez votre numéro pour enregistrer vos soins, ou connectez-vous si vous avez déjà un compte.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setLinkModalOpen(true)}
+                      className="k-btn-gold h-11 rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-primary"
+                    >
+                      <Sparkles size={14} /> Sauvegarder mon compte
+                    </button>
+                    <button
+                      onClick={() => void performLogout({ redirectUrl: "/?mode=client", message: "Connexion", toGuest: false })}
+                      className="h-11 rounded-xl border border-border/80 bg-background hover:bg-muted text-foreground text-xs font-bold inline-flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <LogIn size={14} className="text-gold-text" /> Me connecter
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setClientTab("profil")}
+                  className="k-btn-gold mt-4 h-11 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                  <Pencil size={15} /> Modifier mon profil
+                </button>
+              )}
               <p className="mt-3 flex items-start gap-1.5 text-[11px] text-muted-foreground leading-snug">
                 <ShieldCheck size={13} className="mt-px shrink-0 text-success" aria-hidden="true" />
-                Session conservée sur cet appareil — tu restes connectée comme sur tes applis préférées.
+                Session isolée et protégée sur cet appareil.
               </p>
             </div>
           </section>
@@ -701,39 +741,32 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
-        {/* Bascule Espace Entreprise (Kènè Pro) */}
-        <RevealItem>
-          <section aria-labelledby="pro-switch-t" className="k-card rounded-[24px] p-2 border-primary/40 bg-primary/5">
-            <button
-              onClick={async () => {
-                haptic(HAPTIC.tap);
-                try {
-                  const res = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express?role=pro");
-                  setUser(res.user as SessionUser);
-                  if (res.tenant?.id) {
-                    useKene.getState().setProTenantId(res.tenant.id);
-                  }
+        {/* Bascule Espace Entreprise (Kènè Pro) — strictement réservé aux comptes pro ou admin */}
+        {(user?.role === "pro" || user?.role === "admin") && (
+          <RevealItem>
+            <section aria-labelledby="pro-switch-t" className="k-card rounded-[24px] p-2 border-primary/40 bg-primary/5">
+              <button
+                onClick={() => {
+                  haptic(HAPTIC.tap);
                   useKene.getState().setSpace("pro");
                   if (typeof window !== "undefined") {
                     window.history.pushState(null, "", "/pro");
                     window.dispatchEvent(new Event("popstate"));
                   }
-                  toast.success("Bienvenue dans l'Espace Entreprise (Kènè Pro) 💼");
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Erreur de bascule");
-                }
-              }}
-              className="w-full flex items-center gap-3 rounded-[18px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              <IconBadge icon={<Building2 size={19} />} tone="gold" />
-              <span className="flex-1 min-w-0">
-                <span id="pro-switch-t" className="block text-xs font-bold text-foreground">Accéder à l&apos;Espace Entreprise (Kènè Pro)</span>
-                <span className="block text-[11px] text-muted-foreground mt-0.5">Caisse POS, agenda cabine, fiches clientes &amp; comptabilité SYSCOHADA</span>
-              </span>
-              <ChevronRight size={16} className="text-primary shrink-0" aria-hidden="true" />
-            </button>
-          </section>
-        </RevealItem>
+                  toast.success("Bienvenue dans votre Espace Entreprise 💼");
+                }}
+                className="w-full flex items-center gap-3 rounded-[18px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+              >
+                <IconBadge icon={<Building2 size={19} />} tone="gold" />
+                <span className="flex-1 min-w-0">
+                  <span id="pro-switch-t" className="block text-xs font-bold text-foreground">Accéder à mon Espace Entreprise (Kènè Pro)</span>
+                  <span className="block text-[11px] text-muted-foreground mt-0.5">Caisse POS, agenda cabine, fiches clientes &amp; comptabilité SYSCOHADA</span>
+                </span>
+                <ChevronRight size={16} className="text-primary shrink-0" aria-hidden="true" />
+              </button>
+            </section>
+          </RevealItem>
+        )}
 
         {/* Mentions légales */}
         <RevealItem>
@@ -849,6 +882,11 @@ export function SettingsScreen() {
         open={contactOpen}
         onOpenChange={setContactOpen}
         userName={user?.name}
+      />
+
+      <LinkAccountModal
+        open={linkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
       />
     </>
   );

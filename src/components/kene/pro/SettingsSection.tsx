@@ -19,6 +19,7 @@ import { apiGet, apiPatch, apiPost, resizeImage } from "@/lib/kene/api";
 import { Badge } from "@/components/ui/badge";
 import { Eyebrow, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
+import { performLogout } from "@/lib/kene/logout";
 import { InitialAvatar, SectionHeader } from "./ui-bits";
 import type { ProSectionId } from "./ProApp";
 import { Switch } from "@/components/ui/switch";
@@ -179,14 +180,9 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
     toast.success(`Interface en ${label.toLowerCase()}`);
   }
 
- /** Ferme la session: le clamp du store ramène à l'accueil cliente
- * (setUser(null) → espace "client" sans session → onboarding). La session
- * SERVEUR (cookie httpOnly signé,) est fermée dans la foulée. */
+  /** Ferme la session pro : déconnexion complète et retour à l'espace invité */
   function closeSession() {
-    void fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    clearCart();
-    setUser(null);
-    toast.info("Session fermée");
+    void performLogout({ redirectUrl: "/", message: "Session institut fermée" });
   }
 
   return (

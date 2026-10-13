@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, ArrowRight, ShieldCheck, X } from "lucide-react";
+import { Sparkles, ArrowRight, ShieldCheck, X, LogIn } from "lucide-react";
 import { useKene } from "@/store/kene";
+import { performLogout } from "@/lib/kene/logout";
 import { LinkAccountModal } from "./LinkAccountModal";
 
 export function GuestSaveBanner() {
@@ -44,6 +45,15 @@ export function GuestSaveBanner() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                void performLogout({ redirectUrl: "/?mode=client", message: "Connexion à votre compte", toGuest: false });
+              }}
+              className="hidden sm:inline-flex h-8 items-center gap-1.5 rounded-full border border-amber-500/30 bg-background/80 hover:bg-background px-3 text-xs font-semibold text-foreground transition-colors"
+            >
+              <LogIn size={12} className="text-gold-text" />
+              <span>Connexion</span>
+            </button>
             <button
               onClick={() => setModalOpen(true)}
               className="inline-flex h-8 items-center gap-1.5 rounded-full k-btn-gold px-3 text-xs font-bold text-primary-foreground shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all"

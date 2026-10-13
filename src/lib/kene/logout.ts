@@ -1,14 +1,15 @@
 "use client";
-// Kènè — Déconnexion universelle et centralisée.
-// Garantit la suppression complète des cookies côté serveur, du store Zustand,
-// de toutes les clés localStorage / sessionStorage, et une redirection nette sans résidu.
+// Kènè — Déconnexion universelle et bascule sur compte invité vierge.
+// Garantit la suppression complète des cookies précédents, du store Zustand,
+// de toutes les clés d'identification, et alloue un compte invité anonyme.
 
 import { useKene } from "@/store/kene";
 import { toast } from "sonner";
 
-export async function performLogout(options?: { redirectUrl?: string; message?: string }) {
+export async function performLogout(options?: { redirectUrl?: string; message?: string; toGuest?: boolean }) {
   const targetUrl = options?.redirectUrl ?? "/";
   const message = options?.message ?? "Déconnexion réussie";
+  const toGuest = options?.toGuest ?? true;
 
   try {
     // 1. Révocation serveur (supprime le cookie kene_session et kene_elevation)
@@ -39,9 +40,24 @@ export async function performLogout(options?: { redirectUrl?: string; message?: 
     }
   } catch {}
 
+  // 4. Attribution d'un compte invité vierge pour que l'utilisateur atterrisse sur un compte découverte isolé
+  if (toGuest) {
+    try {
+      const guestRes = await fetch("/api/auth/express?newGuest=1", { method: "GET" });
+      if (guestRes.ok) {
+        const data = await guestRes.json();
+        if (data?.user) {
+          useKene.getState().setUser(data.user);
+        }
+      }
+    } catch {
+      // Tolérance réseau
+    }
+  }
+
   toast.info(message);
 
-  // 4. Redirection complète avec rechargement de page pour purger tout état résiduel
+  // 5. Redirection complète avec rechargement de page pour purger tout état résiduel
   if (typeof window !== "undefined") {
     setTimeout(() => {
       window.location.replace(targetUrl);

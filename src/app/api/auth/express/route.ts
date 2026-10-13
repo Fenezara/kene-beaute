@@ -40,23 +40,30 @@ export async function GET(req: NextRequest) {
   }
   try {
     const requestedRole = req.nextUrl.searchParams.get("role") || "client";
+    const newGuest = req.nextUrl.searchParams.get("newGuest") === "1";
     const currentSession = sessionFromRequest(req);
-    // Le rôle pro est accessible en mode démonstration/découverte pour tester l'espace entreprise.
-    // Seul le rôle admin reste strictement réservé aux administrateurs authentifiés.
-    let targetRole = requestedRole === "pro" ? "pro" : "client";
-    if (requestedRole === "admin" && currentSession?.role === "admin") {
-      targetRole = "admin";
+
+    // L'accès Pro et Admin par express login est strictement interdit sans session authentifiée préalable
+    if (requestedRole === "pro" && currentSession?.role !== "pro" && currentSession?.role !== "admin") {
+      return jsonError("L'accès à l'Espace Entreprise requiert une connexion avec vos identifiants d'institut", 403);
+    }
+    if (requestedRole === "admin" && currentSession?.role !== "admin") {
+      return jsonError("L'accès à la Console Administrateur requiert une connexion administrateur", 403);
     }
 
+    const targetRole = (requestedRole === "pro" && (currentSession?.role === "pro" || currentSession?.role === "admin"))
+      ? "pro"
+      : (requestedRole === "admin" && currentSession?.role === "admin")
+      ? "admin"
+      : "client";
+
     // ── ISOLATION STRICTE DES SESSIONS DÉCOUVERTE ──
-    // Plutôt que de forcer toutes les personnes qui cliquent sur "Découvrir"
-    // sur l'unique compte "+2250701020304" (ce qui mélangeait diagnostics, paniers et historiques),
-    // chaque visiteur reçoit son compte découverte unique et vierge.
+    // Chaque invité reçoit son compte découverte unique et vierge.
     let user: Awaited<ReturnType<typeof db.user.create>> | null = null;
 
     if (targetRole === "client") {
-      // Si une session existait déjà, on la recharge
-      if (currentSession?.userId) {
+      // Si une session cliente existait déjà et qu'on ne force pas un nouveau compte invité, on la recharge
+      if (currentSession?.userId && !newGuest) {
         user = await db.user.findUnique({ where: { id: currentSession.userId } });
       }
       // Sinon on génère un compte invité unique et dédié à cet appareil

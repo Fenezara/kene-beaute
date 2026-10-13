@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, ShieldCheck, X, Loader2, CheckCircle2, KeyRound } from "lucide-react";
+import { MessageCircle, ShieldCheck, X, Loader2, CheckCircle2, KeyRound, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost } from "@/lib/kene/api";
 import { useKene, type SessionUser } from "@/store/kene";
 import { rememberAccount } from "@/lib/kene/last-account";
+import { performLogout } from "@/lib/kene/logout";
 import { haptic, HAPTIC } from "@/lib/kene/ux";
 import type { ApiUser } from "./types";
 
@@ -210,6 +211,19 @@ export function LinkAccountModal({ open, onClose, reason }: LinkAccountModalProp
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground text-center pt-1">
               <ShieldCheck size={13} className="text-emerald-500" />
               <span>Zéro spam · Vos données de santé restent 100% confidentielles</span>
+            </div>
+
+            <div className="pt-2 border-t border-border/50 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  void performLogout({ redirectUrl: "/?mode=client", message: "Connexion à votre compte", toGuest: false });
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-text hover:underline"
+              >
+                <LogIn size={13} />
+                <span>Vous avez déjà un compte ? Me connecter</span>
+              </button>
             </div>
           </form>
         </motion.div>

@@ -368,27 +368,6 @@ export function WelcomeThreshold() {
     }
   }
 
-  async function startExplorationPro() {
-    if (exploring) return;
-    setExploring(true);
-    try {
-      const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express?role=pro");
-      try {
-        localStorage.setItem("kene-last-account", JSON.stringify({ phone: v.user.phone, name: v.user.name, role: "pro" }));
-      } catch { /* non bloquant */ }
-      setUser(v.user as SessionUser);
-      if (v.tenant?.id) {
-        setProTenantId(v.tenant.id);
-      }
-      setSpace("pro");
-      toast.success(`Bienvenue dans l'Espace Entreprise (${v.tenant?.name ?? "Kènè Pro"}) 💼`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Connexion impossible — réessaie");
-    } finally {
-      setExploring(false);
-    }
-  }
-
   const hour = new Date().getHours();
   const greet = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
   const d = first ? 1 : 0.3; // multiplicateur de délai (retour = plus vif)
@@ -587,9 +566,9 @@ export function WelcomeThreshold() {
                       icon={<BriefcaseBusiness size={13} className="text-[#FFF9EC]" />}
                       kicker="Espace entreprise"
                       title="Gérer mon institut"
-                      entering={entering === "pro" || exploring}
+                      entering={entering === "pro"}
                       dimmed={entering === "client"}
-                      onEnter={startExplorationPro}
+                      onEnter={() => enterPortal("pro")}
                       delay={0.16}
                     />
                   </div>

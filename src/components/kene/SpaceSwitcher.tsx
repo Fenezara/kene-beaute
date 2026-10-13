@@ -34,8 +34,16 @@ export function SpaceSwitcher({
   const setSpace = useKene((s) => s.setSpace);
   const [switching, setSwitching] = useState<Space | null>(null);
 
-  const isPro = user?.role === "pro";
-  const isAdmin = user?.role === "admin";
+  // STRICTE RÈGLE DE SÉCURITÉ : Le basculement d'espace est STRICTEMENT réservé
+  // aux Entreprises (pro) qui possèdent aussi un espace client personnel,
+  // et aux Administrateurs (admin) qui ont accès à toute la plateforme.
+  // Les clients standards et invités n'ont aucun commutateur d'espace.
+  if (!user || (user.role !== "admin" && user.role !== "pro")) {
+    return null;
+  }
+
+  const isPro = user.role === "pro";
+  const isAdmin = user.role === "admin";
 
   const availableSpaces = isAdmin
     ? [
@@ -48,15 +56,15 @@ export function SpaceSwitcher({
           id: "client" as Space,
           label: "Mon Espace Beauté",
           shortLabel: "Beauté",
-          badge: isPro ? "Personnel" : "Cliente",
-          desc: "Mon diagnostic cutané, Dermo Kènè & rituels",
+          badge: "Personnel",
+          desc: "Mon diagnostic cutané personnel, Dermo Kènè & rituels",
           icon: CauriIcon,
         },
         {
           id: "pro" as Space,
           label: "Espace Entreprise",
           shortLabel: "Entreprise",
-          badge: isPro ? "Travail" : "Institut Pro",
+          badge: "Mon Institut",
           desc: "Cabine, caisse POS, fiches clientes, soins & planning",
           icon: BriefcaseBusiness,
         },
@@ -69,17 +77,8 @@ export function SpaceSwitcher({
     setSwitching(target);
 
     try {
-      // Si bascule vers Pro et l'utilisateur n'est pas encore Pro, charger la session pro démo
-      if (target === "pro") {
-        if (user?.role !== "pro" && user?.role !== "admin") {
-          const res = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express?role=pro");
-          useKene.getState().setUser(res.user as SessionUser);
-          if (res.tenant?.id) {
-            useKene.getState().setProTenantId(res.tenant.id);
-          }
-        } else if (!useKene.getState().proTenantId) {
-          useKene.getState().setProTenantId(user?.tenantId || DEFAULT_FALLBACK_TENANT_ID);
-        }
+      if (target === "pro" && !useKene.getState().proTenantId && user?.tenantId) {
+        useKene.getState().setProTenantId(user.tenantId);
       }
 
       setSpace(target);

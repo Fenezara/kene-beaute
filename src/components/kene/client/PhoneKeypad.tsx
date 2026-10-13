@@ -212,27 +212,15 @@ export function PhoneKeypad({
           <ArrowLeft size={12} aria-hidden="true" /> Tu peux aussi taper au clavier
         </p>
 
-        {mode === "pro" && (
+        {mode === "pro" && onOfflineBypass && (
           <div className="mt-4 pt-3 border-t border-border/40 flex flex-col items-center gap-2">
             <button
               type="button"
-              onClick={() => {
-                setDigits("0709080706");
-                toast.info("Numéro salon démo inséré — appuie sur → pour valider");
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/40 bg-primary/10 hover:bg-primary/20 text-xs font-bold text-foreground transition-all shadow-xs active:scale-95"
+              onClick={onOfflineBypass}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-muted bg-muted/40 hover:bg-muted/70 text-[11px] font-medium text-muted-foreground transition-all"
             >
-              <span>🏢 Démo Institut (Fatou Koné)</span>
+              <span>📴 Mode Caisse & Cabine Hors-ligne</span>
             </button>
-            {onOfflineBypass && (
-              <button
-                type="button"
-                onClick={onOfflineBypass}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-muted bg-muted/40 hover:bg-muted/70 text-[11px] font-medium text-muted-foreground transition-all"
-              >
-                <span>📴 Mode Caisse & Cabine Hors-ligne</span>
-              </button>
-            )}
           </div>
         )}
       </div>
