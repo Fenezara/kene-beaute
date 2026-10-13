@@ -673,17 +673,17 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             </span>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-2 rounded-xl bg-muted/30 border border-border/40">
-              <span className="block text-[11px] font-bold text-foreground">Peau propre</span>
-              <span className="block text-[9.5px] text-muted-foreground">Sans maquillage</span>
+            <div className="p-2.5 rounded-xl bg-card border border-border/80 shadow-xs">
+              <span className="block text-xs font-black text-foreground">Peau propre</span>
+              <span className="block text-[11px] font-bold text-primary mt-0.5">Sans maquillage</span>
             </div>
-            <div className="p-2 rounded-xl bg-muted/30 border border-border/40">
-              <span className="block text-[11px] font-bold text-foreground">Lumière du jour</span>
-              <span className="block text-[9.5px] text-muted-foreground">Bien éclairée</span>
+            <div className="p-2.5 rounded-xl bg-card border border-border/80 shadow-xs">
+              <span className="block text-xs font-black text-foreground">Lumière du jour</span>
+              <span className="block text-[11px] font-semibold text-muted-foreground mt-0.5">Éclairage naturel</span>
             </div>
-            <div className="p-2 rounded-xl bg-muted/30 border border-border/40">
-              <span className="block text-[11px] font-bold text-foreground">Distance 30 cm</span>
-              <span className="block text-[9.5px] text-muted-foreground">Image nette</span>
+            <div className="p-2.5 rounded-xl bg-card border border-border/80 shadow-xs">
+              <span className="block text-xs font-black text-foreground">Distance 30 cm</span>
+              <span className="block text-[11px] font-semibold text-muted-foreground mt-0.5">Netteté visage</span>
             </div>
           </div>
         </div>
@@ -919,8 +919,8 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                 <span className="font-heading font-black text-sm sm:text-base text-foreground">
                   Capturer « {activeSlot.label} » en direct
                 </span>
-                <span className="text-[11px] text-muted-foreground text-center px-4 max-w-sm">
-                  {activeSlot.hint} · Vérification de luminosité en temps réel
+                <span className="text-xs text-muted-foreground text-center px-4 max-w-sm font-medium">
+                  {activeSlot.hint} · Peau démaquillée &amp; éclairage naturel recommandés
                 </span>
               </button>
 

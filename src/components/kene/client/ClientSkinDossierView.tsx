@@ -587,6 +587,33 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               </ul>
             </div>
 
+            {/* 💄 Charte Make-Up Dermo-Compatible Peaux Noires & Métisses */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-[#C8951E]/12 to-[#8B1A3B]/10 border border-[#C8951E]/30 space-y-2.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-primary font-black text-xs">
+                  <Sparkles size={16} />
+                  <span>Charte Make-Up Dermo-Compatible · Peaux Noires &amp; Métisses</span>
+                </div>
+                <Badge variant="outline" className="text-[10px] font-bold border-primary/30 text-primary">
+                  Non-comédogène
+                </Badge>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                  <p className="font-bold text-foreground">1. Sous-tons chauds</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Formules adaptées aux pigments dorés/cuivrés sans effet masque grisâtre.</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                  <p className="font-bold text-foreground">2. Texture respirante</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Fluides minéraux légers qui laissent respirer les pores sous climat tropical.</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                  <p className="font-bold text-foreground">3. Démaquillage doux</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Huile végétale de Balanites le soir : zéro résidu, zéro bouton réactionnel.</p>
+                </div>
+              </div>
+            </div>
+
             {/* Soin en Cabine Conseillé & Raccordement Agenda */}
             <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
