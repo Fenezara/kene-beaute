@@ -964,11 +964,11 @@ export function WelcomeThreshold() {
                                 <td className="py-2.5 px-2 text-center text-muted-foreground">1 / mois</td>
                                 <td className="py-2.5 px-2 text-center text-success font-bold">⭐ Illimité</td>
                               </tr>
-                              <tr>
-                                <td className="py-2.5 px-3 font-medium">Dermo Kènè IA (Conseils dermo-botaniques)</td>
-                                <td className="py-2.5 px-2 text-center text-muted-foreground">Standard</td>
-                                <td className="py-2.5 px-2 text-center text-gold-text font-bold">⭐ Prioritaire &amp; Illimité</td>
-                              </tr>
+                                <tr>
+                                  <td className="py-2.5 px-3 font-medium">Dermo Kènè IA (Conseils dermo-cosmétiques)</td>
+                                  <td className="py-2.5 px-2 text-center text-muted-foreground">Standard</td>
+                                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">⭐ Prioritaire &amp; Illimité</td>
+                                </tr>
                               <tr>
                                 <td className="py-2.5 px-3 font-medium">Réservation de soins &amp; Acompte en ligne</td>
                                 <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>

@@ -46,7 +46,7 @@ model User {
   fitzpatrick  String? // III | IV | V | VI
   allergies    String? // texte libre
   goals        String? // JSON [{id,label}]
-  selectedTenantId String? // Institut dermo-botanique de référence choisi par la cliente
+  selectedTenantId String? // Institut dermo-cosmétique de référence choisi par la cliente
   selectedTenant   Tenant? @relation("UserSelectedTenant", fields: [selectedTenantId], references: [id])
   consentHealth Boolean @default(false)
   consentTs    DateTime?

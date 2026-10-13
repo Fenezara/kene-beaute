@@ -1440,7 +1440,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
               onClick={() =>
                 openWhatsAppAppointmentInquiry({
                   serviceCategory: "Consultation",
-                  serviceName: "Consultation et bilan cutané dermo-botanique",
+                  serviceName: "Consultation et bilan cutané dermo-cosmétique",
                   instituteName: chosenName,
                   tenantPhone: chosenPhone,
                   country: chosenCountry,
@@ -1876,7 +1876,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
             <History size={16} /> Historique
           </button>
         </div>
-        {/* Recommandation Dermo-Botanique & Pass Cabine avec QR vectoriel */}
+        {/* Recommandation Dermo-Cosmétique & Pass Cabine avec QR vectoriel */}
         <button
           onClick={() => window.open(`/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`, "_blank")}
           className="k-btn-gold mt-3 h-12 w-full rounded-2xl text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-[0.99] transition-all focus-visible:outline-2 focus-visible:outline-primary"
@@ -1890,7 +1890,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
             const pdfUrl = `${origin}/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`;
             const botanicals = diag.result.recommandations?.botaniques_conseillees?.slice(0, 3).join(", ") || "Actifs apaisants";
             const zoneLabel = BODY_ZONES.find((z) => z.id === diag.result.zone)?.label || diag.result.zone;
-            const msg = `Bonjour ! 🌿\n\nVoici ma *Recommandation Dermo-Botanique & Pass Cabine Kènè* :\n\n📊 *Score Cutané* : ${diag.result.score_global}/100\n📍 *Zone analysée* : ${zoneLabel}\n🌱 *Actifs botaniques recommandés* : ${botanicals}\n\n📄 *Télécharger ma Recommandation & Pass Cabine (PDF)* :\n${pdfUrl}\n\nÀ présenter en institut partenaire pour adapter mon protocole de soin en cabine.\n— Kènè, la beauté mélanoderme`;
+            const msg = `Bonjour ! 🌿\n\nVoici ma *Recommandation Dermo-Cosmétique & Pass Cabine Kènè* :\n\n📊 *Score Cutané* : ${diag.result.score_global}/100\n📍 *Zone analysée* : ${zoneLabel}\n🌱 *Actifs botaniques recommandés* : ${botanicals}\n\n📄 *Télécharger ma Recommandation & Pass Cabine (PDF)* :\n${pdfUrl}\n\nÀ présenter en institut partenaire pour adapter mon protocole de soin en cabine.\n— Kènè, la beauté mélanoderme`;
             openWhatsApp(user?.phone || "", msg);
           }}
           className="mt-2.5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-bold shadow-md transition active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-[#25D366]"

@@ -1,4 +1,4 @@
-// Kènè — Ordonnance Dermo-Botanique & Pass Cabine (PDF Vectoriel Natif)
+// Kènè — Ordonnance Dermo-Cosmétique & Pass Cabine (PDF Vectoriel Natif)
 // Moteur PDF zéro-dépendance (src/lib/accounting/pdf.ts) avec QR Code vectoriel intégré
 // Conforme pour remise cliente & transmission protocole en salon.
 
@@ -70,10 +70,10 @@ function drawVectorQrCode(doc: PdfDoc, text: string, x: number, y: number, total
   }
 }
 
-/** Génère la recommandation dermo-botanique avec son Pass Cabine vectoriel */
+/** Génère la recommandation dermo-cosmétique avec son Pass Cabine vectoriel */
 export function generatePrescriptionPdf(input: PrescriptionPdfInput): { data: Uint8Array; pages: number } {
-  const doc = new PdfDoc("Kènè — Recommandation Dermo-Botanique & Pass Cabine");
-  doc.setFooter(`Kènè · Plateforme éditée par Dermo TIC · Recommandation de Soin Botanique & Pass Cabine · ${input.userName} · ${fmtDateLong(input.createdAt)}`);
+  const doc = new PdfDoc("Kènè — Recommandation Dermo-Cosmétique & Pass Cabine");
+  doc.setFooter(`Kènè · Plateforme éditée par Dermo TIC · Recommandation de Soin Dermo-Cosmétique & Pass Cabine · ${input.userName} · ${fmtDateLong(input.createdAt)}`);
 
   const zoneLabel = BODY_ZONES.find((z) => z.id === input.zone)?.label ?? input.zone;
   const res = input.diagnosisResult;
@@ -213,7 +213,7 @@ export function generatePrescriptionPdf(input: PrescriptionPdfInput): { data: Ui
     { size: 8.5, color: INK, maxW: CONTENT_W - 95 }
   );
   doc.text(
-    "L'esthéticienne chargera directement votre profil dermo-botanique et adaptera les principes actifs en cabine.",
+    "L'esthéticienne chargera directement votre profil dermo-cosmétique et adaptera les principes actifs en cabine.",
     textX,
     qrBoxY + 43,
     { size: 8, color: SOFT, maxW: CONTENT_W - 95 }

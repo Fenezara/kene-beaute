@@ -57,7 +57,7 @@ export function ConciergerieWhatsAppSection({ selectedInstitute, onNavigateTab }
   const [category, setCategory] = useState<ConciergeCategory>("rdv");
 
   // Options RDV
-  const [careType, setCareType] = useState("Soin du visage dermo-botanique");
+  const [careType, setCareType] = useState("Soin du visage dermo-cosmétique");
   const [preferredDay, setPreferredDay] = useState("Dès que possible");
   const [preferredTime, setPreferredTime] = useState("Après-midi (14h - 18h)");
 
@@ -243,7 +243,7 @@ export function ConciergerieWhatsAppSection({ selectedInstitute, onNavigateTab }
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {[
-                    "Soin du visage dermo-botanique",
+                    "Soin du visage dermo-cosmétique",
                     "Bilan de peau & Diagnostic cabine",
                     "Massage relaxant & drainage",
                     "Coiffure & tresses protectrices",
@@ -362,7 +362,7 @@ export function ConciergerieWhatsAppSection({ selectedInstitute, onNavigateTab }
             <div className="space-y-3.5">
               <h4 className="font-heading font-bold text-sm flex items-center gap-2">
                 <Sparkles className="size-4 text-amber-500" />
-                SOS Peau &amp; Conseil Dermo-Botanique d&apos;Urgence
+                SOS Peau &amp; Conseil Dermo-Cosmétique d&apos;Urgence
               </h4>
 
               <div>

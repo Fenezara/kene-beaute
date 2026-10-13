@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
   const aiStatus = geminiKey ? "live" : "fallback_expert";
   const aiDetail = geminiKey
     ? `Google Gemini (${geminiModel}) connecté`
-    : "Moteur Expert Dermo-Botanique Kènè actif (Palier 3 Haute Disponibilité)";
+    : "Moteur Expert Dermo-Cosmétique Kènè actif (Palier 3 Haute Disponibilité)";
 
   // 6. Base de données
   let dbStatus = "ok";

@@ -41,7 +41,7 @@ export const GOLD_TIERS: Array<{
     tier: 20,
     rankTitle: "Maîtresse du Métier",
     reward: "Soin Signature Annuel Offert",
-    description: "Un rituel dermo-botanique complet offert chaque année en institut.",
+    description: "Un rituel dermo-cosmétique complet offert chaque année en institut.",
   },
 ];
 

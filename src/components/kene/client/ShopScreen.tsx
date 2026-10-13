@@ -807,7 +807,7 @@ export function ShopScreen() {
                   type="button"
                   onClick={() => {
                     const origin = typeof window !== "undefined" ? window.location.origin : "https://kene.app";
-                    const msg = `Coucou ! 🌸 Je viens de repérer ce soin dermo-botanique sur Kènè :\n\n🌿 *${detail.name}* (${xof(detail.price)})\n${detail.description ? `\n« ${detail.description.slice(0, 140)}... »\n` : ""}\nÀ découvrir sur ${origin} 🌿`;
+                    const msg = `Coucou ! 🌸 Je viens de repérer ce soin dermo-cosmétique sur Kènè :\n\n🌿 *${detail.name}* (${xof(detail.price)})\n${detail.description ? `\n« ${detail.description.slice(0, 140)}... »\n` : ""}\nÀ découvrir sur ${origin} 🌿`;
                     openWhatsApp("", msg);
                   }}
                   className="mt-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold text-[#25D366] hover:text-[#20bd5a] py-1.5 active:scale-95 transition-transform"

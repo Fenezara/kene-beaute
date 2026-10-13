@@ -64,7 +64,7 @@ export function LegalScreen() {
               Dermo Kènè IA est une technologie d&apos;intelligence artificielle dermo-conseil et <strong>n&apos;est pas un médecin</strong>. Elle ne pose aucun diagnostic médical, ne traite aucune pathologie dermatologique et ne délivre aucune ordonnance médicale au sens de la législation médicale (notamment l&apos;article 376 du Code Pénal ivoirien relatif à l&apos;exercice illégal de la médecine).
             </p>
             <p className="text-xs leading-relaxed">
-              Les fiches d&apos;analyses cutanées, « Recommandations Dermo-Botaniques » et « Protocoles de Soin » générés sont de nature strictement cosmétique et consultative.
+              Les fiches d&apos;analyses cutanées, « Recommandations Dermo-Cosmétiques » et « Protocoles de Soin » générés sont de nature strictement cosmétique et consultative.
             </p>
             <p className="text-xs leading-relaxed text-destructive font-medium bg-destructive/10 p-2.5 rounded-xl border border-destructive/20">
               ⚠️ En cas d&apos;affection cutanée inhabituelle, de lésion suspecte (grain de beauté asymétrique ou évolutif, plaie, desquamation sévère), consulte impérativement et sans délai un médecin dermatologue diplômé d&apos;État.

@@ -37,7 +37,7 @@ const FR: Dict = {
   "tab.chat": "Dermo Kènè",
   "tab.profile": "Profil",
   "nav.scan.aria": "Scanner ma peau — diagnostic IA",
-  "nav.chat.aria": "Dermo Kènè — guide dermo-botanique",
+  "nav.chat.aria": "Dermo Kènè — guide dermo-cosmétique",
 
   // Titres d'écran (h1 du header ClientApp)
   "title.home": "Accueil",

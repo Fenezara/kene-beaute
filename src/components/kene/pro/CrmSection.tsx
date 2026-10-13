@@ -1,6 +1,6 @@
 "use client";
 // Kènè Pro — CRM: recherche, segments RFM, fiche cliente (ventes, RDV,
-// commandes, avis, bilans dermo-botaniques, diagnostics en institut, notes)
+// commandes, avis, bilans dermo-cosmétiques, diagnostics en institut, notes)
 // — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
@@ -941,7 +941,7 @@ function ClientSheet({
                     <button
                       type="button"
                       onClick={() => {
-                        const msg = `Bonjour ${c.name} ! 🌸 Nous espérons que vous allez bien. Votre institut Kènè reste à votre entière disposition pour vos soins et routines dermo-botaniques. 🌿`;
+                        const msg = `Bonjour ${c.name} ! 🌸 Nous espérons que vous allez bien. Votre institut Kènè reste à votre entière disposition pour vos soins et routines dermo-cosmétiques. 🌿`;
                         openWhatsApp(c.phone, msg);
                       }}
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] text-[11px] font-sans font-bold border border-[#25D366]/30 transition-colors cursor-pointer"

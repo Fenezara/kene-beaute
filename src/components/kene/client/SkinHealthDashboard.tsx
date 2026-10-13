@@ -311,7 +311,7 @@ export function SkinHealthDashboard({
                     routine_soir: ["Régénération au Karité sauvage pur"],
                     botaniques_conseillees: ["Moringa", "Karité"],
                     produits: [],
-                    soins_conseilles: ["Soin dermo-botanique cabine"],
+                    soins_conseilles: ["Soin dermo-cosmétique cabine"],
                     conseils_hygiene_vie: ["Boire 1.5L d'eau par jour"],
                   },
                   orientation_dermato: false,

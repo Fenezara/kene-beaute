@@ -43,7 +43,7 @@ const SCAN_PHASES = [
   },
   {
     step: 3,
-    title: "Fusion déclaratif cabine & observation dermo-botanique",
+    title: "Fusion déclaratif cabine & observation dermo-cosmétique",
     desc: "Pondération 38 % entretien + 62 % lecture spectrale",
     icon: Cpu,
   },
@@ -234,7 +234,7 @@ export function PhotoScanAnimation({
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <CauriIcon className="size-3.5 text-gold-text" />
-            <span>Bilan dermo-botanique Kènè</span>
+            <span>Bilan dermo-cosmétique Kènè</span>
           </span>
           <span className="font-mono font-bold text-foreground">{progress} %</span>
         </div>

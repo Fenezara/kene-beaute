@@ -203,7 +203,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
     haptic(HAPTIC.tap);
     const instName = selectedInstitute?.name || "mon institut partenaire";
     const botanicals = lastResult?.recommandations?.botaniques_conseillees?.join(", ") || "Moringa d'Afrique, Karité brut bio, Kinkeliba, Hibiscus";
-    const soins = lastResult?.recommandations?.soins_conseilles?.slice(0, 2).join(" • ") || "Soin du visage dermo-botanique en cabine";
+    const soins = lastResult?.recommandations?.soins_conseilles?.slice(0, 2).join(" • ") || "Soin du visage dermo-cosmétique en cabine";
 
     const msg = `Bonjour l'équipe de *${instName}* ! 🌿✨\n\nVoici le point sur *Mon Dossier Peau & Ordonnance Beauté Kènè* :\n\n📊 *Score Vitalité Cutanée* : ${globalScore}/100\n✨ *Phototype Fitzpatrick* : Type ${user.fitzpatrick || "V"} (mélanoderme)\n🌿 *Actifs Prescrits* : ${botanicals}\n💆‍♀️ *Soin Conseillé* : ${soins}\n\nJe souhaite faire le point sur mon évolution et programmer ma prochaine séance cabine. Merci ! 🌸`;
 
@@ -496,7 +496,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             </CardContent>
           </Card>
 
-          {/* Ordonnance Beauté Active — Les 4 Gestes Dermo-Botaniques */}
+          {/* Ordonnance Beauté Active — Les 4 Gestes Dermo-Cosmétiques */}
           <Card className="rounded-[26px] border-2 border-[#C8951E]/40 bg-gradient-to-br from-[#C8951E]/10 via-card to-card p-4 sm:p-5 space-y-4 shadow-sm">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
@@ -508,7 +508,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                     Mon Ordonnance Beauté Active
                   </h4>
                   <p className="text-xs text-muted-foreground">
-                    Protocole dermo-botanique prescrit pour peau mélanoderme
+                    Protocole dermo-cosmétique prescrit pour peau mélanoderme
                   </p>
                 </div>
               </div>
@@ -638,7 +638,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-black text-foreground">Soin en Cabine Conseillé pour votre cycle :</p>
-                <p className="text-xs text-muted-foreground">Soin dermo-botanique désincrustant et hydratation profonde (1 séance / mois)</p>
+                <p className="text-xs text-muted-foreground">Soin dermo-cosmétique désincrustant et hydratation profonde (1 séance / mois)</p>
               </div>
               <Button
                 onClick={() => {
@@ -977,7 +977,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
       <LinkAccountModal
         open={linkModalOpen}
         onClose={() => setLinkModalOpen(false)}
-        reason="Votre ordonnance et vos recommandations dermo-botaniques seront définitivement attachées à votre numéro WhatsApp."
+        reason="Votre ordonnance et vos recommandations dermo-cosmétiques seront définitivement attachées à votre numéro WhatsApp."
       />
     </div>
   );

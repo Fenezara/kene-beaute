@@ -426,7 +426,7 @@ export function ClientApp() {
                   goTab("chat");
                 }}
                 aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
-                title="Consulter Dermo Kènè (Conseils dermo-botaniques & Chat IA 24/7)"
+                title="Consulter Dermo Kènè (Conseils dermo-cosmétiques & Chat IA 24/7)"
                 className={cn(
                   "relative flex items-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-2.5 sm:px-4 rounded-full border-2 transition-all active:scale-95 shadow-xs shrink-0 select-none",
                   tab === "chat"
@@ -679,7 +679,7 @@ export function ClientApp() {
               onClick={() =>
                 openWhatsAppAppointmentInquiry({
                   serviceCategory: "Soin esthétique",
-                  serviceName: "Soin & diagnostic dermo-botanique",
+                  serviceName: "Soin & diagnostic dermo-cosmétique",
                   tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
                   instituteName: user?.selectedTenant?.name,
                   country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",

@@ -1,5 +1,5 @@
 "use client";
-// Kènè — La Boussole Dermo-Botanique d'Afrique:
+// Kènè — La Boussole Dermo-Cosmétique d'Afrique:
 // Explorateur interactif des terroirs et trésors de la pharmacopée africaine.
 // Permet aux clientes de comprendre les actifs millénaires formulés dans leurs soins
 // (Karité de Korhogo, Bissap du Sine-Saloum, Baobab de Casamance, Moringa d'Assinie, Cacao de Soubré).
@@ -145,7 +145,7 @@ export function BotanicalCompass({ className = "" }: { className?: string }) {
   }
 
   return (
-    <section aria-label="Boussole Dermo-Botanique d'Afrique" className={cn("relative w-full", className)}>
+    <section aria-label="Boussole Dermo-Cosmétique d'Afrique" className={cn("relative w-full", className)}>
       {/* En-tête de la section */}
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export function BotanicalCompass({ className = "" }: { className?: string }) {
           </span>
           <div>
             <h3 className="font-heading font-black text-sm tracking-tight text-foreground">
-              Boussole Dermo-Botanique
+              Boussole Dermo-Cosmétique
             </h3>
             <p className="text-[10.5px] text-muted-foreground">
               Les trésors d&apos;Afrique formulés pour ta peau

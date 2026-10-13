@@ -1,5 +1,5 @@
 // GET /api/diagnoses/prescription?userId=&id=
-// Retourne l'ordonnance dermo-botanique avec Pass Cabine QR en PDF vectoriel natif.
+// Retourne l'ordonnance dermo-cosmétique avec Pass Cabine QR en PDF vectoriel natif.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";

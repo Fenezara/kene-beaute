@@ -1,7 +1,7 @@
 "use client";
 // Kènè Cliente — Écran des Instituts Partenaires
 // Permet à la cliente de voir toutes les entreprises qui ont créé leur compte,
-// de cocher l'institut qui lui correspond (qui recevra ses bilans dermo-botaniques),
+// de cocher l'institut qui lui correspond (qui recevra ses bilans dermo-cosmétiques),
 // et d'échanger directement sur WhatsApp.
 
 import { useEffect, useMemo, useState } from "react";
@@ -144,7 +144,7 @@ export function InstitutesScreen() {
   // Échange WhatsApp direct
   function handleWhatsApp(inst: ApiInstitute) {
     const phone = inst.phone || inst.ownerPhone || "2250700000000";
-    const msg = `Bonjour ${inst.name} ! 🌸\n\nJe suis cliente sur l'application Kènè (${user.name}). Je souhaite échanger avec vous pour mes rituels de soin dermo-botaniques.\n\nÀ très bientôt ! ✨`;
+    const msg = `Bonjour ${inst.name} ! 🌸\n\nJe suis cliente sur l'application Kènè (${user.name}). Je souhaite échanger avec vous pour mes rituels de soin dermo-cosmétiques.\n\nÀ très bientôt ! ✨`;
     openWhatsApp(phone, msg, inst.country === "SN" ? "SN" : "CI");
   }
 

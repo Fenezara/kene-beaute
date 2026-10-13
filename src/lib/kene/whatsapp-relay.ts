@@ -167,7 +167,7 @@ export function openWhatsAppInstituteContact(details?: {
 
   const msg = details?.message
     ? details.message
-    : `Bonjour ${instName} ! 🌸\n\nJe suis cliente sur l'application Kènè${clientName ? ` (${clientName})` : ""}. Je souhaite échanger avec vous concernant mes soins dermo-botaniques.\n\nÀ très bientôt ! ✨`;
+    : `Bonjour ${instName} ! 🌸\n\nJe suis cliente sur l'application Kènè${clientName ? ` (${clientName})` : ""}. Je souhaite échanger avec vous concernant mes soins dermo-cosmétiques.\n\nÀ très bientôt ! ✨`;
 
   openWhatsApp(phone, msg, country);
 }

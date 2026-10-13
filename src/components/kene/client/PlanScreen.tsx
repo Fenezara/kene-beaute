@@ -78,7 +78,7 @@ const DEFAULT_PLUS_DEF: ApiPlanDef = {
   id: "kene_plus",
   audience: "client",
   name: "Kènè+",
-  tagline: "L'intelligence dermo-botanique illimitée pour sublimer votre peau",
+  tagline: "L'intelligence dermo-cosmétique illimitée pour sublimer votre peau",
   priceFcfa: 5000,
   minPriceFcfa: 2500,
   trialDays: 30,

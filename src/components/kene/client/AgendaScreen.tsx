@@ -339,7 +339,7 @@ export function AgendaScreen() {
               onClick={() => {
                 openWhatsAppAppointmentInquiry({
                   serviceCategory: "Soin esthétique",
-                  serviceName: "Soin dermo-botanique ou consultation",
+                  serviceName: "Soin dermo-cosmétique ou consultation",
                   tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
                   instituteName: selectedInst?.name,
                   country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
@@ -397,7 +397,7 @@ export function AgendaScreen() {
               </div>
             ) : (
               upcomingAppts.map((appt) => {
-                const serviceName = appt.service?.name || "Soin dermo-botanique";
+                const serviceName = appt.service?.name || "Soin dermo-cosmétique";
                 const tenantName = appt.tenant?.name || "Institut Partenaire";
                 const practitionerName = appt.resource?.name || "Praticienne de cabine";
                 const phone = appt.tenant?.phone || selectedInst?.phone || "";

@@ -105,7 +105,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
 
     if (cat.includes("consult") || name.includes("consult")) {
       return {
-        label: "Consultation Dermo-Botanique",
+        label: "Consultation Dermo-Cosmétique",
         icon: Sparkles,
         badgeBg: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
         pillColor: "#10B981",
@@ -225,7 +225,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
           {/* Boutons d'accès directs par type de soin vers l'entreprise */}
           <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
             <button
-              onClick={() => handleBookCategory("Consultation", "Consultation dermo-botanique")}
+              onClick={() => handleBookCategory("Consultation", "Consultation dermo-cosmétique")}
               className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-bold active:scale-95 transition-all"
             >
               <Sparkles size={13} />
@@ -358,7 +358,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-2.5">
             <div>
               <h4 className="font-heading font-black text-base text-foreground flex items-center gap-2">
-                {nextAppt.service?.name || "Protocole Dermo-Botanique"}
+                {nextAppt.service?.name || "Protocole Dermo-Cosmétique"}
               </h4>
               {nextAppt.service?.description && (
                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{nextAppt.service.description}</p>
@@ -507,7 +507,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => handleBookCategory("Consultation", "Consultation dermo-botanique")}
+            onClick={() => handleBookCategory("Consultation", "Consultation dermo-cosmétique")}
             className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[11px] font-bold active:scale-95 transition-all"
           >
             <Sparkles size={11} />

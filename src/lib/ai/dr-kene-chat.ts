@@ -327,7 +327,7 @@ export function generateDrKeneKnowledgeReply(messages: ChatMessage[], _userId?: 
   // 11. BOUTIQUE / PRIX / ACHAT PRODUITS
   if (/prix|tarif|combien|acheter|commander|produit|boutique|creme|serum/.test(text)) {
     return (
-      "Pour commander nos soins dermo-botaniques formulés spécialement pour la peau mélanoderme, tu peux échanger directement avec ton institut partenaire ou notre concierge Kènè via WhatsApp. " +
+      "Pour commander nos soins dermo-cosmétiques formulés spécialement pour la peau mélanoderme, tu peux échanger directement avec ton institut partenaire ou notre concierge Kènè via WhatsApp. " +
       "Chaque routine est validée sur-mesure d'après ton diagnostic de peau, avec livraison soignée à Abidjan et partout en Côte d'Ivoire. " +
       "Dis-moi ce que tu cherches exactement et je te guide vers le meilleur soin pour ton teint 🌿."
     );

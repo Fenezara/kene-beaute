@@ -77,7 +77,7 @@ export function SkinZoneSelector({ selectedZone, onSelectZone }: SkinZoneSelecto
           Cartographie de la zone à diagnostiquer
         </label>
         <span className="text-[11px] font-medium text-gold-text bg-gold/10 px-2 py-0.5 rounded-full border border-gold/20">
-          Pondération dermo-botanique active
+          Pondération dermo-cosmétique active
         </span>
       </div>
 

@@ -302,7 +302,7 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
             onChange={(e) => setDescription(e.target.value)}
             maxLength={600}
             rows={4}
-            placeholder="Ex : Institut dermo-botanique de référence à Cocody. Rituels éclat anti-taches, gommages régénérants au beurre de karité brut de Korhogo, bilans de peau haute précision..."
+            placeholder="Ex : Institut dermo-cosmétique de référence à Cocody. Rituels éclat anti-taches, gommages régénérants au beurre de karité brut de Korhogo, bilans de peau haute précision..."
             className="w-full rounded-xl border border-border bg-background p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary resize-none"
           />
           <div className="flex items-center justify-between gap-2">

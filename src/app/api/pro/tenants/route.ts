@@ -31,7 +31,7 @@ const CreateTenantBody = z.object({
 type InstituteType = "institut" | "spa" | "dermo_conseil";
 
 const DESCRIPTIONS: Record<InstituteType, string> = {
-  institut: "Institut de beauté dermo-botanique spécialisé peaux mélanodermes —",
+  institut: "Institut de beauté dermo-cosmétique spécialisé peaux mélanodermes —",
   spa: "Spa urbain, rituels de relaxation et massages aux huiles africaines —",
   dermo_conseil: "Espace dermo-conseil, bilans cutanés et accompagnement cosmétique —",
 };

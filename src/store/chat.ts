@@ -21,7 +21,7 @@ export function welcomeMsg(userName?: string | null, city?: string | null): Chat
   return {
     id: "w1",
     role: "assistant",
-    content: `${salutation} Je suis Dermo Kènè, votre experte dermo-botanique dédiée ici à ${loc}.\n\nJe viens aux nouvelles : comment se porte votre peau aujourd'hui ? Avez-vous remarqué des tiraillements, des taches pigmentaires, un excès de brillance ou souhaitez-vous un conseil routine sur-mesure ?\n\nÉchangez avec moi librement par message, note vocale 🎙️ ou montrez-moi votre peau en photo 📸. Que puis-je faire pour vous ?`,
+    content: `${salutation} Je suis Dermo Kènè, votre conseillère dermo-cosmétique dédiée ici à ${loc}.\n\nJe viens aux nouvelles : comment se porte votre peau aujourd'hui ? Avez-vous remarqué des tiraillements, des taches pigmentaires, un excès de brillance ou souhaitez-vous un conseil routine sur-mesure ?\n\nÉchangez avec moi librement par message, note vocale 🎙️ ou montrez-moi votre peau en photo 📸. Que puis-je faire pour vous ?`,
     kind: "text",
     time: Date.now(),
   };

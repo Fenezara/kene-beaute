@@ -72,7 +72,7 @@ function buildWhatsAppDiagUrl(clientName: string, phone: string, result: ProDiag
       ? `221${digits}`
       : digits;
   const botaniques = result.recommandations.botaniques_conseillees?.join(", ") || "Karité, Moringa, Baobab";
-  const soins = result.recommandations.soins_conseilles?.slice(0, 2).join(" • ") || "Soin dermo-botanique";
+  const soins = result.recommandations.soins_conseilles?.slice(0, 2).join(" • ") || "Soin dermo-cosmétique";
   const text = `Bonjour ${clientName.split(" ")[0]} 🌸\n\nVoici votre bilan de peau personnalisé réalisé en institut${tenantName ? ` chez « ${tenantName} »` : ""} :\n\n📊 Score santé cutanée : ${result.score_global}/100\n📍 Zone : ${result.zone.replace("_", " ")}\n🌿 Botaniques clés : ${botaniques}\n💆‍♀️ Soin cabine conseillé : ${soins}\n\nRetrouvez votre protocole complet et vos progrès sur l'application Kènè ! 🌿`;
   return `https://wa.me/${target}?text=${encodeURIComponent(text)}`;
 }
@@ -1735,7 +1735,7 @@ export function ResultView({
                   <Layers className="size-4" />
                 </span>
                 <span className="text-[10.5px] font-bold uppercase tracking-wider text-gold">
-                  Immersion 3D Dermo-Botanique Kènè
+                  Immersion 3D Dermo-Cosmétique Kènè
                 </span>
               </div>
               <h4 className="font-heading font-black text-base sm:text-lg text-[#FFF9EC]">

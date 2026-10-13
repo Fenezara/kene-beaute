@@ -124,19 +124,24 @@ export async function GET(req: NextRequest) {
     // Garde de session: claim query vs cookie si session présente.
     const guard = guardUserClaim(req, "diagnoses:get", userId);
     if (guard) return guard;
-    // Historique borné (POC: 20 derniers — le front liste tout, sans
-    // « charger plus »; imageData conservé pour l'historique photos).
-    //
-    // — « de part et d'autre »: l'historique fusionne les self-scans
-    // app ET les diagnostics réalisés EN INSTITUT chez ses partenaires
-    // (ProDiagnosis.userId, posé dès que la fiche CRM est liée au compte).
-    // Chaque entrée institut porte le champ `institut` (nom du tenant) — le
-    // front l'affiche comme badge; les self-scans n'ont pas le champ.
+    const light = req.nextUrl.searchParams.get("light") === "1";
+    // Historique borné (POC: 20 derniers). Si light=1 (HomeScreen / boot),
+    // on ne transmet pas les mégawatts de imageData base64 pour un chargement 10x plus vif.
     const [selfScans, proDiags] = await Promise.all([
       db.diagnosis.findMany({
         where: { userId },
         orderBy: { createdAt: "desc" },
         take: 20,
+        select: {
+          id: true,
+          userId: true,
+          zone: true,
+          imageData: !light,
+          resultJson: true,
+          scoreGlobal: true,
+          status: true,
+          createdAt: true,
+        },
       }),
       db.proDiagnosis.findMany({
         where: { userId },
@@ -146,12 +151,15 @@ export async function GET(req: NextRequest) {
       }),
     ]);
     const diagnoses = [
-      ...selfScans,
+      ...selfScans.map((s) => ({
+        ...s,
+        imageData: (s.imageData as string | undefined) ?? "",
+      })),
       ...proDiags.map((p) => ({
         id: p.id,
         userId,
         zone: p.zone,
-        imageData: p.photoData ?? "",
+        imageData: light ? "" : (p.photoData ?? ""),
         resultJson: p.resultJson,
         scoreGlobal: p.scoreGlobal,
         status: "done" as const,

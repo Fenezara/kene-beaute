@@ -16,12 +16,12 @@ export const DEFAULT_FALLBACK_CATALOG: ProCatalog = {
   services: [
     {
       id: "srv_consultation",
-      name: "Consultation Dermo-Botanique",
+      name: "Consultation Dermo-Cosmétique",
       category: "consultation",
       durationMin: 35,
       price: 10000,
       commissionPct: 15,
-      description: "Entretien personnalisé, bilan de peau en cabine et conseils botaniques.",
+      description: "Entretien personnalisé, bilan de peau en cabine et conseils dermo-cosmétiques.",
       active: true,
     },
     {
@@ -142,9 +142,9 @@ export const DEFAULT_FALLBACK_CATALOG: ProCatalog = {
     },
     {
       id: "prd_serum_eclat",
-      name: "Sérum Botanique Éclat & Anti-taches",
+      name: "Sérum Éclat & Anti-taches",
       category: "serum",
-      description: "Concentré d'actifs dermo-botaniques ciblant l'hyperpigmentation post-inflammatoire.",
+      description: "Concentré d'actifs dermo-cosmétiques ciblant l'hyperpigmentation post-inflammatoire.",
       botanicals: "Kinkeliba, Hibiscus, Niacinamide",
       price: 18500,
       stock: 15,

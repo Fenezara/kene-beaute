@@ -1,4 +1,4 @@
-﻿/**
+/**
  * src/config/salon-identity.ts
  *
  * CONFIGURATION CENTRALE DE L'INSTITUT KÈNÈ (IDENTITÉ, FISCALITÉ, ÉQUIPE & COORDONNÉES)
@@ -6,7 +6,7 @@
  * Renseignez ici les informations réelles de votre institut pour personnaliser
  * automatiquement l'ensemble de la plateforme :
  * - En-têtes des tickets de caisse thermiques (ESC/POS & web)
- * - Factures d'achats et ordonnances dermo-botaniques PDF
+ * - Factures d'achats et ordonnances dermo-cosmétiques PDF
  * - Coordonnées légales SYSCOHADA (RCCM, NIF, TVA 18%)
  * - Numéro WhatsApp officiel pour les notifications et tickets dématérialisés
  * - Taux de commissions par praticienne

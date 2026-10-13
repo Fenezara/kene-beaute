@@ -61,7 +61,7 @@ export function HomeScreen({
     (async () => {
       try {
         const [d, a, p, s, insts] = await Promise.all([
-          apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`),
+          apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}&light=1`),
           apiGet<{ appointments: ApiAppointment[] }>(`/api/appointments?userId=${user.id}`),
           apiGet<{ products: ApiProduct[] }>("/api/shop/products"),
           apiGet<{ plan: string; subscription: { plan: string; expiresAt: string } | null }>(`/api/subscriptions?userId=${user.id}`).catch(() => null),
@@ -293,10 +293,10 @@ export function HomeScreen({
         />
       </RevealItem>
 
-      {/* ───── 2. DERMO KÈNÈ · L'EXPERTE DERMO-BOTANIQUE 24/7 ───── */}
+      {/* ───── 2. DERMO KÈNÈ · L'EXPERTE DERMO-COSMÉTIQUE 24/7 ───── */}
       <RevealItem>
         <section
-          aria-label="Dermo Kènè — Conseillère dermo-botanique 24/7"
+          aria-label="Dermo Kènè — Conseillère dermo-cosmétique 24/7"
           className="relative overflow-hidden rounded-[26px] border border-[#C8951E]/40 bg-gradient-to-br from-[#1C1611] via-[#241A14] to-[#18130E] p-4.5 sm:p-5 text-[#FFF9EC] shadow-lg"
         >
           {/* Halos dorés subtils */}

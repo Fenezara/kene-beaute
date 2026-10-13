@@ -1,5 +1,5 @@
 "use client";
-// Kènè Pro — Stock: inventaire organisé par familles dermo-botaniques,
+// Kènè Pro — Stock: inventaire organisé par familles dermo-cosmétiques,
 // distinction Revente Boutique vs Usage Cabine, alertes réassort & traçabilité
 import { useMemo, useState } from "react";
 import {
@@ -240,7 +240,7 @@ export function StockSection({ tenantId, onNavigate }: { tenantId: string; onNav
     <div className="space-y-4">
       <SectionHeader
         title="Stock & Inventaire"
-        sub={`${products.length} références dermo-botaniques · ${totalUnits} unités en rayon`}
+        sub={`${products.length} références dermo-cosmétiques · ${totalUnits} unités en rayon`}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => onNavigate?.("catalogue")} className="hidden sm:inline-flex text-xs">
@@ -418,7 +418,7 @@ export function StockSection({ tenantId, onNavigate }: { tenantId: string; onNav
           </div>
         </div>
 
-        {/* Ligne 2 : Puces de Catégories Dermo-Botaniques (Scroll Horizontal) */}
+        {/* Ligne 2 : Puces de Catégories Dermo-Cosmétiques (Scroll Horizontal) */}
         <div className="pt-1 border-t border-border/40">
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
             <button

@@ -159,7 +159,7 @@ export function BeautyCardModal({
       // 8. Footer
       ctx.fillStyle = "rgba(248, 241, 228, 0.5)";
       ctx.font = "28px sans-serif";
-      ctx.fillText("kene.app  •  Soins dermo-botaniques d'Afrique", 540, 1780);
+      ctx.fillText("kene.app  •  Soins dermo-cosmétiques d'Afrique", 540, 1780);
 
       // Export Blob & Téléchargement
       canvas.toBlob((blob) => {

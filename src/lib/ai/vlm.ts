@@ -61,7 +61,7 @@ Règles : TOUS les indicateurs listés dans "ind" ; 4 à 6 marks ; sev 0=sain 1=
  * de l'analyse réelle. Texte pur = génération rapide (~4 s). */
 function buildRecommendationsPrompt(analysisJson: string, zone: BodyZone): string {
   const zoneLabel = zone === "mains" ? "mains et pieds (extrémités acrales)" : zone;
-  return `Tu es conseillère dermo-botanique Kènè pour peaux mélanodermes africaines. Kènè ne vend aucun cosmétique (recommandations neutres, zéro prix, marques ou incitation commerciale).
+  return `Tu es conseillère dermo-cosmétique Kènè pour peaux mélanodermes africaines. Kènè ne vend aucun cosmétique (recommandations neutres, zéro prix, marques ou incitation commerciale).
 Analyse cutanée récente (zone « ${zoneLabel} ») : ${analysisJson.slice(0, 700)}
 Rédige des recommandations personnalisées ciblant spécifiquement les indicateurs les plus faibles (ex: taches/pigmentation -> sérum unifiant vitamine C & niacinamide 10% + fluide solaire SPF 50+; boutons/sébum -> gel purifiant moringa & zinc; sécheresse -> baume réparateur karité brut & céramides).
 JSON STRICT compact (≤ 800 caractères, sans texte autour) :
@@ -428,7 +428,7 @@ export function derivePersonalizedRecommendations(
   const focusTxt = worst ? `« ${worst.nom} » (${worst.pourcentage} %)` : "l'harmonie générale de votre peau";
 
   return {
-    resume: `Votre score global de santé cutanée est de ${scoreGlobal}/100. L'indicateur prioritaire identifié est ${focusTxt}. La routine dermo-botanique recommandée ci-dessous cible précisément ces besoins pour rétablir l'équilibre et révéler l'éclat de votre peau.`,
+    resume: `Votre score global de santé cutanée est de ${scoreGlobal}/100. L'indicateur prioritaire identifié est ${focusTxt}. La routine dermo-cosmétique recommandée ci-dessous cible précisément ces besoins pour rétablir l'équilibre et révéler l'éclat de votre peau.`,
     routine_matin: matin,
     routine_soir: soir,
     botaniques_conseillees: botaniques,
@@ -615,7 +615,7 @@ Examine attentivement l'ensemble de ces clichés pour analyser les zones (bouton
 Réponds STRICTEMENT sous format JSON valide avec la structure suivante :
 {
   "niveau": "vert"|"jaune"|"rouge",
-  "message": "Ton analyse bienveillante et chaleureuse en français d'Abidjan (environ 80 à 120 mots, sans markdown astérisques **). Accueille avec tendresse (Bonjour ma chérie, Yako si boutons/taches), décris ce que tu remarques sur les clichés, donne un conseil dermo-botanique de chez nous (beurre de karité brut, gel d'aloka, huile de moringa, écran solaire SPF50), oriente vers une dermo-conseillère en institut partenaire certifié Kènè à Abidjan si jaune, ou vers une consultation dermatologique urgente si rouge. Conclus TOUJOURS complètement ton discours par une phrase chaleureuse terminée par un point final."
+  "message": "Ton analyse bienveillante et chaleureuse en français d'Abidjan (environ 80 à 120 mots, sans markdown astérisques **). Accueille avec tendresse (Bonjour ma chérie, Yako si boutons/taches), décris ce que tu remarques sur les clichés, donne un conseil dermo-cosmétique de chez nous (beurre de karité brut, gel d'aloka, huile de moringa, écran solaire SPF50), oriente vers une dermo-conseillère en institut partenaire certifié Kènè à Abidjan si jaune, ou vers une consultation dermatologique urgente si rouge. Conclus TOUJOURS complètement ton discours par une phrase chaleureuse terminée par un point final."
 }
 Règles cliniques :
 - vert = Bénin, petites imperfections, déshydratation ou routine d'entretien.
@@ -841,7 +841,7 @@ export async function runDiagnosis(opts: {
 }
 
 /**
- * Profils d'expertise dermo-botanique Dr Kènè pour peaux mélanodermes (Fitzpatrick IV-VI).
+ * Profils d'expertise dermo-cosmétique Dr Kènè pour peaux mélanodermes (Fitzpatrick IV-VI).
  * Utilisés en Tier 3 (moteur autonome zero-failure) garantissant une réponse d'excellence clinique et culturelle.
  */
 interface ClinicalTriageProfile {
@@ -969,7 +969,7 @@ export async function triageLesion(
     }
     return expertVisualTriage(primaryImage);
   } catch {
-    // Tier 3: Moteur dermo-botanique expert autonome (zéro panne, zéro message d'erreur générique)
+    // Tier 3: Moteur dermo-cosmétique expert autonome (zéro panne, zéro message d'erreur générique)
     return expertVisualTriage(primaryImage);
   }
 }

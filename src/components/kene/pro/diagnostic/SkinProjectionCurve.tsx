@@ -18,7 +18,7 @@ export function SkinProjectionCurve({
 }: SkinProjectionCurveProps) {
   const [assiduite, setAssiduite] = useState<number>(100); // 70% à 100%
 
-  // Modélisation dermo-botanique de l'évolution prévisionnelle
+  // Modélisation dermo-cosmétique de l'évolution prévisionnelle
   const coef = assiduite / 100;
   const scoreJ0 = initialScore;
   const scoreJ14 = Math.min(96, Math.round(scoreJ0 + (10 * (100 - scoreJ0) / 45) * coef));
@@ -72,7 +72,7 @@ export function SkinProjectionCurve({
               Projection d&apos;Évolution Cutanée {clientName ? `— ${clientName}` : ""}
             </h4>
             <p className="text-[11px] text-muted-foreground">
-              Simulation dermo-botanique prédictive sous réserve du suivi du protocole
+              Simulation dermo-cosmétique prédictive sous réserve du suivi du protocole
             </p>
           </div>
         </div>
