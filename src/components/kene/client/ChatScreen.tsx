@@ -288,6 +288,7 @@ export function ChatScreen() {
   // Fil persisté (survit au changement d'onglet) — voir src/store/chat.ts.
   const messages = useChat((s) => s.messages);
   const add = useChat((s) => s.add);
+  const ensureEngaged = useChat((s) => s.ensureEngaged);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [ttsOn, setTtsOn] = useState(false);
@@ -295,8 +296,8 @@ export function ChatScreen() {
   const [micState, setMicState] = useState<MicState>("idle");
   const [micElapsed, setMicElapsed] = useState(0);
 
-  // Mode de vue : "orb" (Sanctuaire de Consultation Orbe 3D) ou "thread" (Fil complet)
-  const [viewMode, setViewMode] = useState<"orb" | "thread">("orb");
+  // Mode de vue : "thread" par défaut (le fil interactif où Dermo Kènè engage la conversation) ou "orb" (Sanctuaire 3D)
+  const [viewMode, setViewMode] = useState<"orb" | "thread">("thread");
   const [audioLevel, setAudioLevel] = useState(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -317,12 +318,12 @@ export function ChatScreen() {
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Dernier message du Dr. Kènè pour la carte de prescription
+  // Dernier message de Dermo Kènè pour la carte de prescription
   const lastAssistantMessage = useMemo(() => {
     return [...messages].reverse().find((m) => m.role === "assistant");
   }, [messages]);
 
-  // État dynamique de l'Orbe 3D du Dr. Kènè
+  // État dynamique de l'Orbe 3D de Dermo Kènè
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
   const orbState: DrKeneOrbState = useMemo(() => {
     if (sending || photoBusy) return "analyzing";
@@ -336,13 +337,21 @@ export function ChatScreen() {
     void syncHardwarePermissions();
   }, []);
 
-  // Rehydratation paresseuse et idempotente (pattern use-t.ts): le premier
-  // montage relit le localStorage persisté; les montages suivants ne
-  // relisent PAS — les photos de session restent en mémoire (hasHydrated
-  // évite qu'une relecture n'écrase le fil courant sans ses photos).
+  // Engagement obligatoire de la conversation par Dermo Kènè dès l'ouverture
   useEffect(() => {
-    if (!useChat.persist.hasHydrated()) void useChat.persist.rehydrate();
-  }, []);
+    if (!useChat.persist.hasHydrated()) {
+      const res = useChat.persist.rehydrate();
+      if (res && typeof (res as any).then === "function") {
+        void (res as Promise<void>).then(() => {
+          ensureEngaged(user.name, user.city);
+        });
+      } else {
+        ensureEngaged(user.name, user.city);
+      }
+    } else {
+      ensureEngaged(user.name, user.city);
+    }
+  }, [ensureEngaged, user.name, user.city]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -815,7 +824,7 @@ export function ChatScreen() {
         </div>
       </header>
 
-      {/* ─── SCÈNE 1 : LE SANCTUAIRE DE CONSULTATION ORBE DU DR. KÈNÈ ─── */}
+      {/* ─── SCÈNE 1 : LE SANCTUAIRE DE CONSULTATION ORBE DE DERMO KÈNÈ ─── */}
       {viewMode === "orb" ? (
         <div className="py-4 space-y-5 animate-in fade-in duration-300">
           {/* Scène centrale de l'Orbe Sacré Émeraude & Or */}
@@ -823,7 +832,7 @@ export function ChatScreen() {
             {/* Lueur d'ambiance émeraude et dorée */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 sm:w-80 h-72 sm:h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
-            {/* L'Orbe 3D interactif du Dr. Kènè */}
+            {/* L'Orbe 3D interactif de Dermo Kènè */}
             <div className="relative z-10 mb-2">
               <DrKeneOrb3D
                 state={orbState}
@@ -840,7 +849,7 @@ export function ChatScreen() {
               />
             </div>
 
-            {/* Statut dynamique parlant du Dr. Kènè */}
+            {/* Statut dynamique parlant de Dermo Kènè */}
             <div className="relative z-10 space-y-3 max-w-lg mx-auto">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/80 border border-border/80 text-xs font-semibold text-foreground shadow-xs">
                 {micState === "recording" ? (

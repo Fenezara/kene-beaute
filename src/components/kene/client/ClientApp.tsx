@@ -22,6 +22,7 @@ import { KeneEmblem, KeneEmblemLockup, KeneMark, NeaOnnimIcon, SankofaIcon } fro
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { AuroraBackdrop, IconBadge } from "@/components/kene/ui2026";
 import { useKene, type ClientTab } from "@/store/kene";
+import { useChat } from "@/store/chat";
 import { replayDiagQueue } from "@/lib/kene/diag-queue";
 import { useT } from "@/lib/kene/use-t";
 import { WelcomeThreshold } from "./WelcomeThreshold";
@@ -407,17 +408,18 @@ export function ClientApp() {
               </div>
             </div>
 
-            {/* 2. DROITE : Dr Kènè + Actions rapides (Switcher, Cloche, Réglages, Thème) */}
+            {/* 2. DROITE : Dermo Kènè + Actions rapides (Switcher, Cloche, Réglages, Thème) */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              {/* 👑 BOUTON DR KÈNÈ EN HAUT — GRAND, TACTILE, PARFAITEMENT CALIBRÉ SANS CHEVAUCHEMENT */}
+              {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — GRAND, TACTILE, PARFAITEMENT CALIBRÉ SANS CHEVAUCHEMENT */}
               <button
                 type="button"
                 onClick={() => {
                   haptic(HAPTIC.tap);
+                  useChat.getState().ensureEngaged(user.name, user.city);
                   goTab("chat");
                 }}
                 aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
-                title="Consulter Dr Kènè (Conseils dermo-botaniques & Chat IA 24/7)"
+                title="Consulter Dermo Kènè (Conseils dermo-botaniques & Chat IA 24/7)"
                 className={cn(
                   "relative flex items-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-2.5 sm:px-4 rounded-full border-2 transition-all active:scale-95 shadow-xs shrink-0 select-none",
                   tab === "chat"
@@ -431,7 +433,7 @@ export function ClientApp() {
                   <span className="absolute -top-0.5 -right-0.5 size-2 sm:size-2.5 rounded-full bg-emerald-500 ring-1.5 ring-background animate-pulse" />
                 </span>
                 <span className="text-[12px] sm:text-sm font-black tracking-tight flex items-center gap-1 sm:gap-1.5 text-foreground whitespace-nowrap">
-                  <span>Dr Kènè</span>
+                  <span>Dermo Kènè</span>
                   <span className="text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-full bg-[#C8951E]/25 text-[#C8951E] dark:text-[#FFD875] border border-[#C8951E]/40 uppercase tracking-wider">
                     24/7
                   </span>
