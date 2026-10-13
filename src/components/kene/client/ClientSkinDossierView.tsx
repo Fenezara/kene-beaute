@@ -182,16 +182,16 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
     if (validWithImages.length === 1) {
       const single = diagImgSrc(validWithImages[0].imageData);
       return {
-        beforePhotoUrl: single || "/images/kene-skin-before.jpg",
-        afterPhotoUrl: "/images/kene-skin-after.jpg",
+        beforePhotoUrl: single || "/skin/guide-visage-1.webp",
+        afterPhotoUrl: "/skin/guide-visage-2.webp",
         hasRealPhotos: false,
         beforeDate: formatDate(validWithImages[0].createdAt),
         afterDate: "Objectif J+30",
       };
     }
     return {
-      beforePhotoUrl: "/images/kene-skin-before.jpg",
-      afterPhotoUrl: "/images/kene-skin-after.jpg",
+      beforePhotoUrl: "/skin/guide-visage-1.webp",
+      afterPhotoUrl: "/skin/guide-visage-2.webp",
       hasRealPhotos: false,
       beforeDate: "Séance initiale",
       afterDate: "Contrôle cabine",

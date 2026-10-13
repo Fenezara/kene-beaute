@@ -46,16 +46,25 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ type: stri
 
     const [, mime, b64] = m;
     const bytes = Buffer.from(b64, "base64");
+    const etag = `"${type}-${id}-${bytes.byteLength}"`;
+
+    if (_req.headers.get("if-none-match") === etag) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          ETag: etag,
+          "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
+        },
+      });
+    }
+
     return new NextResponse(new Uint8Array(bytes), {
       status: 200,
       headers: {
         "Content-Type": mime,
         "Content-Length": String(bytes.byteLength),
-        // Photo réputée immuable: chaque nouvelle photo écrase la colonne et
-        // l'ETag (type-id-taille) change — le cache navigateur se rafraîchit
-        // seul, sans staleness visible.
-        "Cache-Control": "public, max-age=86400, must-revalidate",
-        ETag: `"${type}-${id}-${bytes.byteLength}"`,
+        "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
+        ETag: etag,
       },
     });
   } catch {

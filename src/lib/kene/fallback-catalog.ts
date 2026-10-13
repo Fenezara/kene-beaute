@@ -125,7 +125,7 @@ export const DEFAULT_FALLBACK_CATALOG: ProCatalog = {
       price: 5000,
       stock: 25,
       stockAlert: 5,
-      image: "/products/karite.jpg",
+      image: "/products/baume-karite.webp",
       active: true,
     },
     {
@@ -137,7 +137,7 @@ export const DEFAULT_FALLBACK_CATALOG: ProCatalog = {
       price: 3500,
       stock: 40,
       stockAlert: 8,
-      image: "/products/savon.jpg",
+      image: "/products/savon-noir.webp",
       active: true,
     },
     {
@@ -149,7 +149,7 @@ export const DEFAULT_FALLBACK_CATALOG: ProCatalog = {
       price: 18500,
       stock: 15,
       stockAlert: 3,
-      image: "/products/serum.jpg",
+      image: "/products/serum-moringa.webp",
       active: true,
     },
     {
@@ -161,7 +161,7 @@ export const DEFAULT_FALLBACK_CATALOG: ProCatalog = {
       price: 9000,
       stock: 18,
       stockAlert: 4,
-      image: "/products/huile.jpg",
+      image: "/products/huile-baobab.webp",
       active: true,
     },
   ],

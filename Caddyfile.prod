@@ -12,6 +12,12 @@
 kene-beaute.com, www.kene-beaute.com {
 	encode gzip zstd
 
+	# Cache accélérateur navigateur pour les images et médias (WebP, PNG, JPG, SVG, WOFF2)
+	@static {
+		path *.webp *.png *.jpg *.jpeg *.svg *.woff2 *.ico
+	}
+	header @static Cache-Control "public, max-age=2592000, stale-while-revalidate=86400"
+
 	# Microservice WebSocket & Notifications push temps réel (notify-service)
 	@notify {
 		query XTransformPort=3004*

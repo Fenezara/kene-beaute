@@ -251,6 +251,17 @@ export function middleware(req: NextRequest) {
     return applySecurityHeaders(res);
   }
 
+  // 1-ter) Cache optimisé haute performance pour les images et assets statiques
+  // (WebP, PNG, JPG, SVG, WOFF2, CSS, JS bundles immuables) : 30 jours de cache
+  if (
+    path.startsWith("/_next/static/") ||
+    /\.(webp|png|jpg|jpeg|svg|woff2|ico)$/i.test(path)
+  ) {
+    const res = NextResponse.next();
+    res.headers.set("Cache-Control", "public, max-age=2592000, stale-while-revalidate=86400");
+    return applySecurityHeaders(res, false);
+  }
+
   // Detecte si la route est une API (pour Cache-Control: no-store).
   const isApi = path.startsWith("/api/");
 

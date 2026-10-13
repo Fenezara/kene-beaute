@@ -78,7 +78,13 @@ function PortalCard({
       }}
     >
       {/* Image plein cadre + voile dégradé (lisibilité garantie) */}
-      <img src={img} alt={imgAlt} className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]" />
+      <img
+        src={img}
+        alt={imgAlt}
+        loading="eager"
+        decoding="async"
+        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+      />
       <div className="absolute inset-0 bg-gradient-to-t from-[#140E08]/85 via-[#140E08]/30 to-[#140E08]/10" />
       <div className="absolute inset-0 bg-gradient-to-r from-[#140E08]/45 to-transparent" />
 
