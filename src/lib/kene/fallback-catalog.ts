@@ -94,6 +94,26 @@ export const DEFAULT_FALLBACK_CATALOG: ProCatalog = {
       description: "Soin complet des ongles et cuticules au karité avec pose soignée.",
       active: true,
     },
+    {
+      id: "srv_makeup_eclat",
+      name: "Mise en Beauté & Make-Up Teint Mélanine",
+      category: "maquillage",
+      durationMin: 45,
+      price: 15000,
+      commissionPct: 15,
+      description: "Mise en valeur naturelle des sous-tons dorés et chauds mélanodermes avec produits non-comédogènes.",
+      active: true,
+    },
+    {
+      id: "srv_makeup_ceremonie",
+      name: "Maquillage Cérémonie & Soirée Privilège",
+      category: "maquillage",
+      durationMin: 60,
+      price: 25000,
+      commissionPct: 15,
+      description: "Maquillage événementiel haute tenue : travail du teint zéro brillance, fixateur sans flashback et regard intense.",
+      active: true,
+    },
   ],
   products: [
     {

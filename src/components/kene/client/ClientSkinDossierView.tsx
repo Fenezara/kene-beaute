@@ -534,7 +534,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                 <div className="space-y-2 text-xs text-muted-foreground">
                   <div className="flex items-start gap-2">
                     <span className="grid size-5 place-items-center rounded-full bg-indigo-500/15 text-indigo-400 font-bold text-[10px] shrink-0 mt-0.5">1</span>
-                    <span><strong>Double nettoyage :</strong> Huile purifiante de Balanites pour dissoudre les impuretés et le sébum oxydé.</span>
+                    <span><strong>Double nettoyage &amp; Démaquillage :</strong> Huile purifiante de Balanites ou Jojoba pour dissoudre maquillage, sébum oxydé et filtres UV sans frotter.</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="grid size-5 place-items-center rounded-full bg-indigo-500/15 text-indigo-400 font-bold text-[10px] shrink-0 mt-0.5">2</span>
@@ -580,6 +580,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                 <span>Sécurisation &amp; Cosmétovigilance Mélanoderme : Ce qu&apos;il faut impérativement éviter</span>
               </div>
               <ul className="text-muted-foreground space-y-1 list-disc pl-4 text-[11px] leading-relaxed">
+                <li><strong>Make-Up non comédogène :</strong> Bannir les fonds de teint occlusifs ou trop gras qui bouchent les pores et déclenchent de l&apos;acné cosmétique avec taches rebelles.</li>
                 <li><strong>Zéro décapage :</strong> Bannir les gommages à gros grains agressifs qui déclenchent des taches foncées réactionnelles.</li>
                 <li><strong>Sécurité absolue :</strong> Aucun corticoïde, aucun dérivé mercuriel ni hydroquinone (substances proscrites).</li>
                 <li><strong>Protection continue :</strong> Toujours appliquer une protection solaire, même sous temps voilé en zone tropicale.</li>

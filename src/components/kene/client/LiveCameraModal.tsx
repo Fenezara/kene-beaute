@@ -256,7 +256,7 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
                 </div>
 
                 {/* Badge d'indication d'éclairage */}
-                <div className="mt-4 z-10">
+                <div className="mt-4 z-10 flex flex-col items-center gap-1.5">
                   <span
                     className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold backdrop-blur-md shadow-lg transition-colors ${
                       lighting === "optimal"
@@ -272,6 +272,11 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
                       : lighting === "faible"
                         ? "Lumière faible — approche-toi d'une fenêtre ☀️"
                         : "Lumière trop vive / contre-jour ⚠️"}
+                  </span>
+
+                  {/* Conseil Make-Up Peau nue */}
+                  <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10.5px] font-semibold bg-black/70 text-white/90 border border-white/15 backdrop-blur-md">
+                    💄 Astuce : Peau démaquillée = Bilan biométrique 100% précis
                   </span>
                 </div>
               </div>
