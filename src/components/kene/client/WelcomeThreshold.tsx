@@ -470,17 +470,37 @@ export function WelcomeThreshold() {
                     Bilan dermo-biométrique, coach Dermo Kènè, boutique botanique et instituts partenaires —
                     pensés pour les teints Fitzpatrick&nbsp;IV–VI.
                   </motion.p>
-                  <div className="flex sm:hidden items-center gap-2 mt-4">
+                  {/* Boutons d'action Hero — Accès direct sans compte & Stories */}
+                  <div className="flex flex-wrap items-center gap-2.5 mt-4">
+                    <motion.button
+                      onClick={startExploration}
+                      disabled={exploring}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.68 * d }}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-full k-btn-gold px-5 text-[13px] font-bold text-primary-foreground shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+                    >
+                      {exploring ? (
+                        <Loader2 size={15} className="animate-spin" />
+                      ) : (
+                        <CauriIcon size={15} />
+                      )}
+                      <span>Découvrir Kènè (Accès gratuit · Sans compte)</span>
+                      <ArrowRight size={14} />
+                    </motion.button>
+
                     <motion.button
                       onClick={() => setStories(true)}
-                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.72 * d }}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.74 * d }}
                       className="inline-flex min-h-11 items-center gap-2 rounded-full k-chip px-4 text-[12.5px] font-semibold text-foreground/85 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
                       aria-label="Découvrir Kènè en 30 secondes (stories)"
                     >
-                      <span className="grid h-6 w-6 place-items-center rounded-full k-btn-gold text-primary-foreground" aria-hidden="true">
+                      <span className="grid h-6 w-6 place-items-center rounded-full bg-gold/20 text-gold-text" aria-hidden="true">
                         <Play size={11} className="ml-0.5" />
                       </span>
-                      Découvrir Kènè en 30&nbsp;s
+                      <span>En 30&nbsp;s</span>
                     </motion.button>
                   </div>
 
@@ -528,9 +548,9 @@ export function WelcomeThreshold() {
                       icon={<DuafeIcon size={13} className="text-[#F3D98A]" />}
                       kicker="Espace cliente"
                       title="Prendre soin de ma peau"
-                      entering={entering === "client"}
+                      entering={entering === "client" || exploring}
                       dimmed={entering === "pro"}
-                      onEnter={() => enterPortal("client")}
+                      onEnter={startExploration}
                       delay={0.06}
                     />
                     <PortalCard
@@ -541,10 +561,22 @@ export function WelcomeThreshold() {
                       kicker="Espace entreprise"
                       title="Gérer mon institut"
                       entering={entering === "pro"}
-                      dimmed={entering === "client"}
+                      dimmed={entering === "client" || exploring}
                       onEnter={() => enterPortal("pro")}
                       delay={0.16}
                     />
+                  </div>
+
+                  {/* Accès clientes existantes (Numéro de téléphone / Code secret PIN) */}
+                  <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() => enterPortal("client")}
+                      className="inline-flex items-center gap-1.5 hover:text-foreground font-semibold transition-colors underline-offset-4 hover:underline"
+                    >
+                      <LogIn size={13} className="text-gold-text" />
+                      <span>Déjà cliente ? Me connecter avec mon numéro</span>
+                    </button>
                   </div>
                 </div>
               </div>

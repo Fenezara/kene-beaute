@@ -56,6 +56,8 @@ import { useKene, type ClientTab } from "@/store/kene";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { SkinHealthDashboard } from "./SkinHealthDashboard";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
+import { LinkAccountModal } from "./LinkAccountModal";
+import { BookmarkCheck } from "lucide-react";
 
 interface Props {
   diagnoses?: ApiDiagnosis[];
@@ -75,6 +77,12 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   // Visionneuse HD plein écran
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  // Sauvegarde compte WhatsApp
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const isGuestUser = Boolean(
+    storeUser && (storeUser.phone === "+2250701020304" || storeUser.id === "guest" || storeUser.phone?.includes("0701020304"))
+  );
 
   // Diagnoses gérées localement si non injectées depuis l'extérieur
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>(initialDiagnoses ?? []);
@@ -456,13 +464,25 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
 
               {/* Actions directes du dossier */}
               <div className="pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-2">
-                <Button
-                  onClick={shareMySkinReportWhatsApp}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-xs active:scale-95 transition-all"
-                >
-                  <MessageCircle className="size-4" />
-                  <span>Partager mon Ordonnance par WhatsApp</span>
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={shareMySkinReportWhatsApp}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-xs active:scale-95 transition-all"
+                  >
+                    <MessageCircle className="size-4" />
+                    <span>Partager mon Ordonnance par WhatsApp</span>
+                  </Button>
+
+                  {isGuestUser && (
+                    <Button
+                      onClick={() => setLinkModalOpen(true)}
+                      className="k-btn-gold text-primary-foreground font-black text-xs h-10 px-4 rounded-xl gap-2 shadow-xs active:scale-95 transition-all"
+                    >
+                      <BookmarkCheck className="size-4" />
+                      <span>Sauvegarder sur mon WhatsApp</span>
+                    </Button>
+                  )}
+                </div>
 
                 <Button
                   variant="outline"
@@ -951,6 +971,13 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         onClose={() => setLightboxOpen(false)}
         photos={lightboxPhotos}
         initialIndex={lightboxIndex}
+      />
+
+      {/* ───── MODALE DE LIAISON WHATSAPP POUR CONSERVER LE DOSSIER ───── */}
+      <LinkAccountModal
+        open={linkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
+        reason="Votre ordonnance et vos recommandations dermo-botaniques seront définitivement attachées à votre numéro WhatsApp."
       />
     </div>
   );

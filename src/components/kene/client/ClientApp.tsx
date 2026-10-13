@@ -88,6 +88,7 @@ import { SettingsScreen } from "./SettingsScreen";
 import { PlanScreen } from "./PlanScreen";
 import { LegalScreen } from "./LegalScreen";
 import { NotificationCenter } from "./NotificationCenter";
+import { GuestSaveBanner } from "./GuestSaveBanner";
 
 /** Squelette d'attente d'onglet — spinner discret pendant le chargement du chunk */
 function TabLoading() {
@@ -508,6 +509,9 @@ export function ClientApp() {
           )}
           {refreshing && <span role="status" className="sr-only">Actualisation du fil en cours</span>}
           <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-36 md:pb-10">
+            {/* Bannière douce de sauvegarde WhatsApp si en mode Découverte */}
+            <GuestSaveBanner />
+
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={tab}
