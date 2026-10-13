@@ -291,13 +291,13 @@ export function ChatScreen() {
   const ensureEngaged = useChat((s) => s.ensureEngaged);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [ttsOn, setTtsOn] = useState(false);
+  const [ttsOn, setTtsOn] = useState(true);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [micState, setMicState] = useState<MicState>("idle");
   const [micElapsed, setMicElapsed] = useState(0);
 
-  // Mode de vue : "thread" par défaut (le fil interactif où Dermo Kènè engage la conversation) ou "orb" (Sanctuaire 3D)
-  const [viewMode, setViewMode] = useState<"orb" | "thread">("thread");
+  // Mode de vue : "orb" par défaut — L'Orbe Sacré de Consultation s'affiche et parle en premier
+  const [viewMode, setViewMode] = useState<"orb" | "thread">("orb");
   const [audioLevel, setAudioLevel] = useState(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -652,6 +652,60 @@ export function ChatScreen() {
     },
     [ttsOn]
   );
+
+  // 🎙️ L'ORBE PARLE EN PREMIER : Déclenchement automatique de la voix de consultation
+  const hasSpokenOnMountRef = useRef(false);
+
+  useEffect(() => {
+    function playOrbWelcome() {
+      const currentMessages = useChat.getState().messages;
+      const targetMsg = [...currentMessages].reverse().find((m) => m.role === "assistant");
+      if (targetMsg) {
+        unlockAudioContext();
+        speak(targetMsg.content, true, targetMsg.id);
+      }
+    }
+
+    // Réception du signal lors du clic sur le bouton Dermo Kènè
+    const onSpeakFirstEvent = () => {
+      setViewMode("orb");
+      setTimeout(() => {
+        playOrbWelcome();
+      }, 200);
+    };
+
+    window.addEventListener("kene:chat:speak_first", onSpeakFirstEvent);
+
+    // Vérification du drapeau de session au montage
+    const shouldSpeakSession =
+      typeof window !== "undefined" && window.sessionStorage.getItem("kene:chat:speak_first") === "true";
+
+    if (shouldSpeakSession) {
+      window.sessionStorage.removeItem("kene:chat:speak_first");
+      setViewMode("orb");
+      const t = setTimeout(() => {
+        playOrbWelcome();
+      }, 350);
+      return () => {
+        clearTimeout(t);
+        window.removeEventListener("kene:chat:speak_first", onSpeakFirstEvent);
+      };
+    } else if (!hasSpokenOnMountRef.current) {
+      // Première ouverture de l'orbe : Dermo Kènè prend la parole en premier
+      hasSpokenOnMountRef.current = true;
+      const t = setTimeout(() => {
+        playOrbWelcome();
+      }, 450);
+      return () => {
+        clearTimeout(t);
+        window.removeEventListener("kene:chat:speak_first", onSpeakFirstEvent);
+      };
+    }
+
+    return () => {
+      window.removeEventListener("kene:chat:speak_first", onSpeakFirstEvent);
+    };
+  }, [speak]);
 
   async function send(text?: string) {
     unlockAudioContext();

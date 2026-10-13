@@ -26,6 +26,7 @@ import { useChat } from "@/store/chat";
 import { replayDiagQueue } from "@/lib/kene/diag-queue";
 import { useT } from "@/lib/kene/use-t";
 import { WelcomeThreshold } from "./WelcomeThreshold";
+import { unlockAudioContext } from "./ttsAudio";
 import { ThumbBar } from "./ThumbBar";
 import { HomeScreen } from "./HomeScreen";
 import { ProfileScreen } from "./ProfileScreen";
@@ -410,12 +411,17 @@ export function ClientApp() {
 
             {/* 2. DROITE : Dermo Kènè + Actions rapides (Switcher, Cloche, Réglages, Thème) */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — GRAND, TACTILE, PARFAITEMENT CALIBRÉ SANS CHEVAUCHEMENT */}
+              {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — L'ORBE PARLE EN PREMIER AU CLIC */}
               <button
                 type="button"
                 onClick={() => {
                   haptic(HAPTIC.tap);
+                  unlockAudioContext();
                   useChat.getState().ensureEngaged(user.name, user.city);
+                  if (typeof window !== "undefined") {
+                    window.sessionStorage.setItem("kene:chat:speak_first", "true");
+                    window.dispatchEvent(new CustomEvent("kene:chat:speak_first"));
+                  }
                   goTab("chat");
                 }}
                 aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
