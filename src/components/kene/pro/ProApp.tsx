@@ -700,12 +700,12 @@ export function ProApp() {
               : "p-3 sm:p-5 lg:p-6"
           )}
         >
-          {/* ⚡ Barre d'actions express praticienne (Encaisser, RDV, Scan) — tactiles & haute visibilité */}
+          {/* ⚡ Barre d'actions express praticienne (Encaisser, RDV, Scan) — compacte & épurée */}
           {activeSection !== "assistant" && (
-            <div className="mb-4 rounded-[22px] border-2 border-primary/25 bg-card/95 p-2.5 sm:p-3 backdrop-blur-md shadow-md">
-              <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-0.5">
-                <span className="text-xs font-black text-primary uppercase tracking-wider pl-1.5 shrink-0 flex items-center gap-1.5">
-                  <span className="grid size-6 place-items-center rounded-lg bg-primary/15 text-primary">⚡</span>
+            <div className="mb-3 rounded-[16px] border border-primary/20 bg-card/90 px-2.5 py-1.5 backdrop-blur-md shadow-xs">
+              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5">
+                <span className="text-[10px] sm:text-[11px] font-black text-primary uppercase tracking-wider pl-1 shrink-0 flex items-center gap-1">
+                  <span className="grid size-4.5 sm:size-5 place-items-center rounded-md bg-primary/15 text-primary text-[10px]">⚡</span>
                   Accès rapide :
                 </span>
 
@@ -716,9 +716,9 @@ export function ProApp() {
                     haptic(HAPTIC.tap);
                     openSection("assistant");
                   }}
-                  className="h-11 sm:h-12 px-4 rounded-xl border-2 border-[#E07A2B]/70 bg-gradient-to-r from-[#E07A2B]/20 via-[#C8951E]/15 to-card hover:from-[#E07A2B]/30 text-foreground text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all shrink-0"
+                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-[#E07A2B]/60 bg-gradient-to-r from-[#E07A2B]/15 via-[#C8951E]/10 to-card hover:from-[#E07A2B]/25 text-foreground text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
                 >
-                  <Crown size={18} className="text-[#E07A2B]" /> Secrétaire IA 👑
+                  <Crown size={13} className="text-[#E07A2B]" /> Secrétaire IA 👑
                 </button>
 
                 {/* 2. Encaisser 💳 */}
@@ -728,9 +728,9 @@ export function ProApp() {
                     haptic(HAPTIC.tap);
                     openSection("caisse");
                   }}
-                  className="h-11 sm:h-12 px-4 rounded-xl border-2 border-emerald-600/60 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all shrink-0"
+                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-emerald-600/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
                 >
-                  <AbanIcon size={19} /> Encaisser
+                  <AbanIcon size={14} /> Encaisser
                 </button>
 
                 {/* 3. Nouveau RDV 📅 */}
@@ -740,9 +740,9 @@ export function ProApp() {
                     haptic(HAPTIC.tap);
                     openSection("agenda");
                   }}
-                  className="h-11 sm:h-12 px-4 rounded-xl border-2 border-primary/50 bg-primary/15 text-primary hover:bg-primary/25 text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all shrink-0"
+                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
                 >
-                  <SankofaIcon size={19} /> Nouveau RDV
+                  <SankofaIcon size={14} /> Nouveau RDV
                 </button>
 
                 {/* 4. Scan Cabine 📸 */}
@@ -752,9 +752,9 @@ export function ProApp() {
                     haptic(HAPTIC.tap);
                     openSection("diagnostic");
                   }}
-                  className="h-11 sm:h-12 px-4 rounded-xl border-2 border-[#C8951E]/70 bg-[#C8951E]/15 hover:bg-[#C8951E]/25 text-foreground text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all shrink-0"
+                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-[#C8951E]/60 bg-[#C8951E]/10 hover:bg-[#C8951E]/20 text-foreground text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
                 >
-                  <ScanFace size={19} className="text-[#C8951E]" /> Scan Cabine
+                  <ScanFace size={14} className="text-[#C8951E]" /> Scan Cabine
                 </button>
 
                 {/* 5. + Nouvelle Cliente 👥 */}
@@ -765,9 +765,9 @@ export function ProApp() {
                     setCrmCreateNonce(Date.now());
                     openSection("crm");
                   }}
-                  className="h-11 sm:h-12 px-4 rounded-xl border-2 border-border/90 bg-card hover:bg-muted text-foreground text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all shrink-0"
+                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-border/80 bg-card hover:bg-muted text-foreground text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
                 >
-                  <UserPlus size={18} /> + Cliente
+                  <UserPlus size={13} /> + Cliente
                 </button>
 
                 {/* 6. Mon Espace Beauté 🌸 */}
@@ -777,10 +777,10 @@ export function ProApp() {
                     haptic(HAPTIC.tap);
                     goToClientSpace();
                   }}
-                  className="h-11 sm:h-12 px-4 rounded-xl border-2 border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs sm:text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shrink-0"
+                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-primary/25 bg-primary/10 hover:bg-primary/15 text-primary text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all shrink-0"
                   title="Mon Espace Beauté (Soins & Rituels personnels)"
                 >
-                  <CauriIcon size={17} /> Espace Beauté 🌸
+                  <CauriIcon size={13} /> Espace Beauté 🌸
                 </button>
               </div>
             </div>
