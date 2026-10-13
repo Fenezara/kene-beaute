@@ -163,7 +163,8 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
     include: { tenant: { select: { id: true, name: true, active: true, suspendedReason: true } } },
   });
 
-  if (employeeLink && user.role !== "pro") {
+  // Si le compte est propriétaire d'un institut ou employé, il a obligatoirement le statut pro
+  if ((ownerTenant || employeeLink) && user.role !== "pro" && user.role !== "admin") {
     await db.user.update({ where: { id: user.id }, data: { role: "pro" } });
     user.role = "pro";
   }

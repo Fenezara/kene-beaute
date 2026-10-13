@@ -178,16 +178,13 @@ export function ProApp() {
     );
   }
 
-  // Première résolution serveur: le tenant de la session est mémorisé
-  // (: le serveur renvoie l'institut de LA GÉRANTE, pas un « défaut »)
+  // Résolution d'établissement : l'institut réel de la gérante / session prime toujours
   useEffect(() => {
-    if (!proTenantId && overview.data?.tenant?.id) {
-      setProTenantId(overview.data.tenant.id);
-    } else if (!proTenantId) {
-      const activeId = sessionUser?.tenantId || DEFAULT_FALLBACK_TENANT_ID;
-      if (activeId) setProTenantId(activeId);
+    const realTenantId = overview.data?.tenant?.id || sessionUser?.tenantId;
+    if (realTenantId && (!proTenantId || proTenantId === DEFAULT_FALLBACK_TENANT_ID)) {
+      setProTenantId(realTenantId);
     }
-  }, [proTenantId, overview.data, sessionUser?.tenantId, setProTenantId]);
+  }, [proTenantId, overview.data?.tenant?.id, sessionUser?.tenantId, setProTenantId]);
 
   // AUTO-GUÉRISON : un institut mémorisé disparu ne doit JAMAIS être effacé
   // si le navigateur est hors-ligne ou s'il s'agit d'une instabilité réseau passagère.
@@ -204,7 +201,12 @@ export function ProApp() {
     }
   }, [overview.error, proTenantId, setProTenantId, online]);
 
-  const tid = proTenantId || overview.data?.tenant?.id || sessionUser?.tenantId || DEFAULT_FALLBACK_TENANT_ID;
+  const tid =
+    (proTenantId && proTenantId !== DEFAULT_FALLBACK_TENANT_ID ? proTenantId : null) ||
+    overview.data?.tenant?.id ||
+    sessionUser?.tenantId ||
+    proTenantId ||
+    DEFAULT_FALLBACK_TENANT_ID;
 
   // Pré-remplissage du cache hors-ligne pour l'espace entreprise (CRM, catalogue, stock, etc.)
   // Assure la disponibilité immédiate des écrans même si la connexion est coupée en cours de journée
@@ -383,7 +385,11 @@ export function ProApp() {
   const isAdmin = sessionUser?.role === "admin";
   const proOwner = sessionUser?.role === "pro" || isAdmin ? sessionUser : null;
   const chipName =
-    proOwner?.name && proOwner.name !== "Nouvelle cliente" && proOwner.name.trim() ? proOwner.name.trim() : "Fatou Koné";
+    proOwner?.name && proOwner.name !== "Nouvelle cliente" && proOwner.name.trim()
+      ? proOwner.name.trim()
+      : tenant?.name
+      ? tenant.name
+      : "Gérante";
   const chipRole = isAdmin
     ? "👑 Patronne / Admin"
     : employeeRole
@@ -397,7 +403,7 @@ export function ProApp() {
       .filter(Boolean)
       .slice(0, 2)
       .map((w) => w[0]!.toUpperCase())
-      .join("") || "FK";
+      .join("") || "GP";
 
   return (
     <div className="h-dvh w-full flex flex-col overflow-hidden overscroll-none select-none">

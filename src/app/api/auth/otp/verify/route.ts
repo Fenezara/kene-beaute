@@ -201,7 +201,7 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
     if (name && (!user.name || user.name === "Nouvelle cliente")) {
       updateData.name = name;
     }
-    if (employeeLink && user.role !== "pro") {
+    if ((ownerTenant || employeeLink) && user.role !== "pro" && user.role !== "admin") {
       updateData.role = "pro";
     }
     if (pin) {
