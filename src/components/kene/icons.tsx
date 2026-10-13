@@ -1,4 +1,4 @@
-import React, { useId, useState, useEffect } from "react";
+import React, { useId } from "react";
 import { cn } from "@/lib/utils";
 
 export type IconProps = React.SVGProps<SVGSVGElement> & { size?: number };
@@ -281,14 +281,6 @@ export function KeneMark({ size = 40, className = "" }: { size?: number; classNa
  * présentation MÉDAILLON (plaque orfévrée) — bague or 2px, fond contrasté #14100B,
  * ombre portée orfèvre, parfaitement nette et constante quel que soit le thème. */
 export function KeneEmblem({ size = 96, className = "" }: { size?: number; className?: string }) {
-  const [isDayTime, setIsDayTime] = useState(true);
-
-  useEffect(() => {
-    // Calcul de l'heure locale : Journée entre 06h00 et 18h30
-    const h = new Date().getHours();
-    setIsDayTime(h >= 6 && h < 19);
-  }, []);
-
   return (
     <span
       aria-hidden="true"
@@ -298,7 +290,7 @@ export function KeneEmblem({ size = 96, className = "" }: { size?: number; class
       )}
       style={{ width: size, height: size }}
     >
-      {/* Version Journée / Fond Clair */}
+      {/* Version Journée / Fond Clair : affichée en mode clair */}
       <img
         src="/brand/kene-emblem-light.png"
         alt="Logo Kènè Journée"
@@ -307,13 +299,9 @@ export function KeneEmblem({ size = 96, className = "" }: { size?: number; class
         loading="eager"
         decoding="async"
         draggable={false}
-        className={cn(
-          "absolute inset-0 h-full w-full object-cover transition-opacity duration-700",
-          "dark:opacity-0",
-          !isDayTime && "opacity-0"
-        )}
+        className="absolute inset-0 h-full w-full object-cover dark:hidden"
       />
-      {/* Version Soirée / Fond Sombre */}
+      {/* Version Soirée / Fond Sombre : affichée en mode sombre */}
       <img
         src="/brand/kene-emblem-dark.png"
         alt="Logo Kènè Soirée"
@@ -322,10 +310,7 @@ export function KeneEmblem({ size = 96, className = "" }: { size?: number; class
         loading="eager"
         decoding="async"
         draggable={false}
-        className={cn(
-          "absolute inset-0 h-full w-full object-cover transition-opacity duration-700",
-          isDayTime ? "opacity-0 dark:opacity-100" : "opacity-100"
-        )}
+        className="absolute inset-0 h-full w-full object-cover hidden dark:block"
       />
     </span>
   );
