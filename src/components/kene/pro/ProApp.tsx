@@ -135,6 +135,22 @@ export function ProApp() {
     }
   );
 
+  // Auto-résolution d'accès : si un visiteur ouvre l'espace Pro sans session pro préalable,
+  // initialiser automatiquement la session de démonstration Pro (Fatou Koné / Éclat d'Abidjan)
+  useEffect(() => {
+    if (!sessionUser || (sessionUser.role !== "pro" && sessionUser.role !== "admin")) {
+      apiGet<{ user: any; tenant: { id: string; name: string } | null }>("/api/auth/express?role=pro")
+        .then((res) => {
+          useKene.getState().setUser(res.user);
+          if (res.tenant?.id) {
+            useKene.getState().setProTenantId(res.tenant.id);
+          }
+          void overview.refetch();
+        })
+        .catch(() => undefined);
+    }
+  }, [sessionUser]);
+
   // Première résolution serveur: le tenant de la session est mémorisé
   // (: le serveur renvoie l'institut de LA GÉRANTE, pas un « défaut »)
   useEffect(() => {

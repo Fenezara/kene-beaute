@@ -40,11 +40,12 @@ export async function GET(req: NextRequest) {
   }
   try {
     const requestedRole = req.nextUrl.searchParams.get("role") || "client";
-    // Sécurité stricte : seul un admin authentifié peut basculer vers un rôle privilégié (pro/admin)
     const currentSession = sessionFromRequest(req);
-    let targetRole = "client";
-    if ((requestedRole === "pro" || requestedRole === "admin") && currentSession?.role === "admin") {
-      targetRole = requestedRole;
+    // Le rôle pro est accessible en mode démonstration/découverte pour tester l'espace entreprise.
+    // Seul le rôle admin reste strictement réservé aux administrateurs authentifiés.
+    let targetRole = requestedRole === "pro" ? "pro" : "client";
+    if (requestedRole === "admin" && currentSession?.role === "admin") {
+      targetRole = "admin";
     }
 
     // ── ISOLATION STRICTE DES SESSIONS DÉCOUVERTE ──

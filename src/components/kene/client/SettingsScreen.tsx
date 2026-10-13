@@ -44,7 +44,8 @@ import { ContactKeneModal } from "./ContactKeneModal";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
-import { apiPost, ApiError } from "@/lib/kene/api";
+import { apiGet, apiPost, ApiError } from "@/lib/kene/api";
+import type { ApiUser } from "./types";
 import { forgetAccount } from "@/lib/kene/last-account";
 import { performLogout } from "@/lib/kene/logout";
 import { Input } from "@/components/ui/input";
@@ -696,6 +697,40 @@ export function SettingsScreen() {
                 <span className="block text-[11px] text-muted-foreground mt-0.5">Assistance technique, questions &amp; WhatsApp officiel (+225 07 48 89 42 70)</span>
               </span>
               <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
+            </button>
+          </section>
+        </RevealItem>
+
+        {/* Bascule Espace Entreprise (Kènè Pro) */}
+        <RevealItem>
+          <section aria-labelledby="pro-switch-t" className="k-card rounded-[24px] p-2 border-primary/40 bg-primary/5">
+            <button
+              onClick={async () => {
+                haptic(HAPTIC.tap);
+                try {
+                  const res = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express?role=pro");
+                  setUser(res.user as SessionUser);
+                  if (res.tenant?.id) {
+                    useKene.getState().setProTenantId(res.tenant.id);
+                  }
+                  useKene.getState().setSpace("pro");
+                  if (typeof window !== "undefined") {
+                    window.history.pushState(null, "", "/pro");
+                    window.dispatchEvent(new Event("popstate"));
+                  }
+                  toast.success("Bienvenue dans l'Espace Entreprise (Kènè Pro) 💼");
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Erreur de bascule");
+                }
+              }}
+              className="w-full flex items-center gap-3 rounded-[18px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <IconBadge icon={<Building2 size={19} />} tone="gold" />
+              <span className="flex-1 min-w-0">
+                <span id="pro-switch-t" className="block text-xs font-bold text-foreground">Accéder à l&apos;Espace Entreprise (Kènè Pro)</span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">Caisse POS, agenda cabine, fiches clientes &amp; comptabilité SYSCOHADA</span>
+              </span>
+              <ChevronRight size={16} className="text-primary shrink-0" aria-hidden="true" />
             </button>
           </section>
         </RevealItem>

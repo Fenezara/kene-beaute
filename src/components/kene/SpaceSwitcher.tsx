@@ -5,7 +5,9 @@
 import { useState } from "react";
 import { Smartphone, BriefcaseBusiness, ShieldCheck, ChevronDown, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
-import { useKene, type Space } from "@/store/kene";
+import { useKene, type Space, type SessionUser } from "@/store/kene";
+import { apiGet } from "@/lib/kene/api";
+import type { ApiUser } from "@/components/kene/client/types";
 import { performLogout } from "@/lib/kene/logout";
 import { DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
 import { CauriIcon } from "@/components/kene/icons";
@@ -32,71 +34,77 @@ export function SpaceSwitcher({
   const setSpace = useKene((s) => s.setSpace);
   const [switching, setSwitching] = useState<Space | null>(null);
 
-  // RÈGLE : Seuls les administrateurs et les professionnels/employés d'institut
-  // ont accès au sélecteur d'interface (mode dual pour les employées).
-  if (user?.role !== "admin" && user?.role !== "pro") {
-    return null;
-  }
-
   const isPro = user?.role === "pro";
+  const isAdmin = user?.role === "admin";
 
-  const availableSpaces = isPro
+  const availableSpaces = isAdmin
     ? [
+        { id: "client" as Space, label: "Cliente", shortLabel: "Cliente", badge: "Grand Public", desc: "Diagnostic dermo-biométrique, boutique, RDV, chat", icon: Smartphone },
+        { id: "pro" as Space, label: "Pro", shortLabel: "Pro", badge: "Institut & Caisse", desc: "Caisse POS, TVA, agenda, stock, CRM", icon: BriefcaseBusiness },
+        { id: "admin" as Space, label: "Admin", shortLabel: "Admin", badge: "Console", desc: "Pilotage plateforme, abonnements", icon: ShieldCheck },
+      ]
+    : [
         {
           id: "client" as Space,
           label: "Mon Espace Beauté",
           shortLabel: "Beauté",
-          badge: "Personnel",
+          badge: isPro ? "Personnel" : "Cliente",
           desc: "Mon diagnostic cutané, Dermo Kènè & rituels",
           icon: CauriIcon,
         },
         {
           id: "pro" as Space,
-          label: "Espace Institut",
-          shortLabel: "Institut",
-          badge: "Travail",
-          desc: "Cabine, fiches clientes, soins & planning",
+          label: "Espace Entreprise",
+          shortLabel: "Entreprise",
+          badge: isPro ? "Travail" : "Institut Pro",
+          desc: "Cabine, caisse POS, fiches clientes, soins & planning",
           icon: BriefcaseBusiness,
         },
-      ]
-    : [
-        { id: "client" as Space, label: "Cliente", shortLabel: "Cliente", badge: "Grand Public", desc: "Diagnostic dermo-biométrique, boutique, RDV, chat", icon: Smartphone },
-        { id: "pro" as Space, label: "Pro", shortLabel: "Pro", badge: "Institut & Caisse", desc: "Caisse POS, TVA, agenda, stock, CRM", icon: BriefcaseBusiness },
-        { id: "admin" as Space, label: "Admin", shortLabel: "Admin", badge: "Console", desc: "Pilotage plateforme, abonnements", icon: ShieldCheck },
       ];
 
   const current = availableSpaces.find((s) => s.id === space) || availableSpaces[0];
 
-  function handleSwitch(target: Space) {
+  async function handleSwitch(target: Space) {
     if (target === space || switching) return;
     setSwitching(target);
 
-    // Si bascule vers Pro et pas d'institut mémorisé, sélectionner l'institut par défaut
-    if (target === "pro" && !useKene.getState().proTenantId) {
-      useKene.getState().setProTenantId(user?.tenantId || DEFAULT_FALLBACK_TENANT_ID);
-    }
-
-    setSpace(target);
-
-    // Synchronisation de l'URL du navigateur sans rechargement complet
-    if (typeof window !== "undefined") {
-      const targetPath = target === "admin" ? "/console" : target === "pro" ? "/pro" : "/";
-      if (window.location.pathname !== targetPath) {
-        window.history.pushState(null, "", targetPath);
-        window.dispatchEvent(new Event("popstate"));
+    try {
+      // Si bascule vers Pro et l'utilisateur n'est pas encore Pro, charger la session pro démo
+      if (target === "pro") {
+        if (user?.role !== "pro" && user?.role !== "admin") {
+          const res = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express?role=pro");
+          useKene.getState().setUser(res.user as SessionUser);
+          if (res.tenant?.id) {
+            useKene.getState().setProTenantId(res.tenant.id);
+          }
+        } else if (!useKene.getState().proTenantId) {
+          useKene.getState().setProTenantId(user?.tenantId || DEFAULT_FALLBACK_TENANT_ID);
+        }
       }
-    }
 
-    toast.success(
-      target === "pro"
-        ? "Basculé vers l'Espace Institut"
-        : target === "admin"
-        ? "Basculé vers la Console Administrateur"
-        : isPro
-        ? "Bienvenue dans ton Espace Beauté personnel 🌸"
-        : "Basculé vers l'Espace Cliente"
-    );
-    setSwitching(null);
+      setSpace(target);
+
+      // Synchronisation de l'URL du navigateur sans rechargement complet
+      if (typeof window !== "undefined") {
+        const targetPath = target === "admin" ? "/console" : target === "pro" ? "/pro" : "/";
+        if (window.location.pathname !== targetPath) {
+          window.history.pushState(null, "", targetPath);
+          window.dispatchEvent(new Event("popstate"));
+        }
+      }
+
+      toast.success(
+        target === "pro"
+          ? "Bienvenue dans l'Espace Entreprise (Kènè Pro) 💼"
+          : target === "admin"
+          ? "Basculé vers la Console Administrateur"
+          : "Bienvenue dans ton Espace Beauté personnel 🌸"
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Bascule impossible");
+    } finally {
+      setSwitching(null);
+    }
   }
 
   if (variant === "compact") {
