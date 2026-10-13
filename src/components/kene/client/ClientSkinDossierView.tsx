@@ -231,7 +231,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         <div>
           <span
             aria-hidden="true"
-            className="mb-1.5 block h-[3px] w-10 rounded-full bg-gradient-to-r from-[#C8951E] via-[#A0522D] to-[#3F7D3F] opacity-80"
+            className="mb-1.5 block h-[3.5px] w-12 rounded-full bg-gradient-to-r from-[#D49A24] via-[#C93B62] to-[#9E2045] shadow-xs opacity-90"
           />
           <h2 className="font-heading font-black text-xl sm:text-2xl text-foreground leading-tight">
             Mon Dossier Peau &amp; Données Cutanées

@@ -208,7 +208,7 @@ export function HomeScreen({
           <div className="min-w-0">
             <span
               aria-hidden="true"
-              className="mb-1.5 block h-[3px] w-10 rounded-full bg-gradient-to-r from-[#C8951E] via-[#A0522D] to-[#3F7D3F] opacity-80"
+              className="mb-1.5 block h-[3.5px] w-12 rounded-full bg-gradient-to-r from-[#D49A24] via-[#C93B62] to-[#9E2045] shadow-xs opacity-90"
             />
             <p className="text-xs uppercase tracking-[0.16em] text-primary font-semibold">{t("home.greeting")}</p>
             <h2 className="font-heading font-black text-[27px] sm:text-[29px] leading-tight tracking-tight truncate">

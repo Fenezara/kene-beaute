@@ -83,11 +83,12 @@ function CellularDewParticles({
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
 
-    // Palette émeraude végétale & or céleste
-    const emerald = new THREE.Color("#10B981");
-    const mint = new THREE.Color("#34D399");
-    const gold = new THREE.Color("#FFD700");
-    const warmAmber = new THREE.Color("#F59E0B");
+    // Palette féministe africaine : Or Solaire Akan, Nectar d'Hibiscus & Nacre Karité
+    const gold = new THREE.Color("#D49A24");
+    const warmAmber = new THREE.Color("#E5A93C");
+    const hibiscus = new THREE.Color("#C93B62");
+    const bissapGlow = new THREE.Color("#9E2045");
+    const nacre = new THREE.Color("#FAF5EB");
 
     for (let i = 0; i < count; i++) {
       // Distribution sphérique autour de l'Orbe (rayon 1.55 à 2.85)
@@ -101,15 +102,15 @@ function CellularDewParticles({
       pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       pos[i * 3 + 2] = r * Math.cos(phi);
 
-      // Dégradé aléatoire émeraude / menthe / or
+      // Dégradé aléatoire or solaire / pétale d'hibiscus / nacre
       const choice = Math.random();
       const c = new THREE.Color();
       if (choice < 0.45) {
-        c.lerpColors(emerald, mint, Math.random());
-      } else if (choice < 0.8) {
         c.lerpColors(gold, warmAmber, Math.random());
+      } else if (choice < 0.8) {
+        c.lerpColors(hibiscus, bissapGlow, Math.random());
       } else {
-        c.set("#FAF5E4"); // Perles de nacre
+        c.copy(nacre); // Perles de nacre karité
       }
 
       col[i * 3 + 0] = c.r;
@@ -201,23 +202,23 @@ function SacredCowrieNodule({
     m.rotation.y += delta * 0.35;
     m.rotation.x = Math.sin(Date.now() * 0.0014) * 0.12;
 
-    // Teinte et émissivité selon l'activité de Dermo Kènè
+    // Teinte et émissivité selon l'activité de Dermo Kènè (Or Solaire & Nectar de Bissap)
     const mat = m.material as THREE.MeshPhysicalMaterial;
     if (state === "listening") {
-      mat.emissive.set("#10B981");
-      mat.emissiveIntensity = 0.5 + audioLevel * 0.9;
+      mat.emissive.set("#E5A93C"); // Or chaleureux à l'écoute
+      mat.emissiveIntensity = 0.55 + audioLevel * 0.95;
     } else if (state === "analyzing") {
-      mat.emissive.set("#34D399");
-      mat.emissiveIntensity = 0.8 + Math.sin(Date.now() * 0.012) * 0.3;
+      mat.emissive.set("#C93B62"); // Pétale d'hibiscus lors de l'analyse
+      mat.emissiveIntensity = 0.85 + Math.sin(Date.now() * 0.012) * 0.3;
     } else if (state === "speaking") {
-      mat.emissive.set("#F59E0B");
-      mat.emissiveIntensity = 0.55 + Math.sin(Date.now() * 0.008) * 0.25;
+      mat.emissive.set("#D49A24"); // Or impérial rayonnant quand Dermo Kènè parle
+      mat.emissiveIntensity = 0.65 + Math.sin(Date.now() * 0.008) * 0.25;
     } else if (state === "success") {
-      mat.emissive.set("#10B981");
+      mat.emissive.set("#2E6F40"); // Vert Kinkeliba de validation
       mat.emissiveIntensity = 0.75;
     } else {
-      mat.emissive.set("#059669");
-      mat.emissiveIntensity = 0.22 + Math.sin(Date.now() * 0.002) * 0.08;
+      mat.emissive.set("#9E2045"); // Voile Bissap doux au repos
+      mat.emissiveIntensity = 0.24 + Math.sin(Date.now() * 0.002) * 0.08;
     }
 
     // Échelle réactive
@@ -250,27 +251,27 @@ function GyroscopicBioRings({
   const midGeo = useMemo(() => new THREE.TorusGeometry(1.42, 0.032, 20, 100), []);
   const innerGeo = useMemo(() => new THREE.TorusGeometry(1.18, 0.026, 20, 90), []);
 
-  // Matériau Or Akan & Émeraude
+  // Matériau Or Akan Royal & Nectar d'Hibiscus
   const goldMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#FFD700"),
+        color: new THREE.Color("#F3C35C"),
         metalness: 0.92,
         roughness: 0.18,
-        emissive: new THREE.Color("#C8951E"),
-        emissiveIntensity: 0.25,
+        emissive: new THREE.Color("#D49A24"),
+        emissiveIntensity: 0.35,
       }),
     []
   );
 
-  const emeraldMaterial = useMemo(
+  const hibiscusMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color("#10B981"),
-        metalness: 0.65,
+        color: new THREE.Color("#C93B62"),
+        metalness: 0.72,
         roughness: 0.22,
-        emissive: new THREE.Color("#059669"),
-        emissiveIntensity: 0.35,
+        emissive: new THREE.Color("#9E2045"),
+        emissiveIntensity: 0.4,
       }),
     []
   );
@@ -299,7 +300,7 @@ function GyroscopicBioRings({
   return (
     <group>
       <mesh ref={outerRingRef} geometry={outerGeo} material={goldMaterial} />
-      <mesh ref={midRingRef} geometry={midGeo} material={emeraldMaterial} />
+      <mesh ref={midRingRef} geometry={midGeo} material={hibiscusMaterial} />
       <mesh ref={innerRingRef} geometry={innerGeo} material={goldMaterial} />
     </group>
   );
@@ -320,9 +321,9 @@ function BioLuminescentCore({
   const material = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: new THREE.Color("#10B981"),
+        color: new THREE.Color("#C93B62"),
         transparent: true,
-        opacity: 0.38,
+        opacity: 0.65,
         blending: THREE.AdditiveBlending,
       }),
     []

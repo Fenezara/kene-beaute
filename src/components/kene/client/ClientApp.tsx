@@ -430,23 +430,23 @@ export function ClientApp() {
                 className={cn(
                   "relative flex items-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-2.5 sm:px-4 rounded-full border-2 transition-all active:scale-95 shadow-xs shrink-0 select-none",
                   tab === "chat"
-                    ? "bg-gradient-to-r from-[#C8951E] via-[#F3C258] to-[#B37F14] text-[#1A1410] border-[#FFD875] font-black shadow-md"
-                    : "border-[#C8951E]/80 bg-gradient-to-r from-[#C8951E]/20 via-gold/15 to-card/90 hover:from-[#C8951E]/30 text-foreground font-black"
+                    ? "bg-gradient-to-r from-[#D49A24] via-[#F3C35C] to-[#C93B62] text-[#18120C] border-[#FCE8EE] font-black shadow-md ring-2 ring-[#9E2045]/30"
+                    : "border-[#D49A24]/70 bg-gradient-to-r from-[#D49A24]/15 via-[#C93B62]/10 to-card/90 hover:from-[#D49A24]/25 hover:to-[#C93B62]/15 text-foreground font-black"
                 )}
               >
-                <span className="relative grid size-5.5 sm:size-6 place-items-center rounded-full bg-[#C8951E] text-white shadow-xs shrink-0">
+                <span className="relative grid size-5.5 sm:size-6 place-items-center rounded-full bg-gradient-to-br from-[#D49A24] to-[#C93B62] text-white shadow-xs shrink-0">
                   <MessageCircle size={13} className="text-white sm:hidden" />
                   <MessageCircle size={15} className="text-white hidden sm:block" />
                   <span className="absolute -top-0.5 -right-0.5 size-2 sm:size-2.5 rounded-full bg-emerald-500 ring-1.5 ring-background animate-pulse" />
                 </span>
                 <span className="text-[12px] sm:text-sm font-black tracking-tight flex items-center gap-1 sm:gap-1.5 text-foreground whitespace-nowrap">
                   <span>Dermo Kènè</span>
-                  <span className="text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-full bg-[#C8951E]/25 text-[#C8951E] dark:text-[#FFD875] border border-[#C8951E]/40 uppercase tracking-wider">
+                  <span className="text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-full bg-[#9E2045]/15 text-[#9E2045] dark:text-[#F77698] border border-[#9E2045]/30 uppercase tracking-wider">
                     24/7
                   </span>
                 </span>
                 {chatUnread && (
-                  <span className="size-2 sm:size-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-background animate-bounce shrink-0" />
+                  <span className="size-2 sm:size-2.5 rounded-full bg-[#9E2045] ring-2 ring-background animate-bounce shrink-0" />
                 )}
               </button>
 

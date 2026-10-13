@@ -45,14 +45,18 @@
   --color-finance: var(--finance);
   --color-finance-foreground: var(--finance-foreground);
   --color-gold: var(--gold);
+  --color-gold-warm: var(--gold-warm);
   --color-terre: var(--terre);
   --color-melanine: var(--melanine);
   --color-bissap: var(--bissap);
+  --color-hibiscus: var(--hibiscus);
+  --color-hibiscus-soft: var(--hibiscus-soft);
   --color-sunset: var(--sunset);
   --color-karite: var(--karite);
   /* Variantes « texte » — assombries en light / éclaircies en dark pour un contraste AA */
   --color-gold-text: var(--gold-text);
   --color-sunset-text: var(--sunset-text);
+  --color-bissap-text: var(--bissap-text);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -61,106 +65,115 @@
 
 :root {
   --radius: 1rem;
-  /* Kènè — palette panafricaine (light, contrastes WCAG AA ≥ 4.5:1) */
-  --gold: #C8951E;          /* Or Kènè — aplats décoratifs uniquement */
-  --terre: #A0522D;         /* Terre Bogolan */
-  --melanine: #1A1410;      /* Noir profond */
-  --success: #346834;       /* Vert Baobab (4.5:1+ en texte light) */
-  --finance: #1B3A6B;       /* Bleu Indigo (finance) */
-  --bissap: #8B1A3B;        /* Bordeaux Bissap */
-  --sunset: #B45309;        /* Orange Sunset assombri (AA light) */
-  --karite: #F8F1E4;        /* Crème Karité */
-  --gold-text: #8F660D;     /* Or lisible en texte (light) */
-  --sunset-text: #A84F0E;   /* Sunset lisible en texte (light) */
-  /* Scores santé — variantes texte/graphiques par thème */
-  --score-haut: #346834;
-  --score-moyen: #8F660D;
-  --score-atten: #A84F0E;
-  --score-faible: #8B1A3B;
+  /* Kènè — Palette Reine Solaire & Bissap Velours (Féministe Africaine, WCAG AA ≥ 4.5:1) */
+  --gold: #D49A24;          /* Or Akan Solaire — éclat royal & prestige */
+  --gold-warm: #E5A93C;     /* Ambre solaire lumineux */
+  --terre: #B25A38;         /* Terracotta rosé & Argile de Tiébélé */
+  --melanine: #18120C;      /* Ébène profond velouté */
+  --success: #2E6F40;       /* Vert Kinkeliba & Moringa ancestral */
+  --finance: #1E355B;       /* Bleu Indigo Mandingue */
+  --bissap: #9E2045;        /* Rouge Bissap Royal (Puissance & Guérison) */
+  --hibiscus: #C93B62;      /* Fleur d'Hibiscus / Nectar floral */
+  --hibiscus-soft: #FCE8EE; /* Voile d'Hibiscus doux */
+  --sunset: #C45E1E;        /* Coucher de soleil sahélien */
+  --karite: #FAF5EB;        /* Crème Karité fouettée (Douceur nourricière) */
+  --gold-text: #8A5E0B;     /* Or lisible haute définition (WCAG AA) */
+  --sunset-text: #A84910;   /* Sunset lisible en texte */
+  --bissap-text: #8E1638;   /* Bissap profond lisible */
 
-  --background: #F8F1E4;
-  --foreground: #241B12;
-  --card: #FFFBF2;
-  --card-foreground: #241B12;
-  --popover: #FFFBF2;
-  --popover-foreground: #241B12;
-  --primary: #8F660D;       /* Or profond — texte ET boutons AA (4.6-4.9:1) */
+  /* Scores santé cutanée — variantes chromatiques */
+  --score-haut: #2E6F40;
+  --score-moyen: #8A5E0B;
+  --score-atten: #A84910;
+  --score-faible: #8E1638;
+
+  --background: #FAF5EB;    /* Teint crème karité tiède & lumineux */
+  --foreground: #221810;    /* Brun ébène doux (évite le noir dur et agressif) */
+  --card: #FFFDF9;          /* Nacre ivoirienne pure et éclatante */
+  --card-foreground: #221810;
+  --popover: #FFFDF9;
+  --popover-foreground: #221810;
+  --primary: #9E2045;       /* Reine Bissap — signature d'autorité bienveillante et féminine */
   --primary-foreground: #FFF9EC;
-  --secondary: #EFE3CC;
-  --secondary-foreground: #4A2E15;
-  --muted: #F1E7D4;
-  --muted-foreground: #6B5A42;
-  --accent: #F6E8CE;
-  --accent-foreground: #6B4110;
-  --destructive: #8B1A3B;
-  --destructive-foreground: #FCEFF3;
-  --border: #E3D5BA;
-  --input: #E3D5BA;
-  --ring: #8F660D;
-  --chart-1: #C8951E;
-  --chart-2: #3F7D3F;
-  --chart-3: #A0522D;
-  --chart-4: #8B1A3B;
-  --chart-5: #E07A2B;
-  --sidebar: #1F1812;
-  --sidebar-foreground: #F3EAD9;
-  --sidebar-primary: #C8951E;
-  --sidebar-primary-foreground: #1A1410;
-  --sidebar-accent: #2C231A;
-  --sidebar-accent-foreground: #F3EAD9;
-  --sidebar-border: #3A2E21;
-  --sidebar-ring: #C8951E;
+  --secondary: #F3E7D3;     /* Miel doux et Karité */
+  --secondary-foreground: #482B12;
+  --muted: #F3E9DA;
+  --muted-foreground: #6C5642;
+  --accent: #FDE8EE;        /* Nuance pétale d'hibiscus pour les interactions */
+  --accent-foreground: #7E1535;
+  --destructive: #9E2045;
+  --destructive-foreground: #FFF5F7;
+  --border: #E8D8BF;        /* Fil d'or et terre cuite sablée */
+  --input: #E8D8BF;
+  --ring: #D49A24;
+  --chart-1: #D49A24;
+  --chart-2: #2E6F40;
+  --chart-3: #B25A38;
+  --chart-4: #9E2045;
+  --chart-5: #C45E1E;
+  --sidebar: #1C150E;
+  --sidebar-foreground: #F5ECDD;
+  --sidebar-primary: #D49A24;
+  --sidebar-primary-foreground: #18120C;
+  --sidebar-accent: #2A2016;
+  --sidebar-accent-foreground: #F5ECDD;
+  --sidebar-border: #3A2B1E;
+  --sidebar-ring: #D49A24;
 }
 
 .dark {
-  --gold: #DCA838;
-  --terre: #C97A4E;
-  --melanine: #0F0B08;
-  --success: #6FB96F;
-  --finance: #7FA3D8;
-  --bissap: #D0567B;
-  --sunset: #F09A52;
-  --karite: #241D14;
-  --gold-text: #E3B454;
-  --sunset-text: #F0A66B;
-  /* Scores santé — variantes texte/graphiques par thème */
-  --score-haut: #7BC47F;
-  --score-moyen: #E3B454;
-  --score-atten: #F0A66B;
-  --score-faible: #E0607F;
+  --gold: #E5A93C;
+  --gold-warm: #F2BD5B;
+  --terre: #CF7450;
+  --melanine: #0F0B07;
+  --success: #67B87C;
+  --finance: #7E9FD3;
+  --bissap: #E04E75;
+  --hibiscus: #F06A91;
+  --hibiscus-soft: #2E121B;
+  --sunset: #F2934D;
+  --karite: #221B13;
+  --gold-text: #F0BA52;
+  --sunset-text: #F29F62;
+  --bissap-text: #F77698;
 
-  --background: #14100B;
-  --foreground: #F3EAD9;
-  --card: #1F1812;
-  --card-foreground: #F3EAD9;
-  --popover: #1F1812;
-  --popover-foreground: #F3EAD9;
-  --primary: #DCA838;
-  --primary-foreground: #1F1503;
-  --secondary: #2C231A;
-  --secondary-foreground: #EFD9AC;
-  --muted: #2A2119;
-  --muted-foreground: #B3A48C;
-  --accent: #33281C;
-  --accent-foreground: #F0D9A6;
-  --destructive: #E0607F;
-  --destructive-foreground: #2A0812;
-  --border: #3A2E21;
-  --input: #3A2E21;
-  --ring: #DCA838;
-  --chart-1: #DCA838;
-  --chart-2: #6FB96F;
-  --chart-3: #C97A4E;
-  --chart-4: #D0567B;
-  --chart-5: #F09A52;
-  --sidebar: #1F1812;
-  --sidebar-foreground: #F3EAD9;
-  --sidebar-primary: #DCA838;
-  --sidebar-primary-foreground: #1F1503;
-  --sidebar-accent: #2C231A;
-  --sidebar-accent-foreground: #F3EAD9;
-  --sidebar-border: #3A2E21;
-  --sidebar-ring: #DCA838;
+  /* Scores santé */
+  --score-haut: #72C487;
+  --score-moyen: #F0BA52;
+  --score-atten: #F29F62;
+  --score-faible: #F77698;
+
+  --background: #140E0A;    /* Nuit d'ébène profonde & chaleureuse */
+  --foreground: #F5ECDD;    /* Éclat d'ivoire doré */
+  --card: #1D150F;          /* Bois de santal & ébène fumé */
+  --card-foreground: #F5ECDD;
+  --popover: #1D150F;
+  --popover-foreground: #F5ECDD;
+  --primary: #E5A93C;       /* Or royal incandescent en mode sombre */
+  --primary-foreground: #1A1102;
+  --secondary: #2A1F16;
+  --secondary-foreground: #F2DFB8;
+  --muted: #271E15;
+  --muted-foreground: #B8A58D;
+  --accent: #331A23;        /* Reflet bissap nocturne */
+  --accent-foreground: #F7B5C7;
+  --destructive: #F06A91;
+  --destructive-foreground: #2B0711;
+  --border: #38291C;
+  --input: #38291C;
+  --ring: #E5A93C;
+  --chart-1: #E5A93C;
+  --chart-2: #67B87C;
+  --chart-3: #CF7450;
+  --chart-4: #E04E75;
+  --chart-5: #F2934D;
+  --sidebar: #1A130C;
+  --sidebar-foreground: #F5ECDD;
+  --sidebar-primary: #E5A93C;
+  --sidebar-primary-foreground: #18120C;
+  --sidebar-accent: #281D13;
+  --sidebar-accent-foreground: #F5ECDD;
+  --sidebar-border: #38291C;
 }
 
 @layer base {
@@ -282,36 +295,34 @@
      blur coûteux sur les cartes (blur réservé aux chrome UI).
      ════════════════════════════════════════════════════════════════ */
 
-  /* 1) Atmosphère aurora — 3 lueurs radiales fixes derrière le contenu.
-     S'adapte light/dark via les vars (le fond reste --background). */
+  /* 1) Atmosphère aurora féministe africaine — lueurs ambrées, fleur de bissap et souffle végétal */
   .aurora-kene {
     background-image:
-      radial-gradient(58% 42% at 12% 0%, color-mix(in srgb, var(--gold) 14%, transparent) 0%, transparent 68%),
-      radial-gradient(50% 38% at 96% 12%, color-mix(in srgb, var(--terre) 12%, transparent) 0%, transparent 64%),
-      radial-gradient(64% 46% at 50% 108%, color-mix(in srgb, var(--bissap) 10%, transparent) 0%, transparent 70%);
+      radial-gradient(58% 44% at 14% 0%, color-mix(in srgb, var(--gold) 18%, transparent) 0%, transparent 68%),
+      radial-gradient(52% 40% at 94% 14%, color-mix(in srgb, var(--hibiscus) 15%, transparent) 0%, transparent 66%),
+      radial-gradient(64% 48% at 50% 108%, color-mix(in srgb, var(--bissap) 13%, transparent) 0%, transparent 72%);
   }
-  /* Variante discrète pour chrome (nav, header) — pas de gradient massif */
+  /* Variante discrète pour chrome (nav, header) */
   .aurora-kene-soft {
     background-image:
-      radial-gradient(70% 120% at 0% 0%, color-mix(in srgb, var(--gold) 9%, transparent) 0%, transparent 60%),
-      radial-gradient(70% 120% at 100% 0%, color-mix(in srgb, var(--terre) 7%, transparent) 0%, transparent 60%);
+      radial-gradient(70% 120% at 0% 0%, color-mix(in srgb, var(--gold) 11%, transparent) 0%, transparent 60%),
+      radial-gradient(70% 120% at 100% 0%, color-mix(in srgb, var(--hibiscus) 9%, transparent) 0%, transparent 60%);
   }
   /* Grain photographique — désactivé pour éviter les glitchs et artefacts de tramage GPU sur mobile Android */
   .grain-kene::after {
     display: none;
   }
 
-  /* 2) Surfaces verre 2.0 — translucides, saturées, filet lumineux haut,
-     ombre MULTI-COUCHE teintée terre (jamais de gris neutre). */
+  /* 2) Surfaces verre 2.0 — nacre ambrée & translucidité chaleureuse */
   .k-card {
     background:
-      linear-gradient(160deg, color-mix(in srgb, #FFF9EC 4%, transparent) 0%, transparent 34%),
-      color-mix(in srgb, var(--card) 78%, transparent);
+      linear-gradient(160deg, color-mix(in srgb, #FFFDF8 6%, transparent) 0%, transparent 34%),
+      color-mix(in srgb, var(--card) 82%, transparent);
     border: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #FFF9EC 30%, transparent),
-      0 1px 2px rgba(26, 18, 12, 0.06),
-      0 18px 44px -18px rgba(26, 18, 12, 0.22);
+      inset 0 1px 0 color-mix(in srgb, #FFFDF8 35%, transparent),
+      0 1px 2px rgba(24, 18, 12, 0.05),
+      0 18px 44px -18px rgba(24, 18, 12, 0.18);
   }
   /* Hover desktop — élévation douce (transform + ombre renforcée) */
   .k-card-hover {
@@ -321,53 +332,62 @@
     .k-card-hover:hover {
       transform: translateY(-3px);
       box-shadow:
-        inset 0 1px 0 color-mix(in srgb, #FFF9EC 30%, transparent),
-        0 2px 4px rgba(26, 18, 12, 0.07),
-        0 26px 60px -20px rgba(26, 18, 12, 0.3);
+        inset 0 1px 0 color-mix(in srgb, #FFFDF8 35%, transparent),
+        0 2px 4px rgba(24, 18, 12, 0.06),
+        0 26px 60px -20px rgba(24, 18, 12, 0.26);
     }
   }
-  /* Carte « héro » — lueur or interne subtile (score, récap) */
+  /* Carte « héro » — lueur or solaire interne & souffle de bissap */
   .k-card-hero {
     background:
-      radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--gold) 10%, transparent) 0%, transparent 52%),
-      radial-gradient(110% 90% at 100% 100%, color-mix(in srgb, var(--bissap) 8%, transparent) 0%, transparent 56%),
-      color-mix(in srgb, var(--card) 82%, transparent);
+      radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--gold) 13%, transparent) 0%, transparent 52%),
+      radial-gradient(110% 90% at 100% 100%, color-mix(in srgb, var(--hibiscus) 11%, transparent) 0%, transparent 56%),
+      color-mix(in srgb, var(--card) 85%, transparent);
   }
-  /* Chrome verre (header, nav, sheets) — blur + saturation maximale */
+  /* Chrome verre (header, nav, sheets) — blur + saturation veloutée */
   .k-chrome {
-    background: color-mix(in srgb, var(--card) 62%, transparent);
+    background: color-mix(in srgb, var(--card) 68%, transparent);
     -webkit-backdrop-filter: blur(22px) saturate(1.6);
     backdrop-filter: blur(22px) saturate(1.6);
     border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #FFF9EC 22%, transparent),
-      0 18px 44px -14px rgba(26, 18, 12, 0.4);
+      inset 0 1px 0 color-mix(in srgb, #FFFDF8 25%, transparent),
+      0 18px 44px -14px rgba(24, 18, 12, 0.35);
   }
 
-  /* 3) Boutons & actions — dégradé signature + halo teinté + feedback tactile */
+  /* 3) Boutons & actions — Reine Solaire & Bissap Velours */
   .k-cta {
-    background-image: linear-gradient(135deg, var(--terre) 0%, var(--bissap) 58%, #6B2416 100%);
+    background-image: linear-gradient(135deg, var(--gold) 0%, var(--hibiscus) 48%, var(--bissap) 100%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 249, 236, 0.22),
-      0 10px 28px -10px color-mix(in srgb, var(--bissap) 55%, transparent);
+      inset 0 1px 0 rgba(255, 253, 248, 0.28),
+      0 10px 28px -10px color-mix(in srgb, var(--bissap) 52%, transparent);
     transition: box-shadow 0.3s ease, transform 0.18s ease, filter 0.3s ease;
   }
-  .k-cta:hover { filter: brightness(1.06); box-shadow: inset 0 1px 0 rgba(255,249,236,.22), 0 16px 38px -12px color-mix(in srgb, var(--bissap) 60%, transparent); }
+  .k-cta:hover { filter: brightness(1.06); box-shadow: inset 0 1px 0 rgba(255,253,248,.3), 0 16px 38px -12px color-mix(in srgb, var(--bissap) 58%, transparent); }
   .k-cta:active { transform: scale(0.965); }
-  /* Halo doré — pour l'avatar, le CTA scan, éléments focus premium */
+  /* Halo doré solaire — pour l'avatar, le CTA scan, éléments focus premium */
   .k-glow-gold {
     box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--gold) 35%, transparent),
-      0 8px 24px -6px color-mix(in srgb, var(--gold) 45%, transparent);
+      0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent),
+      0 8px 24px -6px color-mix(in srgb, var(--gold) 50%, transparent);
   }
-  /* Bouton primaire plat premium (or profond, AA) — remplace les bg-primary secs */
+  /* Bouton primaire plat or solaire & nacre ambrée (AA) */
   .k-btn-gold {
-    background-image: linear-gradient(160deg, color-mix(in srgb, var(--primary) 92%, #FFF9EC) 0%, var(--primary) 55%, color-mix(in srgb, var(--primary) 88%, var(--terre) 60%) 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 249, 236, 0.25), 0 8px 22px -8px color-mix(in srgb, var(--primary) 50%, transparent);
+    background-image: linear-gradient(160deg, #F3C35C 0%, #D49A24 55%, #B87C12 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 253, 248, 0.35), 0 8px 22px -8px rgba(212, 154, 36, 0.55);
     transition: box-shadow 0.3s ease, transform 0.18s ease, filter 0.25s ease;
   }
   .k-btn-gold:hover { filter: brightness(1.05); }
   .k-btn-gold:active { transform: scale(0.965); }
+
+  /* Bouton velours de Bissap — puissance douce & élégance */
+  .k-btn-bissap {
+    background-image: linear-gradient(160deg, #C93B62 0%, #9E2045 60%, #7E1535 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 253, 248, 0.25), 0 8px 22px -8px rgba(158, 32, 69, 0.5);
+    transition: box-shadow 0.3s ease, transform 0.18s ease, filter 0.25s ease;
+  }
+  .k-btn-bissap:hover { filter: brightness(1.06); }
+  .k-btn-bissap:active { transform: scale(0.965); }
 
   /* 4) Puces (chips) verre — non sélectionnées translucides, sélectionnées or */
   .k-chip {

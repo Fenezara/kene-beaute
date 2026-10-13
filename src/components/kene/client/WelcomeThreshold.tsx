@@ -423,7 +423,7 @@ export function WelcomeThreshold() {
                     className="pointer-events-none absolute -inset-x-5 -top-6 h-[130%]"
                     style={{
                       backgroundImage:
-                        "radial-gradient(58% 52% at 16% 10%, color-mix(in srgb, #C8951E 20%, transparent) 0%, transparent 70%), radial-gradient(46% 42% at 92% 26%, color-mix(in srgb, #A0522D 15%, transparent) 0%, transparent 66%), radial-gradient(64% 55% at 55% 112%, color-mix(in srgb, #8B1A3B 11%, transparent) 0%, transparent 72%)",
+                        "radial-gradient(58% 52% at 16% 10%, color-mix(in srgb, #D49A24 22%, transparent) 0%, transparent 70%), radial-gradient(46% 42% at 92% 26%, color-mix(in srgb, #C93B62 18%, transparent) 0%, transparent 66%), radial-gradient(64% 55% at 55% 112%, color-mix(in srgb, #9E2045 15%, transparent) 0%, transparent 72%)",
                     }}
                     aria-hidden="true"
                   />
