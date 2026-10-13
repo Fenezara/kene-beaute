@@ -1,6 +1,6 @@
 // scripts/test-stock-organization.ts
 // Kènè — Suite de tests automatisés : Organisation du Stock & Prévention des Confusions
-// 1. Catégorisation dermo-botanique des produits en stock
+// 1. Catégorisation dermo-cosmétique des produits en stock
 // 2. Distinction d'usage : Revente Boutique vs Usage Cabine Pro
 // 3. Calculs des états de santé (Sain, Alerte réassort, Rupture)
 // 4. Sécurité des mouvements : projection et détection de déficit

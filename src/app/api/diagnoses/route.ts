@@ -124,9 +124,10 @@ export async function GET(req: NextRequest) {
     // Garde de session: claim query vs cookie si session présente.
     const guard = guardUserClaim(req, "diagnoses:get", userId);
     if (guard) return guard;
-    const light = req.nextUrl.searchParams.get("light") === "1";
-    // Historique borné (POC: 20 derniers). Si light=1 (HomeScreen / boot),
-    // on ne transmet pas les mégawatts de imageData base64 pour un chargement 10x plus vif.
+    const full = req.nextUrl.searchParams.get("full") === "1";
+    const light = !full;
+    // Historique borné (POC: 20 derniers). Par défaut, on ne transmet pas les
+    // mégawatts de imageData base64 pour un chargement instantané (passer ?full=1 si requis).
     const [selfScans, proDiags] = await Promise.all([
       db.diagnosis.findMany({
         where: { userId },
@@ -136,7 +137,7 @@ export async function GET(req: NextRequest) {
           id: true,
           userId: true,
           zone: true,
-          imageData: !light,
+          imageData: full,
           resultJson: true,
           scoreGlobal: true,
           status: true,
@@ -145,9 +146,18 @@ export async function GET(req: NextRequest) {
       }),
       db.proDiagnosis.findMany({
         where: { userId },
-        include: { tenant: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
         take: 10,
+        select: {
+          id: true,
+          zone: true,
+          photoData: full,
+          resultJson: true,
+          scoreGlobal: true,
+          createdAt: true,
+          tenant: { select: { name: true } },
+          practitioner: true,
+        },
       }),
     ]);
     const diagnoses = [
@@ -159,7 +169,7 @@ export async function GET(req: NextRequest) {
         id: p.id,
         userId,
         zone: p.zone,
-        imageData: light ? "" : (p.photoData ?? ""),
+        imageData: (p.photoData as string | undefined) ?? "",
         resultJson: p.resultJson,
         scoreGlobal: p.scoreGlobal,
         status: "done" as const,

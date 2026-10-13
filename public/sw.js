@@ -178,7 +178,7 @@ const OFFLINE_CATALOG_FALLBACK = {
       id: "prd_serum_eclat",
       name: "Sérum Botanique Éclat & Anti-taches",
       category: "serum",
-      description: "Concentré d'actifs dermo-botaniques ciblant l'hyperpigmentation post-inflammatoire.",
+      description: "Concentré d'actifs dermo-cosm�tiques ciblant l'hyperpigmentation post-inflammatoire.",
       botanicals: "Kinkeliba, Hibiscus, Niacinamide",
       price: 18500,
       stock: 15,

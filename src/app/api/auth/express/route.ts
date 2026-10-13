@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     // Plutôt que de forcer toutes les personnes qui cliquent sur "Découvrir"
     // sur l'unique compte "+2250701020304" (ce qui mélangeait diagnostics, paniers et historiques),
     // chaque visiteur reçoit son compte découverte unique et vierge.
-    let user = null;
+    let user: Awaited<ReturnType<typeof db.user.create>> | null = null;
 
     if (targetRole === "client") {
       // Si une session existait déjà, on la recharge
@@ -60,7 +60,6 @@ export async function GET(req: NextRequest) {
       }
       // Sinon on génère un compte invité unique et dédié à cet appareil
       if (!user) {
-        const uniqueGuestId = Math.random().toString(36).substring(2, 9);
         const uniqueGuestPhone = `+22500${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
         user = await db.user.create({
           data: {
@@ -93,6 +92,10 @@ export async function GET(req: NextRequest) {
           await grantProWelcomeTrial(user.id).catch(() => null);
         }
       }
+    }
+
+    if (!user) {
+      return jsonError("Impossible d'initialiser la session", 500);
     }
 
     let ownerTenant = await db.tenant.findFirst({ where: { ownerPhone: user.phone } });

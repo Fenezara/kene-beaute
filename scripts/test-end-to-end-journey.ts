@@ -7,7 +7,7 @@
  *   1. Réservation de soin & calcul d'acompte Mobile Money
  *   2. Accueil cabine & analyse cutanée multi-spectrale (acné / film lipidique)
  *   3. Checklist de sécurité dermo & détection des contre-indications
- *   4. Génération de l'ordonnance dermo-botanique vectorielle
+ *   4. Génération de l'ordonnance dermo-cosmétique vectorielle
  *   5. Encaissement en Caisse POS avec déduction d'acompte & TVA SYSCOHADA
  *   6. Génération des tickets thermiques ESC/POS 80mm & 58mm
  *   7. Calcul automatique des commissions de la praticienne (soins + boutique)
@@ -90,7 +90,7 @@ async function runEndToEndSimulation() {
   assert(blockedChecklist.safe === false && blockedChecklist.blockers.length > 0, `Sécurité active : soin bloqué si Roaccutane actif (${blockedChecklist.blockers[0]})`);
 
   // --------------------------------------------------------------------------
-  console.log(`\n${B} [PHASE 4] Prescription Dermo-Botanique & Pass QR`);
+  console.log(`\n${B} [PHASE 4] Prescription Dermo-Cosmétique & Pass QR`);
   // --------------------------------------------------------------------------
   const prescriptionPdf = await generatePrescriptionPdf({
     userName: "Fatoumata Koné",

@@ -1,7 +1,7 @@
 // Kènè — Suite de tests de validation des 5 axes de perfectionnement
 // 1. Pilote Bluetooth ESC/POS (58mm / 80mm, flux binaire, encodage)
 // 2. Caisse Offline-First (Persistance, file d'attente, réconciliation)
-// 3. Ordonnance Dermo-Botanique PDF & Pass Cabine QR vectoriel
+// 3. Ordonnance Dermo-Cosmétique PDF & Pass Cabine QR vectoriel
 // 4. Relais WhatsApp Business (Formatage numéros CI/SN, modèles de messages)
 // 5. Tableau de bord financier & métriques
 
@@ -117,8 +117,8 @@ async function runAll() {
     assert.ok(!after.some((s) => s.localId === saved.localId), "La vente doit être retirée");
   });
 
-  // ─────────────── AXE 3 : ORDONNANCE DERMO-BOTANIQUE PDF & QR ───────────────
-  console.log("\n[AXE 3] Ordonnance Dermo-Botanique PDF & QR Pass Cabine");
+  // ─────────────── AXE 3 : ORDONNANCE Dermo-Cosmétique PDF & QR ───────────────
+  console.log("\n[AXE 3] Ordonnance Dermo-Cosmétique PDF & QR Pass Cabine");
 
   const diagMock: DiagnosisResult = {
     score_global: 84,

@@ -73,7 +73,7 @@ const proj = calculateProjection(60, 100);
 assert(proj.scoreJ0 === 60, "J0 correspond au score initial (60)");
 assert(proj.scoreJ14 > proj.scoreJ0, `J14 montre une progression (+${proj.scoreJ14 - proj.scoreJ0} pts)`);
 assert(proj.scoreJ30 > proj.scoreJ14, `J30 cycle épidermique amplifie le résultat (+${proj.scoreJ30 - proj.scoreJ14} pts)`);
-assert(proj.scoreJ60 > proj.scoreJ30, `J60 consolidation dermo-botanique maximale (${proj.scoreJ60}/100)`);
+assert(proj.scoreJ60 > proj.scoreJ30, `J60 consolidation dermo-cosmétique maximale (${proj.scoreJ60}/100)`);
 assert(proj.scoreJ60 <= 100, "Le score projeté reste rigoureusement plafonné ≤ 100");
 
 console.log("\n=== 5. Test du Formattage WhatsApp de l'Ordonnance Beauté ===");

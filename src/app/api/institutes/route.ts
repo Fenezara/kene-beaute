@@ -116,7 +116,14 @@ export async function GET(req: NextRequest) {
       institutes = institutes.sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999));
     }
 
-    return NextResponse.json({ institutes });
+    return NextResponse.json(
+      { institutes },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
+        },
+      }
+    );
   } catch (err) {
     return serverError("institutes", err);
   }

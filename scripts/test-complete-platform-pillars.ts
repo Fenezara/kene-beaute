@@ -224,7 +224,7 @@ async function runAll() {
   });
 
   test("Validation sans contre-indication (soin sûr)", () => {
-    const result = evaluateSafetyChecklist("Soin apaisant dermo-botanique", {});
+    const result = evaluateSafetyChecklist("Soin apaisant dermo-cosmétique", {});
     assert.equal(result.safe, true, "Soin sans aucun facteur de risque");
     assert.equal(result.blockers.length, 0);
   });

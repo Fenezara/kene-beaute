@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD) — KÈNÈ
 **Version :** 2.0 (Mise à jour Septembre 2026)  
 **Statut :** Validé & En Production  
-**Portée :** Écosystème Global (App Cliente, App Pro Institut, Console Admin, Dermo-Botanique, Infrastructure)
+**Portée :** Écosystème Global (App Cliente, App Pro Institut, Console Admin, Dermo-Cosmétique, Infrastructure)
 
 ---
 
@@ -16,7 +16,7 @@ La dermatologie et la cosmétologie mondiales ont historiquement été formulée
 ### 1.2 La Mission Kènè
 > *Kènè (« la peau, la santé, le corps » en moré)* a pour vocation de devenir **la plateforme dermo-esthétique panafricaine de référence** :
 > 1. **Démocratiser le diagnostic de précision** grâce à une IA vision calibrée pour les carnations foncées.
-> 2. **Sublimer la pharmacopée dermo-botanique africaine** en mariant ingrédients ancestraux purs et actifs cliniques modernes.
+> 2. **Sublimer la pharmacopée dermo-cosmétique africaine** en mariant ingrédients ancestraux purs et actifs cliniques modernes.
 > 3. **Fournir un système d'exploitation complet (OS Pro)** aux instituts de beauté d'Afrique de l'Ouest et centrale (caisse POS SYSCOHADA, agenda multi-cabines, paie CNPS/IPRES, CRM 360°).
 
 ---
@@ -25,7 +25,7 @@ La dermatologie et la cosmétologie mondiales ont historiquement été formulée
 
 | Persona | Profil & Rôle | Besoins Clés | Solution Kènè |
 | :--- | :--- | :--- | :--- |
-| **Mariam (28 ans)**<br>*Cliente finale* | Abidjan / Dakar, cadre active, peau mixte sujette aux taches d'acné (HPI). | Comprendre sa peau sans jargon, trouver des rituels botaniques sains sans hydroquinone, réserver dans des instituts fiables. | Scan IA 3D en 23 zones, jumeau numérique, ordonnance dermo-botanique avec Pass Cabine QR, boutique d'actifs locaux avec cashback wallet. |
+| **Mariam (28 ans)**<br>*Cliente finale* | Abidjan / Dakar, cadre active, peau mixte sujette aux taches d'acné (HPI). | Comprendre sa peau sans jargon, trouver des rituels botaniques sains sans hydroquinone, réserver dans des instituts fiables. | Scan IA 3D en 23 zones, jumeau numérique, ordonnance dermo-cosmétique avec Pass Cabine QR, boutique d'actifs locaux avec cashback wallet. |
 | **Fatou Koné (42 ans)**<br>*Gérante d'institut* | Fondatrice de *Cabinet LA DERMO*, équipe de 6 esthéticiennes et dermo-conseillères. | Fini les carnets papier : gérer les rendez-vous, encaisser en Wave / Orange Money, payer le personnel aux normes CNPS, fidéliser la clientèle. | Kènè Pro complet : Caisse POS avec tickets thermiques 80 mm, Agenda multi-praticiennes, fiches CRM 360° avec photos réelles, paie et comptabilité automatique SYSCOHADA. |
 | **Awa (24 ans)**<br>*Dermo-conseillère en cabine* | Praticienne diplômée en soins cutanés au sein d'un institut partenaire. | Réaliser des bilans de peau structurés lors des consultations, imprimer des fiches de consentement adaptées à tous les publics. | Module « Diagnostic en cabine » (questionnaire 21 questions + caméra VLM), génération de fiches de consultation papier PDF (avec empreinte digitale ou signature). |
 | **Direction Kènè**<br>*Administrateur Réseau* | Équipe centrale de pilotage et de régulation de la plateforme. | Superviser les instituts affiliés, piloter les commissions, sécuriser les accès et gérer les abonnements Kènè+. | Console d'administration durcie (`/console`), authentification WebAuthn Passkeys, step-up MFA, audit trail certifié. |
@@ -43,17 +43,17 @@ La dermatologie et la cosmétologie mondiales ont historiquement été formulée
 * **Moteur d'Analyse Cutanée (Diagnostic IA VLM)** :
   - Cartographie anatomique en **23 zones corporelles** avec buste 3D interactif.
   - Détection et notation sur 100 de 14 indicateurs cutanés (barrière lipidique, HPI, sébum, rougeurs, desquamation).
-  - Génération d'une **Ordonnance Dermo-Botanique vectorielle native (PDF)** intégrant le **Pass Cabine QR** pour l'institut.
+  - Génération d'une **Ordonnance Dermo-Cosmétique vectorielle native (PDF)** intégrant le **Pass Cabine QR** pour l'institut.
 * **Conseil Virtuel « Dr. Kènè »** :
   - Assistant conversationnel dermo-esthétique alimenté par LLM calibré.
   - Triage médical d'urgence en 3 niveaux :
-    - 🟢 *Vert* : Routine dermo-botanique maison.
+    - 🟢 *Vert* : Routine dermo-cosmétique maison.
     - 🟡 *Jaune* : Consultation requise auprès d'une dermo-conseillère en institut.
     - 🔴 *Rouge* : Alerte immédiate (signes ABCDE, suspicion de mélanome, brûlure, ochronose) et orientation d'urgence vers un médecin dermatologue.
   - Entrée vocale (ASR) et synthèse vocale (TTS) avec résumé multilingue (Français, Dioula, Baoulé, Bété).
 * **Marketplace & Réservations** :
   - Prise de rendez-vous en ligne avec calcul d'acompte anti-no-show.
-  - Boutique dermo-botanique organisée par institut partenaire.
+  - Boutique dermo-cosmétique organisée par institut partenaire.
   - Paiement intégré Mobile Money (Wave, Orange Money, MTN) et Wallet Kènè avec cashback automatique de 5 %.
 
 ### 3.2 Espace Pro (Gestion Complète d'Institut — Kènè Pro)
@@ -111,7 +111,7 @@ La dermatologie et la cosmétologie mondiales ont historiquement été formulée
 
 ---
 
-## 4. Spécifications Dermo-Botaniques & Éthiques
+## 4. Spécifications Dermo-Cosmétiques & Éthiques
 
 ### 4.1 La Pharmacopée Officielle Kènè
 L'ensemble des recommandations de la plateforme s'appuie sur la sélection rigoureuse de la flore ouest-africaine :
