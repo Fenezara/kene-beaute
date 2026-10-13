@@ -265,6 +265,25 @@ export function middleware(req: NextRequest) {
   // Detecte si la route est une API (pour Cache-Control: no-store).
   const isApi = path.startsWith("/api/");
 
+  // 1-quater) BOUCLIER ANTI-ROBOTS PÉRIMÉTRIQUE : bloque les scripts et scrapers bruts sur les routes sensibles
+  if (path.startsWith("/api/auth/")) {
+    const ua = (req.headers.get("user-agent") ?? "").toLowerCase();
+    if (
+      ua.includes("python-requests") ||
+      ua.includes("aiohttp") ||
+      ua.includes("scrapy") ||
+      ua.includes("go-http-client") ||
+      ua.includes("postmanruntime") ||
+      ua.includes("headlesschrome") ||
+      ua.includes("puppeteer")
+    ) {
+      return applySecurityHeaders(
+        NextResponse.json({ error: "Requête automatisée non autorisée" }, { status: 403 }),
+        true,
+      );
+    }
+  }
+
   // 1) Garde CSRF/Origin — AVANT tout: les écritures /api/* d'une origine
   // externe ne doivent JAMAIS atteindre les handlers.
   if (

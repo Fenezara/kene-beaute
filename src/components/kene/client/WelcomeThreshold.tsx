@@ -36,6 +36,7 @@ import { PinKeypad } from "./PinKeypad";
 import { PhoneKeypad, otpErrorToast, requestOtp } from "./PhoneKeypad";
 import { ThresholdStories } from "./ThresholdStories";
 import { type ApiUser } from "./types";
+import { createHumanPayload } from "@/components/kene/auth/BotHoneypot";
 
 /* ───────────────────────── Portail image plein cadre ───────────────────────── */
 function PortalCard({
@@ -289,7 +290,7 @@ export function WelcomeThreshold() {
         user: ApiUser;
         tenant: { id: string; name: string } | null;
         employeeRole?: string | null;
-      }>("/api/auth/login", { phone, pin });
+      }>("/api/auth/login", { phone, pin, ...createHumanPayload() });
 
       const isPro = res.user.role === "pro" || Boolean(res.employeeRole) || Boolean(res.tenant?.id);
       const targetRole = res.user.role === "admin" ? "admin" : isPro ? "pro" : "client";

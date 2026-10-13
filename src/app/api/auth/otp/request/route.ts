@@ -13,8 +13,13 @@ import { rateLimit, rlKey, rateLimitResponse, OTP_REQUEST } from "@/lib/kene/rat
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { audit, clientIp, sha256Hex } from "@/lib/kene/audit";
 import { sendOtpSms } from "@/lib/sms";
+import { checkBotGuard } from "@/lib/kene/bot-guard";
 
-const Body = z.object({ phone: z.string().min(5) });
+const Body = z.object({
+  phone: z.string().min(5),
+  _kene_bot_trap: z.string().optional(),
+  _kene_ts: z.number().optional(),
+});
 
 const normalizePhone = (raw: string) => raw.replace(/\s+/g, "").trim();
 
@@ -27,7 +32,11 @@ export async function POST(req: NextRequest) {
     );
   }
   try {
-    const parsed = Body.safeParse(await req.json().catch(() => null));
+    const raw = await req.json().catch(() => null);
+    const botCheck = checkBotGuard(req, raw);
+    if (!botCheck.ok && botCheck.response) return botCheck.response;
+
+    const parsed = Body.safeParse(raw);
     if (!parsed.success) return jsonError("Numéro de téléphone requis", 400);
     return await runRequest(parsed.data, req);
   } catch (err) {

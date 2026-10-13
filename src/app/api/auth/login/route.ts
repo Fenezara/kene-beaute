@@ -13,11 +13,14 @@ import { rateLimit, rlKey, rateLimitResponse, LOGIN_PIN } from "@/lib/kene/rate-
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { verifyPin } from "@/lib/kene/pin";
+import { checkBotGuard } from "@/lib/kene/bot-guard";
 
 const Body = z.object({
   phone: z.string().min(5),
   pin: z.string().min(4).max(6),
   context: z.enum(["app", "console"]).optional(),
+  _kene_bot_trap: z.string().optional(),
+  _kene_ts: z.number().optional(),
 });
 
 const MAX_PIN_FAILS = 5;
@@ -34,7 +37,11 @@ export async function POST(req: NextRequest) {
     );
   }
   try {
-    const parsed = Body.safeParse(await req.json().catch(() => null));
+    const raw = await req.json().catch(() => null);
+    const botCheck = checkBotGuard(req, raw);
+    if (!botCheck.ok && botCheck.response) return botCheck.response;
+
+    const parsed = Body.safeParse(raw);
     if (!parsed.success) return jsonError("Numéro de téléphone et code secret (4 chiffres) requis", 400);
     return await runLogin(parsed.data, req);
   } catch (err) {

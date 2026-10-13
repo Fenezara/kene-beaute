@@ -21,17 +21,16 @@ import { decodeBridge } from "@/lib/kene/get-bridge";
 import { audit, clientIp, sha256Hex, hashEqual } from "@/lib/kene/audit";
 import { hashPin } from "@/lib/kene/pin";
 import { grantClientWelcomeTrial, grantProWelcomeTrial } from "@/lib/kene/plans";
+import { checkBotGuard } from "@/lib/kene/bot-guard";
 
 const Body = z.object({
   phone: z.string().min(5),
   code: z.string().length(6),
   name: z.string().trim().min(1).optional(),
   pin: z.string().min(4).max(6).optional(),
-  // t. 130 — D'OÙ vient la connexion: "app" (landing publique, défaut) ou
-  // "console" (lien dédié /console). Séparation des portes: un compte admin
-  // ne s'ouvre PLUS depuis la vitrine publique, et le lien console n'ouvre
-  // QUE les comptes admin (cf. garde ci-dessous).
   context: z.enum(["app", "console"]).optional(),
+  _kene_bot_trap: z.string().optional(),
+  _kene_ts: z.number().optional(),
 });
 
 // ─────────────── Verrouillage par numéro (5 échecs → 15 min) ───────────────
@@ -68,7 +67,11 @@ export async function POST(req: NextRequest) {
     );
   }
   try {
-    const parsed = Body.safeParse(await req.json().catch(() => null));
+    const raw = await req.json().catch(() => null);
+    const botCheck = checkBotGuard(req, raw);
+    if (!botCheck.ok && botCheck.response) return botCheck.response;
+
+    const parsed = Body.safeParse(raw);
     if (!parsed.success) return jsonError("phone et code (6 chiffres) requis", 400);
     return await runVerify(parsed.data, req);
   } catch (err) {

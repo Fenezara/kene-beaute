@@ -14,11 +14,14 @@ import { setSessionCookie, sanitizeUser, sessionFromRequest } from "@/lib/kene/s
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { audit, clientIp } from "@/lib/kene/audit";
 import { hashPin } from "@/lib/kene/pin";
+import { checkBotGuard } from "@/lib/kene/bot-guard";
 
 const Body = z.object({
   phone: z.string().min(8).max(20),
   name: z.string().trim().min(2).optional(),
   pin: z.string().min(4).max(6).optional(),
+  _kene_bot_trap: z.string().optional(),
+  _kene_ts: z.number().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -28,12 +31,16 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const raw = await req.json().catch(() => null);
+    const botCheck = checkBotGuard(req, raw);
+    if (!botCheck.ok && botCheck.response) return botCheck.response;
+
     const session = sessionFromRequest(req);
     if (!session) {
       return jsonError("Session requise pour lier un compte", 401);
     }
 
-    const parsed = Body.safeParse(await req.json().catch(() => null));
+    const parsed = Body.safeParse(raw);
     if (!parsed.success) {
       return jsonError("Numéro de téléphone invalide (10 chiffres)", 400);
     }

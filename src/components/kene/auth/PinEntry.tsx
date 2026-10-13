@@ -19,6 +19,7 @@ import { PhoneKeypad, otpErrorToast, requestOtp } from "@/components/kene/client
 import { BootSkeleton } from "@/components/kene/client/BootSkeleton";
 import { type ApiUser } from "@/components/kene/client/types";
 import { DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
+import { createHumanPayload } from "@/components/kene/auth/BotHoneypot";
 
 export function PinEntry() {
   const user = useKene((s) => s.user);
@@ -131,7 +132,7 @@ export function PinEntry() {
         user: ApiUser;
         tenant: { id: string; name: string } | null;
         employeeRole?: string | null;
-      }>("/api/auth/login", { phone, pin });
+      }>("/api/auth/login", { phone, pin, ...createHumanPayload() });
 
       rememberAccount({
         phone,

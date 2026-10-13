@@ -23,6 +23,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { useKene, type SessionUser } from "@/store/kene";
 import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES, type ApiProRegisterResponse, type ApiUser, readSession } from "./types";
 import { PinKeypad } from "./PinKeypad";
+import { createHumanPayload } from "@/components/kene/auth/BotHoneypot";
 
 const slide = { initial: { x: 60, opacity: 0 }, animate: { x: 0, opacity: 1 }, exit: { x: -60, opacity: 0 } };
 
@@ -255,7 +256,12 @@ export function Onboarding({
     if (code.length !== 6) return;
     setLoading(true);
     try {
-      const v = await apiPost<{ user: ApiUser; hasPin?: boolean; tenant: { id: string; name: string } | null; employeeRole?: string | null }>("/api/auth/otp/verify", { phone: `+225${digits}`, code, name: name.trim() || undefined });
+      const v = await apiPost<{ user: ApiUser; hasPin?: boolean; tenant: { id: string; name: string } | null; employeeRole?: string | null }>("/api/auth/otp/verify", {
+        phone: `+225${digits}`,
+        code,
+        name: name.trim() || undefined,
+        ...createHumanPayload(),
+      });
       
       // Si le compte n'a pas encore de code secret OU s'il s'agit d'une réinitialisation ("Code oublié ?")
       if (!v.hasPin || isResetPin) {

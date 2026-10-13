@@ -9,6 +9,7 @@ import { useKene, type SessionUser } from "@/store/kene";
 import { rememberAccount } from "@/lib/kene/last-account";
 import { performLogout } from "@/lib/kene/logout";
 import { haptic, HAPTIC } from "@/lib/kene/ux";
+import { BotHoneypot, createHumanPayload } from "@/components/kene/auth/BotHoneypot";
 import type { ApiUser } from "./types";
 
 interface LinkAccountModalProps {
@@ -49,6 +50,7 @@ export function LinkAccountModal({ open, onClose, reason }: LinkAccountModalProp
         phone: cleanDigits,
         name: name.trim() || undefined,
         pin: withPin && pin ? pin : undefined,
+        ...createHumanPayload(),
       });
 
       if (res.user) {
@@ -110,6 +112,7 @@ export function LinkAccountModal({ open, onClose, reason }: LinkAccountModalProp
 
           {/* Formulaire simple 1-2 champs */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            <BotHoneypot />
             <div>
               <label className="block text-xs font-bold text-foreground mb-1.5">
                 Votre prénom ou nom

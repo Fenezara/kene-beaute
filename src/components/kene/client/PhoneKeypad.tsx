@@ -18,6 +18,7 @@ import { apiGet, apiPost } from "@/lib/kene/api";
 import { useKene } from "@/store/kene";
 import { AuroraBackdrop, Chip } from "@/components/kene/ui2026";
 import { KeneEmblemLockup } from "@/components/kene/icons";
+import { BotHoneypot, createHumanPayload } from "@/components/kene/auth/BotHoneypot";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 
@@ -223,6 +224,8 @@ export function PhoneKeypad({
             </button>
           </div>
         )}
+
+        <BotHoneypot />
       </div>
     </div>
   );
@@ -230,7 +233,10 @@ export function PhoneKeypad({
 
 /** Requête OTP — appelée par le parent (garde le keypad muet côté métier). */
 export async function requestOtp(phoneE164: string): Promise<string> {
-  const res = await apiPost<{ ok: boolean; devCode?: string; smsSent?: boolean }>("/api/auth/otp/request", { phone: phoneE164 });
+  const res = await apiPost<{ ok: boolean; devCode?: string; smsSent?: boolean }>("/api/auth/otp/request", {
+    phone: phoneE164,
+    ...createHumanPayload(),
+  });
   return res.devCode ?? "";
 }
 
