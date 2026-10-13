@@ -294,19 +294,19 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             <span className="grid place-items-center size-10 rounded-xl bg-gold/15 text-gold-text shrink-0 shadow-xs">
               <Leaf className="size-5" />
             </span>
-            <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Ordonnance</p>
-              <p className="text-xs font-black font-heading text-gold-text truncate mt-0.5 flex items-center gap-1">
-                <span className={cn("size-2 rounded-full inline-block", globalScore !== null ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground")} />
-                {globalScore !== null ? "Active & Validée" : "En attente scan"}
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">Ordonnance</p>
+              <p className="text-xs sm:text-sm font-black font-heading text-gold-text mt-0.5 flex items-center gap-1.5 whitespace-nowrap">
+                <span className={cn("size-2 rounded-full inline-block shrink-0", globalScore !== null ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground")} />
+                <span>{globalScore !== null ? "Validée" : "En attente"}</span>
               </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* ───── Barre des 5 Sous-Vues Interactives — Harmonieuse & Tactile ───── */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 p-1.5 rounded-[22px] bg-muted/50 border border-border/70 shadow-xs">
+      {/* ───── Barre des 5 Sous-Vues Interactives — Défilement Fluide & Sans Coupure ───── */}
+      <div className="flex items-center gap-2 p-1.5 rounded-[22px] bg-muted/50 border border-border/70 shadow-xs overflow-x-auto pretty-scroll overscroll-x-contain">
         <button
           type="button"
           onClick={() => {
@@ -314,14 +314,14 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("live");
           }}
           className={cn(
-            "py-2.5 px-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer",
+            "shrink-0 py-2.5 px-3.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 text-center cursor-pointer whitespace-nowrap select-none",
             activeView === "live"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <Activity size={15} className={activeView === "live" ? "text-emerald-500 animate-pulse" : ""} />
-          <span className="truncate">⚡ En Direct</span>
+          <Activity size={15} className={activeView === "live" ? "text-emerald-500 animate-pulse" : "text-muted-foreground"} />
+          <span>En Direct</span>
         </button>
 
         <button
@@ -331,14 +331,14 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("dossier");
           }}
           className={cn(
-            "py-2.5 px-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer",
+            "shrink-0 py-2.5 px-3.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 text-center cursor-pointer whitespace-nowrap select-none",
             activeView === "dossier"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <FolderHeart size={15} className={activeView === "dossier" ? "text-primary" : ""} />
-          <span className="truncate">📁 Ordonnance</span>
+          <FolderHeart size={15} className={activeView === "dossier" ? "text-primary" : "text-muted-foreground"} />
+          <span>Ordonnance</span>
         </button>
 
         <button
@@ -348,14 +348,14 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("avant_apres");
           }}
           className={cn(
-            "py-2.5 px-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer",
+            "shrink-0 py-2.5 px-3.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 text-center cursor-pointer whitespace-nowrap select-none",
             activeView === "avant_apres"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <Images size={15} className={activeView === "avant_apres" ? "text-primary" : ""} />
-          <span className="truncate">📸 Avant / Après</span>
+          <Images size={15} className={activeView === "avant_apres" ? "text-primary" : "text-muted-foreground"} />
+          <span>Avant / Après</span>
         </button>
 
         <button
@@ -365,14 +365,14 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("galerie");
           }}
           className={cn(
-            "py-2.5 px-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer",
+            "shrink-0 py-2.5 px-3.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 text-center cursor-pointer whitespace-nowrap select-none",
             activeView === "galerie"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <Camera size={15} className={activeView === "galerie" ? "text-primary" : ""} />
-          <span className="truncate">🖼️ Galerie ({lightboxPhotos.length})</span>
+          <Camera size={15} className={activeView === "galerie" ? "text-primary" : "text-muted-foreground"} />
+          <span>Galerie ({lightboxPhotos.length})</span>
         </button>
 
         <button
@@ -382,14 +382,14 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("historique");
           }}
           className={cn(
-            "col-span-2 sm:col-span-1 py-2.5 px-2.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer",
+            "shrink-0 py-2.5 px-3.5 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 text-center cursor-pointer whitespace-nowrap select-none",
             activeView === "historique"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <History size={15} className={activeView === "historique" ? "text-primary" : ""} />
-          <span className="truncate">📜 Historique ({diagnoses.length})</span>
+          <History size={15} className={activeView === "historique" ? "text-primary" : "text-muted-foreground"} />
+          <span>Historique ({diagnoses.length})</span>
         </button>
       </div>
 
