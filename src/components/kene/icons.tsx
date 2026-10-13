@@ -358,14 +358,14 @@ export function KeneEmblemLockup({
 }) {
   const fontSize = labelSize ?? Math.round(size * 0.52 * 100) / 100;
   return (
-    <span className={cn("inline-flex min-w-0 items-center gap-2.5 sm:gap-3.5 select-none", className)}>
+    <span className={cn("inline-flex shrink-0 items-center gap-2 sm:gap-3 select-none", className)}>
       <KeneEmblem
         size={size}
       />
-      <span className="flex min-w-0 flex-col items-start leading-none justify-center">
+      <span className="flex shrink-0 flex-col items-start leading-none justify-center">
         <span className="inline-flex w-fit flex-col items-start">
           <span
-            className="font-heading font-black leading-[1.05] tracking-[0.02em] text-foreground"
+            className="font-heading font-black leading-[1.05] tracking-[0.02em] text-foreground whitespace-nowrap"
             style={{ fontSize: `${fontSize.toFixed(2)}px` }}
           >
             {label}

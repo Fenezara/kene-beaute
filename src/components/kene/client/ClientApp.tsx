@@ -392,10 +392,11 @@ export function ClientApp() {
         {/* Header unique responsive: mobile = logo + actions; desktop = titre + actions.
  k-chrome = verre blur+saturate (le CSS gère le filet et l'ombre). Safe-area mobile garantie (≥ 36px). */}
         <header className="shrink-0 z-40 k-chrome pt-8 sm:pt-4 md:pt-0 [padding-top:max(env(safe-area-inset-top,0px),2.25rem)] md:[padding-top:env(safe-area-inset-top,0px)]">
-          <div className="h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3 px-2.5 sm:px-5">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3 px-2 sm:px-5">
+            {/* 1. GAUCHE : Logo Kènè & Titre (immunisé contre tout écrasement grâce à shrink-0) */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               <div className="md:hidden shrink-0">
-                {/* Lockup Sceau officiel compact — le Médaillon Kènè + nom sans sous-titre écrasant */}
+                {/* Lockup Sceau officiel compact — le Médaillon Kènè + nom Kènè net et stable */}
                 <KeneEmblemLockup size={34} labelSize={17} sublabel={null} />
               </div>
               <div className="hidden md:flex items-baseline gap-2.5 min-w-0 flex-1 overflow-hidden">
@@ -405,8 +406,10 @@ export function ClientApp() {
                 </p>
               </div>
             </div>
+
+            {/* 2. DROITE : Dr Kènè + Actions rapides (Switcher, Cloche, Réglages, Thème) */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              {/* 👑 BOUTON DR KÈNÈ EN HAUT — GRAND, TACTILE & ULTRA-VISIBLE */}
+              {/* 👑 BOUTON DR KÈNÈ EN HAUT — GRAND, TACTILE, PARFAITEMENT CALIBRÉ SANS CHEVAUCHEMENT */}
               <button
                 type="button"
                 onClick={() => {
@@ -416,41 +419,44 @@ export function ClientApp() {
                 aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
                 title="Consulter Dr Kènè (Conseils dermo-botaniques & Chat IA 24/7)"
                 className={cn(
-                  "relative flex items-center gap-2 h-10.5 sm:h-12 px-3.5 sm:px-4.5 rounded-full border-2 transition-all active:scale-95 shadow-md shrink-0",
+                  "relative flex items-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-2.5 sm:px-4 rounded-full border-2 transition-all active:scale-95 shadow-xs shrink-0 select-none",
                   tab === "chat"
-                    ? "bg-gradient-to-r from-[#C8951E] via-[#F3C258] to-[#B37F14] text-[#1A1410] border-[#FFD875] font-black shadow-lg"
-                    : "border-[#C8951E] bg-gradient-to-r from-[#C8951E]/25 via-gold/20 to-card hover:from-[#C8951E]/35 text-foreground font-black"
+                    ? "bg-gradient-to-r from-[#C8951E] via-[#F3C258] to-[#B37F14] text-[#1A1410] border-[#FFD875] font-black shadow-md"
+                    : "border-[#C8951E]/80 bg-gradient-to-r from-[#C8951E]/20 via-gold/15 to-card/90 hover:from-[#C8951E]/30 text-foreground font-black"
                 )}
               >
-                <span className="relative grid size-6 place-items-center rounded-full bg-[#C8951E] text-white shadow-xs">
-                  <MessageCircle size={15} className="text-white" />
-                  <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" />
+                <span className="relative grid size-5.5 sm:size-6 place-items-center rounded-full bg-[#C8951E] text-white shadow-xs shrink-0">
+                  <MessageCircle size={13} className="text-white sm:hidden" />
+                  <MessageCircle size={15} className="text-white hidden sm:block" />
+                  <span className="absolute -top-0.5 -right-0.5 size-2 sm:size-2.5 rounded-full bg-emerald-500 ring-1.5 ring-background animate-pulse" />
                 </span>
-                <span className="text-xs sm:text-sm font-black tracking-tight flex items-center gap-1.5 text-foreground">
+                <span className="text-[12px] sm:text-sm font-black tracking-tight flex items-center gap-1 sm:gap-1.5 text-foreground whitespace-nowrap">
                   <span>Dr Kènè</span>
-                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-[#C8951E]/30 text-[#C8951E] dark:text-[#FFD875] border border-[#C8951E]/50 uppercase tracking-wider">
+                  <span className="text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-full bg-[#C8951E]/25 text-[#C8951E] dark:text-[#FFD875] border border-[#C8951E]/40 uppercase tracking-wider">
                     24/7
                   </span>
                 </span>
                 {chatUnread && (
-                  <span className="size-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-background animate-bounce" />
+                  <span className="size-2 sm:size-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-background animate-bounce shrink-0" />
                 )}
               </button>
 
               <SpaceSwitcher variant="compact" />
-              {/* Cloche notifications: flux temps réel (notify-service) —
- lazy: socket.io + Sheet chargés dans leur propre chunk */}
+
+              {/* Cloche notifications: flux temps réel (notify-service) */}
               <Suspense fallback={<BellLoading />}>
                 <NotificationCenter userId={user.id} />
               </Suspense>
-              {/* Engrenage Paramètres — visible à TOUS les formats */}
+
+              {/* Engrenage Paramètres — visible dès tablette sm+ (sur mobile accessible via onglet Profil) */}
               <button
                 onClick={() => goTab("parametres")}
                 aria-label={t("title.parametres")}
-                className="relative grid place-items-center h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition focus-visible:outline-2 focus-visible:outline-primary"
+                className="hidden sm:grid place-items-center h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-full text-foreground hover:bg-accent/60 active:scale-95 transition focus-visible:outline-2 focus-visible:outline-primary"
               >
                 <Settings className="size-4 sm:size-5" />
               </button>
+
               <ThemeToggle />
             </div>
           </div>

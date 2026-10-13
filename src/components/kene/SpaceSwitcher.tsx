@@ -107,6 +107,8 @@ export function SpaceSwitcher({
             variant="outline"
             size="sm"
             disabled={switching !== null}
+            aria-label={`Espace actif : ${current.label}. Cliquer pour changer d'interface.`}
+            title={`Espace actif : ${current.label}`}
             className={cn(
               "h-8 rounded-full gap-1 sm:gap-1.5 px-2 sm:px-3 text-xs font-semibold bg-background/90 backdrop-blur border-primary/40 shadow-xs hover:border-primary transition-all shrink-0 whitespace-nowrap",
               className
@@ -117,9 +119,8 @@ export function SpaceSwitcher({
             ) : (
               <current.icon className="size-3.5 text-primary shrink-0" />
             )}
-            <span className="hidden sm:inline text-[11px] text-muted-foreground font-normal">Espace :</span>
-            <span className="font-bold text-foreground hidden sm:inline">{current.label}</span>
-            <span className="font-bold text-foreground sm:hidden">{current.shortLabel}</span>
+            <span className="hidden md:inline text-[11px] text-muted-foreground font-normal">Espace :</span>
+            <span className="font-bold text-foreground hidden sm:inline">{current.shortLabel}</span>
             <ChevronDown className="size-3 opacity-60 ml-0.5 text-primary shrink-0" />
           </Button>
         </DropdownMenuTrigger>
