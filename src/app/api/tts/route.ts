@@ -313,7 +313,19 @@ export async function POST(req: NextRequest) {
     return rateLimitResponse(rl.retryAfterSec, "Synthèse vocale très sollicitée — reprends dans quelques secondes");
   }
   try {
-    const parsed = Body.safeParse(await req.json().catch(() => null));
+    let raw: unknown = null;
+    try {
+      raw = await req.json();
+    } catch {
+      try {
+        const t = await req.text();
+        raw = t ? JSON.parse(t) : null;
+      } catch {
+        raw = null;
+      }
+    }
+
+    const parsed = Body.safeParse(raw);
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       const field = issue?.path?.[0];
