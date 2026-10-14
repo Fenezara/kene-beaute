@@ -1,4 +1,4 @@
-// GET /api/admin/orders — Liste centralisée de toutes les commandes de la plateforme
+// GET /api/admin/orders — Liste centralisée des Ventes Caisse Salons et Commandes Réseau
 // PATCH /api/admin/orders — Mise à jour du statut d'une commande par l'administrateur
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -34,16 +34,15 @@ export async function GET(req: NextRequest) {
   try {
     const q = req.nextUrl.searchParams.get("q")?.trim().toLowerCase() ?? "";
     const status = req.nextUrl.searchParams.get("status")?.trim().toLowerCase() ?? "all";
+    const type = req.nextUrl.searchParams.get("type")?.trim().toLowerCase() ?? "all"; // all | pos | online
     const limit = Math.min(200, Math.max(10, Number(req.nextUrl.searchParams.get("limit") || 100)));
 
-    const whereClause: any = {};
-
+    const orderWhere: any = {};
     if (status && status !== "all") {
-      whereClause.status = status;
+      orderWhere.status = status;
     }
-
     if (q) {
-      whereClause.OR = [
+      orderWhere.OR = [
         { id: { contains: q } },
         { deliveryCity: { contains: q } },
         { deliveryArea: { contains: q } },
@@ -55,48 +54,91 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const [orders, totalCount, paidCount, preparingCount, inTransitCount, deliveredCount, pendingCount, cancelledCount] =
-      await Promise.all([
-        db.order.findMany({
-          where: whereClause,
-          orderBy: { createdAt: "desc" },
-          take: limit,
-          include: {
-            user: { select: { id: true, name: true, phone: true, email: true } },
-            payment: { select: { id: true, method: true, status: true, ref: true, createdAt: true } },
-            items: {
-              include: {
-                product: {
-                  select: { id: true, name: true, brandLine: true, image: true, tenant: { select: { id: true, name: true } } },
-                },
+    const saleWhere: any = {};
+    if (q) {
+      saleWhere.OR = [
+        { id: { contains: q } },
+        { receiptNumber: { contains: q } },
+        { practitioner: { contains: q } },
+        { tenant: { name: { contains: q } } },
+        { clientProfile: { name: { contains: q } } },
+        { clientProfile: { phone: { contains: q } } },
+      ];
+    }
+
+    // Récupération simultanée des commandes en ligne et des ventes caisse salon
+    const [
+      orders,
+      totalOrdersCount,
+      paidOrdersCount,
+      preparingOrdersCount,
+      deliveredOrdersCount,
+      pendingOrdersCount,
+      cancelledOrdersCount,
+      sales,
+      totalSalesCount,
+      salesSum,
+    ] = await Promise.all([
+      db.order.findMany({
+        where: orderWhere,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        include: {
+          user: { select: { id: true, name: true, phone: true, email: true } },
+          payment: { select: { id: true, method: true, status: true, ref: true, createdAt: true } },
+          items: {
+            include: {
+              product: {
+                select: { id: true, name: true, brandLine: true, image: true, tenant: { select: { id: true, name: true } } },
               },
             },
           },
-        }),
-        db.order.count(),
-        db.order.count({ where: { status: "paid" } }),
-        db.order.count({ where: { status: "preparing" } }),
-        db.order.count({ where: { status: "in_transit" } }),
-        db.order.count({ where: { status: "delivered" } }),
-        db.order.count({ where: { status: "pending" } }),
-        db.order.count({ where: { status: "cancelled" } }),
-      ]);
+        },
+      }),
+      db.order.count(),
+      db.order.count({ where: { status: "paid" } }),
+      db.order.count({ where: { status: "preparing" } }),
+      db.order.count({ where: { status: "delivered" } }),
+      db.order.count({ where: { status: "pending" } }),
+      db.order.count({ where: { status: "cancelled" } }),
+      db.sale.findMany({
+        where: saleWhere,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        include: {
+          tenant: { select: { id: true, name: true, city: true, phone: true } },
+          clientProfile: { select: { id: true, name: true, phone: true } },
+          items: true,
+        },
+      }),
+      db.sale.count(),
+      db.sale.aggregate({
+        _sum: { total: true },
+        where: { status: "completed" },
+      }),
+    ]);
 
-    const totalRevenue = orders
+    const ordersVolume = orders
       .filter((o) => ["paid", "preparing", "in_transit", "delivered"].includes(o.status))
       .reduce((acc, o) => acc + o.total, 0);
 
+    const salesVolume = salesSum._sum.total ?? 0;
+    const networkGmv = salesVolume + ordersVolume;
+
     return NextResponse.json({
       orders,
+      sales,
       stats: {
-        total: totalCount,
-        paid: paidCount,
-        preparing: preparingCount,
-        inTransit: inTransitCount,
-        delivered: deliveredCount,
-        pending: pendingCount,
-        cancelled: cancelledCount,
-        totalRevenue,
+        totalOrders: totalOrdersCount,
+        paidOrders: paidOrdersCount,
+        preparingOrders: preparingOrdersCount,
+        deliveredOrders: deliveredOrdersCount,
+        pendingOrders: pendingOrdersCount,
+        cancelledOrders: cancelledOrdersCount,
+        ordersVolume,
+        totalSales: totalSalesCount,
+        salesVolume,
+        networkGmv,
       },
     });
   } catch (err) {

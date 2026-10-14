@@ -224,8 +224,8 @@ export function AdminTenants() {
                     <TableHead>Institut</TableHead>
                     <TableHead className="hidden md:table-cell">Gérante</TableHead>
                     <TableHead className="text-right">CA 30 j</TableHead>
-                    <TableHead className="hidden lg:table-cell text-right">Commandes</TableHead>
-                    <TableHead className="hidden lg:table-cell text-right">Commission</TableHead>
+                    <TableHead className="hidden lg:table-cell text-right">Commandes en ligne</TableHead>
+                    <TableHead className="hidden lg:table-cell text-right">Frais plateforme</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -259,7 +259,7 @@ export function AdminTenants() {
                       <TableCell className="text-right whitespace-nowrap">
                         <Money value={t.caBoutique30 + t.caPos30} className="text-sm font-semibold" />
                         <p className="mt-0.5 text-[10px] text-muted-foreground whitespace-nowrap">
-                          boutique {xof(t.caBoutique30, { compact: true })} · caisse {xof(t.caPos30, { compact: true })}
+                          en ligne {xof(t.caBoutique30, { compact: true })} · caisse {xof(t.caPos30, { compact: true })}
                         </p>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-right text-sm">
@@ -417,7 +417,7 @@ function TenantSheet({
                 { label: "Diagnostics cabine 30 j", value: String(t.proDiag30) },
                 { label: "RDV à venir", value: String(t.upcomingAppointments) },
                 { label: "Catalogue actif", value: String(t.products) },
-                { label: "En attente (boutique)", value: String(t.pendingOrders) },
+                { label: "En attente (en ligne)", value: String(t.pendingOrders) },
               ].map((k) => (
                 <div key={k.label} className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5">
                   <p className="text-[11px] leading-tight text-muted-foreground">{k.label}</p>
@@ -552,7 +552,7 @@ function TenantSheet({
               {t.lastOrders.length > 0 && (
                 <div>
                   <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-                    <CalendarClock className="size-3.5" aria-hidden="true" /> Dernières commandes boutique
+                    <CalendarClock className="size-3.5" aria-hidden="true" /> Dernières commandes en ligne
                   </p>
                   <ul className="space-y-1.5">
                     {t.lastOrders.map((o) => (
