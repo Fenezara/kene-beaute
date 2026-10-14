@@ -1022,7 +1022,7 @@ function ClientSheet({
                 <Button
                   variant="outline"
                   className="gap-1.5"
-                  onClick={() => window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}&clientId=${clientId}`, "_blank")}
+                  onClick={() => window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}&clientId=${clientId}&_t=${Date.now()}`, "_blank")}
                   aria-label={`Imprimer la fiche de consultation pré-remplie de ${c.name}`}
                 >
                   <FileDown className="size-4" aria-hidden="true" />

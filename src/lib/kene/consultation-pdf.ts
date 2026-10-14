@@ -352,9 +352,9 @@ export function consultationSheetPdf(input: {
     "CADRE RÉGLEMENTAIRE & CONSENTEMENTS ÉCLAIRÉS",
     "Conformité données de santé & photos (Loi n°2013-450 / RGPD) — explications orales préalables"
   );
-  doc.ensure(84);
+  doc.ensure(88);
   const csBoxY = doc.cursorY;
-  const csBoxH = 76;
+  const csBoxH = 80;
 
   // Cartouche de sécurité avec fond crème et bordure or
   drawBox(doc, M_X, csBoxY, CONTENT_W, csBoxH, CREAM, LINE, 0.7);
@@ -390,18 +390,18 @@ export function consultationSheetPdf(input: {
 
   // Ligne de signature consentements
   yCs += 19;
-  doc.hline(M_X + 12, M_RIGHT - 12, yCs - 4, LINE_LIGHT, 0.5);
-  doc.text("Fait le : ...............................   Lieu : ...............................", M_X + 12, yCs + 6, {
+  doc.hline(M_X + 12, M_RIGHT - 12, yCs - 3, LINE_LIGHT, 0.5);
+  doc.text("Fait le : ...............................   Lieu : ...............................", M_X + 12, yCs + 8, {
     size: 7.2,
     color: SOFT,
   });
   doc.text(
-    "Signature ou empreinte digitale de la cliente (précédée de « Lu et approuvé ») :",
-    M_X + 225,
-    yCs + 6,
+    "Signature cliente (« Lu et approuvé ») :",
+    M_RIGHT - 215,
+    yCs + 8,
     { size: 7.2, color: SOFT }
   );
-  doc.rectStroke(M_RIGHT - 120, yCs - 2, 110, 14, LINE, 0.6);
+  doc.rectStroke(M_RIGHT - 85, yCs - 1, 75, 14, LINE, 0.6);
 
   doc.advance(csBoxH + 11);
 

@@ -207,7 +207,7 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
             </Button>
             <Button
               variant="outline"
-              onClick={() => window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}`, "_blank")}
+              onClick={() => window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}&_t=${Date.now()}`, "_blank")}
               className="gap-2"
               aria-label="Imprimer une fiche de consultation vierge (support papier de l'entretien)"
             >
