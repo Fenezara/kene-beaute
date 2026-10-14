@@ -219,10 +219,14 @@ export function ClientApp() {
     return () => window.removeEventListener("kene:chat:new", onNewChatMessage);
   }, []);
 
-  // Remonte en haut du flux à chaque changement d'onglet (le tirage est
-  // réinitialisé par les gestionnaires tactiles, jamais par cet effet)
+  // Remonte en haut du flux à chaque changement d'onglet
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0 });
+    scrollRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+      document.documentElement.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+      document.body.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+    }
   }, [tab]);
 
   function goTab(t: ScreenTab) {
@@ -236,6 +240,10 @@ export function ClientApp() {
     }
     if (t === "chat") setChatUnread(false);
     setClientTab(t as ClientTab);
+    scrollRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+    }
   }
 
   // ─── Gestes tactiles du conteneur de flux ───

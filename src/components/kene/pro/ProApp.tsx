@@ -118,10 +118,21 @@ export function ProApp() {
   const [diagCommand, setDiagCommand] = useState<{ clientId: string; nonce: number } | null>(null);
   // Commande « Nouvelle cliente » depuis l'Accès Rapide
   const [crmCreateNonce, setCrmCreateNonce] = useState(0);
-  // Rail latéral rétractable (68px compact par défaut sur tablette, extensible à 220px)
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  // Rail latéral déployé par défaut (220px avec libellés complets, rétractable à 68px sur demande)
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const mainScrollRef = useRef<HTMLElement | null>(null);
   // Modal de l'Assistante de la Maman (Débriefing & dispatch 1-tap)
   const [mamanAssistantOpen, setMamanAssistantOpen] = useState(false);
+
+  // Remonte en haut de la page à chaque changement d'onglet ou de section entreprise
+  useEffect(() => {
+    mainScrollRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+      document.documentElement.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+      document.body.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+    }
+  }, [section]);
 
   // Détection de connectivité réseau anti-faux-positifs (façon Wave)
   const online = useNetworkOnline();
@@ -742,6 +753,7 @@ export function ProApp() {
 
         {/* ───────── Zone contenu principal scrollable en interne (zéro décalage / zéro rebond) ───────── */}
         <main
+          ref={mainScrollRef}
           className={cn(
             "flex-1 min-w-0 min-h-0 flex flex-col overflow-y-auto overscroll-y-none overscroll-contain touch-pan-y pretty-scroll",
             activeSection === "assistant"
