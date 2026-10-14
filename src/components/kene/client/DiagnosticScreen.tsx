@@ -1503,14 +1503,47 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
           <p className="text-[11px] text-muted-foreground mt-2 mb-2">{viewDef.label}{view !== "standard" ? " — filtre spectral + cartographie chaleur" : ""}</p>
           <div className="relative k-card rounded-[24px] overflow-hidden">
             <img src={currentImg} alt={`Vue ${viewDef.label} de la zone analysée`} className={`aspect-square w-full object-cover ${view !== "standard" ? viewDef.filter : ""}`} />
-            {heatmapCls && <div aria-hidden="true" className={`absolute inset-0 ${heatmapCls} opacity-60 mix-blend-screen pointer-events-none`} />}
-            {/* cadres zones détectées */}
-            {r.zones_marquages.map((z, i) => (
-              <div key={i} className="absolute border-2 border-dashed border-[#FFF9EC]/90 rounded-lg pointer-events-none" style={{ left: `${z.x}%`, top: `${z.y}%`, width: `${z.w}%`, height: `${z.h}%` }}>
-                <span className="absolute -top-0.5 -left-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#FFF9EC]" style={{ backgroundColor: ["#346834", "#C8951E", "#E07A2B", "#8B1A3B"][Math.min(3, Math.max(0, z.severite))] }} aria-hidden="true" />
-                <span className="absolute -bottom-5 left-0 whitespace-nowrap rounded-full bg-[#1A1410]/90 text-[#F8F1E4] px-1.5 py-0.5 text-[9px] font-semibold">{z.label}</span>
-              </div>
-            ))}
+            {heatmapCls && (
+              <div
+                aria-hidden="true"
+                className={cn(
+                  "absolute inset-0 pointer-events-none transition-opacity duration-300",
+                  heatmapCls,
+                  view === "acne" ? "opacity-90 mix-blend-screen" : "opacity-75 mix-blend-multiply"
+                )}
+              />
+            )}
+            {/* cadres zones détectées avec coloration exacte de sévérité */}
+            {r.zones_marquages.map((z, i) => {
+              const sevColors = ["#346834", "#C8951E", "#E07A2B", "#8B1A3B"];
+              const sevColor = sevColors[Math.min(3, Math.max(0, z.severite))];
+              return (
+                <div
+                  key={i}
+                  className="absolute border-2 border-dashed rounded-lg pointer-events-none transition-all duration-300"
+                  style={{
+                    left: `${z.x}%`,
+                    top: `${z.y}%`,
+                    width: `${z.w}%`,
+                    height: `${z.h}%`,
+                    borderColor: `${sevColor}dd`,
+                    backgroundColor: `${sevColor}1a`,
+                  }}
+                >
+                  <span
+                    className="absolute -top-1 -left-1 h-3.5 w-3.5 rounded-full border-2 border-[#FFF9EC] shadow-sm animate-pulse"
+                    style={{ backgroundColor: sevColor }}
+                    aria-hidden="true"
+                  />
+                  <span
+                    className="absolute -bottom-5 left-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-semibold text-[#F8F1E4] shadow-xs"
+                    style={{ backgroundColor: sevColor }}
+                  >
+                    {z.label}
+                  </span>
+                </div>
+              );
+            })}
             <div className="absolute bottom-2 right-2 flex gap-1">
               {SEVERITY_STYLES.map((s, i) => (
                 <span key={i} className="flex items-center gap-1 rounded-full bg-[#1A1410]/90 px-1.5 py-0.5 text-[11px] text-[#F8F1E4]">

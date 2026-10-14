@@ -183,6 +183,10 @@
   html,
   body {
     height: 100%;
+    height: 100dvh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
     overscroll-behavior: none;
     overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
@@ -261,23 +265,21 @@
   }
   /* Heatmap spectrale pour vues VISIA-like */
   .heatmap-pigment {
-    background: radial-gradient(circle at 50% 42%, rgba(139,26,59,.55), rgba(139,26,59,.18) 45%, transparent 70%);
-    mix-blend-mode: multiply;
+    background: radial-gradient(circle at 50% 42%, rgba(141,85,36,.75) 0%, rgba(200,149,30,.45) 40%, transparent 70%);
   }
   .heatmap-inflammation {
-    background: radial-gradient(circle at 50% 42%, rgba(224,122,43,.55), rgba(224,122,43,.2) 45%, transparent 70%);
-    mix-blend-mode: multiply;
+    background: radial-gradient(circle at 50% 42%, rgba(220,38,38,.75) 0%, rgba(224,122,43,.5) 40%, transparent 70%);
   }
   .heatmap-acne {
     background:
-      radial-gradient(circle at 38% 36%, rgba(139,26,59,.6), transparent 12%),
-      radial-gradient(circle at 62% 40%, rgba(139,26,59,.5), transparent 10%),
-      radial-gradient(circle at 50% 68%, rgba(139,26,59,.45), transparent 12%);
-    mix-blend-mode: multiply;
+      radial-gradient(circle at 35% 35%, rgba(244,63,94,.92) 0%, rgba(158,32,69,.75) 24%, transparent 45%),
+      radial-gradient(circle at 65% 42%, rgba(244,63,94,.88) 0%, rgba(158,32,69,.7) 22%, transparent 42%),
+      radial-gradient(circle at 48% 68%, rgba(244,63,94,.85) 0%, rgba(158,32,69,.65) 24%, transparent 44%),
+      radial-gradient(circle at 50% 28%, rgba(244,63,94,.8) 0%, rgba(158,32,69,.6) 20%, transparent 38%);
   }
   .spectre-pigment { filter: sepia(.55) saturate(1.9) hue-rotate(-18deg) contrast(1.15); }
   .spectre-inflammation { filter: sepia(.25) saturate(2.4) hue-rotate(24deg) contrast(1.1); }
-  .spectre-acne { filter: grayscale(.35) contrast(1.35) brightness(1.05); }
+  .spectre-acne { filter: sepia(.35) saturate(2.4) hue-rotate(295deg) contrast(1.35) brightness(1.02); }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .pretty-scroll::-webkit-scrollbar { width: 6px; height: 6px; }

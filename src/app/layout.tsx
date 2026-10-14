@@ -88,7 +88,7 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body
-        className={`${fraunces.variable} ${jakarta.variable} ${plexMono.variable} antialiased bg-background text-foreground min-h-screen`}
+        className={`${fraunces.variable} ${jakarta.variable} ${plexMono.variable} antialiased bg-background text-foreground h-full h-dvh overflow-hidden select-none`}
       >
         <script
           type="application/ld+json"

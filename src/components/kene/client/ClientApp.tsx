@@ -380,7 +380,7 @@ export function ClientApp() {
   const first = user.name.split(" ")[0];
 
   return (
-    <div className="h-dvh flex overflow-hidden overscroll-none select-none">
+    <div className="h-full h-dvh w-full flex overflow-hidden overscroll-none select-none">
       {/* Atmosphère ÉCLAT 2026 — lueurs aurora derrière tout le shell (le fond
  de page vient du body: ce div reste transparent pour laisser passer
  la couche fixe -z-10, light et dark). */}
@@ -559,7 +559,7 @@ export function ClientApp() {
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
-          className="relative flex-1 min-h-0 overflow-y-auto overscroll-y-none overscroll-contain overscroll-x-none touch-pan-y pretty-scroll"
+          className="relative flex-1 min-h-0 overflow-y-auto overscroll-none overscroll-x-none touch-pan-y pretty-scroll"
         >
           {/* Indicateur pull-to-refresh (Instagram) — icône qui descend avec le doigt */}
           {(pull > 0 || refreshing) && (
@@ -581,7 +581,7 @@ export function ClientApp() {
             </div>
           )}
           {refreshing && <span role="status" className="sr-only">Actualisation du fil en cours</span>}
-          <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-36 md:pb-10">
+          <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-28 md:pb-10">
             {/* Bannière douce de sauvegarde WhatsApp si en mode Découverte */}
             <GuestSaveBanner />
 
@@ -657,7 +657,7 @@ export function ClientApp() {
         {/* ───────── Tab-bar mobile flottante — chrome verre 2026 + blob actif ───────── */}
         <nav
           aria-label="Navigation principale mobile"
-          className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]"
+          className="md:hidden fixed inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]"
         >
           <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-5 h-[64px] rounded-[30px] k-chrome">
             {NAV_MOBILE.map((n) => {

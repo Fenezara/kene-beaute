@@ -50,14 +50,31 @@ export async function POST(req: NextRequest) {
       detail: `[${scope}] (${deviceHint}) ${message.slice(0, 100)}`,
     });
 
-    // Relais externe instantané (Webhook Telegram / Slack / Discord / WhatsApp)
-    const webhook = process.env.ALERT_WEBHOOK_URL;
+    // Relais externe instantané (Webhook Discord / Slack / Telegram)
+    const alertText = `🚨 *[KÈNÈ ALERTE ERREUR]*\n• *Écran / Scope* : ${scope}\n• *Appareil* : ${deviceHint}\n• *Message* : ${message}\n• *URL* : ${url ?? "—"}\n• *Date* : ${new Date().toLocaleString("fr-FR")}`;
+
+    const webhook = process.env.ALERT_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL;
     if (webhook) {
       void fetch(webhook, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: `🚨 **[KÈNÈ ERREUR APPLICATIVE]**\n• **Écran / Scope** : ${scope}\n• **Appareil** : ${deviceHint}\n• **Message** : ${message}\n• **URL** : ${url ?? "—"}\n• **Date** : ${new Date().toLocaleString("fr-FR")}`,
+          content: alertText,
+        }),
+      }).catch(() => null);
+    }
+
+    const tgToken = process.env.TELEGRAM_BOT_TOKEN;
+    const tgChatId = process.env.TELEGRAM_CHAT_ID;
+    if (tgToken && tgChatId) {
+      const tgUrl = `https://api.telegram.org/bot${tgToken}/sendMessage`;
+      void fetch(tgUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: tgChatId,
+          text: alertText,
+          parse_mode: "Markdown",
         }),
       }).catch(() => null);
     }
