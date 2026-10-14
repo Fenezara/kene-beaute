@@ -44,20 +44,78 @@ function fnv1a(s: string): string {
   return h.toString(16);
 }
 
-/** Nettoyage du texte pour une lecture orale fluide et humaine (retire balises, listes et emojis) */
+/** Nettoyage et humanisation du texte pour une diction chaleureuse et fluide */
 function cleanTextForSpeech(raw: string): string {
   return raw
     .replace(/```[a-z]*\n?/gi, "")
     .replace(/```/g, "")
-    .replace(/[•\-\*#]/g, " ")
+    .replace(/[•\-\*#_]/g, " ")
     .replace(/https?:\/\/\S+/g, "")
+    // Expansion naturelle des acronymes fréquents pour éviter la prononciation hachée
+    .replace(/\bFCFA\b/gi, "francs C-F-A")
+    .replace(/\bRDV\b/gi, "rendez-vous")
+    .replace(/\bPIH\b/gi, "P-I-H")
+    .replace(/\bIA\b/gi, "I-A")
+    .replace(/\bPOS\b/gi, "P-O-S")
+    .replace(/\bCRM\b/gi, "C-R-M")
+    .replace(/\bSYSCOHADA\b/gi, "Sysco-hada")
+    .replace(/\bCNPS\b/gi, "C-N-P-S")
+    .replace(/\bIPRES\b/gi, "I-press")
     // Retire les émojis qui provoquent la lecture de descriptions robotiques
     .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-/** Synthèse par voix neurale Microsoft Azure / Edge (qualité humaine ultra-naturelle) */
+/** Découpage intelligent en phrases naturelles pour la synthèse vocale */
+function splitTextIntoSentences(text: string, maxLen = 170): string[] {
+  const parts: string[] = [];
+  const rawSentences = text.split(/(?<=[.?!;:\n])\s+/);
+
+  for (const s of rawSentences) {
+    const trimmed = s.trim();
+    if (!trimmed) continue;
+    if (trimmed.length <= maxLen) {
+      parts.push(trimmed);
+    } else {
+      const subParts = trimmed.split(/(?<=[,])\s+/);
+      let current = "";
+      for (const p of subParts) {
+        if ((current + " " + p).trim().length <= maxLen) {
+          current = (current + " " + p).trim();
+        } else {
+          if (current) parts.push(current);
+          current = p;
+        }
+      }
+      if (current) parts.push(current);
+    }
+  }
+  return parts.length > 0 ? parts : [text.slice(0, maxLen)];
+}
+
+/** Synthèse vocale naturelle Google HD (multi-segments MP3 haute fidélité sans blocage IP) */
+async function synthesizeWithGoogleTts(text: string, lang = "fr"): Promise<Buffer> {
+  const chunks = splitTextIntoSentences(text);
+  const buffers: Buffer[] = [];
+
+  for (const chunk of chunks) {
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${lang}&client=tw-ob`;
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Referer": "https://translate.google.com/",
+      },
+    });
+    if (!res.ok) throw new Error(`Google TTS error: ${res.status}`);
+    const arrayBuf = await res.arrayBuffer();
+    buffers.push(Buffer.from(arrayBuf));
+  }
+
+  return Buffer.concat(buffers);
+}
+
+/** Synthèse par voix neurale Microsoft Azure / Edge (si réseau disponible) */
 async function synthesizeWithEdgeTts(
   text: string,
   voiceName: string = DEFAULT_NEURAL_VOICE,
@@ -72,7 +130,7 @@ async function synthesizeWithEdgeTts(
     rateStr = pct >= 0 ? `+${pct}%` : `${pct}%`;
   }
 
-  await (tts as any).setMetadata(selectedVoice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3, {
+  await (tts as any).setMetadata(selectedVoice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3, {
     rate: rateStr,
     pitch: "-1Hz",
     volume: "100%",
@@ -117,7 +175,7 @@ function audioResponse(buf: Buffer, contentType = "audio/mpeg"): NextResponse {
     headers: {
       "Content-Type": contentType,
       "Content-Length": String(buf.length),
-      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+      "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
     },
   });
 }
@@ -147,7 +205,26 @@ async function processTts(data: {
   const hit = cache.get(key);
   if (hit) return audioResponse(hit.buf, hit.contentType);
 
-  // Palier 1 : Voix humaine neurale haute fidélité (Microsoft Azure Neural via MsEdgeTTS)
+  // Palier 1 : Voix humaine Google HD (haute fidélité, ultra-rapide et jamais bloquée par les IPs datacenter)
+  try {
+    const googleBuf = await synthesizeWithGoogleTts(cleanText, lang);
+    if (googleBuf && googleBuf.length > 300) {
+      cache.set(key, { buf: googleBuf, bytes: googleBuf.length, contentType: "audio/mpeg" });
+      cacheBytes += googleBuf.length;
+      while (cacheBytes > CACHE_MAX_BYTES && cache.size > 1) {
+        const first = cache.keys().next().value;
+        if (first === undefined) break;
+        const e = cache.get(first);
+        cache.delete(first);
+        if (e) cacheBytes -= e.bytes;
+      }
+      return audioResponse(googleBuf, "audio/mpeg");
+    }
+  } catch (googleErr) {
+    console.warn("[api/tts] Palier 1 Google HD indisponible, repli sur EdgeTTS :", (googleErr as Error).message);
+  }
+
+  // Palier 2 : Voix humaine neurale Microsoft EdgeTTS
   try {
     const edgeBuf = await synthesizeWithEdgeTts(cleanText, voice, speed);
     if (edgeBuf && edgeBuf.length > 500) {
@@ -163,10 +240,10 @@ async function processTts(data: {
       return audioResponse(edgeBuf, "audio/mpeg");
     }
   } catch (edgeErr) {
-    console.warn("[api/tts] Palier 1 EdgeTTS indisponible, essai du palier ZAI :", (edgeErr as Error).message);
+    console.warn("[api/tts] Palier 2 EdgeTTS indisponible, repli sur ZAI :", (edgeErr as Error).message);
   }
 
-  // Palier 2 : ZAI SDK (si disponible)
+  // Palier 3 : ZAI SDK (si disponible)
   try {
     const zai = await ZAI.create();
     const buf = await zaiCall(

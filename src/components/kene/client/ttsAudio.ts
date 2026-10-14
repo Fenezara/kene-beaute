@@ -361,6 +361,48 @@ export function stopBrowserVoice() {
   }
 }
 
+/** Résolution de la meilleure voix française naturelle disponible sur l'appareil */
+function getBestNaturalFrenchVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return null;
+
+  // 1. Voix haute fidélité neuronales en ligne (Denise, Vivienne, Google Français)
+  const topTier = voices.find(
+    (v) => (v.lang.startsWith("fr") || v.lang.includes("FR")) &&
+      (v.name.toLowerCase().includes("denise") ||
+       v.name.toLowerCase().includes("vivienne") ||
+       v.name.toLowerCase().includes("eloise") ||
+       v.name.toLowerCase().includes("natural") ||
+       v.name.toLowerCase().includes("online"))
+  );
+  if (topTier) return topTier;
+
+  // 2. Voix Google Français
+  const googleFr = voices.find(
+    (v) => (v.lang.startsWith("fr") || v.lang.includes("FR")) && v.name.toLowerCase().includes("google")
+  );
+  if (googleFr) return googleFr;
+
+  // 3. Voix françaises douces (Amélie, Marie, Céline)
+  const warmVoices = voices.find(
+    (v) => (v.lang.startsWith("fr") || v.lang.includes("FR")) &&
+      (v.name.toLowerCase().includes("amelie") ||
+       v.name.toLowerCase().includes("marie") ||
+       v.name.toLowerCase().includes("celine") ||
+       v.name.toLowerCase().includes("julie"))
+  );
+  if (warmVoices) return warmVoices;
+
+  // 4. Toute voix non-desktop
+  const nonDesktop = voices.find(
+    (v) => (v.lang.startsWith("fr") || v.lang.includes("FR")) && !v.name.toLowerCase().includes("desktop")
+  );
+  if (nonDesktop) return nonDesktop;
+
+  return voices.find((v) => v.lang.startsWith("fr")) || null;
+}
+
 /**
  * Synthèse vocale de secours via l'API Web Speech du navigateur.
  * Résilient aux lenteurs de chargement des voix et au bug de GC Chromium.
@@ -384,32 +426,16 @@ export function speakBrowserVoice(
   try {
     window.speechSynthesis.cancel();
 
-    // Délai de 50ms pour laisser le thread audio libérer la file d'attente
-    setTimeout(() => {
+    const triggerSpeak = () => {
       try {
         const utterance = new SpeechSynthesisUtterance(text);
-        activeUtterance = utterance; // Conserve la référence
+        activeUtterance = utterance;
         utterance.lang = options?.lang || "fr-FR";
-        utterance.rate = options?.rate ?? 0.95;
-        utterance.pitch = options?.pitch ?? 1.02;
+        // Registre psychologique dermo-cosmétique : débit posé (0.92) et intonation douce (0.98)
+        utterance.rate = options?.rate ?? 0.92;
+        utterance.pitch = options?.pitch ?? 0.98;
 
-        const voices = window.speechSynthesis.getVoices();
-        const preferred = voices.find(
-          (v) => (v.lang.startsWith("fr") || v.lang.includes("FR")) &&
-            (v.name.toLowerCase().includes("natural") ||
-             v.name.toLowerCase().includes("online") ||
-             v.name.toLowerCase().includes("google") ||
-             v.name.toLowerCase().includes("denise") ||
-             v.name.toLowerCase().includes("vivienne") ||
-             v.name.toLowerCase().includes("eloise") ||
-             v.name.toLowerCase().includes("amelie") ||
-             v.name.toLowerCase().includes("marie") ||
-             v.name.toLowerCase().includes("celine") ||
-             v.name.toLowerCase().includes("julie"))
-        ) || voices.find(
-          (v) => (v.lang.startsWith("fr") || v.lang.includes("FR")) && !v.name.toLowerCase().includes("desktop")
-        ) || voices.find((v) => v.lang.startsWith("fr")) || null;
-
+        const preferred = getBestNaturalFrenchVoice();
         if (preferred) utterance.voice = preferred;
 
         const cleanup = () => {
@@ -422,7 +448,6 @@ export function speakBrowserVoice(
 
         utterance.onstart = () => {
           options?.onStart?.();
-          // Heartbeat anti-coupure Chromium (résout le bug où le navigateur coupe au bout de 15s)
           if (speechHeartbeat) clearInterval(speechHeartbeat);
           speechHeartbeat = setInterval(() => {
             if (typeof window !== "undefined" && "speechSynthesis" in window && window.speechSynthesis.speaking) {
@@ -441,7 +466,6 @@ export function speakBrowserVoice(
 
         utterance.onerror = (e) => {
           cleanup();
-          // 'canceled' ou 'interrupted' = arrêt volontaire
           if (e.error === "canceled" || e.error === "interrupted") {
             options?.onEnd?.();
             return;
@@ -459,7 +483,19 @@ export function speakBrowserVoice(
         activeUtterance = null;
         options?.onError?.(err);
       }
-    }, 50);
+    };
+
+    // Si les voix ne sont pas encore chargées, attendre voiceschanged
+    if (window.speechSynthesis.getVoices().length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        triggerSpeak();
+      };
+      // Filet de sécurité au bout de 120ms
+      setTimeout(triggerSpeak, 120);
+    } else {
+      setTimeout(triggerSpeak, 40);
+    }
 
     return true;
   } catch (err) {
