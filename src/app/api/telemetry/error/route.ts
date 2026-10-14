@@ -21,10 +21,10 @@ export async function POST(req: NextRequest) {
   try {
     let body: unknown = null;
     try {
-      body = await req.json();
-    } catch {
       const text = await req.text();
       body = text ? JSON.parse(text) : null;
+    } catch {
+      body = null;
     }
 
     const parsed = ErrorSchema.safeParse(body);
