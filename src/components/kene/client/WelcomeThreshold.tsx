@@ -533,6 +533,12 @@ export function WelcomeThreshold() {
                               <LogIn size={13} />
                               Reprendre
                             </button>
+                            <button onClick={startExploration}
+                              disabled={exploring}
+                              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-chip px-3 text-[11px] font-bold text-foreground hover:border-gold/60 transition-all">
+                              <CauriIcon size={12} className="text-gold-text" />
+                              Nouveau client
+                            </button>
                             <button onClick={() => { forgetAccount(); setLast(null); }}
                               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
                               aria-label="Oublier ce numéro sur cet appareil">
@@ -613,16 +619,24 @@ export function WelcomeThreshold() {
                             {maskPhone(last.phone)} · {last.role === "pro" ? "Espace entreprise" : last.role === "admin" ? "Console Kènè" : "Espace cliente"}
                           </p>
                         </div>
-                        <button onClick={() => startReconnect(last)}
-                          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-btn-gold px-3.5 text-[11.5px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                          <LogIn size={13} />
-                          Reprendre
-                        </button>
-                        <button onClick={() => { forgetAccount(); setLast(null); }}
-                          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
-                          aria-label="Oublier ce numéro sur cet appareil">
-                          <X size={14} />
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button onClick={() => startReconnect(last)}
+                            className="inline-flex h-9 items-center gap-1 rounded-full k-btn-gold px-2.5 text-[11px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                            <LogIn size={12} />
+                            Reprendre
+                          </button>
+                          <button onClick={startExploration}
+                            disabled={exploring}
+                            className="inline-flex h-9 items-center gap-1 rounded-full k-chip px-2 text-[10.5px] font-bold text-foreground hover:border-gold/60">
+                            <CauriIcon size={11} className="text-gold-text" />
+                            Nouveau
+                          </button>
+                          <button onClick={() => { forgetAccount(); setLast(null); }}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+                            aria-label="Oublier ce numéro sur cet appareil">
+                            <X size={13} />
+                          </button>
+                        </div>
                       </div>
                     </GlassCard>
                   </div>
@@ -1073,18 +1087,17 @@ export function WelcomeThreshold() {
                 </section>
               </div>
 
-              {/* ── Exploration (mobile) & Mentions Légales ── */}
-              <div className="mt-auto pt-4 sm:pt-6 flex flex-col items-center gap-2 text-center">
-                {!last && (
-                  <button
-                    onClick={startExploration}
-                    disabled={exploring}
-                    className="sm:hidden flex min-h-11 items-center gap-2 rounded-full px-4 text-[12px] font-semibold text-foreground/75 underline underline-offset-4 decoration-dotted hover:text-primary disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary"
-                  >
-                    {exploring ? <Loader2 size={14} className="animate-spin" /> : <CauriIcon size={14} aria-hidden="true" />}
-                    Explorer Kènè — sans inscription
-                  </button>
-                )}
+              {/* ── Bouton universel Nouveau client & Mentions Légales ── */}
+              <div className="mt-auto pt-4 sm:pt-6 flex flex-col items-center gap-3 text-center">
+                <button
+                  type="button"
+                  onClick={startExploration}
+                  disabled={exploring}
+                  className="flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 bg-secondary/80 hover:bg-secondary text-[12.5px] font-bold text-foreground border border-gold/40 shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  {exploring ? <Loader2 size={15} className="animate-spin text-gold-text" /> : <CauriIcon size={15} className="text-gold-text" aria-hidden="true" />}
+                  <span>Je n&apos;ai pas de compte — Commencer comme nouveau client</span>
+                </button>
                 <p className="text-[10.5px] sm:text-[11.5px] leading-relaxed text-muted-foreground">
                   Données chiffrées, jamais revendues · En continuant, tu acceptes les conditions Kènè.
                 </p>
@@ -1103,6 +1116,7 @@ export function WelcomeThreshold() {
               onBack={() => setStage({ phase: "landing" })}
               onSwitchSpace={() => setStage({ phase: "landing" })}
               onOfflineBypass={() => activateOfflineProSession(keypadDigits ? `+225${keypadDigits}` : undefined)}
+              onNewClient={startExploration}
             />
           </motion.div>
         )}
@@ -1117,6 +1131,8 @@ export function WelcomeThreshold() {
               onBack={() => setStage({ phase: "keypad", mode: stage.mode })}
               onForgotPin={() => handleForgotPin(stage.phone, stage.mode)}
               onOfflineBypass={() => activateOfflineProSession(stage.phone)}
+              onNewClient={startExploration}
+              onSwitchAccount={() => setStage({ phase: "keypad", mode: stage.mode })}
             />
           </motion.div>
         )}

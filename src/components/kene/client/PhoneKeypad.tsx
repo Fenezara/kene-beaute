@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { useKene } from "@/store/kene";
 import { AuroraBackdrop, Chip } from "@/components/kene/ui2026";
-import { KeneEmblemLockup } from "@/components/kene/icons";
+import { KeneEmblemLockup, CauriIcon } from "@/components/kene/icons";
 import { BotHoneypot, createHumanPayload } from "@/components/kene/auth/BotHoneypot";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
@@ -39,6 +39,7 @@ export function PhoneKeypad({
   onBack,
   onSwitchSpace,
   onOfflineBypass,
+  onNewClient,
 }: {
   mode: "client" | "pro";
   initialDigits?: string;
@@ -46,6 +47,7 @@ export function PhoneKeypad({
   onBack: () => void;
   onSwitchSpace: () => void;
   onOfflineBypass?: () => void;
+  onNewClient?: () => void;
 }) {
   const [digits, setDigits] = useState(initialDigits.slice(0, MAX_DIGITS));
   const [loading, setLoading] = useState(false);
@@ -212,6 +214,19 @@ export function PhoneKeypad({
         <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[10.5px] text-muted-foreground/80">
           <ArrowLeft size={12} aria-hidden="true" /> Tu peux aussi taper au clavier
         </p>
+
+        {onNewClient && (
+          <div className="mt-4 pt-3 border-t border-border/40 flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={onNewClient}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-xs font-bold text-foreground transition-all shadow-xs"
+            >
+              <CauriIcon size={14} className="text-gold-text" />
+              <span>Nouveau client ? Découvrir sans compte</span>
+            </button>
+          </div>
+        )}
 
         {mode === "pro" && onOfflineBypass && (
           <div className="mt-4 pt-3 border-t border-border/40 flex flex-col items-center gap-2">

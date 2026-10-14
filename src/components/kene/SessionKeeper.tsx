@@ -33,13 +33,19 @@ export function SessionKeeper() {
   const setProTenantId = useKene((s) => s.setProTenantId);
   const clearCart = useKene((s) => s.clearCart);
   const validatedUserIdRef = useRef<string | null>(null);
+  const checkedCookieRef = useRef(false);
   const userId = user?.id;
 
   useEffect(() => {
-    if (!hydrated || !userId || validatedUserIdRef.current === userId) return;
-    validatedUserIdRef.current = userId;
+    if (!hydrated) return;
+    if (userId && validatedUserIdRef.current === userId) return;
+    if (!userId && checkedCookieRef.current) return;
+
+    if (userId) validatedUserIdRef.current = userId;
+    else checkedCookieRef.current = true;
+
     let cancelled = false;
-    apiGet<unknown>(`/api/auth/session?userId=${userId}`)
+    apiGet<unknown>(userId ? `/api/auth/session?userId=${userId}` : "/api/auth/session")
       .then((payload) => {
         if (cancelled) return;
         const s = readSession(payload);

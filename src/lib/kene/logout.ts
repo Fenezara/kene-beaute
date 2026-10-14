@@ -48,6 +48,25 @@ export async function performLogout(options?: { redirectUrl?: string; message?: 
         const data = await guestRes.json();
         if (data?.user) {
           useKene.getState().setUser(data.user);
+          try {
+            if (typeof window !== "undefined") {
+              window.localStorage.setItem(
+                "kene-store",
+                JSON.stringify({
+                  state: {
+                    user: data.user,
+                    space: "client",
+                    clientTab: "accueil",
+                    cart: [],
+                    proTenantId: null,
+                    introActive: false,
+                    _keneHydrated: true,
+                  },
+                  version: 0,
+                })
+              );
+            }
+          } catch {}
         }
       }
     } catch {

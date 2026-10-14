@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, Delete, KeyRound, Loader2, RefreshCw } from "lucide-react";
 import { AuroraBackdrop, Chip } from "@/components/kene/ui2026";
-import { KeneEmblemLockup } from "@/components/kene/icons";
+import { KeneEmblemLockup, CauriIcon } from "@/components/kene/icons";
 import { haptic, HAPTIC } from "@/lib/kene/ux";
 import { maskPhone } from "@/lib/kene/audit";
 
@@ -26,6 +26,8 @@ export function PinKeypad({
   onBack,
   onForgotPin,
   onOfflineBypass,
+  onNewClient,
+  onSwitchAccount,
 }: {
   phone: string;
   name?: string;
@@ -35,6 +37,8 @@ export function PinKeypad({
   onBack: () => void;
   onForgotPin?: () => void;
   onOfflineBypass?: () => void;
+  onNewClient?: () => void;
+  onSwitchAccount?: () => void;
 }) {
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -330,6 +334,31 @@ export function PinKeypad({
               <span className="text-[10px] text-muted-foreground">
                 Connexion directe sans réseau · PIN 0000 ou accès immédiat
               </span>
+            </div>
+          )}
+
+          {/* Actions alternatives : Nouveau client / Changer de compte */}
+          {(onNewClient || onSwitchAccount) && (
+            <div className="mt-3 pt-3 border-t border-border/40 flex flex-col items-center gap-2 w-full">
+              {onNewClient && (
+                <button
+                  type="button"
+                  onClick={onNewClient}
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-xs font-bold text-foreground transition-all shadow-xs"
+                >
+                  <CauriIcon size={14} className="text-gold-text" />
+                  <span>Nouveau client ? Découvrir sans compte</span>
+                </button>
+              )}
+              {onSwitchAccount && (
+                <button
+                  type="button"
+                  onClick={onSwitchAccount}
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
+                >
+                  Ce n&apos;est pas toi ? Utiliser un autre numéro
+                </button>
+              )}
             </div>
           )}
         </div>

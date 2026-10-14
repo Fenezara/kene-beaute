@@ -205,6 +205,18 @@ export function PinEntry() {
     return <BootSkeleton />;
   }
 
+  async function handleNewClientGuest() {
+    try {
+      const res = await apiGet<{ user: ApiUser }>("/api/auth/express");
+      setUser(res.user as SessionUser);
+      setSpace("client");
+      toast.success("Bienvenue sur Kènè ✨ Mode découverte actif");
+      navigateToHome();
+    } catch {
+      navigateToHome();
+    }
+  }
+
   // Si aucun numéro n'est associé, pavé de saisie du numéro
   if (needsPhone) {
     return (
@@ -212,6 +224,7 @@ export function PinEntry() {
         <PhoneKeypad
           mode={mode}
           onOfflineBypass={mode === "pro" ? handleOfflineBypass : undefined}
+          onNewClient={handleNewClientGuest}
           onConfirm={async (digits) => {
             const fullPhone = `+225${digits}`;
             setPhone(fullPhone);
@@ -250,6 +263,8 @@ export function PinEntry() {
       onBack={navigateToBack}
       onForgotPin={handleForgotPin}
       onOfflineBypass={mode === "pro" ? handleOfflineBypass : undefined}
+      onNewClient={handleNewClientGuest}
+      onSwitchAccount={() => setNeedsPhone(true)}
     />
   );
 }
