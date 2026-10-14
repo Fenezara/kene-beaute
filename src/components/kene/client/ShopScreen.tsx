@@ -14,7 +14,8 @@ import { buildWhatsAppCartOrderMessage, openWhatsApp } from "@/lib/kene/whatsapp
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Chip, PrimaryCTA, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
-import { useKene } from "@/store/kene";
+import { useKene, isSavedUser } from "@/store/kene";
+import { LinkAccountModal } from "./LinkAccountModal";
 import { useFavorites } from "@/store/favorites";
 import { useSecurity } from "@/store/security";
 import { KenteWeaveCard } from "@/components/kene/weave/KenteWeaveCard";
@@ -79,6 +80,7 @@ export function ShopScreen() {
   // AVANT que le moindre appel de paiement ne parte (voir startPay + SecureVerify).
   const securityEnabled = useSecurity((s) => s.enabled);
   const [pendingPay, setPendingPay] = useState<PayMethod | null>(null);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
 
   // ─── Double-tap « ajout rapide » (TikTok Shop / Instagram) ───
   // 1er tap = ouvre la fiche (avec un délai court annulable); 2e tap < 320 ms
@@ -336,6 +338,10 @@ export function ShopScreen() {
  * renforcée est active — le paiement initialement prévu (pay) n'est lancé
  * qu'une fois le code confirmé; annulé sinon, rien n'est engagé. */
   function startPay(method: PayMethod) {
+    if (!isSavedUser(user)) {
+      setLinkModalOpen(true);
+      return;
+    }
     if (securityEnabled) {
       haptic(HAPTIC.tap);
       setPendingPay(method);
@@ -1123,6 +1129,13 @@ export function ShopScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Modale de liaison de compte pour paiement & commande (Recommandation 1) ── */}
+      <LinkAccountModal
+        open={linkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
+        reason="Pour finaliser votre commande et recevoir le suivi de livraison de vos soins, veuillez enregistrer votre numéro de téléphone."
+      />
     </div>
   );
 }

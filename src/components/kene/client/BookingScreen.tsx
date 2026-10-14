@@ -18,7 +18,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Chip, IconBadge, PrimaryCTA, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useKene } from "@/store/kene";
+import { useKene, isSavedUser } from "@/store/kene";
+import { LinkAccountModal } from "./LinkAccountModal";
 import { useSecurity } from "@/store/security";
 import { cn } from "@/lib/utils";
 import {
@@ -86,6 +87,7 @@ export function BookingScreen() {
   // re-vérifie son code AVANT la confirmation du RDV (voir startBook + SecureVerify).
   const securityEnabled = useSecurity((s) => s.enabled);
   const [pendingBook, setPendingBook] = useState(false);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
 
   // ── Mes RDV ──
   const [mine, setMine] = useState<ApiAppointment[] | null>(null);
@@ -283,6 +285,10 @@ export function BookingScreen() {
  * sécurité renforcée est active et qu'un acompte est réglé — la
  * réservation (book) ne part qu'une fois le code confirmé. */
   function startBook() {
+    if (!isSavedUser(user)) {
+      setLinkModalOpen(true);
+      return;
+    }
     if (securityEnabled && deposit > 0) {
       haptic(HAPTIC.tap);
       setPendingBook(true);
@@ -1417,6 +1423,13 @@ export function BookingScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Modale de liaison de compte pour confirmation RDV (Recommandation 1) ── */}
+      <LinkAccountModal
+        open={linkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
+        reason="Pour confirmer votre réservation et recevoir votre Pass SMS de confirmation, veuillez enregistrer votre numéro de téléphone."
+      />
     </div>
   );
 }

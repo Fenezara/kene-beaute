@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Droplets, FileDown, GitCompareArrows, Hand, History,
-  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
+  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldCheck, Sparkles, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
@@ -29,7 +29,8 @@ import { matchProduct, norm } from "@/components/kene/route/ritual";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useKene } from "@/store/kene";
+import { useKene, isSavedUser } from "@/store/kene";
+import { LinkAccountModal } from "./LinkAccountModal";
 import { Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import type { ApiDiagnosis, ApiInstitute, ApiProduct } from "./types";
 import { diagImgSrc, diagImgSources, parseDiagnosis } from "./types";
@@ -1194,6 +1195,8 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
   const [ritualOpen, setRitualOpen] = useState(false);
   const [beautyCardOpen, setBeautyCardOpen] = useState(false);
   const [glossary, setGlossary] = useState<GlossaryEntry | null>(null);
+  const isSaved = isSavedUser(user);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
   // t. 138 — le moment diagnostic: la fin d'un résultat réussi est LE moment
   // où la valeur est visible. On sait si l'utilisatrice est déjà abonnée
   // (chargement non bloquant — la carte n'apparaît que si non abonnée).
@@ -1342,6 +1345,35 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
   return (
     <div className="pt-4 pb-2">
       <Reveal stagger={0.07}>
+      {/* ── Hook de Sauvegarde de l'Ordonnance (Recommandation 1) ── */}
+      {!isSaved && (
+        <RevealItem className="mb-4">
+          <div className="rounded-[22px] border-2 border-gold/50 bg-gradient-to-r from-gold/15 via-amber-500/10 to-transparent p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-gold/25 text-gold-text">
+                <Sparkles size={20} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-heading font-black text-sm text-foreground">
+                  Ton ordonnance personnalisée est prête ! ✨
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                  Enregistre ton numéro pour la conserver à vie, suivre l&apos;évolution de tes taches et retrouver tes rituels sur tous tes appareils.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setLinkModalOpen(true)}
+                  className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full k-btn-gold px-4 text-xs font-bold text-primary-foreground shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all"
+                >
+                  <span>Sauvegarder mon ordonnance</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </RevealItem>
+      )}
+
       {/* Header score — carte héro: verre + lueurs internes + filet kente 3px */}
       <RevealItem>
         <GlassCard hero className="overflow-hidden rounded-[26px]">
@@ -1941,6 +1973,13 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
           onClose={() => setBeautyCardOpen(false)}
         />
       )}
+
+      {/* Modal de liaison WhatsApp / Sauvegarde de compte (Recommandation 1) */}
+      <LinkAccountModal
+        open={linkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
+        reason="Ton ordonnance dermo-cosmétique et ton suivi d'évolution seront conservés à vie sur ton compte."
+      />
     </div>
   );
 }

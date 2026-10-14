@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Sparkles, ArrowRight, ShieldCheck, X, LogIn } from "lucide-react";
-import { useKene } from "@/store/kene";
+import { useKene, isSavedUser } from "@/store/kene";
 import { LinkAccountModal } from "./LinkAccountModal";
 
 export function GuestSaveBanner() {
@@ -10,15 +10,8 @@ export function GuestSaveBanner() {
   const [modalOpen, setModalOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  // Détection d'un compte invité (nouveau format +22500... ou Mariam Diallo legacy)
-  const isGuest = Boolean(
-    user && (
-      user.phone?.startsWith("+22500") ||
-      user.phone === "+2250701020304" ||
-      user.id === "guest" ||
-      user.name === "Nouvelle invitée"
-    )
-  );
+  // Détection d'un compte invité non sauvegardé
+  const isGuest = Boolean(user && !isSavedUser(user));
 
   if (!isGuest || dismissed) return null;
 
