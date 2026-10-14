@@ -88,6 +88,18 @@ export function spaceForRole(role: string | undefined | null): Space {
   return "client";
 }
 
+/** Détermine si l'utilisateur possède un compte authentifié et sauvegardé
+ * (non anonyme / non invité temporaire).
+ * Un compte sauvegardé possède un identifiant et un numéro réel non préfixé par +22500. */
+export function isSavedUser(user: { phone?: string | null; id?: string | null; name?: string | null } | null | undefined): boolean {
+  if (!user || !user.id || !user.phone) return false;
+  if (user.phone.startsWith("+22500")) return false;
+  if (user.phone === "+2250701020304" && user.name === "Nouvelle invitée") return false;
+  if (user.id === "guest" || user.id.startsWith("guest_")) return false;
+  if (user.name === "Nouvelle invitée") return false;
+  return true;
+}
+
 /** Ligne de panier saine: identifiants string, qty/price finis et cohérents. */
 function isSaneCartLine(l: unknown): l is CartLine {
   if (!l || typeof l !== "object") return false;

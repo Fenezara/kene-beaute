@@ -22,7 +22,7 @@ import { KeneEmblem, KeneEmblemLockup, KeneMark, NeaOnnimIcon, SankofaIcon } fro
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { AuroraBackdrop, IconBadge } from "@/components/kene/ui2026";
 import { apiGet } from "@/lib/kene/api";
-import { useKene, type ClientTab, type SessionUser } from "@/store/kene";
+import { useKene, type ClientTab, type SessionUser, isSavedUser } from "@/store/kene";
 import { useChat } from "@/store/chat";
 import { replayDiagQueue } from "@/lib/kene/diag-queue";
 import { useT } from "@/lib/kene/use-t";
@@ -298,7 +298,24 @@ export function ClientApp() {
     setMounted(true);
   }, []);
 
-  // État de connexion explicite : l'utilisateur a cliqué sur "Me connecter" ou a demandé la page de connexion (?login=1)
+  // Détection d'un compte authentifié et sauvegardé (avec un vrai numéro/identifiant)
+  const isSaved = isSavedUser(user);
+
+  // État de session exploratoire (actif lorsque l'invité a cliqué sur un portail ou "Nouveau client")
+  const [exploring, setExploring] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return window.sessionStorage.getItem("kene_exploring") === "1";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleStartExplore = () => setExploring(true);
+    window.addEventListener("kene:start-explore", handleStartExplore);
+    return () => window.removeEventListener("kene:start-explore", handleStartExplore);
+  }, []);
+
+  // Demande explicite de reconnexion / changement de compte depuis l'intérieur de l'app
   const [explicitLogin, setExplicitLogin] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       const p = new URLSearchParams(window.location.search);
@@ -313,58 +330,26 @@ export function ClientApp() {
     return () => window.removeEventListener("kene:open-login", handleOpenLogin);
   }, []);
 
-  // Allocation automatique d'un compte invité vierge pour toute nouvelle visite ou utilisateur déconnecté
-  const [guestProvisioning, setGuestProvisioning] = useState(false);
-
-  useEffect(() => {
-    if (!mounted || !hydrated) return;
-    if (user || explicitLogin || guestProvisioning) return;
-
-    let cancelled = false;
-    setGuestProvisioning(true);
-
-    async function provisionGuest() {
-      try {
-        const res = await apiGet<{ user: SessionUser }>("/api/auth/express?newGuest=1");
-        if (!cancelled && res?.user) {
-          useKene.getState().setUser(res.user);
-          return;
-        }
-      } catch {
-        // Fallback immédiat si le réseau ou le serveur est inaccessible
-        if (!cancelled) {
-          const fallbackGuest: SessionUser = {
-            id: `guest_${Date.now()}`,
-            name: "Nouvelle invitée",
-            phone: `+22500${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`,
-            role: "client",
-          };
-          useKene.getState().setUser(fallbackGuest);
-        }
-      } finally {
-        if (!cancelled) {
-          setGuestProvisioning(false);
-        }
-      }
-    }
-
-    void provisionGuest();
-    return () => {
-      cancelled = true;
-    };
-  }, [mounted, hydrated, user, explicitLogin, guestProvisioning]);
-
   // Store persisté en cours de relecture : squelette d'amorçage
   if (!mounted || !hydrated) {
     return <BootSkeleton />;
   }
 
-  // Écran d'accueil / de connexion (WelcomeThreshold) uniquement si expressément demandé
-  if (explicitLogin) {
+  // ACCÈS D'ABORD À LA PAGE D'ACCUEIL POUR :
+  // 1. Les nouveaux arrivants (!user)
+  // 2. Les utilisateurs déconnectés (!user)
+  // 3. Les utilisateurs qui n'ont pas encore sauvegardé leur identifiant (!isSaved && !exploring)
+  // 4. Les demandes explicites de connexion (explicitLogin)
+  // NOTE : Tous les utilisateurs connectés (isSaved) ont accès DIRECT à leur portail comme TikTok/Facebook !
+  if (explicitLogin || (!isSaved && (!user || !exploring))) {
     return (
       <WelcomeThreshold
         onBackToApp={() => {
           setExplicitLogin(false);
+          setExploring(true);
+          try {
+            sessionStorage.setItem("kene_exploring", "1");
+          } catch {}
           if (typeof window !== "undefined" && (window.location.search.includes("login") || window.location.search.includes("auth") || window.location.search.includes("signin"))) {
             const url = new URL(window.location.href);
             url.searchParams.delete("login");
@@ -377,12 +362,12 @@ export function ClientApp() {
     );
   }
 
-  // Compte invité en cours d'allocation : squelette d'amorçage
+  // Filet de sécurité avant rendu du shell client
   if (!user) {
     return <BootSkeleton />;
   }
 
-  const first = user?.name ? user.name.split(" ")[0] : "Invitée";
+  const first = user.name.split(" ")[0];
 
   return (
     <div className="h-dvh flex overflow-hidden overscroll-none select-none">

@@ -352,21 +352,34 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
     if (exploring) return;
     setExploring(true);
     try {
-      // — UNE requête GET: l'accès express ne dépend d'AUCUN POST. Chez
-      // l'utilisatrice réelle (préview iframe), les POST sortants sont bloqués
-      // ou pendus en amont du serveur — ses GET traversent toujours. La route
-      // /api/auth/express fait le login complet côté serveur et répond exactement
-      // comme otp/verify ({ user, tenant } + cookie de session).
-      const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express");
-      // Mémoire locale — survit à la déconnexion, jamais envoyée.
-      try {
-        localStorage.setItem("kene-last-account", JSON.stringify({ phone: v.user.phone, name: v.user.name, role: v.user.role === "pro" || v.user.role === "admin" ? v.user.role : "client" }));
-      } catch { /* non bloquant */ }
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.setItem("kene_exploring", "1");
+        } catch {}
+        window.dispatchEvent(new CustomEvent("kene:start-explore"));
+      }
+      // — UNE requête GET: l'accès express ne dépend d'AUCUN POST.
+      const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express?newGuest=1");
       setUser(v.user as SessionUser);
       toast.success(v.user.name && v.user.name !== "Nouvelle invitée" ? `Bienvenue ${v.user.name.split(" ")[0]} 💛` : "Bienvenue sur Kènè 💛");
       if (onBackToApp) onBackToApp();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Connexion impossible — réessaie");
+    } catch {
+      // Repli invité hors-ligne immédiat
+      const fallbackGuest: SessionUser = {
+        id: `guest_${Date.now()}`,
+        name: "Nouvelle invitée",
+        phone: `+22500${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`,
+        role: "client",
+      };
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.setItem("kene_exploring", "1");
+        } catch {}
+        window.dispatchEvent(new CustomEvent("kene:start-explore"));
+      }
+      setUser(fallbackGuest);
+      toast.success("Bienvenue sur Kènè 💛");
+      if (onBackToApp) onBackToApp();
     } finally {
       setExploring(false);
     }
