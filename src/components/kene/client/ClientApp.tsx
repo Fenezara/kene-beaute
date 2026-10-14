@@ -339,17 +339,18 @@ export function ClientApp() {
   // 1. Les nouveaux arrivants (!user)
   // 2. Les utilisateurs déconnectés (!user)
   // 3. Les utilisateurs qui n'ont pas encore sauvegardé leur identifiant (!isSaved && !exploring)
-  // 4. Les demandes explicites de connexion (explicitLogin)
-  // NOTE : Tous les utilisateurs connectés (isSaved) ont accès DIRECT à leur portail comme TikTok/Facebook !
-  if (explicitLogin || (!isSaved && (!user || !exploring))) {
+  // NOTE : Aucun bouton "Retour" ne permet d'accéder au portail sans respecter ces règles !
+  if (!isSaved && (!user || !exploring)) {
+    return <WelcomeThreshold />;
+  }
+
+  // Demande explicite de connexion depuis l'intérieur de l'application (Settings / Bannière)
+  // Dans ce cas spécifique uniquement, l'utilisateur était déjà dans l'app et peut annuler la connexion.
+  if (explicitLogin) {
     return (
       <WelcomeThreshold
         onBackToApp={() => {
           setExplicitLogin(false);
-          setExploring(true);
-          try {
-            sessionStorage.setItem("kene_exploring", "1");
-          } catch {}
           if (typeof window !== "undefined" && (window.location.search.includes("login") || window.location.search.includes("auth") || window.location.search.includes("signin"))) {
             const url = new URL(window.location.href);
             url.searchParams.delete("login");

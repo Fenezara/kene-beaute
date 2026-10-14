@@ -415,8 +415,8 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                         onClick={onBackToApp}
                         className="inline-flex h-9 items-center gap-1.5 rounded-full border border-gold/40 bg-secondary/80 hover:bg-secondary px-3.5 text-[11.5px] font-semibold text-foreground transition-colors shadow-xs"
                       >
-                        <ArrowLeft size={13} className="text-gold-text" />
-                        <span>Retour à l&apos;application</span>
+                        <X size={13} className="text-gold-text" />
+                        <span>Fermer la connexion</span>
                       </button>
                     )}
                     <SpaceSwitcher variant="compact" />
@@ -430,7 +430,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                     </button>
                     {!last && (
                       <button
-                        onClick={onBackToApp ?? startExploration}
+                        onClick={startExploration}
                         disabled={exploring}
                         className="inline-flex h-9 items-center gap-1.5 rounded-full bg-secondary/60 hover:bg-secondary px-3.5 text-[11.5px] font-medium text-foreground transition-colors"
                       >
@@ -1117,7 +1117,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
               <div className="mt-auto pt-4 sm:pt-6 flex flex-col items-center gap-3 text-center">
                 <button
                   type="button"
-                  onClick={onBackToApp ?? startExploration}
+                  onClick={startExploration}
                   disabled={exploring}
                   className="flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 bg-secondary/80 hover:bg-secondary text-[12.5px] font-bold text-foreground border border-gold/40 shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary"
                 >
@@ -1142,7 +1142,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
               onBack={() => setStage({ phase: "landing" })}
               onSwitchSpace={() => setStage({ phase: "landing" })}
               onOfflineBypass={() => activateOfflineProSession(keypadDigits ? `+225${keypadDigits}` : undefined)}
-              onNewClient={onBackToApp ?? startExploration}
+              onNewClient={startExploration}
             />
           </motion.div>
         )}
@@ -1157,7 +1157,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
               onBack={() => setStage({ phase: "keypad", mode: stage.mode })}
               onForgotPin={() => handleForgotPin(stage.phone, stage.mode)}
               onOfflineBypass={() => activateOfflineProSession(stage.phone)}
-              onNewClient={onBackToApp ?? startExploration}
+              onNewClient={startExploration}
               onSwitchAccount={() => setStage({ phase: "keypad", mode: stage.mode })}
             />
           </motion.div>
