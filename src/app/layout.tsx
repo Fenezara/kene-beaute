@@ -90,6 +90,41 @@ export default function RootLayout({
       <body
         className={`${fraunces.variable} ${jakarta.variable} ${plexMono.variable} antialiased bg-background text-foreground min-h-screen`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@graph": [
+                {
+                  "@type": "WebApplication",
+                  "@id": "https://kene-beaute.com/#webapp",
+                  name: "Kènè",
+                  url: "https://kene-beaute.com",
+                  description:
+                    "Plateforme beauté et dermo-cosmétique calibrée peaux mélanodermes. Diagnostic IA, boutique botanique et gestion d'institut.",
+                  applicationCategory: "HealthApplication",
+                  operatingSystem: "All",
+                  browserRequirements: "Requires JavaScript. Requires HTML5.",
+                  inLanguage: ["fr", "en"],
+                  offers: {
+                    "@type": "Offer",
+                    price: "0",
+                    priceCurrency: "XOF",
+                    description: "Essai gratuit 30 jours complet sans engagement",
+                  },
+                },
+                {
+                  "@type": "Organization",
+                  "@id": "https://kene-beaute.com/#organization",
+                  name: "Kènè",
+                  url: "https://kene-beaute.com",
+                  logo: "https://kene-beaute.com/brand/kene-emblem-dark.png",
+                },
+              ],
+            }),
+          }}
+        />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           {children}
         </ThemeProvider>

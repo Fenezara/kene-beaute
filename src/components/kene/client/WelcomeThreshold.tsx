@@ -15,9 +15,10 @@
 // La reconnexion express garde la mémoire locale kene-last-account.
 // Copie FR directe (précédent 71-c/73: le marketing d'entrée reste hors i18n).
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Loader2, LogIn, Play, ShieldCheck, X,
+  ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Loader2, LogIn, Play, ShieldCheck, Sparkles, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -414,6 +415,14 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                       </button>
                     )}
                     <SpaceSwitcher variant="compact" />
+                    <Link
+                      href="/case-study"
+                      className="hidden md:inline-flex h-9 items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 px-3.5 text-[11.5px] font-bold text-gold-text transition-all hover:scale-105 active:scale-95 shadow-xs"
+                      title="Découvrir l'Étude de Cas Awwwards, le design system et la 3D WebGL"
+                    >
+                      <Sparkles size={12} className="text-gold-text animate-pulse" />
+                      <span>Case Study 3D</span>
+                    </Link>
                     <button
                       onClick={() => setStories(true)}
                       className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-full k-chip px-3.5 text-[11.5px] font-semibold text-foreground/85 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
@@ -1121,6 +1130,13 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                 <p className="text-[10.5px] sm:text-[11.5px] leading-relaxed text-muted-foreground">
                   Données chiffrées, jamais revendues · En continuant, tu acceptes les conditions Kènè.
                 </p>
+                <Link
+                  href="/case-study"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-bold text-gold-text hover:text-gold transition-colors hover:underline"
+                >
+                  <Sparkles size={11} />
+                  <span>Candidature Awwwards · Lire l&apos;Étude de Cas &amp; Laboratoire 3D</span>
+                </Link>
               </div>
 
             </div>
