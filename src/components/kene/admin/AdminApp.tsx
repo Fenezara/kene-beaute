@@ -35,12 +35,12 @@ type AdminTab = "overview" | "orders" | "appointments" | "tenants" | "users" | "
 
 const TABS: { key: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { key: "overview", label: "Vue d'ensemble", icon: LayoutDashboard },
-  { key: "orders", label: "Commandes", icon: ShoppingBag },
+  { key: "orders", label: "Ventes & Commandes", icon: ShoppingBag },
   { key: "appointments", label: "Rendez-Vous", icon: Calendar },
   { key: "tenants", label: "Instituts", icon: Building2 },
   { key: "users", label: "Utilisatrices", icon: Users },
   { key: "subs", label: "Abonnements", icon: CreditCard },
-  { key: "security", label: "Sécurité", icon: ShieldCheck },
+  { key: "security", label: "Sécurité & Santé", icon: ShieldCheck },
 ];
 
 export function AdminApp() {

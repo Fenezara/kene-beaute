@@ -8,6 +8,7 @@
 
 import { Component, Fragment, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, RefreshCw, RotateCcw } from "lucide-react";
+import { reportClientError } from "@/lib/kene/client-telemetry";
 
 interface ScreenBoundaryProps {
   children: ReactNode;
@@ -31,6 +32,12 @@ export class ScreenBoundary extends Component<ScreenBoundaryProps, ScreenBoundar
   componentDidCatch(error: Error, info: ErrorInfo) {
     // [kene:screen:{name}] — trace ciblée en console, jamais dans l'UI
     console.error(`[kene:screen:${this.props.name}]`, error, info.componentStack ?? "");
+    reportClientError({
+      scope: `screen:${this.props.name}`,
+      message: error?.message || String(error),
+      stack: error?.stack,
+      componentStack: info.componentStack || undefined,
+    });
   }
 
   reset = () => {

@@ -40,7 +40,7 @@ const Body = z.object({
     .min(0, "Commission entre 0 et 30 %")
     .max(0.3, "Commission entre 0 et 30 %")
     .optional(),
-  plan: z.enum(["trial", "pro", "business"]).optional(),
+  plan: z.enum(["trial", "starter", "pro", "elite", "business"]).optional(),
 });
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

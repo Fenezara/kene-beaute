@@ -25,7 +25,7 @@ type SecurityEventDto = {
 
 type SecurityPayload = {
   events: SecurityEventDto[];
-  stats: { total: number; last24h: number; failedLogins24h: number; locked24h: number };
+  stats: { total: number; last24h: number; failedLogins24h: number; locked24h: number; clientErrors24h: number };
 };
 
 export async function GET(req: NextRequest) {
@@ -41,12 +41,13 @@ export async function GET(req: NextRequest) {
     }
 
     const since24h = new Date(Date.now() - 24 * 3_600_000);
-    const [events, total, last24h, failedLogins24h, locked24h] = await Promise.all([
+    const [events, total, last24h, failedLogins24h, locked24h, clientErrors24h] = await Promise.all([
       db.securityEvent.findMany({ orderBy: { ts: "desc" }, take: 80 }),
       db.securityEvent.count(),
       db.securityEvent.count({ where: { ts: { gte: since24h } } }),
       db.securityEvent.count({ where: { kind: "login_failed", ts: { gte: since24h } } }),
       db.securityEvent.count({ where: { kind: "login_locked", ts: { gte: since24h } } }),
+      db.securityEvent.count({ where: { kind: "client_error", ts: { gte: since24h } } }),
     ]);
 
     const payload: SecurityPayload = {
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
         ip: e.ip,
         detail: e.detail,
       })),
-      stats: { total, last24h, failedLogins24h, locked24h },
+      stats: { total, last24h, failedLogins24h, locked24h, clientErrors24h },
     };
 
     return NextResponse.json(payload, { headers: { "Cache-Control": "no-store" } });

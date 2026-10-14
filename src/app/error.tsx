@@ -9,6 +9,7 @@
 import { useEffect } from "react";
 import { HeartHandshake, RefreshCw, RotateCcw } from "lucide-react";
 import { KeneEmblemLockup } from "@/components/kene/icons";
+import { reportClientError } from "@/lib/kene/client-telemetry";
 
 export default function KeneError({
   error,
@@ -17,9 +18,14 @@ export default function KeneError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  // Diagnostique en console (jamais dans l'UI — pas de fuite technique)
+  // Diagnostique en console et télémétrie vers la Console Admin
   useEffect(() => {
     console.error("[kene:error] erreur de rendu interceptée", error);
+    reportClientError({
+      scope: "root_error_boundary",
+      message: error?.message || String(error),
+      stack: error?.stack,
+    });
   }, [error]);
 
   return (

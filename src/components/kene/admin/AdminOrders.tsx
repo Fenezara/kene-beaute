@@ -169,10 +169,10 @@ export function AdminOrders() {
         <div>
           <h2 className="font-heading text-xl font-bold flex items-center gap-2">
             <ShoppingBag className="size-5 text-primary" />
-            Commandes Boutique en Ligne
+            Ventes &amp; Commandes Réseau
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Suivi centralisé des ventes de produits, expéditions et encaissements SasPay
+            Suivi centralisé des transactions de rituels de soin et encaissements de la plateforme
           </p>
         </div>
         <Button

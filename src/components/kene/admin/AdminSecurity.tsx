@@ -41,6 +41,8 @@ const SEC_KINDS: Record<string, { label: string; cls: string }> = {
   passkey_registered: { label: "Passkey enregistré", cls: "bg-gold/15 text-gold" },
   passkey_register_failed: { label: "Passkey refusé", cls: "bg-bissap/15 text-bissap" },
   passkey_removed: { label: "Passkey retiré", cls: "bg-muted text-muted-foreground" },
+  // ── Télémétrie incidents & erreurs en direct ──
+  client_error: { label: "Incident / Erreur applicative", cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold" },
 };
 
 /** Heure FR compacte: « 16/08 14:32 » (— si date illisible). */
@@ -56,9 +58,11 @@ export function AdminSecurity({ sec }: { sec: UseApiResult<AdminSecurity> }) {
   const loading = sec.loading && !d;
   const failed = d?.stats.failedLogins24h ?? 0;
   const locked = d?.stats.locked24h ?? 0;
+  const errors = d?.stats.clientErrors24h ?? 0;
   const indicators = [
     { label: "Événements 24 h", value: d?.stats.last24h ?? 0, warn: false },
     { label: "Échecs de connexion 24 h", value: failed, warn: failed > 0 },
+    { label: "Incidents applicatifs 24 h", value: errors, warn: errors > 0 },
     { label: "Verrouillages 24 h", value: locked, warn: locked > 0 },
     { label: "Total journal", value: d?.stats.total ?? 0, warn: false },
   ];
@@ -69,13 +73,13 @@ export function AdminSecurity({ sec }: { sec: UseApiResult<AdminSecurity> }) {
       <CardHeader className="pb-3">
         <CardTitle className="flex flex-wrap items-center gap-2 font-heading text-base">
           <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
-          Posture sécurité
+          Posture sécurité &amp; Santé système
           <Badge variant="outline" className="font-mono text-[10px]">2026</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* 4 indicateurs — sobre, alerte bordeaux seulement si > 0 */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {/* Indicateurs — alerte bordeaux/rose si > 0 */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           {indicators.map((i) => (
             <div key={i.label} className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5">
               <p className="text-[11px] leading-tight text-muted-foreground">{i.label}</p>

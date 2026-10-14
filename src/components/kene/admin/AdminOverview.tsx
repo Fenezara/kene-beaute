@@ -3,7 +3,7 @@
 // comportement inchangé): KPIs plateforme, courbe diagnostics 14 j,
 // top instituts par CA 30 j.
 import { useEffect, useState } from "react";
-import { Activity, AlertCircle, Building2, CheckCircle2, Cpu, CreditCard, Crown, Database, ExternalLink, HeartHandshake, MessageSquare, ReceiptText, RefreshCw, Server, ShoppingBag, Smartphone, BriefcaseBusiness, Users } from "lucide-react";
+import { Activity, AlertCircle, Building2, CheckCircle2, Cpu, CreditCard, Crown, Database, ExternalLink, HeartHandshake, MessageSquare, ReceiptText, RefreshCw, Server, ShoppingBag, Smartphone, Sparkles, BriefcaseBusiness, Users } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -70,7 +70,18 @@ export function AdminOverview({ stats }: { stats: ReturnType<typeof useApi<Admin
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="h-8 gap-1.5 text-xs font-semibold rounded-full border-gold/50 bg-gold/10 text-gold hover:bg-gold/20"
+            >
+              <a href="/case-study" target="_blank" rel="noopener noreferrer">
+                <Sparkles className="size-3.5 text-amber-500" />
+                <span>Case Study 3D</span>
+              </a>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -101,15 +112,14 @@ export function AdminOverview({ stats }: { stats: ReturnType<typeof useApi<Admin
       {/* 🛑 Contrôle du Mode Maintenance & Affiche Clientèle */}
       <AdminMaintenanceControl />
 
-      {/* KPIs — t. 135: la monétisation rejoint la vue d'ensemble (MRR simulé,
-          fallbacks 0: le cache mémoire peut servir un snapshot antérieur). */}
+      {/* KPIs — Monétisation et volume réel du réseau (ventes caisse cabine + acomptes RDV) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-3">
         <KpiCard icon={<Users className="size-4" />} label="Utilisatrices" value={String(data.users)} monetary={false} />
         <KpiCard icon={<HeartHandshake className="size-4" />} label="Parrainages" value={String(data.referrals)} monetary={false} hint="Fil du Parrainage" />
         <KpiCard icon={<Building2 className="size-4" />} label="Instituts" value={String(data.tenants)} monetary={false} />
         <KpiCard icon={<Activity className="size-4" />} label="Diagnostics IA" value={String(data.diagnoses)} monetary={false} />
-        <KpiCard icon={<ShoppingBag className="size-4" />} label="Commandes boutique" value={String(data.orders)} monetary={false} />
-        <KpiCard icon={<ReceiptText className="size-4" />} label="GMV boutique" value={xof(data.gmvBoutique, { compact: true })} hint={`Commissions : ${xof(data.commissionTotal, { compact: true })}`} />
+        <KpiCard icon={<ShoppingBag className="size-4" />} label="Ventes Caisse Salons" value={String(data.salesCount ?? data.orders)} monetary={false} hint="Soins cabine & rituels" />
+        <KpiCard icon={<ReceiptText className="size-4" />} label="Volume Réseau (GMV)" value={xof(data.networkGmv ?? (data.salesVolume ? (data.salesVolume + (data.appointmentsDeposit ?? 0)) : data.gmvBoutique), { compact: true })} hint={`Acomptes RDV : ${xof(data.appointmentsDeposit ?? 0, { compact: true })}`} />
         <KpiCard icon={<CreditCard className="size-4" />} label="Revenus abonnements" value={xof(data.subsMrrFcfa ?? 0, { compact: true })} hint={`${data.activeSubs ?? 0} abonnée${(data.activeSubs ?? 0) > 1 ? "s" : ""}`} />
       </div>
 

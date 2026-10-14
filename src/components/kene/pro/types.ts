@@ -522,10 +522,15 @@ export interface AdminStats {
   referrals: number;
   chart: { date: string; count: number }[];
   topTenants: { name: string; city: string; country?: string; ca30: number }[];
-  // t. 135 — monétisation (fallbacks 0: le cache mémoire 60 s peut servir
-  // un snapshot calculé avant ce chantier).
+  // Monétisation
   activeSubs: number;
   subsMrrFcfa: number;
+  // Transactions réelles du réseau (Ventes caisse salon + Acomptes RDV)
+  salesCount?: number;
+  salesVolume?: number;
+  appointmentsCount?: number;
+  appointmentsDeposit?: number;
+  networkGmv?: number;
 }
 
 // ─────────────── Admin — visionneuse Sécurité ───────────────
@@ -534,7 +539,7 @@ export interface AdminStats {
 export interface AdminSecurityEvent {
   id: string;
   ts: string; // ISO
-  kind: string; // otp_request | login_success | login_failed | login_locked | logout | pro_register | payment_confirm | admin_access | push_subscribe | upload_reject
+  kind: string; // otp_request | login_success | login_failed | login_locked | logout | pro_register | payment_confirm | admin_access | push_subscribe | upload_reject | client_error
   phone?: string | null;
   ip?: string | null;
   detail?: string | null;
@@ -545,6 +550,7 @@ export interface AdminSecurityStats {
   last24h: number;
   failedLogins24h: number;
   locked24h: number;
+  clientErrors24h?: number;
 }
 
 export interface AdminSecurity {

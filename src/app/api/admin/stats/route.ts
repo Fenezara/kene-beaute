@@ -28,6 +28,12 @@ type StatsPayload = {
   // (MRR — les mois offerts par la Console comptent 0 F).
   activeSubs: number;
   subsMrrFcfa: number;
+  // Transactions réseau réelles
+  salesCount: number;
+  salesVolume: number;
+  appointmentsCount: number;
+  appointmentsDeposit: number;
+  networkGmv: number;
 };
 
 // Singleton sur globalThis: survit aux rechargements de modules en dev (HMR)
@@ -61,7 +67,21 @@ export async function GET(req: NextRequest) {
     const now = new Date();
     const since30 = new Date(now.getTime() - 30 * 86_400_000);
 
-    const [users, tenants, diagnoses, orders, paidOrders, diagRecent, sales30, referrals, activeSubsRaw] = await Promise.all([
+    const [
+      users,
+      tenants,
+      diagnoses,
+      orders,
+      paidOrders,
+      diagRecent,
+      sales30,
+      referrals,
+      activeSubsRaw,
+      salesCount,
+      salesAgg,
+      appointmentsCount,
+      appointmentsDepositAgg,
+    ] = await Promise.all([
       db.user.count(),
       db.tenant.count(),
       db.diagnosis.count(),
@@ -81,8 +101,15 @@ export async function GET(req: NextRequest) {
         where: { status: "active", expiresAt: { gt: now } },
         select: { priceFcfa: true },
       }),
+      db.sale.count({ where: { status: "completed" } }),
+      db.sale.aggregate({ where: { status: "completed" }, _sum: { total: true } }),
+      db.appointment.count(),
+      db.appointment.aggregate({ where: { status: { in: ["confirmed", "completed"] } }, _sum: { depositAmount: true } }),
     ]);
 
+    const salesVolume = salesAgg._sum.total ?? 0;
+    const appointmentsDeposit = appointmentsDepositAgg._sum.depositAmount ?? 0;
+    const networkGmv = salesVolume + appointmentsDeposit;
     const gmvBoutique = paidOrders.reduce((s, o) => s + o.total, 0);
 
     // Commissions marketplace: ventes de produits rattachés à un institut partenaire
@@ -125,6 +152,11 @@ export async function GET(req: NextRequest) {
       topTenants,
       activeSubs: activeSubsRaw.length,
       subsMrrFcfa: activeSubsRaw.reduce((s, x) => s + x.priceFcfa, 0),
+      salesCount,
+      salesVolume,
+      appointmentsCount,
+      appointmentsDeposit,
+      networkGmv,
     };
     g.__keneAdminStatsCache = { data: payload, at: Date.now() };
     return NextResponse.json(payload);

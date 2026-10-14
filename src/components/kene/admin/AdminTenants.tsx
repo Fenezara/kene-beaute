@@ -430,7 +430,7 @@ function TenantSheet({
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-border/60 p-3.5">
                 <Label htmlFor="commission" className="flex items-center gap-1.5 text-xs font-medium">
-                  <Percent className="size-3.5" aria-hidden="true" /> Commission boutique (%)
+                  <Percent className="size-3.5" aria-hidden="true" /> Frais plateforme / mise en relation (%)
                 </Label>
                 <div className="mt-2 flex gap-2">
                   <Input
@@ -446,7 +446,7 @@ function TenantSheet({
                     className="h-11"
                     disabled={!pctValid || !commissionDirty || busy}
                     onClick={() =>
-                      void patch(t.id, { commissionRate: pctValue / 100 }, `Commission de ${t.name} fixée à ${String(pctValue).replace(".", ",")} %`).then((okDone) => {
+                      void patch(t.id, { commissionRate: pctValue / 100 }, `Frais plateforme de ${t.name} fixés à ${String(pctValue).replace(".", ",")} %`).then((okDone) => {
                         if (okDone) setDraftPct(null);
                       })
                     }
@@ -454,16 +454,16 @@ function TenantSheet({
                     {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : "Enregistrer"}
                   </Button>
                 </div>
-                <p className="mt-1.5 text-[11px] text-muted-foreground">Kènè prélève sur les ventes boutique — appliqué aux prochaines commandes.</p>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">Frais de service prélevés sur les réservations et paiements de la plateforme.</p>
               </div>
 
               <div className="rounded-xl border border-border/60 p-3.5">
                 <p className="flex items-center gap-1.5 text-xs font-medium">
-                  <Package className="size-3.5" aria-hidden="true" /> Plan
+                  <Package className="size-3.5" aria-hidden="true" /> Plan Kènè Pro
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Plan de l'institut">
-                  {(["trial", "pro", "business"] as const).map((p) => {
-                    const labelText = p === "trial" ? "Pass Découverte (30j)" : p === "pro" ? "Essentiel" : "Complexe";
+                  {(["starter", "pro", "elite", "trial"] as const).map((p) => {
+                    const labelText = p === "trial" ? "Essai Découverte (30j)" : p === "starter" ? "Starter (1 salon)" : p === "pro" ? "Pro (3 salons)" : "Élite (Réseau)";
                     return (
                       <button
                         key={p}
@@ -483,7 +483,7 @@ function TenantSheet({
                     className="ml-auto h-11"
                     disabled={!planDirty || busy}
                     onClick={() => {
-                      const labelText = plan === "trial" ? "Pass Découverte (30j)" : plan === "pro" ? "Essentiel" : "Complexe";
+                      const labelText = plan === "trial" ? "Essai Découverte (30j)" : plan === "starter" ? "Starter (1 salon)" : plan === "pro" ? "Pro (3 salons)" : "Élite (Réseau)";
                       void patch(t.id, { plan }, `Plan de ${t.name} : ${labelText}`).then((okDone) => {
                         if (okDone) setDraftPlan(null);
                       });
@@ -492,7 +492,7 @@ function TenantSheet({
                     {busy ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : "Enregistrer"}
                   </Button>
                 </div>
-                <p className="mt-1.5 text-[11px] text-muted-foreground">Pass Découverte (30j), Essentiel (Pro) ou Complexe (Business) — tarification SaaS Kènè.</p>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">Starter (1 salon), Pro (3 salons + Secrétaire IA &amp; Dermo-IA), Élite (Réseau illimité), Essai Découverte — tarification SaaS Kènè Pro.</p>
               </div>
             </div>
 
