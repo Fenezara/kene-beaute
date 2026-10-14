@@ -353,9 +353,6 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
     setExploring(true);
     try {
       if (typeof window !== "undefined") {
-        try {
-          window.sessionStorage.setItem("kene_exploring", "1");
-        } catch {}
         window.dispatchEvent(new CustomEvent("kene:start-explore"));
       }
       // — UNE requête GET: l'accès express ne dépend d'AUCUN POST.
@@ -372,9 +369,6 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
         role: "client",
       };
       if (typeof window !== "undefined") {
-        try {
-          window.sessionStorage.setItem("kene_exploring", "1");
-        } catch {}
         window.dispatchEvent(new CustomEvent("kene:start-explore"));
       }
       setUser(fallbackGuest);

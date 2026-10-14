@@ -301,15 +301,16 @@ export function ClientApp() {
   // Détection d'un compte authentifié et sauvegardé (avec un vrai numéro/identifiant)
   const isSaved = isSavedUser(user);
 
-  // État de session exploratoire (actif lorsque l'invité a cliqué sur un portail ou "Nouveau client")
-  const [exploring, setExploring] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return window.sessionStorage.getItem("kene_exploring") === "1";
-    }
-    return false;
-  });
+  // État de session exploratoire (actif uniquement lors d'une session en cours après avoir cliqué sur un portail)
+  // RÈGLE : L'exploration n'est JAMAIS persistée lors de l'actualisation de la page (F5/reload)
+  // ni lors de la fermeture/réouverture de l'application. Tout utilisateur non connecté qui actualise
+  // ou rouvre l'application revoit TOUJOURS la page d'accueil d'abord !
+  const [exploring, setExploring] = useState<boolean>(false);
 
   useEffect(() => {
+    try {
+      sessionStorage.removeItem("kene_exploring");
+    } catch {}
     const handleStartExplore = () => setExploring(true);
     window.addEventListener("kene:start-explore", handleStartExplore);
     return () => window.removeEventListener("kene:start-explore", handleStartExplore);

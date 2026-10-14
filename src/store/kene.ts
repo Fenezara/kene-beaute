@@ -123,17 +123,21 @@ function sanitizePersisted(raw: unknown): Partial<PersistedKene> {
   // importe, un user pro réveillé ne doit jamais atterrir dans l'espace cliente.
   if (p.user === null) out.user = null;
   else if (p.user && typeof p.user === "object" && typeof (p.user as { id?: unknown }).id === "string" && typeof (p.user as { phone?: unknown }).phone === "string") {
-    out.user = p.user as SessionUser;
+    const candidate = p.user as SessionUser;
+    if (isSavedUser(candidate)) {
+      out.user = candidate;
+    } else {
+      out.user = null;
+    }
   }
   if (out.user?.role === "admin" && (p.space === "pro" || p.space === "client" || p.space === "admin")) {
     out.space = p.space;
   } else if (out.user?.role === "pro" && (p.space === "pro" || p.space === "client")) {
     out.space = p.space;
-  } else if (p.space === "pro") {
-    // Mode hors-ligne / caisse institut : préserve l'espace Entreprise persisté
-    out.space = "pro";
+  } else if (out.user && isSavedUser(out.user)) {
+    out.space = spaceForRole(out.user.role);
   } else {
-    out.space = out.user ? spaceForRole(out.user.role) : "client";
+    out.space = "client";
   }
   if (p.clientTab === "boutique" || p.clientTab === "rdv") {
     out.clientTab = "accueil";
@@ -215,8 +219,16 @@ export const useKene = create<KeneState>()(
       name: "kene-store",
       version: 1,
       skipHydration: true,
-      // Liste blanche: _keneHydrated / introActive / actions ne sortent jamais.
-      partialize: (s) => ({ space: s.space, user: s.user, cart: s.cart, proTenantId: s.proTenantId, clientTab: s.clientTab }),
+      // Liste blanche: seuls les comptes sauvegardés (authentifiés avec numéro vérifié) sont persistés.
+      // Les sessions invitées temporaires ne sont JAMAIS stockées dans localStorage afin de toujours
+      // présenter la page d'accueil d'accueil au rechargement (F5) ou à la réouverture de l'application.
+      partialize: (s) => ({
+        space: isSavedUser(s.user) ? s.space : "client",
+        user: isSavedUser(s.user) ? s.user : null,
+        cart: s.cart,
+        proTenantId: s.proTenantId,
+        clientTab: s.clientTab,
+      }),
       // Merge minimal ET sûr: zustand n'appelle migrate que si le storage
       // porte un numéro de version ≠ 1 — les vieilles sessions SANS champ
       // version arrivent ici brutes. On assainit donc dans le merge aussi:
