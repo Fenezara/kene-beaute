@@ -17,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowRight, BriefcaseBusiness, Building2, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Loader2, LogIn, Play, ShieldCheck, X,
+  ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Loader2, LogIn, Play, ShieldCheck, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -127,7 +127,7 @@ const pageSlide = {
   exit: { x: -44, opacity: 0 },
 };
 
-export function WelcomeThreshold() {
+export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } = {}) {
   const setUser = useKene((s) => s.setUser);
   const setProTenantId = useKene((s) => s.setProTenantId);
   const setSpace = useKene((s) => s.setSpace);
@@ -319,11 +319,13 @@ export function WelcomeThreshold() {
           ? `Bienvenue ${res.user.name.split(" ")[0]} — « ${res.tenant?.name ?? "Espace Pro"} » t'attend`
           : `Bienvenue ${res.user.name.split(" ")[0]} 💛`
       );
+      if (onBackToApp) onBackToApp();
       return true;
     } catch (e) {
       const isNetwork = !isOnline() || (e instanceof Error && /network|fetch|offline|hors-ligne/i.test(e.message));
       if (isNetwork && (mode === "pro" || keypadMode === "pro")) {
         activateOfflineProSession(phone);
+        if (onBackToApp) onBackToApp();
         return true;
       }
       toast.error(e instanceof Error ? e.message : "Code secret incorrect");
@@ -362,6 +364,7 @@ export function WelcomeThreshold() {
       } catch { /* non bloquant */ }
       setUser(v.user as SessionUser);
       toast.success(v.user.name && v.user.name !== "Nouvelle invitée" ? `Bienvenue ${v.user.name.split(" ")[0]} 💛` : "Bienvenue sur Kènè 💛");
+      if (onBackToApp) onBackToApp();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Connexion impossible — réessaie");
     } finally {
@@ -393,6 +396,16 @@ export function WelcomeThreshold() {
 
                   {/* Sélecteur d'interfaces & Actions rapides */}
                   <div className="flex items-center gap-2">
+                    {onBackToApp && (
+                      <button
+                        type="button"
+                        onClick={onBackToApp}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-full border border-gold/40 bg-secondary/80 hover:bg-secondary px-3.5 text-[11.5px] font-semibold text-foreground transition-colors shadow-xs"
+                      >
+                        <ArrowLeft size={13} className="text-gold-text" />
+                        <span>Retour à l&apos;application</span>
+                      </button>
+                    )}
                     <SpaceSwitcher variant="compact" />
                     <button
                       onClick={() => setStories(true)}
@@ -404,7 +417,7 @@ export function WelcomeThreshold() {
                     </button>
                     {!last && (
                       <button
-                        onClick={startExploration}
+                        onClick={onBackToApp ?? startExploration}
                         disabled={exploring}
                         className="inline-flex h-9 items-center gap-1.5 rounded-full bg-secondary/60 hover:bg-secondary px-3.5 text-[11.5px] font-medium text-foreground transition-colors"
                       >
@@ -1091,12 +1104,12 @@ export function WelcomeThreshold() {
               <div className="mt-auto pt-4 sm:pt-6 flex flex-col items-center gap-3 text-center">
                 <button
                   type="button"
-                  onClick={startExploration}
+                  onClick={onBackToApp ?? startExploration}
                   disabled={exploring}
                   className="flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 bg-secondary/80 hover:bg-secondary text-[12.5px] font-bold text-foreground border border-gold/40 shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary"
                 >
                   {exploring ? <Loader2 size={15} className="animate-spin text-gold-text" /> : <CauriIcon size={15} className="text-gold-text" aria-hidden="true" />}
-                  <span>Je n&apos;ai pas de compte — Commencer comme nouveau client</span>
+                  <span>Je n&apos;ai pas de compte — Découvrir sans compte</span>
                 </button>
                 <p className="text-[10.5px] sm:text-[11.5px] leading-relaxed text-muted-foreground">
                   Données chiffrées, jamais revendues · En continuant, tu acceptes les conditions Kènè.
@@ -1116,7 +1129,7 @@ export function WelcomeThreshold() {
               onBack={() => setStage({ phase: "landing" })}
               onSwitchSpace={() => setStage({ phase: "landing" })}
               onOfflineBypass={() => activateOfflineProSession(keypadDigits ? `+225${keypadDigits}` : undefined)}
-              onNewClient={startExploration}
+              onNewClient={onBackToApp ?? startExploration}
             />
           </motion.div>
         )}
@@ -1131,7 +1144,7 @@ export function WelcomeThreshold() {
               onBack={() => setStage({ phase: "keypad", mode: stage.mode })}
               onForgotPin={() => handleForgotPin(stage.phone, stage.mode)}
               onOfflineBypass={() => activateOfflineProSession(stage.phone)}
-              onNewClient={startExploration}
+              onNewClient={onBackToApp ?? startExploration}
               onSwitchAccount={() => setStage({ phase: "keypad", mode: stage.mode })}
             />
           </motion.div>

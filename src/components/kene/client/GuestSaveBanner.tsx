@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Sparkles, ArrowRight, ShieldCheck, X, LogIn } from "lucide-react";
 import { useKene } from "@/store/kene";
-import { performLogout } from "@/lib/kene/logout";
 import { LinkAccountModal } from "./LinkAccountModal";
 
 export function GuestSaveBanner() {
@@ -47,7 +46,9 @@ export function GuestSaveBanner() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => {
-                void performLogout({ redirectUrl: "/?mode=client", message: "Connexion à votre compte", toGuest: false });
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("kene:open-login"));
+                }
               }}
               className="hidden sm:inline-flex h-8 items-center gap-1.5 rounded-full border border-amber-500/30 bg-background/80 hover:bg-background px-3 text-xs font-semibold text-foreground transition-colors"
             >

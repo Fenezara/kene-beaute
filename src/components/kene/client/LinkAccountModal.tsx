@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { apiPost } from "@/lib/kene/api";
 import { useKene, type SessionUser } from "@/store/kene";
 import { rememberAccount } from "@/lib/kene/last-account";
-import { performLogout } from "@/lib/kene/logout";
 import { haptic, HAPTIC } from "@/lib/kene/ux";
 import { BotHoneypot, createHumanPayload } from "@/components/kene/auth/BotHoneypot";
 import type { ApiUser } from "./types";
@@ -220,7 +219,10 @@ export function LinkAccountModal({ open, onClose, reason }: LinkAccountModalProp
               <button
                 type="button"
                 onClick={() => {
-                  void performLogout({ redirectUrl: "/?mode=client", message: "Connexion à votre compte", toGuest: false });
+                  onClose();
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(new CustomEvent("kene:open-login"));
+                  }
                 }}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-text hover:underline"
               >

@@ -363,7 +363,11 @@ export function SettingsScreen() {
                       <Sparkles size={14} /> Sauvegarder mon compte
                     </button>
                     <button
-                      onClick={() => void performLogout({ redirectUrl: "/?mode=client", message: "Connexion", toGuest: false })}
+                      onClick={() => {
+                        if (typeof window !== "undefined") {
+                          window.dispatchEvent(new CustomEvent("kene:open-login"));
+                        }
+                      }}
                       className="h-11 rounded-xl border border-border/80 bg-background hover:bg-muted text-foreground text-xs font-bold inline-flex items-center justify-center gap-2 transition-colors"
                     >
                       <LogIn size={14} className="text-gold-text" /> Me connecter

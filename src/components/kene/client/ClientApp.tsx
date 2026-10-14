@@ -21,7 +21,8 @@ import { formatTime } from "@/lib/kene/format";
 import { KeneEmblem, KeneEmblemLockup, KeneMark, NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { AuroraBackdrop, IconBadge } from "@/components/kene/ui2026";
-import { useKene, type ClientTab } from "@/store/kene";
+import { apiGet } from "@/lib/kene/api";
+import { useKene, type ClientTab, type SessionUser } from "@/store/kene";
 import { useChat } from "@/store/chat";
 import { replayDiagQueue } from "@/lib/kene/diag-queue";
 import { useT } from "@/lib/kene/use-t";
@@ -297,18 +298,91 @@ export function ClientApp() {
     setMounted(true);
   }, []);
 
-  // Store persisté en cours de relecture : squelette d'amorçage uniquement avant le premier paint client
-  if (!mounted && !hydrated) return <BootSkeleton />;
+  // État de connexion explicite : l'utilisateur a cliqué sur "Me connecter" ou a demandé la page de connexion (?login=1)
+  const [explicitLogin, setExplicitLogin] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      return p.get("login") === "1" || p.get("auth") === "1" || p.get("signin") === "1";
+    }
+    return false;
+  });
 
-  if (!user) {
-    // LE SEUIL — une seule page avant les portails: hero cinématique,
-    // stories opt-in, portails image, reconnexion express, pavé numérique
-    // natif puis OTP. L'ancienne chaîne (intro forcée → portes → saisie
-    // classique) est retirée: plus AUCUN écran obligatoire avant le choix.
-    return <WelcomeThreshold />;
+  useEffect(() => {
+    const handleOpenLogin = () => setExplicitLogin(true);
+    window.addEventListener("kene:open-login", handleOpenLogin);
+    return () => window.removeEventListener("kene:open-login", handleOpenLogin);
+  }, []);
+
+  // Allocation automatique d'un compte invité vierge pour toute nouvelle visite ou utilisateur déconnecté
+  const [guestProvisioning, setGuestProvisioning] = useState(false);
+
+  useEffect(() => {
+    if (!mounted || !hydrated) return;
+    if (user || explicitLogin || guestProvisioning) return;
+
+    let cancelled = false;
+    setGuestProvisioning(true);
+
+    async function provisionGuest() {
+      try {
+        const res = await apiGet<{ user: SessionUser }>("/api/auth/express?newGuest=1");
+        if (!cancelled && res?.user) {
+          useKene.getState().setUser(res.user);
+          return;
+        }
+      } catch {
+        // Fallback immédiat si le réseau ou le serveur est inaccessible
+        if (!cancelled) {
+          const fallbackGuest: SessionUser = {
+            id: `guest_${Date.now()}`,
+            name: "Nouvelle invitée",
+            phone: `+22500${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`,
+            role: "client",
+          };
+          useKene.getState().setUser(fallbackGuest);
+        }
+      } finally {
+        if (!cancelled) {
+          setGuestProvisioning(false);
+        }
+      }
+    }
+
+    void provisionGuest();
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, hydrated, user, explicitLogin, guestProvisioning]);
+
+  // Store persisté en cours de relecture : squelette d'amorçage
+  if (!mounted || !hydrated) {
+    return <BootSkeleton />;
   }
 
-  const first = user.name.split(" ")[0];
+  // Écran d'accueil / de connexion (WelcomeThreshold) uniquement si expressément demandé
+  if (explicitLogin) {
+    return (
+      <WelcomeThreshold
+        onBackToApp={() => {
+          setExplicitLogin(false);
+          if (typeof window !== "undefined" && (window.location.search.includes("login") || window.location.search.includes("auth") || window.location.search.includes("signin"))) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("login");
+            url.searchParams.delete("auth");
+            url.searchParams.delete("signin");
+            window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+          }
+        }}
+      />
+    );
+  }
+
+  // Compte invité en cours d'allocation : squelette d'amorçage
+  if (!user) {
+    return <BootSkeleton />;
+  }
+
+  const first = user?.name ? user.name.split(" ")[0] : "Invitée";
 
   return (
     <div className="h-dvh flex overflow-hidden overscroll-none select-none">

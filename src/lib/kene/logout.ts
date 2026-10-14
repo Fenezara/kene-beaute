@@ -42,44 +42,52 @@ export async function performLogout(options?: { redirectUrl?: string; message?: 
 
   // 4. Attribution d'un compte invité vierge pour que l'utilisateur atterrisse sur un compte découverte isolé
   if (toGuest) {
+    let guestUser: any = null;
     try {
       const guestRes = await fetch("/api/auth/express?newGuest=1", { method: "GET" });
       if (guestRes.ok) {
         const data = await guestRes.json();
         if (data?.user) {
-          useKene.getState().setUser(data.user);
-          try {
-            if (typeof window !== "undefined") {
-              window.localStorage.setItem(
-                "kene-store",
-                JSON.stringify({
-                  state: {
-                    user: data.user,
-                    space: "client",
-                    clientTab: "accueil",
-                    cart: [],
-                    proTenantId: null,
-                    introActive: false,
-                    _keneHydrated: true,
-                  },
-                  version: 0,
-                })
-              );
-            }
-          } catch {}
+          guestUser = data.user;
         }
       }
     } catch {
       // Tolérance réseau
     }
+
+    if (!guestUser) {
+      guestUser = {
+        id: `guest_${Date.now()}`,
+        name: "Nouvelle invitée",
+        phone: `+22500${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`,
+        role: "client",
+      };
+    }
+
+    try {
+      useKene.getState().setUser(guestUser);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          "kene-store",
+          JSON.stringify({
+            state: {
+              user: guestUser,
+              space: "client",
+              clientTab: "accueil",
+              cart: [],
+              proTenantId: null,
+            },
+            version: 1,
+          })
+        );
+      }
+    } catch {}
   }
 
   toast.info(message);
 
   // 5. Redirection complète avec rechargement de page pour purger tout état résiduel
   if (typeof window !== "undefined") {
-    setTimeout(() => {
-      window.location.replace(targetUrl);
-    }, 150);
+    window.location.replace(targetUrl);
   }
 }
