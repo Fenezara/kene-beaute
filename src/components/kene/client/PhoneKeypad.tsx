@@ -19,6 +19,7 @@ import { useKene } from "@/store/kene";
 import { AuroraBackdrop, Chip } from "@/components/kene/ui2026";
 import { KeneEmblemLockup, CauriIcon } from "@/components/kene/icons";
 import { BotHoneypot, createHumanPayload } from "@/components/kene/auth/BotHoneypot";
+import { cn } from "@/lib/utils";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 
@@ -92,18 +93,25 @@ export function PhoneKeypad({
       {/* ── Contexte: retour + espace choisi + bascule ── */}
       <div className="flex items-center gap-2 px-4 pt-5 sm:px-6">
         <button
+          type="button"
           onClick={onBack}
           aria-label="Retour à l'accueil"
-          className="k-chip inline-flex h-11 w-11 items-center justify-center rounded-full text-foreground/80 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+          className="k-chip cursor-pointer inline-flex h-11 w-11 items-center justify-center rounded-full text-foreground/80 hover:text-foreground active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary"
         >
           <ChevronLeft size={20} />
         </button>
-        <Chip selected className="ml-1">
-          {mode === "pro" ? "Espace entreprise" : "Espace cliente"}
-        </Chip>
         <button
+          type="button"
           onClick={onSwitchSpace}
-          className="ml-auto inline-flex min-h-11 items-center px-2 text-xs text-muted-foreground underline underline-offset-4 decoration-dotted hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded"
+          className="k-chip cursor-pointer ml-1 inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 text-xs font-semibold text-foreground/80 hover:text-foreground active:scale-95 transition-all"
+          title="Changer d'espace"
+        >
+          {mode === "pro" ? "Espace entreprise" : "Espace cliente"}
+        </button>
+        <button
+          type="button"
+          onClick={onSwitchSpace}
+          className="ml-auto cursor-pointer inline-flex min-h-11 items-center px-3 text-xs text-muted-foreground underline underline-offset-4 decoration-dotted hover:text-foreground active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary rounded"
         >
           Changer d'espace
         </button>
@@ -146,58 +154,53 @@ export function PhoneKeypad({
       <div className="mx-auto mt-auto w-full max-w-[340px] px-4 pb-8 pt-6">
         <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
           {KEYS.map((k) => (
-            <motion.button
+            <button
               key={k}
               type="button"
               onClick={() => press(k)}
-              whileTap={{ scale: 0.92 }}
-              transition={{ type: "spring", stiffness: 500, damping: 22 }}
               disabled={loading}
               aria-label={`Chiffre ${k}`}
-              className="k-chip h-[64px] rounded-[20px] font-mono text-[26px] font-bold text-foreground disabled:opacity-50"
+              className="k-chip cursor-pointer select-none active:scale-95 transition-transform h-[64px] rounded-[20px] font-mono text-[26px] font-bold text-foreground disabled:opacity-40 flex items-center justify-center"
             >
               {k}
-            </motion.button>
+            </button>
           ))}
           {/* Effacer */}
-          <motion.button
+          <button
             type="button"
             onClick={() => setDigits((d) => d.slice(0, -1))}
-            whileTap={{ scale: 0.92 }}
-            transition={{ type: "spring", stiffness: 500, damping: 22 }}
             disabled={loading || digits.length === 0}
             aria-label="Effacer le dernier chiffre"
-            className="k-chip h-[64px] rounded-[20px] text-foreground/70 disabled:opacity-40"
+            className="k-chip cursor-pointer select-none active:scale-95 transition-transform h-[64px] rounded-[20px] text-foreground/70 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
           >
             <Delete size={24} className="mx-auto" />
-          </motion.button>
-          <motion.button
+          </button>
+          <button
             type="button"
             onClick={() => press("0")}
-            whileTap={{ scale: 0.92 }}
-            transition={{ type: "spring", stiffness: 500, damping: 22 }}
             disabled={loading}
             aria-label="Chiffre 0"
-            className="k-chip h-[64px] rounded-[20px] font-mono text-[26px] font-bold text-foreground disabled:opacity-50"
+            className="k-chip cursor-pointer select-none active:scale-95 transition-transform h-[64px] rounded-[20px] font-mono text-[26px] font-bold text-foreground disabled:opacity-40 flex items-center justify-center"
           >
             0
-          </motion.button>
+          </button>
           {/* Valider — or, pulse quand prêt */}
-          <motion.button
+          <button
             type="button"
             onClick={() => void confirm()}
-            whileTap={{ scale: 0.92 }}
-            transition={{ type: "spring", stiffness: 500, damping: 22 }}
             disabled={!ready || loading}
             aria-label={ready ? "Recevoir mon code par SMS" : "Saisis 8 chiffres pour continuer"}
-            className={`h-[64px] rounded-[20px] k-btn-gold text-primary-foreground ${ready ? "" : "opacity-40"}`}
+            className={cn(
+              "cursor-pointer select-none active:scale-95 transition-all h-[64px] rounded-[20px] k-btn-gold text-primary-foreground flex items-center justify-center",
+              ready ? "shadow-md hover:brightness-105" : "opacity-40 cursor-not-allowed"
+            )}
           >
             {loading ? (
               <Loader2 size={26} className="mx-auto animate-spin" />
             ) : (
               <ArrowRight size={26} className="mx-auto" />
             )}
-          </motion.button>
+          </button>
         </div>
         <AnimatePresence>
           {ready && !loading && (
@@ -220,7 +223,7 @@ export function PhoneKeypad({
             <button
               type="button"
               onClick={onNewClient}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-xs font-bold text-foreground transition-all shadow-xs"
+              className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gold/40 bg-gold/15 hover:bg-gold/25 text-xs font-bold text-foreground transition-all shadow-xs active:scale-95"
             >
               <CauriIcon size={14} className="text-gold-text" />
               <span>Nouveau client ? Découvrir sans compte</span>
@@ -228,15 +231,27 @@ export function PhoneKeypad({
           </div>
         )}
 
-        {mode === "pro" && onOfflineBypass && (
+        {mode === "pro" && (
           <div className="mt-4 pt-3 border-t border-border/40 flex flex-col items-center gap-2">
             <button
               type="button"
-              onClick={onOfflineBypass}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-muted bg-muted/40 hover:bg-muted/70 text-[11px] font-medium text-muted-foreground transition-all"
+              onClick={() => {
+                setDigits("0709080706");
+                toast.info("Numéro salon démo inséré — appuie sur → pour valider");
+              }}
+              className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/40 bg-primary/10 hover:bg-primary/20 text-xs font-bold text-foreground transition-all shadow-xs active:scale-95"
             >
-              <span>📴 Mode Caisse & Cabine Hors-ligne</span>
+              <span>🏢 Démo Institut (Fatou Koné)</span>
             </button>
+            {onOfflineBypass && (
+              <button
+                type="button"
+                onClick={onOfflineBypass}
+                className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-muted bg-muted/40 hover:bg-muted/70 text-[11px] font-medium text-muted-foreground transition-all active:scale-95"
+              >
+                <span>📴 Mode Caisse & Cabine Hors-ligne</span>
+              </button>
+            )}
           </div>
         )}
 

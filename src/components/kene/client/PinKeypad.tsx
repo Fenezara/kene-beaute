@@ -176,16 +176,22 @@ export function PinKeypad({
       {/* ── Contexte : retour + espace ── */}
       <div className="flex items-center gap-2 px-4 pt-5 sm:px-6">
         <button
+          type="button"
           onClick={onBack}
           disabled={loading}
           aria-label="Retour"
-          className="k-chip inline-flex h-11 w-11 items-center justify-center rounded-full text-foreground/80 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40"
+          className="k-chip cursor-pointer inline-flex h-11 w-11 items-center justify-center rounded-full text-foreground/80 hover:text-foreground active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40"
         >
           <ChevronLeft size={20} />
         </button>
-        <Chip selected className="ml-1">
+        <button
+          type="button"
+          onClick={onSwitchAccount || onBack}
+          className="k-chip cursor-pointer ml-1 inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 text-xs font-semibold text-foreground/80 hover:text-foreground active:scale-95 transition-all"
+          title="Changer de compte ou d'espace"
+        >
           {mode === "pro" ? "Espace entreprise" : "Espace cliente"}
-        </Chip>
+        </button>
         <span className="ml-auto font-mono text-[12px] text-muted-foreground">
           {maskPhone(phone)}
         </span>
@@ -252,18 +258,16 @@ export function PinKeypad({
       <div className="mx-auto mt-auto w-full max-w-[340px] px-4 pb-6 pt-2">
         <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
           {KEYS.map((k) => (
-            <motion.button
+            <button
               key={k}
               type="button"
               onClick={() => pressDigit(k)}
-              whileTap={{ scale: 0.92 }}
-              transition={{ type: "spring", stiffness: 500, damping: 22 }}
               disabled={loading || activeDigits.length >= PIN_LENGTH}
               aria-label={`Chiffre ${k}`}
-              className="k-chip h-[64px] rounded-[20px] font-mono text-[26px] font-bold text-foreground disabled:opacity-50"
+              className="k-chip cursor-pointer select-none active:scale-95 transition-transform h-[64px] rounded-[20px] font-mono text-[26px] font-bold text-foreground disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center"
             >
               {k}
-            </motion.button>
+            </button>
           ))}
 
           {/* Action alternative (Code oublié) ou vide */}
@@ -274,37 +278,33 @@ export function PinKeypad({
                 onClick={onForgotPin}
                 disabled={loading}
                 aria-label="Code secret oublié"
-                className="text-[11px] font-medium text-amber-400 hover:text-amber-300 underline underline-offset-4 text-center px-1 py-2 leading-tight"
+                className="cursor-pointer text-[11px] font-medium text-amber-400 hover:text-amber-300 active:scale-95 transition-transform underline underline-offset-4 text-center px-1 py-2 leading-tight"
               >
                 Code oublié ?
               </button>
             ) : null}
           </div>
 
-          <motion.button
+          <button
             type="button"
             onClick={() => pressDigit("0")}
-            whileTap={{ scale: 0.92 }}
-            transition={{ type: "spring", stiffness: 500, damping: 22 }}
             disabled={loading || activeDigits.length >= PIN_LENGTH}
             aria-label="Chiffre 0"
-            className="k-chip h-[64px] rounded-[20px] font-mono text-[26px] font-bold text-foreground disabled:opacity-50"
+            className="k-chip cursor-pointer select-none active:scale-95 transition-transform h-[64px] rounded-[20px] font-mono text-[26px] font-bold text-foreground disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center"
           >
             0
-          </motion.button>
+          </button>
 
           {/* Effacer */}
-          <motion.button
+          <button
             type="button"
             onClick={deleteDigit}
-            whileTap={{ scale: 0.92 }}
-            transition={{ type: "spring", stiffness: 500, damping: 22 }}
             disabled={loading || activeDigits.length === 0}
             aria-label="Effacer le dernier chiffre"
-            className="k-chip h-[64px] rounded-[20px] text-foreground/70 disabled:opacity-40"
+            className="k-chip cursor-pointer select-none active:scale-95 transition-transform h-[64px] rounded-[20px] text-foreground/70 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
           >
             <Delete size={24} className="mx-auto" />
-          </motion.button>
+          </button>
         </div>
 
         {/* Aide en bas de pavé */}
@@ -315,7 +315,7 @@ export function PinKeypad({
               <button
                 type="button"
                 onClick={onForgotPin}
-                className="text-foreground underline underline-offset-2 hover:text-amber-400"
+                className="cursor-pointer text-foreground underline underline-offset-2 hover:text-amber-400 active:scale-95 transition-all"
               >
                 code SMS
               </button>
@@ -327,11 +327,11 @@ export function PinKeypad({
               <button
                 type="button"
                 onClick={onOfflineBypass}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#C8951E]/40 bg-[#C8951E]/10 hover:bg-[#C8951E]/20 text-xs font-bold text-foreground transition-all shadow-xs active:scale-95"
+                className="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-[#C8951E]/40 bg-[#C8951E]/15 hover:bg-[#C8951E]/25 text-xs font-bold text-foreground transition-all shadow-xs active:scale-95"
               >
                 <span>📴 Accès Caisse & Institut Hors-ligne</span>
               </button>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[10px] text-muted-foreground text-center">
                 Connexion directe sans réseau · PIN 0000 ou accès immédiat
               </span>
             </div>
@@ -344,7 +344,7 @@ export function PinKeypad({
                 <button
                   type="button"
                   onClick={onNewClient}
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-xs font-bold text-foreground transition-all shadow-xs"
+                  className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gold/40 bg-gold/15 hover:bg-gold/25 text-xs font-bold text-foreground transition-all shadow-xs active:scale-95"
                 >
                   <CauriIcon size={14} className="text-gold-text" />
                   <span>Nouveau client ? Découvrir sans compte</span>
@@ -354,7 +354,7 @@ export function PinKeypad({
                 <button
                   type="button"
                   onClick={onSwitchAccount}
-                  className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors"
+                  className="cursor-pointer text-[12px] text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors py-1 active:scale-95"
                 >
                   Ce n&apos;est pas toi ? Utiliser un autre numéro
                 </button>

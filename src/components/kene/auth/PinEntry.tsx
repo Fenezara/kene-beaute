@@ -118,7 +118,7 @@ export function PinEntry() {
 
   function navigateToBack() {
     if (typeof window === "undefined") return;
-    if (window.history.length > 1) {
+    if (window.history.length > 2) {
       window.history.back();
     } else {
       navigateToHome();
@@ -163,6 +163,23 @@ export function PinEntry() {
           employeeRole: "manager",
           tenantId: DEFAULT_FALLBACK_TENANT_ID,
         };
+        rememberAccount({
+          phone: offlineUser.phone,
+          name: offlineUser.name,
+          role: "pro",
+        });
+        try {
+          localStorage.setItem("kene-store", JSON.stringify({
+            state: {
+              space: "pro",
+              user: offlineUser,
+              proTenantId: DEFAULT_FALLBACK_TENANT_ID,
+              clientTab: "accueil",
+              cart: [],
+            },
+            version: 1,
+          }));
+        } catch {}
         setUser(offlineUser);
         setProTenantId(DEFAULT_FALLBACK_TENANT_ID);
         setSpace("pro");
@@ -184,6 +201,23 @@ export function PinEntry() {
       employeeRole: "manager",
       tenantId: DEFAULT_FALLBACK_TENANT_ID,
     };
+    rememberAccount({
+      phone: offlineUser.phone,
+      name: offlineUser.name,
+      role: "pro",
+    });
+    try {
+      localStorage.setItem("kene-store", JSON.stringify({
+        state: {
+          space: "pro",
+          user: offlineUser,
+          proTenantId: DEFAULT_FALLBACK_TENANT_ID,
+          clientTab: "accueil",
+          cart: [],
+        },
+        version: 1,
+      }));
+    } catch {}
     setUser(offlineUser);
     setProTenantId(DEFAULT_FALLBACK_TENANT_ID);
     setSpace("pro");

@@ -190,6 +190,23 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
       employeeRole: "manager",
       tenantId: DEFAULT_FALLBACK_TENANT_ID,
     };
+    rememberAccount({
+      phone: offlineUser.phone,
+      name: offlineUser.name,
+      role: "pro",
+    });
+    try {
+      localStorage.setItem("kene-store", JSON.stringify({
+        state: {
+          space: "pro",
+          user: offlineUser,
+          proTenantId: DEFAULT_FALLBACK_TENANT_ID,
+          clientTab: "accueil",
+          cart: [],
+        },
+        version: 1,
+      }));
+    } catch {}
     setUser(offlineUser);
     setProTenantId(DEFAULT_FALLBACK_TENANT_ID);
     setSpace("pro");
