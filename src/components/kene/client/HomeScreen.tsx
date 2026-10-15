@@ -281,27 +281,27 @@ export function HomeScreen({
               </span>
             </button>
 
-            {/* 2. Mon rituel du jour */}
+            {/* 2. Scanner un produit cosmétique INCI */}
             <button
               type="button"
               onClick={() => {
                 haptic(HAPTIC.tap);
-                if (multi.last) {
-                  routineSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                } else {
-                  onScanZone("visage");
-                }
+                setClientTab("chat");
+                setTimeout(() => {
+                  const fileInput = document.querySelector<HTMLInputElement>("input[capture='environment']");
+                  if (fileInput) fileInput.click();
+                }, 200);
               }}
-              className="group relative flex flex-col items-start p-3 rounded-2xl border border-gold/30 bg-gradient-to-br from-gold/15 via-card to-card hover:border-gold/60 text-left transition-all active:scale-[0.97] shadow-xs cursor-pointer"
+              className="group relative flex flex-col items-start p-3 rounded-2xl border border-gold/40 bg-gradient-to-br from-gold/15 via-card to-card hover:border-gold text-left transition-all active:scale-[0.97] shadow-xs cursor-pointer"
             >
-              <span className="grid size-9 place-items-center rounded-xl bg-gold/20 text-gold-text mb-2 transition-transform group-hover:scale-105 shadow-2xs">
-                <Sparkles size={18} />
+              <span className="grid size-9 place-items-center rounded-xl bg-gold/25 text-gold-text mb-2 transition-transform group-hover:scale-105 shadow-2xs">
+                <ShieldAlert size={18} />
               </span>
               <span className="font-heading font-black text-xs sm:text-[13px] text-foreground leading-tight">
-                Rituel du jour
+                Scanner produit INCI
               </span>
-              <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
-                {multi.last ? "Matin & Soir" : "À débloquer par scan"}
+              <span className="text-[10px] text-gold-text font-bold mt-0.5 line-clamp-1">
+                Anti-dépigmentant 🧴
               </span>
             </button>
 

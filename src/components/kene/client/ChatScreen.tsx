@@ -52,7 +52,7 @@ import { apiPost, resizeImage } from "@/lib/kene/api";
 import { KeneEmblem, NeaOnnimIcon, CauriIcon } from "@/components/kene/icons";
 import { Chip, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
-import { useChat } from "@/store/chat";
+import { useChat, getTimeGreeting } from "@/store/chat";
 import type { ChatMsg } from "./types";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { LiveCameraModal } from "./LiveCameraModal";
@@ -850,11 +850,13 @@ export function ChatScreen() {
           speak(welcome.content, true, welcome.id);
         }
       } else {
-        // Fil déjà engagé : salutation directe sans relire l'ancienne consultation
+        // Fil déjà engagé : salutation directe selon l'horloge locale du pays et la région
         const firstName = user?.name ? user.name.split(" ")[0] : "";
+        const greeting = getTimeGreeting(user?.city);
+        const loc = user?.city ? ` à ${user.city}` : "";
         const shortGreeting = firstName
-          ? `Bonjour ${firstName} ! Que puis-je faire pour votre peau aujourd'hui ?`
-          : "Bonjour ! Que puis-je faire pour votre peau aujourd'hui ?";
+          ? `${greeting} ${firstName} ! Que puis-je faire pour votre peau en ce moment${loc} ?`
+          : `${greeting} ! Que puis-je faire pour votre peau en ce moment${loc} ?`;
         speak(shortGreeting, true, "reconnect-greeting");
       }
     }

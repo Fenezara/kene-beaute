@@ -12,16 +12,29 @@ import type { ChatMsg } from "@/components/kene/client/types";
 /** Nombre max de messages conservés (les plus vieux glissent hors du fil). */
 const MAX_MESSAGES = 60;
 
+/** Calcule la formule de salutation selon l'heure locale et le pays/ville */
+export function getTimeGreeting(countryOrCity?: string | null): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) {
+    return "Bonjour";
+  } else if (hour >= 12 && hour < 18) {
+    return "Bon après-midi";
+  } else {
+    return "Bonsoir";
+  }
+}
+
 /** Message d'accueil et d'engagement direct de Dermo Kènè.
- * Personnalisé avec le prénom et la ville, pose une question concrète pour initier l'échange. */
+ * Personnalisé avec la salutation temporelle (Bonjour / Bon après-midi / Bonsoir), le prénom et la localité/pays. */
 export function welcomeMsg(userName?: string | null, city?: string | null): ChatMsg {
   const name = userName ? userName.split(" ")[0] : "";
-  const salutation = name ? `Bonjour ${name} ! 🌸` : "Bonjour ! 🌸";
+  const greeting = getTimeGreeting(city);
+  const salutation = name ? `${greeting} ${name} ! 🌸` : `${greeting} ! 🌸`;
   const loc = city || "Abidjan";
   return {
     id: "w1",
     role: "assistant",
-    content: `${salutation} Je suis Dermo Kènè, votre conseillère dermo-cosmétique dédiée ici à ${loc}.\n\nJe viens aux nouvelles : comment se porte votre peau aujourd'hui ? Avez-vous remarqué des tiraillements, des taches pigmentaires, un excès de brillance ou souhaitez-vous un conseil routine sur-mesure ?\n\nÉchangez avec moi librement par message, note vocale 🎙️ ou montrez-moi votre peau en photo 📸. Que puis-je faire pour vous ?`,
+    content: `${salutation} Je suis Dermo Kènè, votre conseillère dermo-cosmétique dédiée ici à ${loc}.\n\nJe viens aux nouvelles : comment se porte votre peau en ce moment ? Avez-vous remarqué des tiraillements, des taches pigmentaires, un excès de brillance ou souhaitez-vous un conseil routine sur-mesure ?\n\nÉchangez avec moi librement par message, note vocale 🎙️ ou montrez-moi votre peau en photo 📸. Que puis-je faire pour vous ?`,
     kind: "text",
     time: Date.now(),
   };

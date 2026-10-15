@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, ScanFace, TicketPercent, UserPlus, WifiOff, BriefcaseBusiness, LogIn, ArrowLeft, FolderHeart } from "lucide-react";
+import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, ScanFace, ShieldAlert, TicketPercent, UserPlus, WifiOff, BriefcaseBusiness, LogIn, ArrowLeft, FolderHeart } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -41,6 +41,7 @@ import { ProPlanSection } from "./ProPlanSection";
 import { TeamSection } from "./TeamSection";
 import { OrdersSection } from "./OrdersSection";
 import { MamanAssistantModal } from "./MamanAssistantModal";
+import { ProductInciScannerModal } from "./ProductInciScannerModal";
 import { AssistantSection } from "./AssistantSection";
 import { formatRole, ROLE_LABELS } from "@/lib/kene/hr-constants";
 
@@ -127,6 +128,8 @@ export function ProApp() {
   const mainScrollRef = useRef<HTMLElement | null>(null);
   // Modal de l'Assistante de la Maman (Débriefing & dispatch 1-tap)
   const [mamanAssistantOpen, setMamanAssistantOpen] = useState(false);
+  // Modal Scanner Produit & Analyse INCI Entreprise / Cabine
+  const [inciScannerOpen, setInciScannerOpen] = useState(false);
 
   // Remonte en haut de la page à chaque changement d'onglet ou de section entreprise
   useEffect(() => {
@@ -822,7 +825,20 @@ export function ProApp() {
                   <ScanFace size={14} className="text-[#C8951E]" /> Scan Cabine
                 </button>
 
-                {/* 5. Dossiers Peau 🔬 */}
+                {/* 5. Scanner Produit INCI 🧴 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    setInciScannerOpen(true);
+                  }}
+                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-gold/50 bg-gold/15 hover:bg-gold/25 text-gold-text text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
+                  title="Scanner un cosmétique pour détecter l'hydroquinone et les corticoïdes"
+                >
+                  <ShieldAlert size={14} className="text-gold-text" /> Scanner INCI 🧴
+                </button>
+
+                {/* 6. Dossiers Peau 🔬 */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1095,7 +1111,12 @@ export function ProApp() {
             void overview.refetch();
           }}
         />
-      )}
+      {/* Modal Scanner Produit & Analyse INCI Entreprise / Cabine */}
+      <ProductInciScannerModal
+        open={inciScannerOpen}
+        onOpenChange={setInciScannerOpen}
+        tenantId={tid}
+      />
     </div>
   );
 }

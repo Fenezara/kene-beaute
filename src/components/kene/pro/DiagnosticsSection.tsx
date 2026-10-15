@@ -9,10 +9,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   AlertTriangle, Camera, ChevronLeft, ChevronRight, FileDown, Filter, ImagePlus, Info,
-  Loader2, OctagonAlert, PenLine, Printer, Search, Share2, ShieldCheck,
+  Loader2, OctagonAlert, PenLine, Printer, Search, Share2, ShieldAlert, ShieldCheck,
   SlidersHorizontal, ScanFace, Trash2, UserPlus, Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ProductInciScannerModal } from "./ProductInciScannerModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -79,6 +80,7 @@ function buildWhatsAppDiagUrl(clientName: string, phone: string, result: ProDiag
 
 export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand, onCommandHandled, onNavigate }: Props) {
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [inciModalOpen, setInciModalOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
   // Cosmétovigilance & Sécurité cabine
@@ -213,6 +215,15 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
             >
               <Printer className="size-4" aria-hidden="true" />
               Fiche vierge
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setInciModalOpen(true)}
+              className="gap-2 text-gold-text border-gold/40 hover:bg-gold/10 font-bold text-xs"
+              title="Scanner la composition INCI d'un produit (Hydroquinone, Corticoïdes, Allergènes)"
+            >
+              <ShieldAlert className="size-4 text-gold-text" />
+              Scanner Produit (INCI)
             </Button>
             <Button onClick={() => setWizardOpen(true)} className="gap-2 font-semibold k-btn-gold text-primary-foreground" aria-label="Lancer un nouveau diagnostic en cabine">
               <ScanFace className="size-4" aria-hidden="true" />
@@ -616,6 +627,13 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Scanner Produit & Analyse INCI Entreprise / Cabine */}
+      <ProductInciScannerModal
+        open={inciModalOpen}
+        onOpenChange={setInciModalOpen}
+        tenantId={tenantId}
+      />
     </div>
   );
 }
