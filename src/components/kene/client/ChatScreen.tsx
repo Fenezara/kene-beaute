@@ -45,6 +45,7 @@ import {
   CheckCircle2,
   HelpCircle,
   Lightbulb,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, resizeImage } from "@/lib/kene/api";
@@ -86,6 +87,7 @@ export const THEMED_SUGGESTIONS: QuickSuggestion[] = [
   { theme: "Actifs", question: "Peut-on associer Niacinamide et Vitamine C sans risque ?", iconText: "🌿" },
   { theme: "Boutons", question: "Comment éviter les cicatrices noires après un bouton ?", iconText: "🛡️" },
   { theme: "Cheveux", question: "Que faire pour fortifier mes bordures de tempes ?", iconText: "👑" },
+  { theme: "Cosmétique", question: "Je souhaite analyser la composition d'une crème pour vérifier si elle contient des corticoïdes ou de l'hydroquinone.", iconText: "🧴" },
   { theme: "Karité", question: "Le beurre de karité est-il adapté à ma zone T ?", iconText: "🌰" },
 ];
 
@@ -290,6 +292,173 @@ function AudioMessageBubble({ message }: { message: ChatMsg }) {
           </p>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** Bouclier de Sécurité INCI Kènè — Rendu visuel d'analyse de composition cosmétique */
+function InciShieldCard({
+  analysis,
+}: {
+  analysis: import("@/lib/kene/inci-analyzer").InciAnalysisResult;
+}) {
+  const isDanger = analysis.verdict === "danger";
+  const isSain = analysis.verdict === "sain";
+  const [showProtocol, setShowProtocol] = useState(isDanger);
+
+  return (
+    <div
+      className={`mt-2.5 rounded-[22px] border p-3.5 sm:p-4 text-xs transition-all shadow-sm ${
+        isDanger
+          ? "border-destructive/60 bg-gradient-to-br from-destructive/15 via-card to-card text-foreground"
+          : isSain
+          ? "border-emerald-500/50 bg-gradient-to-br from-emerald-500/10 via-card to-card text-foreground"
+          : "border-amber-500/50 bg-gradient-to-br from-amber-500/10 via-card to-card text-foreground"
+      }`}
+    >
+      {/* En-tête du bouclier */}
+      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-border/60">
+        <div className="flex items-center gap-2">
+          <span
+            className={`grid place-items-center size-7 rounded-xl shrink-0 ${
+              isDanger
+                ? "bg-destructive/20 text-destructive"
+                : isSain
+                ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                : "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+            }`}
+          >
+            {isDanger ? (
+              <ShieldAlert size={16} />
+            ) : isSain ? (
+              <ShieldCheck size={16} />
+            ) : (
+              <TriangleAlert size={16} />
+            )}
+          </span>
+          <div>
+            <span
+              className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full inline-block ${
+                isDanger
+                  ? "bg-destructive/20 text-destructive"
+                  : isSain
+                  ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                  : "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+              }`}
+            >
+              {analysis.badgeLabel}
+            </span>
+            {analysis.productName && (
+              <h4 className="font-heading font-black text-xs text-foreground mt-0.5 truncate">
+                {analysis.productName}
+              </h4>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Titre & Résumé */}
+      <div className="mt-2.5 space-y-1.5">
+        <p className="font-heading font-bold text-[13px] text-foreground leading-tight">
+          {analysis.title}
+        </p>
+        <p className="text-muted-foreground text-[11.5px] leading-relaxed">
+          {analysis.summary}
+        </p>
+      </div>
+
+      {/* Substances Dangereuses Identifiées */}
+      {analysis.detectedDangers.length > 0 && (
+        <div className="mt-3 space-y-2 rounded-2xl bg-destructive/10 border border-destructive/30 p-2.5">
+          <p className="text-[11px] font-black uppercase tracking-wider text-destructive flex items-center gap-1.5">
+            <OctagonAlert size={13} />
+            <span>Substances toxiques démasquées ({analysis.detectedDangers.length}) :</span>
+          </p>
+          <div className="space-y-1.5">
+            {analysis.detectedDangers.map((d, i) => (
+              <div key={i} className="text-[11px] pl-2 border-l-2 border-destructive/60">
+                <div className="flex items-center gap-1.5 font-bold text-destructive">
+                  <span>⚠️</span>
+                  <span>{d.name}</span>
+                  <span className="text-[9.5px] px-1.5 py-0.2 rounded bg-destructive/20 text-destructive font-mono">
+                    lu : &laquo;{d.matchedTerm}&raquo;
+                  </span>
+                </div>
+                <p className="text-foreground/80 mt-0.5 text-[10.5px] leading-snug">
+                  {d.explanation}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Actifs Bénéfiques Identifiés */}
+      {analysis.detectedBeneficial.length > 0 && (
+        <div className="mt-3 space-y-1.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 p-2.5">
+          <p className="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+            <CheckCircle2 size={13} />
+            <span>Actifs sains reconnus pour ta mélanine :</span>
+          </p>
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {analysis.detectedBeneficial.map((b, i) => (
+              <span
+                key={i}
+                className="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10.5px] font-semibold border border-emerald-500/25"
+                title={b.explanation}
+              >
+                ✨ {b.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Protocole de sevrage / Plan d'action */}
+      {analysis.actionPlan && (
+        <div className="mt-3 pt-2.5 border-t border-border/60">
+          <button
+            type="button"
+            onClick={() => setShowProtocol(!showProtocol)}
+            className="w-full flex items-center justify-between text-left font-heading font-black text-xs text-foreground py-1 cursor-pointer"
+          >
+            <span>{analysis.actionPlan.title}</span>
+            <span className="text-[10px] text-primary font-bold">
+              {showProtocol ? "Masquer ▲" : "Voir le protocole ▼"}
+            </span>
+          </button>
+
+          {showProtocol && (
+            <div className="mt-2 space-y-2 text-[11px]">
+              {analysis.actionPlan.weaningProtocol && (
+                <div className="space-y-1.5 pl-2 border-l-2 border-primary/50">
+                  {analysis.actionPlan.weaningProtocol.map((step, idx) => (
+                    <p key={idx} className="text-foreground/90 leading-snug">
+                      • {step}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              {analysis.actionPlan.safeAlternatives.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-border/40">
+                  <p className="font-bold text-foreground text-[10.5px] uppercase tracking-wide">
+                    🌿 Remplacements sains conseillés :
+                  </p>
+                  <ul className="mt-1 space-y-1 text-muted-foreground text-[10.5px]">
+                    {analysis.actionPlan.safeAlternatives.map((alt, idx) => (
+                      <li key={idx} className="flex items-center gap-1.5">
+                        <span className="text-primary font-bold">✓</span>
+                        <span>{alt}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -816,11 +985,27 @@ export function ChatScreen() {
       });
       setSending(true);
 
-      const r = await apiPost<{ niveau: "vert" | "jaune" | "rouge"; message: string }>(
+      const r = await apiPost<{
+        niveau: "vert" | "jaune" | "rouge";
+        message: string;
+        isProduct?: boolean;
+        productName?: string;
+        productAnalysis?: import("@/lib/kene/inci-analyzer").InciAnalysisResult;
+      }>(
         "/api/dermato/photo",
         { images: dataUrls, image: dataUrls[0], userId: user.id }
       );
-      add({ id: nid(), role: "assistant", content: r.message, kind: "photo", niveau: r.niveau, time: Date.now() });
+      add({
+        id: nid(),
+        role: "assistant",
+        content: r.message,
+        kind: "photo",
+        niveau: r.niveau,
+        isProduct: r.isProduct,
+        productName: r.productName,
+        productAnalysis: r.productAnalysis,
+        time: Date.now(),
+      });
       notifyChatNew();
       speak(r.message);
     } catch (e) {
@@ -1261,6 +1446,9 @@ export function ChatScreen() {
                         </p>
                       )}
                       <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                      {m.productAnalysis && (
+                        <InciShieldCard analysis={m.productAnalysis} />
+                      )}
                     </div>
                   </div>
                   {tri && (
@@ -1571,6 +1759,36 @@ export function ChatScreen() {
               </div>
 
               <div className="space-y-2.5 pt-3">
+                {/* Option 0 : Scanner un produit / Composition INCI */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    saveHardwarePermGranted();
+                    setPhotoPickerOpen(false);
+                    toast.info("Cadrez bien l'étiquette au dos ou la liste des ingrédients (INCI)");
+                    nativeCameraInputRef.current?.click();
+                  }}
+                  className="w-full flex items-center justify-between p-3.5 rounded-2xl border-2 border-gold/60 bg-gold/10 hover:bg-gold/15 text-left active:scale-[0.99] transition-all group shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="h-10 w-10 rounded-xl bg-gold/20 text-gold-text grid place-items-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                      <ShieldAlert size={19} />
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-foreground">Scanner un produit (INCI)</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider bg-gold/20 text-gold-text px-2 py-0.5 rounded-full">
+                          Anti-Dépigmentation
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Photo du flacon ou de l&apos;étiquette pour démasquer hydroquinone ou corticoïdes
+                      </p>
+                    </div>
+                  </div>
+                  <CauriIcon size={16} className="text-gold-text shrink-0 mr-1" />
+                </button>
+
                 {/* Option 1: Live Camera (avec guide facial et contrôle d'éclairage) */}
                 <button
                   type="button"

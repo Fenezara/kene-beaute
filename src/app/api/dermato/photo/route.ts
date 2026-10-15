@@ -45,7 +45,13 @@ export async function POST(req: NextRequest) {
     }
 
     const triage = await triageLesion(imgList);
-    return NextResponse.json({ niveau: triage.niveau, message: triage.message });
+    return NextResponse.json({
+      niveau: triage.niveau,
+      message: triage.message,
+      isProduct: triage.isProduct,
+      productName: triage.productName,
+      productAnalysis: triage.productAnalysis,
+    });
   } catch (err) {
     console.error("[kene:api:dermato/photo]", err instanceof Error ? err.message : err);
     return serverError("dermato/photo", err);

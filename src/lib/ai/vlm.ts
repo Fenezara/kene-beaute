@@ -19,6 +19,7 @@ import { ZONE_INDICATORS } from "@/lib/kene/types";
 import { hypothesesFromVlm, vlmCatalogForZone } from "@/lib/kene/conditions";
 import { severityFromPercent } from "@/lib/kene/format";
 import { zaiCall } from "@/lib/ai/zai-retry";
+import { analyzeInciText, type InciAnalysisResult } from "@/lib/kene/inci-analyzer";
 
 /** Gardes par phase: 40 s vision (variance de service mesurée
  * 18-77 s — au-delà, le fallback déterministe est plus utile qu'une
@@ -589,9 +590,17 @@ async function callGeminiRecommendations(analysisJson: string, zone: BodyZone): 
   }
 }
 
+export interface TriageResult {
+  niveau: "vert" | "jaune" | "rouge";
+  message: string;
+  isProduct?: boolean;
+  productName?: string;
+  productAnalysis?: InciAnalysisResult;
+}
+
 async function callGeminiTriage(
   imageOrImages: string | string[],
-): Promise<{ niveau: "vert" | "jaune" | "rouge"; message: string } | null> {
+): Promise<TriageResult | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
@@ -609,18 +618,38 @@ async function callGeminiTriage(
     if (inlineParts.length === 0) return null;
 
     const countLabel = images.length > 1 ? `${images.length} photos sous différents angles` : "cette photo";
-    const prompt = `Tu es « Dermo Kènè », la conseillère dermo-cosmétique bienveillante de référence de l'application Kènè à Abidjan, experte de la peau noire et métissée (Fitzpatrick IV-VI).
-L'utilisatrice vient de t'envoyer ${countLabel} de sa peau.
-Examine attentivement l'ensemble de ces clichés pour analyser les zones (boutons, taches, sébum, déshydratation, grain de peau).
+    const prompt = `Tu es « Dermo Kènè », la conseillère dermo-cosmétique bienveillante de référence de l'application Kènè à Abidjan, experte de la peau noire et métissée (Fitzpatrick IV-VI) et de la cosmétovigilance anti-dépigmentation.
+L'utilisatrice vient de t'envoyer ${countLabel}.
+
+ÉTAPE 1 — DÉTECTE LA NATURE DE L'IMAGE :
+- Est-ce un PRODUIT COSMÉTIQUE (flacon, pot, tube, boîte, étiquette ou liste d'ingrédients INCI) ?
+- Ou est-ce une ZONE DE PEAU HUMAINE (visage, lésion, bouton, tache, dos, etc.) ?
+
+SI C'EST UN PRODUIT COSMÉTIQUE :
+- is_product = true
+- product_name = nom du produit ou de la marque visible (ex: Caro White, Dermovate, CeraVe, etc.)
+- extracted_text = TOUS les textes et ingrédients lisibles sur l'emballage (INCI).
+- Traque impérativement les dépigmentants toxiques :
+  * Hydroquinone et dérivés (1,4-benzenediol, quinol, hydrochinon)
+  * Corticoïdes puissants (clobetasol, betamethasone, fluocinonide, etc.)
+  * Sels de mercure (calomel, etc.)
+  * Promesses décapantes sans INCI (blanchiment rapide express, etc.)
+- niveau : "rouge" si toxique/corticoïde/hydroquinone, "jaune" si sans traçabilité ou irritant, "vert" si formule saine.
+- message : explication chaleureuse en français d'Abidjan (environ 80-120 mots), zéro jugement, protocole de sevrage si toxique, ou conseils d'usage si sain.
+
+SI C'EST UNE ZONE DE PEAU HUMAINE :
+- is_product = false
+- niveau : "vert" | "jaune" | "rouge"
+- message : analyse bienveillante des zones de peau, conseil botanique africain si vert, institut partenaire si jaune, dermato urgent si rouge.
+
 Réponds STRICTEMENT sous format JSON valide avec la structure suivante :
 {
+  "is_product": true|false,
+  "product_name": "<nom du produit si visible ou null>",
+  "extracted_text": "<texte et ingrédients lus si produit>",
   "niveau": "vert"|"jaune"|"rouge",
-  "message": "Ton analyse bienveillante et chaleureuse en français d'Abidjan (environ 80 à 120 mots, sans markdown astérisques **). Accueille avec tendresse (Bonjour ma chérie, Yako si boutons/taches), décris ce que tu remarques sur les clichés, donne un conseil dermo-cosmétique de chez nous (beurre de karité brut, gel d'aloka, huile de moringa, écran solaire SPF50), oriente vers une dermo-conseillère en institut partenaire certifié Kènè à Abidjan si jaune, ou vers une consultation dermatologique urgente si rouge. Conclus TOUJOURS complètement ton discours par une phrase chaleureuse terminée par un point final."
-}
-Règles cliniques :
-- vert = Bénin, petites imperfections, déshydratation ou routine d'entretien.
-- jaune = Acné inflammatoire, comédons, mélasma ou taches marquées nécessitant un soin dermo en cabine d'institut.
-- rouge = Lésion atypique asymétrique, ulcération ou urgence médicale.`;
+  "message": "<ton analyse bienveillante en français d'Abidjan terminée par un point final>"
+}`;
 
     const candidateModels = [
       "gemini-flash-lite-latest",
@@ -655,11 +684,51 @@ Règles cliniques :
         const raw = dataJson?.candidates?.[0]?.content?.parts?.[0]?.text || "";
         const json = extractJson(raw);
         if (!isRecord(json)) continue;
+
+        const isProduct = Boolean(
+          json.is_product ||
+          json.product_name ||
+          (typeof json.extracted_text === "string" && json.extracted_text.length > 5)
+        );
+
         const niveauRaw = String(json.niveau ?? "");
-        const niveau: "vert" | "jaune" | "rouge" = niveauRaw === "vert" || niveauRaw === "rouge" ? niveauRaw : "jaune";
-        const message = typeof json.message === "string" && json.message.trim() ? json.message.trim() : "";
-        if (message.length > 15) {
-          return { niveau, message };
+        let niveau: "vert" | "jaune" | "rouge" = niveauRaw === "vert" || niveauRaw === "rouge" ? niveauRaw : "jaune";
+        let message = typeof json.message === "string" && json.message.trim() ? json.message.trim() : "";
+
+        let productAnalysis: InciAnalysisResult | undefined;
+
+        if (isProduct) {
+          const textToScan = [
+            typeof json.extracted_text === "string" ? json.extracted_text : "",
+            typeof json.product_name === "string" ? json.product_name : "",
+            message,
+          ].join(" ");
+
+          productAnalysis = analyzeInciText(textToScan);
+          if (json.product_name && typeof json.product_name === "string") {
+            productAnalysis.productName = json.product_name;
+          }
+
+          if (productAnalysis.verdict === "danger") {
+            niveau = "rouge";
+            if (!message || message.length < 20) {
+              message = productAnalysis.summary;
+            }
+          } else if (productAnalysis.verdict === "non_trace" || productAnalysis.verdict === "vigilance") {
+            niveau = niveau === "rouge" ? "rouge" : "jaune";
+          } else if (productAnalysis.verdict === "sain") {
+            niveau = "vert";
+          }
+        }
+
+        if (message.length > 10) {
+          return {
+            niveau,
+            message,
+            isProduct,
+            productName: typeof json.product_name === "string" ? json.product_name : undefined,
+            productAnalysis,
+          };
         }
       } catch {
         continue;
@@ -912,11 +981,11 @@ export function expertVisualTriage(imageBase64: string): { niveau: "vert" | "jau
 /** Triage photo(s) dans le chat dermato (vert/jaune/rouge) — Architecture 3 Tiers résiliente */
 export async function triageLesion(
   imageOrImages: string | string[],
-): Promise<{ niveau: "vert" | "jaune" | "rouge"; message: string }> {
+): Promise<TriageResult> {
   const images = Array.isArray(imageOrImages) ? imageOrImages : [imageOrImages];
   const primaryImage = images[0] || "";
 
-  // Tier 1: Gemini Vision REST (multi-images ou image unique)
+  // Tier 1: Gemini Vision REST (multi-images ou image unique avec analyse INCI)
   if (process.env.GEMINI_API_KEY) {
     try {
       const geminiRes = await callGeminiTriage(images);
@@ -941,7 +1010,10 @@ export async function triageLesion(
         content: [
           {
             type: "text",
-            text: `Tu es Dermo Kènè, la conseillère dermo-cosmétique bienveillante d'Abidjan. Analyse ces ${images.length > 1 ? `${images.length} photos` : "photo"} de peau mélanoderme. Réponds STRICTEMENT en JSON: {"niveau":"vert"|"jaune"|"rouge","message":"<ton chaleureux et professionnel d'Abidjan, 3 phrases avec conseil botanique africain si vert, institut partenaire si jaune, dermato urgent si rouge. Termine par un point final.>"}.`,
+            text: `Tu es Dermo Kènè, la conseillère dermo-cosmétique bienveillante d'Abidjan. Détermine s'il s'agit d'un PRODUIT COSMÉTIQUE (flacon, pot, étiquette INCI) ou d'une PEAU mélanoderme.
+Si PRODUIT: is_product: true, product_name: "<nom>", extracted_text: "<ingrédients lisibles>", niveau: "vert"|"jaune"|"rouge" (rouge si hydroquinone ou corticoïde comme clobétasol).
+Si PEAU: is_product: false, niveau: "vert"|"jaune"|"rouge".
+Réponds STRICTEMENT en JSON: {"is_product": boolean, "product_name": string|null, "extracted_text": string|null, "niveau": "vert"|"jaune"|"rouge", "message": "<ton analyse bienveillante d'Abidjan terminée par un point final>"}.`,
           },
           ...imageContents,
         ],
@@ -958,18 +1030,49 @@ export async function triageLesion(
     );
     const raw = response.choices[0]?.message?.content ?? "{}";
     const json = extractJson(raw);
+    const isProduct = Boolean(
+      isRecord(json) &&
+        (json.is_product ||
+          json.product_name ||
+          (typeof json.extracted_text === "string" && json.extracted_text.length > 5))
+    );
     const niveauRaw = isRecord(json) ? String(json.niveau ?? "") : "";
-    const niveau: "vert" | "jaune" | "rouge" = niveauRaw === "vert" || niveauRaw === "rouge" ? niveauRaw : "jaune";
-    const message =
+    let niveau: "vert" | "jaune" | "rouge" = niveauRaw === "vert" || niveauRaw === "rouge" ? niveauRaw : "jaune";
+    let message =
       isRecord(json) && typeof json.message === "string" && json.message.trim()
         ? json.message.trim()
         : "";
-    if (message.length > 10) {
-      return { niveau, message };
+
+    let productAnalysis: InciAnalysisResult | undefined;
+    if (isProduct && isRecord(json)) {
+      const textToScan = [
+        typeof json.extracted_text === "string" ? json.extracted_text : "",
+        typeof json.product_name === "string" ? json.product_name : "",
+        message,
+      ].join(" ");
+      productAnalysis = analyzeInciText(textToScan);
+      if (json.product_name && typeof json.product_name === "string") {
+        productAnalysis.productName = json.product_name;
+      }
+      if (productAnalysis.verdict === "danger") {
+        niveau = "rouge";
+      }
     }
-    return expertVisualTriage(primaryImage);
+
+    if (message.length > 10) {
+      return {
+        niveau,
+        message,
+        isProduct,
+        productName: isRecord(json) && typeof json.product_name === "string" ? json.product_name : undefined,
+        productAnalysis,
+      };
+    }
+    const fallback = expertVisualTriage(primaryImage);
+    return { ...fallback, isProduct: false };
   } catch {
     // Tier 3: Moteur dermo-cosmétique expert autonome (zéro panne, zéro message d'erreur générique)
-    return expertVisualTriage(primaryImage);
+    const fallback = expertVisualTriage(primaryImage);
+    return { ...fallback, isProduct: false };
   }
 }

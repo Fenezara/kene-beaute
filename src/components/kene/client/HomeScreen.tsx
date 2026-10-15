@@ -453,7 +453,15 @@ export function HomeScreen({
             <div className="flex items-center gap-1.5 overflow-x-auto pretty-scroll pt-1 border-t border-[#FFF9EC]/10 text-[11px]">
               <button
                 type="button"
-                onClick={() => setClientTab("chat")}
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    window.sessionStorage.setItem(
+                      "kene:pending_chat_message",
+                      "Je souhaite vérifier la composition d'une crème ou d'un produit. Que penses-tu des risques d'hydroquinone ou de corticoïdes camouflés et comment puis-je te faire analyser mon flacon ?"
+                    );
+                  }
+                  setClientTab("chat");
+                }}
                 className="shrink-0 px-2.5 py-1 rounded-lg bg-[#FFF9EC]/10 hover:bg-[#FFF9EC]/20 text-[#EADCC9] font-medium transition-colors"
               >
                 🧴 Analyser un produit

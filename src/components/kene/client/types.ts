@@ -260,6 +260,9 @@ export interface ChatMsg {
   audioDuration?: number; // durée en secondes
   transcription?: string; // texte transcrit mot à mot
   niveau?: "vert" | "jaune" | "rouge";
+  isProduct?: boolean;
+  productName?: string;
+  productAnalysis?: import("@/lib/kene/inci-analyzer").InciAnalysisResult;
   time: number;
 }
 
