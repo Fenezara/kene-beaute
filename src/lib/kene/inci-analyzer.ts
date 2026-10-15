@@ -300,6 +300,8 @@ const BENEFICIAL_PATTERNS: BeneficialPattern[] = [
 // 4. FONCTION PRINCIPALE : ANALYSE D'UN TEXTE INCI / TRANSCRIPTION DE FLACON
 // ─────────────────────────────────────────────────────────────────────────────
 
+export const analyzeInciList = analyzeInciText;
+
 export function analyzeInciText(rawText: string): InciAnalysisResult {
   const text = rawText.toLowerCase().replace(/\s+/g, " ");
 
