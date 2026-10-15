@@ -345,42 +345,6 @@ export function HomeScreen({
               </span>
             </button>
           </div>
-
-          {/* 🧴 Raccourci INCI Immédiat — Détecteur Toxiques & Anti-Dépigmentants */}
-          <button
-            type="button"
-            onClick={() => {
-              haptic(HAPTIC.tap);
-              setClientTab("chat");
-              setTimeout(() => {
-                const fileInput = document.querySelector<HTMLInputElement>("input[capture='environment']");
-                if (fileInput) fileInput.click();
-              }, 200);
-            }}
-            className="group relative flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border-2 border-gold/50 bg-gradient-to-r from-gold/20 via-card to-card hover:border-gold text-left transition-all active:scale-[0.98] shadow-sm cursor-pointer"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="grid size-11 place-items-center rounded-xl bg-gold/25 text-gold-text shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-                <ShieldAlert size={22} className="text-gold-text" />
-              </span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-heading font-black text-xs sm:text-sm text-foreground">
-                    🧴 Scanner un produit cosmétique (INCI)
-                  </span>
-                  <span className="hidden xs:inline-flex text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gold/30 text-gold-text border border-gold/40">
-                    Sécurité Peau
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
-                  Détection immédiate d&apos;hydroquinone, corticoïdes, métaux lourds &amp; allergènes
-                </p>
-              </div>
-            </div>
-            <span className="text-xs font-bold text-gold-text group-hover:translate-x-0.5 transition-transform shrink-0 ml-2">
-              Scanner →
-            </span>
-          </button>
         </section>
       </RevealItem>
 
