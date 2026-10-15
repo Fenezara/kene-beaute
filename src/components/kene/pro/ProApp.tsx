@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, ScanFace, TicketPercent, UserPlus, WifiOff, BriefcaseBusiness, LogIn, ArrowLeft } from "lucide-react";
+import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, ScanFace, TicketPercent, UserPlus, WifiOff, BriefcaseBusiness, LogIn, ArrowLeft, FolderHeart } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -28,6 +28,7 @@ import { DashboardSection } from "./DashboardSection";
 import { AgendaSection } from "./AgendaSection";
 import { PosSection } from "./PosSection";
 import { CrmSection } from "./CrmSection";
+import { SkinDossiersSection } from "./SkinDossiersSection";
 import { RelancesSection } from "./RelancesSection";
 import { CatalogSection } from "./CatalogSection";
 import { StockSection } from "./StockSection";
@@ -43,11 +44,12 @@ import { MamanAssistantModal } from "./MamanAssistantModal";
 import { AssistantSection } from "./AssistantSection";
 import { formatRole, ROLE_LABELS } from "@/lib/kene/hr-constants";
 
-export type ProSectionId = "dashboard" | "assistant" | "agenda" | "diagnostic" | "caisse" | "orders" | "crm" | "relances" | "equipe" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
+export type ProSectionId = "dashboard" | "assistant" | "agenda" | "diagnostic" | "dossiers_peau" | "caisse" | "orders" | "crm" | "relances" | "equipe" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
 
 const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
   { id: "diagnostic", label: "📸 Diagnostic Peau", icon: ScanFace, hint: "En cabine, ordonnances beauté & ventes" },
+  { id: "dossiers_peau", label: "🔬 Dossiers Cutanés", icon: FolderHeart, hint: "Biomarqueurs, photos HD & formulations" },
   { id: "assistant", label: "👑 Secrétaire IA", icon: Crown, hint: "Rappels WhatsApp 24/7 & Débriefing" },
   { id: "agenda", label: "Agenda & Soins", icon: SankofaIcon, hint: "Rendez-vous" },
   { id: "caisse", label: "Ventes & Caisse", icon: AbanIcon, hint: "Caisse POS · Commandes en ligne" },
@@ -66,16 +68,16 @@ const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ classN
  * sont ni affichées ni atteignables (redirection auto si la section
  * courante n'est pas autorisée — p.ex. après un changement de compte). */
 const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
-  estheticienne: ["diagnostic", "agenda", "assistant", "parametres"],
-  dermo_conseillere: ["diagnostic", "crm", "agenda", "relances", "assistant", "parametres"],
+  estheticienne: ["dossiers_peau", "diagnostic", "agenda", "assistant", "parametres"],
+  dermo_conseillere: ["dossiers_peau", "diagnostic", "crm", "agenda", "relances", "assistant", "parametres"],
   coiffeuse: ["agenda", "diagnostic", "assistant", "parametres"],
   prothesiste_ongulaire: ["agenda", "diagnostic", "assistant", "parametres"],
   masseuse: ["agenda", "diagnostic", "assistant", "parametres"],
   caissiere: ["caisse", "catalogue", "assistant", "parametres"],
   receptionniste: ["agenda", "caisse", "crm", "relances", "assistant", "parametres"],
   responsable_stock: ["catalogue", "stock", "assistant", "parametres"],
-  manager: ["dashboard", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue", "parametres"],
-  apprentie: ["diagnostic", "agenda", "assistant", "parametres"],
+  manager: ["dashboard", "dossiers_peau", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue", "parametres"],
+  apprentie: ["dossiers_peau", "diagnostic", "agenda", "assistant", "parametres"],
 };
 
 const PLAN_STYLES: Record<string, string> = {
@@ -116,6 +118,8 @@ export function ProApp() {
   // Commande « Lancer un diagnostic » depuis la fiche CRM (objet neuf à chaque
   // clic → rouvre l'assistant même pour la même cliente)
   const [diagCommand, setDiagCommand] = useState<{ clientId: string; nonce: number } | null>(null);
+  // Cliente pré-sélectionnée pour l'onglet Dossiers Cutanés
+  const [skinDossierClientId, setSkinDossierClientId] = useState<string | null>(null);
   // Commande « Nouvelle cliente » depuis l'Accès Rapide
   const [crmCreateNonce, setCrmCreateNonce] = useState(0);
   // Rail latéral déployé par défaut (220px avec libellés complets, rétractable à 68px sur demande)
@@ -818,7 +822,19 @@ export function ProApp() {
                   <ScanFace size={14} className="text-[#C8951E]" /> Scan Cabine
                 </button>
 
-                {/* 5. + Nouvelle Cliente 👥 */}
+                {/* 5. Dossiers Peau 🔬 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    openSection("dossiers_peau");
+                  }}
+                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-gold/40 bg-gold/10 hover:bg-gold/20 text-foreground text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
+                >
+                  <FolderHeart size={13} className="text-gold-text" /> Dossiers Peau 🔬
+                </button>
+
+                {/* 6. + Nouvelle Cliente 👥 */}
                 <button
                   type="button"
                   onClick={() => {
@@ -925,6 +941,20 @@ export function ProApp() {
                 )}
               </div>
             )}
+            {activeSection === "dossiers_peau" && (
+              <SkinDossiersSection
+                tenantId={tid}
+                preselectedClientId={skinDossierClientId}
+                onClearPreselected={() => setSkinDossierClientId(null)}
+                onStartDiagnostic={(clientId) => {
+                  setDiagCommand({ clientId, nonce: Date.now() });
+                  openSection("diagnostic");
+                }}
+                onNavigateToCrm={(clientId) => {
+                  openSection("crm");
+                }}
+              />
+            )}
             {activeSection === "crm" && (
               <CrmSection
                 tenantId={tid}
@@ -932,6 +962,10 @@ export function ProApp() {
                 onStartDiagnostic={(clientId) => {
                   setDiagCommand({ clientId, nonce: Date.now() });
                   openSection("diagnostic");
+                }}
+                onOpenSkinDossier={(clientId) => {
+                  setSkinDossierClientId(clientId);
+                  openSection("dossiers_peau");
                 }}
               />
             )}

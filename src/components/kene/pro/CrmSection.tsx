@@ -4,7 +4,7 @@
 // — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
-import { Crown, FileDown, Lock, MessageCircle, Phone, Search, Sparkles, Users, Wallet, ChevronDown, Save, Star, Pencil, Plus, ShoppingBag, FlaskConical, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin } from "lucide-react";
+import { Crown, FileDown, Lock, MessageCircle, Phone, Search, Sparkles, Users, Wallet, ChevronDown, Save, Star, Pencil, Plus, ShoppingBag, FlaskConical, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin, FolderHeart } from "lucide-react";
 import { BissapFlowerIcon, SankofaIcon } from "@/components/kene/icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -95,10 +95,12 @@ export function CrmSection({
   tenantId,
   onStartDiagnostic,
   createClientNonce,
+  onOpenSkinDossier,
 }: {
   tenantId: string;
   onStartDiagnostic?: (clientId: string) => void;
   createClientNonce?: number;
+  onOpenSkinDossier?: (clientId: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const q = useDebounced(query);
@@ -440,6 +442,7 @@ export function CrmSection({
           onClose={() => setOpenId(null)}
           onStartDiagnostic={onStartDiagnostic}
           onRefreshClients={clients.refetch}
+          onOpenSkinDossier={onOpenSkinDossier}
         />
       )}
 
@@ -580,12 +583,14 @@ function ClientSheet({
   onClose,
   onStartDiagnostic,
   onRefreshClients,
+  onOpenSkinDossier,
 }: {
   clientId: string;
   tenantId: string;
   onClose: () => void;
   onStartDiagnostic?: (clientId: string) => void;
   onRefreshClients?: () => void;
+  onOpenSkinDossier?: (clientId: string) => void;
 }) {
   // Notes PRIVÉES: persistées sur la fiche ClientProfile (base)
   const [note, setNote] = useState("");
@@ -1014,6 +1019,20 @@ function ClientSheet({
                     </span>
                   )}
                 </div>
+              )}
+
+              {/* Passerelle vers le Dossier Cutané dédié & Formulations */}
+              {onOpenSkinDossier && (
+                <Button
+                  onClick={() => {
+                    onClose();
+                    onOpenSkinDossier(c.id);
+                  }}
+                  className="w-full h-10 k-btn-gold text-primary-foreground font-bold text-xs rounded-xl gap-2 shadow-xs active:scale-95 transition-all"
+                >
+                  <FolderHeart className="size-4" />
+                  <span>Consulter le Dossier Cutané &amp; Formulations 🔬</span>
+                </Button>
               )}
 
               {/* Actions rapides: fiche papier + WhatsApp direct */}

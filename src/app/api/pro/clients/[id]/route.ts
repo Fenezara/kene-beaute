@@ -135,6 +135,8 @@ const PatchBody = z.object({
   pregnant: z.boolean().nullable().optional(),
   preferredChannel: z.string().trim().max(20).nullable().optional(),
   beautyBudget: z.string().trim().max(100).nullable().optional(),
+  skinType: z.string().trim().max(50).nullable().optional(),
+  fitzpatrick: z.string().trim().max(10).nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -163,6 +165,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (parsed.data.pregnant !== undefined) data.pregnant = parsed.data.pregnant;
     if (parsed.data.preferredChannel !== undefined) data.preferredChannel = parsed.data.preferredChannel;
     if (parsed.data.beautyBudget !== undefined) data.beautyBudget = parsed.data.beautyBudget;
+    if (parsed.data.skinType !== undefined) data.skinType = parsed.data.skinType;
+    if (parsed.data.fitzpatrick !== undefined) data.fitzpatrick = parsed.data.fitzpatrick;
 
     const updated = await db.clientProfile.update({
       where: { id },
