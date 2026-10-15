@@ -86,6 +86,15 @@ const Body = z.object({
         message: z.string(),
       })
       .optional(),
+    hasTeamCredit: z.boolean().optional(),
+    team: z
+      .object({
+        employeeName: z.string().optional(),
+        employeeId: z.string().optional(),
+        commissionAmount: z.number().int().min(0).optional(),
+        tipAmount: z.number().int().min(0).optional(),
+      })
+      .optional(),
   }),
 });
 
@@ -124,6 +133,9 @@ export async function POST(req: NextRequest) {
       const phone = c.phone || "0000000000";
       const debtNote = c.debtAmount && c.debtAmount > 0 ? ` [Reste à payer : ${c.debtAmount} FCFA]` : "";
       const notes = [c.skinNotes, debtNote].filter(Boolean).join(" · ") || null;
+      const formulationEntry = c.skinNotes
+        ? `[Secrétaire ${new Date().toLocaleDateString("fr-FR")}] ${c.skinNotes}`
+        : undefined;
 
       if (clientProfileId) {
         // Mise à jour cliente existante
@@ -131,6 +143,10 @@ export async function POST(req: NextRequest) {
         const mergedNotes = notes
           ? (existing?.notes ? `${existing.notes} | ${notes}` : notes)
           : undefined;
+        const mergedFormulation = formulationEntry
+          ? (existing?.productObservations ? `${existing.productObservations}\n\n${formulationEntry}` : formulationEntry)
+          : undefined;
+
         const updated = await db.clientProfile.update({
           where: { id: clientProfileId },
           data: {
@@ -138,6 +154,7 @@ export async function POST(req: NextRequest) {
             totalSpent: { increment: debrief.sale?.paidAmount || 0 },
             lastVisit: new Date(),
             ...(mergedNotes ? { notes: mergedNotes } : {}),
+            ...(mergedFormulation ? { productObservations: mergedFormulation } : {}),
           },
         });
         results.clientId = updated.id;
@@ -151,6 +168,10 @@ export async function POST(req: NextRequest) {
           const mergedNotes = notes
             ? (existing.notes ? `${existing.notes} | ${notes}` : notes)
             : undefined;
+          const mergedFormulation = formulationEntry
+            ? (existing.productObservations ? `${existing.productObservations}\n\n${formulationEntry}` : formulationEntry)
+            : undefined;
+
           const updated = await db.clientProfile.update({
             where: { id: existing.id },
             data: {
@@ -158,6 +179,7 @@ export async function POST(req: NextRequest) {
               totalSpent: { increment: debrief.sale?.paidAmount || 0 },
               lastVisit: new Date(),
               ...(mergedNotes ? { notes: mergedNotes } : {}),
+              ...(mergedFormulation ? { productObservations: mergedFormulation } : {}),
             },
           });
           clientProfileId = updated.id;
@@ -170,6 +192,7 @@ export async function POST(req: NextRequest) {
               phone,
               skinType: c.skinNotes ? (c.skinNotes.includes("sèche") ? "seche" : c.skinNotes.includes("grasse") ? "grasse" : "mixte") : null,
               notes,
+              productObservations: formulationEntry || null,
               visitsCount: 1,
               totalSpent: debrief.sale?.paidAmount || 0,
               lastVisit: new Date(),
@@ -195,7 +218,7 @@ export async function POST(req: NextRequest) {
           total: s.total,
           tvaAmount: tva.tva,
           paymentMethod: s.paymentMethod,
-          cashierName: "Assistante Maman",
+          cashierName: "Secrétaire de Direction",
           status: "completed",
         },
       });
@@ -237,7 +260,7 @@ export async function POST(req: NextRequest) {
           journalCode: "VT",
           date: new Date(),
           reference: genRef("VT"),
-          description: `Vente débriefing Maman #${createdSale.id.slice(-6)}`,
+          description: `Vente débriefing Secrétaire #${createdSale.id.slice(-6)}`,
           sourceType: "sale",
           sourceId: createdSale.id,
           lines: jLines,
@@ -255,9 +278,16 @@ export async function POST(req: NextRequest) {
     // ── 3. Gestion Stock (Décrémentation & Mouvements) ───────────
     if (debrief.hasStockMovement && debrief.stock?.decrements) {
       for (const dec of debrief.stock.decrements) {
-        const prod = await db.product.findFirst({
-          where: { id: dec.productId },
-        });
+        let prod = (dec.productId && dec.productId.trim())
+          ? await db.product.findFirst({ where: { tenantId, id: dec.productId } })
+          : null;
+
+        if (!prod && dec.productName) {
+          prod = await db.product.findFirst({
+            where: { tenantId, name: { contains: dec.productName } },
+          });
+        }
+
         if (prod) {
           const nextStock = Math.max(0, prod.stock - dec.qty);
           await db.product.update({
@@ -271,7 +301,7 @@ export async function POST(req: NextRequest) {
               productId: prod.id,
               type: "out",
               qty: dec.qty,
-              reason: "Vente débriefing Assistante Maman",
+              reason: "Sortie stock enregistrée par la Secrétaire de Direction",
             },
           });
           results.stockUpdated += dec.qty;
@@ -282,8 +312,33 @@ export async function POST(req: NextRequest) {
     // ── 4. Gestion Agenda (Prise de RDV futur) ───────────────────
     if (debrief.hasAppointment && debrief.appointment) {
       const appt = debrief.appointment;
-      const targetService = tenant.services.find((s) => s.id === appt.serviceId) || tenant.services[0];
-      const targetResource = tenant.resources[0];
+      let targetService = tenant.services.find((s) => s.id === appt.serviceId) || tenant.services[0];
+      let targetResource = tenant.resources[0];
+
+      if (!targetResource) {
+        targetResource = (await db.resource.findFirst({ where: { tenantId } })) || (await db.resource.create({
+          data: {
+            tenantId,
+            name: "Cabine Principale",
+            role: "Cabine de soin",
+            color: "#C8951E",
+            active: true,
+          },
+        }));
+      }
+
+      if (!targetService) {
+        targetService = (await db.service.findFirst({ where: { tenantId } })) || (await db.service.create({
+          data: {
+            tenantId,
+            name: appt.serviceName || "Soin Personnalisé",
+            category: "Soin",
+            durationMin: 60,
+            price: 15000,
+            active: true,
+          },
+        }));
+      }
 
       if (targetService && targetResource) {
         let startAt = new Date(appt.dateStr);
@@ -303,7 +358,7 @@ export async function POST(req: NextRequest) {
             durationMin: targetService.durationMin || 60,
             price: targetService.price,
             status: "confirmed",
-            notes: appt.notes || "Programmé par l'Assistante Maman",
+            notes: appt.notes || "Programmé par la Secrétaire de Direction",
           },
         });
         results.appointmentId = createdAppt.id;
@@ -314,11 +369,11 @@ export async function POST(req: NextRequest) {
     if (debrief.hasExpense && debrief.expense) {
       try {
         await createJournalEntry(tenantId, {
-          journalCode: "OD",
+          journalCode: "CA",
           date: new Date(),
-          reference: genRef("EXP"),
+          reference: genRef("DEC"),
           description: `Petite caisse — ${debrief.expense.description} (${debrief.expense.amount} F)`,
-          sourceType: "expense",
+          sourceType: "cash_expense",
           lines: [
             { accountCode: "605000", debit: debrief.expense.amount, credit: 0, label: debrief.expense.description },
             { accountCode: "571000", debit: 0, credit: debrief.expense.amount, label: "Sortie caisse espèces" },

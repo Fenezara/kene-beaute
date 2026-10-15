@@ -13,7 +13,7 @@
 // lourds sont lazy (chunk dédié au premier clic — HomeScreen/Onboarding eager).
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarDays, Crown, FolderHeart, Home, Loader2, MessageCircle, Settings, Share2, User, WifiOff } from "lucide-react";
+import { CalendarDays, Crown, FolderHeart, Home, Loader2, MessageCircle, Settings, Share2, ShieldAlert, User, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
 import { HAPTIC, haptic, isOnline, useNetworkOnline } from "@/lib/kene/ux";
@@ -520,6 +520,25 @@ export function ClientApp() {
                 {chatUnread && (
                   <span className="size-2 sm:size-2.5 rounded-full bg-[#9E2045] ring-2 ring-background animate-bounce shrink-0" />
                 )}
+              </button>
+
+              {/* 🧴 Bouton direct Scanner INCI */}
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  unlockAudioContext();
+                  goTab("chat");
+                  setTimeout(() => {
+                    const fileInput = document.querySelector<HTMLInputElement>("input[capture='environment']");
+                    if (fileInput) fileInput.click();
+                  }, 150);
+                }}
+                title="Scanner un produit cosmétique (Détection Hydroquinone, Corticoïdes & Allergènes)"
+                className="hidden sm:inline-flex items-center gap-1.5 h-9 sm:h-11 px-3 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-gold-text text-xs font-bold active:scale-95 transition-all shadow-xs shrink-0 select-none"
+              >
+                <ShieldAlert size={15} className="text-gold-text shrink-0" />
+                <span className="truncate">Scanner INCI</span>
               </button>
 
               <SpaceSwitcher variant="compact" />
