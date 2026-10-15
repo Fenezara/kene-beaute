@@ -6,16 +6,19 @@
 // 4. Soins recommandés pour ta peau (Carrousel produits)
 // 5. Mentions légales & Sécurité paiements
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  CalendarDays,
   CloudSun,
   Crown,
   MapPin,
   MessageCircle,
+  ScanFace,
   Sparkles,
   SunMedium,
   Wind,
 } from "lucide-react";
+import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
 import { apiGet } from "@/lib/kene/api";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
@@ -55,6 +58,8 @@ export function HomeScreen({
   const [data, setData] = useState<HomeData | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [contactKeneOpen, setContactKeneOpen] = useState(false);
+  const routineSectionRef = useRef<HTMLDivElement>(null);
+  const careSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -236,6 +241,112 @@ export function HomeScreen({
         </header>
       </RevealItem>
 
+      {/* ───── 0. HUB D'INTENTIONS EXPRESS : QUE SOUHAITES-TU POUR TA PEAU ? ───── */}
+      <RevealItem>
+        <section
+          aria-label="Que souhaites-tu pour ta peau aujourd'hui ?"
+          className="rounded-[24px] border border-border/80 bg-gradient-to-br from-card via-card/75 to-card p-3.5 sm:p-4 shadow-xs"
+        >
+          <div className="flex items-center justify-between gap-2 mb-3 px-1">
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-primary animate-pulse" />
+              <h3 className="text-xs sm:text-[13px] font-heading font-black tracking-tight text-foreground">
+                Que souhaites-tu pour ta peau aujourd&apos;hui ?
+              </h3>
+            </div>
+            <span className="text-[10px] uppercase tracking-wider font-extrabold text-muted-foreground/75 px-2 py-0.5 rounded-full bg-muted">
+              Intention directe
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+            {/* 1. Scanner ma peau */}
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.medium);
+                onScanZone("visage");
+              }}
+              className="group relative flex flex-col items-start p-3 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card hover:border-primary/50 text-left transition-all active:scale-[0.97] shadow-xs cursor-pointer"
+            >
+              <span className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary mb-2 transition-transform group-hover:scale-105 shadow-2xs">
+                <ScanFace size={18} />
+              </span>
+              <span className="font-heading font-black text-xs sm:text-[13px] text-foreground leading-tight">
+                {multi.score ? "Nouveau Scan" : "Scanner ma peau"}
+              </span>
+              <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+                {multi.score ? `Score actuel ${multi.score}/100` : "Miroir vérité (30s)"}
+              </span>
+            </button>
+
+            {/* 2. Mon rituel du jour */}
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                if (multi.last) {
+                  routineSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                } else {
+                  onScanZone("visage");
+                }
+              }}
+              className="group relative flex flex-col items-start p-3 rounded-2xl border border-gold/30 bg-gradient-to-br from-gold/15 via-card to-card hover:border-gold/60 text-left transition-all active:scale-[0.97] shadow-xs cursor-pointer"
+            >
+              <span className="grid size-9 place-items-center rounded-xl bg-gold/20 text-gold-text mb-2 transition-transform group-hover:scale-105 shadow-2xs">
+                <Sparkles size={18} />
+              </span>
+              <span className="font-heading font-black text-xs sm:text-[13px] text-foreground leading-tight">
+                Rituel du jour
+              </span>
+              <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+                {multi.last ? "Matin & Soir" : "À débloquer par scan"}
+              </span>
+            </button>
+
+            {/* 3. Conseil Dermo Kènè */}
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setClientTab("chat");
+              }}
+              className="group relative flex flex-col items-start p-3 rounded-2xl border border-finance/25 bg-gradient-to-br from-finance/10 via-card to-card hover:border-finance/50 text-left transition-all active:scale-[0.97] shadow-xs cursor-pointer"
+            >
+              <span className="grid size-9 place-items-center rounded-xl bg-finance/15 text-finance dark:text-blue-400 mb-2 transition-transform group-hover:scale-105 shadow-2xs">
+                <MessageCircle size={18} />
+              </span>
+              <span className="font-heading font-black text-xs sm:text-[13px] text-foreground leading-tight">
+                Dermo Kènè
+              </span>
+              <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+                Conseils & analyse
+              </span>
+            </button>
+
+            {/* 4. Mon soin en institut */}
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                careSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              className="group relative flex flex-col items-start p-3 rounded-2xl border border-success/25 bg-gradient-to-br from-success/10 via-card to-card hover:border-success/50 text-left transition-all active:scale-[0.97] shadow-xs cursor-pointer"
+            >
+              <span className="grid size-9 place-items-center rounded-xl bg-success/15 text-success dark:text-emerald-400 mb-2 transition-transform group-hover:scale-105 shadow-2xs">
+                <CalendarDays size={18} />
+              </span>
+              <span className="font-heading font-black text-xs sm:text-[13px] text-foreground leading-tight">
+                Soin en institut
+              </span>
+              <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+                {nextAppt ? "RDV & Pass Cabine" : "Prendre RDV"}
+              </span>
+            </button>
+          </div>
+        </section>
+      </RevealItem>
+
       {/* ───── Rappel d'échéance Kènè+ (J-3 ou Expiré récent) ───── */}
       {subNotice && (
         <RevealItem>
@@ -274,23 +385,25 @@ export function HomeScreen({
 
       {/* ───── 1. HERO DU DIAGNOSTIC DE PEAU & BILAN CUTANÉ ───── */}
       <RevealItem>
-        <MvpFunnelHero
-          lastDiag={multi.last ?? null}
-          globalScore={multi.score}
-          institutes={data?.institutes ?? []}
-          defaultInstituteId={selectedInst?.id || nextAppt?.tenantId || nextAppt?.tenant?.id}
-          onStartScan={() => onScanZone("visage")}
-          onOpenRoutine={() => {
-            const botanicals = lastResult ? (lastResult.recommandations?.botaniques_conseillees || []).slice(0, 3).join(", ") : undefined;
-            openWhatsAppProductOrderInquiry({
-              productName: botanicals ? `Rituel formulé sur-mesure (${botanicals})` : undefined,
-              tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
-              instituteName: selectedInst?.name,
-              country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
-            });
-          }}
-          onOpenContactKene={() => setContactKeneOpen(true)}
-        />
+        <div ref={routineSectionRef} className="scroll-mt-4">
+          <MvpFunnelHero
+            lastDiag={multi.last ?? null}
+            globalScore={multi.score}
+            institutes={data?.institutes ?? []}
+            defaultInstituteId={selectedInst?.id || nextAppt?.tenantId || nextAppt?.tenant?.id}
+            onStartScan={() => onScanZone("visage")}
+            onOpenRoutine={() => {
+              const botanicals = lastResult ? (lastResult.recommandations?.botaniques_conseillees || []).slice(0, 3).join(", ") : undefined;
+              openWhatsAppProductOrderInquiry({
+                productName: botanicals ? `Rituel formulé sur-mesure (${botanicals})` : undefined,
+                tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
+                instituteName: selectedInst?.name,
+                country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
+              });
+            }}
+            onOpenContactKene={() => setContactKeneOpen(true)}
+          />
+        </div>
       </RevealItem>
 
       {/* ───── 2. DERMO KÈNÈ · L'EXPERTE DERMO-COSMÉTIQUE 24/7 ───── */}
@@ -366,19 +479,21 @@ export function HomeScreen({
 
       {/* ───── 3. LA SECRÉTAIRE IA & VOS MOMENTS DE SOIN ───── */}
       <RevealItem>
-        <AppointmentsCareSection
-          appointments={data?.appointments ?? []}
-          selectedInstitute={selectedInst}
-          onBookCare={() =>
-            openWhatsAppAppointmentInquiry({
-              serviceCategory: "Soin esthétique",
-              serviceName: "Soin en institut partenaire",
-              tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
-              instituteName: selectedInst?.name,
-              country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
-            })
-          }
-        />
+        <div ref={careSectionRef} className="scroll-mt-4">
+          <AppointmentsCareSection
+            appointments={data?.appointments ?? []}
+            selectedInstitute={selectedInst}
+            onBookCare={() =>
+              openWhatsAppAppointmentInquiry({
+                serviceCategory: "Soin esthétique",
+                serviceName: "Soin en institut partenaire",
+                tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
+                instituteName: selectedInst?.name,
+                country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
+              })
+            }
+          />
+        </div>
       </RevealItem>
 
       {/* ───── Conseil Dermo-Météo du Jour ───── */}
