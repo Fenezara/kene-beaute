@@ -197,7 +197,7 @@ export function AgendaScreen() {
   }, [nextAppt, now]);
 
   return (
-    <div className="flex flex-col gap-5 pt-1 pb-16">
+    <div className="flex flex-col gap-5 pt-1 pb-2">
       {/* ───── En-tête : Mon Agenda & Suivi d'Institut ───── */}
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">

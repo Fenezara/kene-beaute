@@ -225,7 +225,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   };
 
   return (
-    <div className="space-y-5 pb-8">
+    <div className="space-y-5 pb-2">
       {/* ───── En-tête : Mon Dossier Peau & Données Cutanées ───── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>

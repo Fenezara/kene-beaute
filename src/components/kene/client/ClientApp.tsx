@@ -581,7 +581,7 @@ export function ClientApp() {
             </div>
           )}
           {refreshing && <span role="status" className="sr-only">Actualisation du fil en cours</span>}
-          <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-28 md:pb-10">
+          <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8">
             {/* Bannière douce de sauvegarde WhatsApp si en mode Découverte */}
             <GuestSaveBanner />
 

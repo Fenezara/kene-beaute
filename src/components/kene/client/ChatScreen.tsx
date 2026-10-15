@@ -892,7 +892,7 @@ export function ChatScreen() {
 
       {/* ─── SCÈNE 1 : LE SANCTUAIRE DE CONSULTATION ORBE DE DERMO KÈNÈ ─── */}
       {viewMode === "orb" ? (
-        <div className="py-4 space-y-5 animate-in fade-in duration-300">
+        <div className="pt-2 pb-2 space-y-4 animate-in fade-in duration-300">
           {/* Scène centrale de l'Orbe Sacré Émeraude & Or */}
           <div className="relative rounded-[32px] border border-border/80 bg-card p-6 sm:p-8 shadow-md flex flex-col items-center justify-center text-center overflow-hidden">
             {/* Lueur d'ambiance émeraude et dorée */}
