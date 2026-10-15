@@ -8,9 +8,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  AlertTriangle, Camera, ChevronLeft, ChevronRight, Compass, FileDown, Filter, ImagePlus, Info,
-  Layers, Loader2, OctagonAlert, PenLine, Printer, Search, Share2, ShieldCheck,
-  ShoppingBag, SlidersHorizontal, ScanFace, Trash2, UserPlus, Users,
+  AlertTriangle, Camera, ChevronLeft, ChevronRight, FileDown, Filter, ImagePlus, Info,
+  Loader2, OctagonAlert, PenLine, Printer, Search, Share2, ShieldCheck,
+  SlidersHorizontal, ScanFace, Trash2, UserPlus, Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -336,7 +336,7 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
               label={diagnoses.length === 0 ? "Aucun diagnostic en cabine" : "Aucun résultat correspondant"}
               sub={
                 diagnoses.length === 0
-                  ? "Lancez le premier : questionnaire guidé, photo optionnelle, immersion 3D et résultat dans le CRM."
+                  ? "Lancez le premier : questionnaire guidé, photo optionnelle et résultat dans le CRM."
                   : "Essayez de modifier vos filtres ou votre recherche."
               }
             />
@@ -1724,39 +1724,6 @@ export function ResultView({
         </CardContent>
       </Card>
 
-      {/* ── INNOVATION MAJEURE : Carte d'Accès à la « Descente de Peau 3D au Défilement » ── */}
-      {onOpenDescent && (
-        <div className="rounded-2xl border-2 border-gold/50 bg-gradient-to-br from-[#241A10] to-[#120B06] p-4 sm:p-5 text-white shadow-xl relative overflow-hidden">
-          <div className="absolute -right-6 -bottom-6 size-32 rounded-full bg-gold/15 blur-2xl pointer-events-none" />
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 relative z-10">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="grid place-items-center size-7 rounded-xl bg-gold text-[#120B06] font-bold shrink-0">
-                  <Layers className="size-4" />
-                </span>
-                <span className="text-[10.5px] font-bold uppercase tracking-wider text-gold">
-                  Immersion 3D Dermo-Cosmétique Kènè
-                </span>
-              </div>
-              <h4 className="font-heading font-black text-base sm:text-lg text-[#FFF9EC]">
-                Voyager dans sa peau en 3D (Scroll)
-              </h4>
-              <p className="text-xs text-[#FFF9EC]/80 max-w-md leading-relaxed">
-                Traversez les 3 couches cutanées (Épiderme, Derme, Hypoderme) au défilement. Les indicateurs s&apos;illuminent aux scores réels avec diffusion microscopique des botaniques.
-              </p>
-            </div>
-            <Button
-              type="button"
-              onClick={onOpenDescent}
-              className="shrink-0 k-btn-gold text-primary-foreground font-heading font-bold text-xs h-10 px-4 gap-2 shadow-lg hover:scale-105 transition-transform"
-            >
-              <Compass className="size-4" />
-              <span>Lancer la Descente 3D</span>
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* ── INNOVATION MULTI-SPECTRALE : Observation VISIA-like (si photo présente) ── */}
       {photo && (
         <SpectralViewer photo={photo} zoneMarks={result.zones_marquages} zoneLabel={zoneLabel} />
@@ -1833,16 +1800,6 @@ export function ResultView({
                 >
                   <Share2 className="size-3.5" />
                   <span>Envoyer sur WhatsApp</span>
-                </Button>
-              )}
-              {onNavigate && (
-                <Button
-                  size="sm"
-                  onClick={() => onNavigate("caisse")}
-                  className="h-8 text-xs gap-1.5 k-btn-gold text-primary-foreground font-semibold"
-                >
-                  <ShoppingBag className="size-3.5" />
-                  <span>Ajouter à la Caisse</span>
                 </Button>
               )}
             </div>

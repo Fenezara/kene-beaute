@@ -126,8 +126,7 @@ export async function GET(req: NextRequest) {
     if (guard) return guard;
     const full = req.nextUrl.searchParams.get("full") === "1";
     const light = !full;
-    // Historique borné (POC: 20 derniers). Par défaut, on ne transmet pas les
-    // mégawatts de imageData base64 pour un chargement instantané (passer ?full=1 si requis).
+    // Historique borné (20 récents). L'imageData est transmise pour afficher les aperçus et la fiche résultat sans écran blanc.
     const [selfScans, proDiags] = await Promise.all([
       db.diagnosis.findMany({
         where: { userId },
@@ -137,7 +136,7 @@ export async function GET(req: NextRequest) {
           id: true,
           userId: true,
           zone: true,
-          imageData: full,
+          imageData: true,
           resultJson: true,
           scoreGlobal: true,
           status: true,
@@ -151,7 +150,7 @@ export async function GET(req: NextRequest) {
         select: {
           id: true,
           zone: true,
-          photoData: full,
+          photoData: true,
           resultJson: true,
           scoreGlobal: true,
           createdAt: true,

@@ -33,7 +33,7 @@ import { useKene, isSavedUser } from "@/store/kene";
 import { LinkAccountModal } from "./LinkAccountModal";
 import { Chip, GlassCard, IconBadge, PrimaryCTA, ProgressBar, Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import type { ApiDiagnosis, ApiInstitute, ApiProduct } from "./types";
-import { diagImgSrc, diagImgSources, parseDiagnosis } from "./types";
+import { diagImgSrc, diagImgSources, getZoneFallbackImage, parseDiagnosis } from "./types";
 import { EmptyBlock, ScoreChip, ScoreGauge } from "./bits";
 
 const ZONE_ICONS: Record<BodyZone, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -182,7 +182,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   async function loadHistory() {
     setHistory(null);
     try {
-      const r = await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}`);
+      const r = await apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}&full=1`);
       setHistory(r.diagnoses ?? []);
     } catch {
       setHistory([]);
@@ -310,7 +310,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           const result = parseDiagnosis(d.resultJson);
           stopIntervals();
           if (!result) { failAnalysis("Résultat IA illisible — retente dans un instant"); return; }
-          showResult({ id: d.id, result, imageData: diagImgSrc(d.imageData), createdAt: d.createdAt }, t0, recovered);
+          showResult({ id: d.id, result, imageData: d.imageData || diagImgSrc(d.imageData, d.zone || result.zone), createdAt: d.createdAt }, t0, recovered);
         } else if (d.status === "error") {
           failAnalysis("Moteur d'analyse momentanément injoignable — tes photos restent prêtes, retente dans un instant.");
         }
@@ -1173,7 +1173,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   }
 
  /* ─────────── Étape 4 — Historique ─────────── */
-  if (step === 4) return <HistoryView userId={user.id} history={history} compareMode={compareMode} setCompareMode={setCompareMode} compareSel={compareSel} setCompareSel={setCompareSel} onBack={() => setStep(0)} onOpen={(d) => { const r = parseDiagnosis(d.resultJson); if (r) { setDiag({ id: d.id, result: r, imageData: diagImgSrc(d.imageData), createdAt: d.createdAt }); setStep(3); } }} />;
+  if (step === 4) return <HistoryView userId={user.id} history={history} compareMode={compareMode} setCompareMode={setCompareMode} compareSel={compareSel} setCompareSel={setCompareSel} onBack={() => setStep(0)} onOpen={async (d) => { const r = parseDiagnosis(d.resultJson); if (r) { let img = d.imageData; if (!img) { try { const res = await apiGet<{ diagnosis: ApiDiagnosis }>(`/api/diagnoses/${d.id}`); if (res?.diagnosis?.imageData) { img = res.diagnosis.imageData; } } catch {} } setDiag({ id: d.id, result: r, imageData: img || getZoneFallbackImage(d.zone || r.zone), createdAt: d.createdAt }); setStep(3); } }} />;
 
  /* ─────────── Étape 3 — Résultats ─────────── */
   if (step === 3 && diag) {
@@ -1189,9 +1189,36 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
   const [view, setView] = useState<string>("standard");
-  const allImages = useMemo(() => diagImgSources(diag.imageData), [diag.imageData]);
+  const zoneFallback = useMemo(() => getZoneFallbackImage(r.zone), [r.zone]);
+  const [resolvedImageData, setResolvedImageData] = useState<string>(diag.imageData || "");
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    if (diag.imageData) {
+      setResolvedImageData(diag.imageData);
+      setImgError(false);
+      return;
+    }
+    let alive = true;
+    apiGet<{ diagnosis: ApiDiagnosis }>(`/api/diagnoses/${diag.id}`)
+      .then((res) => {
+        if (alive && res?.diagnosis?.imageData) {
+          setResolvedImageData(res.diagnosis.imageData);
+          setImgError(false);
+        }
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [diag.id, diag.imageData]);
+
+  const allImages = useMemo(() => {
+    const list = diagImgSources(resolvedImageData, r.zone);
+    return list.length > 0 ? list : [zoneFallback];
+  }, [resolvedImageData, r.zone, zoneFallback]);
+
   const [selectedImgIdx, setSelectedImgIdx] = useState(0);
-  const currentImg = allImages[selectedImgIdx] || diagImgSrc(diag.imageData);
+  const rawCurrentImg = allImages[selectedImgIdx] || diagImgSrc(resolvedImageData, r.zone) || zoneFallback;
+  const currentImg = imgError ? zoneFallback : rawCurrentImg;
   const [ritualOpen, setRitualOpen] = useState(false);
   const [beautyCardOpen, setBeautyCardOpen] = useState(false);
   const [glossary, setGlossary] = useState<GlossaryEntry | null>(null);
@@ -1525,7 +1552,12 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
           </Tabs>
           <p className="text-[11px] text-muted-foreground mt-2 mb-2">{viewDef.label}{view !== "standard" ? " — filtre spectral + cartographie chaleur" : ""}</p>
           <div className="relative k-card rounded-[24px] overflow-hidden">
-            <img src={currentImg} alt={`Vue ${viewDef.label} de la zone analysée`} className={`aspect-square w-full object-cover ${view !== "standard" ? viewDef.filter : ""}`} />
+            <img
+              src={currentImg}
+              alt={`Vue ${viewDef.label} de la zone analysée`}
+              onError={() => setImgError(true)}
+              className={`aspect-square w-full object-cover ${view !== "standard" ? viewDef.filter : ""}`}
+            />
             {heatmapCls && (
               <div
                 aria-hidden="true"
@@ -1591,7 +1623,14 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
                     )}
                     aria-label={`Afficher angle ${i + 1}`}
                   >
-                    <img src={src} alt={`Angle ${i + 1}`} className="size-full object-cover" />
+                    <img
+                      src={src}
+                      alt={`Angle ${i + 1}`}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = zoneFallback;
+                      }}
+                      className="size-full object-cover"
+                    />
                   </button>
                 ))}
               </div>
@@ -2261,8 +2300,16 @@ function HistoryView({
                     className="flex items-center gap-3 flex-1 min-w-0 text-left focus-visible:outline-2 focus-visible:outline-primary rounded-xl"
                     aria-label={`Diagnostic ${d.zone} du ${formatDate(d.createdAt)}, score ${d.scoreGlobal}${d.institut ? `, en institut ${d.institut}` : ""}`}
                   >
-                    {diagImgSrc(d.imageData) ? (
-                      <img src={diagImgSrc(d.imageData)} alt={`Diagnostic ${d.zone}`} loading="lazy" className="h-14 w-14 rounded-xl object-cover shrink-0" />
+                    {diagImgSrc(d.imageData, d.zone) ? (
+                      <img
+                        src={diagImgSrc(d.imageData, d.zone)}
+                        alt={`Diagnostic ${d.zone}`}
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = getZoneFallbackImage(d.zone);
+                        }}
+                        className="h-14 w-14 rounded-xl object-cover shrink-0"
+                      />
                     ) : (
                       <div className="h-14 w-14 rounded-xl grid place-items-center bg-muted shrink-0" aria-hidden="true">
                         <Building2 size={20} className="text-primary" />

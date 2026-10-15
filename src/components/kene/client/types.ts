@@ -306,33 +306,48 @@ export function parseDiagnosis(resultJson: string): import("@/lib/kene/types").D
   }
 }
 
+/** Image de secours haute fidélité pour une zone anatomique si la photo est absente ou inaccessible */
+export function getZoneFallbackImage(zone?: string): string {
+  const z = (zone || "visage").toLowerCase().trim();
+  if (z === "dos") return "/skin/guide-dos-1.webp";
+  if (z === "mains") return "/skin/guide-mains-1.webp";
+  return "/skin/guide-visage-1.webp";
+}
+
 /** imageData "data:..." (upload), "file:/skin/x.webp" (seed) ou JSON stringifié ["data:..."] → src utilisable */
-export function diagImgSrc(imageData: string): string {
-  if (!imageData) return "";
+export function diagImgSrc(imageData: string, fallbackZone?: string): string {
+  if (!imageData) return fallbackZone ? getZoneFallbackImage(fallbackZone) : "";
   if (imageData.startsWith("[")) {
     try {
       const arr = JSON.parse(imageData);
-      if (Array.isArray(arr) && arr[0]) return diagImgSrc(arr[0]);
+      if (Array.isArray(arr) && arr[0]) return diagImgSrc(arr[0], fallbackZone);
     } catch {
       // ignore
     }
   }
   if (imageData.startsWith("data:")) return imageData;
-  return imageData.replace(/^file:/, "");
+  const clean = imageData.replace(/^file:/, "");
+  return clean || (fallbackZone ? getZoneFallbackImage(fallbackZone) : "");
 }
 
 /** Récupère la liste de tous les angles d'images d'un diagnostic */
-export function diagImgSources(imageData: string): string[] {
-  if (!imageData) return [];
+export function diagImgSources(imageData: string, fallbackZone?: string): string[] {
+  if (!imageData) {
+    const fb = fallbackZone ? getZoneFallbackImage(fallbackZone) : "";
+    return fb ? [fb] : [];
+  }
   if (imageData.startsWith("[")) {
     try {
       const arr = JSON.parse(imageData);
-      if (Array.isArray(arr)) return arr.map((item) => diagImgSrc(String(item))).filter(Boolean);
+      if (Array.isArray(arr)) {
+        const list = arr.map((item) => diagImgSrc(String(item), fallbackZone)).filter(Boolean);
+        if (list.length > 0) return list;
+      }
     } catch {
       // ignore
     }
   }
-  const single = diagImgSrc(imageData);
+  const single = diagImgSrc(imageData, fallbackZone);
   return single ? [single] : [];
 }
 

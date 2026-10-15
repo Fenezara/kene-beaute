@@ -16,7 +16,27 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const diagnosis = await db.diagnosis.findUnique({ where: { id } });
+    let diagnosis: any = await db.diagnosis.findUnique({ where: { id } });
+    if (!diagnosis) {
+      const pro = await db.proDiagnosis.findUnique({
+        where: { id },
+        include: { tenant: { select: { name: true } } },
+      });
+      if (pro) {
+        diagnosis = {
+          id: pro.id,
+          userId: pro.userId,
+          zone: pro.zone,
+          imageData: pro.photoData ?? "",
+          resultJson: pro.resultJson,
+          scoreGlobal: pro.scoreGlobal,
+          status: "done",
+          createdAt: pro.createdAt,
+          institut: pro.tenant?.name,
+          practitioner: pro.practitioner ?? null,
+        };
+      }
+    }
     if (!diagnosis) return jsonError("Diagnostic introuvable", 404);
     const sess = sessionFromRequest(req);
     if (sess) {
