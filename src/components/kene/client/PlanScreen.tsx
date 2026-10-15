@@ -524,7 +524,7 @@ export function PlanScreen() {
                   <td className="py-2.5 px-2 text-center text-gold-text font-bold">👑 Prioritaire 24/7</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-2 font-medium">Passeport de Peau digital (partage salon)</td>
+                  <td className="py-2.5 px-2 font-medium">Dossier de Peau digital (partage institut)</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">Basique</td>
                   <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Fiche 360°</td>
                 </tr>

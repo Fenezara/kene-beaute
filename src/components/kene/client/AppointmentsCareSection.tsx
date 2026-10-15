@@ -35,18 +35,21 @@ interface AppointmentsCareSectionProps {
 export function AppointmentsCareSection({ appointments, onBookCare, selectedInstitute }: AppointmentsCareSectionProps) {
   const now = Date.now();
 
-  // Rendez-vous à venir (non annulés, classés du plus proche au plus lointain)
-  const upcoming = useMemo(() => {
+  // Tous les rendez-vous valides (non annulés) de la cliente
+  const validAppointments = useMemo(() => {
     return appointments
-      .filter((a) => {
-        const time = new Date(a.startAt).getTime();
-        return time >= now - 2 * 3600 * 1000 && a.status !== "cancelled"; // visibles jusqu'à 2h après le début
-      })
+      .filter((a) => a.status !== "cancelled")
       .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
-  }, [appointments, now]);
+  }, [appointments]);
 
-  const nextAppt = upcoming[0] ?? null;
-  const otherUpcoming = upcoming.slice(1);
+  // Rendez-vous à venir (du plus proche au plus lointain)
+  const upcoming = useMemo(() => {
+    return validAppointments.filter((a) => new Date(a.startAt).getTime() >= now - 4 * 3600 * 1000);
+  }, [validAppointments, now]);
+
+  // Rendez-vous actif prioritaire : soit le prochain à venir, soit le plus récent saisi par l'institut
+  const nextAppt = upcoming[0] ?? (validAppointments.length > 0 ? validAppointments[validAppointments.length - 1] : null);
+  const otherUpcoming = nextAppt ? validAppointments.filter((a) => a.id !== nextAppt.id) : [];
 
   // Alerte proactive (compte à rebours bienveillant)
   const reminder = useMemo(() => {
@@ -183,7 +186,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
     openWhatsApp(tenantPhone, msg, country);
   }
 
-  if (upcoming.length === 0) {
+  if (!nextAppt) {
     return (
       <section
         aria-labelledby="care-appts-heading"
@@ -197,7 +200,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#A0522D]/15 text-[#A0522D] dark:text-[#E89E78] border border-[#A0522D]/30">
-                  👑 Secrétaire IA · Moments de Soin
+                  ✨ Rendez-vous &amp; Soins Cabine
                 </span>
               </div>
               <h3 id="care-appts-heading" className="font-heading font-black text-sm sm:text-base text-foreground mt-0.5">
@@ -338,11 +341,11 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#A0522D]/15 text-[#A0522D] dark:text-[#E89E78] border border-[#A0522D]/30">
-                  👑 Secrétaire IA · Conciergerie de Soin
+                  ✨ Soin en Institut Partenaire
                 </span>
               </div>
               <h3 id="care-appts-heading" className="font-heading font-black text-sm sm:text-base text-foreground mt-0.5">
-                Mon Prochain Moment de Soin
+                {new Date(nextAppt.startAt).getTime() >= now - 4 * 3600 * 1000 ? "Mon Prochain Moment de Soin" : "Mon Rendez-vous en Institut"}
               </h3>
               <p className="text-[11px] text-muted-foreground">Rappels proactifs WhatsApp &amp; coordination de vos séances</p>
             </div>
@@ -457,7 +460,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
       {otherUpcoming.length > 0 && (
         <div className="space-y-2 pt-1">
           <p className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground px-1">
-            Autres rendez-vous programmés ({otherUpcoming.length}) :
+            Autres rendez-vous enregistrés ({otherUpcoming.length}) :
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {otherUpcoming.map((item) => {

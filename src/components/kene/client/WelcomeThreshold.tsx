@@ -992,7 +992,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-success mt-0.5 shrink-0" />
-                                  <span><strong>Passeport de Peau 360°</strong> & remises VIP sur la Boutique</span>
+                                  <span><strong>Dossier de Peau 360°</strong> &amp; remises VIP sur la Boutique</span>
                                 </li>
                               </ul>
                             </div>
@@ -1060,7 +1060,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                 <td className="py-2.5 px-2 text-center text-gold-text font-bold">⭐ Historique J+14, J+30, J+60</td>
                               </tr>
                               <tr>
-                                <td className="py-2.5 px-3 font-medium">Passeport de Peau &amp; Pass Cabine QR</td>
+                                <td className="py-2.5 px-3 font-medium">Dossier de Peau &amp; Pass Cabine QR</td>
                                 <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
                                 <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
                               </tr>

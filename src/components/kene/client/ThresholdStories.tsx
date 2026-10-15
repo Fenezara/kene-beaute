@@ -37,7 +37,7 @@ const STORIES: StoryCard[] = [
     img: "/instituts/institut-baobab.webp",
     imgAlt: "Institut partenaire Kènè",
     num: "03",
-    title: "Soins & Conciergerie WhatsApp",
+    title: "Soins & Instituts Partenaires",
     sub: "Commandes de cosmétiques et rendez-vous cabine en direct sur WhatsApp.",
   },
 ];

@@ -290,50 +290,6 @@ export function MvpFunnelHero({
           </p>
         </section>
       )}
-
-      {/* ───── 3. CONCIERGERIE PRIVÉE KÈNÈ (WHATSAPP DÉDIÉ) ───── */}
-      <section
-        aria-label="Conciergerie Privée Kènè"
-        className="rounded-[24px] border border-[#25D366]/30 bg-gradient-to-br from-[#25D366]/10 via-[#25D366]/5 to-transparent p-4 sm:p-5 flex flex-col gap-2.5 shadow-sm"
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#25D366] text-white shadow-md">
-              <MessageCircle size={20} />
-            </span>
-            <div className="min-w-0">
-              <p className="font-heading font-black text-sm text-foreground truncate">
-                Conciergerie WhatsApp
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                Conseils, soins cabine &amp; commandes en direct
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleOpenInstituteWhatsApp}
-            className="shrink-0 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs px-3.5 py-2 flex items-center gap-1.5 shadow-sm transition-transform active:scale-95"
-          >
-            <MessageCircle size={14} />
-            Échanger
-          </button>
-        </div>
-
-        {/* Passerelle vers le Support d'écoute Kènè */}
-        {onOpenContactKene && (
-          <div className="pt-2 border-t border-[#25D366]/20 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>Besoin d&apos;orientation ?</span>
-            <button
-              type="button"
-              onClick={onOpenContactKene}
-              className="font-bold text-primary hover:underline"
-            >
-              Support Kènè →
-            </button>
-          </div>
-        )}
-      </section>
     </div>
   );
 }

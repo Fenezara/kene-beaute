@@ -49,22 +49,75 @@ export async function GET(req: NextRequest) {
 
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { id: true, phone: true },
+      select: { id: true, phone: true, name: true, selectedTenantId: true },
     });
 
     const since = new Date();
-    since.setDate(since.getDate() - 30);
+    since.setDate(since.getDate() - 90); // 90 jours pour couvrir tous les RDV récents et futurs
+
+    const userDigits = user?.phone ? user.phone.replace(/\D/g, "") : "";
+    const phoneFilter = userDigits.length >= 8 ? userDigits.slice(-8) : "";
+
+    // 1. Instituts avec lesquels la cliente partage ses données de peau
+    const sharedConsents = await db.consent.findMany({
+      where: { userId, type: "share_scans", granted: true, tenantId: { not: null } },
+      select: { tenantId: true },
+    });
+    const sharedTenantIds = new Set<string>();
+    if (user?.selectedTenantId) sharedTenantIds.add(user.selectedTenantId);
+    for (const c of sharedConsents) {
+      if (c.tenantId) sharedTenantIds.add(c.tenantId);
+    }
+
+    // 2. Fiches CRM clientes associées à cette utilisatrice
+    const profiles = await db.clientProfile.findMany({
+      where: {
+        OR: [
+          { userId },
+          ...(user?.phone ? [{ phone: user.phone }, { phone: user.phone.replace(/\s+/g, "") }] : []),
+          ...(phoneFilter ? [{ phone: { contains: phoneFilter } }] : []),
+        ],
+      },
+      select: { id: true, tenantId: true },
+    });
+    for (const p of profiles) {
+      if (p.tenantId) sharedTenantIds.add(p.tenantId);
+    }
 
     const orClauses: Array<Record<string, unknown>> = [{ userId }];
 
+    // Par ID de fiche profil client
+    const profileIds = profiles.map((p) => p.id);
+    if (profileIds.length > 0) {
+      orClauses.push({ clientProfileId: { in: profileIds } });
+    }
+
+    // Par téléphone sous divers formats
     if (user?.phone) {
       const rawPhone = user.phone.trim();
-      const digits = rawPhone.replace(/\D/g, "");
       orClauses.push({ clientPhone: rawPhone });
       orClauses.push({ clientPhone: user.phone });
       orClauses.push({ clientPhone: rawPhone.replace(/\s+/g, "") });
-      if (digits.length >= 8) {
-        orClauses.push({ clientPhone: { contains: digits.slice(-8) } });
+      orClauses.push({ clientPhone: rawPhone.replace(/^\+225/, "").trim() });
+      if (phoneFilter) {
+        orClauses.push({ clientPhone: { contains: phoneFilter } });
+      }
+    }
+
+    // Par institut partenaire partagé (si le RDV a été saisi à l'institut sous le nom ou téléphone de la cliente)
+    if (sharedTenantIds.size > 0) {
+      const tenantIds = Array.from(sharedTenantIds);
+      if (phoneFilter) {
+        orClauses.push({
+          tenantId: { in: tenantIds },
+          clientPhone: { contains: phoneFilter },
+        });
+      }
+      if (user?.name && user.name.trim().length >= 3) {
+        orClauses.push({
+          tenantId: { in: tenantIds },
+          clientName: { contains: user.name.trim() },
+        });
       }
     }
 
@@ -77,11 +130,22 @@ export async function GET(req: NextRequest) {
       orderBy: { startAt: "asc" },
     });
 
-    // Backfill automatique du userId sur les RDV saisis par l'institut via numéro
-    const toBackfill = appointments.filter((a) => !a.userId).map((a) => a.id);
+    // Backfill automatique du userId sur TOUS les RDV reconnus
+    const toBackfill = appointments.filter((a) => a.userId !== userId).map((a) => a.id);
     if (toBackfill.length > 0) {
       await db.appointment.updateMany({
         where: { id: { in: toBackfill } },
+        data: { userId },
+      }).catch(() => null);
+    }
+
+    // Lier également les fiches clientProfile orphelines reconnues
+    const profileIdsToLink = appointments
+      .map((a) => a.clientProfileId)
+      .filter((id): id is string => Boolean(id));
+    if (profileIdsToLink.length > 0) {
+      await db.clientProfile.updateMany({
+        where: { id: { in: profileIdsToLink }, userId: null },
         data: { userId },
       }).catch(() => null);
     }

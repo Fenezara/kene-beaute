@@ -1646,7 +1646,7 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
               </span>
               <span className="text-left min-w-0 flex-1">
                 <span className="block font-heading font-black text-base leading-tight">La Route de l&apos;Or</span>
-                <span className="block text-[11px] opacity-90">Tisse ta routine en 4 stations — ton kente de soin à la fin</span>
+                <span className="block text-[11px] opacity-90">Tisse ta routine en 4 stations — ton rituel sur-mesure à la fin</span>
               </span>
               <ChevronRight size={20} className="ml-auto opacity-80 shrink-0" />
             </span>
