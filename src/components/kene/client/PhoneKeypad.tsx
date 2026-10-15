@@ -130,19 +130,30 @@ export function PhoneKeypad({
         </p>
         <div
           ref={displayRef}
-          className="mt-6 flex min-h-[64px] w-full max-w-[300px] items-center justify-center gap-2 rounded-[20px] k-card px-5"
+          className="mt-6 flex flex-nowrap min-h-[64px] w-full max-w-[360px] sm:max-w-[400px] items-center justify-center gap-2 rounded-[20px] k-card px-4 py-2.5 whitespace-nowrap shadow-xs"
           aria-live="polite"
           aria-label={`Numéro saisi : +225 ${formatDigits(digits) || "en attente"}`}
         >
-          <span className="font-mono text-[17px] text-muted-foreground">+225</span>
-          <span className="font-mono text-[30px] font-bold tracking-[0.06em] text-foreground">
-            {formatDigits(digits) || <span className="text-muted-foreground/50">· · · ·</span>}
+          <span className="font-mono text-[16px] sm:text-[18px] font-bold text-muted-foreground shrink-0 select-none">
+            +225
           </span>
-          {/* Caret — pulstation sur la saisie */}
+          <span
+            className={cn(
+              "font-mono font-bold tracking-[0.05em] text-foreground whitespace-nowrap shrink-0 transition-all",
+              digits.length >= 8
+                ? "text-[19px] sm:text-[22px]"
+                : digits.length >= 5
+                ? "text-[22px] sm:text-[25px]"
+                : "text-[25px] sm:text-[28px]"
+            )}
+          >
+            {formatDigits(digits) || <span className="text-muted-foreground/40 font-normal tracking-[0.2em]">· · · ·</span>}
+          </span>
+          {/* Caret — pulsation sur la saisie */}
           {digits.length > 0 && digits.length < MAX_DIGITS && (
             <motion.span
               aria-hidden="true"
-              className="ml-0.5 h-7 w-[2px] rounded-full bg-primary"
+              className="ml-0.5 h-6 sm:h-7 w-[2px] rounded-full bg-primary shrink-0"
               animate={{ opacity: [1, 0.15, 1] }}
               transition={{ duration: 1.1, repeat: Infinity }}
             />
@@ -210,7 +221,7 @@ export function PhoneKeypad({
               exit={{ opacity: 0 }}
               className="mt-4 text-center text-[12px] text-muted-foreground"
             >
-              Prêt — « → » envoie le code à <span className="font-mono text-foreground">+225 {formatDigits(digits)}</span>
+              Prêt — « → » envoie le code à <span className="font-mono text-foreground font-semibold whitespace-nowrap">+225 {formatDigits(digits)}</span>
             </motion.p>
           )}
         </AnimatePresence>

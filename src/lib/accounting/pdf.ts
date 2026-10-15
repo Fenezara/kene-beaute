@@ -18,17 +18,48 @@ const RESERVE_BOTTOM = 52; // réserve pied de page
 const CONTENT_W = M_RIGHT - M_X; // ≈ 507
 
 export type RGB = readonly [number, number, number];
-const INK: RGB = [0.16, 0.11, 0.05];
-const SOFT: RGB = [0.45, 0.38, 0.28];
-const GOLD: RGB = [0.69, 0.497, 0.078]; // #B07F14 — identité Kènè
-const GOLD_DARK: RGB = [0.545, 0.376, 0.043];
-const GOLD_BAND: RGB = [0.965, 0.918, 0.812]; // bande de titre de section
-const CREAM: RGB = [0.973, 0.945, 0.894]; // zébrures #F8F1E4
-const CARD: RGB = [0.988, 0.972, 0.937];
-const LINE: RGB = [0.85, 0.79, 0.68];
-const GREEN: RGB = [0.13, 0.45, 0.28];
-const RED: RGB = [0.72, 0.26, 0.18];
-export { INK, SOFT, GOLD, GOLD_DARK, GOLD_BAND, CREAM, CARD, LINE, GREEN, RED };
+
+// Ébène velouté (Foreground Kènè)
+const INK: RGB = [0.133, 0.094, 0.063];         // #221810 — Brun ébène doux
+const SOFT: RGB = [0.450, 0.380, 0.280];       // Texte secondaire adouci
+
+// Reine Bissap (Signature Primaire de la marque Kènè)
+const BISSAP: RGB = [0.620, 0.125, 0.271];       // #9E2045 — Rouge Bissap Royal
+const BISSAP_DARK: RGB = [0.486, 0.078, 0.200]; // #7C1433 — Lisible en impression
+const BISSAP_SOFT: RGB = [0.988, 0.910, 0.933]; // #FCE8EE — Voile d'Hibiscus doux
+
+// Or Akan Solaire (Prestige & Éclat)
+const GOLD: RGB = [0.831, 0.604, 0.141];         // #D49A24 — Or Akan solaire
+const GOLD_DARK: RGB = [0.541, 0.369, 0.043];   // #8A5E0B — Or lisible (WCAG AA)
+const GOLD_WARM: RGB = [0.898, 0.663, 0.235];   // #E5A93C — Ambre solaire
+const GOLD_BAND: RGB = [0.976, 0.933, 0.835];   // Crème dorée zébrures & bandeaux
+
+// Terracotta Argile Tiébélé
+const TERRE: RGB = [0.698, 0.353, 0.220];        // #B25A38 — Terracotta Tiébélé
+
+// Vert Moringa & Kinkeliba (Santé Cutanée & Botanique)
+const GREEN: RGB = [0.180, 0.435, 0.251];        // #2E6F40 — Vert Moringa ancestral
+const MORINGA: RGB = GREEN;
+
+// Indigo Mandingue (Finance & Liasse)
+const INDIGO: RGB = [0.118, 0.208, 0.357];       // #1E355B — Bleu Mandingue
+
+// Surfaces & Papiers d'art
+const KARITE: RGB = [0.980, 0.961, 0.922];       // #FAF5EB — Crème Karité fouettée
+const CREAM: RGB = KARITE;
+const CARD: RGB = [1.000, 0.992, 0.976];         // #FFFDF9 — Nacre ivoirienne
+const LINE: RGB = [0.890, 0.843, 0.765];         // Liseré doux sable chaud
+const LINE_LIGHT: RGB = [0.935, 0.905, 0.850];
+
+// Cosméto-vigilance & Alertes
+const RED: RGB = [0.720, 0.180, 0.180];
+
+export {
+  INK, SOFT, BISSAP, BISSAP_DARK, BISSAP_SOFT,
+  GOLD, GOLD_DARK, GOLD_WARM, GOLD_BAND,
+  TERRE, GREEN, MORINGA, INDIGO, RED,
+  KARITE, CREAM, CARD, LINE, LINE_LIGHT,
+};
 export { PAGE_W, PAGE_H, M_X, M_RIGHT, CONTENT_W, CONTENT_TOP };
 export { wrapText };
 export type Font = "regular" | "bold" | "oblique";
@@ -358,11 +389,28 @@ export class PdfDoc {
     return { data: buf.toUint8(), pages: total };
   }
 
+  /** Trace le ruban de marque signature Kènè (Bissap 45% + Or Akan 35% + Terre 20%) */
+  drawBrandRibbon(x: number, y: number, w: number, h = 3): void {
+    const wBissap = w * 0.45;
+    const wGold = w * 0.35;
+    const wTerre = w - wBissap - wGold;
+    this.rect(x, y, wBissap, h, BISSAP);
+    this.rect(x + wBissap, y, wGold, h, GOLD);
+    this.rect(x + wBissap + wGold, y, wTerre, h, TERRE);
+  }
+
   private runningHeader(): string {
     const left = encodePdfText(this.headerText);
+    const wBissap = CONTENT_W * 0.45;
+    const wGold = CONTENT_W * 0.35;
+    const wTerre = CONTENT_W - wBissap - wGold;
+    const yLine = fmtPt(PAGE_H - 46);
     return (
-      `BT /F1 7 Tf 0 Tc ${SOFT.map(fmtPt).join(" ")} rg 1 0 0 1 ${M_X} ${fmtPt(PAGE_H - 36)} Tm (${left}) Tj ET\n` +
-      `q ${GOLD.map((v) => fmtPt(v)).join(" ")} RG 1.1 w ${M_X} ${fmtPt(PAGE_H - 46)} m ${M_RIGHT} ${fmtPt(PAGE_H - 46)} l S Q`
+      `BT /F2 7.5 Tf 0.8 Tc ${BISSAP.map(fmtPt).join(" ")} rg 1 0 0 1 ${M_X} ${fmtPt(PAGE_H - 36)} Tm (KENE) Tj ET\n` +
+      `BT /F1 7 Tf 0 Tc ${SOFT.map(fmtPt).join(" ")} rg 1 0 0 1 ${fmtPt(M_X + 30)} ${fmtPt(PAGE_H - 36)} Tm (|  ${left}) Tj ET\n` +
+      `q ${BISSAP.map(fmtPt).join(" ")} rg ${M_X} ${yLine} ${fmtPt(wBissap)} 1.8 re f Q\n` +
+      `q ${GOLD.map(fmtPt).join(" ")} rg ${fmtPt(M_X + wBissap)} ${yLine} ${fmtPt(wGold)} 1.8 re f Q\n` +
+      `q ${TERRE.map(fmtPt).join(" ")} rg ${fmtPt(M_X + wBissap + wGold)} ${yLine} ${fmtPt(wTerre)} 1.8 re f Q`
     );
   }
   private pageFooter(n: number, total: number): string {
@@ -435,10 +483,10 @@ export function liassePdf(input: LiassePdfInput): LiassePdfResult {
 
   // ════════ PAGE DE GARDE ════════
   doc.setFooter(`Kènè Pro · ${input.tenantName} · Liasse ${periodLabel}`);
-  doc.text("KÈNÈ", M_X, 78, { font: "bold", size: 26, color: GOLD, letterSpace: 2.2 });
+  doc.text("KÈNÈ", M_X, 78, { font: "bold", size: 26, color: BISSAP, letterSpace: 2.2 });
   doc.text("Liasse comptable — dossier complet", M_X, 100, { font: "bold", size: 15, color: INK });
   doc.text("Référentiel SYSCOHADA révisé (OHADA) — présentation simplifiée", M_X, 116, { size: 9.5, color: SOFT });
-  doc.hline(M_X, M_X + 130, 130, GOLD, 2);
+  doc.drawBrandRibbon(M_X, 130, 160, 2.8);
   doc.text(input.tenantName, M_X, 158, { font: "bold", size: 13, color: INK });
   if (input.tenantCity) doc.text(input.tenantCity, M_X, 174, { size: 9.5, color: SOFT });
   doc.text(`Période : ${periodLabel}`, M_X, 200, { font: "bold", size: 10.5, color: INK });
@@ -493,9 +541,10 @@ export function liassePdf(input: LiassePdfInput): LiassePdfResult {
   function section(no: number, title: string, subtitle?: string): void {
     doc.ensure(64);
     doc.advance(30);
-    doc.rect(M_X, doc.cursorY - 13, CONTENT_W, 22, GOLD_BAND);
-    doc.text(String(no), M_X + 8, doc.cursorY + 3, { font: "bold", size: 13, color: GOLD });
-    doc.text(title.toUpperCase(), M_X + 24, doc.cursorY + 3, { font: "bold", size: 10.5, color: INK, letterSpace: 0.8 });
+    doc.rect(M_X, doc.cursorY - 13, CONTENT_W, 22, BISSAP_SOFT);
+    doc.drawBrandRibbon(M_X, doc.cursorY - 13, CONTENT_W, 1.8);
+    doc.text(String(no), M_X + 8, doc.cursorY + 3, { font: "bold", size: 12, color: BISSAP });
+    doc.text(title.toUpperCase(), M_X + 24, doc.cursorY + 3, { font: "bold", size: 10, color: INK, letterSpace: 0.8 });
     doc.advance(20);
     if (subtitle) {
       doc.text(subtitle, M_X, doc.cursorY, { size: 8, color: SOFT, maxW: CONTENT_W });

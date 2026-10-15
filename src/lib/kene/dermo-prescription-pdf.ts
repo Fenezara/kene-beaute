@@ -11,10 +11,16 @@ import {
   CONTENT_W,
   INK,
   SOFT,
+  BISSAP,
+  BISSAP_DARK,
+  BISSAP_SOFT,
   GOLD,
   GOLD_DARK,
   GOLD_BAND,
+  TERRE,
+  KARITE,
   CREAM,
+  CARD,
   LINE,
   GREEN,
   RED,
@@ -78,33 +84,39 @@ export function generatePrescriptionPdf(input: PrescriptionPdfInput): { data: Ui
   const zoneLabel = BODY_ZONES.find((z) => z.id === input.zone)?.label ?? input.zone;
   const res = input.diagnosisResult;
 
-  // 1. BANDEAU DE TÊTE LUXE
+  // 1. BANDEAU DE TÊTE LUXE KÈNÈ
   doc.ensure(56);
-  doc.rect(M_X, doc.cursorY, CONTENT_W, 46, GOLD);
-  doc.text("KÈNÈ · HAUTE COSMÉTOLOGIE BOTANIQUE", M_X + 12, doc.cursorY + 14, {
+  const topY = doc.cursorY;
+  const bannerH = 46;
+  doc.rect(M_X, topY, CONTENT_W, bannerH, CARD);
+  doc.rectStroke(M_X, topY, CONTENT_W, bannerH, LINE, 0.7);
+  doc.drawBrandRibbon(M_X, topY, CONTENT_W, 3.5);
+
+  doc.text("KÈNÈ · HAUTE COSMÉTOLOGIE BOTANIQUE", M_X + 12, topY + 16, {
     font: "bold",
-    size: 11,
-    color: CREAM,
-    letterSpace: 1.2,
+    size: 10.5,
+    color: BISSAP,
+    letterSpace: 1.4,
   });
-  doc.text("RECOMMANDATION DE SOIN & PASS CABINE", M_X + 12, doc.cursorY + 28, {
+  doc.text("RECOMMANDATION DE SOIN & PASS CABINE", M_X + 12, topY + 30, {
     font: "bold",
-    size: 11.5,
-    color: CREAM,
+    size: 10,
+    color: INK,
   });
-  doc.textRight(fmtDateLong(input.createdAt), M_RIGHT - 12, doc.cursorY + 14, {
-    size: 8.5,
-    color: CREAM,
+  doc.textRight(fmtDateLong(input.createdAt), M_RIGHT - 12, topY + 16, {
+    size: 8,
+    color: SOFT,
   });
-  doc.textRight(`Zone : ${zoneLabel.toUpperCase()}`, M_RIGHT - 12, doc.cursorY + 28, {
+  doc.textRight(`Zone : ${zoneLabel.toUpperCase()}`, M_RIGHT - 12, topY + 30, {
+    font: "bold",
     size: 8.5,
-    color: CREAM,
+    color: GOLD_DARK,
   });
   doc.advance(56);
 
   // 2. BLOC IDENTITÉ CLIENTE & SYNTHÈSE SCORE
   doc.ensure(52);
-  doc.rect(M_X, doc.cursorY, CONTENT_W, 44, CREAM);
+  doc.rect(M_X, doc.cursorY, CONTENT_W, 44, KARITE);
   doc.rectStroke(M_X, doc.cursorY, CONTENT_W, 44, LINE, 0.8);
 
   // Colonne gauche : Bénéficiaire
@@ -126,11 +138,11 @@ export function generatePrescriptionPdf(input: PrescriptionPdfInput): { data: Ui
 
   // 3. RITUELS PRESCRITS (Matin & Soir)
   doc.ensure(24);
-  doc.rect(M_X, doc.cursorY, CONTENT_W, 16, GOLD_BAND);
+  doc.rect(M_X, doc.cursorY, CONTENT_W, 16, BISSAP_SOFT);
   doc.text("RITUEL BOTANIQUE QUOTIDIEN RECOMMANDÉ", M_X + 8, doc.cursorY + 11, {
     font: "bold",
-    size: 9.5,
-    color: GOLD_DARK,
+    size: 9,
+    color: BISSAP_DARK,
     letterSpace: 0.5,
   });
   doc.advance(22);
@@ -191,8 +203,8 @@ export function generatePrescriptionPdf(input: PrescriptionPdfInput): { data: Ui
   doc.ensure(90);
   const qrBoxY = doc.cursorY;
   const qrBoxH = 80;
-  doc.rect(M_X, qrBoxY, CONTENT_W, qrBoxH, CREAM);
-  doc.rectStroke(M_X, qrBoxY, CONTENT_W, qrBoxH, GOLD, 1);
+  doc.rect(M_X, qrBoxY, CONTENT_W, qrBoxH, KARITE);
+  doc.rectStroke(M_X, qrBoxY, CONTENT_W, qrBoxH, BISSAP, 0.8);
 
   // Tracé du QR Code vectoriel (62x62 pt)
   const qrTarget = input.passUrl || `https://kene.app/pass?u=${encodeURIComponent(input.userName)}&z=${input.zone}`;
@@ -203,7 +215,7 @@ export function generatePrescriptionPdf(input: PrescriptionPdfInput): { data: Ui
   doc.text("PASS CABINE KÈNÈ (SCAN INSTITUT)", textX, qrBoxY + 18, {
     font: "bold",
     size: 10,
-    color: GOLD_DARK,
+    color: BISSAP_DARK,
     letterSpace: 0.5,
   });
   doc.text(

@@ -7,9 +7,14 @@ import {
   textWidth,
   INK,
   SOFT,
+  BISSAP,
+  BISSAP_DARK,
+  BISSAP_SOFT,
   GOLD,
   GOLD_DARK,
   GOLD_BAND,
+  TERRE,
+  KARITE,
   CREAM,
   CARD,
   LINE,
@@ -103,52 +108,55 @@ export function appointmentPassPdf(data: AppointmentPassData): AppointmentPassRe
     `Kènè · Plateforme éditée par Dermo TIC · Soin dispensé exclusivement par ${data.tenant.name} · Pass ${passCode}`
   );
 
-  // 1. En-tête officiel Kènè Pro
+  // 1. En-tête de prestige Kènè Pro
   const topY = doc.cursorY;
-  doc.rect(M_X, topY, CONTENT_W, 58, GOLD);
+  const bannerH = 58;
+  doc.rect(M_X, topY, CONTENT_W, bannerH, CARD);
+  doc.rectStroke(M_X, topY, CONTENT_W, bannerH, LINE, 0.7);
+  doc.drawBrandRibbon(M_X, topY, CONTENT_W, 3.5);
 
   doc.text("KÈNÈ PRO", M_X + 16, topY + 22, {
     font: "bold",
-    size: 20,
-    color: CREAM,
-    letterSpace: 3,
+    size: 18,
+    color: BISSAP,
+    letterSpace: 2.5,
   });
   doc.text("RÉSEAU D'INSTITUTS & PRATICIENNES DE SANTÉ CUTANÉE", M_X + 16, topY + 36, {
     font: "bold",
     size: 7.5,
-    color: CREAM,
+    color: GOLD_DARK,
     letterSpace: 0.8,
   });
-  doc.text("Pass officiel certifié · Confirmation d'acompte", M_X + 16, topY + 48, {
-    size: 7,
-    color: CREAM,
+  doc.text("Pass officiel certifié · Confirmation d'acompte & accès cabine", M_X + 16, topY + 48, {
+    size: 7.2,
+    color: SOFT,
   });
 
   // Bloc droite du Pass
   const rightX = M_RIGHT - 16;
   doc.textRight("PASS RENDEZ-VOUS CABINE", rightX, topY + 20, {
     font: "bold",
-    size: 13,
-    color: CREAM,
-    letterSpace: 1,
+    size: 11,
+    color: INK,
+    letterSpace: 0.8,
   });
   doc.textRight(passCode, rightX, topY + 34, {
     font: "bold",
-    size: 11,
-    color: CREAM,
+    size: 12,
+    color: BISSAP,
   });
-  doc.textRight(data.appointment.status.toUpperCase(), rightX, topY + 47, {
+  doc.textRight(`STATUT : ${data.appointment.status.toUpperCase()}`, rightX, topY + 47, {
     font: "bold",
     size: 8,
-    color: CREAM,
+    color: GREEN,
   });
 
   doc.advance(70);
 
-  // 2. Encart signature « Créneau réservé » (Mise en valeur or)
+  // 2. Encart signature « Créneau réservé » (Mise en valeur)
   const slotY = doc.cursorY;
-  doc.rect(M_X, slotY, CONTENT_W, 44, CREAM);
-  doc.rectStroke(M_X, slotY, CONTENT_W, 44, GOLD, 1);
+  doc.rect(M_X, slotY, CONTENT_W, 44, KARITE);
+  doc.rectStroke(M_X, slotY, CONTENT_W, 44, GOLD, 0.8);
 
   doc.text("CRÉNEAU CONFIRMÉ", M_X + 14, slotY + 15, {
     font: "bold",
@@ -227,11 +235,11 @@ export function appointmentPassPdf(data: AppointmentPassData): AppointmentPassRe
   doc.rect(M_X, finY, CONTENT_W, 68, CARD);
   doc.rectStroke(M_X, finY, CONTENT_W, 68, LINE, 0.7);
 
-  doc.rect(M_X, finY, CONTENT_W, 20, GOLD_BAND);
+  doc.rect(M_X, finY, CONTENT_W, 20, BISSAP_SOFT);
   doc.text("RÉCAPITULATIF FINANCIER DE LA PRESTATION", M_X + 10, finY + 13, {
     font: "bold",
     size: 8,
-    color: GOLD_DARK,
+    color: BISSAP_DARK,
     letterSpace: 0.5,
   });
 
@@ -286,13 +294,13 @@ export function appointmentPassPdf(data: AppointmentPassData): AppointmentPassRe
   // 6. Bloc de validation accueil
   doc.ensure(54);
   const checkY = doc.cursorY;
-  doc.rect(M_X, checkY, CONTENT_W, 42, CREAM);
-  doc.rectStroke(M_X, checkY, CONTENT_W, 42, GOLD, 0.7);
+  doc.rect(M_X, checkY, CONTENT_W, 42, KARITE);
+  doc.rectStroke(M_X, checkY, CONTENT_W, 42, BISSAP, 0.6);
 
   doc.text("VALIDATION À L'ACCUEIL DU SALON", M_X + 12, checkY + 15, {
     font: "bold",
     size: 8,
-    color: GOLD_DARK,
+    color: BISSAP_DARK,
     letterSpace: 0.5,
   });
   doc.text(

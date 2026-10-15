@@ -16,9 +16,14 @@ import {
   wrapText,
   INK,
   SOFT,
+  BISSAP,
+  BISSAP_DARK,
+  BISSAP_SOFT,
   GOLD,
   GOLD_DARK,
   GOLD_BAND,
+  TERRE,
+  KARITE,
   CREAM,
   CARD,
   LINE,
@@ -143,30 +148,30 @@ function headerBanner(
   subtitle: string,
   tenantInfo: { name: string; city?: string | null; phone?: string | null; date?: Date }
 ): void {
-  doc.ensure(52);
+  doc.ensure(56);
   const topY = doc.cursorY;
-  const bannerH = 46;
+  const bannerH = 48;
 
-  // Fond doux et liseré double
-  doc.rect(M_X, topY, CONTENT_W, bannerH, CREAM);
+  // Fond nacre/carte et bordure douce
+  doc.rect(M_X, topY, CONTENT_W, bannerH, CARD);
   doc.rectStroke(M_X, topY, CONTENT_W, bannerH, LINE, 0.7);
-  // Bandeau supérieur accent or Kènè
-  doc.rect(M_X, topY, CONTENT_W, 2.5, GOLD);
+  // Ruban supérieur signature Kènè (Bissap 45% + Or 35% + Terre 20%)
+  doc.drawBrandRibbon(M_X, topY, CONTENT_W, 3.2);
 
-  // Colonne Gauche : Marque + Titre du document
-  doc.text("KÈNÈ PRO", M_X + 12, topY + 15, {
+  // Colonne Gauche : Marque en Bissap + Titre du document
+  doc.text("KÈNÈ PRO", M_X + 12, topY + 16, {
     font: "bold",
     size: 11,
-    color: GOLD_DARK,
-    letterSpace: 1.6,
+    color: BISSAP,
+    letterSpace: 1.8,
   });
-  doc.text(mainTitle, M_X + 12, topY + 27, {
+  doc.text(mainTitle, M_X + 12, topY + 28, {
     font: "bold",
     size: 9.5,
     color: INK,
     letterSpace: 0.3,
   });
-  doc.text(subtitle, M_X + 12, topY + 38, {
+  doc.text(subtitle, M_X + 12, topY + 40, {
     size: 7.2,
     color: SOFT,
     font: "oblique",
@@ -177,20 +182,20 @@ function headerBanner(
   const phoneStr = tenantInfo.phone ? `Tél. ${tenantInfo.phone}` : "";
   const dateStr = `Date : ${fmtDate(tenantInfo.date ?? new Date())}`;
 
-  doc.textRight(tenantInfo.name + cityStr, M_RIGHT - 12, topY + 15, {
+  doc.textRight(tenantInfo.name + cityStr, M_RIGHT - 12, topY + 16, {
     font: "bold",
     size: 8.5,
     color: INK,
     maxW: 240,
   });
   if (phoneStr) {
-    doc.textRight(phoneStr, M_RIGHT - 12, topY + 26, {
+    doc.textRight(phoneStr, M_RIGHT - 12, topY + 27, {
       size: 7.8,
       color: SOFT,
       maxW: 200,
     });
   }
-  doc.textRight(dateStr, M_RIGHT - 12, topY + 37, {
+  doc.textRight(dateStr, M_RIGHT - 12, topY + 39, {
     font: "bold",
     size: 7.8,
     color: GOLD_DARK,
@@ -205,15 +210,15 @@ function sectionBand(doc: PdfDoc, num: string, title: string, subtitle?: string)
   doc.ensure(subtitle ? 30 : 24);
   const curY = doc.cursorY;
 
-  // Pastille numérotée dorée
+  // Pastille numérotée Bissap Royal doux
   const badgeW = 20;
   const badgeH = 13;
-  doc.rect(M_X, curY, badgeW, badgeH, GOLD_BAND);
-  doc.rectStroke(M_X, curY, badgeW, badgeH, GOLD, 0.5);
+  doc.rect(M_X, curY, badgeW, badgeH, BISSAP_SOFT);
+  doc.rectStroke(M_X, curY, badgeW, badgeH, BISSAP, 0.6);
   doc.text(num, M_X + badgeW / 2 - textWidth(num, 7.5, "bold") / 2, curY + 9.5, {
     font: "bold",
     size: 7.5,
-    color: GOLD_DARK,
+    color: BISSAP_DARK,
   });
 
   // Titre principal

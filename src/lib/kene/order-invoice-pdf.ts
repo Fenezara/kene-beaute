@@ -8,9 +8,14 @@ import {
   textWidth,
   INK,
   SOFT,
+  BISSAP,
+  BISSAP_DARK,
+  BISSAP_SOFT,
   GOLD,
   GOLD_DARK,
   GOLD_BAND,
+  TERRE,
+  KARITE,
   CREAM,
   CARD,
   LINE,
@@ -143,42 +148,46 @@ export function orderInvoicePdf(data: OrderInvoiceData): OrderPdfResult {
 
   // 1. En-tête de prestige Kènè
   const topY = doc.cursorY;
-  doc.rect(M_X, topY, CONTENT_W, 58, GOLD);
+  const bannerH = 58;
+  doc.rect(M_X, topY, CONTENT_W, bannerH, CARD);
+  doc.rectStroke(M_X, topY, CONTENT_W, bannerH, LINE, 0.7);
+  doc.drawBrandRibbon(M_X, topY, CONTENT_W, 3.5);
 
   // Titre KÈNÈ et emblème
   doc.text("KÈNÈ", M_X + 16, topY + 22, {
     font: "bold",
     size: 20,
-    color: CREAM,
+    color: BISSAP,
     letterSpace: 3,
   });
   doc.text("BEAUTÉ & BIEN-ÊTRE MÉLANODERME · COSMÉTOPÉE PANAFRICAINE", M_X + 16, topY + 36, {
     font: "bold",
     size: 7.5,
-    color: CREAM,
+    color: GOLD_DARK,
     letterSpace: 0.8,
   });
   doc.text("Plateforme certifiée · Abidjan (CI) · Dakar (SN)", M_X + 16, topY + 48, {
-    size: 7,
-    color: CREAM,
+    size: 7.2,
+    color: SOFT,
   });
 
   // Bloc Facture droite
   const rightX = M_RIGHT - 16;
   doc.textRight("FACTURE / REÇU D'ACHAT", rightX, topY + 20, {
     font: "bold",
-    size: 13,
-    color: CREAM,
-    letterSpace: 1,
+    size: 11,
+    color: INK,
+    letterSpace: 0.8,
   });
   doc.textRight(`N° ${invoiceNum}`, rightX, topY + 34, {
     font: "bold",
-    size: 10,
-    color: CREAM,
+    size: 11,
+    color: BISSAP,
   });
   doc.textRight(fmtDate(data.order.createdAt), rightX, topY + 47, {
+    font: "bold",
     size: 8,
-    color: CREAM,
+    color: GOLD_DARK,
   });
 
   doc.advance(70);
@@ -259,11 +268,11 @@ export function orderInvoicePdf(data: OrderInvoiceData): OrderPdfResult {
   const tableY = doc.cursorY;
 
   // En-tête du tableau
-  doc.rect(M_X, tableY, CONTENT_W, 20, GOLD_BAND);
-  doc.text("DÉSIGNATION DU PRODUIT", M_X + 8, tableY + 13, { font: "bold", size: 8, color: GOLD_DARK });
-  doc.textRight("QTÉ", M_X + 330, tableY + 13, { font: "bold", size: 8, color: GOLD_DARK });
-  doc.textRight("P.U. (FCFA)", M_X + 410, tableY + 13, { font: "bold", size: 8, color: GOLD_DARK });
-  doc.textRight("TOTAL (FCFA)", M_RIGHT - 8, tableY + 13, { font: "bold", size: 8, color: GOLD_DARK });
+  doc.rect(M_X, tableY, CONTENT_W, 20, BISSAP_SOFT);
+  doc.text("DÉSIGNATION DU PRODUIT", M_X + 8, tableY + 13, { font: "bold", size: 8, color: BISSAP_DARK });
+  doc.textRight("QTÉ", M_X + 330, tableY + 13, { font: "bold", size: 8, color: BISSAP_DARK });
+  doc.textRight("P.U. (FCFA)", M_X + 410, tableY + 13, { font: "bold", size: 8, color: BISSAP_DARK });
+  doc.textRight("TOTAL (FCFA)", M_RIGHT - 8, tableY + 13, { font: "bold", size: 8, color: BISSAP_DARK });
 
   doc.advance(22);
 
@@ -340,8 +349,8 @@ export function orderInvoicePdf(data: OrderInvoiceData): OrderPdfResult {
   doc.hline(finBoxX + 8, M_RIGHT - 8, curFinY - 4, GOLD, 1);
 
   // Total TTC Payé
-  doc.text("TOTAL NET PAYÉ", finBoxX + 10, curFinY + 4, { font: "bold", size: 10, color: GOLD_DARK });
-  doc.textRight(fmtFcfa(data.order.total), M_RIGHT - 10, curFinY + 4, { font: "bold", size: 11, color: GOLD_DARK });
+  doc.text("TOTAL NET PAYÉ", finBoxX + 10, curFinY + 4, { font: "bold", size: 10, color: BISSAP_DARK });
+  doc.textRight(fmtFcfa(data.order.total), M_RIGHT - 10, curFinY + 4, { font: "bold", size: 11, color: BISSAP });
 
   // 6. Bloc Cashback fidélité (à gauche du récapitulatif)
   if (data.order.cashback > 0 && data.order.status !== "pending") {
