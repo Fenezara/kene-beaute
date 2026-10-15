@@ -688,6 +688,16 @@ export function ChatScreen() {
 
     window.addEventListener("kene:chat:speak_first", onSpeakFirstEvent);
 
+    // Vérification d'un message préparé (ex: consultation sur un bilan diagnostic)
+    const hasPendingMsg =
+      typeof window !== "undefined" && Boolean(window.sessionStorage.getItem("kene:pending_chat_message"));
+    if (hasPendingMsg) {
+      hasSpokenOnMountRef.current = true;
+      return () => {
+        window.removeEventListener("kene:chat:speak_first", onSpeakFirstEvent);
+      };
+    }
+
     // Vérification du drapeau de session au montage
     const shouldSpeakSession =
       typeof window !== "undefined" && window.sessionStorage.getItem("kene:chat:speak_first") === "true";
@@ -719,6 +729,40 @@ export function ChatScreen() {
     };
   }, [speak]);
 
+  const sendRef = useRef<(text?: string) => Promise<void>>(async () => {});
+
+  // Écoute de l'événement de transmission directe (ex: consultation diagnostic ou dossier)
+  useEffect(() => {
+    const handleChatSend = (e: Event) => {
+      const ce = e as CustomEvent<{ message: string; viewMode?: "orb" | "thread" }>;
+      if (ce.detail?.message) {
+        setViewMode(ce.detail.viewMode || "thread");
+        setTimeout(() => {
+          void sendRef.current(ce.detail.message);
+        }, 150);
+      }
+    };
+    window.addEventListener("kene:chat:send", handleChatSend);
+
+    const pendingMsg =
+      typeof window !== "undefined" ? window.sessionStorage.getItem("kene:pending_chat_message") : null;
+    if (pendingMsg) {
+      window.sessionStorage.removeItem("kene:pending_chat_message");
+      setViewMode("thread");
+      const t = setTimeout(() => {
+        void sendRef.current(pendingMsg);
+      }, 350);
+      return () => {
+        clearTimeout(t);
+        window.removeEventListener("kene:chat:send", handleChatSend);
+      };
+    }
+
+    return () => {
+      window.removeEventListener("kene:chat:send", handleChatSend);
+    };
+  }, []);
+
   async function send(text?: string) {
     unlockAudioContext();
     const content = (text ?? input).trim();
@@ -729,7 +773,8 @@ export function ChatScreen() {
     setSending(true);
     try {
       // Transport compact: 10 derniers messages avec texte complet préservé (incluant transcriptions vocales)
-      const history = [...messages, mine]
+      const currentMessages = useChat.getState().messages;
+      const history = [...currentMessages, mine]
         .slice(-10)
         .map((m) => ({ role: m.role, content: (m.transcription || m.content).slice(0, 1500) }));
       const r = await apiPost<{ reply: string }>("/api/dermato/chat", { messages: history, userId: user.id }, { timeoutMs: 35_000 });
@@ -744,6 +789,10 @@ export function ChatScreen() {
       setSending(false);
     }
   }
+
+  useEffect(() => {
+    sendRef.current = send;
+  });
 
   async function processPhotosDataUrls(dataUrls: string[]) {
     if (photoBusy || dataUrls.length === 0) return;

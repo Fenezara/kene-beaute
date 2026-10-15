@@ -45,7 +45,6 @@ const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType
   { tab: "accueil", labelKey: "tab.home", icon: Home },
   { tab: "dossier", labelKey: "tab.dossier", icon: FolderHeart },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
-  { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
   { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
@@ -55,7 +54,7 @@ const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<
   { tab: "accueil", labelKey: "tab.home", icon: Home },
   { tab: "dossier", labelKey: "tab.dossier", icon: FolderHeart },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
-  { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
+  { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
@@ -80,7 +79,7 @@ const TITLES: Record<ScreenTab, string> = {
 };
 
 /** Ordre de balayage mobile (swipe horizontal gauche/droite) */
-const SWIPE_ORDER: ClientTab[] = ["accueil", "dossier", "diagnostic", "agenda", "profil"];
+const SWIPE_ORDER: ClientTab[] = ["accueil", "dossier", "diagnostic", "chat", "profil"];
 
 // ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
 import { DiagnosticScreen } from "./DiagnosticScreen";
@@ -148,7 +147,7 @@ export function ClientApp() {
     try {
       const params = new URLSearchParams(window.location.search);
       const targetTab = params.get("tab")?.toLowerCase();
-      const VALID_TABS: ClientTab[] = ["accueil", "agenda", "diagnostic", "chat", "profil", "parametres", "abonnement", "legal"];
+      const VALID_TABS: ClientTab[] = ["accueil", "dossier", "diagnostic", "chat", "profil", "parametres", "abonnement", "legal"];
       if (targetTab && VALID_TABS.includes(targetTab as ClientTab)) {
         setClientTab(targetTab as ClientTab);
       }
@@ -157,12 +156,12 @@ export function ClientApp() {
     }
   }, [setClientTab]);
 
-  // Redirection automatique : boutique vers accueil, rdv vers agenda, instituts vers profil
+  // Redirection automatique : boutique/agenda/rdv vers accueil, instituts vers profil
   useEffect(() => {
     if (tab === "boutique") {
       setClientTab("accueil");
-    } else if (tab === "rdv") {
-      setClientTab("agenda");
+    } else if (tab === "agenda" || tab === "rdv") {
+      setClientTab("accueil");
     } else if (tab === "instituts") {
       setClientTab("profil");
     }

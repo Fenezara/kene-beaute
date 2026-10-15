@@ -1256,6 +1256,29 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
 
     return () => { alive = false; };
   }, [user.id, user.tenantId, user.city, diag, r]);
+
+  // Échange interactif direct avec Dermo Kènè (Chat IA) sur le bilan cutané
+  const handleConsultDermoKene = useCallback(() => {
+    const zoneLabel = BODY_ZONES.find((z) => z.id === r.zone)?.label || r.zone;
+    const conditions = r.hypotheses && r.hypotheses.length > 0
+      ? r.hypotheses.map((h) => `${h.nom} (${h.confiance}% certitude)`).join(", ")
+      : "Équilibre et vitalité cutanée";
+    const botanicals = r.recommandations?.botaniques_conseillees?.slice(0, 4).join(", ") || "Actifs botaniques purs";
+    const score = r.score_global;
+
+    const message = `Bonjour Dermo Kènè ! 🌸 Je viens d'effectuer mon analyse cutanée sur la zone "${zoneLabel}".
+Mon score de santé cutanée est de ${score}/100${r.fitzpatrick_estime ? ` (Phototype Fitzpatrick ${r.fitzpatrick_estime})` : ""}.
+${r.hypotheses && r.hypotheses.length > 0 ? `Les besoins prioritaires détectés sont : ${conditions}.` : ""}
+Les actifs botaniques recommandés pour moi sont : ${botanicals}.
+Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quotidien et me guider pas à pas dans ma routine matin et soir ?`;
+
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("kene:pending_chat_message", message);
+      window.dispatchEvent(new CustomEvent("kene:chat:send", { detail: { message, viewMode: "thread" } }));
+    }
+    setClientTab("chat");
+  }, [r, setClientTab]);
+
   // Fiabilité: champ posé par le worker dans resultJson; les
   // anciens diagnostics n'en ont pas → dérivé de `source` (déjà présent).
   const confidence = r.confidence ?? (r.source === "vlm" ? "haute" : "indicative");
@@ -1933,6 +1956,17 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
       )}
 
       <RevealItem className="mt-4 pb-2">
+        {/* Échanger directement avec Dermo Kènè sur ce bilan */}
+        <button
+          type="button"
+          onClick={handleConsultDermoKene}
+          className="k-btn-gold mb-3 h-12 w-full rounded-2xl text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-[0.99] transition-all focus-visible:outline-2 focus-visible:outline-primary"
+          aria-label="Échanger avec Dermo Kènè sur ce bilan"
+        >
+          <MessageCircle size={18} />
+          <span>Échanger avec Dermo Kènè sur ce bilan</span>
+        </button>
+
         <div className="grid grid-cols-2 gap-3">
           <button onClick={onNewZone} className="k-chip h-12 rounded-2xl text-primary text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
             <ScanFace size={16} /> Nouvelle zone

@@ -180,15 +180,10 @@ export default function Page() {
           )}
         </main>
 
-        {/* Passeport de Peau — vue publique quand l'URL porte?passport=<jeton> (QR scanné en institut). Au-dessus de TOUT:
- même le Seuil s'efface derrière lui. */}
-        <PassportGate />
-
-        {/* Herbier des Grandes-Mères — jardin des plantes quand
- l'URL porte #herbier (liens profonds + ouverture depuis le
- glossaire). Frère du PassportGate: hash dédié, aucune collision
- avec `?passport=…` ni #moonlight; fermeture = replaceState. */}
-        <HerbierGate />
+        {/* Fonctionnalités annexes (Passeport de Peau public ?passport= et Herbier 3D #herbier)
+            mises en sommeil pour la version actuelle — conservées pour les prochaines versions enrichies */}
+        {/* <PassportGate /> */}
+        {/* <HerbierGate /> */}
 
         {/* Validation de session au boot — TOUS espaces (voir SessionKeeper) */}
         <SessionKeeper />

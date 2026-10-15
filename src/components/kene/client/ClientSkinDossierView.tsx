@@ -212,6 +212,24 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
     toast.success("Ouverture de WhatsApp", { description: "Ordonnance beauté prête à partager" });
   };
 
+  // Échanger directement avec Dermo Kènè sur le dossier de peau
+  const consultDermoKene = () => {
+    haptic(HAPTIC.tap);
+    let msg = `Bonjour Dermo Kènè ! 🌸 Je viens consulter mon Dossier Peau Kènè.`;
+    if (lastResult) {
+      const zoneLabel = BODY_ZONES.find((z) => z.id === lastResult.zone)?.label || lastResult.zone;
+      const botanicals = lastResult.recommandations?.botaniques_conseillees?.slice(0, 3).join(", ") || "Actifs botaniques";
+      msg += ` Mon dernier bilan sur la zone "${zoneLabel}" a un score de ${lastResult.score_global}/100. Les actifs prescrits sont : ${botanicals}. Peux-tu m'expliquer l'évolution de ma peau et me guider dans ma routine quotidienne ?`;
+    } else {
+      msg += ` Peux-tu m'aider à faire le point sur mes besoins cutanés et m'expliquer comment optimiser ma routine de soin ?`;
+    }
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("kene:pending_chat_message", msg);
+      window.dispatchEvent(new CustomEvent("kene:chat:send", { detail: { message: msg, viewMode: "thread" } }));
+    }
+    setClientTab("chat");
+  };
+
   const handleDownloadPdf = () => {
     haptic(HAPTIC.tap);
     toast.success("Ordonnance Beauté & Dossier Peau générés", {
@@ -466,20 +484,28 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               <div className="pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
+                    onClick={consultDermoKene}
+                    className="k-btn-gold text-primary-foreground font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-xs active:scale-95 transition-all"
+                  >
+                    <MessageCircle className="size-4" />
+                    <span>Échanger avec Dermo Kènè</span>
+                  </Button>
+
+                  <Button
                     onClick={shareMySkinReportWhatsApp}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-xs active:scale-95 transition-all"
                   >
-                    <MessageCircle className="size-4" />
-                    <span>Partager mon Ordonnance par WhatsApp</span>
+                    <Share2 className="size-4" />
+                    <span>Partager par WhatsApp</span>
                   </Button>
 
                   {isGuestUser && (
                     <Button
                       onClick={() => setLinkModalOpen(true)}
-                      className="k-btn-gold text-primary-foreground font-black text-xs h-10 px-4 rounded-xl gap-2 shadow-xs active:scale-95 transition-all"
+                      className="border border-[#C8951E]/50 bg-primary/10 hover:bg-primary/20 text-foreground font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-xs active:scale-95 transition-all"
                     >
-                      <BookmarkCheck className="size-4" />
-                      <span>Sauvegarder sur mon WhatsApp</span>
+                      <BookmarkCheck className="size-4 text-[#C8951E]" />
+                      <span>Sauvegarder sur WhatsApp</span>
                     </Button>
                   )}
                 </div>
