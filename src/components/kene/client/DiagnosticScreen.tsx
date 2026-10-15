@@ -1237,9 +1237,31 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
   }, [user.id]);
 
   const chosenTenant = user.selectedTenant || null;
-  const chosenPhone = chosenTenant?.phone || (chosenTenant as any)?.ownerPhone || undefined;
+  const chosenPhone = chosenTenant?.ownerPhone || chosenTenant?.phone || undefined;
   const chosenName = chosenTenant?.name || undefined;
   const chosenCountry = (((chosenTenant as any)?.country || "CI") as "CI" | "SN");
+
+  // Entreprise / Institut partenaire qui suit la cliente (priorité : institut avec données partagées / référent)
+  const [partnerInstitute, setPartnerInstitute] = useState<{
+    id?: string;
+    name: string;
+    phone: string;
+    ownerPhone?: string | null;
+    city?: string;
+    country?: "CI" | "SN";
+  } | null>(() => {
+    if (user.selectedTenant) {
+      return {
+        id: user.selectedTenant.id,
+        name: user.selectedTenant.name,
+        phone: user.selectedTenant.phone || "",
+        ownerPhone: user.selectedTenant.ownerPhone,
+        city: user.selectedTenant.city,
+        country: (user.selectedTenant.country === "SN" ? "SN" : "CI"),
+      };
+    }
+    return null;
+  });
 
   // Recommandation intelligente post-diagnostic :
   // STRICTEMENT LIMITÉE aux clientes dont le compte, le dossier ou elles-mêmes
@@ -1251,21 +1273,51 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
   useEffect(() => {
     let alive = true;
     const diagAny = diag as unknown as { institut?: string; practitioner?: string };
-    if (user.tenantId || diagAny.institut || diagAny.practitioner) {
-      setIsAttachedOrShared(true);
-      return;
-    }
 
     Promise.all([
-      apiGet<{ shares: Array<{ tenantId: string }> }>(`/api/auth/shares?userId=${encodeURIComponent(user.id)}`).catch(() => ({ shares: [] })),
-      apiGet<{ appointments: Array<{ id: string }> }>(`/api/appointments?userId=${encodeURIComponent(user.id)}`).catch(() => ({ appointments: [] })),
+      apiGet<{ shares: Array<{ tenantId: string; name: string; city: string; phone: string; ownerPhone?: string | null; country: string; granted: boolean }> }>(`/api/auth/shares?userId=${encodeURIComponent(user.id)}`).catch(() => ({ shares: [] })),
+      apiGet<{ appointments: Array<{ id: string; institute?: { name: string; phone?: string; ownerPhone?: string } }> }>(`/api/appointments?userId=${encodeURIComponent(user.id)}`).catch(() => ({ appointments: [] })),
       apiGet<{ institutes: ApiInstitute[] }>("/api/institutes").catch(() => ({ institutes: [] })),
     ]).then(([sharesRes, apptsRes, instRes]) => {
       if (!alive) return;
-      const hasShares = (sharesRes.shares?.length ?? 0) > 0;
+      const grantedShare = sharesRes.shares?.find((s) => s.granted);
+      const hasShares = (sharesRes.shares?.filter((s) => s.granted).length ?? 0) > 0;
       const hasAppts = (apptsRes.appointments?.length ?? 0) > 0;
-      const attached = hasShares || hasAppts;
+      const attached = Boolean(user.tenantId || diagAny.institut || diagAny.practitioner || hasShares || hasAppts || user.selectedTenant);
       setIsAttachedOrShared(attached);
+
+      // Résolution prioritaire de l'entreprise qui suit la cliente
+      if (user.selectedTenant) {
+        setPartnerInstitute({
+          id: user.selectedTenant.id,
+          name: user.selectedTenant.name,
+          phone: user.selectedTenant.phone || "",
+          ownerPhone: user.selectedTenant.ownerPhone,
+          city: user.selectedTenant.city,
+          country: (user.selectedTenant.country === "SN" ? "SN" : "CI"),
+        });
+      } else if (grantedShare) {
+        setPartnerInstitute({
+          id: grantedShare.tenantId,
+          name: grantedShare.name,
+          phone: grantedShare.phone || "",
+          ownerPhone: grantedShare.ownerPhone,
+          city: grantedShare.city,
+          country: (grantedShare.country === "SN" ? "SN" : "CI"),
+        });
+      } else if (diagAny.institut) {
+        const found = instRes.institutes?.find((i) => i.name.toLowerCase() === diagAny.institut?.toLowerCase());
+        if (found) {
+          setPartnerInstitute({
+            id: found.id,
+            name: found.name,
+            phone: found.phone || "",
+            ownerPhone: (found as any).ownerPhone,
+            city: found.city,
+            country: (found.country === "SN" ? "SN" : "CI"),
+          });
+        }
+      }
 
       // Recommandation intelligente UNIQUEMENT si NON rattachée et NON partagée
       if (!attached && (instRes.institutes?.length ?? 0) > 0) {
@@ -1282,7 +1334,7 @@ function ResultView({ diag, products, productsError, onRetryProducts, onNewZone,
     });
 
     return () => { alive = false; };
-  }, [user.id, user.tenantId, user.city, diag, r]);
+  }, [user.id, user.tenantId, user.selectedTenant, user.city, diag, r]);
 
   // Échange interactif direct avec Dermo Kènè (Chat IA) sur le bilan cutané
   const handleConsultDermoKene = useCallback(() => {
@@ -1810,8 +1862,8 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
             </div>
           )}
 
-          {/* Institut Référent notifié du diagnostic */}
-          {user.selectedTenant && (
+          {/* Entreprise / Institut Référent notifié du diagnostic */}
+          {(partnerInstitute || user.selectedTenant) && (
             <div className="mt-5 k-card rounded-[24px] p-4 border border-[#3F7D3F]/30 bg-gradient-to-br from-[#3F7D3F]/10 via-card to-card shadow-xs">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -1823,7 +1875,7 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
                       Mon Institut Référent notifié ✅
                     </p>
                     <p className="text-[10.5px] text-muted-foreground">
-                      Votre bilan a été transmis à {user.selectedTenant.name} ({user.selectedTenant.city})
+                      Votre bilan a été transmis à {(partnerInstitute || user.selectedTenant)?.name} ({(partnerInstitute || user.selectedTenant)?.city})
                     </p>
                   </div>
                 </div>
@@ -1834,9 +1886,10 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
               <button
                 type="button"
                 onClick={() => {
-                  const phone = chosenPhone || user.selectedTenant?.phone || (user.selectedTenant as any)?.ownerPhone || "2250700000000";
-                  const name = chosenName || user.selectedTenant?.name || "l'institut";
-                  openWhatsApp(phone, `Bonjour ${name} ! 🌸\nJe viens de finaliser mon bilan de peau (${r.score_global}/100) sur l'application Kènè. Je souhaite programmer mon soin ou contrôle en cabine avec vous.`, chosenCountry);
+                  const inst = partnerInstitute || user.selectedTenant;
+                  const phone = inst?.ownerPhone?.trim() || inst?.phone?.trim() || "";
+                  const name = inst?.name || "l'institut";
+                  openWhatsApp(phone, `Bonjour ${name} ! 🌸\nJe viens de finaliser mon bilan de peau (${r.score_global}/100) sur l'application Kènè. Je souhaite programmer mon soin ou contrôle en cabine avec vous.`, (inst?.country as "CI" | "SN") || chosenCountry);
                 }}
                 className="mt-3.5 h-11 w-full rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold flex items-center justify-center gap-2 active:scale-98 transition-all shadow-xs"
               >
@@ -2053,6 +2106,91 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
         >
           <FileDown size={15} /> Compte-rendu d&apos;analyse détaillé
         </button>
+
+        {/* ── Communication WhatsApp avec l'entreprise qui suit la cliente ── */}
+        <div className="mt-4 rounded-[24px] border-2 border-[#25D366]/40 bg-gradient-to-br from-[#25D366]/10 via-card to-card p-4 shadow-sm">
+          {partnerInstitute ? (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="grid place-items-center size-9 rounded-2xl bg-[#25D366]/20 text-[#128C7E] dark:text-[#25D366] shrink-0">
+                    <Building2 size={18} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-heading font-bold text-xs sm:text-sm text-foreground truncate">
+                      Entreprise qui suit votre peau
+                    </p>
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-foreground/90">{partnerInstitute.name}</span>
+                      {partnerInstitute.city && <span>· {partnerInstitute.city}</span>}
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-px text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                        <Check size={9} /> Données partagées
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                Échangez directement sur WhatsApp avec le premier responsable de {partnerInstitute.name} pour débriefer vos résultats et planifier vos soins.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  const phone = partnerInstitute.ownerPhone?.trim() || partnerInstitute.phone?.trim() || "";
+                  const origin = typeof window !== "undefined" ? window.location.origin : "https://kene.app";
+                  const pdfUrl = `${origin}/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`;
+                  const botanicals = diag.result.recommandations?.botaniques_conseillees?.slice(0, 3).join(", ") || "Actifs apaisants";
+                  const zoneLabel = BODY_ZONES.find((z) => z.id === diag.result.zone)?.label || diag.result.zone;
+                  const msg = `Bonjour ${partnerInstitute.name} ! 🌸\n\nJe suis cliente Kènè (${user.name}). Je viens de réaliser mon analyse cutanée sur la zone *${zoneLabel}* avec un score de *${diag.result.score_global}/100*.\n\n🌱 *Actifs botaniques recommandés* : ${botanicals}\n📄 *Mon Pass Cabine & Protocole (PDF)* :\n${pdfUrl}\n\nJe souhaite échanger avec vous pour faire le point sur mes résultats et planifier mon prochain soin en cabine.\n\nÀ très vite ! ✨`;
+                  openWhatsApp(phone, msg, partnerInstitute.country || "CI");
+                }}
+                className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white text-sm font-bold shadow-md transition active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-[#25D366]"
+                aria-label={`Échanger avec ${partnerInstitute.name} sur WhatsApp`}
+              >
+                <MessageCircle size={18} />
+                <span>Échanger avec {partnerInstitute.name} sur WhatsApp</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2.5">
+                <span className="grid place-items-center size-9 rounded-2xl bg-primary/10 text-primary shrink-0">
+                  <Building2 size={18} />
+                </span>
+                <div>
+                  <p className="font-heading font-bold text-xs sm:text-sm text-foreground">
+                    Suivi par un institut partenaire
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Connectez votre profil à une entreprise partenaire pour bénéficier d&apos;un suivi personnalisé sur WhatsApp
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={() => setClientTab("instituts")}
+                  className="flex-1 h-11 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-2"
+                >
+                  <Building2 size={15} /> Choisir mon institut référent
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const origin = typeof window !== "undefined" ? window.location.origin : "https://kene.app";
+                    const pdfUrl = `${origin}/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`;
+                    const msg = `Bonjour Support Kènè ! 🌸\nJe viens de terminer mon analyse cutanée (${user.name}, score ${diag.result.score_global}/100).\nJe souhaite être orientée vers une entreprise partenaire pour le suivi de ma peau.\nProtocole : ${pdfUrl}`;
+                    openWhatsApp("+2250748894270", msg, "CI");
+                  }}
+                  className="h-11 px-3 rounded-xl border border-border bg-muted/60 hover:bg-muted text-foreground text-xs font-semibold flex items-center justify-center gap-1.5"
+                  aria-label="Contacter le Support Kènè sur WhatsApp"
+                >
+                  <MessageCircle size={14} className="text-[#25D366]" /> Support Kènè (0748894270)
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </RevealItem>
       </Reveal>
 

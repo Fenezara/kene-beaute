@@ -60,7 +60,7 @@ export function getClientSelectedInstitute(): {
     const user = useKene.getState?.()?.user;
     if (user?.selectedTenant) {
       const tenant = user.selectedTenant;
-      const phone = tenant.phone?.trim() || tenant.ownerPhone?.trim() || "";
+      const phone = tenant.ownerPhone?.trim() || tenant.phone?.trim() || "";
       return {
         id: tenant.id,
         name: tenant.name,
