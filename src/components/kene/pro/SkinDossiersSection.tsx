@@ -62,18 +62,32 @@ export function SkinDossiersSection({
     }
   }, [preselectedClientId]);
 
+  // Synchronisation avec le cache partagé du CRM
+  const cachedClients = useMemo(() => {
+    if (typeof window === "undefined") return DEFAULT_FALLBACK_CLIENTS;
+    try {
+      const stored = window.localStorage.getItem(`kene_pro_clients_${tenantId || "default"}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed as ProClient[];
+      }
+    } catch {}
+    return DEFAULT_FALLBACK_CLIENTS;
+  }, [tenantId]);
+
   const clientsApi = useApi<ProClient[]>(
     async () => {
-      if (!tenantId) return DEFAULT_FALLBACK_CLIENTS;
+      if (!tenantId) return cachedClients;
       try {
         const res = await apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`);
-        return res.clients ?? [];
+        if (res.clients && res.clients.length > 0) return res.clients;
+        return cachedClients;
       } catch {
-        return DEFAULT_FALLBACK_CLIENTS;
+        return cachedClients;
       }
     },
-    [tenantId],
-    { cacheKey: `kene_skin_dossiers_clients_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_CLIENTS }
+    [tenantId, cachedClients],
+    { cacheKey: `kene_pro_clients_${tenantId || "default"}`, fallbackData: cachedClients }
   );
 
   const allClients = clientsApi.data ?? [];
@@ -81,25 +95,32 @@ export function SkinDossiersSection({
   // Filtrage des fiches
   const filteredClients = useMemo(() => {
     return allClients.filter((c) => {
+      // Si la liste contient de vrais clients, ne pas polluer l'affichage avec l'entrée fictive
+      if (c.id === "cli_comptoir_express" && allClients.length > 1) return false;
       if (search.trim()) {
         const q = search.toLowerCase().trim();
         const matchName = c.name.toLowerCase().includes(q);
-        const matchPhone = c.phone.includes(q);
+        const matchPhone = (c.phone || "").includes(q);
         if (!matchName && !matchPhone) return false;
       }
-      if (selectedFitzy !== "all" && c.fitzpatrick !== selectedFitzy) return false;
-      if (selectedSkinType !== "all" && (c.skinType || "mixte").toLowerCase() !== selectedSkinType.toLowerCase()) return false;
+      const fitz = c.fitzpatrick || "V";
+      if (selectedFitzy !== "all" && fitz !== selectedFitzy) return false;
+      const skin = (c.skinType || "mixte").toLowerCase();
+      if (selectedSkinType !== "all" && skin !== selectedSkinType.toLowerCase()) return false;
       if (selectedFilter === "pregnant" && !c.pregnant) return false;
+      if (selectedFilter === "formulated" && (!c.productObservations || !c.productObservations.trim())) return false;
+      if (selectedFilter === "unformulated" && c.productObservations && c.productObservations.trim()) return false;
       return true;
     });
   }, [allClients, search, selectedFitzy, selectedSkinType, selectedFilter]);
 
   // KPIs cutanés globaux
   const kpis = useMemo(() => {
-    const total = allClients.length;
-    const melanoVVI = allClients.filter((c) => c.fitzpatrick === "V" || c.fitzpatrick === "VI").length;
-    const pregnantCount = allClients.filter((c) => c.pregnant).length;
-    const withVisits = allClients.filter((c) => c.visitsCount > 0).length;
+    const valid = allClients.filter((c) => c.id !== "cli_comptoir_express" || allClients.length === 1);
+    const total = valid.length;
+    const melanoVVI = valid.filter((c) => (c.fitzpatrick || "V") === "V" || c.fitzpatrick === "VI").length;
+    const pregnantCount = valid.filter((c) => c.pregnant).length;
+    const withVisits = valid.filter((c) => (c.visitsCount || 0) > 0).length;
     return { total, melanoVVI, pregnantCount, withVisits };
   }, [allClients]);
 
@@ -253,11 +274,46 @@ export function SkinDossiersSection({
               ))}
             </div>
           ) : filteredClients.length === 0 ? (
-            <Card className="p-8 text-center space-y-2">
+            <Card className="p-8 text-center space-y-3">
               <EmptyState
                 label="Aucun dossier cutané trouvé"
-                sub={search ? `Aucun dossier ne correspond à « ${search} »` : "Aucun dossier cutané n'est enregistré pour ce filtre."}
+                sub={
+                  search
+                    ? `Aucun dossier ne correspond à « ${search} »`
+                    : selectedFitzy !== "all" || selectedSkinType !== "all" || selectedFilter !== "all"
+                    ? "Aucun dossier cutané ne correspond aux critères de filtre sélectionnés."
+                    : "Aucun dossier cutané n'est encore enregistré pour cet institut."
+                }
               />
+              {selectedFitzy !== "all" || selectedSkinType !== "all" || selectedFilter !== "all" || search ? (
+                <div className="flex justify-center pt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearch("");
+                      setSelectedFitzy("all");
+                      setSelectedSkinType("all");
+                      setSelectedFilter("all");
+                    }}
+                    className="gap-1.5 text-xs font-semibold"
+                  >
+                    <Filter className="size-3.5" /> Réinitialiser les filtres
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex justify-center gap-2 pt-2">
+                  {onStartDiagnostic && (
+                    <Button
+                      size="sm"
+                      className="k-btn-gold text-primary-foreground font-semibold text-xs gap-1.5"
+                      onClick={() => onStartDiagnostic("")}
+                    >
+                      <Sparkles className="size-3.5" /> Lancer un diagnostic cutané
+                    </Button>
+                  )}
+                </div>
+              )}
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

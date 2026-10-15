@@ -4,8 +4,7 @@
 // — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
-import { Crown, FileDown, Lock, MessageCircle, Phone, Search, Sparkles, Users, Wallet, ChevronDown, Save, Star, Pencil, Plus, ShoppingBag, FlaskConical, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin, FolderHeart } from "lucide-react";
-import { BissapFlowerIcon, SankofaIcon } from "@/components/kene/icons";
+import { Crown, FileDown, MessageCircle, Phone, Search, Users, Wallet, Save, Star, Pencil, Plus, ShoppingBag, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin, FolderHeart, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,25 +27,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { xof, formatDate, formatTime, scoreVar } from "@/lib/kene/format";
+import { xof, formatDate, formatTime } from "@/lib/kene/format";
 import { rfmScore, RFM_SEGMENT_STYLES } from "@/lib/kene/rfm";
 import { RFM_SEGMENTS } from "@/lib/kene/types";
-import type { BodyZone } from "@/lib/kene/types";
-import { parseDiagnosis, diagImgSrc } from "@/components/kene/client/types";
-import { parseProDiagnosis } from "@/lib/kene/questionnaire";
 import { waLink } from "@/lib/kene/followups";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
-import { SkinTwinCard, type TwinEntry } from "@/components/kene/skintwin/SkinTwinCard";
-import { ProEvolutionCard } from "@/components/kene/evolution/ProEvolutionCard";
-import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
-import { PhotoLightboxModal, type LightboxPhoto } from "@/components/kene/common/PhotoLightboxModal";
 import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, InitialAvatar, Money, SectionHeader, KenteTop } from "./ui-bits";
-import { ResultView } from "./DiagnosticsSection";
 import { OrderStatusBadge } from "./OrdersSection";
 import { proToastError } from "./ProApp";
 import { DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
-import type { ProClient, ProClientDetail, ProDiagnosisItem } from "./types";
+import type { ProClient, ProClientDetail } from "./types";
 
 function useDebounced<T>(value: T, delay = 350): T {
   const [v, setV] = useState(value);
@@ -592,20 +583,12 @@ function ClientSheet({
   onRefreshClients?: () => void;
   onOpenSkinDossier?: (clientId: string) => void;
 }) {
-  // Notes PRIVÉES: persistées sur la fiche ClientProfile (base)
+  // Notes administratives salon: persistées sur la fiche ClientProfile (base)
   const [note, setNote] = useState("");
   const [noteBusy, setNoteBusy] = useState(false);
   const [noteLoaded, setNoteLoaded] = useState<string | null>(null);
 
-  // Produits cosmétiques utilisés par la cliente (routine quotidienne)
-  const [cosmeticsUsed, setCosmeticsUsed] = useState("");
-  const [cosmeticsBusy, setCosmeticsBusy] = useState(false);
-
-  // Observations sur les composants des produits achetés en institut
-  const [productObservations, setProductObservations] = useState("");
-  const [obsBusy, setObsBusy] = useState(false);
-
-  // Ajustement de prix d'un produit cosmétique acheté (exclusif au dossier patient)
+  // Ajustement de prix d'un produit (caisse)
   const [editingItem, setEditingItem] = useState<{
     id: string;
     saleId: string;
@@ -618,15 +601,6 @@ function ClientSheet({
   const [editPriceValue, setEditPriceValue] = useState("");
   const [editPriceReason, setEditPriceReason] = useState("");
   const [editPriceBusy, setEditPriceBusy] = useState(false);
-
-  // Enregistrement direct d'un achat cosmétique au dossier patient
-  const [showAddPurchase, setShowAddPurchase] = useState(false);
-  const [newProdLabel, setNewProdLabel] = useState("");
-  const [newProdPrice, setNewProdPrice] = useState("");
-  const [newProdQty, setNewProdQty] = useState(1);
-  const [newProdMethod, setNewProdMethod] = useState<"cash" | "wave" | "orange" | "card">("cash");
-  const [newProdReason, setNewProdReason] = useState("");
-  const [addPurchaseBusy, setAddPurchaseBusy] = useState(false);
 
   // Archivage / retrait de la cliente du CRM salon
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
@@ -647,10 +621,6 @@ function ClientSheet({
     }
   }
 
-  // Visionneuse HD plein écran des photos de la cliente
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
-
   const detail = useApi<ProClientDetail>(
     () => apiGet<ProClientDetail>(`/api/pro/clients/${clientId}?tenantId=${tenantId}`),
     [clientId, tenantId]
@@ -659,40 +629,11 @@ function ClientSheet({
   const d = detail.data;
   const c = d?.client;
 
-  const lightboxPhotos: LightboxPhoto[] = useMemo(() => {
-    if (!d?.diagnoses) return [];
-    return d.diagnoses
-      .filter((dg) => Boolean(dg.imageData && dg.imageData.trim()))
-      .map((dg) => {
-        const parsed = parseDiagnosis(dg.resultJson);
-        return {
-          id: dg.id,
-          url: diagImgSrc(dg.imageData),
-          date: dg.createdAt,
-          zone: dg.zone,
-          score: dg.scoreGlobal,
-          indicators: parsed?.indicateurs,
-        };
-      });
-  }, [d?.diagnoses]);
-
-  const openPhotoLightbox = (idxOrId: number | string) => {
-    if (typeof idxOrId === "number") {
-      setLightboxIndex(idxOrId);
-    } else {
-      const idx = lightboxPhotos.findIndex((p) => p.id === idxOrId);
-      setLightboxIndex(idx >= 0 ? idx : 0);
-    }
-    setLightboxOpen(true);
-  };
-
   // Initialisation synchronisée avec la fiche cliente en base
   useEffect(() => {
     if (c && noteLoaded !== c.id) {
       setNoteLoaded(c.id);
       setNote(c.notes ?? "");
-      setCosmeticsUsed(c.cosmeticsUsed ?? "");
-      setProductObservations(c.productObservations ?? "");
     }
   }, [c, noteLoaded]);
 
@@ -705,42 +646,6 @@ function ClientSheet({
       proToastError(e, "Enregistrement impossible");
     } finally {
       setNoteBusy(false);
-    }
-  }
-
-  async function saveCosmeticsUsed() {
-    setCosmeticsBusy(true);
-    try {
-      await apiPatch(`/api/pro/clients/${clientId}?tenantId=${tenantId}`, {
-        cosmeticsUsed: cosmeticsUsed.trim() || null,
-      });
-      toast.success("Routine cosmétique enregistrée", {
-        description: "Les produits utilisés par la cliente sont conservés au dossier patient.",
-      });
-      detail.refetch();
-      onRefreshClients?.();
-    } catch (e) {
-      proToastError(e, "Enregistrement impossible");
-    } finally {
-      setCosmeticsBusy(false);
-    }
-  }
-
-  async function saveProductObservations() {
-    setObsBusy(true);
-    try {
-      await apiPatch(`/api/pro/clients/${clientId}?tenantId=${tenantId}`, {
-        productObservations: productObservations.trim() || null,
-      });
-      toast.success("Observations composants enregistrées", {
-        description: "Les notes formulatoires et de tolérance sont conservées dans le dossier.",
-      });
-      detail.refetch();
-      onRefreshClients?.();
-    } catch (e) {
-      proToastError(e, "Enregistrement impossible");
-    } finally {
-      setObsBusy(false);
     }
   }
 
@@ -769,127 +674,6 @@ function ClientSheet({
       setEditPriceBusy(false);
     }
   }
-
-  async function submitAddPurchase() {
-    if (!newProdLabel.trim()) {
-      toast.error("Veuillez indiquer le nom du produit cosmétique");
-      return;
-    }
-    const priceNum = parseInt(newProdPrice, 10);
-    if (isNaN(priceNum) || priceNum < 0) {
-      toast.error("Veuillez saisir un prix unitaire valide");
-      return;
-    }
-    setAddPurchaseBusy(true);
-    try {
-      await apiPost(`/api/pro/clients/${clientId}/purchases?tenantId=${tenantId}`, {
-        label: newProdLabel.trim(),
-        unitPrice: priceNum,
-        qty: newProdQty,
-        paymentMethod: newProdMethod,
-        reason: newProdReason.trim() || "Achat enregistré au dossier patient",
-      });
-      toast.success("Achat cosmétique consigné", {
-        description: `${newProdLabel} ajouté au suivi d'achat de la patiente.`,
-      });
-      setShowAddPurchase(false);
-      setNewProdLabel("");
-      setNewProdPrice("");
-      setNewProdQty(1);
-      setNewProdReason("");
-      detail.refetch();
-      onRefreshClients?.();
-    } catch (e) {
-      proToastError(e, "Impossible d'enregistrer l'achat");
-    } finally {
-      setAddPurchaseBusy(false);
-    }
-  }
-
-  // Suivi spécifique de tous les achats de produits cosmétiques en institut
-  const cosmeticPurchases = useMemo(() => {
-    if (!d?.sales) return [];
-    const list: Array<{
-      id: string;
-      saleId: string;
-      label: string;
-      qty: number;
-      unitPrice: number;
-      total: number;
-      productId?: string | null;
-      productBotanicals?: string | null;
-      customPriceReason?: string | null;
-      saleDate: string;
-      paymentMethod: string;
-    }> = [];
-
-    for (const s of d.sales) {
-      for (const it of s.items ?? []) {
-        if (it.kind === "product") {
-          list.push({
-            id: it.id || `${s.id}-${it.label}`,
-            saleId: it.saleId || s.id,
-            label: it.label,
-            qty: it.qty,
-            unitPrice: it.unitPrice,
-            total: it.total,
-            productId: it.productId,
-            productBotanicals: it.productBotanicals || (it as { product?: { botanicals?: string } }).product?.botanicals,
-            customPriceReason: it.customPriceReason,
-            saleDate: s.createdAt,
-            paymentMethod: s.paymentMethod,
-          });
-        }
-      }
-    }
-    return list;
-  }, [d?.sales]);
-
-  function handleInsertPurchasedComponents() {
-    const names = new Set<string>();
-    const botanicals = new Set<string>();
-    for (const p of cosmeticPurchases) {
-      names.add(p.label);
-      if (p.productBotanicals) {
-        p.productBotanicals
-          .split(/[,·+]/)
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .forEach((b) => botanicals.add(b));
-      }
-    }
-    const prodList = Array.from(names).join(" · ") || "Produits cosmétiques achetés en institut";
-    const botList = Array.from(botanicals).join(", ") || "Karité brut, Moringa, Baobab, Bissap";
-
-    const snippet = `[COMPOSANTS DES PRODUITS ACHETÉS EN INSTITUT : ${prodList}]
-• Principes actifs & botaniques : ${botList}
-• Tolérance cutanée constatée : Excellente tolérance, aucune irritation
-• Synergie & conseils d'application : Utilisation régulière le soir sur peau propre
-• Précautions spécifiques notées par l'institut : `;
-
-    setProductObservations((prev) => (prev ? `${prev}\n\n${snippet}` : snippet));
-    toast.info("Composants insérés", {
-      description: "Les actifs des cosmétiques achetés ont été insérés dans la zone d'observation.",
-    });
-  }
-
- /* Jumeau de Peau — agrégation 3D des diagnostics de la cliente (toutes zones) */
-  const twinEntries = useMemo<TwinEntry[]>(
-    () =>
-      (d?.diagnoses ?? []).map((dg) => {
-        const r = parseDiagnosis(dg.resultJson);
-        return {
-          id: dg.id,
-          zone: dg.zone as BodyZone,
-          score: dg.scoreGlobal,
-          fitz: r?.fitzpatrick_estime,
-          marks: r?.zones_marquages ?? [],
-          date: dg.createdAt,
-          indicators: r?.indicateurs,
-        };
-      }),
-    [d?.diagnoses],
-  );
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
@@ -1021,19 +805,55 @@ function ClientSheet({
                 </div>
               )}
 
-              {/* Passerelle vers le Dossier Cutané dédié & Formulations */}
-              {onOpenSkinDossier && (
-                <Button
-                  onClick={() => {
-                    onClose();
-                    onOpenSkinDossier(c.id);
-                  }}
-                  className="w-full h-10 k-btn-gold text-primary-foreground font-bold text-xs rounded-xl gap-2 shadow-xs active:scale-95 transition-all"
-                >
-                  <FolderHeart className="size-4" />
-                  <span>Consulter le Dossier Cutané &amp; Formulations 🔬</span>
-                </Button>
-              )}
+              {/* Dossier Cutané, Imagerie HD & Formulations — Espace Dédié */}
+              <div className="rounded-2xl border border-gold/40 bg-gradient-to-r from-gold/15 via-gold/5 to-transparent p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="grid size-9 place-items-center rounded-xl bg-gold/20 text-gold-text text-base shrink-0">
+                      🔬
+                    </span>
+                    <div className="min-w-0">
+                      <h4 className="font-heading text-xs font-bold text-foreground">
+                        Dossier Cutané &amp; Cabine
+                      </h4>
+                      <p className="text-[10.5px] text-muted-foreground truncate">
+                        Biométrie, phototype, imagerie HD, avant/après et formulations d&apos;actifs
+                      </p>
+                    </div>
+                  </div>
+                  {onOpenSkinDossier && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        onClose();
+                        onOpenSkinDossier(c.id);
+                      }}
+                      className="k-btn-gold text-primary-foreground font-bold text-xs h-8 gap-1.5 shadow-xs shrink-0"
+                    >
+                      <FolderHeart className="size-3.5" />
+                      <span>Consulter</span>
+                      <ChevronRight className="size-3" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-gold/20 text-[10.5px]">
+                  <span className="px-2 py-0.5 rounded-md bg-gold/15 text-gold-text font-bold">
+                    Phototype {c.fitzpatrick || "V"}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground capitalize">
+                    Peau {c.skinType || "mixte"}
+                  </span>
+                  {c.pregnant && (
+                    <span className="px-2 py-0.5 rounded-md bg-pink-500/15 text-pink-600 dark:text-pink-400 font-bold">
+                      👶 Maternité
+                    </span>
+                  )}
+                  <span className="text-[10px] text-muted-foreground ml-auto">
+                    {d.proDiagnoses.length + d.diagnoses.length} bilan(s) cutané(s) archivé(s)
+                  </span>
+                </div>
+              </div>
 
               {/* Actions rapides: fiche papier + WhatsApp direct */}
               <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -1065,359 +885,15 @@ function ClientSheet({
                 <RfmDots client={c} />
               </section>
 
-              {/* Diagnostics réalisés EN INSTITUT — l'activité de l'entreprise */}
-              <section aria-label="Diagnostics en institut">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <h4 className="font-heading text-sm font-bold">Diagnostics en institut ({d.proDiagnoses.length})</h4>
-                  {onStartDiagnostic && (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        onClose();
-                        onStartDiagnostic(c.id);
-                      }}
-                      className="gap-1.5 font-semibold"
-                      aria-label={`Lancer un diagnostic en cabine pour ${c.name}`}
-                    >
-                      <Sparkles className="size-3.5" aria-hidden="true" />
-                      Lancer un diagnostic
-                    </Button>
-                  )}
-                </div>
-                {d.proDiagnoses.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Aucun diagnostic en cabine pour cette cliente — l&apos;entretien questionnaire prend 3 minutes.
-                  </p>
-                ) : (
-                  <ul className="space-y-2">
-                    {d.proDiagnoses.map((pd) => (
-                      <InstituteDiagRow key={pd.id} item={pd} />
-                    ))}
-                  </ul>
-                )}
-              </section>
-
-              {/* Diagnostics liés — soumis au partage explicite de la
-             cliente (case à la réservation ou carte « Partage » de son app). */}
-              {c.userId && !d.scansShared && (
-                <section aria-label="Diagnostics Kènè non partagés">
-                  <div className="flex items-start gap-2.5 rounded-xl border border-dashed border-border bg-muted/40 p-3">
-                    <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                    <p className="text-xs leading-relaxed text-muted-foreground">
-                      <strong className="text-foreground">{(c.name.split(/\s+/)[0] ?? c.name)} n&apos;a pas partagé ses self-scans.</strong>{" "}
-                      Elle a un compte Kènè mais choisit, institut par institut, qui voit l&apos;historique de ses
-                      diagnostics — c&apos;est elle qui active le partage depuis son app. Son profil de base (type de
-                      peau, phototype) reste partagé avec votre institut, et vos diagnostics cabine restent enregistrés.
-                    </p>
-                  </div>
-                </section>
-              )}
-              {c.userId && d.scansShared && (
-                <section aria-label="Diagnostics IA liés">
-                  <h4 className="font-heading text-sm font-bold mb-2">Diagnostics Kènè ({d.diagnoses.length})</h4>
-                  {/* Jumeau de Peau — agrégation 3D de tous les diagnostics de la cliente */}
-                  {twinEntries.length > 0 && <SkinTwinCard context="pro" entries={twinEntries} className="mb-4" />}
-                  {/* Fil du Temps — courbe d'évolution + lecture pro (séries calculées localement) */}
-                  {d.diagnoses.length > 0 && <ProEvolutionCard rows={d.diagnoses} className="mb-4" />}
-                  {/* Curseur Comparatif Avant / Après */}
-                  {d.diagnoses.length >= 2 && (() => {
-                    const sorted = [...d.diagnoses].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-                    const beforeDiag = sorted[0];
-                    const afterDiag = sorted[sorted.length - 1];
-                    return (
-                      <div className="mb-4 space-y-1.5">
-                        <h5 className="font-heading text-xs font-bold text-muted-foreground flex items-center gap-1.5">
-                          <SankofaIcon className="size-3 text-gold-text" /> Comparatif Avant / Après (Tactile)
-                        </h5>
-                        <BeforeAfterSlider
-                          before={{
-                            imageUrl: diagImgSrc(beforeDiag.imageData),
-                            label: "Bilan J0 Initial",
-                            date: beforeDiag.createdAt,
-                            score: beforeDiag.scoreGlobal,
-                          }}
-                          after={{
-                            imageUrl: diagImgSrc(afterDiag.imageData),
-                            label: "Bilan Récent",
-                            date: afterDiag.createdAt,
-                            score: afterDiag.scoreGlobal,
-                          }}
-                          showSpectralUvToggle={true}
-                        />
-                      </div>
-                    );
-                  })()}
-                  {d.diagnoses.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Aucun diagnostic pour cette cliente.</p>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-2">
-                      {d.diagnoses.map((dg) => {
-                        const img = diagImgSrc(dg.imageData);
-                        return (
-                          <div
-                            key={dg.id}
-                            onClick={() => openPhotoLightbox(dg.id)}
-                            className="group overflow-hidden rounded-xl border border-border bg-card cursor-pointer hover:border-gold/60 hover:shadow-md transition-all select-none"
-                            title="Cliquer pour examiner la photo en haute définition plein écran"
-                          >
-                            <div className="aspect-square bg-muted relative overflow-hidden">
-                              <img src={img} alt={`Diagnostic ${dg.zone}`} className="size-full object-cover group-hover:scale-105 transition-transform" />
-                              <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                <span className="p-1 rounded-full bg-black/60 text-white text-[10px] font-bold">🔍 Plein écran</span>
-                              </div>
-                            </div>
-                            <div className="p-1.5 text-center">
-                              <p className="text-[10px] font-bold capitalize text-foreground truncate">{dg.zone.replace("_", " ")}</p>
-                              <p className="font-mono text-xs font-bold" style={{ color: scoreVar(dg.scoreGlobal) }}>{dg.scoreGlobal}/100</p>
-                              <p className="text-[9.5px] text-muted-foreground">{formatDate(dg.createdAt, { day: "numeric", month: "short" })}</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
-              )}
-
-              {/* Onglets */}
-              <Tabs defaultValue="cosmetics">
+              {/* Onglets CRM (Ventes, RDV, Commandes, Avis, Notes) */}
+              <Tabs defaultValue="sales">
                 <TabsList className="w-full">
-                  <TabsTrigger value="cosmetics" className="text-[11px] flex-1 font-semibold flex items-center justify-center gap-1">
-                    <BissapFlowerIcon className="size-3 text-gold-text shrink-0" /> Cosmétiques
-                  </TabsTrigger>
                   <TabsTrigger value="sales" className="text-[11px] flex-1">Ventes</TabsTrigger>
                   <TabsTrigger value="appts" className="text-[11px] flex-1">RDV</TabsTrigger>
                   <TabsTrigger value="orders" className="text-[11px] flex-1">Commandes</TabsTrigger>
                   <TabsTrigger value="reviews" className="text-[11px] flex-1">Avis</TabsTrigger>
                   <TabsTrigger value="notes" className="text-[11px] flex-1">Notes</TabsTrigger>
                 </TabsList>
-
-                {/* Onglet Cosmétiques (Produits utilisés, Suivi des achats avec prix modifiable, Observations composants) */}
-                <TabsContent value="cosmetics" className="mt-3 space-y-4">
-                  {/* 1. Produits cosmétiques utilisés par la cliente (Routine quotidienne) */}
-                  <Card className="overflow-hidden border-border bg-card">
-                    <CardContent className="p-3.5 space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="grid size-7 place-items-center rounded-lg bg-gold/15 text-gold-text shrink-0">
-                            <BissapFlowerIcon className="size-3.5" />
-                          </span>
-                          <div>
-                            <h5 className="font-heading text-xs font-bold leading-tight">Cosmétiques utilisés par la cliente</h5>
-                            <p className="text-[10px] text-muted-foreground">Soins appliqués à domicile (nettoyant, sérum, crème, protection solaire…)</p>
-                          </div>
-                        </div>
-                        {cosmeticsUsed.trim() ? (
-                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[9px] px-1.5 shrink-0">
-                            Routine renseignée
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[9px] px-1.5 shrink-0">
-                            À renseigner
-                          </Badge>
-                        )}
-                      </div>
-
-                      <Textarea
-                        rows={3}
-                        value={cosmeticsUsed}
-                        onChange={(e) => setCosmeticsUsed(e.target.value)}
-                        placeholder="Ex: Matin : Savon doux Karité, Sérum hydratant acide hyaluronique, Crème solaire SPF50. Soir : Huile Baobab démaquillante, Baume nuit nourrissant…"
-                        className="text-xs leading-relaxed"
-                        aria-label="Produits cosmétiques utilisés au quotidien"
-                      />
-
-                      {/* Suggestions rapides */}
-                      <div className="space-y-1">
-                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Ajouts rapides :</span>
-                        <div className="flex flex-wrap gap-1">
-                          {[
-                            "Sérum éclat Moringa",
-                            "Baume nuit Karité bio",
-                            "Savon noir traditionnel",
-                            "Gel nettoyant doux",
-                            "Crème solaire SPF50",
-                            "Huile sèche Baobab",
-                            "Brume tonique Néré",
-                            "Gommage doux Bissap",
-                          ].map((tag) => (
-                            <button
-                              key={tag}
-                              type="button"
-                              onClick={() => {
-                                setCosmeticsUsed((prev) => (prev ? `${prev.trim()}, ${tag}` : tag));
-                              }}
-                              className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-gold/15 hover:text-gold-text hover:border-gold/30 transition-colors cursor-pointer"
-                            >
-                              + {tag}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-1">
-                        <p className="text-[10px] text-muted-foreground">Enregistré au dossier · Imprimé sur la fiche PDF</p>
-                        <Button
-                          size="sm"
-                          className="gap-1.5 h-8 font-semibold text-xs"
-                          disabled={cosmeticsBusy}
-                          onClick={() => void saveCosmeticsUsed()}
-                        >
-                          <Save className="size-3.5" aria-hidden="true" />
-                          {cosmeticsBusy ? "Enregistrement…" : "Enregistrer la routine"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* 2. Suivi de chaque achat cosmétique effectué en institut avec prix modifiable */}
-                  <Card className="overflow-hidden border-border bg-card">
-                    <CardContent className="p-3.5 space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="grid size-7 place-items-center rounded-lg bg-primary/15 text-primary shrink-0">
-                            <ShoppingBag className="size-3.5" />
-                          </span>
-                          <div>
-                            <h5 className="font-heading text-xs font-bold leading-tight">Suivi des achats cosmétiques en institut</h5>
-                            <p className="text-[10px] text-muted-foreground">Prix modifiable exclusivement dans le dossier patient (catalogue général protégé)</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Badge variant="outline" className="text-[9px] px-1.5 font-mono">
-                            {cosmeticPurchases.length} achat{cosmeticPurchases.length > 1 ? "s" : ""}
-                          </Badge>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-[10px] gap-1 px-2 border-primary/30 text-primary hover:bg-primary/10"
-                            onClick={() => setShowAddPurchase(true)}
-                          >
-                            <Plus className="size-3" /> Ajouter
-                          </Button>
-                        </div>
-                      </div>
-
-                      {cosmeticPurchases.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-border p-4 text-center space-y-2">
-                          <p className="text-xs text-muted-foreground">Aucun achat de produit cosmétique consigné pour cette cliente.</p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs gap-1"
-                            onClick={() => setShowAddPurchase(true)}
-                          >
-                            <Plus className="size-3.5" /> Enregistrer un achat cosmétique
-                          </Button>
-                        </div>
-                      ) : (
-                        <ul className="space-y-2 max-h-72 overflow-y-auto pretty-scroll pr-1">
-                          {cosmeticPurchases.map((it) => (
-                            <li key={it.id} className="rounded-xl border border-border bg-muted/20 p-2.5 space-y-1.5">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-xs font-medium text-foreground truncate">{it.label}</p>
-                                  <p className="text-[10px] text-muted-foreground font-mono">
-                                    {formatDate(it.saleDate, { day: "numeric", month: "short", year: "numeric" })} · {it.qty} unité{it.qty > 1 ? "s" : ""}
-                                    {it.paymentMethod ? ` · ${it.paymentMethod}` : ""}
-                                  </p>
-                                </div>
-                                <div className="text-right shrink-0">
-                                  <p className="font-mono text-xs font-bold text-gold-text">{xof(it.total)}</p>
-                                  <p className="font-mono text-[9px] text-muted-foreground">({xof(it.unitPrice)} / u)</p>
-                                </div>
-                              </div>
-
-                              {it.productBotanicals && (
-                                <p className="text-[10px] text-muted-foreground bg-muted/40 rounded px-1.5 py-0.5 truncate">
-                                  🌿 <span className="font-medium text-foreground">Composants :</span> {it.productBotanicals}
-                                </p>
-                              )}
-
-                              {it.customPriceReason && (
-                                <p className="text-[9px] text-gold-text bg-gold/10 rounded px-1.5 py-0.5 flex items-center gap-1">
-                                  <Lock className="size-2.5 shrink-0" /> Prix dossier patient : {it.customPriceReason}
-                                </p>
-                              )}
-
-                              <div className="pt-1 flex justify-end">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-6 text-[10px] gap-1 px-2 text-muted-foreground hover:text-foreground hover:border-gold/50 cursor-pointer"
-                                  onClick={() => {
-                                    setEditingItem({
-                                      id: it.id,
-                                      saleId: it.saleId,
-                                      label: it.label,
-                                      currentPrice: it.unitPrice,
-                                      qty: it.qty,
-                                      saleDate: it.saleDate,
-                                      reason: it.customPriceReason,
-                                    });
-                                    setEditPriceValue(String(it.unitPrice));
-                                    setEditPriceReason(it.customPriceReason ?? "");
-                                  }}
-                                  title="Modifier le prix facturé à cette cliente uniquement"
-                                >
-                                  <Pencil className="size-2.5 text-gold-text" /> Modifier le prix patiente
-                                </Button>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* 3. Zone de texte observation pour noter les composants des produits achetés */}
-                  <Card className="overflow-hidden border-border bg-card">
-                    <CardContent className="p-3.5 space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="grid size-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
-                            <FlaskConical className="size-3.5" />
-                          </span>
-                          <div>
-                            <h5 className="font-heading text-xs font-bold leading-tight">Observations composants des produits achetés</h5>
-                            <p className="text-[10px] text-muted-foreground">Composants, actifs botaniques, tolérance cutanée & conseils</p>
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-[10px] gap-1 px-2 border-gold/30 text-gold-text hover:bg-gold/10 cursor-pointer"
-                          onClick={handleInsertPurchasedComponents}
-                          title="Extraire et insérer les actifs des cosmétiques achetés"
-                        >
-                          <BissapFlowerIcon className="size-3" /> Insérer composants
-                        </Button>
-                      </div>
-
-                      <Textarea
-                        rows={4}
-                        value={productObservations}
-                        onChange={(e) => setProductObservations(e.target.value)}
-                        placeholder="Notez ici les composants des différents cosmétiques achetés dans votre institut (Karité, Moringa, acide hyaluronique, filtres minéraux…), tolérance observée, posologie et précautions formulatoires…"
-                        className="text-xs font-sans leading-relaxed"
-                        aria-label="Observations sur les composants des produits cosmétiques achetés"
-                      />
-
-                      <div className="flex items-center justify-between pt-1">
-                        <p className="text-[10px] text-muted-foreground">Visible sur tous les postes · Synchronisé avec la fiche PDF</p>
-                        <Button
-                          size="sm"
-                          className="gap-1.5 h-8 font-semibold text-xs"
-                          disabled={obsBusy}
-                          onClick={() => void saveProductObservations()}
-                        >
-                          <Save className="size-3.5" aria-hidden="true" />
-                          {obsBusy ? "Enregistrement…" : "Enregistrer les observations"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
 
                 <TabsContent value="sales" className="mt-3">
                   {d.sales.length === 0 ? (
@@ -1627,99 +1103,7 @@ function ClientSheet({
                 </Dialog>
               )}
 
-              {/* Dialogue d'ajout d'achat cosmétique direct */}
-              {showAddPurchase && (
-                <Dialog open onOpenChange={(o) => !o && setShowAddPurchase(false)}>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="font-heading flex items-center gap-2 text-base">
-                        <ShoppingBag className="size-4 text-gold-text" />
-                        Enregistrer un achat cosmétique au dossier
-                      </DialogTitle>
-                      <DialogDescription className="text-xs">
-                        Consigner un produit cosmétique pour {c?.name} avec prix sur-mesure.
-                      </DialogDescription>
-                    </DialogHeader>
 
-                    <div className="space-y-3 py-2">
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium">Nom du produit cosmétique *</label>
-                        <Input
-                          value={newProdLabel}
-                          onChange={(e) => setNewProdLabel(e.target.value)}
-                          placeholder="Ex: Baume Nuit Karité Bio 100ml"
-                          autoFocus
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium">Prix unitaire facturé (FCFA) *</label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="500"
-                            value={newProdPrice}
-                            onChange={(e) => setNewProdPrice(e.target.value)}
-                            placeholder="10000"
-                            className="font-mono font-semibold"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium">Quantité</label>
-                          <Input
-                            type="number"
-                            min="1"
-                            max="50"
-                            value={newProdQty}
-                            onChange={(e) => setNewProdQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                            className="font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium">Règlement</label>
-                        <div className="grid grid-cols-4 gap-1.5">
-                          {(["cash", "wave", "orange", "card"] as const).map((m) => (
-                            <button
-                              key={m}
-                              type="button"
-                              onClick={() => setNewProdMethod(m)}
-                              className={cn(
-                                "rounded-lg border px-2 py-1.5 text-xs font-semibold capitalize transition-colors cursor-pointer",
-                                newProdMethod === m
-                                  ? "border-primary bg-primary/15 text-primary"
-                                  : "border-border bg-card text-muted-foreground hover:bg-muted"
-                              )}
-                            >
-                              {m === "cash" ? "Espèces" : m}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium">Motif / Note (optionnel)</label>
-                        <Input
-                          value={newProdReason}
-                          onChange={(e) => setNewProdReason(e.target.value)}
-                          placeholder="Ex: Tarif sur-mesure dermo-conseil"
-                        />
-                      </div>
-                    </div>
-
-                    <DialogFooter className="gap-2 sm:gap-0">
-                      <Button variant="outline" size="sm" onClick={() => setShowAddPurchase(false)} disabled={addPurchaseBusy}>
-                        Annuler
-                      </Button>
-                      <Button size="sm" onClick={() => void submitAddPurchase()} disabled={addPurchaseBusy} className="gap-1.5 font-semibold">
-                        {addPurchaseBusy ? "Enregistrement…" : "Enregistrer l'achat"}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              )}
 
               {/* Option d'archivage / retrait de la cliente du CRM salon */}
               <div className="pt-4 mt-2 border-t border-border flex items-center justify-between gap-2">
@@ -1773,55 +1157,6 @@ function ClientSheet({
         )}
       </SheetContent>
 
-      {/* Visionneuse HD plein écran pour consultation clinique pro */}
-      <PhotoLightboxModal
-        isOpen={lightboxOpen}
-        onClose={() => setLightboxOpen(false)}
-        photos={lightboxPhotos}
-        initialIndex={lightboxIndex}
-      />
     </Sheet>
-  );
-}
-
-// ── Rangée diagnostic en institut (dépliable → résultat complet) ──
-function InstituteDiagRow({ item }: { item: ProDiagnosisItem }) {
-  const [open, setOpen] = useState(false);
-  const result = useMemo(() => parseProDiagnosis(item.resultJson), [item.resultJson]);
-  const flags = result?.questionnaire?.flags ?? [];
-
-  return (
-    <li className="rounded-xl border border-border overflow-hidden">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
-        aria-label={`Diagnostic en institut du ${new Date(item.createdAt).toLocaleDateString("fr-FR")} — score ${item.scoreGlobal}/100 — ${flags.length} vigilance(s)`}
-      >
-        <span
-          className="grid size-10 shrink-0 place-items-center rounded-full border-2 font-mono text-xs font-bold"
-          style={{ borderColor: scoreVar(item.scoreGlobal), color: scoreVar(item.scoreGlobal) }}
-        >
-          {item.scoreGlobal}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium">
-            <span className="capitalize">{item.zone.replace("_", " ")}</span>
-            {item.practitioner ? ` · ${item.practitioner}` : ""}
-          </p>
-          <p className="text-[10px] text-muted-foreground font-mono">
-            {formatDate(item.createdAt, { day: "2-digit", month: "short", year: "2-digit" })}
-            {item.vlmUsed ? " · bilan spectral" : " · entretien"}
-            {flags.length > 0 ? ` · ${flags.length} vigilance${flags.length > 1 ? "s" : ""}` : ""}
-          </p>
-        </div>
-        <ChevronDown className={cn("size-4 text-muted-foreground shrink-0 transition-transform", open && "rotate-180")} aria-hidden="true" />
-      </button>
-      {open && result && (
-        <div className="border-t border-border bg-muted/20 p-3">
-          <ResultView result={result} photo={item.photoData ?? null} meta={{ zone: item.zone, createdAt: item.createdAt, practitioner: item.practitioner }} />
-        </div>
-      )}
-    </li>
   );
 }
