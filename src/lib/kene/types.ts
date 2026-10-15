@@ -116,11 +116,107 @@ export const ZONE_INDICATORS: Record<BodyZone, string[]> = {
   naevi: ["Asymétrie (A)", "Bords irréguliers (B)", "Couleurs multiples (C)", "Diamètre > 6 mm (D)", "Évolution (E)"],
 };
 
+export interface SpectralViewDefinition {
+  id: string;
+  label: string;
+  shortLabel: string;
+  wavelength: string;
+  filter: string;
+  opticalTarget: string;
+  clinicalSignificance: string;
+  botanicals: string[];
+  recommendedFormula: string;
+}
+
 export const SPECTRAL_VIEWS = [
-  { id: "standard", label: "Standard", filter: "none" },
-  { id: "pigment", label: "Pigmentation profonde", filter: "spectre-pigment" },
-  { id: "inflammation", label: "Inflammation", filter: "spectre-inflammation" },
-  { id: "acne", label: "Acné", filter: "spectre-acne" },
+  {
+    id: "standard",
+    label: "Lumière Blanche Naturelle",
+    shortLabel: "Standard",
+    wavelength: "400-700 nm",
+    filter: "spectre-standard",
+    opticalTarget: "Surface épidermique visible",
+    clinicalSignificance: "Aspect visuel en lumière du jour, carnation naturelle et texture de surface.",
+    botanicals: ["Hydrolat de Rose", "Gel d'Aloe Vera natif"],
+    recommendedFormula: "Maintien de l'hydratation quotidienne et protection de barrière.",
+  },
+  {
+    id: "uv365",
+    label: "UV-A 365 nm (Wood Digital)",
+    shortLabel: "365 nm UV",
+    wavelength: "365 nm",
+    filter: "spectre-uv365",
+    opticalTarget: "Autofluorescence des porphyrines & champignons",
+    clinicalSignificance: "Fluorescence corail C. acnes, détection Malassezia et profondeur du mélasma.",
+    botanicals: ["Huile de Balanites", "Savon Noir au Miel"],
+    recommendedFormula: "Nettoyage purifiant non comédogène et régulation du microbiome.",
+  },
+  {
+    id: "blue405",
+    label: "Bleu Soret 405 nm",
+    shortLabel: "405 nm Bleu",
+    wavelength: "405 nm",
+    filter: "spectre-blue405",
+    opticalTarget: "Micro-comédons & Sébum folliculaire",
+    clinicalSignificance: "Cartographie pré-lésionnelle, pores engorgés et folliculite de barbe.",
+    botanicals: ["Extrait de Moringa", "Huile de Neem", "Zinc PCA"],
+    recommendedFormula: "Sérum purifiant sébo-régulateur aux polyphénols de Moringa.",
+  },
+  {
+    id: "green540",
+    label: "Vert Oxyhémoglobine 540 nm",
+    shortLabel: "540 nm Vert",
+    wavelength: "540 nm",
+    filter: "spectre-green540",
+    opticalTarget: "Érythème & Vascularisation masquée",
+    clinicalSignificance: "Révélation des rougeurs et de l'EPI masqués par l'eumélanine sur peau noire.",
+    botanicals: ["Macérât de Kinkeliba", "Eau de Camomille", "Allantoïne"],
+    recommendedFormula: "Complexe apaisant anti-échauffement et protecteur capillaire.",
+  },
+  {
+    id: "amber585",
+    label: "Ambre 585 nm (Indice Mélanine)",
+    shortLabel: "585 nm Ambre",
+    wavelength: "585 nm",
+    filter: "spectre-amber585",
+    opticalTarget: "Mélanosomes & Hyperpigmentation HPI",
+    clinicalSignificance: "Cartographie pure des taches sans confusion avec l'érythème vasculaire.",
+    botanicals: ["Fleur d'Hibiscus (Bissap)", "Niacinamide 5%", "Acide Azélaïque 10%"],
+    recommendedFormula: "Sérum unifiant éclaircissant anti-HPI aux acides doux de Bissap.",
+  },
+  {
+    id: "red660",
+    label: "Rouge Profond 660 nm",
+    shortLabel: "660 nm Rouge",
+    wavelength: "660 nm",
+    filter: "spectre-red660",
+    opticalTarget: "Collagène, Fermeté & Derme moyen",
+    clinicalSignificance: "Densité matricielle, risque chéloïdien cicatriciel et micro-relief élastique.",
+    botanicals: ["Huile pure de Baobab", "Centella Asiatica", "Beurre de Karité brut"],
+    recommendedFormula: "Baume régénérant stimulant la synthèse de collagène.",
+  },
+  {
+    id: "nir850",
+    label: "Proche Infrarouge 850 nm",
+    shortLabel: "850 nm NIR",
+    wavelength: "850 nm",
+    filter: "spectre-nir850",
+    opticalTarget: "Derme profond sous transparence mélanique",
+    clinicalSignificance: "Transparence totale de la mélanine, plexus vasculaire profond et bulbes pilaires.",
+    botanicals: ["Huile de Ricin noir", "Beurre de Karité Grand Cru", "Huile de Marula"],
+    recommendedFormula: "Émulsion nutritive profonde réparatrice des tissus sous-cutanés.",
+  },
+  {
+    id: "polarized",
+    label: "Lumière Polarisée 0° (Micro-relief)",
+    shortLabel: "Polarisé",
+    wavelength: "Lumière polarisée 0°",
+    filter: "spectre-polarized",
+    opticalTarget: "Couche cornée, Squames & Lipides de surface",
+    clinicalSignificance: "Évaluation de la xérose, déshydratation aiguë et desquamation grisâtre.",
+    botanicals: ["Beurre de Karité sauvage", "Cérat végétal au Cacao"],
+    recommendedFormula: "Baume relipidant scellant de barrière cutanée.",
+  },
 ] as const;
 
 export const RFM_SEGMENTS = ["Champions", "Fidèles", "Potentiels", "À risque", "Perdus", "Nouveaux"] as const;

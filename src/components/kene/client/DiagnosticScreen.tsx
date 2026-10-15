@@ -1361,9 +1361,15 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
   // Fiabilité: champ posé par le worker dans resultJson; les
   // anciens diagnostics n'en ont pas → dérivé de `source` (déjà présent).
   const confidence = r.confidence ?? (r.source === "vlm" ? "haute" : "indicative");
-  const weakest = useMemo(() => [...r.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage).slice(0, 8), [r.indicateurs]);
   const viewDef = SPECTRAL_VIEWS.find((v) => v.id === view) ?? SPECTRAL_VIEWS[0];
-  const heatmapCls = view === "pigment" ? "heatmap-pigment" : view === "inflammation" ? "heatmap-inflammation" : view === "acne" ? "heatmap-acne" : "";
+  const heatmapCls =
+    view === "amber585" || view === "pigment"
+      ? "heatmap-pigment"
+      : view === "green540" || view === "inflammation"
+      ? "heatmap-inflammation"
+      : view === "blue405" || view === "uv365" || view === "acne"
+      ? "heatmap-acne"
+      : "";
 
   const botanicIcon = (name: string): React.ReactNode => {
     const n = norm(name);
@@ -1594,10 +1600,14 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
       <RevealItem className="mt-5">
         <section aria-label="Vues spectrales de la photo">
           <Tabs value={view} onValueChange={setView}>
-            <TabsList className="w-full h-auto grid grid-cols-4 gap-1 bg-muted/60 p-1 rounded-2xl">
+            <TabsList className="w-full h-auto flex flex-wrap gap-1 bg-muted/60 p-1.5 rounded-2xl">
               {SPECTRAL_VIEWS.map((v) => (
-                <TabsTrigger key={v.id} value={v.id} className="text-[10.5px] leading-tight px-1 py-2 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-semibold transition-colors">
-                  {v.label.split(" ")[0]}
+                <TabsTrigger
+                  key={v.id}
+                  value={v.id}
+                  className="text-[10px] leading-tight px-2.5 py-1.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-semibold transition-colors shrink-0"
+                >
+                  {v.shortLabel}
                 </TabsTrigger>
               ))}
             </TabsList>
