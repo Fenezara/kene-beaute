@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Droplets, FileDown, GitCompareArrows, Hand, History,
-  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldCheck, Sparkles, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
+  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Sparkles, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
@@ -542,21 +542,37 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     return (
       <div className="pt-2 sm:pt-4">
         {/* Sélecteur d'onglets Scanner */}
-        <div className="mb-4 flex items-center p-1 rounded-2xl bg-muted/50 border border-border/50">
+        <div className="mb-4 flex items-center p-1 rounded-2xl bg-muted/50 border border-border/50 gap-1">
           <button
             type="button"
-            className="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-card text-foreground shadow-xs border border-border/60 flex items-center justify-center gap-2"
+            className="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold bg-card text-foreground shadow-xs border border-border/60 flex items-center justify-center gap-1.5"
           >
             <ScanFace size={15} className="text-primary" />
-            <span>Nouveau Scan</span>
+            <span>Diagnostic Peau</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              haptic(HAPTIC.tap);
+              setClientTab("chat");
+              setTimeout(() => {
+                const fileInput = document.querySelector<HTMLInputElement>("input[capture='environment']");
+                if (fileInput) fileInput.click();
+              }, 200);
+            }}
+            className="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold text-gold-text hover:text-foreground bg-gold/10 hover:bg-gold/20 border border-gold/40 flex items-center justify-center gap-1.5 transition-all shadow-2xs"
+            title="Scanner la composition INCI d'un cosmétique (Hydroquinone, Corticoïdes, Toxiques)"
+          >
+            <ShieldAlert size={14} className="text-gold-text" />
+            <span>Scanner Produit (INCI)</span>
           </button>
           <button
             type="button"
             onClick={goHistory}
-            className="flex-1 py-2 px-3 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground flex items-center justify-center gap-2 transition-all"
+            className="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 transition-all"
           >
-            <History size={15} />
-            <span>Mon Historique</span>
+            <History size={14} />
+            <span>Historique</span>
           </button>
         </div>
 
@@ -721,21 +737,37 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     return (
       <div className="pt-2 sm:pt-4">
         {/* Sélecteur d'onglets Scanner */}
-        <div className="mb-4 flex items-center p-1 rounded-2xl bg-muted/50 border border-border/50">
+        <div className="mb-4 flex items-center p-1 rounded-2xl bg-muted/50 border border-border/50 gap-1">
           <button
             type="button"
-            className="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-card text-foreground shadow-xs border border-border/60 flex items-center justify-center gap-2"
+            className="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold bg-card text-foreground shadow-xs border border-border/60 flex items-center justify-center gap-1.5"
           >
             <ScanFace size={15} className="text-primary" />
-            <span>Nouveau Scan</span>
+            <span>Diagnostic Peau</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              haptic(HAPTIC.tap);
+              setClientTab("chat");
+              setTimeout(() => {
+                const fileInput = document.querySelector<HTMLInputElement>("input[capture='environment']");
+                if (fileInput) fileInput.click();
+              }, 200);
+            }}
+            className="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold text-gold-text hover:text-foreground bg-gold/10 hover:bg-gold/20 border border-gold/40 flex items-center justify-center gap-1.5 transition-all shadow-2xs"
+            title="Scanner la composition INCI d'un cosmétique (Hydroquinone, Corticoïdes, Toxiques)"
+          >
+            <ShieldAlert size={14} className="text-gold-text" />
+            <span>Scanner Produit (INCI)</span>
           </button>
           <button
             type="button"
             onClick={goHistory}
-            className="flex-1 py-2 px-3 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground flex items-center justify-center gap-2 transition-all"
+            className="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 transition-all"
           >
-            <History size={15} />
-            <span>Mon Historique</span>
+            <History size={14} />
+            <span>Historique</span>
           </button>
         </div>
 

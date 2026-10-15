@@ -1225,10 +1225,24 @@ export function ChatScreen() {
                       type="button"
                       onClick={() => setPhotoPickerOpen(true)}
                       disabled={sending || photoBusy}
-                      className="h-13 px-5 rounded-2xl border border-border/80 bg-muted/40 hover:bg-muted text-foreground font-bold text-xs flex items-center gap-2 active:scale-95 transition-all"
+                      className="h-13 px-4 sm:px-5 rounded-2xl border border-border/80 bg-muted/40 hover:bg-muted text-foreground font-bold text-xs flex items-center gap-2 active:scale-95 transition-all"
                     >
                       <Camera size={16} className="text-emerald-600 dark:text-emerald-400" />
                       <span>Montrer ma peau</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        saveHardwarePermGranted();
+                        toast.info("Cadrez bien l'étiquette au dos ou la liste des ingrédients (INCI)");
+                        nativeCameraInputRef.current?.click();
+                      }}
+                      disabled={sending || photoBusy}
+                      className="h-13 px-4 sm:px-5 rounded-2xl border-2 border-gold/60 bg-gradient-to-r from-gold/20 via-card to-card hover:border-gold text-gold-text font-black text-xs flex items-center gap-2 active:scale-95 transition-all shadow-xs"
+                      title="Scanner un produit cosmétique (INCI) pour détecter l'hydroquinone et les corticoïdes"
+                    >
+                      <ShieldAlert size={16} className="text-gold-text shrink-0" />
+                      <span>🧴 Scanner un produit (INCI)</span>
                     </button>
                   </>
                 )}

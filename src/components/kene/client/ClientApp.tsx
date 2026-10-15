@@ -522,7 +522,7 @@ export function ClientApp() {
                 )}
               </button>
 
-              {/* 🧴 Bouton direct Scanner INCI */}
+              {/* 🧴 Bouton direct Scanner INCI (visible aussi sur mobile) */}
               <button
                 type="button"
                 onClick={() => {
@@ -535,10 +535,11 @@ export function ClientApp() {
                   }, 150);
                 }}
                 title="Scanner un produit cosmétique (Détection Hydroquinone, Corticoïdes & Allergènes)"
-                className="hidden sm:inline-flex items-center gap-1.5 h-9 sm:h-11 px-3 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-gold-text text-xs font-bold active:scale-95 transition-all shadow-xs shrink-0 select-none"
+                className="inline-flex items-center gap-1 sm:gap-1.5 h-9 sm:h-11 px-2.5 sm:px-3 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-gold-text text-xs font-bold active:scale-95 transition-all shadow-xs shrink-0 select-none"
               >
-                <ShieldAlert size={15} className="text-gold-text shrink-0" />
-                <span className="truncate">Scanner INCI</span>
+                <ShieldAlert size={14} className="text-gold-text shrink-0 sm:size-[15px]" />
+                <span className="hidden xs:inline truncate">Scanner INCI</span>
+                <span className="xs:hidden text-[11px]">INCI</span>
               </button>
 
               <SpaceSwitcher variant="compact" />
