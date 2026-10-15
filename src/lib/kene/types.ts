@@ -219,6 +219,20 @@ export const SPECTRAL_VIEWS = [
   },
 ] as const;
 
+/**
+ * Sélection d'Élite 2026 pour l'Espace Cliente (4 Vues Multi-Spectrales Clés)
+ * 1. Lumière Naturelle (400-700 nm) : Référence de surface et carnation visible
+ * 2. Ambre (585 nm) : Cartographie pure de la mélanine & taches d'hyperpigmentation HPI
+ * 3. Vert (540 nm) : Révélation de l'inflammation et des rougeurs masquées par l'eumélanine
+ * 4. Bleu (405 nm) : Pores, comédons, excès de sébum & zones pré-lésionnelles
+ */
+export const CLIENT_SPECTRAL_VIEWS = [
+  SPECTRAL_VIEWS[0], // standard
+  SPECTRAL_VIEWS[4], // amber585
+  SPECTRAL_VIEWS[3], // green540
+  SPECTRAL_VIEWS[2], // blue405
+] as const;
+
 export const RFM_SEGMENTS = ["Champions", "Fidèles", "Potentiels", "À risque", "Perdus", "Nouveaux"] as const;
 
 export interface CartLine {

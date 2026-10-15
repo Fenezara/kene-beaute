@@ -11,7 +11,7 @@ import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderI
 import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
 import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
 import { cn } from "@/lib/utils";
-import { BODY_ZONES, SPECTRAL_VIEWS, ZONE_PHOTO_SLOTS, type AtlasLevel, type BodyZone, type DiagnosisResult, type Indicator, type SuspectedCondition, type ZonePhotoSlot } from "@/lib/kene/types";
+import { BODY_ZONES, CLIENT_SPECTRAL_VIEWS, SPECTRAL_VIEWS, ZONE_PHOTO_SLOTS, type AtlasLevel, type BodyZone, type DiagnosisResult, type Indicator, type SuspectedCondition, type ZonePhotoSlot } from "@/lib/kene/types";
 import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon, CauriIcon, DuafeIcon, KeneSunIcon } from "@/components/kene/icons";
 import { AdinkraSky } from "@/components/kene/constellation/AdinkraSky";
 import { diagQueueCount, enqueueDiag, subscribeDiagQueue } from "@/lib/kene/diag-queue";
@@ -1361,7 +1361,11 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
   // Fiabilité: champ posé par le worker dans resultJson; les
   // anciens diagnostics n'en ont pas → dérivé de `source` (déjà présent).
   const confidence = r.confidence ?? (r.source === "vlm" ? "haute" : "indicative");
-  const viewDef = SPECTRAL_VIEWS.find((v) => v.id === view) ?? SPECTRAL_VIEWS[0];
+  const weakest = useMemo(
+    () => [...(r.indicateurs || [])].sort((a, b) => a.pourcentage - b.pourcentage).slice(0, 8),
+    [r.indicateurs]
+  );
+  const viewDef = (CLIENT_SPECTRAL_VIEWS as readonly import("@/lib/kene/types").SpectralViewDefinition[]).find((v) => v.id === view) ?? CLIENT_SPECTRAL_VIEWS[0];
   const heatmapCls =
     view === "amber585" || view === "pigment"
       ? "heatmap-pigment"
@@ -1600,19 +1604,25 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
       <RevealItem className="mt-5">
         <section aria-label="Vues spectrales de la photo">
           <Tabs value={view} onValueChange={setView}>
-            <TabsList className="w-full h-auto flex flex-wrap gap-1 bg-muted/60 p-1.5 rounded-2xl">
-              {SPECTRAL_VIEWS.map((v) => (
+            <TabsList className="w-full h-auto grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-muted/60 p-1.5 rounded-2xl">
+              {CLIENT_SPECTRAL_VIEWS.map((v) => (
                 <TabsTrigger
                   key={v.id}
                   value={v.id}
-                  className="text-[10px] leading-tight px-2.5 py-1.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-semibold transition-colors shrink-0"
+                  className="text-[11px] leading-tight py-2 px-1 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-semibold transition-colors text-center shrink-0"
                 >
                   {v.shortLabel}
                 </TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
-          <p className="text-[11px] text-muted-foreground mt-2 mb-2">{viewDef.label}{view !== "standard" ? " — filtre spectral + cartographie chaleur" : ""}</p>
+          <div className="mt-2.5 mb-2 flex items-center justify-between text-[11px]">
+            <p className="font-semibold text-foreground">{viewDef.label}</p>
+            <span className="text-muted-foreground font-mono text-[10px]">{viewDef.wavelength}</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
+            {viewDef.opticalTarget} · {viewDef.clinicalSignificance}
+          </p>
           <div className="relative k-card rounded-[24px] overflow-hidden">
             <img
               src={currentImg}
@@ -1631,7 +1641,7 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
               />
             )}
             {/* cadres zones détectées avec coloration exacte de sévérité */}
-            {r.zones_marquages.map((z, i) => {
+            {(r.zones_marquages || []).map((z, i) => {
               const sevColors = ["#346834", "#C8951E", "#E07A2B", "#8B1A3B"];
               const sevColor = sevColors[Math.min(3, Math.max(0, z.severite))];
               return (
@@ -1755,14 +1765,14 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
 
           <div className="k-card relative mt-4 rounded-[20px] p-4 pl-5">
             <span aria-hidden="true" className="k-rail-line absolute left-0 top-3.5 bottom-3.5 w-1 rounded-full" />
-            <p className="text-xs leading-relaxed">{r.recommandations.resume}</p>
+            <p className="text-xs leading-relaxed">{r.recommandations?.resume || "Bilan de vitalité cutanée établi sur mesure."}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 mt-4">
             <div className="k-card k-card-hover rounded-[20px] p-3.5">
               <p className="flex items-center gap-1.5 text-xs font-bold text-gold-text uppercase tracking-wide"><Sunrise size={14} /> Matin</p>
               <ul className="mt-2 space-y-1.5">
-                {r.recommandations.routine_matin.slice(0, 4).map((s, i) => (
+                {(r.recommandations?.routine_matin || []).slice(0, 4).map((s, i) => (
                   <li key={i} className="text-xs leading-relaxed flex gap-1.5"><span className="text-primary font-mono font-bold">{i + 1}.</span> {s}</li>
                 ))}
               </ul>
@@ -1770,18 +1780,18 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
             <div className="k-card k-card-hover rounded-[20px] p-3.5">
               <p className="flex items-center gap-1.5 text-xs font-bold text-terre uppercase tracking-wide"><Moon size={14} /> Soir</p>
               <ul className="mt-2 space-y-1.5">
-                {r.recommandations.routine_soir.slice(0, 4).map((s, i) => (
+                {(r.recommandations?.routine_soir || []).slice(0, 4).map((s, i) => (
                   <li key={i} className="text-xs leading-relaxed flex gap-1.5"><span className="text-terre font-mono font-bold">{i + 1}.</span> {s}</li>
                 ))}
               </ul>
             </div>
           </div>
 
-          {r.recommandations.botaniques_conseillees.length > 0 && (
+          {(r.recommandations?.botaniques_conseillees || []).length > 0 && (
             <div className="mt-4">
               <p className="text-xs font-semibold text-muted-foreground mb-2">Botaniques africaines pour toi</p>
               <div className="flex flex-wrap gap-2">
-                {r.recommandations.botaniques_conseillees.map((b, i) => (
+                {(r.recommandations?.botaniques_conseillees || []).map((b, i) => (
                   <span key={i} className="k-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-terre">
                     {botanicIcon(b)} {b}
                   </span>
@@ -1790,7 +1800,7 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
             </div>
           )}
 
-          {r.recommandations.produits.length > 0 && (
+          {(r.recommandations?.produits || []).length > 0 && (
             <div className="mt-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -2222,7 +2232,7 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
           score={r.score_global}
           zoneLabel={BODY_ZONES.find((z) => z.id === r.zone)?.label ?? r.zone}
           fitzpatrick={r.fitzpatrick_estime}
-          botanicals={r.recommandations.botaniques_conseillees}
+          botanicals={r.recommandations?.botaniques_conseillees || []}
           userName={user.name}
           onClose={() => setBeautyCardOpen(false)}
         />
