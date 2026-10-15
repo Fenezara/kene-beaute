@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Baby, BadgeCheck, Building2, Calendar, Camera, Check, ChevronRight, Coins, Crown, Gift, Heart, Loader2, MapPin,
+  Baby, BadgeCheck, Building2, Calendar, Camera, Check, ChevronRight, Crown, Gift, Heart, Loader2, MapPin,
   MessageCircle, Pencil, Phone, Plus, Settings, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -422,36 +422,6 @@ export function ProfileScreen() {
                   >
                     <span>{ch.icon}</span>
                     <span>{ch.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Budget mensuel soins */}
-            <div className="pt-2 border-t border-border/60">
-              <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground/90 mb-2">
-                <Coins size={14} className="text-primary" /> Budget mensuel moyen alloué à tes soins
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[
-                  { id: "< 15 000 FCFA", label: "< 15 000 F", desc: "Essentiel" },
-                  { id: "15 000 - 35 000 FCFA", label: "15k - 35k", desc: "Équilibre" },
-                  { id: "35 000 - 75 000 FCFA", label: "35k - 75k", desc: "Intense" },
-                  { id: "> 75 000 FCFA", label: "> 75 000 F", desc: "Prestige" },
-                ].map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => setBeautyBudget(b.id)}
-                    className={cn(
-                      "flex flex-col items-center justify-center py-1.5 px-2 rounded-xl text-center border transition-all",
-                      beautyBudget === b.id
-                        ? "bg-gold/15 border-gold text-gold-text font-bold shadow-xs"
-                        : "bg-background border-border text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    <span className="text-[11.5px] font-mono leading-tight">{b.label}</span>
-                    <span className="text-[9.5px] opacity-80">{b.desc}</span>
                   </button>
                 ))}
               </div>
