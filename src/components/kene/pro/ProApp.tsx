@@ -1111,6 +1111,8 @@ export function ProApp() {
             void overview.refetch();
           }}
         />
+      )}
+
       {/* Modal Scanner Produit & Analyse INCI Entreprise / Cabine */}
       <ProductInciScannerModal
         open={inciScannerOpen}
