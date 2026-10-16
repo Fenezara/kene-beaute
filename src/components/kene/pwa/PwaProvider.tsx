@@ -156,19 +156,35 @@ export function PwaProvider() {
       maybeInstall();
     };
 
+    const onSwMessage = (event: MessageEvent) => {
+      if (disposed || healAttemptedRef.current) return;
+      if (event.data && event.data.type === "KENE_SW_UPDATED") {
+        healAttemptedRef.current = true;
+        healNavigate();
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", onSwMessage);
+    cleanups.push(() => navigator.serviceWorker.removeEventListener("message", onSwMessage));
+
     const register = async () => {
       try {
-        registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+        registration = await navigator.serviceWorker.register("/sw.js", {
+          scope: "/",
+          updateViaCache: "none",
+        });
         if (disposed) return;
         registration.addEventListener("updatefound", () => {
           const incoming = registration?.installing;
           if (incoming) notifyUpdate(incoming);
         });
-        // AU BOOT: guérison d'un worker piégé en « waiting » (incident)
-        // — UNE tentative, preuve d'activation exigée.
+        // AU BOOT: vérification immédiate d'une nouvelle version de /sw.js
         inspectRegistration();
+        // AU FOCUS: dès que l'utilisateur revient sur l'onglet, vérifier si le SW a changé
+        const onWindowFocus = () => inspectRegistration();
+        window.addEventListener("focus", onWindowFocus);
+        cleanups.push(() => window.removeEventListener("focus", onWindowFocus));
         // EN SESSION: l'iframe de préview vit des heures sans navigation —
-        // on re-vérifie nous-mêmes (détection → toast manuel seulement).
+        // on re-vérifie nous-mêmes toutes les 60 s.
         pollTimer = window.setInterval(inspectRegistration, UPDATE_POLL_MS);
       } catch (e) {
         console.debug("[kene-pwa] enregistrement du service worker impossible", e);

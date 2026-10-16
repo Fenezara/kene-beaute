@@ -11,11 +11,11 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v25";
-const PRECACHE = "kene-precache-v25";
-const DATA_CACHE = "kene-data-v25";
-const IMG_CACHE = "kene-img-v25";
-const STATIC_CACHE = "kene-static-v25";
+const VERSION = "kene-sw-v26";
+const PRECACHE = "kene-precache-v26";
+const DATA_CACHE = "kene-data-v26";
+const IMG_CACHE = "kene-img-v26";
+const STATIC_CACHE = "kene-static-v26";
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
@@ -382,10 +382,21 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(
-        keys.filter((name) => !KEEP_CACHES.includes(name)).map((name) => caches.delete(name))
-      );
+      const oldCaches = keys.filter((name) => !KEEP_CACHES.includes(name));
+      const hadOldVersion = oldCaches.some((name) => name.startsWith("kene-static-") || name.startsWith("kene-precache-"));
+      await Promise.all(oldCaches.map((name) => caches.delete(name)));
       await self.clients.claim();
+      if (hadOldVersion) {
+        try {
+          const windowClients = await self.clients.matchAll({ type: "window" });
+          for (const client of windowClients) {
+            client.postMessage({ type: "KENE_SW_UPDATED", version: VERSION });
+            if ("navigate" in client && client.url) {
+              await client.navigate(client.url).catch(() => {});
+            }
+          }
+        } catch {}
+      }
     })()
   );
 });
@@ -457,9 +468,19 @@ self.addEventListener("fetch", (event) => {
 
   if (req.method !== "GET") return;
 
-  // Assets Next (/_next/) : stale-while-revalidate
+  // Ne jamais intercepter les flux HMR / Turbopack / hot-update de Next.js
+  if (
+    url.pathname.includes("webpack-hmr") ||
+    url.pathname.includes("turbopack") ||
+    url.pathname.includes("hot-update") ||
+    url.pathname.includes("__nextjs")
+  ) {
+    return;
+  }
+
+  // Assets Next (/_next/) : network-first (toujours frais en ligne, cache de secours hors-ligne)
   if (url.pathname.startsWith("/_next/")) {
-    event.respondWith(staleWhileRevalidate(req));
+    event.respondWith(networkFirstStatic(req));
     return;
   }
 
@@ -606,25 +627,21 @@ async function networkFirstNavigation(req) {
   throw new Error("Kènè hors-ligne : coquille indisponible");
 }
 
-async function staleWhileRevalidate(req) {
+async function networkFirstStatic(req) {
   const cache = await caches.open(STATIC_CACHE);
-  const cached = await cache.match(req);
-  const network = fetch(req)
-    .then((res) => {
-      if (res && res.ok) {
-        void cache.put(req, res.clone()).catch(() => {});
-      }
+  try {
+    const res = await fetch(req);
+    if (res && res.ok) {
+      void cache.put(req, res.clone()).catch(() => {});
       return res;
-    })
-    .catch(() => null);
-
-  if (cached) {
-    return cached;
+    }
+  } catch {
+    /* Hors-ligne : repli sur le cache statique ci-dessous */
   }
-  const res = await network;
-  if (res && res.ok) return res;
 
-  // Si le chunk n'est pas encore en cache, tenter n'importe quel match
+  const cached = await cache.match(req);
+  if (cached) return cached;
+
   const anyCached = await caches.match(req);
   if (anyCached) return anyCached;
 

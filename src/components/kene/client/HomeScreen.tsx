@@ -453,17 +453,14 @@ export function HomeScreen({
               <button
                 type="button"
                 onClick={() => {
+                  haptic(HAPTIC.tap);
                   if (typeof window !== "undefined") {
-                    window.sessionStorage.setItem(
-                      "kene:pending_chat_message",
-                      "Je souhaite vérifier la composition d'une crème ou d'un produit. Que penses-tu des risques d'hydroquinone ou de corticoïdes camouflés et comment puis-je te faire analyser mon flacon ?"
-                    );
+                    window.dispatchEvent(new CustomEvent("kene:open-inci-scanner"));
                   }
-                  setClientTab("chat");
                 }}
-                className="shrink-0 px-2.5 py-1 rounded-lg bg-[#FFF9EC]/10 hover:bg-[#FFF9EC]/20 text-[#EADCC9] font-medium transition-colors"
+                className="shrink-0 px-2.5 py-1 rounded-lg bg-[#FFF9EC]/10 hover:bg-[#FFF9EC]/20 text-[#EADCC9] font-medium transition-colors cursor-pointer"
               >
-                🧴 Analyser un produit
+                🧴 Analyser un produit (INCI)
               </button>
               <button
                 type="button"

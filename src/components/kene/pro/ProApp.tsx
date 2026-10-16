@@ -51,16 +51,17 @@ export type ProNavCategory = "pilotage" | "clinique" | "commerce" | "relation" |
 
 export interface ProNavCategoryDef {
   id: ProNavCategory;
+  emoji: string;
   label: string;
   shortLabel: string;
 }
 
 export const PRO_NAV_CATEGORIES: ProNavCategoryDef[] = [
-  { id: "pilotage", label: "Pilotage & Activité", shortLabel: "Pilotage" },
-  { id: "clinique", label: "Cabine & Clinique Dermo", shortLabel: "Clinique" },
-  { id: "commerce", label: "Caisse & Commerce", shortLabel: "Commerce" },
-  { id: "relation", label: "Relation & Fidélité", shortLabel: "Relation" },
-  { id: "gestion", label: "Gestion & Administration", shortLabel: "Gestion" },
+  { id: "pilotage", emoji: "📊", label: "Pilotage & Activité", shortLabel: "Pilotage" },
+  { id: "clinique", emoji: "🔬", label: "Cabine & Clinique Dermo", shortLabel: "Clinique & Cabine" },
+  { id: "commerce", emoji: "💳", label: "Caisse & Commerce", shortLabel: "Caisse & Stock" },
+  { id: "relation", emoji: "🤝", label: "Relation & Fidélité", shortLabel: "Relation & IA" },
+  { id: "gestion", emoji: "⚖️", label: "Gestion & Administration", shortLabel: "RH, Paie & Compta" },
 ];
 
 export interface ProNavItem {
@@ -409,6 +410,16 @@ export function ProApp() {
   const activeSection: ProSectionId =
     allowedIds && !allowedIds.includes(section) ? allowedIds[0]! : section;
 
+  const availableCategories = useMemo(
+    () => PRO_NAV_CATEGORIES.filter((cat) => nav.some((i) => i.category === cat.id)),
+    [nav]
+  );
+  const activeNavItem = nav.find((i) => i.id === activeSection) ?? nav[0];
+  const activeCategory: ProNavCategory = activeNavItem?.category ?? "pilotage";
+  const activeCategoryDef =
+    PRO_NAV_CATEGORIES.find((c) => c.id === activeCategory) ?? PRO_NAV_CATEGORIES[0];
+  const activeCategoryItems = nav.filter((i) => i.category === activeCategory);
+
   // Nav mobile : la puce ACTIVE reste toujours visible — la bande défile
   // d'elle-même quand la section change (p.ex. pont Paie → « Gérer l'équipe »).
   const chipRefs = useRef<Partial<Record<ProSectionId, HTMLButtonElement | null>>>({});
@@ -639,60 +650,83 @@ export function ProApp() {
             </div>
           )}
 
-          {/* Navigation mobile chips groupée par modules logiques */}
-          <nav
-            aria-label="Navigation App Pro (mobile)"
-            className="flex items-center gap-1.5 overflow-x-auto no-scrollbar [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)]"
-          >
-            {/* Accès rapide direct Espace Beauté personnel sur mobile */}
-            <button
-              type="button"
-              onClick={goToClientSpace}
-              className="relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 min-h-8 text-xs font-bold bg-primary/15 text-primary border border-primary/30 shadow-xs active:scale-95 transition-all"
-              title="Accéder à Mon Espace Beauté"
+          {/* Navigation mobile structurée en 2 niveaux : 1. Pôles Métiers · 2. Onglets du Pôle */}
+          <div className="space-y-1.5">
+            <div
+              aria-label="Pôles Métiers Entreprise (mobile)"
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar"
             >
-              <CauriIcon className="size-3.5" />
-              <span>Beauté 🌸</span>
-            </button>
+              <button
+                type="button"
+                onClick={goToClientSpace}
+                className="relative inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1 min-h-8 text-[11px] font-bold bg-primary/15 text-primary border border-primary/30 shadow-xs active:scale-95 transition-all"
+                title="Accéder à Mon Espace Beauté"
+              >
+                <CauriIcon className="size-3.5" />
+                <span>Beauté 🌸</span>
+              </button>
 
-            {PRO_NAV_CATEGORIES.map((cat, catIdx) => {
-              const catItems = nav.filter((i) => i.category === cat.id);
-              if (catItems.length === 0) return null;
-              return (
-                <div key={cat.id} className="flex items-center gap-1.5 shrink-0">
-                  {catIdx > 0 && (
-                    <div className="h-4.5 w-px bg-border/70 shrink-0 mx-1" aria-hidden="true" />
-                  )}
-                  {catItems.map((item) => {
-                    const badge = navBadges[item.id];
-                    return (
-                      <button
-                        key={item.id}
-                        ref={(el) => { chipRefs.current[item.id] = el; }}
-                        onClick={() => openSection(item.id)}
-                        aria-current={activeSection === item.id ? "page" : undefined}
-                        aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
-                        className={cn(
-                          "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 min-h-9 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
-                          activeSection === item.id
-                            ? "k-btn-gold text-primary-foreground font-semibold shadow-xs"
-                            : "k-chip text-muted-foreground hover:text-foreground"
-                        )}
+              {availableCategories.map((cat) => {
+                const isCatActive = activeCategory === cat.id;
+                const firstItem = nav.find((i) => i.category === cat.id);
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      if (firstItem) openSection(firstItem.id);
+                    }}
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-1 min-h-8 text-[11px] font-bold transition-all border",
+                      isCatActive
+                        ? "bg-primary/15 text-primary border-primary/40 shadow-xs"
+                        : "bg-card/60 text-muted-foreground border-border/60 hover:text-foreground"
+                    )}
+                  >
+                    <span>{cat.emoji}</span>
+                    <span>{cat.shortLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <nav
+              aria-label="Sous-onglets du pôle actif (mobile)"
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5"
+            >
+              {activeCategoryItems.map((item) => {
+                const badge = navBadges[item.id];
+                return (
+                  <button
+                    key={item.id}
+                    ref={(el) => {
+                      chipRefs.current[item.id] = el;
+                    }}
+                    onClick={() => openSection(item.id)}
+                    aria-current={activeSection === item.id ? "page" : undefined}
+                    aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
+                    className={cn(
+                      "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 min-h-8 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+                      activeSection === item.id
+                        ? "k-btn-gold text-primary-foreground font-bold shadow-xs"
+                        : "k-chip text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <item.icon className="size-3.5" />
+                    <span>{item.label}</span>
+                    {badge ? (
+                      <span
+                        role="status"
+                        className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white"
                       >
-                        <item.icon className="size-3.5" />
-                        <span>{item.label}</span>
-                        {badge ? (
-                          <span role="status" className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white">
-                            {badge}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </nav>
+                        {badge}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
         </div>
       </header>
 
@@ -704,31 +738,49 @@ export function ProApp() {
         </div>
       )}
 
-      {/* ───────── 2. CORPS : RAIL LATÉRAL FIN (68 px) + CONTENU PRINCIPAL ───────── */}
+      {/* ───────── 2. CORPS : RAIL LATÉRAL STRUCTURÉ PAR PÔLES + CONTENU PRINCIPAL ───────── */}
       <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
-        {/* Rail de navigation compact 68 px (avec toggle possible vers 220 px) */}
+        {/* Rail de navigation organisé en 5 Pôles Métiers (236 px déployé / 68 px réduit) */}
         <aside
           className={cn(
             "hidden md:flex flex-col shrink-0 k-chrome text-foreground h-full overflow-y-auto overscroll-contain pretty-scroll border-r border-border/60 transition-all duration-300",
-            sidebarExpanded ? "w-[220px]" : "w-[68px]"
+            sidebarExpanded ? "w-[236px]" : "w-[68px]"
           )}
         >
           <nav aria-label="Navigation App Pro" className="flex-1 px-2 py-3 space-y-2.5">
-            {PRO_NAV_CATEGORIES.map((cat, catIdx) => {
+            {availableCategories.map((cat, catIdx) => {
               const catItems = nav.filter((item) => item.category === cat.id);
               if (catItems.length === 0) return null;
+              const isCatActive = activeCategory === cat.id;
 
               return (
-                <div key={cat.id} className="space-y-1">
+                <div
+                  key={cat.id}
+                  className={cn(
+                    "space-y-1 transition-colors",
+                    sidebarExpanded &&
+                      (isCatActive
+                        ? "rounded-2xl border border-primary/30 bg-primary/5 p-1.5"
+                        : "rounded-2xl border border-border/45 bg-card/30 p-1.5")
+                  )}
+                >
                   {sidebarExpanded ? (
-                    <div className="px-2.5 pt-1.5 pb-0.5 flex items-center justify-between text-[10px] uppercase font-black tracking-wider text-muted-foreground/70 select-none">
-                      <span className="truncate">{cat.label}</span>
-                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-muted/60 text-muted-foreground shrink-0">
+                    <div className="px-2 pt-0.5 pb-1 flex items-center justify-between text-[10px] uppercase font-black tracking-wider select-none">
+                      <span
+                        className={cn(
+                          "truncate flex items-center gap-1.5",
+                          isCatActive ? "text-primary" : "text-gold-text dark:text-[#E3B04B]"
+                        )}
+                      >
+                        <span>{cat.emoji}</span>
+                        <span className="truncate">{cat.label}</span>
+                      </span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-muted/70 text-muted-foreground shrink-0">
                         {catItems.length}
                       </span>
                     </div>
                   ) : (
-                    catIdx > 0 && <div className="my-1.5 h-px bg-border/40 mx-2" />
+                    catIdx > 0 && <div className="my-1.5 h-px bg-border/50 mx-2" />
                   )}
 
                   <div className="space-y-0.5">
@@ -743,21 +795,13 @@ export function ProApp() {
                           aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
                           title={`${item.label} — ${item.hint}`}
                           className={cn(
-                            "relative w-full flex items-center gap-2.5 rounded-xl p-2.5 text-xs sm:text-sm transition-all focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
-                            sidebarExpanded ? "justify-start px-3" : "justify-center",
+                            "relative w-full flex items-center gap-2.5 rounded-xl p-2 text-xs sm:text-[13px] transition-all focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary cursor-pointer",
+                            sidebarExpanded ? "justify-start px-2.5" : "justify-center p-2.5",
                             active
-                              ? "bg-primary/12 text-primary font-bold shadow-2xs"
-                              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                              ? "k-btn-gold text-primary-foreground font-bold shadow-xs"
+                              : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                           )}
                         >
-                          {active && (
-                            <motion.span
-                              layoutId="pro-nav-rail"
-                              aria-hidden="true"
-                              transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                              className="k-rail-line absolute left-0 top-1/2 -translate-y-1/2 h-[22px] w-[3px] rounded-full"
-                            />
-                          )}
                           <item.icon className="size-4.5 shrink-0" />
                           {sidebarExpanded && <span className="min-w-0 truncate text-left">{item.label}</span>}
                           {badge ? (
@@ -835,113 +879,123 @@ export function ProApp() {
               : "p-3 sm:p-5 lg:p-6"
           )}
         >
-          {/* ⚡ Barre d'actions express praticienne (Encaisser, RDV, Scan) — compacte & épurée */}
+          {/* 🏛️ Barre d'organisation des 5 Pôles Entreprise + Sous-Onglets du Pôle Actif + Actions Express */}
           {activeSection !== "assistant" && (
-            <div className="mb-3 rounded-[16px] border border-primary/20 bg-card/90 px-2.5 py-1.5 backdrop-blur-md shadow-xs">
-              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5">
-                <span className="text-[10px] sm:text-[11px] font-black text-primary uppercase tracking-wider pl-1 shrink-0 flex items-center gap-1">
-                  <span className="grid size-4.5 sm:size-5 place-items-center rounded-md bg-primary/15 text-primary text-[10px]">⚡</span>
-                  Accès rapide :
+            <div className="mb-3.5 rounded-[18px] border border-primary/25 bg-card/95 p-2.5 backdrop-blur-md shadow-xs space-y-2">
+              {/* Ligne 1 : Sélecteur des 5 Pôles Métiers (Desktop & Tablette) + Actions Express Cabine */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="hidden md:flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                  {availableCategories.map((cat) => {
+                    const isCatActive = activeCategory === cat.id;
+                    const firstItem = nav.find((i) => i.category === cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => {
+                          haptic(HAPTIC.tap);
+                          if (firstItem) openSection(firstItem.id);
+                        }}
+                        className={cn(
+                          "h-8 px-3 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all border shrink-0 cursor-pointer",
+                          isCatActive
+                            ? "bg-primary/15 text-primary border-primary/40 shadow-2xs"
+                            : "bg-muted/40 text-muted-foreground border-border/60 hover:text-foreground hover:bg-muted/70"
+                        )}
+                      >
+                        <span>{cat.emoji}</span>
+                        <span>{cat.shortLabel}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Actions Express Cabine (toujours accessibles en 1 clic) */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full md:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptic(HAPTIC.tap);
+                      openSection("caisse");
+                    }}
+                    className="h-8 px-2.5 rounded-xl border border-emerald-600/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0 cursor-pointer"
+                  >
+                    <AbanIcon size={13} /> Encaisser
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptic(HAPTIC.tap);
+                      setInciScannerOpen(true);
+                    }}
+                    className="h-8 px-2.5 rounded-xl border border-gold/50 bg-gold/15 hover:bg-gold/25 text-gold-text text-[11px] font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0 cursor-pointer"
+                    title="Scanner un cosmétique pour détecter l'hydroquinone et les corticoïdes"
+                  >
+                    <ShieldAlert size={13} className="text-gold-text" /> Scanner INCI 🧴
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptic(HAPTIC.tap);
+                      openSection("diagnostic");
+                    }}
+                    className="h-8 px-2.5 rounded-xl border border-[#C8951E]/60 bg-[#C8951E]/10 hover:bg-[#C8951E]/20 text-foreground text-[11px] font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0 cursor-pointer"
+                  >
+                    <ScanFace size={13} className="text-[#C8951E]" /> Scan Cabine
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptic(HAPTIC.tap);
+                      openSection("assistant");
+                    }}
+                    className="h-8 px-2.5 rounded-xl border border-[#E07A2B]/60 bg-gradient-to-r from-[#E07A2B]/15 via-[#C8951E]/10 to-card hover:from-[#E07A2B]/25 text-foreground text-[11px] font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0 cursor-pointer"
+                  >
+                    <Crown size={13} className="text-[#E07A2B]" /> Secrétaire IA 👑
+                  </button>
+                </div>
+              </div>
+
+              {/* Ligne 2 (Desktop & Tablette) : Sous-onglets du Pôle Actif */}
+              <div className="hidden md:flex items-center justify-between gap-2 pt-1.5 border-t border-border/50">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                  <span className="text-[11px] font-black text-gold-text dark:text-[#E3B04B] uppercase tracking-wider pr-1.5 shrink-0 flex items-center gap-1">
+                    <span>{activeCategoryDef.emoji}</span>
+                    <span>{activeCategoryDef.label} :</span>
+                  </span>
+                  {activeCategoryItems.map((item) => {
+                    const isItemActive = activeSection === item.id;
+                    const badge = navBadges[item.id];
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => openSection(item.id)}
+                        className={cn(
+                          "h-8 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer",
+                          isItemActive
+                            ? "k-btn-gold text-primary-foreground shadow-xs"
+                            : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
+                        )}
+                      >
+                        <item.icon className="size-3.5" />
+                        <span>{item.label}</span>
+                        {badge ? (
+                          <span className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white">
+                            {badge}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <span className="text-[11px] text-muted-foreground hidden xl:inline truncate">
+                  {activeNavItem?.hint}
                 </span>
-
-                {/* 1. Secrétaire IA 👑 */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic(HAPTIC.tap);
-                    openSection("assistant");
-                  }}
-                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-[#E07A2B]/60 bg-gradient-to-r from-[#E07A2B]/15 via-[#C8951E]/10 to-card hover:from-[#E07A2B]/25 text-foreground text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
-                >
-                  <Crown size={13} className="text-[#E07A2B]" /> Secrétaire IA 👑
-                </button>
-
-                {/* 2. Encaisser 💳 */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic(HAPTIC.tap);
-                    openSection("caisse");
-                  }}
-                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-emerald-600/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
-                >
-                  <AbanIcon size={14} /> Encaisser
-                </button>
-
-                {/* 3. Nouveau RDV 📅 */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic(HAPTIC.tap);
-                    openSection("agenda");
-                  }}
-                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
-                >
-                  <SankofaIcon size={14} /> Nouveau RDV
-                </button>
-
-                {/* 4. Scan Cabine 📸 */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic(HAPTIC.tap);
-                    openSection("diagnostic");
-                  }}
-                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-[#C8951E]/60 bg-[#C8951E]/10 hover:bg-[#C8951E]/20 text-foreground text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
-                >
-                  <ScanFace size={14} className="text-[#C8951E]" /> Scan Cabine
-                </button>
-
-                {/* 5. Scanner Produit INCI 🧴 */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic(HAPTIC.tap);
-                    setInciScannerOpen(true);
-                  }}
-                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-gold/50 bg-gold/15 hover:bg-gold/25 text-gold-text text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
-                  title="Scanner un cosmétique pour détecter l'hydroquinone et les corticoïdes"
-                >
-                  <ShieldAlert size={14} className="text-gold-text" /> Scanner INCI 🧴
-                </button>
-
-                {/* 6. Dossiers Peau 🔬 */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic(HAPTIC.tap);
-                    openSection("dossiers_peau");
-                  }}
-                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-gold/40 bg-gold/10 hover:bg-gold/20 text-foreground text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
-                >
-                  <FolderHeart size={13} className="text-gold-text" /> Dossiers Peau 🔬
-                </button>
-
-                {/* 6. + Nouvelle Cliente 👥 */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic(HAPTIC.tap);
-                    setCrmCreateNonce(Date.now());
-                    openSection("crm");
-                  }}
-                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-border/80 bg-card hover:bg-muted text-foreground text-[11px] sm:text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0"
-                >
-                  <UserPlus size={13} /> + Cliente
-                </button>
-
-                {/* 6. Mon Espace Beauté 🌸 */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic(HAPTIC.tap);
-                    goToClientSpace();
-                  }}
-                  className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-lg border border-primary/25 bg-primary/10 hover:bg-primary/15 text-primary text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all shrink-0"
-                  title="Mon Espace Beauté (Soins & Rituels personnels)"
-                >
-                  <CauriIcon size={13} /> Espace Beauté 🌸
-                </button>
               </div>
             </div>
           )}
