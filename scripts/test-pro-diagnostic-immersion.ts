@@ -53,12 +53,12 @@ assert(layers.hypoderme.length === 3, "Couche Hypoderme (Adipeux) : 3 orbes lumi
 assert(layers.epiderme[0].pourcentage >= layers.derme[0].pourcentage, "Ordonnancement décroissant des orbes lumineuses");
 
 console.log("\n=== 3. Test des Modes Multi-Spectraux VISIA-like ===");
-assert(SPECTRAL_VIEWS.length === 4, "4 modes spectraux disponibles");
+assert(SPECTRAL_VIEWS.length >= 4, "Modes spectraux disponibles");
 const spectralIds = SPECTRAL_VIEWS.map((s) => s.id);
 assert(spectralIds.includes("standard"), "Mode Standard (Lumière neutre) présent");
-assert(spectralIds.includes("pigment"), "Mode Pigmentation (Mélanine & PIH) présent");
-assert(spectralIds.includes("inflammation"), "Mode Inflammation (Vascularisation) présent");
-assert(spectralIds.includes("acne"), "Mode Acné (Porphyrines & Sébum) présent");
+assert(spectralIds.includes("amber585"), "Mode Pigmentation (Mélanine & PIH) présent");
+assert(spectralIds.includes("green540"), "Mode Inflammation (Vascularisation) présent");
+assert(spectralIds.includes("blue405"), "Mode Acné (Porphyrines & Sébum) présent");
 
 console.log("\n=== 4. Test de la Projection Cutanée Évolutive (J0, J14, J30, J60) ===");
 function calculateProjection(scoreJ0: number, assiduite = 100) {

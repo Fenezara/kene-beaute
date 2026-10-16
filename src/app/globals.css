@@ -519,9 +519,97 @@
 }
 
 @media print {
-  body * { visibility: hidden; }
-  .print-area, .print-area * { visibility: visible; }
-  .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  /* 1. Déverrouiller html et body pour permettre la pagination complète et sans scroll-lock */
+  html,
+  body {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 2. Annuler les restrictions de positionnement, de hauteur et de clipping de Radix Dialog / Portal */
+  [data-radix-portal],
+  [role="dialog"],
+  [data-state="open"],
+  .fixed,
+  .overflow-y-auto,
+  .overflow-x-hidden,
+  .pretty-scroll {
+    position: static !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    transform: none !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* 3. Masquer les overlays sombres, boutons et éléments non imprimables */
+  button,
+  .no-print,
+  [data-radix-focus-guard],
+  div[data-state="open"] > .fixed.inset-0,
+  .bg-black\/80,
+  nav,
+  header,
+  aside {
+    display: none !important;
+  }
+
+  /* 4. Si une zone .print-area est présente, masquer le reste du document proprement */
+  body:has(.print-area) > *:not([data-radix-portal]) {
+    display: none !important;
+  }
+
+  /* Zone imprimable : pleine largeur naturelle et sans coupure de hauteur */
+  .print-area {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    page-break-inside: auto;
+  }
+
+  .print-area * {
+    visibility: visible !important;
+  }
+
+  /* Support pour les tickets de caisse #kene-receipt-print */
+  body:has(#kene-receipt-print) > *:not([data-radix-portal]) {
+    display: none !important;
+  }
+
+  #kene-receipt-print {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+  }
+
+  #kene-receipt-print * {
+    visibility: visible !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
 }
 
 /* typography: Fraunces + Plus Jakarta Sans (Kènè 2026) */
+

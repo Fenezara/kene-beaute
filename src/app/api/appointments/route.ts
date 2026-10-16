@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, overlaps, genRef, notify, dayEnd, ensureWallet, debitWallet } from "@/lib/kene/server";
+import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
 import { DEPOSIT_RATE } from "@/lib/kene/format";
 import { newConfirmToken, paymentWithConfirmToken, serializePayment } from "@/lib/kene/confirm-token";
 import type { Appointment, Payment } from "@prisma/client";
@@ -187,6 +188,18 @@ export async function POST(req: NextRequest) {
 
     const resource = await db.resource.findFirst({ where: { id: resourceId, tenantId, active: true } });
     if (!resource) return jsonError("Praticienne introuvable", 404);
+
+    // Règle d'entreprise : une personne en congé ne peut pas être réservée
+    const leave = await getActiveLeaveForEmployee(
+      { tenantId, resourceId: resource.id, name: resource.name },
+      start
+    );
+    if (leave) {
+      return jsonError(
+        `${resource.name} est actuellement indisponible / en congé à cette date (${formatLeaveBlockedMessage(leave, "prendre un rendez-vous")}). Merci de choisir une autre praticienne ou un autre jour.`,
+        400
+      );
+    }
 
     if (userId) {
       const user = await db.user.findUnique({ where: { id: userId } });

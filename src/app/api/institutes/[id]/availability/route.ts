@@ -25,7 +25,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       : null;
     const durationMin = service?.durationMin ?? 30;
 
-    const resources = await db.resource.findMany({ where: { tenantId: id, active: true } });
+    const allResources = await db.resource.findMany({ where: { tenantId: id, active: true } });
+    if (allResources.length === 0) return NextResponse.json({ slots: [] });
+
+    // Règle d'entreprise : une personne en congé est totalement exclue des disponibilités
+    const leavesOnDate = await db.leaveRequest.findMany({
+      where: {
+        tenantId: id,
+        status: "approved",
+        startDate: { lte: dayEnd(date) },
+        endDate: { gte: dayStart(date) },
+      },
+      include: { employee: true },
+    });
+    const namesOnLeave = new Set(leavesOnDate.map((l) => l.employee.name.trim().toLowerCase()));
+    const resources = allResources.filter((r) => !namesOnLeave.has(r.name.trim().toLowerCase()));
     if (resources.length === 0) return NextResponse.json({ slots: [] });
 
     // Grille des libellés 30 min via la lib métier (gère aussi « date passée »)

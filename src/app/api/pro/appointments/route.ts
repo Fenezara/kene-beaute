@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, overlaps, dayEnd, notify, ddMM, hhmm } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
+import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
 
 const include = {
   service: { select: { id: true, name: true, durationMin: true, price: true } },
@@ -83,6 +84,15 @@ export async function POST(req: NextRequest) {
     if (!service) return jsonError("Service introuvable", 404);
     const resource = await db.resource.findFirst({ where: { id: resourceId, tenantId, active: true } });
     if (!resource) return jsonError("Praticienne introuvable", 404);
+
+    // Règle d'entreprise : une personne en congé ne peut plus intervenir dans les activités
+    const leaveOnDate = await getActiveLeaveForEmployee(
+      { tenantId, resourceId: resource.id, name: resource.name },
+      start
+    );
+    if (leaveOnDate) {
+      return jsonError(formatLeaveBlockedMessage(leaveOnDate, "prendre un rendez-vous"), 400);
+    }
 
     // Résolution / création de la fiche cliente CRM
     let profileId: string | null = null;

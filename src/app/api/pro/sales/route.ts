@@ -6,6 +6,7 @@ import { splitTVA, saleJournalLines } from "@/lib/accounting/syscohada";
 import { jsonError, serverError, resolveTenant, createJournalEntry, recomputeClientRfm, genRef } from "@/lib/kene/server";
 import { pushTenantFeed } from "@/lib/kene/realtime";
 import { guardProRole } from "@/lib/kene/session";
+import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
 
 export async function GET(req: NextRequest) {
   try {
@@ -62,6 +63,22 @@ export async function POST(req: NextRequest) {
 
     const tenant = await resolveTenant(req, tenantId);
     if (!tenant) return jsonError("Institut introuvable ou non autorisé", 404);
+
+    // Règle d'entreprise : une personne en congé ne peut pas être assignée aux ventes/prestations
+    const targetPractitioner = parsed.data.practitionerId || practitionerName;
+    if (targetPractitioner) {
+      const onLeave = await getActiveLeaveForEmployee(
+        {
+          tenantId: tenant.id,
+          employeeId: parsed.data.practitionerId,
+          name: practitionerName,
+        },
+        new Date()
+      );
+      if (onLeave) {
+        return jsonError(formatLeaveBlockedMessage(onLeave, "être assignée aux ventes/prestations en caisse"), 400);
+      }
+    }
 
     let clientProfile: Awaited<ReturnType<typeof db.clientProfile.findFirst>> = null;
     if (parsed.data.clientProfileId) {

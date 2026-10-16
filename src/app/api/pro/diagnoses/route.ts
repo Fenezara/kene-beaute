@@ -16,6 +16,7 @@ import { jsonError, serverError, notify, resolveTenant } from "@/lib/kene/server
 import { guardProRole } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, PRO_DIAGNOSES } from "@/lib/kene/rate-limit";
 import { checkImageDataUrl } from "@/lib/kene/upload";
+import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -91,6 +92,17 @@ export async function POST(req: NextRequest) {
 
     const tenant = await resolveTenant(req, parsed.data.tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
+
+    // Règle d'entreprise : une praticienne en congé ne peut pas réaliser de diagnostic cabine
+    if (practitioner && practitioner.trim().length > 0) {
+      const onLeave = await getActiveLeaveForEmployee(
+        { tenantId: tenant.id, name: practitioner.trim() },
+        new Date()
+      );
+      if (onLeave) {
+        return jsonError(formatLeaveBlockedMessage(onLeave, "réaliser un diagnostic cabine"), 400);
+      }
+    }
 
     // 1. Cliente: fiche CRM existante OU création express (anti-doublon téléphones)
     let clientProfileId = parsed.data.clientProfileId ?? null;

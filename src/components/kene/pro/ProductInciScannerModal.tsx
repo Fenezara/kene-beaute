@@ -42,7 +42,7 @@ export function ProductInciScannerModal({ open, onOpenChange, tenantId }: Props)
   const processImage = async (file: File) => {
     try {
       setAnalyzing(true);
-      const resized = await resizeImage(file, 1600, 1600, 0.88);
+      const resized = await resizeImage(file, 1600);
       setImagePreview(resized);
 
       // Appel de l'analyseur VLM & INCI via l'API Kènè

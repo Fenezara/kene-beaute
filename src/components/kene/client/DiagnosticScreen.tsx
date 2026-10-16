@@ -1397,7 +1397,7 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
     () => [...(r.indicateurs || [])].sort((a, b) => a.pourcentage - b.pourcentage).slice(0, 8),
     [r.indicateurs]
   );
-  const viewDef = (CLIENT_SPECTRAL_VIEWS as readonly import("@/lib/kene/types").SpectralViewDefinition[]).find((v) => v.id === view) ?? CLIENT_SPECTRAL_VIEWS[0];
+  const viewDef = (CLIENT_SPECTRAL_VIEWS as unknown as readonly import("@/lib/kene/types").SpectralViewDefinition[]).find((v) => v.id === view) ?? CLIENT_SPECTRAL_VIEWS[0];
   const heatmapCls =
     view === "amber585" || view === "pigment"
       ? "heatmap-pigment"

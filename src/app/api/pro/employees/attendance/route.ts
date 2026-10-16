@@ -24,6 +24,23 @@ export async function POST(req: NextRequest) {
     if (!employee) return jsonError("Employée introuvable", 404);
 
     const now = new Date();
+
+    // Règle d'entreprise stricte : une personne en congé ne peut pas pointer ni intervenir
+    const leave = await db.leaveRequest.findFirst({
+      where: {
+        employeeId: employee.id,
+        status: "approved",
+        startDate: { lte: dayEnd(now) },
+        endDate: { gte: dayStart(now) },
+      },
+    });
+    if (leave) {
+      return jsonError(
+        `${employee.name} est actuellement en ${leave.type === "maladie" ? "arrêt maladie" : "congé"} (du ${leave.startDate.toLocaleDateString("fr-FR")} au ${leave.endDate.toLocaleDateString("fr-FR")}). Pointage impossible.`,
+        403
+      );
+    }
+
     const existing = await db.attendance.findFirst({
       where: { employeeId: employee.id, date: { gte: dayStart(), lte: dayEnd() } },
     });

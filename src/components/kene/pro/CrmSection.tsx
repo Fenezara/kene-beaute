@@ -4,7 +4,7 @@
 // — WhatsApp direct depuis la fiche cliente: message de prise de
 // contact pré-rempli (wa.me), même mécanique que les relances du Fil du Retour.
 import { useEffect, useMemo, useState } from "react";
-import { Crown, FileDown, MessageCircle, Phone, Search, Users, Wallet, Save, Star, Pencil, Plus, ShoppingBag, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin, FolderHeart, ChevronRight } from "lucide-react";
+import { Crown, FileDown, MessageCircle, Phone, Search, Users, Wallet, Save, Star, Pencil, Plus, ShoppingBag, PackageCheck, Trash2, AlertTriangle, Loader2, UserPlus, Baby, Calendar, Gift, MapPin, FolderHeart, ChevronRight, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

@@ -404,7 +404,7 @@ export function PayrollSection({
       </section>
 
       {/* ── Bulletin A4 ── */}
-      {payslip && <PayslipDialog slip={payslip.slip} periodLabel={payslip.periodLabel} tenantName={tenantName} country={latestCountry(payslip.slip)} onClose={() => setPayslip(null)} />}
+      {payslip && <PayslipDialog tenantId={tenantId} slip={payslip.slip} periodLabel={payslip.periodLabel} tenantName={tenantName} country={latestCountry(payslip.slip)} onClose={() => setPayslip(null)} />}
     </div>
   );
 }
@@ -415,9 +415,27 @@ function latestCountry(slip: ProPayslip): string {
 }
 
 // ═════════════ Bulletin A4 imprimable ═════════════
-function PayslipDialog({ slip, periodLabel, tenantName, country, onClose }: { slip: ProPayslip; periodLabel: string; tenantName: string; country: string; onClose: () => void }) {
+function PayslipDialog({
+  tenantId,
+  slip,
+  periodLabel,
+  tenantName,
+  country,
+  onClose,
+}: {
+  tenantId: string;
+  slip: ProPayslip;
+  periodLabel: string;
+  tenantName: string;
+  country: string;
+  onClose: () => void;
+}) {
   const details = parseDetails(slip);
   const totalRetenues = details.lines.find((l) => l.libelle === "Total retenues")?.retenue ?? slip.cnpsEmployee + slip.incomeTax + slip.cn;
+
+  const downloadPdf = () => {
+    window.open(`/api/pro/payroll/payslip?tenantId=${tenantId}&slipId=${slip.id}`, "_blank");
+  };
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -507,9 +525,14 @@ function PayslipDialog({ slip, periodLabel, tenantName, country, onClose }: { sl
           </div>
         </div>
 
-        <Button onClick={() => window.print()} className="mx-auto mt-4 gap-2 font-semibold" size="lg">
-          <Printer className="size-4" aria-hidden="true" /> Imprimer le bulletin
-        </Button>
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-4 no-print">
+          <Button onClick={() => window.print()} className="gap-2 font-semibold" size="lg">
+            <Printer className="size-4" aria-hidden="true" /> Imprimer le bulletin
+          </Button>
+          <Button variant="outline" onClick={downloadPdf} className="gap-2 font-semibold border-gold/40 text-gold-dark hover:bg-gold/10" size="lg">
+            <Download className="size-4" aria-hidden="true" /> Télécharger en PDF (A4 officiel)
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

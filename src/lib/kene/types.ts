@@ -124,7 +124,7 @@ export interface SpectralViewDefinition {
   filter: string;
   opticalTarget: string;
   clinicalSignificance: string;
-  botanicals: string[];
+  botanicals: readonly string[] | string[];
   recommendedFormula: string;
 }
 

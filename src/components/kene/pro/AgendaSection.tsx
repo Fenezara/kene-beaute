@@ -35,7 +35,7 @@ import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, Money, SectionHeader } from "./ui-bits";
 import { DEFAULT_FALLBACK_CATALOG, DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
-import type { ProAppointment, ProCatalog, ProClient } from "./types";
+import type { ProAppointment, ProCatalog, ProClient, ProLeave } from "./types";
 
 const OPEN = 9;
 const CLOSE = 20;
@@ -57,6 +57,36 @@ function timeOptions(): string[] {
     out.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
   }
   return out;
+}
+
+function checkResourceLeave(
+  resource: { value: string; name: string },
+  dateStr: string,
+  leaves: ProLeave[]
+): { onLeave: boolean; reason: string } {
+  if (!dateStr || !leaves?.length) return { onLeave: false, reason: "" };
+  const target = new Date(dateStr);
+  if (isNaN(target.getTime())) return { onLeave: false, reason: "" };
+  const t = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+
+  for (const l of leaves) {
+    if (l.status !== "approved") continue;
+    const match =
+      (l.employeeId && l.employeeId === resource.value) ||
+      (l.employeeName && resource.name && l.employeeName.trim().toLowerCase() === resource.name.trim().toLowerCase());
+    if (!match) continue;
+
+    const s = new Date(l.startDate);
+    const start = new Date(s.getFullYear(), s.getMonth(), s.getDate()).getTime();
+    const e = new Date(l.endDate);
+    const end = new Date(e.getFullYear(), e.getMonth(), e.getDate()).getTime();
+
+    if (t >= start && t <= end) {
+      const typeLabel = l.type === "maladie" ? "Arrêt maladie" : l.type === "maternite" ? "Congé maternité" : "En congé";
+      return { onLeave: true, reason: typeLabel };
+    }
+  }
+  return { onLeave: false, reason: "" };
 }
 
 export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; refreshKey?: number }) {
@@ -101,6 +131,15 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
       ).then((r) => r.appointments ?? []),
     [tenantId]
   );
+
+  const leavesApi = useApi<ProLeave[]>(
+    () =>
+      tenantId
+        ? apiGet<{ leaves: ProLeave[] }>(`/api/pro/leaves?tenantId=${tenantId}`).then((r) => r.leaves ?? [])
+        : Promise.resolve([]),
+    [tenantId, refreshKey]
+  );
+  const leaves = leavesApi.data ?? [];
 
   const resources = useMemo(() => {
     const map = new Map<string, { value: string; name: string; color: string }>();
@@ -305,6 +344,7 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
         <ApptDetailDialog
           appt={selected}
           resources={resources}
+          leaves={leaves}
           onClose={() => setSelected(null)}
           onAction={act}
         />
@@ -317,6 +357,7 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
         tenantId={tenantId}
         services={catalog.data?.services ?? []}
         resources={resources}
+        leaves={leaves}
         clients={clients.data ?? []}
         clientsLoading={clients.loading}
         defaultDate={toLocalISODate(new Date())}
@@ -334,11 +375,13 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
 function ApptDetailDialog({
   appt,
   resources,
+  leaves,
   onClose,
   onAction,
 }: {
   appt: ProAppointment;
   resources: { value: string; name: string; color: string }[];
+  leaves: ProLeave[];
   onClose: () => void;
   onAction: (a: ProAppointment, action: string, extra?: Record<string, unknown>) => Promise<unknown>;
 }) {
@@ -479,19 +522,38 @@ function ApptDetailDialog({
               <Select value={resourceId} onValueChange={setResourceId}>
                 <SelectTrigger aria-label="Praticienne"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {resources.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>
-                      <span className="inline-flex items-center gap-2">
-                        <span className="size-2.5 rounded-full" style={{ background: r.color }} aria-hidden="true" /> {r.name}
-                      </span>
-                    </SelectItem>
-                  ))}
+                  {resources.map((r) => {
+                    const lInfo = checkResourceLeave(r, date, leaves);
+                    return (
+                      <SelectItem key={r.value} value={r.value} disabled={lInfo.onLeave}>
+                        <span className="inline-flex items-center gap-2">
+                          <span className="size-2.5 rounded-full" style={{ background: r.color }} aria-hidden="true" />
+                          <span className={lInfo.onLeave ? "line-through opacity-60" : ""}>{r.name}</span>
+                          {lInfo.onLeave && (
+                            <span className="rounded bg-bissap/15 px-1.5 py-0.5 text-[10px] font-semibold text-bissap">
+                              {lInfo.reason}
+                            </span>
+                          )}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
+            {(() => {
+              const resObj = resources.find((r) => r.value === resourceId) ?? { value: resourceId, name: "" };
+              const lInfo = checkResourceLeave(resObj, date, leaves);
+              if (!lInfo.onLeave) return null;
+              return (
+                <p className="rounded-md bg-bissap/10 px-2.5 py-1.5 text-xs font-medium text-bissap">
+                  ⚠️ {resObj.name || "Praticienne"} est indisponible ({lInfo.reason.toLowerCase()}) à cette date.
+                </p>
+              );
+            })()}
             <div className="flex gap-2">
               <Button
-                disabled={busy || !date || !time}
+                disabled={busy || !date || !time || checkResourceLeave(resources.find((r) => r.value === resourceId) ?? { value: resourceId, name: "" }, date, leaves).onLeave}
                 onClick={() => {
                   const dt = new Date(`${date}T${time}:00`);
                   void run("reschedule", { startAt: dt.toISOString(), resourceId });
@@ -516,6 +578,7 @@ function CreateApptDialog({
   tenantId,
   services,
   resources,
+  leaves,
   clients,
   clientsLoading,
   defaultDate,
@@ -526,6 +589,7 @@ function CreateApptDialog({
   tenantId: string;
   services: { id: string; name: string; durationMin: number; price: number }[];
   resources: { value: string; name: string; color: string }[];
+  leaves: ProLeave[];
   clients: ProClient[];
   clientsLoading: boolean;
   defaultDate: string;
@@ -553,6 +617,12 @@ function CreateApptDialog({
   async function submit() {
     if (!serviceId || !resourceId || !date || !time) {
       toast.error("Complétez service, praticienne, date et heure");
+      return;
+    }
+    const chosenRes = resources.find((r) => r.value === resourceId) ?? { value: resourceId, name: "" };
+    const leaveCheck = checkResourceLeave(chosenRes, date, leaves);
+    if (leaveCheck.onLeave) {
+      toast.error(`Impossible : ${chosenRes.name || "la praticienne"} est ${leaveCheck.reason.toLowerCase()} à cette date`);
       return;
     }
     if (mode === "existing" && !clientId) {
@@ -685,17 +755,37 @@ function CreateApptDialog({
               <Select value={resourceId} onValueChange={setResourceId}>
                 <SelectTrigger aria-label="Praticienne"><SelectValue placeholder="Choisir…" /></SelectTrigger>
                 <SelectContent>
-                  {resources.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>
-                      <span className="inline-flex items-center gap-2">
-                        <span className="size-2.5 rounded-full" style={{ background: r.color }} aria-hidden="true" /> {r.name}
-                      </span>
-                    </SelectItem>
-                  ))}
+                  {resources.map((r) => {
+                    const lInfo = checkResourceLeave(r, date, leaves);
+                    return (
+                      <SelectItem key={r.value} value={r.value} disabled={lInfo.onLeave}>
+                        <span className="inline-flex items-center gap-2">
+                          <span className="size-2.5 rounded-full" style={{ background: r.color }} aria-hidden="true" />
+                          <span className={lInfo.onLeave ? "line-through opacity-60" : ""}>{r.name}</span>
+                          {lInfo.onLeave && (
+                            <span className="rounded bg-bissap/15 px-1.5 py-0.5 text-[10px] font-semibold text-bissap">
+                              {lInfo.reason}
+                            </span>
+                          )}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {(() => {
+            const chosenRes = resources.find((r) => r.value === resourceId) ?? { value: resourceId, name: "" };
+            const lInfo = checkResourceLeave(chosenRes, date, leaves);
+            if (!lInfo.onLeave) return null;
+            return (
+              <p className="rounded-md bg-bissap/10 px-2.5 py-1.5 text-xs font-medium text-bissap">
+                ⚠️ {chosenRes.name || "Praticienne"} est indisponible ({lInfo.reason.toLowerCase()}) à cette date.
+              </p>
+            );
+          })()}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -726,7 +816,11 @@ function CreateApptDialog({
             <Textarea id="na-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Peaux sensibles, arrive 10 min avant…" />
           </div>
 
-          <Button disabled={busy} onClick={submit} className="w-full gap-1.5 font-semibold">
+          <Button
+            disabled={busy || checkResourceLeave(resources.find((r) => r.value === resourceId) ?? { value: resourceId, name: "" }, date, leaves).onLeave}
+            onClick={submit}
+            className="w-full gap-1.5 font-semibold"
+          >
             <Plus className="size-4" aria-hidden="true" /> {busy ? "Création…" : "Créer le rendez-vous"}
           </Button>
         </div>

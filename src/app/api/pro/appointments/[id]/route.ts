@@ -6,6 +6,7 @@ import { splitTVA, saleJournalLines } from "@/lib/accounting/syscohada";
 import { jsonError, serverError, resolveTenant, overlaps, dayEnd, createJournalEntry, recomputeClientRfm, genRef, notify } from "@/lib/kene/server";
 import { pushTenantFeed } from "@/lib/kene/realtime";
 import { guardProRole } from "@/lib/kene/session";
+import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
 
 const Body = z.object({
   action: z.enum(["confirm", "complete", "cancel", "no_show", "reschedule"]),
@@ -44,10 +45,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const newStart = startAt ? new Date(startAt) : appointment.startAt;
       if (startAt && Number.isNaN(newStart.getTime())) return jsonError("Date invalide", 400);
       let newResourceId = appointment.resourceId;
+      let targetResourceName = appointment.resource.name;
       if (resourceId && resourceId !== appointment.resourceId) {
         const r = await db.resource.findFirst({ where: { id: resourceId, tenantId: appointment.tenantId, active: true } });
         if (!r) return jsonError("Praticienne introuvable", 404);
         newResourceId = r.id;
+        targetResourceName = r.name;
+      }
+
+      // Règle d'entreprise : une personne en congé ne peut pas être assignée
+      const leaveOnDate = await getActiveLeaveForEmployee(
+        { tenantId: appointment.tenantId, resourceId: newResourceId, name: targetResourceName },
+        newStart
+      );
+      if (leaveOnDate) {
+        return jsonError(formatLeaveBlockedMessage(leaveOnDate, "déplacer un rendez-vous"), 400);
       }
       const others = await db.appointment.findMany({
         where: {
