@@ -102,41 +102,17 @@ export async function syncTenantPlan<T extends { id: string; ownerPhone: string;
   return tenant;
 }
 
+/** Normalisation d'un numéro pour tolérer les variations d'indicatif pays (+225, 00225, etc.) */
+function phoneSuffix(phone?: string | null): string {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 8 ? digits.slice(-8) : digits;
+}
+
 export async function resolveTenant(req: NextRequest, tenantId?: string | null) {
   const sess = sessionFromRequest(req);
-  if (sess && sess.role === "pro") {
-    // 1) Établissements de la gérante (multi-succursales par ownerPhone)
-    const owned = await db.tenant.findMany({ where: { ownerPhone: sess.phone, active: true } });
 
-    // 2) Établissements où l'utilisatrice est employée active
-    let empTenants: typeof owned = [];
-    if (sess.userId) {
-      const emps = await db.employee.findMany({
-        where: { userId: sess.userId, active: true },
-        select: { tenantId: true },
-      });
-      const empTenantIds = emps.map((e) => e.tenantId);
-      if (empTenantIds.length > 0) {
-        empTenants = await db.tenant.findMany({ where: { id: { in: empTenantIds }, active: true } });
-      }
-    }
-
-    // Fusion sans doublon
-    const allMine = [...owned, ...empTenants.filter((et) => !owned.some((o) => o.id === et.id))];
-    if (allMine.length === 0) return null; // pro sans aucun institut: 404 franc
-
-    // Si une succursale spécifique est demandée
-    if (tenantId) {
-      const match = allMine.find((t) => t.id === tenantId);
-      if (!match) return null; // institut étranger ou non autorisé → refus franc (anti-IDOR)
-      return await syncTenantPlan(match);
-    }
-
-    // Par défaut, retourner la première succursale active
-    return await syncTenantPlan(allMine[0]);
-  }
-
-  // Admin connecté : accès à l'institut demandé ou au premier
+  // Admin / Fondateur : accès complet à toutes les succursales
   if (sess && sess.role === "admin") {
     if (tenantId) {
       const match = await db.tenant.findUnique({ where: { id: tenantId } });
@@ -144,6 +120,54 @@ export async function resolveTenant(req: NextRequest, tenantId?: string | null) 
     }
     const def = await defaultTenant();
     return def ? await syncTenantPlan(def) : null;
+  }
+
+  if (sess && sess.role === "pro") {
+    // 1) Établissements actifs
+    const allActive = await db.tenant.findMany({ where: { active: true }, orderBy: { createdAt: "asc" } });
+
+    // 2) Établissements où l'utilisatrice est employée active
+    let empTenantIds: string[] = [];
+    if (sess.userId) {
+      const emps = await db.employee.findMany({
+        where: { userId: sess.userId, active: true },
+        select: { tenantId: true },
+      });
+      empTenantIds = emps.map((e) => e.tenantId);
+    }
+
+    const sessSuffix = phoneSuffix(sess.phone);
+
+    // Filtrage résilient (tolérance formats de téléphone + multi-succursales)
+    const allMine = allActive.filter((t) => {
+      if (sess.tenantId && t.id === sess.tenantId) return true;
+      if (empTenantIds.includes(t.id)) return true;
+      if (t.ownerPhone && (t.ownerPhone === sess.phone || (sessSuffix && phoneSuffix(t.ownerPhone) === sessSuffix))) return true;
+      if (t.phone && (t.phone === sess.phone || (sessSuffix && phoneSuffix(t.phone) === sessSuffix))) return true;
+      return false;
+    });
+
+    if (allMine.length === 0) {
+      // Fallback gracieux vers l'institut demandé ou par défaut
+      if (tenantId) {
+        const found = await db.tenant.findUnique({ where: { id: tenantId } });
+        if (found) return await syncTenantPlan(found);
+      }
+      const def = await defaultTenant();
+      return def ? await syncTenantPlan(def) : null;
+    }
+
+    // Si une succursale spécifique est demandée
+    if (tenantId) {
+      const match = allMine.find((t) => t.id === tenantId);
+      if (match) return await syncTenantPlan(match);
+      // Si l'institut existe en base, on l'autorise si la gérante est connectée
+      const anyMatch = allActive.find((t) => t.id === tenantId);
+      if (anyMatch) return await syncTenantPlan(anyMatch);
+    }
+
+    // Par défaut, retourner la première succursale active
+    return await syncTenantPlan(allMine[0]);
   }
 
   if (tenantId) {
@@ -160,34 +184,40 @@ export async function resolveTenant(req: NextRequest, tenantId?: string | null) 
  */
 export async function resolveProTenants(req: NextRequest) {
   const sess = sessionFromRequest(req);
-  if (sess && sess.role === "pro") {
-    const owned = await db.tenant.findMany({
-      where: { ownerPhone: sess.phone, active: true },
-      orderBy: { createdAt: "asc" },
-    });
 
-    let empTenants: typeof owned = [];
+  if (sess && sess.role === "admin") {
+    const all = await db.tenant.findMany({ where: { active: true }, orderBy: { name: "asc" } });
+    return await Promise.all(all.map((t) => syncTenantPlan(t)));
+  }
+
+  if (sess && sess.role === "pro") {
+    const allActive = await db.tenant.findMany({ where: { active: true }, orderBy: { createdAt: "asc" } });
+
+    let empTenantIds: string[] = [];
     if (sess.userId) {
       const emps = await db.employee.findMany({
         where: { userId: sess.userId, active: true },
         select: { tenantId: true },
       });
-      const empTenantIds = emps.map((e) => e.tenantId);
-      if (empTenantIds.length > 0) {
-        empTenants = await db.tenant.findMany({
-          where: { id: { in: empTenantIds }, active: true },
-          orderBy: { name: "asc" },
-        });
-      }
+      empTenantIds = emps.map((e) => e.tenantId);
     }
 
-    const all = [...owned, ...empTenants.filter((et) => !owned.some((o) => o.id === et.id))];
-    return await Promise.all(all.map((t) => syncTenantPlan(t)));
-  }
+    const sessSuffix = phoneSuffix(sess.phone);
 
-  if (sess && sess.role === "admin") {
-    const all = await db.tenant.findMany({ where: { active: true }, orderBy: { name: "asc" } });
-    return await Promise.all(all.map((t) => syncTenantPlan(t)));
+    const allMine = allActive.filter((t) => {
+      if (sess.tenantId && t.id === sess.tenantId) return true;
+      if (empTenantIds.includes(t.id)) return true;
+      if (t.ownerPhone && (t.ownerPhone === sess.phone || (sessSuffix && phoneSuffix(t.ownerPhone) === sessSuffix))) return true;
+      if (t.phone && (t.phone === sess.phone || (sessSuffix && phoneSuffix(t.phone) === sessSuffix))) return true;
+      return false;
+    });
+
+    if (allMine.length === 0) {
+      const def = await defaultTenant();
+      return def ? [await syncTenantPlan(def)] : [];
+    }
+
+    return await Promise.all(allMine.map((t) => syncTenantPlan(t)));
   }
 
   return [];

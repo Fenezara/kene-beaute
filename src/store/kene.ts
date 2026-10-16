@@ -154,7 +154,7 @@ export const useKene = create<KeneState>()(
   persist<KeneState, [], [], Partial<PersistedKene>>(
     (set) => ({
       space: "client",
-      clientTab: "accueil",
+      clientTab: "diagnostic",
       user: null,
       cart: [],
       proTenantId: null,

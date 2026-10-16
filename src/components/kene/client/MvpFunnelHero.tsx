@@ -225,7 +225,7 @@ export function MvpFunnelHero({
                   🥇 Mon Bilan Cutané Actif
                 </span>
                 <span className="text-[11px] font-bold text-muted-foreground">
-                  {user.fitzpatrick ? `Phototype Fitzpatrick ${user.fitzpatrick}` : "Profil Mélanoderme"}
+                  {user.fitzpatrick ? `Carnation Type ${user.fitzpatrick} (Peau mate/noire)` : "Teint noir & métissé"}
                 </span>
               </div>
               <h3 className="font-heading font-black text-xl sm:text-2xl text-foreground leading-tight">

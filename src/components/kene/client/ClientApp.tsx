@@ -277,6 +277,15 @@ export function ClientApp() {
       setPull(0);
       wasRefreshing.current = true;
       setRefreshKey((k) => k + 1);
+      // Actualisation ultra-réactive garantie sur tous les onglets (max 600ms)
+      setTimeout(() => {
+        if (wasRefreshing.current) {
+          wasRefreshing.current = false;
+          setRefreshing(false);
+          haptic(HAPTIC.success);
+          toast.success("Actualisé", { description: `Mis à jour à ${formatTime(new Date())}` });
+        }
+      }, 600);
     } else {
       setPull(0);
     }
@@ -475,8 +484,8 @@ export function ClientApp() {
       {/* ───────── Colonne principale ───────── */}
       <div className="relative flex-1 min-w-0 flex flex-col h-full">
         {/* Header unique responsive: mobile = logo + actions; desktop = titre + actions.
- k-chrome = verre blur+saturate (le CSS gère le filet et l'ombre). Safe-area mobile garantie (≥ 36px). */}
-        <header className="shrink-0 z-40 k-chrome pt-8 sm:pt-4 md:pt-0 [padding-top:max(env(safe-area-inset-top,0px),2.25rem)] md:[padding-top:env(safe-area-inset-top,0px)]">
+            k-chrome = verre blur+saturate (le CSS gère le filet et l'ombre). Calage direct sur la barre d'état du téléphone. */}
+        <header className="shrink-0 z-40 k-chrome [padding-top:env(safe-area-inset-top,0px)]">
           <div className="h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3 px-2 sm:px-5">
             {/* 1. GAUCHE : Logo Kènè & Titre (immunisé contre tout écrasement grâce à shrink-0) */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">

@@ -51,8 +51,7 @@ import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider
 import { PhotoLightboxModal, type LightboxPhoto } from "@/components/kene/common/PhotoLightboxModal";
 import { CauriIcon, KeneSunIcon, DuafeIcon, NeaOnnimIcon } from "@/components/kene/icons";
 import { parseDiagnosis, diagImgSrc } from "./types";
-import type { ApiDiagnosis, ApiInstitute } from "./types";
-import { useKene, type ClientTab } from "@/store/kene";
+import { useKene, isSavedUser, type ClientTab } from "@/store/kene";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { SkinHealthDashboard } from "./SkinHealthDashboard";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
@@ -80,9 +79,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
 
   // Sauvegarde compte WhatsApp
   const [linkModalOpen, setLinkModalOpen] = useState(false);
-  const isGuestUser = Boolean(
-    storeUser && (storeUser.phone === "+2250701020304" || storeUser.id === "guest" || storeUser.phone?.includes("0701020304"))
-  );
+  const isGuestUser = !isSavedUser(storeUser);
 
   // Diagnoses gérées localement si non injectées depuis l'extérieur
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>(initialDiagnoses ?? []);
@@ -212,7 +209,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
     const botanicals = lastResult?.recommandations?.botaniques_conseillees?.join(", ") || "Moringa d'Afrique, Karité brut bio, Kinkeliba, Hibiscus";
     const soins = lastResult?.recommandations?.soins_conseilles?.slice(0, 2).join(" • ") || "Soin du visage dermo-cosmétique en cabine";
 
-    const msg = `Bonjour l'équipe de *${instName}* ! 🌿✨\n\nVoici le point sur *Mon Dossier Peau & Routine Beauté Kènè* :\n\n📊 *Score Vitalité Cutanée* : ${globalScore}/100\n✨ *Phototype Fitzpatrick* : Type ${user.fitzpatrick || "V"} (mélanoderme)\n🌿 *Actifs Recommandés* : ${botanicals}\n💆‍♀️ *Soin Conseillé* : ${soins}\n\nJe souhaite faire le point sur mon évolution et programmer ma prochaine séance cabine. Merci ! 🌸`;
+    const msg = `Bonjour l'équipe de *${instName}* ! 🌿✨\n\nVoici le point sur *Mon Dossier Peau & Routine Beauté Kènè* :\n\n📊 *Score Vitalité Cutanée* : ${globalScore}/100\n✨ *Carnation (Teint)* : Type ${user.fitzpatrick || "V"} (Peau noire & métissée)\n🌿 *Actifs Recommandés* : ${botanicals}\n💆‍♀️ *Soin Conseillé* : ${soins}\n\nJe souhaite faire le point sur mon évolution et programmer ma prochaine séance cabine. Merci ! 🌸`;
 
     const phone = selectedInstitute?.phone || (selectedInstitute as any)?.ownerPhone || "";
     openWhatsApp(phone, msg);
@@ -300,9 +297,9 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               <ShieldCheck className="size-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Phototype</p>
-              <p className="text-sm font-black font-heading text-amber-500 truncate mt-0.5">
-                Type {user.fitzpatrick || "V"}
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Carnation</p>
+              <p className="text-xs sm:text-sm font-black font-heading text-amber-500 truncate mt-0.5" title="Peaux noires, mates et métissées">
+                Type {user.fitzpatrick || "V"} · Mate/Noire
               </p>
             </div>
           </CardContent>
@@ -457,25 +454,25 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                       {user.name}
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      Phototype Fitzpatrick {user.fitzpatrick || "V"} · Peau {user.skinType || "mixte"} · {user.city || "Abidjan"}
+                      Carnation Type {user.fitzpatrick || "V"} (Peau noire à mate) · Peau {user.skinType || "mixte"} · {user.city || "Abidjan"}
                     </p>
                   </div>
                 </div>
 
                 <Badge variant="outline" className="text-amber-500 bg-amber-500/10 border-amber-500/30 text-xs font-black shrink-0 px-3 py-1 rounded-full">
-                  Mélanoderme {user.fitzpatrick || "V"}
+                  Peau noire &amp; métissée ({user.fitzpatrick || "V"})
                 </Badge>
               </div>
 
-              {/* Biomarqueurs d'identité de peau & tolérance */}
+              {/* Constantes de peau & tolérance */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 border-t border-border/60 text-xs">
                 <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Sensibilité</span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">Modérée (Stable)</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Bouclier Mélanine</span>
-                  <span className="font-bold text-[#C8951E] mt-0.5 block">Eumélanine protectrice</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Protection Naturelle</span>
+                  <span className="font-bold text-[#C8951E] mt-0.5 block">Riche en mélanine</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Allergies</span>

@@ -501,37 +501,44 @@ export function ProEnterpriseShell() {
       <AuroraBackdrop />
 
       {/* ───────── 1. BANDEAU SUPÉRIEUR PLEINE LARGEUR (TOP BAR) ───────── */}
-      <header className="shrink-0 z-40 w-full k-chrome border-b border-border/60 pt-8 sm:pt-4 md:pt-0 [padding-top:max(env(safe-area-inset-top,0px),2.25rem)] md:[padding-top:env(safe-area-inset-top,0px)]">
-        <div className="flex h-14 sm:h-16 items-center justify-between gap-2 sm:gap-3 px-2.5 sm:px-5 lg:px-6">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      <header className="shrink-0 z-40 w-full k-chrome border-b border-border/60 [padding-top:env(safe-area-inset-top,0px)]">
+        <div className="flex h-14 sm:h-16 items-center justify-between gap-1.5 sm:gap-3 px-2 sm:px-5 lg:px-6">
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 shrink-0">
             <KeneEmblemLockup
-              size={36}
-              labelSize={18}
+              size={34}
+              labelSize={17}
               label={<>Kènè <span className="text-gold-text">Pro</span></>}
               sublabel="Beauté mélanoderme"
               hideSublabelOnMobile={true}
             />
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            <div className="hidden sm:block">
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+            <div className="block">
               <Select
                 value={tid || undefined}
                 onValueChange={(v) => {
                   if (v === "__create_branch__") {
                     setCreateBranchOpen(true);
                   } else {
+                    healedRef.current = false;
                     setProTenantId(v);
+                    const currentStoreUser = useKene.getState().user;
+                    if (currentStoreUser) {
+                      useKene.getState().setUser({ ...currentStoreUser, tenantId: v });
+                    }
+                    void overview.refetch();
+                    toast.success("Établissement actif mis à jour");
                   }
                 }}
                 disabled={tenantOptions.length <= 1 && !proOwner}
               >
                 <SelectTrigger
-                  className="k-chip h-9 rounded-xl px-3 text-xs font-medium text-foreground max-w-[210px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+                  className="k-chip h-8 sm:h-9 rounded-xl px-2 sm:px-3 text-[11px] sm:text-xs font-medium text-foreground max-w-[130px] sm:max-w-[210px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
                   aria-label="Institut actif"
                 >
-                  <div className="flex items-center gap-1.5 truncate">
-                    <Building2 className="size-3.5 shrink-0 text-gold-text" />
+                  <div className="flex items-center gap-1 sm:gap-1.5 truncate">
+                    <Building2 className="size-3 sm:size-3.5 shrink-0 text-gold-text" />
                     <span className="truncate">{tenant?.name ?? "Institut…"}</span>
                   </div>
                 </SelectTrigger>

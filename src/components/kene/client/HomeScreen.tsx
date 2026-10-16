@@ -224,7 +224,7 @@ export function HomeScreen({
               <span className="kente-text-flow inline-block pr-1">{first}</span>
             </h2>
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 font-medium">
-              <MapPin size={13} className="text-primary/80" /> {user.city || "Abidjan"} · {user.fitzpatrick ? `Fitzpatrick ${user.fitzpatrick}` : "Phototype à définir"}
+              <MapPin size={13} className="text-primary/80" /> {user.city || "Abidjan"} · {user.fitzpatrick ? `Carnation Type ${user.fitzpatrick}` : "Carnation à définir"}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">

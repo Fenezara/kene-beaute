@@ -186,7 +186,7 @@ export function SkinHealthDashboard({
       {
         id: "pigmentation",
         name: "Homogénéité & PIH",
-        shortDesc: `Phototype Fitzpatrick ${user.fitzpatrick ? String(user.fitzpatrick).toUpperCase() : "V"}`,
+        shortDesc: `Carnation : Peau mate à noire (Type ${user.fitzpatrick ? String(user.fitzpatrick).toUpperCase() : "V"})`,
         score: 0,
         status: "En attente du 1er scan",
         icon: KeneSunIcon,
