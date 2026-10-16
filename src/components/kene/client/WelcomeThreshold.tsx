@@ -340,6 +340,42 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
     }
   }
 
+  const [fastConnecting, setFastConnecting] = useState<string | null>(null);
+
+  async function handleFastLogin(phone: string, pin: string, mode: "client" | "pro" | "admin") {
+    if (fastConnecting) return;
+    setFastConnecting(phone);
+    try {
+      if (mode === "admin") {
+        const res = await apiPost<{
+          ok: boolean;
+          user: ApiUser;
+          tenant: { id: string; name: string } | null;
+        }>("/api/auth/login", { phone, pin, mode: "client", context: "console", ...createHumanPayload() });
+        const sessionUser: SessionUser = {
+          ...res.user,
+          role: "admin",
+        };
+        rememberAccount({ phone, name: res.user.name, role: "admin" });
+        setUser(sessionUser);
+        setSpace("admin");
+        if (typeof window !== "undefined") {
+          window.history.pushState(null, "", "/console");
+          window.dispatchEvent(new Event("popstate"));
+        }
+        toast.success("Bienvenue Fondateur — Console Kènè ouverte 👑");
+        if (onBackToApp) onBackToApp();
+        return;
+      }
+
+      await handlePinConfirm(pin, phone, mode as "client" | "pro");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur de connexion");
+    } finally {
+      setFastConnecting(null);
+    }
+  }
+
   async function handleForgotPin(phone: string, mode: "client" | "pro") {
     try {
       toast.info("Envoi d'un code de vérification SMS...");
@@ -633,6 +669,101 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                       <BriefcaseBusiness size={13} className="text-gold-text" />
                       <span>Gérante de salon ? Connexion numéro</span>
                     </button>
+                  </div>
+
+                  {/* ── Accès Démo Immédiat 1 Clic (Gérante Pro, Cliente, Admin) ── */}
+                  <div className="rounded-2xl border border-gold/40 bg-card/90 backdrop-blur-md p-3 sm:p-4 shadow-md space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles size={14} className="text-gold-text animate-pulse shrink-0" />
+                        <span className="text-xs font-bold text-foreground">Comptes de Test &amp; Démo (Accès direct 1 Clic)</span>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-gold/15 text-gold-text font-semibold shrink-0">
+                        PIN: 1234
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      💡 <strong>Connexion Kènè :</strong> Pas de mot de passe compliqué ! Saisissez votre numéro et le <strong>code secret à 4 chiffres (1234)</strong> style Wave Mobile Money, ou cliquez ci-dessous :
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                      {/* Déborah - Gérante Pro Cabinet LA DERMO */}
+                      <button
+                        type="button"
+                        onClick={() => handleFastLogin("+2250504195071", "1234", "pro")}
+                        disabled={fastConnecting !== null}
+                        className="flex items-center justify-between p-2.5 rounded-xl border border-gold/40 bg-gold/10 hover:bg-gold/20 active:scale-[0.98] transition-all text-left group cursor-pointer"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="flex items-center gap-1.5">
+                            <BriefcaseBusiness size={13} className="text-gold-text shrink-0" />
+                            <span className="text-xs font-bold text-foreground truncate">Cabinet LA DERMO</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate">Gérante Déborah (Espace Entreprise)</p>
+                        </div>
+                        <span className="shrink-0 px-2 py-1 rounded-lg k-btn-gold text-[10.5px] font-bold text-primary-foreground group-hover:scale-105 transition-transform">
+                          {fastConnecting === "+2250504195071" ? <Loader2 size={12} className="animate-spin" /> : "Entrer Pro 💼"}
+                        </span>
+                      </button>
+
+                      {/* Fatou Koné - Gérante Pro Éclat d'Abidjan */}
+                      <button
+                        type="button"
+                        onClick={() => handleFastLogin("+2250709080706", "1234", "pro")}
+                        disabled={fastConnecting !== null}
+                        className="flex items-center justify-between p-2.5 rounded-xl border border-border/80 bg-secondary/60 hover:bg-secondary active:scale-[0.98] transition-all text-left group cursor-pointer"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="flex items-center gap-1.5">
+                            <Building2 size={13} className="text-foreground/70 shrink-0" />
+                            <span className="text-xs font-bold text-foreground truncate">Éclat d&apos;Abidjan</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate">Gérante Fatou (Espace Entreprise)</p>
+                        </div>
+                        <span className="shrink-0 px-2 py-1 rounded-lg bg-foreground/10 group-hover:bg-foreground/20 text-[10.5px] font-bold text-foreground transition-transform">
+                          {fastConnecting === "+2250709080706" ? <Loader2 size={12} className="animate-spin" /> : "Entrer Pro 💼"}
+                        </span>
+                      </button>
+
+                      {/* Mariam Diallo - Cliente Beauté */}
+                      <button
+                        type="button"
+                        onClick={() => handleFastLogin("+2250701020304", "1234", "client")}
+                        disabled={fastConnecting !== null}
+                        className="flex items-center justify-between p-2.5 rounded-xl border border-pink-500/30 bg-pink-500/10 hover:bg-pink-500/20 active:scale-[0.98] transition-all text-left group cursor-pointer"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="flex items-center gap-1.5">
+                            <DuafeIcon size={13} className="text-pink-600 dark:text-pink-400 shrink-0" />
+                            <span className="text-xs font-bold text-foreground truncate">Mariam Diallo</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate">Cliente Peau Mixte (Espace Beauté)</p>
+                        </div>
+                        <span className="shrink-0 px-2 py-1 rounded-lg bg-pink-600 hover:bg-pink-700 text-[10.5px] font-bold text-white group-hover:scale-105 transition-transform">
+                          {fastConnecting === "+2250701020304" ? <Loader2 size={12} className="animate-spin" /> : "Entrer Beauté 🌸"}
+                        </span>
+                      </button>
+
+                      {/* Fondateur Kènè - Console Admin */}
+                      <button
+                        type="button"
+                        onClick={() => handleFastLogin("+2250748894270", "1234", "admin")}
+                        disabled={fastConnecting !== null}
+                        className="flex items-center justify-between p-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 active:scale-[0.98] transition-all text-left group cursor-pointer"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <div className="flex items-center gap-1.5">
+                            <Crown size={13} className="text-indigo-500 shrink-0" />
+                            <span className="text-xs font-bold text-foreground truncate">Fondateur Kènè</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate">Super-Admin (Console de pilotage)</p>
+                        </div>
+                        <span className="shrink-0 px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-[10.5px] font-bold text-white group-hover:scale-105 transition-transform">
+                          {fastConnecting === "+2250748894270" ? <Loader2 size={12} className="animate-spin" /> : "Console 👑"}
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -391,9 +391,6 @@ self.addEventListener("activate", (event) => {
           const windowClients = await self.clients.matchAll({ type: "window" });
           for (const client of windowClients) {
             client.postMessage({ type: "KENE_SW_UPDATED", version: VERSION });
-            if ("navigate" in client && client.url) {
-              await client.navigate(client.url).catch(() => {});
-            }
           }
         } catch {}
       }
@@ -459,6 +456,11 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+
+  // En développement local (localhost), laisser passer les requêtes d'authentification sans interception SW
+  if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+    if (url.pathname.startsWith("/api/auth/")) return;
+  }
 
   // Requêtes d'authentification POST : réseau direct, fallback hors-ligne immédiat
   if (req.method === "POST" && (url.pathname.startsWith("/api/auth/check-phone") || url.pathname.startsWith("/api/auth/login"))) {

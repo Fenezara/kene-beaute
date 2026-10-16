@@ -125,11 +125,6 @@ export default function RootLayout({
             }),
           }}
         />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var V="kene_nuclear_v30_20261016_b";var healedParam="kene_purged_v30";var urlParams=new URLSearchParams(window.location.search);if(urlParams.has(healedParam)){try{var cleanUrl=new URL(window.location.href);cleanUrl.searchParams.delete(healedParam);window.history.replaceState(null,"",cleanUrl.toString());}catch(e){}return;}if(localStorage.getItem("kene_ui_build_ver")===V)return;function executePurge(){var urls=new Set();try{var html=(document.documentElement?document.documentElement.innerHTML:"").replace(/\\\\"/g,'"');var re=/(\\/_next\\/static\\/[^"'\\s\\\\<>)]+\\.(?:js|css))/g;var m;while((m=re.exec(html))!==null){urls.add(m[1]);}}catch(e){}try{if(typeof performance!=="undefined"&&performance.getEntriesByType){performance.getEntriesByType("resource").forEach(function(e){if(e&&e.name&&e.name.indexOf("/_next/static/")!==-1){urls.add(e.name);}});}}catch(e){}urls.add("/_next/static/chunks/src_components_kene_pro_ProApp_tsx_1h3n0xg._.js");var list=Array.from(urls);var fetches=list.map(function(u){return fetch(u,{cache:"reload",credentials:"same-origin"}).catch(function(){});});var cacheWipe=("caches"in window)?caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}).catch(function(){}):Promise.resolve();var swWipe=("serviceWorker"in navigator)?navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}).catch(function(){}):Promise.resolve();Promise.all([Promise.all(fetches),cacheWipe,swWipe]).finally(function(){try{localStorage.setItem("kene_ui_build_ver",V);}catch(e){}try{var u=new URL(window.location.href);u.searchParams.set(healedParam,"1");window.location.replace(u.toString());}catch(e){window.location.reload();}});}if(document.readyState==="complete"||document.readyState==="interactive"){setTimeout(executePurge,120);}else{window.addEventListener("DOMContentLoaded",function(){setTimeout(executePurge,120);},{once:true});}}catch(e){}})();`,
-          }}
-        />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           {children}
         </ThemeProvider>

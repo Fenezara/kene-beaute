@@ -125,8 +125,8 @@ export function PhoneKeypad({
         <h1 className="font-heading text-[24px] sm:text-[26px] font-black leading-tight text-foreground">
           Ton numéro
         </h1>
-        <p className="mt-1.5 text-center text-[13px] text-muted-foreground">
-          Le code arrive par SMS — 10 chiffres après l'indicatif.
+        <p className="mt-1.5 text-center text-[13px] text-muted-foreground max-w-[340px]">
+          Saisis ton numéro pour te connecter avec ton code secret à 4 chiffres (ex: 1234).
         </p>
         <div
           ref={displayRef}
@@ -242,29 +242,50 @@ export function PhoneKeypad({
           </div>
         )}
 
-        {mode === "pro" && (
-          <div className="mt-4 pt-3 border-t border-border/40 flex flex-col items-center gap-2">
+        <div className="mt-4 pt-3 border-t border-border/40 flex flex-col items-center gap-2 w-full">
+          <p className="text-[11px] font-semibold text-muted-foreground">Numéros de test rapides :</p>
+          <div className="flex flex-wrap items-center justify-center gap-1.5 w-full">
+            <button
+              type="button"
+              onClick={() => {
+                setDigits("0504195071");
+                toast.info("Gérante Déborah (Cabinet LA DERMO) inséré — appuie sur →");
+              }}
+              className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-gold/40 bg-gold/15 hover:bg-gold/25 text-[11px] font-bold text-foreground transition-all active:scale-95"
+            >
+              <span>💼 Déborah (05 04 19 50 71)</span>
+            </button>
             <button
               type="button"
               onClick={() => {
                 setDigits("0709080706");
-                toast.info("Numéro salon démo inséré — appuie sur → pour valider");
+                toast.info("Gérante Fatou (Éclat d'Abidjan) inséré — appuie sur →");
               }}
-              className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/40 bg-primary/10 hover:bg-primary/20 text-xs font-bold text-foreground transition-all shadow-xs active:scale-95"
+              className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-border bg-secondary/70 hover:bg-secondary text-[11px] font-bold text-foreground transition-all active:scale-95"
             >
-              <span>🏢 Démo Institut (Fatou Koné)</span>
+              <span>🏢 Fatou (07 09 08 07 06)</span>
             </button>
-            {onOfflineBypass && (
-              <button
-                type="button"
-                onClick={onOfflineBypass}
-                className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-muted bg-muted/40 hover:bg-muted/70 text-[11px] font-medium text-muted-foreground transition-all active:scale-95"
-              >
-                <span>📴 Mode Caisse & Cabine Hors-ligne</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setDigits("0701020304");
+                toast.info("Cliente Mariam Diallo inséré — appuie sur →");
+              }}
+              className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-pink-500/30 bg-pink-500/15 hover:bg-pink-500/25 text-[11px] font-bold text-foreground transition-all active:scale-95"
+            >
+              <span>🌸 Mariam (07 01 02 03 04)</span>
+            </button>
           </div>
-        )}
+          {mode === "pro" && onOfflineBypass && (
+            <button
+              type="button"
+              onClick={onOfflineBypass}
+              className="mt-1 cursor-pointer inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-muted bg-muted/40 hover:bg-muted/70 text-[11px] font-medium text-muted-foreground transition-all active:scale-95"
+            >
+              <span>📴 Mode Caisse &amp; Cabine Hors-ligne</span>
+            </button>
+          )}
+        </div>
 
         <BotHoneypot />
       </div>

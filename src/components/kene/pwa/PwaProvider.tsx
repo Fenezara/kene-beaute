@@ -67,6 +67,9 @@ export function PwaProvider() {
 
  /** Rechargement unique: navigue vers la même URL + sentinelle. */
     function healNavigate() {
+      if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+        return;
+      }
       try {
         const url = new URL(window.location.href);
         url.searchParams.set(HEAL_PARAM, "1");

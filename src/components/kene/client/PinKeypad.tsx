@@ -239,9 +239,9 @@ export function PinKeypad({
           })}
         </motion.div>
 
-        {/* Indicateur de chargement discret */}
-        <div className="h-6 mt-3 flex items-center justify-center">
-          {loading && (
+        {/* Indicateur de chargement discret ou bouton de saisie rapide test */}
+        <div className="h-8 mt-2 flex items-center justify-center">
+          {loading ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -250,7 +250,18 @@ export function PinKeypad({
               <Loader2 size={14} className="animate-spin" />
               <span>Vérification...</span>
             </motion.div>
-          )}
+          ) : !isSetup ? (
+            <button
+              type="button"
+              onClick={() => {
+                setPin("1234");
+                void handleValidate("1234");
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-amber-400/60 bg-amber-400/15 hover:bg-amber-400/25 text-[11.5px] font-bold text-foreground transition-all active:scale-95 cursor-pointer shadow-xs"
+            >
+              <span>🔑 Saisir le code démo (1 2 3 4)</span>
+            </button>
+          ) : null}
         </div>
       </div>
 
