@@ -286,11 +286,9 @@ export function HomeScreen({
               type="button"
               onClick={() => {
                 haptic(HAPTIC.tap);
-                setClientTab("chat");
-                setTimeout(() => {
-                  const fileInput = document.querySelector<HTMLInputElement>("input[capture='environment']");
-                  if (fileInput) fileInput.click();
-                }, 200);
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("kene:open-inci-scanner"));
+                }
               }}
               className="group relative flex flex-col items-start p-3 rounded-2xl border border-gold/40 bg-gradient-to-br from-gold/15 via-card to-card hover:border-gold text-left transition-all active:scale-[0.97] shadow-xs cursor-pointer"
             >

@@ -554,13 +554,11 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             type="button"
             onClick={() => {
               haptic(HAPTIC.tap);
-              setClientTab("chat");
-              setTimeout(() => {
-                const fileInput = document.querySelector<HTMLInputElement>("input[capture='environment']");
-                if (fileInput) fileInput.click();
-              }, 200);
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("kene:open-inci-scanner"));
+              }
             }}
-            className="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold text-gold-text hover:text-foreground bg-gold/10 hover:bg-gold/20 border border-gold/40 flex items-center justify-center gap-1.5 transition-all shadow-2xs"
+            className="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold text-gold-text hover:text-foreground bg-gold/10 hover:bg-gold/20 border border-gold/40 flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
             title="Scanner la composition INCI d'un cosmétique (Hydroquinone, Corticoïdes, Toxiques)"
           >
             <ShieldAlert size={14} className="text-gold-text" />
@@ -749,13 +747,11 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             type="button"
             onClick={() => {
               haptic(HAPTIC.tap);
-              setClientTab("chat");
-              setTimeout(() => {
-                const fileInput = document.querySelector<HTMLInputElement>("input[capture='environment']");
-                if (fileInput) fileInput.click();
-              }, 200);
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("kene:open-inci-scanner"));
+              }
             }}
-            className="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold text-gold-text hover:text-foreground bg-gold/10 hover:bg-gold/20 border border-gold/40 flex items-center justify-center gap-1.5 transition-all shadow-2xs"
+            className="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold text-gold-text hover:text-foreground bg-gold/10 hover:bg-gold/20 border border-gold/40 flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
             title="Scanner la composition INCI d'un cosmétique (Hydroquinone, Corticoïdes, Toxiques)"
           >
             <ShieldAlert size={14} className="text-gold-text" />

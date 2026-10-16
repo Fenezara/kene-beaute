@@ -33,6 +33,7 @@ import { HomeScreen } from "./HomeScreen";
 import { ProfileScreen } from "./ProfileScreen";
 import { AgendaScreen } from "./AgendaScreen";
 import { ClientSkinDossierView } from "./ClientSkinDossierView";
+import { ClientInciScannerModal } from "./ClientInciScannerModal";
 import { ScreenBoundary } from "./ScreenBoundary";
 import { BootSkeleton } from "./BootSkeleton";
 import { PaymentReturnHandler } from "./PaymentReturnHandler";
@@ -338,6 +339,15 @@ export function ClientApp() {
     return () => window.removeEventListener("kene:open-login", handleOpenLogin);
   }, []);
 
+  // Modal autonome du Scanner Produit INCI (découplé du chat/orbe)
+  const [inciScannerOpen, setInciScannerOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenInci = () => setInciScannerOpen(true);
+    window.addEventListener("kene:open-inci-scanner", handleOpenInci);
+    return () => window.removeEventListener("kene:open-inci-scanner", handleOpenInci);
+  }, []);
+
   // Store persisté en cours de relecture : squelette d'amorçage
   if (!mounted || !hydrated) {
     return <BootSkeleton />;
@@ -522,20 +532,15 @@ export function ClientApp() {
                 )}
               </button>
 
-              {/* 🧴 Bouton direct Scanner INCI (visible aussi sur mobile) */}
+              {/* 🧴 Bouton direct Scanner INCI (ouvre le scanner dédié, sans aller dans le chat / orbe) */}
               <button
                 type="button"
                 onClick={() => {
                   haptic(HAPTIC.tap);
-                  unlockAudioContext();
-                  goTab("chat");
-                  setTimeout(() => {
-                    const fileInput = document.querySelector<HTMLInputElement>("input[capture='environment']");
-                    if (fileInput) fileInput.click();
-                  }, 150);
+                  setInciScannerOpen(true);
                 }}
                 title="Scanner un produit cosmétique (Détection Hydroquinone, Corticoïdes & Allergènes)"
-                className="inline-flex items-center gap-1 sm:gap-1.5 h-9 sm:h-11 px-2.5 sm:px-3 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-gold-text text-xs font-bold active:scale-95 transition-all shadow-xs shrink-0 select-none"
+                className="inline-flex items-center gap-1 sm:gap-1.5 h-9 sm:h-11 px-2.5 sm:px-3 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-gold-text text-xs font-bold active:scale-95 transition-all shadow-xs shrink-0 select-none cursor-pointer"
               >
                 <ShieldAlert size={14} className="text-gold-text shrink-0 sm:size-[15px]" />
                 <span className="hidden xs:inline truncate">Scanner INCI</span>
@@ -805,6 +810,9 @@ export function ClientApp() {
 
       {/* Célébration & Réconciliation automatique au retour de WiniPayer / Wave */}
       <PaymentReturnHandler />
+
+      {/* Modal dédié Scanner Cosmétique & INCI Kènè (autonome sans redirection vers l'orbe) */}
+      <ClientInciScannerModal open={inciScannerOpen} onOpenChange={setInciScannerOpen} />
     </div>
   );
 }

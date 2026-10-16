@@ -47,20 +47,53 @@ import { formatRole, ROLE_LABELS } from "@/lib/kene/hr-constants";
 
 export type ProSectionId = "dashboard" | "assistant" | "agenda" | "diagnostic" | "dossiers_peau" | "caisse" | "orders" | "crm" | "relances" | "equipe" | "catalogue" | "promos" | "stock" | "paie" | "compta" | "parametres" | "abonnement";
 
-const NAV: { id: ProSectionId; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }[] = [
-  { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité" },
-  { id: "diagnostic", label: "📸 Diagnostic Peau", icon: ScanFace, hint: "En cabine, ordonnances beauté & ventes" },
-  { id: "dossiers_peau", label: "🔬 Dossiers Cutanés", icon: FolderHeart, hint: "Biomarqueurs, photos HD & formulations" },
-  { id: "assistant", label: "👑 Secrétaire IA", icon: Crown, hint: "Rappels WhatsApp 24/7 & Débriefing" },
-  { id: "agenda", label: "Agenda & Soins", icon: SankofaIcon, hint: "Rendez-vous" },
-  { id: "caisse", label: "Ventes & Caisse", icon: AbanIcon, hint: "Caisse POS · Commandes en ligne" },
-  { id: "crm", label: "CRM", icon: OsramIcon, hint: "Clientes & fidélité" },
-  { id: "relances", label: "Relances", icon: BellRing, hint: "Suivi post-protocole" },
-  { id: "equipe", label: "Équipe", icon: NkonsonkonsonIcon, hint: "Personnel & pointage" },
-  { id: "catalogue", label: "Offre & Stock", icon: DuafeIcon, hint: "Soins · Stock · Promos" },
-  { id: "paie", label: "Paie", icon: FihankraIcon, hint: "CNPS · IPRES" },
-  { id: "compta", label: "Compta", icon: BaouleIcon, hint: "SYSCOHADA" },
-  { id: "parametres", label: "Paramètres", icon: Settings, hint: "Institut & Abonnement Kènè+" },
+export type ProNavCategory = "pilotage" | "clinique" | "commerce" | "relation" | "gestion";
+
+export interface ProNavCategoryDef {
+  id: ProNavCategory;
+  label: string;
+  shortLabel: string;
+}
+
+export const PRO_NAV_CATEGORIES: ProNavCategoryDef[] = [
+  { id: "pilotage", label: "Pilotage & Activité", shortLabel: "Pilotage" },
+  { id: "clinique", label: "Cabine & Clinique Dermo", shortLabel: "Clinique" },
+  { id: "commerce", label: "Caisse & Commerce", shortLabel: "Commerce" },
+  { id: "relation", label: "Relation & Fidélité", shortLabel: "Relation" },
+  { id: "gestion", label: "Gestion & Administration", shortLabel: "Gestion" },
+];
+
+export interface ProNavItem {
+  id: ProSectionId;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  hint: string;
+  category: ProNavCategory;
+}
+
+const NAV: ProNavItem[] = [
+  // 1. Pilotage & Activité
+  { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, hint: "KPIs & activité en temps réel", category: "pilotage" },
+
+  // 2. Cabine & Clinique Dermo
+  { id: "diagnostic", label: "📸 Diagnostic Peau", icon: ScanFace, hint: "En cabine, ordonnances beauté & ventes", category: "clinique" },
+  { id: "dossiers_peau", label: "🔬 Dossiers Cutanés", icon: FolderHeart, hint: "Biomarqueurs, photos HD & formulations", category: "clinique" },
+  { id: "agenda", label: "Agenda & Soins", icon: SankofaIcon, hint: "Rendez-vous & cabines de soins", category: "clinique" },
+
+  // 3. Caisse & Commerce
+  { id: "caisse", label: "Ventes & Caisse", icon: AbanIcon, hint: "Caisse POS · Commandes en ligne", category: "commerce" },
+  { id: "catalogue", label: "Offre & Stock", icon: DuafeIcon, hint: "Soins · Stock · Promos", category: "commerce" },
+
+  // 4. Relation & Fidélité
+  { id: "crm", label: "CRM Clientes", icon: OsramIcon, hint: "Clientes, fiches & fidélité", category: "relation" },
+  { id: "relances", label: "Relances", icon: BellRing, hint: "Suivi post-protocole & rappels", category: "relation" },
+  { id: "assistant", label: "👑 Secrétaire IA", icon: Crown, hint: "Rappels WhatsApp 24/7 & Débriefing", category: "relation" },
+
+  // 5. Gestion & Administration
+  { id: "equipe", label: "Équipe & Pointage", icon: NkonsonkonsonIcon, hint: "Personnel, planning & présences", category: "gestion" },
+  { id: "paie", label: "Paie & Cotisations", icon: FihankraIcon, hint: "Bulletins CNPS · IPRES", category: "gestion" },
+  { id: "compta", label: "Compta SYSCOHADA", icon: BaouleIcon, hint: "Bilan & Grand Livre OHADA", category: "gestion" },
+  { id: "parametres", label: "Paramètres", icon: Settings, hint: "Institut & Abonnement Kènè+", category: "gestion" },
 ];
 
 /* — Rôles employées: sections visibles par poste. La GÉRANTE
@@ -606,10 +639,10 @@ export function ProApp() {
             </div>
           )}
 
-          {/* Navigation mobile chips */}
+          {/* Navigation mobile chips groupée par modules logiques */}
           <nav
             aria-label="Navigation App Pro (mobile)"
-            className="flex gap-1.5 overflow-x-auto no-scrollbar [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)]"
+            className="flex items-center gap-1.5 overflow-x-auto no-scrollbar [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)]"
           >
             {/* Accès rapide direct Espace Beauté personnel sur mobile */}
             <button
@@ -621,30 +654,42 @@ export function ProApp() {
               <CauriIcon className="size-3.5" />
               <span>Beauté 🌸</span>
             </button>
-            {nav.map((item) => {
-              const badge = navBadges[item.id];
+
+            {PRO_NAV_CATEGORIES.map((cat, catIdx) => {
+              const catItems = nav.filter((i) => i.category === cat.id);
+              if (catItems.length === 0) return null;
               return (
-                <button
-                  key={item.id}
-                  ref={(el) => { chipRefs.current[item.id] = el; }}
-                  onClick={() => openSection(item.id)}
-                  aria-current={activeSection === item.id ? "page" : undefined}
-                  aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
-                  className={cn(
-                    "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 min-h-9 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
-                    activeSection === item.id
-                      ? "k-btn-gold text-primary-foreground font-semibold"
-                      : "k-chip text-muted-foreground hover:text-foreground"
+                <div key={cat.id} className="flex items-center gap-1.5 shrink-0">
+                  {catIdx > 0 && (
+                    <div className="h-4.5 w-px bg-border/70 shrink-0 mx-1" aria-hidden="true" />
                   )}
-                >
-                  <item.icon className="size-3.5" />
-                  {item.label}
-                  {badge ? (
-                    <span role="status" className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white">
-                      {badge}
-                    </span>
-                  ) : null}
-                </button>
+                  {catItems.map((item) => {
+                    const badge = navBadges[item.id];
+                    return (
+                      <button
+                        key={item.id}
+                        ref={(el) => { chipRefs.current[item.id] = el; }}
+                        onClick={() => openSection(item.id)}
+                        aria-current={activeSection === item.id ? "page" : undefined}
+                        aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
+                        className={cn(
+                          "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 min-h-9 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+                          activeSection === item.id
+                            ? "k-btn-gold text-primary-foreground font-semibold shadow-xs"
+                            : "k-chip text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <item.icon className="size-3.5" />
+                        <span>{item.label}</span>
+                        {badge ? (
+                          <span role="status" className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white">
+                            {badge}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
               );
             })}
           </nav>
@@ -668,47 +713,69 @@ export function ProApp() {
             sidebarExpanded ? "w-[220px]" : "w-[68px]"
           )}
         >
-          <nav aria-label="Navigation App Pro" className="flex-1 px-2 py-3 space-y-1">
-            {nav.map((item) => {
-              const active = activeSection === item.id;
-              const badge = navBadges[item.id];
+          <nav aria-label="Navigation App Pro" className="flex-1 px-2 py-3 space-y-2.5">
+            {PRO_NAV_CATEGORIES.map((cat, catIdx) => {
+              const catItems = nav.filter((item) => item.category === cat.id);
+              if (catItems.length === 0) return null;
+
               return (
-                <button
-                  key={item.id}
-                  onClick={() => openSection(item.id)}
-                  aria-current={active ? "page" : undefined}
-                  aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
-                  title={`${item.label} — ${item.hint}`}
-                  className={cn(
-                    "relative w-full flex items-center gap-3 rounded-xl p-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
-                    sidebarExpanded ? "justify-start px-3" : "justify-center",
-                    active
-                      ? "bg-primary/12 text-primary font-semibold"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                <div key={cat.id} className="space-y-1">
+                  {sidebarExpanded ? (
+                    <div className="px-2.5 pt-1.5 pb-0.5 flex items-center justify-between text-[10px] uppercase font-black tracking-wider text-muted-foreground/70 select-none">
+                      <span className="truncate">{cat.label}</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-muted/60 text-muted-foreground shrink-0">
+                        {catItems.length}
+                      </span>
+                    </div>
+                  ) : (
+                    catIdx > 0 && <div className="my-1.5 h-px bg-border/40 mx-2" />
                   )}
-                >
-                  {active && (
-                    <motion.span
-                      layoutId="pro-nav-rail"
-                      aria-hidden="true"
-                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                      className="k-rail-line absolute left-0 top-1/2 -translate-y-1/2 h-[24px] w-[3px] rounded-full"
-                    />
-                  )}
-                  <item.icon className="size-5 shrink-0" />
-                  {sidebarExpanded && <span className="min-w-0 truncate">{item.label}</span>}
-                  {badge ? (
-                    <span
-                      role="status"
-                      className={cn(
-                        "grid h-4.5 min-w-4.5 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white",
-                        sidebarExpanded ? "ml-auto" : "absolute top-1 right-1"
-                      )}
-                    >
-                      {badge}
-                    </span>
-                  ) : null}
-                </button>
+
+                  <div className="space-y-0.5">
+                    {catItems.map((item) => {
+                      const active = activeSection === item.id;
+                      const badge = navBadges[item.id];
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => openSection(item.id)}
+                          aria-current={active ? "page" : undefined}
+                          aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
+                          title={`${item.label} — ${item.hint}`}
+                          className={cn(
+                            "relative w-full flex items-center gap-2.5 rounded-xl p-2.5 text-xs sm:text-sm transition-all focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+                            sidebarExpanded ? "justify-start px-3" : "justify-center",
+                            active
+                              ? "bg-primary/12 text-primary font-bold shadow-2xs"
+                              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                          )}
+                        >
+                          {active && (
+                            <motion.span
+                              layoutId="pro-nav-rail"
+                              aria-hidden="true"
+                              transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                              className="k-rail-line absolute left-0 top-1/2 -translate-y-1/2 h-[22px] w-[3px] rounded-full"
+                            />
+                          )}
+                          <item.icon className="size-4.5 shrink-0" />
+                          {sidebarExpanded && <span className="min-w-0 truncate text-left">{item.label}</span>}
+                          {badge ? (
+                            <span
+                              role="status"
+                              className={cn(
+                                "grid h-4.5 min-w-4.5 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white",
+                                sidebarExpanded ? "ml-auto" : "absolute top-1 right-1"
+                              )}
+                            >
+                              {badge}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </nav>
