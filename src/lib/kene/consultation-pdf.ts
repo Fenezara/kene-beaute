@@ -38,6 +38,8 @@ import {
 import {
   QUESTIONNAIRE_SECTIONS,
   QUESTIONS,
+  getQuestionsForZone,
+  getSectionsForZone,
   type QAnswers,
   type Question,
   type ProDiagnosisResult,
@@ -277,6 +279,7 @@ export function consultationSheetPdf(input: {
   tenantCity: string;
   tenantPhone?: string | null;
   practitioner?: string | null;
+  zone?: BodyZone;
   client?: ConsultationClientPrefill | null;
   date?: Date;
 }): ConsultPdfResult {
@@ -511,9 +514,13 @@ export function consultationSheetPdf(input: {
     "Renseigné avec la cliente — les réponses alimentent le score d'équilibre et les recommandations"
   );
 
+  const sheetZone = input.zone ?? "visage";
+  const sheetSections = getSectionsForZone(sheetZone);
+  const sheetQuestions = getQuestionsForZone(sheetZone);
+
   let qSectionIndex = 1;
-  for (const section of QUESTIONNAIRE_SECTIONS) {
-    const qs = QUESTIONS.filter((q) => q.section === section.id);
+  for (const section of sheetSections) {
+    const qs = sheetQuestions.filter((q) => q.section === section.id);
     doc.ensure(26);
     // Petit bandeau de sous-section du questionnaire
     doc.rect(M_X, doc.cursorY, CONTENT_W, 15, CREAM);
@@ -1121,8 +1128,9 @@ export function proDiagReportPdf(input: {
   }
 
   // 7. Traçabilité des réponses de l'entretien
-  sectionBand(doc, "E", "SYNTHÈSE DE L'ENTRETIEN CABINE (TRACE DU DOSSIER)");
-  for (const q of QUESTIONS) {
+  sectionBand(doc, "E", `SYNTHÈSE DE L'ENTRETIEN CABINE · ${zoneLabel.toUpperCase()}`);
+  const zoneQuestions = getQuestionsForZone(input.diagnosis.zone as BodyZone);
+  for (const q of zoneQuestions) {
     const a = answers[q.id];
     if (a === undefined || a === null || a === "") continue;
     const labels = Array.isArray(a)

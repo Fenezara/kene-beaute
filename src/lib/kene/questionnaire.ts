@@ -973,9 +973,8 @@ function applyEffects(scores: Map<string, number>, effects: Effects | undefined,
 
 const clampScore = (n: number) => Math.max(5, Math.min(98, Math.round(n)));
 
-/** Construit le jeu de recommandations ciblées à partir des indicateurs faibles + drapeaux. */
+/** Construit le jeu de recommandations ciblées par zone à partir des indicateurs faibles + drapeaux. */
 function buildRecommendations(indicators: Indicator[], flags: QFlag[], zone: BodyZone): RecommendationSet {
-  // Indicateurs les plus faibles d'abord (hors zone nævi — pas de conseil questionnaire)
   const weakest = indicators
     .filter((i) => i.pourcentage < 80)
     .sort((a, b) => a.pourcentage - b.pourcentage)
@@ -988,86 +987,305 @@ function buildRecommendations(indicators: Indicator[], flags: QFlag[], zone: Bod
   const soins: string[] = [];
   const hygiene: string[] = [];
 
-  for (const ind of weakest) {
-    const n = norm(ind.nom);
-    const has = (...keys: string[]) => keys.some((k) => n.includes(k));
-    if (has("hydrat", "secheresse")) {
-      matin.push("Brume hydratante aloka avant la crème");
-      soir.push("Baume réparateur karité en couche généreuse");
-      botaniques.push("Karité", "Aloka");
-      produits.push("Baume Nuit Karité", "Sérum Hydratation Aloka");
-      soins.push("Soin hydratant profond karité");
-    } else if (has("barriere")) {
-      matin.push("Nettoyant doux sans savon (pH 5,5)");
-      soir.push("Cérat apaisant en fin de routine");
-      botaniques.push("Karité");
-      produits.push("Cérat Réparateur Kènè");
-      soins.push("Soin apaisant barrière");
-    } else if (has("pih", "pigment", "melasma")) {
-      matin.push("Sérum vitamine C stabilisé");
-      soir.push("Sérum niacinamide 5 % sur les taches");
-      botaniques.push("Moringa");
-      produits.push("Sérum Éclat Moringa", "SPF 50 teinté minéral");
-      soins.push("Soin éclat mélanoderme");
-    } else if (has("eclat")) {
-      matin.push("Sérum éclat vitamine C");
-      botaniques.push("Moringa", "Bissap");
-      produits.push("Sérum Éclat Moringa");
-      soins.push("Gommage éclat doux 1×/semaine");
-    } else if (has("sebum", "pores", "texture", "noirs")) {
-      matin.push("Nettoyant doux moussant");
-      soir.push("Masque argile bissap 2×/semaine");
-      botaniques.push("Bissap");
-      produits.push("Masque Argile Bissap", "Sérum Niacinamide 5 %");
-      soins.push("Soin purifiant matifiant");
-    } else if (has("acne")) {
-      soir.push("Soin local niacinamide sur les imperfections");
-      botaniques.push("Bissap", "Moringa");
-      produits.push("Sérum Niacinamide 5 %");
-      soins.push("Soin purifiant anti-imperfections");
-    } else if (has("rougeur", "irrit", "follicul", "incarne")) {
-      matin.push("Brume apaisante aloka");
-      soir.push("Gel apaisant sans alcool");
-      botaniques.push("Aloka");
-      produits.push("Gel Apaisant Aloka");
-      soins.push("Soin apaisant anti-rougeurs");
-    } else if (has("cerne")) {
-      matin.push("Tapotement léger de gel contour froid");
-      botaniques.push("Baobab");
-      produits.push("Gel Contour des Yeux Baobab");
-      soins.push("Massage drainant contour des yeux");
-    } else if (has("elastic")) {
-      matin.push("Sérum fermeté au baobab");
-      soir.push("Massage lifting 3 min (huiles baobab)");
-      botaniques.push("Baobab");
-      produits.push("Huile Fermeté Baobab");
-      soins.push("Soin remodelant visage");
-    } else if (has("keratose")) {
-      soins.push("Évaluation des lésions par dermo-conseillère");
-      produits.push("Écran solaire quotidien");
-    } else if (has("desquamation")) {
-      soir.push("Lotion cuir chevelu apaisante");
-      produits.push("Sérum Cuir Chevelu Bissap");
-      soins.push("Soin detox cuir chevelu");
+  switch (zone) {
+    case "cuir_chevelu": {
+      const has = (...keys: string[]) => weakest.some((ind) => keys.some((k) => norm(ind.nom).includes(k)));
+
+      matin.push("Brume tonique hydratante aloka & menthe sur les racines");
+      matin.push("Massage doux circulaire du cuir chevelu 2 min (micro-circulation)");
+
+      if (has("desquamation", "pellicul")) {
+        matin.push("Sérum purifiant cuir chevelu au bissap & zinc");
+        soir.push("Lotion assainissante apaisante cuir chevelu");
+        botaniques.push("Bissap", "Arbre à thé", "Zinc PCA");
+        produits.push("Sérum Anti-Pelliculaire Purifiant au Bissap", "Lotion Apaisante Cuir Chevelu Moringa & Aloka");
+        soins.push("Soin détoxifiant & assainissant cuir chevelu");
+      }
+
+      if (has("alopeci", "traction", "chute")) {
+        matin.push("Sérum stimulant racines au ricin noir & baobab sur les bordures");
+        soir.push("Massage nocturne fortifiant des tempes et golfes");
+        botaniques.push("Ricin noir", "Baobab");
+        produits.push("Sérum Fortifiant Cuir Chevelu Ricin Noir & Baobab", "Huile Végétale Pure de Ricin Pressée à Froid");
+        soins.push("Modelage crânien stimulant & revitalisant aux huiles chaudes");
+        hygiene.push("Bannir impérativement les tresses, tissages ou perruques collées trop serrés");
+      }
+
+      if (has("sebum", "gras")) {
+        soir.push("Shampoing doux clarifiant sans sulfates 1x/semaine");
+        botaniques.push("Moringa", "Bissap");
+        produits.push("Shampoing Doux Équilibrant Sans Sulfates");
+        soins.push("Bain purifiant cuir chevelu");
+      }
+
+      if (has("secheresse", "sec")) {
+        soir.push("Bain d'huile nourrissant pré-shampoing au baobab et karité fondu");
+        botaniques.push("Karité brut", "Baobab");
+        produits.push("Huile Végétale Pure de Baobab", "Baume Réparateur Pointes & Longueurs");
+        soins.push("Soin profond hydro-nutritif capillaire");
+      }
+
+      if (has("irrit", "follicul")) {
+        soir.push("Gelée apaisante dermo-calmante sans alcool à l'aloka");
+        botaniques.push("Aloka");
+        produits.push("Gelée Apaisante Cuir Chevelu Aloka & Calendula");
+        soins.push("Protocole apaisant anti-inflammatoire cuir chevelu");
+      }
+
+      if (soir.length === 0) {
+        soir.push("Sérum stimulant fortifiant racines", "Port d'un bonnet ou taie en satin pour la nuit");
+      }
+      if (botaniques.length === 0) botaniques.push("Ricin noir", "Baobab", "Moringa");
+      if (produits.length === 0) produits.push("Sérum Fortifiant Cuir Chevelu Ricin Noir & Baobab", "Shampoing Doux Sans Sulfates");
+      if (soins.length === 0) soins.push("Soin revitalisant cuir chevelu en salon");
+      hygiene.push("Privilégier le satin ou la soie pour la nuit afin d'éviter la déshydratation et la casse");
+      hygiene.push("Espacer les lavages (1x par semaine) et éviter l'eau brûlante");
+      hygiene.push("Éviter l'occlusion des pores par des beurres ou vaselines trop lourds appliqués directement sur le crâne");
+      break;
+    }
+
+    case "dos": {
+      const has = (...keys: string[]) => weakest.some((ind) => keys.some((k) => norm(ind.nom).includes(k)));
+
+      matin.push("Douche avec gel nettoyant purifiant sans savon au zinc et moringa");
+      matin.push("Séchage soigneux du dos par tapotement avec serviette propre dédiée");
+
+      if (has("acne", "bouton", "sebum")) {
+        soir.push("Spray purifiant ciblé aux AHA de bissap et acide salicylique doux");
+        botaniques.push("Bissap", "Moringa", "Zinc PCA");
+        produits.push("Gel Nettoyant Purifiant Corps Moringa & Zinc", "Spray Anti-Imperfections Dos aux AHA de Bissap");
+        soins.push("Soin purifiant désincrustant du dos en cabine");
+      }
+
+      if (has("pih", "tache", "pigment")) {
+        soir.push("Émulsion unifiante anti-taches niacinamide 10% sur les marques du dos");
+        botaniques.push("Moringa", "Bissap");
+        produits.push("Lotion Unifiante Anti-Taches Dos & Corps");
+        soins.push("Gommage doux corps aux AHA et enveloppement éclaircissant");
+      }
+
+      if (has("irrit", "rougeur")) {
+        soir.push("Émulsion apaisante dermo-réparatrice à l'aloka");
+        botaniques.push("Aloka", "Karité purifié");
+        produits.push("Gelée Apaisante Corps Aloka");
+        soins.push("Enveloppement calmant et hydratant du dos");
+      }
+
+      if (soir.length === 0) {
+        soir.push("Lotion purifiante douce dos", "Vêtements amples en coton respirant");
+      }
+      if (botaniques.length === 0) botaniques.push("Moringa", "Bissap", "Zinc PCA");
+      if (produits.length === 0) produits.push("Gel Nettoyant Purifiant Corps Moringa & Zinc", "Fluide Hydratant Léger Non-Comédogène");
+      if (soins.length === 0) soins.push("Soin assainissant du dos en institut");
+      hygiene.push("Rincer systématiquement les après-shampoings et masques capillaires la tête penchée en avant (résidus gras comédogènes sur le dos)");
+      hygiene.push("Changer de t-shirt immédiatement après le sport ou une forte transpiration");
+      hygiene.push("Privilégier des vêtements amples en fibres naturelles (coton, lin) pour limiter les frottements");
+      break;
+    }
+
+    case "barbe": {
+      const has = (...keys: string[]) => weakest.some((ind) => keys.some((k) => norm(ind.nom).includes(k)));
+
+      matin.push("Nettoyage de la barbe à l'eau tiède avec nettoyant doux physiologique");
+      matin.push("Quelques gouttes d'huile à barbe nourrissante moringa & ricin");
+
+      if (has("incarne", "poil", "follicul")) {
+        matin.push("Sérum anti-poils incarnés à l'acide salicylique doux et aloka");
+        soir.push("Application d'une compresse tiède 2 min pour assouplir le poil avant soin");
+        soir.push("Soin local antibactérien et apaisant sur les boutons de rasage");
+        botaniques.push("Aloka", "Arbre à thé", "Moringa");
+        produits.push("Sérum Anti-Poils Incarnés & Folliculite Barbe", "Gelée Apaisante Post-Rasage Aloka");
+        soins.push("Soin barbier purifiant & assainissant haute-fréquence");
+      }
+
+      if (has("pih", "tache", "pigment")) {
+        soir.push("Sérum unifiant niacinamide 5 % sur les taches post-rasage");
+        botaniques.push("Moringa", "Bissap");
+        produits.push("Sérum Unifiant Anti-Taches Barbe & Menton");
+        soins.push("Soin unifiant anti-taches zone de rasage");
+      }
+
+      if (has("secheresse", "hydrat")) {
+        soir.push("Baume nourrissant barbe et peau sous-jacente au karité et baobab");
+        botaniques.push("Karité brut", "Baobab");
+        produits.push("Baume Nourrissant Barbe au Karité & Baobab");
+        soins.push("Soin d'hydratation profonde barbe & visage");
+      }
+
+      if (soir.length === 0) {
+        soir.push("Brossage doux de la barbe dans le sens du poil", "Baume apaisant après-rasage sans alcool");
+      }
+      if (botaniques.length === 0) botaniques.push("Aloka", "Moringa", "Ricin noir");
+      if (produits.length === 0) produits.push("Huile à Barbe Protectrice Moringa & Ricin", "Baume Après-Rasage Apaisant Sans Alcool");
+      if (soins.length === 0) soins.push("Soin barbier dermo-protecteur cabine");
+      hygiene.push("Raser toujours dans le sens de pousse du poil, jamais à rebrousse-poil");
+      hygiene.push("Privilégier la tondeuse de précision ou un rasoir 1 lame (bannir les rasoirs multi-lames qui provoquent des poils incarnés)");
+      hygiene.push("Bannir les après-rasages alcoolisés qui brûlent la barrière et favorisent l'hyperpigmentation");
+      break;
+    }
+
+    case "mains": {
+      const has = (...keys: string[]) => weakest.some((ind) => keys.some((k) => norm(ind.nom).includes(k)));
+
+      matin.push("Lavage doux au savon surgras végétal sans sulfates");
+      matin.push("Application d'une crème mains relipidante karité & cacao");
+      matin.push("Protection solaire fluide sur le dos des mains avant toute sortie ou conduite");
+
+      if (has("secheresse", "rugos", "crevasse", "callos")) {
+        soir.push("Baume SOS ultra-réparateur karité brut en couche généreuse");
+        soir.push("Port de gants en coton doux pendant la nuit (effet masque occlusif)");
+        botaniques.push("Karité brut", "Cacao", "Baobab");
+        produits.push("Crème Mains Relipidante Karité & Cacao", "Baume SOS Réparateur Crevasses Karité Brut");
+        soins.push("Soin manucure traitante régénérante au karité chaud");
+      }
+
+      if (has("ongle")) {
+        soir.push("Massage des ongles et cuticules à l'huile pure de baobab et ricin");
+        botaniques.push("Baobab", "Ricin");
+        produits.push("Huile Fortifiante Ongles & Cuticules Baobab & Ricin");
+        soins.push("Soin fortifiant et nourrissant de la tablette unguéale");
+      }
+
+      if (has("tache", "pigment")) {
+        soir.push("Sérum unifiant vitamine C et niacinamide sur le dos des mains et articulations");
+        botaniques.push("Moringa", "Bissap");
+        produits.push("Crème Mains Anti-Taches & Unifiante SPF 30");
+        soins.push("Peeling doux végétal éclaircissant des mains");
+      }
+
+      if (soir.length === 0) {
+        soir.push("Baume nourrissant mains et ongles", "Application avant le coucher");
+      }
+      if (botaniques.length === 0) botaniques.push("Karité brut", "Cacao", "Baobab");
+      if (produits.length === 0) produits.push("Crème Mains & Ongles Haute Nutrition", "Huile Fortifiante Cuticules");
+      if (soins.length === 0) soins.push("Manucure traitante réparatrice en institut");
+      hygiene.push("Porter impérativement des gants de ménage pour la vaisselle et la manipulation de détergents");
+      hygiene.push("Réappliquer la crème après chaque lavage des mains sur peau encore légèrement humide");
+      hygiene.push("Ne jamais couper les cuticules trop court pour éviter les infections périunguéales");
+      break;
+    }
+
+    case "naevi": {
+      matin.push("Protection solaire minérale SPF 50+ invisible impérative sur toutes les zones exposées");
+      matin.push("Renouvellement de l'application toutes les 2 heures en cas d'exposition solaire directe");
+      matin.push("Nettoyage extrêmement doux sans frotter la lésion");
+
+      soir.push("Hydratation neutre hypoallergénique sans parfum ni acides exfoliants");
+      soir.push("Auto-surveillance visuelle mensuelle selon la règle ABCDE");
+
+      botaniques.push("Aloka (apaisant)", "Karité purifié");
+      produits.push("Fluide Minéral Solaire SPF 50+ Haute Tolérance", "Crème Réparatrice Neutre Haute Tolérance");
+      soins.push("Consultation annuelle de contrôle chez un médecin dermatologue");
+
+      hygiene.push("Consulter en urgence un dermatologue en cas de modification de taille, relief, contours, couleur ou saignement");
+      hygiene.push("Bannir rigoureusement tout gommage, frottement agressif ou tentative de retrait artisanal sur la lésion");
+      hygiene.push("Éviter les frottements répétés des vêtements, bretelles ou bijoux sur les grains de beauté en relief");
+      break;
+    }
+
+    case "visage":
+    default: {
+      const has = (...keys: string[]) => weakest.some((ind) => keys.some((k) => norm(ind.nom).includes(k)));
+
+      if (has("hydrat", "secheresse")) {
+        matin.push("Brume hydratante aloka avant la crème");
+        soir.push("Baume réparateur karité en couche généreuse");
+        botaniques.push("Karité", "Aloka");
+        produits.push("Baume Nuit Karité", "Sérum Hydratation Aloka");
+        soins.push("Soin hydratant profond karité");
+      }
+      if (has("barriere")) {
+        matin.push("Nettoyant doux sans savon (pH 5,5)");
+        soir.push("Cérat apaisant en fin de routine");
+        botaniques.push("Karité");
+        produits.push("Cérat Réparateur Kènè");
+        soins.push("Soin apaisant barrière");
+      }
+      if (has("pih", "pigment", "melasma")) {
+        matin.push("Sérum vitamine C stabilisé");
+        soir.push("Sérum niacinamide 5 % sur les taches");
+        botaniques.push("Moringa");
+        produits.push("Sérum Éclat Moringa", "SPF 50 teinté minéral");
+        soins.push("Soin éclat mélanoderme");
+      }
+      if (has("eclat")) {
+        matin.push("Sérum éclat vitamine C");
+        botaniques.push("Moringa", "Bissap");
+        produits.push("Sérum Éclat Moringa");
+        soins.push("Gommage éclat doux 1×/semaine");
+      }
+      if (has("sebum", "pores", "texture", "noirs")) {
+        matin.push("Nettoyant doux moussant");
+        soir.push("Masque argile bissap 2×/semaine");
+        botaniques.push("Bissap");
+        produits.push("Masque Argile Bissap", "Sérum Niacinamide 5 %");
+        soins.push("Soin purifiant matifiant");
+      }
+      if (has("acne")) {
+        soir.push("Soin local niacinamide sur les imperfections");
+        botaniques.push("Bissap", "Moringa");
+        produits.push("Sérum Niacinamide 5 %");
+        soins.push("Soin purifiant anti-imperfections");
+      }
+      if (has("rougeur", "irrit")) {
+        matin.push("Brume apaisante aloka");
+        soir.push("Gel apaisant sans alcool");
+        botaniques.push("Aloka");
+        produits.push("Gel Apaisant Aloka");
+        soins.push("Soin apaisant anti-rougeurs");
+      }
+      if (has("cerne")) {
+        matin.push("Tapotement léger de gel contour froid");
+        botaniques.push("Baobab");
+        produits.push("Gel Contour des Yeux Baobab");
+        soins.push("Massage drainant contour des yeux");
+      }
+      if (has("elastic")) {
+        matin.push("Sérum fermeté au baobab");
+        soir.push("Massage lifting 3 min (huiles baobab)");
+        botaniques.push("Baobab");
+        produits.push("Huile Fermeté Baobab");
+        soins.push("Soin remodelant visage");
+      }
+      if (has("keratose")) {
+        soins.push("Évaluation des lésions par dermo-conseillère");
+        produits.push("Écran solaire quotidien");
+      }
+
+      if (matin.length === 0) matin.push("Nettoyant doux + hydratation légère");
+      if (soir.length === 0) soir.push("Nettoyant doux + soin de nuit");
+      if (botaniques.length === 0) botaniques.push("Karité", "Moringa");
+      if (produits.length === 0) produits.push("Sérum Éclat Moringa");
+      if (soins.length === 0) soins.push("Soin signature de l'institut");
+      break;
     }
   }
 
-  // Base commune (toujours)
-  if (matin.length === 0) matin.push("Nettoyant doux + hydratation légère");
-  if (soir.length === 0) soir.push("Nettoyant doux + soin de nuit");
-  if (botaniques.length === 0) botaniques.push("Karité", "Moringa");
-  if (produits.length === 0) produits.push("Sérum Éclat Moringa");
-  if (soins.length === 0) soins.push("Soin signature de l'institut");
-
-  // Drapeaux → conseils dédiés
+  // Drapeaux cliniques -> vigilances dédiées
   for (const f of flags) {
-    if (f.label.includes("Dépigération")) hygiene.push("Accompagnement de sevrage : arrêt progressif, jamais brutal, sous suivi");
-    if (f.label.includes("protection solaire")) hygiene.push("SPF 50 teinté chaque matin, même en saison des pluies");
-    if (f.label.includes("Grossesse")) hygiene.push("Protocole hydratant/apaisant uniquement — actifs proscrits");
-    if (f.label.includes("Hypersensibilité")) hygiene.push("Test de tolérance 48 h au pli du coude avant chaque nouveauté");
-    if (f.label.includes("Traitement")) hygiene.push("Coordination avec le prescripteur avant protocole cabine");
+    if (f.label.includes("Dépigmentation") || f.label.includes("Dépigération")) {
+      hygiene.push("Accompagnement de sevrage : arrêt progressif, jamais brutal, sous suivi dermo-cosmétique");
+    }
+    if (f.label.includes("protection solaire")) {
+      hygiene.push("Protection solaire SPF 50 quotidienne indispensable sur peau mélanoderme");
+    }
+    if (f.label.includes("Grossesse")) {
+      hygiene.push("Grossesse / allaitement : protocoles doux d'hydratation pure — rétinoïdes et actifs décapants proscrits");
+    }
+    if (f.label.includes("Hypersensibilité")) {
+      hygiene.push("Test de tolérance 48 h au pli du coude avant tout nouveau cosmétique");
+    }
+    if (f.label.includes("Traitement")) {
+      hygiene.push("Coordination avec le médecin prescripteur avant tout protocole cabine");
+    }
+    if (f.label.includes("Tension mécanique")) {
+      hygiene.push("Stopper immédiatement les coiffures à forte traction pour prévenir l'alopécie définitive");
+    }
   }
-  if (hygiene.length === 0) hygiene.push("Boire 1,5 L d'eau par jour", "Dormir 7-8 h");
+
+  if (hygiene.length === 0) {
+    hygiene.push("Boire 1,5 L d'eau par jour pour soutenir l'hydratation cutanée", "Dormir 7 à 8 h pour favoriser le renouvellement cellulaire");
+  }
 
   const uniq = (a: string[]) => Array.from(new Set(a)).slice(0, 6);
 
@@ -1084,7 +1302,7 @@ function buildRecommendations(indicators: Indicator[], flags: QFlag[], zone: Bod
 
 /** Scoring complet du questionnaire pour une zone. */
 export function scoreQuestionnaire(answers: QAnswers, zone: BodyZone): QuestionnaireResult {
-  const zoneIndicators = zone === "naevi" ? ZONE_INDICATORS.visage : ZONE_INDICATORS[zone];
+  const zoneIndicators = ZONE_INDICATORS[zone];
   const scores = new Map<string, number>(zoneIndicators.map((n) => [n, BASE_SCORE]));
   const flags: QFlag[] = [];
   const qList = getQuestionsForZone(zone);
@@ -1177,14 +1395,22 @@ export function mergeResults(qr: QuestionnaireResult, vlm: DiagnosisResult | nul
   });
   const scoreGlobal = Math.round(vlm.score_global * PHOTO_WEIGHT + qr.scoreGlobal * Q_WEIGHT);
 
-  // Recommandations: base observation VLM + vigilances questionnaire
+  // Recommandations: fusion équilibrée observation VLM + déclaratif questionnaire
   const rec: RecommendationSet = {
-    ...vlm.recommandations,
-    conseils_hygiene_vie: Array.from(
-      new Set([...(vlm.recommandations?.conseils_hygiene_vie ?? []), ...qr.recommandations.conseils_hygiene_vie])
+    resume: vlm.recommandations?.resume || qr.recommandations.resume,
+    routine_matin: vlm.recommandations?.routine_matin?.length ? vlm.recommandations.routine_matin : qr.recommandations.routine_matin,
+    routine_soir: vlm.recommandations?.routine_soir?.length ? vlm.recommandations.routine_soir : qr.recommandations.routine_soir,
+    botaniques_conseillees: Array.from(
+      new Set([...(vlm.recommandations?.botaniques_conseillees ?? []), ...qr.recommandations.botaniques_conseillees])
+    ).slice(0, 6),
+    produits: Array.from(
+      new Set([...(vlm.recommandations?.produits ?? []), ...qr.recommandations.produits])
     ).slice(0, 6),
     soins_conseilles: Array.from(
       new Set([...(vlm.recommandations?.soins_conseilles ?? []), ...qr.recommandations.soins_conseilles])
+    ).slice(0, 6),
+    conseils_hygiene_vie: Array.from(
+      new Set([...(vlm.recommandations?.conseils_hygiene_vie ?? []), ...qr.recommandations.conseils_hygiene_vie])
     ).slice(0, 6),
   };
 

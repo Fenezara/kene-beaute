@@ -61,12 +61,20 @@ Règles : TOUS les indicateurs listés dans "ind" ; 4 à 6 marks ; sev 0=sain 1=
 /** Phase 2 — prompt texte (glm-4.6): recommandations personnalisées à partir
  * de l'analyse réelle. Texte pur = génération rapide (~4 s). */
 function buildRecommendationsPrompt(analysisJson: string, zone: BodyZone): string {
-  const zoneLabel = zone === "mains" ? "mains et pieds (extrémités acrales)" : zone;
+  const zoneFocus: Record<BodyZone, string> = {
+    cuir_chevelu: "cuir chevelu et cheveux (rituels capillaires, racines, tempes, pas de démaquillant visage)",
+    dos: "dos et décolleté/épaules (douche purifiante, gel sans savon moringa/zinc, spray dos, pas de crème visage)",
+    barbe: "barbe, menton et cou (soins de barbe, anti-poils incarnés, rasage doux, après-rasage sans alcool)",
+    mains: "mains et ongles (crèmes relipidantes mains, baume ongles, gants de protection ménage)",
+    naevi: "grains de beauté et nævi (photoprotection SPF 50+, surveillance ABCDE, aucun décapage)",
+    visage: "visage (rituel de soin visage adapté aux indicateurs)",
+  };
+  const zoneDesc = zoneFocus[zone] ?? zone;
   return `Tu es conseillère dermo-cosmétique Kènè pour peaux mélanodermes africaines. Kènè ne vend aucun cosmétique (recommandations neutres, zéro prix, marques ou incitation commerciale).
-Analyse cutanée récente (zone « ${zoneLabel} ») : ${analysisJson.slice(0, 700)}
-Rédige des recommandations personnalisées ciblant spécifiquement les indicateurs les plus faibles (ex: taches/pigmentation -> sérum unifiant vitamine C & niacinamide 10% + fluide solaire SPF 50+; boutons/sébum -> gel purifiant moringa & zinc; sécheresse -> baume réparateur karité brut & céramides).
+Analyse cutanée récente (zone « ${zone} », contexte : ${zoneDesc}) : ${analysisJson.slice(0, 700)}
+Règles strictes : les recommandations DOIVENT être adaptées spécifiquement à la zone « ${zone} » et cibler ses indicateurs les plus faibles.
 JSON STRICT compact (≤ 800 caractères, sans texte autour) :
-{"resume":"<2 phrases, ton bienveillant, tutoiement>","routine_matin":["≤ 3 étapes courtes"],"routine_soir":["≤ 3 étapes courtes"],"botaniques_conseillees":["≤ 3"],"produits":["≤ 3 types précis de soins ou principes actifs"],"soins_conseilles":["≤ 2 soins en institut"],"conseils_hygiene_vie":["≤ 2"]}`;
+{"resume":"<2 phrases, ton bienveillant, tutoiement>","routine_matin":["≤ 3 étapes courtes adaptées à la zone"],"routine_soir":["≤ 3 étapes courtes adaptées à la zone"],"botaniques_conseillees":["≤ 3 botaniques africaines"],"produits":["≤ 3 types précis de soins ou principes actifs"],"soins_conseilles":["≤ 2 soins en institut"],"conseils_hygiene_vie":["≤ 2 conseils précis de vie/hygiène pour cette zone"]}`;
 }
 
 function extractJson(raw: string): Record<string, unknown> | null {
@@ -335,6 +343,9 @@ export function derivePersonalizedRecommendations(
   const isSensitivity = hasLow("sensib") || hasLow("rougeur") || hasLow("inflamm") || hasLow("tolér");
   const isHairOrScalp = zone === "cuir_chevelu" || hasLow("alopéc") || hasLow("densité");
   const isHandsFeet = zone === "mains" || hasLow("rugos") || hasLow("callos");
+  const isBack = zone === "dos";
+  const isBeard = zone === "barbe";
+  const isNaevi = zone === "naevi";
 
   let matin: string[] = [];
   let soir: string[] = [];
@@ -354,6 +365,47 @@ export function derivePersonalizedRecommendations(
     ];
     soins = ["Soin revitalisant cuir chevelu en salon", "Modelage crânien délassant"];
     hygiene = ["Éviter les tresses et tissages trop serrés sur les tempes", "Privilégier le satin ou la soie pour la nuit"];
+  } else if (isBack) {
+    matin = ["Douche au gel nettoyant purifiant sans savon au zinc & moringa", "Séchage soigneux du dos par tapotement avec serviette propre dédiée"];
+    soir = ["Spray purifiant ciblé aux AHA de bissap et acide salicylique doux", "Émulsion hydratante fluide non-comédogène pour le corps"];
+    botaniques = ["Moringa", "Bissap", "Zinc PCA"];
+    produits = [
+      "Gel Nettoyant Purifiant Corps Moringa & Zinc",
+      "Spray Purifiant & Anti-Taches Dos aux AHA de Bissap",
+      "Émulsion Fluide Hydratante Non-Comédogène Corps",
+    ];
+    soins = ["Soin purifiant désincrustant du dos en institut", "Enveloppement assainissant à l'argile et bissap"];
+    hygiene = [
+      "Rincer shampoings et masques tête penchée en avant (résidus gras comédogènes sur le dos)",
+      "Changer de vêtement immédiatement après le sport ou la transpiration",
+    ];
+  } else if (isBeard) {
+    matin = ["Nettoyage doux de la barbe au nettoyant physiologique sans sulfates", "Quelques gouttes d'huile à barbe nourrissante moringa & ricin"];
+    soir = ["Brossage doux dans le sens du poil", "Sérum anti-poils incarnés à l'acide salicylique végétal doux", "Baume apaisant après-rasage sans alcool"];
+    botaniques = ["Aloka", "Moringa", "Ricin noir"];
+    produits = [
+      "Gel Nettoyant Barbe & Peau Doux Physiologique",
+      "Sérum Anti-Poils Incarnés & Folliculite Barbe",
+      "Huile de Soin Barbe Nourrissante Moringa & Ricin",
+    ];
+    soins = ["Soin barbier dermo-protecteur et apaisant cabine", "Soin haute-fréquence antibactérien post-rasage"];
+    hygiene = [
+      "Toujours raser dans le sens de pousse du poil, jamais à rebrousse-poil",
+      "Privilégier la tondeuse ou rasoir 1 lame et bannir les lotions alcoolisées",
+    ];
+  } else if (isNaevi) {
+    matin = ["Protection solaire minérale SPF 50+ invisible impérative", "Nettoyage extrêmement doux sans frotter la lésion"];
+    soir = ["Hydratation neutre hypoallergénique sans parfum ni acides exfoliants", "Auto-surveillance visuelle mensuelle selon la règle ABCDE"];
+    botaniques = ["Aloka", "Karité purifié"];
+    produits = [
+      "Fluide Minéral Solaire SPF 50+ Haute Tolérance",
+      "Crème Réparatrice Neutre Haute Tolérance",
+    ];
+    soins = ["Consultation de surveillance dermatoscopique chez un médecin dermatologue"];
+    hygiene = [
+      "Consulter sans délai en cas de modification de taille, relief, contours, couleur ou saignement",
+      "Bannir rigoureusement tout gommage ou frottement agressif sur la lésion",
+    ];
   } else if (isAcneOrSebum) {
     matin = ["Gel nettoyant purifiant sans savon au moringa", "Sérum régulateur niacinamide 10 % & zinc", "Fluide solaire minéral SPF 50+ matifiant"];
     soir = ["Démaquillage à l'huile végétale légère de jojoba", "Nettoyant purifiant doux physiologique", "Sérum purifiant arbre à thé ou acide salicylique doux", "Émulsion hydratante non-comédogène"];

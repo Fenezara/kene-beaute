@@ -23,6 +23,10 @@ export async function GET(req: NextRequest) {
 
     const clientId = req.nextUrl.searchParams.get("clientId");
     const practitioner = req.nextUrl.searchParams.get("practitioner") || null;
+    const rawZone = req.nextUrl.searchParams.get("zone");
+    const zone = rawZone && ["visage", "dos", "cuir_chevelu", "mains", "barbe", "naevi"].includes(rawZone)
+      ? (rawZone as any)
+      : undefined;
 
     let prefill: ConsultationClientPrefill | null = null;
     if (clientId) {
@@ -68,6 +72,7 @@ export async function GET(req: NextRequest) {
       tenantCity: tenant.city,
       tenantPhone: tenant.phone,
       practitioner,
+      zone,
       client: prefill,
       date: new Date(),
     });
