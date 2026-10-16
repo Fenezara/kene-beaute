@@ -51,12 +51,16 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
   const nextAppt = upcoming[0] ?? (validAppointments.length > 0 ? validAppointments[validAppointments.length - 1] : null);
   const otherUpcoming = nextAppt ? validAppointments.filter((a) => a.id !== nextAppt.id) : [];
 
-  // Alerte proactive (compte à rebours bienveillant)
+  // Alerte proactive (compte à rebours bienveillant — uniquement pour RDV futurs)
   const reminder = useMemo(() => {
     if (!nextAppt) return null;
     const start = new Date(nextAppt.startAt);
     const startMs = start.getTime();
     const diffHours = (startMs - now) / (1000 * 3600);
+
+    // Si le rendez-vous est déjà passé, aucune alerte de rappel future !
+    if (diffHours < 0) return null;
+
     const diffDays = Math.floor(diffHours / 24);
 
     const isToday =
@@ -89,11 +93,11 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
       };
     }
 
-    if (diffDays <= 4) {
+    if (diffDays >= 0 && diffDays <= 4) {
       return {
-        badge: `Dans ${diffDays} jours`,
+        badge: diffDays === 0 ? "Aujourd'hui" : `Dans ${diffDays} jour${diffDays > 1 ? "s" : ""}`,
         urgency: "soon" as const,
-        title: `Rendez-vous dans ${diffDays} jours (${formatDate(nextAppt.startAt, { weekday: "short", day: "numeric", month: "short" })})`,
+        title: `Rendez-vous dans ${diffDays} jour${diffDays > 1 ? "s" : ""} (${formatDate(nextAppt.startAt, { weekday: "short", day: "numeric", month: "short" })})`,
         sub: "Votre créneau VIP est réservé et confirmé.",
       };
     }
@@ -368,9 +372,15 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
               )}
             </div>
             <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                <CheckCircle2 size={12} /> Confirmé
-              </span>
+              {new Date(nextAppt.startAt).getTime() < now ? (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border">
+                  <CheckCircle2 size={12} /> Soin réalisé
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <CheckCircle2 size={12} /> Confirmé
+                </span>
+              )}
               <span className="text-xs text-muted-foreground font-mono">
                 {nextAppt.durationMin || 60} min
               </span>
@@ -451,7 +461,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
             className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all ml-auto"
           >
             <MessageCircle size={15} />
-            Confirmer / Échanger sur WhatsApp
+            {new Date(nextAppt.startAt).getTime() < now ? "Renouveler ce soin sur WhatsApp" : "Confirmer / Échanger sur WhatsApp"}
           </button>
         </div>
       </div>

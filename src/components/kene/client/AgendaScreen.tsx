@@ -1094,11 +1094,11 @@ export function AgendaScreen() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-heading font-bold text-sm text-foreground flex items-center gap-2">
-                      <Stethoscope size={16} className="text-gold-text" />
-                      Rendez-vous de Suivi &amp; Contrôles Post-Diagnostic ({smartFollowUpMilestones.length})
+                      <Stethoscope size={16} className="text-primary" />
+                      Mon Protocole de Contrôle Recommandé ({smartFollowUpMilestones.length} Jalons)
                     </h3>
                     <p className="text-[11px] text-muted-foreground">
-                      Jalons programmés automatiquement selon votre dernier bilan cutané
+                      Échéances cliniques calibrées par l&apos;IA pour mesurer scientifiquement les progrès de votre peau
                     </p>
                   </div>
                 </div>
@@ -1108,7 +1108,7 @@ export function AgendaScreen() {
                     <div
                       key={m.id}
                       className={cn(
-                        "rounded-[22px] p-3.5 sm:p-4 border bg-card/85 flex flex-col sm:flex-row sm:items-center justify-between gap-3",
+                        "rounded-[22px] p-3.5 sm:p-4 border bg-card/85 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs",
                         m.urgent ? "border-rose-500/40 bg-rose-500/5" : "border-border/80"
                       )}
                     >
@@ -1116,14 +1116,14 @@ export function AgendaScreen() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
                             className={cn(
-                              "text-[10px] font-black uppercase px-2 py-0.5 rounded-full border",
+                              "text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border",
                               m.badgeColor
                             )}
                           >
-                            {m.stage === "DERMATO" ? "🩺 Orientation Médicale" : `🔄 Suivi ${m.stage}`}
+                            {m.stage === "DERMATO" ? "🩺 Consultation Recommandée" : `Étape Conseillée · ${m.stage}`}
                           </span>
                           <span className="text-xs font-semibold text-muted-foreground">
-                            Échéance :{" "}
+                            Date conseillée :{" "}
                             {formatDate(m.recommendedDate.toISOString(), {
                               weekday: "short",
                               day: "numeric",
@@ -1140,7 +1140,7 @@ export function AgendaScreen() {
                           <button
                             type="button"
                             onClick={() => setClientTab("diagnostic")}
-                            className="h-8 px-3 rounded-xl border border-gold/40 bg-gold/10 text-gold-text text-xs font-bold hover:bg-gold/20"
+                            className="h-8 px-3 rounded-xl border border-gold/40 bg-gold/10 text-gold-text text-xs font-bold hover:bg-gold/20 active:scale-95 transition-all"
                           >
                             📸 Scanner J+30
                           </button>
@@ -1156,10 +1156,10 @@ export function AgendaScreen() {
                               defaultServiceName: m.serviceName,
                             });
                           }}
-                          className="h-8 px-3 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+                          className="h-8 px-3 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all"
                         >
                           <CalendarPlus size={13} />
-                          Réserver ce contrôle
+                          Programmer ce contrôle
                         </button>
                       </div>
                     </div>

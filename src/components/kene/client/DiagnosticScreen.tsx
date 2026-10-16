@@ -1910,48 +1910,7 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
             </div>
           )}
 
-          {/* Entreprise / Institut Référent notifié du diagnostic */}
-          {(partnerInstitute || user.selectedTenant) && (
-            <div className="mt-5 k-card rounded-[24px] p-4 border border-[#3F7D3F]/30 bg-gradient-to-br from-[#3F7D3F]/10 via-card to-card shadow-xs">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="grid place-items-center size-8 rounded-xl bg-[#3F7D3F]/20 text-[#3F7D3F] shrink-0">
-                    <Building2 size={16} />
-                  </span>
-                  <div>
-                    <p className="font-heading font-bold text-xs text-foreground">
-                      Mon Institut Référent notifié ✅
-                    </p>
-                    <p className="text-[10.5px] text-muted-foreground">
-                      Votre bilan a été transmis à {(partnerInstitute || user.selectedTenant)?.name} ({(partnerInstitute || user.selectedTenant)?.city})
-                    </p>
-                  </div>
-                </div>
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] px-2.5 py-0.5 text-[10px] font-bold shrink-0">
-                  Transmis
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isSaved) {
-                    toast.error("Inscription requise", {
-                      description: "Vous devez être inscrite pour transmettre vos résultats et échanger avec votre institut partenaire.",
-                    });
-                    setLinkModalOpen(true);
-                    return;
-                  }
-                  const inst = partnerInstitute || user.selectedTenant;
-                  const phone = inst?.ownerPhone?.trim() || inst?.phone?.trim() || "";
-                  const name = inst?.name || "l'institut";
-                  openWhatsApp(phone, `Bonjour ${name} ! 🌸\nJe viens de finaliser mon bilan de peau (${r.score_global}/100) sur l'application Kènè. Je souhaite programmer mon soin ou contrôle en cabine avec vous.`, (inst?.country as "CI" | "SN") || chosenCountry);
-                }}
-                className="mt-3.5 h-11 w-full rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold flex items-center justify-center gap-2 active:scale-98 transition-all shadow-xs"
-              >
-                <MessageCircle size={15} /> Échanger avec mon institut sur WhatsApp
-              </button>
-            </div>
-          )}
+
 
           {/* Recommandation intelligente post-diagnostic — Uniquement clientes NON rattachées */}
           {!isAttachedOrShared && recommendedInstitute && (
@@ -2060,15 +2019,18 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
           )}
 
           {r.recommandations.conseils_hygiene_vie.length > 0 && (
-            <div className="k-card mt-4 rounded-[20px] p-4">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Hygiène de vie</p>
-              <ul className="space-y-1.5">
+            <div className="mt-4 rounded-2xl border border-border/70 bg-card/60 p-3.5 shadow-2xs">
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground mb-2.5 flex items-center gap-1.5">
+                <span>🌿</span> Bonnes pratiques d&apos;hygiène de vie
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {r.recommandations.conseils_hygiene_vie.map((c, i) => (
-                  <li key={i} className="text-[11px] leading-snug flex gap-2">
-                    <Check size={12} className="text-success mt-0.5 shrink-0" /> {c}
-                  </li>
+                  <div key={i} className="flex items-start gap-2 rounded-xl bg-muted/40 p-2 text-xs leading-snug">
+                    <Check size={13} className="text-emerald-500 mt-0.5 shrink-0" />
+                    <span className="text-foreground/90">{c}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
         </section>
@@ -2109,34 +2071,8 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
         </RevealItem>
       )}
 
-      <RevealItem className="mt-4 pb-2">
-        {/* Échanger directement avec Dermo Kènè sur ce bilan */}
-        <button
-          type="button"
-          onClick={handleConsultDermoKene}
-          className="k-btn-gold mb-3 h-12 w-full rounded-2xl text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-[0.99] transition-all focus-visible:outline-2 focus-visible:outline-primary"
-          aria-label="Échanger avec Dermo Kènè sur ce bilan"
-        >
-          <MessageCircle size={18} />
-          <span>Échanger avec Dermo Kènè sur ce bilan</span>
-        </button>
-
-        <div className="grid grid-cols-2 gap-3">
-          <button onClick={onNewZone} className="k-chip h-12 rounded-2xl text-primary text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
-            <ScanFace size={16} /> Nouvelle zone
-          </button>
-          <button onClick={onHistory} className="k-chip h-12 rounded-2xl text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary">
-            <History size={16} /> Historique
-          </button>
-        </div>
-        {/* Recommandation Dermo-Cosmétique & Pass Cabine avec QR vectoriel */}
-        <button
-          onClick={() => window.open(`/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`, "_blank")}
-          className="k-btn-gold mt-3 h-12 w-full rounded-2xl text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-[0.99] transition-all focus-visible:outline-2 focus-visible:outline-primary"
-          aria-label="Télécharger ma Recommandation Botanique & Pass Cabine avec QR Code en PDF"
-        >
-          <CauriIcon size={16} /> Recommandation Botanique &amp; Pass Cabine (PDF)
-        </button>
+      <RevealItem className="mt-5 pb-2 space-y-3">
+        {/* 1. Action Reine : Recevoir le protocole officiel & Pass Cabine sur WhatsApp */}
         <button
           onClick={() => {
             if (!isSaved) {
@@ -2153,28 +2089,75 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
             const msg = `Bonjour ! 🌿\n\nVoici ma *Recommandation Dermo-Cosmétique & Pass Cabine Kènè* :\n\n📊 *Score Cutané* : ${diag.result.score_global}/100\n📍 *Zone analysée* : ${zoneLabel}\n🌱 *Actifs botaniques recommandés* : ${botanicals}\n\n📄 *Télécharger ma Recommandation & Pass Cabine (PDF)* :\n${pdfUrl}\n\nÀ présenter en institut partenaire pour adapter mon protocole de soin en cabine.\n— Kènè, la beauté mélanoderme`;
             openWhatsApp(user?.phone || "", msg);
           }}
-          className="mt-2.5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-bold shadow-md transition active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-[#25D366]"
+          className="h-13 w-full rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm sm:text-base font-bold shadow-lg flex items-center justify-center gap-2.5 transition active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-[#25D366]"
           aria-label="Recevoir ma Recommandation Botanique & Pass Cabine sur WhatsApp"
         >
-          <MessageCircle size={16} /> Recevoir mon Protocole sur WhatsApp
+          <MessageCircle size={19} />
+          <span>Recevoir mon Protocole &amp; Pass sur WhatsApp</span>
         </button>
 
-        {/* Partager ma Routine & Carte Beauté sur WhatsApp / Story */}
-        <button
-          onClick={() => setBeautyCardOpen(true)}
-          className="k-card k-card-hover mt-2.5 h-12 w-full rounded-2xl border-2 border-[#C8951E]/50 bg-gradient-to-r from-[#C8951E]/15 via-gold/10 to-transparent text-foreground text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.99] transition-all focus-visible:outline-2 focus-visible:outline-primary"
-          aria-label="Partager ma Routine et Carte Beauté sur WhatsApp et Story"
-        >
-          <Share2 size={16} className="text-[#C8951E]" /> Partager ma Routine & Carte Beauté
-        </button>
+        {/* 2. Grille d'actions 2x2 épurée */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* Télécharger PDF Pass Cabine */}
+          <button
+            onClick={() => window.open(`/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`, "_blank")}
+            className="k-card k-card-hover h-12 rounded-2xl border border-gold/40 bg-card p-2 text-foreground text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-xs active:scale-[0.98] transition-all"
+            aria-label="Télécharger ma Recommandation Botanique & Pass Cabine en PDF"
+          >
+            <CauriIcon size={16} className="text-[#C8951E]" />
+            <span className="truncate">Pass Cabine (PDF)</span>
+          </button>
 
-        <button
-          onClick={() => window.open(`/api/diagnoses/report?userId=${user.id}&id=${diag.id}`, "_blank")}
-          className="k-chip mt-2 h-11 w-full rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
-          aria-label="Télécharger ou imprimer mon compte-rendu de diagnostic en PDF"
-        >
-          <FileDown size={15} /> Compte-rendu d&apos;analyse détaillé
-        </button>
+          {/* Débriefer avec Dermo Kènè */}
+          <button
+            type="button"
+            onClick={handleConsultDermoKene}
+            className="k-card k-card-hover h-12 rounded-2xl border border-primary/30 bg-primary/10 p-2 text-primary text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-xs active:scale-[0.98] transition-all"
+            aria-label="Échanger avec Dermo Kènè sur ce bilan"
+          >
+            <MessageCircle size={16} />
+            <span className="truncate">Conseils Dermo Kènè</span>
+          </button>
+
+          {/* Nouvelle zone */}
+          <button
+            onClick={onNewZone}
+            className="k-chip h-11 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            <ScanFace size={15} className="text-primary" />
+            <span>Nouvelle zone</span>
+          </button>
+
+          {/* Historique */}
+          <button
+            onClick={onHistory}
+            className="k-chip h-11 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            <History size={15} />
+            <span>Historique</span>
+          </button>
+        </div>
+
+        {/* 3. Actions secondaires discrètes */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+          {/* Partager ma Routine & Carte Beauté */}
+          <button
+            onClick={() => setBeautyCardOpen(true)}
+            className="h-10 w-full rounded-xl border border-border bg-card/60 hover:bg-card text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+          >
+            <Share2 size={14} className="text-[#C8951E]" />
+            <span>Partager ma Carte Beauté</span>
+          </button>
+
+          {/* Compte-rendu d'analyse détaillé */}
+          <button
+            onClick={() => window.open(`/api/diagnoses/report?userId=${user.id}&id=${diag.id}`, "_blank")}
+            className="h-10 w-full rounded-xl border border-border bg-card/60 hover:bg-card text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+          >
+            <FileDown size={14} />
+            <span>Compte-rendu détaillé (PDF)</span>
+          </button>
+        </div>
 
         {/* ── Communication WhatsApp avec l'entreprise qui suit la cliente ── */}
         <div className="mt-4 rounded-[24px] border-2 border-[#25D366]/40 bg-gradient-to-br from-[#25D366]/10 via-card to-card p-4 shadow-sm">
