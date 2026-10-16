@@ -128,19 +128,27 @@ export async function resolveTenant(req: NextRequest, tenantId?: string | null) 
 
     // 2) Établissements où l'utilisatrice est employée active
     let empTenantIds: string[] = [];
+    let userSelectedTenantId: string | null = null;
     if (sess.userId) {
-      const emps = await db.employee.findMany({
-        where: { userId: sess.userId, active: true },
-        select: { tenantId: true },
-      });
+      const [emps, userRec] = await Promise.all([
+        db.employee.findMany({
+          where: { userId: sess.userId, active: true },
+          select: { tenantId: true },
+        }),
+        db.user.findUnique({
+          where: { id: sess.userId },
+          select: { selectedTenantId: true },
+        }),
+      ]);
       empTenantIds = emps.map((e) => e.tenantId);
+      userSelectedTenantId = userRec?.selectedTenantId ?? null;
     }
 
     const sessSuffix = phoneSuffix(sess.phone);
 
     // Filtrage résilient (tolérance formats de téléphone + multi-succursales)
     const allMine = allActive.filter((t) => {
-      if (sess.tenantId && t.id === sess.tenantId) return true;
+      if (userSelectedTenantId && t.id === userSelectedTenantId) return true;
       if (empTenantIds.includes(t.id)) return true;
       if (t.ownerPhone && (t.ownerPhone === sess.phone || (sessSuffix && phoneSuffix(t.ownerPhone) === sessSuffix))) return true;
       if (t.phone && (t.phone === sess.phone || (sessSuffix && phoneSuffix(t.phone) === sessSuffix))) return true;
@@ -194,18 +202,26 @@ export async function resolveProTenants(req: NextRequest) {
     const allActive = await db.tenant.findMany({ where: { active: true }, orderBy: { createdAt: "asc" } });
 
     let empTenantIds: string[] = [];
+    let userSelectedTenantId: string | null = null;
     if (sess.userId) {
-      const emps = await db.employee.findMany({
-        where: { userId: sess.userId, active: true },
-        select: { tenantId: true },
-      });
+      const [emps, userRec] = await Promise.all([
+        db.employee.findMany({
+          where: { userId: sess.userId, active: true },
+          select: { tenantId: true },
+        }),
+        db.user.findUnique({
+          where: { id: sess.userId },
+          select: { selectedTenantId: true },
+        }),
+      ]);
       empTenantIds = emps.map((e) => e.tenantId);
+      userSelectedTenantId = userRec?.selectedTenantId ?? null;
     }
 
     const sessSuffix = phoneSuffix(sess.phone);
 
     const allMine = allActive.filter((t) => {
-      if (sess.tenantId && t.id === sess.tenantId) return true;
+      if (userSelectedTenantId && t.id === userSelectedTenantId) return true;
       if (empTenantIds.includes(t.id)) return true;
       if (t.ownerPhone && (t.ownerPhone === sess.phone || (sessSuffix && phoneSuffix(t.ownerPhone) === sessSuffix))) return true;
       if (t.phone && (t.phone === sess.phone || (sessSuffix && phoneSuffix(t.phone) === sessSuffix))) return true;
