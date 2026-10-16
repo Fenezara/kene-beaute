@@ -46,7 +46,7 @@ const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType
   { tab: "accueil", labelKey: "tab.home", icon: Home },
   { tab: "dossier", labelKey: "tab.dossier", icon: FolderHeart },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
-  { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
+  { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
@@ -55,7 +55,7 @@ const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<
   { tab: "accueil", labelKey: "tab.home", icon: Home },
   { tab: "dossier", labelKey: "tab.dossier", icon: FolderHeart },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
-  { tab: "chat", labelKey: "tab.chat", icon: MessageCircle },
+  { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
   { tab: "profil", labelKey: "tab.profile", icon: User },
 ];
 
@@ -80,7 +80,7 @@ const TITLES: Record<ScreenTab, string> = {
 };
 
 /** Ordre de balayage mobile (swipe horizontal gauche/droite) */
-const SWIPE_ORDER: ClientTab[] = ["accueil", "dossier", "diagnostic", "chat", "profil"];
+const SWIPE_ORDER: ClientTab[] = ["accueil", "dossier", "diagnostic", "agenda", "profil"];
 
 // ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
 import { DiagnosticScreen } from "./DiagnosticScreen";
@@ -148,21 +148,21 @@ export function ClientApp() {
     try {
       const params = new URLSearchParams(window.location.search);
       const targetTab = params.get("tab")?.toLowerCase();
-      const VALID_TABS: ClientTab[] = ["accueil", "dossier", "diagnostic", "chat", "profil", "parametres", "abonnement", "legal"];
+      const VALID_TABS: ClientTab[] = ["accueil", "dossier", "diagnostic", "agenda", "rdv", "chat", "profil", "parametres", "abonnement", "legal"];
       if (targetTab && VALID_TABS.includes(targetTab as ClientTab)) {
-        setClientTab(targetTab as ClientTab);
+        setClientTab((targetTab === "rdv" ? "agenda" : targetTab) as ClientTab);
       }
     } catch {
       // noop
     }
   }, [setClientTab]);
 
-  // Redirection automatique : boutique/agenda/rdv vers accueil, instituts vers profil
+  // Redirection automatique : boutique vers accueil, rdv vers agenda, instituts vers profil
   useEffect(() => {
     if (tab === "boutique") {
       setClientTab("accueil");
-    } else if (tab === "agenda" || tab === "rdv") {
-      setClientTab("accueil");
+    } else if (tab === "rdv") {
+      setClientTab("agenda");
     } else if (tab === "instituts") {
       setClientTab("profil");
     }
@@ -773,20 +773,12 @@ export function ClientApp() {
               <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Dermo Kènè<br />Conseil IA</p>
             </button>
             <button
-              onClick={() =>
-                openWhatsAppAppointmentInquiry({
-                  serviceCategory: "Soin esthétique",
-                  serviceName: "Soin & diagnostic dermo-cosmétique",
-                  tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
-                  instituteName: user?.selectedTenant?.name,
-                  country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
-                })
-              }
+              onClick={() => goTab("agenda")}
               className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-primary/20 bg-primary/5"
-              aria-label="Secrétaire IA & Rendez-vous"
+              aria-label="Mon Agenda & Tous mes Rendez-vous"
             >
-              <Crown size={20} className="text-gold-text" />
-              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Secrétaire IA<br /><span className="text-gold-text font-bold">Rendez-Vous 💆‍♀️</span></p>
+              <CalendarDays size={20} className="text-gold-text" />
+              <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Mon Agenda<br /><span className="text-gold-text font-bold">Tous mes RDV 📅</span></p>
             </button>
             <button
               onClick={() => goTab("profil")}
