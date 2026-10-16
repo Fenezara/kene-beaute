@@ -48,6 +48,7 @@ import { formatDate, formatTime, scoreColor, xof } from "@/lib/kene/format";
 import { apiGet } from "@/lib/kene/api";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
+import { PhotoLightboxModal, type LightboxPhoto } from "@/components/kene/common/PhotoLightboxModal";
 import { CauriIcon, KeneSunIcon, DuafeIcon, NeaOnnimIcon } from "@/components/kene/icons";
 import { parseDiagnosis, diagImgSrc, type ApiDiagnosis, type ApiInstitute } from "./types";
 import { useKene, isSavedUser, type ClientTab } from "@/store/kene";
