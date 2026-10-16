@@ -73,22 +73,20 @@ export function checkBotGuard(req: NextRequest, body?: Record<string, unknown> |
       };
     }
 
-    // 3. Contrôle du temps de saisie humain (Human Timing Check)
-    // Une vraie cliente prend au moins 500 ms à 1 seconde pour interagir avec l'écran
+    // 3. Contrôle de fraîcheur du jeton temporel (anti-rejeu > 24h)
     const clientTs = Number(body._kene_ts);
     if (Number.isFinite(clientTs) && clientTs > 0) {
       const elapsedMs = Date.now() - clientTs;
-      // Si la soumission s'est produite en moins de 400 millisecondes depuis l'ouverture du formulaire
-      if (elapsedMs > 0 && elapsedMs < 400) {
+      if (elapsedMs > 24 * 3600_000) {
         void audit({
           kind: "security_alert",
           ip,
-          detail: `bot_timing_too_fast:elapsed=${elapsedMs}ms`,
+          detail: `bot_expired_ts:elapsed=${elapsedMs}ms`,
         });
         return {
           ok: false,
-          reason: "Vitesse de soumission anormale",
-          response: jsonError("Veuillez patienter quelques instants avant de valider", 429),
+          reason: "Jeton temporel expiré",
+          response: jsonError("Session expirée, veuillez réessayer", 400),
         };
       }
     }

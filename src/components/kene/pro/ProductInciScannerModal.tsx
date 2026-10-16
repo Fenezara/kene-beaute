@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { analyzeInciList, type InciAnalysisResult } from "@/lib/kene/inci-analyzer";
+import { analyzeInciList, WEST_AFRICAN_MARKET_BLACKLIST, type InciAnalysisResult } from "@/lib/kene/inci-analyzer";
 import { apiPost, resizeImage } from "@/lib/kene/api";
 
 interface Props {
@@ -72,17 +72,18 @@ export function ProductInciScannerModal({ open, onOpenChange, tenantId }: Props)
     }
   };
 
-  const handleManualAnalyze = () => {
-    if (!manualText.trim()) {
+  const handleManualAnalyze = (customQuery?: string) => {
+    const query = (customQuery ?? manualText).trim();
+    if (!query) {
       toast.error("Veuillez saisir ou coller la liste des ingrédients.");
       return;
     }
     setAnalyzing(true);
     setTimeout(() => {
-      const res = analyzeInciList(manualText);
+      const res = analyzeInciList(query);
       setAnalysis(res);
       setAnalyzing(false);
-    }, 400);
+    }, 300);
   };
 
   const isDanger = analysis?.verdict === "danger";
@@ -101,7 +102,7 @@ export function ProductInciScannerModal({ open, onOpenChange, tenantId }: Props)
                 Scanner Produit &amp; Analyse INCI Cabine
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Détection clinique d&apos;Hydroquinone, Corticoïdes, Mercure &amp; Cosmétovigilance
+                Détection clinique d&apos;Hydroquinone, Corticoïdes, Mercure &amp; Base Liste Rouge des Marchés
               </DialogDescription>
             </div>
           </div>
@@ -158,20 +159,45 @@ export function ProductInciScannerModal({ open, onOpenChange, tenantId }: Props)
             </div>
           )}
 
+          {/* Liste Rouge Communautaire Kènè — Cabine */}
+          {!analysis && !analyzing && (
+            <div className="p-3.5 rounded-2xl border border-destructive/30 bg-destructive/5 space-y-2">
+              <p className="text-[11px] font-black uppercase tracking-wider text-destructive flex items-center gap-1.5">
+                <AlertTriangle size={13} />
+                Base Cabine — Liste Rouge des Marchés (Tchatcho &amp; Produits Saisis AIRP / ARP)
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {WEST_AFRICAN_MARKET_BLACKLIST.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setManualText(item.sampleQuery);
+                      handleManualAnalyze(item.sampleQuery);
+                    }}
+                    className="px-2.5 py-1 rounded-xl border border-destructive/35 bg-background hover:bg-destructive/15 text-[11px] font-bold text-foreground transition-all cursor-pointer"
+                  >
+                    🚨 {item.name.split(" (")[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Saisie manuelle alternative si pas de photo */}
           {!analysis && !analyzing && (
             <div className="space-y-2 pt-2 border-t border-border/60">
               <label className="text-xs font-bold text-foreground">
-                Ou collez manuellement la liste des ingrédients (INCI) :
+                Ou collez manuellement la liste des ingrédients (INCI) ou le nom du produit :
               </label>
               <Textarea
                 value={manualText}
                 onChange={(e) => setManualText(e.target.value)}
-                placeholder="Ex: Aqua, Glycerin, Hydroquinone, Ceteareth-20, Clobetasol propionate, Niacinamide..."
+                placeholder="Ex: Caro White, Tchatcho, Aqua, Glycerin, Hydroquinone, Clobetasol propionate, Niacinamide..."
                 className="text-xs min-h-[80px]"
               />
               <div className="flex justify-end">
-                <Button size="sm" onClick={handleManualAnalyze} className="gap-1.5 text-xs font-bold k-btn-gold text-primary-foreground">
+                <Button size="sm" onClick={() => handleManualAnalyze()} className="gap-1.5 text-xs font-bold k-btn-gold text-primary-foreground">
                   <ShieldAlert size={14} /> Analyser les composants
                 </Button>
               </div>

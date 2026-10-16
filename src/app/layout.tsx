@@ -125,6 +125,11 @@ export default function RootLayout({
             }),
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var V="kene_build_v28_20261016";if(localStorage.getItem("kene_ui_build_ver")!==V){localStorage.setItem("kene_ui_build_ver",V);if("caches"in window){caches.keys().then(function(ks){return Promise.all(ks.filter(function(k){return k.indexOf("v28")===-1;}).map(function(k){return caches.delete(k);}));}).then(function(){if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.update();});});}});} }}catch(e){}})();`,
+          }}
+        />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           {children}
         </ThemeProvider>

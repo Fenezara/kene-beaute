@@ -241,26 +241,23 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
         "/api/auth/check-phone",
         { phone }
       );
-      const effectiveMode = check.role === "pro" || check.isEmployee || mode === "pro" ? "pro" : "client";
-      if (check.exists && check.hasPin) {
-        // Bascule directe in-place vers la saisie du PIN (zéro rechargement ni redirection)
+      const effectiveMode = mode === "pro" || check.role === "pro" || check.isEmployee ? "pro" : "client";
+      if (check.hasPin !== false) {
         setStage({ phase: "pin", mode: effectiveMode, phone, name: check.name ?? acc.name });
         return;
       }
     } catch {
-      // Repli sur le flux normal
+      setStage({ phase: "pin", mode, phone, name: acc.name });
+      return;
     }
 
-    const d = acc.phone.replace(/\D/g, "").replace(/^225/, "").slice(0, 10);
-    setKeypadDigits(d);
-    setKeypadMode(mode);
-    setStage({ phase: "keypad", mode });
+    setStage({ phase: "pin", mode, phone, name: acc.name });
   }
 
   async function onKeypadConfirm(digits: string) {
     const phone = `+225${digits}`;
     try {
-      // 1) Vérifie si le compte existe et a un code secret PIN
+      // 1) Vérifie le compte et bascule directement vers le code secret PIN 4 chiffres
       const check = await apiPost<{
         ok: boolean;
         exists: boolean;
@@ -273,31 +270,20 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
         tenant?: { id: string; name: string };
       }>("/api/auth/check-phone", { phone });
 
-      // Auto-détection du mode : si le numéro appartient à un compte pro ou employé, basculer AUTOMATIQUEMENT en mode "pro" !
+      // Respecte le portail choisi par l'utilisateur (keypadMode), ou bascule en pro si employée/pro
       const effectiveMode: "client" | "pro" =
-        check.role === "pro" || check.isEmployee || keypadMode === "pro" ? "pro" : "client";
+        keypadMode === "pro" ? "pro" : keypadMode === "client" ? "client" : check.role === "pro" || check.isEmployee ? "pro" : "client";
 
-      if (check.exists && check.hasPin) {
-        // Compte avec code PIN -> bascule in-place directe vers la saisie du PIN
-        setStage({ phase: "pin", mode: effectiveMode, phone, name: check.name });
-        return;
-      }
-
-      // 2) Nouveau compte ou compte sans code secret -> envoi SMS OTP pour création / initialisation
-      const devCode = await requestOtp(phone);
-      setStage({ phase: "signin", mode: effectiveMode, phone, devCode });
-      if (devCode) {
-        toast.info("Code instantané affiché à l'écran");
-      } else {
-        toast.success("Code envoyé par SMS");
-      }
+      setStage({ phase: "pin", mode: effectiveMode, phone, name: check.name });
+      return;
     } catch (e) {
       const isNetwork = !isOnline() || (e instanceof Error && /network|fetch|offline|hors-ligne/i.test(e.message));
       if (isNetwork && keypadMode === "pro") {
         activateOfflineProSession(phone);
         return;
       }
-      otpErrorToast(e);
+      // Même en cas d'erreur de pré-vérification, on ouvre le pavé PIN pour permettre la connexion directe
+      setStage({ phase: "pin", mode: keypadMode, phone });
     }
   }
 
@@ -308,33 +294,36 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
         user: ApiUser;
         tenant: { id: string; name: string } | null;
         employeeRole?: string | null;
-      }>("/api/auth/login", { phone, pin, ...createHumanPayload() });
+      }>("/api/auth/login", { phone, pin, mode, ...createHumanPayload() });
 
-      const isPro = res.user.role === "pro" || Boolean(res.employeeRole) || Boolean(res.tenant?.id);
+      const isPro = mode === "pro" || res.user.role === "pro" || Boolean(res.employeeRole) || Boolean(res.tenant?.id);
       const targetRole = res.user.role === "admin" ? "admin" : isPro ? "pro" : "client";
 
       rememberAccount({
         phone,
         name: res.user.name,
-        role: targetRole,
+        role: mode === "pro" ? "pro" : targetRole === "admin" ? "pro" : targetRole,
       });
 
       const sessionUser: SessionUser = {
         ...res.user,
         role: targetRole,
         employeeRole: res.employeeRole ?? null,
+        tenantId: res.tenant?.id ?? undefined,
       };
 
       setUser(sessionUser);
       if (res.tenant?.id) {
         setProTenantId(res.tenant.id);
       }
-      const targetSpace = targetRole === "admin" ? "admin" : isPro ? "pro" : "client";
+      // Respecte l'interface choisie par l'utilisateur ("client" ou "pro") !
+      const targetSpace: "client" | "pro" | "admin" =
+        mode === "pro" ? "pro" : mode === "client" ? "client" : isPro ? "pro" : "client";
       setSpace(targetSpace);
 
       toast.success(
-        res.employeeRole
-          ? `Bienvenue ${res.user.name.split(" ")[0]} — « ${res.tenant?.name ?? "Espace Pro"} » t'attend`
+        targetSpace === "pro"
+          ? `Bienvenue ${res.user.name.split(" ")[0]} — « ${res.tenant?.name ?? "Espace Entreprise"} » est ouvert 💼`
           : `Bienvenue ${res.user.name.split(" ")[0]} 💛`
       );
       if (onBackToApp) onBackToApp();

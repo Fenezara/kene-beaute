@@ -165,20 +165,31 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
   return (
     <div className="space-y-4">
       <SectionHeader
-        title="Relances"
-        sub="Le Fil du Retour — protocoles, soins de suivi et clientes à réactiver, calculés sur l'activité réelle"
+        title="Relances &amp; Automatisation WhatsApp"
+        sub="Le Fil du Retour — séquences automatisées J+1 / J+7 / J+30, soins de suivi et clientes à réactiver"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {counts.late > 0 && (
-              <Button
-                size="sm"
-                onClick={() => void batchRelance("sms")}
-                disabled={batchBusy}
-                className="h-8 gap-1.5 k-btn-gold text-primary-foreground text-xs font-bold shadow-sm"
-              >
-                {batchBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
-                <span>Relancer les {counts.late} en retard (SMS)</span>
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => void batchRelance("whatsapp")}
+                  disabled={batchBusy}
+                  className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm"
+                >
+                  {batchBusy ? <Loader2 className="size-3.5 animate-spin" /> : <MessageCircle className="size-3.5" />}
+                  <span>Relancer ({counts.late}) WhatsApp</span>
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => void batchRelance("sms")}
+                  disabled={batchBusy}
+                  className="h-8 gap-1.5 k-btn-gold text-primary-foreground text-xs font-bold shadow-sm"
+                >
+                  {batchBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
+                  <span>Relancer ({counts.late}) SMS</span>
+                </Button>
+              </>
             )}
             <Badge variant="outline" className="gap-1.5 bg-muted/60 text-muted-foreground">
               <KeneSunIcon className="size-3" aria-hidden="true" /> {todoTotal} à traiter · auto
@@ -193,6 +204,74 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
         <KpiCard icon={<CalendarCheck className="size-4" />} label="Cette semaine" value={String(counts.week)} hint="Échéance ≤ 7 jours" monetary={false} />
         <KpiCard icon={<Clock className="size-4" />} label="À venir" value={String(counts.upcoming)} hint="Plus d'une semaine" monetary={false} />
         <KpiCard icon={<Check className="size-4" />} label="Traitées" value={String(counts.done)} hint="Relances closes" monetary={false} />
+      </div>
+
+      {/* Séquence Automatisée Post-Cabine WhatsApp (J+1 · J+7 · J+30) */}
+      <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-gold/5 to-card p-3.5 space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="grid size-7 place-items-center rounded-lg bg-emerald-500/20 text-emerald-500">
+              <MessageCircle className="size-4" />
+            </span>
+            <div>
+              <p className="text-xs font-black text-foreground">
+                Protocole Automatisé WhatsApp Business (J+1 · J+7 · J+30)
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Fidélisation clinique post-cabine sans friction pour {tenantName}
+              </p>
+            </div>
+          </div>
+          <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
+            ✓ Séquences actives
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          {[
+            {
+              step: "J+1 · Tolérance Post-Soin",
+              desc: "Vérifie l'absence de rougeur ou tiraillement 24h après le soin cabine + rappel SPF50.",
+              sample: `Bonjour ma chérie 💛 C'est ${tenantName}. Comment réagit ta peau 24h après ton soin d'hier ? N'oublie surtout pas ton écran solaire SPF50 ce matin !`,
+            },
+            {
+              step: "J+7 · Observance Routine",
+              desc: "Contrôle l'application régulière des actifs du soir (Niacinamide / Karité / Moringa).",
+              sample: `Coucou 💛 Déjà 7 jours de routine Kènè chez ${tenantName} ! Est-ce que tu arrives bien à appliquer ton sérum du soir régulièrement ?`,
+            },
+            {
+              step: "J+30 · Bilan Time-Lapse",
+              desc: "Invite la cliente à scanner son évolution Avant/Après J+30 et renouveler sa cure.",
+              sample: `Bonjour 💛 Cela fait 30 jours depuis ton bilan chez ${tenantName} ! Viens faire ton scan Time-Lapse Avant/Après pour mesurer tes progrès (-% taches PIH) ✨`,
+            },
+          ].map((seq) => (
+            <div
+              key={seq.step}
+              className="rounded-xl border border-border/60 bg-background/80 p-2.5 flex flex-col justify-between gap-2"
+            >
+              <div>
+                <p className="text-xs font-black text-foreground">{seq.step}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{seq.desc}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const firstTarget = visible[0] ?? items[0];
+                  if (firstTarget?.clientPhone) {
+                    window.open(waLink(firstTarget.clientPhone, seq.sample), "_blank", "noopener,noreferrer");
+                  } else {
+                    navigator.clipboard?.writeText(seq.sample).catch(() => {});
+                    toast.success(`Modèle « ${seq.step} » copié et prêt à l'envoi WhatsApp 💬`);
+                  }
+                }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 px-2.5 py-1.5 text-[11px] font-bold transition-colors cursor-pointer"
+              >
+                <Send className="size-3" />
+                <span>Tester / Envoyer en 1 clic</span>
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Filtres */}

@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { BellRing, Building2, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, ScanFace, ShieldAlert, TicketPercent, UserPlus, WifiOff, BriefcaseBusiness, LogIn, ArrowLeft, FolderHeart } from "lucide-react";
+import { BellRing, Building2, ChevronDown, ChevronLeft, ChevronRight, Crown, LayoutDashboard, Plus, Settings, ShoppingBag, ScanFace, ShieldAlert, TicketPercent, UserPlus, WifiOff, BriefcaseBusiness, LogIn, ArrowLeft, FolderHeart, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useKene } from "@/store/kene";
 import { apiGet } from "@/lib/kene/api";
@@ -42,6 +42,7 @@ import { TeamSection } from "./TeamSection";
 import { OrdersSection } from "./OrdersSection";
 import { MamanAssistantModal } from "./MamanAssistantModal";
 import { ProductInciScannerModal } from "./ProductInciScannerModal";
+import { KeneMirrorKioskModal } from "./KeneMirrorKioskModal";
 import { AssistantSection } from "./AssistantSection";
 import { formatRole, ROLE_LABELS } from "@/lib/kene/hr-constants";
 
@@ -164,6 +165,8 @@ export function ProApp() {
   const [mamanAssistantOpen, setMamanAssistantOpen] = useState(false);
   // Modal Scanner Produit & Analyse INCI Entreprise / Cabine
   const [inciScannerOpen, setInciScannerOpen] = useState(false);
+  // Modal Kiosque Tablette Salle d'Attente (Kènè Mirror)
+  const [mirrorKioskOpen, setMirrorKioskOpen] = useState(false);
 
   // Remonte en haut de la page à chaque changement d'onglet ou de section entreprise
   useEffect(() => {
@@ -728,6 +731,86 @@ export function ProApp() {
             </nav>
           </div>
         </div>
+
+        {/* Barre Principale d'Organisation par Pôles Métiers intégrée au Header (PC & Tablette md+) */}
+        <div className="hidden md:flex items-center justify-between gap-3 border-t border-border/50 bg-card/65 px-5 py-2 backdrop-blur-md">
+          {/* Les 5 Pôles Métiers */}
+          <nav aria-label="Pôles Métiers Entreprise" className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            {availableCategories.map((cat) => {
+              const isCatActive = activeCategory === cat.id;
+              const catItems = nav.filter((i) => i.category === cat.id);
+              const firstItem = catItems[0];
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    if (firstItem) openSection(firstItem.id);
+                  }}
+                  className={cn(
+                    "h-9 px-3.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all border shrink-0 cursor-pointer",
+                    isCatActive
+                      ? "k-btn-gold text-primary-foreground border-transparent shadow-sm scale-[1.01]"
+                      : "bg-background/80 text-muted-foreground border-border/70 hover:text-foreground hover:border-gold/40"
+                  )}
+                >
+                  <span>{cat.emoji}</span>
+                  <span>{cat.shortLabel}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] px-1.5 py-0.2 rounded-full font-mono",
+                      isCatActive ? "bg-black/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {catItems.length}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Actions Express Cabine */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setMirrorKioskOpen(true);
+              }}
+              className="h-8.5 px-3 rounded-xl border border-primary/45 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+              title="Ouvrir le Mode Kiosque Tablette Salle d'Attente (Kènè Mirror)"
+            >
+              <Sparkles size={13} />
+              <span>🪞 Kiosque Mirror</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setInciScannerOpen(true);
+              }}
+              className="h-8.5 px-3 rounded-xl border border-gold/50 bg-gold/15 hover:bg-gold/25 text-gold-text text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+              title="Scanner un cosmétique (Liste Rouge Kènè & Analyse INCI)"
+            >
+              <ShieldAlert size={13} />
+              <span>🧴 Scanner INCI</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                openSection("caisse");
+              }}
+              className="h-8.5 px-3 rounded-xl border border-emerald-600/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+            >
+              <AbanIcon size={13} />
+              <span>Encaisser POS</span>
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Bandeau hors-ligne — résilience réseau façon Wave (Tableau de bord, CRM, Caisse, etc.) */}
@@ -738,90 +821,168 @@ export function ProApp() {
         </div>
       )}
 
-      {/* ───────── 2. CORPS : RAIL LATÉRAL STRUCTURÉ PAR PÔLES + CONTENU PRINCIPAL ───────── */}
+      {/* ───────── 2. CORPS : RAIL LATÉRAL ACCORDÉON PAR PÔLES + CONTENU PRINCIPAL ───────── */}
       <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
-        {/* Rail de navigation organisé en 5 Pôles Métiers (236 px déployé / 68 px réduit) */}
+        {/* Rail de navigation organisé en 5 Pôles Métiers repliables (Seul le Pôle actif déploie ses sous-onglets) */}
         <aside
           className={cn(
             "hidden md:flex flex-col shrink-0 k-chrome text-foreground h-full overflow-y-auto overscroll-contain pretty-scroll border-r border-border/60 transition-all duration-300",
-            sidebarExpanded ? "w-[236px]" : "w-[68px]"
+            sidebarExpanded ? "w-[244px]" : "w-[68px]"
           )}
         >
-          <nav aria-label="Navigation App Pro" className="flex-1 px-2 py-3 space-y-2.5">
-            {availableCategories.map((cat, catIdx) => {
+          {sidebarExpanded && (
+            <div className="px-3.5 pt-3 pb-1 flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gold-text">
+                5 Pôles Métiers
+              </span>
+              <span className="text-[10px] text-muted-foreground font-medium">
+                {activeCategoryDef.shortLabel}
+              </span>
+            </div>
+          )}
+
+          <nav aria-label="Navigation App Pro" className="flex-1 px-2.5 py-2 space-y-2">
+            {availableCategories.map((cat) => {
               const catItems = nav.filter((item) => item.category === cat.id);
               if (catItems.length === 0) return null;
               const isCatActive = activeCategory === cat.id;
+              const firstItem = catItems[0];
+              const catBadgeCount = catItems.reduce((sum, it) => sum + (navBadges[it.id] ?? 0), 0);
+
+              if (!sidebarExpanded) {
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      haptic(HAPTIC.tap);
+                      if (firstItem) openSection(firstItem.id);
+                    }}
+                    title={`${cat.label} (${catItems.map((i) => i.label).join(" · ")})`}
+                    className={cn(
+                      "relative w-full flex flex-col items-center justify-center rounded-2xl p-2.5 text-xs transition-all cursor-pointer border",
+                      isCatActive
+                        ? "k-btn-gold text-primary-foreground font-black border-transparent shadow-sm"
+                        : "bg-card/50 text-muted-foreground border-border/50 hover:text-foreground hover:bg-accent/50"
+                    )}
+                  >
+                    <span className="text-base">{cat.emoji}</span>
+                    {catBadgeCount > 0 && (
+                      <span className="absolute top-1 right-1 grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[9px] font-bold text-white">
+                        {catBadgeCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              }
 
               return (
                 <div
                   key={cat.id}
                   className={cn(
-                    "space-y-1 transition-colors",
-                    sidebarExpanded &&
-                      (isCatActive
-                        ? "rounded-2xl border border-primary/30 bg-primary/5 p-1.5"
-                        : "rounded-2xl border border-border/45 bg-card/30 p-1.5")
+                    "rounded-2xl border transition-all overflow-hidden",
+                    isCatActive
+                      ? "border-gold/50 bg-gradient-to-b from-gold/12 via-primary/5 to-card shadow-xs"
+                      : "border-border/55 bg-card/40 hover:border-border"
                   )}
                 >
-                  {sidebarExpanded ? (
-                    <div className="px-2 pt-0.5 pb-1 flex items-center justify-between text-[10px] uppercase font-black tracking-wider select-none">
-                      <span
+                  {/* En-tête cliquable du Pôle (Accordéon) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptic(HAPTIC.tap);
+                      if (!isCatActive && firstItem) {
+                        openSection(firstItem.id);
+                      }
+                    }}
+                    className={cn(
+                      "w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors cursor-pointer",
+                      isCatActive ? "text-foreground font-black" : "text-muted-foreground hover:text-foreground font-bold"
+                    )}
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm shrink-0">{cat.emoji}</span>
+                      <span className="text-xs truncate">{cat.shortLabel}</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      {catBadgeCount > 0 && (
+                        <span className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[10px] font-bold text-white">
+                          {catBadgeCount}
+                        </span>
+                      )}
+                      <ChevronDown
+                        size={14}
                         className={cn(
-                          "truncate flex items-center gap-1.5",
-                          isCatActive ? "text-primary" : "text-gold-text dark:text-[#E3B04B]"
+                          "transition-transform duration-200",
+                          isCatActive ? "rotate-0 text-gold-text" : "-rotate-90 opacity-60"
                         )}
-                      >
-                        <span>{cat.emoji}</span>
-                        <span className="truncate">{cat.label}</span>
-                      </span>
-                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-muted/70 text-muted-foreground shrink-0">
-                        {catItems.length}
-                      </span>
-                    </div>
-                  ) : (
-                    catIdx > 0 && <div className="my-1.5 h-px bg-border/50 mx-2" />
-                  )}
+                      />
+                    </span>
+                  </button>
 
-                  <div className="space-y-0.5">
-                    {catItems.map((item) => {
-                      const active = activeSection === item.id;
-                      const badge = navBadges[item.id];
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => openSection(item.id)}
-                          aria-current={active ? "page" : undefined}
-                          aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
-                          title={`${item.label} — ${item.hint}`}
-                          className={cn(
-                            "relative w-full flex items-center gap-2.5 rounded-xl p-2 text-xs sm:text-[13px] transition-all focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary cursor-pointer",
-                            sidebarExpanded ? "justify-start px-2.5" : "justify-center p-2.5",
-                            active
-                              ? "k-btn-gold text-primary-foreground font-bold shadow-xs"
-                              : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-                          )}
-                        >
-                          <item.icon className="size-4.5 shrink-0" />
-                          {sidebarExpanded && <span className="min-w-0 truncate text-left">{item.label}</span>}
-                          {badge ? (
-                            <span
-                              role="status"
-                              className={cn(
-                                "grid h-4.5 min-w-4.5 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white",
-                                sidebarExpanded ? "ml-auto" : "absolute top-1 right-1"
-                              )}
-                            >
-                              {badge}
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {/* Sous-onglets déployés UNIQUEMENT pour le Pôle Actif */}
+                  {isCatActive && (
+                    <div className="px-2 pb-2 pt-0.5 space-y-1 border-t border-border/40">
+                      {catItems.map((item) => {
+                        const active = activeSection === item.id;
+                        const badge = navBadges[item.id];
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => openSection(item.id)}
+                            aria-current={active ? "page" : undefined}
+                            title={`${item.label} — ${item.hint}`}
+                            className={cn(
+                              "relative w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs transition-all cursor-pointer",
+                              active
+                                ? "k-btn-gold text-primary-foreground font-black shadow-xs"
+                                : "text-foreground/80 hover:bg-accent/70 hover:text-foreground font-semibold"
+                            )}
+                          >
+                            <item.icon className="size-4 shrink-0" />
+                            <span className="min-w-0 truncate text-left">{item.label}</span>
+                            {badge ? (
+                              <span
+                                role="status"
+                                className="ml-auto grid h-4.5 min-w-4.5 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white"
+                              >
+                                {badge}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
+
+            {/* Bloc Outils Express Cabine dans la barre latérale */}
+            {sidebarExpanded && (
+              <div className="pt-2 space-y-1.5">
+                <p className="px-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                  ⚡ Outils Cabine Express
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setMirrorKioskOpen(true)}
+                  className="w-full flex items-center gap-2 rounded-xl border border-gold/40 bg-gold/10 hover:bg-gold/20 px-3 py-2 text-xs font-bold text-foreground transition-all cursor-pointer"
+                >
+                  <span>🪞</span>
+                  <span className="truncate">Borne Kènè Mirror (30s)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInciScannerOpen(true)}
+                  className="w-full flex items-center gap-2 rounded-xl border border-primary/35 bg-primary/10 hover:bg-primary/20 px-3 py-2 text-xs font-bold text-foreground transition-all cursor-pointer"
+                >
+                  <span>🧴</span>
+                  <span className="truncate">Scanner Produit INCI</span>
+                </button>
+              </div>
+            )}
           </nav>
 
           {/* Accès direct Mon Espace Beauté */}
@@ -879,124 +1040,44 @@ export function ProApp() {
               : "p-3 sm:p-5 lg:p-6"
           )}
         >
-          {/* 🏛️ Barre d'organisation des 5 Pôles Entreprise + Sous-Onglets du Pôle Actif + Actions Express */}
+          {/* Sous-navigation contextuelle des onglets du Pôle Actif */}
           {activeSection !== "assistant" && (
-            <div className="mb-3.5 rounded-[18px] border border-primary/25 bg-card/95 p-2.5 backdrop-blur-md shadow-xs space-y-2">
-              {/* Ligne 1 : Sélecteur des 5 Pôles Métiers (Desktop & Tablette) + Actions Express Cabine */}
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="hidden md:flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                  {availableCategories.map((cat) => {
-                    const isCatActive = activeCategory === cat.id;
-                    const firstItem = nav.find((i) => i.category === cat.id);
-                    return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => {
-                          haptic(HAPTIC.tap);
-                          if (firstItem) openSection(firstItem.id);
-                        }}
-                        className={cn(
-                          "h-8 px-3 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all border shrink-0 cursor-pointer",
-                          isCatActive
-                            ? "bg-primary/15 text-primary border-primary/40 shadow-2xs"
-                            : "bg-muted/40 text-muted-foreground border-border/60 hover:text-foreground hover:bg-muted/70"
-                        )}
-                      >
-                        <span>{cat.emoji}</span>
-                        <span>{cat.shortLabel}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Actions Express Cabine (toujours accessibles en 1 clic) */}
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full md:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      haptic(HAPTIC.tap);
-                      openSection("caisse");
-                    }}
-                    className="h-8 px-2.5 rounded-xl border border-emerald-600/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0 cursor-pointer"
-                  >
-                    <AbanIcon size={13} /> Encaisser
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      haptic(HAPTIC.tap);
-                      setInciScannerOpen(true);
-                    }}
-                    className="h-8 px-2.5 rounded-xl border border-gold/50 bg-gold/15 hover:bg-gold/25 text-gold-text text-[11px] font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0 cursor-pointer"
-                    title="Scanner un cosmétique pour détecter l'hydroquinone et les corticoïdes"
-                  >
-                    <ShieldAlert size={13} className="text-gold-text" /> Scanner INCI 🧴
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      haptic(HAPTIC.tap);
-                      openSection("diagnostic");
-                    }}
-                    className="h-8 px-2.5 rounded-xl border border-[#C8951E]/60 bg-[#C8951E]/10 hover:bg-[#C8951E]/20 text-foreground text-[11px] font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0 cursor-pointer"
-                  >
-                    <ScanFace size={13} className="text-[#C8951E]" /> Scan Cabine
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      haptic(HAPTIC.tap);
-                      openSection("assistant");
-                    }}
-                    className="h-8 px-2.5 rounded-xl border border-[#E07A2B]/60 bg-gradient-to-r from-[#E07A2B]/15 via-[#C8951E]/10 to-card hover:from-[#E07A2B]/25 text-foreground text-[11px] font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all shrink-0 cursor-pointer"
-                  >
-                    <Crown size={13} className="text-[#E07A2B]" /> Secrétaire IA 👑
-                  </button>
-                </div>
-              </div>
-
-              {/* Ligne 2 (Desktop & Tablette) : Sous-onglets du Pôle Actif */}
-              <div className="hidden md:flex items-center justify-between gap-2 pt-1.5 border-t border-border/50">
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                  <span className="text-[11px] font-black text-gold-text dark:text-[#E3B04B] uppercase tracking-wider pr-1.5 shrink-0 flex items-center gap-1">
-                    <span>{activeCategoryDef.emoji}</span>
-                    <span>{activeCategoryDef.label} :</span>
-                  </span>
-                  {activeCategoryItems.map((item) => {
-                    const isItemActive = activeSection === item.id;
-                    const badge = navBadges[item.id];
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => openSection(item.id)}
-                        className={cn(
-                          "h-8 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer",
-                          isItemActive
-                            ? "k-btn-gold text-primary-foreground shadow-xs"
-                            : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
-                        )}
-                      >
-                        <item.icon className="size-3.5" />
-                        <span>{item.label}</span>
-                        {badge ? (
-                          <span className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white">
-                            {badge}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <span className="text-[11px] text-muted-foreground hidden xl:inline truncate">
-                  {activeNavItem?.hint}
+            <div className="mb-3.5 rounded-[18px] border border-primary/25 bg-card/95 px-3 py-2 backdrop-blur-md shadow-xs flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <span className="text-[11px] font-black text-gold-text dark:text-[#E3B04B] uppercase tracking-wider pr-1.5 shrink-0 flex items-center gap-1">
+                  <span>{activeCategoryDef.emoji}</span>
+                  <span>{activeCategoryDef.label} :</span>
                 </span>
+                {activeCategoryItems.map((item) => {
+                  const isItemActive = activeSection === item.id;
+                  const badge = navBadges[item.id];
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => openSection(item.id)}
+                      className={cn(
+                        "h-8 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer",
+                        isItemActive
+                          ? "k-btn-gold text-primary-foreground shadow-xs"
+                          : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
+                      )}
+                    >
+                      <item.icon className="size-3.5" />
+                      <span>{item.label}</span>
+                      {badge ? (
+                        <span className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white">
+                          {badge}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
+
+              <span className="text-[11px] text-muted-foreground hidden xl:inline truncate">
+                {activeNavItem?.hint}
+              </span>
             </div>
           )}
 
@@ -1239,6 +1320,24 @@ export function ProApp() {
         open={inciScannerOpen}
         onOpenChange={setInciScannerOpen}
         tenantId={tid}
+      />
+
+      {/* Modal Kiosque Salle d'Attente — Kènè Mirror */}
+      <KeneMirrorKioskModal
+        open={mirrorKioskOpen}
+        onOpenChange={setMirrorKioskOpen}
+        tenantId={tid}
+        instituteName={tenant?.name ?? "Institut Partenaire Kènè"}
+        onCompleted={(clientId) => {
+          setRefreshKey((k) => k + 1);
+          void overview.refetch();
+          if (clientId) {
+            setSkinDossierClientId(clientId);
+            openSection("dossiers_peau");
+          } else {
+            openSection("diagnostic");
+          }
+        }}
       />
     </div>
   );

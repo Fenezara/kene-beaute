@@ -124,7 +124,7 @@ async function runRequest(parsed: z.infer<typeof Body>, req: NextRequest): Promi
     smsSent: realSmsDelivered,
   };
 
-  if (!isAdminAccount && process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && (!isAdminAccount || !realSmsDelivered)) {
     payload.devCode = code;
   }
 

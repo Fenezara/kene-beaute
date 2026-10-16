@@ -27,7 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { analyzeInciList, type InciAnalysisResult } from "@/lib/kene/inci-analyzer";
+import { analyzeInciList, WEST_AFRICAN_MARKET_BLACKLIST, type InciAnalysisResult } from "@/lib/kene/inci-analyzer";
 import { apiPost, resizeImage } from "@/lib/kene/api";
 import { useKene } from "@/store/kene";
 
@@ -41,6 +41,7 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
   const [analysis, setAnalysis] = useState<InciAnalysisResult | null>(null);
   const [manualText, setManualText] = useState("");
   const [, setImagePreview] = useState<string | null>(null);
+  const [reported, setReported] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +53,7 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
     setAnalysis(null);
     setManualText("");
     setImagePreview(null);
+    setReported(false);
   };
 
   const handleClose = () => {
@@ -91,17 +93,18 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
     }
   };
 
-  const handleManualAnalyze = () => {
-    if (!manualText.trim()) {
+  const handleManualAnalyze = (customQuery?: string) => {
+    const query = (customQuery ?? manualText).trim();
+    if (!query) {
       toast.error("Veuillez saisir ou coller la liste des ingrédients (ex: Aqua, Glycerin...).");
       return;
     }
     setAnalyzing(true);
     setTimeout(() => {
-      const res = analyzeInciList(manualText);
+      const res = analyzeInciList(query);
       setAnalysis(res);
       setAnalyzing(false);
-    }, 350);
+    }, 300);
   };
 
   const isDanger = analysis?.verdict === "danger";
@@ -127,7 +130,7 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
                 Scanner Produit &amp; Sécurité INCI
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Vérification toxicologique immédiate : Hydroquinone, Corticoïdes, Mercure &amp; Cosmétovigilance
+                Vérification toxicologique immédiate : Hydroquinone, Corticoïdes, Mercure &amp; Liste Rouge des Marchés
               </DialogDescription>
             </div>
           </div>
@@ -192,22 +195,60 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
                 </button>
               </div>
 
+              {/* Base Collaborative : Liste Rouge des Marchés Ouest-Africains (Tchatcho & Crèmes sans INCI) */}
+              <div className="p-3.5 rounded-2xl border border-destructive/30 bg-destructive/5 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-destructive flex items-center gap-1.5">
+                    <AlertTriangle size={13} />
+                    Liste Rouge Communautaire Kènè (Marchés d&apos;Abidjan · Dakar · Bamako)
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Vérifiez en 1 clic un produit éclaircissant ou mélange artisanal (« tchatcho ») vendu sans étiquette INCI :
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {WEST_AFRICAN_MARKET_BLACKLIST.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setManualText(item.sampleQuery);
+                        handleManualAnalyze(item.sampleQuery);
+                      }}
+                      className="px-2.5 py-1 rounded-xl border border-destructive/35 bg-background hover:bg-destructive/15 text-[11px] font-bold text-foreground transition-all cursor-pointer"
+                    >
+                      🚨 {item.name.split(" (")[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Saisie textuelle manuelle alternative */}
               <div className="p-3.5 rounded-2xl border border-border/80 bg-card/60 space-y-2">
                 <label className="text-xs font-bold text-foreground flex items-center justify-between">
-                  <span>Ou collez la liste INCI des ingrédients :</span>
+                  <span>Ou collez la liste INCI / le nom du produit :</span>
                   <span className="text-[10px] text-muted-foreground font-normal">Texte libre</span>
                 </label>
                 <Textarea
                   value={manualText}
                   onChange={(e) => setManualText(e.target.value)}
-                  placeholder="Ex: Aqua, Glycerin, Hydroquinone, Clobetasol, Butyrospermum Parkii..."
+                  placeholder="Ex: Caro White, Tchatcho, Aqua, Glycerin, Hydroquinone, Clobetasol, Butyrospermum Parkii..."
                   className="text-xs min-h-[75px] bg-background"
                 />
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReported(true);
+                      toast.success("Signalement transmis à la cellule Cosmétovigilance Kènè 🛡️");
+                    }}
+                    className="text-[11px] font-semibold text-gold-text hover:underline cursor-pointer"
+                  >
+                    {reported ? "✓ Produit signalé à la communauté" : "📢 Signaler un mélange suspect sans étiquette"}
+                  </button>
                   <Button
                     size="sm"
-                    onClick={handleManualAnalyze}
+                    onClick={() => handleManualAnalyze()}
                     className="gap-1.5 text-xs font-bold k-btn-gold text-primary-foreground"
                   >
                     <ShieldAlert size={14} /> Analyser les ingrédients

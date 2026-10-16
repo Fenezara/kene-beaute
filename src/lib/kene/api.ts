@@ -151,6 +151,10 @@ const MSG_INSTABLE = "Connexion au serveur instable — réessaie dans un instan
  * (payloads volumineux ou routes dynamiques — limitation documentée). */
 const BRIDGEABLE_ROUTES = new Set([
   "/api/dermato/chat", // chat Dr Kènè 
+  "/api/auth/login", // connexion PIN
+  "/api/auth/pin", // définition / modification PIN
+  "/api/auth/check-phone", // vérification numéro & PIN
+  "/api/auth/link-account", // sauvegarde compte invité
   "/api/auth/otp/request", // login pavé 
   "/api/auth/otp/verify", // login pavé 
   "/api/auth/express", // GET pur — jamais appelé en apiPost, documentation

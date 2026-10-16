@@ -163,6 +163,90 @@ const DANGEROUS_SUBSTANCES: ToxicPattern[] = [
       /\bbenoquin\b/i,
     ],
   },
+
+  // ── PRODUITS DE MARCHÉ & MÉLANGES « TCHATCHO / Khessal » CONNUS EN AFRIQUE DE L'OUEST ──
+  {
+    id: "market_hydroquinone_creams",
+    name: "Crème / Huile éclaircissante de marché à l'Hydroquinone (Caro White, Carotone, Skin Light, Clairmen)",
+    category: "hydroquinone",
+    dangerLabel: "Produit dépigmentant de liste rouge (Hydroquinone 2% à 8%)",
+    explanation:
+      "Produit fréquemment saisi par les autorités sanitaires (AIRP Côte d'Ivoire, ARP Sénégal). Contient de l'hydroquinone à dose toxique provoquant ochronose exogène (taches bleu-noir sur les pommettes), finesse extrême de l'épiderme et rebond pigmentaire.",
+    patterns: [
+      /\bcaro\s*white\b/i,
+      /\bcarotone\b/i,
+      /\bskin\s*light\b/i,
+      /\bclairmen\b/i,
+      /\bpure\s*skin\s*blanchissant\b/i,
+    ],
+  },
+  {
+    id: "market_tchatcho_mix",
+    name: "Mélange artisanal « Tchatcho / Khessal / Quinto » (Cocktail Corticoïdes + Hydroquinone)",
+    category: "corticoid",
+    dangerLabel: "Mélange décapant non tracé — Danger dermatologique majeur",
+    explanation:
+      "Préparation artisanale combinant des tubes de propionate de clobétasol (Dermovate/Movate), de l'hydroquinone et des acides caustiques. Entraîne vergetures larges irréversibles, hypertension, diabète cortico-induit et infections cutanées chroniques.",
+    patterns: [
+      /\btchatcho\b/i,
+      /\bkhessal\b/i,
+      /\bquinto\b/i,
+      /\bsavon\s*d[ée]capeur\b/i,
+      /\bcr[èe]me\s*m[ée]tisse\s*express\b/i,
+    ],
+  },
+];
+
+export interface MarketBlacklistItem {
+  id: string;
+  name: string;
+  markets: string;
+  suspectedActives: string;
+  riskLevel: "critique" | "eleve";
+  sampleQuery: string;
+}
+
+export const WEST_AFRICAN_MARKET_BLACKLIST: MarketBlacklistItem[] = [
+  {
+    id: "bl_carowhite",
+    name: "Caro White / Carotone (Lait & Huile Concentrée)",
+    markets: "Abidjan (Adjamé) · Dakar · Bamako · Douala",
+    suspectedActives: "Hydroquinone 2% à 4% + Huile minérale occlusive",
+    riskLevel: "critique",
+    sampleQuery: "Caro White Carotone Hydroquinone 2% Dihydroxybenzene",
+  },
+  {
+    id: "bl_tchatcho",
+    name: "Mélange artisanal « Tchatcho / Khessal 7 Jours »",
+    markets: "Marchés d'Abidjan, Dakar (Sandaga), Bamako",
+    suspectedActives: "Propionate de Clobétasol (Dermovate) + Hydroquinone + Acide Salicylique",
+    riskLevel: "critique",
+    sampleQuery: "Tchatcho Clobetasol Propionate Dermovate Hydroquinone",
+  },
+  {
+    id: "bl_skinlight",
+    name: "Skin Light / Clairmen / Pure White",
+    markets: "Afrique de l'Ouest & Centrale",
+    suspectedActives: "Hydroquinone + Corticoïdes fluorés non déclarés",
+    riskLevel: "critique",
+    sampleQuery: "Skin Light Clairmen Hydroquinone Betamethasone",
+  },
+  {
+    id: "bl_quinto",
+    name: "Concentré « Quinto » / Sérum Jointures & Phalanges",
+    markets: "Abidjan · Lomé · Cotonou · Ouagadougou",
+    suspectedActives: "Clobétasol fort + Monobenzone / Caustiques",
+    riskLevel: "critique",
+    sampleQuery: "Quinto Clobetasol Monobenzone Peeling Jaune",
+  },
+  {
+    id: "bl_savon_mercure",
+    name: "Savon Antiseptique Blanchissant au Mercure (Meko / Jaribu)",
+    markets: "Marchés sous-régionaux",
+    suspectedActives: "Iodure / Chlorure de Mercure (2%)",
+    riskLevel: "critique",
+    sampleQuery: "Mercuric Iodide Ammoniated Mercury Calomel",
+  },
 ];
 
 // ── SUSPICION SUR PRODUITS ARTISANAUX SANS INCI (« CRÈMES DE MARCHÉ ») ──

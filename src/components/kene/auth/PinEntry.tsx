@@ -89,20 +89,11 @@ export function PinEntry() {
           isPinLocked?: boolean;
         }>("/api/auth/check-phone", { phone: targetPhone });
 
-        if (check.exists && check.hasPin) {
-          if (check.name) setName(check.name);
-          setHasPin(true);
-        } else if (check.exists && !check.hasPin) {
-          // Compte existant sans PIN -> redirection vers l'initialisation OTP
-          toast.info("Configure ton code secret pour activer la connexion rapide");
-          window.location.replace(`/?phone=${encodeURIComponent(targetPhone)}&mode=${targetMode}`);
-          return;
-        } else {
-          // Numéro inconnu -> retour à l'accueil pour inscription
-          setNeedsPhone(true);
-        }
+        if (check.name) setName(check.name);
+        setHasPin(true);
       } catch (err) {
         // En cas d'erreur de vérification, on laisse le pavé PIN tenter le login
+        setHasPin(true);
       } finally {
         setLoading(false);
       }
@@ -132,19 +123,27 @@ export function PinEntry() {
         user: ApiUser;
         tenant: { id: string; name: string } | null;
         employeeRole?: string | null;
-      }>("/api/auth/login", { phone, pin, ...createHumanPayload() });
+      }>("/api/auth/login", { phone, pin, mode, ...createHumanPayload() });
+
+      const isPro = mode === "pro" || res.user.role === "pro" || Boolean(res.employeeRole) || Boolean(res.tenant?.id);
+      const targetRole = res.user.role === "admin" ? "admin" : isPro ? "pro" : "client";
 
       rememberAccount({
         phone,
         name: res.user.name,
-        role: res.user.role === "pro" || res.user.role === "admin" ? res.user.role : "client",
+        role: mode === "pro" ? "pro" : targetRole === "admin" ? "pro" : targetRole,
       });
 
-      setUser(res.user as SessionUser);
+      setUser({
+        ...res.user,
+        role: targetRole,
+        employeeRole: res.employeeRole ?? null,
+        tenantId: res.tenant?.id ?? undefined,
+      } as SessionUser);
       if (res.tenant?.id) {
         setProTenantId(res.tenant.id);
       }
-      const targetSpace = res.user.role === "pro" ? "pro" : res.user.role === "admin" ? "admin" : "client";
+      const targetSpace = mode === "pro" ? "pro" : mode === "client" ? "client" : isPro ? "pro" : "client";
       setSpace(targetSpace);
 
       toast.success(`Bienvenue ${res.user.name.split(" ")[0]} 💛`);

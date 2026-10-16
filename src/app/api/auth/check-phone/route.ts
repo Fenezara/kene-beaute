@@ -45,12 +45,17 @@ export async function GET(req: NextRequest) {
   }
 }
 
-async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
-  const phone = normalizePhone(data.phone);
-  const user = await db.user.findUnique({
-    where: { phone },
+async function findUserFlexible(rawPhone: string) {
+  const clean = normalizePhone(rawPhone);
+  const digits = clean.replace(/\D/g, "");
+  const localDigits = digits.startsWith("225") ? digits.slice(3) : digits.startsWith("221") ? digits.slice(3) : digits;
+  const e164Ci = localDigits ? `+225${localDigits}` : clean;
+
+  let user = await db.user.findUnique({
+    where: { phone: clean },
     select: {
       id: true,
+      phone: true,
       name: true,
       role: true,
       pinHash: true,
@@ -58,6 +63,42 @@ async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
       lockedAt: true,
     },
   });
+
+  if (!user && e164Ci !== clean) {
+    user = await db.user.findUnique({
+      where: { phone: e164Ci },
+      select: {
+        id: true,
+        phone: true,
+        name: true,
+        role: true,
+        pinHash: true,
+        pinLockedUntil: true,
+        lockedAt: true,
+      },
+    });
+  }
+
+  if (!user && localDigits.length >= 8) {
+    user = await db.user.findFirst({
+      where: { phone: { endsWith: localDigits.slice(-8) } },
+      select: {
+        id: true,
+        phone: true,
+        name: true,
+        role: true,
+        pinHash: true,
+        pinLockedUntil: true,
+        lockedAt: true,
+      },
+    });
+  }
+
+  return { user, normalizedPhone: user?.phone ?? e164Ci };
+}
+
+async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
+  const { user, normalizedPhone: phone } = await findUserFlexible(data.phone);
 
   if (!user) {
     const ownerTenant = await db.tenant.findFirst({
@@ -67,7 +108,8 @@ async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
     return NextResponse.json({
       ok: true,
       exists: false,
-      hasPin: false,
+      hasPin: true,
+      needsPinSetup: true,
       role: ownerTenant ? "pro" : "client",
       tenant: ownerTenant ?? null,
       maskedPhone: maskPhone(phone),
@@ -81,12 +123,12 @@ async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
   });
 
   const ownerTenant = await db.tenant.findFirst({
-    where: { ownerPhone: phone, active: true },
+    where: { ownerPhone: user.phone, active: true },
     select: { id: true, name: true },
   });
 
   // Auto-promotion en rôle 'pro' si rattaché à une fiche employée
-  if (employeeLink && user.role !== "pro") {
+  if (employeeLink && user.role !== "pro" && user.role !== "admin") {
     await db.user.update({ where: { id: user.id }, data: { role: "pro" } });
     user.role = "pro";
   }
@@ -99,7 +141,8 @@ async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
   return NextResponse.json({
     ok: true,
     exists: true,
-    hasPin: Boolean(user.pinHash),
+    hasPin: true,
+    needsPinSetup: !user.pinHash,
     isPinLocked,
     isAccountLocked: Boolean(user.lockedAt),
     name: user.name && user.name !== "Nouvelle cliente" ? user.name : undefined,
@@ -107,6 +150,6 @@ async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
     isEmployee: Boolean(employeeLink),
     employeeRole: employeeLink?.role ?? null,
     tenant: ownerTenant ?? (employeeLink?.tenant ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name } : null),
-    maskedPhone: maskPhone(phone),
+    maskedPhone: maskPhone(user.phone),
   });
 }
