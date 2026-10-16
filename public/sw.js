@@ -11,11 +11,11 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v29";
-const PRECACHE = "kene-precache-v29";
-const DATA_CACHE = "kene-data-v29";
-const IMG_CACHE = "kene-img-v29";
-const STATIC_CACHE = "kene-static-v29";
+const VERSION = "kene-sw-v30";
+const PRECACHE = "kene-precache-v30";
+const DATA_CACHE = "kene-data-v30";
+const IMG_CACHE = "kene-img-v30";
+const STATIC_CACHE = "kene-static-v30";
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
@@ -323,19 +323,19 @@ self.addEventListener("install", (event) => {
         )
       );
 
-      // 2. Extraction automatique de tous les scripts et styles Next.js de la coquille d'accueil
+      // 2. Extraction automatique exhaustive de TOUS les scripts et styles Next.js (y compris dans le payload RSC)
       try {
         const homeRes = await caches.match("/", { cacheName: PRECACHE });
         if (homeRes) {
-          const text = await homeRes.text();
-          const scriptMatches = Array.from(text.matchAll(/<script[^>]+src="(\/_next\/[^">]+)"/g), (m) => m[1]);
-          const styleMatches = Array.from(text.matchAll(/<link[^>]+href="(\/_next\/[^">]+\.css)"/g), (m) => m[1]);
-          const assetUrls = Array.from(new Set([...scriptMatches, ...styleMatches]));
+          const rawText = await homeRes.text();
+          const text = rawText.replace(/\\"/g, '"');
+          const matches = Array.from(text.matchAll(/(\/_next\/static\/[^"'\s\\<>)]+\.(?:js|css))/g), (m) => m[1]);
+          const assetUrls = Array.from(new Set(matches));
 
           await Promise.all(
             assetUrls.map(async (assetUrl) => {
               try {
-                const assetRes = await fetch(new Request(assetUrl, { cache: "reload" }));
+                const assetRes = await fetch(new Request(assetUrl, { cache: "reload", credentials: "same-origin" }));
                 if (assetRes && assetRes.ok) {
                   await staticCache.put(assetUrl, assetRes);
                 }
@@ -478,8 +478,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Assets Next (/_next/) : network-first (toujours frais en ligne, cache de secours hors-ligne)
+  // Assets Next (/_next/) : en développement local (localhost / 127.0.0.1), laisser le navigateur charger en direct (zéro cache SW)
   if (url.pathname.startsWith("/_next/")) {
+    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+      return;
+    }
     event.respondWith(networkFirstStatic(req));
     return;
   }
@@ -610,7 +613,7 @@ async function networkFirstData(req) {
 async function networkFirstNavigation(req) {
   let networkRes = null;
   try {
-    networkRes = await fetch(req);
+    networkRes = await fetch(new Request(req.url, { cache: "no-store", credentials: "same-origin" }));
     if (networkRes && (networkRes.ok || networkRes.status === 404)) return networkRes;
   } catch {}
 
@@ -630,7 +633,7 @@ async function networkFirstNavigation(req) {
 async function networkFirstStatic(req) {
   const cache = await caches.open(STATIC_CACHE);
   try {
-    const res = await fetch(req);
+    const res = await fetch(new Request(req.url, { cache: "reload", credentials: "same-origin" }));
     if (res && res.ok) {
       void cache.put(req, res.clone()).catch(() => {});
       return res;

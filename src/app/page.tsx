@@ -29,7 +29,7 @@ import type { MaintenanceConfig } from "@/lib/kene/maintenance";
 import { Toaster } from "@/components/ui/sonner";
 
 // Espaces Pro / Admin / Pin: chunks séparés, chargés à l'entrée de l'espace
-import { ProApp } from "@/components/kene/pro/ProApp";
+import { ProEnterpriseShell } from "@/components/kene/pro/ProEnterpriseShell";
 import { PinEntry } from "@/components/kene/auth/PinEntry";
 
 // Console Admin: uniquement derrière /console (recharts ~100 ko gz)
@@ -145,7 +145,7 @@ export default function Page() {
           {isReady && activeEntry !== null && user?.role === "admin" && (
             <>
               {space === "client" && <ScreenBoundary name="Espace Beauté"><ClientApp /></ScreenBoundary>}
-              {space === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}
+              {space === "pro" && <ScreenBoundary name="Espace Entreprise"><ProEnterpriseShell /></ScreenBoundary>}
               {space === "admin" && <ScreenBoundary name="Console Administrateur"><AdminApp /></ScreenBoundary>}
             </>
           )}
@@ -157,7 +157,7 @@ export default function Page() {
               {activeEntry !== "pin" && (
                 <>
                   {space === "client" && <ScreenBoundary name="Espace Beauté"><ClientApp /></ScreenBoundary>}
-                  {space === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}
+                  {space === "pro" && <ScreenBoundary name="Espace Entreprise"><ProEnterpriseShell /></ScreenBoundary>}
                 </>
               )}
             </>
@@ -168,11 +168,11 @@ export default function Page() {
             <>
               {activeEntry === "console" && <ConsoleEntry />}
               {activeEntry === "pin" && <PinEntry />}
-              {activeEntry === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}
+              {activeEntry === "pro" && <ScreenBoundary name="Espace Entreprise"><ProEnterpriseShell /></ScreenBoundary>}
               {activeEntry === "app" && (
                 <>
                   {space === "client" && <ScreenBoundary name="Espace Beauté"><ClientApp /></ScreenBoundary>}
-                  {space === "pro" && <ScreenBoundary name="Espace Entreprise"><ProApp /></ScreenBoundary>}
+                  {space === "pro" && <ScreenBoundary name="Espace Entreprise"><ProEnterpriseShell /></ScreenBoundary>}
                   {space === "admin" && <ConsoleEntry />}
                 </>
               )}

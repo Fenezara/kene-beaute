@@ -225,7 +225,9 @@ export function middleware(req: NextRequest) {
     const url = req.nextUrl.clone();
     url.pathname = "/";
     url.search = "";
-    return applySecurityHeaders(NextResponse.rewrite(url));
+    const res = NextResponse.rewrite(url);
+    res.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    return applySecurityHeaders(res);
   }
 
   // 0-bis) PORTE DÉDIÉE CODE PIN (/pin) — écran dédié de saisie du code secret
@@ -234,31 +236,39 @@ export function middleware(req: NextRequest) {
   if (path === "/pin" || path === "/pin/") {
     const url = req.nextUrl.clone();
     url.pathname = "/";
-    return applySecurityHeaders(NextResponse.rewrite(url));
+    const res = NextResponse.rewrite(url);
+    res.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    return applySecurityHeaders(res);
   }
 
   // 0-ter) PORTE DÉDIÉE ESPACE PRO (/pro) — accès direct à la gestion institut & Assistante Maman
   if (path === "/pro" || path === "/pro/") {
     const url = req.nextUrl.clone();
     url.pathname = "/";
-    return applySecurityHeaders(NextResponse.rewrite(url));
-  }
-
-  // 1-bis) Désactiver le cache pour /sw.js et la page d'accueil pour que les déploiements soient visibles immédiatement
-  if (path === "/sw.js" || path === "/" || path === "") {
-    const res = NextResponse.next();
+    const res = NextResponse.rewrite(url);
     res.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
     return applySecurityHeaders(res);
   }
 
-  // 1-ter) Cache optimisé haute performance pour les images et assets statiques
-  // (WebP, PNG, JPG, SVG, WOFF2, CSS, JS bundles immuables) : 30 jours de cache
+  // 1-bis) Désactiver le cache HTTP sur /sw.js, la page d'accueil et les chunks /_next/
+  // (en mode Turbopack/dev les noms de chunks sont basés sur le chemin de fichier : un max-age long bloque les mises à jour UI)
   if (
-    path.startsWith("/_next/static/") ||
-    /\.(webp|png|jpg|jpeg|svg|woff2|ico)$/i.test(path)
+    path === "/sw.js" ||
+    path === "/" ||
+    path === "" ||
+    path.startsWith("/_next/")
   ) {
     const res = NextResponse.next();
-    res.headers.set("Cache-Control", "public, max-age=2592000, stale-while-revalidate=86400");
+    res.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.headers.set("Pragma", "no-cache");
+    res.headers.set("Expires", "0");
+    return applySecurityHeaders(res);
+  }
+
+  // 1-ter) Cache optimisé haute performance uniquement pour les images et polices statiques
+  if (/\.(webp|png|jpg|jpeg|svg|woff2|ico)$/i.test(path)) {
+    const res = NextResponse.next();
+    res.headers.set("Cache-Control", "public, max-age=86400, stale-while-revalidate=86400");
     return applySecurityHeaders(res, false);
   }
 
