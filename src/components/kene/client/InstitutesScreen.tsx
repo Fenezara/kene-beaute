@@ -25,10 +25,11 @@ import {
 import { toast } from "sonner";
 import { apiGet, apiPatch } from "@/lib/kene/api";
 import { openWhatsApp, buildWhatsAppInstituteShareMessage, openWhatsAppAppointmentInquiry } from "@/lib/kene/whatsapp-relay";
-import { useKene } from "@/store/kene";
+import { useKene, isSavedUser } from "@/store/kene";
 import { SankofaIcon, CauriIcon, KeneEmblem } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
 import type { ApiInstitute } from "./types";
+import { LinkAccountModal } from "./LinkAccountModal";
 
 export function InstitutesScreen() {
   const user = useKene((s) => s.user)!;
@@ -39,6 +40,7 @@ export function InstitutesScreen() {
   const [search, setSearch] = useState("");
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
 
   // ID de l'institut coché par la cliente
   const selectedTenantId = user.selectedTenantId || null;
@@ -97,6 +99,14 @@ export function InstitutesScreen() {
 
   // Action de coche / sélection de l'institut
   async function handleToggleSelect(inst: ApiInstitute) {
+    if (!isSavedUser(user)) {
+      toast.error("Inscription requise", {
+        description: "Vous devez être inscrite pour choisir votre institut partenaire et lui partager votre profil.",
+      });
+      setLinkModalOpen(true);
+      return;
+    }
+
     const isAlreadySelected = selectedTenantId === inst.id;
     const nextTenantId = isAlreadySelected ? null : inst.id;
     const nextSelectedTenant = nextTenantId
@@ -143,6 +153,13 @@ export function InstitutesScreen() {
 
   // Échange WhatsApp direct
   function handleWhatsApp(inst: ApiInstitute) {
+    if (!isSavedUser(user)) {
+      toast.error("Inscription requise", {
+        description: "Vous devez être inscrite pour échanger directement avec un institut partenaire.",
+      });
+      setLinkModalOpen(true);
+      return;
+    }
     const phone = inst.phone || inst.ownerPhone || "2250700000000";
     const msg = `Bonjour ${inst.name} ! 🌸\n\nJe suis cliente sur l'application Kènè (${user.name}). Je souhaite échanger avec vous pour mes rituels de soin dermo-cosmétiques.\n\nÀ très bientôt ! ✨`;
     openWhatsApp(phone, msg, inst.country === "SN" ? "SN" : "CI");
@@ -180,6 +197,13 @@ export function InstitutesScreen() {
 
   // Prise de rendez-vous directe avec cet institut
   function handleBookCareWithInstitute(inst: ApiInstitute) {
+    if (!isSavedUser(user)) {
+      toast.error("Inscription requise", {
+        description: "Vous devez être inscrite pour réserver un soin cabine dans un institut.",
+      });
+      setLinkModalOpen(true);
+      return;
+    }
     openWhatsAppAppointmentInquiry({
       serviceCategory: "Soin esthétique",
       serviceName: "Soin signature cabine & éclat",
@@ -463,6 +487,13 @@ export function InstitutesScreen() {
           })}
         </div>
       )}
+
+      {/* Modal d'inscription / enregistrement du compte pour cliente invitée */}
+      <LinkAccountModal
+        open={linkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
+        reason="Créez votre compte pour relier votre suivi de peau et vos bilans à un institut partenaire."
+      />
     </div>
   );
 }

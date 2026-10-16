@@ -1938,6 +1938,13 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
               <button
                 type="button"
                 onClick={() => {
+                  if (!isSaved) {
+                    toast.error("Inscription requise", {
+                      description: "Vous devez être inscrite pour transmettre vos résultats et échanger avec votre institut partenaire.",
+                    });
+                    setLinkModalOpen(true);
+                    return;
+                  }
                   const inst = partnerInstitute || user.selectedTenant;
                   const phone = inst?.ownerPhone?.trim() || inst?.phone?.trim() || "";
                   const name = inst?.name || "l'institut";
@@ -2007,6 +2014,13 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
               <button
                 type="button"
                 onClick={() => {
+                  if (!isSaved) {
+                    toast.error("Inscription requise", {
+                      description: "Vous devez être inscrite pour réserver ce soin auprès d'un institut partenaire.",
+                    });
+                    setLinkModalOpen(true);
+                    return;
+                  }
                   openWhatsAppAppointmentInquiry({
                     instituteName: recommendedInstitute.name,
                     serviceName: recommendedSoin ?? undefined,
@@ -2129,6 +2143,13 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
         </button>
         <button
           onClick={() => {
+            if (!isSaved) {
+              toast.error("Inscription requise", {
+                description: "Vous devez être inscrite pour recevoir votre protocole et pass cabine sur WhatsApp.",
+              });
+              setLinkModalOpen(true);
+              return;
+            }
             const origin = typeof window !== "undefined" ? window.location.origin : "https://kene.app";
             const pdfUrl = `${origin}/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`;
             const botanicals = diag.result.recommandations?.botaniques_conseillees?.slice(0, 3).join(", ") || "Actifs apaisants";
@@ -2188,6 +2209,13 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
               <button
                 type="button"
                 onClick={() => {
+                  if (!isSaved) {
+                    toast.error("Inscription requise", {
+                      description: "Vous devez être inscrite pour transmettre vos données et échanger avec votre institut partenaire.",
+                    });
+                    setLinkModalOpen(true);
+                    return;
+                  }
                   const phone = partnerInstitute.ownerPhone?.trim() || partnerInstitute.phone?.trim() || "";
                   const origin = typeof window !== "undefined" ? window.location.origin : "https://kene.app";
                   const pdfUrl = `${origin}/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`;
@@ -2221,7 +2249,16 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
                 <button
                   type="button"
-                  onClick={() => setClientTab("instituts")}
+                  onClick={() => {
+                    if (!isSaved) {
+                      toast.error("Inscription requise", {
+                        description: "Vous devez être inscrite pour choisir votre institut référent et lui partager vos bilans.",
+                      });
+                      setLinkModalOpen(true);
+                      return;
+                    }
+                    setClientTab("instituts");
+                  }}
                   className="flex-1 h-11 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-2"
                 >
                   <Building2 size={15} /> Choisir mon institut référent

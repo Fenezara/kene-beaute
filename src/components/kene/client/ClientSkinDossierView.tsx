@@ -201,6 +201,13 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   // Partage WhatsApp du Bilan Personnel et Ordonnance Beauté
   const shareMySkinReportWhatsApp = () => {
     haptic(HAPTIC.tap);
+    if (isGuestUser) {
+      toast.error("Inscription requise", {
+        description: "Vous devez être inscrite pour partager votre dossier cutané et votre ordonnance avec un institut partenaire.",
+      });
+      setLinkModalOpen(true);
+      return;
+    }
     const instName = selectedInstitute?.name || "mon institut partenaire";
     const botanicals = lastResult?.recommandations?.botaniques_conseillees?.join(", ") || "Moringa d'Afrique, Karité brut bio, Kinkeliba, Hibiscus";
     const soins = lastResult?.recommandations?.soins_conseilles?.slice(0, 2).join(" • ") || "Soin du visage dermo-cosmétique en cabine";

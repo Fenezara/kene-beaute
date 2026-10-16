@@ -29,10 +29,11 @@ import {
   openWhatsAppInstituteContact,
   buildWhatsAppInstituteShareMessage,
 } from "@/lib/kene/whatsapp-relay";
-import { useKene } from "@/store/kene";
+import { useKene, isSavedUser } from "@/store/kene";
 import { SectionTitle } from "./bits";
 import { CauriIcon } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
+import { LinkAccountModal } from "./LinkAccountModal";
 
 export interface InstituteShare {
   tenantId: string;
@@ -56,6 +57,7 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
   const [busyId, setBusyId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState<string>("all");
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
 
   const user = useKene((s) => s.user);
   const setUser = useKene((s) => s.setUser);
@@ -103,6 +105,14 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
   // Cocher l'institut comme institut référent de la cliente
   const handleSelectReferenceInstitute = (share: InstituteShare) => {
     if (!user) return;
+    if (!isSavedUser(user)) {
+      toast.error("Inscription requise", {
+        description: "Vous devez être inscrite pour choisir votre institut partenaire et lui partager vos données.",
+      });
+      setLinkModalOpen(true);
+      return;
+    }
+
     const isAlreadySelected = user.selectedTenantId === share.tenantId;
 
     if (isAlreadySelected) {
@@ -135,6 +145,14 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
 
   // Bascule du consentement de partage des self-scans
   async function toggle(share: InstituteShare, next: boolean) {
+    if (!isSavedUser(user)) {
+      toast.error("Inscription requise", {
+        description: "Un compte invité ne peut pas partager ses bilans avec un institut. Enregistrez votre compte pour activer le partage.",
+      });
+      setLinkModalOpen(true);
+      return;
+    }
+
     setBusyId(share.tenantId);
     try {
       await apiPost("/api/auth/shares", { userId, tenantId: share.tenantId, granted: next });
@@ -184,6 +202,14 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
 
   // Partager le diagnostic & échanger avec l'institut par WhatsApp
   const handleShareOnWhatsApp = (share: InstituteShare) => {
+    if (!isSavedUser(user)) {
+      toast.error("Inscription requise", {
+        description: "Vous devez être inscrite pour partager vos bilans et échanger avec cet institut.",
+      });
+      setLinkModalOpen(true);
+      return;
+    }
+
     const phone = share.phone || share.ownerPhone || "";
     const country = (share.country || "CI") as "CI" | "SN";
     const msg = `Bonjour ${share.name} ! 🌸\n\nJe suis cliente sur l'application Kènè (${userName}). J'ai choisi votre établissement comme institut partenaire référent et j'aimerais vous partager mon bilan cutané pour mes soins.\n\nÀ très vite ! ✨`;
@@ -219,6 +245,32 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
             Cochez l&apos;institut de votre choix pour lier vos soins et autorisez l&apos;accès à vos diagnostics ({data?.scansTotal ?? "…"} scans). Vous gardez le contrôle total à tout moment.
           </p>
         </div>
+
+        {/* Bannière de protection des données pour compte invité */}
+        {user && !isSavedUser(user) && (
+          <div className="rounded-2xl border-2 border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-gold/10 to-transparent p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <span className="grid place-items-center size-9 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 font-bold">
+                🔒
+              </span>
+              <div>
+                <p className="font-heading font-black text-xs text-foreground">
+                  Mode Invité : Données Cutanées Strictement Privées
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Vos bilans restent confidentiels sur cet appareil. Créez votre compte pour autoriser le partage avec un institut partenaire.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLinkModalOpen(true)}
+              className="shrink-0 h-9 px-3.5 rounded-xl k-btn-gold text-primary-foreground font-bold text-xs shadow-xs active:scale-95 transition-all"
+            >
+              Créer mon compte
+            </button>
+          </div>
+        )}
 
         {/* ───── Encart Institut Référent Actuellement Coché ───── */}
         {user?.selectedTenant && (
@@ -477,6 +529,13 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
           {firstName}, chaque accord de partage est conservé de façon sécurisée (RGPD / loi ivoirienne n°2013-450). L&apos;institut de votre choix peut consulter l&apos;évolution de votre score santé pour adapter vos rituels et soins cabine. Vous pouvez révoquer l&apos;accès à tout moment en 1 clic.
         </p>
       </div>
+
+      {/* Modal d'inscription et enregistrement du compte client invité */}
+      <LinkAccountModal
+        open={linkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
+        reason="Créez votre compte pour relier votre suivi de peau et vos bilans à un institut partenaire."
+      />
     </section>
   );
 }

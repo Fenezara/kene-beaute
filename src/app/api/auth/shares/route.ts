@@ -107,16 +107,22 @@ export async function POST(req: NextRequest) {
     const guard = guardUserClaim(req, "auth/shares:post", userId);
     if (guard) return guard;
 
+    const userObj = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, phone: true, city: true, fitzpatrick: true },
+    });
+    if (!userObj) return jsonError("Utilisatrice introuvable", 404);
+    if (userObj.phone.startsWith("+22500") || userObj.id === "guest" || userObj.id.startsWith("guest_") || userObj.name === "Nouvelle invitée") {
+      return jsonError("Inscription requise : un utilisateur en mode invité ne peut pas partager ses données avec un institut.", 403);
+    }
+
     // Création automatique de la fiche si elle n'existe pas encore
     let profile = await db.clientProfile.findFirst({
       where: { userId, tenantId },
       select: { id: true },
     });
     if (!profile) {
-      const u = await db.user.findUnique({
-        where: { id: userId },
-        select: { name: true, phone: true, city: true, fitzpatrick: true },
-      });
+      const u = userObj;
       profile = await db.clientProfile.create({
         data: {
           userId,

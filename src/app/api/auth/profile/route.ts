@@ -110,6 +110,9 @@ async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
 
   // Connexion de la cliente à l'institut choisi
   if (update.selectedTenantId !== undefined && update.selectedTenantId) {
+    if (user.phone.startsWith("+22500") || user.id === "guest" || user.id.startsWith("guest_") || user.name === "Nouvelle invitée") {
+      return jsonError("Inscription requise : un utilisateur en mode invité ne peut pas rattacher son profil à un institut partenaire.", 403);
+    }
     const tenantIdStr = String(update.selectedTenantId);
     const existingProfile = await db.clientProfile.findFirst({
       where: { tenantId: tenantIdStr, phone: user.phone },
