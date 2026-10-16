@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowDown,
   Camera,
   CircleCheck,
   ImagePlus,
@@ -489,7 +490,9 @@ export function ChatScreen() {
   const [micHelpOpen, setMicHelpOpen] = useState(false);
   const [liveCamOpen, setLiveCamOpen] = useState(false);
 
+  const threadContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -498,6 +501,23 @@ export function ChatScreen() {
   const cancelledRef = useRef(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Défilement garanti vers le bas du fil pour afficher immédiatement le message le plus récent */
+  const scrollToBottom = useCallback((smooth = false) => {
+    if (threadContainerRef.current) {
+      threadContainerRef.current.scrollTop = threadContainerRef.current.scrollHeight;
+    }
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
+    }
+  }, []);
+
+  const handleThreadScroll = useCallback(() => {
+    if (!threadContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = threadContainerRef.current;
+    const distanceToBottom = scrollHeight - (scrollTop + clientHeight);
+    setShowScrollBottom(distanceToBottom > 120);
+  }, []);
 
   // Dernier message de Dermo Kènè pour la carte de prescription
   const lastAssistantMessage = useMemo(() => {
@@ -534,9 +554,21 @@ export function ChatScreen() {
     }
   }, [ensureEngaged, user.name, user.city]);
 
+  // Défilement automatique vers le message le plus récent à chaque changement de messages,
+  // d'état d'envoi ou lors du basculement sur l'onglet "Fil complet"
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, sending]);
+    if (viewMode === "thread") {
+      scrollToBottom(false);
+      const t1 = setTimeout(() => scrollToBottom(false), 30);
+      const t2 = setTimeout(() => scrollToBottom(true), 120);
+      const t3 = setTimeout(() => scrollToBottom(true), 320);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
+    }
+  }, [viewMode, messages.length, sending, scrollToBottom]);
 
   /* ── Micro serveur: machine à états idle → recording → transcribing ── */
 
@@ -922,6 +954,8 @@ export function ChatScreen() {
         setViewMode(ce.detail.viewMode || "thread");
         setTimeout(() => {
           void sendRef.current(ce.detail.message);
+          scrollToBottom(false);
+          setTimeout(() => scrollToBottom(true), 150);
         }, 150);
       }
     };
@@ -934,6 +968,8 @@ export function ChatScreen() {
       setViewMode("thread");
       const t = setTimeout(() => {
         void sendRef.current(pendingMsg);
+        scrollToBottom(false);
+        setTimeout(() => scrollToBottom(true), 150);
       }, 350);
       return () => {
         clearTimeout(t);
@@ -1101,6 +1137,9 @@ export function ChatScreen() {
               onClick={() => {
                 setViewMode("thread");
                 haptic(HAPTIC.light);
+                scrollToBottom(false);
+                setTimeout(() => scrollToBottom(false), 30);
+                setTimeout(() => scrollToBottom(true), 150);
               }}
               className={`h-9 px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
                 viewMode === "thread"
@@ -1425,7 +1464,7 @@ export function ChatScreen() {
       ) : (
         <>
           {/* Fil de discussion */}
-      <div className="relative flex-1 overflow-y-auto py-4 max-h-[56vh]" aria-live="polite">
+      <div ref={threadContainerRef} onScroll={handleThreadScroll} className="relative flex-1 overflow-y-auto py-4 max-h-[56vh]" aria-live="polite">
         <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-50 pointer-events-none" />
         <div className="relative flex flex-col gap-3">
           {messages.map((m) => {
@@ -1563,6 +1602,23 @@ export function ChatScreen() {
           )}
           <div ref={bottomRef} />
         </div>
+
+        {/* Accès direct au message le plus récent */}
+        {showScrollBottom && (
+          <div className="sticky bottom-2 flex justify-end pr-2 pointer-events-none mt-2">
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.light);
+                scrollToBottom(true);
+              }}
+              className="pointer-events-auto shadow-lg flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground font-black text-xs hover:brightness-105 active:scale-95 transition-all"
+            >
+              <span>Dernier message</span>
+              <ArrowDown size={13} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Suggestions initiales complètes si conversation vide */}

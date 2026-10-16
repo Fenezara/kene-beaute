@@ -832,6 +832,7 @@ function DiagWizard({
           )}
           {step === 2 && (
             <QuestionnaireStep
+              zone={zone}
               answers={answers}
               onChange={setAnswers}
               progress={progress}
@@ -1239,18 +1240,22 @@ function ClientStep({
 
 // ── Étape 2: questionnaire dermatologique avec jauge en direct ──
 function QuestionnaireStep({
+  zone = "visage",
   answers,
   onChange,
   progress,
   onBack,
   onNext,
 }: {
+  zone?: BodyZone;
   answers: QAnswers;
   onChange: (a: QAnswers) => void;
   progress: number;
   onBack: () => void;
   onNext: () => void;
 }) {
+  const sections = getSectionsForZone(zone);
+  const questions = getQuestionsForZone(zone);
   const setAnswer = (id: string, value: string | string[]) => onChange({ ...answers, [id]: value });
   const toggleMulti = (id: string, value: string) => {
     const cur = Array.isArray(answers[id]) ? (answers[id] as string[]) : [];
