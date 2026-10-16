@@ -21,6 +21,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Camera,
   CircleCheck,
   ImagePlus,
@@ -502,22 +504,42 @@ export function ChatScreen() {
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** Défilement garanti vers le bas du fil pour afficher immédiatement le message le plus récent */
-  const scrollToBottom = useCallback((smooth = false) => {
-    if (threadContainerRef.current) {
-      threadContainerRef.current.scrollTop = threadContainerRef.current.scrollHeight;
+  // Ordre d'affichage du fil complet : "newest-first" (message le plus récent en premier tout en haut)
+  // ou "chronological" (du plus ancien au plus récent)
+  const [threadOrder, setThreadOrder] = useState<"newest-first" | "chronological">("newest-first");
+
+  const orderedMessages = useMemo(() => {
+    return threadOrder === "newest-first" ? [...messages].reverse() : messages;
+  }, [messages, threadOrder]);
+
+  /** Défilement garanti vers le message le plus récent selon l'ordre choisi */
+  const scrollToLatest = useCallback((smooth = false) => {
+    if (threadOrder === "newest-first") {
+      if (threadContainerRef.current) {
+        threadContainerRef.current.scrollTo({ top: 0, behavior: smooth ? "smooth" : "auto" });
+      }
+    } else {
+      if (threadContainerRef.current) {
+        threadContainerRef.current.scrollTop = threadContainerRef.current.scrollHeight;
+      }
+      if (bottomRef.current) {
+        bottomRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
+      }
     }
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
-    }
-  }, []);
+  }, [threadOrder]);
+
+  const scrollToBottom = scrollToLatest;
 
   const handleThreadScroll = useCallback(() => {
     if (!threadContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = threadContainerRef.current;
-    const distanceToBottom = scrollHeight - (scrollTop + clientHeight);
-    setShowScrollBottom(distanceToBottom > 120);
-  }, []);
+    if (threadOrder === "newest-first") {
+      setShowScrollBottom(scrollTop > 90);
+    } else {
+      const distanceToBottom = scrollHeight - (scrollTop + clientHeight);
+      setShowScrollBottom(distanceToBottom > 120);
+    }
+  }, [threadOrder]);
 
   // Dernier message de Dermo Kènè pour la carte de prescription
   const lastAssistantMessage = useMemo(() => {
@@ -558,17 +580,17 @@ export function ChatScreen() {
   // d'état d'envoi ou lors du basculement sur l'onglet "Fil complet"
   useEffect(() => {
     if (viewMode === "thread") {
-      scrollToBottom(false);
-      const t1 = setTimeout(() => scrollToBottom(false), 30);
-      const t2 = setTimeout(() => scrollToBottom(true), 120);
-      const t3 = setTimeout(() => scrollToBottom(true), 320);
+      scrollToLatest(false);
+      const t1 = setTimeout(() => scrollToLatest(false), 30);
+      const t2 = setTimeout(() => scrollToLatest(true), 120);
+      const t3 = setTimeout(() => scrollToLatest(true), 320);
       return () => {
         clearTimeout(t1);
         clearTimeout(t2);
         clearTimeout(t3);
       };
     }
-  }, [viewMode, messages.length, sending, scrollToBottom]);
+  }, [viewMode, messages.length, sending, scrollToLatest]);
 
   /* ── Micro serveur: machine à états idle → recording → transcribing ── */
 
@@ -1463,163 +1485,213 @@ export function ChatScreen() {
         </div>
       ) : (
         <>
-          {/* Fil de discussion */}
-      <div ref={threadContainerRef} onScroll={handleThreadScroll} className="relative flex-1 overflow-y-auto py-4 max-h-[56vh]" aria-live="polite">
-        <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-50 pointer-events-none" />
-        <div className="relative flex flex-col gap-3">
-          {messages.map((m) => {
-            if (m.role === "user") {
-              return (
-                <motion.div key={m.id} initial={{ opacity: 0, y: 8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="self-end max-w-[85%]">
-                  {m.photos && m.photos.length > 1 ? (
-                    <div className="grid grid-cols-2 gap-1.5 mb-1.5">
-                      {m.photos.map((p, idx) => (
-                        <img
-                          key={idx}
-                          src={p}
-                          alt={`Photo ${idx + 1}`}
-                          className="rounded-xl max-h-36 w-full object-cover border border-border shadow-sm"
-                        />
-                      ))}
-                    </div>
-                  ) : m.photo ? (
-                    <img src={m.photo} alt="Photo envoyée" className="rounded-[20px] rounded-br-[6px] mb-1.5 max-h-52 object-cover border border-border" />
-                  ) : null}
-                  {m.kind === "audio" ? (
-                    <AudioMessageBubble message={m} />
-                  ) : (
-                    <div className="k-cta rounded-[20px] rounded-br-[6px] px-3.5 py-2.5 text-[#FFF9EC]">
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground text-right mt-1 font-medium">{new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
-                </motion.div>
-              );
-            }
-            const tri = m.niveau ? TRIAGE[m.niveau] : null;
-            return (
-              <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="self-start max-w-[86%] flex items-end gap-2">
-                <IconBadge icon={<NeaOnnimIcon size={14} />} size="sm" tone="gold" className="mb-4 h-8 w-8 rounded-[10px]" />
-                <div>
-                  <div className="relative k-card rounded-[20px] rounded-bl-[6px] px-3.5 py-2.5">
-                    {tri && (
-                      <span aria-hidden="true" className={`pointer-events-none absolute inset-0 rounded-[20px] rounded-bl-[6px] ${tri.border} ${tri.bg}`} />
-                    )}
-                    <div className="relative">
-                      {tri && (
-                        <p className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-wide ${tri.text} mb-1.5`}>
-                          <tri.Icon size={14} />
-                          {m.niveau === "vert" ? "Rassurant" : m.niveau === "jaune" ? "À surveiller" : "Consultation conseillée"}
-                        </p>
-                      )}
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
-                      {m.productAnalysis && (
-                        <InciShieldCard analysis={m.productAnalysis} />
-                      )}
-                    </div>
-                  </div>
-                  {tri && (
-                    <button
-                      onClick={() => {
-                        const chosenTenant = user?.selectedTenant;
-                        const tenantPhone = chosenTenant?.phone || (chosenTenant as any)?.ownerPhone;
-                        const instituteName = chosenTenant?.name;
-                        const country = ((chosenTenant as any)?.country || "CI") as "CI" | "SN";
-
-                        if (m.niveau === "vert") {
-                          openWhatsAppProductOrderInquiry({
-                            summary: m.content,
-                            tenantPhone,
-                            instituteName,
-                            country,
-                          });
-                        } else {
-                          openWhatsAppAppointmentInquiry({
-                            serviceCategory: m.niveau === "rouge" ? "Consultation prioritaire" : "Contrôle dermo",
-                            serviceName: "Protocole conseillé par Dermo Kènè",
-                            tenantPhone,
-                            instituteName,
-                            country,
-                          });
-                        }
-                      }}
-                      className={`mt-1.5 h-9 px-3.5 rounded-full ${tri.text} border ${m.niveau === "vert" ? "border-[#346834]/50 bg-[#346834]/10" : m.niveau === "jaune" ? "border-[#C8951E]/50 bg-[#C8951E]/10" : "border-[#8B1A3B]/50 bg-[#8B1A3B]/10"} text-xs font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary flex items-center gap-1.5`}
-                    >
-                      <MessageCircle size={13} />
-                      <span>{tri.cta}</span>
-                    </button>
-                  )}
-                  <div className="flex items-center justify-between gap-3 mt-1.5 px-0.5">
-                    <p className="text-xs text-muted-foreground font-medium">Dermo Kènè · {new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
-                    {playingMsgId === m.id ? (
-                      <button
-                        type="button"
-                        onClick={stopCurrentSpeech}
-                        aria-label="Arrêter la voix de Dermo Kènè"
-                        className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-xs active:scale-95 transition-all"
-                      >
-                        <span className="flex items-end gap-[2px] h-3 mr-0.5" aria-hidden="true">
-                          {[0, 1, 2, 3].map((i) => (
-                            <span
-                              key={i}
-                              className="w-[2px] h-full bg-primary-foreground rounded-full animate-pulse"
-                              style={{ animationDelay: `${i * 150}ms` }}
-                            />
-                          ))}
-                        </span>
-                        <Square size={10} className="fill-current" />
-                        <span>Pause</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          unlockAudioContext();
-                          speak(m.content, true, m.id);
-                        }}
-                        aria-label="Écouter la réponse de Dermo Kènè"
-                        className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[10px] font-bold min-h-0 border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary rounded-full active:scale-95 transition-all"
-                      >
-                        <Volume2 size={12} />
-                        <span>Écouter</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-
-          {sending && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="self-start flex items-end gap-2">
-              <IconBadge icon={<NeaOnnimIcon size={14} />} size="sm" tone="gold" className="h-8 w-8 rounded-[10px]" />
-              <div className="k-card rounded-[20px] rounded-bl-[6px] px-4 py-3 flex gap-1.5" aria-label="Dermo Kènè écrit">
-                {[0, 1, 2].map((i) => (
-                  <motion.span key={i} className="h-1.5 w-1.5 rounded-full bg-primary" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.15 }} />
-                ))}
-              </div>
-            </motion.div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Accès direct au message le plus récent */}
-        {showScrollBottom && (
-          <div className="sticky bottom-2 flex justify-end pr-2 pointer-events-none mt-2">
+          {/* Fil de discussion complet */}
+          {/* Barre d'en-tête & sélecteur d'ordre du fil */}
+          <div className="flex items-center justify-between pb-2 mb-1 border-b border-border/70 px-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black text-foreground">Échanges ({messages.length})</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                {threadOrder === "newest-first" ? "✨ Plus récent en haut" : "Ordre chronologique"}
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => {
                 haptic(HAPTIC.light);
-                scrollToBottom(true);
+                setThreadOrder((o) => (o === "newest-first" ? "chronological" : "newest-first"));
               }}
-              className="pointer-events-auto shadow-lg flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground font-black text-xs hover:brightness-105 active:scale-95 transition-all"
+              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:underline transition-colors"
             >
-              <span>Dernier message</span>
-              <ArrowDown size={13} />
+              <ArrowUpDown size={12} />
+              <span>{threadOrder === "newest-first" ? "Voir dans l'ordre chronologique" : "Afficher les plus récents en premier"}</span>
             </button>
           </div>
-        )}
-      </div>
+
+          <div ref={threadContainerRef} onScroll={handleThreadScroll} className="relative flex-1 overflow-y-auto py-3 max-h-[56vh]" aria-live="polite">
+            <div aria-hidden="true" className="absolute inset-0 bogolan-dots opacity-50 pointer-events-none" />
+            <div className="relative flex flex-col gap-3">
+              {/* Si tri le plus récent en premier, la bulle d'attente s'affiche tout en haut */}
+              {threadOrder === "newest-first" && sending && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="self-start flex items-end gap-2">
+                  <IconBadge icon={<NeaOnnimIcon size={14} />} size="sm" tone="gold" className="h-8 w-8 rounded-[10px]" />
+                  <div className="k-card rounded-[20px] rounded-bl-[6px] px-4 py-3 flex gap-1.5" aria-label="Dermo Kènè analyse vos besoins">
+                    {[0, 1, 2].map((i) => (
+                      <motion.span key={i} className="h-1.5 w-1.5 rounded-full bg-primary" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.15 }} />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {orderedMessages.map((m, idx) => {
+                const isNewestCard = threadOrder === "newest-first" && idx === 0;
+                if (m.role === "user") {
+                  return (
+                    <motion.div key={m.id} initial={{ opacity: 0, y: 8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="self-end max-w-[85%]">
+                      {isNewestCard && (
+                        <div className="flex justify-end mb-1">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                            ✨ Dernier message envoyé
+                          </span>
+                        </div>
+                      )}
+                      {m.photos && m.photos.length > 1 ? (
+                        <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+                          {m.photos.map((p, pidx) => (
+                            <img
+                              key={pidx}
+                              src={p}
+                              alt={`Photo ${pidx + 1}`}
+                              className="rounded-xl max-h-36 w-full object-cover border border-border shadow-sm"
+                            />
+                          ))}
+                        </div>
+                      ) : m.photo ? (
+                        <img src={m.photo} alt="Photo envoyée" className="rounded-[20px] rounded-br-[6px] mb-1.5 max-h-52 object-cover border border-border" />
+                      ) : null}
+                      {m.kind === "audio" ? (
+                        <AudioMessageBubble message={m} />
+                      ) : (
+                        <div className="k-cta rounded-[20px] rounded-br-[6px] px-3.5 py-2.5 text-[#FFF9EC]">
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground text-right mt-1 font-medium">{new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                    </motion.div>
+                  );
+                }
+                const tri = m.niveau ? TRIAGE[m.niveau] : null;
+                return (
+                  <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="self-start max-w-[86%] flex items-end gap-2">
+                    <IconBadge icon={<NeaOnnimIcon size={14} />} size="sm" tone="gold" className="mb-4 h-8 w-8 rounded-[10px]" />
+                    <div>
+                      {isNewestCard && (
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 shadow-2xs">
+                            <Sparkles size={11} className="text-amber-500 animate-spin-slow" />
+                            ✨ Dernier échange (Récent)
+                          </span>
+                        </div>
+                      )}
+                      <div className="relative k-card rounded-[20px] rounded-bl-[6px] px-3.5 py-2.5">
+                        {tri && (
+                          <span aria-hidden="true" className={`pointer-events-none absolute inset-0 rounded-[20px] rounded-bl-[6px] ${tri.border} ${tri.bg}`} />
+                        )}
+                        <div className="relative">
+                          {tri && (
+                            <p className={`flex items-center gap-1.5 text-xs font-black uppercase tracking-wide ${tri.text} mb-1.5`}>
+                              <tri.Icon size={14} />
+                              {m.niveau === "vert" ? "Rassurant" : m.niveau === "jaune" ? "À surveiller" : "Consultation conseillée"}
+                            </p>
+                          )}
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                          {m.productAnalysis && (
+                            <InciShieldCard analysis={m.productAnalysis} />
+                          )}
+                        </div>
+                      </div>
+                      {tri && (
+                        <button
+                          onClick={() => {
+                            const chosenTenant = user?.selectedTenant;
+                            const tenantPhone = chosenTenant?.phone || (chosenTenant as any)?.ownerPhone;
+                            const instituteName = chosenTenant?.name;
+                            const country = ((chosenTenant as any)?.country || "CI") as "CI" | "SN";
+
+                            if (m.niveau === "vert") {
+                              openWhatsAppProductOrderInquiry({
+                                summary: m.content,
+                                tenantPhone,
+                                instituteName,
+                                country,
+                              });
+                            } else {
+                              openWhatsAppAppointmentInquiry({
+                                serviceCategory: m.niveau === "rouge" ? "Consultation prioritaire" : "Contrôle dermo",
+                                serviceName: "Protocole conseillé par Dermo Kènè",
+                                tenantPhone,
+                                instituteName,
+                                country,
+                              });
+                            }
+                          }}
+                          className={`mt-1.5 h-9 px-3.5 rounded-full ${tri.text} border ${m.niveau === "vert" ? "border-[#346834]/50 bg-[#346834]/10" : m.niveau === "jaune" ? "border-[#C8951E]/50 bg-[#C8951E]/10" : "border-[#8B1A3B]/50 bg-[#8B1A3B]/10"} text-xs font-bold active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary flex items-center gap-1.5`}
+                        >
+                          <MessageCircle size={13} />
+                          <span>{tri.cta}</span>
+                        </button>
+                      )}
+                      <div className="flex items-center justify-between gap-3 mt-1.5 px-0.5">
+                        <p className="text-xs text-muted-foreground font-medium">Dermo Kènè · {new Date(m.time).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                        {playingMsgId === m.id ? (
+                          <button
+                            type="button"
+                            onClick={stopCurrentSpeech}
+                            aria-label="Arrêter la voix de Dermo Kènè"
+                            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-xs active:scale-95 transition-all"
+                          >
+                            <span className="flex items-end gap-[2px] h-3 mr-0.5" aria-hidden="true">
+                              {[0, 1, 2, 3].map((i) => (
+                                <span
+                                  key={i}
+                                  className="w-[2px] h-full bg-primary-foreground rounded-full animate-pulse"
+                                  style={{ animationDelay: `${i * 150}ms` }}
+                                />
+                              ))}
+                            </span>
+                            <Square size={10} className="fill-current" />
+                            <span>Pause</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              unlockAudioContext();
+                              speak(m.content, true, m.id);
+                            }}
+                            aria-label="Écouter la réponse de Dermo Kènè"
+                            className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[10px] font-bold min-h-0 border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary rounded-full active:scale-95 transition-all"
+                          >
+                            <Volume2 size={12} />
+                            <span>Écouter</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+
+              {/* Si ordre chronologique (anciens en haut), la bulle d'attente s'affiche en bas */}
+              {threadOrder === "chronological" && sending && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="self-start flex items-end gap-2">
+                  <IconBadge icon={<NeaOnnimIcon size={14} />} size="sm" tone="gold" className="h-8 w-8 rounded-[10px]" />
+                  <div className="k-card rounded-[20px] rounded-bl-[6px] px-4 py-3 flex gap-1.5" aria-label="Dermo Kènè écrit">
+                    {[0, 1, 2].map((i) => (
+                      <motion.span key={i} className="h-1.5 w-1.5 rounded-full bg-primary" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.15 }} />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Accès direct au message le plus récent */}
+            {showScrollBottom && (
+              <div className="sticky bottom-2 flex justify-end pr-2 pointer-events-none mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.light);
+                    scrollToLatest(true);
+                  }}
+                  className="pointer-events-auto shadow-lg flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground font-black text-xs hover:brightness-105 active:scale-95 transition-all"
+                >
+                  <span>{threadOrder === "newest-first" ? "Revenir au plus récent" : "Dernier message"}</span>
+                  {threadOrder === "newest-first" ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
+                </button>
+              </div>
+            )}
+          </div>
 
       {/* Suggestions initiales complètes si conversation vide */}
       {messages.length <= 1 && !sending && (
