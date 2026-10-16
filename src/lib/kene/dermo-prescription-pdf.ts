@@ -151,11 +151,11 @@ export function generatePrescriptionPdf(input: PrescriptionPdfInput): { data: Ui
 
   if (reco?.routine_matin && reco.routine_matin.length > 0) {
     doc.ensure(18);
-    doc.text("🌞 LE MATIN :", M_X + 4, doc.cursorY, { font: "bold", size: 9, color: GOLD_DARK });
+    doc.text("ROUTINE DU MATIN :", M_X + 4, doc.cursorY, { font: "bold", size: 9, color: GOLD_DARK });
     doc.advance(12);
     for (const step of reco.routine_matin) {
       doc.ensure(12);
-      doc.text("• " + step, M_X + 12, doc.cursorY, { size: 8.5, color: INK, maxW: CONTENT_W - 20 });
+      doc.text("- " + step, M_X + 12, doc.cursorY, { size: 8.5, color: INK, maxW: CONTENT_W - 20 });
       doc.advance(11);
     }
     doc.advance(4);
@@ -163,11 +163,11 @@ export function generatePrescriptionPdf(input: PrescriptionPdfInput): { data: Ui
 
   if (reco?.routine_soir && reco.routine_soir.length > 0) {
     doc.ensure(18);
-    doc.text("🌙 LE SOIR :", M_X + 4, doc.cursorY, { font: "bold", size: 9, color: GOLD_DARK });
+    doc.text("ROUTINE DU SOIR :", M_X + 4, doc.cursorY, { font: "bold", size: 9, color: GOLD_DARK });
     doc.advance(12);
     for (const step of reco.routine_soir) {
       doc.ensure(12);
-      doc.text("• " + step, M_X + 12, doc.cursorY, { size: 8.5, color: INK, maxW: CONTENT_W - 20 });
+      doc.text("- " + step, M_X + 12, doc.cursorY, { size: 8.5, color: INK, maxW: CONTENT_W - 20 });
       doc.advance(11);
     }
     doc.advance(4);
@@ -176,9 +176,9 @@ export function generatePrescriptionPdf(input: PrescriptionPdfInput): { data: Ui
   // 4. BOTANIQUES D'AFRIQUE DE L'OUEST & SOINS INSTITUT
   if (reco?.botaniques_conseillees && reco.botaniques_conseillees.length > 0) {
     doc.ensure(20);
-    doc.text("🌿 ACTIFS BOTANIQUES CLÉS :", M_X + 4, doc.cursorY, { font: "bold", size: 9, color: GOLD_DARK });
+    doc.text("ACTIFS BOTANIQUES CLES :", M_X + 4, doc.cursorY, { font: "bold", size: 9, color: GOLD_DARK });
     doc.advance(12);
-    doc.text(reco.botaniques_conseillees.join("  ·  "), M_X + 12, doc.cursorY, {
+    doc.text(reco.botaniques_conseillees.join("  -  "), M_X + 12, doc.cursorY, {
       size: 8.5,
       color: INK,
       font: "oblique",
@@ -189,9 +189,9 @@ export function generatePrescriptionPdf(input: PrescriptionPdfInput): { data: Ui
 
   if (reco?.soins_conseilles && reco.soins_conseilles.length > 0) {
     doc.ensure(20);
-    doc.text("💆‍♀️ PROTOCOLE EN CABINE CONSEILLÉ :", M_X + 4, doc.cursorY, { font: "bold", size: 9, color: GOLD_DARK });
+    doc.text("PROTOCOLE EN CABINE CONSEILLE :", M_X + 4, doc.cursorY, { font: "bold", size: 9, color: GOLD_DARK });
     doc.advance(12);
-    doc.text(reco.soins_conseilles.join("  ·  "), M_X + 12, doc.cursorY, {
+    doc.text(reco.soins_conseilles.join("  -  "), M_X + 12, doc.cursorY, {
       size: 8.5,
       color: INK,
       maxW: CONTENT_W - 20,

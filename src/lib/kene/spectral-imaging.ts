@@ -36,6 +36,15 @@ export interface MultiSpectralSuiteResult {
   legacyAcne: SpectralAcneResult;
 }
 
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 /**
  * Construit un masque SVG HUD dermatoscopique haute précision pour habiller chaque cliché
  */
@@ -51,7 +60,9 @@ function buildHudOverlay(
   legendRight = "SPECTRE ÉTALONNÉ"
 ): Buffer {
   const prefix = isReal ? "CABINE" : "PROJECTION";
-  const title = `${prefix} · ${badgeText}`;
+  const title = escapeXml(`${prefix} · ${badgeText}`);
+  const safeLeft = escapeXml(legendLeft);
+  const safeRight = escapeXml(legendRight);
 
   const svg = `
   <svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
@@ -79,11 +90,11 @@ function buildHudOverlay(
     <rect x="8" y="${h - 24}" width="${w - 16}" height="16" rx="3.5" fill="#030712" fill-opacity="0.84" />
     <circle cx="18" cy="${h - 16}" r="3.2" fill="${accentColor}" />
     <text x="26" y="${h - 13}" fill="#e2e8f0" font-family="Helvetica, Arial, sans-serif" font-size="7.5" font-weight="bold">
-      ${legendLeft}
+      ${safeLeft}
     </text>
 
     <text x="${w - 14}" y="${h - 13}" text-anchor="end" fill="${primaryColor}" font-family="Helvetica, Arial, sans-serif" font-size="7.5" font-weight="bold">
-      ${legendRight}
+      ${safeRight}
     </text>
   </svg>`;
 

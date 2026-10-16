@@ -31,7 +31,7 @@ import { formatDate, formatTime, scoreVar } from "@/lib/kene/format";
 import { BODY_ZONES, ZONE_PHOTO_SLOTS } from "@/lib/kene/types";
 import type { BodyZone, Indicator } from "@/lib/kene/types";
 import {
-  QUESTIONS, QUESTIONNAIRE_SECTIONS, defaultAnswers, questionnaireProgress, parseProDiagnosis,
+  getSectionsForZone, getQuestionsForZone, defaultAnswers, questionnaireProgress, parseProDiagnosis,
 } from "@/lib/kene/questionnaire";
 import type { ProDiagnosisResult, QAnswers } from "@/lib/kene/questionnaire";
 import { SkinDescent } from "@/components/kene/descent/SkinDescent";
@@ -715,7 +715,9 @@ function DiagWizard({
     return () => window.clearInterval(t);
   }, [submitting]);
 
-  const progress = useMemo(() => questionnaireProgress(answers), [answers]);
+  const sections = useMemo(() => getSectionsForZone(zone), [zone]);
+  const questions = useMemo(() => getQuestionsForZone(zone), [zone]);
+  const progress = useMemo(() => questionnaireProgress(answers, zone), [answers, zone]);
   const zoneLabel = BODY_ZONES.find((z) => z.id === zone)?.label ?? zone;
 
   const reset = () => {
@@ -1265,14 +1267,14 @@ function QuestionnaireStep({
         <Progress value={progress * 100} aria-label="Progression du questionnaire" className="h-2" />
       </div>
 
-      {QUESTIONNAIRE_SECTIONS.map((section) => (
+      {sections.map((section) => (
         <section key={section.id} aria-label={section.label} className="space-y-2">
           <h3 className="font-heading text-sm font-bold flex items-baseline gap-2">
             {section.label}
             <span className="text-[11px] font-normal text-muted-foreground">{section.description}</span>
           </h3>
           <div className="space-y-3">
-            {QUESTIONS.filter((q) => q.section === section.id).map((q) => {
+            {questions.filter((q) => q.section === section.id).map((q) => {
               const current = answers[q.id];
               const isText = q.type === "text";
               return (

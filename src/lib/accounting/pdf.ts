@@ -77,12 +77,37 @@ const CP1252_EXTRA: Record<number, number> = {
   0x017e: 0x9e, 0x0178: 0x9f,
 };
 
-/** Chaîne JS → octets cp1252 + échappement \  pour l'opérateur Tj */
+/** Chaîne JS → octets cp1252 + échappement \ pour l'opérateur Tj */
 function encodePdfText(s: string): string {
+  if (!s) return "";
+  // 1. Normalisation NFC pour recomposer les accents (é = \u00e9 et non e + \u0301)
+  const norm = s
+    .normalize("NFC")
+    // Typographie propre pour polices standards PDF :
+    .replace(/[•●▪]/g, "-")          // puces -> tiret simple
+    .replace(/[—–]/g, "-")           // tirets cadratin/demi-cadratin -> tiret
+    .replace(/[’‘`]/g, "'")          // apostrophes courbes/obliques -> apostrophe droite
+    .replace(/[“”«»]/g, '"')         // guillemets courbes/français -> guillemets droits
+    .replace(/…/g, "...")            // ellipse -> 3 points
+    .replace(/œ/g, "oe")
+    .replace(/Œ/g, "OE")
+    .replace(/æ/g, "ae")
+    .replace(/Æ/g, "AE")
+    .replace(/⚠️/g, "[!]")
+    .replace(/✓|✔/g, "[x]")
+    .replace(/°/g, "o")              // degré -> o
+    .replace(/[^\x00-\xFF]/g, (char) => {
+      const code = char.codePointAt(0);
+      if (code && CP1252_EXTRA[code]) {
+        return String.fromCharCode(CP1252_EXTRA[code]);
+      }
+      return ""; // supprime les caractères non imprimables / emojis parasites
+    });
+
   let out = "";
-  for (const ch of s) {
-    const c = ch.codePointAt(0) ?? 63;
-    const b = c <= 0xff ? c : (CP1252_EXTRA[c] ?? 63);
+  for (const ch of norm) {
+    const c = ch.charCodeAt(0);
+    const b = c <= 0xff ? c : 63;
     if (b === 0x5c || b === 0x28 || b === 0x29) out += "\\";
     out += String.fromCharCode(b);
   }

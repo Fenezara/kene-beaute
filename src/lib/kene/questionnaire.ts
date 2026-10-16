@@ -82,7 +82,7 @@ export const QUESTIONNAIRE_SECTIONS: QSection[] = [
   { id: "sante", label: "Santé & antécédents", description: "Vigilances avant tout protocole" },
 ];
 
-export const QUESTIONS: Question[] = [
+const FACE_QUESTIONS: Question[] = [
   // ── La peau ──
   {
     id: "skin_type",
@@ -242,28 +242,31 @@ export const QUESTIONS: Question[] = [
       },
     ],
   },
+];
 
-  // ── Mode de vie ──
+// ─────────────────────────── Questions communes (Mode de vie & Santé) ───────────────────────────
+
+const COMMON_LIFESTYLE_QUESTIONS: Question[] = [
   {
     id: "water",
     section: "vie",
-    label: "Eau bue par jour",
+    label: "Hydratation (eau bue par jour)",
     type: "single",
     required: true,
     options: [
       { value: "1l5", label: "1,5 L et plus" },
       { value: "1l", label: "~ 1 L", effects: { hydrat: -7, secheresse: -5, eclat: -3 } },
-      { value: "peu", label: "Très peu", effects: { hydrat: -14, secheresse: -9, eclat: -6 } },
+      { value: "peu", label: "Très peu (< 0,5 L)", effects: { hydrat: -14, secheresse: -9, eclat: -6 } },
     ],
   },
   {
     id: "sleep",
     section: "vie",
-    label: "Sommeil",
+    label: "Sommeil & Récupération",
     type: "single",
     required: true,
     options: [
-      { value: "7-8", label: "7-8 h" },
+      { value: "7-8", label: "7-8 h par nuit" },
       { value: "5-6", label: "5-6 h", effects: { eclat: -6, cerne: -8, barriere: -4 } },
       { value: "5-", label: "Moins de 5 h", effects: { eclat: -10, cerne: -12, barriere: -6, acne: -4 } },
     ],
@@ -271,67 +274,56 @@ export const QUESTIONS: Question[] = [
   {
     id: "stress",
     section: "vie",
-    label: "Stress actuel",
+    label: "Niveau de stress actuel",
     type: "single",
     required: true,
     options: [
-      { value: "faible", label: "Faible" },
-      { value: "moyen", label: "Modéré", effects: { acne: -5, rougeur: -4, sebum: -4 } },
-      { value: "eleve", label: "Élevé", effects: { acne: -10, rougeur: -8, sebum: -7, elastic: -4 } },
-    ],
-  },
-  {
-    id: "sun_exposure",
-    section: "vie",
-    label: "Exposition au soleil",
-    type: "single",
-    required: true,
-    options: [
-      { value: "faible", label: "Faible — intérieur" },
-      { value: "moyenne", label: "Modérée — déplacements", effects: { pih: -5, hyperpigment: -4 } },
-      { value: "quotidienne", label: "Quotidienne — marché, dehors", effects: { pih: -10, hyperpigment: -8, melasma: -5, pigmentaire: -7 } },
+      { value: "faible", label: "Faible / calme" },
+      { value: "moyen", label: "Modéré", effects: { acne: -5, rougeur: -4, sebum: -4, irrit: -4 } },
+      { value: "eleve", label: "Élevé / surmenage", effects: { acne: -10, rougeur: -8, sebum: -7, elastic: -4, irrit: -8, alopecique: -8 } },
     ],
   },
   {
     id: "tobacco",
     section: "vie",
-    label: "Tabac",
+    label: "Consommation de tabac / chicha",
     type: "single",
     required: true,
     options: [
       { value: "non", label: "Non" },
-      { value: "parfois", label: "Oui, parfois", effects: { eclat: -5, elastic: -4 } },
-      { value: "quotidien", label: "Oui, tous les jours", effects: { eclat: -10, elastic: -7, barriere: -5 } },
+      { value: "parfois", label: "Oui, occasionnel", effects: { eclat: -5, elastic: -4 } },
+      { value: "quotidien", label: "Oui, quotidien", effects: { eclat: -10, elastic: -7, barriere: -5 } },
     ],
   },
+];
 
-  // ── Santé & antécédents ──
+const COMMON_HEALTH_QUESTIONS: Question[] = [
   {
     id: "reactions",
     section: "sante",
-    label: "Réactions aux produits cosmétiques",
+    label: "Réactions aux cosmétiques & soins",
     type: "single",
     required: true,
     options: [
-      { value: "jamais", label: "Jamais eu" },
+      { value: "jamais", label: "Jamais eu de réaction" },
       {
         value: "parfois",
-        label: "Parfois — rougeurs, démangeaisons",
+        label: "Parfois — rougeurs, picotements",
         effects: { barriere: -8, rougeur: -7, irrit: -6 },
       },
       {
         value: "souvent",
-        label: "Souvent — à chaque nouveau produit",
+        label: "Souvent — réagit très vite",
         effects: { barriere: -14, rougeur: -11, irrit: -10 },
-        flag: { label: "Hypersensibilité déclarée", detail: "Tests de tolérance systématiques (plis du coude, 48 h) avant tout nouveau soin en cabine.", level: "warn" },
+        flag: { label: "Hypersensibilité cutanée", detail: "Tests de tolérance préalables indispensables.", level: "warn" },
       },
     ],
   },
   {
     id: "treatment",
     section: "sante",
-    label: "Traitement dermatologique en cours",
-    help: "Isotrétinoïne, corticoïdes, acides prescrits…",
+    label: "Traitement médical / dermato en cours",
+    help: "Isotrétinoïne, corticoïdes, antifongiques, antibiotiques…",
     type: "single",
     required: true,
     options: [
@@ -339,7 +331,7 @@ export const QUESTIONS: Question[] = [
       {
         value: "oui",
         label: "Oui",
-        flag: { label: "Traitement dermatologique en cours", detail: "Vérifier compatibilité avant tout protocole en cabine (pas d'actifs exfoliants ni d'appareils chauffants sans avis prescripteur).", level: "warn" },
+        flag: { label: "Traitement médical en cours", detail: "Vérifier compatibilité avant tout protocole.", level: "warn" },
       },
     ],
   },
@@ -355,7 +347,7 @@ export const QUESTIONS: Question[] = [
       {
         value: "oui",
         label: "Oui",
-        flag: { label: "Grossesse / allaitement", detail: "Contre-indications actifs : pas de rétinoides ni d'acides forts — protocole hydratant et apaisant uniquement.", level: "warn" },
+        flag: { label: "Grossesse / allaitement", detail: "Pas d'actifs irritants ni d'huiles essentielles fortes — protocoles doux uniquement.", level: "warn" },
       },
     ],
   },
@@ -365,7 +357,7 @@ export const QUESTIONS: Question[] = [
     label: "Allergies connues",
     type: "text",
     options: [],
-    placeholder: "Produits, plantes, aliments… (laisser vide si aucune)",
+    placeholder: "Produits, plantes, parfums, aliments… (laisser vide si aucune)",
   },
   {
     id: "notes",
@@ -373,9 +365,562 @@ export const QUESTIONS: Question[] = [
     label: "Observation de la praticienne",
     type: "text",
     options: [],
-    placeholder: "Notes libres de l'entretien (optionnel)",
+    placeholder: "Observations spécifiques de la cabine (optionnel)",
   },
 ];
+
+// ─────────────────────────── Questions spécifiques par zone ───────────────────────────
+
+const FACE_QUESTIONS: Question[] = [
+  {
+    id: "skin_type",
+    section: "peau",
+    label: "Type de peau du visage",
+    help: "Au toucher, 2 h après le nettoyage",
+    type: "single",
+    required: true,
+    options: [
+      { value: "grasse", label: "Grasse — brille vite", effects: { sebum: -10, pores: -6, acne: -4, texture: -4 } },
+      { value: "seche", label: "Sèche — tire", effects: { secheresse: -14, hydrat: -10, barriere: -6 } },
+      { value: "mixte", label: "Mixte — zone T grasse", effects: { sebum: -6, hydrat: -4 } },
+      { value: "normale", label: "Normale" },
+      { value: "sensible", label: "Sensible — réagit vite", effects: { barriere: -12, rougeur: -8, irrit: -8 } },
+    ],
+  },
+  {
+    id: "fitz",
+    section: "peau",
+    label: "Phototype Fitzpatrick",
+    help: "Réaction de la peau au soleil",
+    type: "single",
+    required: true,
+    options: [
+      { value: "III", label: "III — clair brun" },
+      { value: "IV", label: "IV — brun" },
+      { value: "V", label: "V — brun foncé" },
+      { value: "VI", label: "VI — très foncé" },
+    ],
+  },
+  {
+    id: "age",
+    section: "peau",
+    label: "Tranche d'âge",
+    type: "single",
+    required: true,
+    options: [
+      { value: "18-25", label: "18-25 ans" },
+      { value: "26-35", label: "26-35 ans" },
+      { value: "36-45", label: "36-45 ans", effects: { elastic: -6, cerne: -4 } },
+      { value: "46+", label: "46 ans et +", effects: { elastic: -10, cerne: -6, keratose: -4 } },
+    ],
+  },
+  {
+    id: "concerns",
+    section: "peau",
+    label: "Inquiétudes principales du visage",
+    help: "Tout ce qui préoccupe la cliente aujourd'hui",
+    type: "multi",
+    required: true,
+    options: [
+      { value: "acne", label: "Acné / boutons", effects: { acne: -13, noirs: -6 } },
+      { value: "taches", label: "Taches / pigmentation", effects: { pih: -13, hyperpigment: -8, pigmentaire: -8, melasma: -6 } },
+      { value: "secheresse", label: "Sécheresse / tiraillements", effects: { hydrat: -13, secheresse: -10 } },
+      { value: "terne", label: "Teint terne", effects: { eclat: -12 } },
+      { value: "cernes", label: "Cernes / poches", effects: { cerne: -11 } },
+      { value: "rides", label: "Rides / perte de fermeté", effects: { elastic: -12 } },
+      { value: "rougeurs", label: "Rougeurs / irritations", effects: { rougeur: -12, irrit: -8, barriere: -6 } },
+      { value: "pores", label: "Pores dilatés / texture", effects: { pores: -10, texture: -8 } },
+    ],
+  },
+  {
+    id: "cleansing",
+    section: "routine",
+    label: "Nettoyage du visage",
+    type: "single",
+    required: true,
+    options: [
+      { value: "2j", label: "2× par jour" },
+      { value: "1j", label: "1× par jour", effects: { pores: -4, sebum: -3 } },
+      { value: "irregulier", label: "Irrégulier", effects: { pores: -8, sebum: -6, acne: -4 } },
+      { value: "jamais", label: "Jamais / eau seule", effects: { pores: -12, noirs: -6, texture: -5 } },
+    ],
+  },
+  {
+    id: "moisturize",
+    section: "routine",
+    label: "Hydratation (crème / émulsion)",
+    type: "single",
+    required: true,
+    options: [
+      { value: "2j", label: "Matin et soir" },
+      { value: "1j", label: "1× par jour", effects: { hydrat: -6 } },
+      { value: "parfois", label: "Quelquefois", effects: { hydrat: -12, secheresse: -8, barriere: -5 } },
+      { value: "jamais", label: "Jamais", effects: { hydrat: -18, secheresse: -12, barriere: -8 } },
+    ],
+  },
+  {
+    id: "sun",
+    section: "routine",
+    label: "Protection solaire (SPF)",
+    help: "Le soleil est le 1er accélérateur de taches sur peau mélanoderme",
+    type: "single",
+    required: true,
+    options: [
+      { value: "quotidien", label: "Quotidienne (SPF 30 ou 50)" },
+      { value: "parfois", label: "Parfois", effects: { pih: -5, hyperpigment: -4, pigmentaire: -4 } },
+      { value: "occasions", label: "Plage / occasions seulement", effects: { pih: -9, hyperpigment: -7, melasma: -5, pigmentaire: -7 } },
+      {
+        value: "jamais",
+        label: "Jamais",
+        effects: { pih: -14, hyperpigment: -11, melasma: -8, pigmentaire: -10, eclat: -5 },
+        flag: { label: "Aucune protection solaire", detail: "Premier facteur de taches sur peau mélanoderme — introduire un SPF 50 dès aujourd'hui.", level: "warn" },
+      },
+    ],
+  },
+  {
+    id: "lightening",
+    section: "routine",
+    label: "Produits éclaircissants / dépigmentants",
+    help: "Crèmes clarifiantes, mixtures maison, corticoïdes topiques — passé ou présent",
+    type: "single",
+    required: true,
+    sensitive: true,
+    options: [
+      { value: "jamais", label: "Jamais" },
+      {
+        value: "passe",
+        label: "Par le passé, arrêté",
+        effects: { pih: -12, hyperpigment: -10, barriere: -8, pigmentaire: -8 },
+        flag: { label: "Antécédent de dépigmentation", detail: "Peau fragilisée : protocole réparateur doux obligatoire.", level: "warn" },
+      },
+      {
+        value: "cours",
+        label: "En cours",
+        effects: { pih: -18, hyperpigment: -15, barriere: -14, irrit: -8, pigmentaire: -12, melasma: -6 },
+        flag: { label: "Dépigmentation active", detail: "Risque dermatologique réel (ochronose, infections). Accompagnement de sevrage progressif recommandé.", level: "danger" },
+      },
+    ],
+  },
+];
+
+const SCALP_QUESTIONS: Question[] = [
+  {
+    id: "scalp_type",
+    section: "cuir_chevelu",
+    label: "État actuel du cuir chevelu",
+    help: "Sensation générale au niveau des racines",
+    type: "single",
+    required: true,
+    options: [
+      { value: "sec", label: "Sec / tiraillements fréquents", effects: { secheresse: -14, hydrat: -10 } },
+      { value: "gras", label: "Gras / excès de sébum rapide", effects: { sebum: -14, follicul: -8 } },
+      { value: "pelliculaire_sec", label: "Pellicules fines et sèches (blanches)", effects: { desquamation: -14 } },
+      { value: "pelliculaire_gras", label: "Pellicules grasses / jaunâtres adhérentes", effects: { desquamation: -16, sebum: -10, follicul: -8 } },
+      { value: "irrite", label: "Irrité / rougeurs / démangeaisons vives", effects: { irrit: -16, desquamation: -8 } },
+      { value: "normal", label: "Sain et confortable" },
+    ],
+  },
+  {
+    id: "hair_concerns",
+    section: "cuir_chevelu",
+    label: "Inquiétudes capillaires déclarées",
+    type: "multi",
+    required: true,
+    options: [
+      { value: "pellicules", label: "Pellicules récidivantes", effects: { desquamation: -14 } },
+      { value: "demangeaisons", label: "Démangeaisons intenses", effects: { irrit: -14 } },
+      { value: "chute_traction", label: "Chute sur les tempes (alopécie de traction)", effects: { alopecique: -18 } },
+      { value: "chute_diffuse", label: "Chute diffuse sur toute la tête", effects: { alopecique: -12 } },
+      { value: "boutons_cuir", label: "Petits boutons / folliculite du cuir chevelu", effects: { follicul: -18, irrit: -8 } },
+      { value: "secheresse_cheveu", label: "Cheveux très secs, rêches et cassants", effects: { secheresse: -10 } },
+    ],
+  },
+  {
+    id: "hair_density",
+    section: "cuir_chevelu",
+    label: "Densité et évolution de la chevelure",
+    type: "single",
+    required: true,
+    options: [
+      { value: "dense", label: "Bonne densité générale" },
+      { value: "baisse_legere", label: "Légère perte de masse récente", effects: { alopecique: -6 } },
+      { value: "recul_ligne", label: "Recul visible de la ligne frontale", effects: { alopecique: -14 } },
+      { value: "plaques", label: "Trous / plaques nues bien délimitées", effects: { alopecique: -18 }, flag: { label: "Plaques alopéciques", detail: "Suspicion de pelade ou d'alopécie cicatricielle — consultation dermatologique recommandée.", level: "warn" } },
+    ],
+  },
+  {
+    id: "hair_practices",
+    section: "routine_capillaire",
+    label: "Traitements chimiques & coiffures",
+    help: "Pratiques régulières ou récentes",
+    type: "multi",
+    required: true,
+    options: [
+      { value: "naturel", label: "Cheveux naturels (sans défrisage ni coloration)" },
+      {
+        value: "defrisage",
+        label: "Défrisage chimique / wave",
+        effects: { barriere: -10, secheresse: -8 },
+        flag: { label: "Défrisage chimique", detail: "Fragilise la barrière épidermique du cuir chevelu. Espacer impérativement de 10 à 12 semaines.", level: "warn" },
+      },
+      {
+        value: "tresses_serrees",
+        label: "Nattes / tresses très serrées ou tissages lourds",
+        effects: { alopecique: -12, irrit: -8 },
+        flag: { label: "Tension mécanique", detail: "Facteur n°1 d'alopécie de traction chez les femmes afro.", level: "warn" },
+      },
+      {
+        value: "colle_dentelle",
+        label: "Perruques avec colle à dentelle (lace glue)",
+        effects: { irrit: -10, alopecique: -10 },
+        flag: { label: "Colles capillaires", detail: "Risque majeur de dermite de contact et de recul définitif de la ligne frontale.", level: "warn" },
+      },
+      { value: "chaleur_frequente", label: "Chaleur fréquente (fers à lisser, sèche-cheveux très chaud)", effects: { secheresse: -8 } },
+    ],
+  },
+  {
+    id: "hair_wash_freq",
+    section: "routine_capillaire",
+    label: "Fréquence de lavage du cuir chevelu",
+    type: "single",
+    required: true,
+    options: [
+      { value: "1s", label: "1× par semaine (recommandé)" },
+      { value: "2s", label: "2× par semaine" },
+      { value: "2semaines", label: "Toutes les 2 semaines", effects: { sebum: -6, desquamation: -6 } },
+      { value: "mensuel", label: "1× par mois ou moins", effects: { sebum: -14, desquamation: -12, follicul: -10 } },
+    ],
+  },
+  {
+    id: "hair_products",
+    section: "routine_capillaire",
+    label: "Produits appliqués aux racines",
+    type: "multi",
+    required: true,
+    options: [
+      { value: "huiles_pures", label: "Huiles végétales pures (Ricin, Baobab, Kinkeliba)" },
+      {
+        value: "vaseline_minerale",
+        label: "Pommade épaisse / vaseline / paraffine",
+        effects: { follicul: -12, sebum: -10 },
+        flag: { label: "Occlusion minérale", detail: "Les graisses minérales étouffent les follicules pilo-sébacés et nourrissent le champignon Malassezia.", level: "warn" },
+      },
+      { value: "hydrolats", label: "Hydrolat apaisant (Menthe, Romarin, Thym)" },
+      { value: "shampoing_antiseptique", label: "Shampoing clarifiant / antipelliculaire doux" },
+      { value: "aucun", label: "Rien sur le cuir chevelu" },
+    ],
+  },
+];
+
+const BACK_QUESTIONS: Question[] = [
+  {
+    id: "back_concerns",
+    section: "dos",
+    label: "Préoccupations au niveau du dos & décolleté",
+    type: "multi",
+    required: true,
+    options: [
+      { value: "acne_dorsale", label: "Boutons inflammatoires (papules / pustules)", effects: { acne: -16 } },
+      { value: "taches_dos", label: "Taches sombres post-boutons (PIH)", effects: { pih: -16 } },
+      { value: "sebum_dos", label: "Excès de sébum / dos huileux", effects: { sebum: -14 } },
+      { value: "rugosite_dos", label: "Texture rugueuse / petits grains durs (kératose)", effects: { texture: -14, rugosite: -14 } },
+      { value: "demangeaisons_dos", label: "Démangeaisons / irritations", effects: { irrit: -12, rougeur: -10 } },
+      { value: "secheresse_dos", label: "Peau très sèche qui pèle", effects: { hydrat: -14 } },
+    ],
+  },
+  {
+    id: "back_triggers",
+    section: "routine_dos",
+    label: "Facteurs déclenchants déclarés",
+    type: "multi",
+    required: true,
+    options: [
+      { value: "sport_transpi", label: "Transpiration fréquente / séances de sport" },
+      {
+        value: "synthetique",
+        label: "Vêtements synthétiques moulants",
+        effects: { acne: -8, irrit: -6 },
+        flag: { label: "Occlusion textile", detail: "Favorise l'acné mécanique par macération.", level: "warn" },
+      },
+      { value: "sac_dos", label: "Port régulier d'un sac à dos lourd (friction)", effects: { acne: -6, texture: -6 } },
+      {
+        value: "apres_shampoing",
+        label: "Rinçage de l'après-shampoing qui coule sur le dos",
+        effects: { acne: -8, pores: -6 },
+        flag: { label: "Résidus comédogènes", detail: "Les silicones et quats des après-shampoings coulent sur le dos et bouchent les pores.", level: "info" },
+      },
+      { value: "soleil_dos", label: "Exposition du dos au soleil sans crème", effects: { pih: -12 } },
+    ],
+  },
+  {
+    id: "back_hygiene",
+    section: "routine_dos",
+    label: "Hygiène et nettoyage du dos",
+    type: "single",
+    required: true,
+    options: [
+      { value: "gel_doux", label: "Gel lavant doux sans savon chaque jour" },
+      { value: "savon_noir", label: "Savon noir végétal / antiseptique doux" },
+      { value: "savon_dur", label: "Savon très dur / antibactérien décapant", effects: { barriere: -10, irrit: -8 } },
+      { value: "irregulier", label: "Nettoyage irrégulier du dos", effects: { sebum: -8, pores: -8 } },
+    ],
+  },
+];
+
+const BEARD_QUESTIONS: Question[] = [
+  {
+    id: "beard_concerns",
+    section: "barbe",
+    label: "Problématiques barbe & cou",
+    type: "multi",
+    required: true,
+    options: [
+      { value: "poils_incarnes", label: "Poils incarnés récurrents", effects: { incarne: -18 } },
+      { value: "folliculite_barbe", label: "Folliculite (boutons blancs infectés)", effects: { follicul: -18, acne: -10 } },
+      { value: "taches_barbe", label: "Taches sombres (PIH) dues aux boutons", effects: { pih: -16 } },
+      { value: "sebum_barbe", label: "Excès de sébum / peau grasse sous la barbe", effects: { sebum: -12 } },
+      { value: "poil_dru", label: "Poils drus, très secs et difficiles à tailler", effects: { hydrat: -12 } },
+    ],
+  },
+  {
+    id: "shaving_tool",
+    section: "rasage",
+    label: "Outil de rasage / taille",
+    type: "single",
+    required: true,
+    options: [
+      { value: "tondeuse", label: "Tondeuse de précision (laisse 1 mm — idéal)" },
+      { value: "securite", label: "Rasoir de sécurité (1 seule lame bien affûtée)" },
+      {
+        value: "multilames",
+        label: "Rasoir jetable multilames (2 à 5 lames)",
+        effects: { incarne: -14, follicul: -10 },
+        flag: { label: "Rasoir multilames", detail: "Tire le poil et coupe sous la peau : cause n°1 des poils incarnés sur poil crépu.", level: "warn" },
+      },
+      { value: "coupe_chou", label: "Coupe-chou chez le barbier" },
+      { value: "pas_de_rasage", label: "Pas de rasage (barbe longue entretenue)" },
+    ],
+  },
+  {
+    id: "shaving_frequency",
+    section: "rasage",
+    label: "Fréquence de rasage / taille",
+    type: "single",
+    required: true,
+    options: [
+      { value: "quotidien", label: "Tous les jours", effects: { irrit: -8, barriere: -6 } },
+      { value: "2-3j", label: "Tous les 2 à 3 jours" },
+      { value: "1s", label: "1 fois par semaine" },
+      { value: "rare", label: "Moins d'une fois par mois / barbe fournie" },
+    ],
+  },
+  {
+    id: "aftershave_care",
+    section: "rasage",
+    label: "Soin appliqué après le rasage",
+    type: "multi",
+    required: true,
+    options: [
+      {
+        value: "alcool",
+        label: "Alcool à 70° ou eau de Cologne",
+        effects: { irrit: -16, barriere: -14, rougeur: -12 },
+        flag: { label: "Alcool après-rasage décapant", detail: "Brûlure thermique et chimique provoquant un rebond d'hyperpigmentation immédiat.", level: "danger" },
+      },
+      { value: "huile_vegetale", label: "Huile végétale apaisante (Jojoba, Nigelle, Ricin)" },
+      { value: "baume_sans_alcool", label: "Baume hydratant sans alcool (Aloe Vera, Karité)" },
+      { value: "aucun", label: "Aucun soin après le rasage" },
+    ],
+  },
+];
+
+const HANDS_QUESTIONS: Question[] = [
+  {
+    id: "hands_concerns",
+    section: "mains",
+    label: "État de la peau des mains",
+    type: "multi",
+    required: true,
+    options: [
+      { value: "secheresse_mains", label: "Sécheresse intense / tiraillements", effects: { secheresse: -18, hydrat: -14 } },
+      { value: "crevasses", label: "Crevasses / gerçures douloureuses", effects: { barriere: -18, irrit: -14 } },
+      { value: "callosites", label: "Callosités / peau rugueuse et épaisse", effects: { keratose: -16 } },
+      { value: "taches_mains", label: "Taches pigmentaires sombres", effects: { pigmentaire: -16 } },
+      { value: "eczema_mains", label: "Démangeaisons / eczéma de contact", effects: { irrit: -16, rougeur: -12 } },
+    ],
+  },
+  {
+    id: "nails_status",
+    section: "mains",
+    label: "État des ongles et cuticules",
+    type: "multi",
+    required: true,
+    options: [
+      { value: "ongles_cassants", label: "Ongles cassants, mous ou striés", effects: { ongles: -16 } },
+      { value: "ongles_dedoubles", label: "Ongles dédoublés", effects: { ongles: -12 } },
+      { value: "cuticules_abimees", label: "Cuticules sèches et douloureuses", effects: { secheresse: -10 } },
+      { value: "ongles_sains", label: "Ongles sains et forts" },
+    ],
+  },
+  {
+    id: "hands_exposure",
+    section: "routine_mains",
+    label: "Agressions et sollicitations quotidiennes",
+    type: "multi",
+    required: true,
+    options: [
+      { value: "gel_hydro", label: "Gel hydroalcoolique fréquent (> 5× / jour)", effects: { barriere: -10, secheresse: -8 } },
+      {
+        value: "detergents",
+        label: "Contact détergents / vaisselle sans gants",
+        effects: { barriere: -14, secheresse: -12, irrit: -10 },
+        flag: { label: "Produits ménagers sans protection", detail: "Détruit le film lipidique protecteur des mains.", level: "warn" },
+      },
+      { value: "eau_frequente", label: "Lavages de mains très répétés" },
+      { value: "soleil_mains", label: "Conduite / exposition solaire sans crème protectrice", effects: { pigmentaire: -12 } },
+      { value: "creme_reguliere", label: "Application quotidienne de crème pour les mains" },
+    ],
+  },
+];
+
+const NAEVI_QUESTIONS: Question[] = [
+  {
+    id: "naevi_abcde",
+    section: "naevi",
+    label: "Règle morphologique ABCDE (Observation)",
+    help: "Cochez tout critère suspect observé sur la lésion",
+    type: "multi",
+    required: true,
+    options: [
+      {
+        value: "asymetrie",
+        label: "A — Asymétrie (forme non ronde, 2 moitiés différentes)",
+        effects: { asymetrie: -16 },
+        flag: { label: "Critère A (Asymétrie)", detail: "Consulter un dermatologue pour examen dermatoscopique.", level: "warn" },
+      },
+      {
+        value: "bords",
+        label: "B — Bords irréguliers, dentelés ou flous",
+        effects: { bords: -16 },
+        flag: { label: "Critère B (Bords irréguliers)", detail: "Consulter un dermatologue pour examen dermatoscopique.", level: "warn" },
+      },
+      {
+        value: "couleurs",
+        label: "C — Couleurs multiples (marron, noir, zones dépigmentées)",
+        effects: { couleurs: -16 },
+        flag: { label: "Critère C (Polychromie)", detail: "Consulter un dermatologue pour examen dermatoscopique.", level: "warn" },
+      },
+      { value: "diametre", label: "D — Diamètre supérieur à 6 mm", effects: { diametre: -14 } },
+      {
+        value: "evolution",
+        label: "E — Évolution récente (taille, relief, couleur qui changent)",
+        effects: { evolution: -18 },
+        flag: { label: "Critère E (Évolution rapide)", detail: "Signe clinique prioritaire imposant un avis médical.", level: "danger" },
+      },
+      { value: "aucun", label: "Aucun de ces signes / naevus stable et régulier" },
+    ],
+  },
+  {
+    id: "naevi_alarms",
+    section: "naevi",
+    label: "Symptômes ou antécédents d'alerte",
+    type: "multi",
+    required: true,
+    options: [
+      {
+        value: "saignement",
+        label: "Saignement spontané ou suintement",
+        effects: { evolution: -18 },
+        flag: { label: "Lésion qui saigne", detail: "Avis dermatologique impératif en priorité.", level: "danger" },
+      },
+      { value: "demangeaison", label: "Démangeaison persistante sur le naevus", effects: { evolution: -10 } },
+      {
+        value: "antecedents_famille",
+        label: "Antécédent personnel ou familial de mélanome",
+        flag: { label: "Risque familial", detail: "Surveillance annuelle en cabinet de dermatologie recommandée.", level: "warn" },
+      },
+      { value: "aucun_symptome", label: "Aucun symptôme particulier" },
+    ],
+  },
+];
+
+// ─────────────────────────── Sélecteurs dynamiques par zone ───────────────────────────
+
+export function getSectionsForZone(zone: BodyZone = "visage"): QSection[] {
+  switch (zone) {
+    case "cuir_chevelu":
+      return [
+        { id: "cuir_chevelu", label: "Cuir chevelu & Cheveux", description: "État du cuir chevelu, pellicules, chute & densité" },
+        { id: "routine_capillaire", label: "Pratiques & Routine", description: "Lavage, défrisage, tresses, huiles & chaleur" },
+        { id: "vie", label: "Mode de vie", description: "Stress, alimentation, sommeil" },
+        { id: "sante", label: "Santé & antécédents", description: "Vigilances avant tout protocole" },
+      ];
+    case "dos":
+      return [
+        { id: "dos", label: "Dos & Décolleté", description: "Acné dorsale, taches PIH, texture & pores" },
+        { id: "routine_dos", label: "Hygiène & Habitudes", description: "Transpiration, sport, vêtements & rinçage" },
+        { id: "vie", label: "Mode de vie", description: "Hydratation & hygiène de vie" },
+        { id: "sante", label: "Santé & antécédents", description: "Vigilances & sensibilités" },
+      ];
+    case "barbe":
+      return [
+        { id: "barbe", label: "Barbe & Menton", description: "Poils incarnés, folliculite & taches" },
+        { id: "rasage", label: "Rasage & Entretien", description: "Outils, fréquence & soins après-rasage" },
+        { id: "vie", label: "Mode de vie", description: "Stress & habitudes" },
+        { id: "sante", label: "Santé & antécédents", description: "Allergies & réactions" },
+      ];
+    case "mains":
+      return [
+        { id: "mains", label: "Mains & Ongles", description: "Sécheresse, crevasses, taches & ongles" },
+        { id: "routine_mains", label: "Exposition & Protection", description: "Lavages, détergents & soleil" },
+        { id: "vie", label: "Mode de vie", description: "Hydratation au quotidien" },
+        { id: "sante", label: "Santé & antécédents", description: "Allergies de contact" },
+      ];
+    case "naevi":
+      return [
+        { id: "naevi", label: "Critères ABCDE", description: "Surveillance morphologique des grains de beauté" },
+        { id: "vie", label: "Mode de vie", description: "Exposition solaire globale" },
+        { id: "sante", label: "Santé & antécédents", description: "Antécédents dermatologiques" },
+      ];
+    case "visage":
+    default:
+      return [
+        { id: "peau", label: "La peau", description: "Type, phototype et inquiétudes déclarées" },
+        { id: "routine", label: "Routine actuelle", description: "Habitudes de soin au quotidien" },
+        { id: "vie", label: "Mode de vie", description: "Soleil, sommeil, stress, hydratation" },
+        { id: "sante", label: "Santé & antécédents", description: "Vigilances avant tout protocole" },
+      ];
+  }
+}
+
+export function getQuestionsForZone(zone: BodyZone = "visage"): Question[] {
+  let specific: Question[] = [];
+  switch (zone) {
+    case "cuir_chevelu":
+      specific = SCALP_QUESTIONS;
+      break;
+    case "dos":
+      specific = BACK_QUESTIONS;
+      break;
+    case "barbe":
+      specific = BEARD_QUESTIONS;
+      break;
+    case "mains":
+      specific = HANDS_QUESTIONS;
+      break;
+    case "naevi":
+      specific = NAEVI_QUESTIONS;
+      break;
+    case "visage":
+    default:
+      specific = FACE_QUESTIONS;
+      break;
+  }
+  return [...specific, ...COMMON_LIFESTYLE_QUESTIONS, ...COMMON_HEALTH_QUESTIONS];
+}
+
+/** Tableau global par défaut pour la compatibilité historique (visage). */
+export const QUESTIONS: Question[] = getQuestionsForZone("visage");
 
 const REQUIRED_QUESTIONS = QUESTIONS.filter((q) => q.required);
 
@@ -392,15 +937,17 @@ export function isAnswered(q: Question, answers: QAnswers): boolean {
   return true;
 }
 
-/** Progression 0-1 sur les questions requises. */
-export function questionnaireProgress(answers: QAnswers): number {
-  const done = REQUIRED_QUESTIONS.filter((q) => isAnswered(q, answers)).length;
-  return REQUIRED_QUESTIONS.length === 0 ? 1 : done / REQUIRED_QUESTIONS.length;
+/** Progression 0-1 sur les questions requises d'une zone. */
+export function questionnaireProgress(answers: QAnswers, zone: BodyZone = "visage"): number {
+  const reqs = getQuestionsForZone(zone).filter((q) => q.required);
+  const done = reqs.filter((q) => isAnswered(q, answers)).length;
+  return reqs.length === 0 ? 1 : done / reqs.length;
 }
 
-/** Validation serveur: ids des questions requises manquantes. */
-export function missingRequired(answers: QAnswers): string[] {
-  return REQUIRED_QUESTIONS.filter((q) => !isAnswered(q, answers)).map((q) => q.id);
+/** Validation serveur: ids des questions requises manquantes pour une zone. */
+export function missingRequired(answers: QAnswers, zone: BodyZone = "visage"): string[] {
+  const reqs = getQuestionsForZone(zone).filter((q) => q.required);
+  return reqs.filter((q) => !isAnswered(q, answers)).map((q) => q.id);
 }
 
 // ─────────────────────────── Moteur de scoring ───────────────────────────
@@ -540,9 +1087,11 @@ export function scoreQuestionnaire(answers: QAnswers, zone: BodyZone): Questionn
   const zoneIndicators = zone === "naevi" ? ZONE_INDICATORS.visage : ZONE_INDICATORS[zone];
   const scores = new Map<string, number>(zoneIndicators.map((n) => [n, BASE_SCORE]));
   const flags: QFlag[] = [];
+  const qList = getQuestionsForZone(zone);
+  const reqList = qList.filter((q) => q.required);
 
   let answered = 0;
-  for (const q of QUESTIONS) {
+  for (const q of qList) {
     const v = answers[q.id];
     if (q.type === "single" && typeof v === "string" && v.length > 0) {
       answered++;
@@ -559,7 +1108,7 @@ export function scoreQuestionnaire(answers: QAnswers, zone: BodyZone): Questionn
       }
     }
   }
-  const total = REQUIRED_QUESTIONS.length;
+  const total = reqList.length;
 
   // Allergies déclarées → drapeau info
   const allergies = typeof answers.allergies === "string" ? answers.allergies.trim() : "";

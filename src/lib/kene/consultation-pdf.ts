@@ -725,6 +725,15 @@ function renderMultiSpectralQuad(
     doc.addImage(`${prefix}${b.id}`, b.jpegBytes, b.width, b.height);
   });
 
+  const cardW = 248;
+  const cardH = 88;
+  const gapX = 11;
+  const gapY = 8;
+  const totalH = cardH * 2 + gapY + 28;
+
+  // Garantit que le bandeau de section ET le quadriptyque de 4 cartes restent groupés sur la même page
+  doc.ensure(totalH + 34);
+
   sectionBand(
     doc,
     sectionLetter,
@@ -736,13 +745,6 @@ function renderMultiSpectralQuad(
       : "Cartographie biométrique multi-spectrale de référence (Standard, 585nm, 540nm, 405nm)"
   );
 
-  const cardW = 248;
-  const cardH = 88;
-  const gapX = 11;
-  const gapY = 8;
-  const totalH = cardH * 2 + gapY + 28;
-
-  doc.ensure(totalH);
   const startY = doc.cursorY;
 
   bands.forEach((b, idx) => {
@@ -774,7 +776,7 @@ function renderMultiSpectralQuad(
       letterSpace: 0.4,
     });
     doc.textRight(
-      idx === 0 ? "VISIA CROISÉ" : idx === 1 ? "MÉLANINE" : idx === 2 ? "VASCULAIRE" : "FLUORESCENCE",
+      idx === 0 ? "VISIA CROISE" : idx === 1 ? "MELANINE" : idx === 2 ? "VASCULAIRE" : "FLUORESCENCE",
       cardX + cardW - 7,
       cardY + 15,
       { font: "oblique", size: 6.2, color: SOFT }
@@ -795,11 +797,13 @@ function renderMultiSpectralQuad(
 
     // Ligne 5 : Tag / Badge statut clinique
     drawBox(doc, textX, cardY + 58, textW, 18, CREAM, LINE_LIGHT, 0.5);
-    doc.text("●  " + b.tag, textX + 5, cardY + 70, {
+    // Petit point carré vectoriel propre au lieu d'un glyphe Unicode exotique
+    doc.rect(textX + 5, cardY + 64, 4, 4, b.accentRgb);
+    doc.text(b.tag, textX + 13, cardY + 70, {
       font: "bold",
       size: 6.8,
       color: b.accentRgb,
-      maxW: textW - 8,
+      maxW: textW - 16,
     });
   });
 

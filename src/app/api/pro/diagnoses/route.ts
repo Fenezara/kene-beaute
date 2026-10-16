@@ -10,7 +10,7 @@ import { db } from "@/lib/db";
 import { runDiagnosis } from "@/lib/ai/vlm";
 import { BODY_ZONES } from "@/lib/kene/types";
 import type { BodyZone } from "@/lib/kene/types";
-import { scoreQuestionnaire, mergeResults, missingRequired, QUESTIONS } from "@/lib/kene/questionnaire";
+import { scoreQuestionnaire, mergeResults, missingRequired, getQuestionsForZone, QUESTIONS } from "@/lib/kene/questionnaire";
 import type { QAnswers } from "@/lib/kene/questionnaire";
 import { jsonError, serverError, notify, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
@@ -40,10 +40,10 @@ const Body = z.object({
   consent: z.object({ photo: z.boolean(), data: z.boolean() }),
 });
 
-/** Réponses admissibles uniquement pour les questions déclarées (anti-spam). */
-function sanitizeAnswers(answers: QAnswers): QAnswers {
+/** Réponses admissibles uniquement pour les questions déclarées de la zone (anti-spam). */
+function sanitizeAnswers(answers: QAnswers, zone: BodyZone = "visage"): QAnswers {
   const out: QAnswers = {};
-  const ids = new Set(QUESTIONS.map((q) => q.id));
+  const ids = new Set(getQuestionsForZone(zone).map((q) => q.id));
   for (const [k, v] of Object.entries(answers)) {
     if (!ids.has(k)) continue;
     if (typeof v === "string") out[k] = v.slice(0, 400);
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
         return jsonError(`Photo ${i + 1} de cabine refusée — ${upload.reason}`, 415);
       }
     }
-    const answers = sanitizeAnswers(parsed.data.answers as QAnswers);
+    const answers = sanitizeAnswers(parsed.data.answers as QAnswers, zone as BodyZone);
 
     const tenant = await resolveTenant(req, parsed.data.tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
     if (!client) return jsonError("Fiche cliente introuvable", 404);
 
     // 2. Questionnaire complet?
-    const missing = missingRequired(answers);
+    const missing = missingRequired(answers, zone as BodyZone);
     if (missing.length > 0) {
       return jsonError(`Questionnaire incomplet — ${missing.length} réponse(s) manquante(s)`, 400);
     }
