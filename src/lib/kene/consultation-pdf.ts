@@ -43,7 +43,7 @@ import {
   type ProDiagnosisResult,
 } from "@/lib/kene/questionnaire";
 import { BODY_ZONES, type BodyZone, type DiagnosisResult } from "@/lib/kene/types";
-import type { SpectralAcneResult } from "@/lib/kene/spectral-imaging";
+import type { SpectralAcneResult, MultiSpectralSuiteResult } from "@/lib/kene/spectral-imaging";
 
 export { PdfDoc };
 
@@ -708,6 +708,116 @@ function renderQuestionCard(doc: PdfDoc, q: Question): void {
   doc.advance(3);
 }
 
+/**
+ * Rendu du Quadriptyque Optique Multi-Spectral (4 Vues Cliniques)
+ * Standard Polarisée, Ambre 585nm, Vert 540nm, UV 405nm
+ */
+function renderMultiSpectralQuad(
+  doc: PdfDoc,
+  ms: MultiSpectralSuiteResult,
+  sectionLetter = "A",
+  isPro = true
+): void {
+  const bands = ms.bands;
+  const prefix = isPro ? "proSpectral_" : "clientSpectral_";
+
+  bands.forEach((b) => {
+    doc.addImage(`${prefix}${b.id}`, b.jpegBytes, b.width, b.height);
+  });
+
+  sectionBand(
+    doc,
+    sectionLetter,
+    isPro
+      ? "BILAN OPTIQUE MULTI-SPECTRAL EN CABINE (4 VUES CLINIQUES)"
+      : "MON BILAN OPTIQUE MULTI-SPECTRAL (4 VUES CLINIQUES)",
+    ms.isRealPhoto
+      ? "Clichés dermatoscopiques réels filtrés par spectrométrie cutanée étalonnée"
+      : "Cartographie biométrique multi-spectrale de référence (Standard, 585nm, 540nm, 405nm)"
+  );
+
+  const cardW = 248;
+  const cardH = 88;
+  const gapX = 11;
+  const gapY = 8;
+  const totalH = cardH * 2 + gapY + 28;
+
+  doc.ensure(totalH);
+  const startY = doc.cursorY;
+
+  bands.forEach((b, idx) => {
+    const col = idx % 2;
+    const row = Math.floor(idx / 2);
+    const cardX = col === 0 ? M_X : M_X + cardW + gapX;
+    const cardY = startY + row * (cardH + gapY);
+
+    // Fond et contour de la carte
+    drawBox(doc, cardX, cardY, cardW, cardH, CARD, LINE, 0.7);
+
+    // Image optique avec cadre sombre
+    const imgSize = 70;
+    const imgX = cardX + 7;
+    const imgY = cardY + 9;
+    doc.rect(imgX - 1.5, imgY - 1.5, imgSize + 3, imgSize + 3, [0.03, 0.05, 0.1]);
+    doc.drawImage(`${prefix}${b.id}`, imgX, imgY, imgSize, imgSize);
+    doc.rectStroke(imgX, imgY, imgSize, imgSize, b.accentRgb, 1);
+
+    // Bloc textuel d'interprétation
+    const textX = imgX + imgSize + 8;
+    const textW = cardW - (imgSize + 8 + 7 + 7); // ≈ 156 pt
+
+    // Ligne 1 : Code de longueur d'onde & Titre
+    doc.text(b.bandCode, textX, cardY + 15, {
+      font: "bold",
+      size: 7.2,
+      color: b.accentRgb,
+      letterSpace: 0.4,
+    });
+    doc.textRight(
+      idx === 0 ? "VISIA CROISÉ" : idx === 1 ? "MÉLANINE" : idx === 2 ? "VASCULAIRE" : "FLUORESCENCE",
+      cardX + cardW - 7,
+      cardY + 15,
+      { font: "oblique", size: 6.2, color: SOFT }
+    );
+
+    // Ligne 2 : Sous-titre / Focus clinique
+    doc.text(b.subtitle, textX, cardY + 26, {
+      font: "bold",
+      size: 7.6,
+      color: INK,
+      maxW: textW,
+    });
+
+    // Lignes 3-4 : Observation clinique
+    const lines = wrapText(b.observation, textW, 6.4, "regular");
+    if (lines[0]) doc.text(lines[0], textX, cardY + 37, { size: 6.4, color: SOFT, maxW: textW });
+    if (lines[1]) doc.text(lines[1], textX, cardY + 46, { size: 6.4, color: SOFT, maxW: textW });
+
+    // Ligne 5 : Tag / Badge statut clinique
+    drawBox(doc, textX, cardY + 58, textW, 18, CREAM, LINE_LIGHT, 0.5);
+    doc.text("●  " + b.tag, textX + 5, cardY + 70, {
+      font: "bold",
+      size: 6.8,
+      color: b.accentRgb,
+      maxW: textW - 8,
+    });
+  });
+
+  // Ruban récapitulatif sous le quad
+  const footY = startY + cardH * 2 + gapY + 6;
+  drawBox(doc, M_X, footY, CONTENT_W, 18, CREAM, LINE, 0.5);
+  doc.text(
+    isPro
+      ? "Corrélation multi-spectrale cabine : dissociation optique sélective de l'eumélanine, de l'érythème masqué et de la flore microbienne."
+      : "Lecture optique avancée : analyse de surface, des pigments profonds et de l'équilibre sébacé pour guider votre rituel.",
+    M_X + 8,
+    footY + 12,
+    { font: "oblique", size: 6.8, color: SOFT, maxW: CONTENT_W - 16 }
+  );
+
+  doc.advance(totalH + 10);
+}
+
 // ─────────────── 2. Compte-rendu du diagnostic en institut ───────────────
 
 export function proDiagReportPdf(input: {
@@ -730,6 +840,7 @@ export function proDiagReportPdf(input: {
   };
   client: { name: string; phone: string };
   spectralImage?: SpectralAcneResult | null;
+  multiSpectral?: MultiSpectralSuiteResult | null;
 }): ConsultPdfResult {
   const result = safeParse<ProDiagnosisResult>(input.diagnosis.resultJson);
   const answers = safeParse<QAnswers>(input.diagnosis.questionnaireJson) ?? {};
@@ -816,8 +927,10 @@ export function proDiagReportPdf(input: {
 
     doc.advance(scoreBoxH + 12);
 
-    // 3. Analyse Multi-Spectrale en Cabine (Acné & Sébum)
-    if (input.spectralImage) {
+    // 3. Analyse Multi-Spectrale en Cabine (Quad 4 Bandes ou Fallback Simple)
+    if (input.multiSpectral) {
+      renderMultiSpectralQuad(doc, input.multiSpectral, "A", true);
+    } else if (input.spectralImage) {
       const sp = input.spectralImage;
       const imgId = "proSpectralAcne";
       doc.addImage(imgId, sp.jpegBytes, sp.width, sp.height);
@@ -1067,6 +1180,7 @@ export function clientDiagReportPdf(input: {
     imageData?: string | null;
   };
   spectralImage?: SpectralAcneResult | null;
+  multiSpectral?: MultiSpectralSuiteResult | null;
 }): ConsultPdfResult {
   const result = safeParse<DiagnosisResult>(input.diagnosis.resultJson);
   const zoneLabel = BODY_ZONES.find((z) => z.id === input.diagnosis.zone)?.label ?? input.diagnosis.zone;
@@ -1145,8 +1259,10 @@ export function clientDiagReportPdf(input: {
       doc.advance(13);
     }
 
-    // Cliché multi-spectral si disponible
-    if (input.spectralImage) {
+    // Cliché multi-spectral si disponible (Quad 4 Bandes ou Fallback Simple)
+    if (input.multiSpectral) {
+      renderMultiSpectralQuad(doc, input.multiSpectral, "A", false);
+    } else if (input.spectralImage) {
       const sp = input.spectralImage;
       const imgId = "clientSpectralAcne";
       doc.addImage(imgId, sp.jpegBytes, sp.width, sp.height);

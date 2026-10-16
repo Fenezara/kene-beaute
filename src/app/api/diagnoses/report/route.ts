@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { guardUserClaim } from "@/lib/kene/session";
 import { clientDiagReportPdf, clientDiagReportFilename } from "@/lib/kene/consultation-pdf";
-import { processSpectralAcneImage } from "@/lib/kene/spectral-imaging";
+import { processMultiSpectralSuite } from "@/lib/kene/spectral-imaging";
 
 export const runtime = "nodejs";
 
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     });
     if (!diag) return jsonError("Diagnostic introuvable", 404);
 
-    const spectral = await processSpectralAcneImage(diag.imageData, {
+    const spectral = await processMultiSpectralSuite(diag.imageData, {
       clientName: diag.user.name,
       date: diag.createdAt,
       zoneLabel: diag.zone,
@@ -36,7 +36,8 @@ export async function GET(req: NextRequest) {
     const pdf = clientDiagReportPdf({
       userName: diag.user.name,
       diagnosis: { id: diag.id, zone: diag.zone, createdAt: diag.createdAt, resultJson: diag.resultJson, imageData: diag.imageData },
-      spectralImage: spectral,
+      multiSpectral: spectral,
+      spectralImage: spectral.legacyAcne,
     });
 
     return new NextResponse(new Uint8Array(pdf.data), {

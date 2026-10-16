@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { proDiagReportPdf, proDiagReportFilename } from "@/lib/kene/consultation-pdf";
-import { processSpectralAcneImage } from "@/lib/kene/spectral-imaging";
+import { processMultiSpectralSuite } from "@/lib/kene/spectral-imaging";
 
 export const runtime = "nodejs";
 
@@ -28,8 +28,8 @@ export async function GET(req: NextRequest) {
     });
     if (!diag) return jsonError("Diagnostic introuvable dans cet institut", 404);
 
-    // Analyse optique multi-spectrale cabine : Acné, Porphyrines & Film Lipidique
-    const spectral = await processSpectralAcneImage(diag.photoData, {
+    // Analyse optique multi-spectrale cabine : Quad 4 Bandes (Standard, Ambre 585nm, Vert 540nm, UV 405nm)
+    const spectral = await processMultiSpectralSuite(diag.photoData, {
       clientName: diag.clientProfile.name,
       date: diag.createdAt,
       zoneLabel: diag.zone,
@@ -54,7 +54,8 @@ export async function GET(req: NextRequest) {
         photoData: diag.photoData,
       },
       client: diag.clientProfile,
-      spectralImage: spectral,
+      multiSpectral: spectral,
+      spectralImage: spectral.legacyAcne,
     });
 
     return new NextResponse(new Uint8Array(pdf.data), {
