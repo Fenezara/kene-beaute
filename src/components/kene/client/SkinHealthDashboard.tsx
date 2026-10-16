@@ -217,16 +217,27 @@ export function SkinHealthDashboard({
     return null;
   }, [multi.score, lastResult]);
 
-  // Statut textuel synthétique
-  const statusLabel = useMemo(() => {
-    if (globalScore === null) return "En attente de votre premier scan cutané";
-    if (globalScore >= 80) return "Vitalité Éclatante · Équilibre Optimal";
-    if (globalScore >= 68) return "Bonne Santé Cutanée · Maintien Recommandé";
-    if (globalScore >= 55) return "Vigilance Légère · Zones à Réhydrater";
-    return "Barrière Fragilisée · Soin Ciblé Urgent";
-  }, [globalScore]);
+  // 4. Pilier prioritaire dermo-cosmétique (le score le plus bas à traiter en priorité)
+  const lowestPillar = useMemo(() => {
+    return [...pillars].sort((a, b) => a.score - b.score)[0];
+  }, [pillars]);
 
-  // 3. Météo Cutanée & Protection UV
+  // Statut textuel synthétique dynamique calibré sur l'indicateur le plus bas
+  const statusLabel = useMemo(() => {
+    if (globalScore === null) return "En attente de votre premier bilan cutané";
+    if (lowestPillar && lowestPillar.score > 0 && lowestPillar.score < 70) {
+      if (lowestPillar.id === "pigmentation") return "Vigilance · Teint à unifier & taches PIH ciblées";
+      if (lowestPillar.id === "barriere") return "Vigilance · Film lipidique protecteur à renforcer";
+      if (lowestPillar.id === "hydratation") return "Vigilance · Hydratation profonde & perte insensible en eau";
+      if (lowestPillar.id === "sebum") return "Vigilance · Équilibre sébacé & affinement des pores";
+    }
+    if (globalScore >= 80) return "Vitalité Éclatante · Équilibre Cutané Optimal";
+    if (globalScore >= 68) return "Bonne Santé Cutanée · Maintien Recommandé";
+    if (globalScore >= 55) return "Vigilance Légère · Protocole Rééquilibrant Conseillé";
+    return "Barrière Fragilisée · Soin Ciblé Urgent";
+  }, [globalScore, lowestPillar]);
+
+  // 3. Météo Cutanée & Protection UV Tropicale
   const uvInfo = useMemo(() => {
     const fitz = user.fitzpatrick ? String(user.fitzpatrick).toUpperCase() : "V";
     let naturalSpf = "~10 (Modéré)";
@@ -235,17 +246,12 @@ export function SkinHealthDashboard({
 
     return {
       city: user.city || "Abidjan",
-      uvIndex: 9, // Climat ouest-africain typique
+      uvIndex: 9, // Climat tropical ouest-africain
       naturalSpf,
       uvAdvice:
-        "Indice UV 9 (Très élevé) : Même avec un bouclier de mélanine naturel, les UV-A foncent les taches d'acné en 48 h. Écran solaire minéral conseillé.",
+        "Indice UV 9 (Très élevé) : Les UV-A foncent les taches d'hyperpigmentation (PIH) en moins de 48h. Écran solaire SPF 50 non blanchissant indispensable.",
     };
   }, [user.city, user.fitzpatrick]);
-
-  // 4. Alerte Dermo-Prioritaire du Jour (basée sur le pilier le plus faible)
-  const lowestPillar = useMemo(() => {
-    return [...pillars].sort((a, b) => a.score - b.score)[0];
-  }, [pillars]);
 
   function onPillarClick(p: PillarMetric) {
     haptic(HAPTIC.tap);
@@ -258,24 +264,21 @@ export function SkinHealthDashboard({
       <div className="relative overflow-hidden rounded-[28px] k-card kaolin-card p-5 sm:p-6 border border-[#C8951E]/35 shadow-xl">
         {/* Liseré Kente orfèvre supérieur */}
         <div className="absolute inset-x-0 top-0 h-[3px] kente-band" aria-hidden="true" />
-        <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none text-primary">
-          <DuafeIcon size={96} />
-        </div>
 
         {/* En-tête avec badge d'authenticité */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="grid place-items-center size-8 rounded-xl bg-primary/15 text-primary">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="grid place-items-center size-9 rounded-xl bg-primary/15 text-primary shrink-0">
               <Activity size={18} />
             </span>
             <div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <h3 className="font-heading font-black text-base sm:text-lg text-foreground tracking-tight">
                   Santé de ta Peau en Direct
                 </h3>
                 {hasRealScan ? (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] dark:text-[#6FB96F] text-[9.5px] font-bold uppercase tracking-wider">
-                    <CheckCircle2 size={10} /> Scan certifié
+                    <CheckCircle2 size={10} /> Bilan Validé IA
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C8951E]/15 text-[#C8951E] text-[9.5px] font-bold uppercase tracking-wider">
@@ -292,7 +295,7 @@ export function SkinHealthDashboard({
           </div>
 
           {/* Bouton de lecture vocale */}
-          <div className="shrink-0">
+          <div className="shrink-0 self-start sm:self-center">
             <VoiceNarration
               result={
                 lastResult || ({
@@ -324,7 +327,7 @@ export function SkinHealthDashboard({
           </div>
         </div>
 
-        {/* Bloc Score Global & Statut Clinique */}
+        {/* Bloc Score Global & Statut Synthétique */}
         <div className="mt-5 grid grid-cols-12 gap-3.5 items-center p-4 sm:p-5 rounded-2xl bg-card/60 border border-border/80">
           <div className="col-span-5 sm:col-span-4 flex items-center justify-center shrink-0">
             <ScoreGauge score={globalScore} label="Score Global" size={100} />
@@ -332,14 +335,14 @@ export function SkinHealthDashboard({
 
           <div className="col-span-7 sm:col-span-8 min-w-0">
             <p className="text-[10px] sm:text-[10.5px] font-bold uppercase tracking-[0.14em] text-primary">
-              Diagnostic Synthétique
+              Bilan Cutané Global
             </p>
             <h4 className="font-heading font-black text-sm sm:text-lg text-foreground mt-0.5 leading-snug">
               {statusLabel}
             </h4>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed font-sans">
               {hasRealScan
-                ? `Indice de vitalité calculé sur l'ensemble de vos zones analysées.`
+                ? `Indice de vitalité calculé sur l'ensemble de vos zones analysées (${multi.covered.length} zone${multi.covered.length > 1 ? "s" : ""}).`
                 : `Vos constantes cutanées démarreront dès votre première analyse biométrique.`}
             </p>
           </div>
@@ -364,8 +367,8 @@ export function SkinHealthDashboard({
                   key={p.id}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => onPillarClick(p)}
-                  className="rounded-2xl p-3 text-left transition-all border border-border/80 bg-background/60 hover:bg-background flex flex-col justify-between focus-visible:outline-2 focus-visible:outline-primary shadow-xs"
-                  style={{ minHeight: "110px" }}
+                  className="rounded-2xl p-3 text-left transition-all border border-border/80 bg-background/60 hover:bg-background flex flex-col justify-between focus-visible:outline-2 focus-visible:outline-primary shadow-xs cursor-pointer"
+                  style={{ minHeight: "115px" }}
                 >
                   <div className="flex items-start justify-between">
                     <span
@@ -382,8 +385,8 @@ export function SkinHealthDashboard({
                     </span>
                   </div>
 
-                  <div className="mt-2.5">
-                    <p className="text-xs font-bold text-foreground leading-tight truncate">
+                  <div className="mt-2">
+                    <p className="text-xs font-bold text-foreground leading-snug line-clamp-2">
                       {p.name}
                     </p>
                     <p className="text-[10.5px] font-medium text-muted-foreground mt-0.5">
@@ -421,13 +424,19 @@ export function SkinHealthDashboard({
             <p className="text-xs text-foreground font-medium mt-0.5 leading-snug">
               {lowestPillar.recommendation}
             </p>
+            <button
+              onClick={() => (onOpenFullDiag ? onOpenFullDiag() : setClientTab("dossier"))}
+              className="text-[11px] font-bold text-primary hover:underline mt-1.5 inline-flex items-center gap-1 cursor-pointer"
+            >
+              Voir la routine recommandée →
+            </button>
           </div>
         </div>
 
         {/* ───── MÉTÉO CUTANÉE & BOUCLIER UV TROPICAL ───── */}
         <div className="mt-3.5 p-3.5 rounded-2xl bg-card/40 border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-3">
-            <span className="grid place-items-center size-8 rounded-xl bg-sunset/15 text-sunset shrink-0">
+          <div className="flex items-start sm:items-center gap-3">
+            <span className="grid place-items-center size-8 rounded-xl bg-sunset/15 text-sunset shrink-0 mt-0.5 sm:mt-0">
               <Sun size={18} />
             </span>
             <div>
@@ -435,16 +444,16 @@ export function SkinHealthDashboard({
                 <MapPin size={11} className="text-primary" /> {uvInfo.city} · Indice UV {uvInfo.uvIndex} (Très élevé)
               </p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Bouclier naturel : Phototype {user.fitzpatrick || "V"} ({uvInfo.naturalSpf})
+                SPF 50 indispensable · Les UV-A accentuent les taches d&apos;hyperpigmentation en 48h.
               </p>
             </div>
           </div>
           <button
             onClick={() => setClientTab("chat")}
-            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:underline self-start sm:self-auto"
+            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:underline self-start sm:self-auto cursor-pointer"
           >
             <MessageCircle size={13} />
-            Demander à Dermo Kènè
+            Conseil dermo personnalisé
           </button>
         </div>
 
@@ -472,16 +481,31 @@ export function SkinHealthDashboard({
           <div className="mt-4 pt-4 border-t border-border/80 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] font-bold text-muted-foreground mr-1">Zones :</span>
-              {multi.covered.map((z) => (
-                <span key={z.id} className="k-chip rounded-full px-2 py-0.5 text-[10px] font-medium">
-                  {z.label} {multi.byZone.get(z.id)?.scoreGlobal}
-                </span>
-              ))}
+              {multi.covered.map((z) => {
+                const zScore = multi.byZone.get(z.id)?.scoreGlobal;
+                return (
+                  <span
+                    key={z.id}
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-bold border border-border/80 bg-background/80"
+                  >
+                    <span>{z.label}</span>
+                    <span
+                      className="font-mono text-[10px] font-black px-1 rounded-sm"
+                      style={{
+                        color: zScore != null ? scoreColor(zScore) : "#C8951E",
+                        backgroundColor: zScore != null ? `${scoreColor(zScore)}18` : "rgba(200,149,30,0.12)",
+                      }}
+                    >
+                      {zScore ?? "--"}
+                    </span>
+                  </span>
+                );
+              })}
               {multi.missing.map((z) => (
                 <button
                   key={z.id}
                   onClick={() => onScanZone(z.id)}
-                  className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+                  className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-colors cursor-pointer"
                 >
                   + {z.label}
                 </button>
@@ -490,7 +514,7 @@ export function SkinHealthDashboard({
 
             <button
               onClick={() => setClientTab("diagnostic")}
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline ml-auto"
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline ml-auto cursor-pointer"
             >
               Cartographie complète <ArrowUpRight size={13} />
             </button>
@@ -533,7 +557,7 @@ export function SkinHealthDashboard({
               </div>
 
               <div className="mt-4 p-3 rounded-xl bg-card/60 border border-border/80 text-xs leading-relaxed text-foreground">
-                <p className="font-bold mb-1">Interprétation clinique Kènè :</p>
+                <p className="font-bold mb-1">Interprétation dermo-cosmétique Kènè :</p>
                 <p className="text-muted-foreground">{selectedPillar.recommendation}</p>
               </div>
 

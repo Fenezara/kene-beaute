@@ -107,11 +107,14 @@ export function HomeScreen({
     const covered = BODY_ZONES.filter((z) => byZone.has(z.id));
     const missing = BODY_ZONES.filter((z) => !byZone.has(z.id));
     const weightSum = covered.reduce((s, z) => s + z.weight, 0);
+    const sortedDone = [...(data?.diagnoses ?? [])]
+      .filter((d) => d.status === "done")
+      .sort((x, y) => +new Date(y.createdAt) - +new Date(x.createdAt));
     const score =
       covered.length && weightSum > 0
         ? Math.round(covered.reduce((s, z) => s + (byZone.get(z.id)?.scoreGlobal ?? 0) * z.weight, 0) / weightSum)
-        : null;
-    const last = covered.length ? byZone.get(covered[0].id) : null;
+        : (sortedDone[0]?.scoreGlobal ?? null);
+    const last = covered.length ? byZone.get(covered[0].id) : (sortedDone[0] ?? null);
     return { byZone, covered, missing, score, last };
   }, [data?.diagnoses]);
 

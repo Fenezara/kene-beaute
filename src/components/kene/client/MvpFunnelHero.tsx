@@ -141,7 +141,7 @@ export function MvpFunnelHero({
                 Comprends enfin ta peau en 30 secondes chrono
               </h3>
               <p className="text-xs sm:text-[13.5px] text-[#EADCC9]/90 leading-relaxed font-medium">
-                La 1<sup>ère</sup> IA dermo-cosmétique entraînée spécifiquement pour les <strong>phototypes III à VI</strong> (peaux noires, mates et métissées). Diagnostic immédiat et ordonnance beauté sur-mesure aux actifs purs d&apos;Afrique de l&apos;Ouest (Karité sauvage, Moringa, Balanites).
+                La 1<sup>ère</sup> IA dermo-cosmétique entraînée spécifiquement pour les <strong>phototypes III à VI</strong> (peaux noires, mates et métissées). Diagnostic immédiat et routine beauté sur-mesure aux actifs purs d&apos;Afrique de l&apos;Ouest (Karité sauvage, Moringa, Balanites).
               </p>
             </div>
 
@@ -160,7 +160,7 @@ export function MvpFunnelHero({
                     LANCER MON BILAN DE PEAU (30s) · OFFERT
                   </span>
                   <span className="block text-[11px] font-semibold opacity-90">
-                    Photo directe sans filtre · Bilan cutané &amp; ordonnance beauté immédiats
+                    Photo directe sans filtre · Bilan cutané &amp; routine beauté immédiats
                   </span>
                 </div>
               </div>
@@ -260,10 +260,10 @@ export function MvpFunnelHero({
             <button
               type="button"
               onClick={onOpenRoutine}
-              className="flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground font-heading font-black text-xs sm:text-sm py-3 px-4 shadow-sm hover:bg-primary/95 transition-all"
+              className="flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground font-heading font-black text-xs sm:text-sm py-3 px-4 shadow-sm hover:bg-primary/95 transition-all cursor-pointer"
             >
               <Leaf size={16} />
-              Mon Ordonnance Beauté Sur-Mesure
+              Ma Routine Beauté Sur-Mesure
             </button>
             <button
               type="button"

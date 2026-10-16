@@ -126,8 +126,8 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
     return { byZone, covered, missing, score, last };
   }, [diagnoses, lastDiag]);
 
-  // Score global (null si aucun diagnostic pour ne pas inventer un score)
-  const globalScore = lastDiag?.scoreGlobal ?? multi.score ?? null;
+  // Score global unifié (multi-zones prioritaire, fallback sur dernier diagnostic)
+  const globalScore = multi.score ?? lastDiag?.scoreGlobal ?? null;
   const scoreCl = globalScore !== null ? scoreColor(globalScore) : "text-muted-foreground";
 
   // Toutes les photos réelles de la cliente (pour la galerie et la visionneuse HD)
@@ -198,12 +198,12 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
     };
   }, [diagnoses]);
 
-  // Partage WhatsApp du Bilan Personnel et Ordonnance Beauté
+  // Partage WhatsApp du Bilan Personnel et Routine Beauté
   const shareMySkinReportWhatsApp = () => {
     haptic(HAPTIC.tap);
     if (isGuestUser) {
       toast.error("Inscription requise", {
-        description: "Vous devez être inscrite pour partager votre dossier cutané et votre ordonnance avec un institut partenaire.",
+        description: "Vous devez être inscrite pour partager votre dossier cutané et votre routine avec un institut partenaire.",
       });
       setLinkModalOpen(true);
       return;
@@ -212,11 +212,11 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
     const botanicals = lastResult?.recommandations?.botaniques_conseillees?.join(", ") || "Moringa d'Afrique, Karité brut bio, Kinkeliba, Hibiscus";
     const soins = lastResult?.recommandations?.soins_conseilles?.slice(0, 2).join(" • ") || "Soin du visage dermo-cosmétique en cabine";
 
-    const msg = `Bonjour l'équipe de *${instName}* ! 🌿✨\n\nVoici le point sur *Mon Dossier Peau & Ordonnance Beauté Kènè* :\n\n📊 *Score Vitalité Cutanée* : ${globalScore}/100\n✨ *Phototype Fitzpatrick* : Type ${user.fitzpatrick || "V"} (mélanoderme)\n🌿 *Actifs Prescrits* : ${botanicals}\n💆‍♀️ *Soin Conseillé* : ${soins}\n\nJe souhaite faire le point sur mon évolution et programmer ma prochaine séance cabine. Merci ! 🌸`;
+    const msg = `Bonjour l'équipe de *${instName}* ! 🌿✨\n\nVoici le point sur *Mon Dossier Peau & Routine Beauté Kènè* :\n\n📊 *Score Vitalité Cutanée* : ${globalScore}/100\n✨ *Phototype Fitzpatrick* : Type ${user.fitzpatrick || "V"} (mélanoderme)\n🌿 *Actifs Recommandés* : ${botanicals}\n💆‍♀️ *Soin Conseillé* : ${soins}\n\nJe souhaite faire le point sur mon évolution et programmer ma prochaine séance cabine. Merci ! 🌸`;
 
     const phone = selectedInstitute?.phone || (selectedInstitute as any)?.ownerPhone || "";
     openWhatsApp(phone, msg);
-    toast.success("Ouverture de WhatsApp", { description: "Ordonnance beauté prête à partager" });
+    toast.success("Ouverture de WhatsApp", { description: "Routine beauté prête à partager" });
   };
 
   // Échanger directement avec Dermo Kènè sur le dossier de peau
@@ -226,7 +226,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
     if (lastResult) {
       const zoneLabel = BODY_ZONES.find((z) => z.id === lastResult.zone)?.label || lastResult.zone;
       const botanicals = lastResult.recommandations?.botaniques_conseillees?.slice(0, 3).join(", ") || "Actifs botaniques";
-      msg += ` Mon dernier bilan sur la zone "${zoneLabel}" a un score de ${lastResult.score_global}/100. Les actifs prescrits sont : ${botanicals}. Peux-tu m'expliquer l'évolution de ma peau et me guider dans ma routine quotidienne ?`;
+      msg += ` Mon dernier bilan sur la zone "${zoneLabel}" a un score de ${lastResult.score_global}/100. Les actifs conseillés sont : ${botanicals}. Peux-tu m'expliquer l'évolution de ma peau et me guider dans ma routine quotidienne ?`;
     } else {
       msg += ` Peux-tu m'aider à faire le point sur mes besoins cutanés et m'expliquer comment optimiser ma routine de soin ?`;
     }
@@ -239,7 +239,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
 
   const handleDownloadPdf = () => {
     haptic(HAPTIC.tap);
-    toast.success("Ordonnance Beauté & Dossier Peau générés", {
+    toast.success("Routine Beauté & Dossier Peau générés", {
       description: "Document PDF haute définition prêt à imprimer ou conserver.",
     });
     try {
@@ -251,7 +251,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
 
   return (
     <div className="space-y-5 pb-2">
-      {/* ───── En-tête : Mon Dossier Peau & Données Cutanées ───── */}
+      {/* ───── En-tête : Mon Dossier Peau & Suivi Cutané ───── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <span
@@ -259,19 +259,19 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             className="mb-1.5 block h-[3.5px] w-12 rounded-full bg-gradient-to-r from-[#D49A24] via-[#C93B62] to-[#9E2045] shadow-xs opacity-90"
           />
           <h2 className="font-heading font-black text-xl sm:text-2xl text-foreground leading-tight">
-            Mon Dossier Peau &amp; Données Cutanées
+            Mon Dossier Peau &amp; Suivi Cutané
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Biomarqueurs cliniques, ordonnance beauté active, cosmétovigilance et comparateur Avant / Après
+            Indicateurs dermo-biométriques, routine beauté active, cosmétovigilance et comparateur Avant / Après
           </p>
         </div>
 
         <Button
           onClick={onStartScan || (() => setClientTab("diagnostic"))}
-          className="k-btn-gold text-primary-foreground font-black text-xs h-10 px-4 rounded-xl gap-2 shrink-0 self-start sm:self-auto shadow-md active:scale-95 transition-all"
+          className="k-btn-gold text-primary-foreground font-black text-xs h-10 px-4 rounded-xl gap-2 shrink-0 self-start sm:self-auto shadow-md active:scale-95 transition-all cursor-pointer"
         >
           <NeaOnnimIcon size={18} />
-          <span>Nouveau Diagnostic</span>
+          <span>Nouveau Bilan</span>
         </Button>
       </div>
 
@@ -283,7 +283,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               <Award className="size-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Vitalité</p>
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Score Global</p>
               <div className="flex items-baseline gap-1 mt-0.5">
                 <span className={cn("text-lg font-black font-heading", scoreCl)}>
                   {globalScore !== null ? globalScore : "--"}
@@ -328,10 +328,10 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               <Leaf className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">Ordonnance</p>
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">Ma Routine</p>
               <p className="text-xs sm:text-sm font-black font-heading text-gold-text mt-0.5 flex items-center gap-1.5 whitespace-nowrap">
                 <span className={cn("size-2 rounded-full inline-block shrink-0", globalScore !== null ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground")} />
-                <span>{globalScore !== null ? "Validée" : "En attente"}</span>
+                <span>{globalScore !== null ? "Active" : "En attente"}</span>
               </p>
             </div>
           </CardContent>
@@ -371,7 +371,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
           )}
         >
           <FolderHeart size={14} className={cn("shrink-0", activeView === "dossier" ? "text-primary" : "text-muted-foreground")} />
-          <span className="truncate">Ordonnance</span>
+          <span className="truncate">Ma Routine</span>
         </button>
 
         <button
@@ -529,7 +529,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             </CardContent>
           </Card>
 
-          {/* Ordonnance Beauté Active — Les 4 Gestes Dermo-Cosmétiques */}
+          {/* Routine Beauté Active — Les 4 Gestes Dermo-Cosmétiques */}
           <Card className="rounded-[26px] border-2 border-[#C8951E]/40 bg-gradient-to-br from-[#C8951E]/10 via-card to-card p-4 sm:p-5 space-y-4 shadow-sm">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5">
@@ -538,10 +538,10 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                 </span>
                 <div>
                   <h4 className="font-heading font-black text-base text-foreground">
-                    Mon Ordonnance Beauté Active
+                    Ma Routine Beauté Active
                   </h4>
                   <p className="text-xs text-muted-foreground">
-                    Protocole dermo-cosmétique prescrit pour peau mélanoderme
+                    Protocole dermo-cosmétique ciblé pour peau mélanoderme
                   </p>
                 </div>
               </div>
@@ -601,11 +601,11 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               </div>
             </div>
 
-            {/* Actifs Botaniques Prescrits */}
+            {/* Actifs Botaniques Conseillés */}
             <div className="p-3.5 rounded-2xl bg-card/75 border border-border/60 space-y-2">
               <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
                 <CauriIcon size={14} className="text-[#C8951E]" />
-                Actifs de la Pharmacopée Ouest-Africaine Sélectionnés :
+                Actifs de la Pharmacopée Ouest-Africaine Conseillés :
               </p>
               <div className="flex flex-wrap gap-2">
                 {[

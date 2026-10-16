@@ -74,60 +74,65 @@ export function VoiceNarration({ result, userName }: { result: DiagnosisResult; 
   }
 
   return (
-    <div role="region" aria-label="Lecture vocale du diagnostic" className="mt-4">
-      <button
-        onClick={toggle}
-        disabled={state === "loading"}
-        aria-label={
-          state === "playing"
-            ? "Arrêter la lecture vocale du diagnostic"
-            : "Écouter le résumé vocal du diagnostic"
-        }
-        className="h-12 w-full rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-[0_10px_26px_-12px_rgba(143,102,13,0.6)] flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60"
-      >
-        {state === "playing" ? (
-          <>
-            <span className="flex items-end gap-[3px] h-4" aria-hidden="true">
-              {[0, 1, 2, 3].map((i) => (
-                <motion.span
-                  key={i}
-                  className="w-[3px] h-4 rounded-full bg-current origin-bottom"
-                  animate={{ scaleY: [0.35, 1, 0.5] }}
-                  transition={{ repeat: Infinity, duration: 0.9, delay: i * 0.12, ease: "easeInOut" }}
-                />
-              ))}
-            </span>
-            <Square size={14} aria-hidden="true" /> Arrêter la lecture
-          </>
-        ) : state === "loading" ? (
-          <>
-            <Loader2 size={17} className="animate-spin" aria-hidden="true" />{" "}
-            Préparation de l'audio…
-          </>
-        ) : (
-          <>
-            <Volume2 size={17} aria-hidden="true" /> Écouter le résumé
-          </>
-        )}
-      </button>
-      <div className="flex items-center justify-center gap-1.5 mt-1.5 flex-wrap">
+    <div role="region" aria-label="Lecture vocale du bilan" className="flex flex-col items-end">
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={toggle}
+          disabled={state === "loading"}
+          aria-label={
+            state === "playing"
+              ? "Arrêter la lecture vocale du bilan"
+              : "Écouter le résumé vocal du bilan"
+          }
+          className="h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl bg-primary text-primary-foreground font-bold text-xs shadow-xs hover:bg-primary/95 flex items-center justify-center gap-2 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 cursor-pointer"
+        >
+          {state === "playing" ? (
+            <>
+              <span className="flex items-end gap-[3px] h-3.5" aria-hidden="true">
+                {[0, 1, 2, 3].map((i) => (
+                  <motion.span
+                    key={i}
+                    className="w-[2.5px] h-3.5 rounded-full bg-current origin-bottom"
+                    animate={{ scaleY: [0.35, 1, 0.5] }}
+                    transition={{ repeat: Infinity, duration: 0.9, delay: i * 0.12, ease: "easeInOut" }}
+                  />
+                ))}
+              </span>
+              <Square size={12} aria-hidden="true" />
+              <span>Arrêter</span>
+            </>
+          ) : state === "loading" ? (
+            <>
+              <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+              <span>Chargement…</span>
+            </>
+          ) : (
+            <>
+              <Volume2 size={14} aria-hidden="true" />
+              <span>Écouter le bilan</span>
+            </>
+          )}
+        </button>
+
         <button
           onClick={toggleSlow}
           aria-pressed={slow}
+          title={slow ? "Vitesse normale" : "Lecture lente"}
           aria-label="Lecture lente (pour mieux comprendre à l'écoute)"
-          className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-10 text-[10px] font-bold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary ${
-            slow ? "bg-primary/15 text-primary border border-primary/40" : "text-muted-foreground border border-border"
+          className={`inline-flex items-center justify-center size-9 sm:size-10 rounded-xl text-xs font-bold transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary cursor-pointer ${
+            slow ? "bg-primary/20 text-primary border border-primary/50" : "bg-card text-muted-foreground border border-border/80 hover:text-foreground"
           }`}
         >
-          <Turtle size={11} aria-hidden="true" /> {slow ? "Lecture lente activée" : "Lecture lente"}
+          <Turtle size={14} aria-hidden="true" />
         </button>
       </div>
-      <p className="text-center text-[10px] text-muted-foreground mt-1">
+
+      <p className="text-[10px] text-muted-foreground mt-1 text-right">
         {state === "playing"
           ? slow
-            ? "Lecture lente en cours…"
-            : "Lecture en cours…"
-          : "Synthèse vocale naturelle haute fidélité"}
+            ? "Lecture posée en cours…"
+            : "Lecture vocale en cours…"
+          : "Guide audio personnalisé"}
       </p>
     </div>
   );
