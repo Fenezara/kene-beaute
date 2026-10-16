@@ -70,20 +70,46 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ appointment: updated });
     }
 
-    // ── confirm / cancel / no_show: changement de statut simple ──
-    // (temps réel: le badge « à confirmer » des autres postes descend en direct)
+    // ── confirm / cancel / no_show: changement de statut simple avec notification synchronisée ──
     if (action === "confirm") {
       const updated = await db.appointment.update({ where: { id }, data: { status: "confirmed" } });
+      if (appointment.userId || appointment.clientPhone) {
+        await notify({
+          userId: appointment.userId,
+          tenantId: appointment.tenantId,
+          channel: "whatsapp",
+          toPhone: appointment.clientPhone,
+          message: `Kènè : votre RDV pour le soin « ${appointment.service.name} » a été confirmé par l'institut ${tenant.name} ✅ Rendez-vous le ${new Date(appointment.startAt).toLocaleDateString("fr-FR")} à ${new Date(appointment.startAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`,
+        });
+      }
       pushTenantFeed(appointment.tenantId);
       return NextResponse.json({ appointment: updated });
     }
     if (action === "cancel") {
       const updated = await db.appointment.update({ where: { id }, data: { status: "cancelled" } });
+      if (appointment.userId || appointment.clientPhone) {
+        await notify({
+          userId: appointment.userId,
+          tenantId: appointment.tenantId,
+          channel: "whatsapp",
+          toPhone: appointment.clientPhone,
+          message: `Kènè : votre RDV « ${appointment.service.name} » chez ${tenant.name} a été annulé. Contactez l'institut ou reprogrammez un créneau sur votre espace Kènè.`,
+        });
+      }
       pushTenantFeed(appointment.tenantId);
       return NextResponse.json({ appointment: updated });
     }
     if (action === "no_show") {
       const updated = await db.appointment.update({ where: { id }, data: { status: "no_show" } });
+      if (appointment.userId || appointment.clientPhone) {
+        await notify({
+          userId: appointment.userId,
+          tenantId: appointment.tenantId,
+          channel: "whatsapp",
+          toPhone: appointment.clientPhone,
+          message: `Kènè : nous avons constaté votre absence lors de votre RDV « ${appointment.service.name} » chez ${tenant.name}. Prenez soin de vous et recontactez l'institut pour convenir d'un nouveau créneau 🌿`,
+        });
+      }
       pushTenantFeed(appointment.tenantId);
       return NextResponse.json({ appointment: updated });
     }
