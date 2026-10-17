@@ -69,9 +69,9 @@ import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderI
 const DrKeneOrb3D = dynamic(() => import("./DrKeneOrb3D").then((mod) => mod.DrKeneOrb3D), {
   ssr: false,
   loading: () => (
-    <div className="relative size-[270px] flex items-center justify-center">
-      <div className="size-36 rounded-full border border-amber-400/40 bg-gradient-to-tr from-emerald-600/30 via-amber-500/20 to-teal-700/20 animate-pulse flex items-center justify-center">
-        <span className="text-3xl animate-bounce">✨</span>
+    <div className="relative size-[185px] sm:size-[225px] flex items-center justify-center">
+      <div className="size-24 rounded-full border border-amber-400/40 bg-gradient-to-tr from-emerald-600/30 via-amber-500/20 to-teal-700/20 animate-pulse flex items-center justify-center">
+        <span className="text-2xl animate-bounce">✨</span>
       </div>
     </div>
   ),
@@ -486,6 +486,19 @@ export function ChatScreen() {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number | null>(null);
+
+  // Dimension responsive de l'Orbe 3D : 185px sur mobile pour garantir un écran Zero-Scroll sans débordement
+  const [orbSize, setOrbSize] = useState(185);
+  useEffect(() => {
+    const handleResize = () => {
+      if (typeof window !== "undefined") {
+        setOrbSize(window.innerWidth < 640 ? 185 : 225);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Sélecteur de source photo & Caméra Live (zéro modal bloquant de permission)
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
@@ -1111,48 +1124,48 @@ export function ChatScreen() {
   }
 
   return (
-    <div className="flex flex-col min-h-[68vh] pt-4">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col min-h-[68vh] pt-1 sm:pt-2">
+      <header className="flex items-center justify-between gap-2 pb-2.5 border-b border-border">
+        <div className="flex items-center gap-2.5 min-w-0">
           <span className="relative shrink-0">
             {/* Sceau 2026 — le Médaillon Kènè est l'avatar du Dr. Kènè */}
-            <span className="k-glow-gold inline-grid rounded-[14px]">
-              <KeneEmblem size={40} />
+            <span className="k-glow-gold inline-grid rounded-[12px]">
+              <KeneEmblem size={34} />
             </span>
-            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background animate-pulse" aria-hidden="true" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-background animate-pulse" aria-hidden="true" />
           </span>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-heading font-black text-sm sm:text-base text-foreground">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="font-heading font-black text-sm text-foreground truncate">
                 Dermo Kènè
               </h2>
-              <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                Dermo-Conseil IA
+              <span className="text-[9px] uppercase font-black px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                IA 24/7
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Experte peaux noires &amp; métissées · Écoute audio &amp; diagnostic
+            <p className="text-[10px] text-muted-foreground truncate hidden xs:block">
+              Peaux noires &amp; métissées · Écoute &amp; soin
             </p>
           </div>
         </div>
 
         {/* Sélecteur de rituel (Orbe Sacré vs Fil complet) */}
-        <div className="flex items-center gap-2 self-start sm:self-center">
-          <div className="flex bg-muted/60 p-1 rounded-2xl border border-border/80 shadow-2xs">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex bg-muted/70 p-0.5 rounded-xl border border-border/80 shadow-2xs">
             <button
               type="button"
               onClick={() => {
                 setViewMode("orb");
                 haptic(HAPTIC.light);
               }}
-              className={`h-9 px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+              className={`h-8 px-2.5 rounded-lg font-bold text-xs flex items-center gap-1 transition-all ${
                 viewMode === "orb"
-                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm scale-100"
+                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-2xs scale-100"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Sparkles size={14} className={viewMode === "orb" ? "text-amber-300 animate-spin" : ""} />
-              <span>Orbe de Consultation</span>
+              <Sparkles size={12} className={viewMode === "orb" ? "text-amber-300 animate-spin" : ""} />
+              <span>Orbe</span>
             </button>
             <button
               type="button"
@@ -1163,14 +1176,14 @@ export function ChatScreen() {
                 setTimeout(() => scrollToBottom(false), 30);
                 setTimeout(() => scrollToBottom(true), 150);
               }}
-              className={`h-9 px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+              className={`h-8 px-2.5 rounded-lg font-bold text-xs flex items-center gap-1 transition-all ${
                 viewMode === "thread"
-                  ? "bg-primary text-primary-foreground shadow-sm scale-100"
+                  ? "bg-primary text-primary-foreground shadow-2xs scale-100"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <MessageCircle size={14} />
-              <span>Fil complet ({messages.length})</span>
+              <MessageCircle size={12} />
+              <span>Fil{messages.length > 0 ? ` (${messages.length})` : ""}</span>
             </button>
           </div>
 
@@ -1190,25 +1203,25 @@ export function ChatScreen() {
             aria-pressed={ttsOn}
             aria-label={ttsOn ? "Désactiver la lecture vocale" : "Activer la lecture vocale"}
             title={ttsOn ? "Voix automatique activée (cliquer pour couper)" : "Activer la voix de Dermo Kènè"}
-            className={`h-9 w-9 grid place-items-center rounded-xl active:scale-90 transition-all ${
-              ttsOn ? "bg-emerald-600 text-white shadow-sm" : "border border-border bg-card text-muted-foreground"
+            className={`h-8 w-8 grid place-items-center rounded-xl active:scale-95 transition-all ${
+              ttsOn ? "bg-emerald-600 text-white shadow-2xs" : "border border-border bg-card text-muted-foreground"
             }`}
           >
-            {ttsOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            {ttsOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
         </div>
       </header>
 
       {/* ─── SCÈNE 1 : LE SANCTUAIRE DE CONSULTATION ORBE DE DERMO KÈNÈ ─── */}
       {viewMode === "orb" ? (
-        <div className="pt-2 pb-2 space-y-4 animate-in fade-in duration-300">
+        <div className="pt-1 pb-2 space-y-3 animate-in fade-in duration-300">
           {/* Scène centrale de l'Orbe Sacré Émeraude & Or */}
-          <div className="relative rounded-[32px] border border-border/80 bg-card p-6 sm:p-8 shadow-md flex flex-col items-center justify-center text-center overflow-hidden">
+          <div className="relative rounded-[26px] sm:rounded-[32px] border border-border/80 bg-card p-3 sm:p-5 shadow-sm flex flex-col items-center justify-center text-center overflow-hidden">
             {/* Lueur d'ambiance émeraude et dorée */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 sm:w-80 h-72 sm:h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 sm:w-64 h-56 sm:h-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
             {/* L'Orbe 3D interactif de Dermo Kènè */}
-            <div className="relative z-10 mb-2">
+            <div className="relative z-10 mb-1">
               <DrKeneOrb3D
                 state={orbState}
                 onClick={() => {
@@ -1218,95 +1231,100 @@ export function ChatScreen() {
                     void startRecording();
                   }
                 }}
-                size={270}
+                size={orbSize}
                 audioLevel={audioLevel}
                 className="transition-transform active:scale-95 mx-auto"
               />
             </div>
 
             {/* Statut dynamique parlant de Dermo Kènè */}
-            <div className="relative z-10 space-y-3 max-w-lg mx-auto">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/80 border border-border/80 text-xs font-semibold text-foreground shadow-xs">
+            <div className="relative z-10 space-y-2.5 max-w-lg mx-auto w-full">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/80 border border-border/80 text-[11px] font-semibold text-foreground shadow-2xs">
                 {micState === "recording" ? (
                   <>
                     <span className="size-2 rounded-full bg-red-500 animate-ping" />
                     <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                       {mmss(micElapsed)}
                     </span>
-                    <span>· Dermo Kènè vous écoute… Parlez naturellement</span>
+                    <span>· Dermo Kènè vous écoute…</span>
                   </>
                 ) : sending || photoBusy ? (
                   <>
-                    <Loader2 size={14} className="animate-spin text-emerald-500" />
-                    <span>Dermo Kènè analyse vos besoins cutanés…</span>
+                    <Loader2 size={13} className="animate-spin text-emerald-500" />
+                    <span>Dermo Kènè analyse vos besoins…</span>
                   </>
                 ) : playingMsgId ? (
                   <>
-                    <Volume2 size={14} className="text-emerald-500 animate-pulse" />
-                    <span>Dermo Kènè vous répond à la voix… 🔊</span>
+                    <Volume2 size={13} className="text-emerald-500 animate-pulse" />
+                    <span>Dermo Kènè vous répond… 🔊</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles size={14} className="text-[#C8951E]" />
-                    <span>Touchez l&apos;Orbe ou le micro pour échanger avec Dermo Kènè</span>
+                    <Sparkles size={13} className="text-[#C8951E]" />
+                    <span>Touchez l&apos;Orbe ou parlez ci-dessous</span>
                   </>
                 )}
               </div>
 
-              {/* Boutons d'interaction tactiles & vocaux */}
-              <div className="pt-1 flex flex-wrap items-center justify-center gap-3">
+              {/* Pupitre d'actions : Pleine largeur Micro + Grille 2 colonnes Caméra & Scanner */}
+              <div className="w-full space-y-2">
                 {micState === "recording" ? (
-                  <>
+                  <div className="flex items-center justify-center gap-2 w-full">
                     <button
                       type="button"
                       onClick={stopRecording}
-                      className="h-13 px-6 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 text-white font-black text-sm flex items-center gap-2.5 shadow-lg active:scale-95 animate-pulse"
+                      className="flex-1 h-11 px-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 animate-pulse"
                     >
-                      <Square size={16} fill="currentColor" />
-                      <span>Terminer &amp; Écouter l&apos;analyse</span>
+                      <Square size={15} fill="currentColor" />
+                      <span>Terminer &amp; Écouter</span>
                     </button>
                     <button
                       type="button"
                       onClick={cancelRecording}
-                      className="h-13 px-4 rounded-2xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-bold"
+                      className="h-11 px-3.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-bold"
                     >
                       Annuler
                     </button>
-                  </>
+                  </div>
                 ) : (
                   <>
+                    {/* Bouton Hero Micro — Pleine largeur */}
                     <button
                       type="button"
                       onClick={() => void startRecording()}
                       disabled={sending || photoBusy}
-                      className="h-13 px-6 sm:px-7 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#C8951E] text-white font-heading font-black text-sm flex items-center gap-2.5 shadow-lg hover:scale-102 active:scale-95 transition-all"
+                      className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#C8951E] text-white font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-98 transition-all"
                     >
-                      <Mic size={18} />
+                      <Mic size={17} />
                       <span>Parler à Dermo Kènè 🎙️</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setPhotoPickerOpen(true)}
-                      disabled={sending || photoBusy}
-                      className="h-13 px-4 sm:px-5 rounded-2xl border border-border/80 bg-muted/40 hover:bg-muted text-foreground font-bold text-xs flex items-center gap-2 active:scale-95 transition-all"
-                    >
-                      <Camera size={16} className="text-emerald-600 dark:text-emerald-400" />
-                      <span>Montrer ma peau</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        saveHardwarePermGranted();
-                        toast.info("Cadrez bien l'étiquette au dos ou la liste des ingrédients (INCI)");
-                        nativeCameraInputRef.current?.click();
-                      }}
-                      disabled={sending || photoBusy}
-                      className="h-13 px-4 sm:px-5 rounded-2xl border-2 border-gold/60 bg-gradient-to-r from-gold/20 via-card to-card hover:border-gold text-gold-text font-black text-xs flex items-center gap-2 active:scale-95 transition-all shadow-xs"
-                      title="Scanner un produit cosmétique (INCI) pour détecter l'hydroquinone et les corticoïdes"
-                    >
-                      <ShieldAlert size={16} className="text-gold-text shrink-0" />
-                      <span>🧴 Scanner un produit (INCI)</span>
-                    </button>
+
+                    {/* Ligne secondaire équilibrée 2 colonnes : Caméra Peau & Scanner INCI */}
+                    <div className="grid grid-cols-2 gap-2 w-full">
+                      <button
+                        type="button"
+                        onClick={() => setPhotoPickerOpen(true)}
+                        disabled={sending || photoBusy}
+                        className="h-10 sm:h-11 px-2 rounded-xl border border-border/80 bg-muted/30 hover:bg-muted text-foreground font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all truncate"
+                      >
+                        <Camera size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span className="truncate">Montrer ma peau</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveHardwarePermGranted();
+                          toast.info("Cadrez bien l'étiquette au dos ou la liste des ingrédients (INCI)");
+                          nativeCameraInputRef.current?.click();
+                        }}
+                        disabled={sending || photoBusy}
+                        className="h-10 sm:h-11 px-2 rounded-xl border border-gold/60 bg-gold/10 hover:bg-gold/20 text-gold-text font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all truncate shadow-2xs"
+                        title="Scanner un produit cosmétique (INCI)"
+                      >
+                        <ShieldAlert size={15} className="text-gold-text shrink-0" />
+                        <span className="truncate">🧴 Scanner INCI</span>
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
@@ -1314,8 +1332,8 @@ export function ChatScreen() {
 
             {/* Saisie textuelle rapide repliable sous l'Orbe */}
             {micState !== "recording" && (
-              <div className="relative z-10 w-full max-w-xl mt-4 pt-3 border-t border-border/60">
-                <div className="flex items-center gap-2">
+              <div className="relative z-10 w-full max-w-lg mt-2.5 pt-2 border-t border-border/50">
+                <div className="flex items-center gap-1.5">
                   <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -1325,17 +1343,17 @@ export function ChatScreen() {
                         send();
                       }
                     }}
-                    placeholder="Ou écrivez votre préoccupation ici…"
-                    className="h-11 min-w-0 flex-1 rounded-xl bg-muted/30 border border-border px-3.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-emerald-500"
+                    placeholder="Ou écrivez votre préoccupation…"
+                    className="h-9 min-w-0 flex-1 rounded-xl bg-muted/30 border border-border px-3 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-emerald-500"
                   />
                   <button
                     type="button"
                     onClick={() => send()}
                     disabled={!input.trim() || sending}
-                    className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold disabled:opacity-40 flex items-center gap-1.5 transition-all"
+                    className="h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold disabled:opacity-40 flex items-center gap-1 transition-all shrink-0"
                   >
-                    <Send size={14} />
-                    <span>Envoyer</span>
+                    <Send size={13} />
+                    <span className="hidden xs:inline">Envoyer</span>
                   </button>
                 </div>
               </div>
@@ -1366,7 +1384,7 @@ export function ChatScreen() {
                       )}
                     </h3>
                     <p className="text-[11px] text-muted-foreground">
-                      Analyse dermo-cosmétique adaptée aux phototypes IV à VI
+                      Analyse dermo-cosmétique adaptée aux peaux mates, métissées et noires (carnations foncées)
                     </p>
                   </div>
                 </div>
@@ -1462,19 +1480,19 @@ export function ChatScreen() {
             </div>
           )}
 
-          {/* Suggestions thématiques rapides de salon en 1-Tap */}
-          <div className="rounded-[24px] border border-border/80 bg-card p-4 space-y-2.5">
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Lightbulb size={13} className="text-[#C8951E]" />
-              <span>Questions fréquentes à Dermo Kènè (test en 1 clic) :</span>
-            </p>
-            <div className="flex flex-wrap gap-2">
+          {/* Suggestions thématiques rapides de salon en 1-Tap (carrousel horizontal) */}
+          <div className="rounded-2xl border border-border/80 bg-card/60 p-2.5">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              <span className="shrink-0 text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1 pl-1 pr-1">
+                <Lightbulb size={12} className="text-[#C8951E]" />
+                <span>Idées :</span>
+              </span>
               {THEMED_SUGGESTIONS.map((sug, i) => (
                 <button
                   key={i}
                   type="button"
                   onClick={() => void send(sug.question)}
-                  className="px-3 py-1.5 rounded-xl border border-border/80 bg-muted/30 hover:bg-muted text-xs font-semibold text-foreground flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs"
+                  className="shrink-0 px-2.5 py-1 rounded-lg border border-border/70 bg-card hover:bg-muted text-[11px] font-medium text-foreground flex items-center gap-1 active:scale-95 transition-all shadow-2xs"
                 >
                   <span>{sug.iconText}</span>
                   <span>{sug.theme}</span>
