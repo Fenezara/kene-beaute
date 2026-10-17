@@ -288,7 +288,7 @@ function makeGoogleCalendarUrl(appt: ApiAppointment) {
 }
 
 export function AgendaScreen() {
-  const user = useKene((s) => s.user)!;
+  const user = useKene((s) => s.user);
   const setClientTab = useKene((s) => s.setClientTab);
 
   const [activeSubTab, setActiveSubTab] = useState<"rdv" | "types" | "commandes" | "conciergerie">("rdv");
@@ -312,6 +312,11 @@ export function AgendaScreen() {
   const loadData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
+      if (!user?.id) {
+        const instRes = await apiGet<{ institutes: ApiInstitute[] }>("/api/institutes").catch(() => ({ institutes: [] }));
+        setInstitutes(instRes.institutes ?? []);
+        return;
+      }
       const [apptRes, ordersRes, diagRes, instRes] = await Promise.all([
         apiGet<{ appointments: ApiAppointment[] }>(`/api/appointments?userId=${user.id}`).catch(() => ({
           appointments: [],
@@ -337,7 +342,7 @@ export function AgendaScreen() {
 
   useEffect(() => {
     loadData();
-  }, [user.id]);
+  }, [user?.id]);
 
   const handleRefresh = () => {
     haptic(HAPTIC.light);
@@ -348,11 +353,11 @@ export function AgendaScreen() {
   };
 
   const selectedInst = useMemo(() => {
-    if (user.selectedTenantId && institutes.length > 0) {
+    if (user?.selectedTenantId && institutes.length > 0) {
       return institutes.find((i) => i.id === user.selectedTenantId) ?? null;
     }
-    return user.selectedTenant ?? institutes[0] ?? null;
-  }, [user.selectedTenantId, user.selectedTenant, institutes]);
+    return user?.selectedTenant ?? institutes[0] ?? null;
+  }, [user?.selectedTenantId, user?.selectedTenant, institutes]);
 
   const now = Date.now();
 
@@ -563,8 +568,8 @@ export function AgendaScreen() {
       status: "confirmed",
       price: quickBookType.indicativePrice,
       depositAmount: 0,
-      clientName: user.name,
-      clientPhone: user.phone,
+      clientName: user?.name || "Cliente",
+      clientPhone: user?.phone || "+22500000000",
       createdAt: new Date().toISOString(),
       service: {
         id: `srv_${quickBookType.id}`,
@@ -584,7 +589,7 @@ export function AgendaScreen() {
         : {
             id: "kene_partner",
             name: "Institut Partenaire Kènè",
-            city: user.city || "Abidjan",
+            city: user?.city || "Abidjan",
             country: "CI",
           },
       resource: {
@@ -1045,7 +1050,7 @@ export function AgendaScreen() {
                       <button
                         type="button"
                         onClick={() => {
-                          const msg = `Bonjour ${tenantName} ! 🌸\nJe suis ${user.name}. Je vous contacte concernant mon rendez-vous (${typeMeta.shortLabel}) de *${serviceName}* prévu le ${formatDate(
+                          const msg = `Bonjour ${tenantName} ! 🌸\nJe suis ${user?.name || "Cliente"}. Je vous contacte concernant mon rendez-vous (${typeMeta.shortLabel}) de *${serviceName}* prévu le ${formatDate(
                             appt.startAt
                           )} à ${formatTime(appt.startAt)}.`;
                           openWhatsApp(phone, msg, ((appt.tenant as any)?.country || "CI") as "CI" | "SN");
@@ -1198,16 +1203,18 @@ export function AgendaScreen() {
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <a
-                          href={`/api/diagnoses/report?userId=${encodeURIComponent(user.id)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0 h-8 px-2.5 rounded-lg border border-gold/40 bg-gold/10 text-gold-text font-bold text-[11px] flex items-center gap-1 hover:bg-gold/20 transition-colors"
-                          title="Télécharger le rapport dermo-clinique PDF"
-                        >
-                          <FileText size={12} />
-                          Bilan PDF
-                        </a>
+                        {user?.id && (
+                          <a
+                            href={`/api/diagnoses/report?userId=${encodeURIComponent(user.id)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 h-8 px-2.5 rounded-lg border border-gold/40 bg-gold/10 text-gold-text font-bold text-[11px] flex items-center gap-1 hover:bg-gold/20 transition-colors"
+                            title="Télécharger le rapport dermo-clinique PDF"
+                          >
+                            <FileText size={12} />
+                            Bilan PDF
+                          </a>
+                        )}
                         <button
                           type="button"
                           onClick={() => handleBookRdvType(meta)}
@@ -1435,7 +1442,7 @@ export function AgendaScreen() {
                       <button
                         type="button"
                         onClick={() => {
-                          const msg = `Bonjour ${tenantName} ! 📦\nJe suis ${user.name}. Je souhaite avoir des nouvelles de ma commande #${order.id
+                          const msg = `Bonjour ${tenantName} ! 📦\nJe suis ${user?.name || "Cliente"}. Je souhaite avoir des nouvelles de ma commande #${order.id
                             .slice(-6)
                             .toUpperCase()} d'un montant de ${xof(order.total)}. Merci !`;
                           openWhatsApp(phone, msg);

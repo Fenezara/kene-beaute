@@ -398,7 +398,7 @@ export function ClientApp() {
     return <BootSkeleton />;
   }
 
-  const first = user.name.split(" ")[0];
+  const first = (user.name || "Invitée").split(" ")[0];
 
   return (
     <div className="h-dvh flex overflow-hidden overscroll-none select-none">

@@ -53,7 +53,7 @@ export function HomeScreen({
   refreshKey?: number;
   onRefreshed?: () => void;
 }) {
-  const user = useKene((s) => s.user)!;
+  const user = useKene((s) => s.user);
   const setClientTab = useKene((s) => s.setClientTab);
   const { t } = useT();
   const [data, setData] = useState<HomeData | null>(null);
@@ -66,6 +66,24 @@ export function HomeScreen({
     let alive = true;
     (async () => {
       try {
+        if (!user?.id) {
+          const [p, insts] = await Promise.all([
+            apiGet<{ products: ApiProduct[] }>("/api/shop/products"),
+            apiGet<{ institutes: ApiInstitute[] }>("/api/institutes").catch(() => ({ institutes: [] })),
+          ]);
+          if (alive) {
+            setData({
+              diagnoses: [],
+              appointments: [],
+              products: p.products ?? [],
+              institutes: insts?.institutes ?? [],
+              subscription: null,
+            });
+            onRefreshed?.();
+          }
+          return;
+        }
+
         const [d, a, p, s, insts] = await Promise.all([
           apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${user.id}&light=1`),
           apiGet<{ appointments: ApiAppointment[] }>(`/api/appointments?userId=${user.id}`),
@@ -93,7 +111,7 @@ export function HomeScreen({
     return () => {
       alive = false;
     };
-  }, [user.id, refreshKey, onRefreshed]);
+  }, [user?.id, refreshKey, onRefreshed]);
 
   // Score multi-zones pondéré (dernier diagnostic par zone)
   const multi = useMemo(() => {
@@ -129,7 +147,7 @@ export function HomeScreen({
 
   const lastResult = useMemo(() => (multi.last ? parseDiagnosis(multi.last.resultJson) : null), [multi.last]);
 
-  const first = user.name.split(" ")[0];
+  const first = (user?.name || "Invitée").split(" ")[0];
 
   /** Échéance Kènè+ : alerte élégante à J-3 / J-0 ou rattrapage si expiré récent */
   const subNotice = useMemo(() => {
@@ -168,7 +186,7 @@ export function HomeScreen({
   /** Conseil Climat & Dermo-Météo contextualisé pour peau mélanoderme */
   /** Conseil Climat & Dermo-Météo contextualisé pour peau mélanoderme */
   const weatherAdvisory = useMemo(() => {
-    const city = (user.city || user.district || "Abidjan").toLowerCase();
+    const city = (user?.city || user?.district || "Abidjan").toLowerCase();
     if (city.includes("dakar") || city.includes("senegal") || city.includes("ngor") || city.includes("almadie")) {
       return {
         cityLabel: "Dakar · Climat océanique",
@@ -190,24 +208,24 @@ export function HomeScreen({
       };
     }
     return {
-      cityLabel: `${user.city ? user.city : "Abidjan"} · Humide`,
+      cityLabel: `${user?.city ? user.city : "Abidjan"} · Humide`,
       temp: "29°C",
       humidity: "84%",
       uv: "UV 8 · Très fort",
       advice: "Forte humidité : Nettoyage doux au zinc & écran solaire SPF 50.",
       icon: <CloudSun size={15} className="text-primary" />,
     };
-  }, [user.city, user.district]);
+  }, [user?.city, user?.district]);
 
   /** Institut partenaire coché par la cliente */
   const selectedInst = useMemo(() => {
-    if (data?.institutes && user.selectedTenantId) {
+    if (data?.institutes && user?.selectedTenantId) {
       const match = data.institutes.find((i) => i.id === user.selectedTenantId);
       if (match) return match;
     }
-    if (user.selectedTenant) return user.selectedTenant;
+    if (user?.selectedTenant) return user.selectedTenant;
     return null;
-  }, [user.selectedTenantId, user.selectedTenant, data?.institutes]);
+  }, [user?.selectedTenantId, user?.selectedTenant, data?.institutes]);
 
   return (
     <Reveal className="flex flex-col gap-6 pt-1">
@@ -228,14 +246,14 @@ export function HomeScreen({
               <span className="kente-text-flow inline-block pr-1">{first}</span>
             </h2>
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 font-medium">
-              <MapPin size={13} className="text-primary/80" /> {user.city || "Abidjan"} · {user.fitzpatrick ? `Carnation Type ${user.fitzpatrick}` : "Carnation à définir"}
+              <MapPin size={13} className="text-primary/80" /> {user?.city || "Abidjan"} · {user?.fitzpatrick ? `Carnation Type ${user.fitzpatrick}` : "Carnation à définir"}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {user.hasAvatar ? (
+            {user?.hasAvatar ? (
               <button
                 onClick={() => setClientTab("profil")}
-                aria-label={`Mon profil — ${user.name}`}
+                aria-label={`Mon profil — ${user?.name || "Cliente"}`}
                 className="shrink-0 size-14 rounded-full overflow-hidden ring-2 ring-gold/50 hover:ring-gold focus-visible:outline-2 focus-visible:outline-primary transition-all"
               >
                 <img src={`/api/media/user/${user.id}`} alt="" className="size-full object-cover" />
@@ -552,7 +570,7 @@ export function HomeScreen({
       <ContactKeneModal
         open={contactKeneOpen}
         onOpenChange={setContactKeneOpen}
-        userName={user.name}
+        userName={user?.name || "Cliente"}
       />
     </Reveal>
   );
