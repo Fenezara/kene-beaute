@@ -41,7 +41,7 @@ export function MvpFunnelHero({
   onOpenRoutine,
   onOpenContactKene,
 }: MvpFunnelHeroProps) {
-  const user = useKene((s) => s.user)!;
+  const user = useKene((s) => s.user);
   const setClientTab = useKene((s) => s.setClientTab);
 
   const currentInstitute = useMemo(() => {
@@ -98,7 +98,7 @@ export function MvpFunnelHero({
 
     const managerName = currentInstitute.ownerName?.trim();
     const instName = currentInstitute.name?.trim() || "votre institut";
-    const text = `Bonjour ${managerName ? `Mme ${managerName} (${instName})` : instName} ! 🌿 Je suis ${user.name || "une cliente"} sur l'application Kènè. J'aimerais échanger avec vous concernant mes soins et recommandations personnalisées.`;
+    const text = `Bonjour ${managerName ? `Mme ${managerName} (${instName})` : instName} ! 🌿 Je suis ${user?.name || "une cliente"} sur l'application Kènè. J'aimerais échanger avec vous concernant mes soins et recommandations personnalisées.`;
     const country = currentInstitute.country === "SN" ? "SN" : "CI";
 
     openWhatsApp(targetPhone, text, country);
@@ -225,7 +225,7 @@ export function MvpFunnelHero({
                   🥇 Mon Bilan Cutané Actif
                 </span>
                 <span className="text-[11px] font-bold text-muted-foreground">
-                  {user.fitzpatrick ? `Carnation Type ${user.fitzpatrick} (Peau mate/noire)` : "Teint noir & métissé"}
+                  {user?.fitzpatrick ? `Carnation Type ${user.fitzpatrick} (Peau mate/noire)` : "Teint noir & métissé"}
                 </span>
               </div>
               <h3 className="font-heading font-black text-xl sm:text-2xl text-foreground leading-tight">
