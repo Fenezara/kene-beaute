@@ -295,7 +295,7 @@ export function ProEnterpriseShell() {
 
   useEffect(() => {
     const realTenantId = overview.data?.tenant?.id || sessionUser?.tenantId;
-    if (realTenantId && (!proTenantId || proTenantId === DEFAULT_FALLBACK_TENANT_ID)) {
+    if (realTenantId && !proTenantId) {
       setProTenantId(realTenantId);
     }
   }, [proTenantId, overview.data?.tenant?.id, sessionUser?.tenantId, setProTenantId]);
@@ -315,10 +315,9 @@ export function ProEnterpriseShell() {
   }, [overview.error, proTenantId, setProTenantId, online]);
 
   const tid =
-    (proTenantId && proTenantId !== DEFAULT_FALLBACK_TENANT_ID ? proTenantId : null) ||
+    proTenantId ||
     overview.data?.tenant?.id ||
     sessionUser?.tenantId ||
-    proTenantId ||
     DEFAULT_FALLBACK_TENANT_ID;
 
   useEffect(() => {
@@ -488,6 +487,27 @@ export function ProEnterpriseShell() {
 
   const tenant = overview.data?.tenant;
 
+  const handleTenantSwitch = (v: string) => {
+    if (v === "__create_branch__") {
+      setCreateBranchOpen(true);
+    } else {
+      healedRef.current = false;
+      setProTenantId(v);
+      const currentStoreUser = useKene.getState().user;
+      if (currentStoreUser) {
+        useKene.getState().setUser({ ...currentStoreUser, tenantId: v });
+      }
+      void apiGet<ProOverview>(`/api/pro/overview?tenantId=${v}`).then((fresh) => {
+        if (fresh && fresh.tenant) {
+          overview.setData(fresh);
+        }
+      }).catch(() => {
+        void overview.refetch();
+      });
+      toast.success("Établissement actif mis à jour");
+    }
+  };
+
   const isAdmin = sessionUser?.role === "admin";
   const proOwner = sessionUser?.role === "pro" || isAdmin ? sessionUser : null;
   const chipName =
@@ -532,26 +552,7 @@ export function ProEnterpriseShell() {
             <div className="block">
               <Select
                 value={tid || undefined}
-                onValueChange={(v) => {
-                  if (v === "__create_branch__") {
-                    setCreateBranchOpen(true);
-                  } else {
-                    healedRef.current = false;
-                    setProTenantId(v);
-                    const currentStoreUser = useKene.getState().user;
-                    if (currentStoreUser) {
-                      useKene.getState().setUser({ ...currentStoreUser, tenantId: v });
-                    }
-                    void apiGet<ProOverview>(`/api/pro/overview?tenantId=${v}`).then((fresh) => {
-                      if (fresh && fresh.tenant) {
-                        overview.setData(fresh);
-                      }
-                    }).catch(() => {
-                      void overview.refetch();
-                    });
-                    toast.success("Établissement actif mis à jour");
-                  }
-                }}
+                onValueChange={handleTenantSwitch}
                 disabled={tenantOptions.length <= 1 && !proOwner && !isAdmin}
               >
                 <SelectTrigger
@@ -651,14 +652,8 @@ export function ProEnterpriseShell() {
             <div className="sm:hidden">
               <Select
                 value={tid || undefined}
-                onValueChange={(v) => {
-                  if (v === "__create_branch__") {
-                    setCreateBranchOpen(true);
-                  } else {
-                    setProTenantId(v);
-                  }
-                }}
-                disabled={tenantOptions.length <= 1 && !proOwner}
+                onValueChange={handleTenantSwitch}
+                disabled={tenantOptions.length <= 1 && !proOwner && !isAdmin}
               >
                 <SelectTrigger
                   className="k-chip h-8 w-full rounded-xl px-2.5 text-xs font-semibold"
