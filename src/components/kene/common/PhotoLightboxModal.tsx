@@ -13,13 +13,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
-  Sparkles,
   MapPin,
   Download,
   Share2,
   ScanFace,
   ShieldCheck,
 } from "lucide-react";
+import { NsorommaIcon } from "@/components/kene/icons";
 import { formatDate, formatTime, scoreColor } from "@/lib/kene/format";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { toast } from "sonner";
@@ -220,7 +220,7 @@ export function PhotoLightboxModal({
                   key={i}
                   className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/10 text-white/90 border border-white/5"
                 >
-                  <Sparkles size={11} className="text-gold" />
+                  <NsorommaIcon size={11} className="text-gold" />
                   {ind.nom} : <strong>{ind.pourcentage}%</strong>
                 </span>
               ))}

@@ -12,7 +12,6 @@ import {
   Clock,
   MapPin,
   MessageCircle,
-  Sparkles,
   CalendarPlus,
   FileText,
   User,
@@ -25,6 +24,7 @@ import {
 import { formatDate, formatTime } from "@/lib/kene/format";
 import { openWhatsApp, openWhatsAppAppointmentInquiry } from "@/lib/kene/whatsapp-relay";
 import { useKene } from "@/store/kene";
+import { DuafeIcon, NsorommaIcon, KeneSunIcon, CauriIcon } from "@/components/kene/icons";
 import type { ApiAppointment, ApiInstitute } from "./types";
 
 interface AppointmentsCareSectionProps {
@@ -80,7 +80,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
       return {
         badge: "Aujourd'hui",
         urgency: "today" as const,
-        title: `Votre soin a lieu aujourd'hui à ${formatTime(nextAppt.startAt)} ✨`,
+        title: `Votre soin a lieu aujourd'hui à ${formatTime(nextAppt.startAt)} 🌿`,
         sub: "Votre praticienne vous prépare une cabine dédiée. À très bientôt !",
       };
     }
@@ -114,7 +114,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
     if (cat.includes("consult") || name.includes("consult")) {
       return {
         label: "Consultation Dermo-Cosmétique",
-        icon: Sparkles,
+        icon: NsorommaIcon,
         badgeBg: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
         pillColor: "#10B981",
       };
@@ -145,7 +145,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
     }
     return {
       label: "Soin Esthétique Cabine & Éclat",
-      icon: Sparkles,
+      icon: DuafeIcon,
       badgeBg: "bg-[#C8951E]/15 text-[#C8951E] dark:text-[#E3B04B] border-[#C8951E]/30",
       pillColor: "#C8951E",
     };
@@ -184,7 +184,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
     const serviceName = appt.service?.name || "mon soin";
     const dateStr = formatDate(appt.startAt);
     const timeStr = formatTime(appt.startAt);
-    const msg = `Bonjour ${instName} ! 🌸\n\nJe confirme ma venue pour mon rendez-vous de soin *${serviceName}* prévu le *${dateStr}* à *${timeStr}* (avec ${appt.resource?.name || "ma praticienne"}).\n\nNom : ${appt.clientName}\nÀ très vite ! ✨`;
+    const msg = `Bonjour ${instName} ! 🌸\n\nJe confirme ma venue pour mon rendez-vous de soin *${serviceName}* prévu le *${dateStr}* à *${timeStr}* (avec ${appt.resource?.name || "ma praticienne"}).\n\nNom : ${appt.clientName}\nÀ très vite ! 🌿`;
     openWhatsApp(tenantPhone, msg, country);
   }
 
@@ -201,8 +201,8 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
             </span>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#A0522D]/15 text-[#A0522D] dark:text-[#E89E78] border border-[#A0522D]/30">
-                  ✨ Rendez-vous &amp; Soins Cabine
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#A0522D]/15 text-[#A0522D] dark:text-[#E89E78] border border-[#A0522D]/30 inline-flex items-center gap-1">
+                  <NsorommaIcon size={11} /> Rendez-vous &amp; Soins Cabine
                 </span>
               </div>
               <h3 id="care-appts-heading" className="font-heading font-black text-sm sm:text-base text-foreground mt-0.5">
@@ -233,14 +233,14 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
               onClick={() => handleBookCategory("Consultation", "Consultation dermo-cosmétique")}
               className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-bold active:scale-95 transition-all"
             >
-              <Sparkles size={13} />
+              <NsorommaIcon size={13} />
               Consultation
             </button>
             <button
               onClick={() => handleBookCategory("Soin esthétique", "Soin esthétique cabine & éclat")}
               className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-[#C8951E]/15 hover:bg-[#C8951E]/25 text-[#C8951E] dark:text-[#E3B04B] border border-[#C8951E]/30 text-xs font-bold active:scale-95 transition-all"
             >
-              <Sparkles size={13} />
+              <DuafeIcon size={13} />
               Soin cabine
             </button>
             <button
@@ -360,8 +360,8 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
             </span>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#A0522D]/15 text-[#A0522D] dark:text-[#E89E78] border border-[#A0522D]/30">
-                  ✨ Soin en Institut Partenaire
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#A0522D]/15 text-[#A0522D] dark:text-[#E89E78] border border-[#A0522D]/30 inline-flex items-center gap-1">
+                  <DuafeIcon size={11} /> Soin en Institut Partenaire
                 </span>
               </div>
               <h3 id="care-appts-heading" className="font-heading font-black text-sm sm:text-base text-foreground mt-0.5">
@@ -547,14 +547,14 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
             onClick={() => handleBookCategory("Consultation", "Consultation dermo-cosmétique")}
             className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[11px] font-bold active:scale-95 transition-all"
           >
-            <Sparkles size={11} />
+            <NsorommaIcon size={11} />
             Consultation
           </button>
           <button
             onClick={() => handleBookCategory("Soin esthétique", "Soin esthétique cabine & éclat")}
             className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-[#C8951E]/15 hover:bg-[#C8951E]/25 text-[#C8951E] dark:text-[#E3B04B] border border-[#C8951E]/30 text-[11px] font-bold active:scale-95 transition-all"
           >
-            <Sparkles size={11} />
+            <DuafeIcon size={11} />
             Soin cabine
           </button>
           <button

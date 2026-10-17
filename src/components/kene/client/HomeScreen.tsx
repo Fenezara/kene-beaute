@@ -15,7 +15,6 @@ import {
   MessageCircle,
   ScanFace,
   ShieldAlert,
-  Sparkles,
   SunMedium,
   Wind,
 } from "lucide-react";

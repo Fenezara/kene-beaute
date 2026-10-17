@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Loader2, LogIn, Play, ShieldCheck, Sparkles, X,
+  ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Loader2, LogIn, Play, ShieldCheck, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -27,7 +27,7 @@ import {
   firstNameOf, forgetAccount, maskPhone, readLastAccount, rememberAccount, type LastAccount,
 } from "@/lib/kene/last-account";
 import { AuroraBackdrop, Eyebrow, GlassCard, Reveal, RevealItem } from "@/components/kene/ui2026";
-import { DuafeIcon, KeneEmblem, KeneEmblemLockup, KeneMark, CauriIcon } from "@/components/kene/icons";
+import { DuafeIcon, KeneEmblem, KeneEmblemLockup, KeneMark, CauriIcon, NsorommaIcon, KeneSunIcon } from "@/components/kene/icons";
 import { useKene, type SessionUser } from "@/store/kene";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { isOnline } from "@/lib/kene/ux";
@@ -462,7 +462,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                       className="hidden md:inline-flex h-9 items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 px-3.5 text-[11.5px] font-bold text-gold-text transition-all hover:scale-105 active:scale-95 shadow-xs"
                       title="Découvrir l'Étude de Cas Awwwards, le design system et la 3D WebGL"
                     >
-                      <Sparkles size={12} className="text-gold-text animate-pulse" />
+                      <NsorommaIcon size={12} className="text-gold-text animate-pulse" />
                       <span>Case Study 3D</span>
                     </Link>
                     <button
@@ -675,7 +675,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                   <div className="rounded-2xl border border-gold/40 bg-card/90 backdrop-blur-md p-3 sm:p-4 shadow-md space-y-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
-                        <Sparkles size={14} className="text-gold-text animate-pulse shrink-0" />
+                        <KeneSunIcon size={14} className="text-gold-text animate-pulse shrink-0" />
                         <span className="text-xs font-bold text-foreground">Comptes de Test &amp; Démo (Accès direct 1 Clic)</span>
                       </div>
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-gold/15 text-gold-text font-semibold shrink-0">
@@ -1271,7 +1271,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                   href="/case-study"
                   className="inline-flex items-center gap-1.5 text-[11px] font-bold text-gold-text hover:text-gold transition-colors hover:underline"
                 >
-                  <Sparkles size={11} />
+                  <NsorommaIcon size={11} />
                   <span>Candidature Awwwards · Lire l&apos;Étude de Cas &amp; Laboratoire 3D</span>
                 </Link>
               </div>

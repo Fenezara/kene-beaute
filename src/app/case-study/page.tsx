@@ -23,7 +23,6 @@ import {
   ScanFace,
   ShieldCheck,
   Smartphone,
-  Sparkles,
   Volume2,
   Zap,
 } from "lucide-react";

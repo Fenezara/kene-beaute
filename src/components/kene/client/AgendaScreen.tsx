@@ -12,7 +12,6 @@ import {
   Clock,
   MapPin,
   MessageCircle,
-  Sparkles,
   CalendarDays,
   CheckCircle2,
   Download,
@@ -42,6 +41,7 @@ import { useKene } from "@/store/kene";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { cn } from "@/lib/utils";
 import { BODY_ZONES } from "@/lib/kene/types";
+import { DuafeIcon, NsorommaIcon, KeneSunIcon, CauriIcon } from "@/components/kene/icons";
 import type { ApiAppointment, ApiDiagnosis, ApiInstitute } from "./types";
 import { parseDiagnosis } from "./types";
 
@@ -122,7 +122,7 @@ export const RDV_TYPES_CATALOG: RdvTypeDefinition[] = [
       "Protocoles traitants pour peaux mélanodermes : peeling doux mandélique/PHA, soin anti-taches PIH, détox acné et hydratation.",
     durationMin: 60,
     indicativePrice: 25000,
-    icon: Sparkles,
+    icon: DuafeIcon,
     badgeClass:
       "bg-[#C8951E]/15 text-[#C8951E] dark:text-[#E3B04B] border-[#C8951E]/30",
     cardBorderClass: "border-[#C8951E]/35 hover:border-[#C8951E]/70",
@@ -502,7 +502,7 @@ export function AgendaScreen() {
 
     if (isToday) {
       return {
-        badge: "Aujourd'hui ✨",
+        badge: "Aujourd'hui 🔆",
         title: `Votre soin a lieu aujourd'hui à ${formatTime(nextAppt.startAt)}`,
         sub: `Votre cabine dédiée est prête chez ${
           nextAppt.tenant?.name || "votre institut"
@@ -572,7 +572,7 @@ export function AgendaScreen() {
 
       const savedAppt = res.appointment;
       setAppointments((prev) => [savedAppt, ...prev.filter((a) => a.id !== savedAppt.id)]);
-      toast.success(`Rendez-vous « ${quickBookType.shortLabel} » enregistré ! ✨`, {
+      toast.success(`Rendez-vous « ${quickBookType.shortLabel} » enregistré ! 🌿`, {
         description: `Demande envoyée à ${targetTenant.name} pour le ${formatDate(startIso)} à ${quickTime}. En attente de validation.`,
       });
 
@@ -662,7 +662,7 @@ export function AgendaScreen() {
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <Sparkles size={14} className={activeSubTab === "reserver" ? "text-gold-text" : ""} />
+          <DuafeIcon size={14} className={activeSubTab === "reserver" ? "text-gold-text" : ""} />
           <span className="truncate">Réserver un Soin</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-gold/20 text-gold-text font-black shrink-0">
             6 soins
@@ -817,7 +817,7 @@ export function AgendaScreen() {
               )}
             >
               <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gold/20 text-gold-text">
-                <Sparkles size={18} />
+                <KeneSunIcon size={18} />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -878,7 +878,7 @@ export function AgendaScreen() {
                   }}
                   className="k-btn-gold h-10 px-5 rounded-xl text-primary-foreground font-black text-xs inline-flex items-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
                 >
-                  <Sparkles size={14} />
+                  <DuafeIcon size={14} />
                   <span>Choisir un soin &amp; Réserver</span>
                 </button>
               </div>
@@ -1187,7 +1187,7 @@ export function AgendaScreen() {
         <div className="space-y-4">
           <div className="rounded-[22px] p-4 border border-gold/30 bg-gold/5 flex items-start gap-3">
             <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gold/20 text-gold-text">
-              <Sparkles size={18} />
+              <DuafeIcon size={18} />
             </span>
             <div className="min-w-0 flex-1">
               <h3 className="font-heading font-bold text-sm text-foreground">

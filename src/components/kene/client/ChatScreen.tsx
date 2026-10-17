@@ -41,7 +41,6 @@ import {
   Volume2,
   VolumeX,
   X,
-  Sparkles,
   Calendar,
   ShoppingBag,
   MessageCircle,
@@ -71,7 +70,7 @@ const DrKeneOrb3D = dynamic(() => import("./DrKeneOrb3D").then((mod) => mod.DrKe
   loading: () => (
     <div className="relative size-[185px] sm:size-[225px] flex items-center justify-center">
       <div className="size-24 rounded-full border border-amber-400/40 bg-gradient-to-tr from-emerald-600/30 via-amber-500/20 to-teal-700/20 animate-pulse flex items-center justify-center">
-        <span className="text-2xl animate-bounce">✨</span>
+        <NsorommaIcon size={26} className="text-[#C8951E] animate-pulse" />
       </div>
     </div>
   ),
@@ -410,7 +409,7 @@ function InciShieldCard({
                 className="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10.5px] font-semibold border border-emerald-500/25"
                 title={b.explanation}
               >
-                ✨ {b.name}
+                🌿 {b.name}
               </span>
             ))}
           </div>
@@ -1305,7 +1304,7 @@ export function ChatScreen() {
                   </>
                 ) : (
                   <>
-                    <Sparkles size={13} className="text-[#C8951E]" />
+                    <NsorommaIcon size={13} className="text-[#C8951E]" />
                     <span>Touchez l&apos;Orbe ou parlez ci-dessous</span>
                   </>
                 )}
@@ -1554,7 +1553,7 @@ export function ChatScreen() {
             <div className="flex items-center gap-2">
               <span className="text-xs font-black text-foreground">Échanges ({messages.length})</span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-                {threadOrder === "newest-first" ? "✨ Plus récent en haut" : "Ordre chronologique"}
+                {threadOrder === "newest-first" ? "🔆 Plus récent en haut" : "Ordre chronologique"}
               </span>
             </div>
             <button
@@ -1593,7 +1592,7 @@ export function ChatScreen() {
                       {isNewestCard && (
                         <div className="flex justify-end mb-1">
                           <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
-                            ✨ Dernier message envoyé
+                            🔆 Dernier message envoyé
                           </span>
                         </div>
                       )}
@@ -1630,8 +1629,8 @@ export function ChatScreen() {
                       {isNewestCard && (
                         <div className="flex items-center gap-1.5 mb-1.5">
                           <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 shadow-2xs">
-                            <Sparkles size={11} className="text-amber-500 animate-spin-slow" />
-                            ✨ Dernier échange (Récent)
+                            <NsorommaIcon size={11} className="text-amber-500 animate-spin-slow" />
+                            Dernier échange (Récent)
                           </span>
                         </div>
                       )}

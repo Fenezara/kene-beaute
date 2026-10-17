@@ -13,7 +13,7 @@
 // lourds sont lazy (chunk dédié au premier clic — HomeScreen/Onboarding eager).
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarDays, Crown, FolderHeart, Home, Loader2, MessageCircle, Settings, Share2, ShieldAlert, Sparkles, User, WifiOff } from "lucide-react";
+import { CalendarDays, Crown, FolderHeart, Home, Loader2, MessageCircle, Settings, Share2, ShieldAlert, User, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
 import { HAPTIC, haptic, isOnline, useNetworkOnline } from "@/lib/kene/ux";

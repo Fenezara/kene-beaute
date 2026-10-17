@@ -17,7 +17,6 @@ import {
   MessageCircle,
   Search,
   Share2,
-  Sparkles,
   Star,
   Store,
   CalendarPlus,
@@ -26,7 +25,7 @@ import { toast } from "sonner";
 import { apiGet, apiPatch } from "@/lib/kene/api";
 import { openWhatsApp, buildWhatsAppInstituteShareMessage, openWhatsAppAppointmentInquiry } from "@/lib/kene/whatsapp-relay";
 import { useKene, isSavedUser } from "@/store/kene";
-import { SankofaIcon, CauriIcon, KeneEmblem } from "@/components/kene/icons";
+import { SankofaIcon, CauriIcon, KeneEmblem, NsorommaIcon } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
 import type { ApiInstitute } from "./types";
 import { LinkAccountModal } from "./LinkAccountModal";
@@ -136,7 +135,7 @@ export function InstitutesScreen() {
       });
 
       if (nextTenantId) {
-        toast.success(`Institut partenaire coché ✨`, {
+        toast.success(`Institut partenaire coché 🌿`, {
           description: `${inst.name} est désormais votre institut de référence. Vos prochains rendez-vous et soins WhatsApp lui seront directement liés.`,
         });
       } else {
@@ -161,7 +160,7 @@ export function InstitutesScreen() {
       return;
     }
     const phone = inst.phone || inst.ownerPhone || "2250700000000";
-    const msg = `Bonjour ${inst.name} ! 🌸\n\nJe suis cliente sur l'application Kènè (${user.name}). Je souhaite échanger avec vous pour mes rituels de soin dermo-cosmétiques.\n\nÀ très bientôt ! ✨`;
+    const msg = `Bonjour ${inst.name} ! 🌸\n\nJe suis cliente sur l'application Kènè (${user.name}). Je souhaite échanger avec vous pour mes rituels de soin dermo-cosmétiques.\n\nÀ très bientôt ! 🌿`;
     openWhatsApp(phone, msg, inst.country === "SN" ? "SN" : "CI");
   }
 
@@ -242,7 +241,7 @@ export function InstitutesScreen() {
               </span>
               <div className="min-w-0">
                 <span className="text-[10px] font-extrabold uppercase tracking-widest text-primary flex items-center gap-1">
-                  <Sparkles size={11} /> Mon Institut Référent
+                  <NsorommaIcon size={11} /> Mon Institut Référent
                 </span>
                 <h3 className="font-heading font-black text-base sm:text-lg text-foreground truncate">
                   {currentSelectedInst.name}

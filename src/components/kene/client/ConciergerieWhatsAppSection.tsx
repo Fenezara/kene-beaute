@@ -14,7 +14,6 @@ import {
   Crown,
   MessageCircle,
   Calendar,
-  Sparkles,
   ShoppingBag,
   ShieldCheck,
   Truck,
@@ -41,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { useKene, type ClientTab } from "@/store/kene";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { openWhatsApp, KENE_SUPPORT_PHONE, getClientSelectedInstitute } from "@/lib/kene/whatsapp-relay";
+import { NsorommaIcon } from "@/components/kene/icons";
 import type { ApiInstitute } from "./types";
 
 type ConciergeCategory = "rdv" | "commande" | "sos_peau" | "suivi" | "cadeau";
@@ -77,7 +77,7 @@ export function ConciergerieWhatsAppSection({ selectedInstitute, onNavigateTab }
 
   // Construction du message WhatsApp VIP
   const buildWhatsAppMessage = () => {
-    const greeting = `Bonjour l'équipe de *${targetName}* ! 🌿✨\nJe suis *${user.name}* (tel: ${user.phone}).`;
+    const greeting = `Bonjour l'équipe de *${targetName}* ! 🌿\nJe suis *${user.name}* (tel: ${user.phone}).`;
     const fitzInfo = user.fitzpatrick ? `\n• Mon profil : Fitzpatrick ${user.fitzpatrick} (peau mélanoderme)` : "";
 
     let body = "";
@@ -178,7 +178,7 @@ export function ConciergerieWhatsAppSection({ selectedInstitute, onNavigateTab }
           {[
             { id: "rdv", label: "Prendre un RDV Soin", icon: Calendar, badge: "Prioritaire" },
             { id: "commande", label: "Ordonnance Beauté", icon: ShoppingBag, badge: "Express" },
-            { id: "sos_peau", label: "SOS Peau Direct", icon: Sparkles, badge: "Urgence" },
+            { id: "sos_peau", label: "SOS Peau Direct", icon: NsorommaIcon, badge: "Urgence" },
             { id: "suivi", label: "Suivi & Paiements", icon: Truck, badge: "Wave / OM" },
             { id: "cadeau", label: "Privilèges & Cadeaux", icon: Gift, badge: "VIP" },
           ].map((cat) => {
@@ -361,7 +361,7 @@ export function ConciergerieWhatsAppSection({ selectedInstitute, onNavigateTab }
           {category === "sos_peau" && (
             <div className="space-y-3.5">
               <h4 className="font-heading font-bold text-sm flex items-center gap-2">
-                <Sparkles className="size-4 text-amber-500" />
+                <NsorommaIcon className="size-4 text-amber-500" />
                 SOS Peau &amp; Conseil Dermo-Cosmétique d&apos;Urgence
               </h4>
 

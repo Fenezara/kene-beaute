@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, ArrowRight, ShieldCheck, X, LogIn } from "lucide-react";
+import { ArrowRight, ShieldCheck, X, LogIn } from "lucide-react";
+import { NsorommaIcon } from "@/components/kene/icons";
 import { useKene, isSavedUser } from "@/store/kene";
 import { LinkAccountModal } from "./LinkAccountModal";
 
@@ -24,7 +25,7 @@ export function GuestSaveBanner() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-amber-500/20 text-amber-500 dark:text-amber-400">
-              <Sparkles size={16} />
+              <NsorommaIcon size={16} />
             </span>
             <div className="min-w-0">
               <p className="text-xs font-bold text-foreground truncate">

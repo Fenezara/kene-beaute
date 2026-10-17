@@ -5,7 +5,7 @@
 // 6 longueurs d'onde optiques + lumière polarisée & corrélation avec la pharmacopée africaine.
 
 import { useMemo, useState } from "react";
-import { Eye, Layers, ZoomIn, ZoomOut, Sparkles, Copy, Check, FlaskConical, Info, ShieldCheck } from "lucide-react";
+import { Eye, Layers, ZoomIn, ZoomOut, Copy, Check, FlaskConical, Info, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { BissapFlowerIcon, KeneSunIcon } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";

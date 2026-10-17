@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Droplets, FileDown, GitCompareArrows, Hand, History,
-  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Sparkles, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
+  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
@@ -12,7 +12,7 @@ import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
 import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
 import { cn } from "@/lib/utils";
 import { BODY_ZONES, CLIENT_SPECTRAL_VIEWS, SPECTRAL_VIEWS, ZONE_PHOTO_SLOTS, type AtlasLevel, type BodyZone, type DiagnosisResult, type Indicator, type SuspectedCondition, type ZonePhotoSlot } from "@/lib/kene/types";
-import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon, CauriIcon, DuafeIcon, KeneSunIcon } from "@/components/kene/icons";
+import { BaobabIcon, KariteIcon, MoringaIcon, NeaOnnimIcon, CauriIcon, DuafeIcon, KeneSunIcon, NsorommaIcon } from "@/components/kene/icons";
 import { AdinkraSky } from "@/components/kene/constellation/AdinkraSky";
 import { diagQueueCount, enqueueDiag, subscribeDiagQueue } from "@/lib/kene/diag-queue";
 import { HAPTIC, haptic, isOnline } from "@/lib/kene/ux";
@@ -595,7 +595,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           {/* En-tête Héro : Badge Star + Guide Vocal */}
           <div className="relative flex items-center justify-between gap-2 mb-3">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-gold/25 to-gold/10 border border-gold/40 text-gold-text font-black text-[10.5px] uppercase tracking-wider shadow-2xs">
-              <Sparkles size={12} className="text-gold-text" />
+              <NsorommaIcon size={12} className="text-gold-text" />
               <span>Diagnostic Star · 1 Clic</span>
             </span>
             <AudioGuideButton
@@ -632,7 +632,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
               💧 Sébum &amp; Pores
             </span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-              ✨ Uniformité &amp; Éclat
+              🔆 Uniformité &amp; Éclat
             </span>
           </div>
 
@@ -1493,11 +1493,11 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
           <div className="rounded-[22px] border-2 border-gold/50 bg-gradient-to-r from-gold/15 via-amber-500/10 to-transparent p-4 shadow-sm">
             <div className="flex items-start gap-3">
               <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-gold/25 text-gold-text">
-                <Sparkles size={20} />
+                <NsorommaIcon size={20} />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="font-heading font-black text-sm text-foreground">
-                  Ton ordonnance personnalisée est prête ! ✨
+                  Ton ordonnance personnalisée est prête ! 🌿
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                   Enregistre ton numéro pour la conserver à vie, suivre l&apos;évolution de tes taches et retrouver tes rituels sur tous tes appareils.
@@ -2211,7 +2211,7 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
                   const pdfUrl = `${origin}/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`;
                   const botanicals = diag.result.recommandations?.botaniques_conseillees?.slice(0, 3).join(", ") || "Actifs apaisants";
                   const zoneLabel = BODY_ZONES.find((z) => z.id === diag.result.zone)?.label || diag.result.zone;
-                  const msg = `Bonjour ${partnerInstitute.name} ! 🌸\n\nJe suis cliente Kènè (${user.name}). Je viens de réaliser mon analyse cutanée sur la zone *${zoneLabel}* avec un score de *${diag.result.score_global}/100*.\n\n🌱 *Actifs botaniques recommandés* : ${botanicals}\n📄 *Mon Pass Cabine & Protocole (PDF)* :\n${pdfUrl}\n\nJe souhaite échanger avec vous pour faire le point sur mes résultats et planifier mon prochain soin en cabine.\n\nÀ très vite ! ✨`;
+                  const msg = `Bonjour ${partnerInstitute.name} ! 🌸\n\nJe suis cliente Kènè (${user.name}). Je viens de réaliser mon analyse cutanée sur la zone *${zoneLabel}* avec un score de *${diag.result.score_global}/100*.\n\n🌱 *Actifs botaniques recommandés* : ${botanicals}\n📄 *Mon Pass Cabine & Protocole (PDF)* :\n${pdfUrl}\n\nJe souhaite échanger avec vous pour faire le point sur mes résultats et planifier mon prochain soin en cabine.\n\nÀ très vite ! 🌿`;
                   openWhatsApp(phone, msg, partnerInstitute.country || "CI");
                 }}
                 className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] hover:bg-[#20ba59] text-white text-sm font-bold shadow-md transition active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-[#25D366]"

@@ -12,10 +12,10 @@ import {
   ShieldCheck,
   TriangleAlert,
   AlertTriangle,
-  Sparkles,
   MessageCircle,
   RotateCcw,
 } from "lucide-react";
+import { MoringaIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -332,7 +332,7 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
                 {analysis.detectedBeneficial.length > 0 && (
                   <div className="mt-3 p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 space-y-1">
                     <p className="font-bold text-emerald-700 dark:text-emerald-400 text-xs flex items-center gap-1.5">
-                      <Sparkles size={14} /> Ingrédients nobles et protecteurs identifiés :
+                      <MoringaIcon size={14} /> Ingrédients nobles et protecteurs identifiés :
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {analysis.detectedBeneficial.map((b) => b.name).join(", ")}

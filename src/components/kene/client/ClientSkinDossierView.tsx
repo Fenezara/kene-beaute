@@ -12,7 +12,6 @@ import {
   Activity,
   History,
   Images,
-  Sparkles,
   ShieldCheck,
   ShieldAlert,
   Award,
@@ -49,7 +48,7 @@ import { apiGet } from "@/lib/kene/api";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
 import { PhotoLightboxModal, type LightboxPhoto } from "@/components/kene/common/PhotoLightboxModal";
-import { CauriIcon, KeneSunIcon, DuafeIcon, NeaOnnimIcon } from "@/components/kene/icons";
+import { CauriIcon, KeneSunIcon, DuafeIcon, NeaOnnimIcon, NsorommaIcon, BissapFlowerIcon, KariteIcon } from "@/components/kene/icons";
 import { parseDiagnosis, diagImgSrc, type ApiDiagnosis, type ApiInstitute } from "./types";
 import { useKene, isSavedUser, type ClientTab } from "@/store/kene";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
@@ -80,6 +79,11 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   // Sauvegarde compte WhatsApp
   const [linkModalOpen, setLinkModalOpen] = useState(false);
   const isGuestUser = !isSavedUser(storeUser);
+
+  // Source et sélection du Comparateur Avant / Après
+  const [avantApresSource, setAvantApresSource] = useState<"clinical" | "client">("clinical");
+  const [selectedBeforeId, setSelectedBeforeId] = useState<string | null>(null);
+  const [selectedAfterId, setSelectedAfterId] = useState<string | null>(null);
 
   // Diagnoses gérées localement si non injectées depuis l'extérieur
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>(initialDiagnoses ?? []);
@@ -157,43 +161,99 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
     setLightboxOpen(true);
   };
 
-  // Photos réelles de la cliente pour le comparateur Avant / Après
-  const { beforePhotoUrl, afterPhotoUrl, hasRealPhotos, beforeDate, afterDate } = useMemo(() => {
-    const validWithImages = [...diagnoses]
+  // Diagnostics valides avec photo
+  const validWithImages = useMemo(() => {
+    return [...diagnoses]
       .filter((d) => d.imageData && d.imageData.trim() !== "")
-      .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)); // du plus ancien au plus récent
+      .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)); // chronologique
+  }, [diagnoses]);
 
-    if (validWithImages.length >= 2) {
-      const first = diagImgSrc(validWithImages[0].imageData);
-      const last = diagImgSrc(validWithImages[validWithImages.length - 1].imageData);
-      if (first && last && first !== last) {
-        return {
-          beforePhotoUrl: first,
-          afterPhotoUrl: last,
-          hasRealPhotos: true,
-          beforeDate: formatDate(validWithImages[0].createdAt),
-          afterDate: formatDate(validWithImages[validWithImages.length - 1].createdAt),
-        };
-      }
+  const beforeDiag = useMemo(() => {
+    if (selectedBeforeId) {
+      return validWithImages.find((d) => d.id === selectedBeforeId) ?? validWithImages[0] ?? null;
     }
-    if (validWithImages.length === 1) {
-      const single = diagImgSrc(validWithImages[0].imageData);
+    return validWithImages[0] ?? null;
+  }, [validWithImages, selectedBeforeId]);
+
+  const afterDiag = useMemo(() => {
+    if (selectedAfterId) {
+      return validWithImages.find((d) => d.id === selectedAfterId) ?? validWithImages[validWithImages.length - 1] ?? null;
+    }
+    return validWithImages[validWithImages.length - 1] ?? null;
+  }, [validWithImages, selectedAfterId]);
+
+  // Données du comparateur selon la source active (Cas Clinique Témoin vs Scans Personnels)
+  const comparisonData = useMemo(() => {
+    if (avantApresSource === "clinical") {
       return {
-        beforePhotoUrl: single || "/skin/guide-visage-1.webp",
-        afterPhotoUrl: "/skin/guide-visage-2.webp",
-        hasRealPhotos: false,
-        beforeDate: formatDate(validWithImages[0].createdAt),
-        afterDate: "Objectif J+30",
+        beforePhoto: "/skin/clinical-before.jpg",
+        afterPhoto: "/skin/clinical-after.jpg",
+        beforeLabel: "Avant (Jour 0)",
+        afterLabel: "Après (Jour 30)",
+        beforeDate: "Bilan initial",
+        afterDate: "Suivi post-protocole",
+        beforeScore: 56,
+        afterScore: 82,
+        zoneLabel: "Visage · Phototype V",
+        hasRealPhotos: true,
+        defaultLayoutMode: "slider" as const,
+        description: "Cas clinique certifié Kènè : Traitement de l'hyperpigmentation post-inflammatoire (PIH) et du teint terne sur phototype V. Atténuation de 70% des taches et éclat solaire retrouvé en 30 jours.",
       };
     }
+
+    // Source client (scans personnels)
+    if (validWithImages.length >= 2 && beforeDiag && afterDiag) {
+      const firstSrc = diagImgSrc(beforeDiag.imageData);
+      const lastSrc = diagImgSrc(afterDiag.imageData);
+      return {
+        beforePhoto: firstSrc,
+        afterPhoto: lastSrc,
+        beforeLabel: `Avant (${beforeDiag.zone?.replace("_", " ") || "Séance"})`,
+        afterLabel: `Après (${afterDiag.zone?.replace("_", " ") || "Séance"})`,
+        beforeDate: formatDate(beforeDiag.createdAt),
+        afterDate: formatDate(afterDiag.createdAt),
+        beforeScore: beforeDiag.scoreGlobal ?? undefined,
+        afterScore: afterDiag.scoreGlobal ?? undefined,
+        zoneLabel: beforeDiag.zone === afterDiag.zone ? beforeDiag.zone : undefined,
+        hasRealPhotos: true,
+        defaultLayoutMode: "side" as const,
+        description: "Vos scans authentiques de suivi cutané. Présentation intégrale côte à côte recommandée pour vos photos mobiles.",
+      };
+    }
+
+    if (validWithImages.length === 1 && beforeDiag) {
+      const single = diagImgSrc(beforeDiag.imageData);
+      return {
+        beforePhoto: single,
+        afterPhoto: "/skin/clinical-after.jpg",
+        beforeLabel: "Votre scan (J0)",
+        afterLabel: "Objectif (J30)",
+        beforeDate: formatDate(beforeDiag.createdAt),
+        afterDate: "Projection J+30",
+        beforeScore: beforeDiag.scoreGlobal ?? undefined,
+        afterScore: 85,
+        zoneLabel: beforeDiag.zone,
+        hasRealPhotos: false,
+        defaultLayoutMode: "side" as const,
+        description: "1er cliché de référence enregistré. Prenez votre second scan à J+30 pour mesurer vos propres progrès.",
+      };
+    }
+
     return {
-      beforePhotoUrl: "/skin/guide-visage-1.webp",
-      afterPhotoUrl: "/skin/guide-visage-2.webp",
+      beforePhoto: "/skin/clinical-before.jpg",
+      afterPhoto: "/skin/clinical-after.jpg",
+      beforeLabel: "Avant (Jour 0)",
+      afterLabel: "Après (Jour 30)",
+      beforeDate: "Référence",
+      afterDate: "Objectif cabine",
+      beforeScore: 56,
+      afterScore: 82,
+      zoneLabel: "Visage",
       hasRealPhotos: false,
-      beforeDate: "Séance initiale",
-      afterDate: "Contrôle cabine",
+      defaultLayoutMode: "slider" as const,
+      description: "Prenez votre première photo de référence Jour 0 pour démarrer votre historique Avant / Après.",
     };
-  }, [diagnoses]);
+  }, [avantApresSource, validWithImages, beforeDiag, afterDiag]);
 
   // Partage WhatsApp du Bilan Personnel et Routine Beauté
   const shareMySkinReportWhatsApp = () => {
@@ -209,7 +269,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
     const botanicals = lastResult?.recommandations?.botaniques_conseillees?.join(", ") || "Moringa d'Afrique, Karité brut bio, Kinkeliba, Hibiscus";
     const soins = lastResult?.recommandations?.soins_conseilles?.slice(0, 2).join(" • ") || "Soin du visage dermo-cosmétique en cabine";
 
-    const msg = `Bonjour l'équipe de *${instName}* ! 🌿✨\n\nVoici le point sur *Mon Dossier Peau & Routine Beauté Kènè* :\n\n📊 *Score Vitalité Cutanée* : ${globalScore}/100\n✨ *Carnation (Teint)* : Type ${user.fitzpatrick || "V"} (Peau noire & métissée)\n🌿 *Actifs Recommandés* : ${botanicals}\n💆‍♀️ *Soin Conseillé* : ${soins}\n\nJe souhaite faire le point sur mon évolution et programmer ma prochaine séance cabine. Merci ! 🌸`;
+    const msg = `Bonjour l'équipe de *${instName}* ! 🌿🔆\n\nVoici le point sur *Mon Dossier Peau & Routine Beauté Kènè* :\n\n📊 *Score Vitalité Cutanée* : ${globalScore}/100\n🔆 *Carnation (Teint)* : Type ${user.fitzpatrick || "V"} (Peau noire & métissée)\n🌿 *Actifs Recommandés* : ${botanicals}\n💆‍♀️ *Soin Conseillé* : ${soins}\n\nJe souhaite faire le point sur mon évolution et programmer ma prochaine séance cabine. Merci ! 🌸`;
 
     const phone = selectedInstitute?.phone || (selectedInstitute as any)?.ownerPhone || "";
     openWhatsApp(phone, msg);
@@ -641,7 +701,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             <div className="p-4 rounded-2xl bg-gradient-to-br from-[#C8951E]/12 to-[#8B1A3B]/10 border border-[#C8951E]/30 space-y-2.5 shadow-xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-primary font-black text-xs">
-                  <Sparkles size={16} />
+                  <DuafeIcon size={16} />
                   <span>Charte Make-Up Dermo-Compatible · Peaux Noires &amp; Métisses</span>
                 </div>
                 <Badge variant="outline" className="text-[10px] font-bold border-primary/30 text-primary">
@@ -693,51 +753,148 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         <Card className="rounded-[26px] border border-border/80 bg-card p-4 sm:p-5 space-y-4 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
             <div>
-              <h3 className="font-heading font-black text-base sm:text-lg text-foreground">
-                Comparateur Interactif Avant / Après
+              <h3 className="font-heading font-black text-base sm:text-lg text-foreground flex items-center gap-2">
+                <NsorommaIcon className="size-5 text-gold-text shrink-0" />
+                <span>Comparateur Évolutif Avant / Après</span>
               </h3>
               <p className="text-xs text-muted-foreground">
-                Glissez le curseur pour visualiser vos transformations cutanées entre les séances
+                Appréciez les transformations de votre peau et l&apos;atténuation visible des imperfections
               </p>
             </div>
-            {hasRealPhotos ? (
-              <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-xs font-black self-start sm:self-auto px-3 py-1 rounded-full">
-                +14 pts de vitalité Visia
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-xs font-bold text-muted-foreground">
-                Objectif J+30
-              </Badge>
-            )}
+            <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-xs font-black self-start sm:self-auto px-3 py-1 rounded-full flex items-center gap-1.5">
+              <KeneSunIcon className="size-3.5" />
+              <span>+14 pts de vitalité Visia</span>
+            </Badge>
           </div>
 
-          {/* Curseur interactif Avant/Après avec les photos réelles de la cliente */}
-          <div className="max-w-md mx-auto pt-2 space-y-2">
-            <BeforeAfterSlider
-              beforePhoto={beforePhotoUrl}
-              afterPhoto={afterPhotoUrl}
-              beforeLabel={beforeDate}
-              afterLabel={afterDate}
-            />
-            {hasRealPhotos ? (
-              <div className="flex items-center justify-between pt-1">
-                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
-                  ✓ Photos authentiques issues de vos scans et bilans cabine
-                </p>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => openPhotoLightbox(0)}
-                  className="h-7 text-xs font-bold text-primary gap-1 px-2"
-                >
-                  <Eye size={13} />
-                  <span>Agrandir en HD</span>
-                </Button>
+          {/* Onglets de sélection de source : Cas Clinique Témoin vs Mes Scans */}
+          <div className="grid grid-cols-2 p-1 rounded-2xl bg-muted/60 border border-border">
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setAvantApresSource("clinical");
+              }}
+              className={cn(
+                "h-9 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer",
+                avantApresSource === "clinical"
+                  ? "bg-card text-foreground shadow-xs border border-border/80 font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <NsorommaIcon className="size-3.5 text-gold-text" />
+              <span>Cas Clinique Kènè (30j)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setAvantApresSource("client");
+              }}
+              className={cn(
+                "h-9 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer",
+                avantApresSource === "client"
+                  ? "bg-card text-foreground shadow-xs border border-border/80 font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <DuafeIcon className="size-3.5 text-primary" />
+              <span>Mes Scans Personnels ({validWithImages.length})</span>
+            </button>
+          </div>
+
+          {/* Note explicative selon le mode sélectionné */}
+          <div className="rounded-xl p-3 bg-muted/30 border border-border/70 text-xs space-y-1">
+            <p className="font-semibold text-foreground flex items-center gap-1.5">
+              {avantApresSource === "clinical" ? (
+                <>
+                  <CauriIcon className="size-3.5 text-gold-text shrink-0" />
+                  <span>Cas clinique de référence · Phototype mélanoderme V</span>
+                </>
+              ) : (
+                <>
+                  <Camera className="size-3.5 text-primary shrink-0" />
+                  <span>Vos scans cutanés réels enregistrés</span>
+                </>
+              )}
+            </p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {comparisonData.description}
+            </p>
+          </div>
+
+          {/* Sélecteur de séances pour les scans personnels */}
+          {avantApresSource === "client" && validWithImages.length >= 2 && (
+            <div className="p-3 rounded-2xl bg-card border border-border/80 shadow-2xs space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="size-3.5 text-primary" />
+                  Sélectionner les deux bilans à comparer :
+                </span>
+                <span className="text-[10px] text-muted-foreground uppercase font-mono">
+                  {validWithImages.length} clichés disponibles
+                </span>
               </div>
-            ) : (
-              <div className="p-3 rounded-2xl bg-muted/40 border border-border/60 text-center space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 block mb-1">
+                    Cliché 1 · Séance Avant (J0)
+                  </label>
+                  <select
+                    value={beforeDiag?.id || ""}
+                    onChange={(e) => setSelectedBeforeId(e.target.value)}
+                    className="w-full h-8 px-2 rounded-lg bg-background border border-border text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
+                  >
+                    {validWithImages.map((d) => (
+                      <option key={`before-${d.id}`} value={d.id}>
+                        {formatDate(d.createdAt)} — {d.zone?.replace("_", " ") || "Visage"} ({d.scoreGlobal ?? 0}/100)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400 block mb-1">
+                    Cliché 2 · Séance Après (Suivi)
+                  </label>
+                  <select
+                    value={afterDiag?.id || ""}
+                    onChange={(e) => setSelectedAfterId(e.target.value)}
+                    className="w-full h-8 px-2 rounded-lg bg-background border border-border text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
+                  >
+                    {validWithImages.map((d) => (
+                      <option key={`after-${d.id}`} value={d.id}>
+                        {formatDate(d.createdAt)} — {d.zone?.replace("_", " ") || "Visage"} ({d.scoreGlobal ?? 0}/100)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Curseur interactif Avant/Après & Côte à côte */}
+          <div className="max-w-xl mx-auto pt-1 space-y-2">
+            <BeforeAfterSlider
+              key={`${avantApresSource}-${beforeDiag?.id || "default"}-${afterDiag?.id || "default"}`}
+              beforePhoto={comparisonData.beforePhoto}
+              afterPhoto={comparisonData.afterPhoto}
+              beforeLabel={comparisonData.beforeLabel}
+              afterLabel={comparisonData.afterLabel}
+              beforeDate={comparisonData.beforeDate}
+              afterDate={comparisonData.afterDate}
+              beforeScore={comparisonData.beforeScore}
+              afterScore={comparisonData.afterScore}
+              zoneLabel={comparisonData.zoneLabel}
+              defaultLayoutMode={comparisonData.defaultLayoutMode}
+            />
+
+            {avantApresSource === "client" && validWithImages.length < 2 && (
+              <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/70 text-center space-y-2">
                 <p className="text-xs text-foreground font-semibold">
-                  Prenez votre photo de référence Jour 0 pour démarrer votre historique Avant / Après personnalisé.
+                  {validWithImages.length === 1
+                    ? "Votre premier scan de référence est bien enregistré. Réalisez votre scan de contrôle à J+30 pour générer votre comparatif personnel."
+                    : "Prenez votre photo de référence Jour 0 pour démarrer votre historique Avant / Après personnalisé."}
                 </p>
                 <Button
                   size="sm"
@@ -745,7 +902,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                   className="k-btn-gold text-primary-foreground text-xs font-black h-9 px-4 rounded-xl gap-1.5 shadow-sm"
                 >
                   <ScanFace size={15} />
-                  <span>Capturer ma photo Jour 0</span>
+                  <span>{validWithImages.length === 1 ? "Capturer mon scan de contrôle (J+30)" : "Capturer ma photo Jour 0"}</span>
                 </Button>
               </div>
             )}
@@ -755,7 +912,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
           <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-border/60 text-center">
             <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
               <p className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Taches &amp; PIH</p>
-              <p className="text-lg font-black text-emerald-500 font-heading mt-0.5">-34%</p>
+              <p className="text-lg font-black text-emerald-500 font-heading mt-0.5">-70%</p>
               <p className="text-[10px] text-muted-foreground">atténuation prouvée</p>
             </div>
             <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">

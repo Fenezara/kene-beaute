@@ -66,7 +66,7 @@ export function LinkAccountModal({ open, onClose, reason }: LinkAccountModalProp
         } as SessionUser);
 
         haptic(HAPTIC.success);
-        toast.success("Votre profil et vos ordonnances sont sauvegardés ! ✨");
+        toast.success("Votre profil et vos ordonnances sont sauvegardés ! 🌿");
         onClose();
       }
     } catch (err) {

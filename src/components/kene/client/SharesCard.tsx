@@ -14,7 +14,6 @@ import {
   MessageCircle,
   CalendarPlus,
   Search,
-  Sparkles,
   MapPin,
   CheckCircle2,
 } from "lucide-react";
@@ -212,7 +211,7 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
 
     const phone = share.phone || share.ownerPhone || "";
     const country = (share.country || "CI") as "CI" | "SN";
-    const msg = `Bonjour ${share.name} ! 🌸\n\nJe suis cliente sur l'application Kènè (${userName}). J'ai choisi votre établissement comme institut partenaire référent et j'aimerais vous partager mon bilan cutané pour mes soins.\n\nÀ très vite ! ✨`;
+    const msg = `Bonjour ${share.name} ! 🌸\n\nJe suis cliente sur l'application Kènè (${userName}). J'ai choisi votre établissement comme institut partenaire référent et j'aimerais vous partager mon bilan cutané pour mes soins.\n\nÀ très vite ! 🌿`;
     openWhatsApp(phone, msg, country);
   };
 

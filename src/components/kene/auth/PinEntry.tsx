@@ -243,7 +243,7 @@ export function PinEntry() {
       const res = await apiGet<{ user: ApiUser }>("/api/auth/express");
       setUser(res.user as SessionUser);
       setSpace("client");
-      toast.success("Bienvenue sur Kènè ✨ Mode découverte actif");
+      toast.success("Bienvenue sur Kènè 🌿 Mode découverte actif");
       navigateToHome();
     } catch {
       navigateToHome();

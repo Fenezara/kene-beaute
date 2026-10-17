@@ -35,6 +35,7 @@ export interface BeforeAfterSliderProps {
   beforeDate?: string;
   afterDate?: string;
   zoneLabel?: string;
+  defaultLayoutMode?: "slider" | "side";
   className?: string;
 }
 
@@ -42,6 +43,7 @@ export function BeforeAfterSlider({
   before,
   after,
   showSpectralUvToggle = true,
+  defaultLayoutMode = "side",
   beforePhoto: flatBeforePhoto,
   afterPhoto: flatAfterPhoto,
   beforeLabel: flatBeforeLabel,
@@ -64,7 +66,7 @@ export function BeforeAfterSlider({
   const [sliderPos, setSliderPos] = useState(50); // Pourcentage 0..100
   const [isDragging, setIsDragging] = useState(false);
   const [spectralMode, setSpectralMode] = useState(false);
-  const [layoutMode, setLayoutMode] = useState<"slider" | "side">("slider");
+  const [layoutMode, setLayoutMode] = useState<"slider" | "side">(defaultLayoutMode);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleMove = useCallback((clientX: number) => {
@@ -121,7 +123,7 @@ export function BeforeAfterSlider({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {scoreDiff !== null && (
             <Badge
               variant="outline"
@@ -137,6 +139,38 @@ export function BeforeAfterSlider({
             </Badge>
           )}
 
+          {/* Sélecteur de mode d'affichage clair */}
+          <div className="inline-flex items-center rounded-xl bg-muted/80 p-0.5 border border-border shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setLayoutMode("side")}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                layoutMode === "side"
+                  ? "bg-card text-foreground shadow-xs font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Afficher les 2 photos entières côte à côte"
+            >
+              <Columns className="size-3.5 text-primary" />
+              <span>Côte à côte</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLayoutMode("slider")}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                layoutMode === "slider"
+                  ? "bg-card text-foreground shadow-xs font-black"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title="Glisser pour superposer la transformation"
+            >
+              <Split className="size-3.5 text-primary" />
+              <span>Curseur Split</span>
+            </button>
+          </div>
+
           {showSpectralUvToggle && (
             <Button
               size="sm"
@@ -149,20 +183,9 @@ export function BeforeAfterSlider({
               title="Activer la fluorescence UV (Porphyrines & Sébum)"
             >
               <KeneSunIcon className="size-3.5" />
-              <span className="hidden sm:inline">Vue UV</span>
+              <span>Vue UV</span>
             </Button>
           )}
-
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 px-2 text-xs gap-1 rounded-lg"
-            onClick={() => setLayoutMode(layoutMode === "slider" ? "side" : "slider")}
-            title="Basculer entre le curseur glissant et la vue côte à côte"
-          >
-            {layoutMode === "slider" ? <Columns className="size-3.5" /> : <Split className="size-3.5" />}
-            <span className="hidden sm:inline">{layoutMode === "slider" ? "Côte à côte" : "Curseur"}</span>
-          </Button>
         </div>
       </div>
 
@@ -245,43 +268,59 @@ export function BeforeAfterSlider({
               <span className="text-[10px] text-muted-foreground">Porphyrines C. acnes & Film sébacé</span>
             </div>
           )}
+          {layoutMode === "slider" && (
+            <p className="text-[11px] text-muted-foreground/80 italic text-center pt-1">
+              💡 Glissez le bouton central ↔️. Si vos 2 photos ont des cadrages différents, basculez en vue « Côte à côte » ci-dessus.
+            </p>
+          )}
         </div>
       ) : (
         /* Rendu Mode Côte à Côte */
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="relative aspect-square rounded-xl overflow-hidden border border-border bg-black/90">
-            <img
-              src={beforePhoto}
-              alt={beforeLabel}
-              style={{ filter: spectralMode ? spectralFilter : "none" }}
-              className="size-full object-cover"
-            />
-            <div className="absolute top-2 left-2 rounded-lg bg-black/75 px-2.5 py-1 text-left border border-white/10">
-              <p className="text-[10px] font-bold text-white uppercase">{beforeLabel}</p>
+        <div className="space-y-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="relative aspect-[4/5] sm:aspect-square rounded-2xl overflow-hidden border border-border/80 bg-black/90 shadow-xs">
+              <img
+                src={beforePhoto}
+                alt={beforeLabel}
+                style={{ filter: spectralMode ? spectralFilter : "none" }}
+                className="size-full object-cover"
+              />
+              <div className="absolute top-2.5 left-2.5 rounded-lg bg-black/85 backdrop-blur-md px-2.5 py-1 text-left border border-white/10 shadow-xs">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 block">{beforeLabel}</span>
+                {beforeDate && <span className="text-[9.5px] text-white/70 font-mono block">{beforeDate}</span>}
+              </div>
               {beforeScore !== undefined && (
-                <p className="text-xs font-mono font-bold" style={{ color: scoreVar(beforeScore) }}>
-                  Score: {beforeScore}/100
-                </p>
+                <div className="absolute bottom-2.5 right-2.5 rounded-lg bg-black/85 backdrop-blur-md px-2 py-0.5 border border-white/10 shadow-xs">
+                  <span className="text-xs font-mono font-bold" style={{ color: scoreVar(beforeScore) }}>
+                    Score {beforeScore}/100
+                  </span>
+                </div>
               )}
             </div>
-          </div>
 
-          <div className="relative aspect-square rounded-xl overflow-hidden border border-border bg-black/90">
-            <img
-              src={afterPhoto}
-              alt={afterLabel}
-              style={{ filter: spectralMode ? spectralFilter : "none" }}
-              className="size-full object-cover"
-            />
-            <div className="absolute top-2 right-2 rounded-lg bg-black/75 px-2.5 py-1 text-right border border-white/10">
-              <p className="text-[10px] font-bold text-white uppercase">{afterLabel}</p>
+            <div className="relative aspect-[4/5] sm:aspect-square rounded-2xl overflow-hidden border border-border/80 bg-black/90 shadow-xs">
+              <img
+                src={afterPhoto}
+                alt={afterLabel}
+                style={{ filter: spectralMode ? spectralFilter : "none" }}
+                className="size-full object-cover"
+              />
+              <div className="absolute top-2.5 right-2.5 rounded-lg bg-black/85 backdrop-blur-md px-2.5 py-1 text-right border border-white/10 shadow-xs">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">{afterLabel}</span>
+                {afterDate && <span className="text-[9.5px] text-white/70 font-mono block">{afterDate}</span>}
+              </div>
               {afterScore !== undefined && (
-                <p className="text-xs font-mono font-bold" style={{ color: scoreVar(afterScore) }}>
-                  Score: {afterScore}/100
-                </p>
+                <div className="absolute bottom-2.5 right-2.5 rounded-lg bg-black/85 backdrop-blur-md px-2 py-0.5 border border-white/10 shadow-xs">
+                  <span className="text-xs font-mono font-bold" style={{ color: scoreVar(afterScore) }}>
+                    Score {afterScore}/100
+                  </span>
+                </div>
               )}
             </div>
           </div>
+          <p className="text-[11px] text-muted-foreground/90 text-center">
+            Vue comparative intégrale · Clichés présentés dans leur cadrage complet sans découpe
+          </p>
         </div>
       )}
     </div>

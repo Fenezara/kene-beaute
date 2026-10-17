@@ -42,8 +42,8 @@ import {
   User,
   MessageCircle,
   LogIn,
-  Sparkles,
 } from "lucide-react";
+import { NsorommaIcon } from "@/components/kene/icons";
 import { LinkAccountModal } from "./LinkAccountModal";
 import { ContactKeneModal } from "./ContactKeneModal";
 import { toast } from "sonner";
@@ -351,7 +351,7 @@ export function SettingsScreen() {
                 <div className="mt-4 flex flex-col gap-2.5">
                   <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-2.5 text-xs text-amber-700 dark:text-amber-300">
                     <p className="font-bold flex items-center gap-1.5">
-                      <Sparkles size={14} /> Mode Découverte (Compte Invité)
+                      <NsorommaIcon size={14} /> Mode Découverte (Compte Invité)
                     </p>
                     <p className="text-[11px] mt-0.5 opacity-90">
                       Vous explorez Kènè sans engagement. Liez votre numéro pour enregistrer vos soins, ou connectez-vous si vous avez déjà un compte.
@@ -362,7 +362,7 @@ export function SettingsScreen() {
                       onClick={() => setLinkModalOpen(true)}
                       className="k-btn-gold h-11 rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-primary"
                     >
-                      <Sparkles size={14} /> Sauvegarder mon compte
+                      <NsorommaIcon size={14} /> Sauvegarder mon compte
                     </button>
                     <button
                       onClick={() => {

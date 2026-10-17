@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, CalendarDays, CalendarPlus, Check, ChevronRight, Clock, Compass, FileText, Loader2, LocateFixed, Lock, MapPin,
-  MessageCircle, MessageSquareQuote, ShieldCheck, Sparkles, Star, TriangleAlert, Users, X,
+  MessageCircle, MessageSquareQuote, ShieldCheck, Star, TriangleAlert, Users, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -672,7 +672,7 @@ export function BookingScreen() {
                   <RevealItem>
                     <div className="k-card mt-3 rounded-[20px] p-3.5 border border-border/70 bg-card/60 space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <Sparkles size={14} className="text-gold-text shrink-0" />
+                        <CauriIcon size={14} className="text-gold-text shrink-0" />
                         <h4 className="text-xs font-bold text-foreground">À propos de l&apos;institut</h4>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">

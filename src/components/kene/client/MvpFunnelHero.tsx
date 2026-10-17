@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   MessageCircle,
   Leaf,
-  Sparkles,
   FolderHeart,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,7 +17,7 @@ import { useKene } from "@/store/kene";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { scoreColor } from "@/lib/kene/format";
-import { CauriIcon } from "@/components/kene/icons";
+import { CauriIcon, NsorommaIcon } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
 import type { ApiDiagnosis, ApiInstitute } from "./types";
 
@@ -128,10 +127,10 @@ export function MvpFunnelHero({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C8951E]/25 border border-[#C8951E]/60 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#FFD875] shadow-xs">
                 <CauriIcon size={13} className="animate-pulse" />
-                ✨ Diagnostic IA & Dermo-Cosmétique Africaine
+                <span>Diagnostic IA &amp; Dermo-Cosmétique Africaine</span>
               </span>
               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#EADCC9]/90 bg-[#FFF9EC]/10 px-2.5 py-0.5 rounded-full">
-                <Sparkles size={11} className="text-[#FFD875]" /> +14 800 bilans réalisés
+                <NsorommaIcon size={11} className="text-[#FFD875]" /> +14 800 bilans réalisés
               </span>
             </div>
 
