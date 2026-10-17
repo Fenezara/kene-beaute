@@ -42,10 +42,10 @@ import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof } from "@/lib/kene/format";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import {
-  fetchTtsAudioUrl,
-  speakBrowserVoice,
+  playSpeech,
   stopBrowserVoice,
   unlockAudioContext,
+  type SpeechController,
 } from "../client/ttsAudio";
 import {
   pickRecorderMime,
@@ -129,6 +129,7 @@ export function AssistantSection({
   // Audio TTS
   const [audioState, setAudioState] = useState<"idle" | "loading" | "playing">("idle");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const speechCtrlRef = useRef<SpeechController | null>(null);
 
   // Enregistrement Audio Matériel & Web Audio API
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -165,7 +166,79 @@ export function AssistantSection({
     return "idle";
   }, [executed, audioState, loading, executing, isTranscribing, isRecording]);
 
-  // Chargement automatique du briefing exécutif et de la salutation dès l'ouverture de l'onglet
+  // Référence pour garantir que la salutation orale automatique n'est jouée qu'une fois par entrée sur l'onglet
+  const autoGreetedRef = useRef(false);
+
+  /* ───────────────────────── Contrôle Audio & Zéro Empilement ───────────────────────── */
+
+  const stopAllSpeech = useCallback(() => {
+    // 1. Contrôleur playSpeech unifié (streaming, web audio & fallback)
+    if (speechCtrlRef.current) {
+      try {
+        speechCtrlRef.current.stop();
+      } catch {}
+      speechCtrlRef.current = null;
+    }
+    // 2. Couper et libérer l'audio HTML5
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      } catch {}
+      audioRef.current = null;
+    }
+    // 3. Annuler Web Speech API
+    stopBrowserVoice();
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+    setAudioState("idle");
+  }, []);
+
+  const speakText = useCallback(async (spokenText: string) => {
+    const textToSpeak = spokenText?.trim();
+    if (!textToSpeak) return;
+
+    // Coupe net toute parole ou synthèse en cours (aucun empilement)
+    stopAllSpeech();
+
+    setAudioState("loading");
+    unlockAudioContext();
+
+    try {
+      const ctrl = await playSpeech({
+        text: textToSpeak,
+        speed: 1,
+        lang: "fr",
+        onStart: () => setAudioState("playing"),
+        onEnd: () => {
+          setAudioState("idle");
+          speechCtrlRef.current = null;
+        },
+        onError: () => {
+          setAudioState("idle");
+          speechCtrlRef.current = null;
+        },
+      });
+      speechCtrlRef.current = ctrl;
+    } catch {
+      setAudioState("idle");
+      speechCtrlRef.current = null;
+    }
+  }, [stopAllSpeech]);
+
+  const togglePlayVocalSummary = useCallback(async (spokenText: string) => {
+    // Si la secrétaire parle déjà ou charge l'audio : couper immédiatement sans relancer !
+    if (audioState === "playing" || audioState === "loading") {
+      stopAllSpeech();
+      return;
+    }
+    await speakText(spokenText);
+  }, [audioState, stopAllSpeech, speakText]);
+
+  // Chargement automatique du briefing exécutif ET salutation vocale dès l'arrivée sur l'onglet
   useEffect(() => {
     let isMounted = true;
     async function fetchGreeting() {
@@ -176,6 +249,11 @@ export function AssistantSection({
         );
         if (isMounted && res.summary) {
           setExecutiveBriefing(res.summary);
+          // La secrétaire commence à parler automatiquement dès l'ouverture de l'onglet !
+          if (!autoGreetedRef.current && res.summary.vocalSummary) {
+            autoGreetedRef.current = true;
+            void speakText(res.summary.vocalSummary);
+          }
         }
       } catch {
         /* best-effort */
@@ -186,63 +264,17 @@ export function AssistantSection({
     void fetchGreeting();
     return () => {
       isMounted = false;
+      stopAllSpeech();
     };
-  }, [tenantId, userName]);
+  }, [tenantId, userName, speakText, stopAllSpeech]);
 
   // Nettoyage au démontage
   useEffect(() => {
     return () => {
-      audioRef.current?.pause();
-      audioRef.current = null;
-      stopBrowserVoice();
+      stopAllSpeech();
       stopVoiceRecording();
     };
-  }, []);
-
-  /* ───────────────────────── Synthèse Vocale TTS ───────────────────────── */
-
-  const togglePlayVocalSummary = useCallback(async (spokenText: string) => {
-    if (audioState === "playing") {
-      audioRef.current?.pause();
-      stopBrowserVoice();
-      setAudioState("idle");
-      return;
-    }
-
-    setAudioState("loading");
-    unlockAudioContext();
-
-    // 1) Essai du TTS Cloud Kènè
-    try {
-      const url = await fetchTtsAudioUrl(spokenText, 1, "fr");
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => setAudioState("idle");
-      audio.onerror = () => fallbackBrowserVoice(spokenText);
-      await audio.play();
-      setAudioState("playing");
-      return;
-    } catch {}
-
-    // 2) Fallback voix locale navigateur
-    fallbackBrowserVoice(spokenText);
-  }, [audioState]);
-
-  function fallbackBrowserVoice(spokenText: string) {
-    const started = speakBrowserVoice(spokenText, {
-      lang: "fr-FR",
-      rate: 0.95,
-      pitch: 1.02,
-      onStart: () => setAudioState("playing"),
-      onEnd: () => setAudioState("idle"),
-      onError: (err) => {
-        setAudioState("idle");
-        console.warn("[tts:browser] error:", err);
-      },
-    });
-
-    if (!started) setAudioState("idle");
-  }
+  }, [stopAllSpeech]);
 
   /* ───────────────────────── Analyse Débriefing & Clarification ───────────────────────── */
 
@@ -272,14 +304,14 @@ export function AssistantSection({
 
       // Écoute automatique de la réponse vocale
       if (res.debrief.vocalSummary) {
-        void togglePlayVocalSummary(res.debrief.vocalSummary);
+        void speakText(res.debrief.vocalSummary);
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur lors de l'analyse");
     } finally {
       setLoading(false);
     }
-  }, [loading, tenantId, text, userName, debrief, togglePlayVocalSummary]);
+  }, [loading, tenantId, text, userName, debrief, speakText]);
 
   // Réponse en 1-Tap à une question de clarification
   function handleClarificationChoice(choiceValue: string) {
@@ -322,10 +354,7 @@ export function AssistantSection({
   }
 
   async function startListening() {
-    unlockAudioContext();
-    audioRef.current?.pause();
-    stopBrowserVoice();
-    setAudioState("idle");
+    stopAllSpeech();
 
     if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       toast.error("Votre navigateur ne permet pas l'enregistrement audio direct");
@@ -481,6 +510,11 @@ export function AssistantSection({
   }
 
   function toggleListening() {
+    if (audioState === "playing" || audioState === "loading") {
+      stopAllSpeech();
+      haptic(HAPTIC.light);
+      return;
+    }
     if (isRecording) {
       stopListening();
     } else {
@@ -518,7 +552,7 @@ export function AssistantSection({
       const res = await apiGet<{ summary: any }>(`/api/pro/assistant/daily-summary?tenantId=${tenantId}`);
       setEveningData(res.summary);
       if (res.summary.vocalSummary) {
-        void togglePlayVocalSummary(res.summary.vocalSummary);
+        void speakText(res.summary.vocalSummary);
       }
     } catch {
       toast.error("Impossible de charger le bilan du soir");
@@ -565,8 +599,7 @@ export function AssistantSection({
               type="button"
               onClick={() => {
                 setActiveTab("instant");
-                audioRef.current?.pause();
-                setAudioState("idle");
+                stopAllSpeech();
               }}
               className={`h-11 px-4 sm:px-5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
                 activeTab === "instant"
@@ -581,8 +614,7 @@ export function AssistantSection({
               type="button"
               onClick={() => {
                 setActiveTab("evening");
-                audioRef.current?.pause();
-                setAudioState("idle");
+                stopAllSpeech();
                 void loadEveningSummary();
               }}
               className={`h-11 px-4 sm:px-5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${

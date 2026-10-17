@@ -55,6 +55,7 @@ import { useApi } from "./useApi";
 import type { ProOverview, ProLive } from "./types";
 import { DEFAULT_FALLBACK_OVERVIEW, DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
+import { unlockAudioContext } from "../client/ttsAudio";
 import { CreateBranchDialog } from "./CreateBranchDialog";
 import { DashboardSection } from "./DashboardSection";
 import { AgendaSection } from "./AgendaSection";
@@ -402,6 +403,11 @@ export function ProEnterpriseShell() {
   }, [tid]);
 
   const openSection = (s: ProSectionId) => {
+    if (s === "assistant") {
+      try {
+        unlockAudioContext();
+      } catch {}
+    }
     if (s === "agenda") setAgendaSeen(live?.pendingAppts ?? 0);
     if (s === "orders") {
       setSalesTab("orders");
@@ -1412,7 +1418,12 @@ export function ProEnterpriseShell() {
 
       <button
         type="button"
-        onClick={() => openSection("assistant")}
+        onClick={() => {
+          try {
+            unlockAudioContext();
+          } catch {}
+          openSection("assistant");
+        }}
         className="fixed bottom-5 right-5 z-40 h-14 w-14 rounded-full bg-gradient-to-tr from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all ring-4 ring-black/40 group"
         aria-label="Ouvrir la Secrétaire IA de Direction"
         title="Secrétaire IA de Direction (Débriefing 1 clic)"
