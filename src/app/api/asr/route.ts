@@ -44,15 +44,22 @@ function cleanTranscriptionText(raw: string): string {
   return cleaned;
 }
 
-/** Palier 1 : Google Gemini Multimodal Audio */
+function getCandidateModels(): string[] {
+  const preferred = process.env.GEMINI_MODEL?.trim();
+  const models = [
+    preferred && preferred !== "gemini-1.5-flash" && preferred !== "gemini-2.0-flash" ? preferred : null,
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-2.5-pro",
+  ].filter(Boolean) as string[];
+  return Array.from(new Set(models));
+}
+
+/** Palier 1 : Google Gemini Multimodal Audio avec cascade de modèles */
 async function callGeminiAsr(buf: Buffer, mimeType?: string): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
-
-  const model =
-    process.env.GEMINI_MODEL && process.env.GEMINI_MODEL !== "gemini-1.5-flash"
-      ? process.env.GEMINI_MODEL
-      : "gemini-2.5-flash";
 
   // Normalisation du mimeType pour Gemini (ex: "audio/webm;codecs=opus" -> "audio/webm")
   let cleanMime = (mimeType || "").split(";")[0]?.trim().toLowerCase();
@@ -61,58 +68,67 @@ async function callGeminiAsr(buf: Buffer, mimeType?: string): Promise<string | n
   }
 
   const base64Audio = buf.toString("base64");
+  const models = getCandidateModels();
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [
-            {
-              text:
-                "Tu es un système de transcription automatique de la parole (Speech-to-Text / ASR) en français pour des utilisateurs en Côte d'Ivoire et Afrique de l'Ouest. " +
-                "Ton rôle est de retranscrire avec exactitude, mot à mot, ce qui est prononcé dans l'enregistrement audio. " +
-                "N'ajoute AUCUN commentaire, AUCUNE formule de politesse, AUCUNE explication, AUCUN guillemet, AUCUN tiret. " +
-                "Si l'enregistrement ne contient que du silence, un bruit de fond sans parole ou est inaudible, réponds UNIQUEMENT par : SILENCE.",
-            },
-          ],
-        },
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                inlineData: {
-                  mimeType: cleanMime,
-                  data: base64Audio,
+  for (const model of models) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [
+                {
+                  text:
+                    "Tu es un système de transcription automatique de la parole (Speech-to-Text / ASR) en français pour des utilisateurs en Côte d'Ivoire et Afrique de l'Ouest. " +
+                    "Ton rôle est de retranscrire avec exactitude, mot à mot, ce qui est prononcé dans l'enregistrement audio. " +
+                    "N'ajoute AUCUN commentaire, AUCUNE formule de politesse, AUCUNE explication, AUCUN guillemet, AUCUN tiret. " +
+                    "Si l'enregistrement ne contient que du silence, un bruit de fond sans parole ou est inaudible, réponds UNIQUEMENT par : SILENCE.",
                 },
-              },
+              ],
+            },
+            contents: [
               {
-                text: "Écoute cet enregistrement et retranscris mot à mot ce qui est prononcé en français. Si silencieux, réponds SILENCE.",
+                role: "user",
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: cleanMime,
+                      data: base64Audio,
+                    },
+                  },
+                  {
+                    text: "Écoute cet enregistrement et retranscris mot à mot ce qui est prononcé en français. Si silencieux, réponds SILENCE.",
+                  },
+                ],
               },
             ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.0,
-          maxOutputTokens: 1000,
+            generationConfig: {
+              temperature: 0.0,
+              maxOutputTokens: 1000,
+            },
+          }),
+          signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
         },
-      }),
-      signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
-    },
-  );
+      );
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    console.warn(`[kene:api:asr:gemini] HTTP ${res.status}: ${errText.slice(0, 200)}`);
-    return null;
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        console.warn(`[kene:api:asr:gemini] HTTP ${res.status} sur ${model}: ${errText.slice(0, 200)}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      return cleanTranscriptionText(raw);
+    } catch (err) {
+      console.warn(`[kene:api:asr:gemini] Échec sur ${model}:`, (err as Error).message);
+    }
   }
 
-  const data = await res.json();
-  const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-  return cleanTranscriptionText(raw);
+  return null;
 }
 
 /** Palier 2 : Z.ai SDK (si configuré) */

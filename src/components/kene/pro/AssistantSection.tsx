@@ -65,14 +65,14 @@ interface AssistantSectionProps {
 
 const QUICK_EXAMPLES = [
   {
+    tag: "📊 Question Caisse & RDV",
+    desc: "Interroger votre secrétaire",
+    text: "Quel est le point de la caisse aujourd'hui et quels sont mes prochains rendez-vous ?",
+  },
+  {
     tag: "📅 Prise de RDV",
     desc: "Planifier pour une cliente",
     text: "Prends RDV pour Tantie Awa demain à 14h pour un Soin Éclat du Visage avec Aminata.",
-  },
-  {
-    tag: "💵 Sortie Petite Caisse",
-    desc: "Fournitures et frais salon",
-    text: "J'ai pris 3 500 F dans la caisse espèces pour acheter de l'eau minérale pour les clientes et des cotons.",
   },
   {
     tag: "🌿 Soin + Vente + Acompte",
@@ -80,9 +80,9 @@ const QUICK_EXAMPLES = [
     text: "Mme Bintou a fait son Soin Visage à 20 000 F et pris un baume karité à 5 000 F. Elle a versé 20 000 F par Wave et soldera 5 000 F vendredi.",
   },
   {
-    tag: "💬 Relances Clientes",
-    desc: "Initiative de suivi",
-    text: "Relance les clientes du mois dernier pour leur soin visage dermo-botanique de contrôle.",
+    tag: "💵 Sortie Petite Caisse",
+    desc: "Fournitures et frais salon",
+    text: "J'ai pris 3 500 F dans la caisse espèces pour acheter de l'eau minérale pour les clientes et des cotons.",
   },
 ];
 
@@ -125,6 +125,13 @@ export function AssistantSection({
   const [debrief, setDebrief] = useState<DebriefResult | null>(null);
   const [executing, setExecuting] = useState(false);
   const [executed, setExecuted] = useState(false);
+
+  // Refs anti-stale-closure pour la capture vocale en direct
+  const liveTranscriptRef = useRef<string>("");
+  const debriefRef = useRef<DebriefResult | null>(null);
+  useEffect(() => {
+    debriefRef.current = debrief;
+  }, [debrief]);
 
   // Audio TTS
   const [audioState, setAudioState] = useState<"idle" | "loading" | "playing">("idle");
@@ -287,19 +294,33 @@ export function AssistantSection({
     haptic(HAPTIC.medium);
 
     try {
+      const prevDebrief =
+        contextDebrief ?? (debriefRef.current?.needsClarification ? debriefRef.current : undefined);
+
       const res = await apiPost<{ debrief: DebriefResult }>("/api/pro/assistant/debrief", {
         tenantId,
         text: query,
         userName,
-        previousDebrief: contextDebrief ?? (debrief?.needsClarification ? debrief : undefined),
+        previousDebrief: prevDebrief,
       });
 
       setDebrief(res.debrief);
+      debriefRef.current = res.debrief;
+
+      const hasActionable =
+        res.debrief.hasSale ||
+        res.debrief.hasStockMovement ||
+        res.debrief.hasClient ||
+        res.debrief.hasAppointment ||
+        res.debrief.hasExpense ||
+        res.debrief.hasRelance;
 
       if (res.debrief.needsClarification) {
         toast.info("Votre secrétaire a besoin d'une petite précision");
-      } else {
+      } else if (hasActionable) {
         toast.success("Votre secrétaire a préparé et ventilé vos écritures !");
+      } else {
+        toast.success("Votre secrétaire vous répond !");
       }
 
       // Écoute automatique de la réponse vocale
@@ -311,13 +332,14 @@ export function AssistantSection({
     } finally {
       setLoading(false);
     }
-  }, [loading, tenantId, text, userName, debrief, speakText]);
+  }, [loading, tenantId, text, userName, speakText]);
 
   // Réponse en 1-Tap à une question de clarification
   function handleClarificationChoice(choiceValue: string) {
     setText(choiceValue);
+    liveTranscriptRef.current = choiceValue;
     haptic(HAPTIC.success);
-    void handleAnalyze(choiceValue, debrief);
+    void handleAnalyze(choiceValue, debriefRef.current);
   }
 
   /* ───────────────────────── Moteur Vocal Tout-Terrain ───────────────────────── */
@@ -373,6 +395,7 @@ export function AssistantSection({
 
       audioStreamRef.current = stream;
       audioChunksRef.current = [];
+      liveTranscriptRef.current = "";
 
       // Mesure de volume Web Audio pour animer l'Orbe 3D
       try {
@@ -415,34 +438,38 @@ export function AssistantSection({
         const chunks = audioChunksRef.current;
         const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
 
-        const currentText = text.trim();
-        if (currentText.length >= 6) {
+        // Lire la transcription en direct depuis la ref (évite le bug de stale closure)
+        const currentText = liveTranscriptRef.current.trim();
+        if (currentText.length >= 2) {
           setIsTranscribing(false);
           setIsRecording(false);
+          setText(currentText);
           haptic(HAPTIC.success);
           void handleAnalyze(currentText);
           return;
         }
 
-        if (blob.size > 800) {
+        if (blob.size > 500) {
           setIsTranscribing(true);
           try {
             const transcribed = await transcribeAudioBlob(blob);
             setIsTranscribing(false);
-            if (transcribed.trim()) {
-              setText(transcribed.trim());
+            const clean = transcribed.trim();
+            if (clean) {
+              liveTranscriptRef.current = clean;
+              setText(clean);
               haptic(HAPTIC.success);
-              void handleAnalyze(transcribed.trim());
+              void handleAnalyze(clean);
             } else {
               toast.info("Aucune parole distincte captée — Vous pouvez dicter à nouveau ou écrire.");
             }
           } catch {
             setIsTranscribing(false);
-            toast.error("Impossible de transcrire l'audio — Veuillez écrire votre texte.");
+            toast.error("Impossible de transcrire l'audio — Veuillez écrire votre demande ci-dessous.");
             setIsEditingText(true);
           }
         } else {
-          toast.info(`Enregistrement très court — Parlez librement, ${firstName}.`);
+          toast.info(`Enregistrement très court — Parlez librement ou écrivez votre demande, ${firstName}.`);
         }
 
         setIsRecording(false);
@@ -463,7 +490,9 @@ export function AssistantSection({
             for (let i = 0; i < event.results.length; i++) {
               transcript += event.results[i][0].transcript + " ";
             }
-            setText(transcript.trim());
+            const clean = transcript.trim();
+            liveTranscriptRef.current = clean;
+            setText(clean);
           };
 
           reco.onerror = () => {};
@@ -473,7 +502,7 @@ export function AssistantSection({
       }
 
       setText("");
-      if (!debrief?.needsClarification) {
+      if (!debriefRef.current?.needsClarification) {
         setDebrief(null);
       }
       setExecuted(false);
@@ -731,29 +760,118 @@ export function AssistantSection({
                   ) : (
                     <>
                       <Mic size={20} className="animate-pulse" />
-                      <span>Dictez votre point, {firstName}… 🎙️</span>
+                      <span>Parler à ma Secrétaire, {firstName}… 🎙️</span>
                     </>
                   )}
                 </Button>
-
-                {text.trim() && !isRecording && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleAnalyze()}
-                    disabled={loading || isTranscribing}
-                    className="h-14 px-6 rounded-2xl border-border hover:bg-muted text-foreground font-bold text-sm flex items-center gap-2"
-                  >
-                    <Send size={18} className="text-[#C8951E]" />
-                    <span>Analyser le texte</span>
-                  </Button>
-                )}
               </div>
+
+              {/* Barre de saisie directe (Question ou Instruction écrite / retranscrite) */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (text.trim() && !loading && !isTranscribing) {
+                    void handleAnalyze(text.trim());
+                  }
+                }}
+                className="w-full max-w-2xl mx-auto pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
+              >
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={text}
+                    onChange={(e) => {
+                      setText(e.target.value);
+                      liveTranscriptRef.current = e.target.value;
+                    }}
+                    disabled={isRecording || loading}
+                    placeholder={`Posez une question (caisse, RDV, stocks…) ou donnez une instruction, ${firstName}…`}
+                    className="w-full h-12 pl-4 pr-9 rounded-2xl bg-muted/60 dark:bg-muted/30 border border-border/90 focus:border-[#C8951E] focus:outline-none text-sm text-foreground placeholder:text-muted-foreground transition-colors"
+                  />
+                  {text.trim() && !isRecording && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setText("");
+                        liveTranscriptRef.current = "";
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      title="Effacer"
+                    >
+                      <X size={15} />
+                    </button>
+                  )}
+                </div>
+                <Button
+                  type="submit"
+                  disabled={!text.trim() || loading || isTranscribing || isRecording}
+                  className="h-12 px-6 rounded-2xl bg-[#16110D] hover:bg-[#2A2018] dark:bg-[#C8951E] dark:hover:bg-[#E0A82E] text-white dark:text-[#16110D] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shrink-0 shadow-sm"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Analyse…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send size={16} />
+                      <span>Envoyer</span>
+                    </>
+                  )}
+                </Button>
+              </form>
             </div>
+
+            {/* ─── RÉPONSE IMMÉDIATE DE LA SECRÉTAIRE IA SOUS L'ORBE ─── */}
+            {debrief && debrief.vocalSummary && (
+              <div className="relative z-10 w-full max-w-2xl mt-5 p-4 sm:p-5 rounded-2xl bg-[#C8951E]/10 border-2 border-[#C8951E]/40 text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-2 shadow-md">
+                <div className="flex items-start gap-3.5">
+                  <button
+                    type="button"
+                    onClick={() => togglePlayVocalSummary(debrief.vocalSummary)}
+                    className="size-11 rounded-2xl bg-[#C8951E]/20 hover:bg-[#C8951E]/40 flex items-center justify-center shrink-0 text-[#C8951E] transition-all shadow-xs active:scale-95"
+                    title={audioState === "playing" ? "Arrêter la voix" : "Écouter votre secrétaire"}
+                  >
+                    {audioState === "loading" ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : audioState === "playing" ? (
+                      <VolumeX size={20} className="animate-pulse text-amber-500" />
+                    ) : (
+                      <Volume2 size={20} />
+                    )}
+                  </button>
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-xs font-bold text-foreground uppercase tracking-wider">
+                        👑 Réponse de votre Secrétaire IA :
+                      </p>
+                      {audioState === "playing" && (
+                        <Badge className="bg-emerald-600 text-white text-[10px] py-0 px-2 animate-pulse">
+                          En écoute 🔊
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm sm:text-base text-foreground font-semibold leading-relaxed">
+                      &laquo; {debrief.vocalSummary} &raquo;
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => togglePlayVocalSummary(debrief.vocalSummary)}
+                  className="shrink-0 border-border hover:bg-muted text-xs font-bold self-end sm:self-center"
+                >
+                  {audioState === "playing" ? "⏹️ Arrêter" : "🔊 Réécouter"}
+                </Button>
+              </div>
+            )}
 
             {/* ─── QUESTION DE CLARIFICATION INTERACTIVE (PROACTIVITÉ HUMAINE) ─── */}
             {debrief?.needsClarification && debrief.clarificationQuestion && (
-              <div className="relative z-10 w-full max-w-2xl mt-5 p-4 rounded-2xl border-2 border-amber-500/50 bg-amber-500/10 dark:bg-amber-950/20 text-left space-y-3 animate-in fade-in slide-in-from-bottom-2 shadow-md">
+              <div className="relative z-10 w-full max-w-2xl mt-4 p-4 rounded-2xl border-2 border-amber-500/50 bg-amber-500/10 dark:bg-amber-950/20 text-left space-y-3 animate-in fade-in slide-in-from-bottom-2 shadow-md">
                 <div className="flex items-start justify-between gap-2.5">
                   <div className="flex items-start gap-2.5">
                     <div className="size-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
@@ -808,70 +926,26 @@ export function AssistantSection({
               </div>
             )}
 
-            {/* Bulle de Retranscription Vocale en Direct */}
-            {(text.trim() || isEditingText) && (
-              <div className="relative z-10 w-full max-w-2xl mt-5 p-4 rounded-2xl bg-muted/50 dark:bg-muted/20 border border-border/80 text-left space-y-2 animate-in fade-in slide-in-from-bottom-2 shadow-xs">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-bold flex items-center gap-1.5 text-foreground">
-                    <CauriIcon size={14} className="text-[#C8951E]" /> Votre parole retranscrite :
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingText(!isEditingText)}
-                      className="flex items-center gap-1 text-[#C8951E] hover:underline font-semibold"
-                    >
-                      <Edit3 size={13} />
-                      <span>{isEditingText ? "Valider le texte" : "Modifier"}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setText("");
-                        setIsEditingText(false);
-                      }}
-                      className="text-muted-foreground hover:text-foreground"
-                      title="Effacer"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                {isEditingText ? (
-                  <Textarea
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    rows={3}
-                    className="w-full rounded-xl bg-card text-sm border-border p-3 focus-visible:ring-primary text-foreground"
-                    placeholder="Tapez votre compte-rendu ici..."
-                  />
-                ) : (
-                  <p className="text-sm text-foreground leading-relaxed font-medium italic">
-                    &laquo; {text} &raquo;
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* ─── SUGGESTIONS RAPIDES DE SALON EN 1-TAP (INDISPENSABLES) ─── */}
+            {/* ─── SUGGESTIONS RAPIDES DE SALON EN 1-TAP (EXÉCUTION DIRECTE) ─── */}
             <div className="relative z-10 w-full max-w-2xl mt-6 pt-5 border-t border-border/60 space-y-3 text-left">
               <p className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <NsorommaIcon size={14} className="text-[#C8951E]" />
-                <span>Suggestions rapides de salon (test en 1-tap) :</span>
+                <span>Questions &amp; Instructions rapides (exécution directe en 1-tap) :</span>
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {QUICK_EXAMPLES.map((ex, i) => (
                   <button
                     key={i}
                     type="button"
+                    disabled={loading || isRecording}
                     onClick={() => {
                       setText(ex.text);
+                      liveTranscriptRef.current = ex.text;
                       setIsEditingText(false);
                       haptic(HAPTIC.light);
-                      toast.info(`Exemple « ${ex.tag} » chargé ! Cliquez sur Analyser.`);
+                      void handleAnalyze(ex.text);
                     }}
-                    className="text-left p-3.5 rounded-2xl bg-muted/40 hover:bg-muted border border-border/80 hover:border-[#C8951E]/50 transition group space-y-1 shadow-xs"
+                    className="text-left p-3.5 rounded-2xl bg-muted/40 hover:bg-muted border border-border/80 hover:border-[#C8951E]/50 transition group space-y-1 shadow-xs disabled:opacity-50"
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-foreground group-hover:text-[#C8951E] transition-colors">
@@ -887,6 +961,184 @@ export function AssistantSection({
               </div>
             </div>
           </div>
+
+          {/* ─── PÉPITES D'OR : ÉCRITURES PRÊTES À VENTILER (UNIQUEMENT SI ACTION OPÉRATIONNELLE) ─── */}
+          {debrief &&
+            (debrief.hasSale ||
+              debrief.hasStockMovement ||
+              debrief.hasClient ||
+              debrief.hasAppointment ||
+              debrief.hasExpense ||
+              debrief.hasRelance) && (
+              <div className="space-y-6 rounded-[32px] border border-[#C8951E]/40 bg-card p-6 sm:p-8 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+                {/* ─── INITIATIVES PROACTIVES SUGGÉRÉES ─── */}
+                {debrief.initiatives && debrief.initiatives.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Lightbulb size={14} className="text-[#C8951E]" />
+                      <span>Initiatives proactives proposées par votre secrétaire :</span>
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {debrief.initiatives.map((init, i) => (
+                        <div
+                          key={i}
+                          className="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/5 flex items-start gap-3"
+                        >
+                          <div className="size-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                            {init.type === "stock_reorder" ? (
+                              <Package size={16} />
+                            ) : init.type === "whatsapp_followup" ? (
+                              <Bell size={16} />
+                            ) : (
+                              <NsorommaIcon size={16} />
+                            )}
+                          </div>
+                          <div className="space-y-0.5 min-w-0">
+                            <p className="text-xs font-bold text-foreground">{init.title}</p>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">{init.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Grille des Pépites d'Or ventilées */}
+                <div>
+                  <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                    <CheckCircle2 size={18} className="text-emerald-500" />
+                    <span>Pépites d&apos;actions prêtes à ventiler :</span>
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {/* Pépite Caisse */}
+                    {debrief.hasSale && debrief.sale && (
+                      <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                            <Receipt size={15} className="text-[#C8951E]" /> Pépite Caisse
+                          </span>
+                          <Badge variant="outline" className="text-[10px] uppercase font-bold text-primary border-primary/40">
+                            {debrief.sale.paymentMethod}
+                          </Badge>
+                        </div>
+                        <p className="font-mono text-lg font-black text-foreground">
+                          {xof(debrief.sale.total)}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {debrief.sale.items.length} prestation(s) / produit(s)
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Pépite Stock */}
+                    {debrief.hasStockMovement && debrief.stock?.decrements && (
+                      <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
+                        <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                          <Package size={15} className="text-[#C8951E]" /> Pépite Stock
+                        </span>
+                        <p className="text-xs font-semibold text-foreground truncate">
+                          {debrief.stock.decrements.map((d) => `${d.productName} (-${d.qty})`).join(", ")}
+                        </p>
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Décompte automatique</p>
+                      </div>
+                    )}
+
+                    {/* Pépite CRM Cliente */}
+                    {debrief.hasClient && debrief.client && (
+                      <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
+                        <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                          <Users size={15} className="text-[#C8951E]" /> Pépite Cliente CRM
+                        </span>
+                        <p className="text-xs font-bold text-foreground">{debrief.client.name}</p>
+                        {debrief.client.debtAmount && debrief.client.debtAmount > 0 ? (
+                          <p className="text-[11px] text-red-500 font-bold">
+                            Reste à payer : {xof(debrief.client.debtAmount)}
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-muted-foreground">Fiche mise à jour</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Pépite Agenda */}
+                    {debrief.hasAppointment && debrief.appointment && (
+                      <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
+                        <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                          <Calendar size={15} className="text-[#C8951E]" /> Pépite Agenda
+                        </span>
+                        <p className="text-xs font-semibold text-foreground">
+                          {debrief.appointment.serviceName}
+                        </p>
+                        <p className="text-[11px] text-primary font-medium">
+                          {debrief.appointment.dateStr
+                            ? `${debrief.appointment.dateStr} à ${debrief.appointment.timeStr || "10:00"}`
+                            : "Rendez-vous planifié"}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Pépite Petite Caisse */}
+                    {debrief.hasExpense && debrief.expense && (
+                      <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
+                        <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                          <Wallet size={15} className="text-amber-500" /> Petite Caisse
+                        </span>
+                        <p className="font-mono text-lg font-black text-amber-600 dark:text-amber-400">
+                          -{xof(debrief.expense.amount)}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">{debrief.expense.description}</p>
+                      </div>
+                    )}
+
+                    {/* Pépite Relance WhatsApp */}
+                    {debrief.hasRelance && debrief.relance && (
+                      <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
+                        <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                          <Bell size={15} className="text-[#C8951E]" /> Relance WhatsApp
+                        </span>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {debrief.relance.message}
+                        </p>
+                        <p className="text-[11px] text-primary font-medium">Prévue à J+{debrief.relance.delayDays}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bouton Triomphal de Validation Atomique */}
+                <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Info size={14} className="text-[#C8951E]" />
+                    <span>Ventilation garantie dans la Caisse, le Stock, le CRM et la Compta.</span>
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={handleExecute}
+                    disabled={executing || executed}
+                    className="w-full sm:w-auto k-btn-gold h-14 px-10 rounded-2xl font-black text-primary-foreground shadow-lg flex items-center justify-center gap-3 text-sm transition-all"
+                  >
+                    {executed ? (
+                      <>
+                        <CheckCircle2 size={20} className="text-white" />
+                        <span>Point scellé et enregistré avec succès !</span>
+                      </>
+                    ) : executing ? (
+                      <>
+                        <Loader2 size={20} className="animate-spin" />
+                        <span>Ventilation dans tous les onglets en cours...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Crown size={20} />
+                        <span>Valider &amp; Sceller dans tous les onglets (1-Tap) 👑</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
 
           {/* ─── 4 INDICATEURS CLÉS & INITIATIVES PROACTIVES SOUS L'ORBE ─── */}
           <div className="rounded-[24px] border border-border/80 bg-card p-4 sm:p-5 shadow-xs space-y-3">
@@ -962,6 +1214,7 @@ export function AssistantSection({
                         onNavigate("relances");
                       } else {
                         setText(init.desc);
+                        liveTranscriptRef.current = init.desc;
                         void handleAnalyze(init.desc);
                       }
                     }}
@@ -974,221 +1227,6 @@ export function AssistantSection({
               </div>
             )}
           </div>
-
-          {/* ─── PÉPITES D'OR : RÉSULTATS DU DÉBRIEFING & DISPATCHING ─── */}
-          {debrief && (
-            <div className="space-y-6 rounded-[32px] border border-[#C8951E]/40 bg-card p-6 sm:p-8 shadow-xl animate-in fade-in slide-in-from-bottom-4">
-              {/* Carte de Réponse Vocale de l'Assistante */}
-              {debrief.vocalSummary && (
-                <div className="p-4 sm:p-5 rounded-2xl bg-[#C8951E]/10 border border-[#C8951E]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <button
-                      type="button"
-                      onClick={() => togglePlayVocalSummary(debrief.vocalSummary)}
-                      className="size-12 rounded-2xl bg-[#C8951E]/20 hover:bg-[#C8951E]/40 flex items-center justify-center shrink-0 text-[#C8951E] transition-all shadow-xs active:scale-95"
-                      title={audioState === "playing" ? "Arrêter la voix" : "Écouter votre secrétaire"}
-                    >
-                      {audioState === "loading" ? (
-                        <Loader2 size={22} className="animate-spin" />
-                      ) : audioState === "playing" ? (
-                        <VolumeX size={22} className="animate-pulse text-amber-500" />
-                      ) : (
-                        <Volume2 size={22} />
-                      )}
-                    </button>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-bold text-foreground uppercase tracking-wider">
-                          👑 Réponse de votre Secrétaire IA :
-                        </p>
-                        {audioState === "playing" && (
-                          <Badge className="bg-emerald-600 text-white text-[10px] py-0 px-2 animate-pulse">
-                            En écoute 🔊
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm sm:text-base text-foreground font-medium italic leading-relaxed">
-                        &laquo; {debrief.vocalSummary} &raquo;
-                      </p>
-                    </div>
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => togglePlayVocalSummary(debrief.vocalSummary)}
-                    className="shrink-0 border-border hover:bg-muted text-xs font-bold self-end sm:self-center"
-                  >
-                    {audioState === "playing" ? "⏹️ Arrêter" : "🔊 Réécouter"}
-                  </Button>
-                </div>
-              )}
-
-              {/* ─── INITIATIVES PROACTIVES SUGGÉRÉES ─── */}
-              {debrief.initiatives && debrief.initiatives.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Lightbulb size={14} className="text-[#C8951E]" />
-                    <span>Initiatives proactives proposées par votre secrétaire :</span>
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {debrief.initiatives.map((init, i) => (
-                      <div
-                        key={i}
-                        className="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/5 flex items-start gap-3"
-                      >
-                        <div className="size-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-                          {init.type === "stock_reorder" ? (
-                            <Package size={16} />
-                          ) : init.type === "whatsapp_followup" ? (
-                            <Bell size={16} />
-                          ) : (
-                            <NsorommaIcon size={16} />
-                          )}
-                        </div>
-                        <div className="space-y-0.5 min-w-0">
-                          <p className="text-xs font-bold text-foreground">{init.title}</p>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed">{init.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Grille des Pépites d'Or ventilées */}
-              <div>
-                <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-                  <CheckCircle2 size={18} className="text-emerald-500" />
-                  <span>Pépites d&apos;actions prêtes à ventiler :</span>
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {/* Pépite Caisse */}
-                  {debrief.hasSale && debrief.sale && (
-                    <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
-                          <Receipt size={15} className="text-[#C8951E]" /> Pépite Caisse
-                        </span>
-                        <Badge variant="outline" className="text-[10px] uppercase font-bold text-primary border-primary/40">
-                          {debrief.sale.paymentMethod}
-                        </Badge>
-                      </div>
-                      <p className="font-mono text-lg font-black text-foreground">
-                        {xof(debrief.sale.total)}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {debrief.sale.items.length} prestation(s) / produit(s)
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Pépite Stock */}
-                  {debrief.hasStockMovement && debrief.stock?.decrements && (
-                    <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
-                      <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
-                        <Package size={15} className="text-[#C8951E]" /> Pépite Stock
-                      </span>
-                      <p className="text-xs font-semibold text-foreground truncate">
-                        {debrief.stock.decrements.map((d) => `${d.productName} (-${d.qty})`).join(", ")}
-                      </p>
-                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Décompte automatique</p>
-                    </div>
-                  )}
-
-                  {/* Pépite CRM Cliente */}
-                  {debrief.hasClient && debrief.client && (
-                    <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
-                      <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
-                        <Users size={15} className="text-[#C8951E]" /> Pépite Cliente CRM
-                      </span>
-                      <p className="text-xs font-bold text-foreground">{debrief.client.name}</p>
-                      {debrief.client.debtAmount && debrief.client.debtAmount > 0 ? (
-                        <p className="text-[11px] text-red-500 font-bold">
-                          Reste à payer : {xof(debrief.client.debtAmount)}
-                        </p>
-                      ) : (
-                        <p className="text-[11px] text-muted-foreground">Fiche mise à jour</p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Pépite Agenda */}
-                  {debrief.hasAppointment && debrief.appointment && (
-                    <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
-                      <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
-                        <Calendar size={15} className="text-[#C8951E]" /> Pépite Agenda
-                      </span>
-                      <p className="text-xs font-semibold text-foreground">
-                        {debrief.appointment.serviceName}
-                      </p>
-                      <p className="text-[11px] text-primary font-medium">Contrôle planifié</p>
-                    </div>
-                  )}
-
-                  {/* Pépite Petite Caisse */}
-                  {debrief.hasExpense && debrief.expense && (
-                    <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
-                      <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
-                        <Wallet size={15} className="text-amber-500" /> Petite Caisse
-                      </span>
-                      <p className="font-mono text-lg font-black text-amber-600 dark:text-amber-400">
-                        -{xof(debrief.expense.amount)}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground truncate">{debrief.expense.description}</p>
-                    </div>
-                  )}
-
-                  {/* Pépite Relance WhatsApp */}
-                  {debrief.hasRelance && debrief.relance && (
-                    <div className="p-4 rounded-2xl border border-border/80 bg-card space-y-1.5 shadow-xs">
-                      <span className="text-xs font-bold flex items-center gap-1.5 text-foreground">
-                        <Bell size={15} className="text-[#C8951E]" /> Relance WhatsApp
-                      </span>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {debrief.relance.message}
-                      </p>
-                      <p className="text-[11px] text-primary font-medium">Prévue à J+{debrief.relance.delayDays}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Bouton Triomphal de Validation Atomique */}
-              <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Info size={14} className="text-[#C8951E]" />
-                  <span>Ventilation garantie dans la Caisse, le Stock, le CRM et la Compta.</span>
-                </div>
-
-                <Button
-                  type="button"
-                  onClick={handleExecute}
-                  disabled={executing || executed}
-                  className="w-full sm:w-auto k-btn-gold h-14 px-10 rounded-2xl font-black text-primary-foreground shadow-lg flex items-center justify-center gap-3 text-sm transition-all"
-                >
-                  {executed ? (
-                    <>
-                      <CheckCircle2 size={20} className="text-white" />
-                      <span>Point scellé et enregistré avec succès !</span>
-                    </>
-                  ) : executing ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin" />
-                      <span>Ventilation dans tous les onglets en cours...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Crown size={20} />
-                      <span>Valider &amp; Sceller dans tous les onglets (1-Tap) 👑</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
