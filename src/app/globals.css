@@ -182,17 +182,13 @@
   }
   html,
   body {
-    height: 100%;
-    max-height: 100dvh;
-    overflow: hidden;
-    overscroll-behavior: none !important;
-    overscroll-behavior-y: none !important;
-    -webkit-overscroll-behavior: none !important;
+    min-height: 100%;
+    overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
   }
   html {
     scroll-behavior: smooth;
-    touch-action: manipulation;
+    touch-action: pan-x pan-y;
   }
   @media (prefers-reduced-motion: reduce) {
     html {
