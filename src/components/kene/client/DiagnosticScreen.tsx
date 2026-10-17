@@ -636,15 +636,42 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             </span>
           </div>
 
-          {/* 👑 BOUTON REINE : SCANNER MON VISAGE IMMÉDIATEMENT */}
+          {/* 👑 BOUTON REINE : SCANNER MON VISAGE IMMÉDIATEMENT (HAUTE VISIBILITÉ HÉRO) */}
           <button
             type="button"
             onClick={() => launchScan("visage")}
-            className="k-cta h-13 sm:h-14 w-full rounded-2xl text-white font-heading font-black text-sm sm:text-base shadow-lg flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all cursor-pointer"
+            className="group relative overflow-hidden w-full rounded-2xl sm:rounded-3xl p-3.5 sm:p-4.5 bg-gradient-to-r from-[#C8951E] via-[#D44A63] to-[#80132B] text-white shadow-xl shadow-[#80132B]/35 hover:shadow-2xl hover:shadow-[#C8951E]/40 ring-4 ring-[#C8951E]/30 hover:ring-[#C8951E]/50 active:scale-[0.98] transition-all duration-300 cursor-pointer flex items-center justify-between gap-3 text-left"
           >
-            <Camera size={19} className="shrink-0 text-white" />
-            <span>📸 Scanner mon Visage maintenant</span>
-            <ChevronRight size={18} className="shrink-0 text-white" />
+            {/* Shimmer sweep subtil en arrière-plan */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out pointer-events-none" />
+
+            {/* Partie Gauche : Médaillon Caméra Lumineux avec pastille d'état */}
+            <div className="relative shrink-0 size-13 sm:size-15 rounded-2xl bg-white/20 backdrop-blur-md ring-2 ring-white/40 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
+              <Camera size={26} className="text-white drop-shadow-sm" />
+              <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-emerald-400 ring-2 ring-[#80132B] shadow-xs flex items-center justify-center">
+                <span className="size-1.5 rounded-full bg-white animate-ping" />
+              </span>
+            </div>
+
+            {/* Partie Centrale : Typographie 2 niveaux ultra-visible */}
+            <div className="min-w-0 flex-1 pr-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/25 text-white backdrop-blur-xs">
+                  Recommandé · 1 Clic
+                </span>
+              </div>
+              <h3 className="font-heading font-black text-base sm:text-lg md:text-xl text-white leading-tight mt-1 tracking-tight drop-shadow-2xs">
+                Scanner mon Visage maintenant
+              </h3>
+              <p className="text-[11px] sm:text-xs text-white/90 font-medium mt-0.5 line-clamp-1">
+                Bilan IA cutané 360° · Résultat immédiat en 5s ⚡
+              </p>
+            </div>
+
+            {/* Partie Droite : Flèche action blanche contrastée */}
+            <div className="shrink-0 size-10 sm:size-11 rounded-full bg-white text-[#80132B] shadow-lg flex items-center justify-center group-hover:scale-110 group-hover:translate-x-0.5 transition-all duration-300">
+              <ChevronRight size={20} strokeWidth={3} className="text-[#80132B]" />
+            </div>
           </button>
 
           {/* Conseils intégrés en 1 ligne épurée */}
