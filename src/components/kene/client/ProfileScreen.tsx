@@ -6,10 +6,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Baby, BadgeCheck, Building2, Calendar, Camera, Check, ChevronRight, Crown, Gift, Heart, Loader2, MapPin,
+  Baby, BadgeCheck, BriefcaseBusiness, Building2, Calendar, Camera, Check, ChevronRight, Crown, Gift, Heart, Loader2, MapPin,
   MessageCircle, Pencil, Phone, Plus, Settings, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { apiGet, apiPatch, apiPost, resizeImage } from "@/lib/kene/api";
 import { formatDate, xof } from "@/lib/kene/format";
@@ -523,6 +524,36 @@ export function ProfileScreen() {
       {/* Partage des self-scans — la cliente décide, institut par institut */}
       <RevealItem>
         <SharesCard userId={user.id} userName={user.name} />
+      </RevealItem>
+
+      {/* Passerelle directe Espace Entreprise & Salon */}
+      <RevealItem>
+        <section className="rounded-[22px] border border-border/80 bg-gradient-to-r from-card via-muted/30 to-card p-3.5 flex items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="grid place-items-center size-9 rounded-xl bg-gold/15 text-gold-text shrink-0">
+              <BriefcaseBusiness size={18} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-foreground truncate">Espace Entreprise &amp; Salon</p>
+              <p className="text-[10.5px] text-muted-foreground truncate">Gestion d&apos;équipe, caisse, plannings, clients &amp; soins</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              haptic(HAPTIC.tap);
+              useKene.getState().setSpace("pro");
+              if (typeof window !== "undefined") {
+                window.history.pushState(null, "", "/pro");
+                window.dispatchEvent(new Event("popstate"));
+              }
+            }}
+            className="k-btn-gold h-9 px-3.5 rounded-xl text-primary-foreground text-xs font-bold shrink-0 shadow-2xs inline-flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+          >
+            <span>Ouvrir</span>
+            <ChevronRight size={13} />
+          </button>
+        </section>
       </RevealItem>
 
       {/* Passerelle Paramètres & Contactez-nous */}

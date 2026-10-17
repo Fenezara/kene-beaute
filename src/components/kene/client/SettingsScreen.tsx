@@ -16,10 +16,12 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bell,
+  BriefcaseBusiness,
   Building2,
   Check,
   ChevronRight,
   Crown,
+  Plus,
   Download,
   Hand,
   Languages,
@@ -670,19 +672,38 @@ export function SettingsScreen() {
 
         {/* Espace entreprise */}
         <RevealItem>
-          <section aria-labelledby="prosignup-t" className="rounded-[24px] border-2 border-dashed border-primary/40 bg-primary/5 p-4">
+          <section aria-labelledby="prosignup-t" className="rounded-[24px] border border-primary/30 bg-primary/5 p-4 space-y-2">
             <p id="prosignup-t" className="flex items-center gap-2 font-heading font-bold text-sm text-primary">
-              <Building2 size={17} aria-hidden="true" /> Vous dirigez un institut ou un spa ?
+              <Building2 size={17} aria-hidden="true" /> Vous dirigez un institut ou un salon ?
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Rejoignez les établissements partenaires Kènè pour accueillir vos clientes et proposer vos soins cabine.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Accédez à la console de gestion Kènè Pro : planning des cabines, caisse POS, équipe &amp; pointage, stocks et comptabilité.
             </p>
-            <button
-              onClick={() => setProSignup(true)}
-              className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              Créer mon compte entreprise
-            </button>
+            <div className="pt-2 flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  useKene.getState().setSpace("pro");
+                  if (typeof window !== "undefined") {
+                    window.history.pushState(null, "", "/pro");
+                    window.dispatchEvent(new Event("popstate"));
+                  }
+                }}
+                className="k-btn-gold h-11 flex-1 rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 shadow-xs cursor-pointer active:scale-98 transition-all"
+              >
+                <BriefcaseBusiness size={15} />
+                <span>Ouvrir l&apos;Espace Entreprise (Kènè Pro)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setProSignup(true)}
+                className="h-11 px-4 rounded-xl border border-primary/30 bg-background hover:bg-muted text-primary text-xs font-bold inline-flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 transition-all"
+              >
+                <Plus size={14} />
+                <span>Créer un salon</span>
+              </button>
+            </div>
           </section>
         </RevealItem>
 
