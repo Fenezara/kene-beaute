@@ -1197,13 +1197,25 @@ export function AgendaScreen() {
                           {p.tenant?.name} · {formatDate(p.startAt)}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleBookRdvType(meta)}
-                        className="shrink-0 h-8 px-2.5 rounded-lg border border-primary/30 text-primary font-bold text-[11px] flex items-center gap-1 hover:bg-primary/10 transition-colors"
-                      >
-                        Renouveler
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <a
+                          href={`/api/diagnoses/report?userId=${encodeURIComponent(user.id)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 h-8 px-2.5 rounded-lg border border-gold/40 bg-gold/10 text-gold-text font-bold text-[11px] flex items-center gap-1 hover:bg-gold/20 transition-colors"
+                          title="Télécharger le rapport dermo-clinique PDF"
+                        >
+                          <FileText size={12} />
+                          Bilan PDF
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => handleBookRdvType(meta)}
+                          className="shrink-0 h-8 px-2.5 rounded-lg border border-primary/30 text-primary font-bold text-[11px] flex items-center gap-1 hover:bg-primary/10 transition-colors"
+                        >
+                          Renouveler
+                        </button>
+                      </div>
                     </div>
                   );
                 })}

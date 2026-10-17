@@ -219,6 +219,10 @@ export function HomeScreen({
               aria-hidden="true"
               className="mb-1.5 block h-[3.5px] w-12 rounded-full bg-gradient-to-r from-[#D49A24] via-[#C93B62] to-[#9E2045] shadow-xs opacity-90"
             />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gold/15 border border-gold/30 text-gold-text text-[10px] font-black uppercase tracking-wider mb-1.5">
+              <Sparkles size={11} className="text-gold-text" />
+              <span>Espace Dermo Kènè · Conseils & Rituels</span>
+            </div>
             <p className="text-xs uppercase tracking-[0.16em] text-primary font-semibold">{t("home.greeting")}</p>
             <h2 className="font-heading font-black text-[27px] sm:text-[29px] leading-tight tracking-tight truncate">
               <span className="kente-text-flow inline-block pr-1">{first}</span>

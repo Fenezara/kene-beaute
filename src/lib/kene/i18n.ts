@@ -25,13 +25,13 @@ export type Dict = Record<string, string>;
 
 const FR: Dict = {
   // Onglets (tab-bar mobile + rail desktop)
-  "tab.home": "Accueil",
-  "tab.agenda": "Agenda",
+  "tab.home": "Dermo Kènè",
+  "tab.agenda": "Soins & RDV",
   "tab.dossier": "Dossier Peau",
   "tab.scan": "Scanner",
   "tab.shop": "Boutique",
   "tab.shop.short": "Boutik",
-  "tab.rdv": "Agenda",
+  "tab.rdv": "Soins & RDV",
   "tab.rdv.short": "RDV",
   "tab.institutes": "Instituts",
   "tab.chat": "Dermo Kènè",
@@ -40,13 +40,13 @@ const FR: Dict = {
   "nav.chat.aria": "Dermo Kènè — guide dermo-cosmétique",
 
   // Titres d'écran (h1 du header ClientApp)
-  "title.home": "Accueil",
-  "title.agenda": "Agenda & Soins",
+  "title.home": "Dermo Kènè · Conseils & Rituels",
+  "title.agenda": "Mes Soins & Rendez-vous",
   "title.dossier": "Mon Dossier Peau & Données",
   "title.institutes": "Instituts & Salons Partenaires",
   "title.diag": "Diagnostic IA",
   "title.shop": "Boutique",
-  "title.rdv": "Agenda & Soins",
+  "title.rdv": "Mes Soins & Rendez-vous",
   "title.chat": "Dermo Kènè",
   "title.profile": "Mon profil",
   "title.parametres": "Paramètres",

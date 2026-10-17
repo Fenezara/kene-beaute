@@ -18,6 +18,8 @@ import {
   ScanFace,
   Crown,
   Sparkles,
+  ShieldAlert,
+  FolderHeart,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,11 +67,15 @@ export function DashboardSection({
   overview,
   loadingOverview,
   onNavigate,
+  onOpenInciScanner,
+  onOpenMirrorKiosk,
 }: {
   tenantId: string;
   overview: UseApiResult<ProOverview>;
   loadingOverview: boolean;
   onNavigate: (s: ProSectionId) => void;
+  onOpenInciScanner?: () => void;
+  onOpenMirrorKiosk?: () => void;
 }) {
   const data = overview.data;
 
@@ -188,6 +194,158 @@ export function DashboardSection({
       ) : (
         <>
 
+
+      {/* ── ⚡ OUTILS CABINE EXPRESS & ACTIONS PRIORITAIRES ── */}
+      <div className="rounded-[24px] border border-gold/40 bg-gradient-to-br from-gold/10 via-card to-card p-4 sm:p-5 shadow-xs">
+        <div className="flex items-center justify-between gap-3 mb-3.5">
+          <div className="flex items-center gap-2">
+            <span className="grid size-7 place-items-center rounded-xl bg-gold/25 text-gold-text font-black text-xs shadow-2xs">
+              ⚡
+            </span>
+            <div>
+              <h2 className="font-heading font-black text-sm sm:text-base text-foreground tracking-tight">
+                Outils Cabine Express &amp; Raccourcis Prioritaires
+              </h2>
+              <p className="text-[11px] text-muted-foreground">
+                Accès immédiat 1 clic pour l&apos;équipe en cabine de soin et à l&apos;accueil
+              </p>
+            </div>
+          </div>
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-wider">
+            Priorité Cabine
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          {/* 1. Diagnostic Cabine */}
+          <button
+            type="button"
+            onClick={() => {
+              haptic(HAPTIC.tap);
+              onNavigate("diagnostic");
+            }}
+            className="group flex flex-col items-start p-3 rounded-2xl border border-primary/35 bg-primary/10 hover:bg-primary/20 hover:border-primary/60 text-left transition-all active:scale-[0.98] shadow-2xs cursor-pointer"
+          >
+            <span className="grid size-8 place-items-center rounded-xl bg-primary/20 text-primary mb-2 group-hover:scale-105 transition-transform">
+              <ScanFace size={16} />
+            </span>
+            <span className="font-heading font-black text-xs text-foreground leading-tight">
+              Scan Cabine
+            </span>
+            <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+              Diagnostic 4 vues
+            </span>
+          </button>
+
+          {/* 2. Caisse POS */}
+          <button
+            type="button"
+            onClick={() => {
+              haptic(HAPTIC.tap);
+              onNavigate("caisse");
+            }}
+            className="group flex flex-col items-start p-3 rounded-2xl border border-emerald-600/35 bg-emerald-600/10 hover:bg-emerald-600/20 hover:border-emerald-600/60 text-left transition-all active:scale-[0.98] shadow-2xs cursor-pointer"
+          >
+            <span className="grid size-8 place-items-center rounded-xl bg-emerald-600/20 text-emerald-700 dark:text-emerald-400 mb-2 group-hover:scale-105 transition-transform">
+              <AbanIcon size={16} />
+            </span>
+            <span className="font-heading font-black text-xs text-foreground leading-tight">
+              Encaisser POS
+            </span>
+            <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+              Wave · OM · Espèces
+            </span>
+          </button>
+
+          {/* 3. Scanner INCI */}
+          <button
+            type="button"
+            onClick={() => {
+              haptic(HAPTIC.tap);
+              if (onOpenInciScanner) {
+                onOpenInciScanner();
+              } else if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("kene:open-inci-scanner"));
+              }
+            }}
+            className="group flex flex-col items-start p-3 rounded-2xl border border-gold/40 bg-gold/15 hover:bg-gold/25 hover:border-gold text-left transition-all active:scale-[0.98] shadow-2xs cursor-pointer"
+          >
+            <span className="grid size-8 place-items-center rounded-xl bg-gold/25 text-gold-text mb-2 group-hover:scale-105 transition-transform">
+              <ShieldAlert size={16} />
+            </span>
+            <span className="font-heading font-black text-xs text-foreground leading-tight">
+              Scanner INCI
+            </span>
+            <span className="text-[10px] text-gold-text font-bold mt-0.5 line-clamp-1">
+              Anti-décapants 🧴
+            </span>
+          </button>
+
+          {/* 4. Kiosque Miroir */}
+          <button
+            type="button"
+            onClick={() => {
+              haptic(HAPTIC.tap);
+              if (onOpenMirrorKiosk) {
+                onOpenMirrorKiosk();
+              } else if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("kene:open-mirror-kiosk"));
+              }
+            }}
+            className="group flex flex-col items-start p-3 rounded-2xl border border-border bg-card/85 hover:bg-accent text-left transition-all active:scale-[0.98] shadow-2xs cursor-pointer"
+          >
+            <span className="grid size-8 place-items-center rounded-xl bg-muted text-foreground mb-2 group-hover:scale-105 transition-transform">
+              <Sparkles size={16} />
+            </span>
+            <span className="font-heading font-black text-xs text-foreground leading-tight">
+              Kiosque Mirror
+            </span>
+            <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+              Tablette cliente
+            </span>
+          </button>
+
+          {/* 5. Dossiers Peau */}
+          <button
+            type="button"
+            onClick={() => {
+              haptic(HAPTIC.tap);
+              onNavigate("dossiers_peau");
+            }}
+            className="group flex flex-col items-start p-3 rounded-2xl border border-border bg-card/85 hover:bg-accent text-left transition-all active:scale-[0.98] shadow-2xs cursor-pointer"
+          >
+            <span className="grid size-8 place-items-center rounded-xl bg-muted text-foreground mb-2 group-hover:scale-105 transition-transform">
+              <FolderHeart size={16} />
+            </span>
+            <span className="font-heading font-black text-xs text-foreground leading-tight">
+              Dossiers Peau
+            </span>
+            <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+              Biomarqueurs &amp; PDF
+            </span>
+          </button>
+
+          {/* 6. Agenda & Soins */}
+          <button
+            type="button"
+            onClick={() => {
+              haptic(HAPTIC.tap);
+              onNavigate("agenda");
+            }}
+            className="group flex flex-col items-start p-3 rounded-2xl border border-border bg-card/85 hover:bg-accent text-left transition-all active:scale-[0.98] shadow-2xs cursor-pointer"
+          >
+            <span className="grid size-8 place-items-center rounded-xl bg-muted text-foreground mb-2 group-hover:scale-105 transition-transform">
+              <CalendarCheck size={16} />
+            </span>
+            <span className="font-heading font-black text-xs text-foreground leading-tight">
+              Agenda &amp; Soins
+            </span>
+            <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+              Cabines &amp; Équipe
+            </span>
+          </button>
+        </div>
+      </div>
 
       {/* ── KPI ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">

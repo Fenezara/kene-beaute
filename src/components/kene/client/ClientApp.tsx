@@ -13,7 +13,7 @@
 // lourds sont lazy (chunk dédié au premier clic — HomeScreen/Onboarding eager).
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarDays, Crown, FolderHeart, Home, Loader2, MessageCircle, Settings, Share2, ShieldAlert, User, WifiOff } from "lucide-react";
+import { CalendarDays, Crown, FolderHeart, Home, Loader2, MessageCircle, Settings, Share2, ShieldAlert, Sparkles, User, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
 import { HAPTIC, haptic, isOnline, useNetworkOnline } from "@/lib/kene/ux";
@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 
 /** Navigation latérale (desktop & tablette) — destinations clés */
 const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
-  { tab: "accueil", labelKey: "tab.home", icon: Home },
+  { tab: "accueil", labelKey: "tab.home", icon: Sparkles },
   { tab: "dossier", labelKey: "tab.dossier", icon: FolderHeart },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
   { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
@@ -52,7 +52,7 @@ const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType
 
 /** Tab-bar mobile — 5 emplacements équilibrés avec CTA scan surélevé au centre */
 const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
-  { tab: "accueil", labelKey: "tab.home", icon: Home },
+  { tab: "accueil", labelKey: "tab.home", icon: Sparkles },
   { tab: "dossier", labelKey: "tab.dossier", icon: FolderHeart },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
   { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },

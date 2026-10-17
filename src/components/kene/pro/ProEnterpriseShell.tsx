@@ -495,7 +495,8 @@ export function ProEnterpriseShell() {
       setProTenantId(v);
       const currentStoreUser = useKene.getState().user;
       if (currentStoreUser) {
-        useKene.getState().setUser({ ...currentStoreUser, tenantId: v });
+        useKene.getState().setUser({ ...currentStoreUser, tenantId: v, selectedTenantId: v });
+        void apiPost("/api/auth/profile", { userId: currentStoreUser.id, selectedTenantId: v }).catch(() => {});
       }
       void apiGet<ProOverview>(`/api/pro/overview?tenantId=${v}`).then((fresh) => {
         if (fresh && fresh.tenant) {
@@ -689,6 +690,65 @@ export function ProEnterpriseShell() {
             </div>
           )}
 
+          {/* ⚡ Outils Cabine Express (Mobile < md) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                openSection("diagnostic");
+              }}
+              className="h-7.5 px-2.5 rounded-xl border border-primary/40 bg-primary/10 text-primary text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
+            >
+              <ScanFace size={13} />
+              <span>📸 Scan Cabine</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                openSection("caisse");
+              }}
+              className="h-7.5 px-2.5 rounded-xl border border-emerald-600/40 bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
+            >
+              <AbanIcon size={13} />
+              <span>💳 Caisse POS</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setInciScannerOpen(true);
+              }}
+              className="h-7.5 px-2.5 rounded-xl border border-gold/40 bg-gold/15 text-gold-text text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
+            >
+              <ShieldAlert size={13} />
+              <span>🧴 INCI</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setMirrorKioskOpen(true);
+              }}
+              className="h-7.5 px-2.5 rounded-xl border border-border bg-card text-foreground text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
+            >
+              <Sparkles size={13} />
+              <span>🪞 Miroir</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                openSection("dossiers_peau");
+              }}
+              className="h-7.5 px-2.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
+            >
+              <FolderHeart size={13} />
+              <span>Dossiers</span>
+            </button>
+          </div>
+
           {/* Navigation mobile en 2 niveaux : 1. Pôles Métiers · 2. Onglets du Pôle */}
           <div className="space-y-1.5">
             <div
@@ -811,13 +871,26 @@ export function ProEnterpriseShell() {
               type="button"
               onClick={() => {
                 haptic(HAPTIC.tap);
-                setMirrorKioskOpen(true);
+                openSection("diagnostic");
               }}
               className="h-8.5 px-3 rounded-xl border border-primary/45 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
-              title="Ouvrir le Mode Kiosque Tablette Salle d'Attente (Kènè Mirror)"
+              title="Lancer un diagnostic de peau multi-vues en cabine"
             >
-              <Sparkles size={13} />
-              <span>🪞 Kiosque Mirror</span>
+              <ScanFace size={13} />
+              <span>📸 Scan Cabine</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                openSection("caisse");
+              }}
+              className="h-8.5 px-3 rounded-xl border border-emerald-600/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+              title="Ouvrir la caisse et enregistrer un encaissement"
+            >
+              <AbanIcon size={13} />
+              <span>💳 Encaisser POS</span>
             </button>
 
             <button
@@ -837,12 +910,26 @@ export function ProEnterpriseShell() {
               type="button"
               onClick={() => {
                 haptic(HAPTIC.tap);
-                openSection("caisse");
+                setMirrorKioskOpen(true);
               }}
-              className="h-8.5 px-3 rounded-xl border border-emerald-600/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+              className="h-8.5 px-3 rounded-xl border border-border bg-card hover:bg-accent text-foreground text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+              title="Ouvrir le Mode Kiosque Tablette Salle d'Attente (Kènè Mirror)"
             >
-              <AbanIcon size={13} />
-              <span>Encaisser POS</span>
+              <Sparkles size={13} />
+              <span>🪞 Kiosque Mirror</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                openSection("dossiers_peau");
+              }}
+              className="h-8.5 px-3 rounded-xl border border-border/80 bg-card/80 hover:bg-accent text-muted-foreground hover:text-foreground text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+              title="Accéder aux dossiers cutanés et historiques"
+            >
+              <FolderHeart size={13} />
+              <span>Dossiers</span>
             </button>
           </div>
         </div>
@@ -1122,7 +1209,14 @@ export function ProEnterpriseShell() {
             className={cn("min-w-0", activeSection === "assistant" && "flex-1 min-h-0 flex flex-col")}
           >
             {activeSection === "dashboard" && (
-              <DashboardSection tenantId={tid} overview={overview} loadingOverview={overview.loading} onNavigate={openSection} />
+              <DashboardSection
+                tenantId={tid}
+                overview={overview}
+                loadingOverview={overview.loading}
+                onNavigate={openSection}
+                onOpenInciScanner={() => setInciScannerOpen(true)}
+                onOpenMirrorKiosk={() => setMirrorKioskOpen(true)}
+              />
             )}
             {activeSection === "assistant" && (
               <AssistantSection
