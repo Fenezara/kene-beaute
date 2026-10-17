@@ -28,11 +28,36 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant || client.tenantId !== tenant.id) return jsonError("Fiche cliente introuvable", 404);
 
-    // PARTAGE SELF-SCANS: les diagnostics app de la cliente ne sont visibles
-    // que si elle a explicitement partagé son historique avec CET institut
-    // (case à la réservation ou carte « Partage » de son profil — révocable).
-    // Le miroir peau (type + phototype) reste partagé: contexte minimal du soin.
-    const scansShared = client.userId ? await isScansShared(client.userId, tenant.id) : false;
+    let effectiveUserId = client.userId;
+    if (!effectiveUserId && client.phone) {
+      const digits = client.phone.replace(/\D/g, "");
+      const matchedUser = await db.user.findFirst({
+        where: {
+          OR: [
+            { phone: client.phone },
+            ...(digits.length >= 8 ? [{ phone: { contains: digits.slice(-8) } }] : []),
+          ],
+        },
+      });
+      if (matchedUser) {
+        effectiveUserId = matchedUser.id;
+        await db.clientProfile.update({
+          where: { id: client.id },
+          data: {
+            userId: matchedUser.id,
+            skinType: client.skinType || matchedUser.skinType || undefined,
+            fitzpatrick: client.fitzpatrick || matchedUser.fitzpatrick || undefined,
+            district: client.district || matchedUser.district || undefined,
+            birthDate: client.birthDate || matchedUser.birthDate || undefined,
+            pregnant: client.pregnant ?? matchedUser.pregnant ?? undefined,
+            preferredChannel: client.preferredChannel || matchedUser.preferredChannel || undefined,
+            beautyBudget: client.beautyBudget || matchedUser.beautyBudget || undefined,
+          },
+        }).catch(() => null);
+      }
+    }
+
+    const scansShared = effectiveUserId ? await isScansShared(effectiveUserId, tenant.id) : false;
 
     const since12m = new Date();
     since12m.setFullYear(since12m.getFullYear() - 1);
@@ -69,9 +94,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         where: { clientProfileId: id, status: "completed", createdAt: { gte: since12m } },
         select: { total: true },
       }),
-      client.userId && scansShared
+      effectiveUserId && scansShared
         ? db.diagnosis.findMany({
-            where: { userId: client.userId, status: "done" },
+            where: { userId: effectiveUserId, status: "done" },
             orderBy: { createdAt: "desc" },
             take: 5,
           })
@@ -85,18 +110,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }),
       // Commandes boutique passées DEPUIS L'APP de la cliente et contenant
       // un produit de CET institut — la vue 360° couvre le online aussi.
-      client.userId
+      effectiveUserId
         ? db.order.findMany({
-            where: { userId: client.userId, items: { some: { product: { tenantId: tenant.id } } } },
+            where: { userId: effectiveUserId, items: { some: { product: { tenantId: tenant.id } } } },
             include: { items: { orderBy: { label: "asc" } } },
             orderBy: { createdAt: "desc" },
             take: 10,
           })
         : Promise.resolve([]),
       // Avis déposés par la cliente sur CET institut (après ses RDV).
-      client.userId
+      effectiveUserId
         ? db.review.findMany({
-            where: { tenantId: tenant.id, userId: client.userId },
+            where: { tenantId: tenant.id, userId: effectiveUserId },
             include: { appointment: { include: { service: { select: { name: true } } } } },
             orderBy: { createdAt: "desc" },
             take: 10,

@@ -141,6 +141,16 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
   );
   const leaves = leavesApi.data ?? [];
 
+  const pendingList = useApi<ProAppointment[]>(
+    () =>
+      tenantId
+        ? apiGet<{ appointments: ProAppointment[] }>(
+            `/api/pro/appointments?tenantId=${tenantId}&pending=1`
+          ).then((r) => r.appointments ?? [])
+        : Promise.resolve([]),
+    [tenantId, refreshKey]
+  );
+
   const resources = useMemo(() => {
     const map = new Map<string, { value: string; name: string; color: string }>();
     for (const a of [...(list.data ?? []), ...(resourcePool.data ?? [])]) {
@@ -192,7 +202,7 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
         toast.success(`RDV ${action === "confirm" ? "confirmé" : action === "no_show" ? "marqué no-show" : "déplacé"}`);
       }
       setSelected(null);
-      await Promise.all([list.refetch(), resourcePool.refetch()]);
+      await Promise.all([list.refetch(), resourcePool.refetch(), pendingList.refetch()]);
       return res;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Action impossible");
@@ -217,6 +227,106 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
           </>
         }
       />
+
+      {/* 🛎️ Demandes de rendez-vous en attente de validation */}
+      {pendingList.data && pendingList.data.length > 0 && (
+        <Card className="p-4 border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-card to-card space-y-3 shadow-xs">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-7 items-center justify-center rounded-full bg-amber-500 text-white font-black text-xs animate-pulse shadow-xs">
+                {pendingList.data.length}
+              </span>
+              <div>
+                <h3 className="font-heading font-black text-sm text-foreground flex items-center gap-1.5">
+                  Demande{pendingList.data.length > 1 ? "s" : ""} de rendez-vous en attente de confirmation
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Créneaux réservés par vos clientes — validez ou ajustez l&apos;heure selon vos disponibilités cabine
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => pendingList.refetch()}
+              className="text-xs h-7 gap-1"
+            >
+              Actualiser
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            {pendingList.data.map((appt) => (
+              <div
+                key={appt.id}
+                className="p-3.5 rounded-xl border border-border/80 bg-background/80 shadow-2xs space-y-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-700 dark:text-amber-300 mb-1">
+                      En attente
+                    </span>
+                    <h4 className="font-bold text-sm text-foreground truncate">{appt.service?.name || "Prestation de soin"}</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Cliente : <strong className="text-foreground">{appt.clientName}</strong> ({appt.clientPhone})
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-sm font-mono font-bold text-primary block">
+                      {formatTime(appt.startAt)}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground capitalize">
+                      {formatDate(appt.startAt, { weekday: "short", day: "numeric", month: "short" })}
+                    </span>
+                  </div>
+                </div>
+
+                {appt.notes && (
+                  <p className="text-xs italic text-muted-foreground bg-muted/40 p-2 rounded-lg border border-border/40">
+                    « {appt.notes} »
+                  </p>
+                )}
+
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50 text-xs">
+                  <span className="text-muted-foreground">
+                    Praticienne : <strong className="text-foreground">{appt.resource?.name || "Non assignée"}</strong>
+                  </span>
+                  <span className="font-mono font-bold text-foreground">{xof(appt.price || 0)}</span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-1.5 pt-1">
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                    onClick={() => act(appt, "confirm")}
+                  >
+                    <CheckCircle2 className="size-3.5 mr-1" /> Valider
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => setSelected(appt)}
+                  >
+                    <CalendarClock className="size-3.5 mr-1" /> Modifier
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs text-[#25D366] border-[#25D366]/40 hover:bg-[#25D366]/10"
+                    onClick={() => {
+                      const msg = `Bonjour ${appt.clientName} ! 🌸\nNous avons bien reçu votre demande de rendez-vous pour *${appt.service?.name || "votre soin"}* prévu le ${formatDate(appt.startAt)} à ${formatTime(appt.startAt)}.\nNous vous confirmons la réservation en cabine ! ✨`;
+                      openWhatsApp(appt.clientPhone, msg);
+                    }}
+                  >
+                    <MessageCircle className="size-3.5 mr-1" /> WhatsApp
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-2">
         <Button variant="ghost" size="icon" onClick={() => step(-1)} aria-label={view === "jour" ? "Jour précédent" : "Semaine précédente"}>

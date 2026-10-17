@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { splitTVA, saleJournalLines } from "@/lib/accounting/syscohada";
 import { jsonError, serverError, resolveTenant, overlaps, dayEnd, createJournalEntry, recomputeClientRfm, genRef, notify } from "@/lib/kene/server";
-import { pushTenantFeed } from "@/lib/kene/realtime";
+import { pushTenantFeed, pushFeed } from "@/lib/kene/realtime";
 import { guardProRole } from "@/lib/kene/session";
 import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
 
@@ -75,10 +75,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
       const updated = await db.appointment.update({
         where: { id },
-        data: { startAt: newStart, resourceId: newResourceId },
+        data: { startAt: newStart, resourceId: newResourceId, status: "confirmed" },
       });
-      // Temps réel: autres postes/onglets Pro + dashboard rafraîchis
+      if (appointment.userId || appointment.clientPhone) {
+        await notify({
+          userId: appointment.userId,
+          tenantId: appointment.tenantId,
+          channel: "whatsapp",
+          toPhone: appointment.clientPhone,
+          message: `Kènè : votre rendez-vous pour le soin « ${appointment.service.name} » a été réajusté par l'institut ${tenant.name} 🗓️ Nouveau créneau confirmé : le ${new Date(newStart).toLocaleDateString("fr-FR")} à ${new Date(newStart).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`,
+        });
+      }
+      // Temps réel: autres postes/onglets Pro + dashboard + cliente rafraîchis
       pushTenantFeed(appointment.tenantId);
+      pushFeed(appointment.userId);
       return NextResponse.json({ appointment: updated });
     }
 
@@ -95,6 +105,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         });
       }
       pushTenantFeed(appointment.tenantId);
+      pushFeed(appointment.userId);
       return NextResponse.json({ appointment: updated });
     }
     if (action === "cancel") {

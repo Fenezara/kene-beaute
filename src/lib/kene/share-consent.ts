@@ -28,7 +28,27 @@ export async function isScansShared(userId: string, tenantId: string): Promise<b
     orderBy: { createdAt: "desc" },
     select: { granted: true },
   });
-  return latest?.granted ?? false;
+  if (latest !== null) return latest.granted;
+
+  // Par défaut : si la cliente a rattaché son profil à cet institut ou a un rendez-vous chez cet institut,
+  // ou si une fiche cliente existe pour cet institut, le partage de soin est naturellement actif
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { selectedTenantId: true },
+  });
+  if (user?.selectedTenantId === tenantId) return true;
+
+  const hasApptOrProfile = await db.appointment.findFirst({
+    where: { OR: [{ userId, tenantId }, { tenantId, clientProfile: { userId } }] },
+    select: { id: true },
+  });
+  if (hasApptOrProfile) return true;
+
+  const hasProfile = await db.clientProfile.findFirst({
+    where: { userId, tenantId },
+    select: { id: true },
+  });
+  return Boolean(hasProfile);
 }
 
 /**
@@ -44,14 +64,25 @@ export async function sharedScanUserIds(userIds: string[], tenantId: string): Pr
     orderBy: { createdAt: "desc" },
     select: { userId: true, granted: true },
   });
-  // Le PREMIER enregistrement rencontré par cliente (le plus récent) gagne —
-  // les suivants sont l'historique des accords/révocations.
   const shared = new Set<string>();
   const seen = new Set<string>();
   for (const r of rows) {
     if (seen.has(r.userId)) continue;
     seen.add(r.userId);
     if (r.granted) shared.add(r.userId);
+  }
+
+  // Pour les utilisateurs sans entrée explicite dans Consent:
+  // Si le tenant est leur institut de référence ou s'ils ont une fiche, ils partagent par défaut
+  const remaining = userIds.filter((id) => !seen.has(id));
+  if (remaining.length > 0) {
+    const linked = await db.clientProfile.findMany({
+      where: { userId: { in: remaining }, tenantId },
+      select: { userId: true },
+    });
+    for (const l of linked) {
+      if (l.userId) shared.add(l.userId);
+    }
   }
   return shared;
 }

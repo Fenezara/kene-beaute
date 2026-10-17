@@ -42,12 +42,27 @@ export async function GET(req: NextRequest) {
       to.setHours(23, 59, 59, 999);
     }
 
+    const pendingOnly = req.nextUrl.searchParams.get("pending") === "1";
+    if (pendingOnly) {
+      const appointments = await db.appointment.findMany({
+        where: { tenantId: tenant.id, status: "pending" },
+        include,
+        orderBy: { startAt: "asc" },
+      });
+      return NextResponse.json({ appointments, pendingCount: appointments.length });
+    }
+
     const appointments = await db.appointment.findMany({
       where: { tenantId: tenant.id, startAt: { gte: from, lte: to } },
       include,
       orderBy: { startAt: "asc" },
     });
-    return NextResponse.json({ appointments });
+
+    const pendingCount = await db.appointment.count({
+      where: { tenantId: tenant.id, status: "pending" },
+    });
+
+    return NextResponse.json({ appointments, pendingCount });
   } catch (err) {
     return serverError("pro/appointments:get", err);
   }

@@ -535,71 +535,63 @@ export function AgendaScreen() {
     return null;
   }, [nextAppt, now]);
 
+  // État de chargement de la réservation
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [chosenTenantId, setChosenTenantId] = useState<string>("");
+
   const handleBookRdvType = (typeDef: RdvTypeDefinition) => {
     haptic(HAPTIC.tap);
+    setChosenTenantId(selectedInst?.id || user?.selectedTenantId || institutes[0]?.id || "");
     setQuickBookType(typeDef);
   };
 
-  const confirmQuickBook = () => {
+  const confirmQuickBook = async () => {
     if (!quickBookType) return;
     haptic(HAPTIC.medium);
     const startIso = `${quickDate}T${quickTime}:00`;
-    const newLocalAppt: ApiAppointment = {
-      id: `local_rdv_${Date.now()}`,
-      tenantId: selectedInst?.id || "kene_partner",
-      serviceId: `srv_${quickBookType.id}`,
-      resourceId: "prac_1",
-      startAt: new Date(startIso).toISOString(),
-      durationMin: quickBookType.durationMin,
-      status: "confirmed",
-      price: quickBookType.indicativePrice,
-      depositAmount: 0,
-      clientName: user?.name || "Cliente",
-      clientPhone: user?.phone || "+22500000000",
-      createdAt: new Date().toISOString(),
-      service: {
-        id: `srv_${quickBookType.id}`,
-        name: quickBookType.defaultServiceName,
-        category: quickBookType.categoryName,
-        durationMin: quickBookType.durationMin,
-        price: quickBookType.indicativePrice,
-      },
-      tenant: selectedInst
-        ? {
-            id: selectedInst.id,
-            name: selectedInst.name,
-            city: selectedInst.city,
-            country: (selectedInst as any).country || "CI",
-            phone: selectedInst.phone ?? undefined,
-          }
-        : {
-            id: "kene_partner",
-            name: "Institut Partenaire Kènè",
-            city: user?.city || "Abidjan",
-            country: "CI",
-          },
-      resource: {
-        id: "prac_1",
-        name: "Spécialiste Dermo Kènè",
-        role: "Praticienne Cabine",
-      },
-    };
+    const targetTenant = institutes.find((i) => i.id === chosenTenantId) || selectedInst || institutes[0];
+    const targetTenantId = targetTenant?.id;
 
-    setAppointments((prev) => [newLocalAppt, ...prev]);
-    toast.success(`Rendez-vous « ${quickBookType.shortLabel} » programmé ! ✨`, {
-      description: `Créneau réservé le ${formatDate(newLocalAppt.startAt)} à ${quickTime}`,
-    });
+    if (!targetTenantId) {
+      toast.error("Veuillez sélectionner un institut partenaire");
+      return;
+    }
 
-    openWhatsAppAppointmentInquiry({
-      serviceCategory: quickBookType.categoryName,
-      serviceName: `${quickBookType.defaultServiceName} (souhaité le ${quickDate} à ${quickTime})`,
-      tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
-      instituteName: selectedInst?.name,
-      country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
-    });
+    setBookingLoading(true);
+    try {
+      const res = await apiPost<{ ok: boolean; appointment: ApiAppointment }>("/api/appointments", {
+        tenantId: targetTenantId,
+        serviceCategory: quickBookType.id,
+        serviceName: quickBookType.defaultServiceName,
+        startAt: new Date(startIso).toISOString(),
+        clientName: user?.name || "Cliente Kènè",
+        clientPhone: user?.phone || "+2250700000000",
+        userId: user?.id,
+        notes: `Réservation en ligne Kènè : ${quickBookType.defaultServiceName}`,
+      });
 
-    setQuickBookType(null);
-    setActiveSubTab("rdv");
+      const savedAppt = res.appointment;
+      setAppointments((prev) => [savedAppt, ...prev.filter((a) => a.id !== savedAppt.id)]);
+      toast.success(`Rendez-vous « ${quickBookType.shortLabel} » enregistré ! ✨`, {
+        description: `Demande envoyée à ${targetTenant.name} pour le ${formatDate(startIso)} à ${quickTime}. En attente de validation.`,
+      });
+
+      // Proposition du message WhatsApp pré-rempli
+      openWhatsAppAppointmentInquiry({
+        serviceCategory: quickBookType.categoryName,
+        serviceName: `${quickBookType.defaultServiceName} (réservé pour le ${quickDate} à ${quickTime})`,
+        tenantPhone: targetTenant?.phone || (targetTenant as any)?.ownerPhone,
+        instituteName: targetTenant?.name,
+        country: ((targetTenant as any)?.country || "CI") as "CI" | "SN",
+      });
+
+      setQuickBookType(null);
+      setActiveSubTab("rdv");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement du rendez-vous");
+    } finally {
+      setBookingLoading(false);
+    }
   };
 
   return (
@@ -729,6 +721,24 @@ export function AgendaScreen() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {institutes.length > 1 && (
+              <div className="sm:col-span-2">
+                <label className="text-[11px] font-bold text-foreground block mb-1">
+                  Institut partenaire Kènè
+                </label>
+                <select
+                  value={chosenTenantId || selectedInst?.id || ""}
+                  onChange={(e) => setChosenTenantId(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
+                >
+                  {institutes.map((inst) => (
+                    <option key={inst.id} value={inst.id}>
+                      {inst.name} ({inst.city})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="text-[11px] font-bold text-foreground block mb-1">
                 Date souhaitée
@@ -761,6 +771,7 @@ export function AgendaScreen() {
           <div className="flex items-center justify-end gap-2 pt-1">
             <button
               type="button"
+              disabled={bookingLoading}
               onClick={() => setQuickBookType(null)}
               className="h-9 px-3 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground"
             >
@@ -768,11 +779,21 @@ export function AgendaScreen() {
             </button>
             <button
               type="button"
+              disabled={bookingLoading}
               onClick={confirmQuickBook}
-              className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-black flex items-center gap-1.5 shadow-sm"
+              className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-black flex items-center gap-1.5 shadow-sm disabled:opacity-50"
             >
-              <CalendarPlus size={14} />
-              Valider &amp; Synchroniser avec l&apos;Institut
+              {bookingLoading ? (
+                <>
+                  <RefreshCw size={14} className="animate-spin" />
+                  <span>Transmission...</span>
+                </>
+              ) : (
+                <>
+                  <CalendarPlus size={14} />
+                  <span>Valider &amp; Synchroniser avec l&apos;Institut</span>
+                </>
+              )}
             </button>
           </div>
         </motion.div>
@@ -887,9 +908,19 @@ export function AgendaScreen() {
                             <TypeIcon size={11} />
                             {typeMeta.shortLabel}
                           </span>
-                          <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                            <CheckCircle2 size={10} /> Confirmé
-                          </span>
+                          {appt.status === "pending" ? (
+                            <span className="rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <Clock size={10} /> En attente
+                            </span>
+                          ) : appt.status === "cancelled" ? (
+                            <span className="rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              Annulé
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <CheckCircle2 size={10} /> Confirmé
+                            </span>
+                          )}
                           <span className="text-xs font-semibold text-muted-foreground">
                             {formatDate(appt.startAt, {
                               weekday: "short",
@@ -908,6 +939,12 @@ export function AgendaScreen() {
                           <span>{tenantName}</span>
                           {appt.tenant?.city && <span>· {appt.tenant.city}</span>}
                         </p>
+                        {appt.status === "pending" && (
+                          <div className="mt-2 rounded-xl bg-amber-500/10 border border-amber-500/25 p-2 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                            <Clock size={12} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                            <span>Réservation transmise à l&apos;institut. L&apos;équipe valide la cabine et vous confirme par WhatsApp.</span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="text-right shrink-0">

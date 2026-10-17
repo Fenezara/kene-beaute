@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/kene/format";
 import { openWhatsApp, openWhatsAppAppointmentInquiry } from "@/lib/kene/whatsapp-relay";
+import { useKene } from "@/store/kene";
 import type { ApiAppointment, ApiInstitute } from "./types";
 
 interface AppointmentsCareSectionProps {
@@ -166,16 +167,13 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${fmtIso(start)}/${fmtIso(end)}&details=${details}&location=${location}`;
   }
 
-  // Prise de rendez-vous directe ciblée par catégorie vers l'entreprise choisie
+  // Navigation vers la réservation connectée à l'institut & sauvegarde DB
   function handleBookCategory(category: string, serviceName: string) {
-    const tenantPhone = selectedInstitute?.phone || selectedInstitute?.ownerPhone;
-    openWhatsAppAppointmentInquiry({
-      serviceCategory: category,
-      serviceName,
-      instituteName: selectedInstitute?.name,
-      tenantPhone: tenantPhone || undefined,
-      country: (selectedInstitute?.country || "CI") as "CI" | "SN",
-    });
+    if (onBookCare) {
+      onBookCare();
+    } else {
+      useKene.getState().setClientTab("agenda");
+    }
   }
 
   // Message WhatsApp pré-rempli pour confirmer auprès de l'institut
@@ -220,7 +218,7 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
 
         <div className="rounded-2xl border border-dashed border-border/80 bg-muted/20 p-4 text-center space-y-3">
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            Aucun rendez-vous planifié. Vos séances réservées sur WhatsApp s&apos;affichent ici avec vos rappels automatiques.
+            Aucun rendez-vous planifié. Vos séances réservées s&apos;affichent ici avec vos rappels automatiques.
           </p>
 
           {selectedInstitute && (
@@ -261,20 +259,38 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
             </button>
             <button
               onClick={() => handleBookCategory("Onglerie", "Onglerie & manucure spa")}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-700 dark:text-purple-300 border-purple-500/30 text-xs font-bold active:scale-95 transition-all"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-700 dark:text-purple-300 border border-purple-500/30 text-xs font-bold active:scale-95 transition-all"
             >
               <Hand size={13} />
               Onglerie
             </button>
           </div>
 
-          <button
-            onClick={() => onBookCare?.() ?? handleBookCategory("Soin en institut", "Prestation personnalisée")}
-            className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
-          >
-            <MessageCircle size={14} />
-            Prendre rendez-vous (WhatsApp) {selectedInstitute ? `avec ${selectedInstitute.name}` : ""}
-          </button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
+            <button
+              onClick={() => (onBookCare ? onBookCare() : useKene.getState().setClientTab("agenda"))}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-xs active:scale-95 transition-all"
+            >
+              <CalendarPlus size={14} />
+              Choisir un créneau &amp; Réserver {selectedInstitute ? `chez ${selectedInstitute.name}` : ""}
+            </button>
+            <button
+              onClick={() => {
+                const tenantPhone = selectedInstitute?.phone || selectedInstitute?.ownerPhone;
+                openWhatsAppAppointmentInquiry({
+                  serviceCategory: "Soin en institut",
+                  serviceName: "Prestation personnalisée",
+                  instituteName: selectedInstitute?.name,
+                  tenantPhone: tenantPhone || undefined,
+                  country: (selectedInstitute?.country || "CI") as "CI" | "SN",
+                });
+              }}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 h-9 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold shadow-xs active:scale-95 transition-all"
+            >
+              <MessageCircle size={14} />
+              Contacter sur WhatsApp
+            </button>
+          </div>
         </div>
       </section>
     );
@@ -375,6 +391,14 @@ export function AppointmentsCareSection({ appointments, onBookCare, selectedInst
               {new Date(nextAppt.startAt).getTime() < now ? (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border">
                   <CheckCircle2 size={12} /> Soin réalisé
+                </span>
+              ) : nextAppt.status === "pending" ? (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                  <Clock size={12} /> En attente de validation
+                </span>
+              ) : nextAppt.status === "cancelled" ? (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+                  Annulé
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">

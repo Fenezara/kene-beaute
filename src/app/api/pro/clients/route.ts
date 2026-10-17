@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, slugify } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
+import { ensureClientProfile } from "@/lib/kene/client-link";
 
 // Validation zod (, remplace le cast manuel): bornes calquées sur
 // l'ancien contrat (nom ≤ 80, téléphone raisonnablement borné en longueur —
@@ -31,6 +32,95 @@ export async function GET(req: NextRequest) {
     if (!tenant) return jsonError("Institut introuvable", 404);
 
     const q = req.nextUrl.searchParams.get("q")?.trim().toLowerCase() ?? "";
+
+    // Synchronisation automatique et intelligente App ↔ CRM :
+    // 1. Clientes ayant choisi cet institut comme institut de référence
+    const refUsers = await db.user.findMany({
+      where: { selectedTenantId: tenant.id },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        district: true,
+        birthDate: true,
+        pregnant: true,
+        preferredChannel: true,
+        beautyBudget: true,
+        skinType: true,
+        fitzpatrick: true,
+      },
+    });
+
+    for (const u of refUsers) {
+      await ensureClientProfile(db, tenant.id, u).catch(() => null);
+    }
+
+    // 2. Clientes ayant pris un rendez-vous chez cet institut sans fiche liée
+    const apptUsers = await db.appointment.findMany({
+      where: { tenantId: tenant.id },
+      select: { id: true, clientProfileId: true, userId: true, clientName: true, clientPhone: true },
+    });
+
+    for (const a of apptUsers) {
+      if (!a.clientProfileId) {
+        let matchedUser = a.userId ? await db.user.findUnique({ where: { id: a.userId } }) : null;
+        if (!matchedUser && a.clientPhone) {
+          const digits = a.clientPhone.replace(/\D/g, "");
+          matchedUser = await db.user.findFirst({
+            where: {
+              OR: [
+                { phone: a.clientPhone },
+                ...(digits.length >= 8 ? [{ phone: { contains: digits.slice(-8) } }] : []),
+              ],
+            },
+          });
+        }
+        const profile = await ensureClientProfile(db, tenant.id, matchedUser || {
+          id: a.userId || `auto_${Date.now()}`,
+          name: a.clientName,
+          phone: a.clientPhone,
+        });
+        if (profile) {
+          await db.appointment.update({
+            where: { id: a.id },
+            data: { clientProfileId: profile.id, ...(matchedUser ? { userId: matchedUser.id } : {}) },
+          }).catch(() => null);
+        }
+      }
+    }
+
+    // 3. Fiches sans userId ou sans peau renseignée -> chercher le User par téléphone
+    const unlinked = await db.clientProfile.findMany({
+      where: { tenantId: tenant.id, OR: [{ userId: null }, { skinType: null }] },
+    });
+    for (const p of unlinked) {
+      const digits = p.phone.replace(/\D/g, "");
+      if (digits.length >= 8) {
+        const u = await db.user.findFirst({
+          where: {
+            OR: [
+              { phone: p.phone },
+              { phone: { contains: digits.slice(-8) } },
+            ],
+          },
+        });
+        if (u) {
+          await db.clientProfile.update({
+            where: { id: p.id },
+            data: {
+              userId: u.id,
+              skinType: p.skinType || u.skinType || undefined,
+              fitzpatrick: p.fitzpatrick || u.fitzpatrick || undefined,
+              district: p.district || u.district || undefined,
+              birthDate: p.birthDate || u.birthDate || undefined,
+              pregnant: p.pregnant ?? u.pregnant ?? undefined,
+              preferredChannel: p.preferredChannel || u.preferredChannel || undefined,
+              beautyBudget: p.beautyBudget || u.beautyBudget || undefined,
+            },
+          }).catch(() => null);
+        }
+      }
+    }
 
     const all = await db.clientProfile.findMany({
       where: { tenantId: tenant.id },

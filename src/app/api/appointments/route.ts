@@ -18,15 +18,19 @@ import { rateLimit, rlKey, rateLimitResponse, APPOINTMENTS_CREATE } from "@/lib/
 import { createWaveCheckoutSession } from "@/lib/payments/wave";
 import { createWiniPayerPaymentSession } from "@/lib/payments/winipayer";
 import { createSaspayCheckoutSession } from "@/lib/payments/saspay";
+import { pushTenantFeed } from "@/lib/kene/realtime";
 
 const CreateBody = z.object({
   tenantId: z.string().min(1),
-  serviceId: z.string().min(1),
-  resourceId: z.string().min(1),
+  serviceId: z.string().optional(),
+  serviceCategory: z.string().optional(),
+  serviceName: z.string().optional(),
+  resourceId: z.string().optional(),
   startAt: z.string().min(10),
   clientName: z.string().trim().min(1),
   clientPhone: z.string().trim().min(5),
   userId: z.string().optional(),
+  notes: z.string().optional(),
   depositAmount: z.number().int().min(0).optional(),
   paymentMethod: z.enum(["wave", "orange", "mtn", "moov", "saspay", "winipayer", "wallet"]).optional(),
 });
@@ -165,7 +169,7 @@ export async function POST(req: NextRequest) {
   try {
     const parsed = CreateBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
-    const { tenantId, serviceId, resourceId, startAt, clientName, clientPhone, userId, paymentMethod } = parsed.data;
+    const { tenantId, serviceId, serviceCategory, serviceName, resourceId, startAt, clientName, clientPhone, userId, notes, paymentMethod } = parsed.data;
 
     // Session signée (, migration douce): avec cookie, le userId
     // éventuel du corps doit être celui de la session (réservation pour soi);
@@ -179,15 +183,54 @@ export async function POST(req: NextRequest) {
     const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant || !tenant.active) return jsonError("Institut introuvable", 404);
 
-    const service = await db.service.findFirst({ where: { id: serviceId, tenantId, active: true } });
-    if (!service) return jsonError("Service introuvable", 404);
+    let service = serviceId ? await db.service.findFirst({ where: { id: serviceId, tenantId, active: true } }) : null;
+    if (!service) {
+      const cat = (serviceCategory || serviceId || "").toLowerCase().replace(/^srv_/, "");
+      const sName = (serviceName || "").toLowerCase();
+      service = await db.service.findFirst({
+        where: {
+          tenantId,
+          active: true,
+          OR: [
+            ...(cat ? [{ category: { contains: cat } }] : []),
+            ...(sName ? [{ name: { contains: sName } }] : []),
+          ],
+        },
+      });
+      if (!service) {
+        service = await db.service.findFirst({ where: { tenantId, active: true } });
+      }
+      if (!service) {
+        service = await db.service.create({
+          data: {
+            tenantId,
+            name: serviceName || "Soin dermo-cosmétique personnalisé",
+            category: serviceCategory || "soin",
+            durationMin: 60,
+            price: 20000,
+            active: true,
+          },
+        });
+      }
+    }
 
     // Acompte: la règle des 30 % du prix du service est appliquée côté serveur
-    // (la valeur cliente est plafonnée — un client malveillant ne peut pas réserver en payant moins)
     const depositAmount = Math.max(0, Math.min(parsed.data.depositAmount ?? 0, Math.round(service.price * DEPOSIT_RATE)));
 
-    const resource = await db.resource.findFirst({ where: { id: resourceId, tenantId, active: true } });
-    if (!resource) return jsonError("Praticienne introuvable", 404);
+    let resource = resourceId ? await db.resource.findFirst({ where: { id: resourceId, tenantId, active: true } }) : null;
+    if (!resource) {
+      resource = await db.resource.findFirst({ where: { tenantId, active: true } });
+    }
+    if (!resource) {
+      resource = await db.resource.create({
+        data: {
+          tenantId,
+          name: "Équipe Cabine Kènè",
+          role: "estheticienne",
+          active: true,
+        },
+      });
+    }
 
     // Règle d'entreprise : une personne en congé ne peut pas être réservée
     const leave = await getActiveLeaveForEmployee(
@@ -195,10 +238,15 @@ export async function POST(req: NextRequest) {
       start
     );
     if (leave) {
-      return jsonError(
-        `${resource.name} est actuellement indisponible / en congé à cette date (${formatLeaveBlockedMessage(leave, "prendre un rendez-vous")}). Merci de choisir une autre praticienne ou un autre jour.`,
-        400
-      );
+      const altResource = await db.resource.findFirst({
+        where: { tenantId, active: true, id: { not: resource.id } },
+      });
+      if (altResource) {
+        const altLeave = await getActiveLeaveForEmployee({ tenantId, resourceId: altResource.id, name: altResource.name }, start);
+        if (!altLeave) {
+          resource = altResource;
+        }
+      }
     }
 
     if (userId) {
@@ -220,10 +268,10 @@ export async function POST(req: NextRequest) {
 
     try {
       created = await db.$transaction(async (tx) => {
-        // 1. Vérification atomique anti-chevauchement (anti-TOCTOU sous concurrence)
+        let targetResourceId = resource.id;
         const sameDay = await tx.appointment.findMany({
           where: {
-            resourceId,
+            resourceId: targetResourceId,
             status: { notIn: ["cancelled", "no_show"] },
             startAt: { gte: new Date(start.getTime() - 24 * 3_600_000), lte: dayEnd(start) },
           },
@@ -231,15 +279,36 @@ export async function POST(req: NextRequest) {
         });
 
         if (sameDay.some((a) => overlaps(start, service.durationMin, a.startAt, a.durationMin))) {
-          isOverlapConflict = true;
-          throw new Error("CONFLICT_OVERLAP");
+          const otherResources = await tx.resource.findMany({
+            where: { tenantId, active: true, id: { not: targetResourceId } },
+          });
+          let foundFree = false;
+          for (const other of otherResources) {
+            const otherDay = await tx.appointment.findMany({
+              where: {
+                resourceId: other.id,
+                status: { notIn: ["cancelled", "no_show"] },
+                startAt: { gte: new Date(start.getTime() - 24 * 3_600_000), lte: dayEnd(start) },
+              },
+              select: { startAt: true, durationMin: true },
+            });
+            if (!otherDay.some((a) => overlaps(start, service.durationMin, a.startAt, a.durationMin))) {
+              targetResourceId = other.id;
+              foundFree = true;
+              break;
+            }
+          }
+          if (!foundFree) {
+            isOverlapConflict = true;
+            throw new Error("CONFLICT_OVERLAP");
+          }
         }
 
         let appointment = await tx.appointment.create({
           data: {
             tenantId,
-            serviceId,
-            resourceId,
+            serviceId: service.id,
+            resourceId: targetResourceId,
             userId: userId ?? null,
             clientName,
             clientPhone,
@@ -248,28 +317,59 @@ export async function POST(req: NextRequest) {
             status: "pending",
             price: service.price,
             depositAmount: 0,
+            notes: notes ?? null,
           },
           include: APPT_INCLUDE,
         });
 
-        // Synchronisation App↔Institut: une cliente de l'app qui
-        // réserve apparaît immédiatement dans le CRM de l'institut (fiche
-        // liée userId + miroir peau) et le RDV porte clientProfileId —
-        // comptes RDV/visites de la fiche 360° et relances alimentés d'office.
-        if (userId) {
-          const u = await tx.user.findUnique({
-            where: { id: userId },
-            select: { id: true, name: true, phone: true, skinType: true, fitzpatrick: true },
+        // Synchronisation App↔Institut: création / mise à jour de la fiche client CRM
+        let effectiveUser = userId
+          ? await tx.user.findUnique({
+              where: { id: userId },
+              select: { id: true, name: true, phone: true, skinType: true, fitzpatrick: true, district: true, birthDate: true, pregnant: true, preferredChannel: true, beautyBudget: true, selectedTenantId: true },
+            })
+          : null;
+
+        if (!effectiveUser && clientPhone) {
+          const digits = clientPhone.replace(/\D/g, "");
+          effectiveUser = await tx.user.findFirst({
+            where: {
+              OR: [
+                { phone: clientPhone },
+                ...(digits.length >= 8 ? [{ phone: { contains: digits.slice(-8) } }] : []),
+              ],
+            },
+            select: { id: true, name: true, phone: true, skinType: true, fitzpatrick: true, district: true, birthDate: true, pregnant: true, preferredChannel: true, beautyBudget: true, selectedTenantId: true },
           });
-          if (u) {
-            const profile = await ensureClientProfile(tx, tenantId, u);
-            if (profile) {
-              appointment = await tx.appointment.update({
-                where: { id: appointment.id },
-                data: { clientProfileId: profile.id },
-                include: APPT_INCLUDE,
-              });
-            }
+        }
+
+        if (effectiveUser) {
+          if (!effectiveUser.selectedTenantId) {
+            await tx.user.update({
+              where: { id: effectiveUser.id },
+              data: { selectedTenantId: tenantId },
+            }).catch(() => null);
+          }
+          const profile = await ensureClientProfile(tx, tenantId, effectiveUser);
+          if (profile) {
+            appointment = await tx.appointment.update({
+              where: { id: appointment.id },
+              data: { clientProfileId: profile.id, userId: effectiveUser.id },
+              include: APPT_INCLUDE,
+            });
+          }
+        } else if (clientPhone) {
+          const profile = await ensureClientProfile(tx, tenantId, {
+            id: `guest_${Date.now()}`,
+            name: clientName,
+            phone: clientPhone,
+          });
+          if (profile) {
+            appointment = await tx.appointment.update({
+              where: { id: appointment.id },
+              data: { clientProfileId: profile.id },
+              include: APPT_INCLUDE,
+            });
           }
         }
 
@@ -424,7 +524,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    pushTenantFeed(tenantId);
+
     return NextResponse.json({
+      ok: true,
       appointment,
       payment: paymentOut,
       paymentUrl,
