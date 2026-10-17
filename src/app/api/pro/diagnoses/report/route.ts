@@ -24,15 +24,60 @@ export async function GET(req: NextRequest) {
 
     const diag = await db.proDiagnosis.findFirst({
       where: { id, tenantId: tenant.id },
-      include: { clientProfile: { select: { name: true, phone: true } } },
+      include: { clientProfile: { select: { id: true, name: true, phone: true } } },
     });
     if (!diag) return jsonError("Diagnostic introuvable dans cet institut", 404);
 
-    // Analyse optique multi-spectrale cabine : Quad 4 Bandes (Standard, Ambre 585nm, Vert 540nm, UV 405nm)
-    const spectral = await processMultiSpectralSuite(diag.photoData, {
+    // Résolution garantie de la photo réelle de la cliente (diagnostic courant → dernier scan cabine → dernier scan cliente / avatar)
+    let resolvedPhotoData = diag.photoData;
+    if (!resolvedPhotoData || resolvedPhotoData.trim().length < 30) {
+      const prevProWithPhoto = await db.proDiagnosis.findFirst({
+        where: {
+          clientProfileId: diag.clientProfileId,
+          photoData: { not: null },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { photoData: true },
+      });
+      if (prevProWithPhoto?.photoData && prevProWithPhoto.photoData.trim().length > 30) {
+        resolvedPhotoData = prevProWithPhoto.photoData;
+      } else if (diag.clientProfile.phone) {
+        const linkedUser = await db.user.findFirst({
+          where: { phone: diag.clientProfile.phone },
+          select: { id: true, avatarData: true },
+        });
+        if (linkedUser) {
+          const latestUserDiag = await db.diagnosis.findFirst({
+            where: { userId: linkedUser.id, imageData: { not: "" } },
+            orderBy: { createdAt: "desc" },
+            select: { imageData: true },
+          });
+          if (latestUserDiag?.imageData && latestUserDiag.imageData.trim().length > 30) {
+            resolvedPhotoData = latestUserDiag.imageData;
+          } else if (linkedUser.avatarData && linkedUser.avatarData.trim().length > 30) {
+            resolvedPhotoData = linkedUser.avatarData;
+          }
+        }
+      }
+    }
+
+    let parsedIndicators: Array<{ nom: string; pourcentage: number }> | undefined;
+    try {
+      const parsed = JSON.parse(diag.resultJson);
+      if (parsed && Array.isArray(parsed.indicateurs)) {
+        parsedIndicators = parsed.indicateurs;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Analyse optique multi-spectrale cabine : Quad 4 Bandes sur les clichés réels de la cliente
+    const spectral = await processMultiSpectralSuite(resolvedPhotoData, {
       clientName: diag.clientProfile.name,
       date: diag.createdAt,
       zoneLabel: diag.zone,
+      indicators: parsedIndicators,
+      scoreGlobal: diag.scoreGlobal,
     });
 
     const pdf = proDiagReportPdf({

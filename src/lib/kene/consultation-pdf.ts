@@ -447,18 +447,18 @@ export function consultationSheetPdf(input: {
   doc.text("PHOTOTYPE DE FITZPATRICK :", M_X + 10, yP, { font: "bold", size: 7.2, color: GOLD_DARK });
   const rawFitz = (c?.fitzpatrick ?? "").toUpperCase();
   const fitzTypes = [
-    { label: "Type I", match: rawFitz.includes("I") && !rawFitz.includes("II") && !rawFitz.includes("IV") && !rawFitz.includes("V") && !rawFitz.includes("VI") },
-    { label: "Type II", match: rawFitz.includes("II") && !rawFitz.includes("III") },
-    { label: "Type III", match: rawFitz.includes("III") },
-    { label: "Type IV", match: rawFitz.includes("IV") },
-    { label: "Type V", match: rawFitz.includes("V") && !rawFitz.includes("VI") },
-    { label: "Type VI", match: rawFitz.includes("VI") },
+    { label: "Albinos (OCA)", match: rawFitz.toLowerCase().includes("albin") || (rawFitz.includes("I") && !rawFitz.includes("II") && !rawFitz.includes("IV") && !rawFitz.includes("V") && !rawFitz.includes("VI")) },
+    { label: "Afro-rousse", match: rawFitz.toLowerCase().includes("rouq") || rawFitz.toLowerCase().includes("rous") || (rawFitz.includes("II") && !rawFitz.includes("III")) },
+    { label: "III · Chabine", match: rawFitz.includes("III") },
+    { label: "IV · Métissée/Clair", match: rawFitz.includes("IV") },
+    { label: "V · Brune", match: rawFitz.includes("V") && !rawFitz.includes("VI") && !rawFitz.includes("IV") },
+    { label: "VI · Ébène", match: rawFitz.includes("VI") },
   ];
 
   xP = M_X + 10;
   yP += 12;
   for (const ft of fitzTypes) {
-    checkboxItem(doc, xP, yP, ft.label, ft.match, { size: 7.5 });
+    checkboxItem(doc, xP, yP, ft.label, ft.match, { size: 7.2 });
     xP += 82;
   }
 
@@ -716,8 +716,9 @@ function renderQuestionCard(doc: PdfDoc, q: Question): void {
 }
 
 /**
- * Rendu du Quadriptyque Optique Multi-Spectral (4 Vues Cliniques)
- * Standard Polarisée, Ambre 585nm, Vert 540nm, UV 405nm
+ * Rendu du Quadriptyque Optique Multi-Spectral (4 Vues Cliniques Majeures)
+ * Affiche les photos réelles de la cliente en grand format haute visibilité :
+ * 1. Lumière Standard HD, 2. Ambre 585nm (Mélanine/HPI), 3. Vert 540nm (Vasculaire/Érythème), 4. Wood 405nm (Pores/Sébum)
  */
 function renderMultiSpectralQuad(
   doc: PdfDoc,
@@ -733,22 +734,22 @@ function renderMultiSpectralQuad(
   });
 
   const cardW = 248;
-  const cardH = 88;
+  const cardH = 114;
   const gapX = 11;
-  const gapY = 8;
+  const gapY = 10;
   const totalH = cardH * 2 + gapY + 28;
 
-  // Garantit que le bandeau de section ET le quadriptyque de 4 cartes restent groupés sur la même page
+  // Garantit que le bandeau de section ET le quadriptyque de 4 grandes cartes restent groupés sur la même page
   doc.ensure(totalH + 34);
 
   sectionBand(
     doc,
     sectionLetter,
     isPro
-      ? "BILAN OPTIQUE MULTI-SPECTRAL EN CABINE (4 VUES CLINIQUES)"
-      : "MON BILAN OPTIQUE MULTI-SPECTRAL (4 VUES CLINIQUES)",
+      ? "LES 4 VUES CLINIQUES DU DIAGNOSTIC — IMAGERIE MULTI-SPECTRALE CABINE"
+      : "MES 4 VUES CLINIQUES DU DIAGNOSTIC — ANALYSE OPTIQUE MULTI-SPECTRALE",
     ms.isRealPhoto
-      ? "Clichés dermatoscopiques réels filtrés par spectrométrie cutanée étalonnée"
+      ? "Photos réelles de la cliente analysées sous les 4 spectres dermatoscopiques (HD, 585nm, 540nm, 405nm)"
       : "Cartographie biométrique multi-spectrale de référence (Standard, 585nm, 540nm, 405nm)"
   );
 
@@ -760,70 +761,71 @@ function renderMultiSpectralQuad(
     const cardX = col === 0 ? M_X : M_X + cardW + gapX;
     const cardY = startY + row * (cardH + gapY);
 
-    // Fond et contour de la carte
-    drawBox(doc, cardX, cardY, cardW, cardH, CARD, LINE, 0.7);
+    // Fond et contour mis en valeur de la carte clinique
+    drawBox(doc, cardX, cardY, cardW, cardH, CARD, GOLD, 0.85);
 
-    // Image optique avec cadre sombre
-    const imgSize = 70;
+    // Grande photo clinique réelle de la cliente (96x96 pt)
+    const imgSize = 96;
     const imgX = cardX + 7;
     const imgY = cardY + 9;
     doc.rect(imgX - 1.5, imgY - 1.5, imgSize + 3, imgSize + 3, [0.03, 0.05, 0.1]);
     doc.drawImage(`${prefix}${b.id}`, imgX, imgY, imgSize, imgSize);
-    doc.rectStroke(imgX, imgY, imgSize, imgSize, b.accentRgb, 1);
+    doc.rectStroke(imgX, imgY, imgSize, imgSize, b.accentRgb, 1.2);
 
-    // Bloc textuel d'interprétation
+    // Bloc textuel d'interprétation clinique à droite de la photo
     const textX = imgX + imgSize + 8;
-    const textW = cardW - (imgSize + 8 + 7 + 7); // ≈ 156 pt
+    const textW = cardW - (imgSize + 8 + 7 + 6); // ≈ 131 pt
 
-    // Ligne 1 : Code de longueur d'onde & Titre
-    doc.text(b.bandCode, textX, cardY + 15, {
+    // Ligne 1 : Code de la vue clinique
+    doc.text(b.bandCode, textX, cardY + 16, {
       font: "bold",
-      size: 7.2,
+      size: 7.4,
       color: b.accentRgb,
-      letterSpace: 0.4,
+      letterSpace: 0.3,
     });
     doc.textRight(
-      idx === 0 ? "VISIA CROISE" : idx === 1 ? "MELANINE" : idx === 2 ? "VASCULAIRE" : "FLUORESCENCE",
-      cardX + cardW - 7,
-      cardY + 15,
-      { font: "oblique", size: 6.2, color: SOFT }
+      idx === 0 ? "SURFACE" : idx === 1 ? "MÉLANINE" : idx === 2 ? "VASCULAIRE" : "SÉBUM",
+      cardX + cardW - 6,
+      cardY + 16,
+      { font: "bold", size: 6.2, color: SOFT }
     );
 
     // Ligne 2 : Sous-titre / Focus clinique
-    doc.text(b.subtitle, textX, cardY + 26, {
+    doc.text(b.subtitle, textX, cardY + 28, {
       font: "bold",
-      size: 7.6,
+      size: 7.5,
       color: INK,
       maxW: textW,
     });
 
-    // Lignes 3-4 : Observation clinique
+    // Lignes 3-6 : Observation clinique détaillée
     const lines = wrapText(b.observation, textW, 6.4, "regular");
-    if (lines[0]) doc.text(lines[0], textX, cardY + 37, { size: 6.4, color: SOFT, maxW: textW });
-    if (lines[1]) doc.text(lines[1], textX, cardY + 46, { size: 6.4, color: SOFT, maxW: textW });
+    if (lines[0]) doc.text(lines[0], textX, cardY + 40, { size: 6.4, color: SOFT, maxW: textW });
+    if (lines[1]) doc.text(lines[1], textX, cardY + 49, { size: 6.4, color: SOFT, maxW: textW });
+    if (lines[2]) doc.text(lines[2], textX, cardY + 58, { size: 6.4, color: SOFT, maxW: textW });
+    if (lines[3]) doc.text(lines[3], textX, cardY + 67, { size: 6.4, color: SOFT, maxW: textW });
 
-    // Ligne 5 : Tag / Badge statut clinique
-    drawBox(doc, textX, cardY + 58, textW, 18, CREAM, LINE_LIGHT, 0.5);
-    // Petit point carré vectoriel propre au lieu d'un glyphe Unicode exotique
-    doc.rect(textX + 5, cardY + 64, 4, 4, b.accentRgb);
-    doc.text(b.tag, textX + 13, cardY + 70, {
+    // Ligne inférieure : Badge statut clinique
+    drawBox(doc, textX, cardY + 84, textW, 20, CREAM, b.accentRgb, 0.6);
+    doc.rect(textX + 5, cardY + 92, 4, 4, b.accentRgb);
+    doc.text(b.tag, textX + 12, cardY + 96.5, {
       font: "bold",
-      size: 6.8,
+      size: 6.6,
       color: b.accentRgb,
-      maxW: textW - 16,
+      maxW: textW - 15,
     });
   });
 
-  // Ruban récapitulatif sous le quad
+  // Ruban récapitulatif sous les 4 vues cliniques
   const footY = startY + cardH * 2 + gapY + 6;
-  drawBox(doc, M_X, footY, CONTENT_W, 18, CREAM, LINE, 0.5);
+  drawBox(doc, M_X, footY, CONTENT_W, 18, GOLD_BAND, GOLD, 0.6);
   doc.text(
-    isPro
-      ? "Corrélation multi-spectrale cabine : dissociation optique sélective de l'eumélanine, de l'érythème masqué et de la flore microbienne."
-      : "Lecture optique avancée : analyse de surface, des pigments profonds et de l'équilibre sébacé pour guider votre rituel.",
+    ms.isRealPhoto
+      ? "Clichés cliniques réels de la cliente : 1. Surface HD · 2. Pigmentation & HPI (585nm) · 3. Sensibilité & Érythème (540nm) · 4. Pores & Sébum (405nm)."
+      : "Analyse optique 4 vues : dissociation sélective de la surface, de la mélanine, de la réactivité vasculaire et du film sébacé.",
     M_X + 8,
     footY + 12,
-    { font: "oblique", size: 6.8, color: SOFT, maxW: CONTENT_W - 16 }
+    { font: "bold", size: 6.8, color: GOLD_DARK, maxW: CONTENT_W - 16 }
   );
 
   doc.advance(totalH + 10);
@@ -1035,11 +1037,32 @@ export function proDiagReportPdf(input: {
       doc.advance(blockH + 11);
     }
 
-    // 4. Indicateurs Cliniques Détaillés
-    sectionBand(doc, "B", "INDICATEURS CLINIQUES PAR DOMAINE");
+    // 4. Indicateurs Cliniques Détaillés de la Zone Prise
+    const fitzVal = result.fitzpatrick_estime || (typeof answers.fitz === "string" ? answers.fitz : undefined);
+    const fitzDisplay =
+      fitzVal === "albinos"
+        ? "Albinos (OCA) — Peau sans eumélanine protectrice"
+        : fitzVal === "rouquine"
+        ? "Afro-rousse / Rouquine (Dominante phéomélanine)"
+        : fitzVal === "III"
+        ? "Phototype III — Chabine / Teint très clair doré"
+        : fitzVal === "IV"
+        ? "Phototype IV — Métissée / Teint clair caramel"
+        : fitzVal === "V"
+        ? "Phototype V — Brune / Cuivrée foncée"
+        : fitzVal === "VI"
+        ? "Phototype VI — Ébène / Très foncée"
+        : fitzVal;
+
+    sectionBand(
+      doc,
+      "B",
+      `INDICATEURS CLINIQUES DE LA ZONE : ${zoneLabel.toUpperCase()}`,
+      fitzDisplay ? `Nuance & Phototype : ${fitzDisplay}` : undefined
+    );
     const rows = [...result.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage);
     for (const ind of rows) {
-      doc.ensure(16);
+      doc.ensure(ind.note ? 25 : 16);
       const color = sevColor(ind.pourcentage);
       doc.text(ind.nom, M_X + 4, doc.cursorY + 2, { font: "bold", size: 8, color: INK, maxW: 240 });
       doc.text(sevLabel(ind.severite), M_X + 260, doc.cursorY + 2, { size: 7.5, color: SOFT });
@@ -1056,8 +1079,86 @@ export function proDiagReportPdf(input: {
         size: 8,
         color,
       });
-      doc.advance(13.5);
+      doc.advance(13);
+      if (ind.note) {
+        doc.text(`Observation : ${ind.note}`, M_X + 12, doc.cursorY, {
+          font: "oblique",
+          size: 7,
+          color: SOFT,
+          maxW: CONTENT_W - 20,
+        });
+        doc.advance(10.5);
+      }
     }
+
+    // Zones localisées marquées sur la photo (zones_marquages)
+    if (result.zones_marquages && result.zones_marquages.length > 0) {
+      doc.ensure(22);
+      doc.advance(3);
+      const marksSummary = result.zones_marquages
+        .map((m) => `${m.label} (${m.severite === 0 ? "sain" : m.severite === 1 ? "léger" : m.severite === 2 ? "modéré" : "marqué"})`)
+        .join(" · ");
+      doc.text(`Zones localisées ciblées sur le cliché : ${marksSummary}`, M_X + 4, doc.cursorY + 2, {
+        size: 7.4,
+        color: GOLD_DARK,
+        font: "bold",
+        maxW: CONTENT_W - 8,
+      });
+      doc.advance(12);
+    }
+
+    // Grille ABCDE si zone Nævi
+    if (result.abcde && result.abcde.length > 0) {
+      doc.ensure(24 + result.abcde.length * 13);
+      doc.advance(4);
+      doc.text("ÉVALUATION MORPHOLOGIQUE ABCDE (GRAINS DE BEAUTÉ / NÆVI) :", M_X + 4, doc.cursorY + 2, {
+        font: "bold",
+        size: 7.8,
+        color: GOLD_DARK,
+      });
+      doc.advance(12);
+      for (const c of result.abcde) {
+        const cColor = c.alerte ? RED : GREEN;
+        doc.text(
+          `[${c.critere}] ${c.intitule} : ${c.alerte ? "VIGILANCE" : "Normal"}${c.detail ? ` — ${c.detail}` : ""}`,
+          M_X + 12,
+          doc.cursorY + 2,
+          { size: 7.5, color: cColor, font: c.alerte ? "bold" : "regular", maxW: CONTENT_W - 16 }
+        );
+        doc.advance(11.5);
+      }
+    }
+
+    // Hypothèses cliniques identifiées par l'analyse
+    if (result.hypotheses && result.hypotheses.length > 0) {
+      doc.ensure(24 + result.hypotheses.length * 22);
+      doc.advance(4);
+      doc.text("OBSERVATIONS & HYPOTHÈSES DERMATOLOGIQUES ASSOCIÉES :", M_X + 4, doc.cursorY + 2, {
+        font: "bold",
+        size: 7.8,
+        color: GOLD_DARK,
+      });
+      doc.advance(12);
+      for (const h of result.hypotheses) {
+        doc.ensure(20);
+        doc.text(`• ${h.nom} (indice de correspondance : ${h.confiance} %)`, M_X + 10, doc.cursorY + 2, {
+          font: "bold",
+          size: 7.8,
+          color: INK,
+          maxW: CONTENT_W - 16,
+        });
+        doc.advance(11);
+        if (h.action) {
+          doc.text(`Conduite conseillée : ${h.action}`, M_X + 18, doc.cursorY + 1, {
+            size: 7.2,
+            color: SOFT,
+            maxW: CONTENT_W - 24,
+          });
+          doc.advance(11);
+        }
+      }
+    }
+
     doc.advance(6);
 
     // 5. Points de Vigilance
@@ -1079,8 +1180,8 @@ export function proDiagReportPdf(input: {
       doc.advance(6);
     }
 
-    // 6. Protocole & Recommandations
-    sectionBand(doc, "D", "PROTOCOLE & RECOMMANDATIONS PERSONNALISÉES");
+    // 6. Protocole & Toutes les Recommandations Personnalisées
+    sectionBand(doc, "D", "PROTOCOLE COMPLET & RECOMMANDATIONS PERSONNALISÉES");
     const reco = result.recommandations;
     if (reco.resume) {
       doc.ensure(15);
@@ -1091,9 +1192,10 @@ export function proDiagReportPdf(input: {
     const recoBlocks: [string, string[]][] = [
       ["Routine du matin", reco.routine_matin],
       ["Routine du soir", reco.routine_soir],
-      ["Botaniques conseillées", reco.botaniques_conseillees],
-      ["Soins en institut", reco.soins_conseilles],
-      ["Conseils d'hygiène de vie", reco.conseils_hygiene_vie],
+      ["Produits & Actifs dermo-cosmétiques ciblés", reco.produits],
+      ["Botaniques africaines conseillées", reco.botaniques_conseillees],
+      ["Soins en institut préconisés", reco.soins_conseilles],
+      ["Conseils d'hygiène de vie & prévention", reco.conseils_hygiene_vie],
     ];
 
     for (const [title, items] of recoBlocks) {
@@ -1127,19 +1229,29 @@ export function proDiagReportPdf(input: {
     }
   }
 
-  // 7. Traçabilité des réponses de l'entretien
-  sectionBand(doc, "E", `SYNTHÈSE DE L'ENTRETIEN CABINE · ${zoneLabel.toUpperCase()}`);
+  // 7. Traçabilité complète des réponses du questionnaire de la zone prise
+  sectionBand(doc, "E", `QUESTIONNAIRE & RÉPONSES DE L'ENTRETIEN · ${zoneLabel.toUpperCase()}`);
   const zoneQuestions = getQuestionsForZone(input.diagnosis.zone as BodyZone);
+  let renderedAnswersCount = 0;
   for (const q of zoneQuestions) {
     const a = answers[q.id];
-    if (a === undefined || a === null || a === "") continue;
+    if (a === undefined || a === null || a === "" || (Array.isArray(a) && a.length === 0)) continue;
+    renderedAnswersCount++;
     const labels = Array.isArray(a)
       ? a.map((v) => q.options.find((o) => o.value === v)?.label ?? v).join(", ")
       : q.options.find((o) => o.value === a)?.label ?? String(a);
 
     doc.ensure(14);
-    doc.text(q.label, M_X + 4, doc.cursorY + 2, { size: 7.5, color: SOFT, maxW: 190 });
-    doc.text(labels, M_X + 200, doc.cursorY + 2, { size: 8, color: INK, maxW: M_RIGHT - M_X - 205 });
+    doc.text(q.label, M_X + 4, doc.cursorY + 2, { font: "bold", size: 7.4, color: SOFT, maxW: 195 });
+    doc.text(labels, M_X + 204, doc.cursorY + 2, { size: 8, color: INK, maxW: M_RIGHT - M_X - 208 });
+    doc.advance(12.5);
+  }
+  if (renderedAnswersCount === 0) {
+    doc.ensure(14);
+    doc.text("Diagnostic réalisé par analyse optique directe.", M_X + 4, doc.cursorY + 2, {
+      size: 7.8,
+      color: SOFT,
+    });
     doc.advance(12);
   }
   doc.advance(6);
@@ -1220,8 +1332,11 @@ export function clientDiagReportPdf(input: {
   doc.text("CLIENTE", M_X + 10, userBoxY + 11, { font: "bold", size: 6.8, color: SOFT, letterSpace: 0.3 });
   doc.text(input.userName, M_X + 10, userBoxY + 21, { font: "bold", size: 9.5, color: INK });
 
-  doc.text("DATE DE L'ANALYSE", M_X + 260, userBoxY + 11, { font: "bold", size: 6.8, color: SOFT, letterSpace: 0.3 });
-  doc.text(fmtDate(input.diagnosis.createdAt), M_X + 260, userBoxY + 21, { font: "bold", size: 9, color: INK });
+  doc.text("ZONE ANALYSÉE", M_X + 200, userBoxY + 11, { font: "bold", size: 6.8, color: SOFT, letterSpace: 0.3 });
+  doc.text(zoneLabel, M_X + 200, userBoxY + 21, { font: "bold", size: 9, color: GOLD_DARK });
+
+  doc.text("DATE DE L'ANALYSE", M_X + 360, userBoxY + 11, { font: "bold", size: 6.8, color: SOFT, letterSpace: 0.3 });
+  doc.text(fmtDate(input.diagnosis.createdAt), M_X + 360, userBoxY + 21, { font: "bold", size: 9, color: INK });
 
   doc.advance(36);
 
@@ -1260,16 +1375,6 @@ export function clientDiagReportPdf(input: {
     doc.text(statusMsg, labelColX, scoreBoxY + 28, { size: 8, color: INK, maxW: CONTENT_W - 95 });
 
     doc.advance(scoreBoxH + 12);
-
-    if (result.fitzpatrick_estime) {
-      doc.ensure(14);
-      doc.text(`Phototype estimé : Fitzpatrick ${result.fitzpatrick_estime}`, M_X + 4, doc.cursorY + 2, {
-        font: "bold",
-        size: 8,
-        color: SOFT,
-      });
-      doc.advance(13);
-    }
 
     // Cliché multi-spectral si disponible (Quad 4 Bandes ou Fallback Simple)
     if (input.multiSpectral) {
@@ -1342,11 +1447,32 @@ export function clientDiagReportPdf(input: {
       doc.advance(blockH + 10);
     }
 
-    // Indicateurs
-    sectionBand(doc, "B", "MES INDICATEURS DE SANTÉ CUTANÉE");
+    // Indicateurs complets de la zone prise
+    const cFitzVal = result.fitzpatrick_estime;
+    const cFitzDisplay =
+      cFitzVal === "albinos"
+        ? "Albinos (OCA) — Peau sans eumélanine protectrice"
+        : cFitzVal === "rouquine"
+        ? "Afro-rousse / Rouquine (Dominante phéomélanine)"
+        : cFitzVal === "III"
+        ? "Phototype III — Chabine / Teint très clair doré"
+        : cFitzVal === "IV"
+        ? "Phototype IV — Métissée / Teint clair caramel"
+        : cFitzVal === "V"
+        ? "Phototype V — Brune / Cuivrée foncée"
+        : cFitzVal === "VI"
+        ? "Phototype VI — Ébène / Très foncée"
+        : cFitzVal;
+
+    sectionBand(
+      doc,
+      "B",
+      `MES INDICATEURS DE SANTÉ CUTANÉE · ${zoneLabel.toUpperCase()}`,
+      cFitzDisplay ? `Nuance & Phototype estimé : ${cFitzDisplay}` : undefined
+    );
     const rows = [...result.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage);
     for (const ind of rows) {
-      doc.ensure(16);
+      doc.ensure(ind.note ? 25 : 16);
       const color = sevColor(ind.pourcentage);
       doc.text(ind.nom, M_X + 4, doc.cursorY + 2, { font: "bold", size: 8, color: INK, maxW: 240 });
       doc.text(sevLabel(ind.severite), M_X + 260, doc.cursorY + 2, { size: 7.5, color: SOFT });
@@ -1362,13 +1488,88 @@ export function clientDiagReportPdf(input: {
         size: 8,
         color,
       });
-      doc.advance(13.5);
+      doc.advance(13);
+      if (ind.note) {
+        doc.text(`Observation : ${ind.note}`, M_X + 12, doc.cursorY, {
+          font: "oblique",
+          size: 7,
+          color: SOFT,
+          maxW: CONTENT_W - 20,
+        });
+        doc.advance(10.5);
+      }
     }
+
+    if (result.zones_marquages && result.zones_marquages.length > 0) {
+      doc.ensure(22);
+      doc.advance(3);
+      const marksSummary = result.zones_marquages
+        .map((m) => `${m.label} (${m.severite === 0 ? "sain" : m.severite === 1 ? "léger" : m.severite === 2 ? "modéré" : "marqué"})`)
+        .join(" · ");
+      doc.text(`Zones localisées analysées : ${marksSummary}`, M_X + 4, doc.cursorY + 2, {
+        size: 7.4,
+        color: GOLD_DARK,
+        font: "bold",
+        maxW: CONTENT_W - 8,
+      });
+      doc.advance(12);
+    }
+
+    if (result.abcde && result.abcde.length > 0) {
+      doc.ensure(24 + result.abcde.length * 13);
+      doc.advance(4);
+      doc.text("SURVEILLANCE MORPHOLOGIQUE ABCDE :", M_X + 4, doc.cursorY + 2, {
+        font: "bold",
+        size: 7.8,
+        color: GOLD_DARK,
+      });
+      doc.advance(12);
+      for (const c of result.abcde) {
+        const cColor = c.alerte ? RED : GREEN;
+        doc.text(
+          `[${c.critere}] ${c.intitule} : ${c.alerte ? "À contrôler" : "Normal"}${c.detail ? ` — ${c.detail}` : ""}`,
+          M_X + 12,
+          doc.cursorY + 2,
+          { size: 7.5, color: cColor, font: c.alerte ? "bold" : "regular", maxW: CONTENT_W - 16 }
+        );
+        doc.advance(11.5);
+      }
+    }
+
+    if (result.hypotheses && result.hypotheses.length > 0) {
+      doc.ensure(24 + result.hypotheses.length * 22);
+      doc.advance(4);
+      doc.text("OBSERVATIONS SPÉCIFIQUES IDENTIFIÉES :", M_X + 4, doc.cursorY + 2, {
+        font: "bold",
+        size: 7.8,
+        color: GOLD_DARK,
+      });
+      doc.advance(12);
+      for (const h of result.hypotheses) {
+        doc.ensure(20);
+        doc.text(`• ${h.nom} (${h.confiance} %)`, M_X + 10, doc.cursorY + 2, {
+          font: "bold",
+          size: 7.8,
+          color: INK,
+          maxW: CONTENT_W - 16,
+        });
+        doc.advance(11);
+        if (h.action) {
+          doc.text(`Conseil : ${h.action}`, M_X + 18, doc.cursorY + 1, {
+            size: 7.2,
+            color: SOFT,
+            maxW: CONTENT_W - 24,
+          });
+          doc.advance(11);
+        }
+      }
+    }
+
     doc.advance(6);
 
-    // Routine conseillée
+    // Routine & Toutes les Recommandations conseillées
     const reco = result.recommandations;
-    sectionBand(doc, "C", "MA ROUTINE BOTANIQUE CONSEILLÉE");
+    sectionBand(doc, "C", "MA ROUTINE BOTANIQUE & RECOMMANDATIONS PERSONNALISÉES");
     if (reco.resume) {
       doc.ensure(15);
       doc.text(reco.resume, M_X + 4, doc.cursorY + 2, { size: 8, color: INK, font: "oblique", maxW: CONTENT_W - 8 });
@@ -1376,11 +1577,12 @@ export function clientDiagReportPdf(input: {
     }
 
     const recoBlocks: [string, string[]][] = [
-      ["Le matin", reco.routine_matin],
-      ["Le soir", reco.routine_soir],
-      ["Botaniques recommandées", reco.botaniques_conseillees],
-      ["Soins en institut", reco.soins_conseilles],
-      ["Hygiène de vie", reco.conseils_hygiene_vie],
+      ["Routine du matin", reco.routine_matin],
+      ["Routine du soir", reco.routine_soir],
+      ["Produits & Actifs dermo-cosmétiques conseillés", reco.produits],
+      ["Botaniques africaines recommandées", reco.botaniques_conseillees],
+      ["Soins en institut conseillés", reco.soins_conseilles],
+      ["Conseils d'hygiène de vie & prévention", reco.conseils_hygiene_vie],
     ];
 
     for (const [title, items] of recoBlocks) {

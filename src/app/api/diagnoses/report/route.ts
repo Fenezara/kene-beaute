@@ -23,19 +23,53 @@ export async function GET(req: NextRequest) {
 
     const diag = await db.diagnosis.findFirst({
       where: { id, userId, status: "done" },
-      select: { id: true, zone: true, imageData: true, createdAt: true, resultJson: true, user: { select: { name: true } } },
+      select: {
+        id: true,
+        zone: true,
+        imageData: true,
+        createdAt: true,
+        resultJson: true,
+        user: { select: { name: true, avatarData: true } },
+      },
     });
     if (!diag) return jsonError("Diagnostic introuvable", 404);
 
-    const spectral = await processMultiSpectralSuite(diag.imageData, {
+    let resolvedImageData = diag.imageData;
+    if (!resolvedImageData || resolvedImageData.trim().length < 30) {
+      const prevDiagWithPhoto = await db.diagnosis.findFirst({
+        where: { userId, imageData: { not: "" } },
+        orderBy: { createdAt: "desc" },
+        select: { imageData: true },
+      });
+      if (prevDiagWithPhoto?.imageData && prevDiagWithPhoto.imageData.trim().length > 30) {
+        resolvedImageData = prevDiagWithPhoto.imageData;
+      } else if (diag.user.avatarData && diag.user.avatarData.trim().length > 30) {
+        resolvedImageData = diag.user.avatarData;
+      }
+    }
+
+    let parsedIndicators: Array<{ nom: string; pourcentage: number }> | undefined;
+    try {
+      if (diag.resultJson) {
+        const parsed = JSON.parse(diag.resultJson);
+        if (parsed && Array.isArray(parsed.indicateurs)) {
+          parsedIndicators = parsed.indicateurs;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    const spectral = await processMultiSpectralSuite(resolvedImageData, {
       clientName: diag.user.name,
       date: diag.createdAt,
       zoneLabel: diag.zone,
+      indicators: parsedIndicators,
     });
 
     const pdf = clientDiagReportPdf({
       userName: diag.user.name,
-      diagnosis: { id: diag.id, zone: diag.zone, createdAt: diag.createdAt, resultJson: diag.resultJson, imageData: diag.imageData },
+      diagnosis: { id: diag.id, zone: diag.zone, createdAt: diag.createdAt, resultJson: diag.resultJson, imageData: resolvedImageData },
       multiSpectral: spectral,
       spectralImage: spectral.legacyAcne,
     });

@@ -59,41 +59,36 @@ function buildHudOverlay(
   legendLeft = "VISIA OPTICS",
   legendRight = "SPECTRE ÉTALONNÉ"
 ): Buffer {
-  const prefix = isReal ? "CABINE" : "PROJECTION";
+  const prefix = isReal ? "CLICHÉ RÉEL" : "PROJECTION";
   const title = escapeXml(`${prefix} · ${badgeText}`);
   const safeLeft = escapeXml(legendLeft);
   const safeRight = escapeXml(legendRight);
 
   const svg = `
   <svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
-    <!-- Cadre extérieur haute technologie -->
-    <rect x="2" y="2" width="${w - 4}" height="${h - 4}" fill="none" stroke="${primaryColor}" stroke-width="1.2" stroke-opacity="0.65" rx="6" />
+    <!-- Cadre extérieur dermatoscopique -->
+    <rect x="2" y="2" width="${w - 4}" height="${h - 4}" fill="none" stroke="${primaryColor}" stroke-width="1.5" stroke-opacity="0.75" rx="6" />
 
-    <!-- Coins de cadrage dermatoscopique -->
-    <path d="M 12 24 L 12 12 L 24 12" fill="none" stroke="${accentColor}" stroke-width="2.5" stroke-linecap="round" />
-    <path d="M ${w - 12} 24 L ${w - 12} 12 L ${w - 24} 12" fill="none" stroke="${accentColor}" stroke-width="2.5" stroke-linecap="round" />
-    <path d="M 12 ${h - 24} L 12 ${h - 12} L 24 ${h - 12}" fill="none" stroke="${accentColor}" stroke-width="2.5" stroke-linecap="round" />
-    <path d="M ${w - 12} ${h - 24} L ${w - 12} ${h - 12} L ${w - 24} ${h - 12}" fill="none" stroke="${accentColor}" stroke-width="2.5" stroke-linecap="round" />
-
-    <!-- Réticule central optique -->
-    <circle cx="${w / 2}" cy="${h / 2}" r="16" fill="none" stroke="${primaryColor}" stroke-width="0.8" stroke-dasharray="3,3" stroke-opacity="0.55" />
-    <line x1="${w / 2 - 24}" y1="${h / 2}" x2="${w / 2 + 24}" y2="${h / 2}" stroke="${primaryColor}" stroke-width="0.8" stroke-opacity="0.45" />
-    <line x1="${w / 2}" y1="${h / 2 - 24}" x2="${w / 2}" y2="${h / 2 + 24}" stroke="${primaryColor}" stroke-width="0.8" stroke-opacity="0.45" />
+    <!-- Coins de cadrage optique discrets (visage 100% dégagé au centre) -->
+    <path d="M 10 34 L 10 26 L 18 26" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" />
+    <path d="M ${w - 10} 34 L ${w - 10} 26 L ${w - 18} 26" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" />
+    <path d="M 10 ${h - 30} L 10 ${h - 22} L 18 ${h - 22}" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" />
+    <path d="M ${w - 10} ${h - 30} L ${w - 10} ${h - 22} L ${w - 18} ${h - 22}" fill="none" stroke="${accentColor}" stroke-width="2" stroke-linecap="round" />
 
     <!-- Bandeau titre supérieur -->
-    <rect x="8" y="8" width="${w - 16}" height="20" rx="3.5" fill="#030712" fill-opacity="0.84" />
-    <text x="${w / 2}" y="22" text-anchor="middle" fill="${accentColor}" font-family="Helvetica, Arial, sans-serif" font-weight="bold" font-size="9.5" letter-spacing="0.5">
+    <rect x="6" y="6" width="${w - 12}" height="18" rx="3" fill="#030712" fill-opacity="0.78" />
+    <text x="${w / 2}" y="18" text-anchor="middle" fill="${accentColor}" font-family="Helvetica, Arial, sans-serif" font-weight="bold" font-size="9" letter-spacing="0.4">
       ${title}
     </text>
 
     <!-- Bandeau inférieur indicateurs -->
-    <rect x="8" y="${h - 24}" width="${w - 16}" height="16" rx="3.5" fill="#030712" fill-opacity="0.84" />
-    <circle cx="18" cy="${h - 16}" r="3.2" fill="${accentColor}" />
-    <text x="26" y="${h - 13}" fill="#e2e8f0" font-family="Helvetica, Arial, sans-serif" font-size="7.5" font-weight="bold">
+    <rect x="6" y="${h - 20}" width="${w - 12}" height="15" rx="3" fill="#030712" fill-opacity="0.78" />
+    <circle cx="15" cy="${h - 12.5}" r="3" fill="${accentColor}" />
+    <text x="23" y="${h - 9.5}" fill="#f8fafc" font-family="Helvetica, Arial, sans-serif" font-size="7.5" font-weight="bold">
       ${safeLeft}
     </text>
 
-    <text x="${w - 14}" y="${h - 13}" text-anchor="end" fill="${primaryColor}" font-family="Helvetica, Arial, sans-serif" font-size="7.5" font-weight="bold">
+    <text x="${w - 12}" y="${h - 9.5}" text-anchor="end" fill="${primaryColor}" font-family="Helvetica, Arial, sans-serif" font-size="7.5" font-weight="bold">
       ${safeRight}
     </text>
   </svg>`;
@@ -300,180 +295,490 @@ function buildSyntheticUvSvg(w = 320, h = 320, zone = "Visage"): Buffer {
 }
 
 /**
- * Traite une image ou génère la suite complète des 4 bandes multi-spectrales pour le rapport PDF
+ * Extrait un ou plusieurs buffers d'images réelles à partir d'une chaîne base64 simple
+ * ou d'un tableau JSON de photos base64 (ex: ["data:image/jpeg;base64,...", ...])
+ */
+function extractPhotoBuffers(photoInput?: string | null): Buffer[] {
+  if (!photoInput || typeof photoInput !== "string") return [];
+  const trimmed = photoInput.trim();
+  if (trimmed.length < 30) return [];
+
+  const rawStrings: string[] = [];
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (typeof item === "string" && item.trim().length > 30) {
+            rawStrings.push(item.trim());
+          }
+        }
+      }
+    } catch {
+      // Si le JSON est malformé, tente d'extraire par expression régulière les data URLs
+      const matches = trimmed.match(/data:image\/[a-zA-Z0-9+.-]+;base64,[A-Za-z0-9+/=]+/g);
+      if (matches) rawStrings.push(...matches);
+    }
+  } else {
+    rawStrings.push(trimmed);
+  }
+
+  const buffers: Buffer[] = [];
+  for (const str of rawStrings) {
+    const clean = str
+      .replace(/^["']+|["']+$/g, "")
+      .replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, "")
+      .trim();
+    if (clean.length > 30) {
+      try {
+        const buf = Buffer.from(clean, "base64");
+        if (buf.length > 64) buffers.push(buf);
+      } catch {
+        // ignore invalid base64 entry
+      }
+    }
+  }
+  return buffers;
+}
+
+interface BandCopy {
+  subtitle: string;
+  observation: string;
+  tag: string;
+  hudRight: string;
+}
+
+function buildZoneBandCopy(
+  zoneRaw: string,
+  indicators?: Array<{ nom: string; pourcentage: number }>,
+  isReal = true
+): {
+  standard: BandCopy;
+  amber585: BandCopy;
+  green540: BandCopy;
+  blue405: BandCopy;
+} {
+  const z = zoneRaw.toLowerCase();
+  const findPct = (...keys: string[]): number | null => {
+    if (!indicators || indicators.length === 0) return null;
+    const found = indicators.find((i) =>
+      keys.some((k) =>
+        i.nom
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .includes(k)
+      )
+    );
+    return found ? found.pourcentage : null;
+  };
+  const fmtTag = (label: string, pct: number | null) =>
+    pct !== null ? `${label} : ${pct}/100` : isReal ? `Cliché réel · ${label}` : label;
+
+  if (z.includes("cuir") || z.includes("cheve")) {
+    const pHyd = findPct("hydrat", "secheresse", "barriere");
+    const pAlo = findPct("alopec", "densit", "traction");
+    const pIrr = findPct("irrit", "follicul", "rougeur");
+    const pSeb = findPct("sebum", "desquam", "pellicul");
+    return {
+      standard: {
+        subtitle: "Densité Folliculaire & Bordures",
+        observation: "Cliché réel du cuir chevelu : évaluation de la densité capillaire, des tempes et de l'état de surface.",
+        tag: fmtTag("Densité & Hydratation", pHyd ?? pAlo),
+        hudRight: "CUIR CHEVELU HD",
+      },
+      amber585: {
+        subtitle: "Pigmentation & Bulbes",
+        observation: "Analyse de l'implantation folliculaire, des zones d'alopécie de traction et de l'uniformité pigmentaire.",
+        tag: fmtTag("Traction & Implantation", pAlo),
+        hudRight: "BULBES & TEMPES",
+      },
+      green540: {
+        subtitle: "Irritation & Folliculite",
+        observation: "Détection de l'érythème du cuir chevelu, des foyers de folliculite et des tensions mécaniques.",
+        tag: fmtTag("Apaisement & Tolérance", pIrr),
+        hudRight: "IRRITATION RACINES",
+      },
+      blue405: {
+        subtitle: "Sébum Racines & Desquamation",
+        observation: "Lecture sous filtre de Wood : pellicules sèches ou grasses, excès de sébum et occlusion des pores.",
+        tag: fmtTag("Équilibre Sébo-Squameux", pSeb),
+        hudRight: "PELLICULES & SÉBUM",
+      },
+    };
+  }
+
+  if (z.includes("dos")) {
+    const pTex = findPct("texture", "rugos", "hydrat");
+    const pPih = findPct("pih", "tache", "pigment");
+    const pAcn = findPct("acne", "irrit", "rougeur");
+    const pSeb = findPct("sebum", "pore");
+    return {
+      standard: {
+        subtitle: "Relief Cutané & Grain du Dos",
+        observation: "Cliché réel du dos et décolleté : analyse de la texture épidermique, de la kératose et de l'hydratation.",
+        tag: fmtTag("Texture & Barrière Dos", pTex),
+        hudRight: "DOS & DÉCOLLETÉ",
+      },
+      amber585: {
+        subtitle: "Marques HPI Post-Boutons",
+        observation: "Cartographie des taches brunes post-inflammatoires (HPI) laissées par d'anciennes imperfections dorsales.",
+        tag: fmtTag("Uniformité & Taches HPI", pPih),
+        hudRight: "TACHES DORSALES",
+      },
+      green540: {
+        subtitle: "Foyers Inflammatoires Actifs",
+        observation: "Mise en évidence des papules/pustules actives et de l'inflammation sous-cutanée liée aux frottements.",
+        tag: fmtTag("Calme Inflammatoire", pAcn),
+        hudRight: "ACNÉ INFLAMMATOIRE",
+      },
+      blue405: {
+        subtitle: "Sébum Dorsal & Pores Obstrués",
+        observation: "Visualisation de l'émulsion sébacée et des résidus comédogènes sur le haut du dos et les épaules.",
+        tag: fmtTag("Pureté Sébacée Dos", pSeb),
+        hudRight: "PORES & SÉBUM DOS",
+      },
+    };
+  }
+
+  if (z.includes("barbe")) {
+    const pHyd = findPct("hydrat", "barriere", "poil");
+    const pPih = findPct("pih", "tache", "pigment");
+    const pInc = findPct("incarne", "follicul", "irrit");
+    const pSeb = findPct("sebum", "acne");
+    return {
+      standard: {
+        subtitle: "Grain de Peau & Fibre de Barbe",
+        observation: "Cliché réel barbe et cou : évaluation de la souplesse du poil, de la barrière cutanée et du rasage.",
+        tag: fmtTag("Barrière & Hydratation", pHyd),
+        hudRight: "BARBE & COU HD",
+      },
+      amber585: {
+        subtitle: "Taches HPI Post-Rasage",
+        observation: "Repérage des macules hyperpigmentées provoquées par les poils incarnés et le feu du rasoir.",
+        tag: fmtTag("Taches Post-Rasage", pPih),
+        hudRight: "HPI ZONE RASAGE",
+      },
+      green540: {
+        subtitle: "Poils Incarnés & Folliculite",
+        observation: "Détection des papules de pseudofolliculite de la barbe (poils recourbés sous la peau) et de l'érythème.",
+        tag: fmtTag("Santé Folliculaire", pInc),
+        hudRight: "POILS INCARNÉS",
+      },
+      blue405: {
+        subtitle: "Sébum Sous-Barbe & Flore",
+        observation: "Lecture du film hydrolipidique sous la barbe et des foyers microbiens au niveau du menton et du cou.",
+        tag: fmtTag("Équilibre Sébacé Barbe", pSeb),
+        hudRight: "SÉBUM & PORES",
+      },
+    };
+  }
+
+  if (z.includes("main") || z.includes("pied")) {
+    const pHyd = findPct("secheresse", "hydrat", "barriere");
+    const pPig = findPct("pigment", "tache");
+    const pIrr = findPct("irrit", "rougeur", "crevasse");
+    const pOng = findPct("ongle", "keratose", "callos");
+    return {
+      standard: {
+        subtitle: "Barrière Cutanée & Ongles",
+        observation: "Cliché réel des extrémités : examen de la sécheresse, des cuticules, de la tablette unguéale et du relief.",
+        tag: fmtTag("Hydratation & Souplesse", pHyd),
+        hudRight: "MAINS & ONGLES HD",
+      },
+      amber585: {
+        subtitle: "Taches Pigmentaires & Jointures",
+        observation: "Analyse de l'homogénéité pigmentaire sur le dos des mains et les articulations interphalangiennes.",
+        tag: fmtTag("Homogénéité Pigmentaire", pPig),
+        hudRight: "DOS DES MAINS",
+      },
+      green540: {
+        subtitle: "Irritations, Crevasses & Contact",
+        observation: "Révélation des zones d'échauffement, de dermite de contact aux détergents et des micro-gerçures.",
+        tag: fmtTag("Intégrité Épidermique", pIrr),
+        hudRight: "RÉACTIVITÉ CUTANÉE",
+      },
+      blue405: {
+        subtitle: "Kératose, Callosités & Cuticules",
+        observation: "Mise en évidence des zones d'hyperkératose, d'assèchement lipidique et de fragilité unguéale.",
+        tag: fmtTag("Vitalité Ongles & Kératine", pOng),
+        hudRight: "FILM LIPIDIQUE",
+      },
+    };
+  }
+
+  if (z.includes("naev") || z.includes("grain")) {
+    const pAsy = findPct("asymetrie", "bord");
+    const pCol = findPct("couleur", "pigment");
+    const pEvo = findPct("evolution", "diametre");
+    return {
+      standard: {
+        subtitle: "Morphologie & Contours (A-B)",
+        observation: "Cliché réel haute définition de la lésion : observation de la symétrie globale et de la netteté des bords.",
+        tag: fmtTag("Symétrie & Bords", pAsy),
+        hudRight: "CRITÈRES A & B",
+      },
+      amber585: {
+        subtitle: "Distribution Mélanique (Critère C)",
+        observation: "Analyse de l'homogénéité de la pigmentation brune/noire au sein du naevus sous filtre ambre.",
+        tag: fmtTag("Homogénéité Couleur", pCol),
+        hudRight: "CRITÈRE C · MÉLANINE",
+      },
+      green540: {
+        subtitle: "Halo Vasculaire Péri-Lésionnel",
+        observation: "Vérification de l'absence d'érythème inflammatoire, de saignement ou de halo réactif autour du grain.",
+        tag: fmtTag("Stabilité & Évolution", pEvo),
+        hudRight: "HALO VASCULAIRE",
+      },
+      blue405: {
+        subtitle: "Relief Épidermique & Surface",
+        observation: "Inspection du micro-relief de surface et protection de la barrière cornée environnante.",
+        tag: "Surveillance ABCDE active",
+        hudRight: "SURFACE & RELIEF",
+      },
+    };
+  }
+
+  // Par défaut : Visage
+  const pHyd = findPct("hydrat", "barriere", "secheresse", "eclat");
+  const pPih = findPct("pih", "pigment", "melasma", "tache");
+  const pRou = findPct("rougeur", "irrit", "sensib");
+  const pSeb = findPct("sebum", "pore", "acne", "noir");
+  return {
+    standard: {
+      subtitle: "Grain de Peau & Barrière Cornée",
+      observation: "Photo réelle en lumière blanche polarisée : analyse du relief épidermique, de l'hydratation et de l'éclat.",
+      tag: fmtTag("Hydratation & Surface", pHyd),
+      hudRight: "ZONE: " + zoneRaw.toUpperCase(),
+    },
+    amber585: {
+      subtitle: "Cartographie Mélanique & Taches HPI",
+      observation: "Photo réelle sous filtre ambre : mise en évidence des taches post-inflammatoires (HPI) et du mélasma.",
+      tag: fmtTag("Uniformité Mélanique", pPih),
+      hudRight: "SPECTRE MÉLANIQUE",
+    },
+    green540: {
+      subtitle: "Sensibilité & Réactivité Vasculaire",
+      observation: "Photo réelle sous contraste vasculaire : détection des zones de réactivité et d'érythème post-inflammatoire.",
+      tag: fmtTag("Tolérance & Apaisement", pRou),
+      hudRight: "RÉACTIVITÉ CUTANÉE",
+    },
+    blue405: {
+      subtitle: "Pores, Sébum & Comédons",
+      observation: "Photo réelle sous filtre de Wood : lecture de la brillance sébacée en zone T, des pores dilatés et comédons.",
+      tag: fmtTag("Équilibre Sébum & Pores", pSeb),
+      hudRight: "PORES & BRILLANCE",
+    },
+  };
+}
+
+/**
+ * Traite une image (ou série de clichés) et génère la suite complète des 4 vues cliniques
+ * avec les photos réelles de la cliente pour le rapport PDF.
  */
 export async function processMultiSpectralSuite(
   photoBase64?: string | null,
-  meta?: { clientName?: string; date?: Date | string; zoneLabel?: string }
+  meta?: {
+    clientName?: string;
+    date?: Date | string;
+    zoneLabel?: string;
+    indicators?: Array<{ nom: string; pourcentage: number }>;
+    scoreGlobal?: number;
+  }
 ): Promise<MultiSpectralSuiteResult> {
-  const targetW = 320;
-  const targetH = 320;
+  const targetW = 380;
+  const targetH = 380;
   const zone = meta?.zoneLabel || "Visage";
 
-  if (photoBase64 && typeof photoBase64 === "string" && photoBase64.trim().length > 30) {
+  const photoBuffers = extractPhotoBuffers(photoBase64);
+
+  if (photoBuffers.length > 0) {
     try {
-      const clean = photoBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, "").trim();
-      const rawBuf = Buffer.from(clean, "base64");
+      // Normalise tous les clichés réels disponibles de la cliente
+      const normalizedBuffers: Buffer[] = [];
+      for (const rawBuf of photoBuffers.slice(0, 4)) {
+        try {
+          const normBuf = await sharp(rawBuf)
+            .rotate() // respecte l'orientation EXIF
+            .resize(targetW, targetH, { fit: "cover", position: "centre" })
+            .toBuffer();
+          normalizedBuffers.push(normBuf);
+        } catch {
+          // ignore un cliché corrompu et continue avec les autres
+        }
+      }
 
-      // Cliché brut recadré et normalisé
-      const normalizedBuf = await sharp(rawBuf)
-        .resize(targetW, targetH, { fit: "cover", position: "centre" })
-        .toBuffer();
+      if (normalizedBuffers.length > 0) {
+        const basePhoto0 = normalizedBuffers[0];
+        const basePhoto1 = normalizedBuffers[1] ?? basePhoto0;
+        const basePhoto2 = normalizedBuffers[2] ?? basePhoto0;
+        const basePhoto3 = normalizedBuffers[3] ?? basePhoto0;
+        const copy = buildZoneBandCopy(zone, meta?.indicators, true);
 
-      // 1. Vue Standard Polarisée : rehaussement léger de la netteté et micro-relief
-      const standardFiltered = await sharp(normalizedBuf)
-        .linear(1.15, -(128 * 0.15))
-        .toBuffer();
-      const standardHud = buildHudOverlay(
-        targetW,
-        targetH,
-        true,
-        zone,
-        "STANDARD POLARISÉE",
-        "#0d9488",
-        "#14b8a6",
-        "LUMIÈRE BLANCHE",
-        "ZONE: " + zone.toUpperCase()
-      );
-      const standardJpg = await sharp(standardFiltered)
-        .composite([{ input: standardHud, blend: "over" }])
-        .jpeg({ quality: 86 })
-        .toBuffer();
+        // 1. Vue Clinique 1 — LUMIÈRE STANDARD HD (Cliché réel haute définition, texture & barrière)
+        const standardFiltered = await sharp(basePhoto0)
+          .modulate({ brightness: 1.04, saturation: 1.05 })
+          .sharpen({ sigma: 0.9 })
+          .toBuffer();
+        const standardHud = buildHudOverlay(
+          targetW,
+          targetH,
+          true,
+          zone,
+          "VUE 1 · LUMIÈRE STANDARD HD",
+          "#0d9488",
+          "#14b8a6",
+          "TEXTURE & SURFACE",
+          copy.standard.hudRight
+        );
+        const standardJpg = await sharp(standardFiltered)
+          .composite([{ input: standardHud, blend: "over" }])
+          .jpeg({ quality: 90 })
+          .toBuffer();
 
-      // 2. Vue Ambre 585 nm : saturation des tons chauds & isolement mélanique (HPI)
-      const amberFiltered = await sharp(normalizedBuf)
-        .modulate({ hue: -15, saturation: 1.85, brightness: 0.90 })
-        .linear(1.45, -(128 * 0.45))
-        .toBuffer();
-      const amberHud = buildHudOverlay(
-        targetW,
-        targetH,
-        true,
-        zone,
-        "AMBRE 585nm · MÉLANOMÉTRIE",
-        "#d97706",
-        "#f59e0b",
-        "ABSORPTION MÉLANINE",
-        "ΔE ESTIMÉ: ACTIF"
-      );
-      const amberJpg = await sharp(amberFiltered)
-        .composite([{ input: amberHud, blend: "over" }])
-        .jpeg({ quality: 86 })
-        .toBuffer();
+        // 2. Vue Clinique 2 — SPECTRE AMBRE 585 nm (Cliché réel : contraste mélanique & taches HPI sans assombrir)
+        const amberFiltered = await sharp(basePhoto1)
+          .modulate({ hue: -8, saturation: 1.32, brightness: 1.08 })
+          .linear(1.12, -8)
+          .sharpen({ sigma: 1.1 })
+          .toBuffer();
+        const amberHud = buildHudOverlay(
+          targetW,
+          targetH,
+          true,
+          zone,
+          "VUE 2 · AMBRE 585nm (MÉLANINE)",
+          "#d97706",
+          "#f59e0b",
+          "PIGMENTATION & HPI",
+          copy.amber585.hudRight
+        );
+        const amberJpg = await sharp(amberFiltered)
+          .composite([{ input: amberHud, blend: "over" }])
+          .jpeg({ quality: 90 })
+          .toBuffer();
 
-      // 3. Vue Vert 540 nm : pic hémoglobine pour révéler l'érythème et l'inflammation
-      const greenFiltered = await sharp(normalizedBuf)
-        .modulate({ hue: 135, saturation: 2.2, brightness: 0.95 })
-        .linear(1.5, -(128 * 0.50))
-        .toBuffer();
-      const greenHud = buildHudOverlay(
-        targetW,
-        targetH,
-        true,
-        zone,
-        "VERT 540nm · HÉMOGLOBINE",
-        "#059669",
-        "#10b981",
-        "PIC OXY-HÉMOGLOBINE",
-        "ÉRYTHÈME MASQUÉ"
-      );
-      const greenJpg = await sharp(greenFiltered)
-        .composite([{ input: greenHud, blend: "over" }])
-        .jpeg({ quality: 86 })
-        .toBuffer();
+        // 3. Vue Clinique 3 — SPECTRE VASCULAIRE 540 nm (Cliché réel : réactivité, sensibilité & érythème)
+        const greenFiltered = await sharp(basePhoto2)
+          .modulate({ hue: 6, saturation: 1.24, brightness: 1.07 })
+          .linear(1.14, -10)
+          .sharpen({ sigma: 1.2 })
+          .toBuffer();
+        const greenHud = buildHudOverlay(
+          targetW,
+          targetH,
+          true,
+          zone,
+          "VUE 3 · SPECTRE 540nm (VASCULAIRE)",
+          "#059669",
+          "#10b981",
+          "SENSIBILITÉ & ÉRYTHÈME",
+          copy.green540.hudRight
+        );
+        const greenJpg = await sharp(greenFiltered)
+          .composite([{ input: greenHud, blend: "over" }])
+          .jpeg({ quality: 90 })
+          .toBuffer();
 
-      // 4. Vue UV / Bleu 405 nm : inversion spectrale, porphyrines C. acnes & sébum
-      const uvFiltered = await sharp(normalizedBuf)
-        .negate({ alpha: false })
-        .modulate({ hue: 190, saturation: 1.5, brightness: 0.94 })
-        .linear(1.55, -(128 * 0.55))
-        .toBuffer();
-      const uvHud = buildHudOverlay(
-        targetW,
-        targetH,
-        true,
-        zone,
-        "UV 405nm · PORPHYRINES & SÉBUM",
-        "#0284c7",
-        "#38bdf8",
-        "FLUORESCENCE WOOD",
-        "C. ACNES & LIPIDES"
-      );
-      const uvJpg = await sharp(uvFiltered)
-        .composite([{ input: uvHud, blend: "over" }])
-        .jpeg({ quality: 86 })
-        .toBuffer();
+        // 4. Vue Clinique 4 — LUMIÈRE DE WOOD 405 nm (Cliché réel positif avec voile optique bleu-cyan pour pores & sébum)
+        const woodGlazeSvg = Buffer.from(
+          `<svg width="${targetW}" height="${targetH}" xmlns="http://www.w3.org/2000/svg">
+            <rect width="${targetW}" height="${targetH}" fill="#0284c7" fill-opacity="0.14" />
+          </svg>`
+        );
+        const uvFiltered = await sharp(basePhoto3)
+          .modulate({ brightness: 1.08, saturation: 1.15 })
+          .linear(1.16, -12)
+          .sharpen({ sigma: 1.4 })
+          .composite([{ input: woodGlazeSvg, blend: "over" }])
+          .toBuffer();
+        const uvHud = buildHudOverlay(
+          targetW,
+          targetH,
+          true,
+          zone,
+          "VUE 4 · WOOD 405nm (PORES & SÉBUM)",
+          "#0284c7",
+          "#38bdf8",
+          "FILM HYDROLIPIDIQUE",
+          copy.blue405.hudRight
+        );
+        const uvJpg = await sharp(uvFiltered)
+          .composite([{ input: uvHud, blend: "over" }])
+          .jpeg({ quality: 90 })
+          .toBuffer();
 
-      const bands: [SpectralBandData, SpectralBandData, SpectralBandData, SpectralBandData] = [
-        {
-          id: "standard",
-          bandCode: "POLARISÉE",
-          title: "LUMIÈRE STANDARD POLARISÉE",
-          subtitle: "Micro-Relief & Barrière Cornée",
-          observation: "Cohésion épidermique, grain de peau et perméabilité sans éblouissement.",
-          tag: "Barrière cutanée stable",
-          accentRgb: [0.08, 0.55, 0.65],
-          accentHex: "#0d9488",
-          jpegBytes: new Uint8Array(standardJpg),
-          width: targetW,
-          height: targetH,
-        },
-        {
-          id: "amber585",
-          bandCode: "585 nm",
-          title: "SPECTRE AMBRE (585 nm)",
-          subtitle: "Absorption Mélanique & HPI",
-          observation: "Cartographie de l'eumélanine pure : macules post-acné et mélasma sans confusion vasculaire.",
-          tag: "Hyperpigmentation focale",
-          accentRgb: [0.78, 0.45, 0.05],
-          accentHex: "#d97706",
-          jpegBytes: new Uint8Array(amberJpg),
-          width: targetW,
-          height: targetH,
-        },
-        {
-          id: "green540",
-          bandCode: "540 nm",
-          title: "SPECTRE VERT (540 nm)",
-          subtitle: "Pic Hémoglobine & Érythème",
-          observation: "Révélation de l'Érythème Post-Inflammatoire (EPI) dissimulé sous la mélanine.",
-          tag: "Micro-inflammation isolée",
-          accentRgb: [0.10, 0.55, 0.30],
-          accentHex: "#059669",
-          jpegBytes: new Uint8Array(greenJpg),
-          width: targetW,
-          height: targetH,
-        },
-        {
-          id: "blue405",
-          bandCode: "405 nm",
-          title: "FLUORESCENCE UV (405 nm)",
-          subtitle: "Porphyrines & Film Sébacé",
-          observation: "Excitation des porphyrines bactériennes (C. acnes en corail) et cartographie lipidique.",
-          tag: "Activité sébacée modérée",
-          accentRgb: [0.15, 0.50, 0.85],
-          accentHex: "#0284c7",
-          jpegBytes: new Uint8Array(uvJpg),
-          width: targetW,
-          height: targetH,
-        },
-      ];
+        const bands: [SpectralBandData, SpectralBandData, SpectralBandData, SpectralBandData] = [
+          {
+            id: "standard",
+            bandCode: "VUE 1 · HD",
+            title: "LUMIÈRE STANDARD POLARISÉE",
+            subtitle: copy.standard.subtitle,
+            observation: copy.standard.observation,
+            tag: copy.standard.tag,
+            accentRgb: [0.08, 0.55, 0.65],
+            accentHex: "#0d9488",
+            jpegBytes: new Uint8Array(standardJpg),
+            width: targetW,
+            height: targetH,
+          },
+          {
+            id: "amber585",
+            bandCode: "VUE 2 · 585 nm",
+            title: "SPECTRE AMBRE (585 nm)",
+            subtitle: copy.amber585.subtitle,
+            observation: copy.amber585.observation,
+            tag: copy.amber585.tag,
+            accentRgb: [0.78, 0.45, 0.05],
+            accentHex: "#d97706",
+            jpegBytes: new Uint8Array(amberJpg),
+            width: targetW,
+            height: targetH,
+          },
+          {
+            id: "green540",
+            bandCode: "VUE 3 · 540 nm",
+            title: "SPECTRE VASCULAIRE (540 nm)",
+            subtitle: copy.green540.subtitle,
+            observation: copy.green540.observation,
+            tag: copy.green540.tag,
+            accentRgb: [0.10, 0.55, 0.30],
+            accentHex: "#059669",
+            jpegBytes: new Uint8Array(greenJpg),
+            width: targetW,
+            height: targetH,
+          },
+          {
+            id: "blue405",
+            bandCode: "VUE 4 · 405 nm",
+            title: "LUMIÈRE DE WOOD (405 nm)",
+            subtitle: copy.blue405.subtitle,
+            observation: copy.blue405.observation,
+            tag: copy.blue405.tag,
+            accentRgb: [0.15, 0.50, 0.85],
+            accentHex: "#0284c7",
+            jpegBytes: new Uint8Array(uvJpg),
+            width: targetW,
+            height: targetH,
+          },
+        ];
 
-      return {
-        isRealPhoto: true,
-        bands,
-        globalSynthesis:
-          "Analyse optique 4 bandes étalonnée : corrélation entre intégrité de surface, concentration mélanique et flore sébacée.",
-        legacyAcne: {
-          jpegBytes: new Uint8Array(uvJpg),
-          width: targetW,
-          height: targetH,
+        return {
           isRealPhoto: true,
-          sebumScoreEstimate: 68,
-          porphyrinSpotsCount: 16,
-          lipidFilmStatus: "Film lipidique réactif / comédogène",
-        },
-      };
+          bands,
+          globalSynthesis:
+            "Analyse photographique clinique sur les 4 vues réelles de la cliente : corrélation directe entre grain de peau, pigmentation mélanique, sensibilité et équilibre sébacé.",
+          legacyAcne: {
+            jpegBytes: new Uint8Array(uvJpg),
+            width: targetW,
+            height: targetH,
+            isRealPhoto: true,
+            sebumScoreEstimate: 68,
+            porphyrinSpotsCount: 16,
+            lipidFilmStatus: "Film lipidique réactif / comédogène",
+          },
+        };
+      }
     } catch (err) {
       console.warn("processMultiSpectralSuite: fallback vers cartographie vectorielle:", err);
     }

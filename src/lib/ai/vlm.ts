@@ -50,11 +50,11 @@ function buildAnalysisPrompt(zone: BodyZone, knownFitz?: string, allergies?: str
       ? ` ${numImages} angles de vue de la zone sont fournis : réalise une synthèse clinique 360° en combinant tous les angles.`
       : "";
   const zoneLabel = zone === "mains" ? "mains & pieds (extrémités acrales : paumes, plantes, talons, ongles)" : zone;
-  return `Analyse cutanée de peau mélanoderme (Fitzpatrick IV-VI), zone « ${zoneLabel} ».${knownFitz ? ` Phototype déclaré : ${knownFitz}.` : ""}${allergies ? ` Allergies : ${allergies}.` : ""}${multiAnglePart}
+  return `Analyse cutanée de toute la diversité des peaux noires et afro-descendantes (Albinos OCA, Afro-rousse / Rouquine phéomélanique, Chabine III, Métissée / Teint clair caramel IV, Brune cuivrée V, Ébène intense VI), zone « ${zoneLabel} ».${knownFitz ? ` Phototype/Nuance déclaré(e) : ${knownFitz}.` : ""}${allergies ? ` Allergies : ${allergies}.` : ""}${multiAnglePart}
 Catalogue des affections africaines plausibles sur cette zone (id=signature visuelle sur peau noire) : ${vlmCatalogForZone(zone)}.
-Ne pas confondre pigmentation naturelle et pathologie. L'érythème est masqué sur peau foncée : chercher la teinte violacée-brune.
+Ne pas confondre pigmentation naturelle (ou éphélides naturelles sur peau afro-rousse/chabine) et pathologie. Sur peau albinos, surveiller l'érythème solaire et les kératoses actiniques ; sur peau foncée, l'érythème est masqué (teinte violacée-brune).
 Réponds STRICTEMENT en JSON ultra-compact (≤ 650 caractères, sans markdown, sans texte autour) :
-{"score":<0-100>,"fitz":"IV"|"V"|"VI"|"III","ind":{${indicateurs.map((i) => `"${i}":<0-100>`).join(",")}},"marks":[["<zone>",<x 0-100>,<y 0-100>,<w 10-28>,<h 10-28>,<sev 0-3>],...],"focus":[["<indicateur le plus faible>","<note ≤ 40 caractères>"],...2-3 entrées],"conds":[["<id du catalogue>",<confiance 0-100>],...0-2],"derm":<bool>,"why":"<si derm, ≤ 80 caractères>"${abcdePart}}
+{"score":<0-100>,"fitz":"albinos"|"rouquine"|"III"|"IV"|"V"|"VI","ind":{${indicateurs.map((i) => `"${i}":<0-100>`).join(",")}},"marks":[["<zone>",<x 0-100>,<y 0-100>,<w 10-28>,<h 10-28>,<sev 0-3>],...],"focus":[["<indicateur le plus faible>","<note ≤ 40 caractères>"],...2-3 entrées],"conds":[["<id du catalogue>",<confiance 0-100>],...0-2],"derm":<bool>,"why":"<si derm, ≤ 80 caractères>"${abcdePart}}
 Règles : TOUS les indicateurs listés dans "ind" ; 4 à 6 marks ; sev 0=sain 1=léger 2=modéré 3=marqué ; conds = UNIQUEMENT des ids du catalogue ci-dessus (la/les plus probables, 0-2, confiance ≥ 40 seulement) ; si la photo ne montre pas de peau : score 0, derm false, conds vide.`;
 }
 
@@ -292,7 +292,7 @@ function normalizeAnalysis(
 
   return {
     score_global: scoreGlobal,
-    fitzpatrick_estime: ["III", "IV", "V", "VI"].includes(String(fitzRaw)) ? String(fitzRaw) : undefined,
+    fitzpatrick_estime: ["albinos", "rouquine", "I", "II", "III", "IV", "V", "VI"].includes(String(fitzRaw)) ? String(fitzRaw) : undefined,
     zone,
     indicateurs,
     zones_marquages: marquages,

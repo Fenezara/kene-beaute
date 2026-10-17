@@ -276,6 +276,47 @@ export const ATLAS: AtlasCondition[] = [
     glossaire: "taches blanches",
     vlmHint: "taches plus claires que la peau apres plaie/irritation, pas blanc pur",
   },
+  {
+    id: "albinisme_oca",
+    nom: "Peau Albinos (Albinisme Oculo-Cutané OCA2 & vigilance actinique)",
+    aliases: ["albinos", "albinisme", "peau sans mélanine", "kératose actinique"],
+    categorie: "pigmentation",
+    frequence: "frequente",
+    zones: ["visage", "dos", "mains", "naevi"],
+    surPeauNoire:
+      "Peau blanc-laiteux à ivoire rosé sans eumélanine protectrice, cheveux crépus blond platine/jaune paille. Très forte vulnérabilité aux UV tropicaux : érythème solaire rapide, éphélides/lentigos actiniques et risque majeur de kératoses actiniques (petites croûtes rugueuses) sur le visage, les lèvres, les oreilles et les avant-bras.",
+    symptomes: ["brûlures solaires rapides", "peau sèche et sensible", "petites croûtes rugueuses au soleil"],
+    confondAvec: ["vitiligo généralisé", "coup de soleil simple"],
+    niveau: "dermato",
+    action:
+      "Photoprotection vitale SPF 50+ toutes les 2 h (visage, lèvres, oreilles, bras) + chapeau à larges bords + lunettes UV400 + vêtements couvrants ; soins ultra-doux réparateurs (karité, céramides, aloka), zéro acide ni gommage ; contrôle dermatologique régulier.",
+    education:
+      "La peau albinos est une peau noire génétiquement dépourvue d'eumélanine : le soleil d'Abidjan est son premier danger. Avec un écran SPF 50+ renouvelé toutes les 2 h, un chapeau large, des vêtements protecteurs et une hydratation riche au karité et à l'aloka, on protège la peau et on prévient les lésions précancéreuses.",
+    drapeau: "Toute croûte rugueuse persistante, plaque qui saigne ou bouton qui ne guérit pas en 3 semaines → dermatologue SANS DÉLAI.",
+    indicateurs: ["Barrière cutanée", "Rougeurs / Érythème", "DPN / Kératoses"],
+    glossaire: "photoprotection",
+    vlmHint: "peau blanc-ivoire achromique + cheveux blonds crepus, erytheme/keratose solaire",
+  },
+  {
+    id: "rufisme_afro_roux",
+    nom: "Phénotype Afro-Roux / Rouquine (Phéomélanine & Éphélides)",
+    aliases: ["rouquine", "afro-rousse", "rousse noire", "rufisme", "taches de rousseur"],
+    categorie: "pigmentation",
+    frequence: "peu-frequente",
+    zones: ["visage", "dos", "mains", "naevi"],
+    surPeauNoire:
+      "Peau cuivrée-dorée, fauve ou miel-orangé (dominance de phéomélanine rouge-jaune liée aux variants OCA3/TYRP1 ou MC1R), cheveux crépus roux/auburn, parsemée d'éphélides (taches de rousseur) sur le nez, les pommettes et les épaules. Forte réactivité vasculaire et stress oxydatif sous les UV.",
+    symptomes: ["rougit vite au soleil", "taches de rousseur qui foncent", "peau réactive"],
+    confondAvec: ["mélasma", "PIH post-acné"],
+    niveau: "educatif",
+    action:
+      "Duo antioxydant (vitamine C stabilisée, huile de moringa) + écran solaire SPF 50+ chaque matin ; routine apaisante (niacinamide 5 %, aloka, baobab) ; ne jamais chercher à décaper les taches de rousseur naturelles.",
+    education:
+      "Le teint rouquin ou cuivré-doré chez une personne noire vient de la phéomélanine, un pigment lumineux mais qui protège peu des UV et crée un stress oxydatif au soleil. Tes taches de rousseur font partie de ta beauté naturelle : protège ta peau chaque matin avec un sérum antioxydant et un SPF 50+ sans jamais utiliser de produits décapants.",
+    indicateurs: ["Éclat / Uniformité du teint", "Rougeurs / Érythème"],
+    glossaire: "photoprotection",
+    vlmHint: "teint cuivre-dore/roux + ephelides (taches de rousseur) nez/pommettes",
+  },
 
   // ───────────────────── ACNÉ & FOLLICULAIRE (7) ─────────────────────
 

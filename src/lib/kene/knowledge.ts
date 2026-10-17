@@ -89,6 +89,162 @@ export interface IvoryContext {
   institutes: IvoryContextEntry;
 }
 
+export interface KnowledgePhenotype {
+  id: string;
+  name: string;
+  phototype: string;
+  /** Biologie de la mélanine (eumélanine vs phéomélanine, mélanosomes, génétique). */
+  melaninBiology: string;
+  /** Présentation visuelle clinique (teint, sous-tons, cheveux, yeux). */
+  visualSignature: string;
+  /** Vulnérabilités dermatologiques spécifiques sous climat tropical. */
+  vulnerabilities: string[];
+  /** Protocole dermo-cosmétique et prévention sur-mesure. */
+  protocol: string;
+  /** Signes d'alerte nécessitant une consultation médicale/dermatologique. */
+  redFlags: string[];
+  /** Résumé dense pour le prompt LLM. */
+  digest: string;
+}
+
+// ─────────────────────────── A0. Spectre & Diversité des Peaux Noires ───────────────────────────
+
+export const AFRO_SKIN_PHENOTYPES: KnowledgePhenotype[] = [
+  {
+    id: "albinos",
+    name: "Peau Albinos (Albinisme Oculo-Cutané — OCA2)",
+    phototype: "Achromique / Phototype I africain (déficit génétique d'eumélanine)",
+    melaninBiology:
+      "Condition génétique autosomique récessive (principalement liée au gène OCA2 en Afrique de l'Ouest) : les mélanocytes sont présents en nombre normal dans l'épiderme, mais la synthèse d'eumélanine (le pigment brun-noir photoprotecteur) est absente ou quasi nulle.",
+    visualSignature:
+      "Peau blanc-laiteux, ivoire rosé ou crème très pâle ; cheveux crépus blond platine, jaune paille ou doré clair ; iris bleu-gris, noisette clair ou ambré avec forte sensibilité à la lumière (photophobie, nystagmus).",
+    vulnerabilities: [
+      "Absence totale de bouclier mélanique naturel contre les UV : coup de soleil (érythème actinique) et brûlures dès 10-15 minutes d'exposition sous le soleil d'Abidjan",
+      "Photovieillissement précoce (élastose solaire, sécheresse intense, épaississement cutané de la nuque et des bras)",
+      "Risque très élevé de kératoses actiniques (petites croûtes rugueuses pré-cancéreuses) et de carcinomes cutanés (épidermoïdes et basocellulaires) sur les zones exposées (visage, oreilles, lèvres, cou, avant-bras)",
+      "Barrière cutanée fine et hyper-réactive : intolérance aux parfums, à l'alcool, aux gommages à grains et aux acides exfoliants forts",
+    ],
+    protocol:
+      "Photoprotection VITALE et quotidienne non négociable : écran solaire SPF 50+ à très large spectre UVA/UVB (filtres minéraux ou hybrides haute tolérance) appliqué généreusement chaque matin et renouvelé toutes les 2 h (y compris sur les lèvres avec un stick SPF 50+, les oreilles, la nuque et le dos des mains). Protection vestimentaire obligatoire : chapeau à larges bords, lunettes certifiées UV400, vêtements couvrants légers à tissage serré, recherche de l'ombre entre 10 h et 16 h. Routine de soin : nettoyant syndet surgras sans savon à l'eau tiède, réparation intense de la barrière (céramides, panthénol B5, beurre de karité brut non raffiné, huile de baobab, gel d'aloka frais pour calmer tout coup de chaud). Zéro gommage mécanique, zéro AHA/BHA fort, zéro rétinoïde sans prescription dermatologique.",
+    redFlags: [
+      "Toute croûte rugueuse qui accroche au doigt (kératose actinique), plaque rouge squameuse persistante, petit nodule perlé ou plaie/ulcération qui saigne ou ne guérit pas en 3 semaines → consultation dermatologique IMMÉDIATE",
+      "Brûlure solaire sévère avec cloques (bulles), fièvre ou frissons → urgence médicale",
+    ],
+    digest:
+      "Albinos (OCA2) : absence d'eumélanine protectrice, brûlure UV rapide et haut risque de kératoses actiniques/carcinomes. SPF 50+ toutes les 2h (visage, lèvres, oreilles, bras) + chapeau larges bords + lunettes UV400 + vêtements couvrants. Soins : syndet doux, karité pur, céramides, aloka, baobab ; ZÉRO acide fort ni gommage. Toute croûte rugueuse ou plaie > 3 semaines → dermatologue SANS DÉLAI.",
+  },
+  {
+    id: "rouquine_afro",
+    name: "Peau Afro-Rousse / Rouquine (Rufisme / OCA3 / Variant MC1R)",
+    phototype: "Phototype II-III spécifique afro-descendant à dominante phéomélanique",
+    melaninBiology:
+      "Phénotype génétique naturel chez les personnes noires (lié notamment aux variants TYRP1 / Albinisme Oculo-Cutané Roux OCA3 ou au récepteur MC1R) : la peau fabrique majoritairement de la phéomélanine (pigment soufré rouge-orangé à jaune doré) au lieu de l'eumélanine noire. Contrairement à l'eumélanine qui absorbe les UV, la phéomélanine génère des radicaux libres (stress oxydatif) sous l'effet du soleil.",
+    visualSignature:
+      "Teint cuivré-doré, fauve, miel-orangé, acajou clair ou brun-roux lumineux ; présence fréquente d'éphélides (taches de rousseur) sur le nez, les pommettes et les épaules ; cheveux crépus ou bouclés naturellement roux, cuivrés, auburn ou blond vénitien ; yeux noisette, ambre, miel ou vert-brun.",
+    vulnerabilities: [
+      "Photosensibilité élevée et fort stress oxydatif sous les UV : la peau rougit, chauffe rapidement au soleil et développe de nombreuses éphélides et lentigos solaires",
+      "Double réactivité inflammatoire : érythème vif (rougeur cuivrée) qui évolue ensuite en hyperpigmentation post-inflammatoire (PIH)",
+      "Barrière cutanée sensible qui tolère mal les décapants, l'alcool, les parfums forts et les actifs kératolytiques agressifs",
+      "Risque de brûlure et de dyschromie sévère si l'on tente d'effacer les taches de rousseur naturelles avec des produits éclaircissants",
+    ],
+    protocol:
+      "Duo Antioxydant + Photoprotection chaque matin : appliquer un sérum antioxydant doux (vitamine C stabilisée, niacinamide 5 % ou huile de moringa riche en vitamine E) pour neutraliser le stress oxydatif de la phéomélanine, suivi impérativement d'un écran solaire SPF 50+ fluide invisible. Le soir : nettoyage doux sans savon, hydratation apaisante (gel d'aloka, huile de baobab, acide hyaluronique) et acide azélaïque en douceur si petits boutons ou taches post-boutons. Valoriser et protéger les éphélides naturelles sans jamais chercher à les décaper.",
+    redFlags: [
+      "Tache pigmentée ou grain de beauté qui change de forme, de taille ou de couleur (règle ABCDE) → dermatologue",
+      "Rougeurs diffuses permanentes des pommettes (rosacée sur peau afro-rousse) → avis dermatologique",
+    ],
+    digest:
+      "Afro-rousse / Rouquine (phéomélanine dominante / rufisme OCA3) : teint cuivré-doré, cheveux roux crépus, taches de rousseur (éphélides), fort stress oxydatif UV et réactivité vasculaire. Matin : antioxydant (vitamine C stabilisée / moringa) + SPF 50+ obligatoire. Soir : douceur (aloka, niacinamide, baobab) ; ne jamais décaper les taches de rousseur.",
+  },
+  {
+    id: "chabine_claire",
+    name: "Peau Noire à Teint Très Clair / Chabine / Dorée",
+    phototype: "Phototype III à IV-a (ratio mixte eumélanine dorée / phéomélanine)",
+    melaninBiology:
+      "Synthèse conjointe d'eumélanine en quantité modérée et de phéomélanine dorée, avec des mélanosomes intermédiaires très réactifs aux stimuli hormonaux, thermiques et UV.",
+    visualSignature:
+      "Teint jaune d'or, miel clair, ivoire doré ou chabin, souvent accompagné de petites taches de rousseur dorées ou brunes et d'un rougissement visible à la chaleur ou à l'émotion.",
+    vulnerabilities: [
+      "Cumul Érythème Post-Inflammatoire (EPI rouge/rosé persistant) + Hyperpigmentation Post-Inflammatoire (HPI brune) au moindre bouton ou frottement",
+      "Sensibilité solaire réelle : coups de soleil possibles sous le zénith d'Abidjan et apparition rapide de taches solaires",
+      "Forte réactivité aux gommages à grains, à la cire chaude et aux peelings acides trop dosés",
+    ],
+    protocol:
+      "Routine haute tolérance et anti-taches : nettoyant physiologique pH 5,5, brume d'aloka, sérum niacinamide 5 % + acide azélaïque pour calmer à la fois la rougeur (EPI) et la tache brune (HPI), écran solaire SPF 50+ chaque matin. Privilégier les gommages enzymatiques très doux (1× tous les 10-15 jours) et bannir les grains abrasifs.",
+    redFlags: [
+      "Plaques rouges et brunes mêlées après l'application d'un cosmétique ou d'une huile essentielle au soleil (phytophotodermatose / brûlure)",
+    ],
+    digest:
+      "Teint très clair / Chabine (Fitz III-IVa) : rougit vite (EPI) PUIS marque en brun (HPI), sensible aux UV. SPF 50+ quotidien + niacinamide/azélaïque (calme rougeur et tache) + aloka ; exfoliation enzymatique uniquement.",
+  },
+  {
+    id: "metissee_caramel",
+    name: "Peau Métissée & Teint Clair / Caramel",
+    phototype: "Phototype IV à V-a (eumélanine intermédiaire hyper-réactive)",
+    melaninBiology:
+      "Mélanocytes dotés d'une forte plasticité pigmentaire : la production de base donne un teint clair/caramel lumineux, mais la tyrosinase s'active massivement dès la moindre inflammation (acné, piqûre, frottement) ou stimulation hormonale/UV.",
+    visualSignature:
+      "Teint caramel, café au lait, ambré, doré chaud ou olive clair ; sous-tons dorés, pêche ou neutres.",
+    vulnerabilities: [
+      "Contraste visuel maximal des taches d'hyperpigmentation post-inflammatoire (PIH) sur le fond clair/caramel",
+      "Forte prédisposition au mélasma (masque de grossesse, pilule, chaleur + UV) sur les pommettes, le front et la lèvre supérieure",
+      "Risque élevé de dyschromie en « halo » (anneau plus clair autour d'une tache) ou de démarcation visage/cou/jointures si usage de produits clarifiants agressifs",
+      "Peau fréquemment mixte sous climat tropical : zone T séborrhéique et joues déshydratées",
+    ],
+    protocol:
+      "Unification harmonieuse sans décapage : nettoyage doux matin et soir, sérum vitamine C stabilisée + niacinamide le matin sous un fluide solaire SPF 50+ (bouclier anti-mélasma et anti-PIH). Le soir : acide azélaïque ou lotion douce aux AHA de bissap (1-2×/semaine) + hydratation légère (huile sèche de moringa ou émulsion à l'aloka). Toujours appliquer les soins unifiants et le SPF sur le visage ET le cou pour une harmonie parfaite sans démarcation.",
+    redFlags: [
+      "Apparition de taches blanches en confettis ou d'un assombrissement gris-bleuté des pommettes (signe de produit éclaircissant caché → arrêt progressif et suivi dermato)",
+    ],
+    digest:
+      "Métissée & Teint clair caramel (Fitz IV-Va) : PIH très visible par contraste + mélasma fréquent + risque de démarcation/halo si actifs agressifs. Matin : vit C/niacinamide + SPF 50+ (visage et cou). Soir : azélaïque ou AHA doux de bissap + moringa.",
+  },
+  {
+    id: "brune_cuivree",
+    name: "Peau Brune / Cuivrée à Foncée",
+    phototype: "Phototype V-b (haute densité d'eumélanine, mélanosomes matures)",
+    melaninBiology:
+      "Riche en eumélanine offrant une bonne protection contre les brûlures UV aiguës, mais avec une réponse pigmentaire post-inflammatoire intense et prolongée.",
+    visualSignature:
+      "Teint brun chaud, chocolat au lait, cuivré profond ou acajou.",
+    vulnerabilities: [
+      "Hyperpigmentation post-inflammatoire (PIH) tenace pouvant persister 6 à 18 mois après un bouton d'acné ou une égratignure",
+      "Hyperséborrhée réactionnelle et brillance de la zone T sous la chaleur humide d'Abidjan",
+      "Érythème masqué : les rougeurs inflammatoires prennent un aspect brun-violacé ou ardoisé parfois sous-estimé",
+    ],
+    protocol:
+      "Double nettoyage doux le soir (huile végétale légère de jojoba ou moringa suivie d'un gel sans savon), séborégulation douce (niacinamide 5-10 %, zinc), traitement ciblé des imperfections sans jamais les percer (acide salicylique doux, acide azélaïque), écran solaire SPF 50+ fluide sans trace blanche chaque matin.",
+    redFlags: [
+      "Acné nodulaire profonde ou cicatrices en relief sur la mâchoire et le thorax (risque de chéloïdes)",
+    ],
+    digest:
+      "Peau brune cuivrée (Fitz Vb) : PIH tenace (6-18 mois), séborrhée en climat humide, inflammation violacée masquée. Double nettoyage doux, niacinamide/azélaïque/salicylique doux, SPF 50+ sans trace blanche.",
+  },
+  {
+    id: "ebene_intense",
+    name: "Peau Ébène / Foncée Intense",
+    phototype: "Phototype VI (concentration maximale d'eumélanine, grands mélanosomes individuels)",
+    melaninBiology:
+      "Bouclier mélanique endogène élevé (SPF naturel ~10-13), couche cornée plus compacte (davantage de strates cellulaires) mais taux physiologique de céramides intercellulaires plus faible, ce qui augmente la perte insensible en eau (PIE).",
+    visualSignature:
+      "Teint brun très profond, cacao intense à noir ébène velouté, sous-tons bleutés, neutres ou chauds.",
+    vulnerabilities: [
+      "Déshydratation épidermique rapide donnant un voile gris-cendré (« peau crocodile » ou aspect terne) sous l'harmattan, la climatisation ou les savons décapants",
+      "Prédisposition marquée aux chéloïdes, cicatrices hypertrophiques, poils incarnés (pseudofolliculite) et Dermatosis Papulosa Nigra (DPN)",
+      "Contraste très marqué de toute hypopigmentation (vitiligo, pityriasis versicolor, eczéma sec / dartres)",
+      "Effet grisâtre (« white cast ») avec les écrans solaires minéraux classiques non formulés pour peaux très foncées",
+    ],
+    protocol:
+      "Priorité à la nutrition lipidique et au scellement de l'hydratation : lavant surgras sans sulfates, application des soins sur peau encore humide (sérum acide hyaluronique/aloka scellé par du beurre de karité brut non raffiné sur le corps ou quelques gouttes d'huile de baobab/moringa sur le visage), fluide solaire SPF 50+ totalement transparent pour empêcher les taches PIH de noircir davantage.",
+    redFlags: [
+      "Bande noire longitudinale sur un seul ongle ou tache sombre évolutive sur la paume des mains ou la plante des pieds (mélanome acral) → dermatologue SANS DÉLAI",
+      "Cicatrice qui dépasse la plaie initiale et continue de grossir (chéloïde)",
+    ],
+    digest:
+      "Peau ébène (Fitz VI) : riche en eumélanine mais perte en eau élevée (reflet gris-cendré si sèche), prédisposition chéloïdes/DPN. Lavant surgras, sceller l'eau sur peau humide (aloka + karité/baobab), SPF 50+ 100 % transparent.",
+  },
+];
+
 // ─────────────────────────── A. Conditions ───────────────────────────
 
 export const CONDITIONS: KnowledgeCondition[] = [
@@ -709,6 +865,8 @@ export const IVORY_CONTEXT: IvoryContext = {
 
 const levelTag = (c: KnowledgeCondition): string => (c.level === "referer" ? "RÉFÉRER" : "éducatif");
 
+const digestPhenotypes = AFRO_SKIN_PHENOTYPES.map((p) => `- ${p.name} : ${p.digest}`).join("\n");
+
 const digestConditions = CONDITIONS.map((c) => `- ${c.name} [${levelTag(c)}] : ${c.digest}`).join("\n");
 
 const digestBotanicals = BOTANICALS.map((b) => `- ${b.name} : ${b.digest}`).join("\n");
@@ -718,7 +876,10 @@ const digestActives = ACTIVES.map((a) => `- ${a.name} : ${a.digest}`).join("\n")
 const digestRedFlags = RED_FLAGS.map((r) => `- ${r.digest}`).join("\n");
 
 export const KNOWLEDGE_DIGEST: string = [
-  "════ CONNAISSANCES DR KÈNÈ — dermatologie des peaux noires (Afrique de l'Ouest) ════",
+  "════ CONNAISSANCES DR KÈNÈ — dermatologie & diversité des peaux noires (Afrique de l'Ouest) ════",
+  "",
+  "— DIVERSITÉ DES TEINTES & PHÉNOTYPES AFRO-DESCENDANTS (Albinos, Rouquines, Chabines, Métissées, Brunes, Ébène) —",
+  digestPhenotypes,
   "",
   "— CONDITIONS FRÉQUENTES (éducatif = conseils doux · RÉFÉRER = orientation pro) —",
   digestConditions,
@@ -744,3 +905,4 @@ export const KNOWLEDGE_DIGEST: string = [
   `- ${IVORY_CONTEXT.economy.digest}`,
   `- ${IVORY_CONTEXT.institutes.digest}`,
 ].join("\n");
+

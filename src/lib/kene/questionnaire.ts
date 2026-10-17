@@ -228,15 +228,45 @@ const FACE_QUESTIONS: Question[] = [
   {
     id: "fitz",
     section: "peau",
-    label: "Phototype Fitzpatrick",
-    help: "Réaction de la peau au soleil",
+    label: "Nuance & Phototype cutané (Diversité des peaux noires)",
+    help: "Phénotype mélanique et réaction de la peau face au soleil",
     type: "single",
     required: true,
     options: [
-      { value: "III", label: "III — clair brun" },
-      { value: "IV", label: "IV — brun" },
-      { value: "V", label: "V — brun foncé" },
-      { value: "VI", label: "VI — très foncé" },
+      {
+        value: "albinos",
+        label: "Albinos (OCA) — peau dépigmentée sans mélanine, ultra-sensible aux UV",
+        effects: { barriere: -10, rougeur: -12, irrit: -10, keratose: -8 },
+        flag: {
+          label: "Peau Albinos (OCA) — Photoprotection vitale",
+          detail:
+            "Absence d'eumélanine protectrice : écran SPF 50+ toutes les 2 h, chapeau large, zéro acide exfoliant ni gommage, surveillance dermatologique des kératoses actiniques.",
+          level: "danger",
+        },
+      },
+      {
+        value: "rouquine",
+        label: "Afro-rousse / Rouquine — teint cuivré-doré, taches de rousseur (phéomélanine)",
+        effects: { rougeur: -8, pih: -8, irrit: -6, pigmentaire: -6 },
+        flag: {
+          label: "Phénotype Afro-Roux (Phéomélanine)",
+          detail:
+            "Stress oxydatif UV élevé et réactivité vasculaire : sérum antioxydant (Vitamine C stabilisée / Moringa) + SPF 50+ chaque matin indispensables, ne jamais décaper les éphélides.",
+          level: "warn",
+        },
+      },
+      {
+        value: "III",
+        label: "III — Chabine / Teint très clair doré (rougit puis marque vite)",
+        effects: { rougeur: -5, pih: -6 },
+      },
+      {
+        value: "IV",
+        label: "IV — Métissée / Teint clair caramel (PIH contrastée & mélasma)",
+        effects: { pih: -4, melasma: -4 },
+      },
+      { value: "V", label: "V — Brune / Cuivrée foncée" },
+      { value: "VI", label: "VI — Ébène / Très foncée" },
     ],
   },
   {
@@ -1101,6 +1131,23 @@ function buildRecommendations(indicators: Indicator[], flags: QFlag[], zone: Bod
 
   // Drapeaux cliniques -> vigilances dédiées
   for (const f of flags) {
+    if (f.label.includes("Albinos")) {
+      matin.unshift("Écran solaire minéral SPF 50+ très haute protection renouvelé toutes les 2 h (visage, lèvres, oreilles, cou)");
+      soir.unshift("Baume réparateur barrière haute tolérance au karité brut, céramides et aloka frais");
+      botaniques.unshift("Karité brut", "Aloka", "Baobab");
+      produits.unshift("Écran Solaire Minéral SPF 50+ Haute Tolérance", "Stick Lèvres SPF 50+", "Cérat Réparateur Céramides & Karité");
+      hygiene.unshift(
+        "Photoprotection vitale : chapeau à larges bords, lunettes UV400 et vêtements couvrants entre 10 h et 16 h",
+        "Bannir tout acide exfoliant fort et tout gommage à grains ; consulter un dermatologue devant toute croûte persistante"
+      );
+    }
+    if (f.label.includes("Afro-Roux")) {
+      matin.unshift("Sérum antioxydant vitamine C stabilisée & moringa (bouclier anti-stress oxydatif de la phéomélanine)", "Fluide solaire SPF 50+ quotidien");
+      soir.unshift("Soin apaisant niacinamide 5 % & gel d'aloka (sans décaper les éphélides naturelles)");
+      botaniques.unshift("Moringa", "Aloka", "Baobab");
+      produits.unshift("Sérum Antioxydant Vitamine C & Moringa", "Fluide Solaire SPF 50+ Haute Tolérance");
+      hygiene.unshift("Protéger les taches de rousseur naturelles du soleil sans jamais utiliser de produits éclaircissants ou décapants");
+    }
     if (f.label.includes("Dépigmentation") || f.label.includes("Dépigération")) {
       hygiene.push("Accompagnement de sevrage : arrêt progressif, jamais brutal, sous suivi dermo-cosmétique");
     }
