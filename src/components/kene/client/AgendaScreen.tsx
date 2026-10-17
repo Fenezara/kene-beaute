@@ -28,7 +28,6 @@ import {
   FileText,
   PackageCheck,
   Stethoscope,
-  SlidersHorizontal,
   PlusCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -45,7 +44,6 @@ import { cn } from "@/lib/utils";
 import { BODY_ZONES } from "@/lib/kene/types";
 import type { ApiAppointment, ApiDiagnosis, ApiInstitute } from "./types";
 import { parseDiagnosis } from "./types";
-import { ConciergerieWhatsAppSection } from "./ConciergerieWhatsAppSection";
 
 interface OrderItem {
   id: string;
@@ -291,8 +289,7 @@ export function AgendaScreen() {
   const user = useKene((s) => s.user);
   const setClientTab = useKene((s) => s.setClientTab);
 
-  const [activeSubTab, setActiveSubTab] = useState<"rdv" | "types" | "commandes" | "conciergerie">("rdv");
-  const [selectedRdvType, setSelectedRdvType] = useState<RdvTypeId>("all");
+  const [activeSubTab, setActiveSubTab] = useState<"rdv" | "reserver" | "commandes">("rdv");
   const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>([]);
@@ -381,20 +378,9 @@ export function AgendaScreen() {
       .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
   }, [appointments, now]);
 
-  // Filtrage des RDV selon le type sélectionné
-  const filteredUpcomingAppts = useMemo(() => {
-    if (selectedRdvType === "all") return upcomingAppts;
-    return upcomingAppts.filter(
-      (a) => classifyAppointmentType(a.service?.category, a.service?.name).id === selectedRdvType
-    );
-  }, [upcomingAppts, selectedRdvType]);
-
-  const filteredPastAppts = useMemo(() => {
-    if (selectedRdvType === "all") return pastAppts;
-    return pastAppts.filter(
-      (a) => classifyAppointmentType(a.service?.category, a.service?.name).id === selectedRdvType
-    );
-  }, [pastAppts, selectedRdvType]);
+  // Rendez-vous complets sans filtrage superflu
+  const filteredUpcomingAppts = upcomingAppts;
+  const filteredPastAppts = pastAppts;
 
   // Compteur par type de RDV
   const countByType = useMemo(() => {
@@ -614,7 +600,6 @@ export function AgendaScreen() {
 
     setQuickBookType(null);
     setActiveSubTab("rdv");
-    setSelectedRdvType(quickBookType.id);
   };
 
   return (
@@ -627,13 +612,13 @@ export function AgendaScreen() {
             className="mb-1.5 block h-[3px] w-10 rounded-full bg-gradient-to-r from-[#C8951E] via-[#A0522D] to-[#3F7D3F] opacity-80"
           />
           <p className="text-xs uppercase tracking-[0.16em] text-primary font-semibold">
-            Agenda Dermo-Clinique &amp; Cabine
+            Espace Soins &amp; Rendez-vous
           </p>
           <h2 className="font-heading font-black text-[24px] sm:text-[28px] leading-tight tracking-tight truncate">
-            Mon Agenda &amp; Tous mes RDV
+            Mes Soins &amp; RDV
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Consultations, soins cabine, contrôles J+1/J+7/J+30, coiffure, onglerie &amp; massage
+            Vos rendez-vous en institut et la réservation de vos prestations bien-être
           </p>
         </div>
 
@@ -648,8 +633,8 @@ export function AgendaScreen() {
         </button>
       </header>
 
-      {/* ───── Sélecteur de sous-onglets : Mes RDV / Types de RDV / Commandes / Conciergerie ───── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60">
+      {/* ───── Sélecteur épuré : Mes Rendez-vous / Réserver un Soin (+ Commandes si existantes) ───── */}
+      <div className={cn("grid gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60", orders.length > 0 ? "grid-cols-3" : "grid-cols-2")}>
         <button
           type="button"
           onClick={() => {
@@ -657,54 +642,17 @@ export function AgendaScreen() {
             setActiveSubTab("rdv");
           }}
           className={cn(
-            "py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+            "py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
             activeSubTab === "rdv"
               ? "bg-card text-foreground shadow-xs border border-border/80"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
           <CalendarDays size={14} className={activeSubTab === "rdv" ? "text-primary" : ""} />
-          <span className="truncate">Mes RDV</span>
-          <span className="size-4.5 px-1 rounded-full bg-primary/15 text-primary text-[10px] grid place-items-center font-black shrink-0">
-            {upcomingAppts.length + smartFollowUpMilestones.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            haptic(HAPTIC.tap);
-            setActiveSubTab("types");
-          }}
-          className={cn(
-            "py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
-            activeSubTab === "types"
-              ? "bg-card text-foreground shadow-xs border border-border/80"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <SlidersHorizontal size={14} className={activeSubTab === "types" ? "text-gold-text" : ""} />
-          <span className="truncate">6 Types de RDV</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            haptic(HAPTIC.tap);
-            setActiveSubTab("commandes");
-          }}
-          className={cn(
-            "py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
-            activeSubTab === "commandes"
-              ? "bg-card text-foreground shadow-xs border border-border/80"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <ShoppingBag size={14} className={activeSubTab === "commandes" ? "text-gold-text" : ""} />
-          <span className="truncate">Commandes</span>
-          {orders.length > 0 && (
-            <span className="size-4.5 px-1 rounded-full bg-gold/30 text-gold-text text-[10px] grid place-items-center font-bold shrink-0">
-              {orders.length}
+          <span className="truncate">Mes Rendez-vous</span>
+          {upcomingAppts.length > 0 && (
+            <span className="size-4.5 px-1 rounded-full bg-primary/15 text-primary text-[10px] grid place-items-center font-black shrink-0">
+              {upcomingAppts.length}
             </span>
           )}
         </button>
@@ -713,18 +661,43 @@ export function AgendaScreen() {
           type="button"
           onClick={() => {
             haptic(HAPTIC.tap);
-            setActiveSubTab("conciergerie");
+            setActiveSubTab("reserver");
           }}
           className={cn(
-            "py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
-            activeSubTab === "conciergerie"
-              ? "bg-gradient-to-r from-[#C8951E]/20 to-[#8B1A3B]/20 text-[#C8951E] shadow-xs border border-[#C8951E]/50 font-black"
-              : "text-muted-foreground hover:text-[#C8951E]"
+            "py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+            activeSubTab === "reserver"
+              ? "bg-card text-foreground shadow-xs border border-border/80"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <Crown size={14} className={activeSubTab === "conciergerie" ? "text-[#C8951E]" : "text-amber-500"} />
-          <span className="truncate">Conciergerie</span>
+          <Sparkles size={14} className={activeSubTab === "reserver" ? "text-gold-text" : ""} />
+          <span className="truncate">Réserver un Soin</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-gold/20 text-gold-text font-black shrink-0">
+            6 soins
+          </span>
         </button>
+
+        {orders.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              haptic(HAPTIC.tap);
+              setActiveSubTab("commandes");
+            }}
+            className={cn(
+              "py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+              activeSubTab === "commandes"
+                ? "bg-card text-foreground shadow-xs border border-border/80"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <ShoppingBag size={14} className={activeSubTab === "commandes" ? "text-gold-text" : ""} />
+            <span className="truncate">Commandes</span>
+            <span className="size-4.5 px-1 rounded-full bg-gold/30 text-gold-text text-[10px] grid place-items-center font-bold shrink-0">
+              {orders.length}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* ───── Modal / Carte de Réservation Rapide d'un Type de RDV ───── */}
@@ -810,73 +783,6 @@ export function AgendaScreen() {
       ═══════════════════════════════════════════════════════════ */}
       {activeSubTab === "rdv" && (
         <div className="flex flex-col gap-4">
-          {/* Barre de filtre rapide par Type de RDV */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between px-0.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Filtrer par type de rendez-vous :
-              </span>
-              <button
-                type="button"
-                onClick={() => setActiveSubTab("types")}
-                className="text-[11px] font-bold text-primary hover:underline"
-              >
-                Voir le catalogue des 6 types →
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-              <button
-                type="button"
-                onClick={() => {
-                  haptic(HAPTIC.light);
-                  setSelectedRdvType("all");
-                }}
-                className={cn(
-                  "shrink-0 h-8 px-3 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5",
-                  selectedRdvType === "all"
-                    ? "k-btn-gold text-primary-foreground border-transparent shadow-2xs"
-                    : "bg-card border-border/70 text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <span>Tous les types</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-background/25">
-                  {upcomingAppts.length}
-                </span>
-              </button>
-
-              {RDV_TYPES_CATALOG.map((rt) => {
-                const Icon = rt.icon;
-                const active = selectedRdvType === rt.id;
-                const count = countByType[rt.id] || 0;
-                return (
-                  <button
-                    key={rt.id}
-                    type="button"
-                    onClick={() => {
-                      haptic(HAPTIC.light);
-                      setSelectedRdvType(rt.id);
-                    }}
-                    className={cn(
-                      "shrink-0 h-8 px-3 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5",
-                      active
-                        ? "k-btn-gold text-primary-foreground border-transparent shadow-2xs"
-                        : "bg-card border-border/70 text-foreground/85 hover:border-gold/40"
-                    )}
-                  >
-                    <Icon size={13} />
-                    <span>{rt.shortLabel}</span>
-                    {count > 0 && (
-                      <span className="text-[10px] px-1.5 rounded-full bg-primary/20 text-primary font-black">
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Alerte proactive J-1 / Jour J si RDV imminent */}
           {proactiveReminder && (
             <motion.div
@@ -909,15 +815,18 @@ export function AgendaScreen() {
             <div className="flex items-center justify-between">
               <h3 className="font-heading font-bold text-sm text-foreground flex items-center gap-2">
                 <CalendarDays size={16} className="text-primary" />
-                Rendez-vous en institut ({filteredUpcomingAppts.length})
+                Rendez-vous à venir ({upcomingAppts.length})
               </h3>
               <button
                 type="button"
-                onClick={() => setActiveSubTab("types")}
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  setActiveSubTab("reserver");
+                }}
                 className="text-xs font-bold text-gold-text hover:underline inline-flex items-center gap-1"
               >
                 <PlusCircle size={13} />
-                Programmer un RDV
+                Prendre un RDV
               </button>
             </div>
 
@@ -926,52 +835,31 @@ export function AgendaScreen() {
                 <div className="h-28 rounded-[22px] bg-muted/40 animate-pulse" />
                 <div className="h-28 rounded-[22px] bg-muted/40 animate-pulse" />
               </div>
-            ) : filteredUpcomingAppts.length === 0 ? (
-              <div className="p-5 rounded-[24px] border border-dashed border-border/80 bg-card/50 space-y-3.5">
-                <div className="flex items-start gap-3">
-                  <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
-                    <Calendar size={22} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-heading font-bold text-sm text-foreground">
-                      {selectedRdvType === "all"
-                        ? "Aucun rendez-vous en cabine programmé pour le moment"
-                        : `Aucun rendez-vous de type « ${
-                            RDV_TYPES_CATALOG.find((t) => t.id === selectedRdvType)?.shortLabel
-                          } » à venir`}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                      Sélectionnez directement ci-dessous le type de rendez-vous souhaité pour le réserver auprès de{" "}
-                      <strong>{selectedInst?.name || "votre institut partenaire"}</strong> :
-                    </p>
-                  </div>
+            ) : upcomingAppts.length === 0 ? (
+              <div className="p-6 sm:p-7 text-center rounded-[24px] border border-dashed border-border/80 bg-card/60 shadow-xs space-y-3.5">
+                <div className="size-13 mx-auto rounded-2xl bg-gradient-to-br from-gold/25 to-primary/15 grid place-items-center text-gold-text shadow-2xs">
+                  <CalendarPlus size={24} />
                 </div>
-
-                {/* Boutons directs des 6 types de RDV */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
-                  {RDV_TYPES_CATALOG.map((rt) => {
-                    const Icon = rt.icon;
-                    return (
-                      <button
-                        key={rt.id}
-                        type="button"
-                        onClick={() => handleBookRdvType(rt)}
-                        className={cn(
-                          "p-2.5 rounded-2xl border bg-card/90 text-left transition-all flex items-center gap-2 hover:shadow-xs active:scale-95",
-                          rt.cardBorderClass
-                        )}
-                      >
-                        <span className={cn("grid size-8 shrink-0 place-items-center rounded-xl", rt.iconBgClass)}>
-                          <Icon size={15} />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-foreground truncate">{rt.shortLabel}</p>
-                          <p className="text-[10px] text-muted-foreground">{rt.durationMin} min</p>
-                        </div>
-                      </button>
-                    );
-                  })}
+                <div className="max-w-md mx-auto space-y-1">
+                  <h4 className="font-heading font-black text-sm sm:text-base text-foreground">
+                    Aucun rendez-vous à venir
+                  </h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Offrez à votre peau un moment d&apos;expertise et de soin sur-mesure auprès de{" "}
+                    <strong className="text-foreground">{selectedInst?.name || "votre institut partenaire"}</strong>.
+                  </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    setActiveSubTab("reserver");
+                  }}
+                  className="k-btn-gold h-10 px-5 rounded-xl text-primary-foreground font-black text-xs inline-flex items-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
+                >
+                  <Sparkles size={14} />
+                  <span>Choisir un soin &amp; Réserver</span>
+                </button>
               </div>
             ) : (
               filteredUpcomingAppts.map((appt) => {
@@ -1087,91 +975,85 @@ export function AgendaScreen() {
             )}
           </section>
 
-          {/* Section : Échéancier de Contrôles & Suivis Dermo-Cliniques (J+1 / J+7 / J+30 / Dermato) */}
-          {(selectedRdvType === "all" ||
-            selectedRdvType === "controle" ||
-            selectedRdvType === "consultation") &&
-            smartFollowUpMilestones.length > 0 && (
-              <section
-                aria-label="Échéancier de suivi dermo-clinique"
-                className="space-y-3 pt-2 border-t border-border/60"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-heading font-bold text-sm text-foreground flex items-center gap-2">
-                      <Stethoscope size={16} className="text-primary" />
-                      Mon Protocole de Contrôle Recommandé ({smartFollowUpMilestones.length} Jalons)
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      Échéances cliniques calibrées par l&apos;IA pour mesurer scientifiquement les progrès de votre peau
-                    </p>
-                  </div>
-                </div>
+          {/* Section : Parcours de suivi cutané doux */}
+          {smartFollowUpMilestones.length > 0 && (
+            <section
+              aria-label="Échéancier de suivi cutané"
+              className="space-y-3 pt-3 border-t border-border/60"
+            >
+              <div>
+                <h3 className="font-heading font-bold text-sm text-foreground flex items-center gap-2">
+                  <Stethoscope size={15} className="text-primary" />
+                  Votre Parcours Peau Recommandé
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  3 étapes simples pour observer la tolérance et les progrès de votre protocole
+                </p>
+              </div>
 
-                <div className="space-y-2.5">
-                  {smartFollowUpMilestones.map((m) => (
-                    <div
-                      key={m.id}
-                      className={cn(
-                        "rounded-[22px] p-3.5 sm:p-4 border bg-card/85 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs",
-                        m.urgent ? "border-rose-500/40 bg-rose-500/5" : "border-border/80"
-                      )}
-                    >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span
-                            className={cn(
-                              "text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border",
-                              m.badgeColor
-                            )}
-                          >
-                            {m.stage === "DERMATO" ? "🩺 Consultation Recommandée" : `Étape Conseillée · ${m.stage}`}
-                          </span>
-                          <span className="text-xs font-semibold text-muted-foreground">
-                            Date conseillée :{" "}
-                            {formatDate(m.recommendedDate.toISOString(), {
-                              weekday: "short",
-                              day: "numeric",
-                              month: "short",
-                            })}
-                          </span>
-                        </div>
-                        <p className="font-heading font-bold text-sm text-foreground">{m.title}</p>
-                        <p className="text-xs text-muted-foreground leading-relaxed">{m.subtitle}</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                {smartFollowUpMilestones.map((m) => (
+                  <div
+                    key={m.id}
+                    className={cn(
+                      "rounded-[20px] p-3.5 border bg-card/85 flex flex-col justify-between gap-3 shadow-2xs transition-all",
+                      m.urgent ? "border-rose-500/40 bg-rose-500/5" : "border-border/70 hover:border-gold/40"
+                    )}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={cn(
+                            "text-[10px] font-black uppercase px-2 py-0.5 rounded-full border",
+                            m.badgeColor
+                          )}
+                        >
+                          {m.stage === "DERMATO" ? "🩺 Avis Spécialiste" : `Étape · ${m.stage}`}
+                        </span>
+                        <span className="text-[11px] font-semibold text-muted-foreground">
+                          {formatDate(m.recommendedDate.toISOString(), { day: "numeric", month: "short" })}
+                        </span>
                       </div>
+                      <p className="font-heading font-bold text-xs text-foreground leading-tight">
+                        {m.title}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+                        {m.subtitle}
+                      </p>
+                    </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        {m.stage === "J+30" && (
-                          <button
-                            type="button"
-                            onClick={() => setClientTab("diagnostic")}
-                            className="h-8 px-3 rounded-xl border border-gold/40 bg-gold/10 text-gold-text text-xs font-bold hover:bg-gold/20 active:scale-95 transition-all"
-                          >
-                            📸 Scanner J+30
-                          </button>
-                        )}
+                    <div className="flex items-center gap-1.5 pt-1">
+                      {m.stage === "J+30" && (
                         <button
                           type="button"
-                          onClick={() => {
-                            const targetType =
-                              m.stage === "DERMATO" ? RDV_TYPES_CATALOG[0] : RDV_TYPES_CATALOG[2];
-                            setQuickDate(m.recommendedDate.toISOString().slice(0, 10));
-                            handleBookRdvType({
-                              ...targetType,
-                              defaultServiceName: m.serviceName,
-                            });
-                          }}
-                          className="h-8 px-3 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all"
+                          onClick={() => setClientTab("diagnostic")}
+                          className="h-7.5 px-2.5 rounded-lg border border-gold/40 bg-gold/10 text-gold-text text-[11px] font-bold hover:bg-gold/20 active:scale-95 transition-all"
                         >
-                          <CalendarPlus size={13} />
-                          Programmer ce contrôle
+                          📸 Scanner
                         </button>
-                      </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const targetType =
+                            m.stage === "DERMATO" ? RDV_TYPES_CATALOG[0] : RDV_TYPES_CATALOG[2];
+                          setQuickDate(m.recommendedDate.toISOString().slice(0, 10));
+                          handleBookRdvType({
+                            ...targetType,
+                            defaultServiceName: m.serviceName,
+                          });
+                        }}
+                        className="h-7.5 flex-1 px-2.5 rounded-lg k-btn-gold text-primary-foreground text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs active:scale-95 transition-all"
+                      >
+                        <CalendarPlus size={12} />
+                        <span>Planifier</span>
+                      </button>
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Section : Historique des soins passés */}
           {filteredPastAppts.length > 0 && (
@@ -1229,24 +1111,53 @@ export function AgendaScreen() {
               </div>
             </section>
           )}
+
+          {/* Carte VIP Conciergerie intégrée */}
+          <div className="rounded-[22px] p-4 border border-[#C8951E]/30 bg-gradient-to-r from-[#C8951E]/10 via-card to-[#8B1A3B]/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs mt-1">
+            <div className="flex items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#C8951E] to-[#8B1A3B] text-white shadow-2xs">
+                <Crown size={18} />
+              </span>
+              <div>
+                <h4 className="font-heading font-black text-xs sm:text-sm text-foreground">
+                  Conciergerie Kènè Privée 24/7
+                </h4>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Besoin d&apos;un conseil sur-mesure ou d&apos;aménager un créneau ? Nous sommes à votre écoute sur WhatsApp.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const phone = selectedInst?.phone || "+2250700000000";
+                const msg = `Bonjour Kènè Conciergerie ! 👑\nJe suis ${user?.name || "Cliente"} et j'aimerais échanger avec un conseiller concernant mes soins.`;
+                openWhatsApp(phone, msg);
+              }}
+              className="h-9 px-4 rounded-xl bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/40 text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all active:scale-95"
+            >
+              <MessageCircle size={14} />
+              <span>Contacter le Concierge</span>
+            </button>
+          </div>
         </div>
       )}
 
       {/* ═══════════════════════════════════════════════════════════
-          SOUS-ONGLET 2 : CATALOGUE COMPLET DES 6 TYPES DE RDV KÈNÈ
+          SOUS-ONGLET 2 : CATALOGUE COMPLET DES 6 TYPES DE SOINS KÈNÈ
       ═══════════════════════════════════════════════════════════ */}
-      {activeSubTab === "types" && (
+      {activeSubTab === "reserver" && (
         <div className="space-y-4">
           <div className="rounded-[22px] p-4 border border-gold/30 bg-gold/5 flex items-start gap-3">
             <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gold/20 text-gold-text">
-              <CalendarDays size={18} />
+              <Sparkles size={18} />
             </span>
             <div className="min-w-0 flex-1">
               <h3 className="font-heading font-bold text-sm text-foreground">
-                Les 6 Familles de Rendez-Vous Kènè
+                Les 6 Soins &amp; Prestations Kènè
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                Choisissez le type de rendez-vous adapté à votre besoin (Visage, Cuir chevelu, Mains/Pieds, Dos &amp; Corps ou Contrôle J+30) pour le programmer avec{" "}
+                Choisissez votre soin pour réserver votre créneau horaire en direct avec{" "}
                 <strong>{selectedInst?.name || "votre institut partenaire"}</strong>.
               </p>
             </div>
@@ -1298,12 +1209,11 @@ export function AgendaScreen() {
                         <button
                           type="button"
                           onClick={() => {
-                            setSelectedRdvType(rt.id);
                             setActiveSubTab("rdv");
                           }}
                           className="h-8 px-2.5 rounded-xl border border-border text-[11px] font-bold text-foreground hover:bg-accent"
                         >
-                          Voir ({scheduledCount})
+                          Voir mes RDV
                         </button>
                       )}
                       <button
@@ -1469,16 +1379,6 @@ export function AgendaScreen() {
             </div>
           )}
         </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════
-          SOUS-ONGLET 4 : CONCIERGERIE PRIVÉE WHATSAPP 24/7
-      ═══════════════════════════════════════════════════════════ */}
-      {activeSubTab === "conciergerie" && (
-        <ConciergerieWhatsAppSection
-          selectedInstitute={selectedInst}
-          onNavigateTab={setClientTab}
-        />
       )}
     </div>
   );
