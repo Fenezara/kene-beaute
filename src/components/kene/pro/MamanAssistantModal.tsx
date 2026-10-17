@@ -643,6 +643,55 @@ export function MamanAssistantModal({
                     </button>
                   </div>
 
+                  {/* Précision demandée (Clarification interactive) */}
+                  {debrief.needsClarification && debrief.clarificationQuestion && (
+                    <div className="p-4 rounded-2xl border-2 border-amber-500/50 bg-amber-500/10 dark:bg-amber-950/20 text-left space-y-3 shadow-md animate-in fade-in">
+                      <div className="flex items-start justify-between gap-2.5">
+                        <div className="flex items-start gap-2.5">
+                          <div className="size-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                            <Lightbulb size={18} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                              Précision demandée par votre secrétaire :
+                            </p>
+                            <p className="text-sm font-semibold text-foreground leading-snug">
+                              &laquo; {debrief.clarificationQuestion} &raquo;
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => playVocalSummary(debrief.clarificationQuestion!)}
+                          className="shrink-0 p-1.5 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold flex items-center gap-1"
+                        >
+                          <Volume2 size={14} />
+                        </button>
+                      </div>
+
+                      {debrief.clarificationOptions && debrief.clarificationOptions.length > 0 && (
+                        <div className="pt-1 flex flex-wrap items-center gap-2">
+                          <span className="text-[11px] font-bold text-muted-foreground mr-1">
+                            Répondre en 1 clic :
+                          </span>
+                          {debrief.clarificationOptions.map((opt, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => {
+                                setText(opt.value);
+                                void handleAnalyze(opt.value);
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-card border border-border hover:border-amber-500 text-xs font-bold text-foreground shadow-xs hover:scale-102 active:scale-95 transition-all"
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                     Voici ce que je vais renseigner pour vous, {firstName} :
                   </p>

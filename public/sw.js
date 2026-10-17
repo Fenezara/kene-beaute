@@ -11,17 +11,20 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v36";
-const PRECACHE = "kene-precache-v36";
-const DATA_CACHE = "kene-data-v35";
-const IMG_CACHE = "kene-img-v31";
-const STATIC_CACHE = "kene-static-v31";
+const VERSION = "kene-sw-v37";
+const PRECACHE = "kene-precache-v37";
+const DATA_CACHE = "kene-data-v37";
+const IMG_CACHE = "kene-img-v37";
+const STATIC_CACHE = "kene-static-v37";
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
 const PRECACHE_URLS = [
   "/",
   "/pro",
+  "/pin",
+  "/manifest.json",
+  "/kene-mark.svg",
   "/favicon.ico",
   "/brand/kene-emblem-light.png",
   "/brand/kene-emblem-dark.png",
@@ -30,6 +33,8 @@ const PRECACHE_URLS = [
   "/icons/icon-maskable-192.png",
   "/icons/icon-maskable-512.png",
   "/icons/apple-touch-icon.png",
+  "/skin/clinical-before.jpg",
+  "/skin/clinical-after.jpg",
 ];
 
 const DATA_API_PREFIXES = [
@@ -324,29 +329,34 @@ self.addEventListener("install", (event) => {
       );
 
       // 2. Extraction automatique exhaustive de TOUS les scripts et styles Next.js (y compris dans le payload RSC)
-      try {
-        const homeRes = await caches.match("/", { cacheName: PRECACHE });
-        if (homeRes) {
-          const rawText = await homeRes.text();
-          const text = rawText.replace(/\\"/g, '"');
-          const matches = Array.from(text.matchAll(/(\/_next\/static\/[^"'\s\\<>)]+\.(?:js|css))/g), (m) => m[1]);
-          const assetUrls = Array.from(new Set(matches));
+      for (const entryUrl of ["/", "/pro"]) {
+        try {
+          const entryRes = await precache.match(entryUrl);
+          if (entryRes) {
+            const rawText = await entryRes.text();
+            const text = rawText.replace(/\\"/g, '"');
+            const matches = Array.from(
+              text.matchAll(/(?:(?:\/_next\/static\/)|(?:\\\/_next\\\/static\\\/))[^"'\s\\<>)]+\.(?:js|css)/g),
+              (m) => m[0].replace(/\\/g, "")
+            );
+            const assetUrls = Array.from(new Set(matches));
 
-          await Promise.all(
-            assetUrls.map(async (assetUrl) => {
-              try {
-                const assetRes = await fetch(new Request(assetUrl, { cache: "reload", credentials: "same-origin" }));
-                if (assetRes && assetRes.ok) {
-                  await staticCache.put(assetUrl, assetRes);
+            await Promise.all(
+              assetUrls.map(async (assetUrl) => {
+                try {
+                  const assetRes = await fetch(new Request(assetUrl, { credentials: "same-origin" }));
+                  if (assetRes && assetRes.ok) {
+                    await staticCache.put(assetUrl, assetRes);
+                  }
+                } catch {
+                  /* chunk best-effort */
                 }
-              } catch {
-                /* chunk best-effort */
-              }
-            })
-          );
+              })
+            );
+          }
+        } catch {
+          /* best-effort */
         }
-      } catch {
-        /* best-effort */
       }
 
       try {
@@ -485,7 +495,7 @@ self.addEventListener("fetch", (event) => {
     if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
       return;
     }
-    event.respondWith(networkFirstStatic(req));
+    event.respondWith(cacheFirstStatic(req));
     return;
   }
 
@@ -612,45 +622,156 @@ async function networkFirstData(req) {
   });
 }
 
-async function networkFirstNavigation(req) {
-  let networkRes = null;
-  try {
-    networkRes = await fetch(new Request(req.url, { cache: "no-store", credentials: "same-origin" }));
-    if (networkRes && (networkRes.ok || networkRes.status === 404)) return networkRes;
-  } catch {}
-
-  const exactShell = await caches.match(req.url, { cacheName: PRECACHE });
-  if (exactShell) return exactShell;
-
-  const shell = await caches.match("/", { cacheName: PRECACHE });
-  if (shell) return shell;
-
-  const anyShell = await caches.match("/");
-  if (anyShell) return anyShell;
-
-  if (networkRes) return networkRes;
-  throw new Error("Kènè hors-ligne : coquille indisponible");
-}
-
-async function networkFirstStatic(req) {
-  const cache = await caches.open(STATIC_CACHE);
-  try {
-    const res = await fetch(new Request(req.url, { cache: "reload", credentials: "same-origin" }));
-    if (res && res.ok) {
-      void cache.put(req, res.clone()).catch(() => {});
-      return res;
+const OFFLINE_HTML_SHELL = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Kènè — Mode Hors-Ligne</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #0f0d0b;
+      color: #f7f2ea;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      box-sizing: border-box;
     }
+    .card {
+      max-width: 420px;
+      width: 100%;
+      background: #1c1713;
+      border: 1px solid rgba(200, 149, 30, 0.3);
+      border-radius: 24px;
+      padding: 32px 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      background: rgba(200, 149, 30, 0.15);
+      border: 1px solid rgba(200, 149, 30, 0.4);
+      color: #e2ad3b;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 800;
+      margin: 0 0 10px 0;
+      color: #ffffff;
+    }
+    p {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #a89f91;
+      margin: 0 0 24px 0;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, #c8951e, #e07a2b);
+      color: #16110d;
+      font-weight: 800;
+      font-size: 14px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      box-sizing: border-box;
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">📡 Mode Hors-Ligne</div>
+    <h1>Kènè Dermo-Cosmétique</h1>
+    <p>Vous êtes actuellement hors connexion. Vos données locales et votre caisse restent protégées. La connexion sera rétablie dès que le réseau sera disponible.</p>
+    <button class="btn" onclick="window.location.reload()">Réessayer la connexion</button>
+  </div>
+  <script>
+    window.addEventListener('online', function() {
+      window.location.reload();
+    });
+  </script>
+</body>
+</html>`;
+
+async function networkFirstNavigation(req) {
+  // Détection réseau avec timeout de 2000ms max (évite l'écran blanc en mobilité ou hors-ligne)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2000);
+  try {
+    const networkRes = await fetch(new Request(req.url, { cache: "no-store", credentials: "same-origin", signal: controller.signal }));
+    clearTimeout(timeoutId);
+    if (networkRes && (networkRes.ok || networkRes.status === 404)) return networkRes;
   } catch {
-    /* Hors-ligne : repli sur le cache statique ci-dessous */
+    clearTimeout(timeoutId);
   }
 
+  // Repli prioritaire sur la coquille applicative précachée (avec ignoreSearch pour supporter ?space=pro etc.)
+  try {
+    const precache = await caches.open(PRECACHE);
+    let shell = await precache.match(req.url, { ignoreSearch: true });
+    if (!shell) shell = await precache.match("/", { ignoreSearch: true });
+    if (!shell) shell = await precache.match("/pro", { ignoreSearch: true });
+    if (!shell) shell = await caches.match(req.url, { ignoreSearch: true });
+    if (!shell) shell = await caches.match("/", { ignoreSearch: true });
+
+    if (shell) {
+      const body = await shell.clone().arrayBuffer();
+      const headers = new Headers(shell.headers);
+      headers.set("x-kene-offline", "1");
+      return new Response(body, { status: 200, headers });
+    }
+  } catch {}
+
+  // Repli ultime coquille offline de secours
+  return new Response(OFFLINE_HTML_SHELL, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8", "x-kene-offline": "1" },
+  });
+}
+
+async function cacheFirstStatic(req) {
+  const cache = await caches.open(STATIC_CACHE);
   const cached = await cache.match(req);
   if (cached) return cached;
 
   const anyCached = await caches.match(req);
   if (anyCached) return anyCached;
 
-  throw new Error("Kènè hors-ligne : ressource statique jamais visitée");
+  try {
+    const res = await fetch(new Request(req.url, { credentials: "same-origin" }));
+    if (res && res.ok) {
+      void cache.put(req, res.clone()).catch(() => {});
+      return res;
+    }
+    if (res) return res;
+  } catch {
+    /* Hors-ligne réel */
+  }
+
+  return new Response("/* kene offline chunk fallback */", {
+    status: 200,
+    headers: { "content-type": "application/javascript", "x-kene-offline": "1" },
+  });
 }
 
 async function cacheFirstImage(req) {

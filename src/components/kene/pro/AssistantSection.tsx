@@ -25,7 +25,6 @@ import {
   CheckCircle2,
   ArrowRight,
   Info,
-  Sparkles,
   Edit3,
   RotateCcw,
   TrendingUp,
@@ -38,7 +37,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { CauriIcon } from "@/components/kene/icons";
+import { CauriIcon, NsorommaIcon } from "@/components/kene/icons";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof } from "@/lib/kene/format";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
@@ -66,24 +65,24 @@ interface AssistantSectionProps {
 
 const QUICK_EXAMPLES = [
   {
-    tag: "Soin + Vente + RDV",
-    desc: "Prestation cabine, vente produit et retour",
-    text: "Tantie Aminata a fait son Soin Visage à 20 000 F par Wave, je lui ai vendu un baume de karité à 5 000 F en espèces et elle revient dans 3 semaines.",
+    tag: "📅 Prise de RDV",
+    desc: "Planifier pour une cliente",
+    text: "Prends RDV pour Tantie Awa demain à 14h pour un Soin Éclat du Visage avec Aminata.",
   },
   {
-    tag: "Dépense caisse",
-    desc: "Petite caisse & fournitures salon",
-    text: "J'ai pris 2 500 F dans la caisse pour acheter de l'eau minérale et des sachets pour les clientes.",
+    tag: "💵 Sortie Petite Caisse",
+    desc: "Fournitures et frais salon",
+    text: "J'ai pris 3 500 F dans la caisse espèces pour acheter de l'eau minérale pour les clientes et des cotons.",
   },
   {
-    tag: "Acompte & Ardoise",
-    desc: "Paiement partiel et crédit cliente",
-    text: "Mme Bintou a fait ses tresses 15 000 F, elle a versé 10 000 F par Orange Money, il lui reste 5 000 F d'ardoise pour vendredi.",
+    tag: "🌿 Soin + Vente + Acompte",
+    desc: "Prestation cabine et produit",
+    text: "Mme Bintou a fait son Soin Visage à 20 000 F et pris un baume karité à 5 000 F. Elle a versé 20 000 F par Wave et soldera 5 000 F vendredi.",
   },
   {
-    tag: "Vente comptoir",
-    desc: "Produits de beauté au comptoir",
-    text: "Awa a vendu 2 sérums éclat à 16 000 F en espèces au comptoir.",
+    tag: "💬 Relances Clientes",
+    desc: "Initiative de suivi",
+    text: "Relance les clientes du mois dernier pour leur soin visage dermo-botanique de contrôle.",
   },
 ];
 
@@ -101,6 +100,19 @@ export function AssistantSection({
 
   // Mode de travail : Débriefing instantané ou Bilan du soir
   const [activeTab, setActiveTab] = useState<"instant" | "evening">("instant");
+
+  // Briefing et Salutation Exécutive Proactive (Chargé dès l'ouverture de l'onglet)
+  const [executiveBriefing, setExecutiveBriefing] = useState<{
+    bossTitle?: string;
+    total: number;
+    salesCount: number;
+    appointmentsCount: number;
+    pendingAppointmentsCount: number;
+    lowStockProducts: Array<{ id: string; name: string; stock: number; stockAlert: number }>;
+    initiatives: Array<{ type: string; title: string; desc: string; actionLabel: string }>;
+    vocalSummary: string;
+  } | null>(null);
+  const [loadingBriefing, setLoadingBriefing] = useState(false);
 
   // Débriefing
   const [text, setText] = useState("");
@@ -152,6 +164,30 @@ export function AssistantSection({
     if (isRecording) return "listening";
     return "idle";
   }, [executed, audioState, loading, executing, isTranscribing, isRecording]);
+
+  // Chargement automatique du briefing exécutif et de la salutation dès l'ouverture de l'onglet
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchGreeting() {
+      setLoadingBriefing(true);
+      try {
+        const res = await apiGet<{ summary: any }>(
+          `/api/pro/assistant/daily-summary?tenantId=${tenantId}&userName=${encodeURIComponent(userName)}`
+        );
+        if (isMounted && res.summary) {
+          setExecutiveBriefing(res.summary);
+        }
+      } catch {
+        /* best-effort */
+      } finally {
+        if (isMounted) setLoadingBriefing(false);
+      }
+    }
+    void fetchGreeting();
+    return () => {
+      isMounted = false;
+    };
+  }, [tenantId, userName]);
 
   // Nettoyage au démontage
   useEffect(() => {
@@ -565,6 +601,138 @@ export function AssistantSection({
       {/* ─── ONGLET 1 : DÉBRIEFING D'ACTION AVEC L'ORBE SUBLIMÉ ─── */}
       {activeTab === "instant" && (
         <div className="space-y-6">
+          {/* ─── BANNIÈRE DE SALUTATION & BRIEFING EXÉCUTIF PROACTIF ─── */}
+          <div className="relative overflow-hidden rounded-[28px] border-2 border-[#C8951E]/30 bg-gradient-to-br from-[#C8951E]/10 via-card to-card p-5 sm:p-6 shadow-md space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="size-12 rounded-2xl bg-gradient-to-tr from-[#C8951E] to-[#E07A2B] text-[#16110D] flex items-center justify-center shrink-0 shadow-md">
+                  <Crown size={24} />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-[#C8951E]/20 text-[#C8951E] dark:text-[#FFD700] border-transparent font-bold text-[11px] px-2.5 py-0.5">
+                      👑 SECRÉTAIRE EXÉCUTIVE DÉVOUÉE
+                    </Badge>
+                    <span className="text-[11px] text-muted-foreground font-medium">À vos ordres</span>
+                  </div>
+                  <h2 className="text-lg sm:text-xl font-heading font-black text-foreground tracking-tight">
+                    {executiveBriefing?.bossTitle || `Bonjour ${firstName} !`}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground italic leading-relaxed">
+                    &laquo; Je veille sur vos rendez-vous, votre caisse et vos stocks. Que pouvons-nous accomplir ensemble aujourd&apos;hui ? &raquo;
+                  </p>
+                </div>
+              </div>
+
+              {executiveBriefing?.vocalSummary && (
+                <Button
+                  type="button"
+                  onClick={() => togglePlayVocalSummary(executiveBriefing.vocalSummary)}
+                  className="k-btn-gold text-primary-foreground font-bold text-xs h-11 px-4 rounded-xl shrink-0 self-start sm:self-center flex items-center gap-2 shadow-sm"
+                >
+                  {audioState === "playing" ? (
+                    <>
+                      <VolumeX size={16} />
+                      <span>Arrêter la voix</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 size={16} />
+                      <span>Écouter le point exécutif</span>
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+
+            {/* 4 Indicateurs Clés de Situation */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 border-t border-border/60">
+              <div className="p-2.5 rounded-xl bg-card border border-border/70 flex flex-col">
+                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                  <Calendar size={12} className="text-[#C8951E]" /> RDV du jour
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  {executiveBriefing ? `${executiveBriefing.appointmentsCount} RDV` : "0 calé"}
+                </span>
+                {executiveBriefing && executiveBriefing.pendingAppointmentsCount > 0 && (
+                  <span className="text-[10px] text-amber-500 font-semibold">
+                    ({executiveBriefing.pendingAppointmentsCount} à confirmer)
+                  </span>
+                )}
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-card border border-border/70 flex flex-col">
+                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                  <Wallet size={12} className="text-emerald-500" /> Caisse du jour
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  {executiveBriefing ? xof(executiveBriefing.total) : "0 F"}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {executiveBriefing?.salesCount || 0} vente(s)
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-card border border-border/70 flex flex-col">
+                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                  <Package size={12} className="text-rose-500" /> Alerte Stocks
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  {executiveBriefing?.lowStockProducts?.length || 0} produit(s)
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {executiveBriefing?.lowStockProducts?.length ? "Réassort conseillé" : "Stocks OK"}
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-card border border-border/70 flex flex-col">
+                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                  <Users size={12} className="text-sky-500" /> Relances
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  Clientes J+30
+                </span>
+                <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold">
+                  Suivi post-soin
+                </span>
+              </div>
+            </div>
+
+            {/* Initiatives Proactives de la Secrétaire en 1-Tap */}
+            {executiveBriefing?.initiatives && executiveBriefing.initiatives.length > 0 && (
+              <div className="pt-2 space-y-2">
+                <p className="text-[11px] font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Lightbulb size={13} className="text-[#C8951E]" />
+                  <span>Initiatives immédiates suggérées pour votre institut :</span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {executiveBriefing.initiatives.map((init, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        if (init.type === "whatsapp_reminder" && onNavigate) {
+                          onNavigate("agenda");
+                        } else if (init.type === "stock_reorder" && onNavigate) {
+                          onNavigate("catalogue");
+                        } else if (init.type === "client_followup" && onNavigate) {
+                          onNavigate("relances");
+                        } else {
+                          setText(init.desc);
+                          void handleAnalyze(init.desc);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-card hover:bg-muted border border-[#C8951E]/40 hover:border-[#C8951E] text-xs font-bold text-foreground shadow-xs flex items-center gap-1.5 transition-all hover:scale-102 active:scale-95"
+                    >
+                      <span>⚡ {init.actionLabel}</span>
+                      <ArrowRight size={12} className="text-[#C8951E]" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* ─── SCÈNE CENTRALE LUMINEUSE (PARFAITE EN MODE CLAIR & SOMBRE) ─── */}
           <div className="relative rounded-[36px] border border-border/80 bg-card p-6 sm:p-10 shadow-lg flex flex-col items-center justify-center text-center overflow-hidden">
             {/* Lueur d'or chaleureuse et lumineuse */}
@@ -614,7 +782,7 @@ export function AssistantSection({
                   </>
                 ) : (
                   <>
-                    <Sparkles size={13} className="text-[#C8951E]" />
+                    <NsorommaIcon size={13} className="text-[#C8951E]" />
                     <span>Touchez l&apos;Orbe ou le micro pour dicter votre point</span>
                   </>
                 )}
@@ -663,18 +831,29 @@ export function AssistantSection({
             {/* ─── QUESTION DE CLARIFICATION INTERACTIVE (PROACTIVITÉ HUMAINE) ─── */}
             {debrief?.needsClarification && debrief.clarificationQuestion && (
               <div className="relative z-10 w-full max-w-2xl mt-5 p-4 rounded-2xl border-2 border-amber-500/50 bg-amber-500/10 dark:bg-amber-950/20 text-left space-y-3 animate-in fade-in slide-in-from-bottom-2 shadow-md">
-                <div className="flex items-start gap-2.5">
-                  <div className="size-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-                    <HelpCircle size={18} />
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <div className="size-8 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                      <HelpCircle size={18} />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <span>Précision demandée par votre secrétaire :</span>
+                      </p>
+                      <p className="text-sm sm:text-base font-semibold text-foreground leading-snug">
+                        &laquo; {debrief.clarificationQuestion} &raquo;
+                      </p>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <span>Précision demandée par votre secrétaire :</span>
-                    </p>
-                    <p className="text-sm sm:text-base font-semibold text-foreground leading-snug">
-                      &laquo; {debrief.clarificationQuestion} &raquo;
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => togglePlayVocalSummary(debrief.clarificationQuestion!)}
+                    className="shrink-0 p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold flex items-center gap-1 transition"
+                    title="Écouter la question"
+                  >
+                    <Volume2 size={15} />
+                    <span className="hidden sm:inline">Écouter</span>
+                  </button>
                 </div>
 
                 {/* Choix rapides 1-Tap */}
@@ -755,7 +934,7 @@ export function AssistantSection({
             {/* ─── SUGGESTIONS RAPIDES DE SALON EN 1-TAP (INDISPENSABLES) ─── */}
             <div className="relative z-10 w-full max-w-2xl mt-6 pt-5 border-t border-border/60 space-y-3 text-left">
               <p className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles size={14} className="text-[#C8951E]" />
+                <NsorommaIcon size={14} className="text-[#C8951E]" />
                 <span>Suggestions rapides de salon (test en 1-tap) :</span>
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -855,7 +1034,7 @@ export function AssistantSection({
                           ) : init.type === "whatsapp_followup" ? (
                             <Bell size={16} />
                           ) : (
-                            <Sparkles size={16} />
+                            <NsorommaIcon size={16} />
                           )}
                         </div>
                         <div className="space-y-0.5 min-w-0">

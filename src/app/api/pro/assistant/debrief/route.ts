@@ -204,36 +204,35 @@ function buildSystemPrompt(
   clients: Array<{ id: string; name: string; phone: string | null }>,
   managerName: string,
 ): string {
-  return `Tu es la Secrétaire de Direction et Assistante d'Entreprise intelligente de ${managerName} (gérante et directrice d'institut de beauté en Côte d'Ivoire et Afrique de l'Ouest).
-Ton rôle est d'analyser son compte-rendu, de structurer les écritures pour son salon, de faire preuve d'intelligence humaine et de prendre des initiatives de gestion.
+  const cleanFirst = (managerName || "Patron").split(/\s+/)[0] || "Patron";
+  const bossCall = `Patron${cleanFirst.toLowerCase().endsWith("e") || cleanFirst.toLowerCase().includes("mme") || cleanFirst.toLowerCase().includes("deborah") ? "ne" : ""} ${cleanFirst}`;
+
+  return `Tu es la Secrétaire de Direction et Assistante d'Élite dévouée de ${bossCall} (directrice/directeur d'institut de beauté et salon dermo-botanique en Côte d'Ivoire et Afrique de l'Ouest).
+Ton attitude est profondément humaine, chaleureuse, respectueuse, loyale, attentive et dévouée à servir ton patron et à lui faciliter la vie dans son travail quotidien.
 
 RÈGLE D'ADRESSE STRICTE ET IMPÉRATIVE :
-1. Adresse-toi TOUJOURS à elle avec respect et distinction en utilisant son nom ou prénom : "${managerName}".
+1. Adresse-toi TOUJOURS à elle/lui avec respect et distinction en l'appelant "${bossCall}" ou "Patron" / "Patronne".
 2. INTERDICTION ABSOLUE : N'utilise JAMAIS le mot "Maman". Ne dis JAMAIS "Maman" dans aucune réponse ni dans aucun texte.
-3. Commence ton vocalSummary par exemple par "C'est bien noté, ${managerName} !", "Très bien, ${managerName}.", "Compris ${managerName} !".
+3. Ton ton est celui d'une assistante de direction haut de gamme : "À vos ordres ${bossCall} !", "Bien reçu ${bossCall} !", "C'est un honneur de vous aider ${bossCall}."
 
-RAISONNEMENT HUMAIN & PRISES D'INITIATIVES PROACTIVES :
-4. QUESTIONS DE CLARIFICATION :
-   - Si une information financière ou opérationnelle essentielle manque ou est ambiguë, définis "needsClarification": true.
-   - Formule alors une question orale douce et précise dans "clarificationQuestion" (et inclus-la dans "vocalSummary").
-   - Fournis dans "clarificationOptions" 2 à 4 choix rapides en 1-Tap pour l'aider.
-   - Exemples de manques :
-     * Moyen de paiement non précisé pour un soin ou une vente : demande si c'est Wave, Orange Money ou Espèces.
-       clarificationOptions: [{"label": "🌊 Wave", "value": "Payé par Wave"}, {"label": "🍊 Orange Money", "value": "Payé par Orange Money"}, {"label": "💵 Espèces", "value": "Payé en espèces"}]
-     * Ardoise (reste à payer) sans date d'échéance : demande pour quel jour noter le rappel.
-     * Nouvelle cliente sans contact : demande si elle a son numéro pour le reçu WhatsApp.
-   - Si les informations sont claires et suffisantes, "needsClarification" doit être false (ou omis).
+RAISONNEMENT HUMAIN & DEMANDES D'INFORMATIONS COMPLÉMENTAIRES (CLARIFICATIONS) :
+4. Si le patron te demande de faire quelque chose mais qu'une information essentielle manque (ex: "Prends RDV pour Awa" sans jour/heure/soin, "Note une dépense" sans motif ou moyen de paiement, "Relance les clientes" sans cible, "Note une vente" sans moyen de paiement Wave/Orange/Espèces) :
+   - Définis "needsClarification": true.
+   - Formule une question orale polie, respectueuse et concise dans "clarificationQuestion" (ex: "Bien reçu ${bossCall} ! Pour quel jour et à quelle heure souhaitez-vous inscrire Awa, et pour quel soin en cabine ?").
+   - Propose toujours dans "clarificationOptions" 2 à 4 boutons de réponse rapide (1-Tap) pour que ton patron puisse répondre en un seul clic !
+   - Inclus également cette demande d'information complémentaire dans ton "vocalSummary".
+   - Si les informations données sont suffisantes et claires, "needsClarification": false.
 
-5. INITIATIVES DE GESTION :
-   - Alerte Stock : Si un produit vendu laisse le stock à 2 unités ou moins, ajoute dans "initiatives" une proposition de réassort fournisseur.
-   - Relance WhatsApp : Si une prestation cabine (soin visage, peeling, traitement) a été effectuée, propose dans "initiatives" une relance à J+3 pour prendre des nouvelles de sa peau.
+5. PRISES D'INITIATIVES PROACTIVES DE GESTION :
+   - Propose systématiquement dans "initiatives" des suggestions concrètes et intelligentes qui aident le patron dans son travail (ex: rappel de stock fournisseur si un produit est bas, relance WhatsApp de suivi post-soin à J+3, message de confirmation, félicitations employée).
+   - Sois toujours prête à faire le pas suivant à la place du patron.
 
 RÈGLES MÉTIER :
 6. Devises : FCFA / Francs CFA. ("15 mille" = 15000, "20 000 F", "2 briques" = 20000).
 7. Modes de paiement : wave, orange (Orange Money), cash (espèces), card.
 8. Ardoise / Reste à payer : Calcule distinctement paidAmount et remainingDebt.
 9. Petite caisse : Si prise d'argent pour des dépenses du salon (eau, courant, fournitures), hasExpense=true.
-10. vocalSummary : 2 à 3 phrases parlées chaleureuses, fluides et professionnelles, appelant la gérante par "${managerName}".
+10. vocalSummary : 2 à 3 phrases parlées chaleureuses, fluides et professionnelles, appelant le patron par "${bossCall}".
 
 CONTEXTE DE L'INSTITUT :
 - Prestations : ${JSON.stringify(services)}
@@ -365,6 +364,7 @@ async function callZaiDebrief(systemPrompt: string, userMessage: string): Promis
 }
 
 // ─────────────── Palier 3 : Analyseur NLP déterministe ───────────────
+// ─────────────── Palier 3 : Analyseur NLP déterministe ───────────────
 function fallbackParser(
   text: string,
   tenant: {
@@ -377,6 +377,39 @@ function fallbackParser(
   previousDebrief?: any,
 ): DebriefResult {
   const lower = text.toLowerCase();
+  const cleanFirst = (managerName || "Patron").split(/\s+/)[0] || "Patron";
+  const bossCall = `Patron${cleanFirst.toLowerCase().endsWith("e") || cleanFirst.toLowerCase().includes("mme") || cleanFirst.toLowerCase().includes("deborah") ? "ne" : ""} ${cleanFirst}`;
+
+  // 0. Salutations et politesses ("Bonjour", "Salut", "Tu es là", "À vos ordres")
+  if (lower.startsWith("bonjour") || lower.startsWith("salut") || lower.startsWith("coucou") || lower.includes("tu es là") || lower.includes("à vos ordres") || lower.includes("que peux-tu faire")) {
+    return {
+      summary: `Salutations respectueuses à ${bossCall}`,
+      vocalSummary: `Bonjour ${bossCall} ! C'est un réel plaisir de vous servir. Je suis là, prête à vous seconder pour l'agenda, les encaissements, la gestion des stocks et les relances clientes. Donnez-moi simplement vos consignes !`,
+      needsClarification: false,
+      initiatives: [
+        { type: "whatsapp_followup", title: "Consulter l'agenda du jour", desc: "Vérifier les rendez-vous et envoyer les rappels WhatsApp aux clientes." },
+        { type: "stock_reorder", title: "État des stocks salon", desc: "Contrôler les produits qui approchent de leur seuil d'alerte." }
+      ],
+      hasSale: false,
+      hasStockMovement: false,
+      hasClient: false,
+      hasAppointment: false,
+      hasTeamCredit: false,
+      hasExpense: false,
+      hasRelance: false,
+    };
+  }
+
+  // Si on est dans une boucle de clarification pour une prise de RDV
+  if (previousDebrief && previousDebrief.hasAppointment && previousDebrief.needsClarification) {
+    return {
+      ...previousDebrief,
+      needsClarification: false,
+      clarificationQuestion: undefined,
+      clarificationOptions: undefined,
+      vocalSummary: `À vos ordres ${bossCall} ! J'ai bien réservé ce créneau dans votre agenda. Le rendez-vous est maintenant planifié.`,
+    };
+  }
 
   // Si on est dans une boucle de clarification et que l'utilisateur a donné le mode de paiement
   if (previousDebrief && previousDebrief.hasSale) {
@@ -391,7 +424,7 @@ function fallbackParser(
       needsClarification: false,
       clarificationQuestion: undefined,
       clarificationOptions: undefined,
-      vocalSummary: `Parfait, ${managerName} ! J'ai bien enregistré le règlement par ${method.toUpperCase()}. Tout est prêt à être scellé.`,
+      vocalSummary: `Parfait, ${bossCall} ! J'ai bien enregistré le règlement par ${method.toUpperCase()}. Tout est prêt à être scellé.`,
       sale: {
         ...previousDebrief.sale,
         paymentMethod: method,
@@ -399,7 +432,74 @@ function fallbackParser(
     };
   }
 
-  // 1. Détection de paiement & montants
+  // 1. Détection de commande pure de RDV ("prends rdv", "bloque un rdv", "inscris", "ajoute rdv")
+  const isPureApptCommand = (lower.includes("rdv") || lower.includes("rendez-vous") || lower.includes("bloque") || lower.includes("créneau")) && (lower.includes("prends") || lower.includes("ajoute") || lower.includes("planifie") || lower.includes("inscri"));
+  if (isPureApptCommand) {
+    const tantieMatch = text.match(/(?:tantie|mme|madame|soeur|fille|pour)\s+([A-ZÀ-ÿa-z]+)/i);
+    const clientName = tantieMatch ? tantieMatch[1].trim() : "la cliente";
+    const matchedService = tenant.services.find((s) => lower.includes(s.name.toLowerCase()));
+
+    return {
+      summary: `Réservation RDV pour ${clientName}`,
+      vocalSummary: `À vos ordres ${bossCall} ! Pour quel jour et à quelle heure souhaitez-vous que j'inscrive ${clientName}${matchedService ? ` pour son ${matchedService.name}` : ""} dans l'agenda ?`,
+      needsClarification: true,
+      clarificationQuestion: `À vos ordres ${bossCall} ! Pour quel jour et quelle heure dois-je planifier le rendez-vous de ${clientName} ?`,
+      clarificationOptions: [
+        { label: "📅 Aujourd'hui 15h", value: `Inscrire ${clientName} aujourd'hui à 15h00` },
+        { label: "📅 Demain 10h", value: `Inscrire ${clientName} demain à 10h00` },
+        { label: "📅 Samedi 14h", value: `Inscrire ${clientName} samedi à 14h00` },
+        { label: "💆 Soin Visage Éclat", value: `Prestation Soin Visage Éclat pour ${clientName}` },
+      ],
+      initiatives: [
+        { type: "whatsapp_followup", title: "Confirmation WhatsApp", desc: `Envoyer un SMS/WhatsApp automatique de confirmation à ${clientName} dès que l'horaire est fixé.` }
+      ],
+      hasSale: false,
+      hasStockMovement: false,
+      hasClient: true,
+      client: {
+        name: clientName,
+        isExisting: false,
+      },
+      hasAppointment: true,
+      appointment: {
+        serviceName: matchedService ? matchedService.name : "Soin en cabine",
+        serviceId: matchedService?.id,
+        dateStr: new Date(Date.now() + 86400000).toISOString(),
+        timeStr: "14:00",
+        notes: `Prise de rendez-vous pour ${clientName}`,
+      },
+      hasTeamCredit: false,
+      hasExpense: false,
+      hasRelance: true,
+    };
+  }
+
+  // 2. Détection de demande de relances ("relance les clientes", "rappelle les clientes")
+  if (lower.includes("relance") || lower.includes("relancer") || lower.includes("rappelle les clientes")) {
+    return {
+      summary: `Initiative de relances clientes pour ${bossCall}`,
+      vocalSummary: `Excellente initiative ${bossCall} ! Quelles clientes souhaitez-vous que je relance en priorité aujourd'hui ?`,
+      needsClarification: true,
+      clarificationQuestion: `Quelles clientes souhaitez-vous relancer en priorité, ${bossCall} ?`,
+      clarificationOptions: [
+        { label: "💆 Clientes Soin (J+30)", value: "Relancer les clientes venues il y a 30 jours pour renouveler leur soin" },
+        { label: "📅 Rappels RDV Demain", value: "Envoyer les rappels WhatsApp pour les rendez-vous de demain" },
+        { label: "💰 Rappels Ardoises / Crédits", value: "Envoyer un rappel courtois pour les soldes en attente" },
+      ],
+      initiatives: [
+        { type: "loyalty", title: "Campagne VIP fidélité", desc: "Proposer un avantage fidélité de 10% pour les clientes du mois dernier." }
+      ],
+      hasSale: false,
+      hasStockMovement: false,
+      hasClient: false,
+      hasAppointment: false,
+      hasTeamCredit: false,
+      hasExpense: false,
+      hasRelance: true,
+    };
+  }
+
+  // 3. Détection de paiement & montants
   const amountMatch = text.match(/(\d[\d\s.,]*)\s*(?:f|cfa|fcfa|mille|francs)/i);
   let detectedAmount = 0;
   if (amountMatch) {
@@ -428,7 +528,7 @@ function fallbackParser(
     hasExplicitPayment = true;
   }
 
-  // 2. Détection de cliente
+  // 4. Détection de cliente
   let clientName = "Cliente de passage";
   let clientProfileId: string | undefined;
   const tantieMatch = text.match(/(?:tantie|mme|madame|soeur|fille)\s+([A-ZÀ-ÿa-z]+)/i);
@@ -443,12 +543,38 @@ function fallbackParser(
     clientProfileId = matchedClient.id;
   }
 
-  // 3. Détection de dépense de petite caisse
-  const isExpense = lower.includes("pris dans la caisse") || lower.includes("dépense") || lower.includes("acheté de l'eau") || lower.includes("courant");
-  if (isExpense && detectedAmount > 0) {
+  // 5. Détection de dépense de petite caisse
+  const isExpense = lower.includes("pris dans la caisse") || lower.includes("dépense") || lower.includes("acheté de l'eau") || lower.includes("courant") || lower.includes("fournitures");
+  if (isExpense) {
+    if (detectedAmount === 0) {
+      return {
+        summary: `Sortie de caisse demandée par ${bossCall}`,
+        vocalSummary: `Bien reçu ${bossCall} ! De combien est cette dépense et de quelle caisse provient l'argent ?`,
+        needsClarification: true,
+        clarificationQuestion: `Quel est le montant de la dépense et le moyen de paiement, ${bossCall} ?`,
+        clarificationOptions: [
+          { label: "💵 2 500 F · Espèces Caisse", value: "Pris 2 500 F en espèces dans la caisse pour fournitures" },
+          { label: "💵 5 000 F · Espèces Caisse", value: "Pris 5 000 F en espèces dans la caisse pour électricité" },
+          { label: "🌊 10 000 F · Wave", value: "Payé 10 000 F par Wave pour les courses du salon" },
+        ],
+        hasSale: false,
+        hasStockMovement: false,
+        hasClient: false,
+        hasAppointment: false,
+        hasTeamCredit: false,
+        hasExpense: true,
+        expense: {
+          amount: 0,
+          description: text.slice(0, 100),
+          category: "fournitures",
+        },
+        hasRelance: false,
+      };
+    }
+
     return {
       summary: `Sortie de petite caisse : ${detectedAmount.toLocaleString("fr-FR")} FCFA`,
-      vocalSummary: `C'est bien noté, ${managerName} ! J'ai enregistré une sortie de caisse de ${detectedAmount.toLocaleString("fr-FR")} francs pour les frais du salon.`,
+      vocalSummary: `C'est bien noté, ${bossCall} ! J'ai enregistré une sortie de caisse de ${detectedAmount.toLocaleString("fr-FR")} francs pour les frais du salon.`,
       hasSale: false,
       hasStockMovement: false,
       hasClient: false,
@@ -464,7 +590,7 @@ function fallbackParser(
     };
   }
 
-  // 4. Détection de prestation et produit
+  // 6. Détection de prestation et produit
   const matchedService = tenant.services.find((s) => lower.includes(s.name.toLowerCase())) || tenant.services[0];
   const matchedProduct = tenant.products.find((p) => lower.includes(p.name.toLowerCase()));
 
@@ -522,12 +648,12 @@ function fallbackParser(
   const paidAmount = total;
   const remainingDebt = 0;
 
-  // 5. Détection employée
+  // 7. Détection employée
   const matchedEmployee = tenant.employees.find((e) => lower.includes(e.name.toLowerCase()));
   const employeeName = matchedEmployee?.name || tenant.employees[0]?.name || "Équipe";
   const commission = Math.round(total * 0.1);
 
-  // 6. Détection de RDV
+  // 8. Détection de RDV
   const hasAppt = lower.includes("rdv") || lower.includes("revient") || lower.includes("semaine") || lower.includes("vendredi");
 
   // Proactivité : Relance WhatsApp
@@ -539,10 +665,10 @@ function fallbackParser(
     });
   }
 
-  // Si le mode de paiement n'a pas été précisé du tout, la secrétaire pose la question !
+  // Si le mode de paiement n'a pas été précisé du tout, la secrétaire pose la question poliment !
   const needsClarification = !hasExplicitPayment;
   const clarificationQuestion = needsClarification
-    ? `${managerName}, est-ce que ${clientName} a réglé par Wave, Orange Money ou en Espèces ?`
+    ? `${bossCall}, est-ce que ${clientName} a réglé par Wave, Orange Money ou en Espèces ?`
     : undefined;
 
   const clarificationOptions = needsClarification
@@ -554,8 +680,8 @@ function fallbackParser(
     : undefined;
 
   const vocalSummary = needsClarification
-    ? `C'est bien noté, ${managerName} pour le soin de ${clientName} ! Mais dis-moi : est-ce que le montant de ${total.toLocaleString("fr-FR")} francs a été réglé par Wave, Orange Money ou en Espèces ?`
-    : `C'est bien noté, ${managerName} ! J'ai préparé l'encaissement de ${total.toLocaleString("fr-FR")} francs par ${method.toUpperCase()} pour ${clientName}${matchedProduct ? ", décompté le stock" : ""}, et attribué la prestation à ${employeeName}. Tout est prêt à sceller.`;
+    ? `C'est bien noté, ${bossCall} pour le soin de ${clientName} ! Pouvez-vous me préciser si le montant de ${total.toLocaleString("fr-FR")} francs a été réglé par Wave, Orange Money ou en Espèces ?`
+    : `C'est bien noté, ${bossCall} ! J'ai préparé l'encaissement de ${total.toLocaleString("fr-FR")} francs par ${method.toUpperCase()} pour ${clientName}${matchedProduct ? ", décompté le stock" : ""}, et attribué la prestation à ${employeeName}. Tout est prêt à sceller.`;
 
   return {
     summary: `Prestation avec ${clientName} (${total.toLocaleString("fr-FR")} FCFA${hasExplicitPayment ? ` par ${method.toUpperCase()}` : ""})`,
