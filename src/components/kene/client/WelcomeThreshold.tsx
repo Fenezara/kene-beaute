@@ -213,10 +213,29 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
     toast.success("Mode Hors-ligne activé : Espace Institut & Caisse POS ouverts 📴");
   }
 
+  function activateOfflineClientSession() {
+    const offlineClient: SessionUser = {
+      id: last?.phone ? `client_${last.phone.replace(/\D/g, "")}` : "guest_offline",
+      name: last?.name || "Invitée Kènè (Hors-ligne)",
+      phone: last?.phone || "",
+      role: "client",
+    };
+    setUser(offlineClient);
+    setSpace("client");
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("kene:start-explore"));
+    }
+    toast.success("Mode Hors-ligne activé : Espace Beauté & Scanner ouverts 🌸");
+  }
+
   function enterPortal(mode: "client" | "pro") {
     if (entering) return;
     if (mode === "pro" && !isOnline()) {
       activateOfflineProSession();
+      return;
+    }
+    if (mode === "client" && !isOnline()) {
+      activateOfflineClientSession();
       return;
     }
     setEntering(mode);

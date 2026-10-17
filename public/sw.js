@@ -11,11 +11,11 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v38";
-const PRECACHE = "kene-precache-v38";
-const DATA_CACHE = "kene-data-v38";
-const IMG_CACHE = "kene-img-v38";
-const STATIC_CACHE = "kene-static-v38";
+const VERSION = "kene-sw-v39";
+const PRECACHE = "kene-precache-v39";
+const DATA_CACHE = "kene-data-v39";
+const IMG_CACHE = "kene-img-v39";
+const STATIC_CACHE = "kene-static-v39";
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
@@ -23,6 +23,7 @@ const PRECACHE_URLS = [
   "/",
   "/?space=pro",
   "/pin",
+  "/api/pwa-manifest",
   "/manifest.json",
   "/kene-mark.svg",
   "/favicon.ico",
@@ -328,7 +329,37 @@ self.addEventListener("install", (event) => {
         )
       );
 
-      // 2. Extraction automatique exhaustive de TOUS les scripts et styles Next.js (y compris dans le payload RSC)
+      // 2. Pré-cache exhaustif de TOUS les chunks Next.js via l'API dédiée /api/pwa-manifest
+      let manifestAssets = [];
+      try {
+        const manifestRes = await fetch("/api/pwa-manifest", { cache: "no-store" });
+        if (manifestRes && manifestRes.ok) {
+          const data = await manifestRes.json();
+          if (Array.isArray(data.assets) && data.assets.length > 0) {
+            manifestAssets = data.assets;
+          }
+        }
+      } catch {}
+
+      if (manifestAssets.length > 0) {
+        await Promise.all(
+          manifestAssets.map(async (assetUrl) => {
+            try {
+              const assetRes = await fetch(new Request(assetUrl, { credentials: "same-origin" }));
+              if (assetRes && assetRes.ok) {
+                const clean = await sanitizeForCache(assetRes);
+                const fullUrl = new URL(assetUrl, self.location.origin).href;
+                await staticCache.put(assetUrl, clean.clone());
+                await staticCache.put(fullUrl, clean);
+              }
+            } catch {
+              /* chunk best-effort */
+            }
+          })
+        );
+      }
+
+      // 3. Extraction automatique complémentaire des scripts et styles Next.js depuis "/" et "/?space=pro"
       for (const entryUrl of ["/", "/?space=pro"]) {
         try {
           const entryRes = (await precache.match(entryUrl, { ignoreSearch: true })) || (await precache.match("/"));
@@ -784,10 +815,14 @@ async function getCachedAppShell(req) {
 
 async function cacheFirstStatic(req) {
   const cache = await caches.open(STATIC_CACHE);
-  const cached = await cache.match(req);
+  let cached = await cache.match(req);
   if (cached) return cached;
 
-  const anyCached = await caches.match(req);
+  // Recherche avec ignoreSearch
+  cached = await cache.match(req, { ignoreSearch: true });
+  if (cached) return cached;
+
+  const anyCached = await caches.match(req, { ignoreSearch: true });
   if (anyCached) return anyCached;
 
   try {
@@ -802,9 +837,30 @@ async function cacheFirstStatic(req) {
     /* Hors-ligne réel */
   }
 
-  return new Response("/* kene offline chunk fallback */", {
-    status: 200,
-    headers: { "content-type": "application/javascript", "x-kene-offline": "1" },
+  const url = new URL(req.url);
+  if (url.pathname.endsWith("/_buildManifest.js")) {
+    return new Response(
+      'self.__BUILD_MANIFEST = { "/": [], sortedPages: ["/"] }; self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB();',
+      { status: 200, headers: { "content-type": "application/javascript", "x-kene-offline": "1" } }
+    );
+  }
+  if (url.pathname.endsWith("/_ssgManifest.js")) {
+    return new Response(
+      'self.__SSG_MANIFEST = new Set(); self.__SSG_MANIFEST_CB && self.__SSG_MANIFEST_CB();',
+      { status: 200, headers: { "content-type": "application/javascript", "x-kene-offline": "1" } }
+    );
+  }
+  if (url.pathname.endsWith(".css")) {
+    return new Response("/* kene offline css */", {
+      status: 200,
+      headers: { "content-type": "text/css", "x-kene-offline": "1" },
+    });
+  }
+
+  // Si c'est un script inconnu en panne réseau, renvoyer 503 sans corps falsifié
+  return new Response("Offline chunk unavailable", {
+    status: 503,
+    headers: { "content-type": "text/plain", "x-kene-offline": "1" },
   });
 }
 

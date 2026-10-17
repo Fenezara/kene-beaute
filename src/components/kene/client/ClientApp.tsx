@@ -393,12 +393,15 @@ export function ClientApp() {
     );
   }
 
-  // Filet de sécurité avant rendu du shell client
-  if (!user) {
-    return <BootSkeleton />;
-  }
+  // Session cliente active ou repli invité/hors-ligne garanti (zéro blocage infini sur BootSkeleton)
+  const effectiveUser: SessionUser = user || {
+    id: "guest_offline",
+    name: "Invitée Kènè",
+    phone: "",
+    role: "client",
+  };
 
-  const first = (user.name || "Invitée").split(" ")[0];
+  const first = (effectiveUser.name || "Invitée").split(" ")[0];
 
   return (
     <div className="h-dvh flex overflow-hidden overscroll-none select-none">
@@ -560,7 +563,7 @@ export function ClientApp() {
 
               {/* Cloche notifications: flux temps réel (notify-service) */}
               <Suspense fallback={<BellLoading />}>
-                <NotificationCenter userId={user.id} />
+                <NotificationCenter userId={effectiveUser.id} />
               </Suspense>
 
               {/* Engrenage Paramètres — visible dès tablette sm+ (sur mobile accessible via onglet Profil) */}
@@ -753,9 +756,9 @@ export function ClientApp() {
                 {first.charAt(0)}
               </span>
               <div className="min-w-0">
-                <p className="font-heading font-bold truncate">{user.name}</p>
-                <p className="text-[11px] text-muted-foreground truncate">{user.phone}</p>
-                <p className="text-[11px] text-muted-foreground truncate">{user.city || "Abidjan"} · {user.fitzpatrick ? `Fitzpatrick ${user.fitzpatrick}` : "phototype à définir"}</p>
+                <p className="font-heading font-bold truncate">{effectiveUser.name}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{effectiveUser.phone || "Mode Invité / Hors-ligne"}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{effectiveUser.city || "Abidjan"} · {effectiveUser.fitzpatrick ? `Fitzpatrick ${effectiveUser.fitzpatrick}` : "phototype à définir"}</p>
               </div>
             </div>
             <button

@@ -47,7 +47,7 @@ export default function Page() {
   // null → BootSkeleton le temps de la résolution client (zéro flash).
   const entry = useEntryKind();
 
-  const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(() => typeof window !== "undefined");
 
   // Déclenchement immédiat de la réhydratation du store dès le premier montage React
   useEffect(() => {
@@ -60,9 +60,9 @@ export default function Page() {
     }
   }, []);
 
-  // Déblocage de secours (anti-blocage infini du splash screen)
-  const isReady = mounted || hydrated;
-  const activeEntry = entry ?? (mounted ? "app" : null);
+  // Déblocage de secours absolu (anti-blocage infini du splash screen)
+  const isReady = mounted || hydrated || (typeof window !== "undefined");
+  const activeEntry = entry ?? (isReady ? "app" : null);
 
   // Mode Maintenance plateforme — vérifié au chargement, au focus et toutes les 30s
   const [maintenance, setMaintenance] = useState<MaintenanceConfig | null>(null);
