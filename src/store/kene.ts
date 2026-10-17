@@ -47,6 +47,8 @@ export interface SessionUser {
   // — poste de l'EMPLOYÉE connectée (estheticienne | dermo_conseillere |
   // caissiere | manager). Absent/null = gérante (accès complet).
   employeeRole?: string | null;
+  // — permissions granulaires personnalisées de l'employée (modules autorisés sur mesure)
+  employeePermissions?: string[] | null;
   // — établissement rattaché pour l'employée / pro
   tenantId?: string | null;
   // — code PIN secret défini (permet la reconnexion instantanée sans SMS)

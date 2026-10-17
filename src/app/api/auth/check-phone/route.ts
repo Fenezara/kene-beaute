@@ -149,6 +149,16 @@ async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
     role: effectiveRole,
     isEmployee: Boolean(employeeLink),
     employeeRole: employeeLink?.role ?? null,
+    employeePermissions: employeeLink?.permissions
+      ? (() => {
+          try {
+            const arr = JSON.parse(employeeLink.permissions);
+            return Array.isArray(arr) ? arr : null;
+          } catch {
+            return null;
+          }
+        })()
+      : null,
     tenant: ownerTenant ?? (employeeLink?.tenant ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name } : null),
     maskedPhone: maskPhone(user.phone),
   });

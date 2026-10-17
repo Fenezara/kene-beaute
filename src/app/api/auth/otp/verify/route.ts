@@ -278,8 +278,23 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   // ne changent pas de comportement.
   // — une EMPLOYÉE reçoit l'institut de son employeur + son poste
   // (`employeeRole`): le front ouvre l'espace Pro filtré sur ses sections.
+  const employeePermissions = employeeLink?.permissions
+    ? (() => {
+        try {
+          const arr = JSON.parse(employeeLink.permissions);
+          return Array.isArray(arr) ? arr : null;
+        } catch {
+          return null;
+        }
+      })()
+    : null;
+
   const response = NextResponse.json({
-    user: sanitizeUser(user),
+    user: {
+      ...sanitizeUser(user),
+      employeeRole: employeeLink ? employeeLink.role : null,
+      employeePermissions,
+    },
     hasPin: Boolean(user.pinHash),
     tenant: ownerTenant
       ? { id: ownerTenant.id, name: ownerTenant.name }
@@ -287,6 +302,7 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
         ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name }
         : null,
     employeeRole: employeeLink ? employeeLink.role : null,
+    employeePermissions,
   });
   setSessionCookie(response, user);
   return response;

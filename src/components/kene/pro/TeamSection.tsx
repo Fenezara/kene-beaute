@@ -13,6 +13,8 @@ import {
   Palmtree,
   Pencil,
   Plus,
+  RotateCcw,
+  ShieldCheck,
   Smartphone,
   Undo2,
   UserRoundCheck,
@@ -60,6 +62,10 @@ import {
   CONTRACT_LABELS,
   formatRole,
   formatContract,
+  MODULABLE_MODULES,
+  DEFAULT_ROLE_PERMISSIONS,
+  getDefaultPermissionsForRole,
+  type ModulableModule,
 } from "@/lib/kene/hr-constants";
 
 const ATTENDANCE_STYLES: Record<string, { label: string; cls: string }> = {
@@ -346,6 +352,42 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                         <span className="text-[11px] text-muted-foreground">—</span>
                       )}
                     </div>
+
+                    {/* Droits & Accès modules */}
+                    <div className="pt-2 border-t border-border/60 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <ShieldCheck className="size-3 text-primary" aria-hidden="true" /> Accès modules
+                        </span>
+                        {emp.permissions && emp.permissions.length > 0 ? (
+                          <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+                            Sur-mesure ({emp.permissions.length})
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            Standard ({getDefaultPermissionsForRole(emp.role).length})
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {((emp.permissions && emp.permissions.length > 0)
+                          ? emp.permissions
+                          : getDefaultPermissionsForRole(emp.role)
+                        ).map((permId) => {
+                          const mod = MODULABLE_MODULES.find((m) => m.id === permId);
+                          return (
+                            <span
+                              key={permId}
+                              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-muted/80 text-foreground border border-border"
+                              title={mod?.description}
+                            >
+                              <span>{mod?.emoji ?? "✨"}</span>
+                              <span className="font-medium">{mod?.shortLabel ?? permId}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
 
                   {emp.active && (
@@ -569,6 +611,158 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
   );
 }
 
+/* ═════════════ Sélecteur de Permissions Granulaires ═════════════ */
+function PermissionsSelector({
+  permissions,
+  onChange,
+  role,
+}: {
+  permissions: string[];
+  onChange: (perms: string[]) => void;
+  role: string;
+}) {
+  const defaultPerms = getDefaultPermissionsForRole(role);
+  const isDefault =
+    permissions.length === defaultPerms.length &&
+    defaultPerms.every((p) => permissions.includes(p));
+
+  const toggleModule = (id: string) => {
+    if (permissions.includes(id)) {
+      onChange(permissions.filter((p) => p !== id));
+    } else {
+      onChange([...permissions, id]);
+    }
+  };
+
+  const setAll = (enable: boolean) => {
+    if (enable) {
+      onChange(MODULABLE_MODULES.map((m) => m.id));
+    } else {
+      onChange([]);
+    }
+  };
+
+  const resetToRoleDefaults = () => {
+    onChange(defaultPerms);
+  };
+
+  const categories = useMemo(() => {
+    const map = new Map<string, { label: string; modules: ModulableModule[] }>();
+    for (const mod of MODULABLE_MODULES) {
+      if (!map.has(mod.category)) {
+        map.set(mod.category, { label: mod.categoryLabel, modules: [] });
+      }
+      map.get(mod.category)!.modules.push(mod);
+    }
+    return Array.from(map.values());
+  }, []);
+
+  return (
+    <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck className="size-4 text-primary" />
+            <span className="text-xs font-semibold">Droits & accès aux fonctionnalités</span>
+            <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
+              {permissions.length} / {MODULABLE_MODULES.length}
+            </Badge>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Cochez les modules autorisés sur son téléphone (donner la caisse, retirer le CRM, etc.).
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          {!isDefault && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={resetToRoleDefaults}
+              className="h-6 text-[10px] px-2 gap-1 border-primary/30 text-primary hover:bg-primary/5"
+            >
+              <RotateCcw className="size-2.5" /> Défaut ({formatRole(role)})
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setAll(true)}
+            className="h-6 text-[10px] px-1.5 text-muted-foreground hover:text-foreground"
+          >
+            Tout cocher
+          </Button>
+          <span className="text-muted-foreground text-[10px]">·</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setAll(false)}
+            className="h-6 text-[10px] px-1.5 text-muted-foreground hover:text-foreground"
+          >
+            Tout vider
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2.5 pt-1">
+        {categories.map((cat) => (
+          <div key={cat.label} className="space-y-1.5">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
+              {cat.label}
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {cat.modules.map((mod) => {
+                const active = permissions.includes(mod.id);
+                return (
+                  <button
+                    key={mod.id}
+                    type="button"
+                    onClick={() => toggleModule(mod.id)}
+                    className={cn(
+                      "flex items-start gap-2.5 p-2 rounded-lg border text-left transition-all",
+                      active
+                        ? "bg-card border-primary/40 text-foreground shadow-xs ring-1 ring-primary/20"
+                        : "bg-background/50 border-border/70 text-muted-foreground hover:border-border hover:bg-background"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "size-4 rounded mt-0.5 flex items-center justify-center shrink-0 border transition-colors",
+                        active
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : "border-muted-foreground/40 bg-background"
+                      )}
+                    >
+                      {active && <Check className="size-3 stroke-[3]" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs leading-none">{mod.emoji}</span>
+                        <span className={cn("text-xs font-medium leading-none", active && "text-foreground font-semibold")}>
+                          {mod.shortLabel}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground line-clamp-1 mt-1 leading-tight">
+                        {mod.description}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-muted-foreground italic">
+        💡 Note : L&apos;accès à &quot;Paramètres&quot; est toujours garanti. Les sections confidentielles (Paie des salaires et Compta SYSCOHADA) restent réservées à la gérance.
+      </p>
+    </div>
+  );
+}
+
 /* ═════════════ Embauche (dialog) ═════════════ */
 function HireDialog({
   open,
@@ -595,9 +789,23 @@ function HireDialog({
   const [housing, setHousing] = useState("");
   const [cadres, setCadres] = useState(false);
   const [phone, setPhone] = useState("");
+  const [permissions, setPermissions] = useState<string[]>(() =>
+    getDefaultPermissionsForRole("estheticienne")
+  );
 
   const finalRole = selectedRole === "custom" ? (customRole.trim() || "Collaboratrice") : selectedRole;
   const finalContract = selectedContract === "custom" ? (customContract.trim() || "Contrat") : selectedContract;
+
+  const handleRoleChange = (newRole: string) => {
+    const prevDefault = getDefaultPermissionsForRole(selectedRole);
+    const isMatchingPrev =
+      permissions.length === prevDefault.length &&
+      prevDefault.every((p) => permissions.includes(p));
+    setSelectedRole(newRole);
+    if (isMatchingPrev) {
+      setPermissions(getDefaultPermissionsForRole(newRole));
+    }
+  };
 
   async function submit() {
     if (!name.trim() || baseSalary === "") {
@@ -624,17 +832,19 @@ function HireDialog({
         transport: transport ? Number(transport) : 0,
         housing: housing ? Number(housing) : 0,
         cadres,
+        permissions,
         ...(phone.trim() ? { phone: phone.trim() } : {}),
       });
       if (r.account?.created) {
         toast.success(`${name.trim()} rejoint l'équipe (${formatRole(finalRole)})`, {
-          description: `Compte app créé (${phone.trim()}) — elle se connecte avec ce numéro (code SMS) et voit les sections de son poste.`,
+          description: `Compte app créé (${phone.trim()}) — elle se connecte avec ce numéro (code SMS) et accède aux ${permissions.length} modules autorisés.`,
         });
       } else {
         toast.success(`${name.trim()} rejoint l'équipe (${formatRole(finalRole)})`);
       }
       setName(""); setSelectedRole("estheticienne"); setCustomRole(""); setSelectedContract("CDI"); setCustomContract("");
       setBaseSalary(""); setTransport(""); setHousing(""); setCadres(false); setPhone("");
+      setPermissions(getDefaultPermissionsForRole("estheticienne"));
       onOpenChange(false);
       await onCreated();
     } catch (e) {
@@ -646,11 +856,11 @@ function HireDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto pretty-scroll">
+      <DialogContent className="sm:max-w-xl max-h-[92vh] overflow-y-auto pretty-scroll">
         <DialogHeader>
           <DialogTitle className="font-heading">Embaucher une collaboratrice</DialogTitle>
           <DialogDescription>
-            Poste métier, contrat (CDI, CDD, Freelance...) et grille salariale de l'institut.
+            Poste métier, contrat (CDI, CDD, Freelance...), droits d&apos;accès et grille salariale.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -661,7 +871,7 @@ function HireDialog({
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Poste</Label>
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <Select value={selectedRole} onValueChange={handleRoleChange}>
                 <SelectTrigger aria-label="Poste"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {PREDEFINED_ROLES.map((r) => (
@@ -768,10 +978,17 @@ function HireDialog({
               placeholder="07 05 04 03 02"
             />
             <p className="text-[10px] text-muted-foreground mt-1.5">
-              Avec son numéro, elle se connecte à l&apos;app par code SMS et accède à l&apos;espace Pro selon son poste —{" "}
-              {getRoleHint(finalRole)}
+              Avec son numéro, elle se connecte à l&apos;app par code SMS et accède aux fonctionnalités sélectionnées ci-dessous.
             </p>
           </div>
+
+          {/* Sélecteur de droits & modules */}
+          <PermissionsSelector
+            permissions={permissions}
+            onChange={setPermissions}
+            role={finalRole}
+          />
+
           <Button disabled={busy} onClick={submit} className="w-full font-semibold gap-1.5">
             <BadgeCheck className="size-4" aria-hidden="true" /> {busy ? "Création…" : "Ajouter à l'équipe"}
           </Button>
@@ -810,6 +1027,12 @@ function EditDialog({
   const [cnpsNumber, setCnpsNumber] = useState(employee.cnpsNumber ?? "");
   const [bankAccount, setBankAccount] = useState(employee.bankAccount ?? "");
   const [phone, setPhone] = useState(employee.accountPhone ?? "");
+  const [permissions, setPermissions] = useState<string[]>(
+    () =>
+      employee.permissions && employee.permissions.length > 0
+        ? employee.permissions
+        : getDefaultPermissionsForRole(employee.role)
+  );
 
   const finalRole = selectedRole === "custom" ? (customRole.trim() || "Collaboratrice") : selectedRole;
   const finalContract = selectedContract === "custom" ? (customContract.trim() || "Contrat") : selectedContract;
@@ -842,9 +1065,12 @@ function EditDialog({
         cadres,
         cnpsNumber: cnpsNumber.trim() || null,
         bankAccount: bankAccount.trim() || null,
+        permissions,
         ...(phone.trim() ? { phone: phone.trim() } : { phone: null }),
       });
-      toast.success(`Fiche mise à jour — ${name.trim()} (${formatRole(finalRole)})`);
+      toast.success(`Fiche mise à jour — ${name.trim()} (${formatRole(finalRole)})`, {
+        description: `${permissions.length} modules autorisés sur son espace.`,
+      });
       onClose();
       await onSaved();
     } catch (e) {
@@ -856,7 +1082,7 @@ function EditDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md max-h-[92vh] overflow-y-auto pretty-scroll">
+      <DialogContent className="sm:max-w-xl max-h-[92vh] overflow-y-auto pretty-scroll">
         <DialogHeader>
           <DialogTitle className="font-heading">Modifier la fiche</DialogTitle>
           <DialogDescription>
@@ -989,9 +1215,17 @@ function EditDialog({
             />
             <p className="text-[10px] text-muted-foreground mt-1.5">
               Vidé = délier le compte app (elle ne peut plus se connecter à l&apos;espace Pro).{" "}
-              {phone.trim() ? `Elle voit : ${getRoleHint(finalRole)}` : ""}
+              {phone.trim() ? "Elle se connecte par SMS et accède aux fonctionnalités sélectionnées ci-dessous." : ""}
             </p>
           </div>
+
+          {/* Sélecteur de droits & modules */}
+          <PermissionsSelector
+            permissions={permissions}
+            onChange={setPermissions}
+            role={finalRole}
+          />
+
           <Button disabled={busy} onClick={submit} className="w-full font-semibold gap-1.5">
             <BadgeCheck className="size-4" aria-hidden="true" /> {busy ? "Enregistrement…" : "Enregistrer la fiche"}
           </Button>

@@ -5,16 +5,30 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, dayStart, dayEnd, genRef } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 
-/** Enrichit chaque fiche du téléphone du compte app lié (relation clé brute). */
-async function withAccountPhones<T extends { userId: string | null }>(
+function parseEmployeePermissions(raw: string | null | undefined): string[] | null {
+  if (!raw) return null;
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Enrichit chaque fiche du téléphone du compte app lié et parse les permissions personnalisées. */
+async function withAccountPhones<T extends { userId: string | null; permissions?: string | null }>(
   employees: T[],
-): Promise<(T & { accountPhone: string | null })[]> {
+): Promise<(T & { accountPhone: string | null; permissions: string[] | null })[]> {
   const ids = [...new Set(employees.map((e) => e.userId).filter((u): u is string => !!u))];
   const users = ids.length
     ? await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, phone: true } })
     : [];
   const byId = new Map(users.map((u) => [u.id, u.phone]));
-  return employees.map((e) => ({ ...e, accountPhone: e.userId ? byId.get(e.userId) ?? null : null }));
+  return employees.map((e) => ({
+    ...e,
+    accountPhone: e.userId ? byId.get(e.userId) ?? null : null,
+    permissions: parseEmployeePermissions(e.permissions),
+  }));
 }
 
 export async function GET(req: NextRequest) {
@@ -73,6 +87,8 @@ const Body = z.object({
   // — compte APP de l'employée: numéro → User (rôle pro) lié à cette
   // fiche. L'employée se connecte par OTP et voit les sections de son poste.
   phone: z.string().trim().min(6).max(30).optional(),
+  // — permissions granulaires personnalisées de l'employée (modules autorisés sur mesure)
+  permissions: z.array(z.string()).nullable().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -88,7 +104,7 @@ export async function POST(req: NextRequest) {
     const tenant = await db.tenant.findUnique({ where: { id: parsed.data.tenantId } });
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    const { tenantId, name, role, contractType, baseSalary, transport, housing, cadres, phone } = parsed.data;
+    const { tenantId, name, role, contractType, baseSalary, transport, housing, cadres, phone, permissions } = parsed.data;
 
     // — compte APP optionnel: vérifications AVANT toute écriture.
     // Normalisation canonique de l'app: numéro local (8+ chiffres) →
@@ -123,7 +139,7 @@ export async function POST(req: NextRequest) {
         accountUserId = existing.id;
       } else {
         const created = await db.user.create({
-          data: { phone: normalized, name, role: "pro", referralCode: genRef("KENE") },
+          data: { phone: normalized, name: role, role: "pro", referralCode: genRef("KENE") },
         });
         accountUserId = created.id;
       }
@@ -141,11 +157,19 @@ export async function POST(req: NextRequest) {
         transport: transport ?? 0,
         housing: housing ?? 0,
         cadres: cadres ?? false,
+        permissions: permissions && permissions.length > 0 ? JSON.stringify(permissions) : null,
       },
     });
 
     return NextResponse.json(
-      { employee, account: accountUserId ? { created: true, phone: phone } : null },
+      {
+        employee: {
+          ...employee,
+          accountPhone: phone ?? null,
+          permissions: parseEmployeePermissions(employee.permissions),
+        },
+        account: accountUserId ? { created: true, phone: phone } : null,
+      },
       { status: 201 },
     );
   } catch (err) {
@@ -169,6 +193,8 @@ const PatchBody = z.object({
   cnpsNumber: z.string().trim().max(30).nullable().optional(),
   bankAccount: z.string().trim().max(60).nullable().optional(),
   phone: z.string().trim().min(6).max(30).nullable().optional(),
+  // — permissions granulaires personnalisées de l'employée (modules autorisés sur mesure)
+  permissions: z.array(z.string()).nullable().optional(),
   active: z.boolean().optional(),
   endDate: z.string().datetime().optional(),
 });
@@ -180,7 +206,7 @@ export async function PATCH(req: NextRequest) {
 
     const parsed = PatchBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
-    const { tenantId, id, phone, active, endDate, cnpsNumber, bankAccount, ...fields } = parsed.data;
+    const { tenantId, id, phone, active, endDate, cnpsNumber, bankAccount, permissions, ...fields } = parsed.data;
 
     const tenant = await resolveTenant(req, tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
@@ -235,6 +261,9 @@ export async function PATCH(req: NextRequest) {
         cnpsNumber,
         bankAccount,
         userId: accountUserId,
+        ...(permissions !== undefined
+          ? { permissions: permissions && permissions.length > 0 ? JSON.stringify(permissions) : null }
+          : {}),
         ...(active !== undefined
           ? { active, endDate: active ? null : endDate ? new Date(endDate) : new Date() }
           : {}),
@@ -244,7 +273,13 @@ export async function PATCH(req: NextRequest) {
     const account = accountUserId
       ? await db.user.findUnique({ where: { id: accountUserId }, select: { phone: true } })
       : null;
-    return NextResponse.json({ employee: { ...updated, accountPhone: account?.phone ?? null } });
+    return NextResponse.json({
+      employee: {
+        ...updated,
+        accountPhone: account?.phone ?? null,
+        permissions: parseEmployeePermissions(updated.permissions),
+      },
+    });
   } catch (err) {
     return serverError("pro/employees:patch", err);
   }

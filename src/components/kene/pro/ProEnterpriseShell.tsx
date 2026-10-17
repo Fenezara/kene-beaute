@@ -436,12 +436,26 @@ export function ProEnterpriseShell() {
   const navBadges: Partial<Record<ProSectionId, number>> = agendaBadge > 0 ? { agenda: agendaBadge } : {};
 
   const employeeRole = sessionUser?.employeeRole ?? null;
-  const allowedIds = employeeRole
-    ? EMPLOYEE_SECTIONS[employeeRole] ?? ["agenda", "diagnostic", "assistant", "parametres"]
+  const employeePermissions = sessionUser?.employeePermissions ?? null;
+  const isEmployee =
+    Boolean(employeeRole) ||
+    (Array.isArray(employeePermissions) && employeePermissions.length > 0);
+
+  const allowedIds: ProSectionId[] | null = isEmployee
+    ? employeePermissions && employeePermissions.length > 0
+      ? ([...new Set([...employeePermissions, "parametres"])].filter(
+          (id) => id !== "paie" && id !== "compta"
+        ) as ProSectionId[])
+      : employeeRole
+      ? ([...new Set([...(EMPLOYEE_SECTIONS[employeeRole] ?? ["agenda", "diagnostic", "assistant"]), "parametres"])] as ProSectionId[])
+      : (["agenda", "diagnostic", "assistant", "parametres"] as ProSectionId[])
     : null;
+
   const nav = allowedIds ? NAV.filter((n) => allowedIds.includes(n.id)) : NAV;
   const activeSection: ProSectionId =
-    allowedIds && !allowedIds.includes(section) ? allowedIds[0]! : section;
+    allowedIds && (!allowedIds.includes(section) || !nav.some((n) => n.id === section))
+      ? (nav[0]?.id ?? "diagnostic")
+      : section;
 
   const availableCategories = useMemo(
     () => PRO_NAV_CATEGORIES.filter((cat) => nav.some((i) => i.category === cat.id)),

@@ -74,3 +74,128 @@ export function formatContract(contract: string | null | undefined): string {
   if (contract.startsWith("custom:")) return contract.replace(/^custom:/, "");
   return contract;
 }
+
+export interface ModulableModule {
+  id: string;
+  label: string;
+  shortLabel: string;
+  category: "clinique" | "commerce" | "relation" | "pilotage" | "gestion";
+  categoryLabel: string;
+  emoji: string;
+  description: string;
+}
+
+export const MODULABLE_MODULES: ModulableModule[] = [
+  // Cabine & Soins
+  {
+    id: "diagnostic",
+    label: "Diagnostic Peau & IA",
+    shortLabel: "Diagnostic",
+    category: "clinique",
+    categoryLabel: "Cabine & Clinique Dermo",
+    emoji: "📸",
+    description: "Scan facial, biomarqueurs cutanés et ordonnance de soins.",
+  },
+  {
+    id: "dossiers_peau",
+    label: "Dossiers Cutanés",
+    shortLabel: "Dossiers",
+    category: "clinique",
+    categoryLabel: "Cabine & Clinique Dermo",
+    emoji: "🔬",
+    description: "Historique d'évolution, photos HD et suivi cabine.",
+  },
+  {
+    id: "agenda",
+    label: "Agenda & Soins",
+    shortLabel: "Agenda",
+    category: "clinique",
+    categoryLabel: "Cabine & Clinique Dermo",
+    emoji: "📅",
+    description: "Planning des cabines, réservations et rendez-vous du jour.",
+  },
+  // Caisse & Commerce
+  {
+    id: "caisse",
+    label: "Ventes & Caisse POS",
+    shortLabel: "Caisse",
+    category: "commerce",
+    categoryLabel: "Caisse & Commerce",
+    emoji: "💳",
+    description: "Encaissement en espèces, Wave, Orange Money et reçus.",
+  },
+  {
+    id: "catalogue",
+    label: "Catalogue, Soins & Stock",
+    shortLabel: "Catalogue & Stock",
+    category: "commerce",
+    categoryLabel: "Caisse & Commerce",
+    emoji: "🛍️",
+    description: "Prestations, tarifs, produits cosmétiques et alertes stock.",
+  },
+  // Relation & IA
+  {
+    id: "crm",
+    label: "CRM Clientes & Fidélité",
+    shortLabel: "CRM Clientes",
+    category: "relation",
+    categoryLabel: "Relation & Fidélité",
+    emoji: "👥",
+    description: "Coordonnées des clientes, historique d'achats et notes de cabine.",
+  },
+  {
+    id: "relances",
+    label: "Relances Automatiques",
+    shortLabel: "Relances",
+    category: "relation",
+    categoryLabel: "Relation & Fidélité",
+    emoji: "🔔",
+    description: "Suivi post-soin et rappels WhatsApp ciblés.",
+  },
+  {
+    id: "assistant",
+    label: "Secrétaire IA (Maman)",
+    shortLabel: "Secrétaire IA",
+    category: "relation",
+    categoryLabel: "Relation & Fidélité",
+    emoji: "👑",
+    description: "Rappels WhatsApp 24/7 et débriefing vocal intelligent.",
+  },
+  // Pilotage & RH
+  {
+    id: "dashboard",
+    label: "Tableau de Bord & KPIs",
+    shortLabel: "Dashboard",
+    category: "pilotage",
+    categoryLabel: "Pilotage & Activité",
+    emoji: "📊",
+    description: "Chiffre d'affaires en temps réel, fréquentation et analyses.",
+  },
+  {
+    id: "equipe",
+    label: "Équipe & Pointage",
+    shortLabel: "Pointage Équipe",
+    category: "gestion",
+    categoryLabel: "Gestion Opérationnelle",
+    emoji: "⏰",
+    description: "Pointage des arrivées/départs et planning du personnel.",
+  },
+];
+
+export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
+  estheticienne: ["dossiers_peau", "diagnostic", "agenda", "assistant"],
+  dermo_conseillere: ["dossiers_peau", "diagnostic", "crm", "agenda", "relances", "assistant"],
+  coiffeuse: ["agenda", "diagnostic", "assistant"],
+  prothesiste_ongulaire: ["agenda", "diagnostic", "assistant"],
+  masseuse: ["agenda", "diagnostic", "assistant"],
+  caissiere: ["caisse", "catalogue", "assistant"],
+  receptionniste: ["agenda", "caisse", "crm", "relances", "assistant"],
+  responsable_stock: ["catalogue", "assistant"],
+  manager: ["dashboard", "dossiers_peau", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue"],
+  apprentie: ["dossiers_peau", "diagnostic", "agenda", "assistant"],
+};
+
+export function getDefaultPermissionsForRole(role: string): string[] {
+  return DEFAULT_ROLE_PERMISSIONS[role] ?? ["agenda", "diagnostic", "assistant"];
+}
+

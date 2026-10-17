@@ -572,6 +572,7 @@ model Employee {
   hireDate     DateTime @default(now())
   cnpsNumber   String?
   bankAccount  String?
+  permissions  String?  // JSON stringified ProSectionId[] : permissions personnalisées (ou null pour droits par défaut du poste)
   active       Boolean  @default(true)
   endDate      DateTime? // sortie (null = en poste)
 

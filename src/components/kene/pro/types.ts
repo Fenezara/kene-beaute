@@ -349,6 +349,7 @@ export interface ProEmployee {
   cadres?: boolean;
   cnpsNumber?: string | null;
   bankAccount?: string | null;
+  permissions?: string[] | null;
   active: boolean;
   hireDate: string;
   endDate?: string | null;

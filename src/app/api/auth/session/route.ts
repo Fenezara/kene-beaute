@@ -52,11 +52,26 @@ export async function GET(req: NextRequest) {
       const tenant = (user.role === "pro" || user.role === "admin")
         ? (ownerTenant ?? (emp ? await db.tenant.findUnique({ where: { id: emp.tenantId } }) : null))
         : null;
-      if (tenant && !tenant.active) return jsonError("Session expirée", 404);
+      const employeePermissions = emp?.permissions
+        ? (() => {
+            try {
+              const arr = JSON.parse(emp.permissions);
+              return Array.isArray(arr) ? arr : null;
+            } catch {
+              return null;
+            }
+          })()
+        : null;
+
       const res = NextResponse.json({
-        user: sanitizeUser(user),
+        user: {
+          ...sanitizeUser(user),
+          employeeRole: emp ? emp.role : null,
+          employeePermissions,
+        },
         tenant: tenant ? { id: tenant.id, name: tenant.name } : null,
         employeeRole: emp ? emp.role : null,
+        employeePermissions,
       });
       setSessionCookie(res, user);
       return res;

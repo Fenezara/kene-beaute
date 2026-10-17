@@ -260,15 +260,31 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
     });
   }
 
+  const employeePermissions = employeeLink?.permissions
+    ? (() => {
+        try {
+          const arr = JSON.parse(employeeLink.permissions);
+          return Array.isArray(arr) ? arr : null;
+        } catch {
+          return null;
+        }
+      })()
+    : null;
+
   const response = NextResponse.json({
     ok: true,
-    user: sanitizeUser(user),
+    user: {
+      ...sanitizeUser(user),
+      employeeRole: employeeLink ? employeeLink.role : null,
+      employeePermissions,
+    },
     tenant: ownerTenant
       ? { id: ownerTenant.id, name: ownerTenant.name }
       : employeeLink
         ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name }
         : null,
     employeeRole: employeeLink ? employeeLink.role : null,
+    employeePermissions,
   });
 
   // Pose du cookie de session 365 jours
