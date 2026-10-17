@@ -15,7 +15,7 @@ export type UploadCheck =
  * protège surtout contre les corps forgés. */
 export const UPLOAD_MAX_BYTES = 8 * 1024 * 1024;
 
-const ALLOWED_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const ALLOWED_MIMES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
 /** Signature du contenu réel — retourne le MIME sniffé ou null. */
 function sniffMime(buf: Uint8Array): string | null {
@@ -47,13 +47,14 @@ export function checkImageDataUrl(dataUrl: string, maxBytes: number = UPLOAD_MAX
   const header = dataUrl.slice(0, comma);
   const m = /^data:([a-z0-9.+-]+\/[a-z0-9.+-]+);base64$/i.exec(header);
   if (!m) return { ok: false, reason: "en-tête dataURL invalide (base64 attendu)" };
-  const mime = m[1].toLowerCase();
+  let mime = m[1].toLowerCase();
   if (!ALLOWED_MIMES.has(mime)) {
     return { ok: false, reason: `format ${mime} non accepté (JPEG, PNG ou WebP)` };
   }
+  const normMime = mime === "image/jpg" ? "image/jpeg" : mime;
 
-  const b64 = dataUrl.slice(comma + 1);
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) {
+  const b64 = dataUrl.slice(comma + 1).trim();
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(b64.replace(/\s+/g, ""))) {
     return { ok: false, reason: "encodage base64 invalide" };
   }
   const approxBytes = Math.floor((b64.length * 3) / 4);
@@ -71,8 +72,8 @@ export function checkImageDataUrl(dataUrl: string, maxBytes: number = UPLOAD_MAX
 
   const sniffed = sniffMime(buf);
   if (!sniffed) return { ok: false, reason: "contenu non reconnu comme image (JPEG, PNG ou WebP)" };
-  if (sniffed !== mime) {
+  if (sniffed !== normMime) {
     return { ok: false, reason: `contenu réel (${sniffed}) différent du type déclaré (${mime})` };
   }
-  return { ok: true, mime, bytes: buf.length };
+  return { ok: true, mime: normMime, bytes: buf.length };
 }

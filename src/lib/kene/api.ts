@@ -350,28 +350,106 @@ export async function apiDelete<T>(url: string, opts: { timeoutMs?: number } = {
   return handle<T>(res);
 }
 
-/** Redimensionne une photo côté client (max 820px, JPEG q0.8) → dataURL.
- * 820px/q0.8 suffit pour l'analyse VLM et réduit fortement le coût data
- * (segment « petite data »: recharges journalières de 100-500 FCFA). */
-export function resizeImage(file: File, maxSide = 820): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Lecture du fichier impossible"));
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () => reject(new Error("Image invalide"));
-      img.onload = () => {
-        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+/** Redimensionne et compresse une photo côté client (max 820px, JPEG q0.82) → dataURL.
+ * Utilise createImageBitmap (décodage matériel haute performance, gestion automatique
+ * de l'orientation EXIF sur smartphone) avec repli transparent sur ObjectURL / Image / FileReader.
+ * Prévient les plantages mémoire (OOM) sur les photos haute résolution 12MP-50MP. */
+export async function resizeImage(file: File, maxSide = 820): Promise<string> {
+  if (typeof window === "undefined") {
+    throw new Error("Environnement client requis");
+  }
+
+  // 1. Décodage matériel asynchrone (création de bitmap sans bloquer le thread principal)
+  if ("createImageBitmap" in window) {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const w = bitmap.width;
+      const h = bitmap.height;
+      if (w > 0 && h > 0) {
+        const scale = Math.min(1, maxSide / Math.max(w, h));
         const canvas = document.createElement("canvas");
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
+        canvas.width = Math.max(1, Math.round(w * scale));
+        canvas.height = Math.max(1, Math.round(h * scale));
         const ctx = canvas.getContext("2d");
-        if (!ctx) return reject(new Error("Canvas indisponible"));
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.8));
-      };
-      img.src = String(reader.result);
+        if (ctx) {
+          ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          bitmap.close();
+          return canvas.toDataURL("image/jpeg", 0.82);
+        }
+      }
+    } catch {
+      /* Fallback vers Image */
+    }
+  }
+
+  // 2. Repli haute efficacité via URL.createObjectURL
+  return new Promise((resolve, reject) => {
+    let objectUrl: string | null = null;
+    try {
+      objectUrl = URL.createObjectURL(file);
+    } catch {}
+
+    const img = new Image();
+    const cleanup = () => {
+      if (objectUrl) {
+        try { URL.revokeObjectURL(objectUrl); } catch {}
+      }
     };
-    reader.readAsDataURL(file);
+
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        const scale = Math.min(1, maxSide / Math.max(w, h));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(w * scale));
+        canvas.height = Math.max(1, Math.round(h * scale));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          cleanup();
+          return reject(new Error("Canvas graphique non disponible"));
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        cleanup();
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      } catch (err) {
+        cleanup();
+        reject(err instanceof Error ? err : new Error("Traitement de la photo impossible"));
+      }
+    };
+
+    img.onerror = () => {
+      cleanup();
+      // 3. Dernier recours : FileReader en direct
+      const reader = new FileReader();
+      reader.onload = () => {
+        const fbImg = new Image();
+        fbImg.onload = () => {
+          const w = fbImg.naturalWidth || fbImg.width;
+          const h = fbImg.naturalHeight || fbImg.height;
+          const scale = Math.min(1, maxSide / Math.max(w, h));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(w * scale));
+          canvas.height = Math.max(1, Math.round(h * scale));
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("Canvas indisponible"));
+          ctx.drawImage(fbImg, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", 0.82));
+        };
+        fbImg.onerror = () => reject(new Error("Format de photo non supporté (veuillez choisir un fichier JPG, PNG ou WebP)"));
+        fbImg.src = String(reader.result);
+      };
+      reader.onerror = () => reject(new Error("Lecture du fichier impossible"));
+      reader.readAsDataURL(file);
+    };
+
+    if (objectUrl) {
+      img.src = objectUrl;
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => { img.src = String(reader.result); };
+      reader.onerror = () => reject(new Error("Lecture du fichier impossible"));
+      reader.readAsDataURL(file);
+    }
   });
 }

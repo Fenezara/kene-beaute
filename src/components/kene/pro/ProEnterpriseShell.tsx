@@ -56,6 +56,7 @@ import type { ProOverview, ProLive } from "./types";
 import { DEFAULT_FALLBACK_OVERVIEW, DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { unlockAudioContext } from "../client/ttsAudio";
+import { syncOfflineSales } from "@/lib/pos/offline-queue";
 import { CreateBranchDialog } from "./CreateBranchDialog";
 import { DashboardSection } from "./DashboardSection";
 import { AgendaSection } from "./AgendaSection";
@@ -339,14 +340,20 @@ export function ProEnterpriseShell() {
     return () => window.clearTimeout(timer);
   }, [tid, online]);
 
+  // Reprise & Resynchronisation automatique dès le retour du réseau (zéro fermeture d'application nécessaire)
   useEffect(() => {
-    const handleOnline = () => {
-      void refetchRef.current?.();
-      setRefreshKey((k) => k + 1);
-    };
-    window.addEventListener("online", handleOnline);
-    return () => window.removeEventListener("online", handleOnline);
-  }, []);
+    if (!online || !tid) return;
+    haptic(HAPTIC.success);
+    void refetchRef.current?.();
+    setRefreshKey((k) => k + 1);
+    void syncOfflineSales(tid).then((res) => {
+      if (res.syncedCount > 0) {
+        toast.success(`${res.syncedCount} encaissement(s) hors-ligne synchronisé(s) !`);
+        void refetchRef.current?.();
+        setRefreshKey((k) => k + 1);
+      }
+    });
+  }, [online, tid]);
 
   const [live, setLive] = useState<ProLive | null>(null);
   const [liveConnected, setLiveConnected] = useState(false);

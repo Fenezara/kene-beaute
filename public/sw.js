@@ -11,17 +11,17 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v37";
-const PRECACHE = "kene-precache-v37";
-const DATA_CACHE = "kene-data-v37";
-const IMG_CACHE = "kene-img-v37";
-const STATIC_CACHE = "kene-static-v37";
+const VERSION = "kene-sw-v38";
+const PRECACHE = "kene-precache-v38";
+const DATA_CACHE = "kene-data-v38";
+const IMG_CACHE = "kene-img-v38";
+const STATIC_CACHE = "kene-static-v38";
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
 const PRECACHE_URLS = [
   "/",
-  "/pro",
+  "/?space=pro",
   "/pin",
   "/manifest.json",
   "/kene-mark.svg",
@@ -329,9 +329,9 @@ self.addEventListener("install", (event) => {
       );
 
       // 2. Extraction automatique exhaustive de TOUS les scripts et styles Next.js (y compris dans le payload RSC)
-      for (const entryUrl of ["/", "/pro"]) {
+      for (const entryUrl of ["/", "/?space=pro"]) {
         try {
-          const entryRes = await precache.match(entryUrl);
+          const entryRes = (await precache.match(entryUrl, { ignoreSearch: true })) || (await precache.match("/"));
           if (entryRes) {
             const rawText = await entryRes.text();
             const text = rawText.replace(/\\"/g, '"');
@@ -346,7 +346,10 @@ self.addEventListener("install", (event) => {
                 try {
                   const assetRes = await fetch(new Request(assetUrl, { credentials: "same-origin" }));
                   if (assetRes && assetRes.ok) {
-                    await staticCache.put(assetUrl, assetRes);
+                    const clean = await sanitizeForCache(assetRes);
+                    const fullUrl = new URL(assetUrl, self.location.origin).href;
+                    await staticCache.put(assetUrl, clean.clone());
+                    await staticCache.put(fullUrl, clean);
                   }
                 } catch {
                   /* chunk best-effort */
@@ -706,31 +709,66 @@ const OFFLINE_HTML_SHELL = `<!DOCTYPE html>
     <button class="btn" onclick="window.location.reload()">Réessayer la connexion</button>
   </div>
   <script>
-    window.addEventListener('online', function() {
-      window.location.reload();
-    });
+    function tryRestore() {
+      fetch('/api/health', { cache: 'no-store' })
+        .then(function(r) {
+          if (r.ok) {
+            window.location.replace(window.location.href);
+          }
+        })
+        .catch(function() {});
+    }
+    window.addEventListener('online', tryRestore);
+    setInterval(tryRestore, 2000);
   </script>
 </body>
 </html>`;
 
 async function networkFirstNavigation(req) {
-  // Détection réseau avec timeout de 2000ms max (évite l'écran blanc en mobilité ou hors-ligne)
+  // 1. Si déconnecté d'internet avéré, servir immédiatement la coquille locale avec zéro latence
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    const cached = await getCachedAppShell(req);
+    if (cached) return cached;
+  }
+
+  // 2. Détection réseau avec timeout de 4500ms (adapté aux réseaux mobiles 3G/4G)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 2000);
+  const timeoutId = setTimeout(() => controller.abort(), 4500);
   try {
     const networkRes = await fetch(new Request(req.url, { cache: "no-store", credentials: "same-origin", signal: controller.signal }));
     clearTimeout(timeoutId);
-    if (networkRes && (networkRes.ok || networkRes.status === 404)) return networkRes;
+    if (networkRes && (networkRes.ok || networkRes.status === 404)) {
+      if (networkRes.ok && networkRes.status === 200) {
+        try {
+          const precache = await caches.open(PRECACHE);
+          const clean = await sanitizeForCache(networkRes);
+          await precache.put(req.url, clean.clone());
+          await precache.put("/", clean);
+        } catch {}
+      }
+      return networkRes;
+    }
   } catch {
     clearTimeout(timeoutId);
   }
 
-  // Repli prioritaire sur la coquille applicative précachée (avec ignoreSearch pour supporter ?space=pro etc.)
+  // 3. Repli prioritaire sur la coquille applicative précachée (avec ignoreSearch pour supporter ?space=pro etc.)
+  const cached = await getCachedAppShell(req);
+  if (cached) return cached;
+
+  // 4. Repli ultime coquille offline de secours avec auto-reconnexion active
+  return new Response(OFFLINE_HTML_SHELL, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8", "x-kene-offline": "1" },
+  });
+}
+
+async function getCachedAppShell(req) {
   try {
     const precache = await caches.open(PRECACHE);
     let shell = await precache.match(req.url, { ignoreSearch: true });
     if (!shell) shell = await precache.match("/", { ignoreSearch: true });
-    if (!shell) shell = await precache.match("/pro", { ignoreSearch: true });
+    if (!shell) shell = await precache.match("/?space=pro", { ignoreSearch: true });
     if (!shell) shell = await caches.match(req.url, { ignoreSearch: true });
     if (!shell) shell = await caches.match("/", { ignoreSearch: true });
 
@@ -741,12 +779,7 @@ async function networkFirstNavigation(req) {
       return new Response(body, { status: 200, headers });
     }
   } catch {}
-
-  // Repli ultime coquille offline de secours
-  return new Response(OFFLINE_HTML_SHELL, {
-    status: 200,
-    headers: { "content-type": "text/html; charset=utf-8", "x-kene-offline": "1" },
-  });
+  return null;
 }
 
 async function cacheFirstStatic(req) {
@@ -760,8 +793,9 @@ async function cacheFirstStatic(req) {
   try {
     const res = await fetch(new Request(req.url, { credentials: "same-origin" }));
     if (res && res.ok) {
-      void cache.put(req, res.clone()).catch(() => {});
-      return res;
+      const clean = await sanitizeForCache(res);
+      void cache.put(req, clean.clone()).catch(() => {});
+      return clean;
     }
     if (res) return res;
   } catch {

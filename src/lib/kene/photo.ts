@@ -4,7 +4,7 @@
 // arbitraire dans la base.
 export const PHOTO_MAX_CHARS = 1_600_000; // ~1,2 Mo de JPEG base64 (820px q80)
 
-export const PHOTO_DATA_RE = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/;
+export const PHOTO_DATA_RE = /^data:image\/(?:jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=\s]+$/;
 
 export type PhotoCheck = { ok: true; value: string | null } | { ok: false; error: string };
 

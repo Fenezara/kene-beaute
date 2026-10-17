@@ -1527,10 +1527,13 @@ function PhotoStep({
           </div>
           <input
             type="file"
-            accept="image/*"
-            capture="environment"
+            accept="image/*,image/jpeg,image/png,image/webp,image/heic,image/heif,image/jpg"
             className="sr-only"
-            onChange={(e) => pick(e.target.files?.[0])}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void pick(file);
+              e.target.value = "";
+            }}
             aria-label={`Photo « ${activeSlot.label} »`}
           />
         </label>

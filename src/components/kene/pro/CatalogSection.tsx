@@ -194,8 +194,8 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
  * (canvas, ~820px) puis envoyée avec la fiche. */
   async function pickPhoto(file: File | undefined) {
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error("Photo trop lourde — choisis une image plus légère");
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Photo trop volumineuse (max 25 Mo) — choisis une autre image");
       return;
     }
     setPhotoBusy(true);
