@@ -569,201 +569,92 @@ export function AssistantSection({
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16 select-none animate-in fade-in duration-300">
-      {/* ─── 1. EN-TÊTE SOUVERAIN AVEC BASCULE DES RITUELS ─── */}
-      <div className="relative overflow-hidden rounded-[32px] border border-border/80 bg-card p-5 sm:p-7 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
-          <div className="space-y-2">
+      {/* ─── 1. EN-TÊTE SOUVERAIN ÉPURÉ & CONTRÔLES ─── */}
+      <div className="relative overflow-hidden rounded-[24px] border border-border/80 bg-card p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+          <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-gradient-to-r from-[#C8951E] via-[#FFD700] to-[#E07A2B] text-[#16110D] font-black px-3.5 py-1 text-xs shadow-xs">
-                👑 ORBE SOUVERAIN · SECRÉTAIRE IA DE DIRECTION
+              <Badge className="bg-gradient-to-r from-[#C8951E] via-[#FFD700] to-[#E07A2B] text-[#16110D] font-black px-3 py-0.5 text-xs shadow-xs">
+                👑 SECRÉTAIRE IA DE DIRECTION
               </Badge>
               <Badge variant="outline" className="border-border text-foreground text-xs font-semibold">
                 {tenantName}
               </Badge>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                 <span className="size-1.5 rounded-full bg-emerald-500 animate-ping" />
-                Connecté en direct ⚡
+                Connectée ⚡
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-heading font-black text-foreground tracking-tight">
-              L&apos;Orbe Sacré · Secrétaire de Direction
+            <h1 className="text-xl sm:text-2xl font-heading font-black text-foreground tracking-tight">
+              {executiveBriefing?.bossTitle || `Secrétaire de Direction · ${firstName}`}
             </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
-              Votre secrétaire de direction intelligente. Dictez votre point après chaque soin, vente ou dépense : l&apos;Orbe écoute votre voix et renseigne instantanément <strong>la Caisse, le Stock, le CRM, l&apos;Agenda, les Relances et la Compta</strong>.
+            <p className="text-xs sm:text-sm text-muted-foreground italic">
+              &laquo; Je veille sur vos rendez-vous, votre caisse et vos stocks. À vos ordres. &raquo;
             </p>
           </div>
 
-          {/* Sélecteur de rituel (Instant vs Bilan du Soir) */}
-          <div className="flex bg-muted/60 p-1.5 rounded-2xl border border-border/80 shrink-0 self-start md:self-center shadow-inner">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("instant");
-                stopAllSpeech();
-              }}
-              className={`h-11 px-4 sm:px-5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
-                activeTab === "instant"
-                  ? "bg-gradient-to-r from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-md scale-100"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <CauriIcon size={16} />
-              <span>Débriefing d&apos;Action</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("evening");
-                stopAllSpeech();
-                void loadEveningSummary();
-              }}
-              className={`h-11 px-4 sm:px-5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
-                activeTab === "evening"
-                  ? "bg-gradient-to-r from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-md scale-100"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Moon size={16} />
-              <span>Le Point du Soir</span>
-            </button>
+          {/* Actions rapides d'en-tête (Audio + Switcher) */}
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+            {executiveBriefing?.vocalSummary && (
+              <Button
+                type="button"
+                onClick={() => togglePlayVocalSummary(executiveBriefing.vocalSummary)}
+                className="k-btn-gold text-primary-foreground font-bold text-xs h-10 px-3.5 rounded-xl shrink-0 flex items-center gap-2 shadow-xs"
+              >
+                {audioState === "playing" ? (
+                  <>
+                    <VolumeX size={15} />
+                    <span>Arrêter la voix</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 size={15} />
+                    <span>Écouter le point</span>
+                  </>
+                )}
+              </Button>
+            )}
+
+            <div className="flex bg-muted/60 p-1 rounded-xl border border-border/80 shadow-inner">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("instant");
+                  stopAllSpeech();
+                }}
+                className={`h-9 px-3.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all ${
+                  activeTab === "instant"
+                    ? "bg-gradient-to-r from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <CauriIcon size={14} />
+                <span>Débriefing</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("evening");
+                  stopAllSpeech();
+                  void loadEveningSummary();
+                }}
+                className={`h-9 px-3.5 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all ${
+                  activeTab === "evening"
+                    ? "bg-gradient-to-r from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Moon size={14} />
+                <span>Point du Soir</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ─── ONGLET 1 : DÉBRIEFING D'ACTION AVEC L'ORBE SUBLIMÉ ─── */}
+      {/* ─── ONGLET 1 : DÉBRIEFING D'ACTION AVEC L'ORBE SUBLIMÉ AU PREMIER PLAN ─── */}
       {activeTab === "instant" && (
         <div className="space-y-6">
-          {/* ─── BANNIÈRE DE SALUTATION & BRIEFING EXÉCUTIF PROACTIF ─── */}
-          <div className="relative overflow-hidden rounded-[28px] border-2 border-[#C8951E]/30 bg-gradient-to-br from-[#C8951E]/10 via-card to-card p-5 sm:p-6 shadow-md space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-start gap-3.5">
-                <div className="size-12 rounded-2xl bg-gradient-to-tr from-[#C8951E] to-[#E07A2B] text-[#16110D] flex items-center justify-center shrink-0 shadow-md">
-                  <Crown size={24} />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-[#C8951E]/20 text-[#C8951E] dark:text-[#FFD700] border-transparent font-bold text-[11px] px-2.5 py-0.5">
-                      👑 SECRÉTAIRE EXÉCUTIVE DÉVOUÉE
-                    </Badge>
-                    <span className="text-[11px] text-muted-foreground font-medium">À vos ordres</span>
-                  </div>
-                  <h2 className="text-lg sm:text-xl font-heading font-black text-foreground tracking-tight">
-                    {executiveBriefing?.bossTitle || `Bonjour ${firstName} !`}
-                  </h2>
-                  <p className="text-xs sm:text-sm text-muted-foreground italic leading-relaxed">
-                    &laquo; Je veille sur vos rendez-vous, votre caisse et vos stocks. Que pouvons-nous accomplir ensemble aujourd&apos;hui ? &raquo;
-                  </p>
-                </div>
-              </div>
-
-              {executiveBriefing?.vocalSummary && (
-                <Button
-                  type="button"
-                  onClick={() => togglePlayVocalSummary(executiveBriefing.vocalSummary)}
-                  className="k-btn-gold text-primary-foreground font-bold text-xs h-11 px-4 rounded-xl shrink-0 self-start sm:self-center flex items-center gap-2 shadow-sm"
-                >
-                  {audioState === "playing" ? (
-                    <>
-                      <VolumeX size={16} />
-                      <span>Arrêter la voix</span>
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 size={16} />
-                      <span>Écouter le point exécutif</span>
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-
-            {/* 4 Indicateurs Clés de Situation */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 border-t border-border/60">
-              <div className="p-2.5 rounded-xl bg-card border border-border/70 flex flex-col">
-                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
-                  <Calendar size={12} className="text-[#C8951E]" /> RDV du jour
-                </span>
-                <span className="text-sm font-bold text-foreground">
-                  {executiveBriefing ? `${executiveBriefing.appointmentsCount} RDV` : "0 calé"}
-                </span>
-                {executiveBriefing && executiveBriefing.pendingAppointmentsCount > 0 && (
-                  <span className="text-[10px] text-amber-500 font-semibold">
-                    ({executiveBriefing.pendingAppointmentsCount} à confirmer)
-                  </span>
-                )}
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-card border border-border/70 flex flex-col">
-                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
-                  <Wallet size={12} className="text-emerald-500" /> Caisse du jour
-                </span>
-                <span className="text-sm font-bold text-foreground">
-                  {executiveBriefing ? xof(executiveBriefing.total) : "0 F"}
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  {executiveBriefing?.salesCount || 0} vente(s)
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-card border border-border/70 flex flex-col">
-                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
-                  <Package size={12} className="text-rose-500" /> Alerte Stocks
-                </span>
-                <span className="text-sm font-bold text-foreground">
-                  {executiveBriefing?.lowStockProducts?.length || 0} produit(s)
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  {executiveBriefing?.lowStockProducts?.length ? "Réassort conseillé" : "Stocks OK"}
-                </span>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-card border border-border/70 flex flex-col">
-                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
-                  <Users size={12} className="text-sky-500" /> Relances
-                </span>
-                <span className="text-sm font-bold text-foreground">
-                  Clientes J+30
-                </span>
-                <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold">
-                  Suivi post-soin
-                </span>
-              </div>
-            </div>
-
-            {/* Initiatives Proactives de la Secrétaire en 1-Tap */}
-            {executiveBriefing?.initiatives && executiveBriefing.initiatives.length > 0 && (
-              <div className="pt-2 space-y-2">
-                <p className="text-[11px] font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Lightbulb size={13} className="text-[#C8951E]" />
-                  <span>Initiatives immédiates suggérées pour votre institut :</span>
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {executiveBriefing.initiatives.map((init, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => {
-                        if (init.type === "whatsapp_reminder" && onNavigate) {
-                          onNavigate("agenda");
-                        } else if (init.type === "stock_reorder" && onNavigate) {
-                          onNavigate("catalogue");
-                        } else if (init.type === "client_followup" && onNavigate) {
-                          onNavigate("relances");
-                        } else {
-                          setText(init.desc);
-                          void handleAnalyze(init.desc);
-                        }
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-card hover:bg-muted border border-[#C8951E]/40 hover:border-[#C8951E] text-xs font-bold text-foreground shadow-xs flex items-center gap-1.5 transition-all hover:scale-102 active:scale-95"
-                    >
-                      <span>⚡ {init.actionLabel}</span>
-                      <ArrowRight size={12} className="text-[#C8951E]" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* ─── SCÈNE CENTRALE LUMINEUSE (PARFAITE EN MODE CLAIR & SOMBRE) ─── */}
           <div className="relative rounded-[36px] border border-border/80 bg-card p-6 sm:p-10 shadow-lg flex flex-col items-center justify-center text-center overflow-hidden">
@@ -995,6 +886,93 @@ export function AssistantSection({
                 ))}
               </div>
             </div>
+          </div>
+
+          {/* ─── 4 INDICATEURS CLÉS & INITIATIVES PROACTIVES SOUS L'ORBE ─── */}
+          <div className="rounded-[24px] border border-border/80 bg-card p-4 sm:p-5 shadow-xs space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 flex flex-col">
+                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                  <Calendar size={12} className="text-[#C8951E]" /> RDV du jour
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  {executiveBriefing ? `${executiveBriefing.appointmentsCount} RDV` : "0 calé"}
+                </span>
+                {executiveBriefing && executiveBriefing.pendingAppointmentsCount > 0 && (
+                  <span className="text-[10px] text-amber-500 font-semibold">
+                    ({executiveBriefing.pendingAppointmentsCount} à confirmer)
+                  </span>
+                )}
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 flex flex-col">
+                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                  <Wallet size={12} className="text-emerald-500" /> Caisse du jour
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  {executiveBriefing ? xof(executiveBriefing.total) : "0 F"}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {executiveBriefing?.salesCount || 0} vente(s)
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 flex flex-col">
+                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                  <Package size={12} className="text-rose-500" /> Alerte Stocks
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  {executiveBriefing?.lowStockProducts?.length || 0} produit(s)
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {executiveBriefing?.lowStockProducts?.length ? "Réassort conseillé" : "Stocks OK"}
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 flex flex-col">
+                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                  <Users size={12} className="text-sky-500" /> Relances
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  Clientes J+30
+                </span>
+                <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold">
+                  Suivi post-soin
+                </span>
+              </div>
+            </div>
+
+            {/* Initiatives Proactives de la Secrétaire en 1-Tap */}
+            {executiveBriefing?.initiatives && executiveBriefing.initiatives.length > 0 && (
+              <div className="pt-1 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-bold text-muted-foreground flex items-center gap-1">
+                  <Lightbulb size={12} className="text-[#C8951E]" />
+                  Initiatives :
+                </span>
+                {executiveBriefing.initiatives.map((init, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      if (init.type === "whatsapp_reminder" && onNavigate) {
+                        onNavigate("agenda");
+                      } else if (init.type === "stock_reorder" && onNavigate) {
+                        onNavigate("catalogue");
+                      } else if (init.type === "client_followup" && onNavigate) {
+                        onNavigate("relances");
+                      } else {
+                        setText(init.desc);
+                        void handleAnalyze(init.desc);
+                      }
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-[#C8951E]/40 hover:border-[#C8951E] text-xs font-semibold text-foreground shadow-xs flex items-center gap-1 transition-all active:scale-95"
+                  >
+                    <span>⚡ {init.actionLabel}</span>
+                    <ArrowRight size={11} className="text-[#C8951E]" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* ─── PÉPITES D'OR : RÉSULTATS DU DÉBRIEFING & DISPATCHING ─── */}

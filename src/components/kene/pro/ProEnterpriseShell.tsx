@@ -236,46 +236,16 @@ export function ProEnterpriseShell() {
           </p>
           <div className="mt-6 flex flex-col gap-3">
             <button
-              onClick={async () => {
-                try {
-                  const res = await apiPost<{
-                    ok: boolean;
-                    user: SessionUser;
-                    tenant: { id: string; name: string } | null;
-                  }>("/api/auth/login", { phone: "+2250504195071", pin: "1234", mode: "pro" });
-                  useKene.getState().setUser({
-                    ...res.user,
-                    role: "pro",
-                    tenantId: res.tenant?.id || "cmts1w5ui0008oww7hm3v18oo",
-                  });
-                  if (res.tenant?.id) {
-                    useKene.getState().setProTenantId(res.tenant.id);
-                  }
-                  useKene.getState().setSpace("pro");
-                  toast.success("Bienvenue Déborah — Cabinet LA DERMO est ouvert 💼");
-                } catch {
-                  setSpace("client");
-                  if (typeof window !== "undefined") {
-                    window.location.href = "/?mode=pro";
-                  }
-                }
-              }}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl k-btn-gold text-sm font-bold text-primary-foreground shadow cursor-pointer hover:scale-[1.01] active:scale-[0.98] transition-all"
-            >
-              <BriefcaseBusiness size={16} />
-              Accès Immédiat 1 Clic (Gérante Déborah)
-            </button>
-            <button
               onClick={() => {
                 setSpace("client");
                 if (typeof window !== "undefined") {
                   window.location.href = "/?mode=pro";
                 }
               }}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border/80 bg-secondary/80 hover:bg-secondary text-sm font-semibold text-foreground shadow-xs cursor-pointer"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl k-btn-gold text-sm font-bold text-primary-foreground shadow cursor-pointer hover:scale-[1.01] active:scale-[0.98] transition-all"
             >
               <LogIn size={16} />
-              Se connecter avec un autre numéro
+              S&apos;identifier (Espace Gérante)
             </button>
             <button
               onClick={() => {

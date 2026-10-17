@@ -225,7 +225,7 @@ export const DEFAULT_FALLBACK_TEAM: EmployeesResponse = {
       id: "emp_fondatrice",
       name: "Déborah",
       role: "manager",
-      accountPhone: "+2250504195071",
+      accountPhone: "+2250700000000",
       active: true,
       country: "CI",
       baseSalary: 250000,

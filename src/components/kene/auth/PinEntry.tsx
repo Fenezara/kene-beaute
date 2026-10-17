@@ -156,8 +156,8 @@ export function PinEntry() {
       if ((isNetwork || (e instanceof Error && /network|fetch|offline|hors-ligne/i.test(e.message))) && mode === "pro") {
         const offlineUser: SessionUser = {
           id: "pro_offline_manager",
-          name: name || "Déborah (Gérante - Hors-ligne)",
-          phone: phone || "+2250504195071",
+          name: name || "Gérante (Hors-ligne)",
+          phone: phone || "+2250100000000",
           role: "pro",
           employeeRole: "manager",
           tenantId: DEFAULT_FALLBACK_TENANT_ID,
@@ -194,8 +194,8 @@ export function PinEntry() {
   function handleOfflineBypass() {
     const offlineUser: SessionUser = {
       id: "pro_offline_manager",
-      name: name || "Déborah (Gérante - Hors-ligne)",
-      phone: phone || "+2250504195071",
+      name: name || "Gérante (Hors-ligne)",
+      phone: phone || "+2250100000000",
       role: "pro",
       employeeRole: "manager",
       tenantId: DEFAULT_FALLBACK_TENANT_ID,

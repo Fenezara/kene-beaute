@@ -225,9 +225,9 @@ const OFFLINE_TEAM_FALLBACK = {
   employees: [
     {
       id: "emp_fondatrice",
-      name: "Déborah",
+      name: "Responsable Institut",
       role: "manager",
-      accountPhone: "+2250504195071",
+      accountPhone: "+2250100000000",
       active: true,
       country: "CI",
       baseSalary: 250000,
@@ -257,8 +257,8 @@ function getOfflineApiFallback(pathname) {
       ok: true,
       user: {
         id: "pro_offline_manager",
-        name: "Déborah (Gérante - Hors-ligne)",
-        phone: "+2250504195071",
+        name: "Gérante (Hors-ligne)",
+        phone: "+2250100000000",
         role: "pro",
         employeeRole: "manager",
         tenantId: "cmts1w5ui0008oww7hm3v18oo",
@@ -272,7 +272,7 @@ function getOfflineApiFallback(pathname) {
       ok: true,
       exists: true,
       hasPin: true,
-      name: "Déborah",
+      name: "Gérante",
       role: "pro",
       isEmployee: false,
       tenant: { id: "cmts1w5ui0008oww7hm3v18oo", name: "Cabinet LA DERMO" },
@@ -283,8 +283,8 @@ function getOfflineApiFallback(pathname) {
       ok: true,
       user: {
         id: "pro_offline_manager",
-        name: "Déborah (Gérante - Hors-ligne)",
-        phone: "+2250504195071",
+        name: "Gérante (Hors-ligne)",
+        phone: "+2250100000000",
         role: "pro",
         employeeRole: "manager",
         tenantId: "cmts1w5ui0008oww7hm3v18oo",
