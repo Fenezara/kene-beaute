@@ -2100,7 +2100,16 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
         <div className="grid grid-cols-2 gap-2.5">
           {/* Télécharger PDF Pass Cabine */}
           <button
-            onClick={() => window.open(`/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`, "_blank")}
+            onClick={() => {
+              if (!isSaved) {
+                toast.error("Inscription requise", {
+                  description: "Vous devez être inscrite pour télécharger et exporter votre Pass Cabine officiel.",
+                });
+                setLinkModalOpen(true);
+                return;
+              }
+              window.open(`/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`, "_blank");
+            }}
             className="k-card k-card-hover h-12 rounded-2xl border border-gold/40 bg-card p-2 text-foreground text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-xs active:scale-[0.98] transition-all"
             aria-label="Télécharger ma Recommandation Botanique & Pass Cabine en PDF"
           >

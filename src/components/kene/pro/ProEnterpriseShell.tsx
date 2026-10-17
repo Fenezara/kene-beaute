@@ -303,13 +303,14 @@ export function ProEnterpriseShell() {
   const healedRef = useRef(false);
   useEffect(() => {
     if (!online) return;
-    if (overview.error && proTenantId && !healedRef.current) {
+    // Ne réinitialise proTenantId que si l'erreur 404 est avérée et non liée au chargement
+    if (overview.error && proTenantId && !healedRef.current && overview.error.includes("404")) {
       const isNetworkErr = /hors-ligne|instable|réseau|network|failed to fetch/i.test(overview.error);
       if (isNetworkErr) return;
 
       healedRef.current = true;
       setProTenantId(null);
-      toast.info("Institut mémorisé périmé — ton institut est rechargé");
+      toast.info("Institut mémorisé introuvable — réinitialisation");
     }
   }, [overview.error, proTenantId, setProTenantId, online]);
 
@@ -527,11 +528,17 @@ export function ProEnterpriseShell() {
                     if (currentStoreUser) {
                       useKene.getState().setUser({ ...currentStoreUser, tenantId: v });
                     }
-                    void overview.refetch();
+                    void apiGet<ProOverview>(`/api/pro/overview?tenantId=${v}`).then((fresh) => {
+                      if (fresh && fresh.tenant) {
+                        overview.setData(fresh);
+                      }
+                    }).catch(() => {
+                      void overview.refetch();
+                    });
                     toast.success("Établissement actif mis à jour");
                   }
                 }}
-                disabled={tenantOptions.length <= 1 && !proOwner}
+                disabled={tenantOptions.length <= 1 && !proOwner && !isAdmin}
               >
                 <SelectTrigger
                   className="k-chip h-8 sm:h-9 rounded-xl px-2 sm:px-3 text-[11px] sm:text-xs font-medium text-foreground max-w-[130px] sm:max-w-[210px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"

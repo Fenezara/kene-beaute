@@ -1,7 +1,8 @@
 // Kènè — Relais WhatsApp Business & Notifications Client en 1 clic
 // Spécifique Afrique de l'Ouest (Côte d'Ivoire +225, Sénégal +221)
 // Permet d'envoyer tickets dématérialisés, rappels de soin et suivis de livraison sans coût SMS.
-import { useKene } from "@/store/kene";
+import { useKene, isSavedUser } from "@/store/kene";
+import { toast } from "sonner";
 
 /** Nettoie et formate le numéro pour l'API WhatsApp (wa.me) */
 export function formatWhatsAppPhone(phone: string, defaultCountry: "CI" | "SN" = "CI"): string {
@@ -38,9 +39,29 @@ export function createWhatsAppLink(phone: string, message: string, defaultCountr
 /** Numéro de contact WhatsApp Business officiel Kènè */
 export const KENE_SUPPORT_PHONE = "+2250748894270";
 
-/** Ouvre WhatsApp (application native ou WhatsApp Web) dans un nouvel onglet */
+/** Ouvre WhatsApp (application native ou WhatsApp Web) dans un nouvel onglet
+ * SÉCURITÉ INVITÉE : Un invité non inscrit ne peut sous aucun prétexte exporter ou partager ses données.
+ * L'application bloque immédiatement le partage et ouvre la modale d'inscription / connexion.
+ */
 export function openWhatsApp(phone: string, message: string, defaultCountry: "CI" | "SN" = "CI"): void {
   if (typeof window === "undefined") return;
+
+  const user = useKene.getState?.()?.user;
+  const isProOrAdmin = user?.role === "pro" || user?.role === "admin";
+
+  // Si ce n'est pas un professionnel/admin et qu'il n'a pas de compte sauvegardé vérifié
+  if (!isProOrAdmin && !isSavedUser(user)) {
+    try {
+      window.dispatchEvent(new CustomEvent("kene:open-link-account"));
+      toast.error("Inscription requise pour partager", {
+        description: "Veuillez créer ou enregistrer votre compte pour partager vos bilans, soins et ordonnances.",
+      });
+    } catch {
+      // silence
+    }
+    return;
+  }
+
   const url = createWhatsAppLink(phone, message, defaultCountry);
   window.open(url, "_blank", "noopener,noreferrer");
 }

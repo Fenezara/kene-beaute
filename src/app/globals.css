@@ -183,13 +183,16 @@
   html,
   body {
     height: 100%;
-    overscroll-behavior: none;
-    overscroll-behavior-y: none;
+    max-height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none !important;
+    overscroll-behavior-y: none !important;
+    -webkit-overscroll-behavior: none !important;
     -webkit-overflow-scrolling: touch;
   }
   html {
     scroll-behavior: smooth;
-    touch-action: pan-x pan-y;
+    touch-action: manipulation;
   }
   @media (prefers-reduced-motion: reduce) {
     html {

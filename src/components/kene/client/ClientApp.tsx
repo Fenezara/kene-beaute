@@ -151,6 +151,9 @@ export function ClientApp() {
       const VALID_TABS: ClientTab[] = ["accueil", "dossier", "diagnostic", "agenda", "rdv", "chat", "profil", "parametres", "abonnement", "legal"];
       if (targetTab && VALID_TABS.includes(targetTab as ClientTab)) {
         setClientTab((targetTab === "rdv" ? "agenda" : targetTab) as ClientTab);
+      } else {
+        // Atterrissage automatique sur le Scanner dès l'ouverture de l'application
+        setClientTab("diagnostic");
       }
     } catch {
       // noop
@@ -264,20 +267,20 @@ export function ClientApp() {
     const dy = t.clientY - s.y;
     const dx = t.clientX - s.x;
     if (dy <= 0 || Math.abs(dx) > Math.abs(dy)) return; // tirage vertical uniquement
-    setPull(Math.min(dy / 2.2, 96)); // résistif: l'icône s'alourdit en fin de course
+    setPull(Math.min(dy / 2.5, 48)); // résistif et contenu: ne crée pas de décalage excessif
   };
 
   const onTouchEnd = () => {
-    // Fin de tirage → actualisation si seuil franchi
+    // Fin de tirage → actualisation instantanée si seuil franchi
     const dist = pull;
     pullStart.current = null;
-    if (dist > 56) {
+    if (dist > 38) {
       haptic(HAPTIC.medium);
       setRefreshing(true);
       setPull(0);
       wasRefreshing.current = true;
       setRefreshKey((k) => k + 1);
-      // Actualisation ultra-réactive garantie sur tous les onglets (max 600ms)
+      // Actualisation ultra-réactive quasi-instantanée (220ms)
       setTimeout(() => {
         if (wasRefreshing.current) {
           wasRefreshing.current = false;
@@ -285,7 +288,7 @@ export function ClientApp() {
           haptic(HAPTIC.success);
           toast.success("Actualisé", { description: `Mis à jour à ${formatTime(new Date())}` });
         }
-      }, 600);
+      }, 220);
     } else {
       setPull(0);
     }
@@ -594,21 +597,21 @@ export function ClientApp() {
           onTouchEnd={onTouchEnd}
           className="relative flex-1 min-h-0 overflow-y-auto overscroll-y-none overscroll-contain overscroll-x-none touch-pan-y pretty-scroll"
         >
-          {/* Indicateur pull-to-refresh (Instagram) — icône qui descend avec le doigt */}
+          {/* Indicateur pull-to-refresh (Instagram) — icône compacte et discrète */}
           {(pull > 0 || refreshing) && (
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute top-0 inset-x-0 z-30 flex flex-col items-center pt-2"
+              className="pointer-events-none absolute top-0 inset-x-0 z-30 flex flex-col items-center pt-1.5"
               style={{
-                transform: `translateY(${refreshing ? 0 : Math.min(Math.max(pull - 44, 0), 52)}px)`,
-                transition: pull > 0 ? "none" : "transform .3s ease",
+                transform: `translateY(${refreshing ? 6 : Math.min(Math.max(pull - 16, 0), 28)}px)`,
+                transition: pull > 0 ? "none" : "transform .2s ease",
               }}
             >
-              <span className="grid place-items-center h-11 w-11 rounded-full k-chrome">
+              <span className="grid place-items-center h-8 w-8 rounded-full k-chrome shadow-md border border-primary/20">
                 {refreshing ? (
-                  <Loader2 size={20} className="animate-spin text-primary" />
+                  <Loader2 size={15} className="animate-spin text-primary" />
                 ) : (
-                  <NeaOnnimIcon size={20} className="text-primary" />
+                  <NeaOnnimIcon size={15} className="text-primary" />
                 )}
               </span>
             </div>

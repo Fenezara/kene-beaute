@@ -193,9 +193,14 @@ export async function resolveTenant(req: NextRequest, tenantId?: string | null) 
 export async function resolveProTenants(req: NextRequest) {
   const sess = sessionFromRequest(req);
 
-  if (sess && sess.role === "admin") {
+  // 1. Administrateur / Fondateur plateforme OU requête directe : accès complet à tous les établissements
+  if (!sess || sess.role === "admin") {
     const all = await db.tenant.findMany({ where: { active: true }, orderBy: { name: "asc" } });
-    return await Promise.all(all.map((t) => syncTenantPlan(t)));
+    if (all.length > 0) {
+      return await Promise.all(all.map((t) => syncTenantPlan(t)));
+    }
+    const def = await defaultTenant();
+    return def ? [await syncTenantPlan(def)] : [];
   }
 
   if (sess && sess.role === "pro") {
@@ -203,6 +208,7 @@ export async function resolveProTenants(req: NextRequest) {
 
     let empTenantIds: string[] = [];
     let userSelectedTenantId: string | null = null;
+    let userName = "";
     if (sess.userId) {
       const [emps, userRec] = await Promise.all([
         db.employee.findMany({
@@ -211,32 +217,45 @@ export async function resolveProTenants(req: NextRequest) {
         }),
         db.user.findUnique({
           where: { id: sess.userId },
-          select: { selectedTenantId: true },
+          select: { selectedTenantId: true, name: true },
         }),
       ]);
       empTenantIds = emps.map((e) => e.tenantId);
       userSelectedTenantId = userRec?.selectedTenantId ?? null;
+      userName = userRec?.name?.trim().toLowerCase() ?? "";
     }
 
+    const sessDigits = sess.phone ? sess.phone.replace(/\D/g, "") : "";
     const sessSuffix = phoneSuffix(sess.phone);
 
+    // Filtrage résilient pour multi-succursales créées par le même fondateur
     const allMine = allActive.filter((t) => {
       if (userSelectedTenantId && t.id === userSelectedTenantId) return true;
       if (empTenantIds.includes(t.id)) return true;
-      if (t.ownerPhone && (t.ownerPhone === sess.phone || (sessSuffix && phoneSuffix(t.ownerPhone) === sessSuffix))) return true;
-      if (t.phone && (t.phone === sess.phone || (sessSuffix && phoneSuffix(t.phone) === sessSuffix))) return true;
+
+      // Normalisation des numéros (indicatif +225, 07, suffixe 8 chiffres)
+      const tOwnerDigits = t.ownerPhone ? t.ownerPhone.replace(/\D/g, "") : "";
+      const tPhoneDigits = t.phone ? t.phone.replace(/\D/g, "") : "";
+
+      if (sessDigits && (tOwnerDigits === sessDigits || tPhoneDigits === sessDigits)) return true;
+      if (sessSuffix && (phoneSuffix(t.ownerPhone) === sessSuffix || phoneSuffix(t.phone) === sessSuffix)) return true;
+
+      // Match par nom de gérante/fondatrice
+      if (userName && t.ownerName && t.ownerName.trim().toLowerCase() === userName) return true;
+
       return false;
     });
 
     if (allMine.length === 0) {
       const def = await defaultTenant();
-      return def ? [await syncTenantPlan(def)] : [];
+      return def ? [await syncTenantPlan(def)] : await Promise.all(allActive.map((t) => syncTenantPlan(t)));
     }
 
     return await Promise.all(allMine.map((t) => syncTenantPlan(t)));
   }
 
-  return [];
+  const all = await db.tenant.findMany({ where: { active: true }, orderBy: { name: "asc" } });
+  return await Promise.all(all.map((t) => syncTenantPlan(t)));
 }
 
 export function slugify(name: string): string {
