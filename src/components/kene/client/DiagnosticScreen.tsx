@@ -534,15 +534,28 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     }
   }
 
-  /* ─────────── Étape 0 — Page 1 : Choix de la zone à scanner ─────────── */
+  /* ─────────── Étape 0 — Page 1 : Choix de la zone à scanner (Caméra Reine) ─────────── */
   if (step === 0) {
-    const zoneDef = BODY_ZONES.find((z) => z.id === zone) ?? BODY_ZONES[0];
-    const ActiveZoneIcon = ZONE_ICONS[zone];
+    const OTHER_ZONES = [
+      { id: "cuir_chevelu" as BodyZone, label: "Cuir chevelu", benefit: "Casse, alopécie & chute", icon: DuafeIcon },
+      { id: "dos" as BodyZone, label: "Dos & Épaules", benefit: "Acné dorsale & cicatrices", icon: PersonStanding },
+      { id: "mains" as BodyZone, label: "Mains & Pieds", benefit: "Callosités, talons & ongles", icon: Hand },
+      { id: "barbe" as BodyZone, label: "Barbe & Cou", benefit: "Boutons de rasage & folliculite", icon: Brush },
+      { id: "naevi" as BodyZone, label: "Corps & Lésions", benefit: "Taches, vergetures & texture", icon: Cross },
+    ];
+
+    const launchScan = (targetZone: BodyZone) => {
+      setZone(targetZone);
+      setSlotImages({});
+      setImage("");
+      setStep(1);
+      haptic(HAPTIC.medium);
+    };
 
     return (
       <div className="pt-2 sm:pt-4">
         {/* Sélecteur d'onglets Scanner */}
-        <div className="mb-4 flex items-center p-1 rounded-2xl bg-muted/50 border border-border/50 gap-1">
+        <div className="mb-3.5 flex items-center p-1 rounded-2xl bg-muted/50 border border-border/50 gap-1">
           <button
             type="button"
             className="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold bg-card text-foreground shadow-xs border border-border/60 flex items-center justify-center gap-1.5"
@@ -574,154 +587,143 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           </button>
         </div>
 
-        {/* Stepper indicateur 1 / 2 */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between text-xs font-bold mb-1.5">
-            <span className="flex items-center gap-1.5 text-primary">
-              <span className="grid size-5 place-items-center rounded-full bg-primary text-primary-foreground text-[10px] font-black">1</span>
-              <span>Page 1 sur 2 : Sélection de la zone</span>
+        {/* 🌟 1. CARTE HÉRO STAR : LE VISAGE (85%+ DES ANALYSES) */}
+        <div className="relative overflow-hidden rounded-[26px] border-2 border-gold/50 bg-gradient-to-br from-card via-[#FAF4E8] dark:via-card/90 to-card p-4 sm:p-5 shadow-lg mb-4">
+          <div className="absolute -top-12 -right-12 size-36 rounded-full bg-gold/20 blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 size-32 rounded-full bg-primary/15 blur-2xl pointer-events-none" />
+
+          {/* En-tête Héro : Badge Star + Guide Vocal */}
+          <div className="relative flex items-center justify-between gap-2 mb-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-gold/25 to-gold/10 border border-gold/40 text-gold-text font-black text-[10.5px] uppercase tracking-wider shadow-2xs">
+              <Sparkles size={12} className="text-gold-text" />
+              <span>Diagnostic Star · 1 Clic</span>
             </span>
-            <span className="text-[11px] text-muted-foreground">Suivant : Prise de vue</span>
+            <AudioGuideButton
+              text="Bienvenue sur le Scanner Kènè. Pour lancer ton analyse du visage, clique directement sur le bouton Scanner mon visage maintenant. Place-toi face à la lumière naturelle."
+              label="Écouter"
+              compact
+            />
           </div>
-          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full transition-all duration-300 w-1/2" />
+
+          {/* Visuel central & Titre */}
+          <div className="relative flex items-start gap-3.5 mb-3.5">
+            <div className="relative shrink-0 grid size-13 sm:size-15 place-items-center rounded-2xl bg-gradient-to-tr from-[#C8951E] via-[#E5A93C] to-[#8B1A3B] text-white shadow-md">
+              <ScanFace size={28} className="text-white" />
+              <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-card">
+                <Check size={9} strokeWidth={3} className="text-white" />
+              </span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-heading font-black text-base sm:text-lg text-foreground leading-tight">
+                Bilan Cutané &amp; Éclat du Visage
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                Analyse experte du sébum, des imperfections, des taches post-boutons et de l&apos;uniformité en 5 secondes.
+              </p>
+            </div>
+          </div>
+
+          {/* Micro-tags d'analyse */}
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20">
+              🎯 Taches post-boutons
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-gold/15 text-gold-text border border-gold/30">
+              💧 Sébum &amp; Pores
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+              ✨ Uniformité &amp; Éclat
+            </span>
+          </div>
+
+          {/* 👑 BOUTON REINE : SCANNER MON VISAGE IMMÉDIATEMENT */}
+          <button
+            type="button"
+            onClick={() => launchScan("visage")}
+            className="k-cta h-13 sm:h-14 w-full rounded-2xl text-white font-heading font-black text-sm sm:text-base shadow-lg flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all cursor-pointer"
+          >
+            <Camera size={19} className="shrink-0 text-white" />
+            <span>📸 Scanner mon Visage maintenant</span>
+            <ChevronRight size={18} className="shrink-0 text-white" />
+          </button>
+
+          {/* Conseils intégrés en 1 ligne épurée */}
+          <div className="mt-3 pt-2.5 border-t border-border/50 grid grid-cols-3 gap-1.5 text-center text-[10.5px]">
+            <div className="py-1 px-1.5 rounded-lg bg-card/70 border border-border/40">
+              <span className="block font-bold text-foreground">Peau propre</span>
+              <span className="text-[9.5px] text-muted-foreground">Sans maquillage</span>
+            </div>
+            <div className="py-1 px-1.5 rounded-lg bg-card/70 border border-border/40">
+              <span className="block font-bold text-foreground">Lumière du jour</span>
+              <span className="text-[9.5px] text-muted-foreground">Éclairage naturel</span>
+            </div>
+            <div className="py-1 px-1.5 rounded-lg bg-card/70 border border-border/40">
+              <span className="block font-bold text-foreground">Face caméra</span>
+              <span className="text-[9.5px] text-muted-foreground">Distance ~30 cm</span>
+            </div>
           </div>
         </div>
 
-        {/* Titre & Guide vocal */}
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <h2 className="font-heading font-black text-lg sm:text-xl text-foreground">
-              Quelle zone souhaites-tu analyser ?
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Choisis la zone pour adapter le modèle IA à ta peau.
-            </p>
+        {/* 🧴 2. AUTRES ZONES D'ANALYSE CIBLÉE (COMPACT & INTUITIF) */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-xs font-bold text-foreground">
+              Ou choisis une autre zone à analyser :
+            </span>
+            <span className="text-[10.5px] text-muted-foreground">
+              {OTHER_ZONES.length} zones disponibles
+            </span>
           </div>
-          <AudioGuideButton
-            text="Bienvenue dans le Studio Scanner Kènè. Étape 1 : Choisis la zone cutanée que tu souhaites analyser en cliquant sur l'une des cartes, puis clique sur Passer à la prise de vue."
-            label="Écouter le guide"
-            compact
-          />
-        </div>
 
-        {/* Grille des 6 zones cutanées */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 mb-4">
-          {BODY_ZONES.map((z) => {
-            const Icon = ZONE_ICONS[z.id];
-            const isSelected = zone === z.id;
-            return (
-              <button
-                key={z.id}
-                type="button"
-                onClick={() => {
-                  setZone(z.id);
-                  setSlotImages({});
-                  setImage("");
-                  haptic(HAPTIC.tap);
-                }}
-                className={cn(
-                  "group relative p-3 sm:p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between min-h-[96px]",
-                  isSelected
-                    ? "border-primary bg-primary/10 ring-2 ring-primary/40 shadow-sm"
-                    : "border-border/60 bg-card/60 hover:bg-card hover:border-border text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <div className="flex items-start justify-between gap-2 w-full">
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      className={cn(
-                        "grid size-9 place-items-center rounded-xl transition-colors",
-                        isSelected
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "bg-muted text-muted-foreground group-hover:text-foreground"
-                      )}
-                    >
-                      <Icon size={18} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {OTHER_ZONES.map((oz) => {
+              const Icon = oz.icon;
+              const isSelected = zone === oz.id;
+
+              return (
+                <button
+                  key={oz.id}
+                  type="button"
+                  onClick={() => launchScan(oz.id)}
+                  className={cn(
+                    "group p-3 rounded-2xl border text-left transition-all flex items-center justify-between gap-2.5 active:scale-[0.99] cursor-pointer",
+                    isSelected
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/40 shadow-xs"
+                      : "border-border/70 bg-card hover:border-gold/60 hover:bg-card/90 shadow-2xs"
+                  )}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="grid size-9 place-items-center rounded-xl bg-muted text-primary group-hover:bg-primary group-hover:text-white transition-colors shrink-0">
+                      <Icon size={17} />
                     </span>
-                    <div>
-                      <span className={cn("block text-sm font-bold", isSelected ? "text-foreground font-black" : "text-foreground")}>
-                        {z.label}
+                    <div className="min-w-0">
+                      <span className="block text-xs sm:text-sm font-bold text-foreground truncate">
+                        {oz.label}
                       </span>
-                      <span className="text-[10px] font-mono text-muted-foreground">
-                        Poids santé : {Math.round(z.weight * 100)}%
+                      <span className="block text-[10.5px] text-muted-foreground truncate">
+                        {oz.benefit}
                       </span>
                     </div>
                   </div>
-                  {isSelected ? (
-                    <span className="grid size-5 place-items-center rounded-full bg-primary text-primary-foreground text-[10px] shrink-0 shadow-xs">
-                      <Check size={12} strokeWidth={3} />
-                    </span>
-                  ) : z.id === "visage" ? (
-                    <span className="text-[9px] font-black uppercase text-gold-text bg-gold/15 px-2 py-0.5 rounded-full shrink-0">
-                      Prioritaire
-                    </span>
-                  ) : null}
-                </div>
 
-                <p className="mt-2 text-[10.5px] text-muted-foreground line-clamp-1 leading-snug">
-                  {z.hint}
-                </p>
-
-                {isSelected && (
-                  <div className="mt-2 pt-1.5 border-t border-primary/20 flex items-center justify-between text-[10px] text-primary font-bold">
-                    <span>Sélectionné</span>
-                    <span className="uppercase font-extrabold flex items-center gap-0.5">
-                      Prêt <ChevronRight size={11} />
-                    </span>
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Conseils de préparation pour la zone choisie */}
-        <div className="mb-4 rounded-2xl bg-card/70 border border-border/70 p-3 shadow-xs">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-              <ActiveZoneIcon size={14} className="text-primary" />
-              <span>Avant de photographier :</span>
-            </span>
-            <span className="text-[10px] uppercase font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-              {zoneDef.label}
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-2.5 rounded-xl bg-card border border-border/80 shadow-xs">
-              <span className="block text-xs font-black text-foreground">Peau propre</span>
-              <span className="block text-[11px] font-bold text-primary mt-0.5">Sans maquillage</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-card border border-border/80 shadow-xs">
-              <span className="block text-xs font-black text-foreground">Lumière du jour</span>
-              <span className="block text-[11px] font-semibold text-muted-foreground mt-0.5">Éclairage naturel</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-card border border-border/80 shadow-xs">
-              <span className="block text-xs font-black text-foreground">Distance 30 cm</span>
-              <span className="block text-[11px] font-semibold text-muted-foreground mt-0.5">Netteté visage</span>
-            </div>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary shrink-0 opacity-80 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">
+                    <span>Analyser</span>
+                    <ChevronRight size={13} />
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Bouton CTA pour passer à la page 2 (Studio de prise de vue) */}
-        <PrimaryCTA
-          onClick={() => {
-            haptic(HAPTIC.light);
-            setStep(1);
-          }}
-          className="h-14 w-full rounded-[22px] font-heading font-black text-base shadow-lg flex items-center justify-center gap-2"
-        >
-          <span>Passer à la prise de vue ({zoneDef.label})</span>
-          <ChevronRight size={18} />
-        </PrimaryCTA>
-
-        {/* Raccourci vers l'historique complet */}
+        {/* 3. Historique & bilans passés */}
         <button
           type="button"
           onClick={goHistory}
-          className="k-card k-card-hover mt-3.5 w-full h-11 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 border border-border/70 text-muted-foreground hover:text-foreground"
+          className="k-card k-card-hover w-full h-11 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 border border-border/70 text-muted-foreground hover:text-foreground active:scale-[0.99] transition-all"
         >
-          <History size={15} className="text-primary" /> Voir mes diagnostics passés & historique
+          <History size={14} className="text-primary" />
+          <span>Consulter mon historique de bilans ({user.name.split(" ")[0]})</span>
         </button>
       </div>
     );
