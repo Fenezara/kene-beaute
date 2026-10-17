@@ -479,3 +479,29 @@ export function KeneSunIcon(props: IconProps) {
   );
 }
 
+/** Nsoromma — « L'Enfant des Cieux » / L'Étoile Scintillante Adinkra.
+ * Symbole de l'éclat céleste, de la lumière protectrice et de la beauté rayonnante.
+ * Le « Sparkle » authentique d'Afrique de l'Ouest pour Dermo Kènè. */
+export function NsorommaIcon(props: IconProps) {
+  const { size, ...rest } = props;
+  return (
+    <svg {...base(size, rest)}>
+      {/* Étoile majeure Nsoromma à 4 branches concaves orfévrées */}
+      <path
+        d="M12 2c0 4.2-2.3 7.8-8 10 5.7 2.2 8 5.8 8 10 0-4.2 2.3-7.8 8-10-5.7-2.2-8-5.8-8-10Z"
+        fill="currentColor"
+        fillOpacity="0.22"
+      />
+      <path d="M12 2c0 4.2-2.3 7.8-8 10 5.7 2.2 8 5.8 8 10 0-4.2 2.3-7.8 8-10-5.7-2.2-8-5.8-8-10Z" />
+      {/* Cœur solaire central Adinkra */}
+      <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+      {/* Nsoromma Ba — l'étincelle satellite compagnonne (en haut à droite) */}
+      <path
+        d="M18.5 3c0 1.5-.8 2.5-2.5 3.2 1.7.7 2.5 1.7 2.5 3.2 0-1.5.8-2.5 2.5-3.2-1.7-.7-2.5-1.7-2.5-3.2Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+

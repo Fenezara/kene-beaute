@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
 import { HAPTIC, haptic, isOnline, useNetworkOnline } from "@/lib/kene/ux";
 import { formatTime } from "@/lib/kene/format";
-import { KeneEmblem, KeneEmblemLockup, KeneMark, NeaOnnimIcon, SankofaIcon } from "@/components/kene/icons";
+import { KeneEmblem, KeneEmblemLockup, KeneMark, NeaOnnimIcon, NsorommaIcon, SankofaIcon } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
 import { AuroraBackdrop, IconBadge } from "@/components/kene/ui2026";
 import { apiGet } from "@/lib/kene/api";
@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 
 /** Navigation latérale (desktop & tablette) — destinations clés */
 const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
-  { tab: "accueil", labelKey: "tab.home", icon: Sparkles },
+  { tab: "accueil", labelKey: "tab.home", icon: NsorommaIcon },
   { tab: "dossier", labelKey: "tab.dossier", icon: FolderHeart },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
   { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
@@ -52,7 +52,7 @@ const NAV_DESKTOP: { tab: ClientTab; labelKey: string; icon: React.ComponentType
 
 /** Tab-bar mobile — 5 emplacements équilibrés avec CTA scan surélevé au centre */
 const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<{ className?: string }>; scan?: boolean }[] = [
-  { tab: "accueil", labelKey: "tab.home", icon: Sparkles },
+  { tab: "accueil", labelKey: "tab.home", icon: NsorommaIcon },
   { tab: "dossier", labelKey: "tab.dossier", icon: FolderHeart },
   { tab: "diagnostic", labelKey: "tab.scan", icon: NeaOnnimIcon, scan: true },
   { tab: "agenda", labelKey: "tab.agenda", icon: CalendarDays },
