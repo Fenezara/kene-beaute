@@ -40,14 +40,14 @@ const FR: Dict = {
   "nav.chat.aria": "Dermo Kènè — guide dermo-cosmétique",
 
   // Titres d'écran (h1 du header ClientApp)
-  "title.home": "Dermo Kènè · Conseils & Rituels",
+  "title.home": "Dermo Kènè · Conseils & Orbe IA",
   "title.agenda": "Mes Soins & Rendez-vous",
   "title.dossier": "Mon Dossier Peau & Données",
   "title.institutes": "Instituts & Salons Partenaires",
   "title.diag": "Diagnostic IA",
   "title.shop": "Boutique",
   "title.rdv": "Mes Soins & Rendez-vous",
-  "title.chat": "Dermo Kènè",
+  "title.chat": "Dermo Kènè · Conseils & Orbe IA",
   "title.profile": "Mon profil",
   "title.parametres": "Paramètres",
 

@@ -11,8 +11,8 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v31";
-const PRECACHE = "kene-precache-v31";
+const VERSION = "kene-sw-v32";
+const PRECACHE = "kene-precache-v32";
 const DATA_CACHE = "kene-data-v31";
 const IMG_CACHE = "kene-img-v31";
 const STATIC_CACHE = "kene-static-v31";

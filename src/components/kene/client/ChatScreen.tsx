@@ -52,7 +52,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, resizeImage } from "@/lib/kene/api";
-import { KeneEmblem, NeaOnnimIcon, CauriIcon } from "@/components/kene/icons";
+import { KeneEmblem, NeaOnnimIcon, CauriIcon, NsorommaIcon } from "@/components/kene/icons";
 import { Chip, IconBadge } from "@/components/kene/ui2026";
 import { useKene } from "@/store/kene";
 import { useChat, getTimeGreeting } from "@/store/chat";
@@ -467,7 +467,7 @@ function InciShieldCard({
 }
 
 export function ChatScreen() {
-  const user = useKene((s) => s.user)!;
+  const user = useKene((s) => s.user);
   const setClientTab = useKene((s) => s.setClientTab);
   // Fil persisté (survit au changement d'onglet) — voir src/store/chat.ts.
   const messages = useChat((s) => s.messages);
@@ -483,6 +483,36 @@ export function ChatScreen() {
   // Mode de vue : "orb" par défaut — L'Orbe Sacré de Consultation s'affiche et parle en premier
   const [viewMode, setViewMode] = useState<"orb" | "thread">("orb");
   const [audioLevel, setAudioLevel] = useState(0);
+
+  /** Conseil Climat & Dermo-Météo contextualisé pour peau mélanoderme */
+  const weatherAdvisory = useMemo(() => {
+    const city = (user?.city || user?.district || "Abidjan").toLowerCase();
+    if (city.includes("dakar") || city.includes("senegal") || city.includes("ngor") || city.includes("almadie")) {
+      return {
+        cityLabel: "Dakar · Climat océanique",
+        temp: "27°C",
+        humidity: "62%",
+        uv: "UV 7 · Élevé",
+        advice: "Particules & brise : Sérum antioxydant (Moringa) & hydratation.",
+      };
+    }
+    if (city.includes("bouake") || city.includes("yamoussoukro") || city.includes("korhogo")) {
+      return {
+        cityLabel: "Intérieur · Ensoleillé",
+        temp: "32°C",
+        humidity: "48%",
+        uv: "UV 9 · Très fort",
+        advice: "Fort ensoleillement : Hydratation active & karité brut.",
+      };
+    }
+    return {
+      cityLabel: `${user?.city ? user.city : "Abidjan"} · Humide`,
+      temp: "29°C",
+      humidity: "84%",
+      uv: "UV 8 · Très fort",
+      advice: "Forte humidité : Nettoyage doux au zinc & SPF 50.",
+    };
+  }, [user?.city, user?.district]);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -575,19 +605,21 @@ export function ChatScreen() {
 
   // Engagement obligatoire de la conversation par Dermo Kènè dès l'ouverture
   useEffect(() => {
+    const userName = user?.name || "Cliente";
+    const userCity = user?.city;
     if (!useChat.persist.hasHydrated()) {
       const res = useChat.persist.rehydrate();
       if (res && typeof (res as any).then === "function") {
         void (res as Promise<void>).then(() => {
-          ensureEngaged(user.name, user.city);
+          ensureEngaged(userName, userCity);
         });
       } else {
-        ensureEngaged(user.name, user.city);
+        ensureEngaged(userName, userCity);
       }
     } else {
-      ensureEngaged(user.name, user.city);
+      ensureEngaged(userName, userCity);
     }
-  }, [ensureEngaged, user.name, user.city]);
+  }, [ensureEngaged, user?.name, user?.city]);
 
   // Défilement automatique vers le message le plus récent à chaque changement de messages,
   // d'état d'envoi ou lors du basculement sur l'onglet "Fil complet"
@@ -802,7 +834,7 @@ export function ChatScreen() {
           audio: audioBase64,
           mimeType: payload.type,
           messages: history,
-          userId: user.id,
+          userId: user?.id || "",
         },
         { timeoutMs: 45_000 }
       );
@@ -1031,7 +1063,7 @@ export function ChatScreen() {
       const history = [...currentMessages, mine]
         .slice(-10)
         .map((m) => ({ role: m.role, content: (m.transcription || m.content).slice(0, 1500) }));
-      const r = await apiPost<{ reply: string }>("/api/dermato/chat", { messages: history, userId: user.id }, { timeoutMs: 35_000 });
+      const r = await apiPost<{ reply: string }>("/api/dermato/chat", { messages: history, userId: user?.id || "" }, { timeoutMs: 35_000 });
       add({ id: nid(), role: "assistant", content: r.reply, kind: "text", time: Date.now() });
       notifyChatNew();
       speak(r.reply);
@@ -1078,7 +1110,7 @@ export function ChatScreen() {
         productAnalysis?: import("@/lib/kene/inci-analyzer").InciAnalysisResult;
       }>(
         "/api/dermato/photo",
-        { images: dataUrls, image: dataUrls[0], userId: user.id }
+        { images: dataUrls, image: dataUrls[0], userId: user?.id || "" }
       );
       add({
         id: nid(),
@@ -1136,8 +1168,9 @@ export function ChatScreen() {
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h2 className="font-heading font-black text-sm text-foreground truncate">
-                Dermo Kènè
+              <h2 className="font-heading font-black text-sm text-foreground truncate flex items-center gap-1.5">
+                <NsorommaIcon size={14} className="text-gold-text" />
+                <span>Dermo Kènè</span>
               </h2>
               <span className="text-[9px] uppercase font-black px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                 IA 24/7
@@ -1164,7 +1197,7 @@ export function ChatScreen() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Sparkles size={12} className={viewMode === "orb" ? "text-amber-300 animate-spin" : ""} />
+              <NsorommaIcon size={13} className={viewMode === "orb" ? "text-amber-300 animate-pulse" : ""} />
               <span>Orbe</span>
             </button>
             <button
@@ -1219,6 +1252,18 @@ export function ChatScreen() {
           <div className="relative rounded-[26px] sm:rounded-[32px] border border-border/80 bg-card p-3 sm:p-5 shadow-sm flex flex-col items-center justify-center text-center overflow-hidden">
             {/* Lueur d'ambiance émeraude et dorée */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 sm:w-64 h-56 sm:h-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+
+            {/* Pilule Dermo-Météo & Protection UV Locale */}
+            <div className="relative z-10 mb-2 flex items-center justify-center gap-1.5 flex-wrap">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/15 border border-gold/30 text-[11px] font-bold text-gold-text shadow-2xs">
+                <NsorommaIcon size={12} className="text-gold-text shrink-0" />
+                <span>{weatherAdvisory.cityLabel}</span>
+                <span className="text-muted-foreground/60">·</span>
+                <span className="text-foreground">{weatherAdvisory.temp}</span>
+                <span className="text-muted-foreground/60">·</span>
+                <span className="text-amber-600 dark:text-amber-400 font-extrabold">{weatherAdvisory.uv}</span>
+              </div>
+            </div>
 
             {/* L'Orbe 3D interactif de Dermo Kènè */}
             <div className="relative z-10 mb-1">

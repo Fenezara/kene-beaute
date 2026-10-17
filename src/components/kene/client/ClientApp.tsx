@@ -29,7 +29,6 @@ import { useT } from "@/lib/kene/use-t";
 import { WelcomeThreshold } from "./WelcomeThreshold";
 import { unlockAudioContext } from "./ttsAudio";
 import { ThumbBar } from "./ThumbBar";
-import { HomeScreen } from "./HomeScreen";
 import { ProfileScreen } from "./ProfileScreen";
 import { AgendaScreen } from "./AgendaScreen";
 import { ClientSkinDossierView } from "./ClientSkinDossierView";
@@ -212,11 +211,12 @@ export function ClientApp() {
 
   // Badge chat honnête: l'événement « kene:chat:new » (CustomEvent, détail
   // { at } — dispatché par ChatScreen, contrat figé) n'allume le point
-  // QUE si tu n'es pas déjà sur l'onglet chat (lecture fraîche via getState,
-  // l'effet ne se réabonne jamais). Aller sur l'onglet chat → goTab éteint.
+  // QUE si tu n'es pas déjà sur l'onglet chat ou accueil (lecture fraîche via getState,
+  // l'effet ne se réabonne jamais). Aller sur l'onglet chat/accueil → goTab éteint.
   useEffect(() => {
     const onNewChatMessage = () => {
-      if (useKene.getState().clientTab !== "chat") setChatUnread(true);
+      const current = useKene.getState().clientTab;
+      if (current !== "chat" && current !== "accueil") setChatUnread(true);
     };
     window.addEventListener("kene:chat:new", onNewChatMessage);
     return () => window.removeEventListener("kene:chat:new", onNewChatMessage);
@@ -241,7 +241,7 @@ export function ClientApp() {
       if (from >= 0 && to >= 0) setNavDir(to > from ? 1 : -1);
       haptic(HAPTIC.tap);
     }
-    if (t === "chat") setChatUnread(false);
+    if (t === "chat" || t === "accueil") setChatUnread(false);
     setClientTab(t as ClientTab);
     scrollRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
     if (typeof window !== "undefined") {
@@ -499,50 +499,47 @@ export function ClientApp() {
               <div className="hidden md:flex items-baseline gap-2.5 min-w-0 flex-1 overflow-hidden">
                 <h1 className="font-heading font-bold tracking-tight text-lg xl:text-xl truncate text-foreground">{t(TITLES[tab])}</h1>
                 <p className="text-xs font-semibold text-gold-text dark:text-[#E3B04B] truncate hidden lg:inline">
-                  {tab === "accueil" ? "Tableau de bord cutané & soins" : tab === "chat" ? "Éducation cutanée · en ligne" : "Kènè — Beauté mélanoderme"}
+                  {tab === "accueil" || tab === "chat" ? "Conseils dermo-experts & Orbe IA 24/7" : "Kènè — Beauté mélanoderme"}
                 </p>
               </div>
             </div>
 
             {/* 2. DROITE : Dermo Kènè + Actions rapides (Switcher, Cloche, Réglages, Thème) */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — L'ORBE PARLE EN PREMIER AU CLIC */}
-              <button
-                type="button"
-                onClick={() => {
-                  haptic(HAPTIC.tap);
-                  unlockAudioContext();
-                  useChat.getState().ensureEngaged(user.name, user.city);
-                  if (typeof window !== "undefined") {
-                    window.sessionStorage.setItem("kene:chat:speak_first", "true");
-                    window.dispatchEvent(new CustomEvent("kene:chat:speak_first"));
-                  }
-                  goTab("chat");
-                }}
-                aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
-                title="Consulter Dermo Kènè (Conseils dermo-cosmétiques & Chat IA 24/7)"
-                className={cn(
-                  "relative flex items-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-2.5 sm:px-4 rounded-full border-2 transition-all active:scale-95 shadow-xs shrink-0 select-none",
-                  tab === "chat"
-                    ? "bg-gradient-to-r from-[#D49A24] via-[#F3C35C] to-[#C93B62] text-[#18120C] border-[#FCE8EE] font-black shadow-md ring-2 ring-[#9E2045]/30"
-                    : "border-[#D49A24]/70 bg-gradient-to-r from-[#D49A24]/15 via-[#C93B62]/10 to-card/90 hover:from-[#D49A24]/25 hover:to-[#C93B62]/15 text-foreground font-black"
-                )}
-              >
-                <span className="relative grid size-5.5 sm:size-6 place-items-center rounded-full bg-gradient-to-br from-[#D49A24] to-[#C93B62] text-white shadow-xs shrink-0">
-                  <MessageCircle size={13} className="text-white sm:hidden" />
-                  <MessageCircle size={15} className="text-white hidden sm:block" />
-                  <span className="absolute -top-0.5 -right-0.5 size-2 sm:size-2.5 rounded-full bg-emerald-500 ring-1.5 ring-background animate-pulse" />
-                </span>
-                <span className="text-[12px] sm:text-sm font-black tracking-tight flex items-center gap-1 sm:gap-1.5 text-foreground whitespace-nowrap">
-                  <span>Dermo Kènè</span>
-                  <span className="text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-full bg-[#9E2045]/15 text-[#9E2045] dark:text-[#F77698] border border-[#9E2045]/30 uppercase tracking-wider">
-                    24/7
+              {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — Visible uniquement sur les autres onglets pour retour direct */}
+              {tab !== "accueil" && tab !== "chat" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    unlockAudioContext();
+                    useChat.getState().ensureEngaged(user?.name || "Cliente", user?.city);
+                    if (typeof window !== "undefined") {
+                      window.sessionStorage.setItem("kene:chat:speak_first", "true");
+                      window.dispatchEvent(new CustomEvent("kene:chat:speak_first"));
+                    }
+                    goTab("accueil");
+                  }}
+                  aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
+                  title="Consulter Dermo Kènè (Conseils dermo-cosmétiques & Chat IA 24/7)"
+                  className="relative flex items-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-2.5 sm:px-4 rounded-full border-2 border-[#D49A24]/70 bg-gradient-to-r from-[#D49A24]/15 via-[#C93B62]/10 to-card/90 hover:from-[#D49A24]/25 hover:to-[#C93B62]/15 text-foreground font-black transition-all active:scale-95 shadow-xs shrink-0 select-none cursor-pointer"
+                >
+                  <span className="relative grid size-5.5 sm:size-6 place-items-center rounded-full bg-gradient-to-br from-[#D49A24] to-[#C93B62] text-white shadow-xs shrink-0">
+                    <MessageCircle size={13} className="text-white sm:hidden" />
+                    <MessageCircle size={15} className="text-white hidden sm:block" />
+                    <span className="absolute -top-0.5 -right-0.5 size-2 sm:size-2.5 rounded-full bg-emerald-500 ring-1.5 ring-background animate-pulse" />
                   </span>
-                </span>
-                {chatUnread && (
-                  <span className="size-2 sm:size-2.5 rounded-full bg-[#9E2045] ring-2 ring-background animate-bounce shrink-0" />
-                )}
-              </button>
+                  <span className="text-[12px] sm:text-sm font-black tracking-tight flex items-center gap-1 sm:gap-1.5 text-foreground whitespace-nowrap">
+                    <span>Dermo Kènè</span>
+                    <span className="text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-full bg-[#9E2045]/15 text-[#9E2045] dark:text-[#F77698] border border-[#9E2045]/30 uppercase tracking-wider">
+                      24/7
+                    </span>
+                  </span>
+                  {chatUnread && (
+                    <span className="size-2 sm:size-2.5 rounded-full bg-[#9E2045] ring-2 ring-background animate-bounce shrink-0" />
+                  )}
+                </button>
+              )}
 
               {/* 🧴 Bouton direct Scanner INCI (ouvre le scanner dédié, sans aller dans le chat / orbe) */}
               <button
@@ -632,9 +629,9 @@ export function ClientApp() {
                 {/* Suspense DANS le motion.div: le squelette d'attente participe
  à la transition d'onglet pendant le chargement du chunk */}
                 <Suspense fallback={<TabLoading />}>
-                  {tab === "accueil" && (
-                    <ScreenBoundary name="Accueil">
-                      <HomeScreen onScanZone={onScanZone} refreshKey={refreshKey} onRefreshed={onRefreshed} />
+                  {(tab === "accueil" || tab === "chat") && (
+                    <ScreenBoundary name="Dermo Kènè">
+                      <ChatScreen />
                     </ScreenBoundary>
                   )}
                   {tab === "dossier" && (
@@ -653,11 +650,6 @@ export function ClientApp() {
                   {tab === "diagnostic" && (
                     <ScreenBoundary name="Diagnostic">
                       <DiagnosticScreen pendingZone={pendingZone} onZoneConsumed={onZoneConsumed} />
-                    </ScreenBoundary>
-                  )}
-                  {tab === "chat" && (
-                    <ScreenBoundary name="Chat">
-                      <ChatScreen />
                     </ScreenBoundary>
                   )}
                   {tab === "profil" && (
