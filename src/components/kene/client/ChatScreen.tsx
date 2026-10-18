@@ -60,7 +60,13 @@ import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { LiveCameraModal } from "./LiveCameraModal";
 import { playSpeech, stopBrowserVoice, unlockAudioContext, type SpeechController } from "./ttsAudio";
 import { SpeakButton } from "./SpeakButton";
-import { isHardwarePermGranted, saveHardwarePermGranted, syncHardwarePermissions } from "@/lib/kene/hardware-perm";
+import {
+  isHardwarePermGranted,
+  saveHardwarePermGranted,
+  syncHardwarePermissions,
+  getPersistentAudioStream,
+  pausePersistentAudioStream,
+} from "@/lib/kene/hardware-perm";
 import type { DrKeneOrbState } from "./DrKeneOrb3D";
 import dynamic from "next/dynamic";
 import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
@@ -663,9 +669,8 @@ export function ChatScreen() {
       audioCtxRef.current = null;
     }
     setAudioLevel(0);
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    pausePersistentAudioStream();
     streamRef.current = null;
-    recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
   }
 
   function resetMic() {
@@ -704,8 +709,8 @@ export function ChatScreen() {
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      saveHardwarePermGranted();
+      const stream = await getPersistentAudioStream();
+      saveHardwarePermGranted("mic");
       streamRef.current = stream;
 
       // Mesure de volume Web Audio pour animer l'Orbe 3D en temps réel

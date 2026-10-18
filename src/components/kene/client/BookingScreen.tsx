@@ -31,6 +31,7 @@ import type { ApiAppointment, ApiInstitute, ApiPayment, ApiResource, ApiReview, 
 import { ApptBadge, EmptyBlock, MomoProcessing, SectionTitle, Stars, SuccessBurst } from "./bits";
 import { SecureVerify } from "./SecureVerify";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
+import { getPersistentGeolocation } from "@/lib/kene/hardware-perm";
 
 type PayMethod = "momo" | "wave";
 
@@ -123,26 +124,19 @@ export function BookingScreen() {
     }
   }, []);
 
-  function requestGeo() {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      toast.error("La géolocalisation n'est pas supportée par votre appareil.");
-      return;
-    }
+  async function requestGeo() {
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
-        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setUserCoords(c);
-        loadInstitutes(c, selectedDistrict);
-        toast.success("Salons triés par proximité GPS 📍");
-      },
-      (err) => {
-        setLocating(false);
-        toast.error("Signal GPS indisponible — vous pouvez filtrer par quartier.");
-      },
-      { timeout: 8000, enableHighAccuracy: false }
-    );
+    try {
+      const coords = await getPersistentGeolocation();
+      setLocating(false);
+      const c = { lat: coords.latitude, lng: coords.longitude };
+      setUserCoords(c);
+      loadInstitutes(c, selectedDistrict);
+      toast.success("Salons triés par proximité GPS 📍");
+    } catch {
+      setLocating(false);
+      toast.error("Signal GPS indisponible — vous pouvez filtrer par quartier.");
+    }
   }
 
   function onFilterDistrict(d: string) {

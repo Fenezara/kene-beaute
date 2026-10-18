@@ -142,11 +142,11 @@ export function PhotoScanAnimation({
       <div className="relative mx-auto w-64 sm:w-72 aspect-square rounded-3xl overflow-hidden border-2 border-gold/60 shadow-[0_0_35px_rgba(200,149,30,0.25)] bg-[#120B06]">
         {/* Photo ou silhouette */}
         {currentPhoto ? (
-          <div className="relative w-full h-full">
+          <div className="relative w-full h-full overflow-hidden bg-black">
             <img
               src={currentPhoto}
               alt={`Zone ${zoneLabel}`}
-              className="w-full h-full object-cover filter contrast-105 brightness-95 transition-opacity duration-300"
+              className="w-full h-full object-cover filter contrast-105 brightness-95 transition-opacity duration-300 animate-kene-photo-breathe"
             />
             {photoList.length > 1 && (
               <div className="absolute top-2.5 left-2.5 z-10 bg-black/80 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-gold/40 text-[10px] font-mono font-bold text-gold shadow-sm">
@@ -165,28 +165,22 @@ export function PhotoScanAnimation({
           </div>
         )}
 
-        {/* Grille holographique en surimpression */}
+        {/* Grille holographique en surimpression animée */}
         <div
-          className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(to_right,#C8951E_1px,transparent_1px),linear-gradient(to_bottom,#C8951E_1px,transparent_1px)] bg-[size:18px_18px]"
+          className="absolute inset-0 pointer-events-none bg-[linear-gradient(to_right,#C8951E_1px,transparent_1px),linear-gradient(to_bottom,#C8951E_1px,transparent_1px)] bg-[size:18px_18px] animate-kene-grid-shimmer z-10"
           aria-hidden="true"
         />
 
-        {/* Faisceau de balayage laser doré (Scan Beam) */}
-        <motion.div
-          className="absolute left-0 right-0 h-16 pointer-events-none"
-          animate={{
-            top: ["-10%", "85%", "-10%"],
-          }}
-          transition={{
-            duration: 3.2,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
+        {/* Faisceau de balayage laser doré (Scan Beam GPU continu) */}
+        <div
+          className="absolute left-0 right-0 h-16 pointer-events-none animate-kene-scan-laser z-20"
+          aria-hidden="true"
         >
           <div className="w-full h-full bg-gradient-to-b from-transparent via-gold/45 to-transparent relative">
-            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FFF4D0] to-transparent shadow-[0_0_12px_#FFF9EC]" />
+            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FFF4D0] to-transparent shadow-[0_0_12px_#FFF9EC,0_0_24px_#C8951E]" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-2 bg-gold/25 blur-sm rounded-full" />
           </div>
-        </motion.div>
+        </div>
 
         {/* Cibles holographiques (Biomarker Reticles) */}
         {SCAN_TARGETS.map((t) => (

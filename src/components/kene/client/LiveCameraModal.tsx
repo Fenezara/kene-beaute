@@ -6,7 +6,11 @@ import { createPortal } from "react-dom";
 import { Camera, FlipHorizontal, Lightbulb, Loader2, SwitchCamera, X } from "lucide-react";
 import { toast } from "sonner";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
-import { saveHardwarePermGranted } from "@/lib/kene/hardware-perm";
+import {
+  getPersistentCameraStream,
+  pausePersistentCameraStream,
+  saveHardwarePermGranted,
+} from "@/lib/kene/hardware-perm";
 
 interface LiveCameraModalProps {
   zoneLabel: string;
@@ -25,7 +29,7 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
   const [lighting, setLighting] = useState<"optimal" | "faible" | "forte">("optimal");
   const [flashing, setFlashing] = useState(false);
 
-  // Initialisation du flux caméra
+  // Initialisation du flux caméra persistant (Zéro re-prompt système)
   useEffect(() => {
     let active = true;
 
@@ -34,29 +38,9 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
         setReady(false);
         setError(null);
 
-        // Arrêter l'ancien flux si existant
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach((track) => track.stop());
-          streamRef.current = null;
-        }
+        const stream = await getPersistentCameraStream(facingMode);
 
-        if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error("L'accès à la caméra n'est pas supporté par ce navigateur.");
-        }
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode,
-            width: { ideal: 1080 },
-            height: { ideal: 1080 },
-          },
-          audio: false,
-        });
-
-        if (!active) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
+        if (!active) return;
 
         streamRef.current = stream;
         saveHardwarePermGranted("camera");
@@ -82,10 +66,8 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
 
     return () => {
       active = false;
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
+      // Met en pause la caméra sans détruire la session d'autorisation (0 re-prompt lors de la prochaine utilisation)
+      pausePersistentCameraStream();
     };
   }, [facingMode]);
 

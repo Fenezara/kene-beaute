@@ -1,14 +1,23 @@
 // src/lib/kene/hardware-perm.ts
-// Gestion et mémorisation permanente des autorisations matérielles du téléphone (Caméra, Microphone, Localisation)
-// RÈGLE : Les autorisations matérielles ne doivent être demandées QU'UNE SEULE FOIS.
-// Une fois accordées, l'application mémorise le statut et ne redemande plus rien.
+// Gestionnaire unifié et singleton des autorisations et flux matériels du téléphone
+// RÈGLE FONDAMENTALE : Les autorisations matérielles (Caméra, Microphone, Localisation, Notifications)
+// ne doivent être demandées QU'UNE SEULE FOIS pour toute l'application.
+// Une fois accordées, l'application réutilise les flux et statuts persistants
+// pour qu'AUCUNE boîte de dialogue système ne soit redemandée à l'utilisateur.
 
 export const HARDWARE_PERM_KEY = "kene-hardware-permission-granted";
 export const CAMERA_PERM_KEY = "kene-hardware-camera-granted";
 export const MIC_PERM_KEY = "kene-hardware-mic-granted";
 export const GEO_PERM_KEY = "kene-hardware-geo-granted";
+export const NOTIF_PERM_KEY = "kene-hardware-notif-granted";
 
-export type HardwareFeature = "camera" | "mic" | "geo";
+export const GEO_CACHED_LAT_KEY = "kene-geo-cached-lat";
+export const GEO_CACHED_LNG_KEY = "kene-geo-cached-lng";
+export const GEO_CACHED_AT_KEY = "kene-geo-cached-at";
+
+export type HardwareFeature = "camera" | "mic" | "geo" | "notifications";
+
+/* ───────────────────────── 1. Mémorisation Persistante ───────────────────────── */
 
 export function isHardwarePermGranted(feature?: HardwareFeature): boolean {
   if (typeof window === "undefined") return false;
@@ -25,7 +34,9 @@ export function isHardwarePermGranted(feature?: HardwareFeature): boolean {
         ? CAMERA_PERM_KEY
         : feature === "mic"
         ? MIC_PERM_KEY
-        : GEO_PERM_KEY;
+        : feature === "geo"
+        ? GEO_PERM_KEY
+        : NOTIF_PERM_KEY;
     return (
       localStorage.getItem(key) === "true" ||
       localStorage.getItem(HARDWARE_PERM_KEY) === "true"
@@ -42,12 +53,12 @@ export function saveHardwarePermGranted(feature?: HardwareFeature): void {
     if (feature === "camera") localStorage.setItem(CAMERA_PERM_KEY, "true");
     if (feature === "mic") localStorage.setItem(MIC_PERM_KEY, "true");
     if (feature === "geo") localStorage.setItem(GEO_PERM_KEY, "true");
+    if (feature === "notifications") localStorage.setItem(NOTIF_PERM_KEY, "true");
   } catch {}
 }
 
 /**
  * Synchronise l'état de l'application avec les permissions effectives du navigateur / système.
- * Si le système indique "granted", l'application enregistre le statut et ne redemande plus rien.
  */
 export async function syncHardwarePermissions(): Promise<boolean> {
   if (typeof window === "undefined") return false;
@@ -58,13 +69,17 @@ export async function syncHardwarePermissions(): Promise<boolean> {
     const results = await Promise.allSettled([
       navigator.permissions.query({ name: "microphone" as PermissionName }),
       navigator.permissions.query({ name: "camera" as PermissionName }),
+      navigator.permissions.query({ name: "geolocation" as PermissionName }),
+      navigator.permissions.query({ name: "notifications" as PermissionName }),
     ]);
 
     let anyGranted = false;
     results.forEach((r, idx) => {
       if (r.status === "fulfilled" && r.value.state === "granted") {
         anyGranted = true;
-        saveHardwarePermGranted(idx === 0 ? "mic" : "camera");
+        const feat: HardwareFeature =
+          idx === 0 ? "mic" : idx === 1 ? "camera" : idx === 2 ? "geo" : "notifications";
+        saveHardwarePermGranted(feat);
       }
     });
 
@@ -73,7 +88,326 @@ export async function syncHardwarePermissions(): Promise<boolean> {
       return true;
     }
   } catch {
-    // Les navigateurs qui ne supportent pas le query pour camera/mic gardent le localStorage
+    // Navigateurs ne supportant pas tous les noms de permissions
   }
   return isHardwarePermGranted();
+}
+
+/* ───────────────────────── 2. Singleton Flux Caméra (Zéro re-prompt) ───────────────────────── */
+
+let cachedCameraStream: MediaStream | null = null;
+let cachedCameraFacing: "user" | "environment" = "user";
+
+/**
+ * Retourne le flux vidéo de la caméra.
+ * Si un flux actif existe déjà dans la même orientation, il est réactivé instantanément (0 prompt).
+ * Si une nouvelle orientation est demandée, l'ancien flux est proprement remplacé.
+ */
+export async function getPersistentCameraStream(
+  facingMode: "user" | "environment" = "user"
+): Promise<MediaStream> {
+  if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    throw new Error("L'accès à la caméra n'est pas supporté par ce navigateur.");
+  }
+
+  // Vérifier si le flux en cache est toujours valide et dans la bonne orientation
+  if (cachedCameraStream && cachedCameraFacing === facingMode) {
+    const activeVideoTrack = cachedCameraStream
+      .getVideoTracks()
+      .find((t) => t.readyState === "live");
+
+    if (activeVideoTrack) {
+      // Réactiver simplement la piste existante sans redemander l'autorisation au système
+      activeVideoTrack.enabled = true;
+      saveHardwarePermGranted("camera");
+      return cachedCameraStream;
+    }
+  }
+
+  // Si l'orientation a changé ou si la piste est fermée, désactiver l'ancien flux
+  if (cachedCameraStream) {
+    try {
+      cachedCameraStream.getTracks().forEach((t) => t.stop());
+    } catch {}
+    cachedCameraStream = null;
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode,
+      width: { ideal: 1080 },
+      height: { ideal: 1080 },
+    },
+    audio: false,
+  });
+
+  cachedCameraStream = stream;
+  cachedCameraFacing = facingMode;
+  saveHardwarePermGranted("camera");
+
+  return stream;
+}
+
+/**
+ * Met en pause la caméra sans détruire la session d'autorisation matérielle.
+ * La piste vidéo est désactivée (`enabled = false`), coupant le capteur et la lumière
+ * tout en conservant le droit d'accès sans jamais redemander l'autorisation à l'utilisateur.
+ */
+export function pausePersistentCameraStream(): void {
+  if (cachedCameraStream) {
+    try {
+      cachedCameraStream.getVideoTracks().forEach((track) => {
+        track.enabled = false;
+      });
+    } catch {}
+  }
+}
+
+/**
+ * Arrêt complet de la caméra (ex: déconnexion ou fermeture définitive).
+ */
+export function stopPersistentCameraStream(): void {
+  if (cachedCameraStream) {
+    try {
+      cachedCameraStream.getTracks().forEach((track) => track.stop());
+    } catch {}
+    cachedCameraStream = null;
+  }
+}
+
+/* ───────────────────────── 3. Singleton Flux Microphone (Zéro re-prompt) ───────────────────────── */
+
+let cachedAudioStream: MediaStream | null = null;
+
+/**
+ * Retourne le flux audio du microphone de façon persistante.
+ * Une fois autorisé, il est réutilisé sur toute l'application (Secrétaire IA, Chat, Débriefing).
+ */
+export async function getPersistentAudioStream(): Promise<MediaStream> {
+  if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    throw new Error("L'accès au microphone n'est pas supporté par ce navigateur.");
+  }
+
+  if (cachedAudioStream) {
+    const activeAudioTrack = cachedAudioStream
+      .getAudioTracks()
+      .find((t) => t.readyState === "live");
+
+    if (activeAudioTrack) {
+      activeAudioTrack.enabled = true;
+      saveHardwarePermGranted("mic");
+      return cachedAudioStream;
+    }
+  }
+
+  if (cachedAudioStream) {
+    try {
+      cachedAudioStream.getTracks().forEach((t) => t.stop());
+    } catch {}
+    cachedAudioStream = null;
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    },
+  });
+
+  cachedAudioStream = stream;
+  saveHardwarePermGranted("mic");
+  return stream;
+}
+
+/**
+ * Met en pause le microphone sans détruire la session WebKit / Android.
+ */
+export function pausePersistentAudioStream(): void {
+  if (cachedAudioStream) {
+    try {
+      cachedAudioStream.getAudioTracks().forEach((track) => {
+        track.enabled = false;
+      });
+    } catch {}
+  }
+}
+
+/**
+ * Arrêt complet du microphone.
+ */
+export function stopPersistentAudioStream(): void {
+  if (cachedAudioStream) {
+    try {
+      cachedAudioStream.getTracks().forEach((track) => track.stop());
+    } catch {}
+    cachedAudioStream = null;
+  }
+}
+
+/* ───────────────────────── 4. Singleton Géolocalisation (Zéro re-prompt) ───────────────────────── */
+
+export interface CachedCoords {
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Retourne la position géographique persistante.
+ * Si une position a déjà été accordée et date de moins de 2 heures, elle est retournée immédiatement
+ * et rafraîchie en tâche de fond pour une expérience instantanée sans re-prompt.
+ */
+export async function getPersistentGeolocation(): Promise<CachedCoords> {
+  if (typeof window === "undefined" || !navigator.geolocation) {
+    throw new Error("La géolocalisation n'est pas supportée sur cet appareil.");
+  }
+
+  // 1. Vérification du cache récent (< 2 heures)
+  try {
+    const cachedLat = localStorage.getItem(GEO_CACHED_LAT_KEY);
+    const cachedLng = localStorage.getItem(GEO_CACHED_LNG_KEY);
+    const cachedAt = localStorage.getItem(GEO_CACHED_AT_KEY);
+
+    if (cachedLat && cachedLng && cachedAt) {
+      const ageMs = Date.now() - Number(cachedAt);
+      if (ageMs < 2 * 60 * 60 * 1000) {
+        // Rafraîchir silencieusement en tâche de fond
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            saveHardwareCoords(pos.coords.latitude, pos.coords.longitude);
+            saveHardwarePermGranted("geo");
+          },
+          () => {},
+          { maximumAge: 3600000, timeout: 8000, enableHighAccuracy: false }
+        );
+
+        return {
+          latitude: parseFloat(cachedLat),
+          longitude: parseFloat(cachedLng),
+        };
+      }
+    }
+  } catch {}
+
+  // 2. Requête système unique avec mémorisation
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        saveHardwareCoords(latitude, longitude);
+        saveHardwarePermGranted("geo");
+        resolve({ latitude, longitude });
+      },
+      (err) => {
+        // En cas d'erreur mais avec un cache existant, repli sur le cache
+        try {
+          const cachedLat = localStorage.getItem(GEO_CACHED_LAT_KEY);
+          const cachedLng = localStorage.getItem(GEO_CACHED_LNG_KEY);
+          if (cachedLat && cachedLng) {
+            resolve({
+              latitude: parseFloat(cachedLat),
+              longitude: parseFloat(cachedLng),
+            });
+            return;
+          }
+        } catch {}
+        reject(err);
+      },
+      {
+        maximumAge: 600000,
+        timeout: 12000,
+        enableHighAccuracy: true,
+      }
+    );
+  });
+}
+
+function saveHardwareCoords(lat: number, lng: number): void {
+  try {
+    localStorage.setItem(GEO_CACHED_LAT_KEY, String(lat));
+    localStorage.setItem(GEO_CACHED_LNG_KEY, String(lng));
+    localStorage.setItem(GEO_CACHED_AT_KEY, String(Date.now()));
+  } catch {}
+}
+
+/* ───────────────────────── 5. Singleton Notifications ───────────────────────── */
+
+export async function requestPersistentNotification(): Promise<NotificationPermission> {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return "denied";
+  }
+
+  if (Notification.permission === "granted") {
+    saveHardwarePermGranted("notifications");
+    return "granted";
+  }
+
+  if (Notification.permission === "denied") {
+    return "denied";
+  }
+
+  try {
+    const res = await Notification.requestPermission();
+    if (res === "granted") {
+      saveHardwarePermGranted("notifications");
+    }
+    return res;
+  } catch {
+    return "denied";
+  }
+}
+
+/* ───────────────────────── 6. Autorisation Globale en 1 Fois ───────────────────────── */
+
+/**
+ * Permet d'amorcer en 1 seule étape les autorisations matérielles requises
+ * pour garantir que plus aucun matériel ne redemande de permission ensuite.
+ */
+export async function requestAllHardwarePermissionsOnce(): Promise<{
+  camera: boolean;
+  mic: boolean;
+  geo: boolean;
+  notifications: boolean;
+}> {
+  const status = {
+    camera: isHardwarePermGranted("camera"),
+    mic: isHardwarePermGranted("mic"),
+    geo: isHardwarePermGranted("geo"),
+    notifications: isHardwarePermGranted("notifications"),
+  };
+
+  // 1. Notifications
+  try {
+    const notif = await requestPersistentNotification();
+    status.notifications = notif === "granted";
+  } catch {}
+
+  // 2. Caméra
+  if (!status.camera) {
+    try {
+      const cam = await getPersistentCameraStream("user");
+      pausePersistentCameraStream();
+      status.camera = true;
+    } catch {}
+  }
+
+  // 3. Microphone
+  if (!status.mic) {
+    try {
+      const mic = await getPersistentAudioStream();
+      pausePersistentAudioStream();
+      status.mic = true;
+    } catch {}
+  }
+
+  // 4. Géolocalisation
+  if (!status.geo) {
+    try {
+      await getPersistentGeolocation();
+      status.geo = true;
+    } catch {}
+  }
+
+  saveHardwarePermGranted();
+  return status;
 }

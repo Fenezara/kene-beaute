@@ -65,6 +65,7 @@ import { useInstallPrompt } from "@/components/kene/pwa/use-install";
 import { getThumbMode, setThumbMode, subscribeThumbMode } from "@/lib/kene/thumb-mode";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { cn } from "@/lib/utils";
+import { requestPersistentNotification } from "@/lib/kene/hardware-perm";
 
 /* ─── Porte d'hydratation (thème) ───
  * false pendant le rendu serveur + l'hydratation, true ensuite: l'état actif
@@ -292,7 +293,7 @@ export function SettingsScreen() {
  /** Demande la permission navigateur puis relit l'état (toast succès/info). */
   async function enableNotifications() {
     if (typeof window === "undefined" || !("Notification" in window)) return;
-    const result = await Notification.requestPermission();
+    const result = await requestPersistentNotification();
     notifyPermListeners(); // relecture immédiate du snapshot par le hook
     if (result === "granted") toast.success("Notifications activées");
     else toast.info("Notifications refusées", { description: "Tu pourras les réactiver à tout moment dans les réglages du navigateur." });

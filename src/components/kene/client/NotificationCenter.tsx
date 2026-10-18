@@ -25,6 +25,7 @@ import { getActivePushSubscription, getPushStatus, pushKeyToBase64, subscribeToP
 import { channelLabel, humanWhen } from "@/lib/kene/reminders";
 import { cn } from "@/lib/utils";
 import type { ApiReminderFeed } from "./types";
+import { requestPersistentNotification } from "@/lib/kene/hardware-perm";
 
 const NOTIFY_PORT = 3004;
 
@@ -195,7 +196,7 @@ export function NotificationCenter({
     if (pushBusy) return;
     setPushBusy(true);
     try {
-      const perm = typeof Notification !== "undefined" ? await Notification.requestPermission() : "denied";
+      const perm = await requestPersistentNotification();
       if (perm !== "granted") {
         setPushStatus("off");
         toast.error("Autorisation refusée dans les réglages du navigateur");

@@ -43,6 +43,11 @@ import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { fetchTtsAudioUrl, speakBrowserVoice, stopBrowserVoice, unlockAudioContext } from "../client/ttsAudio";
 import { pickRecorderMime, transcribeAudioBlob } from "@/lib/kene/audio-recorder";
 import type { DebriefResult } from "@/app/api/pro/assistant/debrief/route";
+import {
+  getPersistentAudioStream,
+  pausePersistentAudioStream,
+  saveHardwarePermGranted,
+} from "@/lib/kene/hardware-perm";
 
 interface MamanAssistantModalProps {
   tenantId: string;
@@ -145,10 +150,8 @@ export function MamanAssistantModal({
       speechRecognitionRef.current = null;
     }
 
-    if (audioStreamRef.current) {
-      audioStreamRef.current.getTracks().forEach((track) => track.stop());
-      audioStreamRef.current = null;
-    }
+    pausePersistentAudioStream();
+    audioStreamRef.current = null;
 
     if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
       try {
@@ -179,9 +182,8 @@ export function MamanAssistantModal({
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
+      const stream = await getPersistentAudioStream();
+      saveHardwarePermGranted("mic");
 
       audioStreamRef.current = stream;
       audioChunksRef.current = [];

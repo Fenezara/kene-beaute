@@ -515,6 +515,65 @@
       0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent),
       0 10px 32px -8px color-mix(in srgb, #A0522D 40%, transparent);
   }
+
+  /* 13) Animations de balayage scanner dermo-optique & respiration photo */
+  .animate-kene-scan-laser {
+    animation: kene-scan-laser 2.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+    will-change: transform, opacity;
+  }
+  @keyframes kene-scan-laser {
+    0% {
+      transform: translateY(-10%);
+      opacity: 0.65;
+    }
+    50% {
+      transform: translateY(390%);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-10%);
+      opacity: 0.65;
+    }
+  }
+
+  .animate-kene-photo-breathe {
+    animation: kene-photo-breathe 5s ease-in-out infinite;
+    will-change: transform, filter;
+  }
+  @keyframes kene-photo-breathe {
+    0%, 100% {
+      transform: scale(1);
+      filter: contrast(104%) brightness(98%);
+    }
+    50% {
+      transform: scale(1.035);
+      filter: contrast(110%) brightness(102%);
+    }
+  }
+
+  .animate-kene-grid-shimmer {
+    animation: kene-grid-shimmer 3.2s ease-in-out infinite;
+  }
+  @keyframes kene-grid-shimmer {
+    0%, 100% {
+      opacity: 0.16;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  .animate-kene-reticle-spin {
+    animation: kene-reticle-spin 14s linear infinite;
+  }
+  @keyframes kene-reticle-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
 }
 
 @media print {

@@ -56,6 +56,11 @@ import { MamanOrb3D, type OrbState } from "./MamanOrb3D";
 import type { DebriefResult } from "@/app/api/pro/assistant/debrief/route";
 import type { ProSectionId } from "./ProApp";
 import type { ProOverview, ProLive } from "./types";
+import {
+  getPersistentAudioStream,
+  pausePersistentAudioStream,
+  saveHardwarePermGranted,
+} from "@/lib/kene/hardware-perm";
 
 interface AssistantSectionProps {
   tenantId: string;
@@ -500,10 +505,8 @@ export function AssistantSection({
       speechRecognitionRef.current = null;
     }
 
-    if (audioStreamRef.current) {
-      audioStreamRef.current.getTracks().forEach((track) => track.stop());
-      audioStreamRef.current = null;
-    }
+    pausePersistentAudioStream();
+    audioStreamRef.current = null;
 
     if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
       try {
@@ -523,13 +526,8 @@ export function AssistantSection({
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
+      const stream = await getPersistentAudioStream();
+      saveHardwarePermGranted("mic");
 
       audioStreamRef.current = stream;
       audioChunksRef.current = [];

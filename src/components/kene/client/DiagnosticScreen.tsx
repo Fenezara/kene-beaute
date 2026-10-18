@@ -85,7 +85,26 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const activeImage = slotImages[activeSlotId] ?? "";
   const totalCaptured = useMemo(() => Object.values(slotImages).filter(Boolean).length, [slotImages]);
 
+  // Photos capturées pour le balayage scanner multi-angles
+  const capturedPhotos = useMemo(() => {
+    const list = slots.map((s) => ({ slot: s, url: slotImages[s.id] })).filter((x) => Boolean(x.url));
+    if (list.length > 0) return list;
+    return image ? [{ slot: { id: "main", label: "Vue principale", hint: "", required: true }, url: image }] : [];
+  }, [slots, slotImages, image]);
+
+  const [scanPhotoIdx, setScanPhotoIdx] = useState(0);
+
   const [analyzing, setAnalyzing] = useState(false);
+
+  // Rotation fluide des angles pendant le scan si multi-photos
+  useEffect(() => {
+    if (!analyzing || capturedPhotos.length <= 1) return;
+    const interval = setInterval(() => {
+      setScanPhotoIdx((prev) => (prev + 1) % capturedPhotos.length);
+    }, 2600);
+    return () => clearInterval(interval);
+  }, [analyzing, capturedPhotos.length]);
+
   const [progress, setProgress] = useState(0);
   const [checkedSteps, setCheckedSteps] = useState(0);
   const [diag, setDiag] = useState<{ id: string; result: DiagnosisResult; imageData: string; createdAt: string } | null>(null);
@@ -1143,32 +1162,49 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
     );
   }
 
- /* ─────────── Étape 2 — Analyse en cours ─────────── */
+  /* ─────────── Étape 2 — Analyse en cours ─────────── */
   if (step === 2 && analyzing) {
+    const currentScanItem = capturedPhotos[scanPhotoIdx] ?? capturedPhotos[0];
+    const currentScanPhoto = currentScanItem?.url || image;
+
     return (
       <Reveal className="pt-6 flex flex-col items-center" stagger={0.07}>
         <RevealItem className="grain-kene relative w-full max-w-[320px] rounded-[24px] overflow-hidden ring-4 ring-[#C8951E]/40 shadow-[0_0_30px_rgba(200,149,30,0.3)] bg-black">
-          <img src={image} alt="Photo en cours d'analyse" className="aspect-square w-full object-cover filter contrast-105" />
+          {/* Photo capturée avec respiration vivante dermo-optique */}
+          <div className="relative aspect-square w-full overflow-hidden bg-black">
+            <img
+              key={currentScanPhoto}
+              src={currentScanPhoto}
+              alt="Photo en cours d'analyse"
+              className="aspect-square w-full object-cover filter contrast-105 animate-kene-photo-breathe"
+            />
+          </div>
 
-          {/* Grille holographique subtile */}
+          {/* Badge multi-angle si plusieurs photos */}
+          {capturedPhotos.length > 1 && currentScanItem && (
+            <div className="absolute top-2.5 left-2.5 z-20 bg-black/80 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-[#C8951E]/40 text-[9.5px] font-mono font-bold text-[#E5A93C] shadow-sm">
+              Vue {scanPhotoIdx + 1}/{capturedPhotos.length} · {currentScanItem.slot.label}
+            </div>
+          )}
+
+          {/* Grille holographique subtile animée */}
           <div
-            className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(to_right,#C8951E_1px,transparent_1px),linear-gradient(to_bottom,#C8951E_1px,transparent_1px)] bg-[size:16px_16px]"
+            className="absolute inset-0 pointer-events-none bg-[linear-gradient(to_right,#C8951E_1px,transparent_1px),linear-gradient(to_bottom,#C8951E_1px,transparent_1px)] bg-[size:16px_16px] animate-kene-grid-shimmer z-10"
             aria-hidden="true"
           />
 
-          {/* Faisceau laser doré incandescent */}
-          <motion.div
-            className="absolute left-0 right-0 h-16 pointer-events-none"
-            animate={{ top: ["4%", "78%", "4%"] }}
-            transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+          {/* Faisceau laser doré incandescent — balayage continu GPU */}
+          <div
+            className="absolute left-0 right-0 h-16 pointer-events-none animate-kene-scan-laser z-20"
             aria-hidden="true"
           >
-            <div className="w-full h-full bg-gradient-to-b from-transparent via-[#C8951E]/45 to-transparent relative">
-              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FFF9EC] to-transparent shadow-[0_0_12px_#FFF9EC]" />
+            <div className="w-full h-full bg-gradient-to-b from-transparent via-[#C8951E]/50 to-transparent relative">
+              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#FFF9EC] to-transparent shadow-[0_0_12px_#FFF9EC,0_0_24px_#C8951E]" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-2 bg-[#D49A24]/30 blur-sm rounded-full" />
             </div>
-          </motion.div>
+          </div>
 
-          {/* Cibles holographiques dynamiques */}
+          {/* Cibles holographiques dynamiques avec anneaux radar */}
           {[
             { label: "Pores & Sébum", x: 48, y: 32 },
             { label: "Mélanine & Éclat", x: 28, y: 55 },
@@ -1177,22 +1213,29 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             <div
               key={idx}
               style={{ left: `${t.x}%`, top: `${t.y}%` }}
-              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center animate-pulse"
+              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center z-15"
             >
-              <div className="size-5 rounded-full border border-[#C8951E] shadow-[0_0_6px_rgba(200,149,30,0.8)] grid place-items-center">
-                <div className="size-1 rounded-full bg-[#C8951E]" />
+              <div className="relative size-6 rounded-full border border-[#C8951E] shadow-[0_0_8px_rgba(200,149,30,0.85)] grid place-items-center">
+                <div className="size-1.5 rounded-full bg-[#E5A93C] animate-ping" />
+                <div className="absolute inset-0 rounded-full border border-dashed border-[#FFF9EC]/60 animate-kene-reticle-spin" />
               </div>
-              <span className="mt-0.5 font-mono text-[8px] font-bold text-black bg-[#C8951E]/90 px-1 rounded shadow">
+              <span className="mt-1 font-mono text-[8px] font-bold text-black bg-[#C8951E]/95 px-1.5 py-0.5 rounded shadow backdrop-blur-sm whitespace-nowrap">
                 {t.label}
               </span>
             </div>
           ))}
 
           {/* Coins optiques de visée */}
-          <div className="absolute top-2.5 left-2.5 size-4 border-t-2 border-l-2 border-[#C8951E] rounded-tl pointer-events-none" />
-          <div className="absolute top-2.5 right-2.5 size-4 border-t-2 border-r-2 border-[#C8951E] rounded-tr pointer-events-none" />
-          <div className="absolute bottom-2.5 left-2.5 size-4 border-b-2 border-l-2 border-[#C8951E] rounded-bl pointer-events-none" />
-          <div className="absolute bottom-2.5 right-2.5 size-4 border-b-2 border-r-2 border-[#C8951E] rounded-br pointer-events-none" />
+          <div className="absolute top-2.5 left-2.5 size-4 border-t-2 border-l-2 border-[#C8951E] rounded-tl pointer-events-none animate-pulse z-20" />
+          <div className="absolute top-2.5 right-2.5 size-4 border-t-2 border-r-2 border-[#C8951E] rounded-tr pointer-events-none animate-pulse z-20" />
+          <div className="absolute bottom-2.5 left-2.5 size-4 border-b-2 border-l-2 border-[#C8951E] rounded-bl pointer-events-none animate-pulse z-20" />
+          <div className="absolute bottom-2.5 right-2.5 size-4 border-b-2 border-r-2 border-[#C8951E] rounded-br pointer-events-none animate-pulse z-20" />
+
+          {/* Indicateur spectral temps réel en bas à droite */}
+          <div className="absolute bottom-2.5 right-2.5 z-20 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-md border border-[#C8951E]/30 text-[9px] font-mono text-[#E5A93C] flex items-center gap-1.5 shadow-sm">
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-ping" />
+            <span>{progress}% · Multi-spectral</span>
+          </div>
         </RevealItem>
 
 
