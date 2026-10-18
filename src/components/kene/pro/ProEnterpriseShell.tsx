@@ -202,6 +202,7 @@ export function ProEnterpriseShell() {
   const [mamanAssistantOpen, setMamanAssistantOpen] = useState(false);
   const [inciScannerOpen, setInciScannerOpen] = useState(false);
   const [mirrorKioskOpen, setMirrorKioskOpen] = useState(false);
+  const [assistantNonce, setAssistantNonce] = useState(0);
 
   useEffect(() => {
     mainScrollRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
@@ -384,6 +385,7 @@ export function ProEnterpriseShell() {
       try {
         unlockAudioContext();
       } catch {}
+      setAssistantNonce((n) => n + 1);
     }
     if (s === "agenda") setAgendaSeen(live?.pendingAppts ?? 0);
     if (s === "orders") {
@@ -1214,6 +1216,9 @@ export function ProEnterpriseShell() {
                 tenantPlan={tenant?.plan || "trial"}
                 onNavigate={openSection}
                 refreshKey={refreshKey}
+                overview={overview.data}
+                live={live}
+                assistantNonce={assistantNonce}
               />
             )}
             {activeSection === "agenda" && <AgendaSection tenantId={tid} refreshKey={refreshKey} />}

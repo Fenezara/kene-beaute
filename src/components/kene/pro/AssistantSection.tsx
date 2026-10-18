@@ -37,6 +37,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { CauriIcon, NsorommaIcon } from "@/components/kene/icons";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof } from "@/lib/kene/format";
@@ -54,6 +55,7 @@ import {
 import { MamanOrb3D, type OrbState } from "./MamanOrb3D";
 import type { DebriefResult } from "@/app/api/pro/assistant/debrief/route";
 import type { ProSectionId } from "./ProApp";
+import type { ProOverview, ProLive } from "./types";
 
 interface AssistantSectionProps {
   tenantId: string;
@@ -65,6 +67,9 @@ interface AssistantSectionProps {
   tenantPlan?: string;
   onNavigate?: (sec: ProSectionId) => void;
   refreshKey?: number;
+  overview?: ProOverview | null;
+  live?: ProLive | null;
+  assistantNonce?: number;
 }
 
 const QUICK_EXAMPLES = [
@@ -99,6 +104,9 @@ export function AssistantSection({
   allowedSections,
   tenantPlan = "trial",
   onNavigate,
+  overview,
+  live,
+  assistantNonce,
 }: AssistantSectionProps) {
   // Détermination dynamique des permissions effectives
   const canViewCaisse = isOwner || Boolean(allowedSections?.includes("caisse") || allowedSections?.includes("dashboard"));
@@ -215,8 +223,16 @@ export function AssistantSection({
     return "idle";
   }, [executed, audioState, loading, executing, isTranscribing, isRecording]);
 
-  // Référence pour garantir que la salutation orale automatique n'est jouée qu'une fois par entrée sur l'onglet
-  const autoGreetedRef = useRef(false);
+  // Audio activé par défaut (persistance locale avec fallback true)
+  const [audioEnabled, setAudioEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const saved = localStorage.getItem("kene_assistant_audio_enabled");
+      return saved !== "false";
+    } catch {
+      return true;
+    }
+  });
 
   /* ───────────────────────── Contrôle Audio & Zéro Empilement ───────────────────────── */
 
@@ -246,48 +262,120 @@ export function AssistantSection({
     setAudioState("idle");
   }, []);
 
-  const speakText = useCallback(async (spokenText: string) => {
-    const textToSpeak = spokenText?.trim();
-    if (!textToSpeak) return;
-
-    // Coupe net toute parole ou synthèse en cours (aucun empilement)
-    stopAllSpeech();
-
-    setAudioState("loading");
-    unlockAudioContext();
-
-    try {
-      const ctrl = await playSpeech({
-        text: textToSpeak,
-        speed: 1,
-        lang: "fr",
-        onStart: () => setAudioState("playing"),
-        onEnd: () => {
-          setAudioState("idle");
-          speechCtrlRef.current = null;
-        },
-        onError: () => {
-          setAudioState("idle");
-          speechCtrlRef.current = null;
-        },
-      });
-      speechCtrlRef.current = ctrl;
-    } catch {
-      setAudioState("idle");
-      speechCtrlRef.current = null;
-    }
+  const toggleAudioEnabled = useCallback(() => {
+    setAudioEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("kene_assistant_audio_enabled", String(next));
+      } catch {}
+      if (!next) {
+        stopAllSpeech();
+        toast.info("Audio de la secrétaire désactivé");
+      } else {
+        toast.success("Audio de la secrétaire activé par défaut");
+        unlockAudioContext();
+      }
+      return next;
+    });
   }, [stopAllSpeech]);
 
-  const togglePlayVocalSummary = useCallback(async (spokenText: string) => {
-    // Si la secrétaire parle déjà ou charge l'audio : couper immédiatement sans relancer !
-    if (audioState === "playing" || audioState === "loading") {
-      stopAllSpeech();
-      return;
-    }
-    await speakText(spokenText);
-  }, [audioState, stopAllSpeech, speakText]);
+  const speakText = useCallback(
+    async (spokenText: string, force = false) => {
+      if (!audioEnabled && !force) return;
+      const textToSpeak = spokenText?.trim();
+      if (!textToSpeak) return;
 
-  // Chargement automatique du briefing exécutif ET salutation vocale dès l'arrivée sur l'onglet
+      // Coupe net toute parole ou synthèse en cours (aucun empilement)
+      stopAllSpeech();
+
+      setAudioState("loading");
+      unlockAudioContext();
+
+      try {
+        const ctrl = await playSpeech({
+          text: textToSpeak,
+          speed: 1,
+          lang: "fr",
+          onStart: () => setAudioState("playing"),
+          onEnd: () => {
+            setAudioState("idle");
+            speechCtrlRef.current = null;
+          },
+          onError: () => {
+            setAudioState("idle");
+            speechCtrlRef.current = null;
+          },
+        });
+        speechCtrlRef.current = ctrl;
+      } catch {
+        setAudioState("idle");
+        speechCtrlRef.current = null;
+      }
+    },
+    [audioEnabled, stopAllSpeech]
+  );
+
+  const togglePlayVocalSummary = useCallback(
+    async (spokenText: string) => {
+      // Si la secrétaire parle déjà ou charge l'audio : couper immédiatement sans relancer !
+      if (audioState === "playing" || audioState === "loading") {
+        stopAllSpeech();
+        return;
+      }
+      await speakText(spokenText, true);
+    },
+    [audioState, stopAllSpeech, speakText]
+  );
+
+  // Salutation vocale instantanée (<50ms, 0 latence réseau, respecte la politique de lecture audio du navigateur)
+  const getImmediateGreeting = useCallback(() => {
+    const hour = new Date().getHours();
+    const timeGreeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+    const cleanFirstName = firstName || "Madame";
+
+    // KPIs et données immédiates synchrones sans aucun délai réseau
+    const apptsCount =
+      overview?.todayAppointments?.length ?? live?.apptsToday ?? overview?.kpis?.appointmentsToday ?? 0;
+    const caToday = overview?.kpis?.caToday ?? live?.salesToday ?? 0;
+    const lowStockCount = overview?.stockAlerts?.length ?? 0;
+
+    if (isOwner) {
+      let msg = `${timeGreeting} ${cleanFirstName} ! Bienvenue sur votre Secrétaire IA de ${tenantName}. `;
+      if (apptsCount > 0 && caToday > 0) {
+        msg += `Aujourd'hui, vous avez ${apptsCount} rendez-vous programmés et votre caisse compte déjà ${caToday.toLocaleString("fr-FR")} francs d'encaissements. `;
+      } else if (apptsCount > 0) {
+        msg += `Vous avez ${apptsCount} rendez-vous programmés aujourd'hui. `;
+      } else if (caToday > 0) {
+        msg += `Votre caisse compte déjà ${caToday.toLocaleString("fr-FR")} francs d'encaissements aujourd'hui. `;
+      }
+      if (lowStockCount > 0) {
+        msg += `Attention, vous avez ${lowStockCount} produit${lowStockCount > 1 ? "s" : ""} en alerte de stock. `;
+      }
+      msg += `Je veille sur votre institut et je suis à vos ordres. Dites-moi tout !`;
+      return msg;
+    } else {
+      let msg = `${timeGreeting} ${cleanFirstName} ! Bienvenue dans votre espace cabine. `;
+      if (apptsCount > 0) {
+        msg += `Il y a ${apptsCount} rendez-vous planifiés aujourd'hui. `;
+      }
+      msg += `Je suis à vos côtés pour vos soins et vos clientes. Que souhaitez-vous préparer ?`;
+      return msg;
+    }
+  }, [firstName, isOwner, tenantName, overview, live]);
+
+  // Déclenchement automatique de la voix dès le clic sur l'onglet 'Sécrétaire IA'
+  const lastSpokenNonceRef = useRef<number>(-1);
+  useEffect(() => {
+    if (!audioEnabled) return;
+    const currentNonce = assistantNonce ?? 0;
+    if (currentNonce !== lastSpokenNonceRef.current) {
+      lastSpokenNonceRef.current = currentNonce;
+      const greeting = getImmediateGreeting();
+      void speakText(greeting);
+    }
+  }, [assistantNonce, audioEnabled, getImmediateGreeting, speakText]);
+
+  // Chargement en arrière-plan du briefing exécutif complet (initiatives, détails enrichis)
   useEffect(() => {
     let isMounted = true;
     async function fetchGreeting() {
@@ -308,11 +396,6 @@ export function AssistantSection({
         );
         if (isMounted && res.summary) {
           setExecutiveBriefing(res.summary);
-          // La secrétaire commence à parler automatiquement dès l'ouverture de l'onglet !
-          if (!autoGreetedRef.current && res.summary.vocalSummary) {
-            autoGreetedRef.current = true;
-            void speakText(res.summary.vocalSummary);
-          }
         }
       } catch {
         /* best-effort */
@@ -323,9 +406,8 @@ export function AssistantSection({
     void fetchGreeting();
     return () => {
       isMounted = false;
-      stopAllSpeech();
     };
-  }, [tenantId, userName, userRole, isOwner, allowedSections, tenantPlan, speakText, stopAllSpeech]);
+  }, [tenantId, userName, userRole, isOwner, allowedSections, tenantPlan]);
 
   // Nettoyage au démontage
   useEffect(() => {
@@ -379,8 +461,8 @@ export function AssistantSection({
         toast.success("Votre secrétaire vous répond !");
       }
 
-      // Écoute automatique de la réponse vocale
-      if (res.debrief.vocalSummary) {
+      // Écoute automatique de la réponse vocale par défaut quand l'audio est activé
+      if (audioEnabled && res.debrief.vocalSummary) {
         void speakText(res.debrief.vocalSummary);
       }
     } catch (e) {
@@ -388,7 +470,7 @@ export function AssistantSection({
     } finally {
       setLoading(false);
     }
-  }, [loading, tenantId, text, userName, speakText]);
+  }, [loading, tenantId, text, userName, userRole, isOwner, allowedSections, tenantPlan, audioEnabled, speakText]);
 
   // Réponse en 1-Tap à une question de clarification
   function handleClarificationChoice(choiceValue: string) {
@@ -646,7 +728,7 @@ export function AssistantSection({
       }
       const res = await apiGet<{ summary: any }>(`/api/pro/assistant/daily-summary?${queryParams.toString()}`);
       setEveningData(res.summary);
-      if (res.summary.vocalSummary) {
+      if (audioEnabled && res.summary.vocalSummary) {
         void speakText(res.summary.vocalSummary);
       }
     } catch {
@@ -690,8 +772,38 @@ export function AssistantSection({
             </p>
           </div>
 
-          {/* Actions rapides d'en-tête (Audio + Switcher) */}
+          {/* Actions rapides d'en-tête (Audio activé par défaut + Écouter le point + Switcher) */}
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+            {/* Contrôle et statut de l'Audio activé par défaut */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={toggleAudioEnabled}
+              className={cn(
+                "h-10 px-3.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border shrink-0",
+                audioEnabled
+                  ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 shadow-xs"
+                  : "bg-muted/60 border-border text-muted-foreground hover:text-foreground"
+              )}
+              title={
+                audioEnabled
+                  ? "Audio activé par défaut (cliquer pour couper la voix)"
+                  : "Audio muet (cliquer pour activer la voix)"
+              }
+            >
+              {audioEnabled ? (
+                <>
+                  <Volume2 size={16} className="text-emerald-500 animate-pulse shrink-0" />
+                  <span>Audio activé par défaut</span>
+                </>
+              ) : (
+                <>
+                  <VolumeX size={16} className="shrink-0" />
+                  <span>Audio muet</span>
+                </>
+              )}
+            </Button>
+
             {executiveBriefing?.vocalSummary && (
               <Button
                 type="button"
