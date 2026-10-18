@@ -14,7 +14,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
-import { Bell, BellRing, CheckCheck, CheckCircle2, Loader2, Smartphone } from "lucide-react";
+import {
+  ArrowRight,
+  Bell,
+  BellRing,
+  CalendarDays,
+  CheckCheck,
+  CheckCircle2,
+  Crown,
+  Leaf,
+  Loader2,
+  ScanFace,
+  Smartphone,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -22,10 +34,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { getActivePushSubscription, getPushStatus, pushKeyToBase64, subscribeToPush, type PushStatus } from "@/lib/kene/push-client";
-import { channelLabel, humanWhen } from "@/lib/kene/reminders";
+import { channelLabel, humanWhen, readMeta } from "@/lib/kene/reminders";
 import { cn } from "@/lib/utils";
-import type { ApiReminderFeed } from "./types";
+import type { ApiReminderFeed, ApiReminder } from "./types";
 import { requestPersistentNotification } from "@/lib/kene/hardware-perm";
+import { useKene, type ClientTab } from "@/store/kene";
+import type { BodyZone } from "@/lib/kene/types";
+import { HAPTIC, haptic } from "@/lib/kene/ux";
 
 const NOTIFY_PORT = 3004;
 
@@ -39,14 +54,116 @@ function excerpt(s: string, max = 70): string {
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
+interface NotifPresentation {
+  categoryLabel: string;
+  actionLabel: string;
+  targetTab: ClientTab;
+  targetZone?: BodyZone;
+  Icon: typeof BellRing;
+  iconBoxClass: string;
+  badgeClass: string;
+  channelDisplay: string;
+}
+
+function classifyNotification(item: ApiReminder): NotifPresentation {
+  const meta = readMeta(item.metaJson);
+  const msg = (item.message || "").toLowerCase();
+
+  // Détection de la zone si mentionnée dans le message
+  let detectedZone: BodyZone | undefined;
+  if (msg.includes("visage")) detectedZone = "visage";
+  else if (msg.includes("dos")) detectedZone = "dos";
+  else if (msg.includes("cuir chevelu")) detectedZone = "cuir_chevelu";
+  else if (msg.includes("mains")) detectedZone = "mains";
+  else if (msg.includes("barbe")) detectedZone = "barbe";
+
+  // 1) Diagnostic / Contrôle S+3 / Protocole cutané
+  if (meta.diagId || msg.includes("diagnostic") || msg.includes("protocole") || msg.includes("bilan") || msg.includes("score")) {
+    const isRescanPrompt = item.status === "scheduled" || msg.includes("refais") || msg.includes("3 semaines");
+    return {
+      categoryLabel: isRescanPrompt ? "Contrôle Évolution S+3" : "Bilan Cutané IA",
+      actionLabel: isRescanPrompt ? "Lancer mon scan de suivi" : "Ouvrir mon Dossier Peau",
+      targetTab: isRescanPrompt ? "diagnostic" : "dossier",
+      targetZone: detectedZone,
+      Icon: ScanFace,
+      iconBoxClass: "bg-gold/15 text-gold-text border border-gold/30",
+      badgeClass: "bg-gold/15 text-gold-text border border-gold/30",
+      channelDisplay: "Suivi Dermo Kènè",
+    };
+  }
+
+  // 2) Rendez-vous en institut (J-1 ou confirmation)
+  if (meta.apptId || msg.includes("rappel :") || msg.includes("institut") || msg.includes("rdv") || msg.includes("soin")) {
+    return {
+      categoryLabel: "Rendez-vous Institut",
+      actionLabel: "Voir mes Soins & RDV",
+      targetTab: "agenda",
+      Icon: CalendarDays,
+      iconBoxClass: "bg-[#2E6F40]/15 text-[#2E6F40] border border-[#2E6F40]/30",
+      badgeClass: "bg-[#2E6F40]/15 text-[#2E6F40] border border-[#2E6F40]/30",
+      channelDisplay: "Agenda Cabine",
+    };
+  }
+
+  // 3) Abonnement Kènè+ (J-3 ou renouvellement)
+  if (meta.dedupKey?.startsWith("sub:") || msg.includes("abonnement") || msg.includes("kènè+")) {
+    return {
+      categoryLabel: "Abonnement Kènè+",
+      actionLabel: "Gérer mon abonnement",
+      targetTab: "abonnement",
+      Icon: Crown,
+      iconBoxClass: "bg-primary/15 text-primary border border-primary/30",
+      badgeClass: "bg-primary/12 text-primary border border-primary/25",
+      channelDisplay: "Espace Kènè+",
+    };
+  }
+
+  // 4) Routine / Conseil botanique par défaut
+  return {
+    categoryLabel: "Conseil & Routine",
+    actionLabel: "Consulter Dermo Kènè",
+    targetTab: "accueil",
+    Icon: Leaf,
+    iconBoxClass: "bg-primary/15 text-primary border border-primary/25",
+    badgeClass: "bg-primary/10 text-primary",
+    channelDisplay: item.channel === "whatsapp" ? "Notification Kènè" : channelLabel(item.channel),
+  };
+}
+
+/** Déclenche une notification système native sur Android/iOS via le Service Worker si autorisé */
+async function triggerNativeNotification(title: string, body: string) {
+  try {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && typeof reg.showNotification === "function") {
+        await reg.showNotification(title, {
+          body,
+          icon: "/icons/icon-192.png",
+          badge: "/icons/icon-192.png",
+          tag: `kene-notif-${Date.now()}`,
+        });
+        return;
+      }
+    }
+    new Notification(title, { body, icon: "/icons/icon-192.png" });
+  } catch {
+    // silencieux si bloqué par l'OS
+  }
+}
+
 export function NotificationCenter({
   userId,
   onLiveFeed,
+  onNavigate,
   className,
 }: {
   userId: string;
- /** Appelé à chaque fil reçu en temps réel (badge + liste à jour) */
+  /** Appelé à chaque fil reçu en temps réel (badge + liste à jour) */
   onLiveFeed?: (feed: ApiReminderFeed) => void;
+  /** Navigation directe en 1 tap vers l'écran cible de la notification */
+  onNavigate?: (tab: ClientTab, zone?: BodyZone) => void;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -55,6 +172,8 @@ export function NotificationCenter({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [live, setLive] = useState(false);
+  // Conserve les IDs qui étaient non-lus à l'ouverture du tiroir pour garder le badge "Nouveau" visible pendant la lecture
+  const [sessionFreshIds, setSessionFreshIds] = useState<Set<string>>(new Set());
   // Web Push: "checking" le temps de lire permission + abonnement réels,
   // puis "on" | "off" | "unsupported" (navigateur sans service worker/PushManager).
   const [pushStatus, setPushStatus] = useState<PushStatus | "checking">("checking");
@@ -110,9 +229,9 @@ export function NotificationCenter({
     };
   }, []);
 
- /* ── Temps réel: connexion au notify-service ──────────────────
- * io('/?XTransformPort=3004'): la gateway route vers le mini-service.
- * Une seule socket par onglet, partagée badge + Sheet + carte accueil. */
+  /* ── Temps réel: connexion au notify-service ──────────────────
+   * io('/?XTransformPort=3004'): la gateway route vers le mini-service.
+   * Une seule socket par onglet, partagée badge + Sheet + carte accueil. */
   useEffect(() => {
     // Never use PORT in the URL, always use XTransformPort
     // DO NOT change the path, it is used by Caddy to forward the request to the correct port
@@ -125,8 +244,6 @@ export function NotificationCenter({
     });
     socketRef.current = socket;
 
-    // Auto-guérison: service redémarré à chaud → zombie détecté ≤ 35 s,
-    // reconnexion → join rejoué au connect.
     const disarm = armHeartbeat(socket);
 
     socket.on("connect", () => {
@@ -137,14 +254,26 @@ export function NotificationCenter({
     socket.on("feed", (f: unknown) => {
       if (!looksLikeFeed(f)) return;
       setFeed(f);
-      // Toast d'arrivée: seulement une NOUVELLE non-lue, feuille fermée
-      // (feuille ouverte → la liste s'anime d'elle-même).
+      // Toast interactif + Notification système Android si nouvelle non-lue
       const prev = prevUnreadRef.current;
       if (prev !== null && f.unread > prev && !openRef.current) {
         const first = f.sent.find((n) => !n.readAt);
-        toast("Nouvelle notification", {
-          description: first ? excerpt(first.message) : `${f.unread} notification${f.unread > 1 ? "s" : ""} non lue${f.unread > 1 ? "s" : ""}.`,
+        const bodyText = first ? excerpt(first.message, 90) : `${f.unread} notification${f.unread > 1 ? "s" : ""} non lue${f.unread > 1 ? "s" : ""}.`;
+        haptic(HAPTIC.light);
+        toast("Nouvelle notification Kènè", {
+          description: bodyText,
+          action: first
+            ? {
+                label: "Voir",
+                onClick: () => {
+                  const info = classifyNotification(first);
+                  if (onNavigate) onNavigate(info.targetTab, info.targetZone);
+                  else useKene.getState().setClientTab(info.targetTab);
+                },
+              }
+            : undefined,
         });
+        void triggerNativeNotification("Kènè — Suivi Cutané", bodyText);
       }
       prevUnreadRef.current = f.unread;
       onLiveFeedRef.current?.(f);
@@ -157,14 +286,46 @@ export function NotificationCenter({
       socketRef.current = null;
       setLive(false);
     };
-  }, [userId]);
+  }, [userId, onNavigate]);
 
-  // Refraîchi à chaque ouverture (doublon volontaire: le GET déclenche aussi
-  // backfill + due-runner côté API — le socket prend ensuite le relais)
+  // Anti-fatigue du badge "9+" : quand l'utilisatrice ouvre le panneau de notifications,
+  // on mémorise les cartes "Nouveau" pour l'affichage visuel et on éteint automatiquement
+  // le compteur global après 1,5 seconde de lecture.
+  useEffect(() => {
+    if (!open || !feed || feed.unread === 0) return;
+    const unreadIds = (feed.sent ?? []).filter((n) => !n.readAt).map((n) => n.id);
+    if (unreadIds.length > 0) {
+      setSessionFreshIds((prev) => {
+        const next = new Set(prev);
+        unreadIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+    const timer = window.setTimeout(async () => {
+      try {
+        await apiPost<{ ok: boolean; updated: number }>("/api/notifications/read", { userId });
+        setFeed((f) =>
+          f
+            ? { ...f, unread: 0, sent: f.sent.map((n) => ({ ...n, readAt: n.readAt ?? new Date().toISOString() })) }
+            : f
+        );
+        prevUnreadRef.current = 0;
+        socketRef.current?.emit("read-all", { userId });
+      } catch {
+        // silencieux
+      }
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [open, feed, userId]);
+
   function onOpenChange(o: boolean) {
     setOpen(o);
     openRef.current = o;
-    if (o) void load(true);
+    if (o) {
+      void load(true);
+    } else {
+      setSessionFreshIds(new Set());
+    }
   }
 
   async function markAllRead() {
@@ -172,14 +333,13 @@ export function NotificationCenter({
     setBusy(true);
     try {
       const r = await apiPost<{ ok: boolean; updated: number }>("/api/notifications/read", { userId });
-      // Mise à jour locale immédiate: badge à zéro + items marqués lus
       setFeed((f) =>
         f
           ? { ...f, unread: 0, sent: f.sent.map((n) => ({ ...n, readAt: n.readAt ?? new Date().toISOString() })) }
           : f
       );
       prevUnreadRef.current = 0;
-      // Le service temps réel repousse un fil frais (jamais de badge périmé)
+      setSessionFreshIds(new Set());
       socketRef.current?.emit("read-all", { userId });
       toast.success("Tout est lu", { description: `${r.updated} notification${r.updated > 1 ? "s" : ""} marquée${r.updated > 1 ? "s" : ""} comme lue${r.updated > 1 ? "s" : ""}.` });
     } catch (e) {
@@ -189,9 +349,33 @@ export function NotificationCenter({
     }
   }
 
- /* ── Web Push: activation des rappels téléphone ───────────────
- * Permission navigateur → clé publique VAPID → abonnement pushManager
- * → enregistrement côté serveur (dispatch même app fermée). */
+  async function handleNotificationClick(item: ApiReminder) {
+    haptic(HAPTIC.tap);
+    const info = classifyNotification(item);
+
+    // Si non lue, marquer individuellement comme lue
+    if (!item.readAt && item.status === "sent") {
+      setFeed((f) =>
+        f
+          ? {
+              ...f,
+              unread: Math.max(0, f.unread - 1),
+              sent: f.sent.map((n) => (n.id === item.id ? { ...n, readAt: new Date().toISOString() } : n)),
+            }
+          : f
+      );
+      void apiPost("/api/notifications/read", { userId, ids: [item.id] }).catch(() => undefined);
+    }
+
+    onOpenChange(false);
+    if (onNavigate) {
+      onNavigate(info.targetTab, info.targetZone);
+    } else {
+      useKene.getState().setClientTab(info.targetTab);
+    }
+  }
+
+  /* ── Web Push: activation des rappels téléphone ─────────────── */
   async function enablePush() {
     if (pushBusy) return;
     setPushBusy(true);
@@ -226,7 +410,6 @@ export function NotificationCenter({
     }
   }
 
- /* Désactivation: désabonnement local (pushManager) + purge serveur. */
   async function disablePush() {
     if (pushBusy) return;
     setPushBusy(true);
@@ -271,51 +454,54 @@ export function NotificationCenter({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="bottom"
-          className="max-w-[560px] mx-auto rounded-t-3xl max-h-[82vh] flex flex-col"
+          className="max-w-[560px] mx-auto rounded-t-3xl max-h-[85vh] flex flex-col"
         >
-          <SheetHeader className="text-left shrink-0">
-            <SheetTitle className="font-heading font-black flex items-center gap-2 flex-wrap">
-              <BellRing size={18} className="text-primary" aria-hidden="true" /> Notifications
-              {live && (
-                <span
-                  title="Connectée en temps réel"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#3F7D3F]/10 text-[#3F7D3F] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide"
-                >
-                  <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3F7D3D] opacity-75" />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#3F7D3F]" />
+          <SheetHeader className="text-left shrink-0 pb-2">
+            <div className="flex items-center justify-between gap-2 pr-6">
+              <SheetTitle className="font-heading font-black flex items-center gap-2 flex-wrap">
+                <BellRing size={18} className="text-primary" aria-hidden="true" /> Centre de Notifications
+                {live && (
+                  <span
+                    title="Connectée en temps réel"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[#3F7D3F]/10 text-[#3F7D3F] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+                  >
+                    <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3F7D3D] opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#3F7D3F]" />
+                    </span>
+                    En direct
                   </span>
-                  En direct
-                </span>
+                )}
+              </SheetTitle>
+              {(unread > 0 || sessionFreshIds.size > 0) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={markAllRead}
+                  disabled={busy}
+                  className="gap-1 h-8 px-2.5 text-[11px] rounded-full shrink-0"
+                >
+                  <CheckCheck size={13} aria-hidden="true" />
+                  <span>Tout lu</span>
+                </Button>
               )}
-            </SheetTitle>
+            </div>
             <p className="text-xs text-muted-foreground">
-              Rappels automatiques Kènè — contrôle de protocole, RDV J-1 et messages de l&apos;institut.
+              Appuie sur une notification pour ouvrir directement ton bilan, ton scanner ou ton rendez-vous.
             </p>
-            {unread > 0 && (
-              <Button
-                variant="outline"
-                onClick={markAllRead}
-                disabled={busy}
-                className="gap-1.5 w-fit min-h-11 px-4 text-xs"
-              >
-                <CheckCheck size={14} aria-hidden="true" />
-                {busy ? "Marquage…" : `Tout marquer comme lu (${unread})`}
-              </Button>
-            )}
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto pretty-scroll px-4 pb-4 space-y-4">
             {loading && !feed ? (
               <div className="space-y-2.5 pt-2">
-                <Skeleton className="h-[76px] rounded-2xl" />
-                <Skeleton className="h-[76px] rounded-2xl" />
-                <Skeleton className="h-[76px] rounded-2xl" />
+                <Skeleton className="h-[88px] rounded-2xl" />
+                <Skeleton className="h-[88px] rounded-2xl" />
+                <Skeleton className="h-[88px] rounded-2xl" />
               </div>
             ) : err && !feed ? (
               <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-center">
                 <p className="text-xs text-destructive">{err}</p>
-                <Button variant="outline" className="mt-2 min-h-11 px-4" onClick={() => void load(true)}>
+                <Button variant="outline" className="mt-2 min-h-10 px-4" onClick={() => void load(true)}>
                   Réessayer
                 </Button>
               </div>
@@ -329,48 +515,63 @@ export function NotificationCenter({
               </div>
             ) : (
               <>
-                {/* ── À venir ── */}
+                {/* ── Prochaines étapes programmées (À venir) ── */}
                 {(feed.scheduled?.length ?? 0) > 0 && (
                   <section aria-labelledby="nc-upcoming" className="pt-1">
-                    <p id="nc-upcoming" className="text-[10px] uppercase tracking-[0.14em] font-bold text-[#3F7D3F] mb-2">
-                      À venir ({feed.scheduled?.length ?? 0})
+                    <p id="nc-upcoming" className="text-[10px] uppercase tracking-[0.14em] font-bold text-[#2E6F40] mb-2">
+                      Prochaines étapes programmées ({feed.scheduled?.length ?? 0})
                     </p>
                     <ul className="space-y-2.5">
-                      {feed.scheduled?.map((m) => (
-                        <li
-                          key={m.id}
-                          className="flex items-start gap-3 rounded-2xl border border-[#3F7D3F]/25 bg-[#3F7D3F]/5 p-3.5"
-                        >
-                          <span className="grid place-items-center h-9 w-9 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] shrink-0">
-                            <BellRing size={16} aria-hidden="true" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs leading-relaxed">{m.message}</p>
-                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                              <span className="rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide">
-                                Programmé
+                      {feed.scheduled?.map((m) => {
+                        const info = classifyNotification(m);
+                        const ItemIcon = info.Icon;
+                        return (
+                          <li key={m.id}>
+                            <button
+                              type="button"
+                              onClick={() => void handleNotificationClick(m)}
+                              className="w-full text-left flex items-start gap-3 rounded-2xl border border-[#2E6F40]/30 bg-[#2E6F40]/[0.05] hover:bg-[#2E6F40]/[0.1] active:scale-[0.99] transition-all p-3.5 cursor-pointer"
+                            >
+                              <span className={cn("grid place-items-center h-9 w-9 rounded-xl shrink-0", info.iconBoxClass)}>
+                                <ItemIcon size={16} aria-hidden="true" />
                               </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {m.scheduledAt ? humanWhen(m.scheduledAt) : "à venir"} · {channelLabel(m.channel)}
-                              </span>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide", info.badgeClass)}>
+                                    {info.categoryLabel}
+                                  </span>
+                                  <span className="text-[10px] font-semibold text-[#2E6F40]">
+                                    {m.scheduledAt ? humanWhen(m.scheduledAt) : "À venir"}
+                                  </span>
+                                </div>
+                                <p className="text-xs leading-relaxed text-foreground/90">{m.message}</p>
+                                <div className="mt-2 flex items-center justify-between gap-2">
+                                  <span className="text-[10px] text-muted-foreground">{info.channelDisplay}</span>
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary">
+                                    {info.actionLabel} <ArrowRight size={12} />
+                                  </span>
+                                </div>
+                              </div>
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </section>
                 )}
 
-                {/* ── Reçues ── */}
+                {/* ── Notifications reçues ── */}
                 {(feed.sent?.length ?? 0) > 0 && (
                   <section aria-labelledby="nc-sent">
                     <p id="nc-sent" className="text-[10px] uppercase tracking-[0.14em] font-bold text-muted-foreground mb-2">
-                      Reçues ({feed.sent?.length ?? 0})
+                      Reçues récemment ({feed.sent?.length ?? 0})
                     </p>
                     <ul className="space-y-2.5">
                       <AnimatePresence initial={false}>
                         {feed.sent?.map((m) => {
-                          const isUnread = !m.readAt;
+                          const isUnread = !m.readAt || sessionFreshIds.has(m.id);
+                          const info = classifyNotification(m);
+                          const ItemIcon = info.Icon;
                           return (
                             <motion.li
                               key={m.id}
@@ -378,32 +579,50 @@ export function NotificationCenter({
                               initial={{ opacity: 0, y: 8 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: -6 }}
-                              className={cn(
-                                "flex items-start gap-3 rounded-2xl border p-3.5 transition-colors",
-                                isUnread ? "border-primary/30 bg-primary/[0.06]" : "border-border bg-card"
-                              )}
                             >
-                              <span
+                              <button
+                                type="button"
+                                onClick={() => void handleNotificationClick(m)}
                                 className={cn(
-                                  "grid place-items-center h-9 w-9 rounded-full shrink-0",
-                                  isUnread ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                                  "w-full text-left flex items-start gap-3 rounded-2xl border p-3.5 transition-all hover:border-primary/40 active:scale-[0.99] cursor-pointer",
+                                  isUnread ? "border-primary/35 bg-primary/[0.06] shadow-xs" : "border-border bg-card"
                                 )}
                               >
-                                {isUnread ? <BellRing size={16} aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
-                              </span>
-                              <div className="min-w-0 flex-1">
-                                <p className={cn("text-xs leading-relaxed", isUnread ? "font-medium" : "text-foreground/80")}>{m.message}</p>
-                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                  {isUnread && (
-                                    <span className="rounded-full bg-[#8B1A3B]/12 text-[#8B1A3B] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide">
-                                      Nouveau
-                                    </span>
+                                <span
+                                  className={cn(
+                                    "grid place-items-center h-9 w-9 rounded-xl shrink-0",
+                                    isUnread ? info.iconBoxClass : "bg-muted text-muted-foreground"
                                   )}
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {humanWhen(m.createdAt)} · {channelLabel(m.channel)}
-                                  </span>
+                                >
+                                  {isUnread ? <ItemIcon size={16} aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide", info.badgeClass)}>
+                                        {info.categoryLabel}
+                                      </span>
+                                      {isUnread && (
+                                        <span className="rounded-full bg-[#8B1A3B] text-[#FFF9EC] px-1.5 py-0.5 text-[8.5px] font-black uppercase tracking-wide">
+                                          Nouveau
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {humanWhen(m.createdAt)}
+                                    </span>
+                                  </div>
+                                  <p className={cn("text-xs leading-relaxed", isUnread ? "font-semibold text-foreground" : "text-foreground/80")}>
+                                    {m.message}
+                                  </p>
+                                  <div className="mt-2 flex items-center justify-between gap-2">
+                                    <span className="text-[10px] text-muted-foreground">{info.channelDisplay}</span>
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary">
+                                      {info.actionLabel} <ArrowRight size={12} />
+                                    </span>
+                                  </div>
                                 </div>
-                              </div>
+                              </button>
                             </motion.li>
                           );
                         })}
@@ -415,37 +634,34 @@ export function NotificationCenter({
             )}
           </div>
 
-          {/* ── Rappels sur mon téléphone (Web Push,) ──
- Pinnée en bas du Sheet (hors zone de scroll): le Switch pilote
- l'abonnement Push API — notifications système même app fermée. */}
+          {/* ── Rappels sur mon téléphone (Web Push) ── */}
           <div className="shrink-0 border-t border-border px-4 pt-3 pb-4">
-            <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-card p-3.5">
+            <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
               <span
                 className={cn(
-                  "grid place-items-center h-11 w-11 rounded-full shrink-0",
+                  "grid place-items-center h-10 w-10 rounded-full shrink-0",
                   pushStatus === "on" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
                 )}
                 aria-hidden="true"
               >
-                {pushBusy ? <Loader2 size={20} className="animate-spin" /> : <Smartphone size={20} />}
+                {pushBusy ? <Loader2 size={18} className="animate-spin" /> : <Smartphone size={18} />}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold">Rappels sur mon téléphone</p>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                <p className="text-xs font-semibold">Alertes système sur ce téléphone</p>
+                <p className="text-[11px] text-muted-foreground leading-snug">
                   {pushStatus === "unsupported"
                     ? "Non disponible sur ce navigateur"
                     : pushStatus === "on"
-                      ? "Activés — tu reçois tes rappels même application fermée"
-                      : "Reçois tes rappels même application fermée"}
+                      ? "Activées — tu es prévenue même écran éteint"
+                      : "Reçois tes alertes bilan & RDV même app fermée"}
                 </p>
               </div>
               <Switch
                 checked={pushStatus === "on"}
                 onCheckedChange={(v) => (v ? void enablePush() : void disablePush())}
                 disabled={pushBusy || pushStatus === "checking" || pushStatus === "unsupported"}
-                aria-label="Rappels sur mon téléphone"
-                // Interrupteur agrandi (h-10 w-14 ≥ 40 px, pouce size-7)
-                className="h-10 w-14 [&_[data-slot=switch-thumb]]:size-7"
+                aria-label="Alertes système sur ce téléphone"
+                className="h-9 w-13 [&_[data-slot=switch-thumb]]:size-6"
               />
             </div>
           </div>

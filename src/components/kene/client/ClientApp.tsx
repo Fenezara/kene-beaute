@@ -502,12 +502,16 @@ export function ClientApp() {
         {/* Header unique responsive: mobile = logo + actions; desktop = titre + actions.
             k-chrome = verre blur+saturate (le CSS gère le filet et l'ombre). Calage direct sur la barre d'état du téléphone. */}
         <header className="shrink-0 z-40 k-chrome [padding-top:env(safe-area-inset-top,0px)]">
-          <div className="h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3 px-2 sm:px-5">
-            {/* 1. GAUCHE : Logo Kènè & Titre (immunisé contre tout écrasement grâce à shrink-0) */}
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="h-14 sm:h-16 flex items-center justify-between gap-1 sm:gap-3 px-2 sm:px-5 max-w-full overflow-hidden">
+            {/* 1. GAUCHE : Logo Kènè & Titre (compact sur petits écrans Android 320-360px) */}
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
               <div className="md:hidden shrink-0">
-                {/* Lockup Sceau officiel compact — le Médaillon Kènè + nom Kènè net et stable */}
-                <KeneEmblemLockup size={34} labelSize={17} sublabel={null} />
+                <div className="hidden min-[375px]:block">
+                  <KeneEmblemLockup size={32} labelSize={16} sublabel={null} />
+                </div>
+                <div className="min-[375px]:hidden">
+                  <KeneEmblemLockup size={28} labelSize={14} sublabel={null} />
+                </div>
               </div>
               <div className="hidden md:flex items-baseline gap-2.5 min-w-0 flex-1 overflow-hidden">
                 <h1 className="font-heading font-bold tracking-tight text-lg xl:text-xl truncate text-foreground">{t(TITLES[tab])}</h1>
@@ -517,8 +521,8 @@ export function ClientApp() {
               </div>
             </div>
 
-            {/* 2. DROITE : Dermo Kènè + Actions rapides (Switcher, Cloche, Réglages, Thème) */}
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* 2. DROITE : Dermo Kènè + Actions rapides (Switcher, Cloche, Réglages, Thème) — 100% visibles même sur 320px */}
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0 pr-0.5">
               {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — Visible uniquement sur les autres onglets pour retour direct */}
               {tab !== "accueil" && tab !== "chat" && (
                 <button
@@ -535,16 +539,16 @@ export function ClientApp() {
                   }}
                   aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
                   title="Consulter Dermo Kènè (Conseils dermo-cosmétiques & Chat IA 24/7)"
-                  className="relative flex items-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-2.5 sm:px-4 rounded-full border-2 border-[#D49A24]/70 bg-gradient-to-r from-[#D49A24]/15 via-[#C93B62]/10 to-card/90 hover:from-[#D49A24]/25 hover:to-[#C93B62]/15 text-foreground font-black transition-all active:scale-95 shadow-xs shrink-0 select-none cursor-pointer"
+                  className="relative flex items-center gap-1 sm:gap-2 h-8 sm:h-11 px-2 sm:px-4 rounded-full border-2 border-[#D49A24]/70 bg-gradient-to-r from-[#D49A24]/15 via-[#C93B62]/10 to-card/90 hover:from-[#D49A24]/25 hover:to-[#C93B62]/15 text-foreground font-black transition-all active:scale-95 shadow-xs shrink-0 select-none cursor-pointer"
                 >
-                  <span className="relative grid size-5.5 sm:size-6 place-items-center rounded-full bg-gradient-to-br from-[#D49A24] to-[#C93B62] text-white shadow-xs shrink-0">
-                    <MessageCircle size={13} className="text-white sm:hidden" />
+                  <span className="relative grid size-5 sm:size-6 place-items-center rounded-full bg-gradient-to-br from-[#D49A24] to-[#C93B62] text-white shadow-xs shrink-0">
+                    <MessageCircle size={12} className="text-white sm:hidden" />
                     <MessageCircle size={15} className="text-white hidden sm:block" />
-                    <span className="absolute -top-0.5 -right-0.5 size-2 sm:size-2.5 rounded-full bg-emerald-500 ring-1.5 ring-background animate-pulse" />
+                    <span className="absolute -top-0.5 -right-0.5 size-1.5 sm:size-2.5 rounded-full bg-emerald-500 ring-1 ring-background animate-pulse" />
                   </span>
-                  <span className="text-[12px] sm:text-sm font-black tracking-tight flex items-center gap-1 sm:gap-1.5 text-foreground whitespace-nowrap">
+                  <span className="text-[11px] sm:text-sm font-black tracking-tight flex items-center gap-1 sm:gap-1.5 text-foreground whitespace-nowrap">
                     <span>Dermo Kènè</span>
-                    <span className="text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-full bg-[#9E2045]/15 text-[#9E2045] dark:text-[#F77698] border border-[#9E2045]/30 uppercase tracking-wider">
+                    <span className="hidden min-[410px]:inline-block text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-full bg-[#9E2045]/15 text-[#9E2045] dark:text-[#F77698] border border-[#9E2045]/30 uppercase tracking-wider">
                       24/7
                     </span>
                   </span>
@@ -554,7 +558,7 @@ export function ClientApp() {
                 </button>
               )}
 
-              {/* 🧴 Bouton direct Scanner INCI (ouvre le scanner dédié, sans aller dans le chat / orbe) */}
+              {/* 🧴 Bouton direct Scanner INCI (compact sur petits écrans) */}
               <button
                 type="button"
                 onClick={() => {
@@ -562,18 +566,24 @@ export function ClientApp() {
                   setInciScannerOpen(true);
                 }}
                 title="Scanner un produit cosmétique (Détection Hydroquinone, Corticoïdes & Allergènes)"
-                className="inline-flex items-center gap-1 sm:gap-1.5 h-9 sm:h-11 px-2.5 sm:px-3 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-gold-text text-xs font-bold active:scale-95 transition-all shadow-xs shrink-0 select-none cursor-pointer"
+                className="inline-flex items-center gap-1 sm:gap-1.5 h-8 sm:h-11 px-2 sm:px-3 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-gold-text text-[11px] sm:text-xs font-bold active:scale-95 transition-all shadow-xs shrink-0 select-none cursor-pointer"
               >
-                <ShieldAlert size={14} className="text-gold-text shrink-0 sm:size-[15px]" />
-                <span className="hidden xs:inline truncate">Scanner INCI</span>
-                <span className="xs:hidden text-[11px]">INCI</span>
+                <ShieldAlert size={13} className="text-gold-text shrink-0 sm:size-[15px]" />
+                <span className="hidden sm:inline truncate">Scanner INCI</span>
+                <span className="sm:hidden">INCI</span>
               </button>
 
               <SpaceSwitcher variant="compact" />
 
-              {/* Cloche notifications: flux temps réel (notify-service) */}
+              {/* Cloche notifications: flux temps réel + navigation en 1 tap */}
               <Suspense fallback={<BellLoading />}>
-                <NotificationCenter userId={effectiveUser.id} />
+                <NotificationCenter
+                  userId={effectiveUser.id}
+                  onNavigate={(targetTab, zone) => {
+                    if (zone) setPendingZone(zone);
+                    goTab(targetTab);
+                  }}
+                />
               </Suspense>
 
               {/* Engrenage Paramètres — visible dès tablette sm+ (sur mobile accessible via onglet Profil) */}
@@ -627,7 +637,7 @@ export function ClientApp() {
             </div>
           )}
           {refreshing && <span role="status" className="sr-only">Actualisation du fil en cours</span>}
-          <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8">
+          <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-[calc(84px+env(safe-area-inset-bottom,0px))] md:pb-8">
             {/* Bannière douce de sauvegarde WhatsApp si en mode Découverte */}
             <GuestSaveBanner />
 
@@ -695,12 +705,12 @@ export function ClientApp() {
           </div>
         </div>
 
-        {/* ───────── Tab-bar mobile flottante — chrome verre 2026 + blob actif ───────── */}
+        {/* ───────── Tab-bar mobile flottante — calibrée pour Android 320px-360px (1 ligne stricte, zéro débordement) ───────── */}
         <nav
           aria-label="Navigation principale mobile"
           className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]"
         >
-          <div className="pointer-events-auto mx-3 mb-2.5 grid grid-cols-5 h-[64px] rounded-[30px] k-chrome">
+          <div className="pointer-events-auto mx-2 sm:mx-3 mb-2 px-1 grid grid-cols-5 h-[64px] items-center rounded-[28px] k-chrome">
             {NAV_MOBILE.map((n) => {
               const active = tab === n.tab;
               const Icon = n.icon;
@@ -711,17 +721,19 @@ export function ClientApp() {
                     onClick={() => goTab(n.tab)}
                     aria-current={active ? "page" : undefined}
                     aria-label={t("nav.scan.aria")}
-                    className="relative flex flex-col items-center justify-end pb-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+                    className="relative flex flex-col items-center justify-end h-full pb-1.5 min-w-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
                   >
                     <span
                       className={cn(
-                        "grid place-items-center h-[50px] w-[50px] -mt-7 rounded-full border-4 border-background transition-all active:scale-95",
+                        "grid place-items-center h-[46px] w-[46px] -mt-6 rounded-full border-4 border-background transition-all active:scale-95 shrink-0",
                         "bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] k-glow-gold",
                       )}
                     >
-                      <NeaOnnimIcon size={23} />
+                      <NeaOnnimIcon size={21} />
                     </span>
-                    <span className={cn("text-xs font-semibold mt-0.5", active ? "text-primary font-bold" : "text-muted-foreground")}>{t(n.labelKey)}</span>
+                    <span className={cn("text-[10px] sm:text-[11px] leading-none whitespace-nowrap truncate max-w-full px-0.5 mt-1", active ? "text-primary font-bold" : "text-muted-foreground font-semibold")}>
+                      {t(n.labelKey)}
+                    </span>
                   </button>
                 );
               }
@@ -732,29 +744,31 @@ export function ClientApp() {
                   aria-current={active ? "page" : undefined}
                   aria-label={t(n.labelKey)}
                   className={cn(
-                    "relative flex flex-col items-center justify-center gap-1 h-full transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+                    "relative flex flex-col items-center justify-center gap-0.5 h-full min-w-0 px-0.5 overflow-hidden transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 >
-                <span className="relative grid place-items-center rounded-full p-1.5">
-                  {/* Blob actif — pastille or translucide qui glisse entre les onglets */}
-                  {active && (
-                    <motion.span
-                      layoutId="nav-blob"
-                      transition={{ type: "spring", stiffness: 420, damping: 32 }}
-                      className="absolute inset-0 rounded-full bg-primary/18"
-                      aria-hidden="true"
-                    />
-                  )}
-                  <Icon className="relative size-[22px]" />
-                </span>
-                <span className={cn("text-xs tracking-tight", active ? "font-bold text-primary" : "font-semibold")}>{t(n.labelKey)}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-    </div>
+                  <span className="relative grid place-items-center rounded-full p-1 shrink-0">
+                    {/* Blob actif — pastille or translucide qui glisse entre les onglets */}
+                    {active && (
+                      <motion.span
+                        layoutId="nav-blob"
+                        transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                        className="absolute inset-0 rounded-full bg-primary/18"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <Icon className="relative size-[20px] sm:size-[22px]" />
+                  </span>
+                  <span className={cn("text-[10px] sm:text-[11px] leading-none tracking-tight whitespace-nowrap truncate w-full text-center", active ? "font-bold text-primary" : "font-semibold")}>
+                    {t(n.labelKey)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      </div>
 
       {/* ───────── Rail droit desktop (xl+, accueil) — chrome verre + cartes k ───────── */}
       {tab === "accueil" && (

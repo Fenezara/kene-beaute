@@ -625,8 +625,8 @@ export function AgendaScreen() {
         </button>
       </header>
 
-      {/* ───── Sélecteur épuré : Mes Rendez-vous / Réserver un Soin (+ Commandes si existantes) ───── */}
-      <div className={cn("grid gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60", orders.length > 0 ? "grid-cols-3" : "grid-cols-2")}>
+      {/* ───── Sélecteur épuré : Mes RDV / Réserver / Commandes (100% lisible sur Android 320px-360px) ───── */}
+      <div className={cn("grid gap-1 sm:gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60 overflow-hidden", orders.length > 0 ? "grid-cols-3" : "grid-cols-2")}>
         <button
           type="button"
           onClick={() => {
@@ -634,16 +634,19 @@ export function AgendaScreen() {
             setActiveSubTab("rdv");
           }}
           className={cn(
-            "py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+            "py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 min-w-0 overflow-hidden",
             activeSubTab === "rdv"
               ? "bg-card text-foreground shadow-xs border border-border/80"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <CalendarDays size={14} className={activeSubTab === "rdv" ? "text-primary" : ""} />
-          <span className="truncate">Mes Rendez-vous</span>
+          <CalendarDays size={13} className={cn("shrink-0 sm:size-[14px]", activeSubTab === "rdv" ? "text-primary" : "")} />
+          <span className="truncate">
+            <span className="sm:hidden">Mes RDV</span>
+            <span className="hidden sm:inline">Mes Rendez-vous</span>
+          </span>
           {upcomingAppts.length > 0 && (
-            <span className="size-4.5 px-1 rounded-full bg-primary/15 text-primary text-[10px] grid place-items-center font-black shrink-0">
+            <span className="min-w-4 h-4 sm:size-4.5 px-1 rounded-full bg-primary/15 text-primary text-[9.5px] sm:text-[10px] grid place-items-center font-black shrink-0">
               {upcomingAppts.length}
             </span>
           )}
@@ -656,16 +659,20 @@ export function AgendaScreen() {
             setActiveSubTab("reserver");
           }}
           className={cn(
-            "py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+            "py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 min-w-0 overflow-hidden",
             activeSubTab === "reserver"
               ? "bg-card text-foreground shadow-xs border border-border/80"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <DuafeIcon size={14} className={activeSubTab === "reserver" ? "text-gold-text" : ""} />
-          <span className="truncate">Réserver un Soin</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-gold/20 text-gold-text font-black shrink-0">
-            6 soins
+          <DuafeIcon size={13} className={cn("shrink-0 sm:size-[14px]", activeSubTab === "reserver" ? "text-gold-text" : "")} />
+          <span className="truncate">
+            <span className="sm:hidden">Réserver</span>
+            <span className="hidden sm:inline">Réserver un Soin</span>
+          </span>
+          <span className="text-[9.5px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-gold/20 text-gold-text font-black shrink-0 leading-none">
+            <span className="sm:hidden">6</span>
+            <span className="hidden sm:inline">6 soins</span>
           </span>
         </button>
 
@@ -677,15 +684,15 @@ export function AgendaScreen() {
               setActiveSubTab("commandes");
             }}
             className={cn(
-              "py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+              "py-2 sm:py-2.5 px-1.5 sm:px-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 min-w-0 overflow-hidden",
               activeSubTab === "commandes"
                 ? "bg-card text-foreground shadow-xs border border-border/80"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <ShoppingBag size={14} className={activeSubTab === "commandes" ? "text-gold-text" : ""} />
+            <ShoppingBag size={13} className={cn("shrink-0 sm:size-[14px]", activeSubTab === "commandes" ? "text-gold-text" : "")} />
             <span className="truncate">Commandes</span>
-            <span className="size-4.5 px-1 rounded-full bg-gold/30 text-gold-text text-[10px] grid place-items-center font-bold shrink-0">
+            <span className="min-w-4 h-4 sm:size-4.5 px-1 rounded-full bg-gold/30 text-gold-text text-[9.5px] sm:text-[10px] grid place-items-center font-bold shrink-0">
               {orders.length}
             </span>
           </button>
