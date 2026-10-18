@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Camera, FlipHorizontal, Lightbulb, Loader2, SwitchCamera, X } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import {
   getPersistentCameraStream,
@@ -26,7 +27,8 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lighting, setLighting] = useState<"optimal" | "faible" | "forte">("optimal");
+  const [lighting, setLighting] = useState<"optimal" | "faible" | "forte" | "contre_jour">("optimal");
+  const [lightScore, setLightScore] = useState<number>(88);
   const [flashing, setFlashing] = useState(false);
 
   // Initialisation du flux caméra persistant (Zéro re-prompt système)
@@ -71,7 +73,7 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
     };
   }, [facingMode]);
 
-  // Analyse périodique de l'éclairage ambiant
+  // Analyse périodique de l'éclairage ambiant (Visage vs Arrière-plan & Contre-jour)
   useEffect(() => {
     if (!ready) return;
 
@@ -83,31 +85,62 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) return;
 
-      canvas.width = 48;
-      canvas.height = 48;
-      ctx.drawImage(video, 0, 0, 48, 48);
+      const size = 64;
+      canvas.width = size;
+      canvas.height = size;
+      ctx.drawImage(video, 0, 0, size, size);
 
       try {
-        const imgData = ctx.getImageData(0, 0, 48, 48);
+        const imgData = ctx.getImageData(0, 0, size, size);
         const data = imgData.data;
-        let sum = 0;
-        for (let i = 0; i < data.length; i += 4) {
-          // Formule de luminance perçue
-          sum += data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-        }
-        const avg = sum / (data.length / 4);
+        let centerSum = 0;
+        let centerCount = 0;
+        let bgSum = 0;
+        let bgCount = 0;
 
-        if (avg < 55) {
+        for (let y = 0; y < size; y++) {
+          for (let x = 0; x < size; x++) {
+            const idx = (y * size + x) * 4;
+            const lum = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
+
+            // Zone centrale ovale correspondant au visage
+            const dx = (x - size / 2) / 16;
+            const dy = (y - size / 2) / 22;
+            if (dx * dx + dy * dy <= 1) {
+              centerSum += lum;
+              centerCount++;
+            } else {
+              bgSum += lum;
+              bgCount++;
+            }
+          }
+        }
+
+        const avgCenter = centerCount > 0 ? centerSum / centerCount : 128;
+        const avgBg = bgCount > 0 ? bgSum / bgCount : 128;
+
+        let calculatedScore = 100 - Math.min(60, Math.abs(avgCenter - 130) * 0.7);
+
+        if (avgBg - avgCenter > 50 && avgCenter < 110) {
+          // Contre-jour violent
+          setLighting("contre_jour");
+          calculatedScore = Math.max(30, calculatedScore - 35);
+        } else if (avgCenter < 65) {
           setLighting("faible");
-        } else if (avg > 215) {
+          calculatedScore = Math.max(25, Math.round((avgCenter / 65) * 55));
+        } else if (avgCenter > 220) {
           setLighting("forte");
+          calculatedScore = Math.max(35, Math.round(100 - (avgCenter - 220) * 1.5));
         } else {
           setLighting("optimal");
+          calculatedScore = Math.min(100, Math.max(80, Math.round(calculatedScore)));
         }
+
+        setLightScore(Math.round(calculatedScore));
       } catch {
         // pas d'impact
       }
-    }, 1200);
+    }, 800);
 
     return () => clearInterval(interval);
   }, [ready]);
@@ -226,39 +259,58 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
               </div>
             )}
 
-            {/* Guide facial ovale (Masque SVG élégant aux reflets dorés) */}
+            {/* Guide facial ovale (Masque SVG élégant avec anneau réactif à la lumière) */}
             {ready && (
               <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-                {/* Ovale de centrage */}
-                <div className="relative w-[75vw] max-w-[290px] aspect-[3/4] rounded-[50%] border-2 border-dashed border-[#C8951E]/80 shadow-[0_0_0_9999px_rgba(18,14,12,0.65)] flex items-center justify-center">
-                  <div className="w-full h-full rounded-[50%] border border-[#C8951E]/40" />
+                {/* Ovale de centrage avec anneau réactif */}
+                <div
+                  className={cn(
+                    "relative w-[75vw] max-w-[290px] aspect-[3/4] rounded-[50%] border-2 transition-all duration-300 shadow-[0_0_0_9999px_rgba(18,14,12,0.68)] flex items-center justify-center",
+                    lighting === "optimal"
+                      ? "border-[#3F7D3F] border-solid shadow-[0_0_28px_rgba(63,125,63,0.5)]"
+                      : lighting === "faible"
+                        ? "border-[#C8951E]/90 border-dashed shadow-[0_0_20px_rgba(200,149,30,0.35)]"
+                        : "border-[#C93B62] border-dashed shadow-[0_0_24px_rgba(201,59,98,0.4)]"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "w-full h-full rounded-[50%] border transition-colors",
+                      lighting === "optimal" ? "border-[#3F7D3F]/40" : "border-[#C8951E]/30"
+                    )}
+                  />
                   {/* Croix de centrage discrète */}
                   <div className="absolute inset-x-1/2 top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-0.5 bg-[#C8951E]/40" />
                   <div className="absolute inset-y-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 w-0.5 h-4 bg-[#C8951E]/40" />
                 </div>
 
-                {/* Badge d'indication d'éclairage */}
-                <div className="mt-4 z-10 flex flex-col items-center gap-1.5">
+                {/* Badge d'indication d'éclairage et qualité en temps réel */}
+                <div className="mt-4 z-10 flex flex-col items-center gap-1.5 px-4 text-center">
                   <span
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold backdrop-blur-md shadow-lg transition-colors ${
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-bold backdrop-blur-md shadow-lg transition-all",
                       lighting === "optimal"
-                        ? "bg-[#3F7D3F]/80 text-white"
+                        ? "bg-[#3F7D3F]/90 text-white ring-1 ring-white/20"
                         : lighting === "faible"
-                          ? "bg-[#C8951E]/85 text-[#120E0C]"
-                          : "bg-[#8B1A3B]/80 text-white"
-                    }`}
+                          ? "bg-[#C8951E]/90 text-[#120E0C] ring-1 ring-[#C8951E]/30"
+                          : "bg-[#C93B62]/90 text-white ring-1 ring-white/20"
+                    )}
                   >
-                    <Lightbulb size={12} />
-                    {lighting === "optimal"
-                      ? "Éclairage optimal pour l'analyse"
-                      : lighting === "faible"
-                        ? "Lumière faible — approche-toi d'une fenêtre ☀️"
-                        : "Lumière trop vive / contre-jour ⚠️"}
+                    <Lightbulb size={13} className="shrink-0" />
+                    <span>
+                      {lighting === "optimal"
+                        ? `Lumière idéale (${lightScore}%) · Prêt pour le scan ✨`
+                        : lighting === "faible"
+                          ? `Lumière faible (${lightScore}%) — approche-toi d'une fenêtre ☀️`
+                          : lighting === "contre_jour"
+                            ? `Contre-jour (${lightScore}%) — tourne le dos à la lumière ⚠️`
+                            : `Lumière trop vive (${lightScore}%) — atténue le reflet ⚠️`}
+                    </span>
                   </span>
 
-                  {/* Conseil Make-Up Peau nue */}
-                  <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10.5px] font-semibold bg-black/70 text-white/90 border border-white/15 backdrop-blur-md">
-                    💄 Astuce : Peau démaquillée = Bilan biométrique 100% précis
+                  {/* Conseil Peau nue & cadrage */}
+                  <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-semibold bg-black/75 text-white/90 border border-white/15 backdrop-blur-md">
+                    💄 Peau démaquillée &amp; visage centré = Bilan biométrique 100% précis
                   </span>
                 </div>
               </div>

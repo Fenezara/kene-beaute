@@ -4,7 +4,7 @@ import path from "path";
 
 function getAllFiles(dirPath: string, arrayOfFiles: string[] = []): string[] {
   try {
-    if (!fs.existsSync(dirPath)) return arrayOfFiles;
+    if (!fs.existsSync(/*turbopackIgnore: true*/ dirPath)) return arrayOfFiles;
     const files = fs.readdirSync(dirPath);
     for (const file of files) {
       const fullPath = path.join(dirPath, file);
@@ -34,7 +34,7 @@ export async function GET() {
     const assetSet = new Set<string>();
 
     for (const root of candidateRoots) {
-      if (!fs.existsSync(root)) continue;
+      if (!fs.existsSync(/*turbopackIgnore: true*/ root)) continue;
       const files = getAllFiles(root);
       for (const file of files) {
         const rel = path.relative(root, file).replace(/\\/g, "/");

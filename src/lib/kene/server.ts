@@ -10,6 +10,7 @@ import { PARRAIN_REWARD } from "./referral";
 import { pushFeed, pushTenantFeed } from "./realtime";
 import type { SimpleLine } from "@/lib/accounting/syscohada";
 import { sendNotificationSms } from "@/lib/sms";
+import { sendWhatsAppCloudMessage } from "./whatsapp-cloud-api";
 import { SALON_CONFIG } from "@/config/salon-identity";
 
 export function jsonError(error: string, status = 400): NextResponse {
@@ -445,6 +446,16 @@ export function notify(
       message: data.message,
     }).catch((err) => {
       console.error("[notify] Échec lors de la transmission SMS Termii:", err?.message || err);
+    });
+  }
+
+  // Distribution automatique WhatsApp Cloud API (officielle Meta, non-bloquant)
+  if (data.channel === "whatsapp" && data.toPhone && (!data.scheduledAt || data.scheduledAt <= new Date())) {
+    void sendWhatsAppCloudMessage({
+      toPhone: data.toPhone,
+      message: data.message,
+    }).catch((err) => {
+      console.error("[notify] Échec lors de la transmission WhatsApp Cloud API:", err?.message || err);
     });
   }
 
