@@ -186,6 +186,10 @@ export function PwaProvider() {
         const onWindowFocus = () => inspectRegistration();
         window.addEventListener("focus", onWindowFocus);
         cleanups.push(() => window.removeEventListener("focus", onWindowFocus));
+        // AU RETOUR DU RÉSEAU: vérification immédiate du SW et activation fluide
+        const onNetworkOnline = () => inspectRegistration();
+        window.addEventListener("online", onNetworkOnline);
+        cleanups.push(() => window.removeEventListener("online", onNetworkOnline));
         // EN SESSION: l'iframe de préview vit des heures sans navigation —
         // on re-vérifie nous-mêmes toutes les 60 s.
         pollTimer = window.setInterval(inspectRegistration, UPDATE_POLL_MS);

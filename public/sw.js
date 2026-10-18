@@ -11,11 +11,11 @@
  *  - Écritures (POST/PUT/DELETE) : réseau direct.
  */
 
-const VERSION = "kene-sw-v39";
-const PRECACHE = "kene-precache-v39";
-const DATA_CACHE = "kene-data-v39";
-const IMG_CACHE = "kene-img-v39";
-const STATIC_CACHE = "kene-static-v39";
+const VERSION = "kene-sw-v40";
+const PRECACHE = "kene-precache-v40";
+const DATA_CACHE = "kene-data-v40";
+const IMG_CACHE = "kene-img-v40";
+const STATIC_CACHE = "kene-static-v40";
 /** Caches autorisés pour la version courante — les autres sont purgés à l'activation. */
 const KEEP_CACHES = [PRECACHE, DATA_CACHE, IMG_CACHE, STATIC_CACHE, "kene-sw-debug"];
 
@@ -514,21 +514,17 @@ self.addEventListener("fetch", (event) => {
 
   if (req.method !== "GET") return;
 
-  // Ne jamais intercepter les flux HMR / Turbopack / hot-update de Next.js
+  // Ne jamais intercepter les flux HMR purs de dev Next.js
   if (
     url.pathname.includes("webpack-hmr") ||
-    url.pathname.includes("turbopack") ||
-    url.pathname.includes("hot-update") ||
-    url.pathname.includes("__nextjs")
+    url.pathname.includes("hot-update.json") ||
+    url.pathname.includes("hot-update.js")
   ) {
     return;
   }
 
-  // Assets Next (/_next/) : en développement local (localhost / 127.0.0.1), laisser le navigateur charger en direct (zéro cache SW)
+  // Assets Next (/_next/) : stale-while-revalidate / cache-first résilient
   if (url.pathname.startsWith("/_next/")) {
-    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
-      return;
-    }
     event.respondWith(cacheFirstStatic(req));
     return;
   }
@@ -762,9 +758,9 @@ async function networkFirstNavigation(req) {
     if (cached) return cached;
   }
 
-  // 2. Détection réseau avec timeout de 4500ms (adapté aux réseaux mobiles 3G/4G)
+  // 2. Détection réseau avec timeout réactif de 2000ms (filet anti-attente infinie)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4500);
+  const timeoutId = setTimeout(() => controller.abort(), 2000);
   try {
     const networkRes = await fetch(new Request(req.url, { cache: "no-store", credentials: "same-origin", signal: controller.signal }));
     clearTimeout(timeoutId);
@@ -857,9 +853,21 @@ async function cacheFirstStatic(req) {
     });
   }
 
-  // Si c'est un script inconnu en panne réseau, renvoyer 503 sans corps falsifié
-  return new Response("Offline chunk unavailable", {
-    status: 503,
+  // Si c'est un script JS manquant hors-ligne : NE JAMAIS renvoyer une erreur 503 texte brut
+  // qui fait crasher le parseur JS (SyntaxError) et bloque l'application sur le splash screen !
+  if (url.pathname.endsWith(".js") || req.destination === "script") {
+    return new Response(
+      "/* Kènè offline safe stub */ (function(){ try { if (typeof self !== 'undefined') { self.__kene_offline_chunk_stub = true; } } catch(e){} })();",
+      {
+        status: 200,
+        headers: { "content-type": "application/javascript", "x-kene-offline": "1" },
+      }
+    );
+  }
+
+  // Autres ressources manquantes hors-ligne (ex: font/media)
+  return new Response("Offline resource unavailable", {
+    status: 404,
     headers: { "content-type": "text/plain", "x-kene-offline": "1" },
   });
 }

@@ -27,6 +27,7 @@ import { ConsoleEntry, ConsoleRedirect, useEntryKind } from "@/components/kene/a
 import { MaintenanceScreen } from "@/components/kene/MaintenanceScreen";
 import type { MaintenanceConfig } from "@/lib/kene/maintenance";
 import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 // Espaces Pro / Admin / Pin: chunks séparés, chargés à l'entrée de l'espace
 import { ProEnterpriseShell } from "@/components/kene/pro/ProEnterpriseShell";
@@ -48,6 +49,7 @@ export default function Page() {
   const entry = useEntryKind();
 
   const [mounted, setMounted] = useState(() => typeof window !== "undefined");
+  const [bootTimeout, setBootTimeout] = useState(false);
 
   // Déclenchement immédiat de la réhydratation du store dès le premier montage React
   useEffect(() => {
@@ -58,10 +60,27 @@ export default function Page() {
         useKene.setState({ _keneHydrated: true });
       });
     }
+
+    // Filet de sécurité anti-blocage : après 250ms max, libérer immédiatement l'interface
+    const t = setTimeout(() => {
+      setBootTimeout(true);
+      useKene.setState({ _keneHydrated: true });
+    }, 250);
+
+    const onForceUnfreeze = () => {
+      setBootTimeout(true);
+      useKene.setState({ _keneHydrated: true });
+    };
+    window.addEventListener("kene:force-unfreeze", onForceUnfreeze);
+
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("kene:force-unfreeze", onForceUnfreeze);
+    };
   }, []);
 
   // Déblocage de secours absolu (anti-blocage infini du splash screen)
-  const isReady = mounted || hydrated || (typeof window !== "undefined");
+  const isReady = mounted || hydrated || bootTimeout || (typeof window !== "undefined");
   const activeEntry = entry ?? (isReady ? "app" : null);
 
   // Mode Maintenance plateforme — vérifié au chargement, au focus et toutes les 30s
@@ -89,6 +108,51 @@ export default function Page() {
     return () => {
       window.removeEventListener("focus", onFocus);
       clearInterval(timer);
+    };
+  }, [checkMaintenance]);
+
+  // Surveillance active de la connectivité réseau — reconnexion et synchronisation automatique sans redémarrage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleOnline = () => {
+      console.info("[kene] Connexion réseau rétablie !");
+      toast.success("Connexion rétablie ⚡", {
+        description: "Synchronisation automatique des données...",
+        duration: 4000,
+      });
+
+      // 1. Débloquer immédiatement tout état résiduel
+      useKene.setState({ _keneHydrated: true });
+
+      // 2. Re-vérifier l'état de la plateforme
+      void checkMaintenance();
+
+      // 3. Mettre à jour le Service Worker en tâche de fond si disponible
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.ready.then((reg) => {
+          void reg.update();
+        }).catch(() => {});
+      }
+
+      // 4. Déclencher la synchronisation globale Kènè (photos diagnostics, caisse, stocks)
+      window.dispatchEvent(new CustomEvent("kene:network-restored"));
+    };
+
+    const handleOffline = () => {
+      console.warn("[kene] Connexion réseau interrompue — bascule en mode local");
+      toast.info("Mode Hors-ligne actif 📴", {
+        description: "Vos fonctionnalités locales et votre caisse restent 100% opérationnelles.",
+        duration: 4000,
+      });
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, [checkMaintenance]);
 

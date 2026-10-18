@@ -313,9 +313,18 @@ export function ClientApp() {
 
   const onZoneConsumed = useCallback(() => setPendingZone(null), []);
 
-  const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(() => typeof window !== "undefined");
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Synchronisation active lors du rétablissement du réseau
+  useEffect(() => {
+    const handleNetworkRestored = () => {
+      void replayDiagQueue();
+    };
+    window.addEventListener("kene:network-restored", handleNetworkRestored);
+    return () => window.removeEventListener("kene:network-restored", handleNetworkRestored);
   }, []);
 
   // Détection d'un compte authentifié et sauvegardé (avec un vrai numéro/identifiant)
@@ -361,7 +370,8 @@ export function ClientApp() {
   }, []);
 
   // Store persisté en cours de relecture : squelette d'amorçage
-  if (!mounted || !hydrated) {
+  // Côté navigateur, l'amorçage est garanti immédiat (zéro blocage infini sur BootSkeleton)
+  if (!mounted && typeof window === "undefined") {
     return <BootSkeleton />;
   }
 

@@ -22,24 +22,48 @@ function getAllFiles(dirPath: string, arrayOfFiles: string[] = []): string[] {
 
 export async function GET() {
   try {
-    const staticDir = path.join(process.cwd(), ".next", "static");
-    const all = getAllFiles(staticDir);
-    const assets = all
-      .map((p) => {
-        const rel = path.relative(staticDir, p).replace(/\\/g, "/");
-        return `/_next/static/${rel}`;
-      })
-      .filter((u) => u.endsWith(".js") || u.endsWith(".css"));
+    const cwd = process.cwd();
+    // Racines statiques possibles selon l'environnement (production standalone, dev Turbopack, build Next.js)
+    const candidateRoots = [
+      path.join(cwd, ".next", "static"),
+      path.join(cwd, ".next", "dev", "static"),
+      path.join(cwd, ".next", "standalone", ".next", "static"),
+      path.join(cwd, ".next", "build", "chunks"),
+    ];
 
-    return NextResponse.json({
-      ok: true,
-      count: assets.length,
-      assets,
-    }, {
-      headers: {
-        "Cache-Control": "public, max-age=300",
+    const assetSet = new Set<string>();
+
+    for (const root of candidateRoots) {
+      if (!fs.existsSync(root)) continue;
+      const files = getAllFiles(root);
+      for (const file of files) {
+        const rel = path.relative(root, file).replace(/\\/g, "/");
+        if (
+          rel.endsWith(".js") ||
+          rel.endsWith(".css") ||
+          rel.endsWith(".woff2") ||
+          rel.endsWith(".json")
+        ) {
+          // Normaliser sous la forme canonique Next.js /_next/static/...
+          assetSet.add(`/_next/static/${rel}`);
+        }
+      }
+    }
+
+    const assets = Array.from(assetSet);
+
+    return NextResponse.json(
+      {
+        ok: true,
+        count: assets.length,
+        assets,
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "public, max-age=120, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ ok: false, count: 0, assets: [], error: msg }, { status: 200 });

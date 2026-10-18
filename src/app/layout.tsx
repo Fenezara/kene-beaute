@@ -128,6 +128,34 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           {children}
         </ThemeProvider>
+        {/* Filet de résilience hors-ligne Kènè 2026 :
+            1. Détecte si le squelette de démarrage reste affiché plus de 800ms et force le déblocage
+            2. Écoute le retour réseau ('online') pour réveiller immédiatement l'application sans manipulation manuelle */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var triggerUnfreeze = function() {
+                  var skeleton = document.querySelector('[role="status"][aria-busy="true"]');
+                  if (skeleton) {
+                    window.dispatchEvent(new CustomEvent("kene:force-unfreeze"));
+                  }
+                };
+                setTimeout(triggerUnfreeze, 800);
+                setTimeout(triggerUnfreeze, 1600);
+
+                window.addEventListener("online", function() {
+                  var skeleton = document.querySelector('[role="status"][aria-busy="true"]');
+                  if (skeleton) {
+                    window.location.reload();
+                  } else {
+                    window.dispatchEvent(new CustomEvent("kene:network-restored"));
+                  }
+                });
+              })();
+            `,
+          }}
+        />
       </body>
     </html>
   );
