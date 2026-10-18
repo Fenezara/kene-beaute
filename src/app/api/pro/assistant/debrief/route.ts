@@ -25,6 +25,10 @@ const Body = z.object({
   userName: z.string().max(100).optional(),
   managerName: z.string().max(100).optional(),
   previousDebrief: z.any().optional(),
+  userRole: z.string().max(100).optional(),
+  isOwner: z.boolean().optional(),
+  allowedSections: z.array(z.string()).optional(),
+  tenantPlan: z.string().max(50).optional(),
 });
 
 export interface DebriefResult {
@@ -252,16 +256,23 @@ export async function POST(req: NextRequest) {
         price: p.price,
       }));
 
+    // Détermination dynamique des permissions effectives
+    const { userRole, isOwner, allowedSections, tenantPlan } = parsed.data;
+    const isEffectiveOwner = isOwner !== false;
+    const canViewCaisse = isEffectiveOwner || Boolean(allowedSections?.includes("caisse") || allowedSections?.includes("dashboard"));
+    const canViewStock = isEffectiveOwner || Boolean(allowedSections?.includes("stock") || allowedSections?.includes("catalogue"));
+    const canManageExpenses = isEffectiveOwner || Boolean(allowedSections?.includes("caisse"));
+
     const liveStats: LiveSalonStats = {
-      todayTotal,
-      waveTotal,
-      orangeTotal,
-      cashTotal,
-      cardTotal,
-      salesCount: salesToday.length,
+      todayTotal: canViewCaisse ? todayTotal : 0,
+      waveTotal: canViewCaisse ? waveTotal : 0,
+      orangeTotal: canViewCaisse ? orangeTotal : 0,
+      cashTotal: canViewCaisse ? cashTotal : 0,
+      cardTotal: canViewCaisse ? cardTotal : 0,
+      salesCount: canViewCaisse ? salesToday.length : 0,
       appointmentsToday,
       upcomingAppointments,
-      lowStockProducts,
+      lowStockProducts: canViewStock ? lowStockProducts : [],
     };
 
     const contextServices = tenant.services.map((s) => ({ id: s.id, name: s.name, price: s.price }));
@@ -292,6 +303,12 @@ export async function POST(req: NextRequest) {
       liveStats,
       managerName,
       tenant.name,
+      isEffectiveOwner,
+      userRole,
+      canViewCaisse,
+      canViewStock,
+      canManageExpenses,
+      tenantPlan || tenant.plan || "trial",
     );
 
     let userPromptText = text;
@@ -326,7 +343,19 @@ export async function POST(req: NextRequest) {
 
     // Palier 3 : Moteur NLU Expert Kènè (toujours disponible)
     if (!debrief) {
-      debrief = fallbackParser(text, tenant, recentClients, liveStats, managerName, previousDebrief);
+      debrief = fallbackParser(
+        text,
+        tenant,
+        recentClients,
+        liveStats,
+        managerName,
+        previousDebrief,
+        isEffectiveOwner,
+        userRole,
+        canViewCaisse,
+        canViewStock,
+        canManageExpenses,
+      );
       console.log("[assistant:debrief] Palier NLU Expert Kènè ✓");
     }
 
@@ -338,8 +367,11 @@ export async function POST(req: NextRequest) {
 
 // ─────────────────────────── Prompt système ───────────────────────────
 
-function getBossCall(managerName: string): string {
+function getBossCall(managerName: string, isOwner = true, userRole = ""): string {
   const cleanFirst = (managerName || "Patron").split(/\s+/)[0] || "Patron";
+  if (!isOwner) {
+    return cleanFirst;
+  }
   if (/^(madame|mme|patron|patronne)$/i.test(cleanFirst)) {
     return "Patronne";
   }
@@ -362,8 +394,14 @@ function buildSystemPrompt(
   liveStats: LiveSalonStats,
   managerName: string,
   tenantName: string,
+  isOwner = true,
+  userRole = "",
+  canViewCaisse = true,
+  canViewStock = true,
+  canManageExpenses = true,
+  tenantPlan = "trial",
 ): string {
-  const bossCall = getBossCall(managerName);
+  const bossCall = getBossCall(managerName, isOwner, userRole);
   const nowStr = new Date().toLocaleDateString("fr-FR", {
     weekday: "long",
     year: "numeric",
@@ -371,7 +409,19 @@ function buildSystemPrompt(
     day: "numeric",
   });
 
-  return `Tu es la Secrétaire de Direction et Assistante d'Élite dévouée de ${bossCall}, dirigeante de l'institut "${tenantName}" en Côte d'Ivoire.
+  const identityIntro = isOwner
+    ? `Tu es la Secrétaire de Direction et Assistante d'Élite dévouée de ${bossCall}, dirigeante de l'institut "${tenantName}" en Côte d'Ivoire.`
+    : `Tu es l'Assistante Cabine et Secrétaire IA de l'institut "${tenantName}", au service de ${bossCall} (${userRole || "Collaboratrice"}).`;
+
+  const caisseRule = canViewCaisse
+    ? `- CAISSE DU JOUR : Total encaissé = ${liveStats.todayTotal} FCFA (${liveStats.salesCount} vente(s)) | Wave = ${liveStats.waveTotal} FCFA | Orange Money = ${liveStats.orangeTotal} FCFA | Espèces = ${liveStats.cashTotal} FCFA | Carte = ${liveStats.cardTotal} FCFA.`
+    : `- CAISSE DU JOUR : [ACCÈS NON AUTORISÉ - CONFIDENTIEL]. ${bossCall} N'A PAS le droit d'accéder aux chiffres de caisse ni au chiffre d'affaires du salon. Si ${bossCall} pose une question sur la caisse, les recettes ou le chiffre d'affaires, refuse poliment avec diplomatie en rappelant que le point financier du salon est strictement confidentiel et réservé à la direction de l'institut. Ne divulgue AUCUN montant de caisse.`;
+
+  const expenseRule = canManageExpenses
+    ? ""
+    : `\n- SÉCURITÉ DÉPENSES : ${bossCall} n'est pas autorisée à enregistrer des sorties de caisse ni des dépenses. Si elle demande une sortie de caisse, refuse poliment en indiquant que la gestion de caisse est réservée à la direction.`;
+
+  return `${identityIntro}
 Date d'aujourd'hui : ${nowStr}.
 Ton attitude est profondément humaine, intelligente, chaleureuse, respectueuse et dévouée.
 
@@ -380,21 +430,24 @@ Tu dois analyser avec précision ce que ${bossCall} te dit ou te demande :
 
 CAS A — C'EST UNE QUESTION, UNE DEMANDE D'INFORMATION OU DE CONSEIL (ex: "Combien j'ai en caisse ?", "Quels sont mes rendez-vous ?", "Est-ce qu'il reste du karité en stock ?", "Quel est le prix du soin ?", "Qui travaille aujourd'hui ?", "Parle-moi de la cliente Mariam", "Donne-moi un conseil pour mes ventes") :
 - Réponds DIRECTEMENT, EXACTEMENT et CHALEUREUSEMENT à la question posée dans "vocalSummary" et "summary" en utilisant les VRAIES DONNÉES EN TEMPS RÉEL de l'institut ci-dessous.
+- Si la question concerne la caisse, le chiffre d'affaires ou les recettes du salon alors que ${bossCall} n'y a pas droit (!canViewCaisse), refuse poliment avec diplomatie en rappelant la confidentialité directionnelle.
 - Mets OBLIGATOIREMENT tous les indicateurs d'écriture à false : "hasSale": false, "hasStockMovement": false, "hasClient": false, "hasAppointment": false, "hasTeamCredit": false, "hasExpense": false, "hasRelance": false, "needsClarification": false.
 - INTERDICTION ABSOLUE d'inventer une vente ("Cliente de passage") ou un rendez-vous fictif lorsque ${bossCall} pose une simple question !
 
 CAS B — C'EST UNE INSTRUCTION D'ACTION OU UN COMPTE-RENDU OPÉRATIONNEL (ex: enregistrer un soin/vente, planifier un RDV, noter une dépense de petite caisse, décompter un stock, créer une cliente, programmer une relance) :
 - Active uniquement les booléens correspondant à l'instruction ("hasSale", "hasAppointment", "hasExpense", "hasStockMovement", "hasClient", "hasRelance").
+- Si l'instruction concerne une dépense alors que l'utilisatrice n'y est pas autorisée (!canManageExpenses), refuse avec bienveillance et diplomatie.
 - Si TOUTES les informations essentielles sont déjà présentes dans la phrase (ex: "Prends RDV pour Tantie Awa demain à 14h pour un Soin Éclat avec Aminata" contient déjà la cliente, le jour, l'heure, le soin et la praticienne ; ou "Mme Bintou a fait un soin à 20 000 F payé par Wave" contient déjà le montant et le mode de paiement ; ou "J'ai pris 3 500 F dans la caisse pour de l'eau" contient déjà le montant et le motif), mets IMPÉRATIVEMENT "needsClarification": false et confirme que tout est prêt à être validé !
 - Ne mets "needsClarification": true QUE s'il manque réellement une information indispensable pour exécuter l'ordre (ex: "Prends RDV pour Awa" sans aucun jour ni heure, ou "Enregistre la vente de Mme Koné" sans moyen de paiement Wave/Orange/Espèces, ou "Note une dépense" sans montant). Dans ce cas, pose une question courte et précise dans "clarificationQuestion" et propose 2 à 4 "clarificationOptions" cliquables.
 
 ═══ RÈGLES D'ADRESSE & MÉTIER ═══
-1. Appelle toujours ton patron "${bossCall}". N'utilise JAMAIS le mot "Maman".
+1. Appelle toujours ton interlocutrice "${bossCall}". N'utilise JAMAIS le mot "Maman".
 2. Devises en FCFA ("15 mille" = 15000). Modes de paiement : "wave", "orange", "cash", "card".
 3. Si une cliente paie une partie et laisse un reste à payer (ex: "total 25 000 F, elle a versé 20 000 F et soldera 5 000 F"), renseigne subtotal=25000, total=25000, paidAmount=20000, remainingDebt=5000.
 
 ═══ DONNÉES EN TEMPS RÉEL DE L'INSTITUT "${tenantName}" AUJOURD'HUI ═══
-- CAISSE DU JOUR : Total encaissé = ${liveStats.todayTotal} FCFA (${liveStats.salesCount} vente(s)) | Wave = ${liveStats.waveTotal} FCFA | Orange Money = ${liveStats.orangeTotal} FCFA | Espèces = ${liveStats.cashTotal} FCFA | Carte = ${liveStats.cardTotal} FCFA.
+- FORMULE D'ABONNEMENT ACTIVE : "${tenantPlan}"
+${caisseRule}${expenseRule}
 - RENDEZ-VOUS DU JOUR (${liveStats.appointmentsToday.length}) : ${JSON.stringify(liveStats.appointmentsToday)}
 - PROCHAINS RENDEZ-VOUS À VENIR : ${JSON.stringify(liveStats.upcomingAppointments)}
 - ALERTES STOCK BAS (${liveStats.lowStockProducts.length}) : ${JSON.stringify(liveStats.lowStockProducts)}
@@ -870,10 +923,15 @@ function fallbackParser(
   liveStats: LiveSalonStats,
   managerName: string,
   previousDebrief?: any,
+  isOwner = true,
+  userRole = "",
+  canViewCaisse = true,
+  canViewStock = true,
+  canManageExpenses = true,
 ): DebriefResult {
   const lower = text.toLowerCase().trim();
   const norm = normalizeStr(text);
-  const bossCall = getBossCall(managerName);
+  const bossCall = getBossCall(managerName, isOwner, userRole);
 
   // ═══ 0. GESTION DES RÉPONSES DE CLARIFICATION EN COURS (previousDebrief) ═══
   if (previousDebrief && previousDebrief.needsClarification) {
@@ -905,6 +963,12 @@ function fallbackParser(
 
     // 0b. Clarification d'une dépense de petite caisse
     if (previousDebrief.hasExpense) {
+      if (!canManageExpenses) {
+        return noActionBase(
+          "Dépense réservée à la gérance",
+          `Pardonnez-moi ${bossCall}, mais l'enregistrement des dépenses de caisse est restreint et réservé à la direction de l'institut.`,
+        );
+      }
       const amounts = extractAllAmounts(text);
       const amt = amounts[0] || previousDebrief.expense?.amount || 2500;
       return {
@@ -997,6 +1061,13 @@ function fallbackParser(
     (/\b(caisse|chiffre d'affaires|recette|recettes|combien.*gagne|combien.*encaisse|combien.*fait|bilan|point de la caisse|etat de la caisse|ventes du jour)\b/.test(norm) ||
       (norm.includes("combien") && (norm.includes("aujourd") || norm.includes("vente") || norm.includes("wave") || norm.includes("orange"))))
   ) {
+    if (!canViewCaisse) {
+      return noActionBase(
+        "Données financières confidentielles",
+        `Pardonnez-moi ${bossCall}, mais le point de caisse et les chiffres financiers du salon sont confidentiels et réservés à la direction de l'institut. Je peux en revanche vous renseigner sur vos rendez-vous et vos soins cabine du jour !`,
+      );
+    }
+
     const details: string[] = [];
     if (liveStats.waveTotal > 0) details.push(`${liveStats.waveTotal.toLocaleString("fr-FR")} F sur Wave`);
     if (liveStats.orangeTotal > 0) details.push(`${liveStats.orangeTotal.toLocaleString("fr-FR")} F sur Orange Money`);
@@ -1293,6 +1364,13 @@ function fallbackParser(
 
   // 2C. Instruction de DÉPENSE DE PETITE CAISSE ("J'ai pris 3 500 F dans la caisse...")
   if (isExpenseCommand) {
+    if (!canManageExpenses) {
+      return noActionBase(
+        "Sortie de caisse non autorisée",
+        `Pardonnez-moi ${bossCall}, mais l'enregistrement de dépenses de caisse est restreint et réservé à la direction de l'institut. Je ne peux pas enregistrer cette sortie de caisse.`,
+      );
+    }
+
     if (detectedAmount === 0) {
       return {
         summary: `Sortie de caisse demandée par ${bossCall}`,

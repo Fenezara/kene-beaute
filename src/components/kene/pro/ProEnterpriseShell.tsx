@@ -433,6 +433,8 @@ export function ProEnterpriseShell() {
       : (["agenda", "diagnostic", "assistant", "parametres"] as ProSectionId[])
     : null;
 
+  const isOwner = !isEmployee || Boolean(sessionUser?.role === "admin");
+
   const nav = allowedIds ? NAV.filter((n) => allowedIds.includes(n.id)) : NAV;
   const activeSection: ProSectionId =
     allowedIds && (!allowedIds.includes(section) || !nav.some((n) => n.id === section))
@@ -1206,6 +1208,10 @@ export function ProEnterpriseShell() {
                 tenantId={tid}
                 tenantName={tenant?.name ?? "Institut"}
                 userName={chipName}
+                userRole={employeeRole || (isOwner ? "gerante" : "collaboratrice")}
+                isOwner={isOwner}
+                allowedSections={allowedIds ?? undefined}
+                tenantPlan={tenant?.plan || "trial"}
                 onNavigate={openSection}
                 refreshKey={refreshKey}
               />

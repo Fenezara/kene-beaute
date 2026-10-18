@@ -59,6 +59,10 @@ interface AssistantSectionProps {
   tenantId: string;
   tenantName: string;
   userName?: string;
+  userRole?: string;
+  isOwner?: boolean;
+  allowedSections?: ProSectionId[];
+  tenantPlan?: string;
   onNavigate?: (sec: ProSectionId) => void;
   refreshKey?: number;
 }
@@ -90,13 +94,51 @@ export function AssistantSection({
   tenantId,
   tenantName,
   userName = "Madame",
+  userRole = "gerante",
+  isOwner = true,
+  allowedSections,
+  tenantPlan = "trial",
   onNavigate,
 }: AssistantSectionProps) {
-  // Prénom d'adresse personnalisée de la gérante
+  // Détermination dynamique des permissions effectives
+  const canViewCaisse = isOwner || Boolean(allowedSections?.includes("caisse") || allowedSections?.includes("dashboard"));
+  const canViewStock = isOwner || Boolean(allowedSections?.includes("stock") || allowedSections?.includes("catalogue"));
+  const canManageExpenses = isOwner || Boolean(allowedSections?.includes("caisse"));
+
+  // Prénom d'adresse personnalisée de l'interlocutrice
   const firstName = useMemo(() => {
     const trimmed = (userName || "Madame").trim();
     return trimmed.split(/\s+/)[0] || "Madame";
   }, [userName]);
+
+  // Suggestions rapides adaptées aux permissions effectives
+  const quickExamples = useMemo(() => {
+    if (canViewCaisse) {
+      return QUICK_EXAMPLES;
+    }
+    return [
+      {
+        tag: "📅 Mes RDV du Jour",
+        desc: "Consulter mon agenda cabine",
+        text: "Quels sont mes rendez-vous prévus pour aujourd'hui et les prochains jours ?",
+      },
+      {
+        tag: "💆 Soin Cabine Terminé",
+        desc: "Prestation réalisée avec cliente",
+        text: "Mme Bintou a fait son Soin Éclat du Visage en cabine avec moi.",
+      },
+      {
+        tag: "📅 Prise de RDV Cabine",
+        desc: "Planifier pour une cliente",
+        text: "Prends RDV pour Tantie Awa demain à 14h pour un Soin Purifiant.",
+      },
+      {
+        tag: "🧴 Vérifier un Produit",
+        desc: "Disponibilité pour ma cliente",
+        text: "Est-ce qu'il reste de la lotion tonique ou du baume karité en stock ?",
+      },
+    ];
+  }, [canViewCaisse]);
 
   // Mode de travail : Débriefing instantané ou Bilan du soir
   const [activeTab, setActiveTab] = useState<"instant" | "evening">("instant");
@@ -251,8 +293,18 @@ export function AssistantSection({
     async function fetchGreeting() {
       setLoadingBriefing(true);
       try {
+        const queryParams = new URLSearchParams({
+          tenantId,
+          userName,
+          userRole,
+          isOwner: String(isOwner),
+          plan: tenantPlan,
+        });
+        if (allowedSections && allowedSections.length > 0) {
+          queryParams.set("allowedSections", allowedSections.join(","));
+        }
         const res = await apiGet<{ summary: any }>(
-          `/api/pro/assistant/daily-summary?tenantId=${tenantId}&userName=${encodeURIComponent(userName)}`
+          `/api/pro/assistant/daily-summary?${queryParams.toString()}`
         );
         if (isMounted && res.summary) {
           setExecutiveBriefing(res.summary);
@@ -273,7 +325,7 @@ export function AssistantSection({
       isMounted = false;
       stopAllSpeech();
     };
-  }, [tenantId, userName, speakText, stopAllSpeech]);
+  }, [tenantId, userName, userRole, isOwner, allowedSections, tenantPlan, speakText, stopAllSpeech]);
 
   // Nettoyage au démontage
   useEffect(() => {
@@ -301,6 +353,10 @@ export function AssistantSection({
         tenantId,
         text: query,
         userName,
+        userRole,
+        isOwner,
+        allowedSections,
+        tenantPlan,
         previousDebrief: prevDebrief,
       });
 
@@ -578,7 +634,17 @@ export function AssistantSection({
   async function loadEveningSummary() {
     setLoadingEvening(true);
     try {
-      const res = await apiGet<{ summary: any }>(`/api/pro/assistant/daily-summary?tenantId=${tenantId}`);
+      const queryParams = new URLSearchParams({
+        tenantId,
+        userName,
+        userRole,
+        isOwner: String(isOwner),
+        plan: tenantPlan,
+      });
+      if (allowedSections && allowedSections.length > 0) {
+        queryParams.set("allowedSections", allowedSections.join(","));
+      }
+      const res = await apiGet<{ summary: any }>(`/api/pro/assistant/daily-summary?${queryParams.toString()}`);
       setEveningData(res.summary);
       if (res.summary.vocalSummary) {
         void speakText(res.summary.vocalSummary);
@@ -604,7 +670,7 @@ export function AssistantSection({
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="bg-gradient-to-r from-[#C8951E] via-[#FFD700] to-[#E07A2B] text-[#16110D] font-black px-3 py-0.5 text-xs shadow-xs">
-                👑 SECRÉTAIRE IA DE DIRECTION
+                {isOwner ? "👑 SECRÉTAIRE IA DE DIRECTION" : "🌿 SECRÉTAIRE IA CABINE"}
               </Badge>
               <Badge variant="outline" className="border-border text-foreground text-xs font-semibold">
                 {tenantName}
@@ -615,10 +681,12 @@ export function AssistantSection({
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl font-heading font-black text-foreground tracking-tight">
-              {executiveBriefing?.bossTitle || `Secrétaire de Direction · ${firstName}`}
+              {executiveBriefing?.bossTitle || (isOwner ? `Secrétaire de Direction · ${firstName}` : `Assistante Cabine · ${firstName}`)}
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground italic">
-              &laquo; Je veille sur vos rendez-vous, votre caisse et vos stocks. À vos ordres. &raquo;
+              {isOwner
+                ? "« Je veille sur vos rendez-vous, votre caisse et vos stocks. À vos ordres. »"
+                : "« Je vous assiste pour vos rendez-vous cabine, vos soins et vos clientes. »"}
             </p>
           </div>
 
@@ -785,7 +853,11 @@ export function AssistantSection({
                       liveTranscriptRef.current = e.target.value;
                     }}
                     disabled={isRecording || loading}
-                    placeholder={`Posez une question (caisse, RDV, stocks…) ou donnez une instruction, ${firstName}…`}
+                    placeholder={
+                      canViewCaisse
+                        ? `Posez une question (caisse, RDV, stocks…) ou donnez une instruction, ${firstName}…`
+                        : `Posez une question (vos RDV, soins cabine, stocks…) ou notez une prestation, ${firstName}…`
+                    }
                     className="w-full h-12 pl-4 pr-9 rounded-2xl bg-muted/60 dark:bg-muted/30 border border-border/90 focus:border-[#C8951E] focus:outline-none text-sm text-foreground placeholder:text-muted-foreground transition-colors"
                   />
                   {text.trim() && !isRecording && (
@@ -933,7 +1005,7 @@ export function AssistantSection({
                 <span>Questions &amp; Instructions rapides (exécution directe en 1-tap) :</span>
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {QUICK_EXAMPLES.map((ex, i) => (
+                {quickExamples.map((ex, i) => (
                   <button
                     key={i}
                     type="button"
@@ -1157,17 +1229,31 @@ export function AssistantSection({
                 )}
               </div>
 
-              <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 flex flex-col">
-                <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
-                  <Wallet size={12} className="text-emerald-500" /> Caisse du jour
-                </span>
-                <span className="text-sm font-bold text-foreground">
-                  {executiveBriefing ? xof(executiveBriefing.total) : "0 F"}
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  {executiveBriefing?.salesCount || 0} vente(s)
-                </span>
-              </div>
+              {canViewCaisse ? (
+                <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 flex flex-col">
+                  <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                    <Wallet size={12} className="text-emerald-500" /> Caisse du jour
+                  </span>
+                  <span className="text-sm font-bold text-foreground">
+                    {executiveBriefing ? xof(executiveBriefing.total) : "0 F"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {executiveBriefing?.salesCount || 0} vente(s)
+                  </span>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 flex flex-col">
+                  <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
+                    <UserCheck size={12} className="text-emerald-500" /> Espace Cabine
+                  </span>
+                  <span className="text-sm font-bold text-foreground truncate">
+                    {userRole || "Praticienne"}
+                  </span>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                    Collaboratrice active
+                  </span>
+                </div>
+              )}
 
               <div className="p-2.5 rounded-xl bg-muted/40 border border-border/70 flex flex-col">
                 <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1">
@@ -1237,10 +1323,12 @@ export function AssistantSection({
             <div className="space-y-1">
               <h2 className="text-xl sm:text-2xl font-heading font-black text-foreground flex items-center gap-2.5">
                 <Moon size={22} className="text-[#FFD700]" />
-                <span>Le Rituel du Point du Soir</span>
+                <span>{canViewCaisse ? "Le Rituel du Point du Soir" : "Le Bilan Cabine du Soir"}</span>
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Clôture de journée en 30 secondes · Vérification des recettes, des stocks et conte de prospérité
+                {canViewCaisse
+                  ? "Clôture de journée en 30 secondes · Vérification des recettes, des stocks et conte de prospérité"
+                  : "Clôture de votre journée en cabine · Synthèse de vos prestations et clientes accompagnées"}
               </p>
             </div>
 
@@ -1311,72 +1399,109 @@ export function AssistantSection({
                 </div>
               )}
 
-              {/* Total Journée & Répartition */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 rounded-2xl bg-muted/40 border border-border space-y-1">
-                  <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
-                    <TrendingUp size={14} className="text-[#C8951E]" /> Total Encaissé
-                  </span>
-                  <p className="font-mono text-2xl font-black text-foreground">
-                    {xof(eveningData.total)}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {eveningData.salesCount} encaissement(s) au total
-                  </p>
-                </div>
+              {/* Total Journée & Répartition (Réservé Direction / Caisse) */}
+              {canViewCaisse ? (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="p-5 rounded-2xl bg-muted/40 border border-border space-y-1">
+                      <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
+                        <TrendingUp size={14} className="text-[#C8951E]" /> Total Encaissé
+                      </span>
+                      <p className="font-mono text-2xl font-black text-foreground">
+                        {xof(eveningData.total)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {eveningData.salesCount} encaissement(s) au total
+                      </p>
+                    </div>
 
-                <div className="p-5 rounded-2xl bg-muted/40 border border-blue-500/30 space-y-1">
-                  <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">🌊 Wave Money</span>
-                  <p className="font-mono text-xl font-bold text-foreground">
-                    {xof(eveningData.waveTotal)}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">Paiements directs Wave</p>
-                </div>
+                    <div className="p-5 rounded-2xl bg-muted/40 border border-blue-500/30 space-y-1">
+                      <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold">🌊 Wave Money</span>
+                      <p className="font-mono text-xl font-bold text-foreground">
+                        {xof(eveningData.waveTotal)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">Paiements directs Wave</p>
+                    </div>
 
-                <div className="p-5 rounded-2xl bg-muted/40 border border-orange-500/30 space-y-1">
-                  <span className="text-xs text-orange-600 dark:text-orange-400 font-semibold">🍊 Orange Money</span>
-                  <p className="font-mono text-xl font-bold text-foreground">
-                    {xof(eveningData.orangeTotal)}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">Paiements Orange CI</p>
-                </div>
+                    <div className="p-5 rounded-2xl bg-muted/40 border border-orange-500/30 space-y-1">
+                      <span className="text-xs text-orange-600 dark:text-orange-400 font-semibold">🍊 Orange Money</span>
+                      <p className="font-mono text-xl font-bold text-foreground">
+                        {xof(eveningData.orangeTotal)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">Paiements Orange CI</p>
+                    </div>
 
-                <div className="p-5 rounded-2xl bg-muted/40 border border-emerald-500/30 space-y-1">
-                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">💵 Espèces en Caisse</span>
-                  <p className="font-mono text-xl font-bold text-foreground">
-                    {xof(eveningData.cashTotal)}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">Billets et pièces</p>
-                </div>
-              </div>
+                    <div className="p-5 rounded-2xl bg-muted/40 border border-emerald-500/30 space-y-1">
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">💵 Espèces en Caisse</span>
+                      <p className="font-mono text-xl font-bold text-foreground">
+                        {xof(eveningData.cashTotal)}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">Billets et pièces</p>
+                    </div>
+                  </div>
 
-              {/* Statistiques Métier */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                  <p className="text-2xl font-heading font-black text-foreground">
-                    {eveningData.uniqueClientsCount}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Clientes servies</p>
+                  {/* Statistiques Métier Direction */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                      <p className="text-2xl font-heading font-black text-foreground">
+                        {eveningData.uniqueClientsCount}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Clientes servies</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                      <p className="text-2xl font-heading font-black text-[#C8951E]">
+                        {eveningData.servicesCount}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Soins cabine</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                      <p className="text-2xl font-heading font-black text-[#E07A2B]">
+                        {eveningData.productsCount}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Produits vendus</p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                      <p className="text-2xl font-heading font-black text-emerald-600 dark:text-emerald-400">
+                        {xof(eveningData.cardTotal)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Carte Bancaire</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* Synthèse Soins & Cabine pour Collaboratrice */
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-5 rounded-2xl bg-muted/40 border border-border space-y-1">
+                    <span className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
+                      <Calendar size={14} className="text-[#C8951E]" /> Soins en Cabine
+                    </span>
+                    <p className="font-mono text-2xl font-black text-foreground">
+                      {eveningData.servicesCount}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">Prestations réalisées aujourd&apos;hui</p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-muted/40 border border-emerald-500/30 space-y-1">
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                      <Users size={14} /> Clientes Accompagnées
+                    </span>
+                    <p className="font-mono text-2xl font-black text-foreground">
+                      {eveningData.uniqueClientsCount}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">Dossiers suivis avec soin</p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-muted/40 border border-[#E07A2B]/30 space-y-1">
+                    <span className="text-xs text-[#E07A2B] font-semibold flex items-center gap-1.5">
+                      <Package size={14} /> Conseils Produits
+                    </span>
+                    <p className="font-mono text-2xl font-black text-foreground">
+                      {eveningData.productsCount}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">Produits dermo-botaniques prescrits</p>
+                  </div>
                 </div>
-                <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                  <p className="text-2xl font-heading font-black text-[#C8951E]">
-                    {eveningData.servicesCount}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Soins cabine</p>
-                </div>
-                <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                  <p className="text-2xl font-heading font-black text-[#E07A2B]">
-                    {eveningData.productsCount}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Produits vendus</p>
-                </div>
-                <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                  <p className="text-2xl font-heading font-black text-emerald-600 dark:text-emerald-400">
-                    {xof(eveningData.cardTotal)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Carte Bancaire</p>
-                </div>
-              </div>
+              )}
 
               {/* Alertes de Stock Bas */}
               {eveningData.lowStockProducts.length > 0 && (
