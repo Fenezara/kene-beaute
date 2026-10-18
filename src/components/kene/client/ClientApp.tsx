@@ -522,7 +522,7 @@ export function ClientApp() {
             </div>
 
             {/* 2. DROITE : Dermo Kènè + Actions rapides (Switcher, Cloche, Réglages, Thème) — 100% visibles même sur 320px */}
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0 pr-0.5">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0 pr-1">
               {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — Visible uniquement sur les autres onglets pour retour direct */}
               {tab !== "accueil" && tab !== "chat" && (
                 <button
@@ -637,7 +637,7 @@ export function ClientApp() {
             </div>
           )}
           {refreshing && <span role="status" className="sr-only">Actualisation du fil en cours</span>}
-          <div className="mx-auto w-full max-w-[640px] px-3 sm:px-5 pt-3 pb-[calc(84px+env(safe-area-inset-bottom,0px))] md:pb-8">
+          <div className="mx-auto w-full max-w-[640px] px-2.5 sm:px-5 pt-2.5 sm:pt-3 pb-[calc(84px+env(safe-area-inset-bottom,0px))] md:pb-8">
             {/* Bannière douce de sauvegarde WhatsApp si en mode Découverte */}
             <GuestSaveBanner />
 

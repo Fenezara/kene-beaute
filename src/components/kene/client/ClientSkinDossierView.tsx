@@ -332,16 +332,23 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         </Button>
       </div>
 
-      {/* ───── 4 Cartes KPIs Cutanées de la Cliente (compactes, zéro espace mort sur Android 320-360px) ───── */}
+      {/* ───── 4 Cartes KPIs Cutanées de la Cliente (Architecture 2 niveaux sur mobile 320-360px : icône+titre en haut, valeur 100% largeur en bas) ───── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
         <Card className="py-0 gap-0 border-border/80 bg-card/85 backdrop-blur-md shadow-xs">
-          <CardContent className="p-2.5 sm:p-3.5 flex items-center gap-2 sm:gap-2.5">
-            <span className="grid place-items-center size-9 sm:size-10 rounded-xl bg-primary/10 text-primary shrink-0 shadow-xs">
-              <Award className="size-4.5 sm:size-5" />
-            </span>
+          <CardContent className="p-2.5 sm:p-3.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
+            <div className="flex items-center gap-2 sm:shrink-0">
+              <span className="grid place-items-center size-7 sm:size-10 rounded-lg sm:rounded-xl bg-primary/10 text-primary shrink-0 shadow-xs">
+                <Award className="size-4 sm:size-5" />
+              </span>
+              <p className="sm:hidden text-[9.5px] text-muted-foreground font-bold uppercase tracking-wider truncate">
+                Score Global
+              </p>
+            </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[9.5px] sm:text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">Score Global</p>
-              <div className="flex items-baseline gap-1 mt-0.5 whitespace-nowrap">
+              <p className="hidden sm:block text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">
+                Score Global
+              </p>
+              <div className="flex items-baseline gap-1 sm:mt-0.5 whitespace-nowrap">
                 <span className={cn("text-base sm:text-lg font-black font-heading leading-none", scoreCl)}>
                   {globalScore !== null ? globalScore : "--"}
                 </span>
@@ -352,13 +359,20 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         </Card>
 
         <Card className="py-0 gap-0 border-border/80 bg-card/85 backdrop-blur-md shadow-xs">
-          <CardContent className="p-2.5 sm:p-3.5 flex items-center gap-2 sm:gap-2.5">
-            <span className="grid place-items-center size-9 sm:size-10 rounded-xl bg-amber-500/10 text-amber-500 shrink-0 shadow-xs">
-              <ShieldCheck className="size-4.5 sm:size-5" />
-            </span>
+          <CardContent className="p-2.5 sm:p-3.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
+            <div className="flex items-center gap-2 sm:shrink-0">
+              <span className="grid place-items-center size-7 sm:size-10 rounded-lg sm:rounded-xl bg-amber-500/10 text-amber-500 shrink-0 shadow-xs">
+                <ShieldCheck className="size-4 sm:size-5" />
+              </span>
+              <p className="sm:hidden text-[9.5px] text-muted-foreground font-bold uppercase tracking-wider truncate">
+                Carnation
+              </p>
+            </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[9.5px] sm:text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">Carnation</p>
-              <p className="text-[11px] sm:text-sm font-black font-heading text-amber-500 truncate mt-0.5 leading-tight" title="Peaux noires, mates et métissées">
+              <p className="hidden sm:block text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">
+                Carnation
+              </p>
+              <p className="text-xs sm:text-sm font-black font-heading text-amber-500 truncate sm:mt-0.5 leading-tight" title="Peaux noires, mates et métissées">
                 Type {user.fitzpatrick || "V"} · Mélanoderme
               </p>
             </div>
@@ -366,13 +380,20 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         </Card>
 
         <Card className="py-0 gap-0 border-border/80 bg-card/85 backdrop-blur-md shadow-xs">
-          <CardContent className="p-2.5 sm:p-3.5 flex items-center gap-2 sm:gap-2.5">
-            <span className="grid place-items-center size-9 sm:size-10 rounded-xl bg-emerald-500/10 text-emerald-500 shrink-0 shadow-xs">
-              <History className="size-4.5 sm:size-5" />
-            </span>
+          <CardContent className="p-2.5 sm:p-3.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
+            <div className="flex items-center gap-2 sm:shrink-0">
+              <span className="grid place-items-center size-7 sm:size-10 rounded-lg sm:rounded-xl bg-emerald-500/10 text-emerald-500 shrink-0 shadow-xs">
+                <History className="size-4 sm:size-5" />
+              </span>
+              <p className="sm:hidden text-[9.5px] text-muted-foreground font-bold uppercase tracking-wider truncate">
+                Scans &amp; Bilans
+              </p>
+            </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[9.5px] sm:text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">Scans &amp; Bilans</p>
-              <p className="text-xs sm:text-sm font-black font-heading text-foreground mt-0.5 whitespace-nowrap truncate leading-tight">
+              <p className="hidden sm:block text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">
+                Scans &amp; Bilans
+              </p>
+              <p className="text-xs sm:text-sm font-black font-heading text-foreground sm:mt-0.5 whitespace-nowrap truncate leading-tight">
                 {diagnoses.length} analyse{diagnoses.length > 1 ? "s" : ""}
               </p>
             </div>
@@ -380,13 +401,20 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         </Card>
 
         <Card className="py-0 gap-0 border-border/80 bg-card/85 backdrop-blur-md shadow-xs">
-          <CardContent className="p-2.5 sm:p-3.5 flex items-center gap-2 sm:gap-2.5">
-            <span className="grid place-items-center size-9 sm:size-10 rounded-xl bg-gold/15 text-gold-text shrink-0 shadow-xs">
-              <Leaf className="size-4.5 sm:size-5" />
-            </span>
+          <CardContent className="p-2.5 sm:p-3.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
+            <div className="flex items-center gap-2 sm:shrink-0">
+              <span className="grid place-items-center size-7 sm:size-10 rounded-lg sm:rounded-xl bg-gold/15 text-gold-text shrink-0 shadow-xs">
+                <Leaf className="size-4 sm:size-5" />
+              </span>
+              <p className="sm:hidden text-[9.5px] text-muted-foreground font-bold uppercase tracking-wider truncate">
+                Ma Routine
+              </p>
+            </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[9.5px] sm:text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">Ma Routine</p>
-              <p className="text-xs sm:text-sm font-black font-heading text-gold-text mt-0.5 flex items-center gap-1.5 whitespace-nowrap leading-tight">
+              <p className="hidden sm:block text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">
+                Ma Routine
+              </p>
+              <p className="text-xs sm:text-sm font-black font-heading text-gold-text sm:mt-0.5 flex items-center gap-1.5 whitespace-nowrap leading-tight">
                 <span className={cn("size-2 rounded-full inline-block shrink-0", globalScore !== null ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground")} />
                 <span>{globalScore !== null ? "Active" : "En attente"}</span>
               </p>
@@ -395,7 +423,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         </Card>
       </div>
 
-      {/* ───── Barre des 5 Sous-Vues Interactives — Calibrée 320px-360px (zéro chevauchement) ───── */}
+      {/* ───── Barre des 5 Sous-Vues Interactives — Calibrée 320px-360px (compteurs en pastille sur l'icône, zéro troncature) ───── */}
       <div className="grid grid-cols-5 gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-[18px] sm:rounded-[22px] bg-muted/50 border border-border/70 shadow-xs overflow-hidden">
         <button
           type="button"
@@ -404,7 +432,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("live");
           }}
           className={cn(
-            "py-2 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
+            "py-1.5 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
             activeView === "live"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
@@ -421,14 +449,17 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("dossier");
           }}
           className={cn(
-            "py-2 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
+            "py-1.5 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
             activeView === "dossier"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
           <FolderHeart size={14} className={cn("shrink-0", activeView === "dossier" ? "text-primary" : "text-muted-foreground")} />
-          <span className="w-full truncate leading-tight">Ma Routine</span>
+          <span className="w-full truncate leading-tight">
+            <span className="sm:hidden">Routine</span>
+            <span className="hidden sm:inline">Ma Routine</span>
+          </span>
         </button>
 
         <button
@@ -438,7 +469,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("avant_apres");
           }}
           className={cn(
-            "py-2 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
+            "py-1.5 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
             activeView === "avant_apres"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
@@ -455,14 +486,22 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("galerie");
           }}
           className={cn(
-            "py-2 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
+            "py-1.5 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
             activeView === "galerie"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <Camera size={14} className={cn("shrink-0", activeView === "galerie" ? "text-primary" : "text-muted-foreground")} />
-          <span className="w-full truncate leading-tight">Galerie ({lightboxPhotos.length})</span>
+          <span className="inline-flex items-center gap-0.5 shrink-0">
+            <Camera size={14} className={cn("shrink-0", activeView === "galerie" ? "text-primary" : "text-muted-foreground")} />
+            <span className="sm:hidden text-[8.5px] font-black px-1 py-0 rounded-full bg-primary/15 text-primary leading-tight">
+              {lightboxPhotos.length}
+            </span>
+          </span>
+          <span className="w-full truncate leading-tight">
+            <span className="sm:hidden">Galerie</span>
+            <span className="hidden sm:inline">Galerie ({lightboxPhotos.length})</span>
+          </span>
         </button>
 
         <button
@@ -472,15 +511,20 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("historique");
           }}
           className={cn(
-            "py-2 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
+            "py-1.5 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
             activeView === "historique"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <History size={14} className={cn("shrink-0", activeView === "historique" ? "text-primary" : "text-muted-foreground")} />
+          <span className="inline-flex items-center gap-0.5 shrink-0">
+            <History size={14} className={cn("shrink-0", activeView === "historique" ? "text-primary" : "text-muted-foreground")} />
+            <span className="sm:hidden text-[8.5px] font-black px-1 py-0 rounded-full bg-primary/15 text-primary leading-tight">
+              {diagnoses.length}
+            </span>
+          </span>
           <span className="w-full truncate leading-tight">
-            <span className="sm:hidden">Bilans ({diagnoses.length})</span>
+            <span className="sm:hidden">Bilans</span>
             <span className="hidden sm:inline">Historique ({diagnoses.length})</span>
           </span>
         </button>

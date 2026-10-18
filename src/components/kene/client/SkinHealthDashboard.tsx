@@ -261,32 +261,32 @@ export function SkinHealthDashboard({
   return (
     <div className={cn("space-y-4", className)}>
       {/* ───── 1. CARTE PRINCIPALE : BILAN DE SANTÉ CUTANÉE ───── */}
-      <div className="relative overflow-hidden rounded-[28px] k-card kaolin-card p-5 sm:p-6 border border-[#C8951E]/35 shadow-xl">
+      <div className="relative overflow-hidden rounded-[22px] sm:rounded-[28px] k-card kaolin-card p-3.5 sm:p-6 border border-[#C8951E]/35 shadow-xl">
         {/* Liseré Kente orfèvre supérieur */}
         <div className="absolute inset-x-0 top-0 h-[3px] kente-band" aria-hidden="true" />
 
-        {/* En-tête avec badge d'authenticité */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="grid place-items-center size-9 rounded-xl bg-primary/15 text-primary shrink-0">
-              <Activity size={18} />
+        {/* En-tête avec badge d'authenticité — pleine largeur sur mobile 320-360px */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            <span className="grid place-items-center size-8 sm:size-9 rounded-xl bg-primary/15 text-primary shrink-0 mt-0.5 sm:mt-0">
+              <Activity size={17} />
             </span>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <h3 className="font-heading font-black text-base sm:text-lg text-foreground tracking-tight">
+                <h3 className="font-heading font-black text-[15px] sm:text-lg text-foreground tracking-tight leading-snug">
                   Santé de ta Peau en Direct
                 </h3>
                 {hasRealScan ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] dark:text-[#6FB96F] text-[9.5px] font-bold uppercase tracking-wider">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] dark:text-[#6FB96F] text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider shrink-0">
                     <CheckCircle2 size={10} /> Bilan Validé IA
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C8951E]/15 text-[#C8951E] text-[9.5px] font-bold uppercase tracking-wider">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C8951E]/15 text-[#C8951E] text-[9px] sm:text-[9.5px] font-bold uppercase tracking-wider shrink-0">
                     <CauriIcon size={10} /> Profil estimé
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
                 {hasRealScan && multi.last
                   ? `Dernière analyse biométrique le ${formatDate(multi.last.createdAt, { day: "numeric", month: "long" })}`
                   : "Pré-bilan d'après ton profil · Réalise ton scan pour affiner"}
@@ -327,39 +327,42 @@ export function SkinHealthDashboard({
           </div>
         </div>
 
-        {/* Bloc Score Global & Statut Synthétique */}
-        <div className="mt-5 grid grid-cols-12 gap-3.5 items-center p-4 sm:p-5 rounded-2xl bg-card/60 border border-border/80">
-          <div className="col-span-5 sm:col-span-4 flex items-center justify-center shrink-0">
+        {/* Bloc Score Global & Statut Synthétique — Flex adaptatif anti-troncature sur 320px-360px */}
+        <div className="mt-3.5 sm:mt-5 flex items-center gap-3 sm:gap-4 p-3 sm:p-5 rounded-2xl bg-card/60 border border-border/80">
+          <div className="shrink-0 sm:hidden">
+            <ScoreGauge score={globalScore} label="Score" size={82} />
+          </div>
+          <div className="hidden sm:flex items-center justify-center shrink-0">
             <ScoreGauge score={globalScore} label="Score Global" size={100} />
           </div>
 
-          <div className="col-span-7 sm:col-span-8 min-w-0">
-            <p className="text-[10px] sm:text-[10.5px] font-bold uppercase tracking-[0.14em] text-primary">
+          <div className="min-w-0 flex-1">
+            <p className="text-[9.5px] sm:text-[10.5px] font-bold uppercase tracking-[0.12em] text-primary">
               Bilan Cutané Global
             </p>
-            <h4 className="font-heading font-black text-sm sm:text-lg text-foreground mt-0.5 leading-snug">
+            <h4 className="font-heading font-black text-[13px] sm:text-lg text-foreground mt-0.5 leading-snug">
               {statusLabel}
             </h4>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed font-sans">
+            <p className="text-[11px] sm:text-xs text-muted-foreground mt-1 leading-relaxed font-sans">
               {hasRealScan
-                ? `Indice de vitalité calculé sur l'ensemble de vos zones analysées (${multi.covered.length} zone${multi.covered.length > 1 ? "s" : ""}).`
+                ? `Indice de vitalité calculé sur vos zones analysées (${multi.covered.length} zone${multi.covered.length > 1 ? "s" : ""}).`
                 : `Vos constantes cutanées démarreront dès votre première analyse biométrique.`}
             </p>
           </div>
         </div>
 
         {/* ───── LES 4 PILIERS VITAUX (Jauges & Constantes Cutanées) ───── */}
-        <div className="mt-5 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-foreground flex items-center gap-1.5 uppercase tracking-wide">
-              <CauriIcon size={14} className="text-primary" /> Constantes Cutanées Clés
+        <div className="mt-4 sm:mt-5 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-1">
+            <span className="text-[11px] sm:text-xs font-black text-foreground flex items-center gap-1.5 uppercase tracking-wide">
+              <CauriIcon size={13} className="text-primary shrink-0" /> Constantes Cutanées Clés
             </span>
-            <span className="text-[11px] font-semibold text-muted-foreground">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground">
               {hasRealScan ? "Touche une jauge pour le détail" : "En attente de scan"}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
             {pillars.map((p) => {
               const Icon = p.icon;
               return (
@@ -367,35 +370,35 @@ export function SkinHealthDashboard({
                   key={p.id}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => onPillarClick(p)}
-                  className="rounded-2xl p-3 text-left transition-all border border-border/80 bg-background/60 hover:bg-background flex flex-col justify-between focus-visible:outline-2 focus-visible:outline-primary shadow-xs cursor-pointer"
-                  style={{ minHeight: "115px" }}
+                  className="rounded-2xl p-2.5 sm:p-3 text-left transition-all border border-border/80 bg-background/60 hover:bg-background flex flex-col justify-between focus-visible:outline-2 focus-visible:outline-primary shadow-xs cursor-pointer"
+                  style={{ minHeight: "104px" }}
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-1">
                     <span
-                      className="grid place-items-center size-8 rounded-xl shadow-xs"
+                      className="grid place-items-center size-7 sm:size-8 rounded-xl shadow-xs shrink-0"
                       style={{ backgroundColor: p.bgLight, color: p.color }}
                     >
-                      <Icon size={18} />
+                      <Icon size={16} />
                     </span>
                     <span
-                      className="font-mono text-sm font-black tabular-nums"
+                      className="font-mono text-xs sm:text-sm font-black tabular-nums"
                       style={{ color: p.score > 0 ? p.color : "var(--muted-foreground)" }}
                     >
                       {p.score > 0 ? `${p.score}%` : "--"}
                     </span>
                   </div>
 
-                  <div className="mt-2">
-                    <p className="text-xs font-bold text-foreground leading-snug line-clamp-2">
+                  <div className="mt-1.5 sm:mt-2">
+                    <p className="text-[11px] sm:text-xs font-bold text-foreground leading-snug line-clamp-2">
                       {p.name}
                     </p>
-                    <p className="text-[10.5px] font-medium text-muted-foreground mt-0.5">
+                    <p className="text-[10px] sm:text-[10.5px] font-medium text-muted-foreground mt-0.5 truncate">
                       {p.status}
                     </p>
                   </div>
 
                   {/* Barre de progression miniature */}
-                  <div className="mt-2 w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="mt-1.5 sm:mt-2 w-full h-1.5 rounded-full bg-muted overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${p.score}%` }}

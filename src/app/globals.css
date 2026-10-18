@@ -183,12 +183,27 @@
   html,
   body {
     min-height: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
     overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
   html {
     scroll-behavior: smooth;
     touch-action: pan-x pan-y;
+  }
+  /* Calibration proportionnelle pour smartphones (notamment Android bas de gamme 320px–360px
+     avec police système agrandie dans HiOS / XOS / OneUI) :
+     Verrouille 1rem proportionnellement à la largeur d'écran afin que tous les espacements
+     Tailwind (p-*, gap-*, size-*) conservent les mêmes proportions harmonieuses que sur un iPhone Pro. */
+  @media (max-width: 430px) {
+    html {
+      font-size: clamp(13px, 3.75vw, 15.5px) !important;
+      -webkit-text-size-adjust: 100% !important;
+      text-size-adjust: 100% !important;
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     html {
