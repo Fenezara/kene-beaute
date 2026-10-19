@@ -22,9 +22,9 @@ export function LinkAccountModal({ open, onClose, reason }: LinkAccountModalProp
   const setUser = useKene((s) => s.setUser);
 
   const [phone, setPhone] = useState("");
-  const [name, setName] = useState(user?.name && user.name !== "Mariam Diallo" && user.name !== "Nouvelle cliente" ? user.name : "");
+  const [name, setName] = useState(user?.name && user.name !== "Mariam Diallo" && user.name !== "Nouvelle cliente" && user.name !== "Nouvelle invitée" ? user.name : "");
   const [pin, setPin] = useState("");
-  const [withPin, setWithPin] = useState(false);
+  const [withPin, setWithPin] = useState(true);
   const [loading, setLoading] = useState(false);
 
   if (!open) return null;
@@ -66,7 +66,7 @@ export function LinkAccountModal({ open, onClose, reason }: LinkAccountModalProp
         } as SessionUser);
 
         haptic(HAPTIC.success);
-        toast.success("Votre profil et vos ordonnances sont sauvegardés ! 🌿");
+        toast.success("Votre compte gratuit est créé et votre dossier est sauvegardé à vie ! 🌿");
         onClose();
       }
     } catch (err) {
@@ -100,11 +100,16 @@ export function LinkAccountModal({ open, onClose, reason }: LinkAccountModalProp
               <MessageCircle size={24} />
             </span>
             <div>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full">
+                  100% Gratuit · 0 FCFA
+                </span>
+              </div>
               <h3 className="font-heading text-lg font-black text-foreground">
-                Sauvegarder mon Dossier Peau
+                Créer mon compte permanent
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                {reason || "Enregistrez votre numéro WhatsApp pour conserver vos diagnostics, ordonnances et recevoir vos suivis personnalisés."}
+                {reason || "Enregistrez votre prénom et votre numéro WhatsApp pour conserver vos diagnostics, ordonnances et photos d'évolution à vie."}
               </p>
             </div>
           </div>
@@ -114,10 +119,11 @@ export function LinkAccountModal({ open, onClose, reason }: LinkAccountModalProp
             <BotHoneypot />
             <div>
               <label className="block text-xs font-bold text-foreground mb-1.5">
-                Votre prénom ou nom
+                Votre prénom
               </label>
               <input
                 type="text"
+                required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex : Mariam, Aïcha, Sarah..."
@@ -145,66 +151,49 @@ export function LinkAccountModal({ open, onClose, reason }: LinkAccountModalProp
               </div>
             </div>
 
-            {/* Option code PIN pour reconnexion instantanée sans SMS */}
+            {/* Code PIN pour reconnexion instantanée sans SMS */}
             <div className="pt-1">
-              {!withPin ? (
-                <button
-                  type="button"
-                  onClick={() => setWithPin(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-text hover:underline"
-                >
-                  <KeyRound size={13} />
-                  Définir un code secret à 4 chiffres (reconnexion rapide)
-                </button>
-              ) : (
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <KeyRound size={13} className="text-gold-text" />
-                      Code secret PIN (4 chiffres)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWithPin(false);
-                        setPin("");
-                      }}
-                      className="text-[11px] text-muted-foreground hover:underline"
-                    >
-                      Annuler
-                    </button>
-                  </div>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    inputMode="numeric"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                    placeholder="••••"
-                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-center text-base tracking-[0.3em] font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/60"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Vous permettra de vous reconnecter en 2 secondes sans attendre de SMS.
-                  </p>
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <KeyRound size={13} className="text-gold-text" />
+                    Code secret PIN (4 chiffres)
+                  </label>
+                  <span className="text-[10px] text-muted-foreground font-semibold">
+                    Reconnexion facile
+                  </span>
                 </div>
-              )}
+                <input
+                  type="password"
+                  maxLength={4}
+                  inputMode="numeric"
+                  required={withPin}
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="Ex : 1234"
+                  className="w-full h-10 px-3 rounded-lg border border-border bg-background text-center text-base tracking-[0.3em] font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/60"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Ce code à 4 chiffres vous permettra de vous reconnecter en 2 secondes sans attendre de SMS.
+                </p>
+              </div>
             </div>
 
             <div className="pt-2">
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 rounded-xl k-btn-gold font-bold text-sm text-primary-foreground shadow-md flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-60"
+                className="w-full h-12 rounded-xl k-btn-gold font-bold text-sm text-primary-foreground shadow-md flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-60 cursor-pointer"
               >
                 {loading ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    <span>Sauvegarde en cours...</span>
+                    <span>Création du compte...</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle2 size={16} />
-                    <span>Sauvegarder mon compte</span>
+                    <span>Valider mon inscription gratuite (0 FCFA)</span>
                   </>
                 )}
               </button>
@@ -212,7 +201,7 @@ export function LinkAccountModal({ open, onClose, reason }: LinkAccountModalProp
 
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground text-center pt-1">
               <ShieldCheck size={13} className="text-emerald-500" />
-              <span>Zéro spam · Vos données de santé restent 100% confidentielles</span>
+              <span>Zéro frais · Zéro prélèvement · Données de santé confidentielles</span>
             </div>
 
             <div className="pt-2 border-t border-border/50 text-center">

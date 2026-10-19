@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Baby, BadgeCheck, BriefcaseBusiness, Building2, Calendar, Camera, Check, ChevronRight, Crown, Gift, Heart, Loader2, MapPin,
-  MessageCircle, Pencil, Phone, Plus, Settings, Trash2,
+  MessageCircle, Pencil, Phone, Plus, Settings, Trash2, Sparkles, AlertCircle, ArrowRight, LogIn,
 } from "lucide-react";
 import { toast } from "sonner";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
@@ -18,13 +18,14 @@ import { useT } from "@/lib/kene/use-t";
 import type { GoldThreads } from "@/lib/kene/gold-threads";
 import { Reveal, RevealItem, Shimmer } from "@/components/kene/ui2026";
 import { CauriIcon, SankofaIcon } from "@/components/kene/icons";
-import { useKene, type SessionUser } from "@/store/kene";
+import { useKene, type SessionUser, isSavedUser } from "@/store/kene";
 import type { ApiUser } from "./types";
 import { FITZPATRICK_CARDS, SKIN_GOALS, SKIN_TYPES, diagImgSrc } from "./types";
 import { SectionTitle } from "./bits";
 import { SharesCard } from "./SharesCard";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
 import { ContactKeneModal } from "./ContactKeneModal";
+import { LinkAccountModal } from "./LinkAccountModal";
 import { cn } from "@/lib/utils";
 
 /** SessionUser + goals (string JSON) renvoyé par PATCH profile */
@@ -48,6 +49,7 @@ export function ProfileScreen() {
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [savingId, setSavingId] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
 
   // Sync state if user prop changes
   useEffect(() => {
@@ -219,6 +221,58 @@ export function ProfileScreen() {
   return (
     <>
       <Reveal className="pt-4 pb-2 flex flex-col gap-6" stagger={0.07}>
+      {/* Alerte bienveillante pour compte invité temporaire */}
+      {!isSavedUser(user) && (
+        <RevealItem>
+          <div className="relative overflow-hidden rounded-[24px] border-2 border-[#C8951E]/60 bg-gradient-to-br from-[#C8951E]/20 via-[#A0522D]/15 to-card p-4 sm:p-5 shadow-lg">
+            <div className="flex items-start gap-3.5">
+              <span className="grid size-11 place-items-center rounded-2xl bg-[#C8951E]/25 text-[#C8951E] shrink-0 shadow-xs">
+                <Sparkles size={22} className="animate-pulse" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/25 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wider">
+                    Mode Invité Temporaire
+                  </span>
+                  <span className="text-[11px] text-muted-foreground font-semibold">
+                    Compte non sauvegardé
+                  </span>
+                </div>
+                <h3 className="font-heading font-black text-base text-foreground mt-1.5 leading-snug">
+                  Enregistre ton profil gratuit (0 FCFA) pour garder tes soins
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Tu utilises actuellement Kènè sans compte. Associe ton numéro WhatsApp pour ne jamais perdre tes diagnostics, ton Passeport de Peau et tes rituels recommandés.
+                </p>
+                <div className="mt-3.5 flex items-center gap-2.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setLinkModalOpen(true)}
+                    className="inline-flex h-9 items-center gap-2 rounded-full k-btn-gold px-4 text-xs font-black text-primary-foreground shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    <CauriIcon size={14} />
+                    <span>Créer mon profil permanent (0 FCFA)</span>
+                    <ArrowRight size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        window.dispatchEvent(new CustomEvent("kene:open-login"));
+                      }
+                    }}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-card/80 hover:bg-card px-3 text-xs font-semibold text-foreground transition-colors cursor-pointer"
+                  >
+                    <LogIn size={13} className="text-gold-text" />
+                    <span>Déjà inscrite ? Me connecter</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </RevealItem>
+      )}
+
       {/* Identité */}
       <RevealItem>
         <section aria-labelledby="me-t" className="k-card overflow-hidden rounded-[24px]">
@@ -578,6 +632,12 @@ export function ProfileScreen() {
         open={contactOpen}
         onOpenChange={setContactOpen}
         userName={user.name}
+      />
+
+      <LinkAccountModal
+        open={linkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
+        reason="Votre profil et vos ordonnances seront définitivement sauvegardés sur votre compte WhatsApp gratuit."
       />
     </>
   );

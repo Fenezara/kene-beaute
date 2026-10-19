@@ -13,7 +13,7 @@
 // lourds sont lazy (chunk dédié au premier clic — HomeScreen/Onboarding eager).
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarDays, Crown, FolderHeart, Home, Loader2, MessageCircle, Settings, Share2, ShieldAlert, User, WifiOff } from "lucide-react";
+import { CalendarDays, Crown, FolderHeart, Home, Loader2, MessageCircle, Settings, Share2, ShieldAlert, Sparkles, User, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import type { BodyZone } from "@/lib/kene/types";
 import { HAPTIC, haptic, isOnline, useNetworkOnline } from "@/lib/kene/ux";
@@ -33,6 +33,7 @@ import { ProfileScreen } from "./ProfileScreen";
 import { AgendaScreen } from "./AgendaScreen";
 import { ClientSkinDossierView } from "./ClientSkinDossierView";
 import { ClientInciScannerModal } from "./ClientInciScannerModal";
+import { LinkAccountModal } from "./LinkAccountModal";
 import { ScreenBoundary } from "./ScreenBoundary";
 import { BootSkeleton } from "./BootSkeleton";
 import { PaymentReturnHandler } from "./PaymentReturnHandler";
@@ -369,6 +370,15 @@ export function ClientApp() {
     return () => window.removeEventListener("kene:open-inci-scanner", handleOpenInci);
   }, []);
 
+  // Modal autonome de liaison de compte / création de compte gratuit
+  const [linkAccountOpen, setLinkAccountOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenLink = () => setLinkAccountOpen(true);
+    window.addEventListener("kene:open-link-account", handleOpenLink);
+    return () => window.removeEventListener("kene:open-link-account", handleOpenLink);
+  }, []);
+
   // Store persisté en cours de relecture : squelette d'amorçage
   // Côté navigateur, l'amorçage est garanti immédiat (zéro blocage infini sur BootSkeleton)
   if (!mounted && typeof window === "undefined") {
@@ -572,6 +582,23 @@ export function ClientApp() {
                 <span className="hidden sm:inline truncate">Scanner INCI</span>
                 <span className="sm:hidden">INCI</span>
               </button>
+
+              {/* ✨ Badge Invité avec CTA direct vers compte gratuit (0 FCFA) */}
+              {!isSaved && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    setLinkAccountOpen(true);
+                  }}
+                  title="Créer mon compte gratuit (0 FCFA) pour sauvegarder mes bilans à vie"
+                  className="inline-flex items-center gap-1 sm:gap-1.5 h-8 sm:h-11 px-2.5 sm:px-3 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-700 dark:text-amber-300 text-[11px] sm:text-xs font-bold active:scale-95 transition-all shadow-2xs shrink-0 cursor-pointer"
+                >
+                  <Sparkles size={13} className="animate-pulse" />
+                  <span className="hidden sm:inline">Créer mon compte (0 F)</span>
+                  <span className="sm:hidden">Compte (0 F)</span>
+                </button>
+              )}
 
               <SpaceSwitcher variant="compact" />
 
@@ -836,6 +863,9 @@ export function ClientApp() {
 
       {/* Modal dédié Scanner Cosmétique & INCI Kènè (autonome sans redirection vers l'orbe) */}
       <ClientInciScannerModal open={inciScannerOpen} onOpenChange={setInciScannerOpen} />
+
+      {/* Modal de création de compte gratuit (0 FCFA) / sauvegarde permanente */}
+      <LinkAccountModal open={linkAccountOpen} onClose={() => setLinkAccountOpen(false)} />
     </div>
   );
 }

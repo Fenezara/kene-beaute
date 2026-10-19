@@ -157,7 +157,9 @@ export function PinKeypad({
 
   const title = isSetup
     ? step === "initial"
-      ? "Choisis ton code secret"
+      ? mode === "pro"
+        ? "Code secret de l'établissement"
+        : "Crée ton code secret gratuit"
       : "Confirme ton code secret"
     : name
       ? `Bon retour, ${name.split(" ")[0]} 💛`
@@ -165,8 +167,10 @@ export function PinKeypad({
 
   const subtitle = isSetup
     ? step === "initial"
-      ? "4 chiffres faciles à retenir pour te reconnecter sans SMS"
-      : "Retape les 4 chiffres pour valider ton code"
+      ? mode === "pro"
+        ? "4 chiffres pour sécuriser l'accès à votre caisse & cabine"
+        : "Choisis 4 chiffres (ex: 1234) pour sécuriser ton compte gratuit (0 FCFA)"
+      : "Retape les 4 chiffres pour valider ton inscription gratuite"
     : "Saisis ton code à 4 chiffres pour entrer";
 
   return (
@@ -355,10 +359,10 @@ export function PinKeypad({
                 <button
                   type="button"
                   onClick={onNewClient}
-                  className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gold/40 bg-gold/15 hover:bg-gold/25 text-xs font-bold text-foreground transition-all shadow-xs active:scale-95"
+                  className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border/60 bg-muted/40 hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-all shadow-2xs active:scale-95"
                 >
                   <CauriIcon size={14} className="text-gold-text" />
-                  <span>Nouveau client ? Découvrir sans compte</span>
+                  <span>Tester en mode invité (Aperçu temporaire sans compte)</span>
                 </button>
               )}
               {onSwitchAccount && (

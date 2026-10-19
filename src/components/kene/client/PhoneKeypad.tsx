@@ -122,11 +122,13 @@ export function PhoneKeypad({
         <div className="mb-4">
           <KeneEmblemLockup size={48} labelSize={24} sublabel={mode === "pro" ? "Kènè Pro · Espace institut" : "Beauté mélanoderme"} />
         </div>
-        <h1 className="font-heading text-[24px] sm:text-[26px] font-black leading-tight text-foreground">
-          Ton numéro
+        <h1 className="font-heading text-[24px] sm:text-[26px] font-black leading-tight text-foreground text-center">
+          {mode === "pro" ? "Numéro de l'établissement" : "Ton numéro WhatsApp"}
         </h1>
         <p className="mt-1.5 text-center text-[13px] text-muted-foreground max-w-[340px]">
-          Saisis ton numéro pour te connecter avec ton code secret à 4 chiffres (ex: 1234).
+          {mode === "pro"
+            ? "Saisis ton numéro de gérante ou employée pour accéder à la caisse & cabine."
+            : "Saisis ton numéro pour créer ton compte gratuit (0 FCFA) ou te connecter en 10 secondes."}
         </p>
         <div
           ref={displayRef}
@@ -234,11 +236,14 @@ export function PhoneKeypad({
             <button
               type="button"
               onClick={onNewClient}
-              className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gold/40 bg-gold/15 hover:bg-gold/25 text-xs font-bold text-foreground transition-all shadow-xs active:scale-95"
+              className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border/60 bg-muted/40 hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-all shadow-2xs active:scale-95"
             >
               <CauriIcon size={14} className="text-gold-text" />
-              <span>Nouveau client ? Découvrir sans compte</span>
+              <span>Tester en mode invité (Aperçu temporaire sans compte)</span>
             </button>
+            <p className="text-[10px] text-muted-foreground text-center">
+              ✨ Inscription 100% gratuite (0 FCFA) · Vos bilans &amp; ordonnances sauvegardés à vie
+            </p>
           </div>
         )}
 

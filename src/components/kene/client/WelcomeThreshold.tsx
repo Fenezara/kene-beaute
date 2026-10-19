@@ -118,7 +118,7 @@ function PortalCard({
 type Stage =
   | { phase: "landing" }
   | { phase: "keypad"; mode: "client" | "pro" }
-  | { phase: "pin"; mode: "client" | "pro"; phone: string; name?: string }
+  | { phase: "pin"; mode: "client" | "pro"; phone: string; name?: string; isSetup?: boolean }
   | { phase: "signin"; mode: "client" | "pro"; phone: string; devCode: string; isResetPin?: boolean };
 
 const SEEN_KEY = "kene-seen";
@@ -293,7 +293,8 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
       const effectiveMode: "client" | "pro" =
         keypadMode === "pro" ? "pro" : keypadMode === "client" ? "client" : check.role === "pro" || check.isEmployee ? "pro" : "client";
 
-      setStage({ phase: "pin", mode: effectiveMode, phone, name: check.name });
+      const isSetup = !check.exists || check.hasPin === false || (check as { needsPinSetup?: boolean }).needsPinSetup === true;
+      setStage({ phase: "pin", mode: effectiveMode, phone, name: check.name, isSetup });
       return;
     } catch (e) {
       const isNetwork = !isOnline() || (e instanceof Error && /network|fetch|offline|hors-ligne/i.test(e.message));
@@ -302,7 +303,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
         return;
       }
       // Même en cas d'erreur de pré-vérification, on ouvre le pavé PIN pour permettre la connexion directe
-      setStage({ phase: "pin", mode: keypadMode, phone });
+      setStage({ phase: "pin", mode: keypadMode, phone, isSetup: false });
     }
   }
 
@@ -533,39 +534,52 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                     Bilan dermo-biométrique, coach Dermo Kènè, boutique botanique et instituts partenaires —
                     pensés pour les teints Fitzpatrick&nbsp;IV–VI.
                   </motion.p>
-                  {/* Boutons d'action Hero — Accès direct sans compte & Stories */}
+                  {/* Boutons d'action Hero — Compte gratuit (0 FCFA) prioritaire & Aperçu temporaire */}
                   <div className="flex flex-wrap items-center gap-2.5 mt-4">
+                    <motion.button
+                      onClick={() => enterPortal("client")}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.68 * d }}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-full k-btn-gold px-5 text-[13px] font-bold text-primary-foreground shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+                    >
+                      <CauriIcon size={15} />
+                      <span>Créer mon compte gratuit (0 FCFA)</span>
+                      <ArrowRight size={14} />
+                    </motion.button>
+
                     <motion.button
                       onClick={startExploration}
                       disabled={exploring}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.68 * d }}
-                      className="inline-flex min-h-11 items-center gap-2 rounded-full k-btn-gold px-5 text-[13px] font-bold text-primary-foreground shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      transition={{ delay: 0.72 * d }}
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-full k-chip px-3.5 text-[12px] font-semibold text-foreground/80 hover:text-foreground cursor-pointer"
+                      title="Tester immédiatement l'application sans créer de compte (session temporaire)"
                     >
-                      {exploring ? (
-                        <Loader2 size={15} className="animate-spin" />
-                      ) : (
-                        <CauriIcon size={15} />
-                      )}
-                      <span>Découvrir Kènè (Accès gratuit · Sans compte)</span>
-                      <ArrowRight size={14} />
+                      {exploring ? <Loader2 size={13} className="animate-spin text-gold-text" /> : null}
+                      <span>Tester sans compte</span>
+                      <span className="text-[10px] text-muted-foreground font-normal">(Aperçu)</span>
                     </motion.button>
 
                     <motion.button
                       onClick={() => setStories(true)}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.74 * d }}
-                      className="inline-flex min-h-11 items-center gap-2 rounded-full k-chip px-4 text-[12.5px] font-semibold text-foreground/85 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+                      transition={{ delay: 0.76 * d }}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-full k-chip px-3.5 text-[12px] font-semibold text-foreground/85 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
                       aria-label="Découvrir Kènè en 30 secondes (stories)"
                     >
-                      <span className="grid h-6 w-6 place-items-center rounded-full bg-gold/20 text-gold-text" aria-hidden="true">
-                        <Play size={11} className="ml-0.5" />
+                      <span className="grid h-5 w-5 place-items-center rounded-full bg-gold/20 text-gold-text" aria-hidden="true">
+                        <Play size={10} className="ml-0.5" />
                       </span>
                       <span>En 30&nbsp;s</span>
                     </motion.button>
                   </div>
+                  <p className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1.5">
+                    <ShieldCheck size={13} className="text-emerald-500 shrink-0" />
+                    <span>Inscription 100% gratuite (0 FCFA) · Vos bilans &amp; ordonnances conservés à vie sur WhatsApp</span>
+                  </p>
 
                   {/* Reconnexion express sur grand écran si présente */}
                   <AnimatePresence initial={false}>
@@ -617,9 +631,9 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                       icon={<DuafeIcon size={13} className="text-[#F3D98A]" />}
                       kicker="Espace cliente"
                       title="Prendre soin de ma peau"
-                      entering={entering === "client" || exploring}
+                      entering={entering === "client"}
                       dimmed={entering === "pro"}
-                      onEnter={startExploration}
+                      onEnter={() => enterPortal("client")}
                       delay={0.06}
                     />
                     <PortalCard
@@ -641,10 +655,10 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                     <button
                       type="button"
                       onClick={() => enterPortal("client")}
-                      className="inline-flex items-center gap-1.5 hover:text-foreground font-semibold transition-colors underline-offset-4 hover:underline"
+                      className="inline-flex items-center gap-1.5 hover:text-foreground font-semibold transition-colors underline-offset-4 hover:underline cursor-pointer"
                     >
                       <LogIn size={13} className="text-gold-text" />
-                      <span>Déjà cliente ? Me connecter</span>
+                      <span>Créer mon compte ou me connecter (0 FCFA)</span>
                     </button>
                     <button
                       type="button"
@@ -1149,10 +1163,10 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                   type="button"
                   onClick={startExploration}
                   disabled={exploring}
-                  className="flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 bg-secondary/80 hover:bg-secondary text-[12.5px] font-bold text-foreground border border-gold/40 shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary"
+                  className="flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 bg-secondary/80 hover:bg-secondary text-[12.5px] font-bold text-foreground border border-gold/40 shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
                 >
                   {exploring ? <Loader2 size={15} className="animate-spin text-gold-text" /> : <CauriIcon size={15} className="text-gold-text" aria-hidden="true" />}
-                  <span>Je n&apos;ai pas de compte — Découvrir sans compte</span>
+                  <span>Tester sans compte (Aperçu temporaire non sauvegardé)</span>
                 </button>
                 <p className="text-[10.5px] sm:text-[11.5px] leading-relaxed text-muted-foreground">
                   Données chiffrées, jamais revendues · En continuant, tu acceptes les conditions Kènè.
@@ -1190,6 +1204,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
               phone={stage.phone}
               name={stage.name}
               mode={stage.mode}
+              isSetup={stage.isSetup ?? false}
               onConfirm={(pin) => handlePinConfirm(pin, stage.phone, stage.mode)}
               onBack={() => setStage({ phase: "keypad", mode: stage.mode })}
               onForgotPin={() => handleForgotPin(stage.phone, stage.mode)}

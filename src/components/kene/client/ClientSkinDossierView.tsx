@@ -37,6 +37,7 @@ import {
   Check,
   Info,
   Droplets,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -331,6 +332,38 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
           <span>Nouveau Bilan</span>
         </Button>
       </div>
+
+      {/* ───── Alerte bienveillante Compte Invité (Mode Découverte) ───── */}
+      {isGuestUser && (
+        <div className="rounded-[20px] border-2 border-[#C8951E]/40 bg-gradient-to-r from-[#C8951E]/15 via-[#A0522D]/10 to-card p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#C8951E]/20 text-[#C8951E]">
+              <Sparkles size={16} className="animate-pulse" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[9.5px] font-black uppercase tracking-wider">
+                  Dossier Temporaire
+                </span>
+                <span className="text-[11px] font-bold text-foreground">
+                  Vos bilans de peau ne sont pas encore sécurisés
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                Créez votre compte gratuit (0 FCFA) avec votre numéro WhatsApp pour conserver vos analyses à vie et synchroniser vos rituels avec votre institut.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLinkModalOpen(true)}
+            className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-full k-btn-gold px-4 text-xs font-black text-primary-foreground shadow-xs shrink-0 self-start sm:self-auto hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer whitespace-nowrap"
+          >
+            <span>Sécuriser mon dossier (0 FCFA)</span>
+            <ArrowRight size={12} />
+          </button>
+        </div>
+      )}
 
       {/* ───── 4 Cartes KPIs Cutanées de la Cliente (Architecture 2 niveaux sur mobile 320-360px : icône+titre en haut, valeur 100% largeur en bas) ───── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">

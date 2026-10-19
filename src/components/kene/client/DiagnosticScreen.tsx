@@ -1560,29 +1560,40 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
   return (
     <div className="pt-4 pb-2">
       <Reveal stagger={0.07}>
-      {/* ── Hook de Sauvegarde de l'Ordonnance (Recommandation 1) ── */}
+      {/* ── Hook de Sauvegarde de l'Ordonnance & Compte Gratuit ── */}
       {!isSaved && (
         <RevealItem className="mb-4">
-          <div className="rounded-[22px] border-2 border-gold/50 bg-gradient-to-r from-gold/15 via-amber-500/10 to-transparent p-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-gold/25 text-gold-text">
-                <NsorommaIcon size={20} />
+          <div className="rounded-[24px] border-2 border-amber-500/50 bg-gradient-to-br from-amber-500/15 via-gold/10 to-card p-4 sm:p-5 shadow-md">
+            <div className="flex items-start gap-3.5">
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-500/25 text-amber-600 dark:text-amber-400">
+                <NsorommaIcon size={22} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="font-heading font-black text-sm text-foreground">
-                  Ton ordonnance personnalisée est prête ! 🌿
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                    ⚠️ Mode Invité Temporaire
+                  </span>
+                  <span className="text-[10px] font-bold text-muted-foreground">Bilan non sauvegardé</span>
+                </div>
+                <p className="font-heading font-black text-sm sm:text-base text-foreground leading-snug">
+                  Ne perds pas ton bilan et ton ordonnance de soin ! 🌿
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                  Enregistre ton numéro pour la conserver à vie, suivre l&apos;évolution de tes taches et retrouver tes rituels sur tous tes appareils.
+                  Ce diagnostic disparaîtra si tu fermes l&apos;application. Crée ton profil gratuitement (<strong>0 FCFA</strong>) en 10 secondes pour le conserver à vie et débloquer ton <strong>Pass Cabine PDF</strong>.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setLinkModalOpen(true)}
-                  className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full k-btn-gold px-4 text-xs font-bold text-primary-foreground shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all"
-                >
-                  <span>Sauvegarder mon ordonnance</span>
-                  <ChevronRight size={14} />
-                </button>
+                <div className="mt-3 flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setLinkModalOpen(true)}
+                    className="inline-flex h-10 items-center gap-2 rounded-full k-btn-gold px-5 text-xs font-bold text-primary-foreground shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    <span>Créer mon compte gratuit (0 FCFA)</span>
+                    <ChevronRight size={14} />
+                  </button>
+                  <span className="text-[10.5px] text-muted-foreground">
+                    ✨ Zéro prélèvement · 100% Gratuit à vie
+                  </span>
+                </div>
               </div>
             </div>
           </div>
