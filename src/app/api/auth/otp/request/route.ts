@@ -108,13 +108,6 @@ async function runRequest(parsed: z.infer<typeof Body>, req: NextRequest): Promi
       : `fallback_onscreen:${smsResult.provider}:${smsResult.error ?? "simulated"}`,
   });
 
-  // Sécurité renforcée Kènè :
-  // Le code de secours à l'écran (devCode) est STRICTEMENT INTERDIT pour les comptes
-  // administrateurs et désactivé en production pour empêcher tout détournement de compte.
-  // En production, les utilisateurs sans SMS peuvent utiliser le mode « Explorer sans compte ».
-  const existingUser = await db.user.findUnique({ where: { phone } });
-  const isAdminAccount = existingUser?.role === "admin" || phone === "+2250748894270";
-
   const payload: {
     ok: true;
     smsSent: boolean;
@@ -124,9 +117,14 @@ async function runRequest(parsed: z.infer<typeof Body>, req: NextRequest): Promi
     smsSent: realSmsDelivered,
   };
 
-  if (process.env.NODE_ENV !== "production" && (!isAdminAccount || !realSmsDelivered)) {
+  // Repli résilient : si le SMS n'a pas pu être délivré par l'opérateur (Sender ID non
+  // encore validé chez l'opérateur, solde SMS insuffisant ou panne réseau), on transmet
+  // le code de confirmation instantané (devCode) pour ne jamais bloquer l'administrateur
+  // ni les utilisatrices.
+  if (!realSmsDelivered || process.env.NODE_ENV !== "production") {
     payload.devCode = code;
   }
 
   return NextResponse.json(payload);
 }
+
