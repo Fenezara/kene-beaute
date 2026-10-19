@@ -208,10 +208,36 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
 
     const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
 
+    // Coupure immédiate du capteur physique dès la capture pour éteindre le voyant d'enregistrement
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      } catch {}
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    stopPersistentCameraStream();
+
     setTimeout(() => {
       onCapture(dataUrl);
       onClose();
-    }, 250);
+    }, 100);
+  }
+
+  function handleClose() {
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      } catch {}
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    stopPersistentCameraStream();
+    onClose();
   }
 
   if (typeof document === "undefined") return null;
@@ -230,7 +256,7 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
       <header className="flex items-center justify-between p-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] z-20">
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           className="h-11 w-11 grid place-items-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white"
           aria-label="Fermer la caméra"
         >

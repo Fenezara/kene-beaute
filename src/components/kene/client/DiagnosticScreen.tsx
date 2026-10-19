@@ -24,6 +24,7 @@ import { GlossaryDialog } from "./GlossaryDialog";
 import { AudioGuideButton } from "./AudioGuideButton";
 import { LiveCameraModal } from "./LiveCameraModal";
 import { BeautyCardModal } from "./BeautyCardModal";
+import { stopPersistentCameraStream, stopPersistentAudioStream } from "@/lib/kene/hardware-perm";
 import { glossaryFor, type GlossaryEntry } from "@/lib/kene/glossary";
 import { matchProduct, norm } from "@/components/kene/route/ritual";
 import { RitualJourney } from "@/components/kene/route/RitualJourney";
@@ -149,6 +150,21 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   }, []);
 
   useEffect(() => clearTimers, [clearTimers]);
+
+  // Coupure stricte de tous les capteurs (caméra / micro) dès que l'étape d'analyse ou de résultat est active
+  useEffect(() => {
+    if (step >= 2) {
+      stopPersistentCameraStream();
+      stopPersistentAudioStream();
+    }
+  }, [step]);
+
+  useEffect(() => {
+    return () => {
+      stopPersistentCameraStream();
+      stopPersistentAudioStream();
+    };
+  }, []);
 
   const [products, setProducts] = useState<ApiProduct[]>([]);
   // Fin des échecs silencieux: produits indisponibles → encart discret +
@@ -439,6 +455,9 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       return;
     }
     launchedRef.current = true;
+    // Libération totale et immédiate de tous les capteurs (caméra + micro) dès le lancement
+    stopPersistentCameraStream();
+    stopPersistentAudioStream();
     setStep(2);
     setAnalyzing(true);
     setProgress(0);
