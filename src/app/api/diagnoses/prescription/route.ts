@@ -17,8 +17,16 @@ export async function GET(req: NextRequest) {
     const guard = guardUserClaim(req, "diagnoses:prescription", userId);
     if (guard) return guard;
 
-    const id = req.nextUrl.searchParams.get("id");
-    if (!id) return jsonError("id du diagnostic requis", 400);
+    let id = req.nextUrl.searchParams.get("id");
+    if (!id) {
+      const latest = await db.diagnosis.findFirst({
+        where: { userId, status: "done" },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
+      if (!latest) return jsonError("Aucune ordonnance trouvée pour cette utilisatrice", 404);
+      id = latest.id;
+    }
 
     const diag = await db.diagnosis.findFirst({
       where: { id, userId, status: "done" },

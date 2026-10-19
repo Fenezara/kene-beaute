@@ -1180,18 +1180,16 @@ export function AgendaScreen() {
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {user?.id && (
-                          <a
-                            href={`/api/diagnoses/report?userId=${encodeURIComponent(user.id)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="shrink-0 h-8 px-2.5 rounded-lg border border-gold/40 bg-gold/10 text-gold-text font-bold text-[11px] flex items-center gap-1 hover:bg-gold/20 transition-colors"
-                            title="Télécharger le rapport dermo-clinique PDF"
-                          >
-                            <FileText size={12} />
-                            Bilan PDF
-                          </a>
-                        )}
+                        <a
+                          href={`/api/appointments/pass?id=${encodeURIComponent(p.id)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 h-8 px-2.5 rounded-lg border border-gold/40 bg-gold/10 text-gold-text font-bold text-[11px] flex items-center gap-1 hover:bg-gold/20 transition-colors"
+                          title="Télécharger le pass et reçu officiel de soin PDF"
+                        >
+                          <FileText size={12} />
+                          Reçu PDF
+                        </a>
                         <button
                           type="button"
                           onClick={() => handleBookRdvType(meta)}
