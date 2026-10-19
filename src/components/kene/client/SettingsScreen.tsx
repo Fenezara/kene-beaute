@@ -46,6 +46,7 @@ import {
 import { NsorommaIcon } from "@/components/kene/icons";
 import { LinkAccountModal } from "./LinkAccountModal";
 import { ContactKeneModal } from "./ContactKeneModal";
+import { ChangePhoneModal } from "@/components/kene/auth/ChangePhoneModal";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
@@ -177,6 +178,7 @@ export function SettingsScreen() {
 
   const [exportBusy, setExportBusy] = useState(false);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [changePhoneOpen, setChangePhoneOpen] = useState(false);
   // Confirmation « Créer un compte entreprise » (isolation des comptes)
   const [proSignup, setProSignup] = useState(false);
   // Suppression définitive du compte (conforme Apple 5.1.1(v) et RGPD/ARTCI)
@@ -379,12 +381,20 @@ export function SettingsScreen() {
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={() => setClientTab("profil")}
-                  className="k-btn-gold mt-4 h-11 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                >
-                  <Pencil size={15} /> Modifier mon profil
-                </button>
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setClientTab("profil")}
+                    className="k-btn-gold h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  >
+                    <Pencil size={14} /> Modifier mon profil
+                  </button>
+                  <button
+                    onClick={() => setChangePhoneOpen(true)}
+                    className="h-11 w-full rounded-xl border border-border/80 bg-background hover:bg-muted text-foreground text-xs font-bold inline-flex items-center justify-center gap-2 transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+                  >
+                    <Phone size={14} className="text-gold-text" /> Changer de numéro
+                  </button>
+                </div>
               )}
               <p className="mt-3 flex items-start gap-1.5 text-[11px] text-muted-foreground leading-snug">
                 <ShieldCheck size={13} className="mt-px shrink-0 text-success" aria-hidden="true" />
@@ -914,6 +924,12 @@ export function SettingsScreen() {
       <LinkAccountModal
         open={linkModalOpen}
         onClose={() => setLinkModalOpen(false)}
+      />
+
+      <ChangePhoneModal
+        open={changePhoneOpen}
+        onOpenChange={setChangePhoneOpen}
+        currentPhone={user?.phone || ""}
       />
     </>
   );

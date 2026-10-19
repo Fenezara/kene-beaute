@@ -18,6 +18,7 @@ import { useT } from "@/lib/kene/use-t";
 import { apiGet, apiPatch, apiPost, resizeImage } from "@/lib/kene/api";
 import { Badge } from "@/components/ui/badge";
 import { Eyebrow, IconBadge } from "@/components/kene/ui2026";
+import { ChangePhoneModal } from "@/components/kene/auth/ChangePhoneModal";
 import { useKene } from "@/store/kene";
 import { performLogout } from "@/lib/kene/logout";
 import { InitialAvatar, SectionHeader } from "./ui-bits";
@@ -171,6 +172,7 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
   // repli défensif si la session venait à être purgée entre deux rendus.
   const managerName = sessionUser?.name?.trim() || "Gérante";
   const managerPhone = sessionUser?.phone || "Numéro non renseigné";
+  const [changePhoneOpen, setChangePhoneOpen] = useState(false);
 
  /** Langue de l'interface — même logique que côté cliente. */
   function selectLang(l: Lang) {
@@ -205,10 +207,19 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
           </div>
         </div>
         <div className="mt-3.5 grid gap-2 sm:grid-cols-2">
-          <p className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 min-h-10 text-xs text-muted-foreground">
-            <Phone size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
-            <span className="truncate font-mono">{managerPhone}</span>
-          </p>
+          <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 min-h-10 text-xs text-muted-foreground gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Phone size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
+              <span className="truncate font-mono">{managerPhone}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setChangePhoneOpen(true)}
+              className="text-[11px] font-bold text-primary hover:underline shrink-0"
+            >
+              Changer
+            </button>
+          </div>
           <p className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 min-h-10 text-xs text-muted-foreground">
             <Building2 size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
             <span className="truncate">{tenantName}{tenantCity ? ` · ${tenantCity}` : ""}</span>
@@ -536,6 +547,12 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
           Paiements certifiés Mobile Money & Carte · conformité CNPS CI / IPM SN / SYSCOHADA. Réservations, commandes et ventes de l&apos;institut arrivent en temps réel lorsque le service de notifications est en ligne.
         </p>
       </div>
+
+      <ChangePhoneModal
+        open={changePhoneOpen}
+        onOpenChange={setChangePhoneOpen}
+        currentPhone={sessionUser?.phone || ""}
+      />
     </div>
   );
 }
