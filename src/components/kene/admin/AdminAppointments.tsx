@@ -99,7 +99,11 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof
   no_show: { label: "Non présenté", color: "bg-zinc-500/15 text-zinc-600 border-zinc-500/30", icon: UserX },
 };
 
-export function AdminAppointments() {
+interface AdminAppointmentsProps {
+  scope?: "real" | "all";
+}
+
+export function AdminAppointments({ scope = "real" }: AdminAppointmentsProps = {}) {
   const [data, setData] = useState<AppointmentsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -111,7 +115,7 @@ export function AdminAppointments() {
     try {
       const q = encodeURIComponent(search.trim());
       const res = await apiGet<AppointmentsResponse>(
-        `/api/admin/appointments?q=${q}&status=${encodeURIComponent(statusFilter)}`
+        `/api/admin/appointments?q=${q}&status=${encodeURIComponent(statusFilter)}&scope=${scope}`
       );
       setData(res);
     } catch (err: any) {
@@ -126,7 +130,7 @@ export function AdminAppointments() {
   useEffect(() => {
     const t = setTimeout(fetchAppointments, 300);
     return () => clearTimeout(t);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, scope]);
 
   const handleStatusChange = async (appointmentId: string, newStatus: string) => {
     setUpdatingId(appointmentId);

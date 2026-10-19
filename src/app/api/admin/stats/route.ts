@@ -11,8 +11,9 @@ import { serverError, daysAgo, ddMM } from "@/lib/kene/server";
 import { guardAdminRole, sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 import { audit, clientIp } from "@/lib/kene/audit";
+import { DEMO_PHONES, DEMO_TENANT_IDS } from "@/lib/kene/demo";
 
-const CACHE_TTL_MS = 60_000;
+const CACHE_TTL_MS = 30_000;
 
 type StatsPayload = {
   users: number;
@@ -24,21 +25,18 @@ type StatsPayload = {
   referrals: number;
   chart: { date: string; count: number }[];
   topTenants: { name: string; city: string; ca30: number }[];
-  // t. 135 — monétisation: abonnées actives + revenus mensuels simulés
-  // (MRR — les mois offerts par la Console comptent 0 F).
   activeSubs: number;
   subsMrrFcfa: number;
-  // Transactions réseau réelles
   salesCount: number;
   salesVolume: number;
   appointmentsCount: number;
   appointmentsDeposit: number;
   networkGmv: number;
+  scope: "real" | "all";
 };
 
-// Singleton sur globalThis: survit aux rechargements de modules en dev (HMR)
-// et reste unique même si la route est bundlée plusieurs fois.
-const g = globalThis as typeof globalThis & { __keneAdminStatsCache?: { data: StatsPayload; at: number } };
+// Singleton sur globalThis indexé par scope pour éviter les collisions de cache
+const g = globalThis as typeof globalThis & { __keneAdminStatsCache?: Record<string, { data: StatsPayload; at: number }> };
 
 export async function GET(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "admin:stats"), ADMIN_STATS);
@@ -46,26 +44,28 @@ export async function GET(req: NextRequest) {
     return rateLimitResponse(rl.retryAfterSec, "Statistiques très sollicitées — reprends dans quelques secondes");
   }
   try {
-    // Session signée (, migration douce): avec cookie, la console
-    // exige un compte admin; sans cookie → legacy (route publique + rate-limit).
     const guard = guardAdminRole(req, "admin:stats");
     if (guard) return guard;
 
-    //: chaque passage de la garde (session admin vérifiée) est
-    // journalisé — userId + IP. Legacy sans cookie: pas d'événement (rien
-    // n'est authentifiable) — c'est la trace des ACCÈS réels qui compte.
     const sess = sessionFromRequest(req);
     if (sess) {
       void audit({ kind: "admin_access", userId: sess.userId, ip: clientIp(req) });
     }
 
-    const cached = g.__keneAdminStatsCache;
+    const scope = (req.nextUrl.searchParams.get("scope")?.trim() === "all" ? "all" : "real") as "real" | "all";
+    const excludeDemo = scope === "real";
+
+    if (!g.__keneAdminStatsCache) g.__keneAdminStatsCache = {};
+    const cached = g.__keneAdminStatsCache[scope];
     if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
       return NextResponse.json(cached.data);
     }
 
     const now = new Date();
     const since30 = new Date(now.getTime() - 30 * 86_400_000);
+
+    const demoTenantsArr = Array.from(DEMO_TENANT_IDS);
+    const demoPhonesArr = Array.from(DEMO_PHONES);
 
     const [
       users,
@@ -82,35 +82,82 @@ export async function GET(req: NextRequest) {
       appointmentsCount,
       appointmentsDepositAgg,
     ] = await Promise.all([
-      db.user.count(),
-      db.tenant.count(),
-      db.diagnosis.count(),
-      db.order.count(),
+      db.user.count({
+        where: excludeDemo ? { phone: { notIn: demoPhonesArr } } : undefined,
+      }),
+      db.tenant.count({
+        where: excludeDemo ? { active: true, id: { notIn: demoTenantsArr } } : undefined,
+      }),
+      db.diagnosis.count({
+        where: excludeDemo ? { user: { phone: { notIn: demoPhonesArr } } } : undefined,
+      }),
+      db.order.count({
+        where: excludeDemo ? { user: { phone: { notIn: demoPhonesArr } } } : undefined,
+      }),
       db.order.findMany({
-        where: { status: { in: ["paid", "delivered"] } },
+        where: {
+          status: { in: ["paid", "delivered"] },
+          ...(excludeDemo ? { user: { phone: { notIn: demoPhonesArr } } } : {}),
+        },
         include: { items: { include: { product: { include: { tenant: { select: { commissionRate: true } } } } } } },
       }),
-      db.diagnosis.findMany({ where: { createdAt: { gte: daysAgo(13) } }, select: { createdAt: true } }),
+      db.diagnosis.findMany({
+        where: {
+          createdAt: { gte: daysAgo(13) },
+          ...(excludeDemo ? { user: { phone: { notIn: demoPhonesArr } } } : {}),
+        },
+        select: { createdAt: true },
+      }),
       db.sale.findMany({
-        where: { status: "completed", createdAt: { gte: since30 } },
+        where: {
+          status: "completed",
+          createdAt: { gte: since30 },
+          ...(excludeDemo ? { tenantId: { notIn: demoTenantsArr } } : {}),
+        },
         select: { tenantId: true, total: true },
       }),
-      db.user.count({ where: { referredBy: { not: null } } }),
-      // t. 135 — lignes d'abonnement actives non expirées (MRR simulé).
+      db.user.count({
+        where: {
+          referredBy: { not: null },
+          ...(excludeDemo ? { phone: { notIn: demoPhonesArr } } : {}),
+        },
+      }),
       db.subscription.findMany({
         where: { status: "active", expiresAt: { gt: now } },
         select: { priceFcfa: true },
       }),
-      db.sale.count({ where: { status: "completed" } }),
-      db.sale.aggregate({ where: { status: "completed" }, _sum: { total: true } }),
-      db.appointment.count(),
-      db.appointment.aggregate({ where: { status: { in: ["confirmed", "completed"] } }, _sum: { depositAmount: true } }),
+      db.sale.count({
+        where: {
+          status: "completed",
+          ...(excludeDemo ? { tenantId: { notIn: demoTenantsArr } } : {}),
+        },
+      }),
+      db.sale.aggregate({
+        where: {
+          status: "completed",
+          ...(excludeDemo ? { tenantId: { notIn: demoTenantsArr } } : {}),
+        },
+        _sum: { total: true },
+      }),
+      db.appointment.count({
+        where: excludeDemo ? { tenantId: { notIn: demoTenantsArr } } : undefined,
+      }),
+      db.appointment.aggregate({
+        where: {
+          status: { in: ["confirmed", "completed"] },
+          ...(excludeDemo ? { tenantId: { notIn: demoTenantsArr } } : {}),
+        },
+        _sum: { depositAmount: true },
+      }),
     ]);
 
     const salesVolume = salesAgg._sum.total ?? 0;
     const appointmentsDeposit = appointmentsDepositAgg._sum.depositAmount ?? 0;
-    const networkGmv = salesVolume + appointmentsDeposit;
     const gmvBoutique = paidOrders.reduce((s, o) => s + o.total, 0);
+
+    // Formule unifiée du Volume Réseau Global (GMV) :
+    // Totalité de l'argent circulant sur Kènè = Ventes Caisses Salons + Commandes Boutique Web + Acomptes RDV
+    const networkGmv = salesVolume + appointmentsDeposit + gmvBoutique;
 
     // Commissions marketplace: ventes de produits rattachés à un institut partenaire
     let commissionTotal = 0;
@@ -157,8 +204,9 @@ export async function GET(req: NextRequest) {
       appointmentsCount,
       appointmentsDeposit,
       networkGmv,
+      scope,
     };
-    g.__keneAdminStatsCache = { data: payload, at: Date.now() };
+    g.__keneAdminStatsCache[scope] = { data: payload, at: Date.now() };
     return NextResponse.json(payload);
   } catch (err) {
     return serverError("admin/stats", err);

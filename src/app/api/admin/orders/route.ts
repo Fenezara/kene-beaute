@@ -8,6 +8,8 @@ import { sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 import { audit, clientIp } from "@/lib/kene/audit";
 
+import { DEMO_PHONES, DEMO_TENANT_IDS } from "@/lib/kene/demo";
+
 export const runtime = "nodejs";
 
 function requireAdmin(req: NextRequest): NextResponse | null {
@@ -36,8 +38,16 @@ export async function GET(req: NextRequest) {
     const status = req.nextUrl.searchParams.get("status")?.trim().toLowerCase() ?? "all";
     const type = req.nextUrl.searchParams.get("type")?.trim().toLowerCase() ?? "all"; // all | pos | online
     const limit = Math.min(200, Math.max(10, Number(req.nextUrl.searchParams.get("limit") || 100)));
+    const scope = (req.nextUrl.searchParams.get("scope")?.trim() === "all" ? "all" : "real") as "real" | "all";
+    const excludeDemo = scope === "real";
+
+    const demoTenantsArr = Array.from(DEMO_TENANT_IDS);
+    const demoPhonesArr = Array.from(DEMO_PHONES);
 
     const orderWhere: any = {};
+    if (excludeDemo) {
+      orderWhere.user = { phone: { notIn: demoPhonesArr } };
+    }
     if (status && status !== "all") {
       orderWhere.status = status;
     }
@@ -55,6 +65,9 @@ export async function GET(req: NextRequest) {
     }
 
     const saleWhere: any = {};
+    if (excludeDemo) {
+      saleWhere.tenantId = { notIn: demoTenantsArr };
+    }
     if (q) {
       saleWhere.OR = [
         { id: { contains: q } },
@@ -66,7 +79,7 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    // Récupération simultanée des commandes en ligne et des ventes caisse salon
+    // Récupération simultanée des commandes en ligne et des ventes caisse salon avec agrégations globales
     const [
       orders,
       totalOrdersCount,
@@ -75,9 +88,11 @@ export async function GET(req: NextRequest) {
       deliveredOrdersCount,
       pendingOrdersCount,
       cancelledOrdersCount,
+      ordersVolumeAgg,
       sales,
       totalSalesCount,
       salesSum,
+      apptDepositAgg,
     ] = await Promise.all([
       db.order.findMany({
         where: orderWhere,
@@ -95,12 +110,20 @@ export async function GET(req: NextRequest) {
           },
         },
       }),
-      db.order.count(),
-      db.order.count({ where: { status: "paid" } }),
-      db.order.count({ where: { status: "preparing" } }),
-      db.order.count({ where: { status: "delivered" } }),
-      db.order.count({ where: { status: "pending" } }),
-      db.order.count({ where: { status: "cancelled" } }),
+      db.order.count({ where: excludeDemo ? { user: { phone: { notIn: demoPhonesArr } } } : undefined }),
+      db.order.count({ where: { status: "paid", ...(excludeDemo ? { user: { phone: { notIn: demoPhonesArr } } } : {}) } }),
+      db.order.count({ where: { status: "preparing", ...(excludeDemo ? { user: { phone: { notIn: demoPhonesArr } } } : {}) } }),
+      db.order.count({ where: { status: "delivered", ...(excludeDemo ? { user: { phone: { notIn: demoPhonesArr } } } : {}) } }),
+      db.order.count({ where: { status: "pending", ...(excludeDemo ? { user: { phone: { notIn: demoPhonesArr } } } : {}) } }),
+      db.order.count({ where: { status: "cancelled", ...(excludeDemo ? { user: { phone: { notIn: demoPhonesArr } } } : {}) } }),
+      // Volume total des commandes réelles calculé sur toute la base (jamais sur une tranche paginée)
+      db.order.aggregate({
+        where: {
+          status: { in: ["paid", "preparing", "in_transit", "delivered"] },
+          ...(excludeDemo ? { user: { phone: { notIn: demoPhonesArr } } } : {}),
+        },
+        _sum: { total: true },
+      }),
       db.sale.findMany({
         where: saleWhere,
         orderBy: { createdAt: "desc" },
@@ -111,19 +134,34 @@ export async function GET(req: NextRequest) {
           items: true,
         },
       }),
-      db.sale.count(),
+      db.sale.count({
+        where: {
+          status: "completed",
+          ...(excludeDemo ? { tenantId: { notIn: demoTenantsArr } } : {}),
+        },
+      }),
       db.sale.aggregate({
         _sum: { total: true },
-        where: { status: "completed" },
+        where: {
+          status: "completed",
+          ...(excludeDemo ? { tenantId: { notIn: demoTenantsArr } } : {}),
+        },
+      }),
+      db.appointment.aggregate({
+        where: {
+          status: { in: ["confirmed", "completed"] },
+          ...(excludeDemo ? { tenantId: { notIn: demoTenantsArr } } : {}),
+        },
+        _sum: { depositAmount: true },
       }),
     ]);
 
-    const ordersVolume = orders
-      .filter((o) => ["paid", "preparing", "in_transit", "delivered"].includes(o.status))
-      .reduce((acc, o) => acc + o.total, 0);
-
+    const ordersVolume = ordersVolumeAgg._sum.total ?? 0;
     const salesVolume = salesSum._sum.total ?? 0;
-    const networkGmv = salesVolume + ordersVolume;
+    const appointmentsDeposit = apptDepositAgg._sum.depositAmount ?? 0;
+
+    // Formule unifiée identique à la console Admin : Ventes + Boutique + Acomptes RDV
+    const networkGmv = salesVolume + ordersVolume + appointmentsDeposit;
 
     return NextResponse.json({
       orders,
@@ -138,7 +176,9 @@ export async function GET(req: NextRequest) {
         ordersVolume,
         totalSales: totalSalesCount,
         salesVolume,
+        appointmentsDeposit,
         networkGmv,
+        scope,
       },
     });
   } catch (err) {

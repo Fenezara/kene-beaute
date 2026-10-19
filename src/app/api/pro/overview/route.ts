@@ -70,8 +70,12 @@ export async function GET(req: NextRequest) {
     const ca7d = agg7._sum.total ?? 0;
     const ca30d = agg30._sum.total ?? 0;
     const avgBasket = agg30._count > 0 ? Math.round(ca30d / agg30._count) : 0;
-    const capacity = activeResources * Math.max(0, tenant.closingHour - tenant.openingHour) * 2;
-    const occupancyPct = capacity > 0 ? Math.round((apptsToday / capacity) * 100) : 0;
+    const openMinutes = Math.max(0, (tenant.closingHour ?? 19) - (tenant.openingHour ?? 9)) * 60;
+    const totalCapacityMinutes = Math.max(1, activeResources) * openMinutes;
+    const bookedMinutesToday = todayAppts
+      .filter((a) => a.status !== "cancelled")
+      .reduce((sum, a) => sum + (a.durationMin || 60), 0);
+    const occupancyPct = totalCapacityMinutes > 0 ? Math.min(100, Math.round((bookedMinutesToday / totalCapacityMinutes) * 100)) : 0;
 
     // CA des 14 derniers jours par jour
     const dayMap = new Map<string, number>();

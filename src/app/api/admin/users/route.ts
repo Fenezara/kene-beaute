@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   try {
     const q = req.nextUrl.searchParams.get("q")?.trim().toLowerCase() ?? "";
     const role = req.nextUrl.searchParams.get("role")?.trim() ?? "";
-    const type = req.nextUrl.searchParams.get("type")?.trim() ?? ""; // "real" | "demo" | ""
+    const type = req.nextUrl.searchParams.get("type")?.trim() || req.nextUrl.searchParams.get("scope")?.trim() || ""; // "real" | "demo" | ""
 
     const users = await db.user.findMany({
       // Hygiène: la console liste TOUT, mais l'avatar binaire ne part jamais.

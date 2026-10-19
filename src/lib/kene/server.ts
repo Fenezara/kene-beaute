@@ -12,6 +12,7 @@ import type { SimpleLine } from "@/lib/accounting/syscohada";
 import { sendNotificationSms } from "@/lib/sms";
 import { sendWhatsAppCloudMessage } from "./whatsapp-cloud-api";
 import { SALON_CONFIG } from "@/config/salon-identity";
+import { DEMO_TENANT_IDS } from "./demo";
 
 export function jsonError(error: string, status = 400): NextResponse {
   return NextResponse.json({ error }, { status });
@@ -32,9 +33,22 @@ export function serverError(scope: string, err: unknown): NextResponse {
   return NextResponse.json({ error: "Erreur interne du serveur" }, { status: 500 });
 }
 
-/** Tenant Pro par défaut (mono-tenant): premier créé, avec auto-initialisation si base vierge */
+/** Tenant Pro par défaut (mono-tenant): premier institut réel créé, avec repli si base vierge */
 export async function defaultTenant() {
-  let tenant = await db.tenant.findFirst({ orderBy: { createdAt: "asc" } });
+  // Préférer en priorité un institut réel actif (hors démonstration / test seed)
+  let tenant = await db.tenant.findFirst({
+    where: {
+      active: true,
+      id: { notIn: Array.from(DEMO_TENANT_IDS) },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!tenant) {
+    tenant = await db.tenant.findFirst({ where: { active: true }, orderBy: { createdAt: "asc" } });
+  }
+  if (!tenant) {
+    tenant = await db.tenant.findFirst({ orderBy: { createdAt: "asc" } });
+  }
   if (!tenant) {
     try {
       tenant = await db.tenant.create({

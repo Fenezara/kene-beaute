@@ -18,6 +18,13 @@ export const DEMO_PHONES = new Set([
   "+2250703324674", // Test initial — dsfdsdf
 ]);
 
+export const DEMO_TENANT_IDS = new Set([
+  "cmtjdaiij000aqimiwwz2rkfk", // Éclat d'Abidjan — Démo seed
+  "cmtjdaiik000bqimiw64jp1zt", // Institut Baobab — Démo seed
+  "cmuh85wfe0005n3012ykba1l0", // dsfdsdf — Test initial
+  "cmufg4zcl000cqr01vanudw3o", // Doublon test sans activité
+]);
+
 /**
  * Détermine si un numéro de téléphone appartient à un compte de démonstration / essai initial.
  */
@@ -25,3 +32,12 @@ export function isDemoAccount(phone?: string | null): boolean {
   if (!phone) return false;
   return DEMO_PHONES.has(phone.trim());
 }
+
+/**
+ * Détermine si un identifiant d'établissement appartient à un institut de démonstration / test initial.
+ */
+export function isDemoTenant(tenantId?: string | null): boolean {
+  if (!tenantId) return false;
+  return DEMO_TENANT_IDS.has(tenantId.trim());
+}
+

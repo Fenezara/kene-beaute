@@ -14,7 +14,7 @@ import { serverError, slugify } from "@/lib/kene/server";
 import { sessionFromRequest } from "@/lib/kene/session";
 import { toCsv, csvDate, type CsvCell } from "@/lib/accounting/csv";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
-import { isDemoAccount } from "@/lib/kene/demo";
+import { isDemoAccount, isDemoTenant } from "@/lib/kene/demo";
 
 export const runtime = "nodejs";
 
@@ -94,12 +94,12 @@ export async function GET(req: NextRequest) {
           clientsCrm,
           employees,
           products,
-          isDemo: isDemoAccount(t.ownerPhone),
+          isDemo: isDemoTenant(t.id) || isDemoAccount(t.ownerPhone),
         };
       }),
     );
 
-    const type = req.nextUrl.searchParams.get("type")?.trim() ?? "";
+    const type = req.nextUrl.searchParams.get("type")?.trim() || req.nextUrl.searchParams.get("scope")?.trim() || "";
 
     // Recherche insensible casse/accents (pattern SQLite du projet)
     let filtered = q

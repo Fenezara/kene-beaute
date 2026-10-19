@@ -160,7 +160,11 @@ const PAYMENT_METHOD_LABELS: Record<string, { label: string; color: string }> = 
   wallet: { label: "Wallet Kènè", color: "bg-gold/15 text-gold-text border-gold/30" },
 };
 
-export function AdminOrders() {
+interface AdminOrdersProps {
+  scope?: "real" | "all";
+}
+
+export function AdminOrders({ scope = "real" }: AdminOrdersProps = {}) {
   const [data, setData] = useState<OrdersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"pos" | "online">("pos");
@@ -173,7 +177,7 @@ export function AdminOrders() {
     try {
       const q = encodeURIComponent(search.trim());
       const res = await apiGet<OrdersResponse>(
-        `/api/admin/orders?q=${q}&status=${encodeURIComponent(statusFilter)}`
+        `/api/admin/orders?q=${q}&status=${encodeURIComponent(statusFilter)}&scope=${scope}`
       );
       setData(res);
     } catch (err: any) {
@@ -188,7 +192,7 @@ export function AdminOrders() {
   useEffect(() => {
     const t = setTimeout(fetchOrders, 300);
     return () => clearTimeout(t);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, scope]);
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     setUpdatingId(orderId);

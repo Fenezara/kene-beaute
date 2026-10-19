@@ -45,12 +45,13 @@ const TABS: { key: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
 
 export function AdminApp() {
   const [tab, setTab] = useState<AdminTab>("overview");
+  const [scope, setScope] = useState<"real" | "all">("real");
   const setUser = useKene((s) => s.setUser);
 
   // Vue d'ensemble + Sécurité gardent LEURS hooks (la navigation entre
   // onglets ne re-télécharge jamais ce qui est déjà en mémoire — l'état
   // useApi vit dans ce composant, les onglets ne démontent que le DOM).
-  const stats = useApi(() => apiGet<AdminStats>("/api/admin/stats"), []);
+  const stats = useApi(() => apiGet<AdminStats>(`/api/admin/stats?scope=${scope}`), [scope]);
   const sec = useApi(() => apiGet<AdminSecurityData>("/api/admin/security"), []);
 
   if (stats.error && !stats.data) {
@@ -139,11 +140,11 @@ export function AdminApp() {
             <div className="h-72 animate-pulse rounded-xl bg-muted" />
           </div>
         ) : (
-          <AdminOverview stats={stats} />
+          <AdminOverview stats={stats} scope={scope} onScopeChange={setScope} />
         )
       )}
-      {tab === "orders" && <AdminOrders />}
-      {tab === "appointments" && <AdminAppointments />}
+      {tab === "orders" && <AdminOrders scope={scope} />}
+      {tab === "appointments" && <AdminAppointments scope={scope} />}
       {tab === "tenants" && <AdminTenants />}
       {tab === "users" && <AdminUsers />}
       {tab === "subs" && <AdminSubscriptions />}

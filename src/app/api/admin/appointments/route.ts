@@ -8,6 +8,8 @@ import { sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 import { audit, clientIp } from "@/lib/kene/audit";
 
+import { DEMO_TENANT_IDS } from "@/lib/kene/demo";
+
 export const runtime = "nodejs";
 
 function requireAdmin(req: NextRequest): NextResponse | null {
@@ -36,15 +38,22 @@ export async function GET(req: NextRequest) {
     const status = req.nextUrl.searchParams.get("status")?.trim().toLowerCase() ?? "all";
     const tenantId = req.nextUrl.searchParams.get("tenantId")?.trim() ?? "";
     const limit = Math.min(200, Math.max(10, Number(req.nextUrl.searchParams.get("limit") || 100)));
+    const scope = (req.nextUrl.searchParams.get("scope")?.trim() === "all" ? "all" : "real") as "real" | "all";
+    const excludeDemo = scope === "real";
 
-    const whereClause: any = {};
+    const demoTenantsArr = Array.from(DEMO_TENANT_IDS);
+
+    const whereBase: any = {};
+    if (tenantId) {
+      whereBase.tenantId = tenantId;
+    } else if (excludeDemo) {
+      whereBase.tenantId = { notIn: demoTenantsArr };
+    }
+
+    const whereClause: any = { ...whereBase };
 
     if (status && status !== "all") {
       whereClause.status = status;
-    }
-
-    if (tenantId) {
-      whereClause.tenantId = tenantId;
     }
 
     if (q) {
@@ -58,31 +67,47 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const [appointments, totalCount, confirmedCount, completedCount, cancelledCount, pendingCount, noShowCount] =
-      await Promise.all([
-        db.appointment.findMany({
-          where: whereClause,
-          orderBy: { startAt: "desc" },
-          take: limit,
-          include: {
-            tenant: { select: { id: true, name: true, city: true, address: true, phone: true } },
-            service: { select: { id: true, name: true, durationMin: true, price: true } },
-            resource: { select: { id: true, name: true } },
-            user: { select: { id: true, name: true, phone: true, email: true } },
-          },
-        }),
-        db.appointment.count(),
-        db.appointment.count({ where: { status: "confirmed" } }),
-        db.appointment.count({ where: { status: "completed" } }),
-        db.appointment.count({ where: { status: "cancelled" } }),
-        db.appointment.count({ where: { status: "pending" } }),
-        db.appointment.count({ where: { status: "no_show" } }),
-      ]);
+    const [
+      appointments,
+      totalCount,
+      confirmedCount,
+      completedCount,
+      cancelledCount,
+      pendingCount,
+      noShowCount,
+      depositAgg,
+      volumeAgg,
+    ] = await Promise.all([
+      db.appointment.findMany({
+        where: whereClause,
+        orderBy: { startAt: "desc" },
+        take: limit,
+        include: {
+          tenant: { select: { id: true, name: true, city: true, address: true, phone: true } },
+          service: { select: { id: true, name: true, durationMin: true, price: true } },
+          resource: { select: { id: true, name: true } },
+          user: { select: { id: true, name: true, phone: true, email: true } },
+        },
+      }),
+      db.appointment.count({ where: whereBase }),
+      db.appointment.count({ where: { ...whereBase, status: "confirmed" } }),
+      db.appointment.count({ where: { ...whereBase, status: "completed" } }),
+      db.appointment.count({ where: { ...whereBase, status: "cancelled" } }),
+      db.appointment.count({ where: { ...whereBase, status: "pending" } }),
+      db.appointment.count({ where: { ...whereBase, status: "no_show" } }),
+      // Agrégations réelles sur toute la base
+      db.appointment.aggregate({
+        where: { ...whereBase, status: { in: ["confirmed", "completed"] } },
+        _sum: { depositAmount: true },
+      }),
+      db.appointment.aggregate({
+        where: { ...whereBase, status: { in: ["confirmed", "completed"] } },
+        _sum: { price: true },
+      }),
+    ]);
 
-    const totalDepositAmount = appointments.reduce((sum, a) => sum + (a.depositAmount || 0), 0);
-    const totalVolume = appointments
-      .filter((a) => a.status === "confirmed" || a.status === "completed")
-      .reduce((sum, a) => sum + (a.price || 0), 0);
+    const totalDepositAmount = depositAgg._sum.depositAmount ?? 0;
+    const totalVolume = volumeAgg._sum.price ?? 0;
 
     return NextResponse.json({
       appointments,
@@ -95,6 +120,7 @@ export async function GET(req: NextRequest) {
         noShow: noShowCount,
         totalDepositAmount,
         totalVolume,
+        scope,
       },
     });
   } catch (err) {

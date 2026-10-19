@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiGet } from "@/lib/kene/api";
+import { cn } from "@/lib/utils";
 import { xof } from "@/lib/kene/format";
 import { useApi } from "@/components/kene/pro/useApi";
 import { useKene } from "@/store/kene";
@@ -26,7 +27,15 @@ interface ConnectorsData {
   database: { status: string; usersCount: number };
 }
 
-export function AdminOverview({ stats }: { stats: ReturnType<typeof useApi<AdminStats>> }) {
+export function AdminOverview({
+  stats,
+  scope = "real",
+  onScopeChange,
+}: {
+  stats: ReturnType<typeof useApi<AdminStats>>;
+  scope?: "real" | "all";
+  onScopeChange?: (s: "real" | "all") => void;
+}) {
   const data = stats.data;
   const [connectors, setConnectors] = useState<ConnectorsData | null>(null);
   const [loadingConnectors, setLoadingConnectors] = useState(false);
@@ -66,11 +75,42 @@ export function AdminOverview({ stats }: { stats: ReturnType<typeof useApi<Admin
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Supervision de la plateforme Kènè éditée par Dermo TIC (Développement d&apos;applications) · Seules les entreprises partenaires vendent des produits et réalisent les soins &amp; rendez-vous
+              Supervision de la plateforme Kènè éditée par Dermo TIC · Seules les entreprises partenaires vendent des produits et réalisent les soins &amp; rendez-vous
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Commutateur Données Réelles vs Toutes les données */}
+            {onScopeChange && (
+              <div className="flex items-center gap-1 bg-background/90 border border-border rounded-full p-0.5 text-xs shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => onScopeChange("real")}
+                  className={cn(
+                    "px-3 py-1 rounded-full font-bold transition-all text-[11px] flex items-center gap-1.5 cursor-pointer",
+                    scope === "real"
+                      ? "bg-emerald-500/20 text-emerald-600 border border-emerald-500/30"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Réel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onScopeChange("all")}
+                  className={cn(
+                    "px-3 py-1 rounded-full font-bold transition-all text-[11px] flex items-center gap-1.5 cursor-pointer",
+                    scope === "all"
+                      ? "bg-amber-500/20 text-amber-600 border border-amber-500/30"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Avec Démo
+                </button>
+              </div>
+            )}
+
             <Button
               variant="outline"
               size="sm"
@@ -89,21 +129,19 @@ export function AdminOverview({ stats }: { stats: ReturnType<typeof useApi<Admin
               className="h-8 gap-1.5 text-xs font-semibold rounded-full border-border/80 hover:border-primary"
             >
               <Smartphone className="size-3.5 text-primary" />
-              <span>Tester l&apos;App Cliente</span>
+              <span>App Cliente</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
-                if (!useKene.getState().proTenantId) {
-                  useKene.getState().setProTenantId("cmtjdaiij000aqimiwwz2rkfk");
-                }
+                useKene.getState().setProTenantId(null);
                 useKene.getState().setSpace("pro");
               }}
               className="h-8 gap-1.5 text-xs font-semibold rounded-full border-border/80 hover:border-primary"
             >
               <BriefcaseBusiness className="size-3.5 text-primary" />
-              <span>Ouvrir l&apos;Espace Salon</span>
+              <span>Espace Salon</span>
             </Button>
           </div>
         </div>
@@ -112,15 +150,16 @@ export function AdminOverview({ stats }: { stats: ReturnType<typeof useApi<Admin
       {/* 🛑 Contrôle du Mode Maintenance & Affiche Clientèle */}
       <AdminMaintenanceControl />
 
-      {/* KPIs — Monétisation et volume réel du réseau (ventes caisse cabine + acomptes RDV) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-3">
-        <KpiCard icon={<Users className="size-4" />} label="Utilisatrices" value={String(data.users)} monetary={false} />
+      {/* KPIs — Monétisation et volume réel du réseau unifié */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-3">
+        <KpiCard icon={<Users className="size-4" />} label="Utilisatrices" value={String(data.users)} monetary={false} hint={scope === "real" ? "Comptes réels" : "Tous les comptes"} />
         <KpiCard icon={<HeartHandshake className="size-4" />} label="Parrainages" value={String(data.referrals)} monetary={false} hint="Fil du Parrainage" />
-        <KpiCard icon={<Building2 className="size-4" />} label="Instituts" value={String(data.tenants)} monetary={false} />
+        <KpiCard icon={<Building2 className="size-4" />} label="Instituts" value={String(data.tenants)} monetary={false} hint={scope === "real" ? "Salons actifs réels" : "Tous"} />
         <KpiCard icon={<Activity className="size-4" />} label="Diagnostics IA" value={String(data.diagnoses)} monetary={false} />
-        <KpiCard icon={<ShoppingBag className="size-4" />} label="Ventes Caisse Salons" value={String(data.salesCount ?? data.orders)} monetary={false} hint="Soins cabine & rituels" />
-        <KpiCard icon={<ReceiptText className="size-4" />} label="Volume Réseau (GMV)" value={xof(data.networkGmv ?? (data.salesVolume ? (data.salesVolume + (data.appointmentsDeposit ?? 0)) : data.gmvBoutique), { compact: true })} hint={`Acomptes RDV : ${xof(data.appointmentsDeposit ?? 0, { compact: true })}`} />
-        <KpiCard icon={<CreditCard className="size-4" />} label="Revenus abonnements" value={xof(data.subsMrrFcfa ?? 0, { compact: true })} hint={`${data.activeSubs ?? 0} abonnée${(data.activeSubs ?? 0) > 1 ? "s" : ""}`} />
+        <KpiCard icon={<ShoppingBag className="size-4" />} label="Ventes Caisse" value={String(data.salesCount ?? 0)} monetary={false} hint={`CA : ${xof(data.salesVolume ?? 0, { compact: true })}`} />
+        <KpiCard icon={<CreditCard className="size-4" />} label="Commandes Web" value={String(data.orders ?? 0)} monetary={false} hint={`CA : ${xof(data.gmvBoutique ?? 0, { compact: true })}`} />
+        <KpiCard icon={<ReceiptText className="size-4" />} label="Volume Réseau (GMV)" value={xof(data.networkGmv ?? 0, { compact: true })} hint={`Acomptes RDV : ${xof(data.appointmentsDeposit ?? 0, { compact: true })}`} />
+        <KpiCard icon={<Crown className="size-4" />} label="Revenus abonnements" value={xof(data.subsMrrFcfa ?? 0, { compact: true })} hint={`${data.activeSubs ?? 0} abonnée${(data.activeSubs ?? 0) > 1 ? "s" : ""}`} />
       </div>
 
       {/* Connecteurs & Passerelles Réelles */}
