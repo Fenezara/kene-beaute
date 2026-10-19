@@ -19,8 +19,17 @@ export async function GET(req: NextRequest) {
     const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    const id = req.nextUrl.searchParams.get("id");
-    if (!id) return jsonError("id du diagnostic requis", 400);
+    let id = req.nextUrl.searchParams.get("id")?.trim() || req.nextUrl.searchParams.get("diagnosisId")?.trim();
+    if (!id) {
+      const clientId = req.nextUrl.searchParams.get("clientId") || req.nextUrl.searchParams.get("clientProfileId");
+      const latest = await db.proDiagnosis.findFirst({
+        where: { tenantId: tenant.id, ...(clientId ? { clientProfileId: clientId } : {}) },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      });
+      if (!latest) return jsonError("Aucun diagnostic cabine trouvé pour cet institut", 404);
+      id = latest.id;
+    }
 
     const diag = await db.proDiagnosis.findFirst({
       where: { id, tenantId: tenant.id },

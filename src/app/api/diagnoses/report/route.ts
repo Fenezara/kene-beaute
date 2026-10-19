@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
-import { guardUserClaim } from "@/lib/kene/session";
+import { guardUserClaim, sessionFromRequest } from "@/lib/kene/session";
 import { clientDiagReportPdf, clientDiagReportFilename } from "@/lib/kene/consultation-pdf";
 import { processMultiSpectralSuite } from "@/lib/kene/spectral-imaging";
 
@@ -13,12 +13,14 @@ export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = req.nextUrl.searchParams.get("userId");
+    const sess = sessionFromRequest(req);
+    const userId = req.nextUrl.searchParams.get("userId")?.trim() || sess?.userId;
     if (!userId) return jsonError("userId requis", 400);
+
     const guard = guardUserClaim(req, "diagnoses:report", userId);
     if (guard) return guard;
 
-    let id = req.nextUrl.searchParams.get("id");
+    let id = req.nextUrl.searchParams.get("id")?.trim() || req.nextUrl.searchParams.get("diagnosisId")?.trim();
     if (!id) {
       const latest = await db.diagnosis.findFirst({
         where: { userId, status: "done" },

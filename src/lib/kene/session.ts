@@ -304,6 +304,7 @@ export function guardUserClaim(
 ): NextResponse | null {
   const sess = sessionFromRequest(req);
   if (sess) {
+    if (sess.role === "admin" || sess.role === "pro") return null;
     if (claimed && claimed !== sess.userId) {
       return sessionError("Session invalide pour ce compte", 401);
     }

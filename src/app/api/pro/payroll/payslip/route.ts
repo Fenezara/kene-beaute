@@ -24,8 +24,8 @@ export async function GET(req: NextRequest) {
     const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    const slipId = req.nextUrl.searchParams.get("slipId");
-    if (!slipId) return jsonError("slipId requis", 400);
+    const slipId = req.nextUrl.searchParams.get("slipId")?.trim() || req.nextUrl.searchParams.get("id")?.trim();
+    if (!slipId) return jsonError("Identifiant de bulletin requis (slipId)", 400);
 
     const slip = await db.payslip.findFirst({
       where: { id: slipId, payPeriod: { tenantId: tenant.id } },

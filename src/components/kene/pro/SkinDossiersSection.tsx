@@ -1025,10 +1025,10 @@ function ClientSkinDossierDetail({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(`/api/diagnoses/prescription?id=${item.id}&userId=${c.userId || ""}`, "_blank")}
+                      onClick={() => window.open(`/api/pro/diagnoses/report?tenantId=${encodeURIComponent(tenantId)}&id=${item.id}`, "_blank")}
                       className="text-[10.5px] h-7 gap-1"
                     >
-                      <FileDown className="size-3" /> Ordonnance associée (PDF)
+                      <FileDown className="size-3" /> Compte-rendu cabine (PDF)
                     </Button>
                   </div>
                 </Card>

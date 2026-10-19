@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    const clientId = req.nextUrl.searchParams.get("clientId");
+    const clientId = req.nextUrl.searchParams.get("clientId")?.trim() || req.nextUrl.searchParams.get("id")?.trim() || null;
     const practitioner = req.nextUrl.searchParams.get("practitioner") || null;
     const rawZone = req.nextUrl.searchParams.get("zone");
     const zone = rawZone && ["visage", "dos", "cuir_chevelu", "mains", "barbe", "naevi"].includes(rawZone)
