@@ -3338,5 +3338,30 @@ Work Log:
 Stage Summary:
 - LIVRÉ : Les flux de prise de rendez-vous, de réservation institut et de commande boutique sont 100 % cohérents, synchronisés en temps réel et déployés en production.
 
+---
+Task ID: t.149
+Agent: agent principal (Antigravity)
+Task: SIMPLIFICATION RADICALE DES FLUX RDV, RÉSERVATION & COMMANDE (PARCOURS WHATSAPP-FIRST & SUIVI EN DIRECT).
+
+Work Log:
+- Diagnostic & Contexte Métier :
+  - La boutique e-commerce avec logistique et stock automatisé n'est pas encore active en réalité.
+  - Le tunnel complexe de réservation (acompte 30% Mobile Money, créneaux rigides 15 min, 2FA) générait de la friction inutile pour la phase de lancement.
+  - Les commandes et achats réels s'effectuent au salon (au comptoir) ou sur demande personnalisée.
+- Refonte & Simplification implémentée :
+  1. `AgendaScreen.tsx` :
+     - Refonte de la navigation en 2 sous-onglets limpides : « Mes Rendez-vous » et « Mes Soins & Achats ».
+     - Suppression définitive de l'ancien sous-onglet lourd « Réserver » et de la dépendance à `BookingScreen`.
+     - Intégration d'un module de demande de RDV direct : choix du soin parmi les 6 prestations Kènè, sélection de l'institut et de la date, envoi direct sur WhatsApp de la demande pré-remplie avec synchronisation instantanée en statut `pending` dans l'agenda Kènè.
+     - Ajout de la bannière pédagogique expliquant la confirmation directe avec l'institut et l'affichage automatique du Pass RDV officiel.
+     - Écran « Mes Soins & Achats » : historique des soins cabine et achats au salon enregistrés par l'institut, sans bouton trompeur vers une boutique inexistante, et avec CTA direct « Commander ma routine sur WhatsApp ».
+  2. `ShopScreen.tsx` :
+     - Présentation du catalogue botanique comme vitrine de soins disponibles en salon et sur commande directe.
+     - Bannière d'information claire sur la disponibilité des soins en institut partenaire.
+     - Remplacement du tunnel de paiement simulé multi-passerelles par le bouton principal « Commander via WhatsApp avec l'institut » qui génère le panier complet et l'adresse prête à être transmise.
+- Validation & Synchronisation Git & Déploiement :
+  - Modifications enregistrées, commitées et déployées en production sur le serveur VPS Hetzner (`2.29.53.176`).
+
+
 
 

@@ -512,6 +512,22 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
 
       <Reveal>
         <RevealItem>
+          <div className="mt-2.5 rounded-[20px] border border-primary/25 bg-gradient-to-r from-primary/10 via-card to-gold/10 p-3 sm:p-3.5 flex items-center gap-3">
+            <span className="grid size-8 place-items-center rounded-xl bg-primary/20 text-primary shrink-0">
+              <MessageCircle size={16} />
+            </span>
+            <div className="min-w-0 flex-1 text-xs">
+              <p className="font-heading font-bold text-foreground">
+                Soins disponibles en institut &amp; sur commande WhatsApp
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                Découvrez nos formules dermo-botaniques certifiées. Commandez avec votre salon pour un conseil personnalisé.
+              </p>
+            </div>
+          </div>
+        </RevealItem>
+
+        <RevealItem>
           {/* — Acheter selon l'institut: le marché est organisé par
              vendeur (instituts partenaires certifiés). La carte choisie
              filtre tout le catalogue sur CET institut. */}
@@ -1007,29 +1023,9 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
 
 
             <div>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Mode de paiement</p>
-              {securityEnabled && (
-                <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-xs font-bold px-2.5 py-1">
-                  <Lock size={11} aria-hidden="true" /> Vérification par code activée
-                </p>
-              )}
-              <div className="space-y-2">
-                {(["wave", "orange"] as const).map((m) => {
-                  const o = op(m)!;
-                  return (
-                    <button key={m} onClick={() => startPay(m)} disabled={paying} className="w-full h-12 rounded-xl border-2 bg-card flex items-center gap-3 px-4 font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" style={{ borderColor: o.color }}>
-                      <span className="h-7 w-7 rounded-full grid place-items-center font-heading font-black text-[#1A1410] text-xs shrink-0" style={{ backgroundColor: o.color }}>{o.name.charAt(0)}</span>
-                      {o.name}
-                      <span className="ml-auto text-xs font-medium text-muted-foreground">{o.hint}</span>
-                    </button>
-                  );
-                })}
-
-                {/* Commande directe via WhatsApp (Commerce conversationnel) */}
-                <div className="relative py-1 flex items-center justify-center">
-                  <span className="h-[1px] w-full bg-border" />
-                  <span className="bg-card px-3 text-xs font-bold text-muted-foreground uppercase tracking-wider">ou</span>
-                </div>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Finalisation de commande</p>
+              
+              <div className="space-y-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -1050,12 +1046,15 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
                       total,
                     });
                     openWhatsApp("", msg);
-                    toast.success("Ouverture de WhatsApp avec ta commande prête 🌿");
+                    toast.success("Ouverture de WhatsApp avec votre commande prête 🌿");
                   }}
-                  className="w-full h-12 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white flex items-center justify-center gap-2 font-bold text-sm shadow-md active:scale-[0.98] transition-all"
+                  className="w-full h-12 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white flex items-center justify-center gap-2 font-bold text-sm shadow-md active:scale-[0.98] transition-all cursor-pointer"
                 >
-                  <MessageCircle size={18} /> Commander via WhatsApp
+                  <MessageCircle size={18} /> Commander via WhatsApp avec l&apos;institut
                 </button>
+                <p className="text-[11px] text-muted-foreground text-center px-1 leading-relaxed">
+                  Votre institut partenaire ou notre conciergerie Kènè prépare votre commande, confirme la disponibilité et l&apos;enregistre directement dans votre compte.
+                </p>
               </div>
             </div>
           </div>

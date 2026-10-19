@@ -45,7 +45,6 @@ import { cn } from "@/lib/utils";
 import { BODY_ZONES } from "@/lib/kene/types";
 import { DuafeIcon, NsorommaIcon, KeneSunIcon, CauriIcon } from "@/components/kene/icons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BookingScreen } from "./BookingScreen";
 import type { ApiAppointment, ApiDiagnosis, ApiInstitute } from "./types";
 import { parseDiagnosis } from "./types";
 
@@ -293,7 +292,7 @@ export function AgendaScreen() {
   const user = useKene((s) => s.user);
   const setClientTab = useKene((s) => s.setClientTab);
 
-  const [activeSubTab, setActiveSubTab] = useState<"rdv" | "reserver" | "commandes">("rdv");
+  const [activeSubTab, setActiveSubTab] = useState<"rdv" | "soins">("rdv");
   const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>([]);
@@ -573,7 +572,7 @@ export function AgendaScreen() {
     setQuickBookType(typeDef);
   };
 
-  const confirmQuickBook = async () => {
+  const confirmQuickBook = async (sendWhatsApp = true) => {
     if (!quickBookType) return;
     haptic(HAPTIC.medium);
     const startIso = `${quickDate}T${quickTime}:00`;
@@ -595,23 +594,24 @@ export function AgendaScreen() {
         clientName: user?.name || "Cliente Kènè",
         clientPhone: user?.phone || "+2250700000000",
         userId: user?.id,
-        notes: `Réservation en ligne Kènè : ${quickBookType.defaultServiceName}`,
+        notes: `Demande de rendez-vous Kènè : ${quickBookType.defaultServiceName}`,
       });
 
       const savedAppt = res.appointment;
       setAppointments((prev) => [savedAppt, ...prev.filter((a) => a.id !== savedAppt.id)]);
-      toast.success(`Rendez-vous « ${quickBookType.shortLabel} » enregistré ! 🌿`, {
+      toast.success(`Demande « ${quickBookType.shortLabel} » enregistrée ! 🌿`, {
         description: `Demande envoyée à ${targetTenant.name} pour le ${formatDate(startIso)} à ${quickTime}. En attente de validation.`,
       });
 
-      // Proposition du message WhatsApp pré-rempli
-      openWhatsAppAppointmentInquiry({
-        serviceCategory: quickBookType.categoryName,
-        serviceName: `${quickBookType.defaultServiceName} (réservé pour le ${quickDate} à ${quickTime})`,
-        tenantPhone: targetTenant?.phone || (targetTenant as any)?.ownerPhone,
-        instituteName: targetTenant?.name,
-        country: ((targetTenant as any)?.country || "CI") as "CI" | "SN",
-      });
+      if (sendWhatsApp) {
+        openWhatsAppAppointmentInquiry({
+          serviceCategory: quickBookType.categoryName,
+          serviceName: `${quickBookType.defaultServiceName} (souhaité le ${formatDate(startIso)} à ${quickTime})`,
+          tenantPhone: targetTenant?.phone || (targetTenant as any)?.ownerPhone,
+          instituteName: targetTenant?.name,
+          country: ((targetTenant as any)?.country || "CI") as "CI" | "SN",
+        });
+      }
 
       setQuickBookType(null);
       setActiveSubTab("rdv");
@@ -653,8 +653,8 @@ export function AgendaScreen() {
         </button>
       </header>
 
-      {/* ───── Sélecteur épuré : Mes RDV / Réserver / Commandes (100% lisible sur Android 320px-360px) ───── */}
-      <div className="grid grid-cols-3 gap-1 sm:gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60 overflow-hidden">
+      {/* ───── Sélecteur épuré : Mes Rendez-vous & Mes Soins & Achats ───── */}
+      <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60 overflow-hidden">
         <button
           type="button"
           onClick={() => {
@@ -662,19 +662,16 @@ export function AgendaScreen() {
             setActiveSubTab("rdv");
           }}
           className={cn(
-            "py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 min-w-0 overflow-hidden",
+            "py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 min-w-0 overflow-hidden",
             activeSubTab === "rdv"
               ? "bg-card text-foreground shadow-xs border border-border/80"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <CalendarDays size={13} className={cn("shrink-0 sm:size-[14px]", activeSubTab === "rdv" ? "text-primary" : "")} />
-          <span className="truncate">
-            <span className="sm:hidden">Mes RDV</span>
-            <span className="hidden sm:inline">Mes Rendez-vous</span>
-          </span>
+          <CalendarDays size={14} className={cn("shrink-0", activeSubTab === "rdv" ? "text-primary" : "")} />
+          <span className="truncate">Mes Rendez-vous</span>
           {upcomingAppts.length > 0 && (
-            <span className="min-w-4 h-4 sm:size-4.5 px-1 rounded-full bg-primary/15 text-primary text-[9.5px] sm:text-[10px] grid place-items-center font-black shrink-0">
+            <span className="min-w-4 h-4 px-1.5 rounded-full bg-primary/15 text-primary text-[10px] grid place-items-center font-black shrink-0">
               {upcomingAppts.length}
             </span>
           )}
@@ -684,39 +681,19 @@ export function AgendaScreen() {
           type="button"
           onClick={() => {
             haptic(HAPTIC.tap);
-            setActiveSubTab("reserver");
+            setActiveSubTab("soins");
           }}
           className={cn(
-            "py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 min-w-0 overflow-hidden",
-            activeSubTab === "reserver"
+            "py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 min-w-0 overflow-hidden",
+            activeSubTab === "soins"
               ? "bg-card text-foreground shadow-xs border border-border/80"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <DuafeIcon size={13} className={cn("shrink-0 sm:size-[14px]", activeSubTab === "reserver" ? "text-gold-text" : "")} />
-          <span className="truncate">
-            <span className="sm:hidden">Réserver</span>
-            <span className="hidden sm:inline">Réserver un Soin</span>
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            haptic(HAPTIC.tap);
-            setActiveSubTab("commandes");
-          }}
-          className={cn(
-            "py-2 sm:py-2.5 px-1.5 sm:px-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 min-w-0 overflow-hidden",
-            activeSubTab === "commandes"
-              ? "bg-card text-foreground shadow-xs border border-border/80"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <ShoppingBag size={13} className={cn("shrink-0 sm:size-[14px]", activeSubTab === "commandes" ? "text-gold-text" : "")} />
-          <span className="truncate">Commandes</span>
+          <ShoppingBag size={14} className={cn("shrink-0", activeSubTab === "soins" ? "text-gold-text" : "")} />
+          <span className="truncate">Mes Soins &amp; Achats</span>
           {orders.length > 0 && (
-            <span className="min-w-4 h-4 sm:size-4.5 px-1 rounded-full bg-gold/30 text-gold-text text-[9.5px] sm:text-[10px] grid place-items-center font-bold shrink-0">
+            <span className="min-w-4 h-4 px-1.5 rounded-full bg-gold/30 text-gold-text text-[10px] grid place-items-center font-bold shrink-0">
               {orders.length}
             </span>
           )}
@@ -733,7 +710,7 @@ export function AgendaScreen() {
           <div className="flex items-start justify-between gap-2">
             <div>
               <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border", quickBookType.badgeClass)}>
-                Programmation Directe
+                Demande de Rendez-vous
               </span>
               <h3 className="font-heading font-black text-base text-foreground mt-1">
                 {quickBookType.label}
@@ -752,6 +729,26 @@ export function AgendaScreen() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-[11px] font-bold text-foreground block mb-1">
+                Prestation souhaitée
+              </label>
+              <select
+                value={quickBookType.id}
+                onChange={(e) => {
+                  const found = RDV_TYPES_CATALOG.find((t) => t.id === e.target.value);
+                  if (found) setQuickBookType(found);
+                }}
+                className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
+              >
+                {RDV_TYPES_CATALOG.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label} ({xof(t.indicativePrice)})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {institutes.length > 1 && (
               <div className="sm:col-span-2">
                 <label className="text-[11px] font-bold text-foreground block mb-1">
@@ -770,6 +767,7 @@ export function AgendaScreen() {
                 </select>
               </div>
             )}
+
             <div>
               <label className="text-[11px] font-bold text-foreground block mb-1">
                 Date souhaitée
@@ -799,32 +797,32 @@ export function AgendaScreen() {
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-1">
+          <div className="flex flex-col sm:flex-row items-center justify-end gap-2 pt-2 border-t border-border/60">
             <button
               type="button"
               disabled={bookingLoading}
               onClick={() => setQuickBookType(null)}
-              className="h-9 px-3 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground"
+              className="w-full sm:w-auto h-9 px-3 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground"
             >
               Annuler
             </button>
             <button
               type="button"
               disabled={bookingLoading}
-              onClick={confirmQuickBook}
-              className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-black flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              onClick={() => confirmQuickBook(false)}
+              className="w-full sm:w-auto h-9 px-3 rounded-xl border border-primary/40 bg-primary/10 text-primary text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
             >
-              {bookingLoading ? (
-                <>
-                  <RefreshCw size={14} className="animate-spin" />
-                  <span>Transmission...</span>
-                </>
-              ) : (
-                <>
-                  <CalendarPlus size={14} />
-                  <span>Valider &amp; Synchroniser avec l&apos;Institut</span>
-                </>
-              )}
+              <CalendarPlus size={14} />
+              <span>Enregistrer dans mon carnet</span>
+            </button>
+            <button
+              type="button"
+              disabled={bookingLoading}
+              onClick={() => confirmQuickBook(true)}
+              className="w-full sm:w-auto h-9 px-4 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+            >
+              <MessageCircle size={14} />
+              <span>Demander sur WhatsApp</span>
             </button>
           </div>
         </motion.div>
@@ -835,6 +833,21 @@ export function AgendaScreen() {
       ═══════════════════════════════════════════════════════════ */}
       {activeSubTab === "rdv" && (
         <div className="flex flex-col gap-4">
+          {/* Bannière explicative : Fonctionnement simple WhatsApp & Institut */}
+          <div className="rounded-[22px] p-3.5 sm:p-4 border border-primary/25 bg-gradient-to-r from-primary/10 via-card to-[#8B1A3B]/5 flex items-start gap-3 shadow-xs">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/20 text-primary">
+              <MessageCircle size={18} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h4 className="font-heading font-bold text-xs sm:text-sm text-foreground">
+                Prise de rendez-vous directe avec votre salon
+              </h4>
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                Vos demandes de rendez-vous s&apos;effectuent en direct sur WhatsApp avec votre institut partenaire. Dès que votre salon confirme et enregistre votre créneau, il apparaît automatiquement ici avec votre Pass RDV officiel.
+              </p>
+            </div>
+          </div>
+
           {/* Alerte proactive J-1 / Jour J si RDV imminent */}
           {proactiveReminder && (
             <motion.div
@@ -873,9 +886,9 @@ export function AgendaScreen() {
                 type="button"
                 onClick={() => {
                   haptic(HAPTIC.tap);
-                  setActiveSubTab("reserver");
+                  handleBookRdvType(RDV_TYPES_CATALOG[0]);
                 }}
-                className="text-xs font-bold text-gold-text hover:underline inline-flex items-center gap-1"
+                className="text-xs font-bold text-gold-text hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
                 <PlusCircle size={13} />
                 Prendre un RDV
@@ -905,12 +918,12 @@ export function AgendaScreen() {
                   type="button"
                   onClick={() => {
                     haptic(HAPTIC.tap);
-                    setActiveSubTab("reserver");
+                    handleBookRdvType(RDV_TYPES_CATALOG[0]);
                   }}
                   className="k-btn-gold h-10 px-5 rounded-xl text-primary-foreground font-black text-xs inline-flex items-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
                 >
                   <DuafeIcon size={14} />
-                  <span>Choisir un soin &amp; Réserver</span>
+                  <span>Prendre un RDV avec mon institut</span>
                 </button>
               </div>
             ) : (
@@ -1226,24 +1239,9 @@ export function AgendaScreen() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════
-          SOUS-ONGLET 2 : CATALOGUE COMPLET DES 6 TYPES DE SOINS KÈNÈ
+          SOUS-ONGLET 2 : MES SOINS & ACHATS EN INSTITUT
       ═══════════════════════════════════════════════════════════ */}
-      {activeSubTab === "reserver" && (
-        <div className="space-y-4">
-          <BookingScreen
-            defaultTab="book"
-            onAppointmentBooked={() => {
-              setActiveSubTab("rdv");
-              handleRefresh();
-            }}
-          />
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════
-          SOUS-ONGLET 3 : MES COMMANDES & SOINS WHATSAPP
-      ═══════════════════════════════════════════════════════════ */}
-      {activeSubTab === "commandes" && (
+      {activeSubTab === "soins" && (
         <div className="flex flex-col gap-4">
           <div className="rounded-[22px] p-4 border border-gold/30 bg-gold/5 flex items-start gap-3">
             <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gold/20 text-gold-text">
@@ -1251,10 +1249,10 @@ export function AgendaScreen() {
             </span>
             <div className="min-w-0 flex-1">
               <h4 className="font-heading font-bold text-sm text-foreground">
-                Commandes &amp; Réassorts WhatsApp
+                Suivi de vos Soins &amp; Achats en Salon
               </h4>
               <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                Toutes les commandes de soins botaniques convenues sur WhatsApp et saisies par votre institut partenaire ou le concierge Kènè s&apos;affichent ici en direct.
+                Tous les soins cabine effectués et les produits botaniques achetés ou prescrits par votre institut partenaire s&apos;affichent ici en direct dès leur enregistrement.
               </p>
             </div>
           </div>
@@ -1271,38 +1269,27 @@ export function AgendaScreen() {
               </span>
               <div>
                 <p className="font-heading font-bold text-sm text-foreground">
-                  Aucune commande enregistrée
+                  Aucun achat ou soin enregistré pour le moment
                 </p>
                 <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto leading-relaxed">
-                  Découvrez nos soins dermo-botaniques certifiés sans hydroquinone ni corticoïdes et nos routines sur-mesure formulées pour votre peau.
+                  Lors de votre passage en salon, votre praticienne enregistrera vos prestations et vos produits prescrits pour que vous gardiez un carnet de soin complet.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic(HAPTIC.tap);
-                    setClientTab("boutique");
-                  }}
-                  className="k-btn-gold h-10 px-5 rounded-xl text-primary-foreground font-bold text-xs inline-flex items-center gap-2 shadow-sm cursor-pointer"
-                >
-                  <ShoppingBag size={14} />
-                  <span>Découvrir la Boutique Kènè</span>
-                </button>
+              <div className="flex items-center justify-center pt-1">
                 <button
                   type="button"
                   onClick={() => {
                     openWhatsAppProductOrderInquiry({
-                      productName: "Mon ordonnance beauté & soins sur-mesure",
+                      productName: "Conseil dermo-botanique & routine recommandée",
                       tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
                       instituteName: selectedInst?.name,
                       country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
                     });
                   }}
-                  className="h-10 px-4 rounded-xl border border-border bg-card hover:bg-accent text-foreground font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+                  className="h-10 px-4 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs inline-flex items-center gap-2 shadow-sm cursor-pointer active:scale-95 transition-all"
                 >
-                  <MessageCircle size={14} className="text-[#25D366]" />
-                  <span>Conseil WhatsApp</span>
+                  <MessageCircle size={15} />
+                  <span>Demander conseil à mon institut sur WhatsApp</span>
                 </button>
               </div>
             </div>
@@ -1310,18 +1297,22 @@ export function AgendaScreen() {
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2 px-1">
                 <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
-                  Vos commandes ({orders.length})
+                  Historique des soins &amp; achats ({orders.length})
                 </span>
                 <button
                   type="button"
                   onClick={() => {
-                    haptic(HAPTIC.tap);
-                    setClientTab("boutique");
+                    openWhatsAppProductOrderInquiry({
+                      productName: "Renouvellement de routine personnalisée",
+                      tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
+                      instituteName: selectedInst?.name,
+                      country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
+                    });
                   }}
-                  className="text-xs font-bold text-gold-text hover:underline inline-flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold text-[#128C7E] dark:text-[#25D366] hover:underline inline-flex items-center gap-1.5 cursor-pointer"
                 >
-                  <ShoppingBag size={13} />
-                  <span>Accéder à la Boutique</span>
+                  <MessageCircle size={13} className="text-[#25D366]" />
+                  <span>Commander sur WhatsApp</span>
                 </button>
               </div>
               {orders.map((order) => {
