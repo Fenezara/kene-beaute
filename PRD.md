@@ -44,6 +44,7 @@ La dermatologie et la cosmétologie mondiales ont historiquement été formulée
   - Cartographie anatomique en **23 zones corporelles** avec buste 3D interactif.
   - Détection et notation sur 100 de 14 indicateurs cutanés (barrière lipidique, HPI, sébum, rougeurs, desquamation).
   - Génération d'une **Ordonnance Dermo-Cosmétique vectorielle native (PDF)** intégrant le **Pass Cabine QR** pour l'institut.
+  - **Prise de vue mobile & Libération matérielle (t. 146)** : Arrêt synchrone des pistes vidéo (`track.stop()`) et détachement WebRTC dès la capture ou la fermeture de la modale pour éteindre immédiatement le témoin matériel caméra/enregistrement de l'OS. Cascade progressive de repli en 4 paliers (caméra environnement HD → caméra arrière standard → vidéo générique → sélecteur de fichier natif smartphone).
 * **Conseil Virtuel « Dr. Kènè »** :
   - Assistant conversationnel dermo-esthétique alimenté par LLM calibré.
   - Triage médical d'urgence en 3 niveaux :
@@ -92,6 +93,8 @@ La dermatologie et la cosmétologie mondiales ont historiquement été formulée
   - **Step-up Authentication** (< 5 min) obligatoire avant tout acte critique (suspension d'un salon, modification du taux de commission, révocation d'accès, octroi de mois offerts).
 * **Supervision du Réseau & Monétisation** :
   - Tableaux de bord de surveillance du GMV global, des commissions et de la santé des serveurs.
+  - **Périmètre Réel vs Démo & Harmonisation Mathématique du GMV (t. 147)** : Ségrégation étanche entre l'activité réelle de production (*Cabinet LA DERMO*) et les fixtures de démonstration. Sélecteur de périmètre dynamique (`scope="real"` par défaut, `scope="all"`) sur l'ensemble de la console. Formule normalisée : $\text{GMV} = \text{Ventes Caisse} + \text{Commandes Web} + \text{Acomptes RDV}$. Calculs financiers basés sur des agrégations complètes en base de données (`db.sale.aggregate`, `db.order.aggregate`, `db.appointment.aggregate`), sans biais de pagination.
+  - Double vue centralisée des **Ventes & Commandes** (caisse POS et commandes en ligne) et des **Rendez-Vous réseau**.
   - Pilotage des abonnements Kènè+ et Pro selon la norme IFRS 15 (traçabilité comptable immuable, zéro écrasement des périodes).
   - Exports comptables CSV conformes avec encodage UTF-8 BOM.
   - **Purge Légale & Anonymisation de Compte (Auditée)** : Droit à l'oubli administrateur sous step-up biométrique, avec conservation comptable obligatoire des montants et anonymisation des tiers.

@@ -3244,3 +3244,52 @@ Work Log:
 Stage Summary:
 - LIVRÉ : Architecture de conformité 2026 complète, conciliant exigences strictes des stores (Apple 5.1.1(v), Google Play), protection de la vie privée (RGPD/ARTCI) et obligations comptables africaines (SYSCOHADA).
 
+---
+Task ID: t.146
+Agent: agent principal (Antigravity)
+Task: GESTION DES PERMISSIONS MATÉRIELLES TÉLÉPHONIQUE & LIBÉRATION IMMÉDIATE DES FLUX CAMÉRA.
+
+Work Log:
+- Problème résolu : Sur smartphones et tablettes, après la capture ou la fermeture du diagnostic, le témoin vert/orange de la caméra et de l'enregistrement restait allumé indéfiniment en raison d'un flux WebRTC non libéré.
+- Libération stricte des flux (`LiveCameraModal.tsx` & `DiagnosticScreen.tsx`) :
+  - Arrêt synchrone et explicite de chaque piste vidéo (`track.stop()`) dès la prise de photo ou la fermeture de la modale.
+  - Détachement du flux vidéo de l'élément HTML (`video.srcObject = null`).
+  - Nettoyage dans le hook de démontage (`useEffect cleanup`).
+- Cascade progressive des contraintes caméra :
+  - Tentative principale : caméra arrière HD orientée environnement (`facingMode: { ideal: "environment" }`, 1280x720).
+  - Repli n°1 : caméra arrière simple (`facingMode: "environment"`).
+  - Repli n°2 : flux vidéo standard sans contraintes (`video: true`).
+  - Repli n°3 : sélecteur de fichier natif Android/iOS (`<input type="file" accept="image/*" capture="environment">`) en cas de refus d'autorisation ou d'incompatibilité matérielle.
+- Validation : Déployé sur VPS Hetzner, testé et validé sans fuite de flux ni voyant persistant.
+
+Stage Summary:
+- LIVRÉ : Expérience de capture photo mobile sans blocage matériel, arrêt immédiat du capteur caméra après prise de vue, et guidage bienveillant en cas de refus de permission.
+
+---
+Task ID: t.147
+Agent: agent principal (Antigravity)
+Task: HARMONISATION MATHÉMATIQUE DU GMV, AGRÉGATIONS DB RÉELLES & SÉPARATION DU PÉRIMÈTRE RÉEL vs DÉMO.
+
+Work Log:
+- Diagnostic & Cause racine :
+  - Données seed (« Éclat d'Abidjan ») de 1 294 075 F CFA de fausses ventes et 17 faux RDV mélangées aux données réelles de l'institut actif (« Cabinet LA DERMO », 190 000 F CFA réels).
+  - Erreurs de troncature : calculs de volumes sur les 100 premières lignes affichées (`take: 100`) via `.reduce()` JS au lieu d'agrégations en base de données.
+  - Définitions mathématiques divergentes du GMV selon les écrans.
+- Harmonisation du GMV Réseau :
+  - Formule standardisée : GMV = Ventes Caisse POS + Commandes Web payées + Acomptes RDV encaissés.
+  - Séparation visuelle distincte dans la Vue d'ensemble : CA Caisse POS vs CA Commandes Web.
+- Sélecteur de périmètre dynamique (`scope="real"` vs `scope="all"`) :
+  - Implémenté sur les endpoints : `/api/admin/stats`, `/api/admin/orders`, `/api/admin/appointments`, `/api/admin/tenants`, `/api/admin/users`.
+  - Mode par défaut : Données réelles uniquement (`real`), isolant les fixtures de test sans rien supprimer.
+  - Sélecteur interactif dans `AdminOverview.tsx` et propagation de l'état `scope` dans `AdminApp.tsx`.
+- Agrégations Prisma en base de données :
+  - Remplacement des boucles JS sur listes limitées par `db.sale.aggregate`, `db.order.aggregate`, `db.appointment.aggregate` (`_sum`, `_count`).
+- Optimisation Pro Portal :
+  - Calcul du taux d'occupation de l'agenda basé sur les minutes réelles de prestations réservées par rapport aux plages d'ouverture de l'institut.
+  - Remplacement de l'ID démo en dur du bouton « Ouvrir l'Espace Salon » par une résolution dynamique vers l'institut actif.
+- Déploiement : `tsc --noEmit` validé 0 erreur, commité, poussé sur `main` (`a909ce5`), déployé sur VPS (`Container kene-app-1 Recreated & Started`), santé `HTTP 200 OK`.
+
+Stage Summary:
+- LIVRÉ : Fiabilité et concorde comptable totale entre tous les tableaux de bord (Admin, Pro, Client), séparation étanche de la production réelle et des simulations de test.
+
+
