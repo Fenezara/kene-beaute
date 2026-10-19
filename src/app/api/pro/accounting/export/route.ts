@@ -59,12 +59,19 @@ export async function GET(req: NextRequest) {
       return jsonError("Le format PDF est réservé au type « liasse » (dossier complet) — journal, balance et ventes s'exportent en CSV", 400);
     }
 
-    const from = parseDay(sp.get("from"));
-    const toRaw = parseDay(sp.get("to"));
+    let from = parseDay(sp.get("from"));
+    let toRaw = parseDay(sp.get("to"));
     if (from === null) return jsonError("Paramètre « from » invalide — format attendu AAAA-MM-JJ", 400);
     if (toRaw === null) return jsonError("Paramètre « to » invalide — format attendu AAAA-MM-JJ", 400);
-    const to = toRaw ? endOfDay(toRaw) : undefined;
 
+    // Support du raccourci period=current_month si from/to ne sont pas spécifiés
+    if (sp.get("period") === "current_month" && !from && !toRaw) {
+      const now = new Date();
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      toRaw = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    }
+
+    const to = toRaw ? endOfDay(toRaw) : undefined;
     const dateFilter = from || to ? { gte: from, lte: to } : undefined;
 
     // ── PDF: la liasse complète (toutes sections, une seule requête) ──

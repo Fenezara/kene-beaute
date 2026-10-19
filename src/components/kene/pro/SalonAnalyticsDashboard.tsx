@@ -3,7 +3,8 @@
 // panier moyen, taux d'occupation des cabines et exports SYSCOHADA.
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   Banknote,
   Coins,
@@ -18,6 +19,7 @@ import {
   CreditCard,
   Smartphone,
   ShieldCheck,
+  Loader2,
 } from "lucide-react";
 import {
   BarChart,
@@ -100,6 +102,35 @@ export function SalonAnalyticsDashboard({
     }));
   }, [data.chart]);
 
+  const [exporting, setExporting] = useState<string | null>(null);
+
+  const handleExport = async (type: "ventes" | "liasse", format: "csv" | "pdf") => {
+    try {
+      setExporting(type);
+      const url = `/api/pro/accounting/export?tenantId=${encodeURIComponent(tenantId)}&type=${type}&format=${format}&period=current_month`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Export indisponible (${res.status})`);
+      }
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
+      a.download = filenameMatch ? filenameMatch[1] : (format === "pdf" ? `liasse-syscohada-${tenantId}.pdf` : `journal-ventes-${tenantId}.csv`);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+      toast.success(format === "pdf" ? "Liasse SYSCOHADA PDF téléchargée" : "Journal des ventes CSV téléchargé");
+    } catch {
+      toast.error("Impossible de télécharger le fichier d'export");
+    } finally {
+      setExporting(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* ── En-tête & Exports SYSCOHADA ── */}
@@ -120,18 +151,28 @@ export function SalonAnalyticsDashboard({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => window.open(`/api/pro/accounting/csv?tenantId=${tenantId}&period=current_month`, "_blank")}
+            onClick={() => void handleExport("ventes", "csv")}
+            disabled={exporting !== null}
             className="h-8 gap-1.5 text-xs font-semibold"
           >
-            <FileSpreadsheet className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+            {exporting === "ventes" ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+            )}
             Journal des ventes (CSV)
           </Button>
           <Button
             size="sm"
-            onClick={() => window.open(`/api/pro/accounting/pdf?tenantId=${tenantId}&period=current_month`, "_blank")}
+            onClick={() => void handleExport("liasse", "pdf")}
+            disabled={exporting !== null}
             className="h-8 gap-1.5 text-xs font-semibold bg-gold hover:bg-gold-dark text-white"
           >
-            <FileText className="size-3.5" />
+            {exporting === "liasse" ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <FileText className="size-3.5" />
+            )}
             Liasse SYSCOHADA (PDF)
           </Button>
         </div>
