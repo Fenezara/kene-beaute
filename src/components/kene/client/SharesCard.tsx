@@ -18,7 +18,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiGet, apiPost } from "@/lib/kene/api";
+import { apiGet, apiPost, apiPatch } from "@/lib/kene/api";
 import { formatDate } from "@/lib/kene/format";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -101,8 +101,8 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
     });
   }, [data?.shares, searchQuery, selectedCity]);
 
-  // Cocher l'institut comme institut référent de la cliente
-  const handleSelectReferenceInstitute = (share: InstituteShare) => {
+  // Cocher ou décocher l'institut comme institut référent de la cliente
+  const handleSelectReferenceInstitute = async (share: InstituteShare) => {
     if (!user) return;
     if (!isSavedUser(user)) {
       toast.error("Inscription requise", {
@@ -115,31 +115,54 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
     const isAlreadySelected = user.selectedTenantId === share.tenantId;
 
     if (isAlreadySelected) {
-      toast.info(`${share.name} est déjà votre institut référent.`);
+      // Décocher l'institut référent
+      setBusyId(share.tenantId);
+      try {
+        await apiPatch("/api/auth/profile", { userId: user.id, selectedTenantId: null });
+        setUser({
+          ...user,
+          selectedTenantId: null,
+          selectedTenant: null,
+        });
+        toast.success(`Institut ${share.name} décoché.`);
+      } catch {
+        toast.error("Erreur lors de la mise à jour");
+      } finally {
+        setBusyId(null);
+      }
       return;
     }
 
-    setUser({
-      ...user,
-      selectedTenantId: share.tenantId,
-      selectedTenant: {
-        id: share.tenantId,
-        name: share.name,
-        city: share.city,
-        phone: share.phone || share.ownerPhone,
-        ownerPhone: share.ownerPhone,
-        country: share.country,
-      },
-    });
+    // Cocher le nouvel institut référent et persister en base
+    setBusyId(share.tenantId);
+    try {
+      await apiPatch("/api/auth/profile", { userId: user.id, selectedTenantId: share.tenantId });
+      setUser({
+        ...user,
+        selectedTenantId: share.tenantId,
+        selectedTenant: {
+          id: share.tenantId,
+          name: share.name,
+          city: share.city,
+          phone: share.phone || share.ownerPhone,
+          ownerPhone: share.ownerPhone,
+          country: share.country,
+        },
+      });
 
-    // Active automatiquement le consentement de partage si pas déjà accordé
-    if (!share.granted) {
-      void toggle(share, true);
+      // Active automatiquement le consentement de partage si pas déjà accordé
+      if (!share.granted) {
+        void toggle(share, true);
+      }
+
+      toast.success(`Institut référent mis à jour : ${share.name} ✅`, {
+        description: "Vos prises de rendez-vous et soins sont désormais liés à cet établissement.",
+      });
+    } catch {
+      toast.error("Impossible de sélectionner cet institut");
+    } finally {
+      setBusyId(null);
     }
-
-    toast.success(`Institut référent mis à jour : ${share.name} ✅`, {
-      description: "Vos prises de rendez-vous et rituels sont désormais liés à cet établissement.",
-    });
   };
 
   // Bascule du consentement de partage des self-scans
@@ -168,6 +191,7 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
 
       // Si la cliente accorde le partage et n'a pas encore d'institut coché, on lie automatiquement celui-ci
       if (next && user && !user.selectedTenantId) {
+        await apiPatch("/api/auth/profile", { userId: user.id, selectedTenantId: share.tenantId }).catch(() => null);
         setUser({
           ...user,
           selectedTenantId: share.tenantId,
@@ -272,47 +296,87 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
         )}
 
         {/* ───── Encart Institut Référent Actuellement Coché ───── */}
-        {user?.selectedTenant && (
-          <div className="rounded-2xl border-2 border-primary/40 bg-gradient-to-r from-primary/10 via-card to-primary/5 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground shrink-0 shadow-xs">
-                <CauriIcon size={18} />
-              </span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-primary">
-                    Mon Institut Référent Coché ✅
-                  </span>
+        {user?.selectedTenant && (() => {
+          const activeShare = data?.shares.find((s) => s.tenantId === user.selectedTenant?.id);
+          const isSharingScans = activeShare?.granted ?? false;
+
+          return (
+            <div className="rounded-2xl border-2 border-primary/40 bg-gradient-to-r from-primary/10 via-card to-primary/5 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground shrink-0 shadow-xs">
+                  <CauriIcon size={18} />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-primary">
+                      Mon Institut Référent Coché ✅
+                    </span>
+                    {isSharingScans ? (
+                      <span className="text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Check size={10} /> Bilans partagés
+                      </span>
+                    ) : (
+                      <span className="text-[9.5px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Lock size={9} /> Partage désactivé (Privé)
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-heading font-black text-sm text-foreground truncate mt-0.5">
+                    {user.selectedTenant.name}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <MapPin size={11} className="text-primary" /> {user.selectedTenant.city}
+                  </p>
                 </div>
-                <p className="font-heading font-black text-sm text-foreground truncate">
-                  {user.selectedTenant.name}
-                </p>
-                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  <MapPin size={11} className="text-primary" /> {user.selectedTenant.city}
-                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const share = data?.shares.find((s) => s.tenantId === user.selectedTenant?.id);
+                    if (share) {
+                      void handleSelectReferenceInstitute(share);
+                    } else if (user.selectedTenant) {
+                      // Fallback si l'institut n'est pas dans la liste courante
+                      void handleSelectReferenceInstitute({
+                        tenantId: user.selectedTenant.id,
+                        name: user.selectedTenant.name,
+                        city: user.selectedTenant.city,
+                        active: true,
+                        hasPhoto: false,
+                        granted: false,
+                        visitsCount: 0,
+                        lastVisit: null,
+                      });
+                    }
+                  }}
+                  className="h-8 px-2.5 rounded-xl border border-border bg-card/80 hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center gap-1 shadow-2xs transition-colors"
+                  title="Décocher cet institut référent"
+                >
+                  Décocher
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const phone = user.selectedTenant?.phone || (user.selectedTenant as any)?.ownerPhone || "";
+                    const country = ((user.selectedTenant as any)?.country || "CI") as "CI" | "SN";
+                    openWhatsApp(
+                      phone,
+                      `Bonjour ${user.selectedTenant?.name} ! 🌸\nJe suis cliente Kènè (${userName}). Je vous partage mon bilan cutané pour mon prochain soin.`,
+                      country
+                    );
+                  }}
+                  className="h-8 px-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-transform active:scale-95"
+                >
+                  <MessageCircle size={13} />
+                  Partager (WhatsApp)
+                </button>
               </div>
             </div>
-
-            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-              <button
-                type="button"
-                onClick={() => {
-                  const phone = user.selectedTenant?.phone || (user.selectedTenant as any)?.ownerPhone || "";
-                  const country = ((user.selectedTenant as any)?.country || "CI") as "CI" | "SN";
-                  openWhatsApp(
-                    phone,
-                    `Bonjour ${user.selectedTenant?.name} ! 🌸\nJe suis cliente Kènè (${userName}). Je vous partage mon bilan cutané pour mon prochain soin.`,
-                    country
-                  );
-                }}
-                className="h-8 px-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-transform active:scale-95"
-              >
-                <MessageCircle size={13} />
-                Partager (WhatsApp)
-              </button>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ───── Barre de Recherche & Filtres Rapides ───── */}
         <div className="space-y-2">

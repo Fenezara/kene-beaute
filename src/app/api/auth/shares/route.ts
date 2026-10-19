@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError } from "@/lib/kene/server";
+import { jsonError, serverError, notify } from "@/lib/kene/server";
 import { guardUserClaim } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { recordScanShare, SHARE_SCANS_TYPE } from "@/lib/kene/share-consent";
@@ -149,6 +149,22 @@ export async function POST(req: NextRequest) {
         detailsJson: JSON.stringify({ type: SHARE_SCANS_TYPE, via: "app" }),
       },
     });
+
+    const tenant = await db.tenant.findUnique({
+      where: { id: tenantId },
+      select: { phone: true, ownerPhone: true },
+    });
+    const toPhone = tenant?.phone || tenant?.ownerPhone || "00000000";
+
+    await notify({
+      tenantId,
+      channel: "in_app",
+      toPhone,
+      message: granted
+        ? `🌿 ${userObj.name || "Une cliente"} a partagé ses bilans de peau avec votre institut.`
+        : `🔒 ${userObj.name || "Une cliente"} a retiré l'accès à ses bilans de peau.`,
+      metaJson: JSON.stringify({ type: "client_share", granted, userId, clientId: profile.id }),
+    }).catch(() => null);
 
     return NextResponse.json({ ok: true, tenantId, granted });
   } catch (err) {

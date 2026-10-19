@@ -169,6 +169,13 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
       .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)); // chronologique
   }, [diagnoses]);
 
+  // Si la cliente a déjà 2 scans réels ou plus, basculer par défaut sur ses propres photos
+  useEffect(() => {
+    if (validWithImages.length >= 2) {
+      setAvantApresSource("client");
+    }
+  }, [validWithImages.length]);
+
   const beforeDiag = useMemo(() => {
     if (selectedBeforeId) {
       return validWithImages.find((d) => d.id === selectedBeforeId) ?? validWithImages[0] ?? null;
