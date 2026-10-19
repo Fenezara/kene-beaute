@@ -223,6 +223,13 @@ Validation de commande avec panier multi-produits.
 
 *Toutes les routes `/api/admin/*` exigent un rôle `admin` strict et une session courte de 8 heures.*
 
+- `GET /api/admin/stats?scope=real|all` : KPIs globaux de la plateforme (GMV, CA caisse POS, CA commandes web, abonnements, comptes) avec filtrage par périmètre pour séparer la production réelle des simulations de test.
+- `GET, PATCH /api/admin/orders?scope=real|all&status=...&q=...` : Suivi centralisé et mise à jour des statuts des ventes caisse (POS) et des commandes en ligne du réseau.
+- `GET, PATCH /api/admin/appointments?scope=real|all&status=...&q=...` : Tableau de bord des réservations du réseau, suivi des statuts et des acomptes Mobile Money perçus.
+- `GET, PATCH /api/admin/tenants?scope=real|all&format=csv` : Annuaire exhaustif des instituts partenaires avec KPIs de gestion (CA 30 j, commission, plan, équipe) et export comptable CSV.
+- `GET, PATCH, DELETE /api/admin/users/:id` : Annuaire des comptes, verrouillage/déverrouillage, promotion/rétrogradation d'administrateurs délégués et purge légale / droit à l'oubli sous step-up.
 - `POST /api/admin/elevate` : Déclenchement du challenge **Step-up MFA** (empreinte biométrique WebAuthn ou code administrateur) valable 5 minutes.
 - `PATCH /api/admin/tenants/:id` : Suspension immédiate d'un institut ou modification de sa commission de plateforme (action sous Step-up obligatoire).
 - `PATCH /api/admin/subscriptions/:id` : Annulation à motif obligatoire ou octroi de 30 jours offerts selon la norme IFRS 15 (aucun écrasement de période dans l'historique).
+- `GET, POST /api/admin/maintenance` : Consultation de l'état des verrous et activation/désactivation programmée du mode maintenance.
+- `GET /api/admin/connectors` : Diagnostic de santé et de connectivité des tiers fintech, SMS, IA et base de données.
