@@ -17,6 +17,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import { Loader2, MessageSquareText, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { apiDelete, apiPatch, apiPost, ApiError } from "@/lib/kene/api";
+import { maskPhone } from "@/lib/kene/audit";
 import { useKene } from "@/store/kene";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,8 +68,7 @@ export function AdminGateProvider({ children }: { children: ReactNode }) {
   // Requête « stepUp() » isolée (sans action à rejouer).
   const plainStepUp = useRef<((v: void) => void) | null>(null);
 
-  const digits = (user?.phone ?? "").replace(/\D/g, "");
-  const maskedPhone = digits.length >= 4 ? `+225 ${digits.slice(0, 2)}••••${digits.slice(-2)}` : "+225 …";
+  const maskedPhone = user?.phone ? maskPhone(user.phone) : "+225 …";
 
   const openDialog = useCallback((req: PendingRequest | null) => {
     if (req) setPending(req);

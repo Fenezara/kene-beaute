@@ -63,7 +63,7 @@ function maybePrune(): void {
 
 // ─────────────── Anonymisation ───────────────
 
-/** Masque un téléphone: garde pays + 2 chiffres, milieu en •, 2 derniers.
+/** Masque un téléphone: garde pays + 2 chiffres de l'opérateur, milieu en •, 2 derniers.
  * « +2250701020304 » → « +225 07•••••04 » — 5 pastilles fixes, la longueur
  * réelle du numéro n'est jamais révélée. Trop court → tout masqué. */
 export function maskPhone(phone: string): string {
@@ -71,12 +71,20 @@ export function maskPhone(phone: string): string {
   if (clean.length < 6) return "•••••";
   let country = "";
   let rest = clean;
-  if (clean.startsWith("+")) {
-    // Kènè opère en CI (+225) / SN (+221) — pays à 3 chiffres
+  if (clean.startsWith("+225") || clean.startsWith("225")) {
+    country = "+225";
+    rest = clean.replace(/^\+?225/, "");
+  } else if (clean.startsWith("+221") || clean.startsWith("221")) {
+    country = "+221";
+    rest = clean.replace(/^\+?221/, "");
+  } else if (clean.startsWith("+")) {
     country = clean.slice(0, 4);
     rest = clean.slice(4);
+  } else if (/^0[157]\d{8}$/.test(clean)) {
+    country = "+225";
+    rest = clean;
   }
-  if (rest.length < 5) return `${country ? country + " " : ""}•••••`;
+  if (rest.length < 4) return `${country ? country + " " : ""}•••••`;
   return `${country ? country + " " : ""}${rest.slice(0, 2)}•••••${rest.slice(-2)}`;
 }
 
