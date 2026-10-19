@@ -3,15 +3,16 @@
 // Permet un cadrage optimal et instantané pour l'analyse cutanée VLM.
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Camera, FlipHorizontal, Lightbulb, Loader2, SwitchCamera, X } from "lucide-react";
+import { Camera, FlipHorizontal, Lightbulb, Loader2, RotateCcw, SwitchCamera, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import {
   getPersistentCameraStream,
-  pausePersistentCameraStream,
+  stopPersistentCameraStream,
   saveHardwarePermGranted,
 } from "@/lib/kene/hardware-perm";
+import { resizeImage } from "@/lib/kene/api";
 
 interface LiveCameraModalProps {
   zoneLabel: string;
@@ -23,6 +24,7 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const nativeInputRef = useRef<HTMLInputElement | null>(null);
 
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [ready, setReady] = useState(false);
@@ -54,12 +56,16 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
       } catch (err: any) {
         if (!active) return;
         const isPermDenied = err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError";
-        const msg = err instanceof Error ? err.message : "Impossible d'accéder à la caméra";
+        const msg = isPermDenied
+          ? "Accès caméra bloqué par le navigateur."
+          : err instanceof Error
+          ? err.message
+          : "Impossible d'accéder à la caméra.";
         setError(msg);
         if (isPermDenied) {
-          toast.error("Accès caméra refusé — autorise l'appareil photo dans les paramètres");
+          toast.error("Accès caméra bloqué — Débloque via le cadenas 🔒 de ton navigateur");
         } else {
-          toast.error("Initialisation de la caméra… réessaie dans un instant");
+          toast.error("Caméra indisponible — Utilise l'appareil photo du téléphone");
         }
       }
     }
@@ -68,10 +74,31 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
 
     return () => {
       active = false;
-      // Met en pause la caméra sans détruire la session d'autorisation (0 re-prompt lors de la prochaine utilisation)
-      pausePersistentCameraStream();
+      // Libération propre du capteur matériel Android / iOS pour éviter tout verrouillage physique
+      if (streamRef.current) {
+        try {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+        } catch {}
+        streamRef.current = null;
+      }
+      stopPersistentCameraStream();
     };
   }, [facingMode]);
+
+  async function handleNativeCapture(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      haptic(HAPTIC.success);
+      const dataUrl = await resizeImage(file);
+      onCapture(dataUrl);
+      onClose();
+    } catch {
+      toast.error("Photo non reconnue. Réessaie.");
+    } finally {
+      e.target.value = "";
+    }
+  }
 
   // Analyse périodique de l'éclairage ambiant (Visage vs Arrière-plan & Contre-jour)
   useEffect(() => {
@@ -228,17 +255,79 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
       {/* Zone de prévisualisation vidéo */}
       <div className="relative flex-1 flex items-center justify-center overflow-hidden">
         {error ? (
-          <div className="p-6 text-center max-w-xs">
-            <Camera size={48} className="mx-auto text-primary mb-3 opacity-60" />
-            <p className="text-sm font-bold text-white mb-1">Caméra inaccessible</p>
-            <p className="text-xs text-white/60 mb-4">{error}</p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-11 px-6 rounded-2xl bg-primary text-primary-foreground font-bold text-xs"
-            >
-              Retour à l&apos;import de fichier
-            </button>
+          <div className="p-5 text-center max-w-sm mx-auto flex flex-col items-center gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center">
+              <Camera size={30} />
+            </div>
+
+            <div>
+              <p className="text-base font-bold text-white mb-1">Caméra non disponible</p>
+              <p className="text-xs text-white/70">{error}</p>
+            </div>
+
+            {/* Guide pas-à-pas pour débloquer l'autorisation dans le navigateur */}
+            <div className="w-full text-left bg-white/5 border border-white/10 rounded-2xl p-3.5 space-y-2 text-xs">
+              <p className="font-semibold text-white/90 flex items-center gap-1.5">
+                <span>🔒</span> Pour débloquer l&apos;accès caméra :
+              </p>
+              <ol className="list-decimal list-inside text-white/75 space-y-1 text-[11px] leading-relaxed">
+                <li>Touche le <strong>cadenas 🔒</strong> ou l&apos;icône réglages à gauche de l&apos;adresse du site</li>
+                <li>Sélectionne <strong>« Autorisations »</strong> ou <strong>« Paramètres du site »</strong></li>
+                <li>Active <strong>« Appareil photo »</strong> puis rafraîchis la page</li>
+              </ol>
+            </div>
+
+            {/* Action immédiate : capture native sans blocage WebRTC */}
+            <div className="w-full flex flex-col gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => nativeInputRef.current?.click()}
+                className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg shadow-primary/20"
+              >
+                <Camera size={16} /> Prendre la photo avec l&apos;appareil photo
+              </button>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setReady(false);
+                    getPersistentCameraStream(facingMode)
+                      .then((stream) => {
+                        streamRef.current = stream;
+                        if (videoRef.current) {
+                          videoRef.current.srcObject = stream;
+                          videoRef.current.play().catch(() => {});
+                        }
+                        setReady(true);
+                      })
+                      .catch((e) => {
+                        setError(e instanceof Error ? e.message : "Échec");
+                      });
+                  }}
+                  className="flex-1 h-11 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-medium text-xs flex items-center justify-center gap-1.5 active:scale-95"
+                >
+                  <RotateCcw size={14} /> Réessayer
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 h-11 rounded-2xl bg-white/5 hover:bg-white/10 text-white/80 font-medium text-xs flex items-center justify-center active:scale-95"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+
+            <input
+              ref={nativeInputRef}
+              type="file"
+              accept="image/*"
+              capture={facingMode === "user" ? "user" : "environment"}
+              className="sr-only"
+              onChange={handleNativeCapture}
+            />
           </div>
         ) : (
           <>

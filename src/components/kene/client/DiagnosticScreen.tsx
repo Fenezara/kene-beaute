@@ -113,6 +113,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const [queuedCount, setQueuedCount] = useState(0);
   const [liveCamOpen, setLiveCamOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const nativeCameraRef = useRef<HTMLInputElement>(null);
 
   // Résilience 502: message discret sous la barre de progression
   // pendant un retry / une récupération (annoncé aux lecteurs d'écran).
@@ -1001,21 +1002,31 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                 </span>
               </button>
 
-              {/* Option 2 : Importer depuis la galerie */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {/* Option 2 : Alternatifs (Appareil photo du téléphone, Galerie, Exemple) */}
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => nativeCameraRef.current?.click()}
+                  className="h-12 rounded-2xl border border-primary/30 bg-primary/5 hover:bg-primary/10 text-xs font-bold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all text-foreground"
+                >
+                  <Camera size={16} className="text-primary" />
+                  <span className="text-[10px] leading-none">Photo tél.</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="h-12 rounded-2xl border border-border bg-card hover:bg-muted/40 text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  className="h-12 rounded-2xl border border-border bg-card hover:bg-muted/40 text-xs font-bold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all text-foreground"
                 >
-                  <ImagePlus size={16} className="text-muted-foreground" /> Importer « {activeSlot.label} »
+                  <ImagePlus size={16} className="text-muted-foreground" />
+                  <span className="text-[10px] leading-none">Galerie</span>
                 </button>
                 <button
                   type="button"
                   onClick={useGuidePhoto}
-                  className="h-12 rounded-2xl border border-border/60 bg-muted/20 hover:bg-muted/40 text-xs font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  className="h-12 rounded-2xl border border-border/60 bg-muted/20 hover:bg-muted/40 text-xs font-semibold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all text-foreground"
                 >
-                  <CauriIcon size={15} className="text-primary" /> Exemple « {activeSlot.label} »
+                  <CauriIcon size={15} className="text-primary" />
+                  <span className="text-[10px] leading-none">Exemple</span>
                 </button>
               </div>
             </div>
@@ -1032,6 +1043,19 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             }}
             aria-label={`Photo de la zone ${zoneDef.label} - ${activeSlot.label}`}
           />
+          <input
+            ref={nativeCameraRef}
+            type="file"
+            accept="image/*"
+            capture="user"
+            className="sr-only"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void onFile(f);
+              e.target.value = "";
+            }}
+            aria-label={`Prendre une photo de ${activeSlot.label} avec l'appareil photo du téléphone`}
+          />
         </div>
 
         {/* Boutons d'action après capture */}
@@ -1046,8 +1070,16 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             </button>
             <button
               type="button"
+              onClick={() => nativeCameraRef.current?.click()}
+              className="k-chip h-11 px-3.5 rounded-2xl text-xs font-semibold flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
+              title="Prendre avec l'appareil photo du téléphone"
+            >
+              <Camera size={15} className="text-primary" /> Tél.
+            </button>
+            <button
+              type="button"
               onClick={useGuidePhoto}
-              className="k-chip h-11 px-4 rounded-2xl text-xs font-semibold flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
+              className="k-chip h-11 px-3.5 rounded-2xl text-xs font-semibold flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-primary"
             >
               <ImagePlus size={15} className="text-primary" /> Exemple
             </button>

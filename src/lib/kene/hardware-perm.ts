@@ -99,9 +99,52 @@ let cachedCameraStream: MediaStream | null = null;
 let cachedCameraFacing: "user" | "environment" = "user";
 
 /**
+ * Acquiert le flux de la caméra avec cascade de repli (progressive fallback) :
+ * 1. 720p idéal pour smartphone
+ * 2. orientation seule sans contraintes de dimensions
+ * 3. { video: true } universel
+ */
+async function acquireCameraWithFallback(facingMode: "user" | "environment"): Promise<MediaStream> {
+  // Tentative 1 : Résolution mobile standard (720p)
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: facingMode },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+      audio: false,
+    });
+  } catch (err1) {
+    if (err1 instanceof DOMException && (err1.name === "NotAllowedError" || err1.name === "PermissionDeniedError")) {
+      throw err1;
+    }
+  }
+
+  // Tentative 2 : Orientation seule (aucun blocage de dimensions)
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: facingMode },
+      },
+      audio: false,
+    });
+  } catch (err2) {
+    if (err2 instanceof DOMException && (err2.name === "NotAllowedError" || err2.name === "PermissionDeniedError")) {
+      throw err2;
+    }
+  }
+
+  // Tentative 3 : Repli universel absolu
+  return await navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: false,
+  });
+}
+
+/**
  * Retourne le flux vidéo de la caméra.
- * Si un flux actif existe déjà dans la même orientation, il est réactivé instantanément (0 prompt).
- * Si une nouvelle orientation est demandée, l'ancien flux est proprement remplacé.
+ * Libère toujours proprement tout flux antérieur pour éviter les conflits matériels Android (Device in use / NotReadableError).
  */
 export async function getPersistentCameraStream(
   facingMode: "user" | "environment" = "user"
@@ -110,36 +153,11 @@ export async function getPersistentCameraStream(
     throw new Error("L'accès à la caméra n'est pas supporté par ce navigateur.");
   }
 
-  // Vérifier si le flux en cache est toujours valide et dans la bonne orientation
-  if (cachedCameraStream && cachedCameraFacing === facingMode) {
-    const activeVideoTrack = cachedCameraStream
-      .getVideoTracks()
-      .find((t) => t.readyState === "live");
+  // Toujours libérer les anciennes pistes physiques avant d'en ouvrir une nouvelle
+  // (Évite les conflits matériels sur Android lors du changement de caméra avant/arrière)
+  stopPersistentCameraStream();
 
-    if (activeVideoTrack) {
-      // Réactiver simplement la piste existante sans redemander l'autorisation au système
-      activeVideoTrack.enabled = true;
-      saveHardwarePermGranted("camera");
-      return cachedCameraStream;
-    }
-  }
-
-  // Si l'orientation a changé ou si la piste est fermée, désactiver l'ancien flux
-  if (cachedCameraStream) {
-    try {
-      cachedCameraStream.getTracks().forEach((t) => t.stop());
-    } catch {}
-    cachedCameraStream = null;
-  }
-
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode,
-      width: { ideal: 1080 },
-      height: { ideal: 1080 },
-    },
-    audio: false,
-  });
+  const stream = await acquireCameraWithFallback(facingMode);
 
   cachedCameraStream = stream;
   cachedCameraFacing = facingMode;
@@ -149,27 +167,23 @@ export async function getPersistentCameraStream(
 }
 
 /**
- * Met en pause la caméra sans détruire la session d'autorisation matérielle.
- * La piste vidéo est désactivée (`enabled = false`), coupant le capteur et la lumière
- * tout en conservant le droit d'accès sans jamais redemander l'autorisation à l'utilisateur.
+ * Met en pause / libère la caméra sans perdre l'autorisation du navigateur.
+ * Sur Android et iOS, l'arrêt complet des pistes libère immédiatement le capteur physique
+ * et empêche les blocages 'Device in use' ou les écrans noirs lors de la réouverture.
  */
 export function pausePersistentCameraStream(): void {
-  if (cachedCameraStream) {
-    try {
-      cachedCameraStream.getVideoTracks().forEach((track) => {
-        track.enabled = false;
-      });
-    } catch {}
-  }
+  stopPersistentCameraStream();
 }
 
 /**
- * Arrêt complet de la caméra (ex: déconnexion ou fermeture définitive).
+ * Arrêt complet de la caméra et libération du capteur matériel.
  */
 export function stopPersistentCameraStream(): void {
   if (cachedCameraStream) {
     try {
-      cachedCameraStream.getTracks().forEach((track) => track.stop());
+      cachedCameraStream.getTracks().forEach((track) => {
+        track.stop();
+      });
     } catch {}
     cachedCameraStream = null;
   }
@@ -188,24 +202,8 @@ export async function getPersistentAudioStream(): Promise<MediaStream> {
     throw new Error("L'accès au microphone n'est pas supporté par ce navigateur.");
   }
 
-  if (cachedAudioStream) {
-    const activeAudioTrack = cachedAudioStream
-      .getAudioTracks()
-      .find((t) => t.readyState === "live");
-
-    if (activeAudioTrack) {
-      activeAudioTrack.enabled = true;
-      saveHardwarePermGranted("mic");
-      return cachedAudioStream;
-    }
-  }
-
-  if (cachedAudioStream) {
-    try {
-      cachedAudioStream.getTracks().forEach((t) => t.stop());
-    } catch {}
-    cachedAudioStream = null;
-  }
+  // Libère toute ancienne piste audio pour éviter le voyant vert permanent
+  stopPersistentAudioStream();
 
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
@@ -221,20 +219,14 @@ export async function getPersistentAudioStream(): Promise<MediaStream> {
 }
 
 /**
- * Met en pause le microphone sans détruire la session WebKit / Android.
+ * Libère le microphone pour couper le voyant vert de surveillance système Android / iOS.
  */
 export function pausePersistentAudioStream(): void {
-  if (cachedAudioStream) {
-    try {
-      cachedAudioStream.getAudioTracks().forEach((track) => {
-        track.enabled = false;
-      });
-    } catch {}
-  }
+  stopPersistentAudioStream();
 }
 
 /**
- * Arrêt complet du microphone.
+ * Arrêt complet du microphone et libération du capteur audio.
  */
 export function stopPersistentAudioStream(): void {
   if (cachedAudioStream) {
