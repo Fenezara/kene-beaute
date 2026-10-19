@@ -3292,4 +3292,51 @@ Work Log:
 Stage Summary:
 - LIVRÉ : Fiabilité et concorde comptable totale entre tous les tableaux de bord (Admin, Pro, Client), séparation étanche de la production réelle et des simulations de test.
 
+---
+Task ID: t.148
+Agent: agent principal (Antigravity)
+Task: HARMONISATION COMPLÈTE DES FLUX DE PRISE DE RDV, RÉSERVATION SALON & COMMANDE BOUTIQUE.
+
+Work Log:
+- Diagnostic & Déconnexions résolues :
+  - `AgendaScreen.tsx` présentait un sous-onglet « Réserver » avec des créneaux horaires factices statiques et 6 types de prestations génériques déconnectés de la base de données et des instituts.
+  - La route `POST /api/appointments` créait automatiquement un service factice « Consultation Standard » à 20 000 FCFA si le salon n'avait aucun service, polluant les catalogues réels.
+  - Blocage silencieux des créneaux réels par des réservations abandonnées en statut `pending` (créneaux zombies).
+  - Double comptage des acomptes RDV dans le GMV et les journaux de caisse POS lors de l'encaissement du solde restant.
+  - Cycle de vie des commandes tronqué dans l'espace Pro (limité à `delivered` sans étapes intermédiaires de préparation ou expédition).
+  - Onglet « Boutique » désactivé ou redirigé de force vers l'accueil dans `ClientApp.tsx`.
+- Correctifs & Refontes implémentés :
+  1. Disponibilité en temps réel (`src/app/api/institutes/[id]/availability/route.ts`) :
+     - Expiration automatique des réservations abandonnées en `pending` depuis plus de 30 minutes vers le statut `cancelled`.
+     - Libération immédiate des créneaux dans le calcul de disponibilité de l'agenda.
+  2. Protection des catalogues instituts (`src/app/api/appointments/route.ts`) :
+     - Suppression de la création automatique de services fantômes ; rejet propre avec code 400 si l'institut n'a pas de service actif.
+     - Prise en compte du cut-off de 30 minutes sur les réservations `pending` pour éviter les faux conflits 409 d'horaires.
+  3. Caisse & Clôture de prestation Pro (`src/app/api/pro/appointments/[id]/route.ts`) :
+     - Calcul strict du solde restant : `remainingToPay = Math.max(0, price - deposit)`.
+     - Émission de la vente `Sale` en déduisant l'acompte déjà perçu et enregistrement en caisse uniquement du montant réellement payé au comptoir.
+  4. GMV & Stats Admin (`src/app/api/admin/stats/route.ts`) :
+     - Agrégation des acomptes réservée aux rendez-vous confirmés à venir (`status: "confirmed"`), évitant le doublon avec les rendez-vous clôturés dont le montant total figure déjà dans les ventes.
+  5. Gestion des commandes Pro (`src/app/api/pro/orders/[id]/route.ts`) :
+     - Support du cycle de vie complet : `paid` ➔ `preparing` ➔ `in_transit` ➔ `delivered` (ou `cancelled`).
+     - Restitution automatique des stocks en cas d'annulation.
+     - Notifications WhatsApp dynamiques adaptées à chaque étape de livraison.
+  6. Restauration de la Boutique Cliente (`ShopScreen.tsx` & `ClientApp.tsx`) :
+     - Onglet `boutique` restauré dans `VALID_TABS` et `TITLES` avec bouton retour `<ArrowLeft />`.
+     - Passerelle directe depuis l'agenda ou les commandes vers la boutique.
+  7. Parcours Agenda & Prise de RDV unifié (`AgendaScreen.tsx` & `BookingScreen.tsx`) :
+     - Intégration du composant complet `BookingScreen` (avec sélection de salon réel, praticien, prestation et créneau dynamique) directement dans l'onglet « Réserver ».
+     - Ajout de la modal d'annulation de rendez-vous avec calcul et prévisualisation transparente de la politique de remboursement (remboursement wallet si > 24h, retenue d'acompte si < 24h).
+     - Rendu persistant de l'onglet « Mes commandes » avec CTA direct vers la boutique.
+- Déploiement & Validation Production :
+  - Validé avec `git status` propre, commité (`8283eb9`), poussé sur `origin/main`.
+  - Tiré sur le serveur VPS Hetzner (`2.29.53.176`), image Docker `kene-app:latest` re-compilée avec succès en 46s.
+  - Conteneur `kene-app-1` redémarré en production.
+  - Vérification de santé : `curl https://kene-beaute.com/api/health` ➔ `200 OK` (`users: 74, uptimeSec: 18`).
+  - Vérification des salons et services : `curl https://kene-beaute.com/api/institutes` ➔ `200 OK` avec données réelles.
+
+Stage Summary:
+- LIVRÉ : Les flux de prise de rendez-vous, de réservation institut et de commande boutique sont 100 % cohérents, synchronisés en temps réel et déployés en production.
+
+
 
