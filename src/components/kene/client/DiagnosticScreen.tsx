@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, BadgeCheck, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Droplets, FileDown, GitCompareArrows, Hand, History,
+  ArrowLeft, BadgeCheck, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Download, Droplets, FileDown, GitCompareArrows, Hand, History,
   ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -1871,6 +1871,30 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
                   </button>
                 ))}
               </div>
+            )}
+
+            {/* Bouton de téléchargement direct de la photo */}
+            {currentImg && !imgError && currentImg !== zoneFallback && (
+              <button
+                type="button"
+                onClick={() => {
+                  const a = document.createElement("a");
+                  a.href = currentImg;
+                  const zoneStr = (r.zone || "peau").replace(/\s+/g, "-");
+                  const dateStr = diag.createdAt?.slice(0, 10) || "cliche";
+                  a.download = `kene-diagnostic-${zoneStr}-${dateStr}.jpg`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  toast.success("Photo enregistrée dans vos téléchargements 📸");
+                }}
+                className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1.5 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md px-3 py-1.5 border border-white/20 text-[11px] font-semibold text-white shadow-md active:scale-95 transition-all cursor-pointer"
+                title="Télécharger cette photo"
+                aria-label="Télécharger cette photo"
+              >
+                <Download size={13} className="text-[#C8951E]" />
+                <span>Télécharger</span>
+              </button>
             )}
           </div>
         </section>

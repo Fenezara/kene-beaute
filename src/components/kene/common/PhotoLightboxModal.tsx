@@ -94,6 +94,20 @@ export function PhotoLightboxModal({
     setZoomLevel((prev) => (prev === 1 ? 1.5 : prev === 1.5 ? 2.2 : 1));
   };
 
+  const handleDownload = () => {
+    if (!current?.url) return;
+    haptic(HAPTIC.light);
+    const a = document.createElement("a");
+    a.href = current.url;
+    const cleanDate = current.date ? new Date(current.date).toISOString().slice(0, 10) : "date";
+    const cleanZone = (current.zone || "peau").replace(/\s+/g, "-");
+    a.download = `kene-photo-${cleanZone}-${cleanDate}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success("Photo téléchargée avec succès 📸");
+  };
+
   const score = current.score ?? null;
   const scoreCl = score !== null ? scoreColor(score) : "#C8951E";
 
@@ -128,8 +142,18 @@ export function PhotoLightboxModal({
             </div>
           </div>
 
-          {/* Actions : Zoom & Fermer */}
+          {/* Actions : Télécharger, Zoom & Fermer */}
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="size-10 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white grid place-items-center transition-all cursor-pointer border border-white/10"
+              title="Télécharger la photo HD"
+              aria-label="Télécharger la photo"
+            >
+              <Download size={18} />
+            </button>
+
             <button
               type="button"
               onClick={toggleZoom}

@@ -5,7 +5,7 @@
 // 6 longueurs d'onde optiques + lumière polarisée & corrélation avec la pharmacopée africaine.
 
 import { useMemo, useState } from "react";
-import { Eye, Layers, ZoomIn, ZoomOut, Copy, Check, FlaskConical, Info, ShieldCheck } from "lucide-react";
+import { Download, Eye, Layers, ZoomIn, ZoomOut, Copy, Check, FlaskConical, Info, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { BissapFlowerIcon, KeneSunIcon } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
@@ -223,6 +223,25 @@ export function SpectralViewer({ photo, zoneMarks = [], zoneLabel }: SpectralVie
           >
             {zoom ? <ZoomOut className="size-3" /> : <ZoomIn className="size-3" />}
             <span>{zoom ? "Aperçu" : "Zoom cabine"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!activePhoto) return;
+              const a = document.createElement("a");
+              a.href = activePhoto;
+              const cleanZone = zoneLabel.replace(/\s+/g, "-");
+              a.download = `kene-cabine-${cleanZone}-${activeMode}.jpg`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              toast.success("Photo cutanée téléchargée 📸");
+            }}
+            className="px-2.5 py-1 rounded-lg text-[10.5px] font-semibold bg-muted hover:bg-muted/80 border border-border text-foreground flex items-center gap-1 transition-colors"
+            title="Télécharger la photo originale"
+          >
+            <Download className="size-3" />
+            <span>Télécharger</span>
           </button>
         </div>
       </div>
