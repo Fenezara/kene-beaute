@@ -249,7 +249,7 @@ function ConsoleLogin({ currentUser, onLogout }: { currentUser?: SessionUser | n
                     id="console-phone"
                     inputMode="tel"
                     autoComplete="tel"
-                    placeholder="07 48 89 42 70"
+                    placeholder="07 …"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                     className="h-14 rounded-2xl pl-16 pr-4 font-mono text-base tracking-wider"
