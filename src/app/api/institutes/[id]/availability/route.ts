@@ -45,13 +45,34 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // Grille des libellés 30 min via la lib métier (gère aussi « date passée »)
     const grid = generateDaySlots(date, tenant.openingHour, tenant.closingHour, 30, [], undefined);
 
+    // Expiration automatique des réservations "pending" abandonnées (+30 min sans règlement)
+    const pendingCutoff = new Date(Date.now() - 30 * 60 * 1000);
+    await db.appointment.updateMany({
+      where: {
+        tenantId: id,
+        status: "pending",
+        paymentId: { not: null },
+        createdAt: { lt: pendingCutoff },
+      },
+      data: {
+        status: "cancelled",
+        notes: "Expiré : acompte non réglé dans le délai de 30 minutes",
+      },
+    }).catch(() => null);
+
     const bookedByResource = new Map<string, { startAt: Date; durationMin: number }[]>();
     for (const r of resources) {
       const appts = await db.appointment.findMany({
         where: {
           resourceId: r.id,
           startAt: { gte: dayStart(date), lte: dayEnd(date) },
-          status: { notIn: ["cancelled", "no_show"] },
+          OR: [
+            { status: { in: ["confirmed", "completed"] } },
+            {
+              status: "pending",
+              createdAt: { gte: pendingCutoff },
+            },
+          ],
         },
         select: { startAt: true, durationMin: true },
       });

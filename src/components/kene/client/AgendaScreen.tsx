@@ -28,6 +28,8 @@ import {
   PackageCheck,
   Stethoscope,
   PlusCircle,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -42,6 +44,8 @@ import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { cn } from "@/lib/utils";
 import { BODY_ZONES } from "@/lib/kene/types";
 import { DuafeIcon, NsorommaIcon, KeneSunIcon, CauriIcon } from "@/components/kene/icons";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BookingScreen } from "./BookingScreen";
 import type { ApiAppointment, ApiDiagnosis, ApiInstitute } from "./types";
 import { parseDiagnosis } from "./types";
 
@@ -535,6 +539,30 @@ export function AgendaScreen() {
     return null;
   }, [nextAppt, now]);
 
+  // Gestion de l'annulation d'un rendez-vous (politique 24h & remboursement acompte)
+  const [cancelTarget, setCancelTarget] = useState<ApiAppointment | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  const confirmCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    try {
+      const res = await apiPost<{ appointment: ApiAppointment; refund?: { status: string; amount: number; target: string; message: string } }>(
+        `/api/appointments/${cancelTarget.id}/cancel`,
+        { reason: "Annulation par la cliente depuis l'espace Agenda" }
+      );
+      toast.success("Rendez-vous annulé", {
+        description: res.refund?.message || "Votre créneau a bien été libéré auprès de l'institut.",
+      });
+      setCancelTarget(null);
+      handleRefresh();
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur lors de l'annulation du rendez-vous");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   // État de chargement de la réservation
   const [bookingLoading, setBookingLoading] = useState(false);
   const [chosenTenantId, setChosenTenantId] = useState<string>("");
@@ -626,7 +654,7 @@ export function AgendaScreen() {
       </header>
 
       {/* ───── Sélecteur épuré : Mes RDV / Réserver / Commandes (100% lisible sur Android 320px-360px) ───── */}
-      <div className={cn("grid gap-1 sm:gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60 overflow-hidden", orders.length > 0 ? "grid-cols-3" : "grid-cols-2")}>
+      <div className="grid grid-cols-3 gap-1 sm:gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60 overflow-hidden">
         <button
           type="button"
           onClick={() => {
@@ -670,33 +698,29 @@ export function AgendaScreen() {
             <span className="sm:hidden">Réserver</span>
             <span className="hidden sm:inline">Réserver un Soin</span>
           </span>
-          <span className="text-[9.5px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-gold/20 text-gold-text font-black shrink-0 leading-none">
-            <span className="sm:hidden">6</span>
-            <span className="hidden sm:inline">6 soins</span>
-          </span>
         </button>
 
-        {orders.length > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              haptic(HAPTIC.tap);
-              setActiveSubTab("commandes");
-            }}
-            className={cn(
-              "py-2 sm:py-2.5 px-1.5 sm:px-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 min-w-0 overflow-hidden",
-              activeSubTab === "commandes"
-                ? "bg-card text-foreground shadow-xs border border-border/80"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <ShoppingBag size={13} className={cn("shrink-0 sm:size-[14px]", activeSubTab === "commandes" ? "text-gold-text" : "")} />
-            <span className="truncate">Commandes</span>
+        <button
+          type="button"
+          onClick={() => {
+            haptic(HAPTIC.tap);
+            setActiveSubTab("commandes");
+          }}
+          className={cn(
+            "py-2 sm:py-2.5 px-1.5 sm:px-2.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 min-w-0 overflow-hidden",
+            activeSubTab === "commandes"
+              ? "bg-card text-foreground shadow-xs border border-border/80"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <ShoppingBag size={13} className={cn("shrink-0 sm:size-[14px]", activeSubTab === "commandes" ? "text-gold-text" : "")} />
+          <span className="truncate">Commandes</span>
+          {orders.length > 0 && (
             <span className="min-w-4 h-4 sm:size-4.5 px-1 rounded-full bg-gold/30 text-gold-text text-[9.5px] sm:text-[10px] grid place-items-center font-bold shrink-0">
               {orders.length}
             </span>
-          </button>
-        )}
+          )}
+        </button>
       </div>
 
       {/* ───── Modal / Carte de Réservation Rapide d'un Type de RDV ───── */}
@@ -978,7 +1002,7 @@ export function AgendaScreen() {
                     </div>
 
                     {/* Boutons d'actions pour le RDV */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 pt-1">
                       <button
                         type="button"
                         onClick={() => {
@@ -987,31 +1011,45 @@ export function AgendaScreen() {
                           )} à ${formatTime(appt.startAt)}.`;
                           openWhatsApp(phone, msg, ((appt.tenant as any)?.country || "CI") as "CI" | "SN");
                         }}
-                        className="h-9 px-3 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/30 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                        className="h-9 px-2 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/30 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 transition-colors"
                       >
-                        <MessageCircle size={14} />
-                        WhatsApp Institut
+                        <MessageCircle size={13} />
+                        <span>WhatsApp</span>
                       </button>
 
                       <a
                         href={makeGoogleCalendarUrl(appt)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="h-9 px-3 rounded-xl border border-border bg-card hover:bg-accent text-foreground font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                        className="h-9 px-2 rounded-xl border border-border bg-card hover:bg-accent text-foreground font-semibold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 transition-colors"
                       >
                         <CalendarPlus size={13} className="text-primary" />
-                        Ajouter Agenda
+                        <span>Agenda</span>
                       </a>
 
                       <a
                         href={`/api/appointments/pass?id=${encodeURIComponent(appt.id)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="h-9 px-3 rounded-xl border border-border bg-card hover:bg-accent text-foreground font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                        className="h-9 px-2 rounded-xl border border-border bg-card hover:bg-accent text-foreground font-semibold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 transition-colors"
                       >
                         <Download size={13} className="text-gold-text" />
-                        Pass Cabine PDF
+                        <span>Pass PDF</span>
                       </a>
+
+                      {(appt.status === "confirmed" || appt.status === "pending") && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            haptic(HAPTIC.tap);
+                            setCancelTarget(appt);
+                          }}
+                          className="h-9 px-2 rounded-xl border border-rose-500/30 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <X size={13} />
+                          <span>Annuler</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1192,88 +1230,13 @@ export function AgendaScreen() {
       ═══════════════════════════════════════════════════════════ */}
       {activeSubTab === "reserver" && (
         <div className="space-y-4">
-          <div className="rounded-[22px] p-4 border border-gold/30 bg-gold/5 flex items-start gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gold/20 text-gold-text">
-              <DuafeIcon size={18} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="font-heading font-bold text-sm text-foreground">
-                Les 6 Soins &amp; Prestations Kènè
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                Choisissez votre soin pour réserver votre créneau horaire en direct avec{" "}
-                <strong>{selectedInst?.name || "votre institut partenaire"}</strong>.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {RDV_TYPES_CATALOG.map((rt) => {
-              const Icon = rt.icon;
-              const scheduledCount = countByType[rt.id] || 0;
-              return (
-                <div
-                  key={rt.id}
-                  className={cn(
-                    "k-card rounded-[24px] p-4 border transition-all flex flex-col justify-between gap-3",
-                    rt.cardBorderClass
-                  )}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className={cn("grid size-10 place-items-center rounded-2xl shrink-0", rt.iconBgClass)}>
-                        <Icon size={20} />
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        {scheduledCount > 0 && (
-                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                            {scheduledCount} programmé{scheduledCount > 1 ? "s" : ""}
-                          </span>
-                        )}
-                        <span className={cn("text-[10px] font-bold px-2.5 py-0.5 rounded-full border", rt.badgeClass)}>
-                          {rt.durationMin} min
-                        </span>
-                      </div>
-                    </div>
-
-                    <h4 className="font-heading font-black text-sm text-foreground leading-snug">
-                      {rt.label}
-                    </h4>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {rt.description}
-                    </p>
-                  </div>
-
-                  <div className="pt-2.5 border-t border-border/60 flex items-center justify-between gap-2">
-                    <span className="text-xs font-mono font-bold text-foreground">
-                      Dès {xof(rt.indicativePrice)}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      {scheduledCount > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveSubTab("rdv");
-                          }}
-                          className="h-8 px-2.5 rounded-xl border border-border text-[11px] font-bold text-foreground hover:bg-accent"
-                        >
-                          Voir mes RDV
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleBookRdvType(rt)}
-                        className="h-8 px-3 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all"
-                      >
-                        <CalendarPlus size={13} />
-                        Prendre RDV
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <BookingScreen
+            defaultTab="book"
+            onAppointmentBooked={() => {
+              setActiveSubTab("rdv");
+              handleRefresh();
+            }}
+          />
         </div>
       )}
 
@@ -1310,28 +1273,57 @@ export function AgendaScreen() {
                 <p className="font-heading font-bold text-sm text-foreground">
                   Aucune commande enregistrée
                 </p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto leading-relaxed">
-                  Vous n&apos;avez pas encore de commande de soins enregistrée. Échangez avec votre institut pour formuler vos produits sur-mesure d&apos;après votre ordonnance beauté.
+                <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto leading-relaxed">
+                  Découvrez nos soins dermo-botaniques certifiés sans hydroquinone ni corticoïdes et nos routines sur-mesure formulées pour votre peau.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  openWhatsAppProductOrderInquiry({
-                    productName: "Mon ordonnance beauté & soins sur-mesure",
-                    tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
-                    instituteName: selectedInst?.name,
-                    country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
-                  });
-                }}
-                className="k-btn-gold h-10 px-4 rounded-xl text-primary-foreground font-bold text-xs inline-flex items-center gap-1.5 shadow-sm"
-              >
-                <MessageCircle size={14} />
-                Commander mes soins sur WhatsApp
-              </button>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    setClientTab("boutique");
+                  }}
+                  className="k-btn-gold h-10 px-5 rounded-xl text-primary-foreground font-bold text-xs inline-flex items-center gap-2 shadow-sm cursor-pointer"
+                >
+                  <ShoppingBag size={14} />
+                  <span>Découvrir la Boutique Kènè</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    openWhatsAppProductOrderInquiry({
+                      productName: "Mon ordonnance beauté & soins sur-mesure",
+                      tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
+                      instituteName: selectedInst?.name,
+                      country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
+                    });
+                  }}
+                  className="h-10 px-4 rounded-xl border border-border bg-card hover:bg-accent text-foreground font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <MessageCircle size={14} className="text-[#25D366]" />
+                  <span>Conseil WhatsApp</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2 px-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                  Vos commandes ({orders.length})
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    setClientTab("boutique");
+                  }}
+                  className="text-xs font-bold text-gold-text hover:underline inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <ShoppingBag size={13} />
+                  <span>Accéder à la Boutique</span>
+                </button>
+              </div>
               {orders.map((order) => {
                 const tenantName = order.tenant?.name || "Institut Partenaire";
                 const phone = order.tenant?.phone || selectedInst?.phone || "";
@@ -1424,6 +1416,101 @@ export function AgendaScreen() {
           )}
         </div>
       )}
+
+      {/* ───── Modale d'annulation de RDV avec respect de la règle des 24h ───── */}
+      <Dialog open={Boolean(cancelTarget)} onOpenChange={(open) => { if (!open) setCancelTarget(null); }}>
+        <DialogContent className="max-w-md rounded-[28px] p-5 sm:p-6 border border-border/80 bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg font-heading font-black text-foreground">
+              <span className="grid size-9 place-items-center rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                <AlertTriangle size={18} />
+              </span>
+              <span>Annuler votre rendez-vous ?</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {cancelTarget && (() => {
+            const hoursUntil = (new Date(cancelTarget.startAt).getTime() - Date.now()) / (1000 * 3600);
+            const isEligibleRefund = hoursUntil >= 24;
+            const deposit = cancelTarget.depositAmount || 0;
+
+            return (
+              <div className="space-y-4 pt-2 text-xs">
+                <div className="p-3.5 rounded-2xl bg-muted/50 border border-border/60 space-y-1">
+                  <p className="font-heading font-black text-sm text-foreground">
+                    {cancelTarget.service?.name || "Prestation de soin"}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {cancelTarget.tenant?.name} · {formatDate(cancelTarget.startAt)} à {formatTime(cancelTarget.startAt)}
+                  </p>
+                  {deposit > 0 && (
+                    <p className="font-mono text-primary font-bold pt-1 border-t border-dashed border-border/60">
+                      Acompte versé : {xof(deposit)}
+                    </p>
+                  )}
+                </div>
+
+                {deposit > 0 ? (
+                  isEligibleRefund ? (
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 dark:text-emerald-100 space-y-1">
+                      <p className="font-bold flex items-center gap-1.5">
+                        <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400" />
+                        Annulation sans frais (&gt; 24h)
+                      </p>
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        Votre acompte de <strong>{xof(deposit)}</strong> sera automatiquement recrédité sur votre portefeuille Kènè pour vos prochains soins.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-100 space-y-1">
+                      <p className="font-bold flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                        <AlertTriangle size={14} />
+                        Délai de prévenance dépassé (&lt; 24h)
+                      </p>
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        Conformément aux conditions de réservation, l&apos;acompte de <strong>{xof(deposit)}</strong> est retenu pour indemniser l&apos;institut de la cabine mobilisée.
+                      </p>
+                    </div>
+                  )
+                ) : (
+                  <p className="text-muted-foreground leading-relaxed">
+                    Ce créneau sera immédiatement libéré pour les autres clientes de l&apos;institut.
+                  </p>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    disabled={cancelling}
+                    onClick={() => setCancelTarget(null)}
+                    className="h-9 px-3.5 rounded-xl border border-border text-foreground hover:bg-accent font-semibold text-xs transition-colors cursor-pointer"
+                  >
+                    Conserver mon RDV
+                  </button>
+                  <button
+                    type="button"
+                    disabled={cancelling}
+                    onClick={confirmCancel}
+                    className="h-9 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    {cancelling ? (
+                      <>
+                        <RefreshCw size={13} className="animate-spin" />
+                        <span>Annulation en cours...</span>
+                      </>
+                    ) : (
+                      <>
+                        <X size={13} />
+                        <span>Confirmer l&apos;annulation</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

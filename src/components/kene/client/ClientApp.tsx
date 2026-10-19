@@ -70,7 +70,7 @@ const TITLES: Record<ScreenTab, string> = {
   agenda: "title.agenda",
   instituts: "title.profile",
   diagnostic: "title.diag",
-  boutique: "title.home",
+  boutique: "title.boutique",
   rdv: "title.agenda",
   chat: "title.chat",
   profil: "title.profile",
@@ -85,6 +85,7 @@ const SWIPE_ORDER: ClientTab[] = ["accueil", "dossier", "diagnostic", "agenda", 
 // ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
 import { DiagnosticScreen } from "./DiagnosticScreen";
 import { ChatScreen } from "./ChatScreen";
+import { ShopScreen } from "./ShopScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { PlanScreen } from "./PlanScreen";
 import { LegalScreen } from "./LegalScreen";
@@ -148,7 +149,7 @@ export function ClientApp() {
     try {
       const params = new URLSearchParams(window.location.search);
       const targetTab = params.get("tab")?.toLowerCase();
-      const VALID_TABS: ClientTab[] = ["accueil", "dossier", "diagnostic", "agenda", "rdv", "chat", "profil", "parametres", "abonnement", "legal"];
+      const VALID_TABS: ClientTab[] = ["accueil", "dossier", "diagnostic", "agenda", "rdv", "boutique", "chat", "profil", "parametres", "abonnement", "legal"];
       if (targetTab && VALID_TABS.includes(targetTab as ClientTab)) {
         setClientTab((targetTab === "rdv" ? "agenda" : targetTab) as ClientTab);
       } else {
@@ -160,11 +161,9 @@ export function ClientApp() {
     }
   }, [setClientTab]);
 
-  // Redirection automatique : boutique vers accueil, rdv vers agenda, instituts vers profil
+  // Redirection automatique des alias legacy : rdv vers agenda, instituts vers profil
   useEffect(() => {
-    if (tab === "boutique") {
-      setClientTab("accueil");
-    } else if (tab === "rdv") {
+    if (tab === "rdv") {
       setClientTab("agenda");
     } else if (tab === "instituts") {
       setClientTab("profil");
@@ -695,6 +694,11 @@ export function ClientApp() {
                   {(tab === "agenda" || (tab as any) === "rdv") && (
                     <ScreenBoundary name="Agenda & Rendez-vous">
                       <AgendaScreen />
+                    </ScreenBoundary>
+                  )}
+                  {tab === "boutique" && (
+                    <ScreenBoundary name="Boutique & Produits">
+                      <ShopScreen onBack={() => goTab("agenda")} />
                     </ScreenBoundary>
                   )}
                   {tab === "diagnostic" && (

@@ -201,16 +201,7 @@ export async function POST(req: NextRequest) {
         service = await db.service.findFirst({ where: { tenantId, active: true } });
       }
       if (!service) {
-        service = await db.service.create({
-          data: {
-            tenantId,
-            name: serviceName || "Soin dermo-cosmétique personnalisé",
-            category: serviceCategory || "soin",
-            durationMin: 60,
-            price: 20000,
-            active: true,
-          },
-        });
+        return jsonError("Aucun service de soin actif trouvé pour cet institut partenaire", 400);
       }
     }
 
@@ -266,13 +257,21 @@ export async function POST(req: NextRequest) {
     let isOverlapConflict = false;
     let created: { appointment: Appointment; payment: Payment | null; confirmToken: string | null };
 
+    const pendingCutoff = new Date(Date.now() - 30 * 60 * 1000);
+    const activeAppointmentFilter = {
+      OR: [
+        { status: { in: ["confirmed", "completed"] } },
+        { status: "pending", createdAt: { gte: pendingCutoff } },
+      ],
+    };
+
     try {
       created = await db.$transaction(async (tx) => {
         let targetResourceId = resource.id;
         const sameDay = await tx.appointment.findMany({
           where: {
             resourceId: targetResourceId,
-            status: { notIn: ["cancelled", "no_show"] },
+            ...activeAppointmentFilter,
             startAt: { gte: new Date(start.getTime() - 24 * 3_600_000), lte: dayEnd(start) },
           },
           select: { startAt: true, durationMin: true },
@@ -287,7 +286,7 @@ export async function POST(req: NextRequest) {
             const otherDay = await tx.appointment.findMany({
               where: {
                 resourceId: other.id,
-                status: { notIn: ["cancelled", "no_show"] },
+                ...activeAppointmentFilter,
                 startAt: { gte: new Date(start.getTime() - 24 * 3_600_000), lte: dayEnd(start) },
               },
               select: { startAt: true, durationMin: true },

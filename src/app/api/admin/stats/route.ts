@@ -144,7 +144,7 @@ export async function GET(req: NextRequest) {
       }),
       db.appointment.aggregate({
         where: {
-          status: { in: ["confirmed", "completed"] },
+          status: "confirmed", // Acomptes des RDV confirmés à venir (non encore convertis en vente clôturée)
           ...(excludeDemo ? { tenantId: { notIn: demoTenantsArr } } : {}),
         },
         _sum: { depositAmount: true },

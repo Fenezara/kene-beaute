@@ -142,6 +142,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const method = paymentMethod ?? "cash";
     const price = appointment.price || appointment.service.price;
+    const deposit = appointment.depositAmount || 0;
+    const remainingToPay = Math.max(0, price - deposit);
 
     const sale = await db.sale.create({
       data: {
@@ -150,7 +152,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         subtotal: price,
         total: price,
         tvaAmount: splitTVA(price).tva,
-        paymentMethod: method,
+        paymentMethod: deposit > 0 && remainingToPay === 0 ? "online" : method,
         cashierName: appointment.resource.name,
         status: "completed",
         items: {
@@ -158,7 +160,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             {
               kind: "service",
               serviceId: appointment.serviceId,
-              label: appointment.service.name,
+              label: deposit > 0 ? `${appointment.service.name} (Acompte ${deposit} F déduit)` : appointment.service.name,
               qty: 1,
               unitPrice: price,
               total: price,
@@ -169,16 +171,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       include: { items: true },
     });
 
-    // Écriture comptable CA (espèces) / BQ (monétique & mobile money)
-    await createJournalEntry(appointment.tenantId, {
-      journalCode: method === "cash" ? "CA" : "BQ",
-      date: new Date(),
-      reference: genRef("VE"),
-      description: `Encaissement RDV ${appointment.clientName} — ${appointment.service.name}`,
-      sourceType: "sale",
-      sourceId: sale.id,
-      lines: saleJournalLines({ total: price, servicesAmount: price, productsAmount: 0, method }),
-    });
+    // Écriture comptable CA (espèces) / BQ (monétique & mobile money) sur le montant réellement encaissé en caisse
+    if (remainingToPay > 0) {
+      await createJournalEntry(appointment.tenantId, {
+        journalCode: method === "cash" ? "CA" : "BQ",
+        date: new Date(),
+        reference: genRef("VE"),
+        description: deposit > 0
+          ? `Solde RDV ${appointment.clientName} — ${appointment.service.name} (Acompte ${deposit} F réglé en ligne)`
+          : `Encaissement RDV ${appointment.clientName} — ${appointment.service.name}`,
+        sourceType: "sale",
+        sourceId: sale.id,
+        lines: saleJournalLines({ total: remainingToPay, servicesAmount: remainingToPay, productsAmount: 0, method }),
+      });
+    }
 
     // Mise à jour CRM (visites, CA, RFM)
     if (appointment.clientProfileId) {

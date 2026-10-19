@@ -3,7 +3,7 @@
 // + « Mes commandes »: historique des commandes enregistrées (consultation par la cliente).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BadgeCheck, Building2, Crown, FileText, Heart, History, Loader2, Lock, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Store, Tag, Trash2, TriangleAlert, Truck, X } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Building2, Crown, FileText, Heart, History, Loader2, Lock, MapPin, MessageCircle, Minus, Plus, Search, ShoppingBag, Store, Tag, Trash2, TriangleAlert, Truck, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
 import { xof, formatDate, formatTime } from "@/lib/kene/format";
@@ -52,7 +52,7 @@ interface AppliedPromo {
   subtotal: number; // panier au moment de la validation (invalidation si changement)
 }
 
-export function ShopScreen() {
+export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
   const user = useKene((s) => s.user)!;
   const cart = useKene((s) => s.cart);
   const addToCart = useKene((s) => s.addToCart);
@@ -449,6 +449,19 @@ export function ShopScreen() {
         <RevealItem>
           <header className="flex items-center justify-between">
             <div className="flex items-center gap-2">
+              {onBack && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic(HAPTIC.tap);
+                    onBack();
+                  }}
+                  aria-label="Retour"
+                  className="size-8 sm:size-9 rounded-full border border-border bg-card hover:bg-accent grid place-items-center text-foreground transition-all active:scale-95 shadow-xs shrink-0 cursor-pointer"
+                >
+                  <ArrowLeft size={16} />
+                </button>
+              )}
               <h1 className="md:hidden flex items-center gap-2 font-heading font-black text-xl tracking-tight">
                 <span aria-hidden="true">
                   <KeneMark size={26} />

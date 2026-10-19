@@ -39,9 +39,15 @@ function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function BookingScreen() {
+export function BookingScreen({
+  defaultTab = "book",
+  onAppointmentBooked,
+}: {
+  defaultTab?: "book" | "mine";
+  onAppointmentBooked?: (appt: ApiAppointment) => void;
+} = {}) {
   const user = useKene((s) => s.user)!;
-  const [tab, setTab] = useState<"book" | "mine">("book");
+  const [tab, setTab] = useState<"book" | "mine">(defaultTab);
 
   // ── Réserver ──
   const [institutes, setInstitutes] = useState<ApiInstitute[] | null>(null);
@@ -478,7 +484,7 @@ export function BookingScreen() {
                     <button onClick={() => { setConfirmed(null); setInst(null); setService(null); loadInstitutes(); }} className="h-12 rounded-xl border border-primary/60 text-primary text-sm font-bold active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary">
                       Autre RDV
                     </button>
-                    <button onClick={() => setTab("mine")} className="k-btn-gold h-12 rounded-xl text-primary-foreground text-sm font-bold focus-visible:outline-2 focus-visible:outline-primary">
+                    <button onClick={() => { const justConfirmed = confirmed; setConfirmed(null); setInst(null); setService(null); if (onAppointmentBooked && justConfirmed) onAppointmentBooked(justConfirmed); else setTab("mine"); }} className="k-btn-gold h-12 rounded-xl text-primary-foreground text-sm font-bold focus-visible:outline-2 focus-visible:outline-primary">
                       Mes RDV
                     </button>
                   </div>

@@ -12,7 +12,7 @@ import { pushTenantFeed } from "@/lib/kene/realtime";
 import { xof } from "@/lib/kene/format";
 
 const Body = z.object({
-  status: z.enum(["delivered", "cancelled"]),
+  status: z.enum(["preparing", "in_transit", "delivered", "cancelled"]),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (guard) return guard;
 
     const parsed = Body.safeParse(await req.json().catch(() => null));
-    if (!parsed.success) return jsonError("Statut invalide (delivered | cancelled)", 400);
+    if (!parsed.success) return jsonError("Statut invalide (preparing | in_transit | delivered | cancelled)", 400);
 
     const { id } = await params;
     const tenant = await resolveTenant(req, req.nextUrl.searchParams.get("tenantId"));
@@ -41,10 +41,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     const target = parsed.data.status;
-    if (target === "delivered" && order.status !== "paid") {
-      return jsonError("Seule une commande payée peut être marquée livrée", 400);
+    if (target === "preparing" && order.status !== "paid") {
+      return jsonError("Seule une commande payée peut être mise en préparation", 400);
     }
-    if (target === "cancelled" && order.status !== "pending" && order.status !== "paid") {
+    if (target === "in_transit" && order.status !== "paid" && order.status !== "preparing") {
+      return jsonError("Seule une commande payée ou en préparation peut être expédiée", 400);
+    }
+    if (target === "delivered" && order.status !== "paid" && order.status !== "preparing" && order.status !== "in_transit") {
+      return jsonError("Cette commande ne peut pas être marquée comme livrée", 400);
+    }
+    if (target === "cancelled" && order.status !== "pending" && order.status !== "paid" && order.status !== "preparing") {
       return jsonError("Cette commande ne peut plus être annulée", 400);
     }
     if (order.status === target) {
@@ -59,10 +65,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           const w = await ensureWallet(order.userId, tx);
           if (w) await creditWallet(w.id, order.total, "refund", `cancel:${order.id}`, tx);
         }
-        // Retour en stock des articles de CET institut uniquement
+        // Retour en stock des articles de CET institut uniquement si la commande avait été payée/préparée
         for (const item of order.items) {
           if (item.product.tenantId !== tenant.id) continue;
-          if (order.status === "paid") {
+          if (order.status === "paid" || order.status === "preparing") {
             // le stock n'est décrémenté qu'au paiement — on ne rend que si payée
             await tx.product.update({ where: { id: item.productId }, data: { stock: { increment: item.qty } } });
             await tx.inventoryMovement.create({
@@ -74,24 +80,34 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return tx.order.update({ where: { id: order.id }, data: { status: target } });
     });
 
-    // Cliente informée de la décision de l'institut (ligne + temps réel léger)
+    // Cliente informée de l'état logistique de sa commande
     if (order.user) {
-      await notify({
-        userId: order.user.id,
-        tenantId: tenant.id,
-        channel: "whatsapp",
-        toPhone: order.user.phone,
-        message:
-          target === "delivered"
-            ? `Kènè : ta commande ${ref} a été livrée 🎁 À bientôt chez ${tenant.name} !`
-            : `Kènè : ta commande ${ref} a été annulée par ${tenant.name}.${
-                order.payment?.method === "wallet" && order.payment.status === "success"
-                  ? ` ${xof(order.total)} remboursés sur ton wallet Kènè.`
-                  : order.payment?.status === "success"
-                    ? " Le remboursement est en cours de traitement."
-                    : ""
-              }`,
-      });
+      let statusMsg = "";
+      if (target === "preparing") {
+        statusMsg = `Kènè : ta commande ${ref} est désormais en cours de préparation chez ${tenant.name} 🌿`;
+      } else if (target === "in_transit") {
+        statusMsg = `Kènè : ta commande ${ref} a été expédiée et est en cours d'acheminement 🚚`;
+      } else if (target === "delivered") {
+        statusMsg = `Kènè : ta commande ${ref} a été livrée avec succès 🎁 Prends grand soin de ta peau avec ${tenant.name} !`;
+      } else if (target === "cancelled") {
+        statusMsg = `Kènè : ta commande ${ref} a été annulée par ${tenant.name}.${
+          order.payment?.method === "wallet" && order.payment.status === "success"
+            ? ` ${xof(order.total)} remboursés sur ton wallet Kènè.`
+            : order.payment?.status === "success"
+              ? " Le remboursement est en cours de traitement."
+              : ""
+        }`;
+      }
+
+      if (statusMsg) {
+        await notify({
+          userId: order.user.id,
+          tenantId: tenant.id,
+          channel: "whatsapp",
+          toPhone: order.user.phone,
+          message: statusMsg,
+        });
+      }
     }
 
     pushTenantFeed(tenant.id);
