@@ -63,104 +63,108 @@ export function AdminApp() {
       stats.error.toLowerCase().includes("401");
 
     return (
-      <div className="mx-auto max-w-5xl px-4 py-8 space-y-4">
-        <ConsoleHeader />
-        {isAuthError ? (
-          <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-5 shadow-sm max-w-md mx-auto">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <KeyRound className="size-7" />
+      <div className="w-full min-h-screen overflow-y-auto overscroll-contain touch-pan-y pretty-scroll pb-24">
+        <div className="mx-auto max-w-5xl px-4 py-8 space-y-4">
+          <ConsoleHeader />
+          {isAuthError ? (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-5 shadow-sm max-w-md mx-auto">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <KeyRound className="size-7" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-heading text-xl font-bold">Session administrateur expirée</h3>
+                <p className="text-sm text-muted-foreground">
+                  {stats.error || "Ta session administrateur Kènè a expiré ou nécessite une nouvelle authentification."}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2.5 pt-2">
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={() => performLogout({ redirectUrl: "/console" })}
+                  className="w-full gap-2 font-medium"
+                >
+                  <KeyRound className="size-4" />
+                  Se reconnecter à la Console
+                </Button>
+                <Button variant="outline" size="lg" asChild className="w-full">
+                  <a href="/">
+                    <ArrowLeft className="size-4 mr-2" />
+                    Retourner à l'application Kènè
+                  </a>
+                </Button>
+              </div>
             </div>
-            <div className="space-y-2">
-              <h3 className="font-heading text-xl font-bold">Session administrateur expirée</h3>
-              <p className="text-sm text-muted-foreground">
-                {stats.error || "Ta session administrateur Kènè a expiré ou nécessite une nouvelle authentification."}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2.5 pt-2">
-              <Button
-                variant="default"
-                size="lg"
-                onClick={() => performLogout({ redirectUrl: "/console" })}
-                className="w-full gap-2 font-medium"
-              >
-                <KeyRound className="size-4" />
-                Se reconnecter à la Console
-              </Button>
-              <Button variant="outline" size="lg" asChild className="w-full">
-                <a href="/">
-                  <ArrowLeft className="size-4 mr-2" />
-                  Retourner à l'application Kènè
-                </a>
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <ErrorState message={`Console indisponible : ${stats.error}`} onRetry={stats.refetch} />
-        )}
+          ) : (
+            <ErrorState message={`Console indisponible : ${stats.error}`} onRetry={stats.refetch} />
+          )}
+        </div>
       </div>
     );
   }
 
   return (
     <AdminGateProvider>
-    <div className="mx-auto max-w-6xl px-3 sm:px-6 py-6 space-y-5 min-h-screen overscroll-none">
-      <ConsoleHeader />
+      <div className="w-full min-h-screen overflow-y-auto overscroll-contain touch-pan-y pretty-scroll">
+        <div className="mx-auto max-w-6xl px-3 sm:px-6 py-6 pb-28 space-y-5">
+          <ConsoleHeader />
 
-      {/* Onglets — pills larges (44 px+), icône + libellé, scroll horizontal mobile */}
-      <nav aria-label="Sections de la console" className="sticky top-2 z-20 -mx-1 overflow-x-auto pretty-scroll px-1 pb-1">
-        <div className="flex min-w-max gap-1.5 rounded-2xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur">
-          {TABS.map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              aria-current={tab === key ? "page" : undefined}
-              className={cn(
-                "flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-colors",
-                tab === key
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <Icon className="size-4 shrink-0" aria-hidden="true" />
-              {label}
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      {/* Contenu de l'onglet actif */}
-      {tab === "overview" && (
-        stats.loading && !stats.data ? (
-          <div className="space-y-5" aria-busy="true" aria-label="Chargement de la console">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-28 animate-pulse rounded-xl bg-muted" />
+          {/* Onglets — pills larges (44 px+), icône + libellé, scroll horizontal mobile */}
+          <nav aria-label="Sections de la console" className="sticky top-2 z-20 -mx-1 overflow-x-auto pretty-scroll px-1 pb-1">
+            <div className="flex min-w-max gap-1.5 rounded-2xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur">
+              {TABS.map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setTab(key)}
+                  aria-current={tab === key ? "page" : undefined}
+                  className={cn(
+                    "flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-colors",
+                    tab === key
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <Icon className="size-4 shrink-0" aria-hidden="true" />
+                  {label}
+                </button>
               ))}
             </div>
-            <div className="h-72 animate-pulse rounded-xl bg-muted" />
-          </div>
-        ) : (
-          <AdminOverview stats={stats} scope={scope} onScopeChange={setScope} />
-        )
-      )}
-      {tab === "orders" && <AdminOrders scope={scope} />}
-      {tab === "appointments" && <AdminAppointments scope={scope} />}
-      {tab === "tenants" && <AdminTenants />}
-      {tab === "users" && <AdminUsers />}
-      {tab === "subs" && <AdminSubscriptions />}
-      {tab === "security" && (
-        <div className="space-y-5">
-          <AdminSecurity sec={sec} />
-          {/* t. 130 — passkeys: appareils autorisés à ouvrir la console */}
-          <AdminPasskeyCard />
-        </div>
-      )}
+          </nav>
 
-      <p className="flex items-center justify-center gap-1.5 pt-2 text-center text-xs text-muted-foreground">
-        <ShieldCheck className="size-3.5" aria-hidden="true" />
-        Console plateforme Kènè · Pilotage réseau, modération &amp; abonnements · Session 8 h · Chaque geste est audité
-      </p>
-    </div>
+          {/* Contenu de l'onglet actif */}
+          {tab === "overview" && (
+            stats.loading && !stats.data ? (
+              <div className="space-y-5" aria-busy="true" aria-label="Chargement de la console">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="h-28 animate-pulse rounded-xl bg-muted" />
+                  ))}
+                </div>
+                <div className="h-72 animate-pulse rounded-xl bg-muted" />
+              </div>
+            ) : (
+              <AdminOverview stats={stats} scope={scope} onScopeChange={setScope} />
+            )
+          )}
+          {tab === "orders" && <AdminOrders scope={scope} />}
+          {tab === "appointments" && <AdminAppointments scope={scope} />}
+          {tab === "tenants" && <AdminTenants />}
+          {tab === "users" && <AdminUsers />}
+          {tab === "subs" && <AdminSubscriptions />}
+          {tab === "security" && (
+            <div className="space-y-5">
+              <AdminSecurity sec={sec} />
+              {/* t. 130 — passkeys: appareils autorisés à ouvrir la console */}
+              <AdminPasskeyCard />
+            </div>
+          )}
+
+          <p className="flex items-center justify-center gap-1.5 pt-2 text-center text-xs text-muted-foreground">
+            <ShieldCheck className="size-3.5" aria-hidden="true" />
+            Console plateforme Kènè · Pilotage réseau, modération &amp; abonnements · Session 8 h · Chaque geste est audité
+          </p>
+        </div>
+      </div>
     </AdminGateProvider>
   );
 }

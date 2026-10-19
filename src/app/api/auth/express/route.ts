@@ -23,6 +23,7 @@ import { jsonError, serverError, genRef } from "@/lib/kene/server";
 import { setSessionCookie, sanitizeUser, sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, OTP_REQUEST } from "@/lib/kene/rate-limit";
 import { audit, clientIp } from "@/lib/kene/audit";
+import { KENE_ADMIN_PHONE } from "@/lib/kene/config";
 import { grantClientWelcomeTrial, grantProWelcomeTrial } from "@/lib/kene/plans";
 
 export const runtime = "nodejs";
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest) {
         await grantClientWelcomeTrial(user.id).catch(() => null);
       }
     } else {
-      let phoneToUse = targetRole === "pro" ? "+2250709080706" : "+2250748894270";
+      let phoneToUse = targetRole === "pro" ? "+2250709080706" : KENE_ADMIN_PHONE;
       let fallbackName = targetRole === "pro" ? "Fatou Koné" : "Fenezara";
 
       user = await db.user.findUnique({ where: { phone: phoneToUse } });

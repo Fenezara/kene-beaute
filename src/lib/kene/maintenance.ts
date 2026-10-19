@@ -12,11 +12,13 @@ export interface MaintenanceConfig {
   updatedBy?: string;
 }
 
+import { KENE_ADMIN_PHONE } from "./config";
+
 const DEFAULT_CONFIG: MaintenanceConfig = {
   enabled: false,
   message: "Kènè fait peau neuve ! Nos équipes effectuent actuellement une mise à jour d'optimisation pour améliorer votre expérience. Vos soins et réservations sont préservés.",
   estimatedEnd: null,
-  emergencyPhone: "+2250748894270",
+  emergencyPhone: KENE_ADMIN_PHONE,
   updatedAt: new Date().toISOString(),
   updatedBy: "Système",
 };

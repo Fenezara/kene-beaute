@@ -36,8 +36,8 @@ export function createWhatsAppLink(phone: string, message: string, defaultCountr
   return formattedPhone ? `https://wa.me/${formattedPhone}?text=${encodedText}` : `https://wa.me/?text=${encodedText}`;
 }
 
-/** Numéro de contact WhatsApp Business officiel Kènè */
-export const KENE_SUPPORT_PHONE = "+2250748894270";
+import { KENE_SUPPORT_PHONE } from "./config";
+export { KENE_SUPPORT_PHONE };
 
 /** Ouvre WhatsApp (application native ou WhatsApp Web) dans un nouvel onglet
  * SÉCURITÉ INVITÉE : Un invité non inscrit ne peut sous aucun prétexte exporter ou partager ses données.

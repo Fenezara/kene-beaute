@@ -207,7 +207,7 @@ function ConsoleLogin({ currentUser, onLogout }: { currentUser?: SessionUser | n
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4 py-10">
+    <div className="flex min-h-dvh w-full overflow-y-auto overscroll-contain touch-pan-y pretty-scroll items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <div aria-hidden="true" className="kente-band h-1.5 w-full" />

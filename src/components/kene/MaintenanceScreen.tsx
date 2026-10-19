@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { KeneEmblem, CauriIcon } from "@/components/kene/icons";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
+import { KENE_ADMIN_PHONE } from "@/lib/kene/config";
 import type { MaintenanceConfig } from "@/lib/kene/maintenance";
 
 interface MaintenanceScreenProps {
@@ -41,7 +42,7 @@ export function MaintenanceScreen({ config, onRefresh }: MaintenanceScreenProps)
 
   const handleEmergencyWhatsApp = () => {
     haptic(HAPTIC.tap);
-    const phone = config.emergencyPhone || "+2250748894270";
+    const phone = config.emergencyPhone || KENE_ADMIN_PHONE;
     const text = "Bonjour l'équipe Kènè ! 🌿 Je constate que l'application est en maintenance. J'ai une question urgente concernant mon compte ou un rendez-vous.";
     openWhatsApp(phone, text, "CI");
   };

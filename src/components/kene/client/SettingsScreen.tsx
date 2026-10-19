@@ -49,6 +49,7 @@ import { ContactKeneModal } from "./ContactKeneModal";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
+import { KENE_SUPPORT_PHONE, formatDisplayPhone } from "@/lib/kene/config";
 import { apiGet, apiPost, ApiError } from "@/lib/kene/api";
 import type { ApiUser } from "./types";
 import { forgetAccount } from "@/lib/kene/last-account";
@@ -760,7 +761,7 @@ export function SettingsScreen() {
               <IconBadge icon={<MessageCircle size={19} />} tone="gold" />
               <span className="flex-1 min-w-0">
                 <span id="contact-t" className="block text-xs font-bold">Contactez-nous (Support Kènè)</span>
-                <span className="block text-[11px] text-muted-foreground mt-0.5">Assistance technique, questions &amp; WhatsApp officiel (+225 07 48 89 42 70)</span>
+                <span className="block text-[11px] text-muted-foreground mt-0.5">Assistance technique, questions &amp; WhatsApp officiel ({formatDisplayPhone(KENE_SUPPORT_PHONE)})</span>
               </span>
               <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
             </button>

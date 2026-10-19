@@ -7,7 +7,7 @@ import {
   ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
+import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry, KENE_SUPPORT_PHONE } from "@/lib/kene/whatsapp-relay";
 import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
 import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
 import { cn } from "@/lib/utils";
@@ -2418,12 +2418,12 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
                     const origin = typeof window !== "undefined" ? window.location.origin : "https://kene.app";
                     const pdfUrl = `${origin}/api/diagnoses/prescription?userId=${user.id}&id=${diag.id}`;
                     const msg = `Bonjour Support Kènè ! 🌸\nJe viens de terminer mon analyse cutanée (${user.name}, score ${diag.result.score_global}/100).\nJe souhaite être orientée vers une entreprise partenaire pour le suivi de ma peau.\nProtocole : ${pdfUrl}`;
-                    openWhatsApp("+2250748894270", msg, "CI");
+                    openWhatsApp(KENE_SUPPORT_PHONE, msg, "CI");
                   }}
                   className="h-11 px-3 rounded-xl border border-border bg-muted/60 hover:bg-muted text-foreground text-xs font-semibold flex items-center justify-center gap-1.5"
                   aria-label="Contacter le Support Kènè sur WhatsApp"
                 >
-                  <MessageCircle size={14} className="text-[#25D366]" /> Support Kènè (0748894270)
+                  <MessageCircle size={14} className="text-[#25D366]" /> Support Kènè
                 </button>
               </div>
             </>

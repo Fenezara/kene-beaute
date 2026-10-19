@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { KeneEmblem } from "@/components/kene/icons";
+import { KENE_SUPPORT_PHONE, KENE_SUPPORT_EMAIL, formatDisplayPhone } from "@/lib/kene/config";
 
 interface ContactKeneModalProps {
   open: boolean;
@@ -14,8 +15,7 @@ interface ContactKeneModalProps {
 }
 
 export function ContactKeneModal({ open, onOpenChange, userName }: ContactKeneModalProps) {
-  const KENE_SUPPORT_PHONE = "+2250748894270";
-  const KENE_SUPPORT_EMAIL = "contact@kene.ci";
+  const displayPhone = formatDisplayPhone(KENE_SUPPORT_PHONE);
 
   const handleWhatsApp = () => {
     haptic(HAPTIC.tap);
@@ -57,7 +57,7 @@ export function ContactKeneModal({ open, onOpenChange, userName }: ContactKeneMo
               <div>
                 <p className="font-heading font-bold text-sm text-foreground">Support officiel sur WhatsApp</p>
                 <p className="text-xs text-muted-foreground leading-snug">
-                  Réponse rapide par notre équipe support (+225 07 48 89 42 70)
+                  Réponse rapide par notre équipe support ({displayPhone})
                 </p>
               </div>
             </div>
@@ -77,7 +77,7 @@ export function ContactKeneModal({ open, onOpenChange, userName }: ContactKeneMo
               </span>
               <div>
                 <p className="font-semibold text-xs text-foreground">Assistance téléphonique</p>
-                <p className="font-mono text-xs text-muted-foreground">+225 07 48 89 42 70</p>
+                <p className="font-mono text-xs text-muted-foreground">{displayPhone}</p>
               </div>
             </div>
             <Button

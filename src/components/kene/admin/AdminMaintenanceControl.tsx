@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { KENE_ADMIN_PHONE } from "@/lib/kene/config";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +43,7 @@ export function AdminMaintenanceControl({ onConfigChanged }: { onConfigChanged?:
   const [formEnabled, setFormEnabled] = useState(false);
   const [formMessage, setFormMessage] = useState("");
   const [formEstimatedEnd, setFormEstimatedEnd] = useState("");
-  const [formEmergencyPhone, setFormEmergencyPhone] = useState("+2250748894270");
+  const [formEmergencyPhone, setFormEmergencyPhone] = useState(KENE_ADMIN_PHONE);
 
   const loadConfig = async () => {
     try {
@@ -53,7 +54,7 @@ export function AdminMaintenanceControl({ onConfigChanged }: { onConfigChanged?:
         setFormEnabled(res.config.enabled);
         setFormMessage(res.config.message);
         setFormEstimatedEnd(res.config.estimatedEnd || "");
-        setFormEmergencyPhone(res.config.emergencyPhone || "+2250748894270");
+        setFormEmergencyPhone(res.config.emergencyPhone || KENE_ADMIN_PHONE);
         onConfigChanged?.(res.config);
       }
     } catch {
@@ -183,7 +184,7 @@ export function AdminMaintenanceControl({ onConfigChanged }: { onConfigChanged?:
                 setFormEnabled(Boolean(config?.enabled));
                 setFormMessage(config?.message || "");
                 setFormEstimatedEnd(config?.estimatedEnd || "");
-                setFormEmergencyPhone(config?.emergencyPhone || "+2250748894270");
+                setFormEmergencyPhone(config?.emergencyPhone || KENE_ADMIN_PHONE);
                 setDialogOpen(true);
               }}
               className="h-8 gap-1.5 text-xs font-semibold rounded-xl"
@@ -288,7 +289,7 @@ export function AdminMaintenanceControl({ onConfigChanged }: { onConfigChanged?:
                 id="maint-phone"
                 value={formEmergencyPhone}
                 onChange={(e) => setFormEmergencyPhone(e.target.value)}
-                placeholder="+2250748894270"
+                placeholder={KENE_ADMIN_PHONE}
                 className="text-xs font-mono"
               />
             </div>
