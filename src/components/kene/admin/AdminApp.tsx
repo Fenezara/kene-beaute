@@ -25,6 +25,7 @@ import { AdminGateProvider } from "./admin-gate";
 import { AdminOverview } from "./AdminOverview";
 import { AdminOrders } from "./AdminOrders";
 import { AdminAppointments } from "./AdminAppointments";
+import { AdminBackupAndShieldCard } from "./AdminBackupAndShieldCard";
 import { AdminPasskeyCard } from "./AdminPasskeyCard";
 import { AdminSecurity } from "./AdminSecurity";
 import { AdminSubscriptions } from "./AdminSubscriptions";
@@ -153,9 +154,9 @@ export function AdminApp() {
           {tab === "subs" && <AdminSubscriptions />}
           {tab === "security" && (
             <div className="space-y-5">
-              <AdminSecurity sec={sec} />
-              {/* t. 130 — passkeys: appareils autorisés à ouvrir la console */}
+              <AdminBackupAndShieldCard />
               <AdminPasskeyCard />
+              <AdminSecurity sec={sec} />
             </div>
           )}
 
