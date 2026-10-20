@@ -10,7 +10,7 @@
 // (annuaire, boutique, fiche cliente) — upload local redimensionné.
 import { useEffect, useRef, useSyncExternalStore, useState } from "react";
 import { useTheme } from "next-themes";
-import { Building2, Camera, Check, ChevronRight, CreditCard, Crown, ImageOff, KeyRound, Languages, Loader2, Lock, LogOut, Moon, Phone, Receipt, Sparkles, SunMedium } from "lucide-react";
+import { Building2, Camera, Check, ChevronRight, CreditCard, Crown, ImageOff, KeyRound, Languages, Loader2, Lock, LogOut, MapPin, Moon, Phone, Receipt, Sparkles, SunMedium } from "lucide-react";
 import { DuafeIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
@@ -87,6 +87,10 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
   const [description, setDescription] = useState("");
   const [descBusy, setDescBusy] = useState(false);
 
+  const [salonPhone, setSalonPhone] = useState("");
+  const [salonAddress, setSalonAddress] = useState("");
+  const [coordsBusy, setCoordsBusy] = useState(false);
+
   useEffect(() => {
     let alive = true;
     apiGet<{ institutes: { id: string; image: string; hasPhoto?: boolean; description?: string }[] }>("/api/institutes")
@@ -102,10 +106,42 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         }
       })
       .catch(() => {}); // non bloquant: la carte affiche l'état vide
+
+    apiGet<{ tenants: Array<{ id: string; phone?: string | null; address?: string | null; description?: string | null }> }>("/api/pro/tenants")
+      .then((r) => {
+        if (!alive) return;
+        const mine = r.tenants?.find((t) => t.id === tenantId);
+        if (mine) {
+          if (mine.phone) setSalonPhone(mine.phone);
+          if (mine.address) setSalonAddress(mine.address);
+          if (mine.description && !description) setDescription(mine.description);
+        }
+      })
+      .catch(() => {});
+
     return () => {
       alive = false;
     };
   }, [tenantId]);
+
+  async function handleSaveCoords() {
+    if (!tenantId) return;
+    setCoordsBusy(true);
+    try {
+      await apiPatch("/api/pro/tenants", {
+        tenantId,
+        phone: salonPhone.trim() || null,
+        address: salonAddress.trim() || null,
+      });
+      toast.success("Coordonnées de l'établissement enregistrées 🌿", {
+        description: "Le numéro WhatsApp officiel et l'adresse sont à jour pour vos clientes.",
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Impossible d'enregistrer les coordonnées");
+    } finally {
+      setCoordsBusy(false);
+    }
+  }
 
   async function handleSaveDescription() {
     setDescBusy(true);
@@ -212,7 +248,10 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
           <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 min-h-10 text-xs text-muted-foreground gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <Phone size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
-              <span className="truncate font-mono">{managerPhone}</span>
+              <div className="min-w-0">
+                <span className="truncate font-mono font-medium text-foreground block">{managerPhone}</span>
+                <span className="text-[10px] text-muted-foreground block -mt-0.5">Connexion gérante (privé &amp; confidentiel)</span>
+              </div>
             </div>
             <button
               type="button"
@@ -239,6 +278,70 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
             <Building2 size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
             <span className="truncate">{tenantName}{tenantCity ? ` · ${tenantCity}` : ""}</span>
           </p>
+        </div>
+      </div>
+
+      {/* Coordonnées publiques de l'établissement (WhatsApp officiel et adresse de l'institut) */}
+      <div className="k-card rounded-[20px] p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <IconBadge icon={<Phone size={18} />} tone="gold" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-bold text-foreground">Coordonnées publiques de l&apos;institut</p>
+              <span className="inline-flex items-center rounded-full bg-success/15 text-success px-2 py-0.5 text-[10px] font-bold">
+                WhatsApp &amp; Accueil
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+              Ces coordonnées sont transmises à votre clientèle pour vous contacter directement et se rendre en institut. Elles sont indépendantes de votre compte privé de gérante (aucun conflit d&apos;unicité).
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3 pt-1">
+          <div>
+            <label className="text-[11px] font-bold text-foreground block mb-1">
+              Numéro WhatsApp officiel de l&apos;institut (Standard clientèle)
+            </label>
+            <input
+              type="tel"
+              value={salonPhone}
+              onChange={(e) => setSalonPhone(e.target.value)}
+              placeholder="Ex : +225 07 00 00 00 00 ou +221 77 000 00 00"
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Alimente le bouton d&apos;échange WhatsApp et les rappels de rendez-vous de l&apos;établissement.
+            </p>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-foreground block mb-1">
+              Adresse physique &amp; quartier de l&apos;institut
+            </label>
+            <input
+              type="text"
+              value={salonAddress}
+              onChange={(e) => setSalonAddress(e.target.value)}
+              placeholder="Ex : Rue des Jardins, Cocody Deux Plateaux Vallon, Abidjan"
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Affichée sur les confirmations de RDV et le plan d&apos;accès de vos clientes.
+            </p>
+          </div>
+
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={handleSaveCoords}
+              disabled={coordsBusy}
+              className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 shadow-sm"
+            >
+              {coordsBusy ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
+              Enregistrer les coordonnées
+            </button>
+          </div>
         </div>
       </div>
 

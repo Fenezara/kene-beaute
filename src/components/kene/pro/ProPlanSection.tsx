@@ -325,21 +325,45 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                 </p>
                 {activePlan === "pro_starter" && starter.nextTierPrice && (
                   <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-success/15 text-success border border-success/30 px-2 py-0.5 text-[10px] font-bold">
-                    ✓ Votre tarif de renouvellement : {starter.nextTierPrice.toLocaleString("fr-FR")} F
+                    ✓ Tarif de renouvellement (M{Math.min((starter.consecutiveMonths ?? 0) + 1, 6)}) : {starter.nextTierPrice.toLocaleString("fr-FR")} F
                   </span>
                 )}
               </div>
 
               {/* Échelle dégressive */}
               <div className="rounded-xl border border-border/60 bg-muted/20 p-2.5 space-y-1.5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Échelle de fidélité mensuelle</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Échelle de fidélité mensuelle</p>
+                  {activePlan === "pro_starter" && (
+                    <span className="text-[9.5px] font-bold text-primary">
+                      {isTrialActive ? "Pass Découverte" : `Mois ${Math.min((starter.consecutiveMonths ?? 0) + 1, 6)} à venir`}
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-6 gap-1 text-center">
                   {starter.tiers.filter((t) => t.month > 0).map((t) => {
-                    const isCurrent = activePlan === "pro_starter" && ((starter.consecutiveMonths ?? 0) === t.month || ((starter.consecutiveMonths ?? 0) >= 6 && t.month === 6));
+                    const consecutive = starter.consecutiveMonths ?? 0;
+                    const targetMonth = Math.min(consecutive + 1, 6);
+                    const isCompleted = activePlan === "pro_starter" && consecutive >= t.month && !isTrialActive;
+                    const isTarget = activePlan === "pro_starter" && (targetMonth === t.month || (consecutive >= 6 && t.month === 6));
                     return (
-                      <div key={t.month} className={`rounded-lg p-1 border transition-all ${isCurrent ? "bg-primary/20 border-primary font-bold" : "bg-card border-border/40"}`}>
-                        <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
+                      <div
+                        key={t.month}
+                        className={`rounded-lg p-1 border transition-all ${
+                          isTarget
+                            ? "bg-primary/25 border-primary font-bold ring-1 ring-primary shadow-sm"
+                            : isCompleted
+                            ? "bg-primary/10 border-primary/40 text-primary font-semibold"
+                            : "bg-card border-border/40 text-muted-foreground"
+                        }`}
+                      >
+                        <p className="text-[9px] font-bold">
+                          {isCompleted ? `✓ M${t.month}` : `M${t.month}`}
+                        </p>
                         <p className="text-[10px] font-black font-mono text-foreground">{t.priceFcfa / 1000}k</p>
+                        {isTarget && (
+                          <span className="block text-[8px] font-extrabold uppercase text-primary -mt-0.5">Prochain</span>
+                        )}
                       </div>
                     );
                   })}
@@ -401,21 +425,45 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                 </p>
                 {(activePlan === "pro_institut" || activePlan === "pro_essentiel") && institut.nextTierPrice && (
                   <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-gold/20 text-gold-text border border-gold/40 px-2 py-0.5 text-[10px] font-bold">
-                    ✓ Votre tarif de renouvellement : {institut.nextTierPrice.toLocaleString("fr-FR")} F
+                    ✓ Tarif de renouvellement (M{Math.min((institut.consecutiveMonths ?? 0) + 1, 6)}) : {institut.nextTierPrice.toLocaleString("fr-FR")} F
                   </span>
                 )}
               </div>
 
               {/* Échelle dégressive */}
               <div className="rounded-xl border border-gold/30 bg-gold/10 p-2.5 space-y-1.5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-gold-text">Échelle de fidélité mensuelle</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gold-text">Échelle de fidélité mensuelle</p>
+                  {(activePlan === "pro_institut" || activePlan === "pro_essentiel") && (
+                    <span className="text-[9.5px] font-bold text-gold-text">
+                      {isTrialActive ? "Pass Découverte" : `Mois ${Math.min((institut.consecutiveMonths ?? 0) + 1, 6)} à venir`}
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-6 gap-1 text-center">
                   {institut.tiers.filter((t) => t.month > 0).map((t) => {
-                    const isCurrent = (activePlan === "pro_institut" || activePlan === "pro_essentiel") && ((institut.consecutiveMonths ?? 0) === t.month || ((institut.consecutiveMonths ?? 0) >= 6 && t.month === 6));
+                    const consecutive = institut.consecutiveMonths ?? 0;
+                    const targetMonth = Math.min(consecutive + 1, 6);
+                    const isCompleted = (activePlan === "pro_institut" || activePlan === "pro_essentiel") && consecutive >= t.month && !isTrialActive;
+                    const isTarget = (activePlan === "pro_institut" || activePlan === "pro_essentiel") && (targetMonth === t.month || (consecutive >= 6 && t.month === 6));
                     return (
-                      <div key={t.month} className={`rounded-lg p-1 border transition-all ${isCurrent ? "bg-gold/30 border-gold font-bold" : "bg-card border-gold/30"}`}>
-                        <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
+                      <div
+                        key={t.month}
+                        className={`rounded-lg p-1 border transition-all ${
+                          isTarget
+                            ? "bg-gold/35 border-gold font-bold ring-1 ring-gold shadow-sm"
+                            : isCompleted
+                            ? "bg-gold/15 border-gold/40 text-gold-text font-semibold"
+                            : "bg-card border-gold/30 text-muted-foreground"
+                        }`}
+                      >
+                        <p className="text-[9px] font-bold">
+                          {isCompleted ? `✓ M${t.month}` : `M${t.month}`}
+                        </p>
                         <p className="text-[10px] font-black font-mono text-gold-text">{t.priceFcfa / 1000}k</p>
+                        {isTarget && (
+                          <span className="block text-[8px] font-extrabold uppercase text-gold-text -mt-0.5">Prochain</span>
+                        )}
                       </div>
                     );
                   })}
@@ -474,21 +522,45 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                 </p>
                 {activePlan === "pro_complexe" && complexe.nextTierPrice && (
                   <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-terre/20 text-terre border border-terre/40 px-2 py-0.5 text-[10px] font-bold">
-                    ✓ Votre tarif de renouvellement : {complexe.nextTierPrice.toLocaleString("fr-FR")} F
+                    ✓ Tarif de renouvellement (M{Math.min((complexe.consecutiveMonths ?? 0) + 1, 6)}) : {complexe.nextTierPrice.toLocaleString("fr-FR")} F
                   </span>
                 )}
               </div>
 
               {/* Échelle dégressive */}
               <div className="rounded-xl border border-border/60 bg-muted/20 p-2.5 space-y-1.5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Échelle de fidélité mensuelle</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Échelle de fidélité mensuelle</p>
+                  {activePlan === "pro_complexe" && (
+                    <span className="text-[9.5px] font-bold text-terre">
+                      {isTrialActive ? "Pass Découverte" : `Mois ${Math.min((complexe.consecutiveMonths ?? 0) + 1, 6)} à venir`}
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-6 gap-1 text-center">
                   {complexe.tiers.filter((t) => t.month > 0).map((t) => {
-                    const isCurrent = activePlan === "pro_complexe" && ((complexe.consecutiveMonths ?? 0) === t.month || ((complexe.consecutiveMonths ?? 0) >= 6 && t.month === 6));
+                    const consecutive = complexe.consecutiveMonths ?? 0;
+                    const targetMonth = Math.min(consecutive + 1, 6);
+                    const isCompleted = activePlan === "pro_complexe" && consecutive >= t.month && !isTrialActive;
+                    const isTarget = activePlan === "pro_complexe" && (targetMonth === t.month || (consecutive >= 6 && t.month === 6));
                     return (
-                      <div key={t.month} className={`rounded-lg p-1 border transition-all ${isCurrent ? "bg-terre/20 border-terre font-bold" : "bg-card border-border/40"}`}>
-                        <p className="text-[9px] font-bold text-muted-foreground">M{t.month}</p>
+                      <div
+                        key={t.month}
+                        className={`rounded-lg p-1 border transition-all ${
+                          isTarget
+                            ? "bg-terre/25 border-terre font-bold ring-1 ring-terre shadow-sm"
+                            : isCompleted
+                            ? "bg-terre/10 border-terre/40 text-terre font-semibold"
+                            : "bg-card border-border/40 text-muted-foreground"
+                        }`}
+                      >
+                        <p className="text-[9px] font-bold">
+                          {isCompleted ? `✓ M${t.month}` : `M${t.month}`}
+                        </p>
                         <p className="text-[10px] font-black font-mono text-foreground">{t.priceFcfa / 1000}k</p>
+                        {isTarget && (
+                          <span className="block text-[8px] font-extrabold uppercase text-terre -mt-0.5">Prochain</span>
+                        )}
                       </div>
                     );
                   })}
