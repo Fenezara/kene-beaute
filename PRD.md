@@ -86,10 +86,14 @@ La dermatologie et la cosmétologie mondiales ont historiquement été formulée
   - Grand livre, Balance générale à 6 classes et Liasse fiscale complète générée en 1 clic (Bilan, Compte de résultat, TVA à reverser).
 
 * **Mises à jour Octobre 2026** :
-  - **Partage de données maîtrisé** : la cliente ne voit (sélection d'institut, RDV, soins) que les instituts avec lesquels elle partage ses données.
-  - **Coordonnées de l'institut** : le numéro de la gérante/fondatrice (`User.phone`) reste privé ; un **WhatsApp public du salon** et une adresse (`Tenant.phone`, `Tenant.address`) sont affichés aux clientes, sans contrainte d'unicité avec les comptes clientes.
+  - **Partage de données maîtrisé & Règle temporelle** : la cliente choisit les instituts avec lesquels elle partage ses bilans cutanés. En cas de révocation ultérieure, les bilans déjà réalisés pendant la période de consentement restent archivés pour l'institut, tandis que les futurs scans lui sont masqués.
+  - **Dossiers Cutanés Haute Fidélité** : distinction nette entre *Bilans Cabine Institut* (examen clinique praticienne) et *Auto-scans Cliente* (IA VLM smartphone) avec frise unifiée et calcul comparatif d'écart de score (`scoreDelta`).
+  - **Cloisonnement strict Gérante vs Collaboratrices** : isolation hermétique des prérogatives (`resolveUserProContext`). Les employées n'ont accès qu'à leurs modules assignés ; le tableau de bord financier, les salaires, primes et numéros CNPS de l'équipe, ainsi que les paramètres d'administration du salon sont strictement réservés à la fondatrice/gérante (`ownerPhone`).
+  - **Persistance de session résiliente** : sécurisation de l'hydratation Zustand et réémission dynamique des cookies de session pour éliminer toute déconnexion intempestive à la réouverture de l'application.
+  - **Formule « Avantage Collaboratrice Kènè+ »** : sanctuarisation de l'espace beauté personnel B2C des employées (historique cutané conservé à vie) avec octroi du pass Kènè+ VIP offert tant qu'elles sont en poste dans un institut partenaire actif.
+  - **Coordonnées de l'institut** : le numéro privé de la gérante/fondatrice (`User.phone`) reste isolé ; un **WhatsApp public du salon** et une adresse (`Tenant.phone`, `Tenant.address`) sont affichés aux clientes, sans conflit d'unicité.
   - **Abonnement Pro Complexe (fidélité dégressive)** : 30 000 → 28 000 → 26 000 → 24 000 → 22 000 → 20 000 FCFA/mois (plancher atteint au mois 6) ; le renouvellement repart de 30 000 FCFA au mois 1.
-  - **Mot de passe** : modification disponible depuis les paramètres de compte.
+  - **Mot de passe & Code PIN** : modification disponible depuis les paramètres de compte.
 
 ### 3.3 Espace Admin & Sécurité (`/console`)
 * **Durcissement NIST 800-63B-4 & OWASP ASVS V2.7** :

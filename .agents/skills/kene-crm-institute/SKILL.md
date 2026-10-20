@@ -106,7 +106,8 @@ Lors du bilan cutané en institut (`/api/pro/diagnoses`) :
 ### 3. Respect du Secret Médical & Confidentialité (RGPD / ARTCI)
 - **Verrou de Partage des Self-Scans** : Un institut ne peut **jamais** voir les analyses de peau personnelles qu'une cliente a réalisées chez elle depuis son smartphone, **sauf si la cliente a coché expressément la case de partage** pour cet institut spécifique.
 - Le recueil de consentement est tracé et horodaté dans la table `UserShareConsent`.
-- La cliente peut révoquer cet accès en 1 clic depuis son écran de profil.
+- **Règle de Révocation Temporelle** : Si la cliente révoque le partage, les bilans cutanés déjà réalisés pendant que le consentement était actif restent archivés et consultables dans son dossier institut. En revanche, tous les scans ultérieurs réalisés après la date de révocation sont automatiquement masqués à l'établissement.
+- La cliente peut révoquer ou réactiver cet accès en 1 clic depuis son écran de profil.
 
 ---
 
@@ -134,3 +135,22 @@ L'écran de caisse en institut (`/pro` onglet Caisse) doit appliquer les règles
 - **Tickets thermiques 80 mm ou A4** : Mention obligatoire de la TVA (18 % en UEMOA), du numéro d'ordre unique chronologique, et du détail des prestations/produits.
 - **Cliente Express** : Possibilité d'encaisser des clientes sans smartphone ou de passage via leur nom et numéro de téléphone, sans création de mot de passe obligatoire.
 - **Clôture Journalière (Z de Caisse)** : Contrôle du tiroir-caisse physique vs totaux Mobile Money (Wave, Orange, MTN).
+
+---
+
+## 6. Sécurité des Rôles & Avantage Collaboratrice Kènè+
+
+### Cloisonnement Strict Fondatrice vs Collaboratrices
+- **Fondatrice / Gérante (`isOwner`)** : Seul le numéro de téléphone officiel propriétaire (`Tenant.ownerPhone`) dispose des privilèges de direction :
+  - Consultation du tableau de bord financier (chiffre d'affaires, panier moyen, rentabilité).
+  - Gestion de la masse salariale, des salaires de base, primes et matricules CNPS des employées.
+  - Embauche, radiation d'employée et validation des congés.
+  - Paramètres d'établissement (coordonnées publiques, vitrine photo, abonnement, changement de numéro).
+- **Collaboratrices (`Employee`)** : Accès strictement restreint à leur périmètre de métier défini par la direction (`employeePermissions`) :
+  - *Dermo-conseillère* : Agenda, cabine, bilans cutanés, relances, CRM.
+  - *Esthéticienne* : Agenda, cabine, bilans cutanés, catalogue soins.
+  - *Réceptionniste / Caissière* : Accueil, agenda, caisse POS, catalogue.
+
+### Sanctuarisation de l'Espace Beauté & Formule « Avantage Collaboratrice »
+- **Données privées protégées** : L'espace beauté personnel B2C d'une employée (son phototype, ses bilans cutanés, son passeport de peau) lui appartient à titre individuel. En cas de départ du salon, son compte et son historique restent intégralement préservés.
+- **Pass Kènè+ offert à 100 %** : Tant qu'une collaboratrice est en poste au sein d'un institut partenaire actif, elle bénéficie automatiquement de l'abonnement Kènè+ offert (diagnostics et Dermo Kènè illimités, zéro prélèvement). Cela permet aux employées de tester les rituels et de devenir les meilleures ambassadrices de l'institut.

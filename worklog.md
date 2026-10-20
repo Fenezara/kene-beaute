@@ -3391,3 +3391,45 @@ Work Log:
   - Galerie Imagerie HD : pastilles `🔬 Cabine` et `📱 Auto-scan` sur chaque vignette photo avec zoom plein écran.
   - Onglet Biomarqueurs & 3D : sélecteur de source (`Tous` / `Cabine` / `Auto-scans`) pour la courbe d'évolution sans biais de mesure.
 - Validation locale (`npm run build` réussi).
+
+---
+Task: Sécurisation de la Persistance de Session & Cloisonnement Strict des Rôles & Permissions Employées.
+
+Work Log:
+- Persistance de Session (`src/app/page.tsx`, `src/store/kene.ts`, `src/components/kene/SessionKeeper.tsx`, `src/app/api/auth/session/route.ts`) :
+  - Inversion de l'ordre d'hydratation : `page.tsx` attend désormais la résolution effective de `useKene.persist.rehydrate()` avant de définir `_keneHydrated: true`.
+  - Implémentation du wrapper `safeLocalStorage` pour bloquer tout écrasement prématuré de `localStorage["kene-store"]` avec `user: null` lors des premiers cycles de rendu.
+  - Déclenchement synchrone immédiat de `rehydrate()` dès l'import client du store Zustand.
+  - Sécurisation de `SessionKeeper.tsx` pour empêcher toute déconnexion locale lors d'échecs réseau ou d'absence temporaire du cookie de session.
+  - Rétablissement de la régénération et du rafraîchissement automatique du cookie HTTP-only via le paramètre de secours `?userId=` dans `/api/auth/session`.
+- Cloisonnement Strict Gérante vs Collaboratrices (`src/lib/kene/server.ts`, `/api/auth/login`, `/api/auth/otp/verify`, `/api/auth/check-phone`, `/api/pro/overview`) :
+  - Création de `resolveUserProContext(user)` qui vérifie strictement si le téléphone de l'utilisateur correspond au champ `ownerPhone` de l'institut. Si non, l'utilisateur est traité comme collaboratrice avec un ensemble fermé de permissions (`employeePermissions`).
+  - Suppression de la promotion automatique non sécurisée au premier salon de la base dans les routes d'authentification.
+  - Payload `/api/pro/overview` enrichi avec `viewer: { isOwner, employeeRole, employeePermissions, employeeName }` validé côté serveur.
+- Sécurisation de l'Interface Pro (`ProEnterpriseShell.tsx`, `SettingsSection.tsx`, `TeamSection.tsx`) :
+  - `ProEnterpriseShell.tsx` : `isOwner` ne se fie plus à `sessionUser.role === "pro"` (partagé par tout le staff) mais à la propriété réelle de l'établissement. Masquage des onglets confidentiels (*Tableau de bord*, *Équipe*, *Promos*, *Abonnement*) et de la couronne de direction pour les employées.
+  - `SettingsSection.tsx` : Affichage du badge du métier de l'employée (ex. *Dermo-conseillère*) au lieu de *Fondatrice / Gérante*. Masquage du changement de numéro de la gérante et des 4 cartes d'administration du salon (coordonnées publiques, photo de vitrine, présentation, abonnement). Ajout d'une carte personnalisée *« Mes attributions & modules autorisés »*.
+  - `TeamSection.tsx` : Masquage de la masse salariale mensuelle, des salaires de base, primes et matricules CNPS des collègues. Masquage des boutons d'embauche, radiation et modification de contrat. Restriction de l'approbation/refus des congés à la gérante.
+- Assainissement Base SQLite de Production (`custom.db`) :
+  - Réinitialisation des fiches employées du salon réel (*Cabinet LA DERMO*) pour purger les permissions orphelines `dashboard` et `equipe` et appliquer strictement les modules canoniques de chaque métier (`dermo_conseillere`, `estheticienne`, `receptionniste`).
+- Validation & Déploiement :
+  - Build Turbopack réussi (115/115 pages), commit `9e88dad` poussé, image Docker `kene-app:latest` reconstruite et relancée en production sur le VPS (`2.29.53.176`).
+
+---
+Task: Formule « Avantage Collaboratrice Kènè+ » & Distinction Étanches des Abonnements B2B vs B2C.
+
+Work Log:
+- Architecture Métier & Juridique :
+  - Distinction formelle : l'abonnement Pro Entreprise est un outil B2B appartenant au salon, tandis que l'espace Beauté personnel est un espace privé B2C appartenant à la personne physique (données de santé et historique cutané sanctuarisés à vie).
+  - Formule « Avantage Collaboratrice » : tant qu'une collaboratrice ou gérante est active au sein d'un institut partenaire actif, elle bénéficie de l'accès Kènè+ VIP offert à 100 % pour ses soins personnels (ambassadrices de la marque).
+- Moteur d'Éligibilité & Quotas (`src/lib/kene/plans.ts`, `src/app/api/subscriptions/route.ts`) :
+  - `diagQuotaFor(userId)` : détection automatique du contexte pro actif via `resolveUserProContext()` pour débloquer les diagnostics dermo-biométriques illimités (`DIAG_QUOTA_UNLIMITED = 9999`) et Dermo Kènè 24/7 sans restriction.
+  - `/api/subscriptions?audience=client` : injection d'une souscription active `source: "employee_perk"` avec libellé personnalisé (`perkLabel: "Collaboratrice · {Nom Institut}"`) sans aucun débit.
+- Interface Abonnement Cliente (`src/components/kene/client/PlanScreen.tsx`) :
+  - Badge distinctif *« 🌸 Avantage Collaboratrice (Offert) »*.
+  - Carte informative dédiée détaillant la gratuité de l'accès au titre du partenariat institut.
+  - Masquage des formulaires de paiement et boutons de renouvellement Mobile Money au profit de la mention *« Avantage collaboratrice actif · Zéro prélèvement »*.
+- Validation & Déploiement :
+  - Compilation Next.js locale sans avertissement, commit `fb14c8b` poussé sur `origin/main`.
+  - Re-déploiement Docker sur le serveur VPS Hetzner (`2.29.53.176`).
+  - Vérification de l'endpoint `/api/health` ➔ `200 OK`.
