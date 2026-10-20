@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError, notify } from "@/lib/kene/server";
+import { jsonError, serverError, notify, resolveUserProContext, phoneSuffix } from "@/lib/kene/server";
 import { setSessionCookie, sanitizeUser } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, LOGIN_PIN } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
@@ -96,8 +96,19 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
 
   // Si le compte n'existe pas encore, on le crée à la volée avec le code PIN saisi
   if (!user) {
-    const ownerTenantByPhone = await db.tenant.findFirst({ where: { ownerPhone: phone } });
-    const initialRole = ownerTenantByPhone || mode === "pro" ? "pro" : "client";
+    const pSuffix = phoneSuffix(phone);
+    const allTenants = await db.tenant.findMany({ select: { id: true, ownerPhone: true } });
+    const ownerTenantByPhone =
+      allTenants.find((t) => t.ownerPhone === phone || (pSuffix.length >= 8 && phoneSuffix(t.ownerPhone) === pSuffix)) ?? null;
+
+    if (mode === "pro" && !ownerTenantByPhone) {
+      return jsonError(
+        "Aucun compte gérante ou collaboratrice n'est rattaché à ce numéro dans l'institut. Vérifie le numéro enregistré sur ta fiche Équipe.",
+        403
+      );
+    }
+
+    const initialRole = ownerTenantByPhone ? "pro" : "client";
     user = await db.user.create({
       data: {
         phone,
@@ -211,24 +222,35 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
     );
   }
 
-  // Vérification établissement (compte pro ou employée)
-  let ownerTenant = await db.tenant.findFirst({ where: { ownerPhone: user.phone } });
-  const employeeLink = await db.employee.findFirst({
-    where: { userId: user.id, active: true },
-    include: { tenant: { select: { id: true, name: true, active: true, suspendedReason: true } } },
-  });
+  // Vérification stricte de l'établissement (propriétaire officielle vs employée)
+  const proCtx = await resolveUserProContext(user);
+  let ownerTenant = proCtx.ownerTenant;
+  const employeeLink = proCtx.employeeLink;
+  const employeeRole = proCtx.employeeRole;
+  const employeePermissions = proCtx.employeePermissions;
 
-  // Si l'utilisateur se connecte explicitement via la porte "Espace Entreprise" (mode === "pro")
-  // ou s'il est propriétaire/employé d'un institut, on s'assure qu'il a l'accès Pro et un institut rattaché
-  if ((mode === "pro" || ownerTenant || employeeLink) && user.role !== "pro" && user.role !== "admin") {
+  // Seuls le propriétaire officiel (ownerPhone) et les employées actives ont le rôle "pro"
+  if ((ownerTenant || employeeLink) && user.role !== "pro" && user.role !== "admin") {
     user = await db.user.update({ where: { id: user.id }, data: { role: "pro" } });
+  } else if (!ownerTenant && !employeeLink && user.role === "pro") {
+    // Ancien compte pro non rattaché (ex. ancienne gérante remplacée ou numéro non lié) -> retour au rôle client
+    user = await db.user.update({ where: { id: user.id }, data: { role: "client" } });
   }
 
-  if (!ownerTenant && !employeeLink && (user.role === "pro" || user.role === "admin" || mode === "pro")) {
-    ownerTenant = await db.tenant.findFirst({
+  if (mode === "pro" && !ownerTenant && !employeeLink && user.role !== "admin") {
+    return jsonError(
+      "Aucun compte gérante ou collaboratrice n'est rattaché à ce numéro dans l'institut. Utilise le numéro enregistré sur ta fiche Équipe.",
+      403
+    );
+  }
+
+  if (!ownerTenant && !employeeLink && user.role === "admin") {
+    const firstActive = await db.tenant.findFirst({
       where: { active: true },
       orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, phone: true, city: true, country: true, plan: true },
     });
+    if (firstActive) ownerTenant = firstActive;
   }
 
   const employerTenant = ownerTenant ?? (employeeLink ? employeeLink.tenant : null);
@@ -260,22 +282,11 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
     });
   }
 
-  const employeePermissions = employeeLink?.permissions
-    ? (() => {
-        try {
-          const arr = JSON.parse(employeeLink.permissions);
-          return Array.isArray(arr) ? arr : null;
-        } catch {
-          return null;
-        }
-      })()
-    : null;
-
   const response = NextResponse.json({
     ok: true,
     user: {
       ...sanitizeUser(user),
-      employeeRole: employeeLink ? employeeLink.role : null,
+      employeeRole,
       employeePermissions,
     },
     tenant: ownerTenant
@@ -283,7 +294,7 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
       : employeeLink
         ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name }
         : null,
-    employeeRole: employeeLink ? employeeLink.role : null,
+    employeeRole,
     employeePermissions,
   });
 

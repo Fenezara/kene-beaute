@@ -54,11 +54,12 @@ export default function Page() {
   // Déclenchement immédiat de la réhydratation du store dès le premier montage React
   useEffect(() => {
     setMounted(true);
-    useKene.setState({ _keneHydrated: true });
     if (!useKene.persist.hasHydrated()) {
       void Promise.resolve(useKene.persist.rehydrate()).finally(() => {
         useKene.setState({ _keneHydrated: true });
       });
+    } else {
+      useKene.setState({ _keneHydrated: true });
     }
 
     // Filet de sécurité anti-blocage : après 250ms max, libérer immédiatement l'interface

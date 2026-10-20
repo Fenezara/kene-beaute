@@ -10,7 +10,7 @@
 // (annuaire, boutique, fiche cliente) — upload local redimensionné.
 import { useEffect, useRef, useSyncExternalStore, useState } from "react";
 import { useTheme } from "next-themes";
-import { Building2, Camera, Check, ChevronRight, CreditCard, Crown, ImageOff, KeyRound, Languages, Loader2, Lock, LogOut, MapPin, Moon, Phone, Receipt, Sparkles, SunMedium } from "lucide-react";
+import { Building2, Camera, Check, ChevronRight, CreditCard, Crown, ImageOff, KeyRound, Languages, Loader2, Lock, LogOut, MapPin, Moon, Phone, Receipt, ShieldCheck, Sparkles, SunMedium } from "lucide-react";
 import { DuafeIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
@@ -26,6 +26,7 @@ import { InitialAvatar, SectionHeader } from "./ui-bits";
 import type { ProSectionId } from "./ProApp";
 import { Switch } from "@/components/ui/switch";
 import { getTenantPosSettings, saveTenantPosSettings, type TenantPosSettings } from "@/lib/kene/tenant-settings";
+import { formatRole } from "@/lib/kene/hr-constants";
 
 /* Porte d'hydratation: false pendant le rendu serveur + l'hydratation, true
  * ensuite — l'état actif Clair/Sombre ne s'affiche qu'une fois le thème
@@ -235,13 +236,15 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         }
       />
 
-      {/* Compte — gérante de session + institut actif */}
+      {/* Compte — gérante de session / collaboratrice + institut actif */}
       <div className="k-card rounded-[20px] p-4">
         <div className="flex items-center gap-3.5">
           <InitialAvatar name={managerName} className="size-12 text-[13px]" />
           <div className="min-w-0 flex-1">
             <p className="font-heading text-[15px] font-bold truncate">{managerName}</p>
-            <Eyebrow className="mt-0.5">Fondatrice / Gérante</Eyebrow>
+            <Eyebrow className="mt-0.5">
+              {isOwner ? "Fondatrice / Gérante" : (sessionUser?.employeeRole ? formatRole(sessionUser.employeeRole) : "Collaboratrice")}
+            </Eyebrow>
           </div>
         </div>
         <div className="mt-3.5 grid gap-2 sm:grid-cols-2">
@@ -250,16 +253,20 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
               <Phone size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
               <div className="min-w-0">
                 <span className="truncate font-mono font-medium text-foreground block">{managerPhone}</span>
-                <span className="text-[10px] text-muted-foreground block -mt-0.5">Connexion gérante (privé &amp; confidentiel)</span>
+                <span className="text-[10px] text-muted-foreground block -mt-0.5">
+                  {isOwner ? "Connexion gérante (privé & confidentiel)" : "Ligne collaboratrice"}
+                </span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setChangePhoneOpen(true)}
-              className="text-[11px] font-bold text-primary hover:underline shrink-0"
-            >
-              Changer
-            </button>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => setChangePhoneOpen(true)}
+                className="text-[11px] font-bold text-primary hover:underline shrink-0"
+              >
+                Changer
+              </button>
+            )}
           </div>
           <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 min-h-10 text-xs text-muted-foreground gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -281,171 +288,208 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         </div>
       </div>
 
-      {/* Coordonnées publiques de l'établissement (WhatsApp officiel et adresse de l'institut) */}
-      <div className="k-card rounded-[20px] p-4 space-y-3">
-        <div className="flex items-center gap-3">
-          <IconBadge icon={<Phone size={18} />} tone="gold" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-bold text-foreground">Coordonnées publiques de l&apos;institut</p>
-              <span className="inline-flex items-center rounded-full bg-success/15 text-success px-2 py-0.5 text-[10px] font-bold">
-                WhatsApp &amp; Accueil
-              </span>
+      {/* Mes attributions & accès (visible pour les collaboratrices / non-gérante) */}
+      {!isOwner && (
+        <div className="k-card rounded-[20px] p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <IconBadge icon={<ShieldCheck size={18} />} tone="gold" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-foreground">Mes attributions &amp; modules autorisés</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                Fonctionnalités débloquées pour votre profil par la direction de l&apos;institut.
+              </p>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-              Ces coordonnées sont transmises à votre clientèle pour vous contacter directement et se rendre en institut. Elles sont indépendantes de votre compte privé de gérante (aucun conflit d&apos;unicité).
-            </p>
           </div>
-        </div>
-
-        <div className="space-y-3 pt-1">
-          <div>
-            <label className="text-[11px] font-bold text-foreground block mb-1">
-              Numéro WhatsApp officiel de l&apos;institut (Standard clientèle)
-            </label>
-            <input
-              type="tel"
-              value={salonPhone}
-              onChange={(e) => setSalonPhone(e.target.value)}
-              placeholder="Ex : +225 07 00 00 00 00 ou +221 77 000 00 00"
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary"
-            />
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Alimente le bouton d&apos;échange WhatsApp et les rappels de rendez-vous de l&apos;établissement.
-            </p>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold text-foreground block mb-1">
-              Adresse physique &amp; quartier de l&apos;institut
-            </label>
-            <input
-              type="text"
-              value={salonAddress}
-              onChange={(e) => setSalonAddress(e.target.value)}
-              placeholder="Ex : Rue des Jardins, Cocody Deux Plateaux Vallon, Abidjan"
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary"
-            />
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Affichée sur les confirmations de RDV et le plan d&apos;accès de vos clientes.
-            </p>
-          </div>
-
-          <div className="flex justify-end pt-1">
-            <button
-              type="button"
-              onClick={handleSaveCoords}
-              disabled={coordsBusy}
-              className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 shadow-sm"
-            >
-              {coordsBusy ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
-              Enregistrer les coordonnées
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Identité visuelle — photo de vitrine de l'institut */}
-      <div className="k-card rounded-[20px] p-4">
-        <div className="flex items-center gap-3">
-          <IconBadge icon={<Camera size={18} />} tone="gold" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold">Photo de l&apos;institut</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-              Façade, enseigne ou intérieur — elle devient la vitrine de {tenantName} dans l&apos;annuaire et la boutique.
-            </p>
-          </div>
-        </div>
-        <div className="mt-3 flex items-center gap-3">
-          <div className="h-20 w-32 shrink-0 overflow-hidden rounded-[14px] border border-border bg-muted">
-            {(photoPreview || currentImage || hasPhoto) ? (
-              <img
-                src={photoPreview ?? currentImage ?? `/api/media/tenant/${tenantId}`}
-                alt={`Vitrine de ${tenantName}`}
-                className="size-full object-cover"
-              />
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {sessionUser?.employeePermissions && sessionUser.employeePermissions.length > 0 ? (
+              sessionUser.employeePermissions.map((permId) => (
+                <span
+                  key={permId}
+                  className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-xl bg-primary/10 text-primary border border-primary/20 font-medium"
+                >
+                  <span>✨</span>
+                  <span className="capitalize">{permId}</span>
+                </span>
+              ))
             ) : (
-              <span className="grid size-full place-items-center text-muted-foreground">
-                <Building2 size={22} aria-hidden="true" />
+              <span className="text-xs text-muted-foreground italic">
+                Modules attribués selon votre rôle ({sessionUser?.employeeRole ? formatRole(sessionUser.employeeRole) : "standard"}).
               </span>
             )}
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => photoInput.current?.click()}
-              disabled={photoBusy}
-              className="h-11 rounded-[14px] border border-border bg-card px-3 text-xs font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60"
-            >
-              {photoBusy ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} aria-hidden="true" />}
-              {hasPhoto ? "Changer la photo" : "Ajouter une photo"}
-            </button>
-            {hasPhoto && (
-              <button
-                type="button"
-                onClick={() => void removeVitrine()}
-                disabled={photoBusy}
-                className="h-10 rounded-[14px] px-3 text-xs font-semibold text-muted-foreground inline-flex items-center justify-center gap-2 hover:text-destructive active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive disabled:opacity-60"
-              >
-                <ImageOff size={14} aria-hidden="true" /> Retirer (visuel par défaut)
-              </button>
-            )}
-            <input
-              ref={photoInput}
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={(e) => {
-                void uploadVitrine(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Présentation de l'établissement — description visible côté cliente */}
-      <div className="k-card rounded-[20px] p-4 space-y-3">
-        <div className="flex items-center gap-3">
-          <IconBadge icon={<Sparkles size={18} />} tone="gold" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-bold text-foreground">Présentation &amp; Savoir-faire</p>
-              <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold">
-                Visible côté client
-              </span>
+      {/* Paramètres réservés à la fondatrice / gérante */}
+      {isOwner && (
+        <>
+          {/* Coordonnées publiques de l'établissement (WhatsApp officiel et adresse de l'institut) */}
+          <div className="k-card rounded-[20px] p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <IconBadge icon={<Phone size={18} />} tone="gold" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-bold text-foreground">Coordonnées publiques de l&apos;institut</p>
+                  <span className="inline-flex items-center rounded-full bg-success/15 text-success px-2 py-0.5 text-[10px] font-bold">
+                    WhatsApp &amp; Accueil
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                  Ces coordonnées sont transmises à votre clientèle pour vous contacter directement et se rendre en institut. Elles sont indépendantes de votre compte privé de gérante (aucun conflit d&apos;unicité).
+                </p>
+              </div>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-              Décrivez l&apos;histoire, les rituels signature et l&apos;expertise de {tenantName}. Vos clientes la découvriront lors de la réservation.
-            </p>
-          </div>
-        </div>
 
-        <div className="space-y-2 pt-1">
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={600}
-            rows={4}
-            placeholder="Ex : Institut dermo-cosmétique de référence à Cocody. Rituels éclat anti-taches, gommages régénérants au beurre de karité brut de Korhogo, bilans de peau haute précision..."
-            className="w-full rounded-xl border border-border bg-background p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary resize-none"
-          />
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] text-muted-foreground">
-              {description.length} / 600 caractères
-            </span>
-            <button
-              type="button"
-              onClick={handleSaveDescription}
-              disabled={descBusy}
-              className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 shadow-sm"
-            >
-              {descBusy ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
-              Enregistrer la présentation
-            </button>
+            <div className="space-y-3 pt-1">
+              <div>
+                <label className="text-[11px] font-bold text-foreground block mb-1">
+                  Numéro WhatsApp officiel de l&apos;institut (Standard clientèle)
+                </label>
+                <input
+                  type="tel"
+                  value={salonPhone}
+                  onChange={(e) => setSalonPhone(e.target.value)}
+                  placeholder="Ex : +225 07 00 00 00 00 ou +221 77 000 00 00"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Alimente le bouton d&apos;échange WhatsApp et les rappels de rendez-vous de l&apos;établissement.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-foreground block mb-1">
+                  Adresse physique &amp; quartier de l&apos;institut
+                </label>
+                <input
+                  type="text"
+                  value={salonAddress}
+                  onChange={(e) => setSalonAddress(e.target.value)}
+                  placeholder="Ex : Rue des Jardins, Cocody Deux Plateaux Vallon, Abidjan"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Affichée sur les confirmations de RDV et le plan d&apos;accès de vos clientes.
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={handleSaveCoords}
+                  disabled={coordsBusy}
+                  className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 shadow-sm"
+                >
+                  {coordsBusy ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
+                  Enregistrer les coordonnées
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+
+          {/* Identité visuelle — photo de vitrine de l'institut */}
+          <div className="k-card rounded-[20px] p-4">
+            <div className="flex items-center gap-3">
+              <IconBadge icon={<Camera size={18} />} tone="gold" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold">Photo de l&apos;institut</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                  Façade, enseigne ou intérieur — elle devient la vitrine de {tenantName} dans l&apos;annuaire et la boutique.
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="h-20 w-32 shrink-0 overflow-hidden rounded-[14px] border border-border bg-muted">
+                {(photoPreview || currentImage || hasPhoto) ? (
+                  <img
+                    src={photoPreview ?? currentImage ?? `/api/media/tenant/${tenantId}`}
+                    alt={`Vitrine de ${tenantName}`}
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <span className="grid size-full place-items-center text-muted-foreground">
+                    <Building2 size={22} aria-hidden="true" />
+                  </span>
+                )}
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => photoInput.current?.click()}
+                  disabled={photoBusy}
+                  className="h-11 rounded-[14px] border border-border bg-card px-3 text-xs font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60"
+                >
+                  {photoBusy ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} aria-hidden="true" />}
+                  {hasPhoto ? "Changer la photo" : "Ajouter une photo"}
+                </button>
+                {hasPhoto && (
+                  <button
+                    type="button"
+                    onClick={() => void removeVitrine()}
+                    disabled={photoBusy}
+                    className="h-10 rounded-[14px] px-3 text-xs font-semibold text-muted-foreground inline-flex items-center justify-center gap-2 hover:text-destructive active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive disabled:opacity-60"
+                  >
+                    <ImageOff size={14} aria-hidden="true" /> Retirer (visuel par défaut)
+                  </button>
+                )}
+                <input
+                  ref={photoInput}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => {
+                    void uploadVitrine(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Présentation de l'établissement — description visible côté cliente */}
+          <div className="k-card rounded-[20px] p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <IconBadge icon={<Sparkles size={18} />} tone="gold" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-bold text-foreground">Présentation &amp; Savoir-faire</p>
+                  <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold">
+                    Visible côté client
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                  Décrivez l&apos;histoire, les rituels signature et l&apos;expertise de {tenantName}. Vos clientes la découvriront lors de la réservation.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={600}
+                rows={4}
+                placeholder="Ex : Institut dermo-cosmétique de référence à Cocody. Rituels éclat anti-taches, gommages régénérants au beurre de karité brut de Korhogo, bilans de peau haute précision..."
+                className="w-full rounded-xl border border-border bg-background p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary resize-none"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] text-muted-foreground">
+                  {description.length} / 600 caractères
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSaveDescription}
+                  disabled={descBusy}
+                  className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 shadow-sm"
+                >
+                  {descBusy ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
+                  Enregistrer la présentation
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Affichage — Clair/Sombre (mêmes boutons que l'app cliente, cohérence) */}
       <div className="k-card rounded-[20px] p-4">
@@ -598,21 +642,22 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         </div>
       </div>
 
-      {/* Abonnement & facturation — lien vers la section dédiée
- (même pattern de navigation que les autres sections). */}
-      <div className="k-card rounded-[20px] p-2">
-        <button
-          onClick={() => onNavigate?.("abonnement")}
-          className="w-full flex items-center gap-3 rounded-[14px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
-        >
-          <IconBadge icon={<Crown size={18} />} tone="gold" />
-          <span className="flex-1 min-w-0">
-            <span className="block text-xs font-bold">Abonnement &amp; facturation</span>
-            <span className="block text-[11px] text-muted-foreground mt-0.5">Offres Essentiel / Complexe · facturation certifiée</span>
-          </span>
-          <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
-        </button>
-      </div>
+      {/* Abonnement & facturation — réservé à la direction / gérante */}
+      {isOwner && (
+        <div className="k-card rounded-[20px] p-2">
+          <button
+            onClick={() => onNavigate?.("abonnement")}
+            className="w-full flex items-center gap-3 rounded-[14px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            <IconBadge icon={<Crown size={18} />} tone="gold" />
+            <span className="flex-1 min-w-0">
+              <span className="block text-xs font-bold">Abonnement &amp; facturation</span>
+              <span className="block text-[11px] text-muted-foreground mt-0.5">Offres Essentiel / Complexe · facturation certifiée</span>
+            </span>
+            <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
       {/* Espace Beauté personnel (bilan dermo-biométrique, Dermo Kènè & soins) */}
       <div className="k-card rounded-[20px] p-4 bg-gradient-to-br from-primary/5 via-card to-gold/5 border border-primary/20">

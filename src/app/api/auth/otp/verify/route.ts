@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError, genRef, notify } from "@/lib/kene/server";
+import { jsonError, serverError, genRef, notify, resolveUserProContext, phoneSuffix } from "@/lib/kene/server";
 import { setSessionCookie, sanitizeUser } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, OTP_VERIFY } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
@@ -149,20 +149,13 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   await db.otpCode.update({ where: { id: otp.id }, data: { used: true } });
 
   // Le téléphone d'une propriétaire d'institut → rôle pro
-  const ownerTenant = await db.tenant.findFirst({ where: { ownerPhone: phone } });
+  const pSuffix = phoneSuffix(phone);
+  const allTenants = await db.tenant.findMany({ select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true } });
+  const ownerTenantByPhone =
+    allTenants.find((t) => t.ownerPhone === phone || (pSuffix.length >= 8 && phoneSuffix(t.ownerPhone) === pSuffix)) ?? null;
 
   let user = await db.user.findUnique({ where: { phone } });
 
-  // ── t. 130 — Séparation des portes (AVANT toute création de session) ──
-  // Le rôle auquel aboutira cette connexion est déjà déterminable: un
-  // compte EXISTANT garde son rôle; un NOUVEAU compte (user null) ne peut
-  // JAMAIS être admin — le compte console est seedé, pas inscrit au fil de
-  // l'eau. D'où: willBeAdmin = le compte existant est admin, point.
-  // 1) CONTEXTE CONSOLE: seule la fondatrice (rôle admin) y entre — une
-  //    cliente/gérante qui tape son numéro sur le lien console reçoit un
-  //    refus clair (pas de fuite: elle vient de valider un code reçu par SMS).
-  // 2) CONTEXTE APP (défaut): un numéro admin y est refusé avec le guidage
-  //    vers le lien dédié — la console ne s'ouvre plus depuis la vitrine.
   const willBeAdmin = (user?.role ?? "client") === "admin";
   if (data.context === "console") {
     if (!willBeAdmin) {
@@ -171,22 +164,12 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
     }
   }
 
-  // — EMPLOYÉE de l'app (compte créé par sa gérante via l'embauche):
-  // sa fiche Employee liée donne l'institut de son EMPLOYEUR + son poste.
-  const employeeLink = user
-    ? await db.employee.findFirst({
-        where: { userId: user.id, active: true },
-        // t. 128 — active/suspendedReason servis à la garde modération
-        // ci-dessous; la réponse JSON finale n'embarque QUE id/name.
-        include: { tenant: { select: { id: true, name: true, active: true, suspendedReason: true } } },
-      })
-    : null;
   if (!user) {
     user = await db.user.create({
       data: {
         phone,
         name: name || "Nouvelle cliente",
-        role: ownerTenant || employeeLink ? "pro" : "client",
+        role: ownerTenantByPhone ? "pro" : "client",
         referralCode: genRef("KENE"),
         pinHash: pin ? hashPin(pin) : null,
       },
@@ -194,15 +177,25 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
     if (user.role === "client") {
       await grantClientWelcomeTrial(user.id).catch(() => null);
     } else if (user.role === "pro") {
-      await grantProWelcomeTrial(user.id, ownerTenant?.id).catch(() => null);
+      await grantProWelcomeTrial(user.id, ownerTenantByPhone?.id).catch(() => null);
     }
-  } else {
+  }
+
+  const proCtx = await resolveUserProContext(user);
+  const ownerTenant = proCtx.ownerTenant;
+  const employeeLink = proCtx.employeeLink;
+  const employeeRole = proCtx.employeeRole;
+  const employeePermissions = proCtx.employeePermissions;
+
+  {
     const updateData: { name?: string; role?: string; pinHash?: string; pinFails?: number; pinLockedUntil?: null } = {};
     if (name && (!user.name || user.name === "Nouvelle cliente")) {
       updateData.name = name;
     }
     if ((ownerTenant || employeeLink) && user.role !== "pro" && user.role !== "admin") {
       updateData.role = "pro";
+    } else if (!ownerTenant && !employeeLink && user.role === "pro") {
+      updateData.role = "client";
     }
     if (pin) {
       updateData.pinHash = hashPin(pin);
@@ -214,11 +207,6 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
     }
   }
 
-  // ── t. 128 — Modération Console Kènè (AVANT de poser le cookie) ──
-  // 1) Compte VERROUILLÉ manuellement: connexion refusée, motif montré.
-  //    (un compte créé au fil de l'eau ne peut pas être verrouillé: lockedAt
-  //    n'existe que posé par la console — le if couvre donc les comptes
-  //    existants uniquement, jamais une inscription fraîche.)
   if (user.lockedAt) {
     void audit({
       kind: "login_locked",
@@ -234,9 +222,7 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
       403,
     );
   }
-  // 2) Compte PRO d'un institut SUSPENDU (gérante ou employée): connexion
-  //    refusée jusqu'à réactivation — une suspension ferme l'opération.
-  //    L'admin, elle, n'est jamais concernée (aucun institut lui appartient).
+
   const employerTenant = ownerTenant ?? (employeeLink ? employeeLink.tenant : null);
   if (employerTenant && !employerTenant.active) {
     void audit({
@@ -254,9 +240,6 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
 
   void audit({ kind: "login_success", phone, userId: user.id, ip });
 
-  // t. 130 — Alerte de connexion console: chaque session admin ouverte est
-  // notifiée sur le compte console (date + IP) — une connexion inattendue
-  // est visible immédiatement, comme une alerte bancaire.
   if (user.role === "admin") {
     const when = new Date().toLocaleString("fr-FR", {
       day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
@@ -269,30 +252,10 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
     });
   }
 
-  // Session signée: cookie httpOnly 90 j posé à la connexion —
-  // le payload JSON reste STRICTEMENT identique (zéro casse SessionKeeper).
-  // — incident « La Dermo ne passe pas »: la réponse embarque
-  // `tenant { id, name }` pour une gérante (l'onboarding entre DIRECTEMENT
-  // dans son espace avec le bon institut — plus de « premier tenant de la
-  // base » sur le dashboard d'une autre). Additif: les fronts qui l'ignorent
-  // ne changent pas de comportement.
-  // — une EMPLOYÉE reçoit l'institut de son employeur + son poste
-  // (`employeeRole`): le front ouvre l'espace Pro filtré sur ses sections.
-  const employeePermissions = employeeLink?.permissions
-    ? (() => {
-        try {
-          const arr = JSON.parse(employeeLink.permissions);
-          return Array.isArray(arr) ? arr : null;
-        } catch {
-          return null;
-        }
-      })()
-    : null;
-
   const response = NextResponse.json({
     user: {
       ...sanitizeUser(user),
-      employeeRole: employeeLink ? employeeLink.role : null,
+      employeeRole,
       employeePermissions,
     },
     hasPin: Boolean(user.pinHash),
@@ -301,7 +264,7 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
       : employeeLink
         ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name }
         : null,
-    employeeRole: employeeLink ? employeeLink.role : null,
+    employeeRole,
     employeePermissions,
   });
   setSessionCookie(response, user);

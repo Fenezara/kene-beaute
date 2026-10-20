@@ -45,26 +45,24 @@ export function SessionKeeper() {
     else checkedCookieRef.current = true;
 
     let cancelled = false;
-    apiGet<unknown>(userId ? `/api/auth/session?userId=${userId}` : "/api/auth/session")
+    // Lire l'id courant depuis le store au cas où la réhydratation vient tout juste de se terminer
+    const effectiveUserId = userId || useKene.getState().user?.id;
+    apiGet<unknown>(effectiveUserId ? `/api/auth/session?userId=${encodeURIComponent(effectiveUserId)}` : "/api/auth/session")
       .then((payload) => {
         if (cancelled) return;
         const s = readSession(payload);
         // 200: profil frais si la réponse est lisible; sinon on garde la
         // session locale (ne jamais déconnecter sur une réponse inattendue).
         if (s.user) {
-          setUser({ ...s.user, employeeRole: s.employeeRole, tenantId: s.tenantId } as SessionUser);
-          // — incident « La Dermo ne passe pas »: GUÉRISON au boot du
-          // proTenantId persisté. L'ancien bug faisait persister l'id du
-          // « premier institut de la base » (Éclat d'Abidjan) chez une gérante
-          // reconnectée sans son id — la session serveur dit aujourd'hui
-          // VÉRITÉ (son institut à elle): on ré-aligne le store AVANT que
-          // ProApp ne charge, plus aucun aller-retour 404→auto-guérison.
+          setUser({
+            ...s.user,
+            employeeRole: s.employeeRole,
+            employeePermissions: s.employeePermissions,
+            tenantId: s.tenantId,
+          } as SessionUser);
           if (s.user.role === "pro" && s.tenantId) {
             setProTenantId(s.tenantId);
           }
-          // Mémoire de reconnexion: rafraîchie depuis la base —
-          // cookie 90 j = « rester connectée », la carte « Contente de te
-          // revoir » des Portes garde ainsi prénom/rôle à jour.
           rememberAccount({
             phone: s.user.phone,
             name: s.user.name,
@@ -74,13 +72,16 @@ export function SessionKeeper() {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        if (e instanceof ApiError && (e.status === 404 || e.status === 401)) {
+        // Ne déconnecter QUE si un compte précis a été vérifié (effectiveUserId) ET que le serveur
+        // confirme explicitement qu'il n'existe plus ou est verrouillé en base (404).
+        // Une erreur 401 sur un check sans cookie ou transitoire ne doit JAMAIS déconnecter un utilisateur déjà connecté.
+        if (effectiveUserId && e instanceof ApiError && e.status === 404) {
           clearCart();
           setUser(null);
           setSpace("client");
           toast.error("Session expirée — reconnecte-toi");
         }
-        // 502/503/504/réseau: silencieux — la session locale reste valable.
+        // 401/502/503/504/réseau: silencieux — la session locale reste valable.
       });
     return () => {
       cancelled = true;

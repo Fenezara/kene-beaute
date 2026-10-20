@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError } from "@/lib/kene/server";
+import { jsonError, serverError, resolveUserProContext, phoneSuffix } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { maskPhone } from "@/lib/kene/audit";
@@ -101,39 +101,37 @@ async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
   const { user, normalizedPhone: phone } = await findUserFlexible(data.phone);
 
   if (!user) {
-    const ownerTenant = await db.tenant.findFirst({
-      where: { ownerPhone: phone, active: true },
-      select: { id: true, name: true },
-    });
+    const pSuffix = phoneSuffix(phone);
+    const allTenants = await db.tenant.findMany({ where: { active: true }, select: { id: true, name: true, ownerPhone: true } });
+    const ownerTenant =
+      allTenants.find((t) => t.ownerPhone === phone || (pSuffix.length >= 8 && phoneSuffix(t.ownerPhone) === pSuffix)) ?? null;
     return NextResponse.json({
       ok: true,
       exists: false,
       hasPin: true,
       needsPinSetup: true,
       role: ownerTenant ? "pro" : "client",
-      tenant: ownerTenant ?? null,
+      tenant: ownerTenant ? { id: ownerTenant.id, name: ownerTenant.name } : null,
       maskedPhone: maskPhone(phone),
     });
   }
 
-  // Vérifier si ce compte est une employée active d'un institut
-  const employeeLink = await db.employee.findFirst({
-    where: { userId: user.id, active: true },
-    include: { tenant: { select: { id: true, name: true, active: true } } },
-  });
+  const proCtx = await resolveUserProContext(user);
+  const employeeLink = proCtx.employeeLink;
+  const ownerTenant = proCtx.ownerTenant;
+  const employeeRole = proCtx.employeeRole;
+  const employeePermissions = proCtx.employeePermissions;
 
-  const ownerTenant = await db.tenant.findFirst({
-    where: { ownerPhone: user.phone, active: true },
-    select: { id: true, name: true },
-  });
-
-  // Auto-promotion en rôle 'pro' si rattaché à une fiche employée
-  if (employeeLink && user.role !== "pro" && user.role !== "admin") {
+  // Auto-promotion en rôle 'pro' si rattaché à une fiche employée ou propriétaire
+  if ((employeeLink || ownerTenant) && user.role !== "pro" && user.role !== "admin") {
     await db.user.update({ where: { id: user.id }, data: { role: "pro" } });
     user.role = "pro";
+  } else if (!employeeLink && !ownerTenant && user.role === "pro") {
+    await db.user.update({ where: { id: user.id }, data: { role: "client" } });
+    user.role = "client";
   }
 
-  const effectiveRole = user.role === "admin" ? "admin" : (ownerTenant || employeeLink || user.role === "pro") ? "pro" : "client";
+  const effectiveRole = user.role === "admin" ? "admin" : (ownerTenant || employeeLink) ? "pro" : "client";
 
   // Vérifier si le compte est temporairement bloqué suite à des erreurs de PIN
   const isPinLocked = Boolean(user.pinLockedUntil && user.pinLockedUntil > new Date());
@@ -148,18 +146,9 @@ async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
     name: user.name && user.name !== "Nouvelle cliente" ? user.name : undefined,
     role: effectiveRole,
     isEmployee: Boolean(employeeLink),
-    employeeRole: employeeLink?.role ?? null,
-    employeePermissions: employeeLink?.permissions
-      ? (() => {
-          try {
-            const arr = JSON.parse(employeeLink.permissions);
-            return Array.isArray(arr) ? arr : null;
-          } catch {
-            return null;
-          }
-        })()
-      : null,
-    tenant: ownerTenant ?? (employeeLink?.tenant ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name } : null),
+    employeeRole,
+    employeePermissions,
+    tenant: ownerTenant ? { id: ownerTenant.id, name: ownerTenant.name } : (employeeLink?.tenant ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name } : null),
     maskedPhone: maskPhone(user.phone),
   });
 }

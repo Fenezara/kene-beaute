@@ -123,21 +123,23 @@ export function PinEntry() {
         user: ApiUser;
         tenant: { id: string; name: string } | null;
         employeeRole?: string | null;
+        employeePermissions?: string[] | null;
       }>("/api/auth/login", { phone, pin, mode, ...createHumanPayload() });
 
-      const isPro = mode === "pro" || res.user.role === "pro" || Boolean(res.employeeRole) || Boolean(res.tenant?.id);
+      const isPro = res.user.role === "pro" || Boolean(res.employeeRole) || Boolean(res.tenant?.id);
       const targetRole = res.user.role === "admin" ? "admin" : isPro ? "pro" : "client";
 
       rememberAccount({
         phone,
         name: res.user.name,
-        role: mode === "pro" ? "pro" : targetRole === "admin" ? "pro" : targetRole,
+        role: targetRole === "admin" ? "pro" : targetRole,
       });
 
       setUser({
         ...res.user,
         role: targetRole,
-        employeeRole: res.employeeRole ?? null,
+        employeeRole: res.employeeRole ?? res.user.employeeRole ?? null,
+        employeePermissions: res.employeePermissions ?? res.user.employeePermissions ?? null,
         tenantId: res.tenant?.id ?? undefined,
       } as SessionUser);
       if (res.tenant?.id) {

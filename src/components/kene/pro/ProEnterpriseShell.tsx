@@ -435,7 +435,48 @@ export function ProEnterpriseShell() {
     };
   }, [tid]);
 
+  // Synchronisation en temps réel des droits employés servis par le serveur
+  useEffect(() => {
+    const v = overview.data?.viewer;
+    if (v && sessionUser) {
+      const needsUpdate =
+        sessionUser.employeeRole !== v.employeeRole ||
+        JSON.stringify(sessionUser.employeePermissions ?? null) !== JSON.stringify(v.employeePermissions ?? null);
+      if (needsUpdate) {
+        useKene.getState().setUser({
+          ...sessionUser,
+          employeeRole: v.employeeRole,
+          employeePermissions: v.employeePermissions,
+        });
+      }
+    }
+  }, [overview.data?.viewer, sessionUser]);
+
+  const serverViewer = overview.data?.viewer;
+  const employeeRole = serverViewer?.employeeRole ?? sessionUser?.employeeRole ?? null;
+  const employeePermissions = serverViewer?.employeePermissions ?? sessionUser?.employeePermissions ?? null;
+  const isEmployee =
+    (serverViewer ? !serverViewer.isOwner : false) ||
+    Boolean(employeeRole) ||
+    (Array.isArray(employeePermissions) && employeePermissions.length > 0);
+
+  const allowedIds: ProSectionId[] | null = isEmployee
+    ? employeePermissions && employeePermissions.length > 0
+      ? ([...new Set([...employeePermissions, "parametres"])].filter(
+          (id) => id !== "paie" && id !== "compta"
+        ) as ProSectionId[])
+      : employeeRole
+      ? ([...new Set([...(EMPLOYEE_SECTIONS[employeeRole] ?? ["agenda", "diagnostic", "assistant"]), "parametres"])] as ProSectionId[])
+      : (["agenda", "diagnostic", "assistant", "parametres"] as ProSectionId[])
+    : null;
+
+  const isOwner = sessionUser?.role === "admin" || (serverViewer ? serverViewer.isOwner : !isEmployee);
+
   const openSection = (s: ProSectionId) => {
+    if (allowedIds && !allowedIds.includes(s) && s !== "parametres") {
+      toast.error("Module réservé", { description: "Cette section ne fait pas partie de vos attributions." });
+      return;
+    }
     if (s === "assistant") {
       try {
         unlockAudioContext();
@@ -459,11 +500,19 @@ export function ProEnterpriseShell() {
       return;
     }
     if (s === "promos") {
+      if (!isOwner && employeeRole !== "manager") {
+        toast.error("Accès réservé", { description: "Les codes promo sont réservés à la gérance." });
+        return;
+      }
       setCatalogTab("promos");
       setSection("catalogue");
       return;
     }
     if (s === "abonnement") {
+      if (!isOwner) {
+        toast.error("Accès réservé", { description: "L'abonnement de l'institut est géré par la fondatrice." });
+        return;
+      }
       setSettingsTab("subscription");
       setSection("parametres");
       return;
@@ -473,24 +522,6 @@ export function ProEnterpriseShell() {
 
   const agendaBadge = Math.max(0, (live?.pendingAppts ?? 0) - agendaSeen);
   const navBadges: Partial<Record<ProSectionId, number>> = agendaBadge > 0 ? { agenda: agendaBadge } : {};
-
-  const employeeRole = sessionUser?.employeeRole ?? null;
-  const employeePermissions = sessionUser?.employeePermissions ?? null;
-  const isEmployee =
-    Boolean(employeeRole) ||
-    (Array.isArray(employeePermissions) && employeePermissions.length > 0);
-
-  const allowedIds: ProSectionId[] | null = isEmployee
-    ? employeePermissions && employeePermissions.length > 0
-      ? ([...new Set([...employeePermissions, "parametres"])].filter(
-          (id) => id !== "paie" && id !== "compta"
-        ) as ProSectionId[])
-      : employeeRole
-      ? ([...new Set([...(EMPLOYEE_SECTIONS[employeeRole] ?? ["agenda", "diagnostic", "assistant"]), "parametres"])] as ProSectionId[])
-      : (["agenda", "diagnostic", "assistant", "parametres"] as ProSectionId[])
-    : null;
-
-  const isOwner = !isEmployee || Boolean(sessionUser?.role === "admin");
 
   const nav = allowedIds ? NAV.filter((n) => allowedIds.includes(n.id)) : NAV;
   const activeSection: ProSectionId =
@@ -552,20 +583,20 @@ export function ProEnterpriseShell() {
   };
 
   const isAdmin = sessionUser?.role === "admin";
-  const proOwner = sessionUser?.role === "pro" || isAdmin ? sessionUser : null;
+  const proOwner = isOwner ? sessionUser : null;
   const chipName =
-    proOwner?.name && proOwner.name !== "Nouvelle cliente" && proOwner.name.trim()
-      ? proOwner.name.trim()
-      : tenant?.name
-      ? tenant.name
-      : "Gérante";
+    sessionUser?.name && sessionUser.name !== "Nouvelle cliente" && sessionUser.name.trim()
+      ? sessionUser.name.trim()
+      : isOwner
+      ? tenant?.name ?? "Gérante"
+      : "Collaboratrice";
   const chipRole = isAdmin
     ? "👑 Patronne / Admin"
     : employeeRole
     ? formatRole(employeeRole)
-    : proOwner
+    : isOwner
       ? "Fondatrice / Gérante"
-      : "Gérante";
+      : "Collaboratrice";
   const chipInitials =
     chipName
       .split(/\s+/)
@@ -805,28 +836,32 @@ export function ProEnterpriseShell() {
 
           {/* ⚡ Outils Cabine Express (Mobile < md) */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-            <button
-              type="button"
-              onClick={() => {
-                haptic(HAPTIC.tap);
-                openSection("diagnostic");
-              }}
-              className="h-7.5 px-2.5 rounded-xl border border-primary/40 bg-primary/10 text-primary text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
-            >
-              <ScanFace size={13} />
-              <span>📸 Scan Cabine</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                haptic(HAPTIC.tap);
-                openSection("caisse");
-              }}
-              className="h-7.5 px-2.5 rounded-xl border border-emerald-600/40 bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
-            >
-              <AbanIcon size={13} />
-              <span>💳 Caisse POS</span>
-            </button>
+            {(!allowedIds || allowedIds.includes("diagnostic")) && (
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  openSection("diagnostic");
+                }}
+                className="h-7.5 px-2.5 rounded-xl border border-primary/40 bg-primary/10 text-primary text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
+              >
+                <ScanFace size={13} />
+                <span>📸 Scan Cabine</span>
+              </button>
+            )}
+            {(!allowedIds || allowedIds.includes("caisse")) && (
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  openSection("caisse");
+                }}
+                className="h-7.5 px-2.5 rounded-xl border border-emerald-600/40 bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
+              >
+                <AbanIcon size={13} />
+                <span>💳 Caisse POS</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -838,28 +873,32 @@ export function ProEnterpriseShell() {
               <ShieldAlert size={13} />
               <span>🧴 INCI</span>
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                haptic(HAPTIC.tap);
-                setMirrorKioskOpen(true);
-              }}
-              className="h-7.5 px-2.5 rounded-xl border border-border bg-card text-foreground text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
-            >
-              <Sparkles size={13} />
-              <span>🪞 Miroir</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                haptic(HAPTIC.tap);
-                openSection("dossiers_peau");
-              }}
-              className="h-7.5 px-2.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
-            >
-              <FolderHeart size={13} />
-              <span>Dossiers</span>
-            </button>
+            {(!allowedIds || allowedIds.includes("diagnostic")) && (
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  setMirrorKioskOpen(true);
+                }}
+                className="h-7.5 px-2.5 rounded-xl border border-border bg-card text-foreground text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
+              >
+                <Sparkles size={13} />
+                <span>🪞 Miroir</span>
+              </button>
+            )}
+            {(!allowedIds || allowedIds.includes("dossiers_peau")) && (
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  openSection("dossiers_peau");
+                }}
+                className="h-7.5 px-2.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
+              >
+                <FolderHeart size={13} />
+                <span>Dossiers</span>
+              </button>
+            )}
           </div>
 
           {/* Navigation mobile en 2 niveaux : 1. Pôles Métiers · 2. Onglets du Pôle */}
@@ -980,31 +1019,35 @@ export function ProEnterpriseShell() {
 
           {/* Actions Express Cabine */}
           <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                haptic(HAPTIC.tap);
-                openSection("diagnostic");
-              }}
-              className="h-8.5 px-3 rounded-xl border border-primary/45 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
-              title="Lancer un diagnostic de peau multi-vues en cabine"
-            >
-              <ScanFace size={13} />
-              <span>📸 Scan Cabine</span>
-            </button>
+            {(!allowedIds || allowedIds.includes("diagnostic")) && (
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  openSection("diagnostic");
+                }}
+                className="h-8.5 px-3 rounded-xl border border-primary/45 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+                title="Lancer un diagnostic de peau multi-vues en cabine"
+              >
+                <ScanFace size={13} />
+                <span>📸 Scan Cabine</span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => {
-                haptic(HAPTIC.tap);
-                openSection("caisse");
-              }}
-              className="h-8.5 px-3 rounded-xl border border-emerald-600/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
-              title="Ouvrir la caisse et enregistrer un encaissement"
-            >
-              <AbanIcon size={13} />
-              <span>💳 Encaisser POS</span>
-            </button>
+            {(!allowedIds || allowedIds.includes("caisse")) && (
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  openSection("caisse");
+                }}
+                className="h-8.5 px-3 rounded-xl border border-emerald-600/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+                title="Ouvrir la caisse et enregistrer un encaissement"
+              >
+                <AbanIcon size={13} />
+                <span>💳 Encaisser POS</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -1019,31 +1062,35 @@ export function ProEnterpriseShell() {
               <span>🧴 Scanner INCI</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                haptic(HAPTIC.tap);
-                setMirrorKioskOpen(true);
-              }}
-              className="h-8.5 px-3 rounded-xl border border-border bg-card hover:bg-accent text-foreground text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
-              title="Ouvrir le Mode Kiosque Tablette Salle d'Attente (Kènè Mirror)"
-            >
-              <Sparkles size={13} />
-              <span>🪞 Kiosque Mirror</span>
-            </button>
+            {(!allowedIds || allowedIds.includes("diagnostic")) && (
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  setMirrorKioskOpen(true);
+                }}
+                className="h-8.5 px-3 rounded-xl border border-border bg-card hover:bg-accent text-foreground text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+                title="Ouvrir le Mode Kiosque Tablette Salle d'Attente (Kènè Mirror)"
+              >
+                <Sparkles size={13} />
+                <span>🪞 Kiosque Mirror</span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => {
-                haptic(HAPTIC.tap);
-                openSection("dossiers_peau");
-              }}
-              className="h-8.5 px-3 rounded-xl border border-border/80 bg-card/80 hover:bg-accent text-muted-foreground hover:text-foreground text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
-              title="Accéder aux dossiers cutanés et historiques"
-            >
-              <FolderHeart size={13} />
-              <span>Dossiers</span>
-            </button>
+            {(!allowedIds || allowedIds.includes("dossiers_peau")) && (
+              <button
+                type="button"
+                onClick={() => {
+                  haptic(HAPTIC.tap);
+                  openSection("dossiers_peau");
+                }}
+                className="h-8.5 px-3 rounded-xl border border-border/80 bg-card/80 hover:bg-accent text-muted-foreground hover:text-foreground text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+                title="Accéder aux dossiers cutanés et historiques"
+              >
+                <FolderHeart size={13} />
+                <span>Dossiers</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -1495,23 +1542,27 @@ export function ProEnterpriseShell() {
                     <KenteIcon size={15} />
                     <span>Inventaire Stock</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setCatalogTab("promos")}
-                    className={cn(
-                      "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0",
-                      catalogTab === "promos"
-                        ? "k-btn-gold text-primary-foreground shadow-sm"
-                        : "k-chip text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <TicketPercent size={15} />
-                    <span>Codes Promo & Réductions</span>
-                  </button>
+                  {(isOwner || employeeRole === "manager") && (
+                    <button
+                      type="button"
+                      onClick={() => setCatalogTab("promos")}
+                      className={cn(
+                        "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0",
+                        catalogTab === "promos"
+                          ? "k-btn-gold text-primary-foreground shadow-sm"
+                          : "k-chip text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <TicketPercent size={15} />
+                      <span>Codes Promo & Réductions</span>
+                    </button>
+                  )}
                 </div>
                 {catalogTab === "products" && <CatalogSection tenantId={tid} />}
                 {catalogTab === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
-                {catalogTab === "promos" && <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
+                {catalogTab === "promos" && (isOwner || employeeRole === "manager") && (
+                  <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />
+                )}
               </div>
             )}
             {activeSection === "paie" && <PayrollSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} tenantName={tenant?.name ?? "Institut"} onNavigate={openSection} />}
@@ -1530,23 +1581,25 @@ export function ProEnterpriseShell() {
                     )}
                   >
                     <Settings size={15} />
-                    <span>Institut & Établissement</span>
+                    <span>{isOwner ? "Institut & Établissement" : "Mon Profil & Paramètres"}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setSettingsTab("subscription")}
-                    className={cn(
-                      "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
-                      settingsTab === "subscription"
-                        ? "k-btn-gold text-primary-foreground shadow-sm"
-                        : "k-chip text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <Crown size={15} className="text-gold" />
-                    <span>Mon Abonnement Kènè+ Pro</span>
-                  </button>
+                  {isOwner && (
+                    <button
+                      type="button"
+                      onClick={() => setSettingsTab("subscription")}
+                      className={cn(
+                        "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
+                        settingsTab === "subscription"
+                          ? "k-btn-gold text-primary-foreground shadow-sm"
+                          : "k-chip text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Crown size={15} className="text-gold" />
+                      <span>Mon Abonnement Kènè+ Pro</span>
+                    </button>
+                  )}
                 </div>
-                {settingsTab === "settings" ? (
+                {settingsTab === "settings" || !isOwner ? (
                   <SettingsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} tenantCity={tenant?.city} onNavigate={openSection} />
                 ) : (
                   <ProPlanSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />
@@ -1566,20 +1619,22 @@ export function ProEnterpriseShell() {
         }}
       />
 
-      <button
-        type="button"
-        onClick={() => {
-          try {
-            unlockAudioContext();
-          } catch {}
-          openSection("assistant");
-        }}
-        className="fixed bottom-5 right-5 z-40 h-14 w-14 rounded-full bg-gradient-to-tr from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all ring-4 ring-black/40 group"
-        aria-label="Ouvrir la Secrétaire IA de Direction"
-        title="Secrétaire IA de Direction (Débriefing 1 clic)"
-      >
-        <Crown size={26} className="group-hover:rotate-12 transition-transform" />
-      </button>
+      {(!allowedIds || allowedIds.includes("assistant")) && (
+        <button
+          type="button"
+          onClick={() => {
+            try {
+              unlockAudioContext();
+            } catch {}
+            openSection("assistant");
+          }}
+          className="fixed bottom-5 right-5 z-40 h-14 w-14 rounded-full bg-gradient-to-tr from-[#C8951E] to-[#E07A2B] text-[#16110D] shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all ring-4 ring-black/40 group cursor-pointer"
+          aria-label="Ouvrir la Secrétaire IA de Direction"
+          title="Secrétaire IA de Direction (Débriefing 1 clic)"
+        >
+          <Crown size={26} className="group-hover:rotate-12 transition-transform" />
+        </button>
+      )}
 
       {mamanAssistantOpen && (
         <MamanAssistantModal

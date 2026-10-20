@@ -19,6 +19,8 @@ export interface ApiUser {
   consentHealth?: boolean;
   consentTs?: string | null;
   hasPin?: boolean;
+  employeeRole?: string | null;
+  employeePermissions?: string[] | null;
 }
 
 export interface ApiDiagnosis {
@@ -211,6 +213,7 @@ interface ApiSessionShape {
   phone?: unknown;
   // — poste de l'employée connectée (null pour une gérante).
   employeeRole?: unknown;
+  employeePermissions?: unknown;
 }
 
 export interface ApiSession {
@@ -218,6 +221,7 @@ export interface ApiSession {
   tenantId: string | null;
   tenantName: string | null;
   employeeRole: string | null;
+  employeePermissions: string[] | null;
 }
 
 /** Lecture tolérante d'une réponse /api/auth/session: normalise
@@ -229,8 +233,21 @@ export function readSession(payload: unknown): ApiSession {
   const tenant = o.tenant && typeof o.tenant === "object" ? o.tenant : null;
   const tenantId = typeof tenant?.id === "string" ? tenant.id : typeof o.proTenantId === "string" ? o.proTenantId : null;
   const tenantName = typeof tenant?.name === "string" ? tenant.name : null;
-  const employeeRole = typeof o.employeeRole === "string" ? o.employeeRole : null;
-  return { user, tenantId, tenantName, employeeRole };
+  const employeeRole =
+    typeof o.employeeRole === "string"
+      ? o.employeeRole
+      : typeof user?.employeeRole === "string"
+        ? user.employeeRole
+        : null;
+  const rawPerms = Array.isArray(o.employeePermissions)
+    ? o.employeePermissions
+    : Array.isArray(user?.employeePermissions)
+      ? user.employeePermissions
+      : null;
+  const employeePermissions = rawPerms
+    ? rawPerms.filter((p): p is string => typeof p === "string")
+    : null;
+  return { user, tenantId, tenantName, employeeRole, employeePermissions };
 }
 
 export interface ApiWallet {

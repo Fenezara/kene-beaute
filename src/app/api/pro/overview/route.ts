@@ -1,8 +1,8 @@
 // GET /api/pro/overview?tenantId= — tableau de bord institut (KPIs, CA, agenda, stock)
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { jsonError, serverError, resolveTenant, resolveProTenants, dayStart, dayEnd, daysAgo, ddMM } from "@/lib/kene/server";
-import { guardProRole } from "@/lib/kene/session";
+import { jsonError, serverError, resolveTenant, resolveProTenants, resolveUserProContext, dayStart, dayEnd, daysAgo, ddMM } from "@/lib/kene/server";
+import { guardProRole, sessionFromRequest } from "@/lib/kene/session";
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,6 +15,30 @@ export async function GET(req: NextRequest) {
     if (!tenant) return jsonError("Institut introuvable", 404);
 
     const proTenants = await resolveProTenants(req);
+
+    // Résolution stricte des droits du collaborateur/gérant connecté
+    const sess = sessionFromRequest(req);
+    let viewer: {
+      isOwner: boolean;
+      employeeRole: string | null;
+      employeePermissions: string[] | null;
+      employeeName: string | null;
+    } | null = null;
+    if (sess?.userId) {
+      const dbUser = await db.user.findUnique({
+        where: { id: sess.userId },
+        select: { id: true, phone: true, name: true, role: true },
+      });
+      if (dbUser) {
+        const proCtx = await resolveUserProContext(dbUser);
+        viewer = {
+          isOwner: proCtx.isOwner,
+          employeeRole: proCtx.employeeRole,
+          employeePermissions: proCtx.employeePermissions,
+          employeeName: proCtx.employeeLink?.name ?? null,
+        };
+      }
+    }
 
     const now = new Date();
     const since7 = new Date(now.getTime() - 7 * 86_400_000);
@@ -113,6 +137,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       tenant,
+      viewer,
       tenants: proTenants.map((t) => ({
         id: t.id,
         name: t.name,

@@ -118,10 +118,118 @@ export async function syncTenantPlan<T extends { id: string; ownerPhone: string;
 }
 
 /** Normalisation d'un numéro pour tolérer les variations d'indicatif pays (+225, 00225, etc.) */
-function phoneSuffix(phone?: string | null): string {
+export function phoneSuffix(phone?: string | null): string {
   if (!phone) return "";
   const digits = phone.replace(/\D/g, "");
   return digits.length >= 8 ? digits.slice(-8) : digits;
+}
+
+function normalizePersonName(name?: string | null): string {
+  if (!name) return "";
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function parseEmployeePermissionsJson(raw?: string | null): string[] | null {
+  if (!raw) return null;
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string") : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Résout de manière stricte l'identité Pro d'un utilisateur (Propriétaire/Gérante vs Employée).
+ * - Un(e) employé(e) ne reçoit JAMAIS les droits de Fondatrice/Gérante.
+ * - Un compte dont le téléphone n'est pas `ownerPhone` d'un institut n'est JAMAIS considéré propriétaire.
+ */
+export async function resolveUserProContext(user: {
+  id: string;
+  phone: string;
+  name?: string | null;
+  role: string;
+}) {
+  const userSuffix = phoneSuffix(user.phone);
+  const allTenants = await db.tenant.findMany({
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, phone: true, city: true, country: true, plan: true },
+  });
+
+  // 1) Est-ce le propriétaire officiel (ownerPhone) d'un institut ?
+  const ownerTenant =
+    allTenants.find(
+      (t) =>
+        t.ownerPhone &&
+        (t.ownerPhone === user.phone || (userSuffix.length >= 8 && phoneSuffix(t.ownerPhone) === userSuffix))
+    ) ?? null;
+
+  // 2) Est-ce une employée active rattachée par userId ?
+  let employeeLink = await db.employee.findFirst({
+    where: { userId: user.id, active: true },
+    include: {
+      tenant: {
+        select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, city: true, country: true, plan: true },
+      },
+    },
+  });
+
+  // 3) Si non rattachée par userId et que ce n'est PAS la propriétaire d'un institut,
+  // vérifier si son prénom/nom correspond à une fiche employée active (ex. double compte employée).
+  if (!employeeLink && !ownerTenant && user.role !== "admin") {
+    const normUser = normalizePersonName(user.name);
+    if (normUser && normUser !== "nouvelle cliente" && normUser !== "membre kene" && normUser !== "gerante kene") {
+      const userTokens = normUser.split(" ").filter((w) => w.length >= 3);
+      const activeEmps = await db.employee.findMany({
+        where: { active: true },
+        include: {
+          tenant: {
+            select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, city: true, country: true, plan: true },
+          },
+        },
+      });
+      const matchedEmp = activeEmps.find((e) => {
+        const normEmp = normalizePersonName(e.name);
+        if (!normEmp) return false;
+        if (normEmp === normUser) return true;
+        const empTokens = normEmp.split(" ").filter((w) => w.length >= 3);
+        return empTokens.length > 0 && empTokens.every((t) => userTokens.includes(t));
+      });
+      if (matchedEmp) {
+        employeeLink = matchedEmp;
+      }
+    }
+  }
+
+  // Si la personne a une fiche employée active et n'est pas l'ownerPhone de cet institut, son statut employée prime
+  const isStrictlyOwner = Boolean(ownerTenant) && (!employeeLink || ownerTenant.ownerPhone === user.phone || phoneSuffix(ownerTenant.ownerPhone) === userSuffix);
+  const effectiveEmployee = isStrictlyOwner ? null : employeeLink;
+  const effectiveOwnerTenant = isStrictlyOwner ? ownerTenant : null;
+
+  const employeePermissions = effectiveEmployee
+    ? parseEmployeePermissionsJson(effectiveEmployee.permissions)
+    : null;
+
+  const isOwner = user.role === "admin" || Boolean(effectiveOwnerTenant);
+
+  return {
+    isOwner,
+    ownerTenant: effectiveOwnerTenant,
+    employeeLink: effectiveEmployee,
+    employeeRole: effectiveEmployee ? effectiveEmployee.role : null,
+    employeePermissions,
+    tenant: effectiveOwnerTenant
+      ? { id: effectiveOwnerTenant.id, name: effectiveOwnerTenant.name, active: effectiveOwnerTenant.active, suspendedReason: effectiveOwnerTenant.suspendedReason }
+      : effectiveEmployee
+        ? { id: effectiveEmployee.tenant.id, name: effectiveEmployee.tenant.name, active: effectiveEmployee.tenant.active, suspendedReason: effectiveEmployee.tenant.suspendedReason }
+        : null,
+  };
 }
 
 export async function resolveTenant(req: NextRequest, tenantId?: string | null) {

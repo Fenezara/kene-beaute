@@ -18,7 +18,7 @@
 // • _keneHydrated: passe à true quand la relecture est terminée (jamais
 // persisté — le partialize est une liste blanche).
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import type { CartLine } from "@/lib/kene/types";
 
 export type Space = "client" | "pro" | "admin";
@@ -152,6 +152,58 @@ function sanitizePersisted(raw: unknown): Partial<PersistedKene> {
   return out;
 }
 
+// Garde de protection contre l'écrasement accidentel de la session dans localStorage au démarrage :
+// Tant que la réhydratation n'a pas eu lieu ou qu'une déconnexion explicite (setUser(null)) n'a pas été demandée,
+// un appel précoce à setState (ex: _keneHydrated, setClientTab) ne peut JAMAIS écraser un compte sauvegardé par user: null.
+let explicitNullUserAllowed = false;
+
+const safeLocalStorage: StateStorage = {
+  getItem: (name: string): string | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage.getItem(name);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name: string, value: string): void => {
+    if (typeof window === "undefined") return;
+    try {
+      const incoming = JSON.parse(value) as { state?: Partial<PersistedKene>; version?: number };
+      const incomingUser = incoming?.state?.user;
+      if (!incomingUser && !explicitNullUserAllowed) {
+        const existingRaw = window.localStorage.getItem(name);
+        if (existingRaw) {
+          const existing = JSON.parse(existingRaw) as { state?: Partial<PersistedKene>; version?: number };
+          if (existing?.state?.user && isSavedUser(existing.state.user)) {
+            // Préserver l'utilisateur et l'espace déjà sauvegardés dans localStorage
+            const merged = {
+              ...incoming,
+              state: {
+                ...incoming.state,
+                user: existing.state.user,
+                space: existing.state.space ?? spaceForRole(existing.state.user.role),
+                proTenantId: incoming.state?.proTenantId ?? existing.state.proTenantId ?? null,
+              },
+            };
+            window.localStorage.setItem(name, JSON.stringify(merged));
+            return;
+          }
+        }
+      }
+      window.localStorage.setItem(name, value);
+    } catch {
+      // Ignorer si quota ou stockage privé bloqué
+    }
+  },
+  removeItem: (name: string): void => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.removeItem(name);
+    } catch {}
+  },
+};
+
 export const useKene = create<KeneState>()(
   persist<KeneState, [], [], Partial<PersistedKene>>(
     (set) => ({
@@ -187,7 +239,8 @@ export const useKene = create<KeneState>()(
       // setUser fait suivre l'espace au rôle (null → « client » = retour
       // onboarding; user pro/admin → ProApp/AdminApp se montent).
       // Si l'utilisateur est admin ou pro et qu'un espace autorisé est déjà actif, on respecte son choix.
-      setUser: (user) =>
+      setUser: (user) => {
+        explicitNullUserAllowed = user === null;
         set((s) => {
           const keepAdminSpace =
             user?.role === "admin" && (s.space === "client" || s.space === "pro" || s.space === "admin");
@@ -197,7 +250,8 @@ export const useKene = create<KeneState>()(
             user,
             space: keepAdminSpace || keepProSpace ? s.space : spaceForRole(user?.role),
           };
-        }),
+        });
+      },
       addToCart: (line) =>
         set((s) => {
           const existing = s.cart.find((l) => l.productId === line.productId);
@@ -220,6 +274,7 @@ export const useKene = create<KeneState>()(
     {
       name: "kene-store",
       version: 1,
+      storage: createJSONStorage(() => safeLocalStorage),
       skipHydration: true,
       // Liste blanche: seuls les comptes sauvegardés (authentifiés avec numéro vérifié) sont persistés.
       // Les sessions invitées temporaires ne sont JAMAIS stockées dans localStorage afin de toujours
@@ -251,9 +306,7 @@ export const useKene = create<KeneState>()(
   )
 );
 
-// ── Déclenchement de la relecture (une seule fois, après le premier rendu) ──
-// Le shell applicatif appelle useKene.persist.rehydrate dès son premier montage.
-// Ce filet assure la relecture au plus vite dès l'interactivité du DOM.
+// ── Déclenchement immédiat de la relecture côté client ──
 if (typeof window !== "undefined") {
   const kick = () => {
     try {
@@ -269,17 +322,7 @@ if (typeof window !== "undefined") {
     }
   };
 
-  // Déblocage immédiat de sécurité : même si le storage est indisponible ou lent,
-  // l'application ne reste jamais bloquée sur le squelette de chargement.
-  setTimeout(() => {
-    useKene.setState({ _keneHydrated: true });
-  }, 100);
-
-  if (document.readyState === "complete" || document.readyState === "interactive") {
-    queueMicrotask(kick);
-  } else {
-    document.addEventListener("DOMContentLoaded", kick, { once: true });
-    window.addEventListener("load", kick, { once: true });
-  }
+  // Exécution synchrone immédiate (localStorage est immédiatement disponible dans le navigateur)
+  kick();
 }
 

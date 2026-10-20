@@ -118,6 +118,7 @@ export function Onboarding({
     hasPin?: boolean;
     tenant: { id: string; name: string } | null;
     employeeRole?: string | null;
+    employeePermissions?: string[] | null;
   } | null>(null);
   const otpRef = useRef<HTMLInputElement>(null);
 
@@ -186,6 +187,7 @@ export function Onboarding({
     user: ApiUser;
     tenant: { id: string; name: string } | null;
     employeeRole?: string | null;
+    employeePermissions?: string[] | null;
   }) {
     // 1) Si le compte est PRO, possède un rôle employé ou est rattaché à un institut :
     // Atterrissage DIRECT dans l'espace Pro (ni questionnaire peau, ni formulaire d'inscription salon) !
@@ -195,7 +197,9 @@ export function Onboarding({
       const proUser: SessionUser = {
         ...v.user,
         role: "pro",
-        employeeRole: v.employeeRole ?? null,
+        employeeRole: v.employeeRole ?? v.user.employeeRole ?? null,
+        employeePermissions: v.employeePermissions ?? v.user.employeePermissions ?? null,
+        tenantId: v.tenant?.id ?? undefined,
       };
       rememberAccount({
         phone: `+225${digits}`,

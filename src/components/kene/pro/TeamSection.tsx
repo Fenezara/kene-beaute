@@ -3,6 +3,7 @@
 // comptes app), pointage du jour, embauche, édition de fiche et sortie.
 // La paie (exécution mensuelle, bulletins, e-CNPS) vit dans la section Paie.
 import { useMemo, useState } from "react";
+import { useKene } from "@/store/kene";
 import {
   BadgeCheck,
   Banknote,
@@ -125,6 +126,9 @@ function workingDays(startIso: string, endIso: string): number {
 }
 
 export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; defaultCountry: string }) {
+  const sessionUser = useKene((s) => s.user);
+  const isOwner = sessionUser?.role === "admin" || (sessionUser?.role === "pro" && !sessionUser?.employeeRole);
+
   const [hireOpen, setHireOpen] = useState(false);
   const [editing, setEditing] = useState<ProEmployee | null>(null);
   const [departing, setDeparting] = useState<ProEmployee | null>(null);
@@ -240,19 +244,23 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
             <Button variant="outline" onClick={() => setLeaveOpen(true)} className="gap-1.5">
               <Palmtree className="size-4" aria-hidden="true" /> Poser un congé
             </Button>
-            <Button variant="outline" onClick={() => setHireOpen(true)} className="gap-1.5">
-              <Plus className="size-4" aria-hidden="true" /> Embaucher
-            </Button>
+            {isOwner && (
+              <Button variant="outline" onClick={() => setHireOpen(true)} className="gap-1.5">
+                <Plus className="size-4" aria-hidden="true" /> Embaucher
+              </Button>
+            )}
           </div>
         }
       />
 
       {/* ── KPIs ── */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className={cn("grid grid-cols-2 gap-3", isOwner ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
         <KpiCard label="En poste" value={String(kpis.effectif)} icon={<Users className="size-4" aria-hidden="true" />} />
         <KpiCard label="Pointées aujourd'hui" value={String(kpis.presentes)} icon={<UserRoundCheck className="size-4" aria-hidden="true" />} />
         <KpiCard label="Comptes app liés" value={String(kpis.comptes)} icon={<Smartphone className="size-4" aria-hidden="true" />} />
-        <KpiCard label="Masse de base / mois" value={xof(kpis.masseBase)} icon={<Banknote className="size-4" aria-hidden="true" />} />
+        {isOwner && (
+          <KpiCard label="Masse de base / mois" value={xof(kpis.masseBase)} icon={<Banknote className="size-4" aria-hidden="true" />} />
+        )}
       </div>
 
       {/* ── Fiches ── */}
@@ -325,15 +333,19 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                   </div>
 
                   <div className="space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-muted-foreground">Salaire de base</span>
-                      <Money value={emp.baseSalary} className="font-semibold" />
-                    </div>
-                    {primes > 0 && (
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-muted-foreground">Primes (transport + logement)</span>
-                        <Money value={primes} className="text-muted-foreground" />
-                      </div>
+                    {isOwner && (
+                      <>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-muted-foreground">Salaire de base</span>
+                          <Money value={emp.baseSalary} className="font-semibold" />
+                        </div>
+                        {primes > 0 && (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-muted-foreground">Primes (transport + logement)</span>
+                            <Money value={primes} className="text-muted-foreground" />
+                          </div>
+                        )}
+                      </>
                     )}
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-muted-foreground flex items-center gap-1">
@@ -349,7 +361,7 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                         <span className={cn("font-mono text-[11px]", bal.balance < 0 && "text-bissap")}>{bal.balance} j</span>
                       </div>
                     )}
-                    {emp.cnpsNumber && (
+                    {isOwner && emp.cnpsNumber && (
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-muted-foreground">Matricule {emp.country === "SN" ? "IPRES" : "CNPS"}</span>
                         <span className="font-mono text-[11px]">{emp.cnpsNumber}</span>
@@ -442,44 +454,46 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2 pt-0.5">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 flex-1 text-[11px] gap-1"
-                      onClick={() => setEditing(emp)}
-                    >
-                      <Pencil className="size-3" aria-hidden="true" /> Modifier la fiche
-                    </Button>
-                    {emp.active ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 flex-1 text-[11px] gap-1 text-bissap hover:text-bissap"
-                        onClick={() => setDeparting(emp)}
-                      >
-                        <LogOut className="size-3" aria-hidden="true" /> Sortie
-                      </Button>
-                    ) : (
+                  {isOwner && (
+                    <div className="flex items-center gap-2 pt-0.5">
                       <Button
                         size="sm"
                         variant="outline"
                         className="h-8 flex-1 text-[11px] gap-1"
-                        onClick={() => void reactivate(emp)}
+                        onClick={() => setEditing(emp)}
                       >
-                        <Undo2 className="size-3" aria-hidden="true" /> Réactiver
+                        <Pencil className="size-3" aria-hidden="true" /> Modifier la fiche
                       </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-2.5 text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => setDeleting(emp)}
-                      title="Supprimer la fiche de l'employée"
-                    >
-                      <Trash2 className="size-3.5" aria-hidden="true" />
-                    </Button>
-                  </div>
+                      {emp.active ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 flex-1 text-[11px] gap-1 text-bissap hover:text-bissap"
+                          onClick={() => setDeparting(emp)}
+                        >
+                          <LogOut className="size-3" aria-hidden="true" /> Sortie
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 flex-1 text-[11px] gap-1"
+                          onClick={() => void reactivate(emp)}
+                        >
+                          <Undo2 className="size-3" aria-hidden="true" /> Réactiver
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2.5 text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleting(emp)}
+                        title="Supprimer la fiche de l'employée"
+                      >
+                        <Trash2 className="size-3.5" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -565,26 +579,30 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                         </TableCell>
                         <TableCell className="text-right">
                           {l.status === "pending" ? (
-                            <div className="flex justify-end gap-1.5">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 gap-1 text-[11px] text-success hover:text-success"
-                                onClick={() => void decide(l, "approve")}
-                              >
-                                <Check className="size-3" aria-hidden="true" />
-                                <span className="hidden sm:inline">Approuver</span>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 gap-1 text-[11px] text-bissap hover:text-bissap"
-                                onClick={() => void decide(l, "reject")}
-                              >
-                                <X className="size-3" aria-hidden="true" />
-                                <span className="hidden sm:inline">Refuser</span>
-                              </Button>
-                            </div>
+                            isOwner ? (
+                              <div className="flex justify-end gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 gap-1 text-[11px] text-success hover:text-success"
+                                  onClick={() => void decide(l, "approve")}
+                                >
+                                  <Check className="size-3" aria-hidden="true" />
+                                  <span className="hidden sm:inline">Approuver</span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 gap-1 text-[11px] text-bissap hover:text-bissap"
+                                  onClick={() => void decide(l, "reject")}
+                                >
+                                  <X className="size-3" aria-hidden="true" />
+                                  <span className="hidden sm:inline">Refuser</span>
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground italic">En attente de validation</span>
+                            )
                           ) : (
                             <span className="text-[10px] text-muted-foreground">
                               {l.decidedAt ? formatDate(l.decidedAt) : "—"}

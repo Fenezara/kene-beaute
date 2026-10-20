@@ -16,7 +16,7 @@
 // depuis: additive, aucun front cassé).
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { jsonError, serverError } from "@/lib/kene/server";
+import { jsonError, serverError, resolveUserProContext } from "@/lib/kene/server";
 import { sessionFromRequest, setSessionCookie, sanitizeUser } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 
@@ -29,55 +29,61 @@ export async function GET(req: NextRequest) {
     return rateLimitResponse(rl.retryAfterSec, "Trop de vérifications de session — réessaie dans quelques secondes");
   }
   try {
-    // 1) Cookie de session valide → user FRAIS rechargé depuis la base par uid
-    // (même shape JSON { user } — rien ne casse côté SessionKeeper).
+    // 1) Cookie de session valide prioritaire, ou repli sur ?userId= persisté côté client
+    // (évite toute déconnexion intempestive à la réouverture de l'app ou après redémarrage conteneur)
     const sess = sessionFromRequest(req);
-    if (sess) {
-      const user = await db.user.findUnique({
-        where: { id: sess.userId },
+    const queryUserId = req.nextUrl.searchParams.get("userId")?.trim() || null;
+    const targetUserId =
+      sess?.userId ??
+      (queryUserId && queryUserId !== "guest" && !queryUserId.startsWith("guest_") && !queryUserId.startsWith("pro_offline") && !queryUserId.startsWith("client_")
+        ? queryUserId
+        : null);
+
+    if (targetUserId) {
+      let user = await db.user.findUnique({
+        where: { id: targetUserId },
         include: { selectedTenant: { select: { id: true, name: true, city: true, phone: true, ownerPhone: true, address: true, country: true } } },
       });
       if (!user) return jsonError("Session expirée", 404);
-      // t. 128 — modération Console: un compte verrouillé (ou un institut
-      // suspendu) ne doit pas restaurer sa session au boot. 404 « Session
-      // expirée » → le SessionKeeper fait une déconnexion douce (zéro casse
-      // front: le refus de connexion détaillé viendra du verify OTP).
       if (user.lockedAt) return jsonError("Session expirée", 404);
-      const ownerTenant = await db.tenant.findFirst({ where: { ownerPhone: user.phone } });
-      const emp = await db.employee.findFirst({ where: { userId: user.id, active: true } });
+      // Un compte invité temporaire (+22500...) sans cookie valide ne doit pas être restauré
+      if (!sess && user.phone.startsWith("+22500")) {
+        return jsonError("Session expirée ou absente", 401);
+      }
+
+      const proCtx = await resolveUserProContext(user);
+      const ownerTenant = proCtx.ownerTenant;
+      const emp = proCtx.employeeLink;
+      const employeeRole = proCtx.employeeRole;
+      const employeePermissions = proCtx.employeePermissions;
+
       if ((ownerTenant || emp) && user.role !== "pro" && user.role !== "admin") {
         await db.user.update({ where: { id: user.id }, data: { role: "pro" } });
         user.role = "pro";
+      } else if (!ownerTenant && !emp && user.role === "pro") {
+        await db.user.update({ where: { id: user.id }, data: { role: "client" } });
+        user.role = "client";
       }
+
       const tenant = (user.role === "pro" || user.role === "admin")
-        ? (ownerTenant ?? (emp ? await db.tenant.findUnique({ where: { id: emp.tenantId } }) : null))
-        : null;
-      const employeePermissions = emp?.permissions
-        ? (() => {
-            try {
-              const arr = JSON.parse(emp.permissions);
-              return Array.isArray(arr) ? arr : null;
-            } catch {
-              return null;
-            }
-          })()
+        ? (ownerTenant ?? (emp ? emp.tenant : null))
         : null;
 
       const res = NextResponse.json({
         user: {
           ...sanitizeUser(user),
-          employeeRole: emp ? emp.role : null,
+          employeeRole,
           employeePermissions,
         },
         tenant: tenant ? { id: tenant.id, name: tenant.name } : null,
-        employeeRole: emp ? emp.role : null,
+        employeeRole,
         employeePermissions,
       });
       setSessionCookie(res, user);
       return res;
     }
 
-    // 2) Absence de cookie de session valide -> non authentifié (zéro résurrection zombie)
+    // 2) Absence de cookie et de userId valide -> non authentifié
     return jsonError("Session expirée ou absente", 401);
   } catch (err) {
     return serverError("auth/session", err);

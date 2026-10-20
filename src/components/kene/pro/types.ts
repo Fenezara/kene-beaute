@@ -69,6 +69,12 @@ export interface StockAlertItem {
 export interface ProOverview {
   tenant: ProTenant;
   tenants?: ProTenant[];
+  viewer?: {
+    isOwner: boolean;
+    employeeRole: string | null;
+    employeePermissions: string[] | null;
+    employeeName: string | null;
+  } | null;
   kpis: ProKpis;
   chart: { date: string; total: number }[];
   paymentSplit: { method: string; total: number }[];
