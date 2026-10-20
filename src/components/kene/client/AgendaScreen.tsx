@@ -299,6 +299,8 @@ export function AgendaScreen() {
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>([]);
   const [institutes, setInstitutes] = useState<ApiInstitute[]>([]);
+  const [chosenTenantId, setChosenTenantId] = useState<string>("");
+  const [bookingLoading, setBookingLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -445,7 +447,8 @@ export function AgendaScreen() {
     const latest = doneDiags[0];
     const parsed = parseDiagnosis(latest.resultJson);
     const zoneLabel = BODY_ZONES.find((z) => z.id === latest.zone)?.label ?? "Visage";
-    const baseTime = new Date(latest.createdAt).getTime();
+    const rawBaseTime = latest?.createdAt ? new Date(latest.createdAt).getTime() : NaN;
+    const baseTime = Number.isNaN(rawBaseTime) ? Date.now() : rawBaseTime;
 
     const milestones: {
       id: string;
@@ -613,10 +616,6 @@ export function AgendaScreen() {
       setDeletingAppt(false);
     }
   };
-
-  // État de chargement de la réservation
-  const [bookingLoading, setBookingLoading] = useState(false);
-  const [chosenTenantId, setChosenTenantId] = useState<string>("");
 
   const handleBookRdvType = (typeDef: RdvTypeDefinition) => {
     haptic(HAPTIC.tap);
@@ -847,7 +846,7 @@ export function AgendaScreen() {
                   Institut partenaire Kènè (Partage actif)
                 </label>
                 <select
-                  value={chosenTenantId || selectedInst?.id || institutes[0].id}
+                  value={chosenTenantId || selectedInst?.id || institutes[0]?.id || ""}
                   onChange={(e) => setChosenTenantId(e.target.value)}
                   className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
                 >
@@ -1351,7 +1350,7 @@ export function AgendaScreen() {
               className="h-9 px-4 rounded-xl bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/40 text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all active:scale-95"
             >
               <MessageCircle size={14} />
-              <span>{selectedInst ? `Contacter ${selectedInst.name.split(" ")[0]}` : "Contacter le Concierge"}</span>
+              <span>{selectedInst?.name ? `Contacter ${selectedInst.name.split(" ")[0]}` : "Contacter le Concierge"}</span>
             </button>
           </div>
         </div>
