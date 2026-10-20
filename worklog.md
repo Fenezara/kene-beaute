@@ -3375,3 +3375,19 @@ Work Log:
 - Abonnement Pro Complexe : paliers 30 000 → 20 000 FCFA (plancher mois 6), compte test VPS remis à zéro — commit `aa5df66`.
 - Bug « Soins & RDV » : `ReferenceError` (`chosenTenantId` utilisé avant son `useState`) dans `AgendaScreen.tsx`, interceptée par `ScreenBoundary`. État remonté, gardes `NaN`/optionnels ajoutés — commit `a77d2c3`, déployé sur le VPS.
 - Documentation mise à jour : `PRD.md`, `docs/API_SPEC.md`, `worklog.md`.
+
+---
+Task: Dossiers Cutanés Pro — Distinction & Unification Bilans Cabine vs Auto-scans Cliente & Règle de révocation temporelle.
+
+Work Log:
+- Règle de visibilité temporelle du partage (`src/lib/kene/share-consent.ts`) :
+  - Implémentation de `getScanVisibility(userId, tenantId)` : les auto-scans réalisés pendant qu'un partage était actif (`granted: true`) restent archivés et visibles côté entreprise même après une révocation ultérieure. Seuls les futurs scans réalisés après la date de révocation sont masqués à l'entreprise.
+  - Mise à jour de `/api/pro/clients/[id]` et `/api/pro/consultation-sheet` pour appliquer `scanVisibility.isVisibleAt(createdAt)`.
+- Fiche Dossier Cutané Pro (`src/components/kene/pro/SkinDossiersSection.tsx`) :
+  - Badges distincts haute visibilité : `🔬 Bilan Cabine Institut` (Or/Émeraude, praticienne, examen clinique validé) vs `📱 Auto-scan Cliente (Mobile)` (Indigo/Bleu, déclaratif smartphone via IA VLM).
+  - Frise chronologique unifiée et filtrable dans l'onglet Historique : filtres `Tous`, `Cabine Institut`, `Auto-scans Cliente`.
+  - Carte de synthèse comparative : calcul et affichage direct de l'écart de score entre le dernier bilan cabine et le dernier auto-scan client (`scoreDelta`).
+  - Alerte de consentement : bandeau pédagogique explicite lorsque la cliente a suspendu le partage de ses futurs scans.
+  - Galerie Imagerie HD : pastilles `🔬 Cabine` et `📱 Auto-scan` sur chaque vignette photo avec zoom plein écran.
+  - Onglet Biomarqueurs & 3D : sélecteur de source (`Tous` / `Cabine` / `Auto-scans`) pour la courbe d'évolution sans biais de mesure.
+- Validation locale (`npm run build` réussi).

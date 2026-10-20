@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { rfmScore } from "@/lib/kene/rfm";
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
-import { isScansShared } from "@/lib/kene/share-consent";
+import { getScanVisibility } from "@/lib/kene/share-consent";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -57,12 +57,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
-    const scansShared = effectiveUserId ? await isScansShared(effectiveUserId, tenant.id) : false;
+    const scanVisibility = effectiveUserId ? await getScanVisibility(effectiveUserId, tenant.id) : null;
+    const scansShared = scanVisibility?.currentlyShared ?? false;
 
     const since12m = new Date();
     since12m.setFullYear(since12m.getFullYear() - 1);
 
-    const [sales, appointments, sales12m, diagnoses, proDiagnoses, orders, reviews] = await Promise.all([
+    const [sales, appointments, sales12m, allDiagnoses, proDiagnoses, orders, reviews] = await Promise.all([
       db.sale.findMany({
         where: { clientProfileId: id },
         include: {
@@ -94,11 +95,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         where: { clientProfileId: id, status: "completed", createdAt: { gte: since12m } },
         select: { total: true },
       }),
-      effectiveUserId && scansShared
+      // Self-scans de la cliente : visibilité PAR DATE (un scan réalisé pendant
+      // un partage actif reste visible après révocation ; les suivants non).
+      effectiveUserId && scanVisibility
         ? db.diagnosis.findMany({
             where: { userId: effectiveUserId, status: "done" },
             orderBy: { createdAt: "desc" },
-            take: 5,
+            take: 30,
           })
         : Promise.resolve([]),
       // Diagnostics réalisés EN INSTITUT (questionnaire ± photo) — l'activité
@@ -128,6 +131,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           })
         : Promise.resolve([]),
     ]);
+
+    const diagnoses = scanVisibility
+      ? allDiagnoses.filter((dg) => scanVisibility.isVisibleAt(dg.createdAt)).slice(0, 8)
+      : [];
 
     // RFM recalculé à la volée (non persisté)
     const recencyDays = client.lastVisit

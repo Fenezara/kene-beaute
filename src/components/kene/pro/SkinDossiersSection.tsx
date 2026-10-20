@@ -7,7 +7,8 @@ import {
   FolderHeart, Search, Sparkles, Filter, ChevronRight, Baby, Leaf,
   FlaskConical, Save, FileDown, MessageCircle, CheckCircle2, Phone,
   SlidersHorizontal, Eye, ShieldAlert, Sun, Moon, ArrowLeft,
-  Calendar, Lock, Layers, Droplets, Camera, Check, Plus, AlertTriangle
+  Calendar, Lock, Layers, Droplets, Camera, Check, Plus, AlertTriangle,
+  Smartphone, Stethoscope, FileClock, Clock, UserCheck, Info
 } from "lucide-react";
 import { toast } from "sonner";
 import { BissapFlowerIcon, CauriIcon, SankofaIcon } from "@/components/kene/icons";
@@ -433,6 +434,11 @@ function ClientSkinDossierDetail({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
+  // Filtre de la frise d'historique (Tous / Cabine / Cliente)
+  const [historyFilter, setHistoryFilter] = useState<"all" | "cabine" | "client">("all");
+  // Source pour la courbe d'évolution & biomarqueurs
+  const [biomarkersSource, setBiomarkersSource] = useState<"all" | "cabine" | "client">("all");
+
   const detail = useApi<ProClientDetail>(
     () => apiGet<ProClientDetail>(`/api/pro/clients/${clientId}?tenantId=${tenantId}`),
     [clientId, tenantId]
@@ -525,23 +531,104 @@ function ClientSkinDossierDetail({
     });
   }
 
-  // Photos de la cliente pour la visionneuse
-  const lightboxPhotos: LightboxPhoto[] = useMemo(() => {
-    if (!d?.diagnoses) return [];
-    return d.diagnoses
-      .filter((dg) => Boolean(dg.imageData && dg.imageData.trim()))
-      .map((dg) => {
+  // Type unifié des bilans cutanés
+  interface UnifiedBilanItem {
+    id: string;
+    source: "cabine" | "client";
+    zone: string;
+    scoreGlobal: number;
+    createdAt: string;
+    practitioner?: string | null;
+    vlmUsed?: boolean;
+    photoData?: string | null;
+    resultJson?: string;
+  }
+
+  // Frise unifiée des bilans cutanés (Cabine Institut + Auto-scans Cliente)
+  const unifiedBilans = useMemo<UnifiedBilanItem[]>(() => {
+    const list: UnifiedBilanItem[] = [];
+    for (const pb of d?.proDiagnoses ?? []) {
+      list.push({
+        id: pb.id,
+        source: "cabine",
+        zone: pb.zone,
+        scoreGlobal: pb.scoreGlobal,
+        createdAt: pb.createdAt,
+        practitioner: pb.practitioner,
+        vlmUsed: pb.vlmUsed,
+        photoData: pb.photoData,
+        resultJson: pb.resultJson || (pb as any).questionnaireJson,
+      });
+    }
+    for (const cb of d?.diagnoses ?? []) {
+      list.push({
+        id: cb.id,
+        source: "client",
+        zone: cb.zone,
+        scoreGlobal: cb.scoreGlobal,
+        createdAt: cb.createdAt,
+        vlmUsed: true,
+        photoData: cb.imageData,
+        resultJson: cb.resultJson,
+      });
+    }
+    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [d?.proDiagnoses, d?.diagnoses]);
+
+  const filteredBilans = useMemo(() => {
+    if (historyFilter === "all") return unifiedBilans;
+    return unifiedBilans.filter((b) => b.source === historyFilter);
+  }, [unifiedBilans, historyFilter]);
+
+  const latestCabine = useMemo(() => d?.proDiagnoses?.[0] ?? null, [d?.proDiagnoses]);
+  const latestClient = useMemo(() => d?.diagnoses?.[0] ?? null, [d?.diagnoses]);
+  const scoreDelta = useMemo(() => {
+    if (!latestCabine || !latestClient) return null;
+    return latestCabine.scoreGlobal - latestClient.scoreGlobal;
+  }, [latestCabine, latestClient]);
+
+  // Données pour la courbe d'évolution selon la source choisie
+  const evolutionRows = useMemo(() => {
+    if (biomarkersSource === "cabine") return (d?.proDiagnoses ?? []) as any[];
+    if (biomarkersSource === "client") return (d?.diagnoses ?? []) as any[];
+    return unifiedBilans as any[];
+  }, [biomarkersSource, d?.proDiagnoses, d?.diagnoses, unifiedBilans]);
+
+  // Photos de la cliente et de cabine pour la visionneuse
+  const lightboxPhotos: (LightboxPhoto & { source?: "cabine" | "client" })[] = useMemo(() => {
+    const list: (LightboxPhoto & { source?: "cabine" | "client" })[] = [];
+    // 1. Photos d'auto-scan cliente
+    for (const dg of d?.diagnoses ?? []) {
+      if (dg.imageData && dg.imageData.trim()) {
         const parsed = parseDiagnosis(dg.resultJson);
-        return {
+        list.push({
           id: dg.id,
           url: diagImgSrc(dg.imageData),
           date: dg.createdAt,
-          zone: dg.zone,
+          zone: `${dg.zone.replace("_", " ")} · Auto-scan Cliente`,
           score: dg.scoreGlobal,
           indicators: parsed?.indicateurs,
-        };
-      });
-  }, [d?.diagnoses]);
+          source: "client",
+        });
+      }
+    }
+    // 2. Photos de bilan cabine
+    for (const pd of d?.proDiagnoses ?? []) {
+      if (pd.photoData && pd.photoData.trim()) {
+        const parsed = parseProDiagnosis(pd.resultJson || (pd as any).questionnaireJson);
+        list.push({
+          id: pd.id,
+          url: diagImgSrc(pd.photoData),
+          date: pd.createdAt,
+          zone: `${pd.zone.replace("_", " ")} · Bilan Cabine`,
+          score: pd.scoreGlobal,
+          indicators: (parsed as any)?.indicateurs,
+          source: "cabine",
+        });
+      }
+    }
+    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [d?.diagnoses, d?.proDiagnoses]);
 
   // Jumeau de Peau 3D
   const twinEntries = useMemo<TwinEntry[]>(
@@ -604,7 +691,7 @@ function ClientSkinDossierDetail({
                 <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 font-mono">
                   <span>{c.phone}</span>
                   {c.district && <span className="font-sans">· {c.district}</span>}
-                  <span className="font-sans">· {d?.diagnoses.length ?? 0} bilan(s) cutané(s)</span>
+                  <span className="font-sans">· {d?.proDiagnoses.length ?? 0} cabine · {d?.diagnoses.length ?? 0} auto-scan(s) cliente</span>
                 </p>
               </div>
             </div>
@@ -737,8 +824,8 @@ function ClientSkinDossierDetail({
             <span className="truncate">Biomarqueurs &amp; 3D</span>
           </TabsTrigger>
           <TabsTrigger value="history" className="text-xs font-bold gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs">
-            <Calendar className="size-3.5 text-muted-foreground" />
-            <span className="truncate">Bilans Cabine ({d?.proDiagnoses.length ?? 0})</span>
+            <FileClock className="size-3.5 text-muted-foreground" />
+            <span className="truncate">Historique Bilans ({unifiedBilans.length})</span>
           </TabsTrigger>
           <TabsTrigger value="prescription" className="text-xs font-bold gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs">
             <Leaf className="size-3.5 text-amber-500" />
@@ -953,6 +1040,17 @@ function ClientSkinDossierDetail({
                     className="group relative aspect-square rounded-xl overflow-hidden border border-border bg-muted cursor-pointer hover:border-gold/80 transition-all select-none shadow-xs"
                     title="Agrandir en haute définition plein écran"
                   >
+                    <div className="absolute top-1.5 left-1.5 z-10">
+                      {photo.source === "cabine" ? (
+                        <Badge className="bg-[#C8951E] text-white text-[9px] font-bold border-none px-1.5 py-0.5 shadow-sm">
+                          🔬 Cabine
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-sky-600 text-white text-[9px] font-bold border-none px-1.5 py-0.5 shadow-sm">
+                          📱 Auto-scan
+                        </Badge>
+                      )}
+                    </div>
                     <img src={photo.url} alt={photo.zone ? `Photo ${photo.zone}` : "Photo cutanée"} className="size-full object-cover group-hover:scale-105 transition-transform" />
                     <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                       <span className="px-2 py-1 rounded-full bg-black/70 text-white text-[11px] font-bold flex items-center gap-1">
@@ -976,11 +1074,55 @@ function ClientSkinDossierDetail({
             <SkinTwinCard context="pro" entries={twinEntries} className="border-border shadow-xs" />
           )}
 
-          {d && d.diagnoses.length > 0 && (
-            <ProEvolutionCard rows={d.diagnoses} className="border-border shadow-xs" />
+          {/* Sélecteur de source de la courbe d'évolution */}
+          {d && (d.diagnoses.length > 0 || d.proDiagnoses.length > 0) && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-muted/40 rounded-xl border border-border">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="size-4 text-primary" />
+                  <span className="text-xs font-bold text-foreground">Courbe d&apos;évolution &amp; Fil du Temps :</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant={biomarkersSource === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setBiomarkersSource("all")}
+                    className={cn("h-7 text-xs px-2.5", biomarkersSource === "all" ? "k-btn-gold text-primary-foreground font-bold" : "")}
+                  >
+                    Tous ({unifiedBilans.length})
+                  </Button>
+                  {d.proDiagnoses.length > 0 && (
+                    <Button
+                      variant={biomarkersSource === "cabine" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setBiomarkersSource("cabine")}
+                      className={cn("h-7 text-xs px-2.5", biomarkersSource === "cabine" ? "k-btn-gold text-primary-foreground font-bold" : "")}
+                    >
+                      🔬 Cabine ({d.proDiagnoses.length})
+                    </Button>
+                  )}
+                  {d.diagnoses.length > 0 && (
+                    <Button
+                      variant={biomarkersSource === "client" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setBiomarkersSource("client")}
+                      className={cn("h-7 text-xs px-2.5", biomarkersSource === "client" ? "k-btn-gold text-primary-foreground font-bold" : "")}
+                    >
+                      📱 Auto-scans ({d.diagnoses.length})
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {evolutionRows.length > 0 ? (
+                <ProEvolutionCard rows={evolutionRows} className="border-border shadow-xs" />
+              ) : (
+                <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée sur ce filtre.</p>
+              )}
+            </div>
           )}
 
-          {twinEntries.length === 0 && (!d || d.diagnoses.length === 0) && (
+          {twinEntries.length === 0 && (!d || (d.diagnoses.length === 0 && d.proDiagnoses.length === 0)) && (
             <Card className="p-8 text-center space-y-2 border-dashed">
               <EmptyState
                 label="Aucune donnée biométrique disponible"
@@ -990,49 +1132,244 @@ function ClientSkinDossierDetail({
           )}
         </TabsContent>
 
-        {/* ═════════ 4. HISTORIQUE DES BILANS CABINE ═════════ */}
-        <TabsContent value="history" className="mt-4 space-y-3">
-          {d?.proDiagnoses.length === 0 ? (
+        {/* ═════════ 4. HISTORIQUE UNIFIÉ & FRISE CHRONOLOGIQUE ═════════ */}
+        <TabsContent value="history" className="mt-4 space-y-4">
+          {/* Synthèse comparative si bilans cabine et auto-scans existent */}
+          {latestCabine && latestClient && (
+            <Card className="p-4 border-border bg-card/60 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Sparkles className="size-3.5 text-gold-text" /> Comparatif Bilan Cabine vs Auto-scan Cliente
+                </span>
+                {scoreDelta !== null && (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[11px] font-bold font-mono",
+                      scoreDelta >= 0
+                        ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/10"
+                        : "border-amber-500/40 text-amber-600 bg-amber-500/10"
+                    )}
+                  >
+                    {scoreDelta > 0 ? `+${scoreDelta} pts en cabine` : scoreDelta === 0 ? "Scores identiques" : `${scoreDelta} pts`}
+                  </Badge>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="p-3 rounded-xl border border-gold/30 bg-gold/5 flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <Badge className="bg-[#C8951E] text-white border-none text-[9px] font-bold">🔬 Cabine</Badge>
+                      <span className="font-bold text-foreground text-xs capitalize">{latestCabine.zone.replace("_", " ")}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {formatDate(latestCabine.createdAt)} {latestCabine.practitioner ? `· ${latestCabine.practitioner}` : ""}
+                    </p>
+                  </div>
+                  <span className="font-mono text-base font-bold" style={{ color: scoreVar(latestCabine.scoreGlobal) }}>
+                    {latestCabine.scoreGlobal}/100
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl border border-sky-500/30 bg-sky-500/5 flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <Badge className="bg-sky-600 text-white border-none text-[9px] font-bold">📱 Auto-scan</Badge>
+                      <span className="font-bold text-foreground text-xs capitalize">{latestClient.zone.replace("_", " ")}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {formatDate(latestClient.createdAt)} · Smartphone app
+                    </p>
+                  </div>
+                  <span className="font-mono text-base font-bold" style={{ color: scoreVar(latestClient.scoreGlobal) }}>
+                    {latestClient.scoreGlobal}/100
+                  </span>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Statut du consentement de partage */}
+          {!d?.scansShared && (
+            <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5">
+              <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-600" />
+              <div>
+                <p className="font-bold">Partage d&apos;auto-scans suspendu par la cliente</p>
+                <p className="text-[11px] opacity-90 mt-0.5 leading-relaxed">
+                  La cliente a révoqué le partage en direct : les bilans réalisés avant la suspension restent archivés ci-dessous pour assurer la continuité des soins, mais ses prochains scans réalisés sur smartphone ne seront plus transmis.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Barre d'outils & Filtre de la frise */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Button
+                variant={historyFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setHistoryFilter("all")}
+                className={cn("h-8 text-xs font-bold", historyFilter === "all" ? "k-btn-gold text-primary-foreground" : "")}
+              >
+                Tous les bilans ({unifiedBilans.length})
+              </Button>
+              <Button
+                variant={historyFilter === "cabine" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setHistoryFilter("cabine")}
+                className={cn("h-8 text-xs font-bold gap-1", historyFilter === "cabine" ? "k-btn-gold text-primary-foreground" : "")}
+              >
+                🔬 Cabine Institut ({d?.proDiagnoses.length ?? 0})
+              </Button>
+              <Button
+                variant={historyFilter === "client" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setHistoryFilter("client")}
+                className={cn("h-8 text-xs font-bold gap-1", historyFilter === "client" ? "k-btn-gold text-primary-foreground" : "")}
+              >
+                📱 Auto-scans Cliente ({d?.diagnoses.length ?? 0})
+              </Button>
+            </div>
+
+            {onStartDiagnostic && (
+              <Button
+                size="sm"
+                onClick={() => onStartDiagnostic(c.id)}
+                className="h-8 text-xs gap-1.5 k-btn-gold text-primary-foreground font-bold ml-auto"
+              >
+                <Sparkles className="size-3.5" /> Nouveau diagnostic cabine
+              </Button>
+            )}
+          </div>
+
+          {/* Liste des bilans selon filtre */}
+          {filteredBilans.length === 0 ? (
             <Card className="p-6 text-center space-y-2 border-dashed">
-              <p className="text-xs text-muted-foreground">Aucun diagnostic cabine enregistré.</p>
-              {onStartDiagnostic && (
+              <p className="text-xs text-muted-foreground">Aucun bilan cutané correspondant au filtre sélectionné.</p>
+              {historyFilter === "cabine" && onStartDiagnostic && (
                 <Button size="sm" onClick={() => onStartDiagnostic(c.id)} className="text-xs gap-1.5 k-btn-gold text-primary-foreground font-semibold">
-                  <Sparkles className="size-3.5" /> Lancer le premier diagnostic
+                  <Sparkles className="size-3.5" /> Lancer le premier diagnostic cabine
                 </Button>
               )}
             </Card>
           ) : (
-            <div className="space-y-2.5">
-              {d?.proDiagnoses.map((item) => (
-                <Card key={item.id} className="p-3.5 border-border bg-card space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-heading font-bold text-xs capitalize text-foreground">
-                        Examen Cabine · {item.zone.replace("_", " ")}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground font-mono">
-                        {formatDate(item.createdAt)} {formatTime(item.createdAt)} {item.practitioner ? `· par ${item.practitioner}` : ""}
-                      </p>
+            <div className="space-y-3">
+              {filteredBilans.map((item) => {
+                const isCabine = item.source === "cabine";
+                const parsed = item.resultJson ? parseDiagnosis(item.resultJson) : null;
+                const indicators = parsed?.indicateurs ?? [];
+
+                return (
+                  <Card
+                    key={`${item.source}-${item.id}`}
+                    className={cn(
+                      "p-3.5 bg-card space-y-2.5 transition-all",
+                      isCabine
+                        ? "border-[#C8951E]/35 hover:border-[#C8951E]/70"
+                        : "border-sky-500/30 hover:border-sky-500/60"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        {/* Miniature photo si disponible */}
+                        {item.photoData && item.photoData.trim() ? (
+                          <div
+                            onClick={() => {
+                              const foundIdx = lightboxPhotos.findIndex((p) => p.id === item.id);
+                              if (foundIdx >= 0) {
+                                setLightboxIndex(foundIdx);
+                                setLightboxOpen(true);
+                              }
+                            }}
+                            className="size-14 rounded-xl overflow-hidden border border-border bg-muted shrink-0 cursor-pointer hover:opacity-90 relative group"
+                            title="Agrandir le cliché HD"
+                          >
+                            <img src={diagImgSrc(item.photoData)} alt="Photo bilan" className="size-full object-cover" />
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <Eye className="size-3 text-white" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            className={cn(
+                              "size-11 rounded-xl flex items-center justify-center shrink-0",
+                              isCabine ? "bg-[#C8951E]/15 text-[#C8951E]" : "bg-sky-500/15 text-sky-600"
+                            )}
+                          >
+                            {isCabine ? <Stethoscope className="size-5" /> : <Smartphone className="size-5" />}
+                          </div>
+                        )}
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {isCabine ? (
+                              <Badge className="bg-[#C8951E] text-white border-none text-[9.5px] font-bold">
+                                🔬 Bilan Cabine Institut
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-sky-600 text-white border-none text-[9.5px] font-bold">
+                                📱 Auto-scan Cliente (Mobile)
+                              </Badge>
+                            )}
+                            <span className="font-heading font-bold text-xs capitalize text-foreground">
+                              Zone {item.zone.replace("_", " ")}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                            {formatDate(item.createdAt)} {formatTime(item.createdAt)}
+                            {isCabine && item.practitioner ? ` · Praticienne : ${item.practitioner}` : ""}
+                            {!isCabine ? " · Déclaratif cliente via smartphone" : ""}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <p className="font-mono text-base font-bold leading-none" style={{ color: scoreVar(item.scoreGlobal) }}>
+                          {item.scoreGlobal}/100
+                        </p>
+                        <p className="text-[9px] text-muted-foreground font-semibold mt-1">
+                          Score santé peau
+                        </p>
+                      </div>
                     </div>
-                    <p className="font-mono text-sm font-bold" style={{ color: scoreVar(item.scoreGlobal) }}>
-                      {item.scoreGlobal}/100
-                    </p>
-                  </div>
-                  <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
-                    <span className="text-[11px] text-muted-foreground">
-                      {item.vlmUsed ? "Biométrie spectrale couplée" : "Entretien cabine seul"}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(`/api/pro/diagnoses/report?tenantId=${encodeURIComponent(tenantId)}&id=${item.id}`, "_blank")}
-                      className="text-[10.5px] h-7 gap-1"
-                    >
-                      <FileDown className="size-3" /> Compte-rendu cabine (PDF)
-                    </Button>
-                  </div>
-                </Card>
-              ))}
+
+                    {/* Indicateurs ou spécificités */}
+                    {indicators.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {indicators.slice(0, 4).map((ind, i) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted text-[10px] font-medium text-foreground"
+                          >
+                            <span>{ind.nom}</span>
+                            <span className="font-mono text-[9px] opacity-75">{ind.pourcentage}%</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
+                      <span className="text-[11px] text-muted-foreground">
+                        {isCabine
+                          ? item.vlmUsed
+                            ? "Biométrie spectrale couplée · Examen cabine validé"
+                            : "Entretien cabine seul"
+                          : "Auto-diagnostic assisté par IA VLM Kènè"}
+                      </span>
+
+                      {isCabine && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(`/api/pro/diagnoses/report?tenantId=${encodeURIComponent(tenantId)}&id=${item.id}`, "_blank")}
+                          className="text-[10.5px] h-7 gap-1"
+                        >
+                          <FileDown className="size-3" /> Compte-rendu cabine (PDF)
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>

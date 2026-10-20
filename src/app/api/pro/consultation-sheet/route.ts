@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
-import { isScansShared } from "@/lib/kene/share-consent";
+import { getScanVisibility } from "@/lib/kene/share-consent";
 import { consultationSheetPdf, consultationSheetFilename, type ConsultationClientPrefill } from "@/lib/kene/consultation-pdf";
 
 export const runtime = "nodejs";
@@ -38,17 +38,19 @@ export async function GET(req: NextRequest) {
       const linkedUser = client.userId
         ? await db.user.findUnique({ where: { id: client.userId }, select: { allergies: true } })
         : null;
-      // Self-scans: uniquement si la cliente a explicitement partagé son
-      // historique avec CET institut (consentement révocable depuis son app).
-      const scansShared = client.userId ? await isScansShared(client.userId, tenant.id) : false;
-      const scans = client.userId && scansShared
+      // Self-scans: visibilité PAR DATE — les scans réalisés pendant un partage
+      // actif restent visibles après révocation, pas les suivants.
+      const visibility = client.userId ? await getScanVisibility(client.userId, tenant.id) : null;
+      const scansShared = visibility?.currentlyShared ?? false;
+      const scansRaw = client.userId && visibility
         ? await db.diagnosis.findMany({
             where: { userId: client.userId, status: "done" },
             orderBy: { createdAt: "desc" },
-            take: 3,
+            take: 20,
             select: { zone: true, scoreGlobal: true, createdAt: true },
           })
         : [];
+      const scans = visibility ? scansRaw.filter((s) => visibility.isVisibleAt(s.createdAt)).slice(0, 3) : [];
       prefill = {
         name: client.name,
         phone: client.phone,

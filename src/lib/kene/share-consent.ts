@@ -29,7 +29,11 @@ export async function isScansShared(userId: string, tenantId: string): Promise<b
     select: { granted: true },
   });
   if (latest !== null) return latest.granted;
+  return defaultScansShared(userId, tenantId);
+}
 
+/** Partage implicite (sans enregistrement de consentement) : lien cliente↔institut. */
+async function defaultScansShared(userId: string, tenantId: string): Promise<boolean> {
   // Par défaut : si la cliente a rattaché son profil à cet institut ou a un rendez-vous chez cet institut,
   // ou si une fiche cliente existe pour cet institut, le partage de soin est naturellement actif
   const user = await db.user.findUnique({
@@ -49,6 +53,35 @@ export async function isScansShared(userId: string, tenantId: string): Promise<b
     select: { id: true },
   });
   return Boolean(hasProfile);
+}
+
+/**
+ * Visibilité PAR DATE des self-scans pour un institut : un scan réalisé
+ * pendant une période de partage actif reste visible de l'institut même après
+ * une révocation ; seuls les scans réalisés APRÈS la révocation (jusqu'à un
+ * éventuel nouvel accord) lui sont masqués. S'appuie sur l'historique complet
+ * des consentements (le dernier enregistrement antérieur au scan fait foi).
+ */
+export async function getScanVisibility(userId: string, tenantId: string): Promise<{
+  currentlyShared: boolean;
+  isVisibleAt: (date: Date) => boolean;
+}> {
+  const history = await db.consent.findMany({
+    where: { userId, tenantId, type: SHARE_SCANS_TYPE },
+    orderBy: { createdAt: "asc" },
+    select: { granted: true, createdAt: true },
+  });
+  const fallback = await defaultScansShared(userId, tenantId);
+  const currentlyShared = history.length > 0 ? history[history.length - 1].granted : fallback;
+  const isVisibleAt = (date: Date): boolean => {
+    let state = fallback;
+    for (const h of history) {
+      if (h.createdAt.getTime() <= date.getTime()) state = h.granted;
+      else break;
+    }
+    return state;
+  };
+  return { currentlyShared, isVisibleAt };
 }
 
 /**
