@@ -25,7 +25,7 @@ async function runTests() {
   if (kenePlus.priceFcfa !== 5000 || kenePlus.minPriceFcfa !== 2500) throw new Error("Tarif Kènè+ erroné");
   if (starter.priceFcfa !== 10000 || starter.minPriceFcfa !== 5000) throw new Error("Tarif Starter erroné");
   if (institut.priceFcfa !== 20000 || institut.minPriceFcfa !== 10000) throw new Error("Tarif Institut erroné");
-  if (complexe.priceFcfa !== 30000 || complexe.minPriceFcfa !== 20000) throw new Error("Tarif Complexe erroné");
+  if (complexe.priceFcfa !== 30000 || complexe.minPriceFcfa !== 15000) throw new Error("Tarif Complexe erroné");
 
   // 2. Vérification des paliers dégressifs
   console.log("\n2. Vérification du calcul dynamique des paliers (getPlanTierPrice) :");
@@ -49,7 +49,7 @@ async function runTests() {
 
   const complexeTiers = [0, 1, 2, 3, 4, 5, 6, 10].map((m) => getPlanTierPrice("pro_complexe", m));
   console.log("Paliers Pro Complexe (Mois 1 à 6+) :", complexeTiers);
-  if (JSON.stringify(complexeTiers) !== JSON.stringify([30000, 28000, 26000, 24000, 22000, 20000, 20000, 20000])) {
+  if (JSON.stringify(complexeTiers) !== JSON.stringify([30000, 27000, 24000, 21000, 18000, 15000, 15000, 15000])) {
     throw new Error("❌ Paliers Pro Complexe incorrects : " + JSON.stringify(complexeTiers));
   }
 
