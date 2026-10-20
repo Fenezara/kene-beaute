@@ -85,6 +85,12 @@ La dermatologie et la cosmétologie mondiales ont historiquement été formulée
   - Journal automatique des opérations (Ventes, Achats, Banque, Paie, Opérations Diverses).
   - Grand livre, Balance générale à 6 classes et Liasse fiscale complète générée en 1 clic (Bilan, Compte de résultat, TVA à reverser).
 
+* **Mises à jour Octobre 2026** :
+  - **Partage de données maîtrisé** : la cliente ne voit (sélection d'institut, RDV, soins) que les instituts avec lesquels elle partage ses données.
+  - **Coordonnées de l'institut** : le numéro de la gérante/fondatrice (`User.phone`) reste privé ; un **WhatsApp public du salon** et une adresse (`Tenant.phone`, `Tenant.address`) sont affichés aux clientes, sans contrainte d'unicité avec les comptes clientes.
+  - **Abonnement Pro Complexe (fidélité dégressive)** : 30 000 → 28 000 → 26 000 → 24 000 → 22 000 → 20 000 FCFA/mois (plancher atteint au mois 6) ; le renouvellement repart de 30 000 FCFA au mois 1.
+  - **Mot de passe** : modification disponible depuis les paramètres de compte.
+
 ### 3.3 Espace Admin & Sécurité (`/console`)
 * **Durcissement NIST 800-63B-4 & OWASP ASVS V2.7** :
   - Séparation étanche de la vitrine publique et de l'administration.

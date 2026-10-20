@@ -77,6 +77,9 @@ Validation du code OTP et création/connexion de session.
 Configuration ou vérification du code PIN de sécurité (style Mobile Banking).
 - **Body JSON** : `{ "action": "set" | "verify", "pin": "1234" }` (4 chiffres obligatoires).
 
+### `GET /api/auth/shares?userId=...`
+Liste des instituts et statut de partage (`granted`) de la cliente. Le client n'expose dans l'agenda/RDV que les instituts `granted: true`.
+
 ---
 
 ## 3. Domaine 2 : Diagnostic Cutané & IA (`/api/diagnoses/*`)
@@ -211,6 +214,8 @@ Validation de commande avec panier multi-produits.
 | Méthode & Route | Description Métier | Spécificités & Sécurité |
 | :--- | :--- | :--- |
 | `GET /api/pro/overview` | Dashboard gérante (KPIs du jour, CA, RDV, stock bas) | Rafraîchissement direct via WebSockets |
+| `PATCH /api/pro/tenants` | Mise à jour du WhatsApp public (`phone`) et de l'adresse du salon | N'affecte pas `User.phone` (numéro privé de la gérante, unique) |
+| `POST /api/subscriptions/renew` | Renouvellement d'abonnement | Pro Complexe : 30 000 → 20 000 FCFA (plancher au mois 6) |
 | `GET /api/pro/pos/sales` | Caisse enregistreuse tactile | Tickets de caisse conformes SYSCOHADA |
 | `POST /api/pro/caisse/expense` | Sorties de caisse courantes (achats locaux, taxi) | Justificatif et classe comptable 6 |
 | `GET /api/pro/payroll` | Calcul des bulletins de salaire | Conformité CNPS, IGR, CN (CI) / IPM, IPRES (SN) |

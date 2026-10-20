@@ -3365,3 +3365,13 @@ Work Log:
 
 
 
+
+---
+Task: Corrections & évolutions Octobre 2026 (session du 20/10).
+
+Work Log:
+- Partage de données : l'agenda/RDV/soins client n'affiche que les instituts partagés (`/api/auth/shares`, `granted`).
+- Paramètres Pro : numéro privé de la gérante (`User.phone`) distinct du WhatsApp public du salon + adresse (`PATCH /api/pro/tenants`, `Tenant.phone/address`) — commit `3d6e609`.
+- Abonnement Pro Complexe : paliers 30 000 → 20 000 FCFA (plancher mois 6), compte test VPS remis à zéro — commit `aa5df66`.
+- Bug « Soins & RDV » : `ReferenceError` (`chosenTenantId` utilisé avant son `useState`) dans `AgendaScreen.tsx`, interceptée par `ScreenBoundary`. État remonté, gardes `NaN`/optionnels ajoutés — commit `a77d2c3`, déployé sur le VPS.
+- Documentation mise à jour : `PRD.md`, `docs/API_SPEC.md`, `worklog.md`.
