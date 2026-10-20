@@ -11,11 +11,12 @@ import { sessionFromRequest, setSessionCookie, sanitizeUser } from "@/lib/kene/s
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { audit, clientIp, sha256Hex, hashEqual } from "@/lib/kene/audit";
-import { hashPin, isValidPin } from "@/lib/kene/pin";
+import { hashPin, isValidPin, verifyPin } from "@/lib/kene/pin";
 
 const Body = z.object({
   phone: z.string().min(5),
   pin: z.string().min(4).max(6),
+  oldPin: z.string().min(4).max(6).optional(),
   otpCode: z.string().length(6).optional(),
 });
 
@@ -67,7 +68,38 @@ async function runSetPin(data: z.infer<typeof Body>, req: NextRequest): Promise<
   const session = sessionFromRequest(req);
   const isSessionAuth = session && (session.userId === user.id || session.phone === phone);
 
-  if (!isSessionAuth) {
+  if (isSessionAuth) {
+    // Si l'utilisateur possède déjà un code secret, il doit fournir son ancien code
+    // OU un code OTP de secours en cas d'oubli
+    if (user.pinHash) {
+      if (data.oldPin) {
+        if (!verifyPin(data.oldPin, user.pinHash)) {
+          void audit({ kind: "pin_change_failed", phone, userId: user.id, ip, detail: "ancien code secret incorrect" });
+          return jsonError("L'ancien code secret est incorrect", 400);
+        }
+      } else if (otpCode) {
+        const otp = await db.otpCode.findFirst({
+          where: {
+            phone,
+            createdAt: { gte: new Date(Date.now() - 15 * 60_000) },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        const submittedHash = sha256Hex(otpCode);
+        const storedHash = otp ? (/^[0-9a-f]{64}$/.test(otp.code) ? otp.code : sha256Hex(otp.code)) : null;
+
+        if (!otp || !storedHash || !hashEqual(submittedHash, storedHash)) {
+          void audit({ kind: "pin_change_failed", phone, userId: user.id, ip, detail: "code OTP invalide" });
+          return jsonError("Code de vérification SMS invalide ou expiré", 400);
+        }
+
+        await db.otpCode.update({ where: { id: otp.id }, data: { used: true } });
+      } else {
+        return jsonError("Ancien code secret ou code SMS requis pour modifier le code secret", 400);
+      }
+    }
+  } else {
     // Si pas de session active, un code OTP valide et non expiré est impératif
     if (!otpCode) {
       return jsonError("Code OTP ou session requise pour définir le code secret", 401);

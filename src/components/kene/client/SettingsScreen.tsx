@@ -27,6 +27,7 @@ import {
   Languages,
   Loader2,
   Lock,
+  KeyRound,
   LogOut,
   MapPin,
   Moon,
@@ -47,6 +48,7 @@ import { NsorommaIcon } from "@/components/kene/icons";
 import { LinkAccountModal } from "./LinkAccountModal";
 import { ContactKeneModal } from "./ContactKeneModal";
 import { ChangePhoneModal } from "@/components/kene/auth/ChangePhoneModal";
+import { ChangePinModal } from "@/components/kene/auth/ChangePinModal";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
@@ -179,6 +181,7 @@ export function SettingsScreen() {
   const [exportBusy, setExportBusy] = useState(false);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [changePhoneOpen, setChangePhoneOpen] = useState(false);
+  const [changePinOpen, setChangePinOpen] = useState(false);
   // Confirmation « Créer un compte entreprise » (isolation des comptes)
   const [proSignup, setProSignup] = useState(false);
   // Suppression définitive du compte (conforme Apple 5.1.1(v) et RGPD/ARTCI)
@@ -381,18 +384,24 @@ export function SettingsScreen() {
                   </div>
                 </div>
               ) : (
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <button
                     onClick={() => setClientTab("profil")}
-                    className="k-btn-gold h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    className="k-btn-gold h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                   >
-                    <Pencil size={14} /> Modifier mon profil
+                    <Pencil size={13} /> Profil
                   </button>
                   <button
                     onClick={() => setChangePhoneOpen(true)}
-                    className="h-11 w-full rounded-xl border border-border/80 bg-background hover:bg-muted text-foreground text-xs font-bold inline-flex items-center justify-center gap-2 transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+                    className="h-11 w-full rounded-xl border border-border/80 bg-background hover:bg-muted text-foreground text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-primary"
                   >
-                    <Phone size={14} className="text-gold-text" /> Changer de numéro
+                    <Phone size={13} className="text-gold-text" /> Numéro
+                  </button>
+                  <button
+                    onClick={() => setChangePinOpen(true)}
+                    className="h-11 w-full rounded-xl border border-border/80 bg-background hover:bg-muted text-foreground text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+                  >
+                    <KeyRound size={13} className="text-gold-text" /> Mot de passe
                   </button>
                 </div>
               )}
@@ -400,6 +409,30 @@ export function SettingsScreen() {
                 <ShieldCheck size={13} className="mt-px shrink-0 text-success" aria-hidden="true" />
                 Session isolée et protégée sur cet appareil.
               </p>
+            </div>
+          </section>
+        </RevealItem>
+
+        {/* Mot de passe & Code secret PIN */}
+        <RevealItem>
+          <section aria-labelledby="pin-t" className="k-card rounded-[24px] p-4">
+            <div className="w-full flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <IconBadge icon={<KeyRound size={19} />} tone="gold" />
+                <div className="py-1 min-w-0">
+                  <span id="pin-t" className="block text-xs font-bold">Code secret (PIN / Mot de passe)</span>
+                  <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                    {user?.hasPin ? "Actif (4 chiffres) · Protège tes accès et achats" : "Non configuré · Définis ton code à 4 chiffres"}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setChangePinOpen(true)}
+                className="shrink-0 h-9 px-3.5 rounded-xl border border-border/80 bg-background hover:bg-muted text-xs font-bold text-foreground inline-flex items-center gap-1.5 transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+              >
+                <Lock size={12} className="text-gold-text" /> Modifier
+              </button>
             </div>
           </section>
         </RevealItem>
@@ -930,6 +963,13 @@ export function SettingsScreen() {
         open={changePhoneOpen}
         onOpenChange={setChangePhoneOpen}
         currentPhone={user?.phone || ""}
+      />
+
+      <ChangePinModal
+        open={changePinOpen}
+        onOpenChange={setChangePinOpen}
+        currentPhone={user?.phone || ""}
+        hasPin={user?.hasPin}
       />
     </>
   );

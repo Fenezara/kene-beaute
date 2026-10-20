@@ -10,7 +10,7 @@
 // (annuaire, boutique, fiche cliente) — upload local redimensionné.
 import { useEffect, useRef, useSyncExternalStore, useState } from "react";
 import { useTheme } from "next-themes";
-import { Building2, Camera, Check, ChevronRight, CreditCard, Crown, ImageOff, Languages, Loader2, LogOut, Moon, Phone, Receipt, Sparkles, SunMedium } from "lucide-react";
+import { Building2, Camera, Check, ChevronRight, CreditCard, Crown, ImageOff, KeyRound, Languages, Loader2, Lock, LogOut, Moon, Phone, Receipt, Sparkles, SunMedium } from "lucide-react";
 import { DuafeIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
@@ -19,6 +19,7 @@ import { apiGet, apiPatch, apiPost, resizeImage } from "@/lib/kene/api";
 import { Badge } from "@/components/ui/badge";
 import { Eyebrow, IconBadge } from "@/components/kene/ui2026";
 import { ChangePhoneModal } from "@/components/kene/auth/ChangePhoneModal";
+import { ChangePinModal } from "@/components/kene/auth/ChangePinModal";
 import { useKene } from "@/store/kene";
 import { performLogout } from "@/lib/kene/logout";
 import { InitialAvatar, SectionHeader } from "./ui-bits";
@@ -173,6 +174,7 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
   const managerName = sessionUser?.name?.trim() || "Gérante";
   const managerPhone = sessionUser?.phone || "Numéro non renseigné";
   const [changePhoneOpen, setChangePhoneOpen] = useState(false);
+  const [changePinOpen, setChangePinOpen] = useState(false);
 
  /** Langue de l'interface — même logique que côté cliente. */
   function selectLang(l: Lang) {
@@ -220,7 +222,20 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
               Changer
             </button>
           </div>
-          <p className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 min-h-10 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 min-h-10 text-xs text-muted-foreground gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <KeyRound size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
+              <span className="truncate">Mot de passe / Code PIN</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setChangePinOpen(true)}
+              className="text-[11px] font-bold text-primary hover:underline shrink-0"
+            >
+              Modifier
+            </button>
+          </div>
+          <p className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 min-h-10 text-xs text-muted-foreground sm:col-span-2">
             <Building2 size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
             <span className="truncate">{tenantName}{tenantCity ? ` · ${tenantCity}` : ""}</span>
           </p>
@@ -552,6 +567,13 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         open={changePhoneOpen}
         onOpenChange={setChangePhoneOpen}
         currentPhone={sessionUser?.phone || ""}
+      />
+
+      <ChangePinModal
+        open={changePinOpen}
+        onOpenChange={setChangePinOpen}
+        currentPhone={sessionUser?.phone || ""}
+        hasPin={sessionUser?.hasPin}
       />
     </div>
   );
