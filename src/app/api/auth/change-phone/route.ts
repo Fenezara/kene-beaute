@@ -184,133 +184,53 @@ export async function POST(req: NextRequest) {
     let finalUser;
 
     if (existingUser && existingUser.id !== session.userId) {
-      // ─── FUSION DES COMPTES (Gérante / Client) ───
-      // session.userId est fusionné dans existingUser.id qui détient déjà targetPhone.
+      // ─── DÉLÉGATION / BASCULE DU RÔLE GÉRANTE ───
+      // targetPhone devient la nouvelle gérante de l'institut.
+      // L'ancien compte (session.userId) est STRICTEMENT PRÉSERVÉ avec toutes ses données personnelles (diagnostics, commandes, profil client).
       finalUser = await db.$transaction(async (tx) => {
         const currentUser = await tx.user.findUnique({ where: { id: session.userId } });
 
-        // 1. Réassigner les relations standard
-        await tx.appointment.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-        await tx.appointment.updateMany({ where: { clientPhone: oldPhone }, data: { clientPhone: targetPhone } }).catch(() => null);
-
-        await tx.diagnosis.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-        await tx.proDiagnosis.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-
-        await tx.order.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-        await tx.order.updateMany({ where: { phone: oldPhone }, data: { phone: targetPhone } }).catch(() => null);
-
-        await tx.review.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-        await tx.notification.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-        await tx.subscription.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-        await tx.employee.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-        await tx.consent.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-        await tx.passkeyCredential.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-        await tx.payment.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-        await tx.auditLog.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-
-        await tx.clientProfile.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id, phone: targetPhone } }).catch(() => null);
-        await tx.clientProfile.updateMany({ where: { phone: oldPhone }, data: { phone: targetPhone } }).catch(() => null);
-
-        // 2. Gestion des relations uniques (@unique sur userId)
-        // Wallet
-        const oldWallet = await tx.wallet.findUnique({ where: { userId: session.userId } });
-        const existingWallet = await tx.wallet.findUnique({ where: { userId: existingUser.id } });
-        if (oldWallet) {
-          if (existingWallet) {
-            if (oldWallet.balance > 0) {
-              await tx.wallet.update({
-                where: { id: existingWallet.id },
-                data: { balance: { increment: oldWallet.balance } },
-              });
-            }
-            await tx.wallet.delete({ where: { id: oldWallet.id } });
-          } else {
-            await tx.wallet.update({
-              where: { id: oldWallet.id },
-              data: { userId: existingUser.id },
-            });
-          }
-        }
-
-        // SkinPassport
-        const oldPassport = await tx.skinPassport.findUnique({ where: { userId: session.userId } });
-        const existingPassport = await tx.skinPassport.findUnique({ where: { userId: existingUser.id } });
-        if (oldPassport) {
-          if (existingPassport) {
-            await tx.skinPassport.delete({ where: { id: oldPassport.id } });
-          } else {
-            await tx.skinPassport.update({
-              where: { id: oldPassport.id },
-              data: { userId: existingUser.id },
-            });
-          }
-        }
-
-        // PushSubscription
-        const existingSubs = await tx.pushSubscription.findMany({ where: { userId: existingUser.id } });
-        const existingEndpoints = new Set(existingSubs.map((s) => s.endpoint));
-        const oldSubs = await tx.pushSubscription.findMany({ where: { userId: session.userId } });
-        for (const s of oldSubs) {
-          if (existingEndpoints.has(s.endpoint)) {
-            await tx.pushSubscription.delete({ where: { id: s.id } }).catch(() => null);
-          } else {
-            await tx.pushSubscription.update({ where: { id: s.id }, data: { userId: existingUser.id } }).catch(() => null);
-          }
-        }
-
-        // CouponRedemption
-        const existingRedemptions = await tx.couponRedemption.findMany({ where: { userId: existingUser.id } });
-        const existingCoupons = new Set(existingRedemptions.map((r) => r.couponId));
-        const oldRedemptions = await tx.couponRedemption.findMany({ where: { userId: session.userId } });
-        for (const r of oldRedemptions) {
-          if (existingCoupons.has(r.couponId)) {
-            await tx.couponRedemption.delete({ where: { id: r.id } }).catch(() => null);
-          } else {
-            await tx.couponRedemption.update({ where: { id: r.id }, data: { userId: existingUser.id } }).catch(() => null);
-          }
-        }
-
-        // 3. Rôle et nom finaux pour la gérante
-        const finalRole = (currentUser?.role === "admin" || existingUser.role === "admin")
+        // 1. Promouvoir le compte cible en rôle pro
+        const finalRole = (existingUser.role === "admin" || currentUser?.role === "admin")
           ? "admin"
-          : (currentUser?.role === "pro" || existingUser.role === "pro")
-          ? "pro"
-          : "client";
+          : "pro";
 
         const isValidName = (name?: string | null) => name && name.trim().length > 1 && name !== "Cliente" && name !== "Nouvelle cliente";
         const finalName = isValidName(existingUser.name)
           ? existingUser.name
           : (isValidName(currentUser?.name) ? currentUser!.name : (existingUser.name || "Gérante"));
 
-        // 4. Mettre à jour ownerPhone et ownerName des instituts
-        if (finalRole === "pro" || finalRole === "admin") {
-          await tx.tenant.updateMany({
-            where: { ownerPhone: oldPhone },
-            data: {
-              ownerPhone: targetPhone,
-              ownerName: finalName,
-            },
-          });
-        }
-
-        // 5. Mise à jour de l'utilisateur survivant
-        const updated = await tx.user.update({
+        const updatedTarget = await tx.user.update({
           where: { id: existingUser.id },
           data: {
             role: finalRole,
             name: finalName,
-            email: existingUser.email || currentUser?.email || undefined,
-            city: existingUser.city || currentUser?.city || undefined,
-            district: existingUser.district || currentUser?.district || undefined,
-            pinHash: currentUser?.pinHash || existingUser.pinHash || undefined,
-            selectedTenantId: existingUser.selectedTenantId || currentUser?.selectedTenantId || undefined,
           },
         });
 
-        // 6. Suppression propre du compte temporaire migré
-        await tx.user.delete({ where: { id: session.userId } });
+        // 2. Transférer la gérance des instituts vers le nouveau numéro
+        await tx.tenant.updateMany({
+          where: { ownerPhone: oldPhone },
+          data: {
+            ownerPhone: targetPhone,
+            ownerName: finalName,
+          },
+        });
 
-        return updated;
+        // 3. L'ancien compte conserve toutes ses données de cliente (diagnostics, soins, historique)
+        // Si l'ancien compte ne gère plus aucun autre institut, son rôle redevient "client" sans rien perdre.
+        const remainingTenants = await tx.tenant.count({
+          where: { ownerPhone: oldPhone, active: true },
+        });
+
+        if (remainingTenants === 0 && currentUser?.role !== "admin") {
+          await tx.user.update({
+            where: { id: session.userId },
+            data: { role: "client" },
+          });
+        }
+
+        return updatedTarget;
       });
     } else {
       // Cas standard : targetPhone est nouveau ou appartient déjà à cet id
