@@ -38,7 +38,11 @@ function formatToE164(raw: string): string {
   let clean = raw.trim().replace(/\s+/g, "");
   if (!clean.startsWith("+")) {
     const digits = clean.replace(/\D/g, "");
-    clean = digits.startsWith("225") ? `+${digits}` : `+225${digits}`;
+    if (digits.startsWith("225") || digits.startsWith("221")) {
+      clean = `+${digits}`;
+    } else {
+      clean = `+225${digits}`;
+    }
   }
   return clean;
 }
@@ -68,7 +72,22 @@ export async function POST(req: NextRequest) {
   // Vérifier si le numéro cible est déjà pris par un autre utilisateur
   const existingUser = await db.user.findUnique({ where: { phone: targetPhone } });
   if (existingUser && existingUser.id !== session.userId) {
-    return jsonError("Ce numéro est déjà associé à un autre compte Kènè existant.", 409);
+    // Si l'autre compte est admin et que la session n'est pas admin, interdire
+    if (existingUser.role === "admin" && session.role !== "admin") {
+      return jsonError("Ce numéro est réservé à l'administration Kènè.", 403);
+    }
+    // Si l'autre compte gère déjà un autre institut actif différent de celui de la gérante
+    const otherTenant = await db.tenant.findFirst({
+      where: { ownerPhone: targetPhone, active: true },
+    });
+    const currentTenants = await db.tenant.findMany({
+      where: { ownerPhone: session.phone },
+      select: { id: true },
+    });
+    const currentTenantIds = new Set(currentTenants.map((t) => t.id));
+    if (otherTenant && !currentTenantIds.has(otherTenant.id)) {
+      return jsonError(`Ce numéro est déjà gérant d'un autre établissement (« ${otherTenant.name} »).`, 409);
+    }
   }
 
   // ─────────────── ÉTAPE 1 : DEMANDE DE CODE (action = "request") ───────────────
@@ -161,44 +180,176 @@ export async function POST(req: NextRequest) {
     }
 
     const oldPhone = session.phone;
+    let finalUser;
 
-    // Mise à jour de l'utilisateur
-    const updatedUser = await db.user.update({
-      where: { id: session.userId },
-      data: { phone: targetPhone },
-    });
+    if (existingUser && existingUser.id !== session.userId) {
+      // ─── FUSION DES COMPTES (Gérante / Client) ───
+      // session.userId est fusionné dans existingUser.id qui détient déjà targetPhone.
+      finalUser = await db.$transaction(async (tx) => {
+        const currentUser = await tx.user.findUnique({ where: { id: session.userId } });
 
-    // Si c'est un compte pro / gérante d'institut : mettre à jour ownerPhone de ses établissements
-    if (updatedUser.role === "pro" || updatedUser.role === "admin") {
-      await db.tenant.updateMany({
-        where: { ownerPhone: oldPhone },
-        data: { ownerPhone: targetPhone },
+        // 1. Réassigner les relations standard
+        await tx.appointment.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+        await tx.appointment.updateMany({ where: { clientPhone: oldPhone }, data: { clientPhone: targetPhone } }).catch(() => null);
+
+        await tx.diagnosis.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+        await tx.proDiagnosis.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+
+        await tx.order.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+        await tx.order.updateMany({ where: { phone: oldPhone }, data: { phone: targetPhone } }).catch(() => null);
+
+        await tx.review.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+        await tx.notification.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+        await tx.subscription.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+        await tx.employee.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+        await tx.consent.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+        await tx.passkeyCredential.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+        await tx.paymentIntent.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+        await tx.auditLog.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+
+        await tx.clientProfile.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id, phone: targetPhone } }).catch(() => null);
+        await tx.clientProfile.updateMany({ where: { phone: oldPhone }, data: { phone: targetPhone } }).catch(() => null);
+
+        // 2. Gestion des relations uniques (@unique sur userId)
+        // Wallet
+        const oldWallet = await tx.wallet.findUnique({ where: { userId: session.userId } });
+        const existingWallet = await tx.wallet.findUnique({ where: { userId: existingUser.id } });
+        if (oldWallet) {
+          if (existingWallet) {
+            if (oldWallet.balance > 0) {
+              await tx.wallet.update({
+                where: { id: existingWallet.id },
+                data: { balance: { increment: oldWallet.balance } },
+              });
+            }
+            await tx.wallet.delete({ where: { id: oldWallet.id } });
+          } else {
+            await tx.wallet.update({
+              where: { id: oldWallet.id },
+              data: { userId: existingUser.id },
+            });
+          }
+        }
+
+        // SkinPassport
+        const oldPassport = await tx.skinPassport.findUnique({ where: { userId: session.userId } });
+        const existingPassport = await tx.skinPassport.findUnique({ where: { userId: existingUser.id } });
+        if (oldPassport) {
+          if (existingPassport) {
+            await tx.skinPassport.delete({ where: { id: oldPassport.id } });
+          } else {
+            await tx.skinPassport.update({
+              where: { id: oldPassport.id },
+              data: { userId: existingUser.id },
+            });
+          }
+        }
+
+        // WebPushSubscription
+        const existingSubs = await tx.webPushSubscription.findMany({ where: { userId: existingUser.id } });
+        const existingEndpoints = new Set(existingSubs.map((s) => s.endpoint));
+        const oldSubs = await tx.webPushSubscription.findMany({ where: { userId: session.userId } });
+        for (const s of oldSubs) {
+          if (existingEndpoints.has(s.endpoint)) {
+            await tx.webPushSubscription.delete({ where: { id: s.id } }).catch(() => null);
+          } else {
+            await tx.webPushSubscription.update({ where: { id: s.id }, data: { userId: existingUser.id } }).catch(() => null);
+          }
+        }
+
+        // CouponRedemption
+        const existingRedemptions = await tx.couponRedemption.findMany({ where: { userId: existingUser.id } });
+        const existingCoupons = new Set(existingRedemptions.map((r) => r.couponId));
+        const oldRedemptions = await tx.couponRedemption.findMany({ where: { userId: session.userId } });
+        for (const r of oldRedemptions) {
+          if (existingCoupons.has(r.couponId)) {
+            await tx.couponRedemption.delete({ where: { id: r.id } }).catch(() => null);
+          } else {
+            await tx.couponRedemption.update({ where: { id: r.id }, data: { userId: existingUser.id } }).catch(() => null);
+          }
+        }
+
+        // 3. Rôle et nom finaux pour la gérante
+        const finalRole = (currentUser?.role === "admin" || existingUser.role === "admin")
+          ? "admin"
+          : (currentUser?.role === "pro" || existingUser.role === "pro")
+          ? "pro"
+          : "client";
+
+        const isValidName = (name?: string | null) => name && name.trim().length > 1 && name !== "Cliente" && name !== "Nouvelle cliente";
+        const finalName = isValidName(existingUser.name)
+          ? existingUser.name
+          : (isValidName(currentUser?.name) ? currentUser!.name : (existingUser.name || "Gérante"));
+
+        // 4. Mettre à jour ownerPhone et ownerName des instituts
+        if (finalRole === "pro" || finalRole === "admin") {
+          await tx.tenant.updateMany({
+            where: { ownerPhone: oldPhone },
+            data: {
+              ownerPhone: targetPhone,
+              ownerName: finalName,
+            },
+          });
+        }
+
+        // 5. Mise à jour de l'utilisateur survivant
+        const updated = await tx.user.update({
+          where: { id: existingUser.id },
+          data: {
+            role: finalRole,
+            name: finalName,
+            email: existingUser.email || currentUser?.email || undefined,
+            city: existingUser.city || currentUser?.city || undefined,
+            district: existingUser.district || currentUser?.district || undefined,
+            pinHash: currentUser?.pinHash || existingUser.pinHash || undefined,
+            selectedTenantId: existingUser.selectedTenantId || currentUser?.selectedTenantId || undefined,
+          },
+        });
+
+        // 6. Suppression propre du compte temporaire migré
+        await tx.user.delete({ where: { id: session.userId } });
+
+        return updated;
+      });
+    } else {
+      // Cas standard : targetPhone est nouveau ou appartient déjà à cet id
+      finalUser = await db.user.update({
+        where: { id: session.userId },
+        data: { phone: targetPhone },
+      });
+
+      // Si c'est un compte pro / gérante d'institut : mettre à jour ownerPhone de ses établissements
+      if (finalUser.role === "pro" || finalUser.role === "admin") {
+        await db.tenant.updateMany({
+          where: { ownerPhone: oldPhone },
+          data: { ownerPhone: targetPhone },
+        }).catch(() => null);
+      }
+
+      // Mettre à jour les fiches clientes associées
+      await db.clientProfile.updateMany({
+        where: { userId: session.userId },
+        data: { phone: targetPhone },
       }).catch(() => null);
     }
-
-    // Mettre à jour les fiches clientes associées
-    await db.clientProfile.updateMany({
-      where: { userId: session.userId },
-      data: { phone: targetPhone },
-    }).catch(() => null);
 
     // Audit de sécurité
     void audit({
       kind: "phone_changed",
       phone: targetPhone,
-      userId: session.userId,
+      userId: finalUser.id,
       ip: clientIp(req),
-      detail: `from=${oldPhone};to=${targetPhone}`,
+      detail: `from=${oldPhone};to=${targetPhone};merged=${existingUser && existingUser.id !== session.userId}`,
     });
 
     const response = NextResponse.json({
       ok: true,
       message: "Numéro de téléphone mis à jour avec succès !",
-      user: sanitizeUser(updatedUser),
+      user: sanitizeUser(finalUser),
     });
 
-    // Renouveler le cookie de session avec le nouveau téléphone
-    setSessionCookie(response, updatedUser);
+    // Renouveler le cookie de session avec le compte survivant
+    setSessionCookie(response, finalUser);
     return response;
   }
 

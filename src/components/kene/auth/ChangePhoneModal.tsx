@@ -32,7 +32,7 @@ export function ChangePhoneModal({ open, onOpenChange, currentPhone }: ChangePho
   const [sending, setSending] = useState(false);
 
   const cleanDigits = newPhone.replace(/\D/g, "");
-  const isValidPhone = cleanDigits.length >= 8 && cleanDigits.length <= 12;
+  const isValidPhone = cleanDigits.length >= 8 && cleanDigits.length <= 15;
 
   const resetModal = () => {
     setStep("phone");
@@ -57,7 +57,7 @@ export function ChangePhoneModal({ open, onOpenChange, currentPhone }: ChangePho
         "/api/auth/change-phone",
         {
           action: "request",
-          newPhone: cleanDigits,
+          newPhone: newPhone.trim(),
           ...createHumanPayload(),
         }
       );
@@ -86,7 +86,7 @@ export function ChangePhoneModal({ open, onOpenChange, currentPhone }: ChangePho
       haptic(HAPTIC.tap);
       const res = await apiPost<{ ok: boolean; message: string; user: ApiUser }>("/api/auth/change-phone", {
         action: "verify",
-        newPhone: cleanDigits,
+        newPhone: newPhone.trim(),
         code: codeToSubmit,
         ...createHumanPayload(),
       });
@@ -103,6 +103,11 @@ export function ChangePhoneModal({ open, onOpenChange, currentPhone }: ChangePho
         });
         resetModal();
         onOpenChange(false);
+        setTimeout(() => {
+          if (typeof window !== "undefined") {
+            window.location.reload();
+          }
+        }, 500);
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Code invalide");
