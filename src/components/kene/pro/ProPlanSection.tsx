@@ -518,7 +518,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                   <span className="text-xs text-muted-foreground font-semibold">FCFA / mois</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Tarif Mois 1 · Descend de 30 000 F à <strong>15 000 F/mois à vie</strong>
+                  Tarif Mois 1 · Descend de 30 000 F à <strong>20 000 F/mois à vie</strong>
                 </p>
                 {activePlan === "pro_complexe" && complexe.nextTierPrice && (
                   <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-terre/20 text-terre border border-terre/40 px-2 py-0.5 text-[10px] font-bold">
