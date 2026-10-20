@@ -22,7 +22,7 @@ import {
   CalendarPlus,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiGet, apiPatch } from "@/lib/kene/api";
+import { apiGet, apiPatch, apiPost } from "@/lib/kene/api";
 import { openWhatsApp, buildWhatsAppInstituteShareMessage, openWhatsAppAppointmentInquiry } from "@/lib/kene/whatsapp-relay";
 import { useKene, isSavedUser } from "@/store/kene";
 import { SankofaIcon, CauriIcon, KeneEmblem, NsorommaIcon } from "@/components/kene/icons";
@@ -126,6 +126,13 @@ export function InstitutesScreen() {
         userId: user.id,
         selectedTenantId: nextTenantId,
       });
+
+      // Synchronise également le consentement de partage de données
+      void apiPost("/api/auth/shares", {
+        userId: user.id,
+        tenantId: inst.id,
+        granted: Boolean(nextTenantId),
+      }).catch(() => null);
 
       setUser({
         ...user,

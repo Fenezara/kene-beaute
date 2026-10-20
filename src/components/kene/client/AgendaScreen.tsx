@@ -39,6 +39,7 @@ import {
   openWhatsAppAppointmentInquiry,
   openWhatsAppProductOrderInquiry,
 } from "@/lib/kene/whatsapp-relay";
+import { KENE_SUPPORT_PHONE } from "@/lib/kene/config";
 import { useKene } from "@/store/kene";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { cn } from "@/lib/utils";
@@ -313,11 +314,10 @@ export function AgendaScreen() {
     if (!silent) setLoading(true);
     try {
       if (!user?.id) {
-        const instRes = await apiGet<{ institutes: ApiInstitute[] }>("/api/institutes").catch(() => ({ institutes: [] }));
-        setInstitutes(instRes.institutes ?? []);
+        setInstitutes([]);
         return;
       }
-      const [apptRes, ordersRes, diagRes, instRes] = await Promise.all([
+      const [apptRes, ordersRes, diagRes, instRes, sharesRes] = await Promise.all([
         apiGet<{ appointments: ApiAppointment[] }>(`/api/appointments?userId=${user.id}`).catch(() => ({
           appointments: [],
         })),
@@ -326,12 +326,35 @@ export function AgendaScreen() {
           diagnoses: [],
         })),
         apiGet<{ institutes: ApiInstitute[] }>("/api/institutes").catch(() => ({ institutes: [] })),
+        apiGet<{ shares: Array<{ tenantId: string; name: string; city: string; granted: boolean; phone?: string; ownerPhone?: string; country?: string }> }>(
+          `/api/auth/shares?userId=${user.id}`
+        ).catch(() => ({ shares: [] })),
       ]);
 
       setAppointments(apptRes.appointments ?? []);
       setOrders(ordersRes.orders ?? []);
       setDiagnoses(diagRes.diagnoses ?? []);
-      setInstitutes(instRes.institutes ?? []);
+
+      // Filtrage STRICT : seuls les instituts avec lesquels le client partage ses données sont autorisés
+      const grantedIds = new Set<string>();
+      for (const s of sharesRes.shares || []) {
+        if (s.granted && s.tenantId) {
+          grantedIds.add(s.tenantId);
+        }
+      }
+      if (user?.selectedTenantId) {
+        grantedIds.add(user.selectedTenantId);
+      }
+
+      const all = instRes.institutes ?? [];
+      const sharedInsts = all.filter((i) => grantedIds.has(i.id));
+
+      // Si l'objet user.selectedTenant existe et n'était pas dans la liste des instituts publics
+      if (user?.selectedTenant && !sharedInsts.some((i) => i.id === user.selectedTenant?.id)) {
+        sharedInsts.unshift(user.selectedTenant as unknown as ApiInstitute);
+      }
+
+      setInstitutes(sharedInsts);
     } catch (e) {
       console.error("[AgendaScreen] Erreur de chargement:", e);
     } finally {
@@ -342,7 +365,7 @@ export function AgendaScreen() {
 
   useEffect(() => {
     loadData();
-  }, [user?.id]);
+  }, [user?.id, user?.selectedTenantId]);
 
   const handleRefresh = () => {
     haptic(HAPTIC.light);
@@ -353,11 +376,20 @@ export function AgendaScreen() {
   };
 
   const selectedInst = useMemo(() => {
-    if (user?.selectedTenantId && institutes.length > 0) {
-      return institutes.find((i) => i.id === user.selectedTenantId) ?? null;
+    if (chosenTenantId && institutes.length > 0) {
+      const match = institutes.find((i) => i.id === chosenTenantId);
+      if (match) return match;
     }
-    return user?.selectedTenant ?? institutes[0] ?? null;
-  }, [user?.selectedTenantId, user?.selectedTenant, institutes]);
+    if (user?.selectedTenantId && institutes.length > 0) {
+      const match = institutes.find((i) => i.id === user.selectedTenantId);
+      if (match) return match;
+    }
+    // Si la cliente a des instituts partagés, on prend le premier institut partagé (et NON un institut non partagé !)
+    if (institutes.length > 0) {
+      return institutes[0];
+    }
+    return null;
+  }, [chosenTenantId, user?.selectedTenantId, institutes]);
 
   const now = Date.now();
 
@@ -568,6 +600,15 @@ export function AgendaScreen() {
 
   const handleBookRdvType = (typeDef: RdvTypeDefinition) => {
     haptic(HAPTIC.tap);
+    if (institutes.length === 0) {
+      toast.info("Veuillez d'abord choisir un institut partenaire dans votre profil pour lier vos soins.", {
+        action: {
+          label: "Mon profil",
+          onClick: () => setClientTab("profil"),
+        },
+      });
+      return;
+    }
     setChosenTenantId(selectedInst?.id || user?.selectedTenantId || institutes[0]?.id || "");
     setQuickBookType(typeDef);
   };
@@ -576,11 +617,11 @@ export function AgendaScreen() {
     if (!quickBookType) return;
     haptic(HAPTIC.medium);
     const startIso = `${quickDate}T${quickTime}:00`;
-    const targetTenant = institutes.find((i) => i.id === chosenTenantId) || selectedInst || institutes[0];
+    const targetTenant = institutes.find((i) => i.id === chosenTenantId) || selectedInst;
     const targetTenantId = targetTenant?.id;
 
     if (!targetTenantId) {
-      toast.error("Veuillez sélectionner un institut partenaire");
+      toast.error("Veuillez d'abord autoriser le partage avec un institut partenaire dans votre profil.");
       return;
     }
 
@@ -749,13 +790,44 @@ export function AgendaScreen() {
               </select>
             </div>
 
+            {institutes.length === 0 && (
+              <div className="sm:col-span-2 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-xs space-y-1.5">
+                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-bold">
+                  <AlertTriangle size={15} />
+                  <span>Aucun institut partagé</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Seuls les instituts avec lesquels vous partagez vos données cutanées sont disponibles pour vos rendez-vous et soins cabine.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setClientTab("profil")}
+                  className="k-btn-gold h-8 px-3 rounded-lg text-[11px] font-bold text-primary-foreground inline-flex items-center gap-1.5 mt-1"
+                >
+                  <MapPin size={11} /> Choisir mon institut dans mon profil
+                </button>
+              </div>
+            )}
+
+            {institutes.length === 1 && (
+              <div className="sm:col-span-2">
+                <label className="text-[11px] font-bold text-foreground block mb-1">
+                  Institut partenaire (Partage actif)
+                </label>
+                <div className="flex items-center gap-2 h-10 px-3 rounded-xl border border-border bg-muted/40 text-xs font-semibold">
+                  <span className="size-2 rounded-full bg-success shrink-0" />
+                  <span className="truncate">{institutes[0].name} ({institutes[0].city})</span>
+                </div>
+              </div>
+            )}
+
             {institutes.length > 1 && (
               <div className="sm:col-span-2">
                 <label className="text-[11px] font-bold text-foreground block mb-1">
-                  Institut partenaire Kènè
+                  Institut partenaire Kènè (Partage actif)
                 </label>
                 <select
-                  value={chosenTenantId || selectedInst?.id || ""}
+                  value={chosenTenantId || selectedInst?.id || institutes[0].id}
                   onChange={(e) => setChosenTenantId(e.target.value)}
                   className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
                 >
@@ -910,20 +982,28 @@ export function AgendaScreen() {
                     Aucun rendez-vous à venir
                   </h4>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Offrez à votre peau un moment d&apos;expertise et de soin sur-mesure auprès de{" "}
-                    <strong className="text-foreground">{selectedInst?.name || "votre institut partenaire"}</strong>.
+                    {selectedInst ? (
+                      <>Offrez à votre peau un moment d&apos;expertise et de soin sur-mesure auprès de <strong className="text-foreground">{selectedInst.name}</strong>.</>
+                    ) : (
+                      <>Choisissez un institut partenaire dans votre profil pour lier vos soins et planifier vos rendez-vous.</>
+                    )}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
                     haptic(HAPTIC.tap);
+                    if (institutes.length === 0) {
+                      toast.info("Choisissez d'abord votre institut partenaire dans votre profil pour planifier vos soins.");
+                      setClientTab("profil");
+                      return;
+                    }
                     handleBookRdvType(RDV_TYPES_CATALOG[0]);
                   }}
                   className="k-btn-gold h-10 px-5 rounded-xl text-primary-foreground font-black text-xs inline-flex items-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
                 >
                   <DuafeIcon size={14} />
-                  <span>Prendre un RDV avec mon institut</span>
+                  <span>{institutes.length === 0 ? "Choisir mon institut dans mon profil" : "Prendre un RDV avec mon institut"}</span>
                 </button>
               </div>
             ) : (
@@ -1223,14 +1303,15 @@ export function AgendaScreen() {
             <button
               type="button"
               onClick={() => {
-                const phone = selectedInst?.phone || "+2250700000000";
-                const msg = `Bonjour Kènè Conciergerie ! 👑\nJe suis ${user?.name || "Cliente"} et j'aimerais échanger avec un conseiller concernant mes soins.`;
+                const phone = selectedInst?.phone || (selectedInst as any)?.ownerPhone || KENE_SUPPORT_PHONE;
+                const instName = selectedInst?.name || "Kènè Conciergerie";
+                const msg = `Bonjour ${instName} ! 👑\nJe suis ${user?.name || "Cliente"} et j'aimerais échanger concernant mes soins.`;
                 openWhatsApp(phone, msg);
               }}
               className="h-9 px-4 rounded-xl bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/40 text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all active:scale-95"
             >
               <MessageCircle size={14} />
-              <span>Contacter le Concierge</span>
+              <span>{selectedInst ? `Contacter ${selectedInst.name.split(" ")[0]}` : "Contacter le Concierge"}</span>
             </button>
           </div>
         </div>
@@ -1277,10 +1358,15 @@ export function AgendaScreen() {
                 <button
                   type="button"
                   onClick={() => {
+                    if (!selectedInst) {
+                      toast.info("Veuillez d'abord choisir un institut partenaire dans votre profil.");
+                      setClientTab("profil");
+                      return;
+                    }
                     openWhatsAppProductOrderInquiry({
                       productName: "Conseil dermo-botanique & routine recommandée",
-                      tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
-                      instituteName: selectedInst?.name,
+                      tenantPhone: selectedInst.phone || (selectedInst as any)?.ownerPhone,
+                      instituteName: selectedInst.name,
                       country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
                     });
                   }}
@@ -1300,10 +1386,15 @@ export function AgendaScreen() {
                 <button
                   type="button"
                   onClick={() => {
+                    if (!selectedInst) {
+                      toast.info("Veuillez d'abord choisir un institut partenaire dans votre profil.");
+                      setClientTab("profil");
+                      return;
+                    }
                     openWhatsAppProductOrderInquiry({
                       productName: "Renouvellement de routine personnalisée",
-                      tenantPhone: selectedInst?.phone || (selectedInst as any)?.ownerPhone,
-                      instituteName: selectedInst?.name,
+                      tenantPhone: selectedInst.phone || (selectedInst as any)?.ownerPhone,
+                      instituteName: selectedInst.name,
                       country: ((selectedInst as any)?.country || "CI") as "CI" | "SN",
                     });
                   }}

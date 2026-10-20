@@ -123,12 +123,36 @@ export function BookingScreen({
         p.set("city", district);
       }
       const qs = p.toString();
-      const r = await apiGet<{ institutes: ApiInstitute[] }>(`/api/institutes${qs ? `?${qs}` : ""}`);
-      setInstitutes(r.institutes ?? []);
+      const [r, sharesRes] = await Promise.all([
+        apiGet<{ institutes: ApiInstitute[] }>(`/api/institutes${qs ? `?${qs}` : ""}`),
+        apiGet<{ shares: Array<{ tenantId: string; granted: boolean }> }>(
+          `/api/auth/shares?userId=${user.id}`
+        ).catch(() => ({ shares: [] })),
+      ]);
+
+      // Filtrage STRICT : seuls les instituts avec lesquels la cliente partage ses données
+      const grantedIds = new Set<string>();
+      for (const s of sharesRes.shares || []) {
+        if (s.granted && s.tenantId) {
+          grantedIds.add(s.tenantId);
+        }
+      }
+      if (user.selectedTenantId) {
+        grantedIds.add(user.selectedTenantId);
+      }
+
+      const all = r.institutes ?? [];
+      const sharedOnly = all.filter((inst) => grantedIds.has(inst.id));
+
+      if (user.selectedTenant && !sharedOnly.some((i) => i.id === user.selectedTenant?.id)) {
+        sharedOnly.unshift(user.selectedTenant as unknown as ApiInstitute);
+      }
+
+      setInstitutes(sharedOnly);
     } catch {
       setInstitutes([]);
     }
-  }, []);
+  }, [user.id, user.selectedTenantId, user.selectedTenant]);
 
   async function requestGeo() {
     setLocating(true);
@@ -552,7 +576,11 @@ export function BookingScreen({
                     {[0, 1].map((i) => <Shimmer key={i} className="h-36 rounded-[24px]" />)}
                   </div>
                 ) : institutes.length === 0 ? (
-                  <EmptyBlock icon={<MapPin size={22} />} title="Aucun institut pour l'instant" text="De nouveaux instituts Kènè arrivent à Abidjan et Dakar." />
+                  <EmptyBlock
+                    icon={<MapPin size={22} />}
+                    title="Aucun institut partagé"
+                    text="Seuls les instituts avec lesquels vous partagez vos bilans de peau sont disponibles pour vos rendez-vous et soins en salon. Rendez-vous dans votre profil pour choisir un institut partenaire."
+                  />
                 ) : (
                   institutes.map((i) => (
                     <RevealItem key={i.id}>

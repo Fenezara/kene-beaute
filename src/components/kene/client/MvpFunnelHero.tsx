@@ -67,19 +67,9 @@ export function MvpFunnelHero({
       const selected = institutes.find((i) => i.id === user.selectedTenant?.id);
       if (selected) return selected;
     }
-    // 2. Institut passé en default
-    if (defaultInstituteId) {
-      const found = institutes.find((i) => i.id === defaultInstituteId);
-      if (found) return found;
-    }
-    // 3. Correspondance ville
-    const userCity = (user?.city || "").toLowerCase().trim();
-    if (userCity) {
-      const match = institutes.find((i) => i.city.toLowerCase().includes(userCity));
-      if (match) return match;
-    }
-    return institutes[0] || null;
-  }, [user?.selectedTenantId, user?.selectedTenant, defaultInstituteId, institutes, user?.city]);
+    // Si la cliente n'a pas sélectionné ou partagé avec un institut, aucun institut n'est forcé
+    return null;
+  }, [user?.selectedTenantId, user?.selectedTenant, institutes]);
 
   // Ouverture WhatsApp vers la première responsable de l'institut partenaire
   const handleOpenInstituteWhatsApp = () => {
