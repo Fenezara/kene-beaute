@@ -140,9 +140,10 @@ export async function POST(req: NextRequest) {
 
   // ─────────────── ÉTAPE 2 : VÉRIFICATION ET BASCULE (action = "verify") ───────────────
   if (action === "verify") {
-    if (!code || code.length !== 6) {
-      return jsonError("Veuillez saisir le code à 6 chiffres reçu sur le nouveau numéro.", 400);
-    }
+    try {
+      if (!code || code.length !== 6) {
+        return jsonError("Veuillez saisir le code à 6 chiffres reçu sur le nouveau numéro.", 400);
+      }
 
     const rl = rateLimit(rlKey(req, `change-phone:verify:${session.userId}`), OTP_VERIFY);
     if (!rl.ok) {
@@ -204,7 +205,7 @@ export async function POST(req: NextRequest) {
         await tx.employee.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
         await tx.consent.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
         await tx.passkeyCredential.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
-        await tx.paymentIntent.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
+        await tx.payment.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
         await tx.auditLog.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id } }).catch(() => null);
 
         await tx.clientProfile.updateMany({ where: { userId: session.userId }, data: { userId: existingUser.id, phone: targetPhone } }).catch(() => null);
@@ -245,15 +246,15 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // WebPushSubscription
-        const existingSubs = await tx.webPushSubscription.findMany({ where: { userId: existingUser.id } });
+        // PushSubscription
+        const existingSubs = await tx.pushSubscription.findMany({ where: { userId: existingUser.id } });
         const existingEndpoints = new Set(existingSubs.map((s) => s.endpoint));
-        const oldSubs = await tx.webPushSubscription.findMany({ where: { userId: session.userId } });
+        const oldSubs = await tx.pushSubscription.findMany({ where: { userId: session.userId } });
         for (const s of oldSubs) {
           if (existingEndpoints.has(s.endpoint)) {
-            await tx.webPushSubscription.delete({ where: { id: s.id } }).catch(() => null);
+            await tx.pushSubscription.delete({ where: { id: s.id } }).catch(() => null);
           } else {
-            await tx.webPushSubscription.update({ where: { id: s.id }, data: { userId: existingUser.id } }).catch(() => null);
+            await tx.pushSubscription.update({ where: { id: s.id }, data: { userId: existingUser.id } }).catch(() => null);
           }
         }
 
@@ -351,7 +352,11 @@ export async function POST(req: NextRequest) {
     // Renouveler le cookie de session avec le compte survivant
     setSessionCookie(response, finalUser);
     return response;
+  } catch (err) {
+    console.error("[change-phone:verify] Error:", err);
+    return jsonError(err instanceof Error ? err.message : "Erreur interne lors de la mise à jour du numéro", 500);
   }
+}
 
   return jsonError("Action non reconnue", 400);
 }
