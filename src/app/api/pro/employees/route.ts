@@ -284,3 +284,43 @@ export async function PATCH(req: NextRequest) {
     return serverError("pro/employees:patch", err);
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const guard = guardProRole(req, "pro:employees:delete");
+    if (guard) return guard;
+
+    const id = req.nextUrl.searchParams.get("id");
+    const tenantId = req.nextUrl.searchParams.get("tenantId");
+    const permanent = req.nextUrl.searchParams.get("permanent") === "true";
+
+    if (!id) return jsonError("Identifiant employé requis", 400);
+    const tenant = await resolveTenant(req, tenantId);
+    if (!tenant) return jsonError("Institut introuvable", 404);
+
+    const employee = await db.employee.findUnique({ where: { id } });
+    if (!employee || employee.tenantId !== tenant.id) return jsonError("Employée introuvable", 404);
+
+    const payslipsCount = await db.payslip.count({ where: { employeeId: id } });
+    const attendanceCount = await db.attendance.count({ where: { employeeId: id } });
+
+    // Si suppression définitive demandée ou aucune donnée comptable liée
+    if (permanent || (payslipsCount === 0 && attendanceCount === 0)) {
+      await db.employee.delete({ where: { id } });
+      return NextResponse.json({ ok: true, deleted: true, message: "Fiche employée supprimée définitivement." });
+    } else {
+      // Archivage propre : désactive la fiche, fixe la date de sortie et détache le compte app
+      await db.employee.update({
+        where: { id },
+        data: {
+          active: false,
+          endDate: new Date(),
+          userId: null,
+        },
+      });
+      return NextResponse.json({ ok: true, archived: true, message: "Fiche employée archivée et accès révoqué." });
+    }
+  } catch (err) {
+    return serverError("pro/employees:delete", err);
+  }
+}

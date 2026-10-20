@@ -4,11 +4,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Download, Droplets, FileDown, GitCompareArrows, Hand, History,
-  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, WifiOff, X,
+  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, WifiOff, X, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry, KENE_SUPPORT_PHONE } from "@/lib/kene/whatsapp-relay";
-import { ApiError, apiGet, apiPost, resizeImage } from "@/lib/kene/api";
+import { ApiError, apiGet, apiPost, apiDelete, resizeImage } from "@/lib/kene/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatDate, scoreColor, readableTextColor, xof, SEVERITY_STYLES } from "@/lib/kene/format";
 import { cn } from "@/lib/utils";
 import { BODY_ZONES, CLIENT_SPECTRAL_VIEWS, SPECTRAL_VIEWS, ZONE_PHOTO_SLOTS, type AtlasLevel, type BodyZone, type DiagnosisResult, type Indicator, type SuspectedCondition, type ZonePhotoSlot } from "@/lib/kene/types";
@@ -1327,18 +1337,83 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   }
 
  /* ─────────── Étape 4 — Historique ─────────── */
-  if (step === 4) return <HistoryView userId={user.id} history={history} compareMode={compareMode} setCompareMode={setCompareMode} compareSel={compareSel} setCompareSel={setCompareSel} onBack={() => setStep(0)} onOpen={async (d) => { const r = parseDiagnosis(d.resultJson); if (r) { let img = d.imageData; if (!img) { try { const res = await apiGet<{ diagnosis: ApiDiagnosis }>(`/api/diagnoses/${d.id}`); if (res?.diagnosis?.imageData) { img = res.diagnosis.imageData; } } catch {} } setDiag({ id: d.id, result: r, imageData: img || getZoneFallbackImage(d.zone || r.zone), createdAt: d.createdAt }); setStep(3); } }} />;
+  if (step === 4) return (
+    <HistoryView
+      userId={user.id}
+      history={history}
+      compareMode={compareMode}
+      setCompareMode={setCompareMode}
+      compareSel={compareSel}
+      setCompareSel={setCompareSel}
+      onBack={() => setStep(0)}
+      onOpen={async (d) => {
+        const r = parseDiagnosis(d.resultJson);
+        if (r) {
+          let img = d.imageData;
+          if (!img) {
+            try {
+              const res = await apiGet<{ diagnosis: ApiDiagnosis }>(`/api/diagnoses/${d.id}`);
+              if (res?.diagnosis?.imageData) {
+                img = res.diagnosis.imageData;
+              }
+            } catch {}
+          }
+          setDiag({ id: d.id, result: r, imageData: img || getZoneFallbackImage(d.zone || r.zone), createdAt: d.createdAt });
+          setStep(3);
+        }
+      }}
+      onDeleted={(delId) => setHistory((prev) => (prev ? prev.filter((x) => x.id !== delId) : []))}
+    />
+  );
 
  /* ─────────── Étape 3 — Résultats ─────────── */
   if (step === 3 && diag) {
-    return <ResultView diag={diag} products={products} productsError={productsError} onRetryProducts={loadProducts} onNewZone={() => { setStep(0); setImage(""); setDiag(null); }} onHistory={goHistory} />;
+    return (
+      <ResultView
+        diag={diag}
+        products={products}
+        productsError={productsError}
+        onRetryProducts={loadProducts}
+        onNewZone={() => { setStep(0); setImage(""); setDiag(null); }}
+        onHistory={goHistory}
+        onDelete={async () => {
+          try {
+            await apiDelete(`/api/diagnoses/${diag.id}?userId=${user.id}`);
+            toast.success("Bilan de peau supprimé");
+            setHistory((prev) => (prev ? prev.filter((x) => x.id !== diag.id) : []));
+            setDiag(null);
+            setStep(0);
+          } catch (e: any) {
+            toast.error(e?.message || "Impossible de supprimer ce diagnostic");
+          }
+        }}
+      />
+    );
   }
 
   return null;
 }
 
 /* ══════════════ Résultat VISIA-like ══════════════ */
-function ResultView({ diag, products, productsError, onRetryProducts, onNewZone, onHistory }: { diag: { id: string; result: DiagnosisResult; imageData: string; createdAt: string }; products: ApiProduct[]; productsError: boolean; onRetryProducts: () => void; onNewZone: () => void; onHistory: () => void }) {
+function ResultView({
+  diag,
+  products,
+  productsError,
+  onRetryProducts,
+  onNewZone,
+  onHistory,
+  onDelete,
+}: {
+  diag: { id: string; result: DiagnosisResult; imageData: string; createdAt: string };
+  products: ApiProduct[];
+  productsError: boolean;
+  onRetryProducts: () => void;
+  onNewZone: () => void;
+  onHistory: () => void;
+  onDelete?: () => Promise<void>;
+}) {
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const r = diag.result;
   const user = useKene((s) => s.user)!;
   const setClientTab = useKene((s) => s.setClientTab);
@@ -2327,7 +2402,54 @@ Peux-tu m'expliquer ce résultat en détail, m'indiquer les bons gestes au quoti
             <FileDown size={14} />
             <span>Compte-rendu détaillé (PDF)</span>
           </button>
+
+          {/* Supprimer ce bilan (photo floue / erreur) */}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="h-9 w-full col-span-1 sm:col-span-2 rounded-xl border border-border/80 hover:border-destructive/40 hover:bg-destructive/10 text-muted-foreground hover:text-destructive text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Trash2 size={13} />
+              <span>Supprimer ce diagnostic (photo floue ou test)</span>
+            </button>
+          )}
         </div>
+
+        {/* Dialogue de confirmation de suppression du diagnostic */}
+        {onDelete && (
+          <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="font-heading text-destructive flex items-center gap-2">
+                  <Trash2 className="size-4" /> Supprimer ce diagnostic de peau ?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Si la photo était floue, sombre ou mal cadrée, vous pouvez supprimer ce scan. Vos bilans précédents restent intacts et vous pourrez relancer un nouveau scan immédiatement.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleteBusy}>Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={deleteBusy}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    setDeleteBusy(true);
+                    try {
+                      await onDelete();
+                      setDeleteConfirmOpen(false);
+                    } finally {
+                      setDeleteBusy(false);
+                    }
+                  }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleteBusy ? "Suppression…" : "Confirmer la suppression"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
 
         {/* ── Communication WhatsApp avec l'entreprise qui suit la cliente ── */}
         <div className="mt-4 rounded-[24px] border-2 border-[#25D366]/40 bg-gradient-to-br from-[#25D366]/10 via-card to-card p-4 shadow-sm">
@@ -2575,7 +2697,15 @@ function IndicatorBar({ ind, onAsk }: { ind: Indicator; onAsk?: (term: string) =
 
 /* ══════════════ Historique + comparaison ══════════════ */
 function HistoryView({
-  userId, history, compareMode, setCompareMode, compareSel, setCompareSel, onBack, onOpen,
+  userId,
+  history,
+  compareMode,
+  setCompareMode,
+  compareSel,
+  setCompareSel,
+  onBack,
+  onOpen,
+  onDeleted,
 }: {
   userId: string;
   history: ApiDiagnosis[] | null;
@@ -2585,7 +2715,10 @@ function HistoryView({
   setCompareSel: (v: string[]) => void;
   onBack: () => void;
   onOpen: (d: ApiDiagnosis) => void;
+  onDeleted?: (id: string) => void;
 }) {
+  const [itemToDelete, setItemToDelete] = useState<ApiDiagnosis | null>(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
   const list = useMemo(
     () => [...(history ?? [])].filter((d) => d.status === "done").sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
     [history]
@@ -2704,7 +2837,22 @@ function HistoryView({
                         <p className="text-[11px] text-muted-foreground">{formatDate(d.createdAt)} · Self-scan</p>
                       )}
                     </div>
-                    <div className="ml-auto"><ScoreChip score={d.scoreGlobal} /></div>
+                    <div className="ml-auto flex items-center gap-1.5 shrink-0">
+                      <ScoreChip score={d.scoreGlobal} />
+                      {!compareMode && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setItemToDelete(d);
+                          }}
+                          className="size-8 grid place-items-center rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer shrink-0"
+                          title="Supprimer ce diagnostic"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
                   </button>
                   {compareMode && (
                     <button
@@ -2770,6 +2918,45 @@ function HistoryView({
           )}
         </>
       )}
+
+      {itemToDelete && (
+        <AlertDialog open onOpenChange={(o) => !o && setItemToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-heading text-destructive flex items-center gap-2">
+                <Trash2 className="size-4" /> Supprimer ce diagnostic ?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Ce bilan de peau ({BODY_ZONES.find((z) => z.id === itemToDelete.zone)?.label ?? itemToDelete.zone} du {formatDate(itemToDelete.createdAt)}) sera retiré définitivement de votre historique.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingBusy}>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deletingBusy}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  setDeletingBusy(true);
+                  try {
+                    await apiDelete(`/api/diagnoses/${itemToDelete.id}?userId=${userId}`);
+                    toast.success("Diagnostic supprimé de votre historique");
+                    onDeleted?.(itemToDelete.id);
+                    setItemToDelete(null);
+                  } catch (err: any) {
+                    toast.error(err?.message || "Suppression impossible");
+                  } finally {
+                    setDeletingBusy(false);
+                  }
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingBusy ? "Suppression…" : "Confirmer la suppression"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
       <div className="h-2" />
     </div>
   );

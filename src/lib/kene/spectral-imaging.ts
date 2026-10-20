@@ -636,11 +636,17 @@ export async function processMultiSpectralSuite(
           .jpeg({ quality: 90 })
           .toBuffer();
 
-        // 2. Vue Clinique 2 — SPECTRE AMBRE 585 nm (Cliché réel : contraste mélanique & taches HPI sans assombrir)
+        // 2. Vue Clinique 2 — SPECTRE AMBRE 585 nm (Cliché réel : contraste mélanique & taches HPI)
+        const amberGlaze = Buffer.from(
+          `<svg width="${targetW}" height="${targetH}" xmlns="http://www.w3.org/2000/svg">
+            <rect width="${targetW}" height="${targetH}" fill="#d97706" fill-opacity="0.22" />
+          </svg>`
+        );
         const amberFiltered = await sharp(basePhoto1)
-          .modulate({ hue: -8, saturation: 1.32, brightness: 1.08 })
-          .linear(1.12, -8)
-          .sharpen({ sigma: 1.1 })
+          .modulate({ hue: -18, saturation: 1.65, brightness: 1.02 })
+          .linear(1.28, -12)
+          .sharpen({ sigma: 1.2 })
+          .composite([{ input: amberGlaze, blend: "over" }])
           .toBuffer();
         const amberHud = buildHudOverlay(
           targetW,
@@ -659,10 +665,16 @@ export async function processMultiSpectralSuite(
           .toBuffer();
 
         // 3. Vue Clinique 3 — SPECTRE VASCULAIRE 540 nm (Cliché réel : réactivité, sensibilité & érythème)
+        const greenGlaze = Buffer.from(
+          `<svg width="${targetW}" height="${targetH}" xmlns="http://www.w3.org/2000/svg">
+            <rect width="${targetW}" height="${targetH}" fill="#059669" fill-opacity="0.22" />
+          </svg>`
+        );
         const greenFiltered = await sharp(basePhoto2)
-          .modulate({ hue: 6, saturation: 1.24, brightness: 1.07 })
-          .linear(1.14, -10)
+          .modulate({ hue: 85, saturation: 1.6, brightness: 1.04 })
+          .linear(1.25, -10)
           .sharpen({ sigma: 1.2 })
+          .composite([{ input: greenGlaze, blend: "over" }])
           .toBuffer();
         const greenHud = buildHudOverlay(
           targetW,
@@ -680,15 +692,16 @@ export async function processMultiSpectralSuite(
           .jpeg({ quality: 90 })
           .toBuffer();
 
-        // 4. Vue Clinique 4 — LUMIÈRE DE WOOD 405 nm (Cliché réel positif avec voile optique bleu-cyan pour pores & sébum)
+        // 4. Vue Clinique 4 — LUMIÈRE DE WOOD 405 nm (Cliché réel : fluorescence UV pour pores & sébum)
         const woodGlazeSvg = Buffer.from(
           `<svg width="${targetW}" height="${targetH}" xmlns="http://www.w3.org/2000/svg">
-            <rect width="${targetW}" height="${targetH}" fill="#0284c7" fill-opacity="0.14" />
+            <rect width="${targetW}" height="${targetH}" fill="#1e1b4b" fill-opacity="0.30" />
+            <rect width="${targetW}" height="${targetH}" fill="#0284c7" fill-opacity="0.25" />
           </svg>`
         );
         const uvFiltered = await sharp(basePhoto3)
-          .modulate({ brightness: 1.08, saturation: 1.15 })
-          .linear(1.16, -12)
+          .modulate({ hue: 195, saturation: 1.65, brightness: 0.95 })
+          .linear(1.35, -18)
           .sharpen({ sigma: 1.4 })
           .composite([{ input: woodGlazeSvg, blend: "over" }])
           .toBuffer();

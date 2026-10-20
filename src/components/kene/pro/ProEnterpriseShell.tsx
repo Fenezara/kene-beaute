@@ -5,7 +5,7 @@
 // 3. 💳 Caisse & Stock (Ventes & Caisse POS, Offre, Stock & Promos)
 // 4. 🤝 Relation & IA (CRM Clientes, Relances, Secrétaire IA)
 // 5. ⚖️ RH, Paie & Compta (Équipe & Pointage, Paie CNPS/IPRES, Compta SYSCOHADA, Paramètres)
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { io, type Socket } from "socket.io-client";
 import { armHeartbeat } from "@/lib/kene/live-socket";
@@ -26,6 +26,8 @@ import {
   WifiOff,
   BriefcaseBusiness,
   LogIn,
+  LogOut,
+  CheckCircle2,
   ArrowLeft,
   FolderHeart,
   Sparkles,
@@ -326,6 +328,59 @@ export function ProEnterpriseShell() {
     });
   }, [online, tid]);
 
+  // Pointage collaboratrice (auto-pointage en 1 clic pour le personnel)
+  const [staffAttendance, setStaffAttendance] = useState<{
+    id: string;
+    checkIn?: string | null;
+    checkOut?: string | null;
+    status: string;
+    hours?: number | null;
+  } | null>(null);
+  const [staffEmployee, setStaffEmployee] = useState<{ id: string; name: string; role: string } | null>(null);
+  const [attendanceBusy, setAttendanceBusy] = useState(false);
+
+  const loadAttendance = useCallback(async () => {
+    if (!tid) return;
+    try {
+      const res = await apiGet<{
+        attendance: { id: string; checkIn?: string | null; checkOut?: string | null; status: string; hours?: number | null } | null;
+        employee: { id: string; name: string; role: string } | null;
+      }>(`/api/pro/employees/attendance?tenantId=${tid}`);
+      if (res?.employee) {
+        setStaffEmployee(res.employee);
+        setStaffAttendance(res.attendance);
+      }
+    } catch {}
+  }, [tid]);
+
+  useEffect(() => {
+    void loadAttendance();
+  }, [loadAttendance]);
+
+  const handleSelfPointage = async (action: "in" | "out") => {
+    if (!staffEmployee) return;
+    setAttendanceBusy(true);
+    try {
+      haptic(HAPTIC.success);
+      const res = await apiPost<{
+        attendance: { id: string; checkIn?: string | null; checkOut?: string | null; status: string; hours?: number | null };
+      }>("/api/pro/employees/attendance", {
+        employeeId: staffEmployee.id,
+        action,
+      });
+      setStaffAttendance(res.attendance);
+      toast.success(
+        action === "in"
+          ? `Pointage d'arrivée enregistré (${res.attendance.checkIn || "OK"}). Bonne journée !`
+          : `Pointage de sortie enregistré (${res.attendance.checkOut || "OK"}). ${res.attendance.hours || 0}h travaillées.`
+      );
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur de pointage");
+    } finally {
+      setAttendanceBusy(false);
+    }
+  };
+
   const [live, setLive] = useState<ProLive | null>(null);
   const [liveConnected, setLiveConnected] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -606,6 +661,42 @@ export function ProEnterpriseShell() {
               </span>
             )}
 
+            {staffEmployee && (
+              <div className="hidden md:flex items-center shrink-0">
+                {!staffAttendance?.checkIn ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSelfPointage("in")}
+                    disabled={attendanceBusy}
+                    className="h-8 px-3 rounded-full text-xs font-bold bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-600/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    title="Enregistrer mon heure d'arrivée au salon"
+                  >
+                    <LogIn size={13} className="text-emerald-600 dark:text-emerald-400" />
+                    <span>Pointer mon arrivée</span>
+                  </button>
+                ) : !staffAttendance?.checkOut ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSelfPointage("out")}
+                    disabled={attendanceBusy}
+                    className="h-8 px-3 rounded-full text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    title="Enregistrer mon départ du salon"
+                  >
+                    <LogOut size={13} className="text-amber-600 dark:text-amber-400" />
+                    <span>Arrivée {staffAttendance.checkIn} · Pointer sortie</span>
+                  </button>
+                ) : (
+                  <span
+                    className="h-8 px-3 rounded-full text-[11px] font-bold bg-muted/70 text-muted-foreground border border-border flex items-center gap-1.5"
+                    title={`Pointage effectué aujourd'hui : ${staffAttendance.checkIn} → ${staffAttendance.checkOut} (${staffAttendance.hours || 0}h)`}
+                  >
+                    <CheckCircle2 size={13} className="text-emerald-500" />
+                    <span>Pointé ({staffAttendance.checkIn} → {staffAttendance.checkOut})</span>
+                  </span>
+                )}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={goToClientSpace}
@@ -674,6 +765,41 @@ export function ProEnterpriseShell() {
                   )}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {/* Pointage Mobile Collaboratrice */}
+          {staffEmployee && (
+            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-card/90 border border-border shadow-2xs">
+              <span className="text-[11px] font-bold text-foreground truncate">
+                Pointage · {staffEmployee.name.split(" ")[0]}
+              </span>
+              {!staffAttendance?.checkIn ? (
+                <button
+                  type="button"
+                  onClick={() => handleSelfPointage("in")}
+                  disabled={attendanceBusy}
+                  className="h-7 px-2.5 rounded-lg text-[11px] font-bold bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border border-emerald-600/40 flex items-center gap-1 active:scale-95 cursor-pointer shadow-2xs"
+                >
+                  <LogIn size={12} className="text-emerald-600 dark:text-emerald-400" />
+                  <span>Pointer arrivée</span>
+                </button>
+              ) : !staffAttendance?.checkOut ? (
+                <button
+                  type="button"
+                  onClick={() => handleSelfPointage("out")}
+                  disabled={attendanceBusy}
+                  className="h-7 px-2.5 rounded-lg text-[11px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1 active:scale-95 cursor-pointer shadow-2xs"
+                >
+                  <LogOut size={12} className="text-amber-600 dark:text-amber-400" />
+                  <span>Pointer sortie ({staffAttendance.checkIn})</span>
+                </button>
+              ) : (
+                <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">
+                  <CheckCircle2 size={12} className="text-emerald-500" />
+                  {staffAttendance.checkIn} → {staffAttendance.checkOut} ({staffAttendance.hours || 0}h)
+                </span>
+              )}
             </div>
           )}
 
@@ -1090,6 +1216,42 @@ export function ProEnterpriseShell() {
           </nav>
 
           <div className="p-2 border-t border-border/40">
+            {staffEmployee && (
+              <div className="hidden md:flex items-center shrink-0">
+                {!staffAttendance?.checkIn ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSelfPointage("in")}
+                    disabled={attendanceBusy}
+                    className="h-8 px-3 rounded-full text-xs font-bold bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-600/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    title="Enregistrer mon heure d'arrivée au salon"
+                  >
+                    <LogIn size={13} className="text-emerald-600 dark:text-emerald-400" />
+                    <span>Pointer mon arrivée</span>
+                  </button>
+                ) : !staffAttendance?.checkOut ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSelfPointage("out")}
+                    disabled={attendanceBusy}
+                    className="h-8 px-3 rounded-full text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    title="Enregistrer mon départ du salon"
+                  >
+                    <LogOut size={13} className="text-amber-600 dark:text-amber-400" />
+                    <span>Arrivée {staffAttendance.checkIn} · Pointer sortie</span>
+                  </button>
+                ) : (
+                  <span
+                    className="h-8 px-3 rounded-full text-[11px] font-bold bg-muted/70 text-muted-foreground border border-border flex items-center gap-1.5"
+                    title={`Pointage effectué aujourd'hui : ${staffAttendance.checkIn} → ${staffAttendance.checkOut} (${staffAttendance.hours || 0}h)`}
+                  >
+                    <CheckCircle2 size={13} className="text-emerald-500" />
+                    <span>Pointé ({staffAttendance.checkIn} → {staffAttendance.checkOut})</span>
+                  </span>
+                )}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={goToClientSpace}

@@ -20,6 +20,7 @@ import {
   UserRoundCheck,
   Users,
   X,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { apiGet, apiPatch, apiPost } from "@/lib/kene/api";
+import { apiGet, apiPatch, apiPost, apiDelete } from "@/lib/kene/api";
 import { xof, formatDate } from "@/lib/kene/format";
 import { useApi } from "./useApi";
 import { EmptyState, ErrorState, KpiCard, Money, SectionHeader } from "./ui-bits";
@@ -127,6 +128,7 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
   const [hireOpen, setHireOpen] = useState(false);
   const [editing, setEditing] = useState<ProEmployee | null>(null);
   const [departing, setDeparting] = useState<ProEmployee | null>(null);
+  const [deleting, setDeleting] = useState<ProEmployee | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
 
   const employees = useApi<EmployeesResponse>(
@@ -214,6 +216,17 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
       await refreshTeam();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Réactivation impossible");
+    }
+  }
+
+  async function deleteEmployee(emp: ProEmployee) {
+    try {
+      await apiDelete(`/api/pro/employees?id=${emp.id}&tenantId=${tenantId}`);
+      toast.success(`Fiche de ${emp.name} retirée de l'institut`);
+      setDeleting(null);
+      await refreshTeam();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Suppression impossible");
     }
   }
 
@@ -457,6 +470,15 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                         <Undo2 className="size-3" aria-hidden="true" /> Réactiver
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2.5 text-[11px] text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleting(emp)}
+                      title="Supprimer la fiche de l'employée"
+                    >
+                      <Trash2 className="size-3.5" aria-hidden="true" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -597,6 +619,29 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
       )}
       {departing && (
         <DepartDialog key={departing.id} employee={departing} onClose={() => setDeparting(null)} onConfirm={setDeparture} />
+      )}
+      {deleting && (
+        <AlertDialog open onOpenChange={(o) => !o && setDeleting(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-heading text-destructive flex items-center gap-2">
+                <Trash2 className="size-4" /> Supprimer la fiche de {deleting.name} ?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Cette action retirera l&apos;employée de l&apos;institut et révoquera son accès à l&apos;espace Pro. Les données nécessaires à la conformité sociale et comptable resteront archivées.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => void deleteEmployee(deleting)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Confirmer la suppression
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
       {leaveOpen && (
         <LeaveDialog

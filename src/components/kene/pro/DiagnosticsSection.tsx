@@ -26,7 +26,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { CABIN_SAFETY_CHECKLIST, evaluateSafetyChecklist, type CosmetovigilanceIncident, type ReactionType, type ReactionSeverity } from "@/lib/kene/cosmetovigilance";
-import { apiGet, apiPost, resizeImage } from "@/lib/kene/api";
+import { apiGet, apiPost, apiDelete, resizeImage } from "@/lib/kene/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatDate, formatTime, scoreVar } from "@/lib/kene/format";
 import { BODY_ZONES, ZONE_PHOTO_SLOTS } from "@/lib/kene/types";
 import type { BodyZone, Indicator } from "@/lib/kene/types";
@@ -428,6 +438,10 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
           onClose={() => setDetailId(null)}
           onNavigate={onNavigate}
           onOpenDescent={(data) => setSkinDescentData(data)}
+          onDeleted={() => {
+            setDetailId(null);
+            void list.refetch();
+          }}
         />
       )}
 
@@ -1924,13 +1938,18 @@ function DetailSheet({
   onClose,
   onNavigate,
   onOpenDescent,
+  onDeleted,
 }: {
   item: ProDiagnosisItem;
   tenantId: string;
   onClose: () => void;
   onNavigate?: (s: ProSectionId) => void;
   onOpenDescent: (d: { indicators: Indicator[]; score: number; zoneLabel: string }) => void;
+  onDeleted?: () => void;
 }) {
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
   // Photo + contexte CRM complets depuis la fiche cliente
   const detail = useApi<{ client: ProClient; proDiagnoses: ProDiagnosisItem[] } | null>(
     () =>
@@ -1943,62 +1962,111 @@ function DetailSheet({
   const fullItem = detail.data?.proDiagnoses?.find((d) => d.id === item.id);
   const clientPhone = detail.data?.client?.phone;
 
+  const handleDelete = async () => {
+    setDeleteBusy(true);
+    try {
+      await apiDelete(`/api/pro/diagnoses?tenantId=${tenantId}&id=${item.id}`);
+      toast.success("Diagnostic cabine supprimé");
+      setDeleteConfirmOpen(false);
+      onClose();
+      onDeleted?.();
+    } catch (e: any) {
+      toast.error(e?.message || "Impossible de supprimer ce diagnostic");
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
   return (
-    <Sheet open onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" aria-describedby={undefined} className="w-full sm:max-w-xl overflow-y-auto pretty-scroll p-0">
-        <SheetHeader className="p-4 pb-3 border-b border-border bg-muted/40">
-          <SheetTitle className="font-heading text-lg leading-tight">Diagnostic — {item.clientName}</SheetTitle>
-          <SheetDescription className="text-xs">
-            Réalisé en institut{item.practitioner ? ` par ${item.practitioner}` : ""} ·{" "}
-            <span className="capitalize">{item.zone.replace("_", " ")}</span>
-          </SheetDescription>
-        </SheetHeader>
-        <div className="p-4">
-          {!result ? (
-            <ErrorState message="Résultat illisible pour ce diagnostic" />
-          ) : (
-            <>
-              <ResultView
-                result={result}
-                clientName={item.clientName}
-                clientPhone={clientPhone}
-                photo={fullItem?.photoData ?? null}
-                meta={{ zone: item.zone, createdAt: item.createdAt, practitioner: item.practitioner }}
-                onNavigate={onNavigate}
-                onOpenDescent={() =>
-                  onOpenDescent({
-                    indicators: result.indicateurs,
-                    score: result.score_global,
-                    zoneLabel: item.zone.replace("_", " "),
-                  })
-                }
-              />
-              {onNavigate && (
+    <>
+      <Sheet open onOpenChange={(o) => !o && onClose()}>
+        <SheetContent side="right" aria-describedby={undefined} className="w-full sm:max-w-xl overflow-y-auto pretty-scroll p-0">
+          <SheetHeader className="p-4 pb-3 border-b border-border bg-muted/40">
+            <SheetTitle className="font-heading text-lg leading-tight">Diagnostic — {item.clientName}</SheetTitle>
+            <SheetDescription className="text-xs">
+              Réalisé en institut{item.practitioner ? ` par ${item.practitioner}` : ""} ·{" "}
+              <span className="capitalize">{item.zone.replace("_", " ")}</span>
+            </SheetDescription>
+          </SheetHeader>
+          <div className="p-4">
+            {!result ? (
+              <ErrorState message="Résultat illisible pour ce diagnostic" />
+            ) : (
+              <>
+                <ResultView
+                  result={result}
+                  clientName={item.clientName}
+                  clientPhone={clientPhone}
+                  photo={fullItem?.photoData ?? null}
+                  meta={{ zone: item.zone, createdAt: item.createdAt, practitioner: item.practitioner }}
+                  onNavigate={onNavigate}
+                  onOpenDescent={() =>
+                    onOpenDescent({
+                      indicators: result.indicateurs,
+                      score: result.score_global,
+                      zoneLabel: item.zone.replace("_", " "),
+                    })
+                  }
+                />
+                {onNavigate && (
+                  <Button
+                    variant="outline"
+                    className="mt-4 w-full gap-1.5"
+                    onClick={() => {
+                      onClose();
+                      onNavigate("crm");
+                    }}
+                  >
+                    Voir la fiche CRM de {item.clientName}
+                    <ChevronRight className="size-4" aria-hidden="true" />
+                  </Button>
+                )}
                 <Button
                   variant="outline"
-                  className="mt-4 w-full gap-1.5"
-                  onClick={() => {
-                    onClose();
-                    onNavigate("crm");
-                  }}
+                  className="mt-2 w-full gap-1.5"
+                  onClick={() => window.open(`/api/pro/diagnoses/report?tenantId=${tenantId}&id=${item.id}`, "_blank")}
+                  aria-label={`Imprimer le compte-rendu PDF du diagnostic de ${item.clientName}`}
                 >
-                  Voir la fiche CRM de {item.clientName}
-                  <ChevronRight className="size-4" aria-hidden="true" />
+                  <FileDown className="size-4" aria-hidden="true" />
+                  Compte-rendu PDF
                 </Button>
-              )}
-              <Button
-                variant="outline"
-                className="mt-2 w-full gap-1.5"
-                onClick={() => window.open(`/api/pro/diagnoses/report?tenantId=${tenantId}&id=${item.id}`, "_blank")}
-                aria-label={`Imprimer le compte-rendu PDF du diagnostic de ${item.clientName}`}
-              >
-                <FileDown className="size-4" aria-hidden="true" />
-                Compte-rendu PDF
-              </Button>
-            </>
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
+                <Button
+                  variant="outline"
+                  className="mt-2 w-full gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive border-border"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  aria-label="Supprimer ce diagnostic cabine"
+                >
+                  <Trash2 className="size-4" aria-hidden="true" />
+                  Supprimer ce diagnostic cabine
+                </Button>
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading text-destructive flex items-center gap-2">
+              <Trash2 className="size-4" /> Supprimer ce diagnostic cabine ?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action supprimera définitivement le bilan cabine de {item.clientName} ({item.zone.replace("_", " ")}, score {item.scoreGlobal}/100).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteBusy}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteBusy}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteBusy ? "Suppression…" : "Confirmer la suppression"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

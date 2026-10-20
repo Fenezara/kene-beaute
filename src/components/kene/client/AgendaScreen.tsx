@@ -30,9 +30,10 @@ import {
   PlusCircle,
   X,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiGet, apiPost } from "@/lib/kene/api";
+import { apiGet, apiPost, apiDelete } from "@/lib/kene/api";
 import { formatDate, formatTime, xof } from "@/lib/kene/format";
 import {
   openWhatsApp,
@@ -594,6 +595,25 @@ export function AgendaScreen() {
     }
   };
 
+  // Gestion de la suppression d'un rendez-vous passé ou annulé
+  const [deleteTarget, setDeleteTarget] = useState<ApiAppointment | null>(null);
+  const [deletingAppt, setDeletingAppt] = useState(false);
+
+  const confirmDeleteAppt = async () => {
+    if (!deleteTarget) return;
+    setDeletingAppt(true);
+    try {
+      await apiDelete(`/api/appointments/${deleteTarget.id}?userId=${user?.id}`);
+      toast.success("Rendez-vous retiré de votre agenda");
+      setAppointments((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Impossible de supprimer ce rendez-vous");
+    } finally {
+      setDeletingAppt(false);
+    }
+  };
+
   // État de chargement de la réservation
   const [bookingLoading, setBookingLoading] = useState(false);
   const [chosenTenantId, setChosenTenantId] = useState<string>("");
@@ -1130,7 +1150,7 @@ export function AgendaScreen() {
                         <span>Pass PDF</span>
                       </a>
 
-                      {(appt.status === "confirmed" || appt.status === "pending") && (
+                      {(appt.status === "confirmed" || appt.status === "pending") ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -1141,6 +1161,18 @@ export function AgendaScreen() {
                         >
                           <X size={13} />
                           <span>Annuler</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            haptic(HAPTIC.tap);
+                            setDeleteTarget(appt);
+                          }}
+                          className="h-9 px-2 rounded-xl border border-border hover:border-destructive/40 hover:bg-destructive/10 text-muted-foreground hover:text-destructive font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={13} />
+                          <span>Supprimer</span>
                         </button>
                       )}
                     </div>
@@ -1273,9 +1305,17 @@ export function AgendaScreen() {
                         <button
                           type="button"
                           onClick={() => handleBookRdvType(meta)}
-                          className="shrink-0 h-8 px-2.5 rounded-lg border border-primary/30 text-primary font-bold text-[11px] flex items-center gap-1 hover:bg-primary/10 transition-colors"
+                          className="shrink-0 h-8 px-2.5 rounded-lg border border-primary/30 text-primary font-bold text-[11px] flex items-center gap-1 hover:bg-primary/10 transition-colors cursor-pointer"
                         >
                           Renouveler
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(p)}
+                          className="shrink-0 size-8 grid place-items-center rounded-lg border border-border/80 hover:border-destructive/40 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                          title="Supprimer ce soin de mon historique"
+                        >
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     </div>
@@ -1589,6 +1629,69 @@ export function AgendaScreen() {
               </div>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* ───── Modale de suppression définitive d'un RDV passé ou annulé ───── */}
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent className="max-w-md rounded-[28px] p-5 sm:p-6 border border-border/80 bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg font-heading font-black text-destructive">
+              <span className="grid size-9 place-items-center rounded-xl bg-destructive/15 text-destructive">
+                <Trash2 size={18} />
+              </span>
+              <span>Supprimer ce rendez-vous ?</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {deleteTarget && (
+            <div className="space-y-4 pt-2 text-xs">
+              <div className="p-3.5 rounded-2xl bg-muted/50 border border-border/60 space-y-1">
+                <p className="font-heading font-black text-sm text-foreground">
+                  {deleteTarget.service?.name || "Prestation de soin"}
+                </p>
+                <p className="text-muted-foreground">
+                  {deleteTarget.tenant?.name} · {formatDate(deleteTarget.startAt)} à {formatTime(deleteTarget.startAt)}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Statut : {deleteTarget.status === "cancelled" ? "Annulé" : "Passé"}
+                </p>
+              </div>
+
+              <p className="text-muted-foreground leading-relaxed">
+                Ce rendez-vous sera définitivement effacé de votre agenda et de votre historique client.
+              </p>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={deletingAppt}
+                  onClick={() => setDeleteTarget(null)}
+                  className="h-9 px-3.5 rounded-xl border border-border text-foreground hover:bg-accent font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingAppt}
+                  onClick={confirmDeleteAppt}
+                  className="h-9 px-4 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {deletingAppt ? (
+                    <>
+                      <RefreshCw size={13} className="animate-spin" />
+                      <span>Suppression...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={13} />
+                      <span>Confirmer la suppression</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

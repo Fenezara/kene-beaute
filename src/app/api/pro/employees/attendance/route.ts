@@ -1,26 +1,76 @@
 // POST /api/pro/employees/attendance — pointage entrée / sortie du jour
+// GET  /api/pro/employees/attendance — statut du pointage pour l'employée connectée ou le salon
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, dayStart, dayEnd, hhmm } from "@/lib/kene/server";
-import { guardProRole } from "@/lib/kene/session";
+import { guardProRole, sessionFromRequest } from "@/lib/kene/session";
 
 const Body = z.object({
-  employeeId: z.string().min(1),
+  employeeId: z.string().optional(),
   action: z.enum(["in", "out"]),
 });
 
+export async function GET(req: NextRequest) {
+  try {
+    const guard = guardProRole(req, "pro:employees:attendance:get");
+    if (guard) return guard;
+
+    const sess = sessionFromRequest(req);
+    const employeeIdParam = req.nextUrl.searchParams.get("employeeId");
+    const tenantIdParam = req.nextUrl.searchParams.get("tenantId");
+
+    let employee = null;
+    if (employeeIdParam) {
+      employee = await db.employee.findUnique({ where: { id: employeeIdParam } });
+    } else if (sess?.userId) {
+      employee = await db.employee.findFirst({
+        where: {
+          userId: sess.userId,
+          ...(tenantIdParam ? { tenantId: tenantIdParam } : {}),
+        },
+      });
+    }
+
+    if (!employee) {
+      return NextResponse.json({ attendance: null, employee: null });
+    }
+
+    const attendance = await db.attendance.findFirst({
+      where: { employeeId: employee.id, date: { gte: dayStart(), lte: dayEnd() } },
+    });
+
+    return NextResponse.json({
+      attendance,
+      employee: {
+        id: employee.id,
+        name: employee.name,
+        role: employee.role,
+        tenantId: employee.tenantId,
+      },
+    });
+  } catch (err) {
+    return serverError("pro/employees/attendance:get", err);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // Session signée (, migration douce): avec cookie, le pointage
-    // exige un compte pro/admin; sans cookie → legacy.
     const guard = guardProRole(req, "pro:employees:attendance");
     if (guard) return guard;
 
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
 
-    const employee = await db.employee.findUnique({ where: { id: parsed.data.employeeId } });
+    const sess = sessionFromRequest(req);
+    let employee = parsed.data.employeeId
+      ? await db.employee.findUnique({ where: { id: parsed.data.employeeId } })
+      : null;
+
+    if (!employee && sess?.userId) {
+      employee = await db.employee.findFirst({ where: { userId: sess.userId } });
+    }
+
     if (!employee) return jsonError("Employée introuvable", 404);
 
     const now = new Date();
@@ -52,7 +102,7 @@ export async function POST(req: NextRequest) {
       const attendance = existing
         ? await db.attendance.update({ where: { id: existing.id }, data: { checkIn: time, status } })
         : await db.attendance.create({ data: { employeeId: employee.id, date: now, checkIn: time, status } });
-      return NextResponse.json({ attendance });
+      return NextResponse.json({ attendance, employee });
     }
 
     // action "out"
@@ -61,7 +111,7 @@ export async function POST(req: NextRequest) {
       const attendance = await db.attendance.create({
         data: { employeeId: employee.id, date: now, checkOut: time, hours: 8 },
       });
-      return NextResponse.json({ attendance });
+      return NextResponse.json({ attendance, employee });
     }
 
     let hours = existing.hours;
@@ -73,7 +123,7 @@ export async function POST(req: NextRequest) {
       where: { id: existing.id },
       data: { checkOut: time, hours },
     });
-    return NextResponse.json({ attendance });
+    return NextResponse.json({ attendance, employee });
   } catch (err) {
     return serverError("pro/employees/attendance", err);
   }

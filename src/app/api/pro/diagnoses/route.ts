@@ -286,3 +286,28 @@ export async function GET(req: NextRequest) {
     return serverError("pro/diagnoses:GET", err);
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const guard = guardProRole(req, "pro:diagnoses:delete");
+    if (guard) return guard;
+
+    const id = req.nextUrl.searchParams.get("id");
+    const tenantId = req.nextUrl.searchParams.get("tenantId");
+
+    if (!id) return jsonError("Identifiant du diagnostic requis", 400);
+    const tenant = await resolveTenant(req, tenantId);
+    if (!tenant) return jsonError("Institut introuvable", 404);
+
+    const proDiag = await db.proDiagnosis.findUnique({ where: { id } });
+    if (!proDiag || proDiag.tenantId !== tenant.id) {
+      return jsonError("Diagnostic cabine introuvable", 404);
+    }
+
+    await db.proDiagnosis.delete({ where: { id } });
+
+    return NextResponse.json({ ok: true, deleted: true, message: "Diagnostic cabine supprimé avec succès." });
+  } catch (err) {
+    return serverError("pro/diagnoses:DELETE", err);
+  }
+}

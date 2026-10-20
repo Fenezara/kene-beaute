@@ -51,3 +51,34 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return serverError("diagnoses/[id]", err);
   }
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const userIdQuery = req.nextUrl.searchParams.get("userId");
+    const sess = sessionFromRequest(req);
+    const userId = sess?.userId || userIdQuery;
+
+    const diagnosis = await db.diagnosis.findUnique({ where: { id } });
+    if (diagnosis) {
+      if (userId && diagnosis.userId !== userId) {
+        return jsonError("Ce diagnostic ne vous appartient pas", 403);
+      }
+      await db.diagnosis.delete({ where: { id } });
+      return NextResponse.json({ ok: true, deleted: true, message: "Diagnostic supprimé avec succès." });
+    }
+
+    const proDiag = await db.proDiagnosis.findUnique({ where: { id } });
+    if (proDiag) {
+      if (userId && proDiag.userId !== userId) {
+        return jsonError("Ce diagnostic ne vous appartient pas", 403);
+      }
+      await db.proDiagnosis.delete({ where: { id } });
+      return NextResponse.json({ ok: true, deleted: true, message: "Diagnostic supprimé avec succès." });
+    }
+
+    return jsonError("Diagnostic introuvable", 404);
+  } catch (err) {
+    return serverError("diagnoses/[id]:DELETE", err);
+  }
+}
