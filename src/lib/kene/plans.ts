@@ -11,7 +11,7 @@
 // L'argent est simulé, comme le reste de la version d'essai — honnêteté absolue.
 import type { Subscription } from "@prisma/client";
 import { db } from "@/lib/db";
-import { ddMM, notify } from "@/lib/kene/server";
+import { ddMM, notify, resolveUserProContext } from "@/lib/kene/server";
 
 // ─────────────── Définitions des plans payants ───────────────
 
@@ -422,17 +422,31 @@ export interface DiagQuota {
 export async function diagQuotaFor(userId: string): Promise<DiagQuota> {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const [used, sub] = await Promise.all([
+  const [used, sub, user] = await Promise.all([
     db.diagnosis.count({ where: { userId, createdAt: { gte: monthStart } } }),
     getActiveSubscription(userId),
+    db.user.findUnique({ where: { id: userId }, select: { id: true, phone: true, name: true, role: true } }),
   ]);
-  const isPlus = sub?.plan === "kene_plus";
+  let isPlus = sub?.plan === "kene_plus";
+
+  // Avantage Collaboratrice / Gérante : pass Kènè+ offert tant que rattachée à un institut partenaire actif
+  if (!isPlus && user) {
+    try {
+      const proCtx = await resolveUserProContext(user);
+      if ((proCtx.employeeLink && proCtx.employeeLink.tenant?.active) || (proCtx.ownerTenant && proCtx.ownerTenant.active)) {
+        isPlus = true;
+      }
+    } catch {
+      // repli défensif
+    }
+  }
+
   const quota = isPlus ? DIAG_QUOTA_UNLIMITED : FREE_PLAN.diagQuotaMonth;
   return {
     quota,
     used,
     remaining: isPlus ? DIAG_QUOTA_UNLIMITED : Math.max(0, quota - used),
-    plan: sub?.plan ?? FREE_PLAN.id,
+    plan: isPlus ? "kene_plus" : (sub?.plan ?? FREE_PLAN.id),
   };
 }
 

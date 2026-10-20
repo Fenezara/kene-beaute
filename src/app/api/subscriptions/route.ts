@@ -10,7 +10,7 @@
 // PAIEMENT SIMULÉ POC — l'argent est simulé, comme le reste du POC.
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { jsonError, serverError } from "@/lib/kene/server";
+import { jsonError, serverError, resolveUserProContext } from "@/lib/kene/server";
 import { PLAN_DEFS, diagQuotaFor, getActiveSubscription, grantClientWelcomeTrial, grantProWelcomeTrial, getLoyaltyStatus } from "@/lib/kene/plans";
 import { rateLimit, rlKey, rateLimitResponse, WALLET_TOPUP } from "@/lib/kene/rate-limit";
 
@@ -61,8 +61,39 @@ export async function GET(req: NextRequest) {
     }
 
     if (!sub && audience === "client") {
-      const trial = await grantClientWelcomeTrial(userId);
-      if (trial) sub = trial;
+      // Avantage Collaboratrice / Gérante : Pass Kènè+ offert tant que rattachée à un institut partenaire actif
+      const proCtx = await resolveUserProContext(user);
+      if (proCtx.employeeLink && proCtx.employeeLink.tenant?.active) {
+        const tenantName = proCtx.employeeLink.tenant.name;
+        sub = {
+          id: `perk_${proCtx.employeeLink.id}`,
+          userId: user.id,
+          plan: "kene_plus",
+          status: "active",
+          priceFcfa: 0,
+          source: "employee_perk",
+          startedAt: proCtx.employeeLink.hireDate || new Date(),
+          expiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+          createdAt: proCtx.employeeLink.hireDate || new Date(),
+          perkLabel: `Collaboratrice · ${tenantName}`,
+        } as any;
+      } else if (proCtx.ownerTenant && proCtx.ownerTenant.active) {
+        sub = {
+          id: `owner_perk_${proCtx.ownerTenant.id}`,
+          userId: user.id,
+          plan: "kene_plus",
+          status: "active",
+          priceFcfa: 0,
+          source: "employee_perk",
+          startedAt: new Date(),
+          expiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000),
+          createdAt: new Date(),
+          perkLabel: `Fondatrice · ${proCtx.ownerTenant.name}`,
+        } as any;
+      } else {
+        const trial = await grantClientWelcomeTrial(userId);
+        if (trial) sub = trial;
+      }
     }
 
     const quota = await diagQuotaFor(userId);
@@ -103,6 +134,7 @@ export async function GET(req: NextRequest) {
             status: sub.status,
             priceFcfa: sub.priceFcfa,
             source: sub.source,
+            perkLabel: (sub as any).perkLabel ?? null,
             isTrial: isSubTrial,
             trialDaysLeft,
             startedAt: sub.startedAt,

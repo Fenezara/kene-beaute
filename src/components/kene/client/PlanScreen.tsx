@@ -52,6 +52,7 @@ interface ApiSubscription {
   source: string;
   isTrial?: boolean;
   trialDaysLeft?: number;
+  perkLabel?: string;
   startedAt: string;
   expiresAt: string;
 }
@@ -291,60 +292,79 @@ export function PlanScreen() {
               <div className="flex-1 min-w-0">
                 <p id="plus-active-t" className="font-heading font-black text-lg leading-tight flex items-center gap-2 flex-wrap">
                   Kènè+ <Check size={17} className="text-success" aria-hidden="true" />
+                  {data.subscription.source === "employee_perk" && (
+                    <span className="rounded-full bg-primary/20 text-primary border border-primary/30 px-2.5 py-0.5 text-[10px] font-bold">
+                      🌸 Avantage Collaboratrice (Offert)
+                    </span>
+                  )}
                   {data.subscription.source === "welcome_trial" && (
                     <span className="rounded-full bg-gold/20 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">Pass Découverte 30j (0 FCFA)</span>
                   )}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {data.subscription.source === "welcome_trial"
+                  {data.subscription.source === "employee_perk"
+                    ? `Offert par votre institut (${data.subscription.perkLabel || "Institut Partenaire"}) · Diagnostics & soins personnels illimités`
+                    : data.subscription.source === "welcome_trial"
                     ? "30 jours offerts pour explorer tous les privilèges sans limite"
                     : `${plusDef.tagline} · Tarif fidélité : ${xof(currentChargePrice)}/mois`}
                 </p>
               </div>
             </div>
 
-            {/* Échelle de Fidélité Dégressive */}
-            <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <Crown size={14} className="text-gold-text" />
-                  Échelle de fidélité dégressive (5 000 F → 2 500 F)
+            {/* Échelle de Fidélité Dégressive ou Avantage Collaboratrice */}
+            {data.subscription.source === "employee_perk" ? (
+              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-primary" />
+                  <p className="text-xs font-bold text-foreground">Pass Offert · Institut Partenaire Kènè</p>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  En tant que collaboratrice active de <strong>{data.subscription.perkLabel || "votre institut"}</strong>, votre accès Kènè+ est offert à 100%. Vous profitez de diagnostics illimités et de l&apos;ensemble des fonctionnalités de soins personnels sans aucun frais.
                 </p>
-                <span className="rounded-full bg-gold/15 text-gold-text px-2 py-0.5 text-[10px] font-bold">
-                  {data.subscription.source === "welcome_trial"
-                    ? "Mois Découverte actif"
-                    : `Palier Mois ${(data.loyalty?.consecutiveMonths ?? 0) + 1}`}
-                </span>
               </div>
+            ) : (
+              <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Crown size={14} className="text-gold-text" />
+                    Échelle de fidélité dégressive (5 000 F → 2 500 F)
+                  </p>
+                  <span className="rounded-full bg-gold/15 text-gold-text px-2 py-0.5 text-[10px] font-bold">
+                    {data.subscription.source === "welcome_trial"
+                      ? "Mois Découverte actif"
+                      : `Palier Mois ${(data.loyalty?.consecutiveMonths ?? 0) + 1}`}
+                  </span>
+                </div>
 
-              {/* Paliers visuels */}
-              <div className="grid grid-cols-6 gap-1.5 pt-1">
-                {plusDef.tiers.filter((t) => t.month > 0).map((tier) => {
-                  const currentM = data.loyalty?.consecutiveMonths ?? 0;
-                  const isReached = currentM >= tier.month;
-                  const isNext = currentM + 1 === tier.month;
-                  return (
-                    <div
-                      key={tier.month}
-                      className={`rounded-xl p-2 text-center border transition-all ${
-                        isReached
-                          ? "bg-gold/20 border-gold/60 text-gold-text shadow-sm"
-                          : isNext
-                          ? "bg-background border-gold/40 text-foreground ring-1 ring-gold/40"
-                          : "bg-muted/20 border-border/40 text-muted-foreground opacity-60"
-                      }`}
-                    >
-                      <p className="text-[10px] font-bold">M{tier.month}</p>
-                      <p className="text-[11px] font-black font-mono">{tier.priceFcfa / 1000}k</p>
-                    </div>
-                  );
-                })}
+                {/* Paliers visuels */}
+                <div className="grid grid-cols-6 gap-1.5 pt-1">
+                  {plusDef.tiers.filter((t) => t.month > 0).map((tier) => {
+                    const currentM = data.loyalty?.consecutiveMonths ?? 0;
+                    const isReached = currentM >= tier.month;
+                    const isNext = currentM + 1 === tier.month;
+                    return (
+                      <div
+                        key={tier.month}
+                        className={`rounded-xl p-2 text-center border transition-all ${
+                          isReached
+                            ? "bg-gold/20 border-gold/60 text-gold-text shadow-sm"
+                            : isNext
+                            ? "bg-background border-gold/40 text-foreground ring-1 ring-gold/40"
+                            : "bg-muted/20 border-border/40 text-muted-foreground opacity-60"
+                        }`}
+                      >
+                        <p className="text-[10px] font-bold">M{tier.month}</p>
+                        <p className="text-[11px] font-black font-mono">{tier.priceFcfa / 1000}k</p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <p className="text-[10.5px] text-muted-foreground leading-snug">
+                  🌿 <strong>Règle de continuité :</strong> chaque mois payé réduit votre tarif de 500 F jusqu'à <strong>2 500 F/mois à vie</strong>. En cas de mois sauté sans paiement (+5 jours de grâce Mobile Money), le tarif redémarre au Mois 1 (5 000 F).
+                </p>
               </div>
-
-              <p className="text-[10.5px] text-muted-foreground leading-snug">
-                🌿 <strong>Règle de continuité :</strong> chaque mois payé réduit votre tarif de 500 F jusqu'à <strong>2 500 F/mois à vie</strong>. En cas de mois sauté sans paiement (+5 jours de grâce Mobile Money), le tarif redémarre au Mois 1 (5 000 F).
-              </p>
-            </div>
+            )}
 
             <ul className="space-y-2.5">
               {plusDef.perks.map((perk, i) => {
@@ -363,28 +383,40 @@ export function PlanScreen() {
 
             <p className="flex items-start gap-1.5 rounded-xl bg-success/10 px-3 py-2.5 text-[11px] text-success leading-snug">
               <BadgeCheck size={14} className="mt-px shrink-0" aria-hidden="true" />
-              {data.subscription.source === "welcome_trial"
+              {data.subscription.source === "employee_perk"
+                ? `Votre Pass Kènè+ est actif et offert dans le cadre de votre statut d'équipe (${data.subscription.perkLabel || "Institut"}).`
+                : data.subscription.source === "welcome_trial"
                 ? `Ton Pass Découverte de 30 jours est actif jusqu'au ${fmtJJMM(data.subscription.expiresAt)} — sans engagement, aucun prélèvement automatique.`
                 : `Ton abonnement est actif jusqu'au ${fmtJJMM(data.subscription.expiresAt)} — sans engagement, il expire naturellement à cette date (aucun prélèvement automatique, jamais).`}
             </p>
 
-            {/* Bouton de renouvellement dynamique */}
-            <button
-              onClick={() => {
-                setSheetMode("renew");
-                setSheet(true);
-                setState("idle");
-              }}
-              disabled={busy}
-              className="k-btn-gold mt-2 h-12 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              aria-label={`Renouveler Kènè+ pour 30 jours supplémentaires — ${xof(currentChargePrice)} par mois`}
-            >
-              <Crown size={16} />
-              Renouveler +30 jours · {xof(currentChargePrice)}
-            </button>
-            <p className="text-center text-[10px] text-muted-foreground">
-              Les 30 jours se raccordent après ton échéance actuelle · tarif préservé sans interruption.
-            </p>
+            {/* Bouton de renouvellement dynamique (masqué si perk collaboratrice offert) */}
+            {data.subscription.source !== "employee_perk" ? (
+              <>
+                <button
+                  onClick={() => {
+                    setSheetMode("renew");
+                    setSheet(true);
+                    setState("idle");
+                  }}
+                  disabled={busy}
+                  className="k-btn-gold mt-2 h-12 w-full rounded-xl text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  aria-label={`Renouveler Kènè+ pour 30 jours supplémentaires — ${xof(currentChargePrice)} par mois`}
+                >
+                  <Crown size={16} />
+                  Renouveler +30 jours · {xof(currentChargePrice)}
+                </button>
+                <p className="text-center text-[10px] text-muted-foreground">
+                  Les 30 jours se raccordent après ton échéance actuelle · tarif préservé sans interruption.
+                </p>
+              </>
+            ) : (
+              <div className="text-center py-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
+                  <Check size={14} /> Avantage collaboratrice actif · Zéro prélèvement
+                </span>
+              </div>
+            )}
           </section>
         </RevealItem>
       ) : (
