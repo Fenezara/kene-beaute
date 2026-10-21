@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, ensureWallet } from "@/lib/kene/server";
 import { guardUserClaim } from "@/lib/kene/session";
+import { rateLimit, rlKey, rateLimitResponse, PROFILE_EXPORT } from "@/lib/kene/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,11 @@ const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
 export async function GET(req: NextRequest) {
   try {
+    const rl = rateLimit(rlKey(req, "profile:export"), PROFILE_EXPORT);
+    if (!rl.ok) {
+      return rateLimitResponse(rl.retryAfterSec, "Export déjà demandé récemment — réessaie dans quelques minutes");
+    }
+
     const userId = req.nextUrl.searchParams.get("userId");
     if (!userId) return jsonError("userId requis", 400);
 

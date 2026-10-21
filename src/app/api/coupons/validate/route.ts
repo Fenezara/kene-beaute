@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { guardUserClaim } from "@/lib/kene/session";
 import { checkCoupon } from "@/lib/kene/coupons";
+import { rateLimit, rlKey, rateLimitResponse, COUPONS_VALIDATE } from "@/lib/kene/rate-limit";
 
 const Body = z.object({
   code: z.string().trim().min(1).max(40),
@@ -16,6 +17,11 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const rl = rateLimit(rlKey(req, "coupons:validate"), COUPONS_VALIDATE);
+    if (!rl.ok) {
+      return rateLimitResponse(rl.retryAfterSec, "Trop de tentatives de code promo — patiente un instant");
+    }
+
     const parsed = Body.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("code et subtotal requis", 400);
     const { code, userId, subtotal } = parsed.data;

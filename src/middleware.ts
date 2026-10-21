@@ -210,6 +210,34 @@ function isExternalOrigin(req: NextRequest, reqUrl: URL): boolean {
   return !(sameHost && samePort);
 }
 
+// Rate limiter global en mémoire Edge pour le trafic /api/* (défense en profondeur anti-DDoS)
+const GLOBAL_API_LIMIT = 200; // 200 requêtes / minute par IP
+const GLOBAL_API_WINDOW_MS = 60_000;
+const globalRateLimitStore = new Map<string, number[]>();
+let lastGlobalPurgeMs = 0;
+
+function checkGlobalApiRateLimit(ip: string): { ok: boolean; retryAfter: number } {
+  const now = Date.now();
+  if (now - lastGlobalPurgeMs > 60_000) {
+    lastGlobalPurgeMs = now;
+    for (const [key, hits] of globalRateLimitStore.entries()) {
+      const valid = hits.filter((t) => t > now - GLOBAL_API_WINDOW_MS);
+      if (valid.length === 0) globalRateLimitStore.delete(key);
+      else globalRateLimitStore.set(key, valid);
+    }
+  }
+
+  const hits = globalRateLimitStore.get(ip) || [];
+  const validHits = hits.filter((t) => t > now - GLOBAL_API_WINDOW_MS);
+  if (validHits.length >= GLOBAL_API_LIMIT) {
+    const retryAfter = Math.max(1, Math.ceil((validHits[0] + GLOBAL_API_WINDOW_MS - now) / 1000));
+    return { ok: false, retryAfter };
+  }
+  validHits.push(now);
+  globalRateLimitStore.set(ip, validHits);
+  return { ok: true, retryAfter: 0 };
+}
+
 export function middleware(req: NextRequest) {
   const method = req.method.toUpperCase();
   const path = req.nextUrl.pathname;
@@ -290,6 +318,26 @@ export function middleware(req: NextRequest) {
       return applySecurityHeaders(
         NextResponse.json({ error: "Requête automatisée non autorisée" }, { status: 403 }),
         true,
+      );
+    }
+  }
+
+  // 1-quinquies) GARDE-FOU GLOBAL ANTI-DDoS API (Périmètre Middleware)
+  // Coupe les rafales excessives (> 200 req/min) avant d'atteindre le runtime Node ou la base.
+  // Exemptions : surveillance /api/health et webhooks bancaires entrants.
+  if (isApi && !path.startsWith("/api/health") && !path.includes("/webhook")) {
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip")?.trim() ||
+      "local";
+    const rl = checkGlobalApiRateLimit(ip);
+    if (!rl.ok) {
+      return applySecurityHeaders(
+        NextResponse.json(
+          { error: "Débit de requêtes trop élevé — patientez un instant", retryAfterSec: rl.retryAfter },
+          { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+        ),
+        true
       );
     }
   }

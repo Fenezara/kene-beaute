@@ -23,6 +23,9 @@ export const TTS = { limit: 12, windowMs: 60_000 } as const;
 export const ASR = { limit: 10, windowMs: 60_000 } as const; // transcription vocale chat 
 export const AUTH_MUTATION = { limit: 20, windowMs: 60_000 } as const;
 export const REVIEWS_POST = { limit: 10, windowMs: 60_000 } as const; // dépôt d'avis vérifié
+export const COUPONS_VALIDATE = { limit: 15, windowMs: 60_000 } as const; // anti-brute force de codes promo
+export const PROFILE_EXPORT = { limit: 6, windowMs: 15 * 60_000 } as const; // export RGPD complet
+export const ACCOUNT_DELETE = { limit: 5, windowMs: 15 * 60_000 } as const; // suppression de compte & PIN
 
 // ── Routes coûteuses ──
 // VLM client: un scan = une photo analysée par le moteur vision → 6/min

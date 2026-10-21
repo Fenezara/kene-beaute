@@ -8,6 +8,7 @@ import { sessionFromRequest } from "@/lib/kene/session";
 import { clientIp } from "@/lib/kene/audit";
 import { verifyPin } from "@/lib/kene/pin";
 import { anonymizeAndPurgeUser } from "@/lib/kene/account-deletion";
+import { rateLimit, rlKey, rateLimitResponse, ACCOUNT_DELETE } from "@/lib/kene/rate-limit";
 
 const Body = z.object({
   pin: z.string().min(4).max(6).optional(),
@@ -15,6 +16,11 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const rl = rateLimit(rlKey(req, "auth:delete-account"), ACCOUNT_DELETE);
+    if (!rl.ok) {
+      return rateLimitResponse(rl.retryAfterSec, "Trop de tentatives — réessaie dans quelques minutes");
+    }
+
     const session = sessionFromRequest(req);
     if (!session || !session.userId) {
       return jsonError("Session expirée ou non autorisée", 401);
