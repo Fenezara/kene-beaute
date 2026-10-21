@@ -238,9 +238,99 @@ function checkGlobalApiRateLimit(ip: string): { ok: boolean; retryAfter: number 
   return { ok: true, retryAfter: 0 };
 }
 
+// ─────────────────────────── BOUCLIER 1 : HONEYPOT & IP JAIL (MICRO-FAIL2BAN) ───────────────────────────
+// Détecte les scans malveillants automatisés (robots vulnérabilités, sondes WordPress, .env, .git)
+// et place instantanément l'adresse IP en isolement complet pendant 30 minutes.
+const HONEYPOT_PROBES_REGEX =
+  /(?:\/\.env(?:\.|$|\/)|\/\.git(?:\.|$|\/)|\/\.aws|\/\.ssh|\/wp-admin|\/wp-login\.php|\/xmlrpc\.php|\/phpmyadmin|\/pma|\/cgi-bin|\/actuator|\/solr|\/boaform|\/eval-stdin\.php|\/config\.php|\/setup\.php)/i;
+
+const IP_JAIL_MS = 30 * 60_000; // 30 minutes de mise en quarantaine
+const jailedIpsStore = new Map<string, number>();
+let lastJailPurgeMs = 0;
+
+function extractClientIp(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip")?.trim() ||
+    "local"
+  );
+}
+
+function checkIpJail(ip: string): { jailed: boolean } {
+  if (ip === "local") return { jailed: false };
+  const now = Date.now();
+  if (now - lastJailPurgeMs > 60_000) {
+    lastJailPurgeMs = now;
+    for (const [key, expiresAt] of jailedIpsStore.entries()) {
+      if (expiresAt <= now) jailedIpsStore.delete(key);
+    }
+  }
+  const expiresAt = jailedIpsStore.get(ip);
+  if (expiresAt && expiresAt > now) {
+    return { jailed: true };
+  }
+  if (expiresAt) {
+    jailedIpsStore.delete(ip);
+  }
+  return { jailed: false };
+}
+
+function jailIp(ip: string): void {
+  if (ip === "local") return;
+  jailedIpsStore.set(ip, Date.now() + IP_JAIL_MS);
+}
+
+// ─────────────────────────── BOUCLIER 2 : ANTI-JSON BOMB & TAILLE PAYLOAD ───────────────────────────
+const MAX_GENERAL_PAYLOAD_BYTES = 512 * 1024; // 512 KB pour les requêtes API standards
+const MAX_MEDIA_PAYLOAD_BYTES = 10 * 1024 * 1024; // 10 MB pour les uploads photos diagnostic / médias
+
 export function middleware(req: NextRequest) {
   const method = req.method.toUpperCase();
   const path = req.nextUrl.pathname;
+  const ip = extractClientIp(req);
+
+  // A) VÉRIFICATION IP JAIL : si l'IP a touché un pot de miel précédemment, rejet immédiat
+  if (checkIpJail(ip).jailed) {
+    return applySecurityHeaders(
+      NextResponse.json({ error: "Accès refusé par la politique de sécurité" }, { status: 403 }),
+      path.startsWith("/api/")
+    );
+  }
+
+  // B) DÉTECTION DU POT DE MIEL (HONEYPOT) : mise en prison immédiate de l'IP attaquante
+  if (HONEYPOT_PROBES_REGEX.test(path)) {
+    jailIp(ip);
+    return applySecurityHeaders(
+      NextResponse.json({ error: "Accès interdit" }, { status: 403 }),
+      true
+    );
+  }
+
+  // C) GARDE-FOU ANTI-JSON BOMB : vérification stricte de la taille du payload HTTP
+  if (method === "POST" || method === "PUT" || method === "PATCH") {
+    const rawContentLength = req.headers.get("content-length");
+    if (rawContentLength) {
+      const contentLength = parseInt(rawContentLength, 10);
+      if (!Number.isNaN(contentLength)) {
+        const isMediaUpload =
+          path.startsWith("/api/dermato/photo") ||
+          path.startsWith("/api/media") ||
+          path.startsWith("/api/pro/institutes/media") ||
+          path.startsWith("/api/pro/diagnoses") ||
+          path.startsWith("/api/diag");
+        const maxAllowed = isMediaUpload ? MAX_MEDIA_PAYLOAD_BYTES : MAX_GENERAL_PAYLOAD_BYTES;
+        if (contentLength > maxAllowed) {
+          return applySecurityHeaders(
+            NextResponse.json(
+              { error: "Charge utile trop volumineuse (taille maximale autorisée dépassée)" },
+              { status: 413 }
+            ),
+            true
+          );
+        }
+      }
+    }
+  }
 
   // 0) LIEN DÉDIÉ CONSOLE (t. 130) — « /console » ouvre la Console Kènè:
   // rewrite TRANSPARENT vers la page unique « / » (aucune route de page
@@ -326,10 +416,6 @@ export function middleware(req: NextRequest) {
   // Coupe les rafales excessives (> 200 req/min) avant d'atteindre le runtime Node ou la base.
   // Exemptions : surveillance /api/health et webhooks bancaires entrants.
   if (isApi && !path.startsWith("/api/health") && !path.includes("/webhook")) {
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      req.headers.get("x-real-ip")?.trim() ||
-      "local";
     const rl = checkGlobalApiRateLimit(ip);
     if (!rl.ok) {
       return applySecurityHeaders(

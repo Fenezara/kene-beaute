@@ -115,3 +115,74 @@ export function hashEqual(aHex: string, bHex: string): boolean {
   if (a.length === 0 || a.length !== b.length) return false;
   return timingSafeEqual(a, b);
 }
+
+// ─────────────── BOUCLIER 5 : DÉTECTION DE VITESSE / IMPOSSIBLE TRAVEL ───────────────
+
+/**
+ * Détecte les anomalies de déplacement impossible (Impossible Travel / Velocity Check).
+ * Si une connexion survient depuis un pays ou un réseau distant dans un délai physiquement
+ * impossible (< 60 min entre deux pays différents), un événement de haute sévérité est consigné.
+ */
+export async function checkImpossibleTravel(opts: {
+  userId: string;
+  phone: string;
+  currentIp: string;
+  currentCountry?: string | null;
+}): Promise<{ anomaly: boolean; detail?: string }> {
+  try {
+    const lastLogin = await db.securityEvent.findFirst({
+      where: {
+        userId: opts.userId,
+        kind: "login_success",
+      },
+      orderBy: { ts: "desc" },
+    });
+
+    if (!lastLogin || !lastLogin.ip) return { anomaly: false };
+
+    const diffMinutes = (Date.now() - lastLogin.ts.getTime()) / (60 * 1000);
+
+    // Au-delà de 4 heures, le déplacement physique entre pays est plausible
+    if (diffMinutes > 240) return { anomaly: false };
+
+    // Comparaison des pays géolocalisés (headers Edge/CDN)
+    const prevCountryMatch = lastLogin.detail?.match(/\[GEO:([A-Z]{2})\]/);
+    const prevCountry = prevCountryMatch ? prevCountryMatch[1] : null;
+
+    if (opts.currentCountry && prevCountry && opts.currentCountry !== prevCountry) {
+      if (diffMinutes < 60) {
+        const detail = `Saut géographique impossible: ${prevCountry} -> ${opts.currentCountry} en ${Math.round(diffMinutes)} min`;
+        await audit({
+          kind: "impossible_travel",
+          userId: opts.userId,
+          phone: opts.phone,
+          ip: opts.currentIp,
+          detail,
+        });
+        return { anomaly: true, detail };
+      }
+    }
+
+    // Comparaison des sous-réseaux IP en rafale (< 3 minutes)
+    if (lastLogin.ip !== opts.currentIp && lastLogin.ip !== "local" && opts.currentIp !== "local") {
+      const prevSubnet = lastLogin.ip.split(".").slice(0, 2).join(".");
+      const currSubnet = opts.currentIp.split(".").slice(0, 2).join(".");
+      if (prevSubnet && currSubnet && prevSubnet !== currSubnet && diffMinutes < 3) {
+        const detail = `Changement d'IP distant suspect: ${lastLogin.ip} -> ${opts.currentIp} en ${Math.round(diffMinutes)} min`;
+        await audit({
+          kind: "velocity_anomaly",
+          userId: opts.userId,
+          phone: opts.phone,
+          ip: opts.currentIp,
+          detail,
+        });
+        return { anomaly: true, detail };
+      }
+    }
+
+    return { anomaly: false };
+  } catch {
+    return { anomaly: false };
+  }
+}
+

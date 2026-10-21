@@ -2,11 +2,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { splitTVA, saleJournalLines } from "@/lib/accounting/syscohada";
+import { splitTVA, saleJournalLines, computeSaleLedgerHash, GENESIS_LEDGER_HASH } from "@/lib/accounting/syscohada";
 import { jsonError, serverError, resolveTenant, createJournalEntry, recomputeClientRfm, genRef } from "@/lib/kene/server";
 import { pushTenantFeed } from "@/lib/kene/realtime";
 import { guardProRole } from "@/lib/kene/session";
 import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
+import { sanitizePayload } from "@/lib/kene/security-sanitize";
+import { audit, clientIp } from "@/lib/kene/audit";
 
 export async function GET(req: NextRequest) {
   try {
@@ -57,7 +59,7 @@ export async function POST(req: NextRequest) {
     const guard = guardProRole(req, "pro:sales:post");
     if (guard) return guard;
 
-    const parsed = Body.safeParse(await req.json().catch(() => null));
+    const parsed = Body.safeParse(sanitizePayload(await req.json().catch(() => null)));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
     const { tenantId, items, paymentMethod, discount, appointmentId, practitionerName, depositDeducted } = parsed.data;
 
@@ -128,6 +130,40 @@ export async function POST(req: NextRequest) {
     }
     const cashier = practitionerName?.trim() || "Caisse 1";
 
+    // Chaînage cryptographique SYSCOHADA (inaltérabilité de caisse & horodatage fiscal)
+    const lastSale = await db.sale.findFirst({
+      where: { tenantId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, paymentRef: true, createdAt: true, total: true },
+    });
+
+    let prevHash = GENESIS_LEDGER_HASH;
+    if (lastSale?.paymentRef) {
+      const match = lastSale.paymentRef.match(/\[SCEAU:([a-f0-9]{16,64})\]/i);
+      if (match) {
+        prevHash = match[1];
+      } else {
+        prevHash = lastSale.id;
+      }
+    } else if (lastSale) {
+      prevHash = lastSale.id;
+    }
+
+    const ledgerHash = computeSaleLedgerHash({
+      prevHash,
+      tenantId,
+      total,
+      subtotal,
+      tvaAmount: tva,
+      paymentMethod,
+      cashierName: cashier,
+      timestamp: Date.now(),
+    });
+
+    payRef = payRef
+      ? `${payRef} • [SCEAU:${ledgerHash.slice(0, 16)}]`
+      : `[SCEAU:${ledgerHash.slice(0, 16)}]`;
+
     const sale = await db.sale.create({
       data: {
         tenantId,
@@ -143,6 +179,14 @@ export async function POST(req: NextRequest) {
         items: { create: lines.map(({ kind, serviceId, productId, label, qty, unitPrice, total: lineTotal }) => ({ kind, serviceId: serviceId ?? null, productId: productId ?? null, label, qty, unitPrice, total: lineTotal })) },
       },
       include: { items: true },
+    });
+
+    // Sceau d'audit comptable inaltérable
+    void audit({
+      kind: "syscohada_ledger_seal",
+      tenantId,
+      ip: clientIp(req),
+      detail: `Vente #${sale.id.slice(-6).toUpperCase()} scellée (${total} F) • Sceau:${ledgerHash.slice(0, 8)}`,
     });
 
     // Sorties de stock produits + mouvements (anti-stock négatif sous concurrence)

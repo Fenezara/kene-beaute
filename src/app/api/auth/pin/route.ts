@@ -6,12 +6,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { jsonError, serverError } from "@/lib/kene/server";
+import { jsonError, serverError, notify } from "@/lib/kene/server";
 import { sessionFromRequest, setSessionCookie, sanitizeUser } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { audit, clientIp, sha256Hex, hashEqual } from "@/lib/kene/audit";
 import { hashPin, isValidPin, verifyPin } from "@/lib/kene/pin";
+import { sanitizePayload } from "@/lib/kene/security-sanitize";
 
 const Body = z.object({
   phone: z.string().min(5),
@@ -28,7 +29,8 @@ export async function POST(req: NextRequest) {
     return rateLimitResponse(rl.retryAfterSec, "Trop de requêtes — réessaie dans quelques secondes");
   }
   try {
-    const parsed = Body.safeParse(await req.json().catch(() => null));
+    const raw = sanitizePayload(await req.json().catch(() => null));
+    const parsed = Body.safeParse(raw);
     if (!parsed.success) return jsonError("phone et pin (4 à 6 chiffres) requis", 400);
     return await runSetPin(parsed.data, req);
   } catch (err) {
@@ -64,6 +66,16 @@ async function runSetPin(data: z.infer<typeof Body>, req: NextRequest): Promise<
     return jsonError("Compte non trouvé", 404);
   }
 
+  // Vérification du verrouillage temporaire anti-brute force
+  if (process.env.NODE_ENV === "production" && user.pinLockedUntil && user.pinLockedUntil.getTime() > Date.now()) {
+    const remainingSec = Math.max(1, Math.ceil((user.pinLockedUntil.getTime() - Date.now()) / 1000));
+    void audit({ kind: "pin_change_locked", phone, userId: user.id, ip, detail: "compte verrouillé par tentatives erronées" });
+    return rateLimitResponse(
+      remainingSec,
+      `Compte temporairement bloqué suite à plusieurs codes erronés. Réessaie dans ${Math.ceil(remainingSec / 60)} min.`,
+    );
+  }
+
   // Vérification des droits : soit session valide, soit code OTP valide
   const session = sessionFromRequest(req);
   const isSessionAuth = session && (session.userId === user.id || session.phone === phone);
@@ -74,8 +86,28 @@ async function runSetPin(data: z.infer<typeof Body>, req: NextRequest): Promise<
     if (user.pinHash) {
       if (data.oldPin) {
         if (!verifyPin(data.oldPin, user.pinHash)) {
-          void audit({ kind: "pin_change_failed", phone, userId: user.id, ip, detail: "ancien code secret incorrect" });
-          return jsonError("L'ancien code secret est incorrect", 400);
+          const nextFails = (user.pinFails || 0) + 1;
+          if (nextFails >= 5) {
+            const lockedUntil = new Date(Date.now() + 15 * 60_000);
+            await db.user.update({
+              where: { id: user.id },
+              data: { pinFails: 0, pinLockedUntil: lockedUntil },
+            });
+            void audit({ kind: "login_locked", phone, userId: user.id, ip, detail: "5 anciens codes PIN erronés — verrou 15 min" });
+            void notify({
+              userId: user.id,
+              channel: "whatsapp",
+              toPhone: user.phone,
+              message: `⚠️ Alerte Sécurité Kènè : 5 tentatives erronées de modification de code secret détectées. Votre accès a été temporairement bloqué pendant 15 minutes.`,
+            }).catch(() => null);
+            return rateLimitResponse(15 * 60, "Plusieurs codes erronés — compte bloqué 15 minutes par mesure de sécurité.");
+          }
+          await db.user.update({
+            where: { id: user.id },
+            data: { pinFails: nextFails },
+          });
+          void audit({ kind: "pin_change_failed", phone, userId: user.id, ip, detail: `ancien code secret incorrect (${nextFails}/5)` });
+          return jsonError(`L'ancien code secret est incorrect (il te reste ${5 - nextFails} tentative${5 - nextFails > 1 ? "s" : ""})`, 400);
         }
       } else if (otpCode) {
         const otp = await db.otpCode.findFirst({

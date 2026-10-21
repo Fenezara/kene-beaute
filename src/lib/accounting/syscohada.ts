@@ -2,6 +2,8 @@
 // Plan comptable pré-chargé, écritures auto depuis caisse/achats/paie,
 // grand livre, balance, bilan & compte de résultat simplifiés.
 
+import { createHash } from "node:crypto";
+
 export interface AccountDef {
   code: string;
   classe: number;
@@ -226,3 +228,36 @@ export function buildStatements(balance: BalanceRow[]): FinancialStatements {
   const totalPassif = passif.reduce((s, x) => s + x.amount, 0);
   return { produits, charges, resultat, tvaCollected, tvaDeductible, tvaAPayer: Math.max(0, tvaCollected - tvaDeductible), actif, passif, totalActif, totalPassif };
 }
+
+// ─────────────────────────── EMPREINTE & CHAÎNAGE CRYPTOGRAPHIQUE DES VENTES ───────────────────────────
+
+export const GENESIS_LEDGER_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
+
+/**
+ * Calcule l'empreinte cryptographique chaînée d'une vente (standard SYSCOHADA / caisse inaltérable).
+ * Chaque vente intègre le hash de la vente précédente : toute modification ou suppression
+ * ultérieure rompt mathématiquement la chaîne d'intégrité comptable.
+ */
+export function computeSaleLedgerHash(opts: {
+  prevHash: string;
+  tenantId: string;
+  total: number;
+  subtotal: number;
+  tvaAmount: number;
+  paymentMethod: string;
+  cashierName: string;
+  timestamp: number | string;
+}): string {
+  const payload = [
+    opts.prevHash,
+    opts.tenantId,
+    opts.total,
+    opts.subtotal,
+    opts.tvaAmount,
+    opts.paymentMethod,
+    opts.cashierName,
+    opts.timestamp,
+  ].join("|");
+  return createHash("sha256").update(payload, "utf8").digest("hex");
+}
+

@@ -130,3 +130,31 @@ flowchart TD
    }
    ```
    Accompagnée du header standard HTTP `Retry-After: 45` interprété directement par le front-end pour afficher un compte à rebours dynamique à l'utilisateur.
+
+---
+
+## 6. Les 5 Boucliers de Sécurité Avancée Kènè
+
+En complément des gardes de périmètre, Kènè déploie 5 boucliers de cyberdéfense proactive :
+
+### 6.1 Bouclier 1 : Pot de Miel (Honeypot) & Prison IP en Mémoire Edge
+- **Détection des sondes d'attaque** : Piège actif sur les chemins de reconnaissance malveillants (`/.env`, `/.git`, `/wp-admin`, `/xmlrpc.php`, `/phpmyadmin`, `/actuator`, `/solr`, `/boaform`...).
+- **Isolement instantané (Micro-Fail2ban)** : Dès qu'une IP sonde l'un de ces chemins interdits, elle est bannie immédiatement en mémoire Edge pour **30 minutes**.
+- **Refus systématique** : Toutes ses requêtes ultérieures reçoivent une réponse HTTP `403 Forbidden` sans solliciter le serveur d'application ni la base de données.
+
+### 6.2 Bouclier 2 : Défense Anti-JSON Bomb & Anti-Pollution de Prototype
+- **Plafonnement des charges utiles** : Les requêtes mutantes (`POST`, `PUT`, `PATCH`) sont limitées à **512 Ko** par défaut (avec dérogation jusqu'à 10 Mo pour les photos cutanées de diagnostic et médias certifiés). Tout payload excédentaire est rejeté avec un code `413 Payload Too Large`.
+- **Neutralisation de prototype (`security-sanitize.ts`)** : Nettoyage récursif des objets JSON avant traitement pour neutraliser toute tentative d'injection de clés réservées (`__proto__`, `constructor`, `prototype`).
+
+### 6.3 Bouclier 3 : Verrouillage Progressif de Compte & Alerte WhatsApp
+- **Protection PIN** : Dès 5 tentatives consécutives de code PIN ou mot de passe erroné, le compte est automatiquement verrouillé pendant **15 minutes**.
+- **Notification d'alerte en temps réel** : Un message de sécurité d'urgence est immédiatement envoyé sur le WhatsApp de l'utilisatrice pour l'avertir de l'activité suspecte et lui permettre de réagir ou de réinitialiser ses accès par SMS.
+
+### 6.4 Bouclier 4 : Chaînage Cryptographique Inaltérable des Ventes (SYSCOHADA)
+- **Scellement par Hash Chaîné (Blockchain-lite)** : Chaque vente enregistrée en caisse calcule une empreinte cryptographique `SHA-256` incluant le hash de la vente précédente, le montant HT/TVA/TTC, l'identifiant institut, le mode de paiement et l'horodatage.
+- **Preuve d'intégrité fiscale** : Toute altération, insertion ou suppression frauduleuse d'une ligne de vente dans la base de données brise mathématiquement la chaîne d'intégrité, rendant toute tentative de fraude détectable lors des audits fiscaux et comptables.
+
+### 6.5 Bouclier 5 : Détection de Déplacement Impossible & Anomalies de Vélocité
+- **Vérification de vélocité géographique** : Lors de chaque authentification réussie, la géolocalisation et l'adresse IP sont confrontées à l'historique récent du compte.
+- **Alerte voyage impossible** : Une connexion détectée depuis un pays ou un sous-réseau distant dans un délai physiquement impossible (< 60 minutes) déclenche un événement d'audit de haute sévérité et notifie instantanément le propriétaire du compte.
+

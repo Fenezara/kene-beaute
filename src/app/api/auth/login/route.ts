@@ -11,11 +11,12 @@ import { jsonError, serverError, notify, resolveUserProContext, phoneSuffix } fr
 import { setSessionCookie, sanitizeUser } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, LOGIN_PIN } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
-import { audit, clientIp } from "@/lib/kene/audit";
+import { audit, clientIp, checkImpossibleTravel } from "@/lib/kene/audit";
 import { hashPin, verifyPin } from "@/lib/kene/pin";
 import { checkBotGuard } from "@/lib/kene/bot-guard";
 import { genRef } from "@/lib/kene/server";
 import { grantClientWelcomeTrial, grantProWelcomeTrial } from "@/lib/kene/plans";
+import { sanitizePayload } from "@/lib/kene/security-sanitize";
 
 const Body = z.object({
   phone: z.string().min(5),
@@ -26,7 +27,7 @@ const Body = z.object({
   _kene_ts: z.number().optional(),
 });
 
-const MAX_PIN_FAILS = 10;
+const MAX_PIN_FAILS = 5;
 const PIN_LOCK_MS = 15 * 60_000; // 15 minutes de blocage
 
 const normalizePhone = (raw: string) => raw.replace(/\s+/g, "").trim();
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
     );
   }
   try {
-    const raw = await req.json().catch(() => null);
+    const raw = sanitizePayload(await req.json().catch(() => null));
     const botCheck = checkBotGuard(req, raw);
     if (!botCheck.ok && botCheck.response) return botCheck.response;
 
@@ -171,10 +172,19 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
           where: { id: user.id },
           data: { pinFails: 0, pinLockedUntil: lockedUntil },
         });
-        void audit({ kind: "login_locked", phone, userId: user.id, ip, detail: "codes PIN erronés — verrou 15 min" });
+        void audit({ kind: "login_locked", phone, userId: user.id, ip, detail: "5 codes PIN erronés — verrou 15 min" });
+
+        // Alerte de sécurité immédiate (WhatsApp)
+        void notify({
+          userId: user.id,
+          channel: "whatsapp",
+          toPhone: user.phone,
+          message: `⚠️ Alerte Sécurité Kènè : 5 tentatives de code secret erronées ont été détectées sur votre compte. Votre accès a été temporairement verrouillé pendant 15 minutes par mesure de protection.`,
+        }).catch(() => null);
+
         return rateLimitResponse(
           Math.ceil(PIN_LOCK_MS / 1000),
-          "Plusieurs codes erronés — compte bloqué 15 minutes. Tu peux utiliser « Code oublié ? » pour réinitialiser par SMS.",
+          "Plusieurs codes erronés — compte bloqué 15 minutes par sécurité. Une notification d'alerte a été transmise à votre numéro. Tu peux utiliser « Code oublié ? » pour réinitialiser par SMS.",
         );
       } else {
         await db.user.update({
@@ -268,7 +278,36 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
     );
   }
 
-  void audit({ kind: "login_success", phone: user.phone, userId: user.id, ip, detail: "connexion par code secret PIN" });
+  const country =
+    req.headers.get("cf-ipcountry") ||
+    req.headers.get("x-country") ||
+    req.headers.get("x-geoip-country") ||
+    null;
+
+  void checkImpossibleTravel({
+    userId: user.id,
+    phone: user.phone,
+    currentIp: ip,
+    currentCountry: country,
+  }).then((check) => {
+    if (check.anomaly) {
+      void notify({
+        userId: user.id,
+        channel: "whatsapp",
+        toPhone: user.phone,
+        message: `🚨 Alerte Sécurité Kènè : Une connexion à votre compte a été détectée depuis un emplacement inhabituel (${check.detail}). Si vous n'êtes pas à l'origine de cette action, modifiez immédiatement votre code PIN.`,
+      }).catch(() => null);
+    }
+  });
+
+  const geoTag = country ? ` [GEO:${country.toUpperCase()}]` : "";
+  void audit({
+    kind: "login_success",
+    phone: user.phone,
+    userId: user.id,
+    ip,
+    detail: `connexion PIN (${user.role})${geoTag}`,
+  });
 
   if (user.role === "admin") {
     const when = new Date().toLocaleString("fr-FR", {
