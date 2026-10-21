@@ -78,3 +78,55 @@ Chaque cliente dispose dans son profil d'un bouton **« Exporter mes données »
 Lorsqu'un utilisateur demande la suppression définitive de son compte :
 1. **Purge Immédiate des Données de Santé** : Les photos du visage, les résultats d'analyses VLM et les fiches cutanées sont immédiatement détruits de manière irréversible.
 2. **Conservation Légale Anonymisée** : Conformément aux obligations fiscales et comptables (SYSCOHADA exigeant 10 ans de conservation des écritures), les factures et transactions sont conservées sous forme strictement anonymisée (remplacement du nom par *"Compte Utilisateur Supprimé"* et numéro de téléphone masqué).
+
+---
+
+## 5. Stratégie de Rate Limiting & Protection Anti-DDoS
+
+Pour préserver la disponibilité du service, l'intégrité de la base de données SQLite et les coûts des GPU / API d'intelligence artificielle, Kènè déploie une **protection multicouche** :
+
+```mermaid
+flowchart TD
+    A["🌐 Requête Cliente / Webhook"] --> B["🛡️ Couche 1 : Reverse-Proxy Caddy\n(HTTPS TLS 1.3, compression gzip/zstd, timeouts)"]
+    B --> C["⚡ Couche 2 : Middleware Edge Next.js\n(Anti-Bot User-Agents, garde CSRF/Origin, Limiteur global 200 req/min)"]
+    C --> D{"Type de Route ?"}
+    D -->|Sensible : Auth / OTP / PIN| E["🔐 Rate Limiter Auth\n(10-15 req / 15 min par IP)"]
+    D -->|Coûteuse : IA VLM / Vision| F["🔬 Rate Limiter Vision IA\n(6-10 scans / min par IP)"]
+    D -->|Financière : Paiement / Caisse| G["💳 Rate Limiter Transactions\n(8-20 req / min par IP)"]
+    D -->|Standard / Consultation| H["⚡ Handler Métier & SQLite"]
+    E --> H
+    F --> H
+    G --> H
+```
+
+### 5.1 Grille des Presets de Limitation (`src/lib/kene/rate-limit.ts`)
+
+| Famille d'Action | Limite / Fenêtre | Routes Concernées | Menace Contrôlée |
+| :--- | :--- | :--- | :--- |
+| **Garde DoS Global** | 200 req / min | Tout `/api/*` (hors `/health` et webhooks) | Inondation serveur & saturation SQLite |
+| **Demande OTP SMS** | 10 req / 15 min | `/api/auth/otp/request` | Spam SMS, épuisement forfait passerelle |
+| **Validation OTP** | 12 req / 15 min | `/api/auth/otp/verify` | Brute-force du code à 6 chiffres |
+| **Connexion Code PIN** | 15 req / 15 min | `/api/auth/login`, `/api/auth/pin` | Brute-force du code PIN 4 chiffres |
+| **Passkeys Console** | 12 req / 15 min | `/api/admin/passkey/login/*` | Attaques par rejeu FIDO2 / énumération |
+| **Élévation Step-up** | 12 req / 15 min | `/api/admin/elevate` | Tentatives d'escalade de privilège |
+| **Scanner Vision IA (VLM)** | 6 scans / min | `/api/diagnoses` | Surcoût cloud IA, abus de scan dermo |
+| **Scanner Pro Cabine** | 10 scans / min | `/api/pro/diagnoses` | Cadence humaine normale en institut |
+| **Paiements & Checkout** | 12 req / min | `/api/payments/*/init`, `/api/orders` | Injection frauduleuse, double débit |
+| **Recharge Wallet** | 8 req / min | `/api/wallet/topup` | Fraude monétaire, spam de requêtes |
+| **Codes Promo** | 15 req / min | `/api/coupons/validate` | Énumération automatisée de réductions |
+| **Suppression de compte**| 5 req / 15 min | `/api/auth/delete-account` | Attaque malveillante sur code PIN |
+| **Export RGPD** | 6 req / 15 min | `/api/profile/export` | Surcharge CPU (requête multi-tables) |
+| **Diffusion Coupons SMS**| 4 req / min | `/api/pro/coupons/diffuse` | Mass-spam vers toute la patientèle |
+
+### 5.2 Algorithme & Spécificités Techniques
+1. **Fenêtre Glissante en Mémoire (Sliding Window)** : Calcul exact basé sur les horodatages réels des hits (`Date.now()`). Aucun effet de seuil brutal en début de minute.
+2. **Zéro Dépendance Externe** : Fonctionne en mémoire vive mono-processus sans nécessiter Redis, éliminant tout point de défaillance réseau.
+3. **Purge Paresseuse (Lazy Clean)** : Nettoyage automatique des clés inactives toutes les 5 minutes lors des appels, garantissant **zéro fuite de mémoire** et aucun timer d'arrière-plan permanent.
+4. **Réponse 429 Standardisée** :
+   ```json
+   {
+     "error": "Trop de tentatives — réessaie dans quelques minutes",
+     "retryAfterSec": 45
+   }
+   ```
+   Accompagnée du header standard HTTP `Retry-After: 45` interprété directement par le front-end pour afficher un compte à rebours dynamique à l'utilisateur.
