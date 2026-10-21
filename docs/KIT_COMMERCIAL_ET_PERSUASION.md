@@ -12,6 +12,9 @@ Ce document constitue la boîte à outils commerciale et persuasive officielle d
 3. **Chevalet de Comptoir, Affichette Cabine & Script Praticienne (B2C)**
 4. **Guide Ultime de Traitement des Objections Terrain**
 5. **Procédure de Lancement « Les 10 Salons Pionniers »**
+6. **Le Flyer Format Poche A6 / Carte Pass VIP de Sortie**
+7. **Générateur de Messages WhatsApp à Fort Taux d'Action**
+8. **Convention Officielle de Partenariat & Conformité Juridique**
 
 ---
 
@@ -154,3 +157,48 @@ Pour maximiser l'effet réseau et la preuve sociale lors du déploiement :
    * Mise en avant prioritaire dans l'annuaire dermo-beauté de la plateforme.
    * 1er mois d'accès 100 % offert et Pass Kènè+ VIP offert à tout le personnel.
 4. **Collecter les témoignages vidéo Avant/Après** dès J+21 pour alimenter les réseaux sociaux de Kènè.
+
+---
+
+# 6. Le Flyer Format Poche A6 / Carte Pass VIP de Sortie
+
+Ce support de format carte postale A6 (105 mm x 148 mm) est imprimable directement depuis l'espace Pro. Il est remis en main propre par la praticienne ou la caissière lors du règlement :
+
+### Structure du Recto / Verso :
+* **En-tête de prestige** : Logo Kènè or & terre cuite avec mention « KÈNÈ VIP PASS · Institut Partenaire ».
+* **QR Code d'accès direct** : Scannable sans installation préalable, menant directement à la fiche personnalisée de l'institut.
+* **Zones manuscrites à remplir par la praticienne** :
+  * Nom de la cliente.
+  * Score d'éclat / hydratation obtenu lors du bilan cabine (ex: `84 %`).
+  * Praticienne référente.
+  * Date conseillée pour le prochain rituel en institut.
+* **Avantage Fidélité** : Rappel des 30 jours offerts sur le Pass VIP Kènè+ et réduction exclusive au prochain soin.
+
+---
+
+# 7. Générateur de Messages WhatsApp à Fort Taux d'Action
+
+Intégré nativement dans l'onglet *WhatsApp* du modal commercial Pro, ces messages permettent à la gérante et à son équipe de contacter leurs clientes en 1 clic :
+
+1. **Invitation VIP & Diagnostic Offert** :
+   > *« Bonjour ! Chez [Nom du Salon], nous vous offrons votre bilan de santé de peau complet en 10 secondes grâce à notre scanner dermo-biométrique. Découvrez la routine botanique idéale pour votre épiderme et activez vos 30 jours offerts Kènè+ : [Lien Institut] »*
+
+2. **Compte-rendu Post-Soin Immédiat** :
+   > *« Bonjour ! Toute l'équipe de [Nom du Salon] vous remercie pour votre visite. Votre soin en cabine a restauré l'éclat de votre peau. Retrouvez votre compte-rendu personnalisé et vos conseils botaniques sur votre espace sécurisé : [Lien Institut] »*
+
+3. **Relance Bienveillante à J+21 (Renouvellement Cellulaire)** :
+   > *« Bonjour ! Voilà 3 semaines depuis votre dernier rituel chez [Nom du Salon]. Votre cycle de régénération cellulaire arrive à maturité : c'est le moment idéal pour faire votre bilan de suivi cabine et consolider votre éclat. Réservez votre créneau ici : [Lien Institut] »*
+
+---
+
+# 8. Convention Officielle de Partenariat & Conformité Juridique
+
+Pour officialiser l'affiliation de chaque établissement sans incertitude juridique, le document contractuel de référence est consultable à l'adresse suivante :
+👉 [`docs/CONTRAT_PARTENARIAT_INSTITUT.md`](file:///d:/Projet%20Tic/Projet_Antigravity/K%C3%A8n%C3%A8/docs/CONTRAT_PARTENARIAT_INSTITUT.md)
+
+Il régit de manière stricte et équilibrée :
+* **La Charte Anti-Dépigmentant** : Tolérance zéro pour l'hydroquinone, les corticoïdes et les sels de mercure.
+* **La Propriété des Données** : La patientèle et les chiffres d'affaires restent la propriété inaliénable du salon.
+* **La Quarantaine des Salariés** : Protection hermétique des marges et données de paie.
+* **L'Avantage Employée** : Pass Kènè+ offert à toutes les praticiennes déclarées.
+

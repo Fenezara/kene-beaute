@@ -1,8 +1,8 @@
 "use client";
-// Kènè Pro — Kit Commercial & Chevalet de Cabine
+// Kènè Pro — Kit Commercial & Chevalet de Cabine Intégral
 // Outil d'aide à la vente pour les gérantes et praticiennes d'instituts partenaires.
-// Inclut le chevalet de cabine imprimable avec QR Code personnalisé vers l'institut,
-// les scripts d'accueil au fauteuil et les réponses aux objections courantes des clientes.
+// Inclut le chevalet de cabine A5, la carte pass format poche A6, le générateur de messages WhatsApp,
+// la convention officielle de partenariat, les scripts d'accueil et les réponses aux objections.
 
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
@@ -15,8 +15,12 @@ import {
   Check,
   Share2,
   Copy,
-  ExternalLink,
-  Crown,
+  CreditCard,
+  FileCheck2,
+  Send,
+  Heart,
+  Calendar,
+  Sparkle,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -46,6 +50,7 @@ export function CommercialKitModal({
 }: CommercialKitModalProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
   const [salonLink, setSalonLink] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("chevalet");
 
   useEffect(() => {
     if (typeof window === "undefined" || !open) return;
@@ -75,16 +80,25 @@ export function CommercialKitModal({
     toast.success("Lien de votre institut copié dans le presse-papier !");
   }
 
-  function handleShareWhatsApp() {
-    const text = encodeURIComponent(
-      `Bonjour ! Découvrez notre espace de soins et réalisez votre bilan dermo-biométrique offert chez ${tenantName} : ${salonLink}`
-    );
+  function handleShareWhatsApp(customText?: string) {
+    const defaultText = `Bonjour ! Découvrez notre espace de soins et réalisez votre bilan dermo-biométrique offert chez ${tenantName} : ${salonLink}`;
+    const text = encodeURIComponent(customText || defaultText);
     window.open(`https://wa.me/?text=${text}`, "_blank");
   }
 
+  function handleCopyText(text: string, label: string) {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copié dans le presse-papier !`);
+  }
+
+  // Textes WhatsApp pré-rédigés
+  const waInvitation = `Bonjour ! Chez ${tenantName}, nous vous offrons votre bilan de santé de peau complet en 10 secondes grâce à notre scanner dermo-biométrique. Découvrez la routine botanique idéale pour votre épiderme et activez vos 30 jours offerts Kènè+ : ${salonLink}`;
+  const waPostCare = `Bonjour ! Toute l'équipe de ${tenantName} vous remercie pour votre visite. Votre soin en cabine a restauré l'éclat de votre peau. Retrouvez votre compte-rendu personnalisé et vos conseils botaniques sur votre espace sécurisé : ${salonLink}`;
+  const waRelance = `Bonjour ! Voilà 3 semaines depuis votre dernier rituel chez ${tenantName}. Votre cycle de régénération cellulaire arrive à maturité : c'est le moment idéal pour faire votre bilan de suivi cabine et consolider votre éclat. Réservez votre créneau ici : ${salonLink}`;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-[24px]">
+      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-[24px]">
         <DialogHeader className="no-print">
           <div className="flex items-center gap-2">
             <span className="grid size-9 place-items-center rounded-xl bg-gold/15 text-gold-text">
@@ -92,33 +106,42 @@ export function CommercialKitModal({
             </span>
             <div>
               <DialogTitle className="text-base font-bold font-heading">
-                Kit Commercial &amp; Chevalet de Cabine
+                Kit Commercial &amp; Persuasion Salon
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Supports de persuasion et outils d&apos;accueil pour vos clientes chez {tenantName}
+                Outils d&apos;accueil, supports imprimables et scripts de persuasion pour {tenantName}
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="chevalet" className="mt-3 no-print">
-          <TabsList className="grid grid-cols-3 h-10 rounded-xl bg-muted/50 p-1">
-            <TabsTrigger value="chevalet" className="text-xs font-semibold gap-1.5 rounded-lg">
-              <QrCode size={13} /> Chevalet A5
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-3">
+          <TabsList className="grid grid-cols-3 sm:grid-cols-6 h-auto p-1 rounded-xl bg-muted/50 gap-1 no-print">
+            <TabsTrigger value="chevalet" className="text-[11px] font-semibold gap-1 py-1.5 rounded-lg">
+              <QrCode size={12} /> Chevalet A5
             </TabsTrigger>
-            <TabsTrigger value="scripts" className="text-xs font-semibold gap-1.5 rounded-lg">
-              <MessageSquare size={13} /> Scripts Cabine
+            <TabsTrigger value="poche" className="text-[11px] font-semibold gap-1 py-1.5 rounded-lg">
+              <CreditCard size={12} /> Carte A6
             </TabsTrigger>
-            <TabsTrigger value="objections" className="text-xs font-semibold gap-1.5 rounded-lg">
-              <ShieldCheck size={13} /> Objections
+            <TabsTrigger value="messages" className="text-[11px] font-semibold gap-1 py-1.5 rounded-lg">
+              <Send size={12} /> WhatsApp
+            </TabsTrigger>
+            <TabsTrigger value="scripts" className="text-[11px] font-semibold gap-1 py-1.5 rounded-lg">
+              <MessageSquare size={12} /> Scripts
+            </TabsTrigger>
+            <TabsTrigger value="objections" className="text-[11px] font-semibold gap-1 py-1.5 rounded-lg">
+              <ShieldCheck size={12} /> Objections
+            </TabsTrigger>
+            <TabsTrigger value="convention" className="text-[11px] font-semibold gap-1 py-1.5 rounded-lg">
+              <FileCheck2 size={12} /> Convention
             </TabsTrigger>
           </TabsList>
 
-          {/* ─── TAB 1 : CHEVALET DE CABINE IMPRIMABLE ─── */}
+          {/* ─── TAB 1 : CHEVALET DE CABINE IMPRIMABLE A5 ─── */}
           <TabsContent value="chevalet" className="space-y-4 pt-2">
-            <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-gold/10 border border-gold/30">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-gold/10 border border-gold/30 no-print">
               <p className="text-xs text-muted-foreground">
-                Disposez cette affichette sur votre comptoir d&apos;accueil ou en cabine face au miroir.
+                Disposez ce chevalet A5 sur votre comptoir d&apos;accueil ou face au miroir de chaque cabine.
               </p>
               <div className="flex items-center gap-2">
                 <button
@@ -130,7 +153,7 @@ export function CommercialKitModal({
                 </button>
                 <button
                   type="button"
-                  onClick={handleShareWhatsApp}
+                  onClick={() => handleShareWhatsApp()}
                   className="h-8 px-3 rounded-lg bg-emerald-600 text-white text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
                 >
                   <Share2 size={13} /> WhatsApp
@@ -145,7 +168,7 @@ export function CommercialKitModal({
               </div>
             </div>
 
-            {/* Affichette / Chevalet de Cabine (Zone imprimable) */}
+            {/* Zone imprimable Chevalet A5 */}
             <div className="print-area rounded-2xl border-2 border-gold/40 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6ED] to-[#F5ECE0] dark:from-[#1D1714] dark:to-[#120E0C] p-6 text-center space-y-4 shadow-sm text-foreground">
               <div className="flex flex-col items-center justify-center space-y-1">
                 <span className="grid size-12 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-white shadow-xs">
@@ -168,7 +191,7 @@ export function CommercialKitModal({
                 </p>
               </div>
 
-              {/* QR Code Container */}
+              {/* QR Code */}
               <div className="flex flex-col items-center justify-center py-1">
                 <div className="p-3 rounded-2xl bg-[#FFF9EC] border-2 border-gold/40 shadow-md">
                   {qrCodeUrl ? (
@@ -179,7 +202,7 @@ export function CommercialKitModal({
                     />
                   ) : (
                     <div className="size-48 flex items-center justify-center text-xs text-muted-foreground">
-                      Chargement du QR Code...
+                      Génération du QR Code...
                     </div>
                   )}
                 </div>
@@ -216,78 +239,336 @@ export function CommercialKitModal({
             </div>
           </TabsContent>
 
-          {/* ─── TAB 2 : SCRIPTS CABINE PRATICIENNES ─── */}
-          <TabsContent value="scripts" className="space-y-4 pt-2">
-            <div className="p-4 rounded-2xl bg-card border border-border/80 space-y-3">
+          {/* ─── TAB 2 : CARTE PASS VIP FORMAT POCHE A6 ─── */}
+          <TabsContent value="poche" className="space-y-4 pt-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-gold/10 border border-gold/30 no-print">
+              <p className="text-xs text-muted-foreground">
+                Format carte de sortie A6 à remettre en main propre à la cliente en caisse avec ses notes de soin.
+              </p>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="h-8 px-3 rounded-lg k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
+              >
+                <Printer size={13} /> Imprimer Carte A6
+              </button>
+            </div>
+
+            {/* Zone imprimable Carte A6 */}
+            <div className="print-area rounded-2xl border-2 border-gold/50 bg-[#FFFCF6] dark:bg-[#1A1410] p-5 space-y-3 max-w-lg mx-auto shadow-sm text-foreground">
+              <div className="flex items-center justify-between border-b border-gold/30 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-8 place-items-center rounded-full bg-gold text-white">
+                    <DuafeIcon size={16} />
+                  </span>
+                  <div>
+                    <p className="font-heading font-black text-sm text-gold-text uppercase leading-none">
+                      KÈNÈ VIP PASS
+                    </p>
+                    <p className="text-[10px] font-bold text-muted-foreground mt-0.5">
+                      {tenantName} {tenantCity ? `· ${tenantCity}` : ""}
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-gold/15 text-gold-text text-[9px] font-bold uppercase tracking-wider">
+                  30 Jours Offerts
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 items-center py-1">
+                {/* QR Code miniature */}
+                <div className="flex flex-col items-center">
+                  <div className="p-1.5 rounded-xl bg-white border border-gold/40 shadow-xs">
+                    {qrCodeUrl ? (
+                      <img src={qrCodeUrl} alt="QR Code" className="size-24 object-contain" />
+                    ) : (
+                      <div className="size-24 bg-muted animate-pulse" />
+                    )}
+                  </div>
+                  <span className="text-[8px] font-bold text-muted-foreground mt-1 text-center leading-none">
+                    Scannez pour votre suivi
+                  </span>
+                </div>
+
+                {/* Données manuscrites praticienne */}
+                <div className="col-span-2 space-y-2 text-xs">
+                  <div className="flex items-center justify-between border-b border-border/80 pb-1">
+                    <span className="text-[11px] text-muted-foreground">Cliente :</span>
+                    <span className="font-bold text-[11px]">_____________________</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-border/80 pb-1">
+                    <span className="text-[11px] text-muted-foreground">Score Éclat / Eau :</span>
+                    <span className="font-bold text-[11px] text-gold-text">[ &nbsp; &nbsp; &nbsp; &nbsp; % ]</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-border/80 pb-1">
+                    <span className="text-[11px] text-muted-foreground">Praticienne :</span>
+                    <span className="font-bold text-[11px]">_____________________</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-border/80 pb-1">
+                    <span className="text-[11px] text-muted-foreground">Prochain RDV :</span>
+                    <span className="font-bold text-[11px]">____ / ____ / 2026</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-2 rounded-xl bg-gold/10 border border-gold/20 text-[10px] text-muted-foreground leading-snug">
+                🌿 <strong>Avantage Fidélité :</strong> Présentez ce pass lors de votre prochaine visite chez {tenantName} pour bénéficier de votre diagnostic comparatif offert et de conseils botaniques sur-mesure.
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ─── TAB 3 : GÉNÉRATEUR WHATSAPP 1-CLIC ─── */}
+          <TabsContent value="messages" className="space-y-3 pt-2">
+            <div className="p-3.5 rounded-xl border border-border bg-card space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-emerald-600 font-bold text-xs">● Étape 1</span>
+                  <p className="text-xs font-bold text-foreground">Invitation VIP &amp; Bilan Offert</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(waInvitation, "Message d'invitation")}
+                    className="h-7 px-2.5 rounded-lg border border-border text-[11px] font-semibold hover:bg-muted inline-flex items-center gap-1"
+                  >
+                    <Copy size={11} /> Copier
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleShareWhatsApp(waInvitation)}
+                    className="h-7 px-2.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold inline-flex items-center gap-1"
+                  >
+                    <Send size={11} /> Envoyer WhatsApp
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-lg italic leading-relaxed">
+                « {waInvitation} »
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-border bg-card space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-emerald-600 font-bold text-xs">● Étape 2</span>
+                  <p className="text-xs font-bold text-foreground">Compte-rendu Post-Soin Immédiat</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(waPostCare, "Message post-soin")}
+                    className="h-7 px-2.5 rounded-lg border border-border text-[11px] font-semibold hover:bg-muted inline-flex items-center gap-1"
+                  >
+                    <Copy size={11} /> Copier
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleShareWhatsApp(waPostCare)}
+                    className="h-7 px-2.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold inline-flex items-center gap-1"
+                  >
+                    <Send size={11} /> Envoyer WhatsApp
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-lg italic leading-relaxed">
+                « {waPostCare} »
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-border bg-card space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-emerald-600 font-bold text-xs">● Étape 3</span>
+                  <p className="text-xs font-bold text-foreground">Relance Bienveillante à J+21</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(waRelance, "Message de relance J+21")}
+                    className="h-7 px-2.5 rounded-lg border border-border text-[11px] font-semibold hover:bg-muted inline-flex items-center gap-1"
+                  >
+                    <Copy size={11} /> Copier
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleShareWhatsApp(waRelance)}
+                    className="h-7 px-2.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold inline-flex items-center gap-1"
+                  >
+                    <Send size={11} /> Envoyer WhatsApp
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-lg italic leading-relaxed">
+                « {waRelance} »
+              </p>
+            </div>
+          </TabsContent>
+
+          {/* ─── TAB 4 : SCRIPTS CABINE PRATICIENNES ─── */}
+          <TabsContent value="scripts" className="space-y-3 pt-2">
+            <div className="p-3.5 rounded-xl bg-card border border-border space-y-2">
               <div className="flex items-center gap-2">
-                <span className="grid size-7 place-items-center rounded-lg bg-primary/10 text-primary font-bold text-xs">
+                <span className="grid size-6 place-items-center rounded-md bg-gold/15 text-gold-text font-bold text-xs">
                   1
                 </span>
                 <p className="text-xs font-bold text-foreground">
                   Installation au fauteuil (Accroche bienveillante)
                 </p>
               </div>
-              <p className="text-xs text-muted-foreground italic leading-relaxed pl-9">
-                « Bonjour Madame [Prénom], avant de commencer votre rituel de soin aujourd&apos;hui, nous allons réaliser un diagnostic de peau en 10 secondes sur notre tablette. Vous allez voir exactement l&apos;état d&apos;hydratation et les cellules sous votre peau. À la fin de la séance, nous referons le scan pour que vous puissiez constater vous-même la différence d&apos;éclat Avant / Après. »
+              <p className="text-xs text-muted-foreground italic leading-relaxed pl-8">
+                « Bonjour Madame [Prénom], avant de débuter votre rituel aujourd&apos;hui, nous allons réaliser votre diagnostic en 10 secondes sur notre tablette. Vous verrez l&apos;état exact d&apos;hydratation de votre épiderme. À la fin du soin, nous referons le scan pour constater ensemble la différence d&apos;éclat Avant / Après. »
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-card border border-border/80 space-y-3">
+            <div className="p-3.5 rounded-xl bg-card border border-border space-y-2">
               <div className="flex items-center gap-2">
-                <span className="grid size-7 place-items-center rounded-lg bg-primary/10 text-primary font-bold text-xs">
+                <span className="grid size-6 place-items-center rounded-md bg-gold/15 text-gold-text font-bold text-xs">
                   2
                 </span>
                 <p className="text-xs font-bold text-foreground">
                   Présentation du résultat du scan (La Preuve Visuelle)
                 </p>
               </div>
-              <p className="text-xs text-muted-foreground italic leading-relaxed pl-9">
-                « Regardez ici sur l&apos;écran : votre indice d&apos;hydratation est à [X]% et nous observons quelques taches pigmentaires naissantes sur les pommettes. Le soin régénérant que nous allons appliquer à base de Karité et de Baobab va directement cibler cette zone pour restaurer la barrière cutanée. Vous recevrez le compte-rendu complet sur votre WhatsApp. »
+              <p className="text-xs text-muted-foreground italic leading-relaxed pl-8">
+                « Regardez sur l&apos;écran : votre taux d&apos;hydratation est à [X]% et nous observons quelques taches pigmentaires naissantes sur les pommettes. Le soin régénérant à base de Karité et Baobab va directement réparer cette barrière. Vous recevrez le compte-rendu complet sur votre WhatsApp. »
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-card border border-border/80 space-y-3">
+            <div className="p-3.5 rounded-xl bg-card border border-border space-y-2">
               <div className="flex items-center gap-2">
-                <span className="grid size-7 place-items-center rounded-lg bg-primary/10 text-primary font-bold text-xs">
+                <span className="grid size-6 place-items-center rounded-md bg-gold/15 text-gold-text font-bold text-xs">
                   3
                 </span>
                 <p className="text-xs font-bold text-foreground">
                   Clôture et recommandation routine (Vente naturelle)
                 </p>
               </div>
-              <p className="text-xs text-muted-foreground italic leading-relaxed pl-9">
-                « Regardez le comparatif Avant / Après : votre grain de peau est visiblement unifié (+18 % d&apos;éclat immédiat). Pour maintenir ce résultat à la maison, je vous conseille d&apos;appliquer ce sérum botanique chaque soir. Votre Pass Kènè+ vous permet de suivre l&apos;évolution de vos taches gratuitement depuis votre salon. »
+              <p className="text-xs text-muted-foreground italic leading-relaxed pl-8">
+                « Regardez le comparatif Avant / Après : votre teint est unifié (+18 % d&apos;éclat immédiat). Pour pérenniser ce résultat à la maison, voici votre carte Pass VIP avec votre sérum recommandé noté dessus. Vos 30 premiers jours d&apos;application sont offerts ! »
               </p>
             </div>
           </TabsContent>
 
-          {/* ─── TAB 3 : TRAITEMENT DES OBJECTIONS CLIENTES ─── */}
+          {/* ─── TAB 5 : TRAITEMENT DES OBJECTIONS ─── */}
           <TabsContent value="objections" className="space-y-3 pt-2">
             <div className="p-3.5 rounded-xl border border-border bg-muted/20 space-y-1.5">
               <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                <span className="text-gold-text">❓</span> « Est-ce que ce diagnostic de peau est payant ? »
+                <span className="text-gold-text font-bold">Q :</span> « Est-ce que ce diagnostic de peau est payant ? »
               </p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                <strong>Réponse :</strong> « Non, le bilan dermo-biométrique en cabine est totalement offert dans le cadre de votre venue chez {tenantName}. Vous repartez avec votre fiche d&apos;analyse complète sur votre téléphone sans frais. »
+                <strong>Réponse :</strong> « Non, le bilan dermo-biométrique en cabine est totalement offert dans le cadre de votre rituel chez {tenantName}. Vous repartez avec votre fiche d&apos;analyse complète sur votre téléphone sans débourser un centime. »
               </p>
             </div>
 
             <div className="p-3.5 rounded-xl border border-border bg-muted/20 space-y-1.5">
               <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                <span className="text-gold-text">❓</span> « Que faites-vous de mes photos de visage ? »
+                <span className="text-gold-text font-bold">Q :</span> « Que faites-vous de mes photos de visage ? »
               </p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                <strong>Réponse :</strong> « Vos photographies sont strictement médicales et confidentielles. Elles ne sont jamais publiées ni partagées. Elles vous appartiennent exclusivement dans votre Passeport de Peau sécurisé. »
+                <strong>Réponse :</strong> « Vos photographies sont strictement médicales et confidentielles. Elles ne sont jamais publiées ni vendues à des tiers. Elles restent votre propriété exclusive dans votre Passeport de Peau sécurisé. »
               </p>
             </div>
 
             <div className="p-3.5 rounded-xl border border-border bg-muted/20 space-y-1.5">
               <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                <span className="text-gold-text">❓</span> « Pourquoi utiliser l&apos;application Kènè chez moi ? »
+                <span className="text-gold-text font-bold">Q :</span> « Pourquoi utiliser l&apos;application chez moi ? »
               </p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                <strong>Réponse :</strong> « Vos soins en cabine sont l&apos;accélérateur, mais 80 % du résultat se joue dans votre routine quotidienne. L&apos;application analyse vos progrès chaque semaine, vous rappelle vos gestes de soin et vous alerte si un cosmétique bouche vos pores. Vos 30 premiers jours de Pass VIP sont 100 % gratuits ! »
+                <strong>Réponse :</strong> « Les soins en cabine sont l&apos;accélérateur, mais 80 % du résultat dépend de votre routine quotidienne. L&apos;application vous guide chaque semaine, suit la disparition de vos taches et vous protège contre les faux cosmétiques. Vos 30 premiers jours sont 100 % gratuits ! »
               </p>
+            </div>
+          </TabsContent>
+
+          {/* ─── TAB 6 : CONVENTION OFFICIELLE DE PARTENARIAT ─── */}
+          <TabsContent value="convention" className="space-y-4 pt-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-gold/10 border border-gold/30 no-print">
+              <p className="text-xs text-muted-foreground">
+                Attestation officielle d&apos;agrément Kènè Pro et engagement déontologique pour {tenantName}.
+              </p>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="h-8 px-3 rounded-lg k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
+              >
+                <Printer size={13} /> Imprimer l&apos;Attestation
+              </button>
+            </div>
+
+            {/* Zone imprimable Attestation / Convention */}
+            <div className="print-area rounded-2xl border-2 border-gold/40 bg-gradient-to-b from-[#FFFDF9] via-[#FAF6ED] to-[#F5ECE0] dark:from-[#1D1714] dark:to-[#120E0C] p-6 space-y-4 text-foreground shadow-sm">
+              <div className="flex items-center justify-between border-b border-gold/30 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid size-10 place-items-center rounded-xl bg-gold text-white">
+                    <DuafeIcon size={20} />
+                  </span>
+                  <div>
+                    <h4 className="font-heading font-black text-sm text-gold-text uppercase tracking-wide">
+                      ATTESTATION D&apos;AGRÉMENT INSTITUT PARTENAIRE
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground">
+                      Écosystème Dermo-Botanique Kènè Technologies · Réf: KENE-CERT-{tenantId.substring(0, 8).toUpperCase()}
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold uppercase tracking-wider">
+                  Certifié Conforme
+                </span>
+              </div>
+
+              <div className="space-y-2 text-xs leading-relaxed">
+                <p>
+                  Par la présente, la direction de <strong>KÈNÈ TECHNOLOGIES SAS</strong> certifie que l&apos;établissement :
+                </p>
+                <div className="p-3 rounded-xl bg-background/80 border border-gold/20 font-medium">
+                  <p className="text-sm font-bold text-foreground">🌸 {tenantName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Localisation : {tenantCity || "Abidjan"} · Statut : Institut Partenaire Officiel
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Est officiellement agréé pour la délivrance des bilans dermo-biométriques Kènè et s&apos;engage sur les 4 engagements fondamentaux :
+                </p>
+
+                <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
+                  <div className="p-2.5 rounded-lg bg-background/60 border border-border space-y-1">
+                    <p className="font-bold text-emerald-700 dark:text-emerald-400">✓ Zéro Dépigmentant</p>
+                    <p className="text-muted-foreground text-[10px]">
+                      Interdiction stricte d&apos;Hydroquinone, corticoïdes et mercure.
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-background/60 border border-border space-y-1">
+                    <p className="font-bold text-foreground">✓ Caisse SYSCOHADA</p>
+                    <p className="text-muted-foreground text-[10px]">
+                      Traçabilité comptable et tickets de caisse aux normes régionales.
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-background/60 border border-border space-y-1">
+                    <p className="font-bold text-foreground">✓ Propriété des Données</p>
+                    <p className="text-muted-foreground text-[10px]">
+                      Votre clientèle et votre chiffre d&apos;affaires restent 100% vôtres.
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-background/60 border border-border space-y-1">
+                    <p className="font-bold text-gold-text">✓ Avantage Salariées Kènè+</p>
+                    <p className="text-muted-foreground text-[10px]">
+                      Pass VIP offert pour l&apos;ensemble de vos employées déclarées.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-gold/30 text-[10px] text-muted-foreground">
+                <div>
+                  <p className="font-bold">Pour KÈNÈ TECHNOLOGIES</p>
+                  <p className="italic">Direction Dermo-Scientifique</p>
+                  <div className="mt-1 font-mono text-[9px] text-gold-text">CERT-SHA256-OK</div>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold">Pour l&apos;Institut Partenaire</p>
+                  <p className="italic">La Direction / Gérante</p>
+                  <div className="mt-1 font-mono text-[9px] text-muted-foreground">Cachet &amp; Signature</div>
+                </div>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
