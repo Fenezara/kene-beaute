@@ -69,15 +69,20 @@ export async function GET(req: NextRequest) {
         ? (ownerTenant ?? (emp ? emp.tenant : null))
         : null;
 
+      const employeeName = proCtx.employeeName ?? (emp ? emp.name : null);
+
       const res = NextResponse.json({
         user: {
           ...sanitizeUser(user),
+          name: employeeName ?? user.name,
           employeeRole,
           employeePermissions,
+          employeeName,
         },
         tenant: tenant ? { id: tenant.id, name: tenant.name } : null,
         employeeRole,
         employeePermissions,
+        employeeName,
       });
       setSessionCookie(res, user);
       return res;

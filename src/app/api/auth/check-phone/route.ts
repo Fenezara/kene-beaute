@@ -143,11 +143,12 @@ async function runCheck(data: z.infer<typeof Body>): Promise<NextResponse> {
     needsPinSetup: !user.pinHash,
     isPinLocked,
     isAccountLocked: Boolean(user.lockedAt),
-    name: user.name && user.name !== "Nouvelle cliente" ? user.name : undefined,
+    name: (employeeLink?.name) || (user.name && user.name !== "Nouvelle cliente" && !user.name.startsWith("Membre ") ? user.name : undefined),
     role: effectiveRole,
     isEmployee: Boolean(employeeLink),
     employeeRole,
     employeePermissions,
+    employeeName: employeeLink?.name ?? null,
     tenant: ownerTenant ? { id: ownerTenant.id, name: ownerTenant.name } : (employeeLink?.tenant ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name } : null),
     maskedPhone: maskPhone(user.phone),
   });

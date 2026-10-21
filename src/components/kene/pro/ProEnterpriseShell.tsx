@@ -441,12 +441,16 @@ export function ProEnterpriseShell() {
     if (v && sessionUser) {
       const needsUpdate =
         sessionUser.employeeRole !== v.employeeRole ||
+        sessionUser.employeeName !== v.employeeName ||
+        (v.employeeName && sessionUser.name !== v.employeeName) ||
         JSON.stringify(sessionUser.employeePermissions ?? null) !== JSON.stringify(v.employeePermissions ?? null);
       if (needsUpdate) {
         useKene.getState().setUser({
           ...sessionUser,
+          name: v.employeeName ?? sessionUser.name,
           employeeRole: v.employeeRole,
           employeePermissions: v.employeePermissions,
+          employeeName: v.employeeName ?? sessionUser.employeeName,
         });
       }
     }
@@ -455,6 +459,7 @@ export function ProEnterpriseShell() {
   const serverViewer = overview.data?.viewer;
   const employeeRole = serverViewer?.employeeRole ?? sessionUser?.employeeRole ?? null;
   const employeePermissions = serverViewer?.employeePermissions ?? sessionUser?.employeePermissions ?? null;
+  const employeeName = serverViewer?.employeeName ?? staffEmployee?.name ?? sessionUser?.employeeName ?? null;
   const isEmployee =
     (serverViewer ? !serverViewer.isOwner : false) ||
     Boolean(employeeRole) ||
@@ -584,12 +589,24 @@ export function ProEnterpriseShell() {
 
   const isAdmin = sessionUser?.role === "admin";
   const proOwner = isOwner ? sessionUser : null;
+  const isGenericClientName =
+    !sessionUser?.name ||
+    sessionUser.name === "Nouvelle cliente" ||
+    sessionUser.name === "Nouvelle invitée" ||
+    sessionUser.name.startsWith("Membre ") ||
+    sessionUser.name.includes("??") ||
+    sessionUser.name === "estheticienne" ||
+    sessionUser.name === "collaboratrice";
+
   const chipName =
-    sessionUser?.name && sessionUser.name !== "Nouvelle cliente" && sessionUser.name.trim()
+    employeeName && employeeName.trim()
+      ? employeeName.trim()
+      : !isGenericClientName && sessionUser?.name.trim()
       ? sessionUser.name.trim()
       : isOwner
       ? tenant?.name ?? "Gérante"
       : "Collaboratrice";
+
   const chipRole = isAdmin
     ? "👑 Patronne / Admin"
     : employeeRole
@@ -597,13 +614,14 @@ export function ProEnterpriseShell() {
     : isOwner
       ? "Fondatrice / Gérante"
       : "Collaboratrice";
+
   const chipInitials =
     chipName
       .split(/\s+/)
       .filter(Boolean)
       .slice(0, 2)
       .map((w) => w[0]!.toUpperCase())
-      .join("") || "GP";
+      .join("") || (isOwner ? "GP" : "CO");
 
   return (
     <div className="h-dvh w-full flex flex-col overflow-hidden overscroll-none select-none">
@@ -741,16 +759,21 @@ export function ProEnterpriseShell() {
             <SpaceSwitcher variant="compact" />
             <ThemeToggle />
 
-            <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-border/60">
+            <div className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-border/60 shrink-0">
               <span
                 aria-hidden="true"
-                className="k-glow-gold grid size-8 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[11px] font-semibold text-[#FFF9EC]"
+                className="k-glow-gold grid size-7 sm:size-8 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[10px] sm:text-[11px] font-bold text-[#FFF9EC] shrink-0"
+                title={`${chipName} (${chipRole})`}
               >
                 {chipInitials}
               </span>
-              <div className="hidden lg:block text-left leading-tight">
-                <p className="text-xs font-bold truncate max-w-[130px]">{chipName}</p>
-                <Eyebrow className="mt-0.5 text-[9px]">{chipRole}</Eyebrow>
+              <div className="flex flex-col text-left leading-tight min-w-0">
+                <p className="text-[11px] sm:text-xs font-bold text-foreground truncate max-w-[85px] xs:max-w-[110px] sm:max-w-[150px]">
+                  {chipName}
+                </p>
+                <Eyebrow className="mt-0.5 text-[8px] sm:text-[9px] truncate max-w-[85px] xs:max-w-[110px] sm:max-w-[150px]">
+                  {chipRole}
+                </Eyebrow>
               </div>
             </div>
           </div>
@@ -758,6 +781,23 @@ export function ProEnterpriseShell() {
 
         {/* Sous-bandeau mobile uniquement (< md) */}
         <div className="md:hidden border-t border-border/40 px-3 py-2 space-y-2">
+          {/* Badge d'identification Collaboratrice (Mobile < md) */}
+          {isEmployee && (
+            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-gold/10 border border-gold/30 shadow-2xs">
+              <div className="flex items-center gap-2 truncate">
+                <span className="grid size-6 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-white text-[10px] font-bold shrink-0">
+                  {chipInitials}
+                </span>
+                <div className="truncate text-left leading-tight">
+                  <span className="text-xs font-bold text-foreground truncate block">{chipName}</span>
+                  <span className="text-[9px] text-muted-foreground font-semibold">{chipRole} · {tenant?.name ?? "Institut"}</span>
+                </div>
+              </div>
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shrink-0">
+                En poste
+              </span>
+            </div>
+          )}
           {(tenantOptions.length > 1 || proOwner) && (
             <div className="sm:hidden">
               <Select
@@ -1118,6 +1158,19 @@ export function ProEnterpriseShell() {
               <span className="text-[10px] text-muted-foreground font-medium">
                 {activeCategoryDef.shortLabel}
               </span>
+            </div>
+          )}
+
+          {/* Identification Employée / Collaboratrice dans le menu latéral */}
+          {sidebarExpanded && isEmployee && (
+            <div className="mx-2.5 mt-1.5 mb-2 p-2.5 rounded-xl bg-gold/10 border border-gold/25 flex items-center gap-2 shadow-2xs">
+              <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[#FFF9EC] text-xs font-black shrink-0 shadow-xs">
+                {chipInitials}
+              </span>
+              <div className="min-w-0 flex-1 text-left leading-tight">
+                <p className="text-xs font-bold text-foreground truncate">{chipName}</p>
+                <p className="text-[10px] text-gold-text font-semibold truncate">{chipRole}</p>
+              </div>
             </div>
           )}
 

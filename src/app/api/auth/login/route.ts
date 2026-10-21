@@ -282,12 +282,16 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
     });
   }
 
+  const employeeName = proCtx.employeeName ?? (employeeLink ? employeeLink.name : null);
+
   const response = NextResponse.json({
     ok: true,
     user: {
       ...sanitizeUser(user),
+      name: employeeName ?? user.name,
       employeeRole,
       employeePermissions,
+      employeeName,
     },
     tenant: ownerTenant
       ? { id: ownerTenant.id, name: ownerTenant.name }
@@ -296,6 +300,7 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
         : null,
     employeeRole,
     employeePermissions,
+    employeeName,
   });
 
   // Pose du cookie de session 365 jours

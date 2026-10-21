@@ -252,11 +252,15 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
     });
   }
 
+  const employeeName = proCtx.employeeName ?? (employeeLink ? employeeLink.name : null);
+
   const response = NextResponse.json({
     user: {
       ...sanitizeUser(user),
+      name: employeeName ?? user.name,
       employeeRole,
       employeePermissions,
+      employeeName,
     },
     hasPin: Boolean(user.pinHash),
     tenant: ownerTenant
@@ -266,6 +270,7 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
         : null,
     employeeRole,
     employeePermissions,
+    employeeName,
   });
   setSessionCookie(response, user);
   return response;

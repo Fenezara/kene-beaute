@@ -212,6 +212,30 @@ export async function resolveUserProContext(user: {
   const effectiveEmployee = isStrictlyOwner ? null : employeeLink;
   const effectiveOwnerTenant = isStrictlyOwner ? ownerTenant : null;
 
+  // Auto-synchronisation du nom : si l'employée a un nom officiel dans la table Employee
+  // et que le profil User a un nom générique ou absent, synchroniser en base de données.
+  if (effectiveEmployee?.name) {
+    const rawName = (user.name || "").trim().toLowerCase();
+    if (
+      !rawName ||
+      rawName === "nouvelle cliente" ||
+      rawName.startsWith("membre ") ||
+      rawName.includes("??") ||
+      rawName === "estheticienne" ||
+      rawName === "collaboratrice"
+    ) {
+      try {
+        await db.user.update({
+          where: { id: user.id },
+          data: { name: effectiveEmployee.name },
+        });
+        user.name = effectiveEmployee.name;
+      } catch {
+        // non-bloquant
+      }
+    }
+  }
+
   const employeePermissions = effectiveEmployee
     ? parseEmployeePermissionsJson(effectiveEmployee.permissions)
     : null;
@@ -224,6 +248,7 @@ export async function resolveUserProContext(user: {
     employeeLink: effectiveEmployee,
     employeeRole: effectiveEmployee ? effectiveEmployee.role : null,
     employeePermissions,
+    employeeName: effectiveEmployee ? effectiveEmployee.name : null,
     tenant: effectiveOwnerTenant
       ? { id: effectiveOwnerTenant.id, name: effectiveOwnerTenant.name, active: effectiveOwnerTenant.active, suspendedReason: effectiveOwnerTenant.suspendedReason }
       : effectiveEmployee
