@@ -27,6 +27,7 @@ import type { ProSectionId } from "./ProApp";
 import { Switch } from "@/components/ui/switch";
 import { getTenantPosSettings, saveTenantPosSettings, type TenantPosSettings } from "@/lib/kene/tenant-settings";
 import { formatRole } from "@/lib/kene/hr-constants";
+import { CommercialKitModal } from "./CommercialKitModal";
 
 /* Porte d'hydratation: false pendant le rendu serveur + l'hydratation, true
  * ensuite — l'état actif Clair/Sombre ne s'affiche qu'une fois le thème
@@ -212,6 +213,7 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
   const managerPhone = sessionUser?.phone || "Numéro non renseigné";
   const [changePhoneOpen, setChangePhoneOpen] = useState(false);
   const [changePinOpen, setChangePinOpen] = useState(false);
+  const [commercialKitOpen, setCommercialKitOpen] = useState(false);
 
  /** Langue de l'interface — même logique que côté cliente. */
   function selectLang(l: Lang) {
@@ -642,6 +644,29 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         </div>
       </div>
 
+      {/* Kit Commercial & Chevalet Cabine — réservé à la direction / gérante */}
+      {isOwner && (
+        <div className="k-card rounded-[20px] p-2 border border-gold/30 shadow-xs">
+          <button
+            type="button"
+            onClick={() => setCommercialKitOpen(true)}
+            className="w-full flex items-center gap-3 rounded-[14px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            <IconBadge icon={<Sparkles size={18} />} tone="gold" />
+            <span className="flex-1 min-w-0">
+              <span className="flex items-center gap-2">
+                <span className="text-xs font-bold text-foreground">Kit Commercial &amp; Chevalet Cabine</span>
+                <span className="rounded-full bg-gold/15 text-gold-text px-2 py-0.5 text-[9px] font-bold">Outils Salon</span>
+              </span>
+              <span className="block text-[11px] text-muted-foreground mt-0.5">
+                Affichette QR code imprimable, scripts d&apos;accueil et guide d&apos;aide à la vente
+              </span>
+            </span>
+            <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
       {/* Abonnement & facturation — réservé à la direction / gérante */}
       {isOwner && (
         <div className="k-card rounded-[20px] p-2">
@@ -722,6 +747,14 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         onOpenChange={setChangePinOpen}
         currentPhone={sessionUser?.phone || ""}
         hasPin={sessionUser?.hasPin}
+      />
+
+      <CommercialKitModal
+        open={commercialKitOpen}
+        onOpenChange={setCommercialKitOpen}
+        tenantId={tenantId}
+        tenantName={tenantName}
+        tenantCity={tenantCity}
       />
     </div>
   );
