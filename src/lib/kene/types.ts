@@ -219,6 +219,87 @@ export const SPECTRAL_VIEWS = [
   },
 ] as const;
 
+export type SpectralViewId =
+  | "standard"
+  | "uv365"
+  | "blue405"
+  | "green540"
+  | "amber585"
+  | "red660"
+  | "nir850"
+  | "polarized";
+
+export const ALL_SPECTRAL_VIEW_IDS: SpectralViewId[] = [
+  "standard",
+  "uv365",
+  "blue405",
+  "green540",
+  "amber585",
+  "red660",
+  "nir850",
+  "polarized",
+];
+
+/**
+ * Pré-sélectionne intelligemment les 4 vues cliniques les plus pertinentes parmi les 8
+ * selon les biomarqueurs les plus faibles du diagnostic (avec "standard" en référence).
+ */
+export function recommend4SpectralViews(
+  indicators?: Array<{ nom: string; pourcentage: number }>
+): [SpectralViewId, SpectralViewId, SpectralViewId, SpectralViewId] {
+  const defaultQuad: [SpectralViewId, SpectralViewId, SpectralViewId, SpectralViewId] = [
+    "standard",
+    "amber585",
+    "green540",
+    "blue405",
+  ];
+  if (!indicators || indicators.length === 0) return defaultQuad;
+
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+  const minScoreFor = (...keywords: string[]): number => {
+    let min = 100;
+    for (const ind of indicators) {
+      const n = norm(ind.nom);
+      if (keywords.some((k) => n.includes(k))) {
+        if (ind.pourcentage < min) min = ind.pourcentage;
+      }
+    }
+    return min;
+  };
+
+  // Plus le score santé d'un axe est bas, plus la vue spectrale correspondante est prioritaire
+  const candidates: Array<{ id: SpectralViewId; score: number }> = [
+    { id: "amber585", score: minScoreFor("pih", "tache", "hyperpigment", "melasma", "eclat", "couleur") - 2 },
+    { id: "green540", score: minScoreFor("rougeur", "inflamm", "irrit", "follicul", "sensib") - 1 },
+    { id: "blue405", score: minScoreFor("sebum", "pore", "noir", "microkyst", "incarn") - 1 },
+    { id: "uv365", score: minScoreFor("acne", "melasma", "pellicul", "champign") },
+    { id: "polarized", score: minScoreFor("hydrat", "barriere", "secheresse", "desquam", "keratose", "callos") },
+    { id: "red660", score: minScoreFor("elastic", "fermet", "ride", "cicatric", "rugos", "texture") },
+    { id: "nir850", score: minScoreFor("alopec", "cerne", "poche", "profond", "diametre", "evolution") },
+  ];
+
+  candidates.sort((a, b) => a.score - b.score);
+  const picked: SpectralViewId[] = ["standard"];
+  for (const c of candidates) {
+    if (picked.length >= 4) break;
+    if (!picked.includes(c.id)) picked.push(c.id);
+  }
+  while (picked.length < 4) {
+    for (const d of defaultQuad) {
+      if (!picked.includes(d)) {
+        picked.push(d);
+        break;
+      }
+    }
+  }
+  return [picked[0], picked[1], picked[2], picked[3]];
+}
+
 /**
  * Sélection d'Élite 2026 pour l'Espace Cliente (4 Vues Multi-Spectrales Clés)
  * 1. Lumière Naturelle (400-700 nm) : Référence de surface et carnation visible

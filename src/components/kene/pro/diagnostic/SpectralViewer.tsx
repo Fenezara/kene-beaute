@@ -5,21 +5,46 @@
 // 6 longueurs d'onde optiques + lumière polarisée & corrélation avec la pharmacopée africaine.
 
 import { useMemo, useState } from "react";
-import { Download, Eye, Layers, ZoomIn, ZoomOut, Copy, Check, FlaskConical, Info, ShieldCheck } from "lucide-react";
+import {
+  Download,
+  Eye,
+  Layers,
+  ZoomIn,
+  ZoomOut,
+  Copy,
+  Check,
+  FlaskConical,
+  Info,
+  FileText,
+  RotateCcw,
+  Sparkles,
+  Box,
+} from "lucide-react";
 import { toast } from "sonner";
 import { BissapFlowerIcon, KeneSunIcon } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { SPECTRAL_VIEWS, type SpectralViewDefinition, type ZoneMark } from "@/lib/kene/types";
+import {
+  SPECTRAL_VIEWS,
+  recommend4SpectralViews,
+  type SpectralViewDefinition,
+  type SpectralViewId,
+  type ZoneMark,
+} from "@/lib/kene/types";
 
 interface SpectralViewerProps {
   photo: string;
   zoneMarks?: ZoneMark[];
   zoneLabel: string;
+  indicators?: Array<{ nom: string; pourcentage: number }>;
+  selectedPdfViews?: SpectralViewId[];
+  onChangeSelectedPdfViews?: (views: SpectralViewId[]) => void;
+  onPrintPdf?: () => void;
+  onOpen3D?: () => void;
 }
 
-type SpectralMode = (typeof SPECTRAL_VIEWS)[number]["id"];
+type SpectralMode = SpectralViewId;
 
 const SPECTRAL_METAS: Record<
   SpectralMode,
@@ -131,11 +156,70 @@ const SPECTRAL_METAS: Record<
   },
 };
 
-export function SpectralViewer({ photo, zoneMarks = [], zoneLabel }: SpectralViewerProps) {
+export function SpectralViewer({
+  photo,
+  zoneMarks = [],
+  zoneLabel,
+  indicators = [],
+  selectedPdfViews: propSelectedPdfViews,
+  onChangeSelectedPdfViews,
+  onPrintPdf,
+  onOpen3D,
+}: SpectralViewerProps) {
   const [activeMode, setActiveMode] = useState<SpectralMode>("standard");
   const [showMarks, setShowMarks] = useState(true);
   const [zoom, setZoom] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // État contrôlé ou local des 4 vues PDF retenues
+  const initialViews = useMemo(() => recommend4SpectralViews(indicators), [indicators]);
+  const [localPdfViews, setLocalPdfViews] = useState<SpectralViewId[]>(initialViews);
+
+  const selectedPdfViews = propSelectedPdfViews ?? localPdfViews;
+  const setSelectedPdfViews = (updater: SpectralViewId[] | ((prev: SpectralViewId[]) => SpectralViewId[])) => {
+    const next = typeof updater === "function" ? updater(selectedPdfViews) : updater;
+    if (onChangeSelectedPdfViews) {
+      onChangeSelectedPdfViews(next);
+    } else {
+      setLocalPdfViews(next);
+    }
+  };
+
+  const togglePdfView = (id: SpectralViewId) => {
+    const exists = selectedPdfViews.includes(id);
+    const viewName = SPECTRAL_VIEWS.find((v) => v.id === id)?.shortLabel || id;
+
+    if (exists) {
+      if (selectedPdfViews.length <= 1) {
+        toast.error("Au moins 1 vue clinique doit être conservée pour le rapport PDF.");
+        return;
+      }
+      const next = selectedPdfViews.filter((v) => v !== id);
+      setSelectedPdfViews(next);
+      toast.info(`Vue ${viewName} retirée du PDF (${next.length}/4).`);
+    } else {
+      if (selectedPdfViews.length < 4) {
+        const next = [...selectedPdfViews, id];
+        setSelectedPdfViews(next);
+        toast.success(`Vue ${viewName} ajoutée au PDF (${next.length}/4) !`);
+      } else {
+        // Déjà 4 vues : on remplace la 4ème (ou la dernière non-standard) pour préserver la fluidité tactile
+        const replaceIdx = selectedPdfViews[0] === "standard" ? 3 : 0;
+        const replacedId = selectedPdfViews[replaceIdx];
+        const replacedName = SPECTRAL_VIEWS.find((v) => v.id === replacedId)?.shortLabel || replacedId;
+        const next = [...selectedPdfViews];
+        next[replaceIdx] = id;
+        setSelectedPdfViews(next);
+        toast.success(`Vue ${viewName} sélectionnée (remplace ${replacedName} en position ${replaceIdx + 1}).`);
+      }
+    }
+  };
+
+  const resetToAiQuad = () => {
+    const rec = recommend4SpectralViews(indicators);
+    setSelectedPdfViews(rec);
+    toast.success("4 vues cliniques réinitialisées selon la recommandation IA !");
+  };
 
   const photoList = useMemo(() => {
     if (!photo) return [];
@@ -187,20 +271,44 @@ export function SpectralViewer({ photo, zoneMarks = [], zoneLabel }: SpectralVie
           <div>
             <div className="flex items-center gap-2">
               <h4 className="font-heading font-black text-sm text-foreground">
-                Analyse Multi-Spectrale 2026 en Cabine
+                Imagerie Multi-Spectrale Cabine (8 Vues)
               </h4>
               <Badge variant="outline" className="bg-gold/10 text-gold-text border-gold/30 text-[10px] font-bold">
                 Phototypes IV-VI
               </Badge>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Observation optique avancée de la zone <strong className="text-foreground capitalize">{zoneLabel}</strong> sous 6 longueurs d&apos;onde + polarisation
+              Sélectionnez au toucher les <strong>4 vues cliniques</strong> qui figureront sur le compte-rendu PDF
             </p>
           </div>
         </div>
 
-        {/* Commandes zoom & affichage repères */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto">
+        {/* Commandes rapides 3D, Zoom & Téléchargement */}
+        <div className="flex items-center gap-1.5 flex-wrap self-start sm:self-auto">
+          {onOpen3D && (
+            <button
+              type="button"
+              onClick={onOpen3D}
+              className="px-2.5 py-1 rounded-lg text-[10.5px] font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-all flex items-center gap-1 shadow-xs"
+              title="Ouvrir la cartographie dermo-optique 3D"
+            >
+              <Box className="size-3" />
+              <span>Explorer en 3D</span>
+            </button>
+          )}
+
+          {onPrintPdf && (
+            <button
+              type="button"
+              onClick={onPrintPdf}
+              className="px-2.5 py-1 rounded-lg text-[10.5px] font-bold bg-gold/15 hover:bg-gold/25 border border-gold/40 text-gold-text transition-colors flex items-center gap-1"
+              title="Générer immédiatement le PDF avec les 4 vues choisies"
+            >
+              <FileText className="size-3" />
+              <span>PDF ({selectedPdfViews.length}/4)</span>
+            </button>
+          )}
+
           {zoneMarks.length > 0 && (
             <button
               type="button"
@@ -246,36 +354,179 @@ export function SpectralViewer({ photo, zoneMarks = [], zoneLabel }: SpectralVie
         </div>
       </div>
 
-      {/* ── Sélecteur de Longueurs d'Onde Optiques 2026 ── */}
+      {/* ── BARRE TACTILE : LES 4 VUES SÉLECTIONNÉES POUR LE RAPPORT PDF ── */}
+      <div className="rounded-xl border border-gold/35 bg-gold/5 p-2.5 sm:p-3 space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+            <span className="size-2 rounded-full bg-gold animate-pulse" />
+            <span className="font-heading uppercase tracking-wide text-[11px] text-gold-text">
+              Les 4 vues retenues pour le Compte-rendu PDF :
+            </span>
+            <Badge variant="outline" className="bg-gold/15 text-gold-text border-gold/30 text-[10px] font-mono">
+              {selectedPdfViews.length} / 4
+            </Badge>
+          </div>
+
+          <div className="flex items-center gap-1.5 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={resetToAiQuad}
+              className="text-[10px] font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-muted/60 transition-colors"
+              title="Réinitialiser avec les 4 vues recommandées par l'IA selon les biomarqueurs du diagnostic"
+            >
+              <RotateCcw className="size-2.5" />
+              <span>Conseil IA</span>
+            </button>
+            {onPrintPdf && (
+              <Button
+                size="sm"
+                variant="default"
+                onClick={onPrintPdf}
+                className="h-6 text-[10px] font-bold gap-1 px-2 bg-gold hover:bg-gold-dark text-black shadow-xs"
+              >
+                <FileText className="size-2.5" />
+                <span>Imprimer / PDF</span>
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* 4 Slots de sélection tactile directe */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+          {[0, 1, 2, 3].map((slotIdx) => {
+            const viewId = selectedPdfViews[slotIdx];
+            const viewDef = viewId ? SPECTRAL_VIEWS.find((v) => v.id === viewId) : null;
+            const meta = viewId ? SPECTRAL_METAS[viewId] : null;
+
+            if (viewDef && meta) {
+              const isActive = activeMode === viewId;
+              return (
+                <div
+                  key={slotIdx}
+                  className={cn(
+                    "p-1.5 rounded-lg border flex items-center justify-between gap-1 transition-all cursor-pointer",
+                    isActive ? "ring-1 ring-gold border-gold/60 bg-gold/15" : "bg-card border-border/70 hover:border-gold/50"
+                  )}
+                  onClick={() => setActiveMode(viewId)}
+                >
+                  <div className="min-w-0 flex items-center gap-1.5">
+                    <span className="size-4 rounded-full grid place-items-center bg-gold/20 text-gold-text text-[9px] font-mono font-bold shrink-0">
+                      {slotIdx + 1}
+                    </span>
+                    <div className="truncate">
+                      <p className="text-[10.5px] font-bold leading-tight truncate text-foreground">
+                        {viewDef.shortLabel}
+                      </p>
+                      <p className="text-[9px] font-mono text-muted-foreground truncate">{viewDef.wavelength}</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePdfView(viewId);
+                    }}
+                    className="size-5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 grid place-items-center text-xs transition-colors shrink-0"
+                    title={`Retirer ${viewDef.shortLabel} du PDF`}
+                    aria-label={`Retirer ${viewDef.shortLabel}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={slotIdx}
+                className="p-1.5 rounded-lg border border-dashed border-border/80 bg-muted/20 flex items-center justify-center gap-1 text-muted-foreground text-[10px]"
+              >
+                <span>Slot #{slotIdx + 1} libre</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Sélecteur des 8 Longueurs d'Onde Optiques (avec badges tactiles PDF) ── */}
       <div className="space-y-1.5">
-        <span className="text-[9.5px] uppercase font-bold tracking-wider text-muted-foreground">
-          Longueurs d&apos;onde dermo-optiques (Sélectionner pour observer) :
-        </span>
+        <div className="flex items-center justify-between text-[9.5px] uppercase font-bold tracking-wider text-muted-foreground">
+          <span>Toutes les 8 longueurs d&apos;onde (Toucher pour observer ou cocher pour le PDF) :</span>
+          <span className="text-[9px] font-normal normal-case opacity-80">
+            Toucher le badge <strong>✓ PDF</strong> pour l&apos;ajouter au rapport
+          </span>
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
           {SPECTRAL_VIEWS.map((v) => {
-            const isSelected = activeMode === v.id;
+            const isPreviewActive = activeMode === v.id;
+            const pdfIndex = selectedPdfViews.indexOf(v.id as SpectralViewId);
+            const isSelectedForPdf = pdfIndex !== -1;
             const meta = SPECTRAL_METAS[v.id as SpectralMode] ?? SPECTRAL_METAS.standard;
 
             return (
-              <button
+              <div
                 key={v.id}
-                type="button"
                 onClick={() => setActiveMode(v.id as SpectralMode)}
                 className={cn(
-                  "p-2 rounded-xl text-left border transition-all text-xs flex flex-col justify-between min-h-[58px]",
-                  isSelected
-                    ? "shadow-xs ring-1 ring-primary/40 font-bold " + meta.tone
+                  "p-2 rounded-xl text-left border transition-all text-xs flex flex-col justify-between min-h-[66px] cursor-pointer relative group",
+                  isPreviewActive
+                    ? "shadow-xs ring-2 ring-primary/60 font-bold " + meta.tone
+                    : isSelectedForPdf
+                    ? "bg-gold/5 border-gold/40 text-foreground"
                     : "bg-muted/40 hover:bg-muted/70 border-border/70 text-muted-foreground"
                 )}
               >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="font-heading text-[11px] leading-tight truncate">{v.shortLabel}</span>
-                  <span className="text-[9px] font-mono opacity-70 shrink-0">{v.wavelength}</span>
+                <div className="flex items-start justify-between gap-1">
+                  <div className="min-w-0 pr-1">
+                    <span className="font-heading text-[11px] leading-tight truncate block text-foreground">
+                      {v.shortLabel}
+                    </span>
+                    <span className="text-[9px] font-mono opacity-70 block">{v.wavelength}</span>
+                  </div>
+
+                  {/* Bouton tactile PDF : 1 tap pour l'ajouter/retirer */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePdfView(v.id as SpectralViewId);
+                    }}
+                    className={cn(
+                      "px-1.5 py-0.5 rounded-md text-[9.5px] font-bold tracking-tight border transition-all shrink-0 flex items-center gap-0.5 shadow-2xs",
+                      isSelectedForPdf
+                        ? "bg-gold text-black border-gold-dark ring-1 ring-gold"
+                        : "bg-background/80 hover:bg-gold/20 text-muted-foreground hover:text-gold-text border-border"
+                    )}
+                    title={
+                      isSelectedForPdf
+                        ? `Vue #${pdfIndex + 1} du PDF (toucher pour retirer)`
+                        : "Toucher pour inclure dans le PDF"
+                    }
+                  >
+                    {isSelectedForPdf ? (
+                      <>
+                        <Check className="size-2.5 stroke-[3]" />
+                        <span>PDF #{pdfIndex + 1}</span>
+                      </>
+                    ) : (
+                      <span>+ PDF</span>
+                    )}
+                  </button>
                 </div>
-                <span className="text-[9.5px] font-normal opacity-85 line-clamp-1 mt-0.5">
-                  {v.opticalTarget}
-                </span>
-              </button>
+
+                <div className="flex items-center justify-between gap-1 mt-1">
+                  <span className="text-[9.5px] font-normal opacity-85 line-clamp-1">
+                    {v.opticalTarget}
+                  </span>
+                  {isPreviewActive && (
+                    <span className="text-[8.5px] font-bold px-1 rounded bg-primary/20 text-primary shrink-0">
+                      Vue active
+                    </span>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -352,9 +603,35 @@ export function SpectralViewer({ photo, zoneMarks = [], zoneLabel }: SpectralVie
             </div>
           </div>
 
-          <Badge variant="outline" className="bg-white/10 text-white border-white/20 text-[10px] shrink-0 self-start sm:self-center">
-            {currentView.opticalTarget}
-          </Badge>
+          <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-center">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePdfView(activeMode);
+              }}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-[10.5px] font-bold border transition-all flex items-center gap-1 shadow-xs",
+                selectedPdfViews.includes(activeMode)
+                  ? "bg-gold text-black border-gold-dark ring-1 ring-gold"
+                  : "bg-white/15 hover:bg-white/25 text-white border-white/30"
+              )}
+            >
+              {selectedPdfViews.includes(activeMode) ? (
+                <>
+                  <Check className="size-3 stroke-[3]" />
+                  <span>Retenu au PDF (#{selectedPdfViews.indexOf(activeMode) + 1})</span>
+                </>
+              ) : (
+                <>
+                  <span>+ Retenir pour le PDF</span>
+                </>
+              )}
+            </button>
+            <Badge variant="outline" className="bg-white/10 text-white border-white/20 text-[10px]">
+              {currentView.opticalTarget}
+            </Badge>
+          </div>
         </div>
       </div>
 

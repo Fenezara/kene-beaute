@@ -81,12 +81,22 @@ export async function GET(req: NextRequest) {
     }
 
     // Analyse optique multi-spectrale cabine : Quad 4 Bandes sur les clichés réels de la cliente
+    // Supporte la sélection tactile des 4 vues cliniques parmi les 8 (?views=standard,amber585,green540,blue405)
+    const rawViewsParam = req.nextUrl.searchParams.get("views");
+    const selectedViews = rawViewsParam
+      ? rawViewsParam
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
+
     const spectral = await processMultiSpectralSuite(resolvedPhotoData, {
       clientName: diag.clientProfile.name,
       date: diag.createdAt,
       zoneLabel: diag.zone,
       indicators: parsedIndicators,
       scoreGlobal: diag.scoreGlobal,
+      selectedViews,
     });
 
     const pdf = proDiagReportPdf({

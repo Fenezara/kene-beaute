@@ -742,6 +742,8 @@ function renderMultiSpectralQuad(
   // Garantit que le bandeau de section ET le quadriptyque de 4 grandes cartes restent groupés sur la même page
   doc.ensure(totalH + 34);
 
+  const selectedCodes = bands.map((b) => b.bandCode.replace(/^VUE \d+ · /, "")).join(", ");
+
   sectionBand(
     doc,
     sectionLetter,
@@ -749,8 +751,8 @@ function renderMultiSpectralQuad(
       ? "LES 4 VUES CLINIQUES DU DIAGNOSTIC — IMAGERIE MULTI-SPECTRALE CABINE"
       : "MES 4 VUES CLINIQUES DU DIAGNOSTIC — ANALYSE OPTIQUE MULTI-SPECTRALE",
     ms.isRealPhoto
-      ? "Photos réelles de la cliente analysées sous les 4 spectres dermatoscopiques (HD, 585nm, 540nm, 405nm)"
-      : "Cartographie biométrique multi-spectrale de référence (Standard, 585nm, 540nm, 405nm)"
+      ? `Photos réelles de la cliente analysées sous les 4 spectres sélectionnés (${selectedCodes})`
+      : `Cartographie biométrique multi-spectrale des 4 vues sélectionnées (${selectedCodes})`
   );
 
   const startY = doc.cursorY;
@@ -784,7 +786,7 @@ function renderMultiSpectralQuad(
       letterSpace: 0.3,
     });
     doc.textRight(
-      idx === 0 ? "SURFACE" : idx === 1 ? "MÉLANINE" : idx === 2 ? "VASCULAIRE" : "SÉBUM",
+      b.shortCategory ?? (idx === 0 ? "SURFACE" : idx === 1 ? "MÉLANINE" : idx === 2 ? "VASCULAIRE" : "SÉBUM"),
       cardX + cardW - 6,
       cardY + 16,
       { font: "bold", size: 6.2, color: SOFT }
@@ -820,12 +822,13 @@ function renderMultiSpectralQuad(
   const footY = startY + cardH * 2 + gapY + 6;
   drawBox(doc, M_X, footY, CONTENT_W, 18, GOLD_BAND, GOLD, 0.6);
   doc.text(
-    ms.isRealPhoto
-      ? "Clichés cliniques réels de la cliente : 1. Surface HD · 2. Pigmentation & HPI (585nm) · 3. Sensibilité & Érythème (540nm) · 4. Pores & Sébum (405nm)."
-      : "Analyse optique 4 vues : dissociation sélective de la surface, de la mélanine, de la réactivité vasculaire et du film sébacé.",
+    ms.globalSynthesis ||
+      (ms.isRealPhoto
+        ? "Clichés cliniques réels de la cliente : 1. Surface HD · 2. Pigmentation & HPI (585nm) · 3. Sensibilité & Érythème (540nm) · 4. Pores & Sébum (405nm)."
+        : "Analyse optique 4 vues : dissociation sélective de la surface, de la mélanine, de la réactivité vasculaire et du film sébacé."),
     M_X + 8,
     footY + 12,
-    { font: "bold", size: 6.8, color: GOLD_DARK, maxW: CONTENT_W - 16 }
+    { font: "bold", size: 6.6, color: GOLD_DARK, maxW: CONTENT_W - 16 }
   );
 
   doc.advance(totalH + 10);

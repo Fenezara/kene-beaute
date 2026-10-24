@@ -38,8 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatDate, formatTime, scoreVar } from "@/lib/kene/format";
-import { BODY_ZONES, ZONE_PHOTO_SLOTS } from "@/lib/kene/types";
-import type { BodyZone, Indicator } from "@/lib/kene/types";
+import { BODY_ZONES, ZONE_PHOTO_SLOTS, recommend4SpectralViews, type BodyZone, type Indicator, type SpectralViewId } from "@/lib/kene/types";
 import {
   getSectionsForZone, getQuestionsForZone, defaultAnswers, questionnaireProgress, parseProDiagnosis,
 } from "@/lib/kene/questionnaire";
@@ -792,7 +791,14 @@ function DiagWizard({
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" aria-describedby={undefined} className="w-full sm:max-w-xl overflow-y-auto pretty-scroll p-0 [&>button]:z-30">
+      <SheetContent
+        side="right"
+        aria-describedby={undefined}
+        className={cn(
+          "w-full overflow-y-auto pretty-scroll p-0 [&>button]:z-30 transition-all duration-300",
+          step === 4 || result ? "sm:max-w-3xl lg:max-w-4xl" : "sm:max-w-xl"
+        )}
+      >
         <SheetHeader className="p-4 pb-3 border-b border-border bg-muted/40 sticky top-0 z-10">
           <SheetTitle className="font-heading text-lg leading-tight">
             Diagnostic en cabine {result ? "— résultat 3D" : `— étape ${step}/3`}
@@ -876,7 +882,8 @@ function DiagWizard({
               clientPhone={selected?.phone}
               photo={Object.values(photos).filter(Boolean).length > 1 ? JSON.stringify(Object.values(photos).filter(Boolean)) : photo || Object.values(photos)[0] || null}
               zoneLabel={zoneLabel}
-              printUrl={savedId ? `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${savedId}` : null}
+              tenantId={tenantId}
+              savedId={savedId}
               onRetryBack={() => setStep(3)}
               onNew={reset}
               onDone={onClose}
@@ -1582,7 +1589,8 @@ function ResultStep({
   clientPhone,
   photo,
   zoneLabel,
-  printUrl,
+  tenantId,
+  savedId,
   onRetryBack,
   onNew,
   onDone,
@@ -1597,13 +1605,22 @@ function ResultStep({
   clientPhone?: string;
   photo?: string | null;
   zoneLabel: string;
-  printUrl: string | null;
+  tenantId: string;
+  savedId: string | null;
   onRetryBack: () => void;
   onNew: () => void;
   onDone: () => void;
   onNavigate?: (s: ProSectionId) => void;
   onOpenDescent: (d: { indicators: Indicator[]; score: number; zoneLabel: string }) => void;
 }) {
+  const [selectedPdfViews, setSelectedPdfViews] = useState<SpectralViewId[]>(() =>
+    recommend4SpectralViews(result?.indicateurs)
+  );
+
+  const printUrl = savedId
+    ? `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${savedId}&views=${selectedPdfViews.join(",")}`
+    : null;
+
   if (submitting) {
     return (
       <PhotoScanAnimation
@@ -1634,6 +1651,9 @@ function ResultStep({
         clientName={clientName}
         clientPhone={clientPhone}
         photo={photo}
+        selectedPdfViews={selectedPdfViews}
+        onChangeSelectedPdfViews={setSelectedPdfViews}
+        onPrintPdf={() => printUrl && window.open(printUrl, "_blank")}
         onNavigate={onNavigate}
         onOpenDescent={() =>
           onOpenDescent({
@@ -1643,23 +1663,23 @@ function ResultStep({
           })
         }
       />
-      <div className="flex flex-wrap gap-2 pb-2">
+      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/60 pb-2">
         {printUrl && (
           <Button
-            variant="outline"
+            variant="default"
             onClick={() => window.open(printUrl, "_blank")}
-            className="gap-1.5"
-            aria-label="Imprimer le compte-rendu PDF"
+            className="gap-1.5 font-bold bg-gold hover:bg-gold-dark text-black shadow-xs"
+            aria-label="Imprimer le compte-rendu PDF avec les 4 vues choisies"
           >
             <FileDown className="size-4" aria-hidden="true" />
-            Compte-rendu PDF
+            Compte-rendu PDF (4 vues)
           </Button>
         )}
         <Button variant="outline" onClick={onNew} className="gap-1.5">
           Nouveau diagnostic
         </Button>
         <Button onClick={onDone} className="flex-1 gap-1.5 font-semibold k-btn-gold text-primary-foreground">
-          Terminer
+          Terminer &amp; Clôturer
         </Button>
       </div>
     </div>
@@ -1683,6 +1703,9 @@ export function ResultView({
   photo,
   meta,
   tenantName,
+  selectedPdfViews: propSelectedPdfViews,
+  onChangeSelectedPdfViews,
+  onPrintPdf,
   onNavigate,
   onOpenDescent,
 }: {
@@ -1692,13 +1715,39 @@ export function ResultView({
   photo?: string | null;
   meta?: { zone?: string; createdAt?: string; practitioner?: string | null };
   tenantName?: string;
+  selectedPdfViews?: SpectralViewId[];
+  onChangeSelectedPdfViews?: (views: SpectralViewId[]) => void;
+  onPrintPdf?: () => void;
   onNavigate?: (s: ProSectionId) => void;
   onOpenDescent?: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState<"spectra" | "biomarkers" | "protocol" | "all">(
+    photo ? "spectra" : "biomarkers"
+  );
+
+  const [localPdfViews, setLocalPdfViews] = useState<SpectralViewId[]>(() =>
+    recommend4SpectralViews(result.indicateurs)
+  );
+
+  const selectedPdfViews = propSelectedPdfViews ?? localPdfViews;
+  const handlePdfViewsChange = (views: SpectralViewId[]) => {
+    if (onChangeSelectedPdfViews) {
+      onChangeSelectedPdfViews(views);
+    } else {
+      setLocalPdfViews(views);
+    }
+  };
+
   const color = scoreVar(result.score_global);
   const pct = Math.max(4, Math.min(100, result.score_global));
   const verdict =
-    result.score_global >= 80 ? "Peau équilibrée" : result.score_global >= 65 ? "Équilibre correct" : result.score_global >= 50 ? "Attention ciblée" : "Protocole de fond";
+    result.score_global >= 80
+      ? "Peau équilibrée"
+      : result.score_global >= 65
+      ? "Équilibre correct"
+      : result.score_global >= 50
+      ? "Attention ciblée"
+      : "Protocole de fond";
 
   const flags = result.questionnaire?.flags ?? [];
   const sortedIndicators = [...result.indicateurs].sort((a, b) => a.pourcentage - b.pourcentage);
@@ -1708,229 +1757,490 @@ export function ResultView({
   const waUrl = clientPhone ? buildWhatsAppDiagUrl(clientName || "Cliente", clientPhone, result, tenantName) : null;
 
   return (
-    <div className="space-y-5">
-      {/* En-tête score global */}
-      <Card className="overflow-hidden pt-0 border-gold/30">
+    <div className="space-y-4">
+      {/* ── BANDEAU SYNTHÈSE & ACTIONS RAPIDES CABINE ── */}
+      <Card className="overflow-hidden pt-0 border-gold/40 shadow-xs">
         <KenteTop />
         <CardContent className="p-4 sm:p-5">
-          <div className="flex items-center gap-4">
-            <div
-              className="relative size-24 shrink-0 rounded-full grid place-items-center shadow-inner"
-              style={{ background: `conic-gradient(${color} ${pct}%, color-mix(in srgb, currentColor 12%, transparent) 0)` }}
-              role="img"
-              aria-label={`Score santé de peau : ${result.score_global} sur 100`}
-            >
-              <div className="absolute inset-[7px] rounded-full bg-card grid place-items-center">
-                <div className="text-center leading-none">
-                  <p className="font-mono text-2xl font-bold" style={{ color }}>
-                    {result.score_global}
-                  </p>
-                  <p className="text-[9px] text-muted-foreground mt-0.5">/ 100</p>
-                </div>
-              </div>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-heading text-lg font-bold leading-tight" style={{ color }}>
-                {verdict}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground capitalize">
-                {clientName ? `${clientName} · ` : ""}
-                {zoneLabel}
-                {meta?.practitioner ? ` · ${meta.practitioner}` : ""}
-              </p>
-              {meta?.createdAt && (
-                <p className="text-[11px] text-muted-foreground font-mono">
-                  {formatDate(meta.createdAt)} {formatTime(meta.createdAt)}
-                </p>
-              )}
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <Badge variant="outline" className={cn("text-[10px]", result.source.includes("vlm") ? "bg-gold/10 text-gold-text border-gold/30" : "bg-muted text-muted-foreground")}>
-                  {result.source === "vlm+questionnaire" ? "Entretien + scan photo" : "Entretien seul"}
-                </Badge>
-                {result.questionnaire && (
-                  <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">
-                    {result.questionnaire.answered}/{result.questionnaire.total} réponses
-                  </Badge>
-                )}
-                {result.orientation_dermato && (
-                  <Badge variant="outline" className="text-[10px] bg-bissap/10 text-bissap border-bissap/30">
-                    Orientation dermato
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground border-t border-border/40 pt-2.5">
-            {rec?.resume}
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* ── INNOVATION MULTI-SPECTRALE : Observation VISIA-like (si photo présente) ── */}
-      {photo && (
-        <SpectralViewer photo={photo} zoneMarks={result.zones_marquages} zoneLabel={zoneLabel} />
-      )}
-
-      {/* Vigilances dermo */}
-      {flags.length > 0 && (
-        <section aria-label="Points de vigilance">
-          <h3 className="font-heading text-sm font-bold mb-2 flex items-center gap-1.5">
-            <OctagonAlert className="size-4 text-bissap" />
-            Vigilances de l&apos;entretien
-          </h3>
-          <ul className="space-y-2">
-            {flags.map((f, i) => {
-              const st = FLAG_STYLES[f.level] ?? FLAG_STYLES.info;
-              const Icon = st.icon;
-              return (
-                <li key={i} className={cn("flex gap-2.5 rounded-xl border p-3", st.cls)}>
-                  <Icon className="size-4 shrink-0 mt-0.5" aria-hidden="true" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold">{f.label}</p>
-                    {f.detail && <p className="mt-0.5 text-xs leading-relaxed opacity-90">{f.detail}</p>}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Jauge Score global & Verdict */}
+            <div className="flex items-center gap-3.5">
+              <div
+                className="relative size-20 sm:size-22 shrink-0 rounded-full grid place-items-center shadow-inner"
+                style={{ background: `conic-gradient(${color} ${pct}%, color-mix(in srgb, currentColor 12%, transparent) 0)` }}
+                role="img"
+                aria-label={`Score santé de peau : ${result.score_global} sur 100`}
+              >
+                <div className="absolute inset-[6px] rounded-full bg-card grid place-items-center">
+                  <div className="text-center leading-none">
+                    <p className="font-mono text-xl sm:text-2xl font-bold" style={{ color }}>
+                      {result.score_global}
+                    </p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">/ 100</p>
                   </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+                </div>
+              </div>
 
-      {/* Indicateurs biomarqueurs de la zone */}
-      <section aria-label="Indicateurs">
-        <h3 className="font-heading text-sm font-bold mb-2">Biomarqueurs cutanés de la zone</h3>
-        <ul className="space-y-2 rounded-2xl border border-border bg-card p-3.5 sm:p-4">
-          {sortedIndicators.map((ind) => {
-            const c = scoreVar(ind.pourcentage);
-            return (
-              <li key={ind.nom}>
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-xs font-medium truncate">{ind.nom}</p>
-                  <p className="font-mono text-xs font-bold tabular-nums shrink-0" style={{ color: c }}>
-                    {ind.pourcentage}/100
-                    <span className="ml-1 text-[9px] font-normal text-muted-foreground">{SEVERITY_LABEL[ind.severite] ?? ""}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-heading text-base sm:text-lg font-bold leading-tight" style={{ color }}>
+                    {verdict}
                   </p>
+                  <Badge variant="outline" className={cn("text-[10px]", result.source.includes("vlm") ? "bg-gold/10 text-gold-text border-gold/30" : "bg-muted text-muted-foreground")}>
+                    {result.source === "vlm+questionnaire" ? "Multi-Spectral + IA" : "Entretien cabine"}
+                  </Badge>
                 </div>
-                <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(3, ind.pourcentage)}%`, background: c }} />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
 
-      {/* ── INNOVATION PROJECTION CUTANÉE : Simulation J+14, J+30, J+60 ── */}
-      <SkinProjectionCurve
-        initialScore={result.score_global}
-        clientName={clientName}
-        onBookFollowUp={() => onNavigate?.("agenda")}
-      />
+                <p className="mt-0.5 text-xs text-muted-foreground capitalize">
+                  {clientName ? <strong>{clientName}</strong> : ""}
+                  {clientName ? " · " : ""}Zone <span className="font-semibold text-foreground">{zoneLabel}</span>
+                  {meta?.practitioner ? ` · Conseillère : ${meta.practitioner}` : ""}
+                </p>
 
-      {/* Recommandations & Protocole Cabine */}
-      {rec && (
-        <section aria-label="Recommandations">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-heading text-sm font-bold">Recommandations &amp; Protocole Cabine</h3>
-            <div className="flex items-center gap-2">
+                {meta?.createdAt && (
+                  <p className="text-[10.5px] text-muted-foreground font-mono">
+                    {formatDate(meta.createdAt)} {formatTime(meta.createdAt)}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Actions Rapides en Cabine */}
+            <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
+              {onPrintPdf && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={onPrintPdf}
+                  className="h-8 text-xs font-bold gap-1.5 bg-gold hover:bg-gold-dark text-black shadow-xs"
+                  title="Ouvrir le rapport PDF officiel avec les 4 vues choisies"
+                >
+                  <FileDown className="size-3.5" />
+                  <span>PDF ({selectedPdfViews.length}/4)</span>
+                </Button>
+              )}
+
               {waUrl && (
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => window.open(waUrl, "_blank")}
-                  className="h-8 text-xs gap-1.5 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                  className="h-8 text-xs gap-1.5 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
                 >
                   <Share2 className="size-3.5" />
-                  <span>Envoyer sur WhatsApp</span>
+                  <span>WhatsApp</span>
+                </Button>
+              )}
+
+              {onOpenDescent && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onOpenDescent}
+                  className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                >
+                  <ScanFace className="size-3.5" />
+                  <span>3D Cutané</span>
+                </Button>
+              )}
+
+              {onNavigate && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onNavigate("pos")}
+                  className="h-8 text-xs gap-1.5 border-border hover:bg-muted"
+                  title="Encaisser les soins ou produits au comptoir"
+                >
+                  <span>Caisse</span>
                 </Button>
               )}
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {rec.routine_matin?.length > 0 && (
-                <div className="rounded-xl border border-border bg-card p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">Matin</p>
-                  <ul className="space-y-1">
-                    {rec.routine_matin.map((s, i) => (
-                      <li key={i} className="text-xs flex gap-1.5">
-                        <span className="text-gold-text font-mono shrink-0" aria-hidden="true">
-                          {i + 1}.
-                        </span>
-                        {s}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {rec.routine_soir?.length > 0 && (
-                <div className="rounded-xl border border-border bg-card p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">Soir</p>
-                  <ul className="space-y-1">
-                    {rec.routine_soir.map((s, i) => (
-                      <li key={i} className="text-xs flex gap-1.5">
-                        <span className="text-sunset font-mono shrink-0" aria-hidden="true">
-                          {i + 1}.
-                        </span>
-                        {s}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+          {rec?.resume && (
+            <p className="mt-3 text-xs sm:text-sm leading-relaxed text-muted-foreground border-t border-border/40 pt-2.5">
+              {rec.resume}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {rec.botaniques_conseillees?.length > 0 && (
-                <div className="rounded-xl border border-border bg-card p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">Botaniques Ouest-Africaines</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {rec.botaniques_conseillees.map((b, i) => (
-                      <Badge key={i} variant="outline" className="text-[10px] bg-gold/10 text-gold-text border-gold/25 font-semibold">
-                        {b}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {rec.soins_conseilles?.length > 0 && (
-                <div className="rounded-xl border border-border bg-card p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">Soins en cabine</p>
-                  <ul className="space-y-1">
-                    {rec.soins_conseilles.map((s, i) => (
-                      <li key={i} className="text-xs flex gap-1.5">
-                        <span className="text-success" aria-hidden="true">•</span>
-                        {s}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            {rec.conseils_hygiene_vie?.length > 0 && (
-              <div className="rounded-xl border border-border bg-muted/40 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">Conseils d&apos;hygiène de vie</p>
-                <ul className="space-y-1">
-                  {rec.conseils_hygiene_vie.map((s, i) => (
-                    <li key={i} className="text-xs flex gap-1.5">
-                      <Info className="size-3 shrink-0 mt-0.5 text-muted-foreground" aria-hidden="true" />
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+      {/* ── ONGLETS CLINIQUES TACTILES ── */}
+      <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-xl border border-border/70 overflow-x-auto pretty-scroll">
+        {photo && (
+          <button
+            type="button"
+            onClick={() => setActiveTab("spectra")}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0",
+              activeTab === "spectra"
+                ? "bg-card text-foreground shadow-xs border border-border"
+                : "text-muted-foreground hover:text-foreground"
             )}
-          </div>
-          <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">{result.avertissement}</p>
-        </section>
+          >
+            <span>🔬 Imagerie &amp; 8 Spectres</span>
+            <Badge variant="outline" className="text-[9px] px-1 py-0 bg-gold/15 text-gold-text border-gold/30">
+              4/4 PDF
+            </Badge>
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("biomarkers")}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0",
+            activeTab === "biomarkers"
+              ? "bg-card text-foreground shadow-xs border border-border"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <span>📊 Biomarqueurs &amp; Vigilances</span>
+          <Badge variant="outline" className="text-[9px] px-1 py-0">
+            {sortedIndicators.length}
+          </Badge>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("protocol")}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0",
+            activeTab === "protocol"
+              ? "bg-card text-foreground shadow-xs border border-border"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <span>🌿 Protocole &amp; Projection J+60</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("all")}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ml-auto shrink-0",
+            activeTab === "all"
+              ? "bg-card text-foreground shadow-xs border border-border"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <span>Tout afficher</span>
+        </button>
+      </div>
+
+      {/* ── CONTENU : ONGLET 1 — IMAGERIE 3D & 8 SPECTRES ── */}
+      {(activeTab === "spectra" || activeTab === "all") && photo && (
+        <div className="space-y-4">
+          <SpectralViewer
+            photo={photo}
+            zoneMarks={result.zones_marquages}
+            zoneLabel={zoneLabel}
+            indicators={result.indicateurs}
+            selectedPdfViews={selectedPdfViews}
+            onChangeSelectedPdfViews={handlePdfViewsChange}
+            onPrintPdf={onPrintPdf}
+            onOpen3D={onOpenDescent}
+          />
+        </div>
+      )}
+
+      {/* ── CONTENU : ONGLET 2 — BIOMARQUEURS & VIGILANCES ── */}
+      {(activeTab === "biomarkers" || activeTab === "all") && (
+        <div className="space-y-4">
+          {/* Vigilances dermo de l'entretien */}
+          {flags.length > 0 && (
+            <section aria-label="Points de vigilance" className="space-y-2">
+              <h3 className="font-heading text-sm font-bold flex items-center gap-1.5">
+                <OctagonAlert className="size-4 text-bissap" />
+                Vigilances cliniques de l&apos;entretien ({flags.length})
+              </h3>
+              <ul className="space-y-2">
+                {flags.map((f, i) => {
+                  const st = FLAG_STYLES[f.level] ?? FLAG_STYLES.info;
+                  const Icon = st.icon;
+                  return (
+                    <li key={i} className={cn("flex gap-2.5 rounded-xl border p-3 shadow-2xs", st.cls)}>
+                      <Icon className="size-4 shrink-0 mt-0.5" aria-hidden="true" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">{f.label}</p>
+                        {f.detail && <p className="mt-0.5 text-xs leading-relaxed opacity-90">{f.detail}</p>}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
+          {/* Grille des biomarqueurs classés par urgence (scores les plus faibles en premier) */}
+          <section aria-label="Indicateurs" className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="font-heading text-sm font-bold">
+                Biomarqueurs cutanés de la zone ({sortedIndicators.length})
+              </h3>
+              <span className="text-[10px] text-muted-foreground font-semibold">
+                Classés du score le plus bas au plus sain
+              </span>
+            </div>
+
+            <ul className="space-y-2.5 rounded-2xl border border-border bg-card p-3.5 sm:p-4 shadow-2xs">
+              {sortedIndicators.map((ind) => {
+                const c = scoreVar(ind.pourcentage);
+                return (
+                  <li key={ind.nom} className="space-y-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="text-xs font-semibold text-foreground truncate">{ind.nom}</p>
+                      <p className="font-mono text-xs font-bold tabular-nums shrink-0" style={{ color: c }}>
+                        {ind.pourcentage}/100
+                        <span className="ml-1.5 text-[9.5px] font-normal text-muted-foreground capitalize">
+                          {SEVERITY_LABEL[ind.severite] ?? ""}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${Math.max(4, ind.pourcentage)}%`, background: c }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
+          {/* Zones localisées de vigilance sur la photo */}
+          {result.zones_marquages && result.zones_marquages.length > 0 && (
+            <div className="p-3 rounded-xl border border-gold/30 bg-gold/5 text-xs space-y-1">
+              <p className="font-bold text-gold-text">
+                Foyers anatomiques repérés sur le cliché :
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {result.zones_marquages.map((m, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-md bg-gold/15 text-gold-text border border-gold/25 font-medium text-[11px]"
+                  >
+                    {m.label} ({m.severite === 0 ? "sain" : m.severite === 1 ? "léger" : m.severite === 2 ? "modéré" : "marqué"})
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── CONTENU : ONGLET 3 — PROTOCOLE & PROJECTION J+60 ── */}
+      {(activeTab === "protocol" || activeTab === "all") && (
+        <div className="space-y-4">
+          {/* Simulation et courbe prédictive J+14, J+30, J+60 */}
+          <SkinProjectionCurve
+            initialScore={result.score_global}
+            clientName={clientName}
+            onBookFollowUp={() => onNavigate?.("agenda")}
+          />
+
+          {/* Recommandations & Protocole Cabine */}
+          {rec && (
+            <section aria-label="Recommandations" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-heading text-sm font-bold">
+                  Protocole Personnalisé &amp; Pharmacopée Africaine
+                </h3>
+                {waUrl && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.open(waUrl, "_blank")}
+                    className="h-7 text-xs gap-1 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                  >
+                    <Share2 className="size-3" />
+                    <span>WhatsApp</span>
+                  </Button>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {rec.routine_matin?.length > 0 && (
+                    <div className="rounded-xl border border-border bg-card p-3 shadow-2xs">
+                      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">
+                        ☀️ Routine Matin
+                      </p>
+                      <ul className="space-y-1.5">
+                        {rec.routine_matin.map((s, i) => (
+                          <li key={i} className="text-xs flex gap-1.5">
+                            <span className="text-gold-text font-mono font-bold shrink-0" aria-hidden="true">
+                              {i + 1}.
+                            </span>
+                            <span className="text-foreground/90">{s}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {rec.routine_soir?.length > 0 && (
+                    <div className="rounded-xl border border-border bg-card p-3 shadow-2xs">
+                      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">
+                        🌙 Routine Soir
+                      </p>
+                      <ul className="space-y-1.5">
+                        {rec.routine_soir.map((s, i) => (
+                          <li key={i} className="text-xs flex gap-1.5">
+                            <span className="text-sunset font-mono font-bold shrink-0" aria-hidden="true">
+                              {i + 1}.
+                            </span>
+                            <span className="text-foreground/90">{s}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {rec.botaniques_conseillees?.length > 0 && (
+                    <div className="rounded-xl border border-border bg-card p-3 shadow-2xs">
+                      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">
+                        🌿 Botaniques Ouest-Africaines
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {rec.botaniques_conseillees.map((b, i) => (
+                          <Badge key={i} variant="outline" className="text-[10px] bg-gold/10 text-gold-text border-gold/25 font-semibold">
+                            {b}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {rec.soins_conseilles?.length > 0 && (
+                    <div className="rounded-xl border border-border bg-card p-3 shadow-2xs">
+                      <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">
+                        💆‍♀️ Soins Recommandés en Cabine
+                      </p>
+                      <ul className="space-y-1">
+                        {rec.soins_conseilles.map((s, i) => (
+                          <li key={i} className="text-xs flex gap-1.5">
+                            <span className="text-success font-bold" aria-hidden="true">•</span>
+                            <span className="text-foreground/90">{s}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {rec.conseils_hygiene_vie?.length > 0 && (
+                  <div className="rounded-xl border border-border bg-muted/40 p-3 shadow-2xs">
+                    <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground mb-1.5 font-bold">
+                      💡 Conseils d&apos;Hygiène de Vie &amp; Environnement
+                    </p>
+                    <ul className="space-y-1">
+                      {rec.conseils_hygiene_vie.map((s, i) => (
+                        <li key={i} className="text-xs flex gap-1.5">
+                          <Info className="size-3 shrink-0 mt-0.5 text-muted-foreground" aria-hidden="true" />
+                          <span className="text-muted-foreground">{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">{result.avertissement}</p>
+            </section>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
 // ═════════════ Fiche détail depuis l'historique ═════════════
+
+function DetailResultContent({
+  result,
+  item,
+  clientPhone,
+  photoData,
+  tenantId,
+  onNavigate,
+  onOpenDescent,
+  onClose,
+  onDeleteClick,
+}: {
+  result: ProDiagnosisResult;
+  item: ProDiagnosisItem;
+  clientPhone?: string;
+  photoData?: string | null;
+  tenantId: string;
+  onNavigate?: (s: ProSectionId) => void;
+  onOpenDescent: (d: { indicators: Indicator[]; score: number; zoneLabel: string }) => void;
+  onClose: () => void;
+  onDeleteClick: () => void;
+}) {
+  const [selectedPdfViews, setSelectedPdfViews] = useState<SpectralViewId[]>(() =>
+    recommend4SpectralViews(result.indicateurs)
+  );
+
+  const printUrl = `/api/pro/diagnoses/report?tenantId=${tenantId}&id=${item.id}&views=${selectedPdfViews.join(",")}`;
+
+  return (
+    <>
+      <ResultView
+        result={result}
+        clientName={item.clientName}
+        clientPhone={clientPhone}
+        photo={photoData}
+        meta={{ zone: item.zone, createdAt: item.createdAt, practitioner: item.practitioner }}
+        selectedPdfViews={selectedPdfViews}
+        onChangeSelectedPdfViews={setSelectedPdfViews}
+        onPrintPdf={() => window.open(printUrl, "_blank")}
+        onNavigate={onNavigate}
+        onOpenDescent={() =>
+          onOpenDescent({
+            indicators: result.indicateurs,
+            score: result.score_global,
+            zoneLabel: item.zone.replace("_", " "),
+          })
+        }
+      />
+      {onNavigate && (
+        <Button
+          variant="outline"
+          className="mt-4 w-full gap-1.5"
+          onClick={() => {
+            onClose();
+            onNavigate("crm");
+          }}
+        >
+          Voir la fiche CRM de {item.clientName}
+          <ChevronRight className="size-4" aria-hidden="true" />
+        </Button>
+      )}
+      <Button
+        variant="default"
+        className="mt-2 w-full gap-1.5 font-bold bg-gold hover:bg-gold-dark text-black shadow-xs"
+        onClick={() => window.open(printUrl, "_blank")}
+        aria-label={`Imprimer le compte-rendu PDF du diagnostic de ${item.clientName}`}
+      >
+        <FileDown className="size-4" aria-hidden="true" />
+        Compte-rendu PDF (avec les 4 vues choisies)
+      </Button>
+      <Button
+        variant="outline"
+        className="mt-2 w-full gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive border-border"
+        onClick={onDeleteClick}
+        aria-label="Supprimer ce diagnostic cabine"
+      >
+        <Trash2 className="size-4" aria-hidden="true" />
+        Supprimer ce diagnostic cabine
+      </Button>
+    </>
+  );
+}
 
 function DetailSheet({
   item,
@@ -1980,7 +2290,11 @@ function DetailSheet({
   return (
     <>
       <Sheet open onOpenChange={(o) => !o && onClose()}>
-        <SheetContent side="right" aria-describedby={undefined} className="w-full sm:max-w-xl overflow-y-auto pretty-scroll p-0">
+        <SheetContent
+          side="right"
+          aria-describedby={undefined}
+          className="w-full sm:max-w-3xl lg:max-w-4xl overflow-y-auto pretty-scroll p-0"
+        >
           <SheetHeader className="p-4 pb-3 border-b border-border bg-muted/40">
             <SheetTitle className="font-heading text-lg leading-tight">Diagnostic — {item.clientName}</SheetTitle>
             <SheetDescription className="text-xs">
@@ -1992,54 +2306,17 @@ function DetailSheet({
             {!result ? (
               <ErrorState message="Résultat illisible pour ce diagnostic" />
             ) : (
-              <>
-                <ResultView
-                  result={result}
-                  clientName={item.clientName}
-                  clientPhone={clientPhone}
-                  photo={fullItem?.photoData ?? null}
-                  meta={{ zone: item.zone, createdAt: item.createdAt, practitioner: item.practitioner }}
-                  onNavigate={onNavigate}
-                  onOpenDescent={() =>
-                    onOpenDescent({
-                      indicators: result.indicateurs,
-                      score: result.score_global,
-                      zoneLabel: item.zone.replace("_", " "),
-                    })
-                  }
-                />
-                {onNavigate && (
-                  <Button
-                    variant="outline"
-                    className="mt-4 w-full gap-1.5"
-                    onClick={() => {
-                      onClose();
-                      onNavigate("crm");
-                    }}
-                  >
-                    Voir la fiche CRM de {item.clientName}
-                    <ChevronRight className="size-4" aria-hidden="true" />
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  className="mt-2 w-full gap-1.5"
-                  onClick={() => window.open(`/api/pro/diagnoses/report?tenantId=${tenantId}&id=${item.id}`, "_blank")}
-                  aria-label={`Imprimer le compte-rendu PDF du diagnostic de ${item.clientName}`}
-                >
-                  <FileDown className="size-4" aria-hidden="true" />
-                  Compte-rendu PDF
-                </Button>
-                <Button
-                  variant="outline"
-                  className="mt-2 w-full gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive border-border"
-                  onClick={() => setDeleteConfirmOpen(true)}
-                  aria-label="Supprimer ce diagnostic cabine"
-                >
-                  <Trash2 className="size-4" aria-hidden="true" />
-                  Supprimer ce diagnostic cabine
-                </Button>
-              </>
+              <DetailResultContent
+                result={result}
+                item={item}
+                clientPhone={clientPhone}
+                photoData={fullItem?.photoData ?? null}
+                tenantId={tenantId}
+                onNavigate={onNavigate}
+                onOpenDescent={onOpenDescent}
+                onClose={onClose}
+                onDeleteClick={() => setDeleteConfirmOpen(true)}
+              />
             )}
           </div>
         </SheetContent>
