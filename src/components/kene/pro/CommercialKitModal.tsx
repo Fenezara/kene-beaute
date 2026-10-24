@@ -54,19 +54,26 @@ export function CommercialKitModal({
 
   useEffect(() => {
     if (typeof window === "undefined" || !open) return;
-    const origin = window.location.origin;
-    const link = `${origin}/?ref=${tenantId}`;
+    const host = window.location.host;
+    const isLocal =
+      host.includes("localhost") ||
+      host.includes("127.0.0.1") ||
+      host.startsWith("192.168.") ||
+      host.startsWith("10.");
+    // Si testé en local, forcer l'URL publique de production pour que le scan depuis smartphone fonctionne toujours
+    const origin = isLocal ? "https://kene-beaute.com" : window.location.origin;
+    const link = `${origin}/?ref=${encodeURIComponent(tenantId)}&salon=${encodeURIComponent(tenantName)}`;
     setSalonLink(link);
 
     QRCode.toDataURL(link, {
       margin: 2,
       width: 480,
       errorCorrectionLevel: "M",
-      color: { dark: "#1A1410", light: "#FFF9EC" },
+      color: { dark: "#000000", light: "#FFFFFF" },
     })
       .then((url) => setQrCodeUrl(url))
       .catch((err) => console.error("Erreur génération QR code kit:", err));
-  }, [open, tenantId]);
+  }, [open, tenantId, tenantName]);
 
   function handlePrint() {
     if (typeof window !== "undefined") {
@@ -193,7 +200,7 @@ export function CommercialKitModal({
 
               {/* QR Code */}
               <div className="flex flex-col items-center justify-center py-1">
-                <div className="p-3 rounded-2xl bg-[#FFF9EC] border-2 border-gold/40 shadow-md">
+                <div className="p-3.5 rounded-2xl bg-white border-2 border-gold/40 shadow-md">
                   {qrCodeUrl ? (
                     <img
                       src={qrCodeUrl}
@@ -209,6 +216,11 @@ export function CommercialKitModal({
                 <p className="text-[11px] font-bold text-gold-text mt-2 font-mono uppercase tracking-widest">
                   Scannez avec l&apos;appareil photo
                 </p>
+                {salonLink && (
+                  <p className="text-[10px] text-muted-foreground font-mono mt-0.5 max-w-xs truncate">
+                    {salonLink.replace(/^https?:\/\//, "")}
+                  </p>
+                )}
               </div>
 
               {/* Points forts */}

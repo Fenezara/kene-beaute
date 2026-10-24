@@ -13,6 +13,7 @@ import {
   SlidersHorizontal, ScanFace, Trash2, UserPlus, Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useKene } from "@/store/kene";
 import { ProductInciScannerModal } from "./ProductInciScannerModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -706,7 +707,14 @@ function DiagWizard({
   const [answers, setAnswers] = useState<QAnswers>(defaultAnswers);
   const [photo, setPhoto] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Record<string, string>>({});
-  const [practitioner, setPractitioner] = useState("");
+  const sessionUser = useKene((s) => s.user);
+  const practitioner = useMemo(() => {
+    return (
+      sessionUser?.employeeName?.trim() ||
+      sessionUser?.name?.trim() ||
+      "Conseillère Kènè"
+    );
+  }, [sessionUser]);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<ProDiagnosisResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -843,7 +851,6 @@ function DiagWizard({
               zone={zone}
               onZone={setZone}
               practitioner={practitioner}
-              onPractitioner={setPractitioner}
               consent={consent}
               onConsent={setConsent}
               onSignature={setSignatureData}
@@ -906,7 +913,6 @@ function ClientStep({
   zone,
   onZone,
   practitioner,
-  onPractitioner,
   consent,
   onConsent,
   onSignature,
@@ -919,7 +925,6 @@ function ClientStep({
   zone: BodyZone;
   onZone: (z: BodyZone) => void;
   practitioner: string;
-  onPractitioner: (v: string) => void;
   consent: { photo: boolean; data: boolean };
   onConsent: (c: { photo: boolean; data: boolean }) => void;
   onSignature: (sig: string | null) => void;
@@ -935,20 +940,6 @@ function ClientStep({
     () => evaluateSafetyChecklist("peeling soin cabine", contraindications),
     [contraindications]
   );
-
-  // Équipe active de l'institut pour la sélection de la praticienne
-  const teamApi = useApi<EmployeesResponse>(
-    () => (tenantId ? apiGet<EmployeesResponse>(`/api/pro/employees?tenantId=${tenantId}`) : Promise.resolve({ employees: [], attendanceToday: [] })),
-    [tenantId]
-  );
-  const activeEmployees = (teamApi.data?.employees ?? []).filter((e) => e.active);
-
-  useEffect(() => {
-    // Si aucune praticienne sélectionnée et que l'équipe est chargée, pré-sélectionner la première
-    if (!practitioner && activeEmployees.length > 0) {
-      onPractitioner(activeEmployees[0].name);
-    }
-  }, [activeEmployees, practitioner, onPractitioner]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebounced(query.trim()), 300);
@@ -1112,34 +1103,12 @@ function ClientStep({
       {/* Sélecteur Anatomique Interactif (Innovation 3D tactile) */}
       <SkinZoneSelector selectedZone={zone} onSelectZone={onZone} />
 
-      {/* Praticienne connectée à l'équipe réelle */}
-      <div>
-        <label htmlFor="diag-practitioner" className="text-sm font-semibold mb-1.5 block">
-          Praticienne en cabine
-        </label>
-        {activeEmployees.length > 0 ? (
-          <Select value={practitioner} onValueChange={onPractitioner}>
-            <SelectTrigger id="diag-practitioner" aria-label="Praticienne en cabine">
-              <SelectValue placeholder="Sélectionner une praticienne" />
-            </SelectTrigger>
-            <SelectContent>
-              {activeEmployees.map((emp) => (
-                <SelectItem key={emp.id} value={emp.name}>
-                  {emp.name} ({emp.role.replace("_", " ")})
-                </SelectItem>
-              ))}
-              <SelectItem value="Autre praticienne">Autre praticienne</SelectItem>
-            </SelectContent>
-          </Select>
-        ) : (
-          <Input
-            id="diag-practitioner"
-            value={practitioner}
-            onChange={(e) => onPractitioner(e.target.value)}
-            placeholder="Nom de la praticienne"
-            aria-label="Praticienne qui réalise le diagnostic"
-          />
-        )}
+      {/* Praticienne connectée (attribuée automatiquement selon la session active) */}
+      <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border/80 bg-muted/30 text-xs">
+        <span className="size-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+        <span className="text-muted-foreground">Praticienne en charge :</span>
+        <strong className="text-foreground font-semibold">{practitioner}</strong>
+        <span className="text-[10.5px] text-muted-foreground/80 ml-auto font-mono">(session active)</span>
       </div>
 
       {/* Checklist Sécurité Cabine & Contre-indications (Cosmétovigilance) */}

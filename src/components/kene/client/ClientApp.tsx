@@ -175,6 +175,55 @@ export function ClientApp() {
     }
   }, [tab, setClientTab]);
 
+  // Capture et affiliation immédiate de l'institut scanné par QR Code (?ref=...)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const refTenantId = p.get("ref");
+      const salonParam = p.get("salon");
+      if (refTenantId) {
+        apiGet<{ tenant?: { id: string; name: string; city: string; phone?: string | null } }>(
+          `/api/institutes/${encodeURIComponent(refTenantId)}`
+        )
+          .then((res) => {
+            const inst = res?.tenant;
+            if (inst) {
+              const curUser = useKene.getState().user;
+              if (curUser) {
+                useKene.getState().setUser({
+                  ...curUser,
+                  selectedTenantId: inst.id,
+                  selectedTenant: {
+                    id: inst.id,
+                    name: inst.name,
+                    city: inst.city,
+                    phone: inst.phone,
+                  },
+                });
+              }
+              toast.success(`Institut partenaire rattaché : ${inst.name} ✨`, {
+                description: "Votre diagnostic de peau offert et votre ordonnance personnalisée sont prêts !",
+                duration: 6000,
+              });
+            } else if (salonParam) {
+              toast.success(`Bienvenue chez ${decodeURIComponent(salonParam)} ✨`, {
+                description: "Votre diagnostic de peau offert et vos avantages exclusifs sont activés !",
+                duration: 6000,
+              });
+            }
+          })
+          .catch(() => {
+            if (salonParam) {
+              toast.success(`Bienvenue chez ${decodeURIComponent(salonParam)} ✨`, { duration: 6000 });
+            }
+          });
+      }
+    } catch {
+      // noop
+    }
+  }, []);
+
   // File d'attente offline du diagnostic: les photos mises en
   // attente partent TOUTES SEULES au retour du réseau — peu importe l'écran
   // courant (la replay vit ici, toujours montée). Au boot: si la file n'est
