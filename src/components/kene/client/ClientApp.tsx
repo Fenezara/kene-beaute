@@ -91,6 +91,9 @@ import { PlanScreen } from "./PlanScreen";
 import { LegalScreen } from "./LegalScreen";
 import { NotificationCenter } from "./NotificationCenter";
 import { GuestSaveBanner } from "./GuestSaveBanner";
+import { SmartInstallBar } from "@/components/kene/pwa/SmartInstallBar";
+import { SmartAppInstallModal } from "@/components/kene/pwa/SmartAppInstallModal";
+import { AppWalkthroughTour } from "./AppWalkthroughTour";
 
 /** Squelette d'attente d'onglet — spinner discret pendant le chargement du chunk */
 function TabLoading() {
@@ -129,6 +132,8 @@ export function ClientApp() {
   // « kene:chat:new » dispatché par ChatScreen) l'allume, voir l'effet plus bas
   const [chatUnread, setChatUnread] = useState(false);
   const [pendingZone, setPendingZone] = useState<BodyZone | null>(null);
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false);
+  const [installModalOpen, setInstallModalOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // ─── Pull-to-refresh (Instagram / Wave) ───
@@ -220,6 +225,18 @@ export function ClientApp() {
     };
     window.addEventListener("kene:chat:new", onNewChatMessage);
     return () => window.removeEventListener("kene:chat:new", onNewChatMessage);
+  }, []);
+
+  // Déclencheurs globaux pour la visite guidée et le guide d'installation PWA
+  useEffect(() => {
+    const onOpenWalkthrough = () => setWalkthroughOpen(true);
+    const onOpenInstall = () => setInstallModalOpen(true);
+    window.addEventListener("kene:open-walkthrough", onOpenWalkthrough);
+    window.addEventListener("kene:open-install", onOpenInstall);
+    return () => {
+      window.removeEventListener("kene:open-walkthrough", onOpenWalkthrough);
+      window.removeEventListener("kene:open-install", onOpenInstall);
+    };
   }, []);
 
   // Remonte en haut du flux à chaque changement d'onglet
@@ -664,6 +681,9 @@ export function ClientApp() {
           )}
           {refreshing && <span role="status" className="sr-only">Actualisation du fil en cours</span>}
           <div className="mx-auto w-full max-w-[640px] px-2.5 sm:px-5 pt-2.5 sm:pt-3 pb-[calc(84px+env(safe-area-inset-bottom,0px))] md:pb-8">
+            {/* Bannière incitative d'installation PWA si sur navigateur smartphone */}
+            <SmartInstallBar />
+
             {/* Bannière douce de sauvegarde WhatsApp si en mode Découverte */}
             <GuestSaveBanner />
 
@@ -870,6 +890,18 @@ export function ClientApp() {
 
       {/* Modal de création de compte gratuit (0 FCFA) / sauvegarde permanente */}
       <LinkAccountModal open={linkAccountOpen} onClose={() => setLinkAccountOpen(false)} />
+
+      {/* Visite guidée immersive de l'application Kènè (4 piliers) */}
+      <AppWalkthroughTour
+        open={walkthroughOpen}
+        onClose={() => setWalkthroughOpen(false)}
+      />
+
+      {/* Guide visuel animé d'installation PWA (déclenché depuis les paramètres ou le rail) */}
+      <SmartAppInstallModal
+        open={installModalOpen}
+        onClose={() => setInstallModalOpen(false)}
+      />
     </div>
   );
 }

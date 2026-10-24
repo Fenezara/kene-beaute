@@ -281,24 +281,17 @@ export function SettingsScreen() {
     toast.info("À très vite — bienvenue dans l'aventure entreprise");
   }
 
- /** Installer l'app (prompt natif, ou instructions iOS / navigateur). */
+ /** Installer l'app (prompt natif, ou instructions visuelles interactives). */
   async function installApp() {
     if (canInstall) {
       const accepted = await promptInstall();
-      if (accepted) toast.success("Kènè installée sur ton écran d'accueil 💛");
-      return;
+      if (accepted) {
+        toast.success("Kènè installée sur ton écran d'accueil 💛");
+        return;
+      }
     }
-    if (isIOS) {
-      toast.info("Installer sur iPhone", {
-        description: "Bouton Partager ⬆️ puis « Sur l'écran d'accueil ».",
-        duration: 8000,
-      });
-      return;
-    }
-    toast.info("Installation manuelle", {
-      description: "Menu du navigateur → « Installer l'application » ou « Ajouter à l'écran d'accueil ».",
-      duration: 8000,
-    });
+    // Ouvre le guide animé pas-à-pas
+    window.dispatchEvent(new CustomEvent("kene:open-install"));
   }
 
  /** Demande la permission navigateur puis relit l'état (toast succès/info). */
@@ -839,28 +832,45 @@ export function SettingsScreen() {
           </section>
         </RevealItem>
 
-        {/* Application — installation PWA sur l'écran d'accueil */}
+        {/* Application — installation PWA sur l'écran d'accueil & Visite guidée */}
         <RevealItem>
-          <section aria-labelledby="app-t" className="k-card rounded-[24px] p-4">
+          <section aria-labelledby="app-t" className="k-card rounded-[24px] p-4 space-y-3">
             <div className="flex items-center gap-3">
               <IconBadge icon={<Smartphone size={19} />} tone="gold" />
               <div className="flex-1 min-w-0">
-                <p id="app-t" className="text-xs font-bold">Application</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Installe Kènè sur ton écran d&apos;accueil : un tap pour ouvrir, et tes diagnostics restent consultables même hors-ligne.</p>
+                <p id="app-t" className="text-xs font-bold">Application &amp; Expérience Kènè</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                  Installez Kènè sur votre écran d&apos;accueil et redécouvrez toutes les fonctionnalités clés.
+                </p>
               </div>
             </div>
+
             {isStandalone ? (
-              <p className="mt-3 rounded-xl bg-success/10 text-success text-xs font-semibold px-3 min-h-10 flex items-center gap-2">
-                <Check size={15} className="shrink-0" /> Kènè est déjà installée sur ton téléphone
-              </p>
+              <div className="rounded-xl bg-success/10 text-success text-xs font-semibold p-3 flex items-center gap-2">
+                <Check size={15} className="shrink-0" /> Kènè est installée sur votre smartphone en plein écran
+              </div>
             ) : (
-              <button
-                onClick={() => void installApp()}
-                className="k-btn-gold mt-3 h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                <Download size={15} /> Installer Kènè
-              </button>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => void installApp()}
+                  className="k-btn-gold h-11 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary shadow-xs"
+                >
+                  <Download size={15} /> Installer Kènè &amp; Guide d&apos;installation
+                </button>
+              </div>
             )}
+
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                window.dispatchEvent(new CustomEvent("kene:open-walkthrough"));
+              }}
+              className="w-full h-11 rounded-xl border border-border bg-card hover:bg-muted/50 text-foreground text-xs font-bold inline-flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
+            >
+              <Sparkles size={14} className="text-gold" /> Revoir la visite guidée de l&apos;application
+            </button>
           </section>
         </RevealItem>
 
