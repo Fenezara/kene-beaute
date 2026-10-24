@@ -38,6 +38,7 @@ import {
   Info,
   Droplets,
   Sparkles,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -89,13 +90,25 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   // Diagnoses gérées localement si non injectées depuis l'extérieur
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>(initialDiagnoses ?? []);
 
+  // Routine quotidienne prescrite par l'institut (cosmeticsUsed)
+  const [cosmeticsUsed, setCosmeticsUsed] = useState<string | null>(storeUser?.cosmeticsUsed ?? null);
+  const [prescribedByTenant, setPrescribedByTenant] = useState<string | null>(storeUser?.prescribedByTenant ?? null);
+
+  useEffect(() => {
+    if (storeUser?.cosmeticsUsed) setCosmeticsUsed(storeUser.cosmeticsUsed);
+    if (storeUser?.prescribedByTenant) setPrescribedByTenant(storeUser.prescribedByTenant);
+  }, [storeUser?.cosmeticsUsed, storeUser?.prescribedByTenant]);
+
   useEffect(() => {
     if (initialDiagnoses && initialDiagnoses.length > 0) {
       setDiagnoses(initialDiagnoses);
-    } else if (storeUser?.id) {
-      apiGet<{ diagnoses: ApiDiagnosis[] }>(`/api/diagnoses?userId=${storeUser.id}`)
+    }
+    if (storeUser?.id) {
+      apiGet<{ diagnoses: ApiDiagnosis[]; cosmeticsUsed?: string | null; instituteName?: string | null }>(`/api/diagnoses?userId=${storeUser.id}`)
         .then((res) => {
           if (res?.diagnoses) setDiagnoses(res.diagnoses);
+          if (res?.cosmeticsUsed) setCosmeticsUsed(res.cosmeticsUsed);
+          if (res?.instituteName) setPrescribedByTenant(res.instituteName);
         })
         .catch(() => {});
     }
@@ -277,7 +290,11 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
     const botanicals = lastResult?.recommandations?.botaniques_conseillees?.join(", ") || "Moringa d'Afrique, Karité brut bio, Kinkeliba, Hibiscus";
     const soins = lastResult?.recommandations?.soins_conseilles?.slice(0, 2).join(" • ") || "Soin du visage dermo-cosmétique en cabine";
 
-    const msg = `Bonjour l'équipe de *${instName}* ! 🌿🔆\n\nVoici le point sur *Mon Dossier Peau & Routine Beauté Kènè* :\n\n📊 *Score Vitalité Cutanée* : ${globalScore}/100\n🔆 *Carnation (Teint)* : Type ${user.fitzpatrick || "V"} (Peau noire & métissée)\n🌿 *Actifs Recommandés* : ${botanicals}\n💆‍♀️ *Soin Conseillé* : ${soins}\n\nJe souhaite faire le point sur mon évolution et programmer ma prochaine séance cabine. Merci ! 🌸`;
+    const routinePart = cosmeticsUsed
+      ? `\n🧴 *Routine Prescrite en Salon* : ${cosmeticsUsed}`
+      : `\n🌿 *Actifs Recommandés* : ${botanicals}`;
+
+    const msg = `Bonjour l'équipe de *${instName}* ! 🌿🔆\n\nVoici le point sur *Mon Dossier Peau & Routine Beauté Kènè* :\n\n📊 *Score Vitalité Cutanée* : ${globalScore}/100\n🔆 *Carnation (Teint)* : Type ${user.fitzpatrick || "V"} (Peau noire & métissée)${routinePart}\n💆‍♀️ *Soin Conseillé* : ${soins}\n\nJe souhaite faire le point sur mon évolution et programmer ma prochaine séance cabine. Merci ! 🌸`;
 
     const phone = selectedInstitute?.phone || (selectedInstitute as any)?.ownerPhone || "";
     openWhatsApp(phone, msg);
@@ -440,7 +457,13 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
           </CardContent>
         </Card>
 
-        <Card className="py-0 gap-0 border-border/80 bg-card/85 backdrop-blur-md shadow-xs">
+        <Card
+          onClick={() => {
+            haptic(HAPTIC.tap);
+            setActiveView("dossier");
+          }}
+          className="py-0 gap-0 border-border/80 bg-card/85 backdrop-blur-md shadow-xs cursor-pointer hover:border-[#C8951E]/60 transition-all select-none"
+        >
           <CardContent className="p-2.5 sm:p-3.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
             <div className="flex items-center gap-2 sm:shrink-0">
               <span className="grid place-items-center size-7 sm:size-10 rounded-lg sm:rounded-xl bg-gold/15 text-gold-text shrink-0 shadow-xs">
@@ -455,8 +478,8 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                 Ma Routine
               </p>
               <p className="text-xs sm:text-sm font-black font-heading text-gold-text sm:mt-0.5 flex items-center gap-1.5 whitespace-nowrap leading-tight">
-                <span className={cn("size-2 rounded-full inline-block shrink-0", globalScore !== null ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground")} />
-                <span>{globalScore !== null ? "Active" : "En attente"}</span>
+                <span className={cn("size-2 rounded-full inline-block shrink-0", cosmeticsUsed ? "bg-emerald-500 animate-pulse" : (globalScore !== null ? "bg-emerald-500" : "bg-muted-foreground"))} />
+                <span className="truncate">{cosmeticsUsed ? "Prescrite en salon" : (globalScore !== null ? "Active" : "En attente")}</span>
               </p>
             </div>
           </CardContent>
@@ -574,13 +597,45 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
           SOUS-VUE 1 : SANTÉ DE TA PEAU EN DIRECT (TABLEAU DE BORD BIOMÉTRIQUE)
       ═══════════════════════════════════════════════════════════ */}
       {activeView === "live" && (
-        <SkinHealthDashboard
-          user={user as any}
-          multi={multi}
-          lastResult={lastResult}
-          onScanZone={onStartScan || (() => setClientTab("diagnostic"))}
-          onOpenFullDiag={() => setActiveView("dossier")}
-        />
+        <div className="space-y-4">
+          {cosmeticsUsed && (
+            <Card
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                setActiveView("dossier");
+              }}
+              className="cursor-pointer border-2 border-emerald-500/40 bg-gradient-to-r from-emerald-500/15 via-card to-card p-3.5 sm:p-4 rounded-[22px] hover:border-emerald-500 transition-all shadow-xs select-none"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="grid size-9 place-items-center rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <Sun size={18} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-foreground flex items-center gap-1.5 truncate">
+                      <span>🌿 Routine Quotidienne Prescrite en Salon</span>
+                      <span className="text-[9.5px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold">À domicile</span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate mt-0.5 font-medium">
+                      {cosmeticsUsed}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 shrink-0 flex items-center gap-1">
+                  Voir ma routine →
+                </span>
+              </div>
+            </Card>
+          )}
+
+          <SkinHealthDashboard
+            user={user as any}
+            multi={multi}
+            lastResult={lastResult}
+            onScanZone={onStartScan || (() => setClientTab("diagnostic"))}
+            onOpenFullDiag={() => setActiveView("dossier")}
+          />
+        </div>
       )}
 
       {/* ═══════════════════════════════════════════════════════════
@@ -672,6 +727,60 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               </div>
             </CardContent>
           </Card>
+
+          {/* ══════════ 1. ROUTINE QUOTIDIENNE PRESCRITE EN SALON (cosmeticsUsed) ══════════ */}
+          {cosmeticsUsed ? (
+            <Card className="rounded-[26px] border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-card to-card p-4 sm:p-5 space-y-4 shadow-md">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="grid size-10 place-items-center rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shadow-xs shrink-0">
+                    <Sun size={20} />
+                  </span>
+                  <div className="min-w-0">
+                    <h4 className="font-heading font-black text-base text-foreground truncate">
+                      Routine cosmétique quotidienne à domicile
+                    </h4>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {prescribedByTenant ? `Prescrite sur-mesure par ${prescribedByTenant}` : "Protocole de soins prescrit par votre dermo-conseillère"}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-black uppercase tracking-wider shrink-0 gap-1 px-2.5 py-1">
+                  <Lock size={11} /> Lecture Seule
+                </Badge>
+              </div>
+
+              {/* Bloc de la routine exacte saisie côté salon */}
+              <div className="rounded-2xl border border-emerald-500/30 bg-card/90 p-4 space-y-3 shadow-xs">
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  <Sparkles size={14} />
+                  <span>Vos soins à appliquer quotidiennement chez vous :</span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-muted/40 border border-border/60">
+                  <p className="whitespace-pre-line text-sm leading-relaxed text-foreground font-medium">
+                    {cosmeticsUsed}
+                  </p>
+                </div>
+                <div className="pt-2 border-t border-border/60 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+                    <ShieldCheck size={14} />
+                    Validé en institut par votre dermo-conseillère
+                  </span>
+                  <span className="text-[10px] opacity-75">Modifiable uniquement en salon</span>
+                </div>
+              </div>
+            </Card>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-amber-500/40 bg-amber-500/5 p-4 flex items-start gap-3 text-xs text-muted-foreground">
+              <Info size={18} className="text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-foreground">Aucune routine sur-mesure enregistrée en institut pour le moment</p>
+                <p className="text-[11px] mt-0.5 leading-relaxed">
+                  Votre dermo-conseillère consignera vos produits quotidiens lors de votre prochaine consultation en salon. En attendant, découvrez le protocole de référence ci-dessous :
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Routine Beauté Active — Les 4 Gestes Dermo-Cosmétiques */}
           <Card className="rounded-[26px] border-2 border-[#C8951E]/40 bg-gradient-to-br from-[#C8951E]/10 via-card to-card p-4 sm:p-5 space-y-4 shadow-sm">

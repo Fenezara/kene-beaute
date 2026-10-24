@@ -200,6 +200,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (parsed.data.skinType !== undefined) data.skinType = parsed.data.skinType;
     if (parsed.data.fitzpatrick !== undefined) data.fitzpatrick = parsed.data.fitzpatrick;
 
+    // Rapprochement automatique cliente app ↔ fiche institut
+    if (!client.userId && client.phone) {
+      const digits = client.phone.replace(/\D/g, "");
+      const tail = digits.length >= 8 ? digits.slice(-8) : digits;
+      if (tail) {
+        const matched = await db.user.findFirst({
+          where: {
+            OR: [
+              { phone: client.phone },
+              { phone: { contains: tail } },
+            ],
+          },
+          select: { id: true },
+        });
+        if (matched) {
+          data.userId = matched.id;
+        }
+      }
+    }
+
     const updated = await db.clientProfile.update({
       where: { id },
       data,

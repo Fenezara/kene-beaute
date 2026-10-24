@@ -71,6 +71,29 @@ export async function GET(req: NextRequest) {
 
       const employeeName = proCtx.employeeName ?? (emp ? emp.name : null);
 
+      // Si cliente : récupération de sa routine quotidienne prescrite par son institut
+      let cosmeticsUsed: string | null = null;
+      let prescribedByTenant: string | null = null;
+      if (user.role === "client") {
+        const digits = user.phone.replace(/\D/g, "");
+        const tail = digits.length >= 8 ? digits.slice(-8) : digits;
+        const profile = await db.clientProfile.findFirst({
+          where: {
+            OR: [
+              { userId: user.id },
+              ...(tail ? [{ phone: { contains: tail } }] : [{ phone: user.phone }]),
+            ],
+            cosmeticsUsed: { not: null },
+          },
+          include: { tenant: { select: { name: true } } },
+          orderBy: { createdAt: "desc" },
+        });
+        if (profile) {
+          cosmeticsUsed = profile.cosmeticsUsed;
+          prescribedByTenant = profile.tenant.name;
+        }
+      }
+
       const res = NextResponse.json({
         user: {
           ...sanitizeUser(user),
@@ -78,6 +101,8 @@ export async function GET(req: NextRequest) {
           employeeRole,
           employeePermissions,
           employeeName,
+          cosmeticsUsed,
+          prescribedByTenant,
         },
         tenant: tenant ? { id: tenant.id, name: tenant.name } : null,
         employeeRole,

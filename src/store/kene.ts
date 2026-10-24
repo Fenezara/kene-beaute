@@ -56,6 +56,9 @@ export interface SessionUser {
   tenantId?: string | null;
   // — code PIN secret défini (permet la reconnexion instantanée sans SMS)
   hasPin?: boolean;
+  // — routine cosmétique quotidienne prescrite par son institut en cabine
+  cosmeticsUsed?: string | null;
+  prescribedByTenant?: string | null;
 }
 
 /** Shape réellement persistée (liste blanche du partialize). */

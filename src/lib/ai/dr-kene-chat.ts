@@ -29,6 +29,8 @@ export interface UserProfileContext {
   fitzpatrick?: string | null;
   allergies?: string | null;
   goals?: string | null;
+  cosmeticsUsed?: string | null;
+  prescribedByTenant?: string | null;
   recentDiagnoses?: Array<{
     zone: string;
     score: number;
@@ -75,6 +77,26 @@ export async function resolveUserProfile(
 
     if (!user) return null;
 
+    let cosmeticsUsed: string | null = null;
+    let prescribedByTenant: string | null = null;
+    const digits = user.phone ? user.phone.replace(/\D/g, "") : "";
+    const tail = digits.length >= 8 ? digits.slice(-8) : digits;
+    const profile = await db.clientProfile.findFirst({
+      where: {
+        OR: [
+          { userId: user.id },
+          ...(tail ? [{ phone: { contains: tail } }] : [{ phone: user.phone }]),
+        ],
+        cosmeticsUsed: { not: null },
+      },
+      include: { tenant: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (profile) {
+      cosmeticsUsed = profile.cosmeticsUsed;
+      prescribedByTenant = profile.tenant.name;
+    }
+
     return {
       id: user.id,
       name: user.name,
@@ -87,6 +109,8 @@ export async function resolveUserProfile(
       fitzpatrick: user.fitzpatrick,
       allergies: user.allergies,
       goals: user.goals,
+      cosmeticsUsed,
+      prescribedByTenant,
       recentDiagnoses: user.diagnoses?.map((d) => ({
         zone: d.zone,
         score: d.score,
@@ -151,6 +175,10 @@ ${pregnant ? "- ALERTE PRÉCAUTION MATERNITÉ ACTIVE : Cette cliente a indiqué 
 - Objectifs peau : ${goals || "Harmonie, éclat et santé cutanée"}
 - Allergies signalées : ${allergies || "Aucune allergie connue"}
 - Maternité (grossesse / allaitement) : ${pregnant ? "OUI" : "Non"}`;
+
+  if (userProfile?.cosmeticsUsed) {
+    profileSection += `\n- ROUTINE QUOTIDIENNE À DOMICILE PRESCRITE EN SALON (${userProfile.prescribedByTenant || "Institut Partenaire Kènè"}) : "${userProfile.cosmeticsUsed}"\n  (La cliente suit cette routine personnalisée. Accompagne-la avec bienveillance sur l'application de ces soins prescrits par sa dermo-conseillère).`;
+  }
 
   if (recentDiagnoses.length > 0) {
     profileSection += `\n- Historique récent des diagnostics Visia IA :`;

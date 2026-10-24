@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
     const full = req.nextUrl.searchParams.get("full") === "1";
     const light = !full;
     // Historique borné (20 récents). L'imageData est transmise pour afficher les aperçus et la fiche résultat sans écran blanc.
-    const [selfScans, proDiags] = await Promise.all([
+    const [selfScans, proDiags, userRecord] = await Promise.all([
       db.diagnosis.findMany({
         where: { userId },
         orderBy: { createdAt: "desc" },
@@ -158,7 +158,46 @@ export async function GET(req: NextRequest) {
           practitioner: true,
         },
       }),
+      db.user.findUnique({
+        where: { id: userId },
+        select: { id: true, phone: true, selectedTenantId: true },
+      }),
     ]);
+
+    // Récupération de la routine quotidienne prescrite par l'institut (cosmeticsUsed)
+    let cosmeticsUsed: string | null = null;
+    let instituteName: string | null = null;
+
+    if (userRecord) {
+      const digits = userRecord.phone.replace(/\D/g, "");
+      const tail = digits.length >= 8 ? digits.slice(-8) : digits;
+      const profiles = await db.clientProfile.findMany({
+        where: {
+          OR: [
+            { userId: userRecord.id },
+            ...(tail ? [{ phone: { contains: tail } }] : [{ phone: userRecord.phone }]),
+          ],
+        },
+        include: { tenant: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const withRoutine = profiles.find((p) => p.cosmeticsUsed && p.cosmeticsUsed.trim() !== "");
+      if (withRoutine) {
+        cosmeticsUsed = withRoutine.cosmeticsUsed;
+        instituteName = withRoutine.tenant.name;
+        // Rapprochement automatique s'il manquait
+        if (!withRoutine.userId) {
+          await db.clientProfile.update({
+            where: { id: withRoutine.id },
+            data: { userId: userRecord.id },
+          }).catch(() => null);
+        }
+      } else if (profiles.length > 0) {
+        instituteName = profiles[0].tenant.name;
+      }
+    }
+
     const diagnoses = [
       ...selfScans.map((s) => ({
         ...s,
@@ -179,7 +218,12 @@ export async function GET(req: NextRequest) {
     ]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 20);
-    return NextResponse.json({ diagnoses });
+
+    return NextResponse.json({
+      diagnoses,
+      cosmeticsUsed,
+      instituteName,
+    });
   } catch (err) {
     return serverError("diagnoses:get", err);
   }
