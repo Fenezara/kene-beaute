@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, dayStart, dayEnd, genRef } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
+import { hashPin, isValidPin } from "@/lib/kene/pin";
 
 function parseEmployeePermissions(raw: string | null | undefined): string[] | null {
   if (!raw) return null;
@@ -15,20 +16,28 @@ function parseEmployeePermissions(raw: string | null | undefined): string[] | nu
   }
 }
 
-/** Enrichit chaque fiche du téléphone du compte app lié et parse les permissions personnalisées. */
+/** Enrichit chaque fiche du téléphone du compte app lié, statut code PIN et permissions. */
 async function withAccountPhones<T extends { userId: string | null; permissions?: string | null }>(
   employees: T[],
-): Promise<(T & { accountPhone: string | null; permissions: string[] | null })[]> {
+): Promise<(T & { accountPhone: string | null; hasPin: boolean; pinLocked: boolean; permissions: string[] | null })[]> {
   const ids = [...new Set(employees.map((e) => e.userId).filter((u): u is string => !!u))];
   const users = ids.length
-    ? await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, phone: true } })
+    ? await db.user.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, phone: true, pinHash: true, pinLockedUntil: true },
+      })
     : [];
-  const byId = new Map(users.map((u) => [u.id, u.phone]));
-  return employees.map((e) => ({
-    ...e,
-    accountPhone: e.userId ? byId.get(e.userId) ?? null : null,
-    permissions: parseEmployeePermissions(e.permissions),
-  }));
+  const byId = new Map(users.map((u) => [u.id, u]));
+  return employees.map((e) => {
+    const u = e.userId ? byId.get(e.userId) : null;
+    return {
+      ...e,
+      accountPhone: u?.phone ?? null,
+      hasPin: Boolean(u?.pinHash),
+      pinLocked: Boolean(u?.pinLockedUntil && u.pinLockedUntil > new Date()),
+      permissions: parseEmployeePermissions(e.permissions),
+    };
+  });
 }
 
 export async function GET(req: NextRequest) {
@@ -85,8 +94,10 @@ const Body = z.object({
   housing: z.number().int().min(0).optional(),
   cadres: z.boolean().optional(),
   // — compte APP de l'employée: numéro → User (rôle pro) lié à cette
-  // fiche. L'employée se connecte par OTP et voit les sections de son poste.
+  // fiche. L'employée se connecte par OTP ou code secret PIN.
   phone: z.string().trim().min(6).max(30).optional(),
+  // — code secret PIN initial de l'employée (4 à 6 chiffres)
+  pin: z.string().trim().min(4).max(6).optional(),
   // — permissions granulaires personnalisées de l'employée (modules autorisés sur mesure)
   permissions: z.array(z.string()).nullable().optional(),
 });
@@ -104,12 +115,13 @@ export async function POST(req: NextRequest) {
     const tenant = await db.tenant.findUnique({ where: { id: parsed.data.tenantId } });
     if (!tenant) return jsonError("Institut introuvable", 404);
 
-    const { tenantId, name, role, contractType, baseSalary, transport, housing, cadres, phone, permissions } = parsed.data;
+    const { tenantId, name, role, contractType, baseSalary, transport, housing, cadres, phone, pin, permissions } = parsed.data;
+
+    if (pin && !isValidPin(pin)) {
+      return jsonError("Le code PIN doit comporter 4 chiffres", 400);
+    }
 
     // — compte APP optionnel: vérifications AVANT toute écriture.
-    // Normalisation canonique de l'app: numéro local (8+ chiffres) →
-    // +<indicatif pays du tenant><10 derniers chiffres>; un numéro déjà
-    // complet (+…) est pris tel quel.
     let accountUserId: string | null = null;
     if (phone) {
       const digits = phone.replace(/\D/g, "");
@@ -128,18 +140,25 @@ export async function POST(req: NextRequest) {
         if (alreadyEmployee && alreadyEmployee.tenantId !== tenantId) {
           return jsonError("Ce numéro est déjà employée dans un autre institut", 409);
         }
-        // Toujours promouvoir le compte en rôle pro et mettre à jour le nom
+        // Toujours promouvoir le compte en rôle pro et mettre à jour le nom et code PIN éventuel
         await db.user.update({
           where: { id: existing.id },
           data: {
             role: "pro",
             ...((!existing.name || existing.name === "Nouvelle cliente") ? { name } : {}),
+            ...(pin ? { pinHash: hashPin(pin), pinFails: 0, pinLockedUntil: null } : {}),
           },
         });
         accountUserId = existing.id;
       } else {
         const created = await db.user.create({
-          data: { phone: normalized, name: role, role: "pro", referralCode: genRef("KENE") },
+          data: {
+            phone: normalized,
+            name: role,
+            role: "pro",
+            referralCode: genRef("KENE"),
+            ...(pin ? { pinHash: hashPin(pin), pinFails: 0, pinLockedUntil: null } : {}),
+          },
         });
         accountUserId = created.id;
       }
@@ -193,6 +212,8 @@ const PatchBody = z.object({
   cnpsNumber: z.string().trim().max(30).nullable().optional(),
   bankAccount: z.string().trim().max(60).nullable().optional(),
   phone: z.string().trim().min(6).max(30).nullable().optional(),
+  // — mise à jour ou réinitialisation du code secret PIN (4 à 6 chiffres)
+  pin: z.string().trim().min(4).max(6).optional(),
   // — permissions granulaires personnalisées de l'employée (modules autorisés sur mesure)
   permissions: z.array(z.string()).nullable().optional(),
   active: z.boolean().optional(),
@@ -206,7 +227,11 @@ export async function PATCH(req: NextRequest) {
 
     const parsed = PatchBody.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return jsonError("Corps de requête invalide", 400);
-    const { tenantId, id, phone, active, endDate, cnpsNumber, bankAccount, permissions, ...fields } = parsed.data;
+    const { tenantId, id, phone, pin, active, endDate, cnpsNumber, bankAccount, permissions, ...fields } = parsed.data;
+
+    if (pin && !isValidPin(pin)) {
+      return jsonError("Le code PIN doit comporter 4 chiffres", 400);
+    }
 
     const tenant = await resolveTenant(req, tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
@@ -252,6 +277,18 @@ export async function PATCH(req: NextRequest) {
           accountUserId = created.id;
         }
       }
+    }
+
+    // Mise à jour ou réinitialisation immédiate du code secret PIN
+    if (pin && accountUserId) {
+      await db.user.update({
+        where: { id: accountUserId },
+        data: {
+          pinHash: hashPin(pin),
+          pinFails: 0,
+          pinLockedUntil: null,
+        },
+      });
     }
 
     const updated = await db.employee.update({

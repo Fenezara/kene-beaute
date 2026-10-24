@@ -22,11 +22,12 @@ interface ChangePinModalProps {
 
 type Step = "old_pin" | "otp" | "new_pin" | "confirm_pin";
 
-export function ChangePinModal({ open, onOpenChange, currentPhone, hasPin = true }: ChangePinModalProps) {
+export function ChangePinModal({ open, onOpenChange, currentPhone, hasPin }: ChangePinModalProps) {
   const setUser = useKene((s) => s.setUser);
   const currentUser = useKene((s) => s.user);
 
-  const initialStep: Step = hasPin ? "old_pin" : "new_pin";
+  const effectiveHasPin = hasPin !== undefined ? hasPin : Boolean(currentUser?.hasPin);
+  const initialStep: Step = effectiveHasPin ? "old_pin" : "new_pin";
   const [step, setStep] = useState<Step>(initialStep);
 
   const [oldPin, setOldPin] = useState("");
@@ -38,8 +39,14 @@ export function ChangePinModal({ open, onOpenChange, currentPhone, hasPin = true
   const [loading, setLoading] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      setStep(effectiveHasPin ? "old_pin" : "new_pin");
+    }
+  }, [open, effectiveHasPin]);
+
   const resetModal = () => {
-    setStep(hasPin ? "old_pin" : "new_pin");
+    setStep(effectiveHasPin ? "old_pin" : "new_pin");
     setOldPin("");
     setOtpCode("");
     setNewPin("");
@@ -66,19 +73,22 @@ export function ChangePinModal({ open, onOpenChange, currentPhone, hasPin = true
 
   // 2. Demande d'OTP si code oublié
   const handleRequestOtp = async () => {
+    const targetPhone = currentPhone || currentUser?.phone || "";
+    if (!targetPhone) {
+      toast.error("Numéro de téléphone introuvable");
+      return;
+    }
     setSendingOtp(true);
     try {
       haptic(HAPTIC.tap);
-      const res = await requestOtp(currentPhone);
-      if (res.ok) {
-        if (res.devCode) {
-          setDevCode(res.devCode);
-          toast.info("Code de secours généré ⚡");
-        } else {
-          toast.success("Code de vérification envoyé par SMS");
-        }
-        setStep("otp");
+      const codeOrDev = await requestOtp(targetPhone);
+      if (codeOrDev) {
+        setDevCode(codeOrDev);
+        toast.info("Code de secours généré ⚡");
+      } else {
+        toast.success("Code de vérification envoyé par SMS");
       }
+      setStep("otp");
     } catch (err) {
       otpErrorToast(err);
     } finally {
@@ -120,8 +130,9 @@ export function ChangePinModal({ open, onOpenChange, currentPhone, hasPin = true
     setLoading(true);
     try {
       haptic(HAPTIC.tap);
+      const targetPhone = currentPhone || currentUser?.phone || "";
       const res = await apiPost<{ ok: boolean; user?: ApiUser; hasPin?: boolean }>("/api/auth/pin", {
-        phone: currentPhone,
+        phone: targetPhone,
         pin: newPin,
         oldPin: oldPin || undefined,
         otpCode: otpCode || undefined,

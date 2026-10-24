@@ -145,10 +145,14 @@ export function PinEntry() {
       if (res.tenant?.id) {
         setProTenantId(res.tenant.id);
       }
-      const targetSpace = mode === "pro" ? "pro" : mode === "client" ? "client" : isPro ? "pro" : "client";
+      const targetSpace = mode === "client" ? "client" : mode === "pro" ? "pro" : isPro ? "pro" : "client";
       setSpace(targetSpace);
 
-      toast.success(`Bienvenue ${res.user.name.split(" ")[0]} 💛`);
+      toast.success(
+        targetSpace === "client"
+          ? `Bienvenue ${res.user.name.split(" ")[0]} dans ton Espace Beauté 🌸`
+          : `Bienvenue ${res.user.name.split(" ")[0]} 💼`
+      );
 
       // Redirection instantanée vers l'espace applicatif
       navigateToHome();
@@ -299,6 +303,7 @@ export function PinEntry() {
       onForgotPin={handleForgotPin}
       onOfflineBypass={mode === "pro" ? handleOfflineBypass : undefined}
       onNewClient={handleNewClientGuest}
+      onSwitchSpace={() => setMode((m) => (m === "pro" ? "client" : "pro"))}
       onSwitchAccount={() => setNeedsPhone(true)}
     />
   );

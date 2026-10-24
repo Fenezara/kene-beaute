@@ -246,13 +246,14 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
     }, 320);
   }
 
-  async function startReconnect(acc: LastAccount) {
+  async function startReconnect(acc: LastAccount, explicitTargetMode?: "client" | "pro") {
     if (acc.role === "admin") {
       window.location.href = "/console";
       return;
     }
     const phone = acc.phone.startsWith("+") ? acc.phone : `+225${acc.phone.replace(/\D/g, "")}`;
-    const mode = acc.role === "pro" ? "pro" : "client";
+    const mode = explicitTargetMode ?? (acc.role === "pro" ? "pro" : "client");
+    setKeypadMode(mode);
 
     // Vérifie si le compte possède un code secret configuré
     try {
@@ -260,7 +261,8 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
         "/api/auth/check-phone",
         { phone }
       );
-      const effectiveMode = mode === "pro" || check.role === "pro" || check.isEmployee ? "pro" : "client";
+      // Respecte l'espace explicitement choisi ou demandé
+      const effectiveMode: "client" | "pro" = explicitTargetMode ?? mode;
       if (check.hasPin !== false) {
         setStage({ phase: "pin", mode: effectiveMode, phone, name: check.name ?? acc.name });
         return;
@@ -289,9 +291,8 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
         tenant?: { id: string; name: string };
       }>("/api/auth/check-phone", { phone });
 
-      // Respecte le portail choisi par l'utilisateur (keypadMode), ou bascule en pro si employée/pro
-      const effectiveMode: "client" | "pro" =
-        keypadMode === "pro" ? "pro" : keypadMode === "client" ? "client" : check.role === "pro" || check.isEmployee ? "pro" : "client";
+      // Respecte strictement le portail choisi par l'utilisateur (keypadMode)
+      const effectiveMode: "client" | "pro" = keypadMode === "client" ? "client" : "pro";
 
       const isSetup = !check.exists || check.hasPin === false || (check as { needsPinSetup?: boolean }).needsPinSetup === true;
       setStage({ phase: "pin", mode: effectiveMode, phone, name: check.name, isSetup });
@@ -338,15 +339,22 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
       if (res.tenant?.id) {
         setProTenantId(res.tenant.id);
       }
-      // Respecte l'interface choisie par l'utilisateur ("client" ou "pro" si compte pro) !
+      // Respecte STRICTEMENT l'interface choisie par l'utilisateur !
+      // Un employé ou une gérante peut tout à fait se connecter directement dans son "Espace Beauté" personnel !
       const targetSpace: "client" | "pro" | "admin" =
-        mode === "pro" && (isPro || targetRole === "admin") ? "pro" : mode === "client" ? "client" : isPro ? "pro" : "client";
+        mode === "client"
+          ? "client"
+          : mode === "pro" && (isPro || targetRole === "admin")
+            ? "pro"
+            : isPro
+              ? "pro"
+              : "client";
       setSpace(targetSpace);
 
       toast.success(
-        targetSpace === "pro"
-          ? `Bienvenue ${res.user.name.split(" ")[0]} — « ${res.tenant?.name ?? "Espace Entreprise"} » est ouvert 💼`
-          : `Bienvenue ${res.user.name.split(" ")[0]} 💛`
+        targetSpace === "client"
+          ? `Bienvenue ${res.user.name.split(" ")[0]} dans ton Espace Beauté personnel 🌸`
+          : `Bienvenue ${res.user.name.split(" ")[0]} — « ${res.tenant?.name ?? "Espace Entreprise"} » est ouvert 💼`
       );
       if (onBackToApp) onBackToApp();
       return true;
@@ -597,19 +605,34 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                 {greet}, {firstNameOf(last.name) || "bienvenue"} 👋
                               </p>
                               <p className="mt-0.5 truncate font-mono text-[10.5px] text-muted-foreground">
-                                {maskPhone(last.phone)} · {last.role === "pro" ? "Espace entreprise" : last.role === "admin" ? "Console Kènè" : "Espace cliente"}
+                                {maskPhone(last.phone)} · {last.role === "pro" ? "Compte Pro & Personnel" : last.role === "admin" ? "Console Kènè" : "Espace cliente"}
                               </p>
                             </div>
-                            <button onClick={() => startReconnect(last)}
-                              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-btn-gold px-4 text-[11.5px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                              <LogIn size={13} />
-                              Reprendre
-                            </button>
+                            {last.role === "pro" ? (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button onClick={() => startReconnect(last, "client")}
+                                  className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full k-btn-gold px-3 text-[11px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                                  title="Accéder directement à mon Espace Beauté personnel">
+                                  <span>🌸 Espace Beauté</span>
+                                </button>
+                                <button onClick={() => startReconnect(last, "pro")}
+                                  className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full k-chip px-3 text-[11px] font-bold text-foreground hover:border-gold/60 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                                  title="Accéder à l'Espace Entreprise (Institut & Caisse)">
+                                  <span>💼 Institut &amp; Pro</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <button onClick={() => startReconnect(last)}
+                                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-btn-gold px-4 text-[11.5px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary cursor-pointer">
+                                <LogIn size={13} />
+                                Reprendre
+                              </button>
+                            )}
                             <button onClick={startExploration}
                               disabled={exploring}
-                              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-chip px-3 text-[11px] font-bold text-foreground hover:border-gold/60 transition-all">
+                              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-chip px-3 text-[11px] font-bold text-foreground hover:border-gold/60 transition-all cursor-pointer">
                               <CauriIcon size={12} className="text-gold-text" />
-                              Nouveau client
+                              Nouveau
                             </button>
                             <button onClick={() => { forgetAccount(); setLast(null); }}
                               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
@@ -688,23 +711,32 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                             {greet}, {firstNameOf(last.name) || "bienvenue"} 👋
                           </p>
                           <p className="mt-0.5 truncate font-mono text-[10.5px] text-muted-foreground">
-                            {maskPhone(last.phone)} · {last.role === "pro" ? "Espace entreprise" : last.role === "admin" ? "Console Kènè" : "Espace cliente"}
+                            {maskPhone(last.phone)} · {last.role === "pro" ? "Compte Pro & Personnel" : last.role === "admin" ? "Console Kènè" : "Espace cliente"}
                           </p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <button onClick={() => startReconnect(last)}
-                            className="inline-flex h-9 items-center gap-1 rounded-full k-btn-gold px-2.5 text-[11px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                            <LogIn size={12} />
-                            Reprendre
-                          </button>
-                          <button onClick={startExploration}
-                            disabled={exploring}
-                            className="inline-flex h-9 items-center gap-1 rounded-full k-chip px-2 text-[10.5px] font-bold text-foreground hover:border-gold/60">
-                            <CauriIcon size={11} className="text-gold-text" />
-                            Nouveau
-                          </button>
+                          {last.role === "pro" ? (
+                            <>
+                              <button onClick={() => startReconnect(last, "client")}
+                                className="inline-flex h-8 items-center gap-1 rounded-full k-btn-gold px-2.5 text-[10.5px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary cursor-pointer active:scale-95"
+                                title="Mon Espace Beauté personnel">
+                                <span>🌸 Beauté</span>
+                              </button>
+                              <button onClick={() => startReconnect(last, "pro")}
+                                className="inline-flex h-8 items-center gap-1 rounded-full k-chip px-2.5 text-[10.5px] font-bold text-foreground hover:border-gold/60 cursor-pointer active:scale-95"
+                                title="Espace Entreprise (Institut & Caisse)">
+                                <span>💼 Pro</span>
+                              </button>
+                            </>
+                          ) : (
+                            <button onClick={() => startReconnect(last)}
+                              className="inline-flex h-9 items-center gap-1 rounded-full k-btn-gold px-2.5 text-[11px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary cursor-pointer">
+                              <LogIn size={12} />
+                              Reprendre
+                            </button>
+                          )}
                           <button onClick={() => { forgetAccount(); setLast(null); }}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
                             aria-label="Oublier ce numéro sur cet appareil">
                             <X size={13} />
                           </button>
@@ -1213,6 +1245,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
               onOfflineBypass={() => activateOfflineProSession(stage.phone)}
               onNewClient={startExploration}
               onSwitchAccount={() => setStage({ phase: "keypad", mode: stage.mode })}
+              onSwitchSpace={() => setStage((prev) => prev.phase === "pin" ? { ...prev, mode: prev.mode === "pro" ? "client" : "pro" } : prev)}
             />
           </motion.div>
         )}

@@ -39,6 +39,7 @@ export function PinKeypad({
   onOfflineBypass?: () => void;
   onNewClient?: () => void;
   onSwitchAccount?: () => void;
+  onSwitchSpace?: () => void;
 }) {
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -190,11 +191,12 @@ export function PinKeypad({
         </button>
         <button
           type="button"
-          onClick={onSwitchAccount || onBack}
-          className="k-chip cursor-pointer ml-1 inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 text-xs font-semibold text-foreground/80 hover:text-foreground active:scale-95 transition-all"
-          title="Changer de compte ou d'espace"
+          onClick={onSwitchSpace || onSwitchAccount || onBack}
+          className="k-chip cursor-pointer ml-1 inline-flex min-h-10 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold text-foreground/80 hover:text-foreground active:scale-95 transition-all"
+          title="Changer d'interface (Espace Beauté vs Entreprise)"
         >
-          {mode === "pro" ? "Espace entreprise" : "Espace cliente"}
+          {mode === "pro" ? "💼 Espace entreprise" : "🌸 Espace cliente"}
+          {onSwitchSpace && <span className="text-[10px] text-muted-foreground ml-0.5">(Changer)</span>}
         </button>
         <span className="ml-auto font-mono text-[12px] text-muted-foreground">
           {maskPhone(phone)}

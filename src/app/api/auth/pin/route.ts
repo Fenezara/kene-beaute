@@ -23,6 +23,24 @@ const Body = z.object({
 
 const normalizePhone = (raw: string) => raw.replace(/\s+/g, "").trim();
 
+async function findUserByPhoneFlexible(rawPhone: string) {
+  const clean = normalizePhone(rawPhone);
+  const digits = clean.replace(/\D/g, "");
+  const localDigits = digits.startsWith("225") ? digits.slice(3) : digits.startsWith("221") ? digits.slice(3) : digits;
+  const e164Ci = localDigits ? `+225${localDigits}` : clean;
+
+  let user = await db.user.findUnique({ where: { phone: clean } });
+  if (!user && e164Ci !== clean) {
+    user = await db.user.findUnique({ where: { phone: e164Ci } });
+  }
+  if (!user && localDigits.length >= 8) {
+    user = await db.user.findFirst({
+      where: { phone: { endsWith: localDigits.slice(-8) } },
+    });
+  }
+  return { user, normalizedPhone: user?.phone ?? e164Ci };
+}
+
 export async function POST(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "auth:pin"), AUTH_MUTATION);
   if (!rl.ok) {
@@ -53,7 +71,6 @@ export async function GET(req: NextRequest) {
 }
 
 async function runSetPin(data: z.infer<typeof Body>, req: NextRequest): Promise<NextResponse> {
-  const phone = normalizePhone(data.phone);
   const { pin, otpCode } = data;
   const ip = clientIp(req);
 
@@ -61,7 +78,14 @@ async function runSetPin(data: z.infer<typeof Body>, req: NextRequest): Promise<
     return jsonError("Le code secret doit comporter 4 chiffres", 400);
   }
 
-  const user = await db.user.findUnique({ where: { phone } });
+  const { user: foundUser, normalizedPhone: phone } = await findUserByPhoneFlexible(data.phone);
+  const session = sessionFromRequest(req);
+
+  let user = foundUser;
+  if (!user && session?.userId) {
+    user = await db.user.findUnique({ where: { id: session.userId } });
+  }
+
   if (!user) {
     return jsonError("Compte non trouvé", 404);
   }
@@ -69,7 +93,7 @@ async function runSetPin(data: z.infer<typeof Body>, req: NextRequest): Promise<
   // Vérification du verrouillage temporaire anti-brute force
   if (process.env.NODE_ENV === "production" && user.pinLockedUntil && user.pinLockedUntil.getTime() > Date.now()) {
     const remainingSec = Math.max(1, Math.ceil((user.pinLockedUntil.getTime() - Date.now()) / 1000));
-    void audit({ kind: "pin_change_locked", phone, userId: user.id, ip, detail: "compte verrouillé par tentatives erronées" });
+    void audit({ kind: "pin_change_locked", phone: user.phone, userId: user.id, ip, detail: "compte verrouillé par tentatives erronées" });
     return rateLimitResponse(
       remainingSec,
       `Compte temporairement bloqué suite à plusieurs codes erronés. Réessaie dans ${Math.ceil(remainingSec / 60)} min.`,
@@ -77,8 +101,13 @@ async function runSetPin(data: z.infer<typeof Body>, req: NextRequest): Promise<
   }
 
   // Vérification des droits : soit session valide, soit code OTP valide
-  const session = sessionFromRequest(req);
-  const isSessionAuth = session && (session.userId === user.id || session.phone === phone);
+  const isSessionAuth = Boolean(
+    session && (
+      session.userId === user.id ||
+      session.phone === user.phone ||
+      (session.phone && user.phone && normalizePhone(session.phone).slice(-8) === normalizePhone(user.phone).slice(-8))
+    )
+  );
 
   if (isSessionAuth) {
     // Si l'utilisateur possède déjà un code secret, il doit fournir son ancien code

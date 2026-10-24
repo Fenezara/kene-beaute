@@ -360,6 +360,8 @@ export interface ProEmployee {
   hireDate: string;
   endDate?: string | null;
   accountPhone?: string | null;
+  hasPin?: boolean;
+  pinLocked?: boolean;
 }
 
 export interface AttendanceRow {

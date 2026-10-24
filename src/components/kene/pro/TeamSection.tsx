@@ -17,6 +17,7 @@ import {
   RotateCcw,
   ShieldCheck,
   Smartphone,
+  KeyRound,
   Undo2,
   UserRoundCheck,
   Users,
@@ -372,7 +373,16 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
                         <Smartphone className="size-3" aria-hidden="true" /> Compte app
                       </span>
                       {emp.accountPhone ? (
-                        <span className="font-mono text-[11px] text-success">{emp.accountPhone}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-[11px] text-success">{emp.accountPhone}</span>
+                          {emp.pinLocked ? (
+                            <Badge variant="destructive" className="text-[9px] px-1.5 py-0 font-bold">PIN bloqué</Badge>
+                          ) : emp.hasPin ? (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-success/30 text-success bg-success/10 font-medium">PIN actif</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-muted-foreground">Sans PIN</Badge>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-[11px] text-muted-foreground">—</span>
                       )}
@@ -852,6 +862,7 @@ function HireDialog({
   const [housing, setHousing] = useState("");
   const [cadres, setCadres] = useState(false);
   const [phone, setPhone] = useState("");
+  const [pin, setPin] = useState("");
   const [permissions, setPermissions] = useState<string[]>(() =>
     getDefaultPermissionsForRole("estheticienne")
   );
@@ -883,6 +894,10 @@ function HireDialog({
       toast.error("Veuillez préciser le type de contrat personnalisé");
       return;
     }
+    if (pin.trim() && !/^\d{4,6}$/.test(pin.trim())) {
+      toast.error("Le code secret initial doit comporter 4 chiffres");
+      return;
+    }
     setBusy(true);
     try {
       const r = await apiPost<{ account: { created: boolean; phone: string } | null }>("/api/pro/employees", {
@@ -897,16 +912,17 @@ function HireDialog({
         cadres,
         permissions,
         ...(phone.trim() ? { phone: phone.trim() } : {}),
+        ...(pin.trim() ? { pin: pin.trim() } : {}),
       });
       if (r.account?.created) {
         toast.success(`${name.trim()} rejoint l'équipe (${formatRole(finalRole)})`, {
-          description: `Compte app créé (${phone.trim()}) — elle se connecte avec ce numéro (code SMS) et accède aux ${permissions.length} modules autorisés.`,
+          description: `Compte app créé (${phone.trim()}) ${pin.trim() ? `— code PIN défini (${pin.trim()})` : "— mot de passe par défaut 1234"} · ${permissions.length} modules autorisés.`,
         });
       } else {
         toast.success(`${name.trim()} rejoint l'équipe (${formatRole(finalRole)})`);
       }
       setName(""); setSelectedRole("estheticienne"); setCustomRole(""); setSelectedContract("CDI"); setCustomContract("");
-      setBaseSalary(""); setTransport(""); setHousing(""); setCadres(false); setPhone("");
+      setBaseSalary(""); setTransport(""); setHousing(""); setCadres(false); setPhone(""); setPin("");
       setPermissions(getDefaultPermissionsForRole("estheticienne"));
       onOpenChange(false);
       await onCreated();
@@ -1041,8 +1057,32 @@ function HireDialog({
               placeholder="07 05 04 03 02"
             />
             <p className="text-[10px] text-muted-foreground mt-1.5">
-              Avec son numéro, elle se connecte à l&apos;app par code SMS et accède aux fonctionnalités sélectionnées ci-dessous.
+              Numéro de téléphone de connexion de la collaboratrice.
             </p>
+            {phone.trim().length >= 8 && (
+              <div className="mt-2.5 pt-2 border-t border-border/60">
+                <Label htmlFor="h-pin" className="text-xs font-medium flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <KeyRound className="size-3 text-gold-text" />
+                    <span>Code secret / Mot de passe initial (4 chiffres)</span>
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">Facultatif</span>
+                </Label>
+                <Input
+                  id="h-pin"
+                  type="password"
+                  maxLength={4}
+                  inputMode="numeric"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                  className="mt-1 font-mono tracking-widest text-center"
+                  placeholder="Ex: 1234"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Code PIN secret que la collaboratrice saisira pour se connecter directement.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Sélecteur de droits & modules */}
@@ -1090,6 +1130,7 @@ function EditDialog({
   const [cnpsNumber, setCnpsNumber] = useState(employee.cnpsNumber ?? "");
   const [bankAccount, setBankAccount] = useState(employee.bankAccount ?? "");
   const [phone, setPhone] = useState(employee.accountPhone ?? "");
+  const [newPin, setNewPin] = useState("");
   const [permissions, setPermissions] = useState<string[]>(
     () =>
       employee.permissions && employee.permissions.length > 0
@@ -1113,6 +1154,10 @@ function EditDialog({
       toast.error("Veuillez préciser le type de contrat personnalisé");
       return;
     }
+    if (newPin.trim() && !/^\d{4,6}$/.test(newPin.trim())) {
+      toast.error("Le code secret PIN doit comporter 4 chiffres");
+      return;
+    }
     setBusy(true);
     try {
       await apiPatch("/api/pro/employees", {
@@ -1130,9 +1175,10 @@ function EditDialog({
         bankAccount: bankAccount.trim() || null,
         permissions,
         ...(phone.trim() ? { phone: phone.trim() } : { phone: null }),
+        ...(newPin.trim() ? { pin: newPin.trim() } : {}),
       });
       toast.success(`Fiche mise à jour — ${name.trim()} (${formatRole(finalRole)})`, {
-        description: `${permissions.length} modules autorisés sur son espace.`,
+        description: `${newPin.trim() ? "Code secret PIN mis à jour avec succès. " : ""}${permissions.length} modules autorisés.`,
       });
       onClose();
       await onSaved();
@@ -1277,9 +1323,43 @@ function EditDialog({
               placeholder="07 05 04 03 02"
             />
             <p className="text-[10px] text-muted-foreground mt-1.5">
-              Vidé = délier le compte app (elle ne peut plus se connecter à l&apos;espace Pro).{" "}
-              {phone.trim() ? "Elle se connecte par SMS et accède aux fonctionnalités sélectionnées ci-dessous." : ""}
+              Vidé = délier le compte app (elle ne peut plus se connecter).
             </p>
+            {phone.trim().length >= 8 && (
+              <div className="mt-2.5 pt-2.5 border-t border-border/60 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="e-pin" className="text-xs font-medium flex items-center gap-1.5">
+                    <KeyRound className="size-3.5 text-gold-text" />
+                    <span>Définir ou réinitialiser le code PIN</span>
+                  </Label>
+                  {employee.pinLocked && (
+                    <Badge variant="destructive" className="text-[9px] px-1.5 py-0 font-bold">
+                      Verrouillé (erreurs)
+                    </Badge>
+                  )}
+                  {employee.hasPin && !employee.pinLocked && (
+                    <Badge variant="outline" className="bg-success/15 text-success border-success/30 text-[9px] px-1.5 py-0">
+                      Code PIN actif
+                    </Badge>
+                  )}
+                </div>
+                <Input
+                  id="e-pin"
+                  type="password"
+                  maxLength={4}
+                  inputMode="numeric"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+                  className="font-mono tracking-widest text-center"
+                  placeholder="Nouveau code PIN 4 chiffres"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  {employee.hasPin
+                    ? "Saisis un nouveau code 4 chiffres pour remplacer l'ancien ou débloquer la collaboratrice."
+                    : "Aucun code PIN n'est encore configuré. Renseigne un code 4 chiffres pour elle."}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Sélecteur de droits & modules */}
