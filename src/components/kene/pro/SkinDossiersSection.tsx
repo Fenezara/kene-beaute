@@ -1126,7 +1126,7 @@ function ClientSkinDossierDetail({
             <Card className="p-8 text-center space-y-2 border-dashed">
               <EmptyState
                 label="Aucune donnée biométrique disponible"
-                sub="Réalisez un premier diagnostic avec la cliente pour générer son Jumeau de Peau 3D et sa courbe d'évolution."
+                sub="Réalisez un premier diagnostic avec la cliente pour générer sa Cartographie Cutanée 3D et sa courbe d'évolution."
               />
             </Card>
           )}

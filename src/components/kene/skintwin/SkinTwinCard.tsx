@@ -177,13 +177,13 @@ export function SkinTwinCard({
   const zoneLabel = (z: BodyZone) => BODY_ZONES.find((b) => b.id === z)?.label ?? z;
 
   return (
-    <section aria-label="Jumeau de Peau — vue 3D du diagnostic" className={className ?? "mt-5"}>
+    <section aria-label="Cartographie Cutanée 3D & Holo-Spectre" className={className ?? "mt-5"}>
       {/* En-tête */}
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 font-heading font-bold text-base">
             <ScanFace size={17} className="shrink-0 text-primary" aria-hidden />
-            {context === "pro" ? "Jumeau de Peau · vue 360°" : "Ton Jumeau de Peau"}
+            {context === "pro" ? "Cartographie Cutanée 3D & Holo-Spectre" : "Ta Cartographie Cutanée 3D"}
           </h2>
           <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
             {context === "pro"
