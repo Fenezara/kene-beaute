@@ -43,12 +43,16 @@ import {
   User,
   MessageCircle,
   LogIn,
+  Camera,
+  Mic,
+  Sparkles,
 } from "lucide-react";
 import { NsorommaIcon } from "@/components/kene/icons";
 import { LinkAccountModal } from "./LinkAccountModal";
 import { ContactKeneModal } from "./ContactKeneModal";
 import { ChangePhoneModal } from "@/components/kene/auth/ChangePhoneModal";
 import { ChangePinModal } from "@/components/kene/auth/ChangePinModal";
+import { HardwarePermissionsModal } from "./HardwarePermissionsModal";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
 import { useT } from "@/lib/kene/use-t";
@@ -69,7 +73,7 @@ import { useInstallPrompt } from "@/components/kene/pwa/use-install";
 import { getThumbMode, setThumbMode, subscribeThumbMode } from "@/lib/kene/thumb-mode";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { cn } from "@/lib/utils";
-import { requestPersistentNotification } from "@/lib/kene/hardware-perm";
+import { requestPersistentNotification, isHardwarePermGranted } from "@/lib/kene/hardware-perm";
 
 /* ─── Porte d'hydratation (thème) ───
  * false pendant le rendu serveur + l'hydratation, true ensuite: l'état actif
@@ -182,6 +186,7 @@ export function SettingsScreen() {
   const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [changePhoneOpen, setChangePhoneOpen] = useState(false);
   const [changePinOpen, setChangePinOpen] = useState(false);
+  const [hardwareModalOpen, setHardwareModalOpen] = useState(false);
   // Confirmation « Créer un compte entreprise » (isolation des comptes)
   const [proSignup, setProSignup] = useState(false);
   // Suppression définitive du compte (conforme Apple 5.1.1(v) et RGPD/ARTCI)
@@ -563,6 +568,71 @@ export function SettingsScreen() {
               <span aria-hidden="true" className={`pointer-events-none ml-auto inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${thumbOn ? "bg-primary" : "bg-input"}`}>
                 <span className={`block size-5 rounded-full bg-[#FFF9EC] shadow transition-transform duration-200 ${thumbOn ? "translate-x-5" : "translate-x-0"}`} />
               </span>
+            </button>
+          </section>
+        </RevealItem>
+
+        {/* ───────── AUTORISATIONS MATÉRIELLES & TROUSSEAU TÉLÉPHONE ───────── */}
+        <RevealItem>
+          <section aria-labelledby="set-hardware-t" className="k-card rounded-[24px] p-4 space-y-3.5 border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="grid size-10 place-items-center rounded-2xl bg-primary/20 text-primary border border-primary/30 shrink-0 shadow-xs">
+                <Smartphone size={20} />
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p id="set-hardware-t" className="text-xs font-black text-foreground">
+                    Autorisations du Téléphone &amp; Matériel
+                  </p>
+                  <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider">
+                    Zéro Re-prompt
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                  Caméra HD, micro vocal, position GPS et notifications accordés une seule fois pour tout sans redemande.
+                </p>
+              </div>
+            </div>
+
+            {/* Badges d'état rapide */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
+              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-background/60 border border-border/50 text-[10.5px]">
+                <Camera size={13} className={isHardwarePermGranted("camera") ? "text-emerald-500" : "text-muted-foreground"} />
+                <span className="font-semibold truncate">Caméra</span>
+                <span className={cn("ml-auto text-[10px] font-bold", isHardwarePermGranted("camera") ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+                  {isHardwarePermGranted("camera") ? "✔ À vie" : "Activer"}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-background/60 border border-border/50 text-[10.5px]">
+                <Mic size={13} className={isHardwarePermGranted("mic") ? "text-emerald-500" : "text-muted-foreground"} />
+                <span className="font-semibold truncate">Micro</span>
+                <span className={cn("ml-auto text-[10px] font-bold", isHardwarePermGranted("mic") ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+                  {isHardwarePermGranted("mic") ? "✔ À vie" : "Activer"}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-background/60 border border-border/50 text-[10.5px]">
+                <MapPin size={13} className={isHardwarePermGranted("geo") ? "text-emerald-500" : "text-muted-foreground"} />
+                <span className="font-semibold truncate">GPS</span>
+                <span className={cn("ml-auto text-[10px] font-bold", isHardwarePermGranted("geo") ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+                  {isHardwarePermGranted("geo") ? "✔ À vie" : "Activer"}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-background/60 border border-border/50 text-[10.5px]">
+                <Bell size={13} className={isHardwarePermGranted("notifications") ? "text-emerald-500" : "text-muted-foreground"} />
+                <span className="font-semibold truncate">Alertes</span>
+                <span className={cn("ml-auto text-[10px] font-bold", isHardwarePermGranted("notifications") ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+                  {isHardwarePermGranted("notifications") ? "✔ À vie" : "Activer"}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setHardwareModalOpen(true)}
+              className="k-btn-gold h-10 w-full rounded-xl text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-[0.99] transition-all"
+            >
+              <Sparkles size={14} />
+              <span>Gérer ou tout autoriser en 1 clic</span>
             </button>
           </section>
         </RevealItem>
@@ -970,6 +1040,11 @@ export function SettingsScreen() {
         onOpenChange={setChangePinOpen}
         currentPhone={user?.phone || ""}
         hasPin={user?.hasPin}
+      />
+
+      <HardwarePermissionsModal
+        isOpen={hardwareModalOpen}
+        onClose={() => setHardwareModalOpen(false)}
       />
     </>
   );

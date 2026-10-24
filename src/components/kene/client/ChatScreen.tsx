@@ -48,6 +48,7 @@ import {
   HelpCircle,
   Lightbulb,
   ShieldAlert,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiPost, resizeImage } from "@/lib/kene/api";
@@ -58,6 +59,7 @@ import { useChat, getTimeGreeting } from "@/store/chat";
 import type { ChatMsg } from "./types";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { LiveCameraModal } from "./LiveCameraModal";
+import { HardwarePermissionsModal } from "./HardwarePermissionsModal";
 import { playSpeech, stopBrowserVoice, unlockAudioContext, type SpeechController } from "./ttsAudio";
 import { SpeakButton } from "./SpeakButton";
 import {
@@ -539,6 +541,8 @@ export function ChatScreen() {
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false);
   const [micHelpOpen, setMicHelpOpen] = useState(false);
   const [liveCamOpen, setLiveCamOpen] = useState(false);
+  const [hardwarePermOpen, setHardwarePermOpen] = useState(false);
+  const [hardwareFeature, setHardwareFeature] = useState<"camera" | "mic">("mic");
 
   const threadContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -2012,6 +2016,34 @@ export function ChatScreen() {
               </div>
 
               <div className="space-y-2.5 pt-3">
+                {/* Bannière Autorisation permanente en 1 clic */}
+                {!isHardwarePermGranted("camera") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhotoPickerOpen(false);
+                      setHardwareFeature("camera");
+                      setHardwarePermOpen(true);
+                    }}
+                    className="w-full flex items-center justify-between p-3 rounded-2xl border border-primary/40 bg-gradient-to-r from-primary/15 via-gold/10 to-primary/5 hover:bg-primary/20 text-left active:scale-[0.99] transition-all shadow-xs"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="grid size-8 place-items-center rounded-xl bg-primary text-primary-foreground shrink-0 shadow-xs">
+                        <Sparkles size={16} />
+                      </span>
+                      <div>
+                        <span className="text-xs font-bold text-foreground">Autoriser la caméra en 1 clic</span>
+                        <p className="text-[10.5px] text-muted-foreground mt-0.5">
+                          Mémorisé à vie pour ne plus jamais redemander
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-primary shrink-0 px-2.5 py-1 rounded-xl bg-primary/15">
+                      Activer →
+                    </span>
+                  </button>
+                )}
+
                 {/* Option 0 : Scanner un produit / Composition INCI */}
                 <button
                   type="button"
@@ -2202,6 +2234,18 @@ export function ChatScreen() {
                   type="button"
                   onClick={() => {
                     setMicHelpOpen(false);
+                    setHardwareFeature("mic");
+                    setHardwarePermOpen(true);
+                  }}
+                  className="w-full h-11 rounded-2xl border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all"
+                >
+                  <Sparkles size={15} />
+                  <span>Ouvrir le trousseau d&apos;autorisations</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMicHelpOpen(false);
                     void startRecording();
                   }}
                   className="w-full h-12 rounded-2xl bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all hover:opacity-90"
@@ -2220,6 +2264,13 @@ export function ChatScreen() {
             </motion.div>
           </div>
         )}
+
+        {/* Modal Trousseau Matériel & Autorisations Téléphone */}
+        <HardwarePermissionsModal
+          isOpen={hardwarePermOpen}
+          onClose={() => setHardwarePermOpen(false)}
+          triggerFeature={hardwareFeature}
+        />
       </AnimatePresence>
     </div>
   );

@@ -16,6 +16,47 @@ export const GEO_CACHED_LNG_KEY = "kene-geo-cached-lng";
 export const GEO_CACHED_AT_KEY = "kene-geo-cached-at";
 
 export type HardwareFeature = "camera" | "mic" | "geo" | "notifications";
+export type PermState = "granted" | "prompt" | "denied" | "unsupported";
+
+const listeners = new Set<() => void>();
+
+export function subscribeHardwarePerm(cb: () => void): () => void {
+  listeners.add(cb);
+  if (typeof window !== "undefined") {
+    window.addEventListener("focus", cb);
+    document.addEventListener("visibilitychange", cb);
+  }
+  return () => {
+    listeners.delete(cb);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("focus", cb);
+      document.removeEventListener("visibilitychange", cb);
+    }
+  };
+}
+
+export function notifyHardwareListeners(): void {
+  listeners.forEach((l) => {
+    try {
+      l();
+    } catch {}
+  });
+}
+
+export function isIOSDevice(): boolean {
+  if (typeof window === "undefined") return false;
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+export function isAndroidDevice(): boolean {
+  if (typeof window === "undefined") return false;
+  return /android/i.test(navigator.userAgent);
+}
+
+export function isPWAInstalled(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
+}
 
 /* ───────────────────────── 1. Mémorisation Persistante ───────────────────────── */
 
@@ -55,6 +96,39 @@ export function saveHardwarePermGranted(feature?: HardwareFeature): void {
     if (feature === "geo") localStorage.setItem(GEO_PERM_KEY, "true");
     if (feature === "notifications") localStorage.setItem(NOTIF_PERM_KEY, "true");
   } catch {}
+  notifyHardwareListeners();
+}
+
+/**
+ * Lit l'état de permission en direct auprès de l'API Permissions du navigateur.
+ */
+export async function queryFeaturePermission(feature: HardwareFeature): Promise<PermState> {
+  if (typeof window === "undefined") return "unsupported";
+
+  if (feature === "notifications") {
+    if (!("Notification" in window)) return "unsupported";
+    return Notification.permission as PermState;
+  }
+
+  if (!navigator.permissions?.query) {
+    return isHardwarePermGranted(feature) ? "granted" : "prompt";
+  }
+
+  try {
+    const permName =
+      feature === "camera"
+        ? ("camera" as PermissionName)
+        : feature === "mic"
+        ? ("microphone" as PermissionName)
+        : ("geolocation" as PermissionName);
+    const res = await navigator.permissions.query({ name: permName });
+    if (res.state === "granted") {
+      saveHardwarePermGranted(feature);
+    }
+    return res.state as PermState;
+  } catch {
+    return isHardwarePermGranted(feature) ? "granted" : "prompt";
+  }
 }
 
 /**
@@ -352,10 +426,46 @@ export async function requestPersistentNotification(): Promise<NotificationPermi
 /* ───────────────────────── 6. Autorisation Globale en 1 Fois ───────────────────────── */
 
 /**
+ * Enregistre les consentements matériels auprès de l'API /api/auth/consent (non-bloquant).
+ */
+export async function syncHardwareConsentsWithServer(userId?: string | null): Promise<void> {
+  if (typeof window === "undefined") return;
+  try {
+    const targetUserId =
+      userId ||
+      (() => {
+        try {
+          const raw = localStorage.getItem("kene-user");
+          return raw ? JSON.parse(raw)?.id : null;
+        } catch {
+          return null;
+        }
+      })();
+
+    if (!targetUserId) return;
+
+    const grantedTypes: string[] = [];
+    if (isHardwarePermGranted("camera")) grantedTypes.push("camera_access");
+    if (isHardwarePermGranted("mic")) grantedTypes.push("mic_access");
+    if (isHardwarePermGranted("geo")) grantedTypes.push("geo_access");
+    if (isHardwarePermGranted("notifications")) grantedTypes.push("notifications_access");
+
+    if (grantedTypes.length > 0) {
+      void fetch("/api/auth/consent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: targetUserId, types: grantedTypes }),
+      }).catch(() => null);
+    }
+  } catch {}
+}
+
+/**
  * Permet d'amorcer en 1 seule étape les autorisations matérielles requises
  * pour garantir que plus aucun matériel ne redemande de permission ensuite.
+ * IMPORTANT : Commence immédiatement par Caméra + Micro pour consommer le geste utilisateur direct.
  */
-export async function requestAllHardwarePermissionsOnce(): Promise<{
+export async function requestAllHardwarePermissionsOnce(userId?: string | null): Promise<{
   camera: boolean;
   mic: boolean;
   geo: boolean;
@@ -368,31 +478,50 @@ export async function requestAllHardwarePermissionsOnce(): Promise<{
     notifications: isHardwarePermGranted("notifications"),
   };
 
-  // 1. Notifications
-  try {
-    const notif = await requestPersistentNotification();
-    status.notifications = notif === "granted";
-  } catch {}
-
-  // 2. Caméra
-  if (!status.camera) {
+  // 1. Priorité absolue : Caméra & Microphone sous le geste utilisateur actif
+  if (!status.camera && !status.mic && typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
     try {
-      const cam = await getPersistentCameraStream("user");
-      pausePersistentCameraStream();
+      const combined = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      combined.getTracks().forEach((t) => t.stop());
       status.camera = true;
-    } catch {}
-  }
-
-  // 3. Microphone
-  if (!status.mic) {
-    try {
-      const mic = await getPersistentAudioStream();
-      pausePersistentAudioStream();
       status.mic = true;
-    } catch {}
+      saveHardwarePermGranted("camera");
+      saveHardwarePermGranted("mic");
+    } catch {
+      // Si la demande groupée échoue, repli individuel immédiat
+      if (!status.camera) {
+        try {
+          const cam = await getPersistentCameraStream("user");
+          pausePersistentCameraStream();
+          status.camera = true;
+        } catch {}
+      }
+      if (!status.mic) {
+        try {
+          const mic = await getPersistentAudioStream();
+          pausePersistentAudioStream();
+          status.mic = true;
+        } catch {}
+      }
+    }
+  } else {
+    if (!status.camera) {
+      try {
+        const cam = await getPersistentCameraStream("user");
+        pausePersistentCameraStream();
+        status.camera = true;
+      } catch {}
+    }
+    if (!status.mic) {
+      try {
+        const mic = await getPersistentAudioStream();
+        pausePersistentAudioStream();
+        status.mic = true;
+      } catch {}
+    }
   }
 
-  // 4. Géolocalisation
+  // 2. Géolocalisation
   if (!status.geo) {
     try {
       await getPersistentGeolocation();
@@ -400,6 +529,17 @@ export async function requestAllHardwarePermissionsOnce(): Promise<{
     } catch {}
   }
 
+  // 3. Notifications Push
+  if (!status.notifications) {
+    try {
+      const notif = await requestPersistentNotification();
+      status.notifications = notif === "granted";
+    } catch {}
+  }
+
   saveHardwarePermGranted();
+  void syncHardwareConsentsWithServer(userId);
+  notifyHardwareListeners();
+
   return status;
 }

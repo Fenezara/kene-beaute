@@ -13,19 +13,37 @@ import {
   saveHardwarePermGranted,
 } from "@/lib/kene/hardware-perm";
 import { resizeImage } from "@/lib/kene/api";
+import type { ZonePhotoSlot } from "@/lib/kene/types";
 
 interface LiveCameraModalProps {
   zoneLabel: string;
-  onCapture: (dataUrl: string) => void;
+  onCapture: (dataUrl: string, slotId?: string) => void;
   onClose: () => void;
+  slots?: ZonePhotoSlot[];
+  activeSlotId?: string;
+  onSlotChange?: (slotId: string) => void;
 }
 
-export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraModalProps) {
+export function LiveCameraModal({
+  zoneLabel,
+  onCapture,
+  onClose,
+  slots,
+  activeSlotId,
+  onSlotChange,
+}: LiveCameraModalProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const nativeInputRef = useRef<HTMLInputElement | null>(null);
 
+  const [currentSlotId, setCurrentSlotId] = useState<string>(
+    activeSlotId || (slots?.[0]?.id ?? "main")
+  );
+  const currentSlot = slots?.find((s) => s.id === currentSlotId) ?? (slots?.[0] || null);
+  const currentSlotIndex = slots && currentSlot ? slots.findIndex((s) => s.id === currentSlot.id) : 0;
+
+  const [capturedCount, setCapturedCount] = useState<number>(0);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -207,8 +225,25 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
     ctx.drawImage(video, startX, startY, minDim, minDim, 0, 0, targetSize, targetSize);
 
     const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+    setCapturedCount((c) => c + 1);
 
-    // Coupure immédiate du capteur physique dès la capture pour éteindre le voyant d'enregistrement
+    // Multi-angles continu : on garde le flux actif pour le slot suivant sans redemander la caméra !
+    if (slots && slots.length > 1) {
+      onCapture(dataUrl, currentSlotId);
+      const nextIndex = currentSlotIndex + 1;
+      if (nextIndex < slots.length) {
+        const nextSlot = slots[nextIndex];
+        toast.success(`Angle « ${currentSlot?.label ?? "Photo"} » capturé !`, {
+          description: `Passez maintenant à « ${nextSlot.label} » (${nextSlot.hint}).`,
+        });
+        setCurrentSlotId(nextSlot.id);
+        onSlotChange?.(nextSlot.id);
+        setTimeout(() => setFlashing(false), 200);
+        return;
+      }
+    }
+
+    // Coupure immédiate du capteur physique dès la capture finale
     if (streamRef.current) {
       try {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -221,7 +256,7 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
     stopPersistentCameraStream();
 
     setTimeout(() => {
-      onCapture(dataUrl);
+      onCapture(dataUrl, currentSlotId);
       onClose();
     }, 100);
   }
@@ -264,8 +299,14 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
         </button>
 
         <div className="text-center">
-          <p className="font-heading font-black text-sm tracking-wide">Scanner de Peau Kènè</p>
-          <p className="text-[11px] text-white/70">Zone : {zoneLabel}</p>
+          <p className="font-heading font-black text-sm tracking-wide">
+            {slots && slots.length > 1
+              ? `Angle ${currentSlotIndex + 1}/${slots.length} : ${currentSlot?.label || zoneLabel}`
+              : "Scanner de Peau Kènè"}
+          </p>
+          <p className="text-[11px] text-white/70">
+            {currentSlot?.hint || `Zone : ${zoneLabel}`}
+          </p>
         </div>
 
         <button
@@ -440,7 +481,17 @@ export function LiveCameraModal({ zoneLabel, onCapture, onClose }: LiveCameraMod
           Aligne ton visage dans l&apos;ovale, détends tes traits et capture
         </p>
 
-        <div className="flex items-center justify-center w-full pb-3">
+        <div className="flex items-center justify-center gap-4 w-full pb-3">
+          {capturedCount > 0 && slots && slots.length > 1 && (
+            <button
+              type="button"
+              onClick={handleClose}
+              className="h-11 px-4 rounded-full bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs backdrop-blur-md active:scale-95 transition-all"
+            >
+              Terminer ({capturedCount}/{slots.length}) ✔
+            </button>
+          )}
+
           {/* Déclencheur tactile principal */}
           <button
             type="button"
