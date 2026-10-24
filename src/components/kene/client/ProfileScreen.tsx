@@ -40,6 +40,7 @@ export function ProfileScreen() {
 
   const [edit, setEdit] = useState(false);
   const [name, setName] = useState(user?.name ?? "");
+  const [gender, setGender] = useState<"femme" | "homme" | "non_precise">(user?.gender ?? "non_precise");
   const [city, setCity] = useState(user?.city ?? "");
   const [district, setDistrict] = useState(user?.district ?? "");
   const [birthDate, setBirthDate] = useState(user?.birthDate ?? "");
@@ -55,6 +56,7 @@ export function ProfileScreen() {
   useEffect(() => {
     if (user) {
       setName(user.name ?? "");
+      setGender((user.gender as "femme" | "homme" | "non_precise") ?? "non_precise");
       setCity(user.city ?? "");
       setDistrict(user.district ?? "");
       setBirthDate(user.birthDate ?? "");
@@ -159,6 +161,7 @@ export function ProfileScreen() {
       const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {
         userId: user.id,
         name: name.trim() || undefined,
+        gender,
         city: city.trim() || undefined,
         district: district.trim() || undefined,
       });
@@ -178,6 +181,7 @@ export function ProfileScreen() {
     try {
       const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {
         userId: user.id,
+        gender,
         district: district.trim() || null,
         birthDate: birthDate.trim() || null,
         pregnant,
@@ -312,7 +316,14 @@ export function ProfileScreen() {
                 />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="font-heading font-black text-[22px] leading-tight truncate">{user.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-heading font-black text-[22px] leading-tight truncate">{user.name}</p>
+                  {user.gender && user.gender !== "non_precise" && (
+                    <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 border border-primary/20 text-primary">
+                      {user.gender === "femme" ? "👩 Femme" : "👨 Homme"}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-mono"><Phone size={12} /> {user.phone}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
                   <MapPin size={12} /> {user.district ? `${user.district} · ${user.city || "Abidjan"}` : user.city || "Ville non renseignée"}
@@ -337,8 +348,37 @@ export function ProfileScreen() {
                     </button>
                   )}
                   <div>
-                    <label htmlFor="p-name" className="text-xs font-semibold text-muted-foreground">Prénom & nom</label>
+                    <label htmlFor="p-name" className="text-xs font-semibold text-muted-foreground">Prénom &amp; nom</label>
                     <input id="p-name" value={name} onChange={(e) => setName(e.target.value)} className="k-input mt-1 h-11 w-full rounded-xl px-3 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Civilité / Genre (pour adapter mes conseils &amp; protocoles)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setGender("femme")}
+                        className={cn(
+                          "h-10 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 cursor-pointer",
+                          gender === "femme"
+                            ? "bg-primary/15 border-primary text-primary ring-2 ring-primary/20 shadow-xs"
+                            : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        👩 Femme
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGender("homme")}
+                        className={cn(
+                          "h-10 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1.5 cursor-pointer",
+                          gender === "homme"
+                            ? "bg-primary/15 border-primary text-primary ring-2 ring-primary/20 shadow-xs"
+                            : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        👨 Homme
+                      </button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -427,31 +467,33 @@ export function ProfileScreen() {
               </div>
             </div>
 
-            {/* Sécurité Maternité (Grossesse / Allaitement) */}
-            <div className="pt-2 border-t border-border/60">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-0.5">
-                  <p className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                    <Baby size={15} className="text-pink-500" /> Es-tu enceinte ou allaitante ?
-                  </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Indispensable pour ta sécurité : nous adaptons immédiatement les protocoles en cabine et écartons les actifs déconseillés (huiles essentielles fortes, rétinoïdes, acides trop décapants).
-                  </p>
+            {/* Sécurité Maternité (Grossesse / Allaitement) — Visible si femme ou non précisé */}
+            {gender !== "homme" && (
+              <div className="pt-2 border-t border-border/60">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <p className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                      <Baby size={15} className="text-pink-500" /> Es-tu enceinte ou allaitante ?
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Indispensable pour ta sécurité : nous adaptons immédiatement les protocoles en cabine et écartons les actifs déconseillés (huiles essentielles fortes, rétinoïdes, acides trop décapants).
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPregnant(!pregnant)}
+                    className={cn(
+                      "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border",
+                      pregnant
+                        ? "bg-pink-500/15 border-pink-500/40 text-pink-600 dark:text-pink-400 ring-2 ring-pink-500/20"
+                        : "bg-muted border-border text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {pregnant ? "🌸 Oui, maternité" : "Non"}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setPregnant(!pregnant)}
-                  className={cn(
-                    "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border",
-                    pregnant
-                      ? "bg-pink-500/15 border-pink-500/40 text-pink-600 dark:text-pink-400 ring-2 ring-pink-500/20"
-                      : "bg-muted border-border text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {pregnant ? "🌸 Oui, maternité" : "Non"}
-                </button>
               </div>
-            </div>
+            )}
 
             {/* Canal de contact favori */}
             <div className="pt-2 border-t border-border/60">

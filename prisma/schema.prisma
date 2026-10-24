@@ -34,6 +34,7 @@ model User {
   id           String   @id @default(cuid())
   phone        String   @unique
   name         String
+  gender       String?  @default("non_precise") // femme | homme | non_precise
   role         String   @default("client") // client | pro | admin
   email        String?
   city         String?
@@ -187,6 +188,7 @@ model ClientProfile {
   tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   userId      String?   // lien vers User si cliente Kènè
   name        String
+  gender      String?   @default("non_precise") // femme | homme | non_precise
   phone       String
   email       String?
   district    String?   // Commune ou quartier
@@ -557,6 +559,7 @@ model Employee {
   tenantId     String
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name         String
+  gender       String?  @default("non_precise") // femme | homme | non_precise
   role         String // estheticienne | dermo_conseillere | caissiere | manager
   // t. 96 — compte APP de l'employée : User (rôle « pro ») lié par userId.
   // La fondatrice crée le compte à l'embauche (numéro de l'employée) ;

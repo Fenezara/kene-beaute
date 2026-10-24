@@ -56,6 +56,7 @@ import { MamanOrb3D, type OrbState } from "./MamanOrb3D";
 import type { DebriefResult } from "@/app/api/pro/assistant/debrief/route";
 import type { ProSectionId } from "./ProApp";
 import type { ProOverview, ProLive } from "./types";
+import { useKene } from "@/store/kene";
 import {
   getPersistentAudioStream,
   pausePersistentAudioStream,
@@ -114,6 +115,8 @@ export function AssistantSection({
   assistantNonce,
 }: AssistantSectionProps) {
   // Détermination dynamique des permissions effectives
+  const currentUser = useKene((s) => s.user);
+  const userGender = (currentUser as any)?.gender || "non_precise";
   const canViewCaisse = isOwner || Boolean(allowedSections?.includes("caisse") || allowedSections?.includes("dashboard"));
   const canViewStock = isOwner || Boolean(allowedSections?.includes("stock") || allowedSections?.includes("catalogue"));
   const canManageExpenses = isOwner || Boolean(allowedSections?.includes("caisse"));
@@ -440,6 +443,7 @@ export function AssistantSection({
         tenantId,
         text: query,
         userName,
+        userGender,
         userRole,
         isOwner,
         allowedSections,
@@ -717,6 +721,7 @@ export function AssistantSection({
       const queryParams = new URLSearchParams({
         tenantId,
         userName,
+        userGender,
         userRole,
         isOwner: String(isOwner),
         plan: tenantPlan,

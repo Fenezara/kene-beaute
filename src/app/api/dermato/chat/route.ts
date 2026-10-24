@@ -21,6 +21,8 @@ const Body = z.object({
     .max(40)
     .optional(),
   userId: z.string().optional(),
+  userName: z.string().max(100).optional(),
+  userGender: z.enum(["femme", "homme", "non_precise"]).optional(),
   audio: z.string().min(1).max(7 * 1024 * 1024).optional(), // audio en base64 pour note vocale directe
   mimeType: z.string().max(80).optional(),
 });
@@ -72,13 +74,19 @@ export async function GET(req: NextRequest) {
 
 /** Cœur partagé POST/GET : traitement texte ou audio direct pour Dermo Kènè */
 async function runChat(parsed: z.infer<typeof Body>): Promise<NextResponse> {
+  const profileOrId =
+    parsed.userId ||
+    (parsed.userName || parsed.userGender
+      ? { name: parsed.userName, gender: parsed.userGender || "non_precise" }
+      : undefined);
+
   // Cas 1 : Note vocale directe (l'audio est envoyé directement à Dermo Kènè)
   if (parsed.audio) {
     const audioResult = await getDrKeneAudioReply(
       parsed.audio,
       parsed.mimeType || "audio/wav",
       parsed.messages ?? [],
-      parsed.userId,
+      profileOrId,
     );
     return NextResponse.json({
       reply: audioResult.reply,
@@ -88,7 +96,7 @@ async function runChat(parsed: z.infer<typeof Body>): Promise<NextResponse> {
 
   // Cas 2 : Message texte standard
   const messages = parsed.messages ?? [{ role: "user", content: "Bonjour Dermo Kènè" }];
-  const reply = await getDrKeneReply(messages, parsed.userId);
+  const reply = await getDrKeneReply(messages, profileOrId);
   return NextResponse.json({ reply });
 }
 

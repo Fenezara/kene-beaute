@@ -843,6 +843,8 @@ export function ChatScreen() {
           mimeType: payload.type,
           messages: history,
           userId: user?.id || "",
+          userName: user?.name,
+          userGender: (user as any)?.gender || "non_precise",
         },
         { timeoutMs: 45_000 }
       );
@@ -1071,7 +1073,16 @@ export function ChatScreen() {
       const history = [...currentMessages, mine]
         .slice(-10)
         .map((m) => ({ role: m.role, content: (m.transcription || m.content).slice(0, 1500) }));
-      const r = await apiPost<{ reply: string }>("/api/dermato/chat", { messages: history, userId: user?.id || "" }, { timeoutMs: 35_000 });
+      const r = await apiPost<{ reply: string }>(
+        "/api/dermato/chat",
+        {
+          messages: history,
+          userId: user?.id || "",
+          userName: user?.name,
+          userGender: (user as any)?.gender || "non_precise",
+        },
+        { timeoutMs: 35_000 }
+      );
       add({ id: nid(), role: "assistant", content: r.reply, kind: "text", time: Date.now() });
       notifyChatNew();
       speak(r.reply);

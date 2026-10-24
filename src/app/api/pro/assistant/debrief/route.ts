@@ -23,6 +23,7 @@ const Body = z.object({
   tenantId: z.string().min(1),
   text: z.string().min(1).max(2000),
   userName: z.string().max(100).optional(),
+  userGender: z.enum(["femme", "homme", "non_precise"]).optional(),
   managerName: z.string().max(100).optional(),
   previousDebrief: z.any().optional(),
   userRole: z.string().max(100).optional(),
@@ -309,6 +310,7 @@ export async function POST(req: NextRequest) {
       canViewStock,
       canManageExpenses,
       tenantPlan || tenant.plan || "trial",
+      parsed.data.userGender || "non_precise",
     );
 
     let userPromptText = text;
@@ -367,15 +369,28 @@ export async function POST(req: NextRequest) {
 
 // ─────────────────────────── Prompt système ───────────────────────────
 
-function getBossCall(managerName: string, isOwner = true, userRole = ""): string {
-  const cleanFirst = (managerName || "Patron").split(/\s+/)[0] || "Patron";
+function getBossCall(
+  managerName: string,
+  isOwner = true,
+  userRole = "",
+  userGender: "femme" | "homme" | "non_precise" = "non_precise",
+): string {
+  const cleanFirst = (managerName || "").split(/\s+/)[0] || "";
+  const isExplicitMale =
+    userGender === "homme" ||
+    /^(monsieur|m\.|dr|mr|ibrahim|mamadou|moussa|ali|jean|paul|david|kouassi|yao|koffi|amadou|seydou|bakary)/i.test(cleanFirst);
+
   if (!isOwner) {
-    return cleanFirst;
+    if (isExplicitMale) return cleanFirst ? `Monsieur ${cleanFirst}` : "Cher collaborateur";
+    return cleanFirst ? cleanFirst : "Chère collaboratrice";
   }
-  if (/^(madame|mme|patron|patronne)$/i.test(cleanFirst)) {
-    return "Patronne";
+
+  if (isExplicitMale) {
+    return cleanFirst ? `Patron ${cleanFirst}` : "Monsieur le Directeur";
   }
+
   const isFem =
+    userGender === "femme" ||
     cleanFirst.toLowerCase().endsWith("a") ||
     cleanFirst.toLowerCase().endsWith("e") ||
     cleanFirst.toLowerCase().includes("deborah") ||
@@ -383,7 +398,7 @@ function getBossCall(managerName: string, isOwner = true, userRole = ""): string
     cleanFirst.toLowerCase().includes("mariam") ||
     cleanFirst.toLowerCase().includes("awa") ||
     cleanFirst.toLowerCase().includes("aminata");
-  return `Patron${isFem ? "ne" : ""} ${cleanFirst}`;
+  return `Patron${isFem ? "ne" : ""} ${cleanFirst || ""}`.trim();
 }
 
 function buildSystemPrompt(
@@ -400,8 +415,10 @@ function buildSystemPrompt(
   canViewStock = true,
   canManageExpenses = true,
   tenantPlan = "trial",
+  userGender: "femme" | "homme" | "non_precise" = "non_precise",
 ): string {
-  const bossCall = getBossCall(managerName, isOwner, userRole);
+  const bossCall = getBossCall(managerName, isOwner, userRole, userGender);
+  const isMale = userGender === "homme" || /^(monsieur|m\.|dr|mr|patron)/i.test(bossCall);
   const nowStr = new Date().toLocaleDateString("fr-FR", {
     weekday: "long",
     year: "numeric",
@@ -410,8 +427,8 @@ function buildSystemPrompt(
   });
 
   const identityIntro = isOwner
-    ? `Tu es la Secrétaire de Direction et Assistante d'Élite dévouée de ${bossCall}, dirigeante de l'institut "${tenantName}" en Côte d'Ivoire.`
-    : `Tu es l'Assistante Cabine et Secrétaire IA de l'institut "${tenantName}", au service de ${bossCall} (${userRole || "Collaboratrice"}).`;
+    ? `Tu es la Secrétaire de Direction et Assistante d'Élite dévouée de ${bossCall}, ${isMale ? "dirigeant" : "dirigeante"} de l'institut "${tenantName}" en Côte d'Ivoire.`
+    : `Tu es l'Assistante Cabine et Secrétaire IA de l'institut "${tenantName}", au service de ${bossCall} (${userRole || (isMale ? "Collaborateur" : "Collaboratrice")}).`;
 
   const caisseRule = canViewCaisse
     ? `- CAISSE DU JOUR : Total encaissé = ${liveStats.todayTotal} FCFA (${liveStats.salesCount} vente(s)) | Wave = ${liveStats.waveTotal} FCFA | Orange Money = ${liveStats.orangeTotal} FCFA | Espèces = ${liveStats.cashTotal} FCFA | Carte = ${liveStats.cardTotal} FCFA.`
@@ -441,7 +458,7 @@ CAS B — C'EST UNE INSTRUCTION D'ACTION OU UN COMPTE-RENDU OPÉRATIONNEL (ex: e
 - Ne mets "needsClarification": true QUE s'il manque réellement une information indispensable pour exécuter l'ordre (ex: "Prends RDV pour Awa" sans aucun jour ni heure, ou "Enregistre la vente de Mme Koné" sans moyen de paiement Wave/Orange/Espèces, ou "Note une dépense" sans montant). Dans ce cas, pose une question courte et précise dans "clarificationQuestion" et propose 2 à 4 "clarificationOptions" cliquables.
 
 ═══ RÈGLES D'ADRESSE & MÉTIER ═══
-1. Appelle toujours ton interlocutrice "${bossCall}". N'utilise JAMAIS le mot "Maman".
+1. Appelle toujours ton ${isMale ? "interlocuteur" : "interlocutrice"} "${bossCall}". Accords grammaticaux au ${isMale ? "masculin" : "féminin"}. N'utilise JAMAIS le mot "Maman".
 2. Devises en FCFA ("15 mille" = 15000). Modes de paiement : "wave", "orange", "cash", "card".
 3. Si une cliente paie une partie et laisse un reste à payer (ex: "total 25 000 F, elle a versé 20 000 F et soldera 5 000 F"), renseigne subtotal=25000, total=25000, paidAmount=20000, remainingDebt=5000.
 
@@ -523,10 +540,10 @@ Réponds UNIQUEMENT par un objet JSON valide respectant ce schéma exact (sans b
 function getCandidateModels(): string[] {
   const preferred = process.env.GEMINI_MODEL?.trim();
   const models = [
-    preferred && preferred !== "gemini-1.5-flash" && preferred !== "gemini-2.0-flash" ? preferred : null,
+    preferred && preferred.startsWith("gemini-") && preferred !== "gemini-3.5-flash" && preferred !== "gemini-1.5-flash" && preferred !== "gemini-2.0-flash" ? preferred : null,
     "gemini-2.5-flash",
+    "gemini-flash-latest",
     "gemini-2.5-flash-lite",
-    "gemini-3.5-flash",
     "gemini-2.5-pro",
   ].filter(Boolean) as string[];
   return Array.from(new Set(models));

@@ -43,6 +43,7 @@ import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { fetchTtsAudioUrl, speakBrowserVoice, stopBrowserVoice, unlockAudioContext } from "../client/ttsAudio";
 import { pickRecorderMime, transcribeAudioBlob } from "@/lib/kene/audio-recorder";
 import type { DebriefResult } from "@/app/api/pro/assistant/debrief/route";
+import { useKene } from "@/store/kene";
 import {
   getPersistentAudioStream,
   pausePersistentAudioStream,
@@ -85,6 +86,8 @@ export function MamanAssistantModal({
   onClose,
   onActionExecuted,
 }: MamanAssistantModalProps) {
+  const currentUser = useKene((s) => s.user);
+  const userGender = (currentUser as any)?.gender || "non_precise";
   const firstName = useMemo(() => {
     const raw = (userName || tenantName || "Directrice").trim();
     return raw.split(/\s+/)[0] || "Directrice";
@@ -389,6 +392,7 @@ export function MamanAssistantModal({
         tenantId,
         text: query,
         managerName: firstName,
+        userGender,
       });
       setDebrief(res.debrief);
       toast.success("Point analysé avec succès");

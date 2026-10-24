@@ -15,6 +15,7 @@ import { checkPhoto } from "@/lib/kene/photo";
 const Body = z.object({
   userId: z.string().min(1),
   name: z.string().trim().min(1).optional(),
+  gender: z.enum(["femme", "homme", "non_precise"]).optional().nullable(),
   city: z.string().trim().optional().nullable(),
   district: z.string().trim().max(100).optional().nullable(),
   birthDate: z.string().trim().max(20).optional().nullable(),
@@ -93,6 +94,7 @@ async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
   // maternité et préférences déclarés par la cliente se répercutent À CHAUD sur
   // toutes ses fiches ClientProfile auprès des instituts partenaires.
   const profileSync: Record<string, unknown> = {};
+  if (update.gender !== undefined) profileSync.gender = update.gender;
   if (update.skinType !== undefined) profileSync.skinType = update.skinType;
   if (update.fitzpatrick !== undefined) profileSync.fitzpatrick = update.fitzpatrick;
   if (update.district !== undefined) profileSync.district = update.district;

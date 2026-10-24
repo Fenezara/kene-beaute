@@ -5,6 +5,7 @@ export interface ApiUser {
   id: string;
   phone: string;
   name: string;
+  gender?: "femme" | "homme" | "non_precise" | null;
   role: string;
   city?: string | null;
   district?: string | null;
