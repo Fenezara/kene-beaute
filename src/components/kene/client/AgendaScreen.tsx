@@ -939,6 +939,48 @@ export function AgendaScreen() {
             </div>
           </div>
 
+          {/* Invitation douce si aucun institut n'est encore sélectionné */}
+          {institutes.length === 0 && (
+            <div className="rounded-[22px] p-4 border border-[#C8951E]/30 bg-gradient-to-br from-[#C8951E]/15 via-card to-card space-y-3 shadow-xs">
+              <div className="flex items-start gap-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#C8951E]/20 text-[#C8951E]">
+                  <MapPin size={18} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-heading font-black text-sm text-foreground">
+                    Rattachez votre salon ou institut partenaire Kènè
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Pour réserver un soin cabine, débloquer votre ordonnance personnalisée ou activer vos contrôles de suivi dermo-optique, choisissez votre salon dans votre profil ou faites-vous orienter par notre conciergerie.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setClientTab("profil")}
+                  className="k-btn-gold h-9 px-4 rounded-xl text-xs font-bold text-primary-foreground inline-flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                >
+                  <MapPin size={13} />
+                  <span>Choisir un salon partenaire</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    openWhatsApp(
+                      KENE_SUPPORT_PHONE,
+                      "Bonjour Kènè, je souhaite être orientée vers un salon ou institut partenaire pour un soin de peau."
+                    );
+                  }}
+                  className="h-9 px-4 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-foreground inline-flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
+                >
+                  <MessageCircle size={13} className="text-[#25D366]" />
+                  <span>Conciergerie WhatsApp</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Alerte proactive J-1 / Jour J si RDV imminent */}
           {proactiveReminder && (
             <motion.div

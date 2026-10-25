@@ -750,7 +750,7 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
       {/* Barre panier sticky au-dessus de la nav */}
       <AnimatePresence>
         {cart.length > 0 && !payState && (
-          <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="sticky bottom-[84px] z-20 mt-4">
+          <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="sticky bottom-[calc(76px+env(safe-area-inset-bottom,0px))] z-20 mt-4">
             <button
               onClick={() => { setCheckout(true); haptic(HAPTIC.tap); }}
               className="k-cta flex h-14 w-full items-center justify-between rounded-2xl px-4 text-[#FFF9EC] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
