@@ -101,7 +101,7 @@ export type ProSectionId =
   | "parametres"
   | "abonnement";
 
-export type ProNavCategory = "pilotage" | "clinique" | "commerce" | "relation" | "gestion";
+export type ProNavCategory = "pilotage" | "clinique" | "commerce" | "relation" | "gestion" | "reglages";
 
 export interface ProNavCategoryDef {
   id: ProNavCategory;
@@ -116,6 +116,7 @@ export const PRO_NAV_CATEGORIES: ProNavCategoryDef[] = [
   { id: "commerce", emoji: "💳", label: "Caisse & Commerce", shortLabel: "Caisse & Stock" },
   { id: "relation", emoji: "🤝", label: "Relation & Fidélité", shortLabel: "Relation & IA" },
   { id: "gestion", emoji: "⚖️", label: "Gestion & Administration", shortLabel: "RH, Paie & Compta" },
+  { id: "reglages", emoji: "⚙️", label: "Paramètres & Profil", shortLabel: "Paramètres" },
 ];
 
 export interface ProNavItem {
@@ -144,11 +145,13 @@ const NAV: ProNavItem[] = [
   { id: "relances", label: "Relances", icon: BellRing, hint: "Suivi post-protocole & rappels", category: "relation" },
   { id: "assistant", label: "👑 Secrétaire IA", icon: Crown, hint: "Rappels WhatsApp 24/7 & Débriefing", category: "relation" },
 
-  // 5. Gestion & Administration
+  // 5. Gestion & Administration (Gérance / RH / Paie / Compta — strictly exclusive)
   { id: "equipe", label: "Équipe & Pointage", icon: NkonsonkonsonIcon, hint: "Personnel, planning & présences", category: "gestion" },
   { id: "paie", label: "Paie & Cotisations", icon: FihankraIcon, hint: "Bulletins CNPS · IPRES", category: "gestion" },
   { id: "compta", label: "Compta SYSCOHADA", icon: BaouleIcon, hint: "Bilan & Grand Livre OHADA", category: "gestion" },
-  { id: "parametres", label: "Paramètres", icon: Settings, hint: "Institut & Abonnement Kènè+", category: "gestion" },
+
+  // 6. Paramètres & Configuration (Accès universel distinct)
+  { id: "parametres", label: "Paramètres", icon: Settings, hint: "Profil, établissement & réglages", category: "reglages" },
 ];
 
 const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
@@ -759,11 +762,38 @@ export function ProEnterpriseShell() {
             <SpaceSwitcher variant="compact" />
             <ThemeToggle />
 
-            <div className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-border/60 shrink-0">
+            {/* Bouton direct Paramètres dans le Header (Accès instantané universel) */}
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                openSection("parametres");
+              }}
+              aria-label="Ouvrir les paramètres"
+              title={isOwner ? "Paramètres de l'établissement & Direction" : "Mon espace collaboratrice & réglages"}
+              className={cn(
+                "grid place-items-center size-8 sm:size-9 rounded-full transition-all active:scale-95 shrink-0 border cursor-pointer",
+                activeSection === "parametres"
+                  ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                  : "bg-muted/40 border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <Settings className="size-4" />
+            </button>
+
+            {/* Profil utilisateur cliquable (ouvre directement les paramètres) */}
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                openSection("parametres");
+              }}
+              title={`Cliquez pour ouvrir ${isOwner ? "les paramètres de l'institut" : "vos réglages collaboratrice"} (${chipName})`}
+              className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-border/60 shrink-0 text-left cursor-pointer hover:opacity-85 transition-opacity"
+            >
               <span
                 aria-hidden="true"
                 className="k-glow-gold grid size-7 sm:size-8 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[10px] sm:text-[11px] font-bold text-[#FFF9EC] shrink-0"
-                title={`${chipName} (${chipRole})`}
               >
                 {chipInitials}
               </span>
@@ -775,15 +805,23 @@ export function ProEnterpriseShell() {
                   {chipRole}
                 </Eyebrow>
               </div>
-            </div>
+            </button>
           </div>
         </div>
 
         {/* Sous-bandeau mobile uniquement (< md) */}
         <div className="md:hidden border-t border-border/40 px-3 py-2 space-y-2">
-          {/* Badge d'identification Collaboratrice (Mobile < md) */}
+          {/* Badge d'identification Collaboratrice cliquable vers ses réglages (Mobile < md) */}
           {isEmployee && (
-            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-gold/10 border border-gold/30 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                openSection("parametres");
+              }}
+              className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl bg-gold/10 border border-gold/30 shadow-2xs text-left active:scale-[0.99] transition-transform cursor-pointer"
+              title="Toucher pour ouvrir mes réglages"
+            >
               <div className="flex items-center gap-2 truncate">
                 <span className="grid size-6 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-white text-[10px] font-bold shrink-0">
                   {chipInitials}
@@ -793,10 +831,13 @@ export function ProEnterpriseShell() {
                   <span className="text-[9px] text-muted-foreground font-semibold">{chipRole} · {tenant?.name ?? "Institut"}</span>
                 </div>
               </div>
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shrink-0">
-                En poste
-              </span>
-            </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                  En poste
+                </span>
+                <Settings size={12} className="text-muted-foreground" />
+              </div>
+            </button>
           )}
           {(tenantOptions.length > 1 || proOwner) && (
             <div className="sm:hidden">
@@ -1653,7 +1694,15 @@ export function ProEnterpriseShell() {
                   )}
                 </div>
                 {settingsTab === "settings" || !isOwner ? (
-                  <SettingsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} tenantCity={tenant?.city} onNavigate={openSection} />
+                  <SettingsSection
+                    tenantId={tid}
+                    tenantName={tenant?.name ?? "Institut"}
+                    tenantCity={tenant?.city}
+                    onNavigate={openSection}
+                    staffAttendance={staffAttendance}
+                    onPointage={handleSelfPointage}
+                    attendanceBusy={attendanceBusy}
+                  />
                 ) : (
                   <ProPlanSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />
                 )}

@@ -10,7 +10,7 @@
 // (annuaire, boutique, fiche cliente) — upload local redimensionné.
 import { useEffect, useRef, useSyncExternalStore, useState } from "react";
 import { useTheme } from "next-themes";
-import { Building2, Camera, Check, ChevronRight, CreditCard, Crown, ImageOff, KeyRound, Languages, Loader2, Lock, LogOut, MapPin, Moon, Phone, Receipt, ShieldCheck, Sparkles, SunMedium } from "lucide-react";
+import { Building2, Camera, Check, CheckCircle2, ChevronRight, Clock, CreditCard, Crown, ImageOff, KeyRound, Languages, Loader2, Lock, LogIn, LogOut, MapPin, Moon, Phone, Receipt, ShieldCheck, Sparkles, SunMedium } from "lucide-react";
 import { DuafeIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { LANGS, type Lang } from "@/lib/kene/i18n";
@@ -38,7 +38,23 @@ function useHydrated(): boolean {
   return useSyncExternalStore(subscribeNothing, () => true, () => false);
 }
 
-export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }: { tenantId: string; tenantName: string; tenantCity?: string; onNavigate?: (s: ProSectionId) => void }) {
+export function SettingsSection({
+  tenantId,
+  tenantName,
+  tenantCity,
+  onNavigate,
+  staffAttendance,
+  onPointage,
+  attendanceBusy,
+}: {
+  tenantId: string;
+  tenantName: string;
+  tenantCity?: string;
+  onNavigate?: (s: ProSectionId) => void;
+  staffAttendance?: { checkIn?: string | null; checkOut?: string | null; hours?: number | null } | null;
+  onPointage?: (action: "in" | "out") => Promise<void>;
+  attendanceBusy?: boolean;
+}) {
   const sessionUser = useKene((s) => s.user);
   const setUser = useKene((s) => s.setUser);
   const setSpace = useKene((s) => s.setSpace);
@@ -231,10 +247,23 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
   return (
     <div className="max-w-2xl space-y-4">
       <SectionHeader
-        title="Paramètres"
-        sub="Compte, affichage et session de l'espace entreprise"
+        title={isOwner ? "Paramètres de l'Établissement & Direction" : "Mon Espace Collaboratrice & Réglages"}
+        sub={
+          isOwner
+            ? "Identité de l'institut, coordonnées officielles, fiscalité et abonnement"
+            : "Mon compte de poste, code secret PIN, pointage du jour et préférences"
+        }
         actions={
-          <Badge variant="outline" className="bg-gold/15 text-gold-text border-transparent">Espace entreprise</Badge>
+          <Badge
+            variant="outline"
+            className={
+              isOwner
+                ? "bg-gold/15 text-gold-text border-transparent font-bold"
+                : "bg-primary/10 text-primary border-primary/20 font-bold"
+            }
+          >
+            {isOwner ? "👑 Direction & Gérance" : `✨ ${sessionUser?.employeeRole ? formatRole(sessionUser.employeeRole) : "Collaboratrice"}`}
+          </Badge>
         }
       />
 
@@ -273,7 +302,12 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
           <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 min-h-10 text-xs text-muted-foreground gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <KeyRound size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
-              <span className="truncate">Mot de passe / Code PIN</span>
+              <div className="min-w-0">
+                <span className="truncate font-medium text-foreground block">Code secret PIN (4 chiffres)</span>
+                <span className="text-[10px] text-muted-foreground block -mt-0.5">
+                  {isOwner ? "Code gérante & caisse" : "Code de poste & validation"}
+                </span>
+              </div>
             </div>
             <button
               type="button"
@@ -289,6 +323,93 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
           </p>
         </div>
       </div>
+
+      {/* Pointage du jour & Présence (visible pour les collaboratrices / non-gérante) */}
+      {!isOwner && (
+        <div className="k-card rounded-[20px] p-4 space-y-3.5 border border-primary/20 bg-gradient-to-br from-card via-background to-primary/5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <IconBadge icon={<Clock size={18} />} tone="gold" />
+              <div>
+                <p className="text-xs font-bold text-foreground">Mon pointage de présence du jour</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Enregistre votre heure d&apos;arrivée et de départ pour la fiche d&apos;heures.
+                </p>
+              </div>
+            </div>
+            {staffAttendance?.checkIn ? (
+              staffAttendance.checkOut ? (
+                <Badge variant="outline" className="bg-muted text-muted-foreground border-transparent text-[10px]">
+                  Journée clôturée
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
+                  En poste
+                </Badge>
+              )
+            ) : (
+              <Badge variant="outline" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold">
+                Non pointé
+              </Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+            <div className="rounded-xl bg-muted/40 p-2.5">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Arrivée</span>
+              <span className="text-xs font-mono font-bold text-foreground block mt-0.5">
+                {staffAttendance?.checkIn
+                  ? new Date(staffAttendance.checkIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : "—"}
+              </span>
+            </div>
+            <div className="rounded-xl bg-muted/40 p-2.5">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Départ</span>
+              <span className="text-xs font-mono font-bold text-foreground block mt-0.5">
+                {staffAttendance?.checkOut
+                  ? new Date(staffAttendance.checkOut).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : "—"}
+              </span>
+            </div>
+            <div className="rounded-xl bg-muted/40 p-2.5 col-span-2 sm:col-span-1">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Cumul jour</span>
+              <span className="text-xs font-mono font-bold text-foreground block mt-0.5">
+                {staffAttendance?.hours ? `${staffAttendance.hours.toFixed(1)} h` : "—"}
+              </span>
+            </div>
+          </div>
+
+          {onPointage && (
+            <div className="pt-1 flex gap-2">
+              {!staffAttendance?.checkIn ? (
+                <button
+                  type="button"
+                  onClick={() => void onPointage("in")}
+                  disabled={attendanceBusy}
+                  className="flex-1 h-10 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center justify-center gap-1.5 active:scale-95 transition-all disabled:opacity-60 shadow-sm"
+                >
+                  {attendanceBusy ? <Loader2 size={13} className="animate-spin" /> : <LogIn size={14} />}
+                  Pointer mon arrivée
+                </button>
+              ) : !staffAttendance?.checkOut ? (
+                <button
+                  type="button"
+                  onClick={() => void onPointage("out")}
+                  disabled={attendanceBusy}
+                  className="flex-1 h-10 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-bold inline-flex items-center justify-center gap-1.5 active:scale-95 transition-all hover:bg-amber-500/20 disabled:opacity-60"
+                >
+                  {attendanceBusy ? <Loader2 size={13} className="animate-spin" /> : <LogOut size={14} />}
+                  Pointer mon départ / Fin de service
+                </button>
+              ) : (
+                <div className="flex-1 py-2 px-3 rounded-xl bg-muted/30 border border-border/50 text-center text-xs text-muted-foreground inline-flex items-center justify-center gap-2">
+                  <CheckCircle2 size={14} className="text-emerald-500" /> Pointage de la journée validé
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Mes attributions & accès (visible pour les collaboratrices / non-gérante) */}
       {!isOwner && (
@@ -710,14 +831,17 @@ export function SettingsSection({ tenantId, tenantName, tenantCity, onNavigate }
         </button>
       </div>
 
-      {/* Session — destructif sobre (jamais de setSpace: le clamp store
- ramène à l'accueil cliente, isolation) */}
+      {/* Session */}
       <div className="k-card rounded-[20px] p-4">
         <div className="flex items-center gap-3">
           <IconBadge icon={<LogOut size={18} />} tone="bissap" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold">Session</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Ferme la session de cet appareil — tu te reconnecteras avec ton numéro gérante.</p>
+            <p className="text-xs font-bold">Session de travail</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+              {isOwner
+                ? "Ferme la session de cet appareil — tu te reconnecteras avec ton numéro gérante."
+                : "Ferme la session de ton poste — tu te reconnecteras avec ton numéro de collaboratrice et ton code PIN."}
+            </p>
           </div>
         </div>
         <button
