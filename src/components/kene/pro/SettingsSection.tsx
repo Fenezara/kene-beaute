@@ -28,6 +28,7 @@ import { Switch } from "@/components/ui/switch";
 import { getTenantPosSettings, saveTenantPosSettings, type TenantPosSettings } from "@/lib/kene/tenant-settings";
 import { formatRole } from "@/lib/kene/hr-constants";
 import { CommercialKitModal } from "./CommercialKitModal";
+import { TierThemeSelector } from "@/components/kene/TierThemeSelector";
 
 /* Porte d'hydratation: false pendant le rendu serveur + l'hydratation, true
  * ensuite — l'état actif Clair/Sombre ne s'affiche qu'une fois le thème
@@ -613,6 +614,9 @@ export function SettingsSection({
           </div>
         </>
       )}
+
+      {/* Palettes & Ambiance de Statut d'Abonnement */}
+      <TierThemeSelector audience="pro" />
 
       {/* Affichage — Clair/Sombre (mêmes boutons que l'app cliente, cohérence) */}
       <div className="k-card rounded-[20px] p-4">

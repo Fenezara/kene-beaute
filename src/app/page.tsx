@@ -22,6 +22,7 @@ import { PassportGate } from "@/components/kene/client/PassportView";
 import { HerbierGate } from "@/components/kene/herbier/Herbier";
 import { SessionKeeper } from "@/components/kene/SessionKeeper";
 import { TransportProbe } from "@/components/kene/TransportProbe";
+import { TierThemeBoot } from "@/components/kene/TierThemeBoot";
 import { PwaProvider } from "@/components/kene/pwa/PwaProvider";
 import { ConsoleEntry, ConsoleRedirect, useEntryKind } from "@/components/kene/admin/ConsoleEntry";
 import { MaintenanceScreen } from "@/components/kene/MaintenanceScreen";
@@ -256,6 +257,9 @@ export default function Page() {
         {/* Sonde de transport : adapte les appels écrits (pont GET) aux
             capacités réelles du navigateur hôte. Aucun rendu. */}
         <TransportProbe />
+
+        {/* Synchronisation de la palette d'abonnement (data-tier sur <html>) */}
+        <TierThemeBoot />
 
         {/* PWA: enregistrement du service worker + mise à jour offline (aucun rendu) */}
         <PwaProvider />

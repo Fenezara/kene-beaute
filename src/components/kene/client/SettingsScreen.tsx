@@ -67,6 +67,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { IconBadge, Reveal, RevealItem } from "@/components/kene/ui2026";
+import { TierThemeSelector } from "@/components/kene/TierThemeSelector";
 import { useKene, type ClientTab, type SessionUser } from "@/store/kene";
 import { useSecurity } from "@/store/security";
 import { useInstallPrompt } from "@/components/kene/pwa/use-install";
@@ -465,6 +466,11 @@ export function SettingsScreen() {
             title="Préférences & Affichage"
             subtitle="Confort visuel, langue et alertes personnalisées"
           />
+        </RevealItem>
+
+        {/* Palettes & Ambiance de Statut d'Abonnement */}
+        <RevealItem>
+          <TierThemeSelector audience="client" />
         </RevealItem>
 
         {/* Apparence — Clair/Sombre */}
