@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -121,7 +121,7 @@ export function ChangePinModal({ open, onOpenChange, currentPhone, hasPin }: Cha
   const handleConfirmPinSubmit = async (val = confirmPin) => {
     if (val.length !== 4) return;
     if (val !== newPin) {
-      haptic(HAPTIC.error);
+      haptic(HAPTIC.warning);
       toast.error("Les codes ne correspondent pas. Recommencez la confirmation.");
       setConfirmPin("");
       return;
@@ -154,7 +154,7 @@ export function ChangePinModal({ open, onOpenChange, currentPhone, hasPin }: Cha
         handleClose();
       }
     } catch (err) {
-      haptic(HAPTIC.error);
+      haptic(HAPTIC.warning);
       toast.error(err instanceof Error ? err.message : "Erreur lors de la mise à jour du code");
       if (step === "confirm_pin") {
         setStep("old_pin");

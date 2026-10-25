@@ -108,7 +108,7 @@ function chatFallbackResponse(err: unknown, parsed?: z.infer<typeof Body>): Next
   );
   const reply = generateDrKeneKnowledgeReply(
     parsed?.messages ?? [{ role: "user", content: "conseil" }],
-    parsed?.userId,
+    null,
   );
   return NextResponse.json({ reply });
 }

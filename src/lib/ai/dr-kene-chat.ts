@@ -66,9 +66,8 @@ export async function resolveUserProfile(
           take: 3,
           select: {
             zone: true,
-            score: true,
-            primaryNeed: true,
-            skinGoal: true,
+            scoreGlobal: true,
+            resultJson: true,
             createdAt: true,
           },
         },
@@ -113,9 +112,9 @@ export async function resolveUserProfile(
       prescribedByTenant,
       recentDiagnoses: user.diagnoses?.map((d) => ({
         zone: d.zone,
-        score: d.score,
-        primaryNeed: d.primaryNeed,
-        skinGoal: d.skinGoal,
+        score: d.scoreGlobal,
+        primaryNeed: null,
+        skinGoal: null,
         createdAt: d.createdAt,
       })),
     };

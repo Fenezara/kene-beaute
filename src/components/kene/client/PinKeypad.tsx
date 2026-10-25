@@ -28,6 +28,7 @@ export function PinKeypad({
   onOfflineBypass,
   onNewClient,
   onSwitchAccount,
+  onSwitchSpace,
 }: {
   phone: string;
   name?: string;
