@@ -48,5 +48,5 @@ export function TierThemeBoot() {
     };
   }, [user]);
 
-  return null;
+  return <div className="k-ambient-tier-aura" aria-hidden="true" />;
 }

@@ -1,11 +1,11 @@
-// Kènè — Système d'Ambiance & Palettes de Couleurs par Statut d'Abonnement.
-// Chaque palier d'abonnement débloque une identité chromatique noble d'Afrique :
-// • Découverte (Gratuit) : Karité Brut & Tiébélé (Terracotta & crème karité)
-// • Kènè+ Initiée (M1-M3) : Bissap Royal & Nectar (Rouge bissap velours & hibiscus)
-// • Kènè+ Cercle Royal (M4-M6+) : L'Étoffe d'Or Impériale (Or Akan solaire & ambre)
-// • Pro Starter : Atelier Argile & Cuivre (Terracotta & cuivre sablé)
-// • Pro Institut : Émeraude Kinkeliba & Or (Botanique clinique & prestige vert)
-// • Pro Complexe : Indigo Impérial Mandingue (Bleu nuit de haute direction & platine)
+// Kènè — Système d'Ambiance & Palettes de Haute Joaillerie & Botanique Royale Africaine.
+// L'expérience de luxe dermo-cosmétique inspirée des trésors minéraux et botaniques des grands royaumes d'Afrique :
+// • Découverte (Gratuit) : « Ocre Sacré & Nacre de Karité » (Royaume Tiébélé & Korhogo)
+// • Kènè+ Initiée (M1-M3) : « Bissap Pourpre & Rubis du Nil » (Calices impériaux & Éclat solaire)
+// • Kènè+ Cercle Royal (M4-M6+) : « Or Pur 24K Akan & Sceau Baoulé » (Le trésor royal Ashanti)
+// • Pro Starter : « Bronze du Bénin & Cuivre Solaire » (Atelier des Maîtres Fondeurs d'Ifè)
+// • Pro Institut : « Malachite du Katanga & Émeraude Royale » (Botanique clinique & Sandawana)
+// • Pro Complexe : « Nuit d'Indigo Mandingue & Platine Céleste » (Cour impériale de Soundiata Keïta)
 
 import type { SessionUser } from "@/store/kene";
 
@@ -20,95 +20,130 @@ export type TierThemeId =
 export interface TierThemeDef {
   id: TierThemeId;
   name: string;
+  tagline: string;
   subtitle: string;
   badge: string;
+  gemstone: string;
+  kingdom: string;
+  symbol: "karite" | "bissap" | "baoule" | "bronze" | "moringa" | "indigo";
   audience: "client" | "pro" | "all";
   primaryColor: string;
   accentColor: string;
   glowColor: string;
-  previewGradient: string;
+  heroGradient: string;
+  metallicBorder: string;
   description: string;
-  tag: string;
+  rarityTag: string;
 }
 
 export const TIER_THEMES: readonly TierThemeDef[] = [
   {
     id: "karite_tiebele",
-    name: "Karité Brut & Tiébélé",
-    subtitle: "Terre cuite, crème karité et argile ancestrale",
-    badge: "Découverte",
+    name: "Ocre Sacré & Nacre Karité",
+    tagline: "L'argile royale de Tiébélé et la nacre de Korhogo",
+    subtitle: "Terre cuite satinée, crème de karité fouetté & ambre sablé",
+    badge: "Initiation & Découverte",
+    gemstone: "Argile Noble & Nacre",
+    kingdom: "Royaume Kasséna · Tiébélé",
+    symbol: "karite",
     audience: "all",
-    primaryColor: "#B25A38",
-    accentColor: "#F7EAE3",
-    glowColor: "rgba(178, 90, 56, 0.25)",
-    previewGradient: "from-[#B25A38] to-[#FAF5EB]",
-    description: "Ambiance organique et chaleureuse inspirée des poteries de Tiébélé et du beurre de karité brut.",
-    tag: "Essentiel",
+    primaryColor: "#B8532B",
+    accentColor: "#FBF3ED",
+    glowColor: "rgba(184, 83, 43, 0.32)",
+    heroGradient: "linear-gradient(135deg, #B8532B 0%, #D46E45 50%, #F5CEB5 100%)",
+    metallicBorder: "rgba(212, 110, 69, 0.4)",
+    description: "Inspirée des fresques royales géométriques de Tiébélé et de la crème de karité ancestral battue à la main sous le soleil de Korhogo.",
+    rarityTag: "Origine",
   },
   {
     id: "bissap_royal",
-    name: "Bissap Royal & Nectar",
-    subtitle: "Fleur d'hibiscus veloutée & or Akan solaire",
+    name: "Bissap Pourpre & Rubis du Nil",
+    tagline: "L'élixir des reines et l'éclat rubis de la vallée du Rift",
+    subtitle: "Rouge rubis velours, nectar d'hibiscus impérial & liserés d'or",
     badge: "Kènè+ Initiée",
+    gemstone: "Rubis Impérial & Fleur de Bissap",
+    kingdom: "Empire de Koush · Nubie",
+    symbol: "bissap",
     audience: "client",
-    primaryColor: "#9E2045",
+    primaryColor: "#991438",
     accentColor: "#FDE8EE",
-    glowColor: "rgba(158, 32, 69, 0.25)",
-    previewGradient: "from-[#9E2045] via-[#C93B62] to-[#D49A24]",
-    description: "Signature dermo-beauté féminine, éclatante et vivifiante, infusée de calice d'hibiscus rouge.",
-    tag: "Kènè+",
+    glowColor: "rgba(184, 24, 69, 0.38)",
+    heroGradient: "linear-gradient(135deg, #7A0A28 0%, #B81845 45%, #E03565 75%, #D49A24 100%)",
+    metallicBorder: "rgba(224, 53, 101, 0.45)",
+    description: "Une infusion opulente de calices de Bissap pourpre velouté et de rubis lumineux, signature suprême de la beauté mélanoderme rayonnante.",
+    rarityTag: "Kènè+ Éclat",
   },
   {
     id: "or_imperial",
-    name: "L'Étoffe d'Or Impériale",
-    subtitle: "Or Akan pur, ambre chaud & ébène nacré",
-    badge: "Cercle Royal 👑",
+    name: "Or Pur 24K Akan & Sceau Baoulé",
+    tagline: "Le trésor royal Ashanti et la majesté de l'or ciselé",
+    subtitle: "Lingot d'or Akan 24 carats, ambre impérial & onyx ébène",
+    badge: "Le Cercle Royal 👑",
+    gemstone: "Or 24K Solaire & Ambre de Zanzibar",
+    kingdom: "Royaume Ashanti & Baoulé",
+    symbol: "baoule",
     audience: "client",
     primaryColor: "#C58A18",
-    accentColor: "#FDF4E3",
-    glowColor: "rgba(212, 154, 36, 0.30)",
-    previewGradient: "from-[#D49A24] via-[#E5A93C] to-[#18120C]",
-    description: "Prestige absolu et distinction royale réservés aux membres les plus fidèles du Cercle Kènè.",
-    tag: "Prestige",
+    accentColor: "#FFF8E7",
+    glowColor: "rgba(216, 154, 30, 0.45)",
+    heroGradient: "linear-gradient(135deg, #F9D87E 0%, #D49A24 35%, #9E6B08 70%, #F5CE7A 100%)",
+    metallicBorder: "rgba(245, 206, 122, 0.65)",
+    description: "Le sacrement de la reine. Inspiré des parures sacrées et des masques d'or pur des souverains Akan. Chaque écran s'illumine d'un halo solaire d'or précieux.",
+    rarityTag: "Souveraineté",
   },
   {
     id: "argile_cuivre",
-    name: "Atelier Argile & Cuivre",
-    subtitle: "Terracotta solaire & cuivre naturel",
-    badge: "Pro Starter",
+    name: "Bronze du Bénin & Cuivre Solaire",
+    tagline: "Le feu des maîtres fondeurs et le cuivre incandescent",
+    subtitle: "Cuivre rouge brossé, patine de bronze d'Ifè & miel d'acacia",
+    badge: "Pro Starter · Atelier d'Art",
+    gemstone: "Bronze Antique & Cuivre Rouge",
+    kingdom: "Royaume du Bénin · Ifè",
+    symbol: "bronze",
     audience: "pro",
-    primaryColor: "#B55828",
-    accentColor: "#F8EBE4",
-    glowColor: "rgba(181, 88, 40, 0.25)",
-    previewGradient: "from-[#B55828] to-[#E8D8BF]",
-    description: "Énergie artisanale et intime conçue pour la praticienne solo et le dermo-conseil indépendant.",
-    tag: "Starter",
+    primaryColor: "#C65322",
+    accentColor: "#FCEFE8",
+    glowColor: "rgba(198, 83, 34, 0.35)",
+    heroGradient: "linear-gradient(135deg, #9C3D12 0%, #C85A24 50%, #EDA33E 100%)",
+    metallicBorder: "rgba(200, 90, 36, 0.45)",
+    description: "L'énergie magistrale des bronziers d'Ifè et du Royaume du Bénin. Un écrin de caractère pour la praticienne solo et le dermo-conseil d'élite.",
+    rarityTag: "Atelier Solo",
   },
   {
     id: "emeraude_kinkeliba",
-    name: "Émeraude Kinkeliba & Or",
-    subtitle: "Botanique ancestrale & rigueur clinique",
-    badge: "Pro Institut ✨",
+    name: "Malachite du Katanga & Émeraude",
+    tagline: "La gemme de guérison sacrée et la pharmacopée d'apparat",
+    subtitle: "Vert malachite joaillerie, feuillage de moringa & or Akan",
+    badge: "Pro Institut ✨ · Excellence",
+    gemstone: "Malachite du Congo & Émeraude de Sandawana",
+    kingdom: "Empire Luba · Katanga",
+    symbol: "moringa",
     audience: "pro",
-    primaryColor: "#246B39",
-    accentColor: "#E6F5EC",
-    glowColor: "rgba(36, 107, 57, 0.25)",
-    previewGradient: "from-[#246B39] via-[#2E6F40] to-[#D49A24]",
-    description: "L'élégance de la pharmacopée africaine, alliance de rigueur dermo-clinique et de sérénité végétale.",
-    tag: "Institut",
+    primaryColor: "#186638",
+    accentColor: "#EBF8F0",
+    glowColor: "rgba(24, 102, 56, 0.40)",
+    heroGradient: "linear-gradient(135deg, #0A3B1D 0%, #156B36 45%, #2AA85B 80%, #E5A93C 100%)",
+    metallicBorder: "rgba(42, 168, 91, 0.5)",
+    description: "L'alliance majestueuse de la malachite verte et des feuilles fraîches de moringa et kinkeliba. Calibré pour les salons établis respirant l'autorité dermo-clinique.",
+    rarityTag: "Prestige Institut",
   },
   {
     id: "indigo_mandingue",
-    name: "Indigo Impérial Mandingue",
-    subtitle: "Bleu nuit royal, platine & haute gouvernance",
-    badge: "Pro Complexe 🏛️",
+    name: "Nuit d'Indigo Mandingue & Platine",
+    tagline: "La parure d'apparat des empereurs sous la voûte céleste",
+    subtitle: "Bleu nuit impérial, lapis-lazuli céleste & platine royal",
+    badge: "Pro Complexe 🏛️ · Haute Direction",
+    gemstone: "Lapis-Lazuli & Platine Céleste",
+    kingdom: "Empire du Mali · Soundiata Keïta",
+    symbol: "indigo",
     audience: "pro",
-    primaryColor: "#1C355E",
-    accentColor: "#E6EEFA",
-    glowColor: "rgba(28, 53, 94, 0.28)",
-    previewGradient: "from-[#1C355E] via-[#2A4A7F] to-[#C59B27]",
-    description: "Prestige institutionnel des grands spas, cliniques dermo et complexes multi-établissements.",
-    tag: "Complexe",
+    primaryColor: "#142B58",
+    accentColor: "#EEF3FC",
+    glowColor: "rgba(20, 43, 88, 0.42)",
+    heroGradient: "linear-gradient(135deg, #0A1938 0%, #15326A 45%, #2A54A4 80%, #F5D37E 100%)",
+    metallicBorder: "rgba(42, 84, 164, 0.55)",
+    description: "Le prestige suprême des grands spas et cliniques dermo d'envergure internationale. Tissé de reflets d'indigo royal mandingue et d'étoiles de platine étincelant.",
+    rarityTag: "Haute Institution",
   },
 ];
 
@@ -126,10 +161,10 @@ export function isTierUnlocked(
 ): boolean {
   const { user, planId, monthsPaid = 0, currentMonth = 0 } = context;
 
-  // 1. Thème par défaut toujours débloqué pour tous
+  // 1. Ocre Sacré & Nacre de Karité débloqué pour tous
   if (themeId === "karite_tiebele") return true;
 
-  // 2. Administrateur : accès à toutes les palettes pour tests & aperçus
+  // 2. Administrateur : accès à toutes les créations sans restriction
   if (user?.role === "admin") return true;
 
   const isPro = user?.role === "pro";
@@ -148,7 +183,6 @@ export function isTierUnlocked(
 
   // 4. Palettes Cliente Kènè+
   if (themeId === "or_imperial") {
-    // Débloqué à partir du mois 4 de fidélité Kènè+, ou avantage gérante/employée
     return (
       (planId === "kene_plus" && effectiveMonth >= 4) ||
       user?.role === "pro" // Les collaboratrices ont le pass prestige Kènè+
@@ -156,7 +190,6 @@ export function isTierUnlocked(
   }
 
   if (themeId === "bissap_royal") {
-    // Débloqué dès l'activation de Kènè+ (mois 0 ou plus) ou avantage collaboratrice
     return planId === "kene_plus" || user?.role === "pro";
   }
 
@@ -172,15 +205,13 @@ export function resolveDefaultTierTheme(context: {
 }): TierThemeId {
   const { user, planId, monthsPaid = 0, currentMonth = 0 } = context;
 
-  // Profil Pro
   if (user?.role === "pro") {
     if (planId === "pro_complexe") return "indigo_mandingue";
     if (planId === "pro_institut") return "emeraude_kinkeliba";
     if (planId === "pro_starter") return "argile_cuivre";
-    return "emeraude_kinkeliba"; // Par défaut élégant en entreprise
+    return "emeraude_kinkeliba";
   }
 
-  // Profil Client
   const effectiveMonth = Math.max(monthsPaid, currentMonth);
   if (planId === "kene_plus") {
     if (effectiveMonth >= 4) return "or_imperial";

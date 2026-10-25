@@ -176,126 +176,187 @@
   --sidebar-border: #38291C;
 }
 
-/* ──────────────── PALETTES D'ABONNEMENT DYNAMIQUES (LIGHT) ──────────────── */
+/* ──────────────── HAUTE JOAILLERIE & BOTANIQUE ROYALE AFRICAINE (LIGHT) ──────────────── */
 [data-tier="karite_tiebele"] {
-  --primary: #B25A38;
+  --primary: #B8532B;
   --primary-foreground: #FFF9EC;
-  --accent: #F7EAE3;
-  --accent-foreground: #6F2A12;
-  --ring: #B25A38;
-  --tier-glow: rgba(178, 90, 56, 0.22);
+  --accent: #FBF3ED;
+  --accent-foreground: #782E11;
+  --ring: #D46E45;
+  --tier-glow: rgba(184, 83, 43, 0.35);
+  --tier-gradient: linear-gradient(135deg, #B8532B 0%, #D46E45 50%, #EAA888 100%);
+  --tier-card-border: rgba(212, 110, 69, 0.35);
 }
 
 [data-tier="bissap_royal"] {
-  --primary: #9E2045;
+  --primary: #991438;
   --primary-foreground: #FFF9EC;
   --accent: #FDE8EE;
-  --accent-foreground: #7E1535;
-  --ring: #9E2045;
-  --tier-glow: rgba(158, 32, 69, 0.22);
+  --accent-foreground: #750824;
+  --ring: #B81845;
+  --tier-glow: rgba(184, 24, 69, 0.40);
+  --tier-gradient: linear-gradient(135deg, #7A0A28 0%, #B81845 45%, #E03565 75%, #D49A24 100%);
+  --tier-card-border: rgba(224, 53, 101, 0.45);
 }
 
 [data-tier="or_imperial"] {
-  --primary: #C58A18;
+  --primary: #B87C0E;
   --primary-foreground: #18120C;
-  --accent: #FDF4E3;
-  --accent-foreground: #6E4904;
+  --accent: #FFF8E7;
+  --accent-foreground: #6B4504;
   --ring: #D49A24;
-  --tier-glow: rgba(212, 154, 36, 0.28);
+  --tier-glow: rgba(212, 154, 36, 0.45);
+  --tier-gradient: linear-gradient(135deg, #F9D87E 0%, #D49A24 35%, #9E6B08 70%, #F5CE7A 100%);
+  --tier-card-border: rgba(245, 206, 122, 0.70);
 }
 
 [data-tier="argile_cuivre"] {
-  --primary: #B55828;
+  --primary: #C65322;
   --primary-foreground: #FFF9EC;
-  --accent: #F8EBE4;
-  --accent-foreground: #742F0C;
-  --ring: #C45E1E;
-  --tier-glow: rgba(181, 88, 40, 0.22);
+  --accent: #FCEFE8;
+  --accent-foreground: #7E2A08;
+  --ring: #E06730;
+  --tier-glow: rgba(198, 83, 34, 0.38);
+  --tier-gradient: linear-gradient(135deg, #9C3D12 0%, #C85A24 50%, #EDA33E 100%);
+  --tier-card-border: rgba(200, 90, 36, 0.45);
 }
 
 [data-tier="emeraude_kinkeliba"] {
-  --primary: #246B39;
+  --primary: #186638;
   --primary-foreground: #F5FFF8;
-  --accent: #E6F5EC;
-  --accent-foreground: #144723;
-  --ring: #2E6F40;
-  --tier-glow: rgba(36, 107, 57, 0.24);
+  --accent: #EBF8F0;
+  --accent-foreground: #0B3D1F;
+  --ring: #2AA85B;
+  --tier-glow: rgba(24, 102, 56, 0.42);
+  --tier-gradient: linear-gradient(135deg, #0A3B1D 0%, #156B36 45%, #2AA85B 80%, #D49A24 100%);
+  --tier-card-border: rgba(42, 168, 91, 0.50);
 }
 
 [data-tier="indigo_mandingue"] {
-  --primary: #1C355E;
+  --primary: #142B58;
   --primary-foreground: #F4F8FF;
-  --accent: #E6EEFA;
-  --accent-foreground: #0F203C;
-  --ring: #1E355B;
-  --tier-glow: rgba(28, 53, 94, 0.25);
+  --accent: #EEF3FC;
+  --accent-foreground: #0A1938;
+  --ring: #2A54A4;
+  --tier-glow: rgba(20, 43, 88, 0.42);
+  --tier-gradient: linear-gradient(135deg, #0A1938 0%, #15326A 45%, #2A54A4 80%, #F5D37E 100%);
+  --tier-card-border: rgba(42, 84, 164, 0.55);
 }
 
-/* ──────────────── PALETTES D'ABONNEMENT DYNAMIQUES (DARK) ──────────────── */
+/* ──────────────── HAUTE JOAILLERIE & BOTANIQUE ROYALE AFRICAINE (DARK) ──────────────── */
 .dark[data-tier="karite_tiebele"],
 .dark [data-tier="karite_tiebele"],
 [data-tier="karite_tiebele"].dark {
-  --primary: #CF7450;
+  --primary: #D46E45;
   --primary-foreground: #18120C;
-  --accent: #2E1B14;
-  --accent-foreground: #F5D7CB;
-  --ring: #CF7450;
-  --tier-glow: rgba(207, 116, 80, 0.26);
+  --accent: #2E1A11;
+  --accent-foreground: #FADACE;
+  --ring: #D46E45;
+  --tier-glow: rgba(212, 110, 69, 0.35);
+  --tier-gradient: linear-gradient(135deg, #873615 0%, #B8532B 55%, #D46E45 100%);
+  --tier-card-border: rgba(212, 110, 69, 0.35);
 }
 
 .dark[data-tier="bissap_royal"],
 .dark [data-tier="bissap_royal"],
 [data-tier="bissap_royal"].dark {
-  --primary: #E04E75;
-  --primary-foreground: #18120C;
-  --accent: #2E121B;
-  --accent-foreground: #FAD1DE;
-  --ring: #E04E75;
-  --tier-glow: rgba(224, 78, 117, 0.26);
+  --primary: #E63968;
+  --primary-foreground: #14080D;
+  --accent: #2E0E18;
+  --accent-foreground: #FAD1DF;
+  --ring: #E63968;
+  --tier-glow: rgba(230, 57, 104, 0.40);
+  --tier-gradient: linear-gradient(135deg, #991438 0%, #C92050 50%, #F05582 85%, #E5A93C 100%);
+  --tier-card-border: rgba(230, 57, 104, 0.45);
 }
 
 .dark[data-tier="or_imperial"],
 .dark [data-tier="or_imperial"],
 [data-tier="or_imperial"].dark {
   --primary: #E5A93C;
-  --primary-foreground: #18120C;
-  --accent: #2E2211;
-  --accent-foreground: #FBE5BD;
+  --primary-foreground: #120D06;
+  --accent: #2B1D08;
+  --accent-foreground: #FDE8BC;
   --ring: #E5A93C;
-  --tier-glow: rgba(229, 169, 60, 0.30);
+  --tier-glow: rgba(229, 169, 60, 0.45);
+  --tier-gradient: linear-gradient(135deg, #FDE6A4 0%, #E5A93C 35%, #B87C0E 70%, #F7D487 100%);
+  --tier-card-border: rgba(229, 169, 60, 0.70);
 }
 
 .dark[data-tier="argile_cuivre"],
 .dark [data-tier="argile_cuivre"],
 [data-tier="argile_cuivre"].dark {
-  --primary: #DE7540;
-  --primary-foreground: #18120C;
-  --accent: #2F190F;
-  --accent-foreground: #FBD7C4;
-  --ring: #DE7540;
-  --tier-glow: rgba(222, 117, 64, 0.26);
+  --primary: #E56E39;
+  --primary-foreground: #180D06;
+  --accent: #2E160B;
+  --accent-foreground: #FCD5C3;
+  --ring: #E56E39;
+  --tier-glow: rgba(229, 110, 57, 0.38);
+  --tier-gradient: linear-gradient(135deg, #8A300A 0%, #BD4C18 50%, #E56E39 85%, #EDA33E 100%);
+  --tier-card-border: rgba(229, 110, 57, 0.45);
 }
 
 .dark[data-tier="emeraude_kinkeliba"],
 .dark [data-tier="emeraude_kinkeliba"],
 [data-tier="emeraude_kinkeliba"].dark {
-  --primary: #52B56E;
-  --primary-foreground: #0C1E12;
-  --accent: #11281A;
-  --accent-foreground: #C8F0D4;
-  --ring: #52B56E;
-  --tier-glow: rgba(82, 181, 110, 0.28);
+  --primary: #34C76E;
+  --primary-foreground: #061B0E;
+  --accent: #0C2615;
+  --accent-foreground: #C8F7DA;
+  --ring: #34C76E;
+  --tier-glow: rgba(52, 199, 110, 0.42);
+  --tier-gradient: linear-gradient(135deg, #0F4A26 0%, #1E7E44 50%, #34C76E 85%, #E5A93C 100%);
+  --tier-card-border: rgba(52, 199, 110, 0.50);
 }
 
 .dark[data-tier="indigo_mandingue"],
 .dark [data-tier="indigo_mandingue"],
 [data-tier="indigo_mandingue"].dark {
-  --primary: #5C88CC;
-  --primary-foreground: #0A1424;
-  --accent: #111D30;
-  --accent-foreground: #D3E2F7;
-  --ring: #5C88CC;
-  --tier-glow: rgba(92, 136, 204, 0.30);
+  --primary: #5289E5;
+  --primary-foreground: #060F20;
+  --accent: #0E1D3B;
+  --accent-foreground: #D3E3FC;
+  --ring: #5289E5;
+  --tier-glow: rgba(82, 137, 229, 0.42);
+  --tier-gradient: linear-gradient(135deg, #112854 0%, #1F4588 50%, #4679D6 85%, #F7D487 100%);
+  --tier-card-border: rgba(82, 137, 229, 0.55);
+}
+
+/* Effets & Finitions de Haute Joaillerie Panafricaine */
+.k-btn-tier {
+  background-image: var(--tier-gradient, linear-gradient(135deg, #D49A24 0%, #9E2045 100%));
+  color: var(--primary-foreground, #FFFFFF);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 10px 28px -8px var(--tier-glow, rgba(212, 154, 36, 0.4));
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, filter 0.25s ease;
+}
+.k-btn-tier:hover {
+  filter: brightness(1.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 16px 36px -8px var(--tier-glow, rgba(212, 154, 36, 0.5));
+}
+.k-btn-tier:active {
+  transform: scale(0.97);
+}
+
+/* Aura atmosphérique somptueuse en tête d'application */
+.k-ambient-tier-aura {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 280px;
+  background: radial-gradient(80% 120% at 50% -25%, var(--tier-glow, rgba(212, 154, 36, 0.2)) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.75;
+  transition: opacity 0.6s ease, background 0.6s ease;
+}
+
+/* Liseré précieux et glassmorphism pour cartes de prestige */
+.k-gem-card {
+  position: relative;
+  border: 1px solid var(--tier-card-border, rgba(212, 154, 36, 0.35));
+  box-shadow: 0 12px 32px -12px var(--tier-glow, rgba(24, 18, 12, 0.15)), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  overflow: hidden;
 }
 
 @layer base {
