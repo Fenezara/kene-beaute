@@ -56,7 +56,7 @@ export function HardwarePermissionsModal({
   triggerFeature,
 }: HardwarePermissionsModalProps) {
   const { user } = useKene();
-  const { canInstall, install } = useInstallPrompt();
+  const { canInstall, promptInstall } = useInstallPrompt();
 
   const [busy, setBusy] = useState(false);
   const [activeItem, setActiveItem] = useState<HardwareFeature | null>(triggerFeature ?? null);
@@ -344,7 +344,7 @@ export function HardwarePermissionsModal({
                 {canInstall && (
                   <button
                     type="button"
-                    onClick={() => void install()}
+                    onClick={() => void promptInstall()}
                     className="w-full h-9 rounded-xl bg-primary text-primary-foreground font-black text-xs inline-flex items-center justify-center gap-1.5"
                   >
                     <span>Ajouter Kènè à l&apos;écran d&apos;accueil maintenant</span>

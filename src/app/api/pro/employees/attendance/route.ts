@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     const employeeIdParam = req.nextUrl.searchParams.get("employeeId");
     const tenantIdParam = req.nextUrl.searchParams.get("tenantId");
 
-    let employee = null;
+    let employee: Awaited<ReturnType<typeof db.employee.findUnique>> = null;
     if (employeeIdParam) {
       employee = await db.employee.findUnique({ where: { id: employeeIdParam } });
     } else if (sess?.userId) {

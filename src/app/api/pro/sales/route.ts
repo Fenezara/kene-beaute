@@ -184,9 +184,8 @@ export async function POST(req: NextRequest) {
     // Sceau d'audit comptable inaltérable
     void audit({
       kind: "syscohada_ledger_seal",
-      tenantId,
       ip: clientIp(req),
-      detail: `Vente #${sale.id.slice(-6).toUpperCase()} scellée (${total} F) • Sceau:${ledgerHash.slice(0, 8)}`,
+      detail: `[Tenant:${tenantId}] Vente #${sale.id.slice(-6).toUpperCase()} scellée (${total} F) • Sceau:${ledgerHash.slice(0, 8)}`,
     });
 
     // Sorties de stock produits + mouvements (anti-stock négatif sous concurrence)

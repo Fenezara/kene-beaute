@@ -114,8 +114,8 @@ export async function POST(req: NextRequest) {
     let smsError: string | undefined;
 
     try {
-      const smsRes = await sendOtpSms(targetPhone, rawOtp);
-      smsSent = smsRes.sent;
+      const smsRes = await sendOtpSms({ phone: targetPhone, code: rawOtp });
+      smsSent = smsRes.success;
       smsError = smsRes.error;
     } catch (e) {
       smsError = e instanceof Error ? e.message : "Erreur passerelle SMS";

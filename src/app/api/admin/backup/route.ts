@@ -93,7 +93,8 @@ export async function GET(req: NextRequest) {
     }
 
     const stamp = new Date().toISOString().slice(0, 10);
-    audit("admin_access", {
+    void audit({
+      kind: "admin_access",
       ip: clientIp(req),
       detail: `backup_download:${format}`,
     });
@@ -111,7 +112,6 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             userId: true,
-            tenantId: true,
             zone: true,
             scoreGlobal: true,
             createdAt: true,
@@ -216,7 +216,8 @@ export async function POST(req: NextRequest) {
     }
 
     const stat = fs.statSync(targetPath);
-    audit("admin_access", {
+    void audit({
+      kind: "admin_access",
       ip: clientIp(req),
       detail: `snapshot_created:${fileName}`,
     });

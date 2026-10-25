@@ -208,7 +208,7 @@ export async function resolveUserProContext(user: {
   }
 
   // Si la personne a une fiche employée active et n'est pas l'ownerPhone de cet institut, son statut employée prime
-  const isStrictlyOwner = Boolean(ownerTenant) && (!employeeLink || ownerTenant.ownerPhone === user.phone || phoneSuffix(ownerTenant.ownerPhone) === userSuffix);
+  const isStrictlyOwner = Boolean(ownerTenant) && (!employeeLink || (ownerTenant ? ownerTenant.ownerPhone === user.phone || phoneSuffix(ownerTenant.ownerPhone) === userSuffix : false));
   const effectiveEmployee = isStrictlyOwner ? null : employeeLink;
   const effectiveOwnerTenant = isStrictlyOwner ? ownerTenant : null;
 

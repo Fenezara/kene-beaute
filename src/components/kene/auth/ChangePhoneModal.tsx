@@ -96,7 +96,7 @@ export function ChangePhoneModal({ open, onOpenChange, currentPhone }: ChangePho
         rememberAccount({
           phone: res.user.phone,
           name: res.user.name,
-          role: res.user.role || "client",
+          role: (res.user.role as "client" | "pro" | "admin") || "client",
         });
         toast.success("Numéro mis à jour avec succès !", {
           description: `Votre compte est désormais lié au ${res.user.phone}`,

@@ -1817,7 +1817,7 @@ export function ResultView({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => onNavigate("pos")}
+                  onClick={() => onNavigate("caisse")}
                   className="h-8 text-xs gap-1.5 border-border hover:bg-muted"
                   title="Encaisser les soins ou produits au comptoir"
                 >
