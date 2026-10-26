@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft, BadgeCheck, Brush, Building2, CalendarPlus, Camera, Check, ChevronRight, CircleHelp, Cross, Crown, Download, Droplets, FileDown, GitCompareArrows, Hand, History,
-  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, WifiOff, X, Trash2, Sparkles,
+  ImagePlus, Leaf, Loader2, MapPin, MessageCircle, Moon, PersonStanding, Plus, RotateCcw, ScanFace, Share2, ShieldAlert, ShieldCheck, Star, Sun, Sunrise, TriangleAlert, WifiOff, X, Trash2, Sparkles, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry, KENE_SUPPORT_PHONE } from "@/lib/kene/whatsapp-relay";
@@ -127,6 +127,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   const [hardwarePermOpen, setHardwarePermOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const nativeCameraRef = useRef<HTMLInputElement>(null);
+  const landingFileRef = useRef<HTMLInputElement>(null);
 
   // Résilience 502: message discret sous la barre de progression
   // pendant un retry / une récupération (annoncé aux lecteurs d'écran).
@@ -595,16 +596,39 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
       { id: "naevi" as BodyZone, label: "Corps & Lésions", benefit: "Taches, vergetures & texture", icon: Cross },
     ];
 
-    const launchScan = (targetZone: BodyZone) => {
+    const launchScan = (targetZone: BodyZone, opts?: { openCamera?: boolean }) => {
       setZone(targetZone);
       setSlotImages({});
       setImage("");
       setStep(1);
+      if (opts?.openCamera) {
+        setLiveCamOpen(true);
+      }
       haptic(HAPTIC.medium);
     };
 
     return (
       <div className="pt-2 sm:pt-4">
+        {/* Input fichier masqué pour l'import immédiat depuis la galerie sur la page d'accueil */}
+        <input
+          ref={landingFileRef}
+          type="file"
+          accept="image/*,image/jpeg,image/png,image/webp,image/heic,image/heif,image/jpg"
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) {
+              setZone("visage");
+              setSlotImages({});
+              setImage("");
+              setStep(1);
+              void onFile(f);
+            }
+            e.target.value = "";
+          }}
+          aria-label="Choisir une photo du visage dans la galerie"
+        />
+
         {/* Sélecteur d'onglets Scanner */}
         <div className="mb-3.5 flex items-center p-1 rounded-2xl bg-muted/50 border border-border/50 gap-1">
           <button
@@ -646,11 +670,11 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           {/* En-tête Héro : Badge Star + Guide Vocal */}
           <div className="relative flex items-center justify-between gap-2 mb-3">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-gold/25 to-gold/10 border border-gold/40 text-gold-text font-black text-[10.5px] uppercase tracking-wider shadow-2xs">
-              <NsorommaIcon size={12} className="text-gold-text" />
-              <span>Diagnostic Star · 1 Clic</span>
+              <Sparkles size={12} className="text-gold-text" />
+              <span>Diagnostic Recommandé · Visage</span>
             </span>
             <AudioGuideButton
-              text="Bienvenue sur le Scanner Kènè. Pour lancer ton analyse du visage, clique directement sur le bouton Scanner mon visage maintenant. Place-toi face à la lumière naturelle."
+              text="Bienvenue sur le Scanner Kènè. Pour lancer ton analyse du visage, clique directement sur Révéler mon Bilan Visage. Tu découvriras ton score de santé cutanée, tes zones d'action et ta routine personnalisée en 5 secondes."
               label="Écouter"
               compact
             />
@@ -658,7 +682,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
 
           {/* Visuel central & Titre */}
           <div className="relative flex items-start gap-3.5 mb-3.5">
-            <div className="relative shrink-0 grid size-13 sm:size-15 place-items-center rounded-2xl bg-gradient-to-tr from-[#C8951E] via-[#E5A93C] to-[#8B1A3B] text-white shadow-md">
+            <div className="relative shrink-0 grid size-13 sm:size-15 place-items-center rounded-2xl bg-gradient-to-tr from-[#C8951E] via-[#E5A93C] to-[#80132B] text-white shadow-md">
               <ScanFace size={28} className="text-white" />
               <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-card">
                 <Check size={9} strokeWidth={3} className="text-white" />
@@ -669,80 +693,69 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                 Bilan Cutané &amp; Éclat du Visage
               </h2>
               <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                Analyse experte du sébum, des imperfections, des taches post-boutons et de l&apos;uniformité en 5 secondes.
+                Diagnostic dermatologique IA adapté aux peaux mélanodermes et foncées.
               </p>
             </div>
           </div>
 
-          {/* Micro-tags d'analyse */}
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20">
-              🎯 Taches post-boutons
-            </span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-gold/15 text-gold-text border border-gold/30">
-              💧 Sébum &amp; Pores
-            </span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-              🔆 Uniformité &amp; Éclat
-            </span>
+          {/* Mini-aperçu des résultats délivrés (Ce que la cliente découvre) */}
+          <div className="grid grid-cols-3 gap-1.5 mb-4 p-2 rounded-2xl bg-card/80 border border-gold/20 shadow-2xs">
+            <div className="flex flex-col items-center text-center p-1.5 rounded-xl bg-gold/10 border border-gold/20">
+              <span className="text-xs font-black text-gold-text">/100</span>
+              <span className="text-[10px] font-bold text-foreground mt-0.5">Score Peau</span>
+              <span className="text-[9px] text-muted-foreground">Éclat &amp; Santé</span>
+            </div>
+            <div className="flex flex-col items-center text-center p-1.5 rounded-xl bg-primary/10 border border-primary/20">
+              <span className="text-xs font-black text-primary">360°</span>
+              <span className="text-[10px] font-bold text-foreground mt-0.5">Cartographie</span>
+              <span className="text-[9px] text-muted-foreground">Taches &amp; Sébum</span>
+            </div>
+            <div className="flex flex-col items-center text-center p-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+              <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">Matin &amp; Soir</span>
+              <span className="text-[10px] font-bold text-foreground mt-0.5">Routine Ciblée</span>
+              <span className="text-[9px] text-muted-foreground">Sur-mesure</span>
+            </div>
           </div>
 
-          {/* 👑 BOUTON REINE : SCANNER MON VISAGE IMMÉDIATEMENT (HAUTE VISIBILITÉ HÉRO) */}
+          {/* 👑 BOUTON D'ACTION PRINCIPAL : VRAI BOUTON TACTILE CENTRÉ (HAUTE CONVERSION) */}
           <button
             type="button"
-            onClick={() => launchScan("visage")}
-            className="group relative overflow-hidden w-full rounded-2xl sm:rounded-3xl p-3.5 sm:p-4.5 bg-gradient-to-r from-[#C8951E] via-[#D44A63] to-[#80132B] text-white shadow-xl shadow-[#80132B]/35 hover:shadow-2xl hover:shadow-[#C8951E]/40 ring-4 ring-[#C8951E]/30 hover:ring-[#C8951E]/50 active:scale-[0.98] transition-all duration-300 cursor-pointer flex items-center justify-between gap-3 text-left"
+            onClick={() => launchScan("visage", { openCamera: true })}
+            className="group relative overflow-hidden w-full h-14 sm:h-15 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#C8951E] via-[#D44A63] to-[#80132B] text-white shadow-xl shadow-[#80132B]/30 hover:shadow-2xl hover:shadow-[#C8951E]/40 ring-4 ring-[#C8951E]/30 active:scale-[0.98] transition-all duration-200 cursor-pointer flex items-center justify-center gap-2.5 px-4 font-heading font-black text-base sm:text-lg tracking-tight"
           >
-            {/* Shimmer sweep subtil en arrière-plan */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out pointer-events-none" />
-
-            {/* Partie Gauche : Médaillon Caméra Lumineux avec pastille d'état */}
-            <div className="relative shrink-0 size-13 sm:size-15 rounded-2xl bg-white/20 backdrop-blur-md ring-2 ring-white/40 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform duration-300">
-              <Camera size={26} className="text-white drop-shadow-sm" />
-              <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-emerald-400 ring-2 ring-[#80132B] shadow-xs flex items-center justify-center">
-                <span className="size-1.5 rounded-full bg-white animate-ping" />
-              </span>
-            </div>
-
-            {/* Partie Centrale : Typographie 2 niveaux ultra-visible */}
-            <div className="min-w-0 flex-1 pr-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/25 text-white backdrop-blur-xs">
-                  Recommandé · 1 Clic
-                </span>
-              </div>
-              <h3 className="font-heading font-black text-base sm:text-lg md:text-xl text-white leading-tight mt-1 tracking-tight drop-shadow-2xs">
-                Scanner mon Visage maintenant
-              </h3>
-              <p className="text-[11px] sm:text-xs text-white/90 font-medium mt-0.5 line-clamp-1">
-                Bilan IA cutané 360° · Résultat immédiat en 5s ⚡
-              </p>
-            </div>
-
-            {/* Partie Droite : Flèche action blanche contrastée */}
-            <div className="shrink-0 size-10 sm:size-11 rounded-full bg-white text-[#80132B] shadow-lg flex items-center justify-center group-hover:scale-110 group-hover:translate-x-0.5 transition-all duration-300">
-              <ChevronRight size={20} strokeWidth={3} className="text-[#80132B]" />
-            </div>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out pointer-events-none" />
+            <Camera size={22} className="shrink-0 drop-shadow-sm group-hover:scale-110 transition-transform" />
+            <span>Révéler mon Bilan Visage</span>
+            <Sparkles size={18} className="shrink-0 text-gold drop-shadow-sm" />
           </button>
 
-          {/* Conseils intégrés en 1 ligne épurée */}
-          <div className="mt-3 pt-2.5 border-t border-border/50 grid grid-cols-3 gap-1.5 text-center text-[10.5px]">
-            <div className="py-1 px-1.5 rounded-lg bg-card/70 border border-border/40">
-              <span className="block font-bold text-foreground">Peau propre</span>
-              <span className="text-[9.5px] text-muted-foreground">Sans maquillage</span>
-            </div>
-            <div className="py-1 px-1.5 rounded-lg bg-card/70 border border-border/40">
-              <span className="block font-bold text-foreground">Lumière du jour</span>
-              <span className="text-[9.5px] text-muted-foreground">Éclairage naturel</span>
-            </div>
-            <div className="py-1 px-1.5 rounded-lg bg-card/70 border border-border/40">
-              <span className="block font-bold text-foreground">Face caméra</span>
-              <span className="text-[9.5px] text-muted-foreground">Distance ~30 cm</span>
-            </div>
+          {/* Option alternative immédiate : Importer une photo depuis la galerie */}
+          <div className="mt-2.5 text-center">
+            <button
+              type="button"
+              onClick={() => landingFileRef.current?.click()}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground py-1 px-3 rounded-full hover:bg-muted/60 transition-colors cursor-pointer"
+            >
+              <ImagePlus size={14} className="text-primary" />
+              <span>Ou choisir une photo depuis ma galerie</span>
+            </button>
+          </div>
+
+          {/* Réassurance discrète & 100% vraie */}
+          <div className="mt-3 pt-2.5 border-t border-border/50 flex items-center justify-center gap-3 text-center text-[10.5px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
+              <span>Dossier Peau privé</span>
+            </span>
+            <span className="inline-block size-1 rounded-full bg-border" />
+            <span className="flex items-center gap-1">
+              <Zap size={12} className="text-gold-text shrink-0" />
+              <span>Résultats en 5 secondes</span>
+            </span>
           </div>
         </div>
 
-        {/* 🧴 2. AUTRES ZONES D'ANALYSE CIBLÉE (COMPACT & INTUITIF) */}
+        {/* 🧴 2. AUTRES ZONES D'ANALYSE CIBLÉE (GRILLE 2 COLONNES COMPACTE) */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2 px-1">
             <span className="text-xs font-bold text-foreground">
@@ -753,10 +766,11 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {OTHER_ZONES.map((oz) => {
               const Icon = oz.icon;
               const isSelected = zone === oz.id;
+              const isLastOdd = oz.id === "naevi";
 
               return (
                 <button
@@ -764,29 +778,23 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                   type="button"
                   onClick={() => launchScan(oz.id)}
                   className={cn(
-                    "group p-3 rounded-2xl border text-left transition-all flex items-center justify-between gap-2.5 active:scale-[0.99] cursor-pointer",
+                    "group p-2.5 sm:p-3 rounded-2xl border text-left transition-all flex flex-col justify-between min-h-[72px] active:scale-[0.98] cursor-pointer",
+                    isLastOdd && "col-span-2 sm:col-span-1",
                     isSelected
                       ? "border-primary bg-primary/10 ring-2 ring-primary/40 shadow-xs"
                       : "border-border/70 bg-card hover:border-gold/60 hover:bg-card/90 shadow-2xs"
                   )}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="grid size-9 place-items-center rounded-xl bg-muted text-primary group-hover:bg-primary group-hover:text-white transition-colors shrink-0">
-                      <Icon size={17} />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="grid size-8 place-items-center rounded-xl bg-muted text-primary group-hover:bg-primary group-hover:text-white transition-colors shrink-0">
+                      <Icon size={16} />
                     </span>
-                    <div className="min-w-0">
-                      <span className="block text-xs sm:text-sm font-bold text-foreground truncate">
-                        {oz.label}
-                      </span>
-                      <span className="block text-[10.5px] text-muted-foreground truncate">
-                        {oz.benefit}
-                      </span>
-                    </div>
+                    <span className="text-xs sm:text-sm font-bold text-foreground leading-tight truncate">
+                      {oz.label}
+                    </span>
                   </div>
-
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary shrink-0 opacity-80 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">
-                    <span>Analyser</span>
-                    <ChevronRight size={13} />
+                  <span className="text-[10px] sm:text-[10.5px] text-muted-foreground mt-1 truncate">
+                    {oz.benefit}
                   </span>
                 </button>
               );
