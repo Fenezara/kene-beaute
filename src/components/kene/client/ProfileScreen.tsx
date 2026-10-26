@@ -410,7 +410,7 @@ export function ProfileScreen() {
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Anniversaire Privilège */}
+              {/* Anniversaire Privilège & Localisation */}
               <div>
                 <label htmlFor="p-birth" className="flex items-center gap-1.5 text-xs font-semibold text-foreground/90 mb-1">
                   <Calendar size={14} className="text-primary" /> Mon Anniversaire Privilège
@@ -426,24 +426,24 @@ export function ProfileScreen() {
                 <p className="text-xs text-muted-foreground mt-1">Cadeaux &amp; réductions réservés durant ton mois d&apos;anniversaire 🎂</p>
               </div>
 
-              {/* Commune / Quartier */}
+              {/* Commune / Quartier favori */}
               <div>
                 <label htmlFor="p-dist" className="flex items-center gap-1.5 text-xs font-semibold text-foreground/90 mb-1">
-                  <MapPin size={14} className="text-primary" /> Commune / Quartier favori
+                  <MapPin size={14} className="text-primary" /> Ville &amp; Commune / Quartier
                 </label>
                 <input
                   id="p-dist"
                   type="text"
                   value={district}
                   onChange={(e) => setDistrict(e.target.value)}
-                  placeholder="Ex : Cocody Angré, Zone 4, Plateau, Almadies…"
+                  placeholder="Ex : Abidjan Cocody, Marcory, Plateau, Dakar…"
                   className="k-input h-10 w-full rounded-xl px-3 text-xs focus-visible:outline-2 focus-visible:outline-primary"
                 />
                 <p className="text-xs text-muted-foreground mt-1">Pour t&apos;orienter vers l&apos;institut le plus proche 📍</p>
               </div>
 
-              {/* Mon Institut Partenaire Référent */}
-              <div className="pt-2 border-t border-border/60">
+              {/* Mon Institut Partenaire Référent — Pleine largeur pour harmonie visuelle */}
+              <div className="sm:col-span-2 pt-2 border-t border-border/60">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="flex items-center gap-1.5 text-xs font-bold text-foreground">
@@ -459,7 +459,7 @@ export function ProfileScreen() {
                       const el = document.getElementById("kene-shares-section");
                       el?.scrollIntoView({ behavior: "smooth" });
                     }}
-                    className="shrink-0 px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-all shadow-xs"
+                    className="shrink-0 px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-all shadow-xs cursor-pointer"
                   >
                     {user?.selectedTenant ? "Modifier" : "Choisir"}
                   </button>
@@ -467,8 +467,8 @@ export function ProfileScreen() {
               </div>
             </div>
 
-            {/* Sécurité Maternité (Grossesse / Allaitement) — Visible si femme ou non précisé */}
-            {gender !== "homme" && (
+            {/* Sécurité Maternité (Grossesse / Allaitement) — Uniquement si profil féminin explicite */}
+            {gender === "femme" && (
               <div className="pt-2 border-t border-border/60">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-0.5">
@@ -483,7 +483,7 @@ export function ProfileScreen() {
                     type="button"
                     onClick={() => setPregnant(!pregnant)}
                     className={cn(
-                      "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border",
+                      "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer",
                       pregnant
                         ? "bg-pink-500/15 border-pink-500/40 text-pink-600 dark:text-pink-400 ring-2 ring-pink-500/20"
                         : "bg-muted border-border text-muted-foreground hover:text-foreground"
@@ -581,31 +581,44 @@ export function ProfileScreen() {
       </RevealItem>
 
 
-      {/* Comparatif Avant / Après (Split-Slider) */}
+      {/* Comparatif Avant / Après (Uniquement si au moins 2 scans sur la MÊME zone pour cohérence clinique) */}
       {(() => {
         const diagsWithImg = userDiagnoses.filter((d) => Boolean(d?.imageData));
         if (diagsWithImg.length < 2) return null;
-        const sorted = [...diagsWithImg].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        const beforeDiag = sorted[0];
-        const afterDiag = sorted[sorted.length - 1];
+        // Trouver la zone la plus représentée (ex: visage) pour ne jamais comparer une main et un bras
+        const zoneCounts: Record<string, number> = {};
+        diagsWithImg.forEach((d) => {
+          const z = d.zone || "visage";
+          zoneCounts[z] = (zoneCounts[z] || 0) + 1;
+        });
+        const bestZone = Object.entries(zoneCounts).find(([_, count]) => count >= 2)?.[0];
+        if (!bestZone) return null;
+
+        const zoneDiags = diagsWithImg
+          .filter((d) => (d.zone || "visage") === bestZone)
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        if (zoneDiags.length < 2) return null;
+
+        const beforeDiag = zoneDiags[0];
+        const afterDiag = zoneDiags[zoneDiags.length - 1];
         return (
           <RevealItem>
             <section aria-labelledby="comp-t">
               <SectionTitle icon={<SankofaIcon size={16} />}><span id="comp-t">Évolution de ma peau (Avant / Après)</span></SectionTitle>
               <div className="k-card rounded-[24px] p-4 space-y-3">
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Glisse le curseur pour mesurer les progrès de ton épiderme entre ton bilan d&apos;accueil et ton scan le plus récent.
+                  Glisse le curseur pour mesurer les progrès de ton épiderme sur la zone <strong className="capitalize">{bestZone.replace("_", " ")}</strong>.
                 </p>
                 <BeforeAfterSlider
                   before={{
                     imageUrl: diagImgSrc(beforeDiag.imageData),
-                    label: "Bilan J0 Initial",
+                    label: `Bilan J0 (${bestZone.replace("_", " ")})`,
                     date: formatDate(beforeDiag.createdAt),
                     score: beforeDiag.scoreGlobal,
                   }}
                   after={{
                     imageUrl: diagImgSrc(afterDiag.imageData),
-                    label: "Dernier Bilan",
+                    label: `Dernier Bilan (${bestZone.replace("_", " ")})`,
                     date: formatDate(afterDiag.createdAt),
                     score: afterDiag.scoreGlobal,
                   }}

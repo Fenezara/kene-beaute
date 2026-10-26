@@ -1392,7 +1392,7 @@ export function AgendaScreen() {
               className="h-9 px-4 rounded-xl bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/40 text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 transition-all active:scale-95"
             >
               <MessageCircle size={14} />
-              <span>{selectedInst?.name ? `Contacter ${selectedInst.name.split(" ")[0]}` : "Contacter le Concierge"}</span>
+              <span>{selectedInst?.name ? `Contacter ${selectedInst.name}` : "Contacter le Concierge"}</span>
             </button>
           </div>
         </div>
@@ -1486,8 +1486,17 @@ export function AgendaScreen() {
                 </button>
               </div>
               {orders.map((order) => {
-                const tenantName = order.tenant?.name || "Institut Partenaire";
-                const phone = order.tenant?.phone || selectedInst?.phone || "";
+                const tenantName =
+                  order.tenant?.name ||
+                  (order.items && (order.items[0] as any)?.product?.tenant?.name) ||
+                  selectedInst?.name ||
+                  "Institut Partenaire";
+                const phone =
+                  order.tenant?.phone ||
+                  (order.items && (order.items[0] as any)?.product?.tenant?.phone) ||
+                  selectedInst?.phone ||
+                  (selectedInst as any)?.ownerPhone ||
+                  "";
 
                 return (
                   <div
@@ -1530,17 +1539,23 @@ export function AgendaScreen() {
                           Soins inclus :
                         </p>
                         <div className="space-y-1">
-                          {order.items.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between text-xs">
-                              <span className="text-foreground/90 font-medium">
-                                • {item.label}{" "}
-                                <span className="text-muted-foreground text-[11px]">(x{item.qty})</span>
-                              </span>
-                              <span className="font-mono text-muted-foreground">
-                                {xof(item.totalPrice)}
-                              </span>
-                            </div>
-                          ))}
+                          {order.items.map((item) => {
+                            const lineTotal =
+                              (item as any).total ??
+                              (item as any).totalPrice ??
+                              ((item as any).unitPrice ? (item as any).unitPrice * (item.qty || 1) : 0);
+                            return (
+                              <div key={item.id} className="flex items-center justify-between text-xs">
+                                <span className="text-foreground/90 font-medium">
+                                  • {item.label}{" "}
+                                  <span className="text-muted-foreground text-[11px]">(x{item.qty})</span>
+                                </span>
+                                <span className="font-mono text-muted-foreground">
+                                  {xof(lineTotal)}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

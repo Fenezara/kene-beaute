@@ -526,7 +526,8 @@ export function ClientApp() {
                   )}
                 >
                   <NeaOnnimIcon size={20} className="shrink-0" />
-                  <span className="text-[10.5px] lg:text-sm font-bold tracking-wide truncate max-w-full">{t(n.labelKey)}</span>
+                  <span className="text-[10px] lg:hidden font-bold tracking-tight">Scanner</span>
+                  <span className="hidden lg:inline text-sm font-bold tracking-wide truncate max-w-full">{t(n.labelKey)}</span>
                 </button>
               );
             }
@@ -538,7 +539,7 @@ export function ClientApp() {
                 aria-label={`${t(n.labelKey)}${n.tab === "chat" && chatUnread ? " — 1 nouveau message" : ""}`}
                 title={t(n.labelKey)}
                 className={cn(
-                  "relative flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3.5 h-14 lg:h-12 px-2 lg:px-3 rounded-2xl transition-colors focus-visible:outline-2 focus-visible:outline-primary",
+                  "relative flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3.5 h-14 lg:h-12 px-1 lg:px-3 rounded-2xl transition-colors focus-visible:outline-2 focus-visible:outline-primary",
                   active ? "bg-primary/12 text-primary" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
                 )}
               >
@@ -548,7 +549,31 @@ export function ClientApp() {
                     <span className="absolute -top-1 -right-1.5 h-2.5 w-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-card" aria-hidden="true" />
                   )}
                 </span>
-                <span className={cn("text-[10px] lg:text-[14px] xl:text-[15px] truncate max-w-full", active ? "font-bold" : "font-medium")}>{t(n.labelKey)}</span>
+                <span className={cn("text-[9.5px] lg:text-[14px] xl:text-[15px] truncate max-w-full leading-none", active ? "font-bold" : "font-medium")}>
+                  {n.tab === "accueil" ? (
+                    <>
+                      <span className="lg:hidden">Dermo IA</span>
+                      <span className="hidden lg:inline">{t(n.labelKey)}</span>
+                    </>
+                  ) : n.tab === "dossier" ? (
+                    <>
+                      <span className="lg:hidden">Dossier</span>
+                      <span className="hidden lg:inline">{t(n.labelKey)}</span>
+                    </>
+                  ) : n.tab === "agenda" ? (
+                    <>
+                      <span className="lg:hidden">Agenda</span>
+                      <span className="hidden lg:inline">{t(n.labelKey)}</span>
+                    </>
+                  ) : n.tab === "profil" ? (
+                    <>
+                      <span className="lg:hidden">Profil</span>
+                      <span className="hidden lg:inline">{t(n.labelKey)}</span>
+                    </>
+                  ) : (
+                    t(n.labelKey)
+                  )}
+                </span>
                 {active && <motion.span layoutId="side-indicator" className="k-rail-line absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full" aria-hidden="true" />}
               </button>
             );

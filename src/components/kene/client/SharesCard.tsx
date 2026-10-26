@@ -511,20 +511,27 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
 
                 {/* Actions & Consentement */}
                 <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40">
-                  {/* Bouton Cocher comme Institut Référent */}
+                  {/* Bouton Mon Institut Référent & Partage unifié */}
                   <button
                     type="button"
-                    onClick={() => handleSelectReferenceInstitute(s)}
+                    onClick={() => {
+                      if (!isSelected) {
+                        handleSelectReferenceInstitute(s);
+                      }
+                      if (!s.granted) {
+                        toggle(s, true);
+                      }
+                    }}
                     className={cn(
-                      "h-8 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5",
+                      "h-8 px-3 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer",
                       isSelected
-                        ? "bg-primary/20 text-primary border border-primary/30"
+                        ? "bg-primary/20 text-primary border border-primary/40 ring-1 ring-primary/30"
                         : "bg-muted/70 hover:bg-muted text-foreground border border-border"
                     )}
-                    title={isSelected ? "Institut référent actif" : "Définir comme mon institut référent"}
+                    title={isSelected ? "Mon institut référent" : "Définir comme mon institut référent"}
                   >
                     <CheckCircle2 size={13} className={isSelected ? "text-primary" : "text-muted-foreground"} />
-                    <span>{isSelected ? "Coché" : "Cocher"}</span>
+                    <span>{isSelected ? "Mon Institut" : "Choisir"}</span>
                   </button>
 
                   {/* Bouton Partager mon diagnostic sur WhatsApp */}
@@ -532,19 +539,9 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
                     type="button"
                     onClick={() => handleShareOnWhatsApp(s)}
                     title={`Partager mon bilan avec ${s.name} sur WhatsApp`}
-                    className="size-8 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] grid place-items-center transition-colors"
+                    className="size-8 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] grid place-items-center transition-colors cursor-pointer"
                   >
                     <MessageCircle size={15} />
-                  </button>
-
-                  {/* Bouton Recommander à une amie */}
-                  <button
-                    type="button"
-                    onClick={() => handleRecommendOnWhatsApp(s)}
-                    title={`Recommander ${s.name} à une amie sur WhatsApp`}
-                    className="size-8 rounded-xl bg-gold/15 hover:bg-gold/25 text-gold-text grid place-items-center transition-colors"
-                  >
-                    <Share2 size={14} />
                   </button>
 
                   {/* Bouton Rendez-vous cabine */}
@@ -560,27 +557,10 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
                       })
                     }
                     title={`Prendre rendez-vous chez ${s.name}`}
-                    className="size-8 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary grid place-items-center transition-colors"
+                    className="size-8 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary grid place-items-center transition-colors cursor-pointer"
                   >
                     <CalendarPlus size={14} />
                   </button>
-
-                  {/* Interrupteur de consentement */}
-                  <div className="flex items-center gap-1 pl-1">
-                    <Switch
-                      checked={s.granted}
-                      disabled={busyId === s.tenantId}
-                      onCheckedChange={(v) => toggle(s, v)}
-                      aria-label={
-                        s.granted
-                          ? `Retirer le partage avec ${s.name}`
-                          : `Partager mes diagnostics avec ${s.name}`
-                      }
-                    />
-                    {busyId === s.tenantId && (
-                      <Loader2 size={13} className="animate-spin text-muted-foreground shrink-0" aria-hidden="true" />
-                    )}
-                  </div>
                 </div>
               </div>
             );

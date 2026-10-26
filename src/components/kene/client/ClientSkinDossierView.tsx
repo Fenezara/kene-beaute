@@ -182,6 +182,37 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
       .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)); // chronologique
   }, [diagnoses]);
 
+  // Zone filtrée pour le comparateur Avant / Après
+  const [comparisonZone, setComparisonZone] = useState<string>("visage");
+
+  const availableComparisonZones = useMemo(() => {
+    const counts: Record<string, number> = {};
+    validWithImages.forEach((d) => {
+      const z = d.zone || "visage";
+      counts[z] = (counts[z] || 0) + 1;
+    });
+    return Object.entries(counts).map(([zone, count]) => ({ zone, count }));
+  }, [validWithImages]);
+
+  // Si visage a au moins 2 scans, par défaut "visage", sinon la zone avec le plus de scans
+  useEffect(() => {
+    if (availableComparisonZones.length > 0) {
+      const visageZone = availableComparisonZones.find((z) => z.zone === "visage" && z.count >= 2);
+      if (visageZone) {
+        setComparisonZone("visage");
+      } else {
+        const best = [...availableComparisonZones].sort((a, b) => b.count - a.count)[0];
+        if (best) setComparisonZone(best.zone);
+      }
+    }
+  }, [availableComparisonZones]);
+
+  // Diagnostics de la zone active
+  const zoneValidWithImages = useMemo(() => {
+    const filtered = validWithImages.filter((d) => (d.zone || "visage") === comparisonZone);
+    return filtered.length > 0 ? filtered : validWithImages;
+  }, [validWithImages, comparisonZone]);
+
   // Si la cliente a déjà 2 scans réels ou plus, basculer par défaut sur ses propres photos
   useEffect(() => {
     if (validWithImages.length >= 2) {
@@ -191,17 +222,17 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
 
   const beforeDiag = useMemo(() => {
     if (selectedBeforeId) {
-      return validWithImages.find((d) => d.id === selectedBeforeId) ?? validWithImages[0] ?? null;
+      return zoneValidWithImages.find((d) => d.id === selectedBeforeId) ?? zoneValidWithImages[0] ?? null;
     }
-    return validWithImages[0] ?? null;
-  }, [validWithImages, selectedBeforeId]);
+    return zoneValidWithImages[0] ?? null;
+  }, [zoneValidWithImages, selectedBeforeId]);
 
   const afterDiag = useMemo(() => {
     if (selectedAfterId) {
-      return validWithImages.find((d) => d.id === selectedAfterId) ?? validWithImages[validWithImages.length - 1] ?? null;
+      return zoneValidWithImages.find((d) => d.id === selectedAfterId) ?? zoneValidWithImages[zoneValidWithImages.length - 1] ?? null;
     }
-    return validWithImages[validWithImages.length - 1] ?? null;
-  }, [validWithImages, selectedAfterId]);
+    return zoneValidWithImages[zoneValidWithImages.length - 1] ?? null;
+  }, [zoneValidWithImages, selectedAfterId]);
 
   // Données du comparateur selon la source active (Cas Clinique Témoin vs Scans Personnels)
   const comparisonData = useMemo(() => {
@@ -532,14 +563,17 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("avant_apres");
           }}
           className={cn(
-            "py-1.5 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
+            "py-1.5 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
             activeView === "avant_apres"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
           <Images size={14} className={cn("shrink-0", activeView === "avant_apres" ? "text-primary" : "text-muted-foreground")} />
-          <span className="w-full truncate leading-tight">Avant/Après</span>
+          <span className="w-full truncate leading-tight">
+            <span className="sm:hidden">Évolution</span>
+            <span className="hidden sm:inline">Avant/Après</span>
+          </span>
         </button>
 
         <button
@@ -656,7 +690,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                       {user.name}
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      Carnation Type {user.fitzpatrick || "V"} (Peau noire à mate) · Peau {user.skinType || "mixte"} · {user.city || "Abidjan"}
+                      Phototype {user.fitzpatrick || "V"} · Peau {user.skinType || "mixte"} · 📍 {user.city || "Abidjan"}
                     </p>
                   </div>
                 </div>
@@ -681,48 +715,42 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                   <span className="font-bold text-foreground mt-0.5 block truncate">{user.allergies || "Aucune déclarée"}</span>
                 </div>
                 <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Maternité</span>
-                  <span className="font-bold text-foreground mt-0.5 block">{user.pregnant ? "🌸 Grossesse / Allaitement" : "Non"}</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+                    {(user as any)?.gender === "homme" ? "Tolérance Barbe" : "Maternité"}
+                  </span>
+                  <span className="font-bold text-foreground mt-0.5 block">
+                    {(user as any)?.gender === "homme"
+                      ? "Protection rasage"
+                      : (user.pregnant ? "🌸 Grossesse / Allaitement" : "Non")}
+                  </span>
                 </div>
               </div>
 
               {/* Actions directes du dossier */}
-              <div className="pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    onClick={consultDermoKene}
-                    className="k-btn-gold text-primary-foreground font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-xs active:scale-95 transition-all"
-                  >
-                    <MessageCircle className="size-4" />
-                    <span>Échanger avec Dermo Kènè</span>
-                  </Button>
+              <div className="pt-3 border-t border-border/60 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <Button
+                  onClick={consultDermoKene}
+                  className="k-btn-gold text-primary-foreground font-bold text-xs h-10 px-3 rounded-xl gap-2 shadow-xs active:scale-95 transition-all w-full cursor-pointer"
+                >
+                  <MessageCircle className="size-4 shrink-0" />
+                  <span className="truncate">Échanger avec Dermo Kènè</span>
+                </Button>
 
-                  <Button
-                    onClick={shareMySkinReportWhatsApp}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-xs active:scale-95 transition-all"
-                  >
-                    <Share2 className="size-4" />
-                    <span>Partager par WhatsApp</span>
-                  </Button>
-
-                  {isGuestUser && (
-                    <Button
-                      onClick={() => setLinkModalOpen(true)}
-                      className="border border-[#C8951E]/50 bg-primary/10 hover:bg-primary/20 text-foreground font-bold text-xs h-10 px-4 rounded-xl gap-2 shadow-xs active:scale-95 transition-all"
-                    >
-                      <BookmarkCheck className="size-4 text-[#C8951E]" />
-                      <span>Sauvegarder sur WhatsApp</span>
-                    </Button>
-                  )}
-                </div>
+                <Button
+                  onClick={shareMySkinReportWhatsApp}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-10 px-3 rounded-xl gap-2 shadow-xs active:scale-95 transition-all w-full cursor-pointer"
+                >
+                  <Share2 className="size-4 shrink-0" />
+                  <span className="truncate">Partager par WhatsApp</span>
+                </Button>
 
                 <Button
                   variant="outline"
                   onClick={handleDownloadPdf}
-                  className="text-xs h-10 px-4 rounded-xl gap-2 font-bold hover:bg-accent active:scale-95 transition-all"
+                  className="text-xs h-10 px-3 rounded-xl gap-2 font-bold hover:bg-accent active:scale-95 transition-all w-full cursor-pointer"
                 >
-                  <Download className="size-4" />
-                  <span>Télécharger en PDF</span>
+                  <Download className="size-4 shrink-0" />
+                  <span className="truncate">Télécharger en PDF</span>
                 </Button>
               </div>
             </CardContent>
@@ -893,32 +921,60 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
               </ul>
             </div>
 
-            {/* 💄 Charte Make-Up Dermo-Compatible Peaux Noires & Métisses */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-[#C8951E]/12 to-[#8B1A3B]/10 border border-[#C8951E]/30 space-y-2.5 shadow-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-primary font-black text-xs">
-                  <DuafeIcon size={16} />
-                  <span>Charte Make-Up Dermo-Compatible · Peaux Noires &amp; Métisses</span>
+            {/* 💄 Charte Make-Up Dermo-Compatible Peaux Noires & Métisses ou Soin Barbe si Homme */}
+            {(user as any)?.gender === "homme" ? (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-[#C8951E]/12 to-[#8B1A3B]/10 border border-[#C8951E]/30 space-y-2.5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-primary font-black text-xs">
+                    <ShieldCheck size={16} />
+                    <span>Protocole Rasage &amp; Barbe · Peaux Noires &amp; Métisses</span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-bold border-primary/30 text-primary">
+                    Anti-Poils Incarnés
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="text-[10px] font-bold border-primary/30 text-primary">
-                  Non-comédogène
-                </Badge>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                    <p className="font-bold text-foreground">1. Préparation à chaud</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Assouplir le poil frisé avec une serviette tiède ou de l&apos;huile de Balanites avant le rasage.</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                    <p className="font-bold text-foreground">2. Rasage sens du poil</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Toujours raser dans le sens de pousse du poil sans repasser pour éviter boutons et folliculite.</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                    <p className="font-bold text-foreground">3. Apaisement sans alcool</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Sceller la zone au Karité pur bio ou baume apaisant Kinkeliba. Zéro parfum piquant.</p>
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                <div className="p-2.5 rounded-xl bg-card border border-border/80">
-                  <p className="font-bold text-foreground">1. Sous-tons chauds</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Formules adaptées aux pigments dorés/cuivrés sans effet masque grisâtre.</p>
+            ) : (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-[#C8951E]/12 to-[#8B1A3B]/10 border border-[#C8951E]/30 space-y-2.5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-primary font-black text-xs">
+                    <DuafeIcon size={16} />
+                    <span>Charte Make-Up Dermo-Compatible · Peaux Noires &amp; Métisses</span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-bold border-primary/30 text-primary">
+                    Non-comédogène
+                  </Badge>
                 </div>
-                <div className="p-2.5 rounded-xl bg-card border border-border/80">
-                  <p className="font-bold text-foreground">2. Texture respirante</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Fluides minéraux légers qui laissent respirer les pores sous climat tropical.</p>
-                </div>
-                <div className="p-2.5 rounded-xl bg-card border border-border/80">
-                  <p className="font-bold text-foreground">3. Démaquillage doux</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Huile végétale de Balanites le soir : zéro résidu, zéro bouton réactionnel.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                    <p className="font-bold text-foreground">1. Sous-tons chauds</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Formules adaptées aux pigments dorés/cuivrés sans effet masque grisâtre.</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                    <p className="font-bold text-foreground">2. Texture respirante</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Fluides minéraux légers qui laissent respirer les pores sous climat tropical.</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-card border border-border/80">
+                    <p className="font-bold text-foreground">3. Démaquillage doux</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Huile végétale de Balanites le soir : zéro résidu, zéro bouton réactionnel.</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Soin en Cabine Conseillé & Raccordement Agenda */}
             <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1020,16 +1076,38 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             </p>
           </div>
 
-          {/* Sélecteur de séances pour les scans personnels */}
+          {/* Sélecteur de séances pour les scans personnels avec filtre par zone */}
           {avantApresSource === "client" && validWithImages.length >= 2 && (
-            <div className="p-3 rounded-2xl bg-card border border-border/80 shadow-2xs space-y-2">
+            <div className="p-3 rounded-2xl bg-card border border-border/80 shadow-2xs space-y-3">
+              {/* Filtres de zone pour comparer uniquement la même zone */}
+              {availableComparisonZones.length > 1 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10.5px] font-bold text-muted-foreground mr-1">Zone :</span>
+                  {availableComparisonZones.map(({ zone, count }) => (
+                    <button
+                      key={zone}
+                      type="button"
+                      onClick={() => setComparisonZone(zone)}
+                      className={cn(
+                        "px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer capitalize border",
+                        comparisonZone === zone
+                          ? "bg-primary/15 text-primary border-primary ring-1 ring-primary/20 shadow-xs"
+                          : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {zone.replace("_", " ")} ({count})
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div className="flex items-center justify-between text-xs font-bold text-foreground">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="size-3.5 text-primary" />
                   Sélectionner les deux bilans à comparer :
                 </span>
                 <span className="text-[10px] text-muted-foreground uppercase font-mono">
-                  {validWithImages.length} clichés disponibles
+                  {zoneValidWithImages.length} clichés {comparisonZone.replace("_", " ")}
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
@@ -1042,7 +1120,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                     onChange={(e) => setSelectedBeforeId(e.target.value)}
                     className="w-full h-8 px-2 rounded-lg bg-background border border-border text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
                   >
-                    {validWithImages.map((d) => (
+                    {zoneValidWithImages.map((d) => (
                       <option key={`before-${d.id}`} value={d.id}>
                         {formatDate(d.createdAt)} — {d.zone?.replace("_", " ") || "Visage"} ({d.scoreGlobal ?? 0}/100)
                       </option>
@@ -1058,7 +1136,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                     onChange={(e) => setSelectedAfterId(e.target.value)}
                     className="w-full h-8 px-2 rounded-lg bg-background border border-border text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
                   >
-                    {validWithImages.map((d) => (
+                    {zoneValidWithImages.map((d) => (
                       <option key={`after-${d.id}`} value={d.id}>
                         {formatDate(d.createdAt)} — {d.zone?.replace("_", " ") || "Visage"} ({d.scoreGlobal ?? 0}/100)
                       </option>
@@ -1139,14 +1217,38 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                 Consultez et agrandissez en haute définition toutes les photos prises lors de vos scans
               </p>
             </div>
-            <Button
-              size="sm"
-              onClick={onStartScan || (() => setClientTab("diagnostic"))}
-              className="k-btn-gold text-primary-foreground font-black text-xs h-9 px-3.5 rounded-xl gap-1.5 shrink-0 shadow-sm"
-            >
-              <Camera size={15} />
-              <span>+ Nouvelle Photo</span>
-            </Button>
+            {/* Filtres de zone rapides dans la galerie */}
+            {availableComparisonZones.length > 1 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setComparisonZone("all")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer border",
+                    comparisonZone === "all"
+                      ? "bg-primary/15 text-primary border-primary ring-1 ring-primary/20 shadow-xs"
+                      : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Tout ({lightboxPhotos.length})
+                </button>
+                {availableComparisonZones.map(({ zone, count }) => (
+                  <button
+                    key={zone}
+                    type="button"
+                    onClick={() => setComparisonZone(zone)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer capitalize border",
+                      comparisonZone === zone
+                        ? "bg-primary/15 text-primary border-primary ring-1 ring-primary/20 shadow-xs"
+                        : "bg-muted/40 border-border text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {zone.replace("_", " ")} ({count})
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {lightboxPhotos.length === 0 ? (
@@ -1164,10 +1266,12 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {lightboxPhotos.map((photo, idx) => (
+              {lightboxPhotos
+                .filter((p) => comparisonZone === "all" || (p.zone || "visage") === comparisonZone)
+                .map((photo, idx) => (
                 <div
                   key={photo.id}
-                  onClick={() => openPhotoLightbox(idx)}
+                  onClick={() => openPhotoLightbox(photo.id)}
                   className="group relative rounded-2xl overflow-hidden border border-border/80 bg-muted/30 cursor-pointer shadow-xs hover:shadow-md transition-all aspect-square flex flex-col justify-end"
                 >
                   <img
@@ -1288,11 +1392,6 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                           <p className="font-black text-sm text-foreground capitalize truncate">
                             Zone {diag.zone?.replace("_", " ") || "Visage"}
                           </p>
-                          {hasPhoto && (
-                            <span className="text-[10px] text-primary font-bold bg-primary/10 px-1.5 py-0.2 rounded-md">
-                              📸 Photo
-                            </span>
-                          )}
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
                           {formatDate(diag.createdAt)} · {formatTime(diag.createdAt)}
@@ -1314,19 +1413,6 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                         </span>
                       )}
 
-                      {hasPhoto && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openPhotoLightbox(diag.id)}
-                          className="h-8.5 px-2.5 text-xs font-bold rounded-xl text-primary hover:bg-primary/10 gap-1"
-                          title="Agrandir la photo en plein écran"
-                        >
-                          <Eye size={14} />
-                          <span className="hidden sm:inline">Photo</span>
-                        </Button>
-                      )}
-
                       <Button
                         size="sm"
                         variant="outline"
@@ -1335,7 +1421,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                           toast.info(`Ordonnance beauté du ${formatDate(diag.createdAt)} chargée`);
                           setActiveView("dossier");
                         }}
-                        className="h-8.5 text-xs font-bold rounded-xl hover:bg-accent"
+                        className="h-8.5 text-xs font-bold rounded-xl hover:bg-accent cursor-pointer"
                       >
                         Consulter
                       </Button>

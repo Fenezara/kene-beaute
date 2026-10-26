@@ -718,17 +718,47 @@ export function SettingsScreen() {
           />
         </RevealItem>
 
-        {/* Confidentialité & données — statut du consentement santé */}
+        {/* Confidentialité & données — statut du consentement santé interactif */}
         <RevealItem>
-          <section aria-labelledby="cons-t" className="k-card rounded-[24px] p-4 flex items-center gap-3">
-            <IconBadge icon={<ShieldCheck size={19} />} tone={user.consentHealth ? "success" : "bissap"} />
-            <div className="flex-1">
-              <p className="text-xs font-semibold">Consentement données santé</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{user.consentHealth ? "Accordé — photos et diagnostics utilisés uniquement pour tes analyses." : "Non accordé — requis pour le bilan dermo-biométrique."}</p>
+          <section aria-labelledby="cons-t" className="k-card rounded-[24px] p-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <IconBadge icon={<ShieldCheck size={19} />} tone={user.consentHealth ? "success" : "bissap"} />
+              <div className="flex-1 min-w-0">
+                <p id="cons-t" className="text-xs font-bold text-foreground">Consentement données santé</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                  {user.consentHealth
+                    ? "Accordé — photos et diagnostics analysés pour vos bilans."
+                    : "Non accordé — requis pour le bilan dermo-biométrique."}
+                </p>
+              </div>
             </div>
-            <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${user.consentHealth ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive"}`}>
-              {user.consentHealth ? "Actif" : "Inactif"}
-            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={Boolean(user.consentHealth)}
+              onClick={async () => {
+                const next = !user.consentHealth;
+                haptic(HAPTIC.light);
+                setUser({ ...user, consentHealth: next });
+                try {
+                  await apiPost("/api/profile", { consentHealth: next });
+                  toast.success(next ? "Consentement santé accordé" : "Consentement révoqué");
+                } catch {
+                  toast.error("Erreur d'enregistrement du consentement");
+                }
+              }}
+              className={cn(
+                "inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors cursor-pointer",
+                user.consentHealth ? "bg-primary" : "bg-input"
+              )}
+            >
+              <span
+                className={cn(
+                  "block size-5 rounded-full bg-[#FFF9EC] shadow transition-transform duration-200",
+                  user.consentHealth ? "translate-x-5" : "translate-x-0"
+                )}
+              />
+            </button>
           </section>
         </RevealItem>
 
