@@ -14,6 +14,8 @@ import {
   resolveDefaultTierTheme,
   getSavedTierTheme,
   saveTierTheme,
+  getTenantTierTheme,
+  saveTenantTierTheme,
   applyTierThemeToDom,
 } from "@/lib/kene/tier-theme";
 import {
@@ -34,6 +36,10 @@ import { cn } from "@/lib/utils";
 interface TierThemeSelectorProps {
   className?: string;
   audience?: "client" | "pro";
+  tenantId?: string;
+  tenantName?: string;
+  isOwner?: boolean;
+  isEmployee?: boolean;
 }
 
 function getHeritageIcon(symbol: TierThemeDef["symbol"]) {
@@ -53,10 +59,18 @@ function getHeritageIcon(symbol: TierThemeDef["symbol"]) {
   }
 }
 
-export function TierThemeSelector({ className, audience }: TierThemeSelectorProps) {
+export function TierThemeSelector({
+  className,
+  audience,
+  tenantId,
+  tenantName,
+  isOwner = true,
+  isEmployee,
+}: TierThemeSelectorProps) {
   const user = useKene((s) => s.user);
   const userId = user?.id;
   const effectiveAudience = audience ?? (user?.role === "pro" ? "pro" : "client");
+  const computedIsEmployee = isEmployee ?? (!isOwner && !!user?.employeeRole);
 
   const [activePlan, setActivePlan] = useState<string | null>(null);
   const [loyaltyMonth, setLoyaltyMonth] = useState<number>(0);
@@ -67,6 +81,21 @@ export function TierThemeSelector({ className, audience }: TierThemeSelectorProp
   // Charger l'état réel de l'abonnement pour calculer les parures débloquées
   useEffect(() => {
     let alive = true;
+
+    // Pour les collaboratrices de salon : hériter strictement de la parure du salon
+    if (computedIsEmployee && tenantId) {
+      const tenantTheme = getTenantTierTheme(tenantId);
+      if (tenantTheme) {
+        setCurrentTierId(tenantTheme);
+        applyTierThemeToDom(tenantTheme);
+      } else {
+        const def = resolveDefaultTierTheme({ user, planId: null });
+        setCurrentTierId(def);
+        applyTierThemeToDom(def);
+      }
+      return;
+    }
+
     if (userId) {
       apiGet<{
         plan: string;
@@ -79,6 +108,17 @@ export function TierThemeSelector({ className, audience }: TierThemeSelectorProp
           setActivePlan(plan);
           const month = Math.max(res.loyalty?.monthsPaid ?? 0, res.loyalty?.currentMonth ?? 0);
           setLoyaltyMonth(month);
+
+          // Si on est dans le contexte d'un institut (gérante)
+          if (effectiveAudience === "pro" && tenantId) {
+            const tenantSaved = getTenantTierTheme(tenantId);
+            if (tenantSaved && isTierUnlocked(tenantSaved, { user, planId: plan, monthsPaid: month, currentMonth: month })) {
+              setCurrentTierId(tenantSaved);
+              setIsManualOverride(true);
+              applyTierThemeToDom(tenantSaved);
+              return;
+            }
+          }
 
           const saved = getSavedTierTheme();
           if (saved && isTierUnlocked(saved, { user, planId: plan, monthsPaid: month, currentMonth: month })) {
@@ -94,6 +134,15 @@ export function TierThemeSelector({ className, audience }: TierThemeSelectorProp
         })
         .catch(() => {
           if (!alive) return;
+          if (effectiveAudience === "pro" && tenantId) {
+            const tenantSaved = getTenantTierTheme(tenantId);
+            if (tenantSaved) {
+              setCurrentTierId(tenantSaved);
+              setIsManualOverride(true);
+              applyTierThemeToDom(tenantSaved);
+              return;
+            }
+          }
           const saved = getSavedTierTheme();
           if (saved) {
             setCurrentTierId(saved);
@@ -122,7 +171,7 @@ export function TierThemeSelector({ className, audience }: TierThemeSelectorProp
       alive = false;
       if (previewTimer) clearTimeout(previewTimer);
     };
-  }, [userId, effectiveAudience]);
+  }, [userId, effectiveAudience, computedIsEmployee, tenantId]);
 
   const context = {
     user,
@@ -145,13 +194,26 @@ export function TierThemeSelector({ className, audience }: TierThemeSelectorProp
     }
 
     if (previewTimer) clearTimeout(previewTimer);
+
+    if (effectiveAudience === "pro" && tenantId) {
+      saveTenantTierTheme(tenantId, theme.id);
+    }
     saveTierTheme(theme.id);
+
     setCurrentTierId(theme.id);
     setIsManualOverride(true);
     haptic(HAPTIC.success);
-    toast.success(`Parure « ${theme.name} » appliquée 👑`, {
-      description: `${theme.gemstone} · ${theme.kingdom}`,
-    });
+    toast.success(
+      effectiveAudience === "pro"
+        ? `Parure « ${theme.name} » appliquée à tout l'institut 🏛️`
+        : `Parure « ${theme.name} » appliquée 👑`,
+      {
+        description:
+          effectiveAudience === "pro"
+            ? `Harmonie visible instantanément sur tous les écrans du salon · ${theme.gemstone}`
+            : `${theme.gemstone} · ${theme.kingdom}`,
+      }
+    );
   }
 
   function handlePreviewTemporary(theme: TierThemeDef) {
@@ -161,7 +223,7 @@ export function TierThemeSelector({ className, audience }: TierThemeSelectorProp
 
     if (previewTimer) clearTimeout(previewTimer);
     const timer = setTimeout(() => {
-      const def = getSavedTierTheme() ?? resolveDefaultTierTheme(context);
+      const def = (effectiveAudience === "pro" && tenantId ? getTenantTierTheme(tenantId) : null) ?? getSavedTierTheme() ?? resolveDefaultTierTheme(context);
       applyTierThemeToDom(def);
       setCurrentTierId(def);
       toast.info("Fin de l'Aperçu Royal", {
@@ -178,6 +240,9 @@ export function TierThemeSelector({ className, audience }: TierThemeSelectorProp
   function handleResetAuto() {
     haptic(HAPTIC.tap);
     if (previewTimer) clearTimeout(previewTimer);
+    if (effectiveAudience === "pro" && tenantId) {
+      saveTenantTierTheme(tenantId, null);
+    }
     saveTierTheme(null);
     const def = resolveDefaultTierTheme(context);
     setCurrentTierId(def);
@@ -188,6 +253,10 @@ export function TierThemeSelector({ className, audience }: TierThemeSelectorProp
       description: `Parure alignée sur votre statut officiel : ${defObj?.name ?? "Kènè"}`,
     });
   }
+
+  const displayedThemes = TIER_THEMES.filter(
+    (t) => user?.role === "admin" || t.audience === "all" || t.audience === effectiveAudience
+  );
 
   return (
     <div className={cn("k-card rounded-[26px] p-4 sm:p-5 space-y-4 sm:space-y-5 border border-gold/30 shadow-sm relative overflow-hidden", className)}>
@@ -203,14 +272,22 @@ export function TierThemeSelector({ className, audience }: TierThemeSelectorProp
             </Badge>
           </div>
           <h3 className="font-heading text-base sm:text-lg font-bold text-foreground">
-            Parures &amp; Ambiances Royales
+            {computedIsEmployee
+              ? "Parure Officielle de l'Établissement"
+              : effectiveAudience === "pro"
+              ? "Parures & Ambiances de l'Institut"
+              : "Parures & Ambiances Royales"}
           </h3>
           <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
-            Inspirées des métaux précieux et de la pharmacopée sacrée des grands souverains d&apos;Afrique. Chaque palier sublime l&apos;application d&apos;une parure minérale et chromatique unique.
+            {computedIsEmployee
+              ? `Harmonie de marque définie par la gérance pour l'ensemble des postes de travail (accueil, caisse, cabines).`
+              : effectiveAudience === "pro"
+              ? `Harmonisez l'ambiance royale de votre salon. Votre sélection s'applique instantanément à l'ensemble des écrans de l'établissement.`
+              : `Inspirées des métaux précieux et de la pharmacopée sacrée des grands souverains d'Afrique. Revêtez les parures que vous avez débloquées au fil de vos rituels Kènè+.`}
           </p>
         </div>
 
-        {isManualOverride && (
+        {!computedIsEmployee && isManualOverride && (
           <button
             type="button"
             onClick={handleResetAuto}
@@ -274,106 +351,123 @@ export function TierThemeSelector({ className, audience }: TierThemeSelectorProp
         </div>
       </div>
 
-      {/* Galerie des 6 Parures de Haute Joaillerie */}
-      <div className="space-y-2.5">
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-          Collection des Parures Sacrées &amp; Matières Précieuses
-        </p>
+      {/* Si c'est un employé : message d'harmonie du salon au lieu de boutons de changement */}
+      {computedIsEmployee ? (
+        <div className="rounded-[20px] border border-primary/20 bg-primary/5 p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-primary/15 text-primary">
+              <Shield size={14} />
+            </span>
+            <p className="text-xs font-bold text-foreground">
+              Harmonie de Marque &amp; Unité Visuelle de l&apos;Établissement
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            La parure <strong className="text-foreground">{activeDef.name}</strong> ({activeDef.gemstone}) est l&apos;ambiance officielle harmonisée par la gérance pour l&apos;ensemble des postes de travail (accueil, caisse, cabines). Elle habille l&apos;ensemble des terminaux du salon afin d&apos;offrir un accueil d&apos;exception et une image prestigieuse et cohérente à notre clientèle.
+          </p>
+        </div>
+      ) : (
+        /* Galerie des Parures Débloquées & Trésors Scellés (Privilège Ascendant) */
+        <div className="space-y-2.5">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            Collection des Parures Sacrées &amp; Matières Précieuses
+          </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {TIER_THEMES.map((t) => {
-            const isSelected = t.id === currentTierId;
-            const unlocked = isTierUnlocked(t.id, context);
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {displayedThemes.map((t) => {
+              const isSelected = t.id === currentTierId;
+              const unlocked = isTierUnlocked(t.id, context);
 
-            return (
-              <div
-                key={t.id}
-                className={cn(
-                  "rounded-2xl border p-3.5 transition-all duration-300 relative flex flex-col justify-between gap-3 group",
-                  isSelected
-                    ? "border-primary bg-primary/10 shadow-md ring-1 ring-primary/40"
-                    : unlocked
-                    ? "border-border/80 bg-card/60 hover:border-primary/50 hover:bg-muted/40"
-                    : "border-border/40 bg-muted/15 opacity-75 hover:opacity-90"
-                )}
-                style={{
-                  borderColor: isSelected ? undefined : t.metallicBorder,
-                }}
-              >
-                {/* En-tête de la carte */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className="size-9 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm border border-white/20"
-                      style={{ background: t.heroGradient }}
-                    >
-                      {getHeritageIcon(t.symbol)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className={cn("font-heading text-sm font-bold truncate", isSelected ? "text-primary" : "text-foreground")}>
-                          {t.name}
+              return (
+                <div
+                  key={t.id}
+                  className={cn(
+                    "rounded-2xl border p-3.5 transition-all duration-300 relative flex flex-col justify-between gap-3 group",
+                    isSelected
+                      ? "border-primary bg-primary/10 shadow-md ring-1 ring-primary/40"
+                      : unlocked
+                      ? "border-border/80 bg-card/60 hover:border-primary/50 hover:bg-muted/40"
+                      : "border-border/40 bg-muted/15 opacity-75 hover:opacity-90"
+                  )}
+                  style={{
+                    borderColor: isSelected ? undefined : t.metallicBorder,
+                  }}
+                >
+                  {/* En-tête de la carte */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className="size-9 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm border border-white/20"
+                        style={{ background: t.heroGradient }}
+                      >
+                        {getHeritageIcon(t.symbol)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className={cn("font-heading text-sm font-bold truncate", isSelected ? "text-primary" : "text-foreground")}>
+                            {t.name}
+                          </p>
+                        </div>
+                        <p className="text-[10px] font-mono text-muted-foreground truncate">
+                          {t.kingdom}
                         </p>
                       </div>
-                      <p className="text-[10px] font-mono text-muted-foreground truncate">
-                        {t.kingdom}
-                      </p>
                     </div>
+
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-muted border border-border/60 text-muted-foreground shrink-0">
+                      {t.rarityTag}
+                    </span>
                   </div>
 
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-muted border border-border/60 text-muted-foreground shrink-0">
-                    {t.rarityTag}
-                  </span>
-                </div>
+                  {/* Subtitle & Matière précieuse */}
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      {t.subtitle}
+                    </p>
+                    <p className="text-[10px] text-foreground/80 font-medium inline-flex items-center gap-1">
+                      <Gem size={11} className="text-gold-text" /> {t.gemstone}
+                    </p>
+                  </div>
 
-                {/* Subtitle & Matière précieuse */}
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground leading-snug">
-                    {t.subtitle}
-                  </p>
-                  <p className="text-[10px] text-foreground/80 font-medium inline-flex items-center gap-1">
-                    <Gem size={11} className="text-gold-text" /> {t.gemstone}
-                  </p>
-                </div>
+                  {/* Actions : Revêtir / Aperçu / Verrouillé */}
+                  <div className="pt-1 flex items-center justify-between gap-2 border-t border-border/50">
+                    <span className="text-[10px] font-bold text-muted-foreground">
+                      {unlocked ? t.badge : `🔒 ${t.badge}`}
+                    </span>
 
-                {/* Actions : Revêtir / Aperçu / Verrouillé */}
-                <div className="pt-1 flex items-center justify-between gap-2 border-t border-border/50">
-                  <span className="text-[10px] font-bold text-muted-foreground">
-                    {unlocked ? t.badge : `🔒 ${t.badge}`}
-                  </span>
-
-                  <div className="flex items-center gap-1.5">
-                    {unlocked ? (
-                      isSelected ? (
-                        <span className="h-8 px-3 rounded-xl bg-primary text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 shadow-xs">
-                          <Check size={13} /> Revêtue
-                        </span>
+                    <div className="flex items-center gap-1.5">
+                      {unlocked ? (
+                        isSelected ? (
+                          <span className="h-8 px-3 rounded-xl bg-primary text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 shadow-xs">
+                            <Check size={13} /> Revêtue
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSelect(t)}
+                            className="h-8 px-3 rounded-xl k-btn-tier text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs cursor-pointer"
+                          >
+                            <Crown size={12} /> Revêtir
+                          </button>
+                        )
                       ) : (
                         <button
                           type="button"
-                          onClick={() => handleSelect(t)}
-                          className="h-8 px-3 rounded-xl k-btn-tier text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
+                          onClick={() => handlePreviewTemporary(t)}
+                          className="h-8 px-2.5 rounded-xl border border-border hover:border-primary/50 bg-background/80 text-foreground text-[11px] font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs hover:bg-muted cursor-pointer"
+                          title="Activer un aperçu royal immersif de 5 minutes sur votre interface"
                         >
-                          <Crown size={12} /> Revêtir
+                          <Eye size={12} className="text-gold-text" /> Aperçu (5 min)
                         </button>
-                      )
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handlePreviewTemporary(t)}
-                        className="h-8 px-2.5 rounded-xl border border-border hover:border-primary/50 bg-background/80 text-foreground text-[11px] font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs hover:bg-muted"
-                        title="Activer un aperçu royal immersif de 5 minutes sur votre interface"
-                      >
-                        <Eye size={12} className="text-gold-text" /> Aperçu (5 min)
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -148,6 +148,35 @@ export const TIER_THEMES: readonly TierThemeDef[] = [
 ];
 
 const STORAGE_KEY = "kene_user_tier_theme";
+const TENANT_STORAGE_PREFIX = "kene_tenant_tier_theme_";
+
+/** Récupère la parure officielle configurée pour un institut */
+export function getTenantTierTheme(tenantId?: string | null): TierThemeId | null {
+  if (typeof window === "undefined" || !tenantId) return null;
+  try {
+    const val = localStorage.getItem(`${TENANT_STORAGE_PREFIX}${tenantId}`);
+    if (val && TIER_THEMES.some((t) => t.id === val)) {
+      return val as TierThemeId;
+    }
+  } catch {}
+  return null;
+}
+
+/** Sauvegarde la parure officielle de l'institut (choisie par la gérante) */
+export function saveTenantTierTheme(tenantId: string, themeId: TierThemeId | null): void {
+  if (typeof window === "undefined" || !tenantId) return;
+  try {
+    if (themeId) {
+      localStorage.setItem(`${TENANT_STORAGE_PREFIX}${tenantId}`, themeId);
+      applyTierThemeToDom(themeId);
+    } else {
+      localStorage.removeItem(`${TENANT_STORAGE_PREFIX}${tenantId}`);
+    }
+    window.dispatchEvent(
+      new CustomEvent("kene:tenant-tier-theme-changed", { detail: { tenantId, themeId } })
+    );
+  } catch {}
+}
 
 /** Vérifie si un thème donné est débloqué pour l'utilisateur */
 export function isTierUnlocked(
@@ -170,22 +199,22 @@ export function isTierUnlocked(
   const isPro = user?.role === "pro";
   const effectiveMonth = Math.max(monthsPaid, currentMonth);
 
-  // 3. Palettes Entreprise Pro
+  // 3. Palettes Entreprise Pro (Privilège Ascendant : qui peut le plus peut le moins)
   if (themeId === "indigo_mandingue") {
     return isPro && planId === "pro_complexe";
   }
   if (themeId === "emeraude_kinkeliba") {
-    return isPro && (planId === "pro_complexe" || planId === "pro_institut");
+    return isPro && (planId === "pro_complexe" || planId === "pro_institut" || !planId);
   }
   if (themeId === "argile_cuivre") {
     return isPro && (planId === "pro_complexe" || planId === "pro_institut" || planId === "pro_starter" || !planId);
   }
 
-  // 4. Palettes Cliente Kènè+
+  // 4. Palettes Cliente Kènè+ (Privilège Ascendant)
   if (themeId === "or_imperial") {
     return (
       (planId === "kene_plus" && effectiveMonth >= 4) ||
-      user?.role === "pro" // Les collaboratrices ont le pass prestige Kènè+
+      user?.role === "pro" // Les professionnelles ont aussi le pass prestige Kènè+
     );
   }
 
@@ -261,7 +290,31 @@ export function syncActiveTierTheme(context: {
   planId?: string | null;
   monthsPaid?: number;
   currentMonth?: number;
+  tenantId?: string | null;
 }): TierThemeId {
+  const { user, tenantId } = context;
+
+  // Si c'est un employé d'institut en session Pro, la parure officielle du salon prévaut obligatoirement
+  if (user?.role === "pro" && user?.employeeRole && tenantId) {
+    const tenantTheme = getTenantTierTheme(tenantId);
+    if (tenantTheme) {
+      applyTierThemeToDom(tenantTheme);
+      return tenantTheme;
+    }
+    const def = resolveDefaultTierTheme(context);
+    applyTierThemeToDom(def);
+    return def;
+  }
+
+  // Pour un propriétaire de salon avec tenantId
+  if (user?.role === "pro" && tenantId) {
+    const tenantTheme = getTenantTierTheme(tenantId);
+    if (tenantTheme && isTierUnlocked(tenantTheme, context)) {
+      applyTierThemeToDom(tenantTheme);
+      return tenantTheme;
+    }
+  }
+
   const saved = getSavedTierTheme();
   if (saved && isTierUnlocked(saved, context)) {
     applyTierThemeToDom(saved);

@@ -13,9 +13,25 @@ const CACHE_TTL = 60_000; // 60 secondes
 
 export function TierThemeBoot() {
   const user = useKene((s) => s.user);
+  const proTenantId = useKene((s) => s.proTenantId);
   const userId = user?.id;
   const userRole = user?.role;
+  const tenantId = proTenantId || user?.tenantId;
   const lastFetchedKey = useRef<string | null>(null);
+
+  // Écoute en temps réel de changement de thème de l'institut par la gérante
+  useEffect(() => {
+    const handleTenantChange = (e: Event) => {
+      const custom = e as CustomEvent<{ tenantId: string; themeId: string | null }>;
+      if (custom.detail?.themeId) {
+        applyTierThemeToDom(custom.detail.themeId as any);
+      }
+    };
+    window.addEventListener("kene:tenant-tier-theme-changed", handleTenantChange);
+    return () => {
+      window.removeEventListener("kene:tenant-tier-theme-changed", handleTenantChange);
+    };
+  }, []);
 
   useEffect(() => {
     // 1. Appliquer immédiatement le choix sauvegardé en local ou par défaut
@@ -33,7 +49,7 @@ export function TierThemeBoot() {
     }
 
     const audience = userRole === "pro" ? "pro" : "client";
-    const cacheKey = `${userId}:${audience}`;
+    const cacheKey = `${userId}:${audience}:${tenantId ?? ""}`;
     const cached = subsCache.get(cacheKey);
 
     if (cached && Date.now() - cached.ts < CACHE_TTL) {
@@ -42,6 +58,7 @@ export function TierThemeBoot() {
         planId: cached.plan,
         monthsPaid: cached.month,
         currentMonth: cached.month,
+        tenantId,
       });
       return;
     }
@@ -66,6 +83,7 @@ export function TierThemeBoot() {
           planId: plan,
           monthsPaid: month,
           currentMonth: month,
+          tenantId,
         });
       })
       .catch(() => {});
@@ -73,7 +91,7 @@ export function TierThemeBoot() {
     return () => {
       alive = false;
     };
-  }, [userId, userRole]);
+  }, [userId, userRole, tenantId]);
 
   return <div className="k-ambient-tier-aura" aria-hidden="true" />;
 }

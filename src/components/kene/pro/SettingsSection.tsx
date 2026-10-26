@@ -615,8 +615,14 @@ export function SettingsSection({
         </>
       )}
 
-      {/* Palettes & Ambiance de Statut d'Abonnement */}
-      <TierThemeSelector audience="pro" />
+      {/* Palettes & Ambiance de Statut d'Abonnement (Option 1 : Privilège Ascendant + Harmonie du Salon) */}
+      <TierThemeSelector
+        audience="pro"
+        tenantId={tenantId}
+        tenantName={tenantName}
+        isOwner={isOwner}
+        isEmployee={!isOwner}
+      />
 
       {/* Affichage — Clair/Sombre (mêmes boutons que l'app cliente, cohérence) */}
       <div className="k-card rounded-[20px] p-4">

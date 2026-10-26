@@ -49,6 +49,7 @@ import {
   NkonsonkonsonIcon,
 } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
+import { syncActiveTierTheme } from "@/lib/kene/tier-theme";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AuroraBackdrop, Eyebrow } from "@/components/kene/ui2026";
@@ -767,6 +768,15 @@ export function ProEnterpriseShell() {
   }, [overview.data]);
 
   const tenant = overview.data?.tenant;
+
+  useEffect(() => {
+    if (!tid) return;
+    syncActiveTierTheme({
+      user: useKene.getState().user,
+      tenantId: tid,
+      planId: tenant?.plan,
+    });
+  }, [tid, tenant?.plan]);
 
   const handleTenantSwitch = (v: string) => {
     if (v === "__create_branch__") {
