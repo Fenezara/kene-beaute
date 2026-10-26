@@ -23,7 +23,7 @@ const Body = z.object({
   userId: z.string().optional(),
   userName: z.string().max(100).optional(),
   userGender: z.enum(["femme", "homme", "non_precise"]).optional(),
-  audio: z.string().min(1).max(7 * 1024 * 1024).optional(), // audio en base64 pour note vocale directe
+  audio: z.string().min(1).max(15 * 1024 * 1024).optional(), // audio en base64 pour note vocale directe (jusqu'à 15 Mo)
   mimeType: z.string().max(80).optional(),
 });
 

@@ -16,10 +16,10 @@ import { zaiCall, UpstreamBusyError } from "@/lib/ai/zai-retry";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const MAX_BYTES = 5 * 1024 * 1024; // ~5 Mo décodés (12 s d'opus ≈ 40 Ko: très large)
+const MAX_BYTES = 12 * 1024 * 1024; // ~12 Mo décodés (audio vocal vocal haute-fidélité)
 const ASR_TIMEOUT_MS = 25_000;
 
-// Base64 d'un payload de 5 Mo ≈ 6,99 M caractères (4/3 par octet).
+// Base64 d'un payload de 12 Mo ≈ 16 M caractères (4/3 par octet).
 const Body = z.object({
   audio: z.string().min(1).max(Math.ceil(MAX_BYTES / 3) * 4),
   mimeType: z.string().max(80).optional(),
@@ -47,11 +47,10 @@ function cleanTranscriptionText(raw: string): string {
 function getCandidateModels(): string[] {
   const preferred = process.env.GEMINI_MODEL?.trim();
   const models = [
-    preferred && preferred.startsWith("gemini-") && preferred !== "gemini-3.5-flash" && preferred !== "gemini-1.5-flash" && preferred !== "gemini-2.0-flash" ? preferred : null,
+    preferred && preferred.startsWith("gemini-") ? preferred : null,
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
     "gemini-2.5-flash",
-    "gemini-flash-latest",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-pro",
   ].filter(Boolean) as string[];
   return Array.from(new Set(models));
 }

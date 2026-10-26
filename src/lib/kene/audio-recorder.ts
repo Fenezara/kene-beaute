@@ -32,12 +32,17 @@ export function blobToBase64(blob: Blob): Promise<string> {
 }
 
 /**
- * Convertit tout format conteneur (MP4/AAC sur Safari iOS, etc.) en WAV mono 16 bits
- * afin de garantir une acceptation parfaite par les moteurs de transcription.
+ * Prépare l'audio pour la transcription ASR haute performance.
+ * - Si le format est déjà compressé et natif (WebM Opus, OGG, WAV, MP3), on le conserve tel quel
+ *   (évite d'exploser le payload par 30x).
+ * - Si le format est conteneur Apple (MP4 / AAC), on le convertit en WAV PCM 16-bit échantillonné à 16kHz
+ *   (standard de reconnaissance vocale, ultra-léger et universel).
  */
 export async function toAsrBlob(blob: Blob): Promise<Blob> {
   const t = blob.type.toLowerCase();
-  if (t.includes("wav")) return blob;
+  if (t.includes("webm") || t.includes("ogg") || t.includes("wav") || t.includes("mp3")) {
+    return blob;
+  }
   if (typeof window === "undefined") return blob;
 
   const Ctx =
@@ -48,7 +53,9 @@ export async function toAsrBlob(blob: Blob): Promise<Blob> {
   const ctx = new Ctx();
   try {
     const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
-    const len = decoded.length;
+    // Rééchantillonnage optimisé à 16 kHz (standard vocal ASR, taille divisée par 3)
+    const targetSampleRate = 16000;
+    const len = Math.ceil((decoded.duration || 1) * targetSampleRate);
     const view = new DataView(new ArrayBuffer(44 + len * 2));
     const w = (off: number, s: string) => {
       for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
@@ -60,16 +67,21 @@ export async function toAsrBlob(blob: Blob): Promise<Blob> {
     view.setUint32(16, 16, true);
     view.setUint16(20, 1, true); // PCM
     view.setUint16(22, 1, true); // mono
-    view.setUint32(24, decoded.sampleRate, true);
-    view.setUint32(28, decoded.sampleRate * 2, true);
+    view.setUint32(24, targetSampleRate, true);
+    view.setUint32(28, targetSampleRate * 2, true);
     view.setUint16(32, 2, true);
     view.setUint16(34, 16, true);
     w(36, "data");
     view.setUint32(40, len * 2, true);
+
     const chans = decoded.numberOfChannels;
+    const ratio = decoded.sampleRate / targetSampleRate;
     for (let i = 0; i < len; i++) {
+      const srcIdx = Math.min(Math.floor(i * ratio), decoded.length - 1);
       let mono = 0;
-      for (let c = 0; c < chans; c++) mono += (decoded.getChannelData(c)?.[i] ?? 0) / chans;
+      for (let c = 0; c < chans; c++) {
+        mono += (decoded.getChannelData(c)?.[srcIdx] ?? 0) / chans;
+      }
       view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, mono)) * 0x7fff, true);
     }
     return new Blob([view], { type: "audio/wav" });

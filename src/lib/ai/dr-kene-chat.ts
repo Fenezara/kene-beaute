@@ -261,11 +261,10 @@ export function tidyReply(raw: string): string {
 function getCandidateModels(): string[] {
   const preferred = process.env.GEMINI_MODEL?.trim();
   const models = [
-    preferred && preferred.startsWith("gemini-") && preferred !== "gemini-3.5-flash" && preferred !== "gemini-1.5-flash" && preferred !== "gemini-2.0-flash" ? preferred : null,
+    preferred && preferred.startsWith("gemini-") ? preferred : null,
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
     "gemini-2.5-flash",
-    "gemini-flash-latest",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-pro",
   ].filter(Boolean) as string[];
   return Array.from(new Set(models));
 }

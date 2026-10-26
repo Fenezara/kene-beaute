@@ -281,8 +281,8 @@ function jailIp(ip: string): void {
 }
 
 // ─────────────────────────── BOUCLIER 2 : ANTI-JSON BOMB & TAILLE PAYLOAD ───────────────────────────
-const MAX_GENERAL_PAYLOAD_BYTES = 512 * 1024; // 512 KB pour les requêtes API standards
-const MAX_MEDIA_PAYLOAD_BYTES = 10 * 1024 * 1024; // 10 MB pour les uploads photos diagnostic / médias
+const MAX_GENERAL_PAYLOAD_BYTES = 1024 * 1024; // 1 MB pour les requêtes API standards
+const MAX_MEDIA_PAYLOAD_BYTES = 16 * 1024 * 1024; // 16 MB pour les audios vocaux, photos diagnostic & médias
 
 export function middleware(req: NextRequest) {
   const method = req.method.toUpperCase();
@@ -306,16 +306,21 @@ export function middleware(req: NextRequest) {
     );
   }
 
-  // C) GARDE-FOU ANTI-JSON BOMB : vérification stricte de la taille du payload HTTP
+  // C) GARDE-FOU ANTI-JSON BOMB : vérification de la taille du payload HTTP
   if (method === "POST" || method === "PUT" || method === "PATCH") {
     const rawContentLength = req.headers.get("content-length");
     if (rawContentLength) {
       const contentLength = parseInt(rawContentLength, 10);
       if (!Number.isNaN(contentLength)) {
         const isMediaUpload =
+          path.startsWith("/api/dermato/chat") ||
+          path.startsWith("/api/asr") ||
+          path.startsWith("/api/tts") ||
+          path.startsWith("/api/pro/assistant") ||
           path.startsWith("/api/dermato/photo") ||
           path.startsWith("/api/media") ||
           path.startsWith("/api/pro/institutes/media") ||
+          path.startsWith("/api/pro/institute-photo") ||
           path.startsWith("/api/pro/diagnoses") ||
           path.startsWith("/api/diag");
         const maxAllowed = isMediaUpload ? MAX_MEDIA_PAYLOAD_BYTES : MAX_GENERAL_PAYLOAD_BYTES;
