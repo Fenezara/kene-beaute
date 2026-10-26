@@ -136,9 +136,10 @@ const NAV: ProNavItem[] = [
   { id: "dossiers_peau", label: "🔬 Dossiers Cutanés", icon: FolderHeart, hint: "Biomarqueurs, photos HD & formulations", category: "clinique" },
   { id: "agenda", label: "Agenda & Soins", icon: SankofaIcon, hint: "Rendez-vous & cabines de soins", category: "clinique" },
 
-  // 3. Caisse & Commerce
+  // 3. Caisse, Stock & Commerce
   { id: "caisse", label: "Ventes & Caisse", icon: AbanIcon, hint: "Caisse POS · Commandes en ligne", category: "commerce" },
-  { id: "catalogue", label: "Offre & Stock", icon: DuafeIcon, hint: "Soins · Stock · Promos", category: "commerce" },
+  { id: "stock", label: "Inventaire Stock", icon: KenteIcon, hint: "Produits, seuils d'alerte & réassort", category: "commerce" },
+  { id: "catalogue", label: "Catalogue Soins", icon: DuafeIcon, hint: "Prestations, tarifs & cartes des soins", category: "commerce" },
 
   // 4. Relation & Fidélité
   { id: "crm", label: "CRM Clientes", icon: OsramIcon, hint: "Clientes, fiches & fidélité", category: "relation" },
@@ -160,12 +161,153 @@ const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
   coiffeuse: ["agenda", "diagnostic", "assistant", "parametres"],
   prothesiste_ongulaire: ["agenda", "diagnostic", "assistant", "parametres"],
   masseuse: ["agenda", "diagnostic", "assistant", "parametres"],
-  caissiere: ["caisse", "catalogue", "assistant", "parametres"],
+  caissiere: ["caisse", "catalogue", "stock", "assistant", "parametres"],
   receptionniste: ["agenda", "caisse", "crm", "relances", "assistant", "parametres"],
-  responsable_stock: ["catalogue", "stock", "assistant", "parametres"],
-  manager: ["dashboard", "dossiers_peau", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue", "parametres"],
+  responsable_stock: ["stock", "catalogue", "assistant", "parametres"],
+  manager: ["dashboard", "dossiers_peau", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue", "stock", "parametres"],
   apprentie: ["dossiers_peau", "diagnostic", "agenda", "assistant", "parametres"],
 };
+
+/**
+ * Résolution dynamique des intitulés et emojis de pôles métiers.
+ * Adapte automatiquement le libellé pour chaque collaboratrice selon les modules autorisés :
+ * ex: si une esthéticienne n'a pas accès à la caisse mais au stock, le pôle s'intitule "Stock & Soins" (📦)
+ * et JAMAIS "Caisse & Stock" ni "Caisse & Commerce" (💳) pour éviter toute confusion.
+ */
+export function resolveCategoryDef(
+  baseCat: ProNavCategoryDef,
+  itemsInCat: ProNavItem[],
+  isOwner: boolean
+): ProNavCategoryDef {
+  const itemIds = new Set(itemsInCat.map((i) => i.id));
+
+  // 1. Pôle Commerce, Caisse & Stock
+  if (baseCat.id === "commerce") {
+    const hasCaisse = itemIds.has("caisse");
+    const hasStock = itemIds.has("stock");
+    const hasCatalogue = itemIds.has("catalogue");
+
+    if (hasCaisse && (hasStock || hasCatalogue)) {
+      return {
+        id: "commerce",
+        emoji: "💳",
+        label: "Caisse & Stock",
+        shortLabel: "Caisse & Stock",
+      };
+    }
+    if (hasCaisse && !hasStock && !hasCatalogue) {
+      return {
+        id: "commerce",
+        emoji: "💳",
+        label: "Ventes & Caisse POS",
+        shortLabel: "Caisse POS",
+      };
+    }
+    if (!hasCaisse && hasStock && hasCatalogue) {
+      return {
+        id: "commerce",
+        emoji: "📦",
+        label: "Stock & Prestations",
+        shortLabel: "Stock & Soins",
+      };
+    }
+    if (!hasCaisse && hasStock && !hasCatalogue) {
+      return {
+        id: "commerce",
+        emoji: "📦",
+        label: "Inventaire du Stock",
+        shortLabel: "Stock",
+      };
+    }
+    if (!hasCaisse && !hasStock && hasCatalogue) {
+      return {
+        id: "commerce",
+        emoji: "🛍️",
+        label: "Catalogue des Soins",
+        shortLabel: "Catalogue Soins",
+      };
+    }
+  }
+
+  // 2. Pôle Cabine & Clinique
+  if (baseCat.id === "clinique") {
+    const hasAgenda = itemIds.has("agenda");
+    const hasDiagOrDossier = itemIds.has("diagnostic") || itemIds.has("dossiers_peau");
+    if (hasAgenda && !hasDiagOrDossier) {
+      return {
+        id: "clinique",
+        emoji: "📅",
+        label: "Agenda & Rendez-vous",
+        shortLabel: "Agenda",
+      };
+    }
+    if (!hasAgenda && hasDiagOrDossier) {
+      return {
+        id: "clinique",
+        emoji: "🔬",
+        label: "Diagnostics Cutanés",
+        shortLabel: "Diagnostics",
+      };
+    }
+  }
+
+  // 3. Pôle Relation & Clientes
+  if (baseCat.id === "relation") {
+    const hasAssistant = itemIds.has("assistant");
+    const hasCrmOrRelances = itemIds.has("crm") || itemIds.has("relances");
+    if (!hasAssistant && hasCrmOrRelances) {
+      return {
+        id: "relation",
+        emoji: "👥",
+        label: "Relation & Suivi Clientes",
+        shortLabel: "Clientes",
+      };
+    }
+    if (hasAssistant && !hasCrmOrRelances) {
+      return {
+        id: "relation",
+        emoji: "👑",
+        label: "Secrétaire IA de Direction",
+        shortLabel: "Secrétaire IA",
+      };
+    }
+  }
+
+  // 4. Pôle Gestion & Administration
+  if (baseCat.id === "gestion") {
+    const hasPaieOrCompta = itemIds.has("paie") || itemIds.has("compta");
+    const hasEquipe = itemIds.has("equipe");
+    if (!hasPaieOrCompta && hasEquipe) {
+      return {
+        id: "gestion",
+        emoji: "👥",
+        label: "Équipe & Présences",
+        shortLabel: "Équipe",
+      };
+    }
+  }
+
+  // 5. Pôle Paramètres & Profil
+  if (baseCat.id === "reglages") {
+    if (isOwner) {
+      return {
+        id: "reglages",
+        emoji: "⚙️",
+        label: "Institut & Paramètres",
+        shortLabel: "Paramètres",
+      };
+    } else {
+      return {
+        id: "reglages",
+        emoji: "⚙️",
+        label: "Mon Profil & Paramètres",
+        shortLabel: "Mon Profil",
+      };
+    }
+  }
+
+  return baseCat;
+}
 
 const PLAN_STYLES: Record<string, string> = {
   pro: "bg-gold/15 text-gold-text border-transparent ring-1 ring-inset ring-gold/30",
@@ -313,9 +455,20 @@ export function ProEnterpriseShell() {
     Boolean(employeeRole) ||
     (Array.isArray(employeePermissions) && employeePermissions.length > 0);
 
+  // Normalisation des permissions avec rétro-compatibilité
+  const normalizedPermissions = useMemo(() => {
+    if (!employeePermissions) return null;
+    const set = new Set(employeePermissions);
+    // Si l'employée a "catalogue" hérité de l'ancien module groupé, lui ouvrir également "stock"
+    if (set.has("catalogue") && !set.has("stock")) {
+      set.add("stock");
+    }
+    return Array.from(set);
+  }, [employeePermissions]);
+
   const allowedIds: ProSectionId[] | null = isEmployee
-    ? employeePermissions && employeePermissions.length > 0
-      ? ([...new Set([...employeePermissions, "parametres"])].filter(
+    ? normalizedPermissions && normalizedPermissions.length > 0
+      ? ([...new Set([...normalizedPermissions, "parametres"])].filter(
           (id) => id !== "paie" && id !== "compta"
         ) as ProSectionId[])
       : employeeRole
@@ -539,6 +692,11 @@ export function ProEnterpriseShell() {
     }
     if (s === "stock") {
       setCatalogTab("stock");
+      setSection("stock");
+      return;
+    }
+    if (s === "catalogue") {
+      setCatalogTab("products");
       setSection("catalogue");
       return;
     }
@@ -574,14 +732,20 @@ export function ProEnterpriseShell() {
       : section;
 
   const availableCategories = useMemo(
-    () => PRO_NAV_CATEGORIES.filter((cat) => nav.some((i) => i.category === cat.id)),
-    [nav]
+    () =>
+      PRO_NAV_CATEGORIES.filter((cat) => nav.some((i) => i.category === cat.id)).map((cat) => {
+        const catItems = nav.filter((i) => i.category === cat.id);
+        return resolveCategoryDef(cat, catItems, isOwner);
+      }),
+    [nav, isOwner]
   );
   const activeNavItem = nav.find((i) => i.id === activeSection) ?? nav[0];
   const activeCategory: ProNavCategory = activeNavItem?.category ?? "pilotage";
-  const activeCategoryDef =
-    PRO_NAV_CATEGORIES.find((c) => c.id === activeCategory) ?? PRO_NAV_CATEGORIES[0];
   const activeCategoryItems = nav.filter((i) => i.category === activeCategory);
+  const activeCategoryDef = useMemo(() => {
+    const base = PRO_NAV_CATEGORIES.find((c) => c.id === activeCategory) ?? PRO_NAV_CATEGORIES[0];
+    return resolveCategoryDef(base, activeCategoryItems, isOwner);
+  }, [activeCategory, activeCategoryItems, isOwner]);
 
   const chipRefs = useRef<Partial<Record<ProSectionId, HTMLButtonElement | null>>>({});
   useEffect(() => {
@@ -1643,58 +1807,88 @@ export function ProEnterpriseShell() {
             )}
             {activeSection === "relances" && <RelancesSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {activeSection === "equipe" && <TeamSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} />}
-            {(activeSection === "catalogue" || activeSection === "stock" || activeSection === "promos") && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-border/60 pb-3 overflow-x-auto no-scrollbar">
-                  <button
-                    type="button"
-                    onClick={() => setCatalogTab("products")}
-                    className={cn(
-                      "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0",
-                      catalogTab === "products"
-                        ? "k-btn-gold text-primary-foreground shadow-sm"
-                        : "k-chip text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <DuafeIcon size={15} />
-                    <span>Soins & Produits</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCatalogTab("stock")}
-                    className={cn(
-                      "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0",
-                      catalogTab === "stock"
-                        ? "k-btn-gold text-primary-foreground shadow-sm"
-                        : "k-chip text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <KenteIcon size={15} />
-                    <span>Inventaire Stock</span>
-                  </button>
-                  {(isOwner || employeeRole === "manager") && (
-                    <button
-                      type="button"
-                      onClick={() => setCatalogTab("promos")}
-                      className={cn(
-                        "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0",
-                        catalogTab === "promos"
-                          ? "k-btn-gold text-primary-foreground shadow-sm"
-                          : "k-chip text-muted-foreground hover:text-foreground"
+            {(activeSection === "catalogue" || activeSection === "stock" || activeSection === "promos") && (() => {
+              const canViewCatalogue = !allowedIds || allowedIds.includes("catalogue");
+              const canViewStock = !allowedIds || allowedIds.includes("stock");
+              const canViewPromos = isOwner || employeeRole === "manager";
+              const subTabCount = [canViewCatalogue, canViewStock, canViewPromos].filter(Boolean).length;
+
+              const effectiveTab: "products" | "stock" | "promos" =
+                activeSection === "stock" && canViewStock
+                  ? "stock"
+                  : activeSection === "catalogue" && canViewCatalogue
+                  ? "products"
+                  : activeSection === "promos" && canViewPromos
+                  ? "promos"
+                  : canViewCatalogue && catalogTab === "products"
+                  ? "products"
+                  : canViewStock && catalogTab === "stock"
+                  ? "stock"
+                  : canViewStock
+                  ? "stock"
+                  : canViewCatalogue
+                  ? "products"
+                  : "products";
+
+              return (
+                <div className="space-y-4">
+                  {subTabCount > 1 && (
+                    <div className="flex items-center gap-2 border-b border-border/60 pb-3 overflow-x-auto no-scrollbar">
+                      {canViewCatalogue && (
+                        <button
+                          type="button"
+                          onClick={() => openSection("catalogue")}
+                          className={cn(
+                            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0 cursor-pointer",
+                            effectiveTab === "products"
+                              ? "k-btn-gold text-primary-foreground shadow-sm"
+                              : "k-chip text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <DuafeIcon size={15} />
+                          <span>Catalogue & Soins</span>
+                        </button>
                       )}
-                    >
-                      <TicketPercent size={15} />
-                      <span>Codes Promo & Réductions</span>
-                    </button>
+                      {canViewStock && (
+                        <button
+                          type="button"
+                          onClick={() => openSection("stock")}
+                          className={cn(
+                            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0 cursor-pointer",
+                            effectiveTab === "stock"
+                              ? "k-btn-gold text-primary-foreground shadow-sm"
+                              : "k-chip text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <KenteIcon size={15} />
+                          <span>Inventaire Stock</span>
+                        </button>
+                      )}
+                      {canViewPromos && (
+                        <button
+                          type="button"
+                          onClick={() => openSection("promos")}
+                          className={cn(
+                            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0 cursor-pointer",
+                            effectiveTab === "promos"
+                              ? "k-btn-gold text-primary-foreground shadow-sm"
+                              : "k-chip text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <TicketPercent size={15} />
+                          <span>Codes Promo & Réductions</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {effectiveTab === "products" && <CatalogSection tenantId={tid} />}
+                  {effectiveTab === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
+                  {effectiveTab === "promos" && canViewPromos && (
+                    <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />
                   )}
                 </div>
-                {catalogTab === "products" && <CatalogSection tenantId={tid} />}
-                {catalogTab === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
-                {catalogTab === "promos" && (isOwner || employeeRole === "manager") && (
-                  <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />
-                )}
-              </div>
-            )}
+              );
+            })()}
             {activeSection === "paie" && <PayrollSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} tenantName={tenant?.name ?? "Institut"} onNavigate={openSection} />}
             {activeSection === "compta" && <AccountingSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {(activeSection === "parametres" || activeSection === "abonnement") && (

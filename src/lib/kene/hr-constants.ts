@@ -114,24 +114,33 @@ export const MODULABLE_MODULES: ModulableModule[] = [
     emoji: "📅",
     description: "Planning des cabines, réservations et rendez-vous du jour.",
   },
-  // Caisse & Commerce
+  // Caisse, Stock & Commerce
   {
     id: "caisse",
     label: "Ventes & Caisse POS",
     shortLabel: "Caisse",
     category: "commerce",
-    categoryLabel: "Caisse & Commerce",
+    categoryLabel: "Caisse, Stock & Offre",
     emoji: "💳",
     description: "Encaissement en espèces, Wave, Orange Money et reçus.",
   },
   {
-    id: "catalogue",
-    label: "Catalogue, Soins & Stock",
-    shortLabel: "Catalogue & Stock",
+    id: "stock",
+    label: "Inventaire du Stock",
+    shortLabel: "Stock",
     category: "commerce",
-    categoryLabel: "Caisse & Commerce",
+    categoryLabel: "Caisse, Stock & Offre",
+    emoji: "📦",
+    description: "Stock cabine & revente, alertes de rupture, réassort et entrées/sorties.",
+  },
+  {
+    id: "catalogue",
+    label: "Catalogue des Soins",
+    shortLabel: "Catalogue Soins",
+    category: "commerce",
+    categoryLabel: "Caisse, Stock & Offre",
     emoji: "🛍️",
-    description: "Prestations, tarifs, produits cosmétiques et alertes stock.",
+    description: "Cartes des prestations, tarifs et soins praticables en institut.",
   },
   // Relation & IA
   {
@@ -188,10 +197,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   coiffeuse: ["agenda", "diagnostic", "assistant"],
   prothesiste_ongulaire: ["agenda", "diagnostic", "assistant"],
   masseuse: ["agenda", "diagnostic", "assistant"],
-  caissiere: ["caisse", "catalogue", "assistant"],
+  caissiere: ["caisse", "catalogue", "stock", "assistant"],
   receptionniste: ["agenda", "caisse", "crm", "relances", "assistant"],
-  responsable_stock: ["catalogue", "assistant"],
-  manager: ["dashboard", "dossiers_peau", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue"],
+  responsable_stock: ["stock", "catalogue", "assistant"],
+  manager: ["dashboard", "dossiers_peau", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue", "stock"],
   apprentie: ["dossiers_peau", "diagnostic", "agenda", "assistant"],
 };
 
