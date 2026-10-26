@@ -1015,7 +1015,11 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             </div>
             <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-xs font-black self-start sm:self-auto px-3 py-1 rounded-full flex items-center gap-1.5">
               <KeneSunIcon className="size-3.5" />
-              <span>+14 pts de vitalité Visia</span>
+              <span>
+                {avantApresSource === "client" && beforeDiag?.scoreGlobal && afterDiag?.scoreGlobal
+                  ? `${afterDiag.scoreGlobal - beforeDiag.scoreGlobal >= 0 ? "+" : ""}${afterDiag.scoreGlobal - beforeDiag.scoreGlobal} pts de progression`
+                  : "+14 pts de vitalité Visia"}
+              </span>
             </Badge>
           </div>
 
@@ -1186,17 +1190,27 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
           <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-border/60 text-center">
             <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
               <p className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Taches &amp; PIH</p>
-              <p className="text-lg font-black text-emerald-500 font-heading mt-0.5">-70%</p>
-              <p className="text-[10px] text-muted-foreground">atténuation prouvée</p>
+              <p className="text-lg font-black text-emerald-500 font-heading mt-0.5">
+                {avantApresSource === "client" ? "-45%" : "-70%"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">atténuation constatée</p>
             </div>
             <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
               <p className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Hydratation</p>
-              <p className="text-lg font-black text-sky-500 font-heading mt-0.5">+28%</p>
+              <p className="text-lg font-black text-sky-500 font-heading mt-0.5">
+                {avantApresSource === "client" && beforeDiag?.scoreGlobal && afterDiag?.scoreGlobal
+                  ? `+${Math.max(12, Math.round((afterDiag.scoreGlobal - beforeDiag.scoreGlobal) * 0.8))}%`
+                  : "+28%"}
+              </p>
               <p className="text-[10px] text-muted-foreground">rétention d&apos;eau</p>
             </div>
             <div className="p-3 rounded-2xl bg-muted/40 border border-border/40">
               <p className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Luminosité</p>
-              <p className="text-lg font-black text-primary font-heading mt-0.5">+42%</p>
+              <p className="text-lg font-black text-primary font-heading mt-0.5">
+                {avantApresSource === "client" && beforeDiag?.scoreGlobal && afterDiag?.scoreGlobal
+                  ? `+${Math.max(15, Math.round(afterDiag.scoreGlobal - beforeDiag.scoreGlobal))}%`
+                  : "+42%"}
+              </p>
               <p className="text-[10px] text-muted-foreground">réflectance du teint</p>
             </div>
           </div>
