@@ -8,7 +8,7 @@
 // annulation notifiée, 30 j offerts) — chaque geste sensible exige une
 // confirmation d'identité fraîche (AdminGate) et est audité. Les routes
 // de gestion exigent une session admin stricte.
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { ArrowLeft, Building2, Calendar, CreditCard, ExternalLink, KeyRound, LayoutDashboard, LogOut, ShieldCheck, ShoppingBag, Users } from "lucide-react";
 import { apiGet } from "@/lib/kene/api";
 import { cn } from "@/lib/utils";
@@ -47,7 +47,13 @@ const TABS: { key: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
 export function AdminApp() {
   const [tab, setTab] = useState<AdminTab>("overview");
   const [scope, setScope] = useState<"real" | "all">("real");
+  const scrollRef = useRef<HTMLDivElement>(null);
   const setUser = useKene((s) => s.setUser);
+
+  const handleTabChange = (nextTab: AdminTab) => {
+    setTab(nextTab);
+    scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
+  };
 
   // Vue d'ensemble + Sécurité gardent LEURS hooks (la navigation entre
   // onglets ne re-télécharge jamais ce qui est déjà en mémoire — l'état
@@ -64,7 +70,7 @@ export function AdminApp() {
       stats.error.toLowerCase().includes("401");
 
     return (
-      <div className="w-full min-h-screen overflow-y-auto overscroll-contain touch-pan-y pretty-scroll pb-24">
+      <div className="h-dvh w-full overflow-y-auto overscroll-y-contain touch-pan-y pretty-scroll pb-24">
         <div className="mx-auto max-w-5xl px-4 py-8 space-y-4">
           <ConsoleHeader />
           {isAuthError ? (
@@ -106,7 +112,7 @@ export function AdminApp() {
 
   return (
     <AdminGateProvider>
-      <div className="w-full min-h-screen overflow-y-auto overscroll-contain touch-pan-y pretty-scroll">
+      <div ref={scrollRef} className="h-dvh w-full overflow-y-auto overscroll-y-contain touch-pan-y pretty-scroll">
         <div className="mx-auto max-w-6xl px-3 sm:px-6 py-6 pb-28 space-y-5">
           <ConsoleHeader />
 
@@ -116,7 +122,7 @@ export function AdminApp() {
               {TABS.map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
-                  onClick={() => setTab(key)}
+                  onClick={() => handleTabChange(key)}
                   aria-current={tab === key ? "page" : undefined}
                   className={cn(
                     "flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-colors",
