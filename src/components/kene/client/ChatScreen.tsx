@@ -72,6 +72,7 @@ import {
 import type { DrKeneOrbState } from "./DrKeneOrb3D";
 import dynamic from "next/dynamic";
 import { openWhatsApp, openWhatsAppAppointmentInquiry, openWhatsAppProductOrderInquiry } from "@/lib/kene/whatsapp-relay";
+import { toAsrBlob } from "@/lib/kene/audio-recorder";
 
 const DrKeneOrb3D = dynamic(() => import("./DrKeneOrb3D").then((mod) => mod.DrKeneOrb3D), {
   ssr: false,
@@ -142,49 +143,7 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-/** Le moteur ASR n'accepte QUE WAV et WebM (erreur amont explicite): tout
- * autre conteneur (mp4/aac Safari) est ré-encodé en WAV mono 16 bits via
- * WebAudio — conversion minimale côté client, documentée dans la route. */
-async function toAsrBlob(blob: Blob): Promise<Blob> {
-  const t = blob.type.toLowerCase();
-  if (t.includes("wav")) return blob;
-  const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!Ctx) return blob; // dernier recours: tenter l'envoi tel quel
-  const ctx = new Ctx();
-  try {
-    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
-    const len = decoded.length;
-    const view = new DataView(new ArrayBuffer(44 + len * 2));
-    const w = (off: number, s: string) => {
-      for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
-    };
-    w(0, "RIFF");
-    view.setUint32(4, 36 + len * 2, true);
-    w(8, "WAVE");
-    w(12, "fmt ");
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM
-    view.setUint16(22, 1, true); // mono
-    view.setUint32(24, decoded.sampleRate, true);
-    view.setUint32(28, decoded.sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    w(36, "data");
-    view.setUint32(40, len * 2, true);
-    const chans = decoded.numberOfChannels;
-    for (let i = 0; i < len; i++) {
-      let mono = 0;
-      for (let c = 0; c < chans; c++) mono += (decoded.getChannelData(c)?.[i] ?? 0) / chans;
-      view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, mono)) * 0x7fff, true);
-    }
-    return new Blob([view], { type: "audio/wav" });
-  } catch (err) {
-    console.warn("[kene:asr:transcode]", err);
-    return blob;
-  } finally {
-    void ctx.close();
-  }
-}
+
 
 const TRIAGE = {
   vert: { border: "border-l-4 border-success", bg: "bg-success/5", text: "text-success", Icon: CircleCheck, cta: "Commander les soins (WhatsApp)" },

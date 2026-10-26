@@ -15,7 +15,7 @@ import { zaiCall } from "@/lib/ai/zai-retry";
 import { KNOWLEDGE_DIGEST } from "@/lib/kene/knowledge";
 import { ATLAS_DIGEST } from "@/lib/kene/conditions";
 
-const CHAT_TIMEOUT_MS = 30_000;
+const CHAT_TIMEOUT_MS = 12_000;
 
 export interface UserProfileContext {
   id?: string;
@@ -262,9 +262,9 @@ function getCandidateModels(): string[] {
   const preferred = process.env.GEMINI_MODEL?.trim();
   const models = [
     preferred && preferred.startsWith("gemini-") ? preferred : null,
+    "gemini-2.5-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
-    "gemini-2.5-flash",
   ].filter(Boolean) as string[];
   return Array.from(new Set(models));
 }
@@ -314,8 +314,8 @@ async function callGeminiChat(
               },
               contents,
               generationConfig: {
-                temperature: 0.4,
-                maxOutputTokens: 2500,
+                temperature: 0.35,
+                maxOutputTokens: 600,
               },
             }),
             signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),

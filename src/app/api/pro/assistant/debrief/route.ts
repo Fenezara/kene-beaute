@@ -15,7 +15,7 @@ import { jsonError, serverError } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { zaiCall } from "@/lib/ai/zai-retry";
 
-const DEBRIEF_TIMEOUT_MS = 25_000;
+const DEBRIEF_TIMEOUT_MS = 12_000;
 
 export const runtime = "nodejs";
 
@@ -541,9 +541,9 @@ function getCandidateModels(): string[] {
   const preferred = process.env.GEMINI_MODEL?.trim();
   const models = [
     preferred && preferred.startsWith("gemini-") ? preferred : null,
+    "gemini-2.5-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
-    "gemini-2.5-flash",
   ].filter(Boolean) as string[];
   return Array.from(new Set(models));
 }
@@ -581,7 +581,7 @@ async function callGeminiDebrief(systemPrompt: string, userMessage: string): Pro
             contents: [{ role: "user", parts: [{ text: userMessage }] }],
             generationConfig: {
               temperature: 0.2,
-              maxOutputTokens: 2000,
+              maxOutputTokens: 800,
               responseMimeType: "application/json",
             },
           }),
