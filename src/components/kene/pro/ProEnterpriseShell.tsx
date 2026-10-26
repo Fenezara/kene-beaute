@@ -221,8 +221,14 @@ export function ProEnterpriseShell() {
   const online = useNetworkOnline();
 
   const overview = useApi<ProOverview>(
-    () => apiGet<ProOverview>(`/api/pro/overview${proTenantId ? `?tenantId=${proTenantId}` : ""}`),
-    [proTenantId],
+    () => {
+      const params = new URLSearchParams();
+      if (proTenantId) params.set("tenantId", proTenantId);
+      if (sessionUser?.id) params.set("userId", sessionUser.id);
+      const qs = params.toString();
+      return apiGet<ProOverview>(`/api/pro/overview${qs ? `?${qs}` : ""}`);
+    },
+    [proTenantId, sessionUser?.id],
     {
       cacheKey: `kene_pro_overview_${proTenantId || "default"}`,
       fallbackData: DEFAULT_FALLBACK_OVERVIEW,
@@ -298,27 +304,64 @@ export function ProEnterpriseShell() {
     sessionUser?.tenantId ||
     DEFAULT_FALLBACK_TENANT_ID;
 
+  const serverViewer = overview.data?.viewer;
+  const employeeRole = serverViewer?.employeeRole ?? sessionUser?.employeeRole ?? null;
+  const employeePermissions = serverViewer?.employeePermissions ?? sessionUser?.employeePermissions ?? null;
+  const employeeName = serverViewer?.employeeName ?? sessionUser?.employeeName ?? null;
+  const isEmployee =
+    (serverViewer ? !serverViewer.isOwner : false) ||
+    Boolean(employeeRole) ||
+    (Array.isArray(employeePermissions) && employeePermissions.length > 0);
+
+  const allowedIds: ProSectionId[] | null = isEmployee
+    ? employeePermissions && employeePermissions.length > 0
+      ? ([...new Set([...employeePermissions, "parametres"])].filter(
+          (id) => id !== "paie" && id !== "compta"
+        ) as ProSectionId[])
+      : employeeRole
+      ? ([...new Set([...(EMPLOYEE_SECTIONS[employeeRole] ?? ["agenda", "diagnostic", "assistant"]), "parametres"])] as ProSectionId[])
+      : (["agenda", "diagnostic", "assistant", "parametres"] as ProSectionId[])
+    : null;
+
+  const isOwner = sessionUser?.role === "admin" || (serverViewer ? serverViewer.isOwner : !isEmployee);
+
   useEffect(() => {
     if (!tid || !online) return;
     const timer = window.setTimeout(() => {
-      const endpoints = [
-        `/api/pro/overview?tenantId=${tid}`,
-        `/api/pro/clients?tenantId=${tid}`,
-        `/api/pro/catalog?tenantId=${tid}`,
-        `/api/pro/stock?tenantId=${tid}`,
-        `/api/pro/employees?tenantId=${tid}`,
-        `/api/pro/sales?tenantId=${tid}`,
-      ];
+      const endpoints: string[] = [`/api/pro/overview?tenantId=${tid}`];
+      if (!isEmployee || allowedIds?.includes("crm")) {
+        endpoints.push(`/api/pro/clients?tenantId=${tid}`);
+      }
+      if (!isEmployee || allowedIds?.includes("catalogue")) {
+        endpoints.push(`/api/pro/catalog?tenantId=${tid}`);
+      }
+      if (!isEmployee || allowedIds?.includes("stock")) {
+        endpoints.push(`/api/pro/stock?tenantId=${tid}`);
+      }
+      if (!isEmployee || employeeRole === "manager") {
+        endpoints.push(`/api/pro/employees?tenantId=${tid}`);
+      }
+      if (!isEmployee || allowedIds?.includes("caisse")) {
+        endpoints.push(`/api/pro/sales?tenantId=${tid}`);
+      }
       endpoints.forEach((ep) => {
         void apiGet(ep).catch(() => {});
       });
-    }, 1200);
+    }, 1500);
     return () => window.clearTimeout(timer);
-  }, [tid, online]);
+  }, [tid, online, isEmployee, allowedIds, employeeRole]);
 
   // Reprise & Resynchronisation automatique dès le retour du réseau (zéro fermeture d'application nécessaire)
+  const wasOfflineRef = useRef(false);
   useEffect(() => {
-    if (!online || !tid) return;
+    if (!online) {
+      wasOfflineRef.current = true;
+      return;
+    }
+    // Exécuter la synchronisation uniquement si l'on revient d'une coupure réseau effective
+    if (!wasOfflineRef.current) return;
+    wasOfflineRef.current = false;
+
     haptic(HAPTIC.success);
     void refetchRef.current?.();
     setRefreshKey((k) => k + 1);
@@ -345,10 +388,13 @@ export function ProEnterpriseShell() {
   const loadAttendance = useCallback(async () => {
     if (!tid) return;
     try {
+      const uId = useKene.getState().user?.id;
+      const params = new URLSearchParams({ tenantId: tid });
+      if (uId) params.set("userId", uId);
       const res = await apiGet<{
         attendance: { id: string; checkIn?: string | null; checkOut?: string | null; status: string; hours?: number | null } | null;
         employee: { id: string; name: string; role: string } | null;
-      }>(`/api/pro/employees/attendance?tenantId=${tid}`);
+      }>(`/api/pro/employees/attendance?${params.toString()}`);
       if (res?.employee) {
         setStaffEmployee(res.employee);
         setStaffAttendance(res.attendance);
@@ -441,44 +487,33 @@ export function ProEnterpriseShell() {
   // Synchronisation en temps réel des droits employés servis par le serveur
   useEffect(() => {
     const v = overview.data?.viewer;
-    if (v && sessionUser) {
-      const needsUpdate =
-        sessionUser.employeeRole !== v.employeeRole ||
-        sessionUser.employeeName !== v.employeeName ||
-        (v.employeeName && sessionUser.name !== v.employeeName) ||
-        JSON.stringify(sessionUser.employeePermissions ?? null) !== JSON.stringify(v.employeePermissions ?? null);
-      if (needsUpdate) {
-        useKene.getState().setUser({
-          ...sessionUser,
-          name: v.employeeName ?? sessionUser.name,
-          employeeRole: v.employeeRole,
-          employeePermissions: v.employeePermissions,
-          employeeName: v.employeeName ?? sessionUser.employeeName,
-        });
-      }
+    if (!v) return;
+    const current = useKene.getState().user;
+    if (!current) return;
+
+    const vRole = v.employeeRole ?? null;
+    const vName = v.employeeName ?? null;
+    const vPerms = v.employeePermissions ? [...v.employeePermissions].sort() : null;
+
+    const sRole = current.employeeRole ?? null;
+    const sName = current.employeeName ?? null;
+    const sPerms = current.employeePermissions ? [...current.employeePermissions].sort() : null;
+
+    const roleDiff = vRole !== sRole;
+    const nameDiff = vName !== sName;
+    const permsDiff = JSON.stringify(vPerms) !== JSON.stringify(sPerms);
+    const userNameDiff = Boolean(vName && current.name !== vName);
+
+    if (roleDiff || nameDiff || permsDiff || userNameDiff) {
+      useKene.getState().setUser({
+        ...current,
+        name: vName || current.name,
+        employeeRole: vRole,
+        employeePermissions: v.employeePermissions ?? null,
+        employeeName: vName,
+      });
     }
-  }, [overview.data?.viewer, sessionUser]);
-
-  const serverViewer = overview.data?.viewer;
-  const employeeRole = serverViewer?.employeeRole ?? sessionUser?.employeeRole ?? null;
-  const employeePermissions = serverViewer?.employeePermissions ?? sessionUser?.employeePermissions ?? null;
-  const employeeName = serverViewer?.employeeName ?? staffEmployee?.name ?? sessionUser?.employeeName ?? null;
-  const isEmployee =
-    (serverViewer ? !serverViewer.isOwner : false) ||
-    Boolean(employeeRole) ||
-    (Array.isArray(employeePermissions) && employeePermissions.length > 0);
-
-  const allowedIds: ProSectionId[] | null = isEmployee
-    ? employeePermissions && employeePermissions.length > 0
-      ? ([...new Set([...employeePermissions, "parametres"])].filter(
-          (id) => id !== "paie" && id !== "compta"
-        ) as ProSectionId[])
-      : employeeRole
-      ? ([...new Set([...(EMPLOYEE_SECTIONS[employeeRole] ?? ["agenda", "diagnostic", "assistant"]), "parametres"])] as ProSectionId[])
-      : (["agenda", "diagnostic", "assistant", "parametres"] as ProSectionId[])
-    : null;
-
-  const isOwner = sessionUser?.role === "admin" || (serverViewer ? serverViewer.isOwner : !isEmployee);
+  }, [overview.data?.viewer]);
 
   const openSection = (s: ProSectionId) => {
     if (allowedIds && !allowedIds.includes(s) && s !== "parametres") {
@@ -531,7 +566,8 @@ export function ProEnterpriseShell() {
   const agendaBadge = Math.max(0, (live?.pendingAppts ?? 0) - agendaSeen);
   const navBadges: Partial<Record<ProSectionId, number>> = agendaBadge > 0 ? { agenda: agendaBadge } : {};
 
-  const nav = allowedIds ? NAV.filter((n) => allowedIds.includes(n.id)) : NAV;
+  const filteredNav = allowedIds ? NAV.filter((n) => allowedIds.includes(n.id)) : NAV;
+  const nav = filteredNav.length > 0 ? filteredNav : NAV;
   const activeSection: ProSectionId =
     allowedIds && (!allowedIds.includes(section) || !nav.some((n) => n.id === section))
       ? (nav[0]?.id ?? "diagnostic")
@@ -619,11 +655,11 @@ export function ProEnterpriseShell() {
       : "Collaboratrice";
 
   const chipInitials =
-    chipName
+    (chipName || "")
       .split(/\s+/)
       .filter(Boolean)
       .slice(0, 2)
-      .map((w) => w[0]!.toUpperCase())
+      .map((w) => (w[0] ? w[0].toUpperCase() : ""))
       .join("") || (isOwner ? "GP" : "CO");
 
   return (
@@ -884,7 +920,7 @@ export function ProEnterpriseShell() {
           {staffEmployee && (
             <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-card/90 border border-border shadow-2xs">
               <span className="text-[11px] font-bold text-foreground truncate">
-                Pointage · {staffEmployee.name.split(" ")[0]}
+                Pointage · {staffEmployee?.name ? staffEmployee.name.split(" ")[0] : "Collaboratrice"}
               </span>
               {!staffAttendance?.checkIn ? (
                 <button

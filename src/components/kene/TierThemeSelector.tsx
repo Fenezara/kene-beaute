@@ -55,6 +55,7 @@ function getHeritageIcon(symbol: TierThemeDef["symbol"]) {
 
 export function TierThemeSelector({ className, audience }: TierThemeSelectorProps) {
   const user = useKene((s) => s.user);
+  const userId = user?.id;
   const effectiveAudience = audience ?? (user?.role === "pro" ? "pro" : "client");
 
   const [activePlan, setActivePlan] = useState<string | null>(null);
@@ -66,12 +67,12 @@ export function TierThemeSelector({ className, audience }: TierThemeSelectorProp
   // Charger l'état réel de l'abonnement pour calculer les parures débloquées
   useEffect(() => {
     let alive = true;
-    if (user?.id) {
+    if (userId) {
       apiGet<{
         plan: string;
         subscription?: { plan: string } | null;
         loyalty?: { monthsPaid?: number; currentMonth?: number };
-      }>(`/api/subscriptions?userId=${encodeURIComponent(user.id)}&audience=${effectiveAudience}`)
+      }>(`/api/subscriptions?userId=${encodeURIComponent(userId)}&audience=${effectiveAudience}`)
         .then((res) => {
           if (!alive) return;
           const plan = res.subscription?.plan ?? res.plan ?? null;
@@ -121,7 +122,7 @@ export function TierThemeSelector({ className, audience }: TierThemeSelectorProp
       alive = false;
       if (previewTimer) clearTimeout(previewTimer);
     };
-  }, [user, effectiveAudience]);
+  }, [userId, effectiveAudience]);
 
   const context = {
     user,

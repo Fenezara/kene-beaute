@@ -58,6 +58,7 @@ export function SessionKeeper() {
             ...s.user,
             employeeRole: s.employeeRole,
             employeePermissions: s.employeePermissions,
+            employeeName: s.employeeName,
             tenantId: s.tenantId,
           } as SessionUser);
           if (s.user.role === "pro" && s.tenantId) {

@@ -18,15 +18,17 @@ export async function GET(req: NextRequest) {
 
     // Résolution stricte des droits du collaborateur/gérant connecté
     const sess = sessionFromRequest(req);
+    const queryUserId = req.nextUrl.searchParams.get("userId");
+    const targetUserId = sess?.userId || queryUserId;
     let viewer: {
       isOwner: boolean;
       employeeRole: string | null;
       employeePermissions: string[] | null;
       employeeName: string | null;
     } | null = null;
-    if (sess?.userId) {
+    if (targetUserId) {
       const dbUser = await db.user.findUnique({
-        where: { id: sess.userId },
+        where: { id: targetUserId },
         select: { id: true, phone: true, name: true, role: true },
       });
       if (dbUser) {

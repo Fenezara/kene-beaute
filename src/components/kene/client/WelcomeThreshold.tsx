@@ -316,6 +316,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
         tenant: { id: string; name: string } | null;
         employeeRole?: string | null;
         employeePermissions?: string[] | null;
+        employeeName?: string | null;
       }>("/api/auth/login", { phone, pin, mode, ...createHumanPayload() });
 
       const isPro = res.user.role === "pro" || Boolean(res.employeeRole) || Boolean(res.tenant?.id);
@@ -332,6 +333,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
         role: targetRole,
         employeeRole: res.employeeRole ?? res.user.employeeRole ?? null,
         employeePermissions: res.employeePermissions ?? res.user.employeePermissions ?? null,
+        employeeName: res.employeeName ?? (res.user as { employeeName?: string | null }).employeeName ?? null,
         tenantId: res.tenant?.id ?? undefined,
       };
 

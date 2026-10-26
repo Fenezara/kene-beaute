@@ -22,6 +22,7 @@ export interface ApiUser {
   hasPin?: boolean;
   employeeRole?: string | null;
   employeePermissions?: string[] | null;
+  employeeName?: string | null;
 }
 
 export interface ApiDiagnosis {
@@ -215,6 +216,7 @@ interface ApiSessionShape {
   // — poste de l'employée connectée (null pour une gérante).
   employeeRole?: unknown;
   employeePermissions?: unknown;
+  employeeName?: unknown;
 }
 
 export interface ApiSession {
@@ -223,6 +225,7 @@ export interface ApiSession {
   tenantName: string | null;
   employeeRole: string | null;
   employeePermissions: string[] | null;
+  employeeName: string | null;
 }
 
 /** Lecture tolérante d'une réponse /api/auth/session: normalise
@@ -248,7 +251,13 @@ export function readSession(payload: unknown): ApiSession {
   const employeePermissions = rawPerms
     ? rawPerms.filter((p): p is string => typeof p === "string")
     : null;
-  return { user, tenantId, tenantName, employeeRole, employeePermissions };
+  const employeeName =
+    typeof o.employeeName === "string"
+      ? o.employeeName
+      : typeof user?.employeeName === "string"
+        ? user.employeeName
+        : null;
+  return { user, tenantId, tenantName, employeeRole, employeePermissions, employeeName };
 }
 
 export interface ApiWallet {

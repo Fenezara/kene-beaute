@@ -30,6 +30,8 @@ function retryAfterSec(body: { error?: string; retryAfterSec?: number } | null, 
   return Number.isFinite(header) && header > 0 ? header : 0;
 }
 
+let last429ToastTs = 0;
+
 async function handle<T>(res: Response): Promise<T> {
   // Réponse réseau réussie : notification d'activité réseau pour les écouteurs de statut
   if (typeof window !== "undefined" && res.ok && res.headers.get("x-kene-offline") !== "1") {
@@ -48,10 +50,14 @@ async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = data as { error?: string; retryAfterSec?: number; code?: string } | null;
     if (res.status === 429) {
-      const sec = retryAfterSec(body, res);
-      toast.error(body?.error || "Trop de tentatives", {
-        description: sec > 0 ? `Réessaie dans ${formatDelay(sec)}` : "Réessaie dans un instant",
-      });
+      const now = Date.now();
+      if (now - last429ToastTs > 4_000) {
+        last429ToastTs = now;
+        const sec = retryAfterSec(body, res);
+        toast.error(body?.error || "Trop de tentatives", {
+          description: sec > 0 ? `Réessaie dans ${formatDelay(sec)}` : "Patiente un instant avant de réessayer",
+        });
+      }
     }
     // 502/503/504: la gateway renvoie du HTML (pas de body.error) — un message
     // humain plutôt qu'un « Erreur 502 » brut qui fait croire à un bug applicatif

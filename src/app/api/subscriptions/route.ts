@@ -12,12 +12,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveUserProContext } from "@/lib/kene/server";
 import { PLAN_DEFS, diagQuotaFor, getActiveSubscription, grantClientWelcomeTrial, grantProWelcomeTrial, getLoyaltyStatus } from "@/lib/kene/plans";
-import { rateLimit, rlKey, rateLimitResponse, WALLET_TOPUP } from "@/lib/kene/rate-limit";
+import { rateLimit, rlKey, rateLimitResponse } from "@/lib/kene/rate-limit";
 
 export async function GET(req: NextRequest) {
-  // Pattern rate-limit d'une route existante (wallet/topup): la
-  // lecture est bon marché mais reste bornée (anti-scan du userId).
-  const rl = rateLimit(rlKey(req, "subscriptions:read"), WALLET_TOPUP);
+  // Lecture tolérante d'abonnement (utilisé par TierThemeBoot, Header, PlanScreen).
+  // 60 req/min par IP pour supporter sans friction l'initialisation et le multi-onglets.
+  const rl = rateLimit(rlKey(req, "subscriptions:read"), { limit: 60, windowMs: 60_000 });
   if (!rl.ok) return rateLimitResponse(rl.retryAfterSec, "Trop de requêtes — patiente quelques secondes");
 
   try {

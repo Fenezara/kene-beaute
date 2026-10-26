@@ -19,14 +19,16 @@ export async function GET(req: NextRequest) {
     const sess = sessionFromRequest(req);
     const employeeIdParam = req.nextUrl.searchParams.get("employeeId");
     const tenantIdParam = req.nextUrl.searchParams.get("tenantId");
+    const queryUserId = req.nextUrl.searchParams.get("userId");
+    const targetUserId = sess?.userId || queryUserId;
 
     let employee: Awaited<ReturnType<typeof db.employee.findUnique>> = null;
     if (employeeIdParam) {
       employee = await db.employee.findUnique({ where: { id: employeeIdParam } });
-    } else if (sess?.userId) {
+    } else if (targetUserId) {
       employee = await db.employee.findFirst({
         where: {
-          userId: sess.userId,
+          userId: targetUserId,
           ...(tenantIdParam ? { tenantId: tenantIdParam } : {}),
         },
       });
