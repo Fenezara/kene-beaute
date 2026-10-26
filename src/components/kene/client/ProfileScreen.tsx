@@ -199,23 +199,34 @@ export function ProfileScreen() {
     }
   }
 
-  async function saveSkin() {
+  async function saveUnifiedProfile() {
     if (!user) return;
     setSavingSkin(true);
+    setSavingPrefs(true);
     try {
       const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {
         userId: user.id,
+        name: name.trim() || undefined,
+        city: city.trim() || undefined,
+        district: district.trim() || undefined,
+        gender: gender || undefined,
+        birthDate: birthDate.trim() || undefined,
+        pregnant: gender === "femme" ? pregnant : false,
+        preferredChannel,
         skinType,
         fitzpatrick: fitz,
         allergies: allergies.trim() || undefined,
         goals: goals.map((id) => ({ id, label: SKIN_GOALS.find((g) => g.id === id)?.label ?? id })),
       });
       setUser({ ...user, ...r.user } as SessionUser);
-      toast.success("Profil peau mis à jour");
+      toast.success("Profil complet mis à jour avec succès ✨", {
+        description: "Tes informations d'identité, de privilèges et de routine sont sauvegardées.",
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Mise à jour impossible");
     } finally {
       setSavingSkin(false);
+      setSavingPrefs(false);
     }
   }
 
@@ -524,15 +535,7 @@ export function ProfileScreen() {
               </div>
             </div>
 
-            {/* Bouton d'enregistrement */}
-            <button
-              onClick={savePreferences}
-              disabled={savingPrefs}
-              className="k-btn-gold h-10 w-full rounded-xl text-primary-foreground text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-60 transition-transform active:scale-[0.99]"
-            >
-              {savingPrefs ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-              Enregistrer mes privilèges &amp; sécurité soins
-            </button>
+            {/* Bouton d'enregistrement unifié en bas de section */}
           </div>
         </section>
       </RevealItem>
@@ -573,97 +576,55 @@ export function ProfileScreen() {
               <label htmlFor="p-all" className="text-[11px] font-semibold text-muted-foreground">Allergies</label>
               <textarea id="p-all" value={allergies} onChange={(e) => setAllergies(e.target.value)} rows={2} placeholder="Ex. huile de coco…" className="k-input mt-1 w-full rounded-xl px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
             </div>
-            <button onClick={saveSkin} disabled={savingSkin} className="k-btn-gold h-11 w-full rounded-xl text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-              {savingSkin ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Mettre à jour mon profil peau
+            <button
+              onClick={saveUnifiedProfile}
+              disabled={savingSkin || savingPrefs}
+              className="k-btn-gold h-12 w-full rounded-2xl text-primary-foreground text-sm font-black flex items-center justify-center gap-2 disabled:opacity-60 shadow-md active:scale-[0.99] transition-all cursor-pointer"
+            >
+              {savingSkin || savingPrefs ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+              <span>Enregistrer mon Profil &amp; Sécurité Soins</span>
             </button>
           </div>
         </section>
       </RevealItem>
 
 
-      {/* Comparatif Avant / Après (Uniquement si au moins 2 scans sur la MÊME zone pour cohérence clinique) */}
-      {(() => {
-        const diagsWithImg = userDiagnoses.filter((d) => Boolean(d?.imageData));
-        if (diagsWithImg.length < 2) return null;
-        // Trouver la zone la plus représentée (ex: visage) pour ne jamais comparer une main et un bras
-        const zoneCounts: Record<string, number> = {};
-        diagsWithImg.forEach((d) => {
-          const z = d.zone || "visage";
-          zoneCounts[z] = (zoneCounts[z] || 0) + 1;
-        });
-        const bestZone = Object.entries(zoneCounts).find(([_, count]) => count >= 2)?.[0];
-        if (!bestZone) return null;
-
-        const zoneDiags = diagsWithImg
-          .filter((d) => (d.zone || "visage") === bestZone)
-          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        if (zoneDiags.length < 2) return null;
-
-        const beforeDiag = zoneDiags[0];
-        const afterDiag = zoneDiags[zoneDiags.length - 1];
-        return (
-          <RevealItem>
-            <section aria-labelledby="comp-t">
-              <SectionTitle icon={<SankofaIcon size={16} />}><span id="comp-t">Évolution de ma peau (Avant / Après)</span></SectionTitle>
-              <div className="k-card rounded-[24px] p-4 space-y-3">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Glisse le curseur pour mesurer les progrès de ton épiderme sur la zone <strong className="capitalize">{bestZone.replace("_", " ")}</strong>.
-                </p>
-                <BeforeAfterSlider
-                  before={{
-                    imageUrl: diagImgSrc(beforeDiag.imageData),
-                    label: `Bilan J0 (${bestZone.replace("_", " ")})`,
-                    date: formatDate(beforeDiag.createdAt),
-                    score: beforeDiag.scoreGlobal,
-                  }}
-                  after={{
-                    imageUrl: diagImgSrc(afterDiag.imageData),
-                    label: `Dernier Bilan (${bestZone.replace("_", " ")})`,
-                    date: formatDate(afterDiag.createdAt),
-                    score: afterDiag.scoreGlobal,
-                  }}
-                  showSpectralUvToggle={true}
-                />
-              </div>
-            </section>
-          </RevealItem>
-        );
-      })()}
-
       {/* Partage des self-scans — la cliente décide, institut par institut */}
       <RevealItem>
         <SharesCard userId={user.id} userName={user.name} />
       </RevealItem>
 
-      {/* Passerelle directe Espace Entreprise & Salon */}
-      <RevealItem>
-        <section className="rounded-[22px] border border-border/80 bg-gradient-to-r from-card via-muted/30 to-card p-3.5 flex items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="grid place-items-center size-9 rounded-xl bg-gold/15 text-gold-text shrink-0">
-              <BriefcaseBusiness size={18} />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-foreground truncate">Espace Entreprise &amp; Salon</p>
-              <p className="text-[10.5px] text-muted-foreground truncate">Gestion d&apos;équipe, caisse, plannings, clients &amp; soins</p>
+      {/* Passerelle directe Espace Entreprise & Salon — Uniquement pour les comptes Pro ou Admin */}
+      {(user?.role === "pro" || user?.role === "admin") && (
+        <RevealItem>
+          <section className="rounded-[22px] border border-border/80 bg-gradient-to-r from-card via-muted/30 to-card p-3.5 flex items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="grid place-items-center size-9 rounded-xl bg-gold/15 text-gold-text shrink-0">
+                <BriefcaseBusiness size={18} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-foreground truncate">Espace Entreprise &amp; Salon</p>
+                <p className="text-[10.5px] text-muted-foreground truncate">Gestion d&apos;équipe, caisse, plannings, clients &amp; soins</p>
+              </div>
             </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              haptic(HAPTIC.tap);
-              useKene.getState().setSpace("pro");
-              if (typeof window !== "undefined") {
-                window.history.pushState(null, "", "/pro");
-                window.dispatchEvent(new Event("popstate"));
-              }
-            }}
-            className="k-btn-gold h-9 px-3.5 rounded-xl text-primary-foreground text-xs font-bold shrink-0 shadow-2xs inline-flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
-          >
-            <span>Ouvrir</span>
-            <ChevronRight size={13} />
-          </button>
-        </section>
-      </RevealItem>
+            <button
+              type="button"
+              onClick={() => {
+                haptic(HAPTIC.tap);
+                useKene.getState().setSpace("pro");
+                if (typeof window !== "undefined") {
+                  window.history.pushState(null, "", "/pro");
+                  window.dispatchEvent(new Event("popstate"));
+                }
+              }}
+              className="k-btn-gold h-9 px-3.5 rounded-xl text-primary-foreground text-xs font-bold shrink-0 shadow-2xs inline-flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+            >
+              <span>Ouvrir</span>
+              <ChevronRight size={13} />
+            </button>
+          </section>
+        </RevealItem>
+      )}
 
       {/* Passerelle Paramètres & Contactez-nous */}
       <RevealItem className="self-center pt-1 flex items-center justify-center gap-3">

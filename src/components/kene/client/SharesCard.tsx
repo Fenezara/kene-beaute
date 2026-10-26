@@ -57,6 +57,7 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [showDirectory, setShowDirectory] = useState(false);
 
   const user = useKene((s) => s.user);
   const setUser = useKene((s) => s.setUser);
@@ -378,6 +379,23 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
           );
         })()}
 
+        {/* Bouton pour afficher / masquer l'annuaire complet si un institut est déjà sélectionné */}
+        {user?.selectedTenant && (
+          <div className="pt-0.5">
+            <button
+              type="button"
+              onClick={() => setShowDirectory((prev) => !prev)}
+              className="w-full py-2 px-3 rounded-xl border border-border/80 bg-muted/30 hover:bg-muted/60 text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            >
+              <Search size={13} />
+              <span>{showDirectory ? "Masquer l'annuaire des salons" : "Changer d'institut ou explorer d'autres partenaires"}</span>
+            </button>
+          </div>
+        )}
+
+        {/* ───── Barre de Recherche & Liste (affiché si pas encore d'institut ou si showDirectory) ───── */}
+        {(!user?.selectedTenant || showDirectory) && (
+          <>
         {/* ───── Barre de Recherche & Filtres Rapides ───── */}
         <div className="space-y-2">
           <div className="relative">
@@ -565,7 +583,9 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
               </div>
             );
           })}
-        </div>
+            </div>
+          </>
+        )}
 
         {/* Note de traçabilité RGPD */}
         <p className="border-t border-dashed border-border pt-2.5 text-[10.5px] leading-relaxed text-muted-foreground">

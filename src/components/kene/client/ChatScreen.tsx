@@ -1779,35 +1779,37 @@ export function ChatScreen() {
 
       {/* Saisie */}
       <div className="sticky bottom-0 pt-2">
-        {/* Raccourcis 1-Tap visibles : Scanner INCI & Photo de peau */}
-        <div className="flex items-center gap-2 mb-2 px-1 overflow-x-auto no-scrollbar">
-          <button
-            type="button"
-            onClick={() => {
-              saveHardwarePermGranted();
-              toast.info("Cadrez bien l'étiquette au dos ou la liste des ingrédients (INCI)");
-              nativeCameraInputRef.current?.click();
-            }}
-            className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-full bg-gold/15 border-2 border-gold/50 text-gold-text text-xs font-bold hover:bg-gold/25 active:scale-95 transition-all shrink-0 shadow-xs"
-            title="Prendre en photo un flacon ou une étiquette INCI pour détecter l'hydroquinone et les corticoïdes"
-          >
-            <ShieldAlert size={14} className="text-gold-text shrink-0" />
-            <span>🧴 Scanner un produit (INCI)</span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gold/25 font-black uppercase tracking-wider text-foreground">Anti-Dépigmentant</span>
-          </button>
+        {/* Raccourcis 1-Tap visibles en amorce de conversation */}
+        {messages.length <= 1 && (
+          <div className="flex items-center gap-2 mb-2 px-1 overflow-x-auto no-scrollbar">
+            <button
+              type="button"
+              onClick={() => {
+                saveHardwarePermGranted();
+                toast.info("Cadrez bien l'étiquette au dos ou la liste des ingrédients (INCI)");
+                nativeCameraInputRef.current?.click();
+              }}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-gold/15 border border-gold/40 text-gold-text text-xs font-bold hover:bg-gold/25 active:scale-95 transition-all shrink-0 shadow-2xs cursor-pointer"
+              title="Prendre en photo un flacon ou une étiquette INCI"
+            >
+              <ShieldAlert size={13} className="text-gold-text shrink-0" />
+              <span>🧴 Scanner INCI</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-gold/25 font-black uppercase text-foreground">Sécurité</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              saveHardwarePermGranted();
-              setLiveCamOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-full bg-primary/10 border border-primary/30 text-primary text-xs font-semibold hover:bg-primary/20 active:scale-95 transition-all shrink-0 shadow-xs"
-          >
-            <Camera size={13} className="shrink-0" />
-            <span>📸 Photo de ma peau</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => {
+                saveHardwarePermGranted();
+                setLiveCamOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-primary/10 border border-primary/30 text-primary text-xs font-bold hover:bg-primary/20 active:scale-95 transition-all shrink-0 shadow-2xs cursor-pointer"
+            >
+              <Camera size={13} className="shrink-0" />
+              <span>📸 Photo de ma peau</span>
+            </button>
+          </div>
+        )}
 
         <div className="k-card flex items-center gap-2 rounded-[20px] p-2">
           {micState === "recording" ? (

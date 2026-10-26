@@ -658,7 +658,7 @@ export function ClientApp() {
                 </button>
               )}
 
-              {/* 🧴 Bouton direct Scanner INCI (compact sur petits écrans) */}
+              {/* 🧴 Bouton direct Scanner INCI (visible tablette/desktop, accessible via Scanner et Dermo Kènè sur mobile) */}
               <button
                 type="button"
                 onClick={() => {
@@ -666,11 +666,10 @@ export function ClientApp() {
                   setInciScannerOpen(true);
                 }}
                 title="Scanner un produit cosmétique (Détection Hydroquinone, Corticoïdes & Allergènes)"
-                className="inline-flex items-center gap-1 sm:gap-1.5 h-8 sm:h-11 px-2 sm:px-3 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-gold-text text-[11px] sm:text-xs font-bold active:scale-95 transition-all shadow-xs shrink-0 select-none cursor-pointer"
+                className="hidden md:inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 text-gold-text text-xs font-bold active:scale-95 transition-all shadow-xs shrink-0 select-none cursor-pointer"
               >
-                <ShieldAlert size={13} className="text-gold-text shrink-0 sm:size-[15px]" />
-                <span className="hidden sm:inline truncate">Scanner INCI</span>
-                <span className="sm:hidden">INCI</span>
+                <ShieldAlert size={14} className="text-gold-text shrink-0" />
+                <span>Scanner INCI</span>
               </button>
 
               {/* ✨ Badge Invité avec CTA direct vers compte gratuit (0 FCFA) */}
@@ -682,7 +681,7 @@ export function ClientApp() {
                     setLinkAccountOpen(true);
                   }}
                   title="Créer mon compte gratuit (0 FCFA) pour sauvegarder mes bilans à vie"
-                  className="inline-flex items-center gap-1 sm:gap-1.5 h-8 sm:h-11 px-2.5 sm:px-3 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-700 dark:text-amber-300 text-[11px] sm:text-xs font-bold active:scale-95 transition-all shadow-2xs shrink-0 cursor-pointer"
+                  className="inline-flex items-center gap-1 sm:gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-700 dark:text-amber-300 text-[11px] sm:text-xs font-bold active:scale-95 transition-all shadow-2xs shrink-0 cursor-pointer"
                 >
                   <Sparkles size={13} className="animate-pulse" />
                   <span className="hidden sm:inline">Créer mon compte (0 F)</span>
@@ -690,7 +689,10 @@ export function ClientApp() {
                 </button>
               )}
 
-              <SpaceSwitcher variant="compact" />
+              {/* Sélecteur d'espace — Uniquement pour les professionnels ou administrateurs */}
+              {(effectiveUser?.role === "pro" || effectiveUser?.role === "admin") && (
+                <SpaceSwitcher variant="compact" />
+              )}
 
               {/* Cloche notifications: flux temps réel + navigation en 1 tap */}
               <Suspense fallback={<BellLoading />}>
@@ -712,7 +714,9 @@ export function ClientApp() {
                 <Settings className="size-4 sm:size-5" />
               </button>
 
-              <ThemeToggle />
+              <div className="hidden sm:block">
+                <ThemeToggle />
+              </div>
             </div>
           </div>
           <div aria-hidden="true" className="kente-band-soft h-[2px] w-full" />

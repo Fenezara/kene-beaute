@@ -71,8 +71,8 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   const setClientTab = useKene((s) => s.setClientTab);
   const user = storeUser || { id: "guest", name: "Ma Peau", fitzpatrick: "V", skinType: "Mixte", city: "Abidjan", pregnant: false, allergies: null as string | null };
 
-  // 5 Sous-vues de l'espace Peau (par défaut : Santé de ta Peau en Direct !)
-  const [activeView, setActiveView] = useState<"live" | "dossier" | "avant_apres" | "galerie" | "historique">("live");
+  // 3 Vues Clés de l'espace Peau (par défaut : Ma Routine & Soins)
+  const [activeView, setActiveView] = useState<"dossier" | "live" | "evolution" | "avant_apres" | "galerie" | "historique">("dossier");
 
   // Visionneuse HD plein écran
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -517,25 +517,8 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         </Card>
       </div>
 
-      {/* ───── Barre des 5 Sous-Vues Interactives — Calibrée 320px-360px (compteurs en pastille sur l'icône, zéro troncature) ───── */}
-      <div className="grid grid-cols-5 gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-[18px] sm:rounded-[22px] bg-muted/50 border border-border/70 shadow-xs overflow-hidden">
-        <button
-          type="button"
-          onClick={() => {
-            haptic(HAPTIC.tap);
-            setActiveView("live");
-          }}
-          className={cn(
-            "py-1.5 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
-            activeView === "live"
-              ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Activity size={14} className={cn("shrink-0", activeView === "live" ? "text-emerald-500 animate-pulse" : "text-muted-foreground")} />
-          <span className="w-full truncate leading-tight">En Direct</span>
-        </button>
-
+      {/* ───── Barre des 3 Vues Clés — Ergonomie Mobile Optimisée ───── */}
+      <div className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl bg-muted/50 border border-border/70 shadow-xs">
         <button
           type="button"
           onClick={() => {
@@ -543,87 +526,48 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             setActiveView("dossier");
           }}
           className={cn(
-            "py-1.5 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
+            "py-2 sm:py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer select-none",
             activeView === "dossier"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <FolderHeart size={14} className={cn("shrink-0", activeView === "dossier" ? "text-primary" : "text-muted-foreground")} />
-          <span className="w-full truncate leading-tight">
-            <span className="sm:hidden">Routine</span>
-            <span className="hidden sm:inline">Ma Routine</span>
-          </span>
+          <FolderHeart size={15} className={cn("shrink-0", activeView === "dossier" ? "text-primary" : "text-muted-foreground")} />
+          <span className="truncate">🌿 Ma Routine</span>
         </button>
 
         <button
           type="button"
           onClick={() => {
             haptic(HAPTIC.tap);
-            setActiveView("avant_apres");
+            setActiveView("live");
           }}
           className={cn(
-            "py-1.5 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
-            activeView === "avant_apres"
+            "py-2 sm:py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer select-none",
+            activeView === "live"
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <Images size={14} className={cn("shrink-0", activeView === "avant_apres" ? "text-primary" : "text-muted-foreground")} />
-          <span className="w-full truncate leading-tight">
-            <span className="sm:hidden">Évolution</span>
-            <span className="hidden sm:inline">Avant/Après</span>
-          </span>
+          <Activity size={15} className={cn("shrink-0", activeView === "live" ? "text-emerald-500 animate-pulse" : "text-muted-foreground")} />
+          <span className="truncate">📊 Score &amp; Radar</span>
         </button>
 
         <button
           type="button"
           onClick={() => {
             haptic(HAPTIC.tap);
-            setActiveView("galerie");
+            setActiveView("evolution");
           }}
           className={cn(
-            "py-1.5 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
-            activeView === "galerie"
+            "py-2 sm:py-2.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer select-none",
+            (activeView === "evolution" || activeView === "avant_apres" || activeView === "galerie" || activeView === "historique")
               ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <span className="inline-flex items-center gap-0.5 shrink-0">
-            <Camera size={14} className={cn("shrink-0", activeView === "galerie" ? "text-primary" : "text-muted-foreground")} />
-            <span className="sm:hidden text-[8.5px] font-black px-1 py-0 rounded-full bg-primary/15 text-primary leading-tight">
-              {lightboxPhotos.length}
-            </span>
-          </span>
-          <span className="w-full truncate leading-tight">
-            <span className="sm:hidden">Galerie</span>
-            <span className="hidden sm:inline">Galerie ({lightboxPhotos.length})</span>
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            haptic(HAPTIC.tap);
-            setActiveView("historique");
-          }}
-          className={cn(
-            "py-1.5 sm:py-2.5 px-0.5 sm:px-2 rounded-xl sm:rounded-2xl text-[9.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 text-center cursor-pointer select-none min-w-0 overflow-hidden",
-            activeView === "historique"
-              ? "bg-card text-foreground shadow-sm border border-border/80 font-black ring-1 ring-[#C8951E]/30"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <span className="inline-flex items-center gap-0.5 shrink-0">
-            <History size={14} className={cn("shrink-0", activeView === "historique" ? "text-primary" : "text-muted-foreground")} />
-            <span className="sm:hidden text-[8.5px] font-black px-1 py-0 rounded-full bg-primary/15 text-primary leading-tight">
-              {diagnoses.length}
-            </span>
-          </span>
-          <span className="w-full truncate leading-tight">
-            <span className="sm:hidden">Bilans</span>
-            <span className="hidden sm:inline">Historique ({diagnoses.length})</span>
-          </span>
+          <Images size={15} className={cn("shrink-0", (activeView === "evolution" || activeView === "avant_apres") ? "text-primary" : "text-muted-foreground")} />
+          <span className="truncate">✨ Évolution ({lightboxPhotos.length || diagnoses.length})</span>
         </button>
       </div>
 
@@ -999,9 +943,10 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
       )}
 
       {/* ═══════════════════════════════════════════════════════════
-          SOUS-VUE 3 : ÉVOLUTION ET COMPARATEUR AVANT / APRÈS
+          SOUS-VUE 3 : ÉVOLUTION CUTANÉE (COMPARATEUR + GALERIE + HISTORIQUE)
       ═══════════════════════════════════════════════════════════ */}
-      {activeView === "avant_apres" && (
+      {(activeView === "evolution" || activeView === "avant_apres" || activeView === "galerie" || activeView === "historique") && (
+        <div className="space-y-4">
         <Card className="rounded-[26px] border border-border/80 bg-card p-4 sm:p-5 space-y-4 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
             <div>
@@ -1215,12 +1160,8 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             </div>
           </div>
         </Card>
-      )}
 
-      {/* ═══════════════════════════════════════════════════════════
-          SOUS-VUE 4 : GALERIE PHOTOS CUTANÉES DE LA CLIENTE
-      ═══════════════════════════════════════════════════════════ */}
-      {activeView === "galerie" && (
+        {/* Galerie Photos Cutanées de la Cliente */}
         <Card className="rounded-[26px] border border-border/80 bg-card p-4 sm:p-5 space-y-4 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
             <div>
@@ -1324,12 +1265,8 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             </div>
           )}
         </Card>
-      )}
 
-      {/* ═══════════════════════════════════════════════════════════
-          SOUS-VUE 5 : HISTORIQUE COMPLET DES BILANS CUTANÉS
-      ═══════════════════════════════════════════════════════════ */}
-      {activeView === "historique" && (
+        {/* Historique Complet des Bilans Cutanés */}
         <Card className="rounded-[26px] border border-border/80 bg-card p-4 sm:p-5 space-y-4 shadow-sm">
           <div className="flex items-center justify-between border-b border-border/60 pb-3">
             <div>
@@ -1446,6 +1383,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             </div>
           )}
         </Card>
+        </div>
       )}
 
       {/* ───── VISIONNEUSE PLEIN ÉCRAN HAUTE DÉFINITION (LIGHTBOX HD) ───── */}
