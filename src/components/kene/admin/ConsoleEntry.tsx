@@ -207,8 +207,12 @@ function ConsoleLogin({ currentUser, onLogout }: { currentUser?: SessionUser | n
   }
 
   return (
-    <div className="flex h-dvh w-full overflow-y-auto overscroll-y-contain touch-pan-y pretty-scroll items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md">
+    <div className="h-dvh w-full flex flex-col overflow-hidden overscroll-none bg-background">
+      <div
+        className="flex-1 min-h-0 w-full overflow-y-auto overscroll-y-none overscroll-contain touch-pan-y pretty-scroll flex items-center justify-center px-4 py-10"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        <div className="w-full max-w-md">
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <div aria-hidden="true" className="kente-band h-1.5 w-full" />
           <div className="space-y-5 px-6 py-8 sm:px-8">
@@ -350,5 +354,6 @@ function ConsoleLogin({ currentUser, onLogout }: { currentUser?: SessionUser | n
         </p>
       </div>
     </div>
-  );
+  </div>
+);
 }

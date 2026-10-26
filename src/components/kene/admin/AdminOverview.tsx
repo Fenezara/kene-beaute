@@ -379,7 +379,7 @@ export function AdminOverview({
         <CardHeader className="pb-2">
           <CardTitle className="font-heading text-base">Diagnostics IA par jour — 14 derniers jours</CardTitle>
         </CardHeader>
-        <CardContent className="h-64">
+        <CardContent className="h-64 touch-pan-y">
           {chartData.length === 0 ? (
             <EmptyState label="Aucun diagnostic sur la période" />
           ) : (

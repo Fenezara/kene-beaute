@@ -70,41 +70,47 @@ export function AdminApp() {
       stats.error.toLowerCase().includes("401");
 
     return (
-      <div className="h-dvh w-full overflow-y-auto overscroll-y-contain touch-pan-y pretty-scroll pb-24">
-        <div className="mx-auto max-w-5xl px-4 py-8 space-y-4">
-          <ConsoleHeader />
-          {isAuthError ? (
-            <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-5 shadow-sm max-w-md mx-auto">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <KeyRound className="size-7" />
+      <div className="h-dvh w-full flex flex-col overflow-hidden overscroll-none bg-background">
+        <div
+          ref={scrollRef}
+          className="flex-1 min-h-0 w-full overflow-y-auto overscroll-y-none overscroll-contain touch-pan-y pretty-scroll pb-24"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          <div className="mx-auto max-w-5xl px-4 py-8 space-y-4">
+            <ConsoleHeader />
+            {isAuthError ? (
+              <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-5 shadow-sm max-w-md mx-auto">
+                <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <KeyRound className="size-7" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-heading text-xl font-bold">Session administrateur expirée</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {stats.error || "Ta session administrateur Kènè a expiré ou nécessite une nouvelle authentification."}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2.5 pt-2">
+                  <Button
+                    variant="default"
+                    size="lg"
+                    onClick={() => performLogout({ redirectUrl: "/console" })}
+                    className="w-full gap-2 font-medium"
+                  >
+                    <KeyRound className="size-4" />
+                    Se reconnecter à la Console
+                  </Button>
+                  <Button variant="outline" size="lg" asChild className="w-full">
+                    <a href="/">
+                      <ArrowLeft className="size-4 mr-2" />
+                      Retourner à l'application Kènè
+                    </a>
+                  </Button>
+                </div>
               </div>
-              <div className="space-y-2">
-                <h3 className="font-heading text-xl font-bold">Session administrateur expirée</h3>
-                <p className="text-sm text-muted-foreground">
-                  {stats.error || "Ta session administrateur Kènè a expiré ou nécessite une nouvelle authentification."}
-                </p>
-              </div>
-              <div className="flex flex-col gap-2.5 pt-2">
-                <Button
-                  variant="default"
-                  size="lg"
-                  onClick={() => performLogout({ redirectUrl: "/console" })}
-                  className="w-full gap-2 font-medium"
-                >
-                  <KeyRound className="size-4" />
-                  Se reconnecter à la Console
-                </Button>
-                <Button variant="outline" size="lg" asChild className="w-full">
-                  <a href="/">
-                    <ArrowLeft className="size-4 mr-2" />
-                    Retourner à l'application Kènè
-                  </a>
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <ErrorState message={`Console indisponible : ${stats.error}`} onRetry={stats.refetch} />
-          )}
+            ) : (
+              <ErrorState message={`Console indisponible : ${stats.error}`} onRetry={stats.refetch} />
+            )}
+          </div>
         </div>
       </div>
     );
@@ -112,13 +118,18 @@ export function AdminApp() {
 
   return (
     <AdminGateProvider>
-      <div ref={scrollRef} className="h-dvh w-full overflow-y-auto overscroll-y-contain touch-pan-y pretty-scroll">
-        <div className="mx-auto max-w-6xl px-3 sm:px-6 py-6 pb-28 space-y-5">
-          <ConsoleHeader />
+      <div className="h-dvh w-full flex flex-col overflow-hidden overscroll-none bg-background">
+        <main
+          ref={scrollRef}
+          className="flex-1 min-h-0 w-full overflow-y-auto overscroll-y-none overscroll-contain touch-pan-y pretty-scroll"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          <div className="mx-auto max-w-6xl px-3 sm:px-6 py-6 pb-32 space-y-5">
+            <ConsoleHeader />
 
-          {/* Onglets — pills larges (44 px+), icône + libellé, scroll horizontal mobile */}
-          <nav aria-label="Sections de la console" className="sticky top-2 z-20 -mx-1 overflow-x-auto pretty-scroll px-1 pb-1">
-            <div className="flex min-w-max gap-1.5 rounded-2xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur">
+            {/* Onglets — pills larges (44 px+), icône + libellé, scroll horizontal mobile */}
+            <nav aria-label="Sections de la console" className="sticky top-2 z-20 -mx-1 overflow-x-auto pretty-scroll px-1 pb-1 touch-pan-x">
+              <div className="flex min-w-max gap-1.5 rounded-2xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur">
               {TABS.map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
@@ -171,9 +182,10 @@ export function AdminApp() {
             Console plateforme Kènè · Pilotage réseau, modération &amp; abonnements · Session 8 h · Chaque geste est audité
           </p>
         </div>
-      </div>
-    </AdminGateProvider>
-  );
+      </main>
+    </div>
+  </AdminGateProvider>
+);
 }
 
 function ConsoleHeader() {
