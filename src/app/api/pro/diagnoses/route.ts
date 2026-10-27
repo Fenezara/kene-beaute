@@ -17,6 +17,7 @@ import { guardProRole } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, PRO_DIAGNOSES } from "@/lib/kene/rate-limit";
 import { checkImageDataUrl } from "@/lib/kene/upload";
 import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
+import { canonicalPhone } from "@/lib/kene/phone-normalize";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -138,8 +139,32 @@ export async function POST(req: NextRequest) {
     } else {
       return jsonError("Cliente requise : fiche CRM existante ou création express (nom + téléphone)", 400);
     }
-    const client = await db.clientProfile.findUnique({ where: { id: clientProfileId } });
+    let client = await db.clientProfile.findUnique({ where: { id: clientProfileId } });
     if (!client) return jsonError("Fiche cliente introuvable", 404);
+
+    // Rapprochement automatique vers le compte Utilisatrice s'il existe sur l'app
+    let matchedUserId = client.userId;
+    if (!matchedUserId && client.phone) {
+      const canon = canonicalPhone(client.phone);
+      const digits = canon.replace(/\D/g, "");
+      const tail = digits.length >= 8 ? digits.slice(-8) : digits;
+      const matchedUser = await db.user.findFirst({
+        where: {
+          OR: [
+            { phone: canon },
+            ...(tail ? [{ phone: { contains: tail } }] : []),
+          ],
+        },
+        select: { id: true },
+      });
+      if (matchedUser) {
+        matchedUserId = matchedUser.id;
+        await db.clientProfile.update({
+          where: { id: client.id },
+          data: { userId: matchedUser.id },
+        }).catch(() => null);
+      }
+    }
 
     // 2. Questionnaire complet?
     const missing = missingRequired(answers, zone as BodyZone);
@@ -167,7 +192,7 @@ export async function POST(req: NextRequest) {
       data: {
         tenantId: tenant.id,
         clientProfileId: client.id,
-        userId: client.userId,
+        userId: matchedUserId || client.userId,
         zone,
         practitioner: practitioner?.trim() || null,
         questionnaireJson: JSON.stringify(answers),
@@ -184,11 +209,12 @@ export async function POST(req: NextRequest) {
 
     // Trace du consentement institut sur le registre Consent de la cliente
     // (si elle est sur l'app) — même vocabulaire que l'onboarding.
-    if (client.userId) {
+    const effectiveUserId = matchedUserId || client.userId;
+    if (effectiveUserId) {
       await db.consent.createMany({
         data: [
-          { userId: client.userId, type: "photo_storage", granted: true },
-          { userId: client.userId, type: "skin_data", granted: true },
+          { userId: effectiveUserId, type: "photo_storage", granted: true },
+          { userId: effectiveUserId, type: "skin_data", granted: true },
         ],
       });
     }

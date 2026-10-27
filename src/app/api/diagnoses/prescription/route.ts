@@ -19,18 +19,18 @@ export async function GET(req: NextRequest) {
     if (guard) return guard;
 
     let id = req.nextUrl.searchParams.get("id")?.trim() || req.nextUrl.searchParams.get("diagnosisId")?.trim();
-    if (!id) {
-      const latest = await db.diagnosis.findFirst({
-        where: { userId, status: "done" },
-        orderBy: { createdAt: "desc" },
-        select: { id: true },
-      });
-      if (!latest) return jsonError("Aucune ordonnance trouvée pour cette utilisatrice", 404);
-      id = latest.id;
-    }
 
-    const diag = await db.diagnosis.findFirst({
-      where: { id, userId, status: "done" },
+    let userPhone = "";
+    let userName = "";
+    let zone = "visage";
+    let createdAt = new Date();
+    let resultJson = "";
+    let effectiveId = id;
+
+    // 1. Recherche dans les auto-scans smartphone (Diagnosis)
+    const clientDiag = await db.diagnosis.findFirst({
+      where: id ? { id, userId, status: "done" } : { userId, status: "done" },
+      orderBy: { createdAt: "desc" },
       select: {
         id: true,
         zone: true,
@@ -40,29 +40,71 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    if (!diag) return jsonError("Diagnostic introuvable", 404);
+    if (clientDiag) {
+      effectiveId = clientDiag.id;
+      userName = clientDiag.user.name;
+      userPhone = clientDiag.user.phone;
+      zone = clientDiag.zone;
+      createdAt = clientDiag.createdAt;
+      resultJson = clientDiag.resultJson;
+    } else {
+      // 2. Recherche dans les diagnostics réalisés en cabine par l'institut (ProDiagnosis)
+      const userRecord = await db.user.findUnique({
+        where: { id: userId },
+        select: { id: true, name: true, phone: true },
+      });
+      const digits = userRecord?.phone ? userRecord.phone.replace(/\D/g, "") : "";
+      const tail = digits.length >= 8 ? digits.slice(-8) : digits;
+
+      const proDiag = await db.proDiagnosis.findFirst({
+        where: {
+          ...(id ? { id } : {}),
+          OR: [
+            { userId },
+            ...(userRecord ? [{ clientProfile: { userId: userRecord.id } }] : []),
+            ...(tail ? [{ clientProfile: { phone: { contains: tail } } }] : []),
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        include: {
+          clientProfile: { select: { name: true, phone: true } },
+          tenant: { select: { name: true } },
+        },
+      });
+
+      if (!proDiag) {
+        return jsonError("Aucune ordonnance trouvée pour cette utilisatrice", 404);
+      }
+
+      effectiveId = proDiag.id;
+      userName = proDiag.clientProfile.name || userRecord?.name || "Cliente";
+      userPhone = proDiag.clientProfile.phone || userRecord?.phone || "";
+      zone = proDiag.zone;
+      createdAt = proDiag.createdAt;
+      resultJson = proDiag.resultJson;
+    }
 
     let parsedResult: DiagnosisResult;
     try {
-      parsedResult = JSON.parse(diag.resultJson);
+      parsedResult = JSON.parse(resultJson);
     } catch {
       return jsonError("Données de diagnostic corrompues", 500);
     }
 
     const origin = req.nextUrl.origin || "https://kene.app";
-    const passUrl = `${origin}/pro?clientPass=${encodeURIComponent(diag.id)}`;
+    const passUrl = `${origin}/pro?clientPass=${encodeURIComponent(effectiveId || "")}`;
 
     const pdf = generatePrescriptionPdf({
-      userName: diag.user.name,
-      userPhone: diag.user.phone,
-      zone: diag.zone,
-      createdAt: diag.createdAt,
+      userName,
+      userPhone,
+      zone,
+      createdAt,
       diagnosisResult: parsedResult,
       passUrl,
     });
 
-    const safeName = diag.user.name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
-    const filename = `kene-recommandation-botanique-${safeName}-${diag.id.slice(-6)}.pdf`;
+    const safeName = userName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+    const filename = `kene-recommandation-botanique-${safeName}-${(effectiveId || "ord").slice(-6)}.pdf`;
 
     return new NextResponse(new Uint8Array(pdf.data), {
       status: 200,

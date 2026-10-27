@@ -27,6 +27,8 @@ import { openWhatsApp, buildWhatsAppInstituteShareMessage, openWhatsAppAppointme
 import { useKene, isSavedUser } from "@/store/kene";
 import { SankofaIcon, CauriIcon, KeneEmblem, NsorommaIcon } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
+import { HAPTIC, haptic } from "@/lib/kene/ux";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { ApiInstitute } from "./types";
 import { LinkAccountModal } from "./LinkAccountModal";
 
@@ -40,6 +42,44 @@ export function InstitutesScreen() {
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
+
+  // Avis sur l'institut
+  const [reviewModalInst, setReviewModalInst] = useState<ApiInstitute | null>(null);
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewComment, setReviewComment] = useState<string>("");
+  const [reviewBusy, setReviewBusy] = useState<boolean>(false);
+
+  function handleOpenReview(inst: ApiInstitute) {
+    haptic(HAPTIC.tap);
+    if (!isSavedUser(user)) {
+      toast.info("Enregistrez votre compte gratuit pour publier votre avis certifié");
+      setLinkModalOpen(true);
+      return;
+    }
+    setReviewRating(5);
+    setReviewComment("");
+    setReviewModalInst(inst);
+  }
+
+  async function handleSubmitReview() {
+    if (!reviewModalInst || !user?.id) return;
+    setReviewBusy(true);
+    try {
+      await apiPost(`/api/institutes/${reviewModalInst.id}/reviews`, {
+        userId: user.id,
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+      });
+      toast.success("Merci ! Votre avis sur l'institut a bien été publié.");
+      setReviewModalInst(null);
+      const res = await apiGet<{ institutes: ApiInstitute[] }>("/api/institutes").catch(() => null);
+      if (res?.institutes) setInstitutes(res.institutes);
+    } catch (e: any) {
+      toast.error(e?.message || "Impossible d'enregistrer votre avis");
+    } finally {
+      setReviewBusy(false);
+    }
+  }
 
   // ID de l'institut coché par la cliente
   const selectedTenantId = user.selectedTenantId || null;
@@ -404,12 +444,24 @@ export function InstitutesScreen() {
                           <span>{inst.address ? `${inst.address}, ` : ""}{inst.city}</span>
                         </p>
                         <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-1">
-                          <span className="inline-flex items-center gap-0.5 font-bold text-amber-500">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReview(inst)}
+                            className="inline-flex items-center gap-0.5 font-bold text-amber-500 hover:underline cursor-pointer"
+                            title="Donner mon avis sur cet institut"
+                          >
                             <Star size={11} className="fill-amber-500" />
                             {inst.rating ? inst.rating.toFixed(1) : "4.8"}
-                          </span>
+                          </button>
                           <span>·</span>
-                          <span>{inst.reviewCount ?? 0} avis</span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReview(inst)}
+                            className="hover:text-foreground hover:underline cursor-pointer"
+                            title="Consulter et donner mon avis"
+                          >
+                            {inst.reviewCount ?? 0} avis
+                          </button>
                           <span>·</span>
                           <span className="inline-flex items-center gap-1 font-mono">
                             <Clock size={11} /> {inst.openingHour || 9}h - {inst.closingHour || 19}h
@@ -454,6 +506,17 @@ export function InstitutesScreen() {
                   </button>
 
                   <div className="flex items-center gap-1.5 ml-auto">
+                    {/* Bouton Donner mon avis */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenReview(inst)}
+                      title={`Donner mon avis sur ${inst.name}`}
+                      className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      <Star size={13} className="fill-amber-500 text-amber-500" />
+                      <span>Avis</span>
+                    </button>
+
                     {/* Bouton Partager */}
                     <button
                       type="button"
@@ -500,6 +563,108 @@ export function InstitutesScreen() {
         onClose={() => setLinkModalOpen(false)}
         reason="Créez votre compte pour relier votre suivi de peau et vos bilans à un institut partenaire."
       />
+
+      {/* ───── Modale de dépôt d'avis certifié sur l'institut ───── */}
+      <Dialog open={Boolean(reviewModalInst)} onOpenChange={(open) => { if (!open) setReviewModalInst(null); }}>
+        <DialogContent className="max-w-md rounded-[28px] p-5 sm:p-6 border border-border/80 bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg font-heading font-black text-foreground">
+              <span className="grid size-9 place-items-center rounded-xl bg-gold/15 text-gold-text">
+                <Star size={18} className="fill-gold-text text-gold-text" />
+              </span>
+              <span>Avis sur {reviewModalInst?.name || "l'institut"}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {reviewModalInst && (
+            <div className="space-y-4 pt-1 text-xs">
+              <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 space-y-1">
+                <p className="font-heading font-black text-sm text-foreground">
+                  {reviewModalInst.name}
+                </p>
+                <p className="text-muted-foreground">
+                  📍 {reviewModalInst.address ? `${reviewModalInst.address}, ` : ""}{reviewModalInst.city}
+                </p>
+              </div>
+
+              {/* Sélection des étoiles */}
+              <div className="space-y-1.5 text-center py-2">
+                <p className="text-xs font-semibold text-muted-foreground">Votre note globale :</p>
+                <div className="flex items-center justify-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => {
+                        haptic(HAPTIC.tap);
+                        setReviewRating(star);
+                      }}
+                      className="p-1 transition-transform active:scale-125 hover:scale-110 focus:outline-none cursor-pointer"
+                    >
+                      <Star
+                        size={30}
+                        className={cn(
+                          "transition-colors",
+                          star <= reviewRating
+                            ? "fill-amber-400 text-amber-500 drop-shadow-xs"
+                            : "text-muted-foreground/30 hover:text-amber-300"
+                        )}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                  {reviewRating === 5 && "⭐ Exceptionnel · 5/5"}
+                  {reviewRating === 4 && "⭐ Très satisfait · 4/5"}
+                  {reviewRating === 3 && "⭐ Satisfait · 3/5"}
+                  {reviewRating === 2 && "⭐ Décevant · 2/5"}
+                  {reviewRating === 1 && "⭐ À améliorer · 1/5"}
+                </p>
+              </div>
+
+              {/* Commentaire optionnel */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                  Votre retour d&apos;expérience (accueil, hygiène, conseils, résultat...) :
+                </label>
+                <textarea
+                  rows={3}
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Partagez votre avis certifié avec la communauté Kènè..."
+                  className="w-full rounded-2xl border border-border/80 bg-background/80 p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                <button
+                  type="button"
+                  disabled={reviewBusy}
+                  onClick={() => setReviewModalInst(null)}
+                  className="h-9 px-3.5 rounded-xl border border-border text-foreground hover:bg-accent font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={reviewBusy}
+                  onClick={handleSubmitReview}
+                  className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-xs"
+                >
+                  {reviewBusy ? (
+                    <span>Publication...</span>
+                  ) : (
+                    <>
+                      <Star size={13} className="fill-current" />
+                      <span>Publier mon avis</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

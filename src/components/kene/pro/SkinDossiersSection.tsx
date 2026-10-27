@@ -1377,11 +1377,150 @@ function ClientSkinDossierDetail({
 
         {/* ═════════ 5. ORDONNANCE BEAUTÉ & COSMÉTOVIGILANCE ═════════ */}
         <TabsContent value="prescription" className="mt-4 space-y-4">
+          {/* Bloc d'édition et synchronisation directe de l'ordonnance officielle */}
+          <Card className="border-border bg-card p-4 sm:p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Leaf className="size-5 text-[#C8951E]" />
+                <div>
+                  <h4 className="font-heading text-sm font-bold text-foreground">
+                    Ordonnance Beauté &amp; Routine Personnalisée
+                  </h4>
+                  <p className="text-xs text-muted-foreground">
+                    Accessible directement par {c.name} sur son compte Kènè dans &laquo; Mon Dossier &raquo;
+                  </p>
+                </div>
+              </div>
+
+              {/* Modèles express */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const template = `[ORDONNANCE BEAUTÉ & ROUTINE ÉCLAT MÉLANODERME]
+☀️ MATIN :
+1. Nettoyage doux au savon surgras ou infusion tonique de Kinkeliba
+2. Sérum antioxydant à l'Hibiscus & Niacinamide 5% (anti-taches doux)
+3. Fluide hydratant au Moringa & Bouclier solaire SPF50 invisible
+
+🌙 SOIR :
+1. Démaquillage à l'huile pure de Balanites (dissolution sébum & filtres UV)
+2. Soin unifiant ciblé sur les taches d'hyperpigmentation (PIH)
+3. Scellement barrière au Karité brut pur bio non raffiné`;
+                    setCosmeticsUsed(template);
+                    toast.info("Modèle Éclat inséré", { description: "Pensez à cliquer sur Enregistrer l'Ordonnance." });
+                  }}
+                  className="text-xs h-7.5 gap-1 border-gold/40 text-gold-text hover:bg-gold/10"
+                >
+                  <Sparkles className="size-3" /> Modèle Éclat
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const template = `[ORDONNANCE BEAUTÉ & ROUTINE NUTRITION & CONFORT]
+☀️ MATIN :
+1. Eau florale apaisante ou nettoyant crémeux sans sulfate
+2. Sérum hydratant à l'Aloe Vera & Glycérine végétale
+3. Crème riche au Beurre de Mangue & Écran solaire SPF50 fluide
+
+🌙 SOIR :
+1. Nettoyage délicat à l'huile d'Avocat ou Balanites
+2. Élixir régénérant Karité brut & Huile de Baobab bio
+3. Masque de nuit réparateur barrière lipidique`;
+                    setCosmeticsUsed(template);
+                    toast.info("Modèle Nutrition inséré", { description: "Pensez à cliquer sur Enregistrer l'Ordonnance." });
+                  }}
+                  className="text-xs h-7.5 gap-1 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10"
+                >
+                  <Droplets className="size-3" /> Modèle Nutrition
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const template = `[ORDONNANCE BEAUTÉ & ROUTINE PURETÉ MATITÉ]
+☀️ MATIN :
+1. Gel moussant doux purifiant au Neem ou Kinkeliba
+2. Sérum rééquilibrant Zinc & Niacinamide (sébo-régulateur)
+3. Fluide matifiant au Balanites & Filtre solaire SPF50 toucher sec
+
+🌙 SOIR :
+1. Double nettoyage doux à l'huile de Jojoba non comédogène
+2. Soin ciblé purifiant anti-imperfections et micro-kystes
+3. Gelée hydratante légère apaisante sans huile occlusive`;
+                    setCosmeticsUsed(template);
+                    toast.info("Modèle Pureté inséré", { description: "Pensez à cliquer sur Enregistrer l'Ordonnance." });
+                  }}
+                  className="text-xs h-7.5 gap-1 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                >
+                  <Leaf className="size-3" /> Modèle Pureté
+                </Button>
+              </div>
+            </div>
+
+            <Textarea
+              rows={6}
+              value={cosmeticsUsed}
+              onChange={(e) => setCosmeticsUsed(e.target.value)}
+              placeholder="Rédigez ici la prescription personnalisée pour la cliente (soins matin, soir, posologie, conseils d'application)..."
+              className="text-xs leading-relaxed font-sans bg-background/80"
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60">
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                <CheckCircle2 className="size-3.5 text-emerald-500" />
+                Synchronisé sur le dossier de la cliente en temps réel
+              </span>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {c?.phone && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const routineText = cosmeticsUsed?.trim()
+                        ? `\n\n🌿 *VOTRE ORDONNANCE & ROUTINE :*\n${cosmeticsUsed.trim()}`
+                        : "";
+                      const msg = `Bonjour ${c.name} ✨,\nVoici votre ordonnance beauté et routine dermo-cosmétique prescrite par votre institut Kènè.${routineText}\n\nRetrouvez votre ordonnance complète et vos bilans sur votre espace beauté : https://kene-beaute.com`;
+                      openWhatsApp(c.phone, msg);
+                    }}
+                    className="text-xs h-8 gap-1.5 bg-[#25D366]/15 text-[#128C7E] dark:text-[#25D366] border-[#25D366]/30 hover:bg-[#25D366]/25"
+                  >
+                    <MessageCircle className="size-3.5" /> WhatsApp
+                  </Button>
+                )}
+
+                <a
+                  href={`/api/diagnoses/prescription?userId=${encodeURIComponent(c.userId || c.id)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-card hover:bg-muted text-xs font-semibold text-foreground transition-colors"
+                >
+                  <FileDown className="size-3.5" /> PDF Officiel
+                </a>
+
+                <Button
+                  size="sm"
+                  onClick={() => void saveCosmeticsUsed()}
+                  disabled={cosmeticsBusy}
+                  className="text-xs h-8 gap-1.5 k-btn-gold text-primary-foreground font-bold shadow-xs"
+                >
+                  <Save className="size-3.5" />
+                  {cosmeticsBusy ? "Enregistrement…" : "Enregistrer l'Ordonnance"}
+                </Button>
+              </div>
+            </div>
+          </Card>
+
           <Card className="border-border bg-card p-4 sm:p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Leaf className="size-5 text-[#C8951E]" />
-                <h4 className="font-heading text-sm font-bold text-foreground">Ordonnance Beauté &amp; Pharmacopée Active</h4>
+                <h4 className="font-heading text-sm font-bold text-foreground">Pharmacopée Active &amp; Rituels Botaniques</h4>
               </div>
               <Badge variant="outline" className="text-xs font-bold border-gold/30 text-gold-text bg-gold/10">
                 Protocole Dermo-Compatible

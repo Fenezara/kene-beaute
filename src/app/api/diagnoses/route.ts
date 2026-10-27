@@ -127,7 +127,31 @@ export async function GET(req: NextRequest) {
     const full = req.nextUrl.searchParams.get("full") === "1";
     const light = !full;
     // Historique borné (20 récents). L'imageData est transmise pour afficher les aperçus et la fiche résultat sans écran blanc.
-    const [selfScans, proDiags, userRecord] = await Promise.all([
+    const userRecord = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, phone: true, selectedTenantId: true },
+    });
+
+    const digits = userRecord?.phone ? userRecord.phone.replace(/\D/g, "") : "";
+    const tail = digits.length >= 8 ? digits.slice(-8) : digits;
+
+    // Récupération de tous les profils clients rattachés à cet utilisateur
+    const profiles = userRecord
+      ? await db.clientProfile.findMany({
+          where: {
+            OR: [
+              { userId: userRecord.id },
+              ...(tail ? [{ phone: { contains: tail } }] : [{ phone: userRecord.phone }]),
+            ],
+          },
+          include: { tenant: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
+
+    const clientProfileIds = profiles.map((p) => p.id);
+
+    const [selfScans, proDiags] = await Promise.all([
       db.diagnosis.findMany({
         where: { userId },
         orderBy: { createdAt: "desc" },
@@ -144,9 +168,14 @@ export async function GET(req: NextRequest) {
         },
       }),
       db.proDiagnosis.findMany({
-        where: { userId },
+        where: {
+          OR: [
+            { userId },
+            ...(clientProfileIds.length > 0 ? [{ clientProfileId: { in: clientProfileIds } }] : []),
+          ],
+        },
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: 15,
         select: {
           id: true,
           zone: true,
@@ -156,32 +185,27 @@ export async function GET(req: NextRequest) {
           createdAt: true,
           tenant: { select: { name: true } },
           practitioner: true,
+          userId: true,
         },
       }),
-      db.user.findUnique({
-        where: { id: userId },
-        select: { id: true, phone: true, selectedTenantId: true },
-      }),
     ]);
+
+    // Rapprochement automatique des proDiags orphelins vers ce compte cliente
+    const orphanProDiags = proDiags.filter((p) => !p.userId);
+    if (orphanProDiags.length > 0 && userRecord) {
+      db.proDiagnosis
+        .updateMany({
+          where: { id: { in: orphanProDiags.map((p) => p.id) } },
+          data: { userId: userRecord.id },
+        })
+        .catch(() => null);
+    }
 
     // Récupération de la routine quotidienne prescrite par l'institut (cosmeticsUsed)
     let cosmeticsUsed: string | null = null;
     let instituteName: string | null = null;
 
-    if (userRecord) {
-      const digits = userRecord.phone.replace(/\D/g, "");
-      const tail = digits.length >= 8 ? digits.slice(-8) : digits;
-      const profiles = await db.clientProfile.findMany({
-        where: {
-          OR: [
-            { userId: userRecord.id },
-            ...(tail ? [{ phone: { contains: tail } }] : [{ phone: userRecord.phone }]),
-          ],
-        },
-        include: { tenant: { select: { id: true, name: true } } },
-        orderBy: { createdAt: "desc" },
-      });
-
+    if (userRecord && profiles.length > 0) {
       const withRoutine = profiles.find((p) => p.cosmeticsUsed && p.cosmeticsUsed.trim() !== "");
       if (withRoutine) {
         cosmeticsUsed = withRoutine.cosmeticsUsed;
@@ -193,7 +217,7 @@ export async function GET(req: NextRequest) {
             data: { userId: userRecord.id },
           }).catch(() => null);
         }
-      } else if (profiles.length > 0) {
+      } else {
         instituteName = profiles[0].tenant.name;
       }
     }

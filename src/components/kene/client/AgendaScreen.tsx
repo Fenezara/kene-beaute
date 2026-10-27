@@ -31,6 +31,7 @@ import {
   X,
   AlertTriangle,
   Trash2,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost, apiDelete } from "@/lib/kene/api";
@@ -614,6 +615,37 @@ export function AgendaScreen() {
       toast.error(err?.message || "Impossible de supprimer ce rendez-vous");
     } finally {
       setDeletingAppt(false);
+    }
+  };
+
+  // Gestion du dépôt d'avis vérifié après soin
+  const [reviewAppt, setReviewAppt] = useState<ApiAppointment | null>(null);
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewComment, setReviewComment] = useState<string>("");
+  const [reviewBusy, setReviewBusy] = useState<boolean>(false);
+
+  const handleSubmitReview = async () => {
+    if (!reviewAppt || !user?.id) return;
+    setReviewBusy(true);
+    try {
+      await apiPost(`/api/appointments/${reviewAppt.id}/review`, {
+        userId: user.id,
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+      });
+      toast.success("Merci ! Votre avis vérifié a été publié.");
+      setReviewAppt(null);
+      setReviewComment("");
+      setReviewRating(5);
+      // Recharger les rendez-vous pour afficher le badge d'avis
+      if (user?.id) {
+        const res = await apiGet<{ appointments: ApiAppointment[] }>(`/api/appointments?userId=${user.id}`).catch(() => null);
+        if (res?.appointments) setAppointments(res.appointments);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Impossible de publier l'avis");
+    } finally {
+      setReviewBusy(false);
     }
   };
 
@@ -1333,6 +1365,30 @@ export function AgendaScreen() {
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
+                        {p.review ? (
+                          <span
+                            className="shrink-0 h-8 px-2.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-bold text-[11px] flex items-center gap-1"
+                            title={p.review.comment || `Note donnée : ${p.review.rating}/5`}
+                          >
+                            <Star size={12} className="fill-amber-500 text-amber-500" />
+                            {p.review.rating}/5
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              haptic(HAPTIC.tap);
+                              setReviewRating(5);
+                              setReviewComment("");
+                              setReviewAppt(p);
+                            }}
+                            className="shrink-0 h-8 px-2.5 rounded-lg bg-[#C8951E]/15 hover:bg-[#C8951E]/25 border border-[#C8951E]/40 text-[#C8951E] font-bold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
+                            title="Donner mon avis sur ce soin"
+                          >
+                            <Star size={12} className="fill-[#C8951E] text-[#C8951E]" />
+                            Donner mon avis
+                          </button>
+                        )}
                         <a
                           href={`/api/appointments/pass?id=${encodeURIComponent(p.id)}`}
                           target="_blank"
@@ -1742,6 +1798,110 @@ export function AgendaScreen() {
                     <>
                       <Trash2 size={13} />
                       <span>Confirmer la suppression</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      {/* ───── Modale de dépôt d'avis vérifié après soin ───── */}
+      <Dialog open={Boolean(reviewAppt)} onOpenChange={(open) => { if (!open) setReviewAppt(null); }}>
+        <DialogContent className="max-w-md rounded-[28px] p-5 sm:p-6 border border-border/80 bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg font-heading font-black text-foreground">
+              <span className="grid size-9 place-items-center rounded-xl bg-gold/15 text-gold-text">
+                <Star size={18} className="fill-gold-text text-gold-text" />
+              </span>
+              <span>Votre avis sur ce soin</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          {reviewAppt && (
+            <div className="space-y-4 pt-1 text-xs">
+              <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 space-y-1">
+                <p className="font-heading font-black text-sm text-foreground">
+                  {reviewAppt.service?.name || "Prestation de soin"}
+                </p>
+                <p className="text-muted-foreground">
+                  {reviewAppt.tenant?.name} · Réalisé le {formatDate(reviewAppt.startAt)}
+                </p>
+              </div>
+
+              {/* Sélection des étoiles */}
+              <div className="space-y-1.5 text-center py-2">
+                <p className="text-xs font-semibold text-muted-foreground">Votre note globale :</p>
+                <div className="flex items-center justify-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => {
+                        haptic(HAPTIC.tap);
+                        setReviewRating(star);
+                      }}
+                      className="p-1 transition-transform active:scale-125 hover:scale-110 focus:outline-none"
+                    >
+                      <Star
+                        size={30}
+                        className={cn(
+                          "transition-colors",
+                          star <= reviewRating
+                            ? "fill-amber-400 text-amber-500 drop-shadow-xs"
+                            : "text-muted-foreground/30 hover:text-amber-300"
+                        )}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                  {reviewRating === 5 && "⭐ Exceptionnel · 5/5"}
+                  {reviewRating === 4 && "⭐ Très satisfait · 4/5"}
+                  {reviewRating === 3 && "⭐ Satisfait · 3/5"}
+                  {reviewRating === 2 && "⭐ Décevant · 2/5"}
+                  {reviewRating === 1 && "⭐ À améliorer · 1/5"}
+                </p>
+              </div>
+
+              {/* Commentaire optionnel */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                  Votre commentaire (accueil, conseils, résultat...) :
+                </label>
+                <textarea
+                  rows={3}
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Partagez votre retour d'expérience avec l'institut et la communauté Kènè..."
+                  className="w-full rounded-2xl border border-border/80 bg-background/80 p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                <button
+                  type="button"
+                  disabled={reviewBusy}
+                  onClick={() => setReviewAppt(null)}
+                  className="h-9 px-3.5 rounded-xl border border-border text-foreground hover:bg-accent font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={reviewBusy}
+                  onClick={handleSubmitReview}
+                  className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-xs"
+                >
+                  {reviewBusy ? (
+                    <>
+                      <RefreshCw size={13} className="animate-spin" />
+                      <span>Publication...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Star size={13} className="fill-current" />
+                      <span>Publier mon avis vérifié</span>
                     </>
                   )}
                 </button>
