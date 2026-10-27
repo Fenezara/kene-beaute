@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       where: { tenantId: tenant.id },
       include: {
         items: true,
-        clientProfile: { select: { id: true, name: true } },
+        clientProfile: { select: { id: true, name: true, phone: true } },
       },
       orderBy: { createdAt: "desc" },
       take: limit,
@@ -38,13 +38,24 @@ export async function GET(req: NextRequest) {
   }
 }
 
+const SaleItemInput = z.object({
+  kind: z.enum(["service", "product"]),
+  id: z.string().optional(),
+  label: z.string().optional(),
+  unitPrice: z.number().int().min(0).max(10_000_000).optional(),
+  price: z.number().int().min(0).max(10_000_000).optional(),
+  qty: z.number().int().min(1).max(50),
+  isCustom: z.boolean().optional(),
+  customPriceReason: z.string().optional(),
+});
+
 const Body = z.object({
   tenantId: z.string().min(1),
-  items: z
-    .array(z.object({ kind: z.enum(["service", "product"]), id: z.string().min(1), qty: z.number().int().min(1).max(50) }))
-    .min(1),
+  items: z.array(SaleItemInput).min(1),
   paymentMethod: z.enum(["wave", "orange", "cash", "card", "wallet"]),
   clientProfileId: z.string().optional(),
+  walkInClientName: z.string().optional(),
+  walkInClientPhone: z.string().optional(),
   discount: z.number().int().min(0).optional(),
   appointmentId: z.string().optional(),
   practitionerName: z.string().optional(),
@@ -86,6 +97,22 @@ export async function POST(req: NextRequest) {
     if (parsed.data.clientProfileId) {
       clientProfile = await db.clientProfile.findFirst({ where: { id: parsed.data.clientProfileId, tenantId } });
       if (!clientProfile) return jsonError("Fiche cliente introuvable", 404);
+    } else if (parsed.data.walkInClientName?.trim() || parsed.data.walkInClientPhone?.trim()) {
+      const wPhone = parsed.data.walkInClientPhone?.trim() || "";
+      const wName = parsed.data.walkInClientName?.trim() || (wPhone ? `Cliente ${wPhone}` : "Cliente de passage");
+      if (wPhone) {
+        clientProfile = await db.clientProfile.findFirst({ where: { tenantId, phone: wPhone } });
+      }
+      if (!clientProfile) {
+        clientProfile = await db.clientProfile.create({
+          data: {
+            tenantId,
+            name: wName,
+            phone: wPhone,
+            notes: "Créée automatiquement via Reçu Express",
+          },
+        });
+      }
     }
 
     // Gestion de la passerelle RDV : vérification et passage au statut 'completed'
@@ -100,18 +127,58 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Résolution des lignes (prestations + produits)
-    const lines: { kind: "service" | "product"; serviceId?: string; productId?: string; label: string; qty: number; unitPrice: number; total: number }[] = [];
+    // Résolution des lignes (prestations + produits + saisies libres express)
+    const lines: {
+      kind: "service" | "product";
+      serviceId?: string;
+      productId?: string;
+      label: string;
+      qty: number;
+      unitPrice: number;
+      total: number;
+      customPriceReason?: string;
+    }[] = [];
+
     for (const item of items) {
-      if (item.kind === "service") {
+      const isCustomItem = item.isCustom || !item.id || item.id.startsWith("custom") || item.id === "__custom__";
+      if (isCustomItem) {
+        const rawPrice = item.price ?? item.unitPrice ?? 0;
+        const cleanLabel = item.label?.trim() || (item.kind === "service" ? "Prestation personnalisée" : "Produit personnalisé");
+        lines.push({
+          kind: item.kind,
+          label: cleanLabel,
+          qty: item.qty,
+          unitPrice: rawPrice,
+          total: rawPrice * item.qty,
+          customPriceReason: item.customPriceReason || "Saisie libre express",
+        });
+      } else if (item.kind === "service") {
         const service = await db.service.findFirst({ where: { id: item.id, tenantId, active: true } });
         if (!service) return jsonError(`Prestation introuvable : ${item.id}`, 404);
-        lines.push({ kind: "service", serviceId: service.id, label: service.name, qty: item.qty, unitPrice: service.price, total: service.price * item.qty });
+        const unitPrice = item.price !== undefined ? item.price : (item.unitPrice !== undefined ? item.unitPrice : service.price);
+        lines.push({
+          kind: "service",
+          serviceId: service.id,
+          label: item.label?.trim() || service.name,
+          qty: item.qty,
+          unitPrice,
+          total: unitPrice * item.qty,
+          customPriceReason: item.customPriceReason,
+        });
       } else {
         const product = await db.product.findFirst({ where: { id: item.id } });
         if (!product) return jsonError(`Produit introuvable : ${item.id}`, 404);
         if (product.stock < item.qty) return jsonError(`Stock insuffisant pour « ${product.name} » (${product.stock} dispo)`, 400);
-        lines.push({ kind: "product", productId: product.id, label: product.name, qty: item.qty, unitPrice: product.price, total: product.price * item.qty });
+        const unitPrice = item.price !== undefined ? item.price : (item.unitPrice !== undefined ? item.unitPrice : product.price);
+        lines.push({
+          kind: "product",
+          productId: product.id,
+          label: item.label?.trim() || product.name,
+          qty: item.qty,
+          unitPrice,
+          total: unitPrice * item.qty,
+          customPriceReason: item.customPriceReason,
+        });
       }
     }
 
@@ -176,9 +243,23 @@ export async function POST(req: NextRequest) {
         paymentRef: payRef,
         cashierName: cashier,
         status: "completed",
-        items: { create: lines.map(({ kind, serviceId, productId, label, qty, unitPrice, total: lineTotal }) => ({ kind, serviceId: serviceId ?? null, productId: productId ?? null, label, qty, unitPrice, total: lineTotal })) },
+        items: {
+          create: lines.map(({ kind, serviceId, productId, label, qty, unitPrice, total: lineTotal, customPriceReason }) => ({
+            kind,
+            serviceId: serviceId ?? null,
+            productId: productId ?? null,
+            label,
+            qty,
+            unitPrice,
+            total: lineTotal,
+            customPriceReason: customPriceReason ?? null,
+          })),
+        },
       },
-      include: { items: true },
+      include: {
+        items: true,
+        clientProfile: { select: { id: true, name: true, phone: true } },
+      },
     });
 
     // Sceau d'audit comptable inaltérable

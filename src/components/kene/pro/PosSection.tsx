@@ -2,7 +2,7 @@
 // Kènè Pro — Caisse POS: catalogue cliquable, ticket, paiement mobile money, ticket thermique imprimable
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Loader2, MessageCircle, Minus, Plus, Printer, ReceiptText, Search, Trash2, Wallet, User, UserRoundPlus, X, Bluetooth, Share2, WifiOff, RefreshCw, Lock, CalendarCheck, AlertTriangle, FileText, CheckCircle2, ArrowDownCircle } from "lucide-react";
+import { Check, Loader2, MessageCircle, Minus, Plus, Printer, ReceiptText, Search, Trash2, Wallet, User, UserRoundPlus, X, Bluetooth, Share2, WifiOff, RefreshCw, Lock, CalendarCheck, AlertTriangle, FileText, CheckCircle2, ArrowDownCircle, Zap, Edit3 } from "lucide-react";
 import { CauriIcon, KeneSunIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,7 @@ interface TicketLine {
   label: string;
   unitPrice: number;
   qty: number;
+  isCustom?: boolean;
 }
 
 const PAY_METHODS: { code: PaymentMethod; label: string; cls: string }[] = [
@@ -129,6 +130,34 @@ export function PosSection({
   const [expressName, setExpressName] = useState("");
   const [expressPhone, setExpressPhone] = useState("");
   const [expressBusy, setExpressBusy] = useState(false);
+
+  // ⚡ Ligne libre express au ticket
+  const [customLineOpen, setCustomLineOpen] = useState(false);
+  const [customLineKind, setCustomLineKind] = useState<"service" | "product">("service");
+  const [customLineLabel, setCustomLineLabel] = useState("");
+  const [customLinePrice, setCustomLinePrice] = useState("");
+  const [customLineQty, setCustomLineQty] = useState(1);
+
+  // ⚡ Reçu express indépendant (saisie libre tout-en-un)
+  interface ExpressReceiptRow {
+    id: string;
+    kind: "service" | "product";
+    label: string;
+    price: string;
+    qty: number;
+  }
+  const [expressReceiptOpen, setExpressReceiptOpen] = useState(false);
+  const [expressReceiptRows, setExpressReceiptRows] = useState<ExpressReceiptRow[]>([
+    { id: "row_init", kind: "service", label: "", price: "", qty: 1 },
+  ]);
+  const [expressClientMode, setExpressClientMode] = useState<"none" | "walkin" | "existing">("none");
+  const [expressWalkInName, setExpressWalkInName] = useState("");
+  const [expressWalkInPhone, setExpressWalkInPhone] = useState("");
+  const [expressExistingClientId, setExpressExistingClientId] = useState("");
+  const [expressPractitioner, setExpressPractitioner] = useState("");
+  const [expressDiscount, setExpressDiscount] = useState("");
+  const [expressPaymentMethod, setExpressPaymentMethod] = useState<PaymentMethod>("cash");
+  const [expressReceiptSubmitting, setExpressReceiptSubmitting] = useState(false);
 
   // Matériel & Résilience réseau
   const [bluetoothPrinting, setBluetoothPrinting] = useState(false);
@@ -292,6 +321,125 @@ export function PosSection({
       ls.map((l, idx) => (idx === i ? { ...l, qty: l.qty + delta } : l)).filter((l) => l.qty > 0)
     );
   }
+
+  // Fonctions de gestion Reçu Express & Lignes libres
+  const addExpressRow = () => {
+    setExpressReceiptRows((prev) => [
+      ...prev,
+      { id: "row_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6), kind: "service", label: "", price: "", qty: 1 },
+    ]);
+  };
+
+  const removeExpressRow = (id: string) => {
+    setExpressReceiptRows((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
+  };
+
+  const updateExpressRow = (id: string, patch: Partial<{ kind: "service" | "product"; label: string; price: string; qty: number }>) => {
+    setExpressReceiptRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  };
+
+  const expressSubtotal = useMemo(() => {
+    return expressReceiptRows.reduce((sum, r) => {
+      const p = Math.max(0, parseInt(r.price.replace(/\D/g, ""), 10) || 0);
+      return sum + p * Math.max(1, r.qty);
+    }, 0);
+  }, [expressReceiptRows]);
+
+  const expressDiscountNum = Math.max(0, Math.min(parseInt(expressDiscount.replace(/\D/g, ""), 10) || 0, expressSubtotal));
+  const expressTotal = Math.max(0, expressSubtotal - expressDiscountNum);
+
+  const handleAddCustomLineToTicket = () => {
+    const p = Math.max(0, parseInt(customLinePrice.replace(/\D/g, ""), 10) || 0);
+    if (!customLineLabel.trim()) {
+      toast.error("Veuillez renseigner le nom du soin ou produit");
+      return;
+    }
+    if (p <= 0) {
+      toast.error("Veuillez indiquer un montant supérieur à 0 F");
+      return;
+    }
+    const customId = "custom_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6);
+    setLines((prev) => [
+      ...prev,
+      {
+        kind: customLineKind,
+        id: customId,
+        label: customLineLabel.trim(),
+        unitPrice: p,
+        qty: Math.max(1, customLineQty),
+        isCustom: true,
+      },
+    ]);
+    toast.success(`« ${customLineLabel.trim()} » (${xof(p)}) ajouté au ticket !`);
+    setCustomLineOpen(false);
+    setCustomLineLabel("");
+    setCustomLinePrice("");
+    setCustomLineQty(1);
+  };
+
+  const handleEmitExpressReceipt = async () => {
+    const validRows = expressReceiptRows.filter((r) => r.label.trim().length > 0 && (parseInt(r.price.replace(/\D/g, ""), 10) || 0) > 0);
+    if (validRows.length === 0) {
+      toast.error("Veuillez saisir au moins un soin ou produit avec un montant supérieur à 0 F");
+      return;
+    }
+    setExpressReceiptSubmitting(true);
+    try {
+      const payload = {
+        tenantId,
+        items: validRows.map((r) => {
+          const p = Math.max(0, parseInt(r.price.replace(/\D/g, ""), 10) || 0);
+          return {
+            kind: r.kind,
+            label: r.label.trim(),
+            price: p,
+            unitPrice: p,
+            qty: Math.max(1, r.qty),
+            isCustom: true,
+            customPriceReason: "Reçu express saisie libre",
+          };
+        }),
+        paymentMethod: expressPaymentMethod,
+        clientProfileId: expressClientMode === "existing" && expressExistingClientId ? expressExistingClientId : undefined,
+        walkInClientName: expressClientMode === "walkin" && expressWalkInName.trim() ? expressWalkInName.trim() : undefined,
+        walkInClientPhone: expressClientMode === "walkin" && expressWalkInPhone.trim() ? expressWalkInPhone.trim() : undefined,
+        discount: expressDiscountNum > 0 ? expressDiscountNum : undefined,
+        practitionerName: expressPractitioner.trim() || undefined,
+      };
+
+      const res = await apiPost<{ sale: ProSale }>("/api/pro/sales", payload);
+      const sale: ProSale = {
+        ...res.sale,
+        items: res.sale.items ?? validRows.map((r) => {
+          const p = Math.max(0, parseInt(r.price.replace(/\D/g, ""), 10) || 0);
+          return {
+            label: r.label.trim(),
+            qty: Math.max(1, r.qty),
+            unitPrice: p,
+            total: p * Math.max(1, r.qty),
+            kind: r.kind,
+            customPriceReason: "Reçu express saisie libre",
+          };
+        }),
+        discount: res.sale.discount ?? expressDiscountNum,
+        subtotal: res.sale.subtotal ?? expressSubtotal,
+      };
+
+      setTicket(sale);
+      setSheetOpen(true);
+      setExpressReceiptOpen(false);
+      toast.success(`Reçu express de ${xof(sale.total)} émis avec succès !`);
+      setExpressReceiptRows([{ id: "row_" + Date.now().toString(36), kind: "service", label: "", price: "", qty: 1 }]);
+      setExpressWalkInName("");
+      setExpressWalkInPhone("");
+      setExpressDiscount("");
+      void sales.refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'émission du reçu express");
+    } finally {
+      setExpressReceiptSubmitting(false);
+    }
+  };
 
   async function createExpressClient() {
     const name = expressName.trim().replace(/\s+/g, " ");
@@ -477,7 +625,15 @@ export function PosSection({
       }
       const res = await apiPost<{ sale: ProSale }>("/api/pro/sales", {
         tenantId,
-        items: lines.map((l) => ({ kind: l.kind, id: l.id, qty: l.qty })),
+        items: lines.map((l) => ({
+          kind: l.kind,
+          id: l.isCustom ? undefined : l.id,
+          label: l.label,
+          price: l.unitPrice,
+          unitPrice: l.unitPrice,
+          qty: l.qty,
+          isCustom: l.isCustom,
+        })),
         paymentMethod: method,
         clientProfileId: clientId || undefined,
         discount: Math.min(discount, subtotal),
@@ -555,6 +711,15 @@ export function PosSection({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SectionHeader title="Caisse" sub="Encaissement soins & produits — Wave, Orange Money, espèces, carte" />
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => setExpressReceiptOpen(true)}
+            className="h-8 gap-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-black shadow-xs active:scale-95 transition-all"
+          >
+            <Zap className="size-3.5 fill-black" />
+            ⚡ Reçu Express (Saisie Libre)
+          </Button>
+
           <Button
             size="sm"
             variant="outline"
@@ -900,9 +1065,21 @@ export function PosSection({
         <Card className="lg:sticky lg:top-24 overflow-hidden pt-0 relative">
           <KenteTop />
           <CardHeader className="pb-2">
-            <CardTitle className="font-heading text-base flex items-center gap-2">
-              <ReceiptText className="size-4 text-primary" aria-hidden="true" /> Ticket en cours
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="font-heading text-base flex items-center gap-2">
+                <ReceiptText className="size-4 text-primary" aria-hidden="true" /> Ticket en cours
+              </CardTitle>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setCustomLineOpen(true)}
+                className="h-7 text-[11px] gap-1 px-2.5 font-bold border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10 active:scale-95"
+              >
+                <Plus className="size-3" />
+                Ligne libre
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {lines.length === 0 ? (
@@ -922,7 +1099,14 @@ export function PosSection({
                       className="flex items-center gap-2 rounded-lg bg-muted/60 px-2.5 py-1.5"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium">{l.label}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="truncate text-xs font-medium">{l.label}</p>
+                          {l.isCustom && (
+                            <span className="shrink-0 rounded bg-amber-500/20 px-1 py-0.2 text-[9px] font-bold text-amber-700 dark:text-amber-300">
+                              ⚡ Libre
+                            </span>
+                          )}
+                        </div>
                         <p className="font-mono text-[10px] text-muted-foreground">{xof(l.unitPrice)} × {l.qty}</p>
                       </div>
                       <div className="flex items-center gap-1">
@@ -1199,7 +1383,14 @@ export function PosSection({
                     {formatDate(s.createdAt, { day: "2-digit", month: "2-digit" })} {formatTime(s.createdAt)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium">{s.items?.map((it) => `${it.qty}× ${it.label}`).join(", ") || "Vente"}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="truncate text-xs font-medium">{s.items?.map((it) => `${it.qty}× ${it.label}`).join(", ") || "Vente"}</p>
+                      {s.items?.some((it) => it.customPriceReason || (!it.productId && !it.id)) && (
+                        <Badge variant="outline" className="text-[9px] py-0 px-1 border-amber-400 text-amber-700 dark:text-amber-400 bg-amber-500/10 font-bold">
+                          ⚡ Saisie libre
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-[10px] text-muted-foreground">
                       {METHOD_LABELS[s.paymentMethod] ?? s.paymentMethod}
                       {s.clientProfile?.name ? ` · ${s.clientProfile.name}` : ""}
@@ -1849,6 +2040,370 @@ export function PosSection({
             >
               {expenseSubmitting ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowDownCircle className="size-3.5" />}
               Enregistrer la sortie ({xof(Number(expenseAmount) || 0)})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal : Ajouter une Ligne Libre au Ticket en cours ── */}
+      <Dialog open={customLineOpen} onOpenChange={setCustomLineOpen}>
+        <DialogContent className="max-w-[390px] rounded-2xl p-5 gap-3.5">
+          <DialogHeader className="space-y-1 text-left">
+            <DialogTitle className="font-heading font-black text-base flex items-center gap-2">
+              <Edit3 className="size-4 text-primary" /> Ajouter une ligne libre
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Insérez un soin ou un produit personnalisé au ticket en cours.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {/* Type toggle */}
+            <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg border text-xs">
+              <button
+                type="button"
+                onClick={() => setCustomLineKind("service")}
+                className={cn(
+                  "flex-1 py-1 rounded-md font-semibold transition-all text-center",
+                  customLineKind === "service" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Soin / Prestation
+              </button>
+              <button
+                type="button"
+                onClick={() => setCustomLineKind("product")}
+                className={cn(
+                  "flex-1 py-1 rounded-md font-semibold transition-all text-center",
+                  customLineKind === "product" ? "bg-gold text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Produit
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="custom-label" className="text-xs">Désignation du soin ou produit *</Label>
+              <Input
+                id="custom-label"
+                placeholder={customLineKind === "service" ? "Ex: Soin visage sur-mesure" : "Ex: Savon karité artisanal"}
+                value={customLineLabel}
+                onChange={(e) => setCustomLineLabel(e.target.value)}
+                className="h-9 text-xs"
+                autoFocus
+                onKeyDown={(e) => e.key === "Enter" && handleAddCustomLineToTicket()}
+              />
+            </div>
+
+            <div className="grid grid-cols-[1fr_85px] gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="custom-price" className="text-xs">Prix unitaire (FCFA) *</Label>
+                <div className="relative">
+                  <Input
+                    id="custom-price"
+                    inputMode="numeric"
+                    placeholder="15000"
+                    value={customLinePrice}
+                    onChange={(e) => setCustomLinePrice(e.target.value.replace(/\D/g, ""))}
+                    className="h-9 text-xs font-mono text-right pr-6"
+                    onKeyDown={(e) => e.key === "Enter" && handleAddCustomLineToTicket()}
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">F</span>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Quantité</Label>
+                <div className="flex items-center gap-1 justify-center pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setCustomLineQty((q) => Math.max(1, q - 1))}
+                    className="size-8 rounded border grid place-items-center text-xs hover:bg-muted font-bold"
+                  >
+                    -
+                  </button>
+                  <span className="font-mono text-xs font-semibold w-5 text-center">{customLineQty}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCustomLineQty((q) => q + 1)}
+                    className="size-8 rounded border grid place-items-center text-xs hover:bg-muted font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-between pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCustomLineOpen(false)}
+              className="rounded-lg"
+            >
+              <X className="size-3.5" /> Annuler
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleAddCustomLineToTicket}
+              className="rounded-lg bg-primary text-primary-foreground font-bold gap-1"
+            >
+              <Plus className="size-3.5" /> Ajouter au ticket
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal : Reçu Express (Saisie Libre Tout-en-un & Émission Immédiate) ── */}
+      <Dialog open={expressReceiptOpen} onOpenChange={setExpressReceiptOpen}>
+        <DialogContent className="max-w-[560px] rounded-2xl p-5 gap-4 max-h-[92vh] overflow-y-auto pretty-scroll">
+          <DialogHeader className="space-y-1 text-left">
+            <DialogTitle className="font-heading font-black text-lg flex items-center gap-2 text-foreground">
+              <Zap className="size-5 text-amber-500 fill-amber-500" /> Reçu Express &amp; Saisie Libre
+            </DialogTitle>
+            <DialogDescription className="text-xs leading-relaxed">
+              Rédigez directement vos prestations ou produits et émettez un reçu officiel sans passer par le catalogue.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Lignes libres */}
+          <div className="space-y-2.5 pt-1">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-bold text-foreground">Soins ou Produits facturés</Label>
+              <span className="text-[11px] font-normal text-muted-foreground">{expressReceiptRows.length} ligne(s)</span>
+            </div>
+
+            <div className="space-y-2">
+              {expressReceiptRows.map((row) => (
+                <div key={row.id} className="p-2.5 rounded-xl border border-border/80 bg-muted/30 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg border text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => updateExpressRow(row.id, { kind: "service" })}
+                        className={cn(
+                          "px-2.5 py-1 rounded-md font-semibold transition-all",
+                          row.kind === "service" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        Soin / Prestation
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateExpressRow(row.id, { kind: "product" })}
+                        className={cn(
+                          "px-2.5 py-1 rounded-md font-semibold transition-all",
+                          row.kind === "product" ? "bg-gold text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        Produit
+                      </button>
+                    </div>
+
+                    {expressReceiptRows.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeExpressRow(row.id)}
+                        className="p-1 text-muted-foreground hover:text-rose-500 transition-colors rounded"
+                        title="Supprimer la ligne"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_130px_75px] gap-2 items-center">
+                    <div>
+                      <Input
+                        placeholder={row.kind === "service" ? "Ex: Soin visage personnalisé" : "Ex: Savon noir karité artisanal"}
+                        value={row.label}
+                        onChange={(e) => updateExpressRow(row.id, { label: e.target.value })}
+                        className="h-9 text-xs"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Input
+                        inputMode="numeric"
+                        placeholder="Montant FCFA"
+                        value={row.price}
+                        onChange={(e) => updateExpressRow(row.id, { price: e.target.value.replace(/\D/g, "") })}
+                        className="h-9 text-xs font-mono text-right pr-6"
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">F</span>
+                    </div>
+                    <div className="flex items-center gap-1 justify-center">
+                      <button
+                        type="button"
+                        onClick={() => updateExpressRow(row.id, { qty: Math.max(1, row.qty - 1) })}
+                        className="size-7 rounded border grid place-items-center text-xs hover:bg-muted font-bold"
+                      >
+                        -
+                      </button>
+                      <span className="font-mono text-xs font-semibold w-4 text-center">{row.qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateExpressRow(row.id, { qty: row.qty + 1 })}
+                        className="size-7 rounded border grid place-items-center text-xs hover:bg-muted font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addExpressRow}
+              className="w-full h-8 text-xs font-bold border-dashed border-primary/40 text-primary hover:bg-primary/5 gap-1.5"
+            >
+              <Plus className="size-3.5" /> Ajouter un autre soin ou produit
+            </Button>
+          </div>
+
+          {/* Cliente (optionnel) */}
+          <div className="space-y-2 border-t pt-2.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <User className="size-3.5 text-muted-foreground" /> Cliente (Optionnel)
+              </Label>
+              <div className="flex items-center gap-1 text-[11px] bg-muted/60 p-0.5 rounded-lg border">
+                <button
+                  type="button"
+                  onClick={() => setExpressClientMode("none")}
+                  className={cn("px-2 py-0.5 rounded transition-all", expressClientMode === "none" ? "font-bold bg-background text-foreground shadow-xs" : "text-muted-foreground")}
+                >
+                  Passage
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExpressClientMode("walkin")}
+                  className={cn("px-2 py-0.5 rounded transition-all", expressClientMode === "walkin" ? "font-bold bg-background text-foreground shadow-xs" : "text-muted-foreground")}
+                >
+                  Nom / Tél
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExpressClientMode("existing")}
+                  className={cn("px-2 py-0.5 rounded transition-all", expressClientMode === "existing" ? "font-bold bg-background text-foreground shadow-xs" : "text-muted-foreground")}
+                >
+                  Carnet
+                </button>
+              </div>
+            </div>
+
+            {expressClientMode === "walkin" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Input
+                  placeholder="Nom de la cliente"
+                  value={expressWalkInName}
+                  onChange={(e) => setExpressWalkInName(e.target.value)}
+                  className="h-8 text-xs"
+                />
+                <Input
+                  inputMode="tel"
+                  placeholder="Téléphone (WhatsApp)"
+                  value={expressWalkInPhone}
+                  onChange={(e) => setExpressWalkInPhone(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            )}
+
+            {expressClientMode === "existing" && (
+              <Select value={expressExistingClientId} onValueChange={setExpressExistingClientId}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Sélectionner dans le carnet client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(clients.data ?? []).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name} — {formatPhoneDisplay(c.phone)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {/* Praticienne & Remise */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-t pt-2.5">
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Praticienne (Commissions)</Label>
+              <Select value={expressPractitioner || "__none"} onValueChange={(v) => setExpressPractitioner(v === "__none" ? "" : v)}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Caisse standard" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">Caisse standard</SelectItem>
+                  {(team.data?.employees ?? []).map((emp) => (
+                    <SelectItem key={emp.id} value={emp.name}>{emp.name} ({emp.role})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Remise éventuelle (FCFA)</Label>
+              <Input
+                inputMode="numeric"
+                placeholder="0"
+                value={expressDiscount}
+                onChange={(e) => setExpressDiscount(e.target.value.replace(/\D/g, ""))}
+                className="h-8 text-xs font-mono text-right"
+              />
+            </div>
+          </div>
+
+          {/* Mode de règlement & Total */}
+          <div className="space-y-2.5 rounded-xl bg-card border p-3 shadow-xs">
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-muted-foreground font-semibold">TOTAL DU REÇU</span>
+              <span className="font-mono text-xl font-black text-gold-text tabular-nums">{xof(expressTotal)}</span>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Mode de règlement</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {availablePayMethods.map((m) => (
+                  <button
+                    key={m.code}
+                    type="button"
+                    onClick={() => setExpressPaymentMethod(m.code)}
+                    className={cn(
+                      "h-8 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1",
+                      expressPaymentMethod === m.code
+                        ? "border-primary bg-primary text-primary-foreground shadow-xs"
+                        : "border-border bg-muted/40 text-foreground hover:bg-muted"
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-between pt-1 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setExpressReceiptOpen(false)}
+              disabled={expressReceiptSubmitting}
+              className="rounded-lg"
+            >
+              <X className="size-3.5" /> Annuler
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleEmitExpressReceipt}
+              disabled={expressReceiptSubmitting || expressTotal <= 0}
+              className="rounded-lg bg-amber-500 hover:bg-amber-600 text-black font-bold gap-1.5 px-4 shadow-sm"
+            >
+              {expressReceiptSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}
+              Encaisser et Émettre le Reçu ({xof(expressTotal)})
             </Button>
           </DialogFooter>
         </DialogContent>
