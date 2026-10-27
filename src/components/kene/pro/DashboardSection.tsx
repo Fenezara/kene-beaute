@@ -15,8 +15,24 @@ import {
   Loader2,
   BarChart3,
   LayoutDashboard,
+  Sparkles,
+  Zap,
+  Plus,
+  Crown,
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CauriIcon } from "@/components/kene/icons";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
@@ -140,10 +156,33 @@ export function DashboardSection({
   }
   if (!data) return null;
 
+  const [chartRange, setChartRange] = useState<"7d" | "14d">("14d");
   const k = data.kpis;
   const pieData = data.paymentSplit.map((p) => ({ name: PAYMENT_LABELS[p.method] ?? p.method, value: p.total, key: p.method }));
   const pieTotal = pieData.reduce((s, p) => s + p.value, 0);
-  const chartData = data.chart.map((c) => ({ ...c, label: dayLabel(c.date) }));
+
+  // Séries 14j et 7j réelles
+  const rawChart = data.chart ?? [];
+  const chartData14 = rawChart.map((c) => ({ ...c, label: dayLabel(c.date) }));
+  const chartData7 = chartData14.slice(-7);
+  const displayChartData = chartRange === "7d" ? chartData7 : chartData14;
+
+  // Calculs honnêtes sans simulation
+  const last7 = rawChart.slice(-7);
+  const prev7 = rawChart.slice(-14, -7);
+  const ca7Total = last7.reduce((acc, cur) => acc + cur.total, 0);
+  const prev7Total = prev7.reduce((acc, cur) => acc + cur.total, 0);
+  const caTrendValue = prev7Total > 0 ? Math.round(((ca7Total - prev7Total) / prev7Total) * 100) : 0;
+  const caTrendDirection: "up" | "down" | "flat" = caTrendValue > 0 ? "up" : caTrendValue < 0 ? "down" : "flat";
+
+  const sparklineCA = rawChart.map((c) => c.total);
+  const sparklineBaskets = rawChart.map((c) => c.count ?? (c.total > 0 ? 1 : 0));
+
+  // Jour record sur la période affichée
+  const peakDay = displayChartData.reduce(
+    (max, cur) => (cur.total > max.total ? cur : max),
+    { total: 0, label: "", date: "" }
+  );
 
   return (
     <div className="space-y-5">
@@ -186,136 +225,318 @@ export function DashboardSection({
         <SalonAnalyticsDashboard tenantId={tenantId} data={data} />
       ) : (
         <>
+          {/* ── BENTO GRID SUPRÊME AWWWARDS (HERO AREA + 4 KPI TILES) ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3.5 sm:gap-4">
+            
+            {/* 🌟 HERO CARTE REVENUE (8 colonnes desktop, 2 col tablette, 1 col mobile) */}
+            <div className="md:col-span-2 lg:col-span-8 rounded-[24px] sm:rounded-[28px] border border-gold/35 bg-card p-4 sm:p-6 relative overflow-hidden shadow-xs flex flex-col justify-between group transition-all duration-300">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-gold/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+              <KenteTop />
 
-
-      {/* ── KPI ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <KpiCard icon={<Banknote className="size-4" />} label="CA du jour" value={xof(k.caToday)} />
-        <KpiCard icon={<TrendingUp className="size-4" />} label="CA 7 jours" value={xof(k.ca7d, { compact: true })} hint={`${xof(k.ca30d, { compact: true })} sur 30 j`} />
-        <KpiCard icon={<CauriIcon className="size-4" />} label="Panier moyen" value={xof(k.avgBasket)} />
-        <KpiCard icon={<CalendarCheck className="size-4" />} label="RDV aujourd'hui" value={String(k.appointmentsToday)} monetary={false} />
-        <KpiCard icon={<UserPlus className="size-4" />} label="Nouvelles clientes 30 j" value={String(k.newClients30d)} monetary={false} />
-        <KpiCard icon={<Percent className="size-4" />} label="Occupation" value={`${Math.round(k.occupancyPct)} %`} monetary={false} />
-      </div>
-
-      {/* ── Graphiques ── */}
-      <div className="grid lg:grid-cols-5 gap-4">
-        <Card className="lg:col-span-3 overflow-hidden pt-0">
-          <KenteTop />
-          <CardHeader className="pb-2">
-            <CardTitle className="font-heading text-base">Chiffre d&apos;affaires — 14 derniers jours</CardTitle>
-          </CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} interval="preserveStartEnd" tickLine={false} axisLine={{ stroke: "var(--border)" }} />
-                <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} tickLine={false} axisLine={false} width={38} />
-                <Tooltip
-                  cursor={{ fill: "var(--accent)", opacity: 0.5 }}
-                  contentStyle={tooltipStyle}
-                  formatter={(value) => [xof(Number(value)), "CA"]}
-                />
-                <Bar dataKey="total" fill="var(--chart-1)" radius={[5, 5, 0, 0]} maxBarSize={26} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2 overflow-hidden pt-0">
-          <KenteTop />
-          <CardHeader className="pb-2">
-            <CardTitle className="font-heading text-base">Répartition des paiements</CardTitle>
-          </CardHeader>
-          <CardContent className="h-64 flex flex-col">
-            {pieTotal > 0 ? (
-              <>
-                <div className="flex-1 min-h-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={pieData} dataKey="value" nameKey="name" innerRadius="52%" outerRadius="80%" paddingAngle={3} strokeWidth={0}>
-                        {pieData.map((entry) => (
-                          <Cell key={entry.key} fill={PAYMENT_COLORS[entry.key] ?? "var(--chart-3)"} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={tooltipStyle} formatter={(value) => xof(Number(value))} />
-                    </PieChart>
-                  </ResponsiveContainer>
+              {/* En-tête Hero */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 z-10">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold font-mono uppercase tracking-wider bg-gold/15 text-gold-text border border-gold/25">
+                      <Zap className="size-3" />
+                      Flux d&apos;Encaissement Réel
+                    </span>
+                    {peakDay.total > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground">
+                        Record : {peakDay.label} ({xof(peakDay.total, { compact: true })})
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline gap-3 mt-2">
+                    <h2 className="font-heading font-black text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">
+                      {xof(chartRange === "7d" ? ca7Total : rawChart.reduce((s, c) => s + c.total, 0))}
+                    </h2>
+                    {prev7Total > 0 && (
+                      <span className={cn(
+                        "inline-flex items-center gap-1 text-xs font-mono font-bold px-2.5 py-0.5 rounded-full border",
+                        caTrendDirection === "up" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/25" :
+                        caTrendDirection === "down" ? "bg-amber-500/15 text-amber-800 dark:text-amber-400 border-amber-500/25" :
+                        "bg-muted text-muted-foreground border-border"
+                      )}>
+                        {caTrendDirection === "up" ? `+${caTrendValue}% vs sem. préc.` : `${caTrendValue}% vs sem. préc.`}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {chartRange === "7d" ? "Chiffre d'affaires cumulé sur les 7 derniers jours" : "Chiffre d'affaires consolidé sur les 14 derniers jours"}
+                  </p>
                 </div>
-                <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
-                  {pieData.map((p) => (
-                    <li key={p.key} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      <span className="size-2 rounded-full shrink-0" style={{ background: PAYMENT_COLORS[p.key] ?? "var(--chart-3)" }} aria-hidden="true" />
-                      <span className="truncate">{p.name}</span>
-                      <span className="ml-auto font-mono text-foreground/80">{Math.round((p.value / pieTotal) * 100)} %</span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <EmptyState label="Aucun paiement enregistré" />
-            )}
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* ── Ligne 3: timeline + top soins ── */}
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Card className="overflow-hidden pt-0">
-          <KenteTop />
-          <CardHeader className="pb-2">
-            <CardTitle className="font-heading text-base">Timeline du jour</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {data.todayAppointments.length === 0 ? (
-              <EmptyState label="Aucun rendez-vous aujourd'hui" sub="Créez un RDV depuis l'Agenda" />
-            ) : (
-              <ul className="max-h-80 overflow-y-auto pretty-scroll divide-y divide-border/70">
-                {data.todayAppointments.map((a) => (
-                  <li key={a.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-accent/40 transition-colors">
-                    <span className="font-mono text-xs text-muted-foreground w-11 shrink-0 tabular-nums">{formatTime(a.startAt)}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{a.clientName}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {a.serviceName} · {a.resourceName}
+                {/* Commutateur 7j / 14j */}
+                <div className="flex items-center bg-muted/90 p-1 rounded-xl border border-border/80 self-start sm:self-center shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setChartRange("7d")}
+                    className={cn(
+                      "px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer",
+                      chartRange === "7d" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    7 jours
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartRange("14d")}
+                    className={cn(
+                      "px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer",
+                      chartRange === "14d" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    14 jours
+                  </button>
+                </div>
+              </div>
+
+              {/* AreaChart avec Halo Lumineux Solaire */}
+              <div className="h-60 sm:h-64 w-full mt-4 z-10">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={displayChartData} margin={{ top: 10, right: 10, left: -14, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="goldAuraGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#D49A24" stopOpacity={0.45} />
+                        <stop offset="95%" stopColor="#D49A24" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                      interval="preserveStartEnd"
+                      tickLine={false}
+                      axisLine={{ stroke: "var(--border)" }}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                      tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
+                      tickLine={false}
+                      axisLine={false}
+                      width={40}
+                    />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const point = payload[0].payload as { label: string; date: string; total: number; count?: number };
+                        return (
+                          <div className="rounded-xl border border-gold/40 bg-card/95 backdrop-blur-md px-3.5 py-2.5 shadow-xl text-xs space-y-1">
+                            <p className="font-semibold text-foreground flex items-center justify-between gap-3">
+                              <span>{point.label}</span>
+                              <span className="font-mono text-[10px] text-muted-foreground">{point.date}</span>
+                            </p>
+                            <p className="font-mono text-base font-bold text-gold-text">
+                              {xof(point.total)}
+                            </p>
+                            {typeof point.count === "number" && (
+                              <p className="text-[10px] text-muted-foreground">
+                                {point.count} transaction{point.count > 1 ? "s" : ""} enregistrée{point.count > 1 ? "s" : ""}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="total"
+                      stroke="#D49A24"
+                      strokeWidth={2.75}
+                      fillOpacity={1}
+                      fill="url(#goldAuraGradient)"
+                      dot={{ r: 3, fill: "#D49A24", strokeWidth: 1.5, stroke: "#FFF" }}
+                      activeDot={{ r: 5, fill: "#D49A24", strokeWidth: 2, stroke: "#FFF" }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* 💎 4 TUILES KPI EN BENTO (4 colonnes desktop, 2 colonnes tablette & mobile) */}
+            <div className="md:col-span-2 lg:col-span-4 grid grid-cols-2 gap-3.5 sm:gap-4">
+              <KpiCard
+                icon={<Banknote className="size-4" />}
+                label="CA du jour"
+                value={xof(k.caToday)}
+                hint="Caisse & Acomptes"
+                sparkline={sparklineCA.slice(-7)}
+              />
+              <KpiCard
+                icon={<CalendarCheck className="size-4" />}
+                label="RDV aujourd'hui"
+                value={String(k.appointmentsToday)}
+                monetary={false}
+                hint="En cabine & agenda"
+                sparkline={sparklineBaskets.slice(-7)}
+              />
+              <KpiCard
+                icon={<CauriIcon className="size-4" />}
+                label="Panier moyen"
+                value={xof(k.avgBasket)}
+                hint={`${xof(k.ca30d, { compact: true })} sur 30 j`}
+                sparkline={sparklineCA}
+                trend={caTrendValue !== 0 ? { value: Math.abs(caTrendValue), direction: caTrendDirection } : undefined}
+              />
+              <KpiCard
+                icon={<Percent className="size-4" />}
+                label="Occupation"
+                value={`${Math.round(k.occupancyPct)} %`}
+                monetary={false}
+                hint={`${k.newClients30d} nvlles clientes / 30j`}
+              />
+            </div>
+          </div>
+
+          {/* ── LIGNE 2 : TIMELINE DU JOUR & RÉPARTITION DES PAIEMENTS ── */}
+          <div className="grid lg:grid-cols-12 gap-4">
+            {/* Timeline du jour (7 colonnes) */}
+            <Card className="lg:col-span-7 overflow-hidden pt-0 rounded-[22px] sm:rounded-[26px]">
+              <KenteTop />
+              <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="font-heading text-base flex items-center gap-2">
+                  <CalendarCheck className="size-4 text-primary" />
+                  Timeline du jour
+                </CardTitle>
+                <span className="text-xs font-mono text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full">
+                  {data.todayAppointments.length} soin{data.todayAppointments.length > 1 ? "s" : ""}
+                </span>
+              </CardHeader>
+              <CardContent className="p-0">
+                {data.todayAppointments.length === 0 ? (
+                  <div className="p-8 text-center flex flex-col items-center justify-center space-y-3">
+                    <div className="size-12 rounded-2xl bg-gold/10 border border-gold/25 grid place-items-center text-gold-text">
+                      <Sparkles className="size-6" />
+                    </div>
+                    <div>
+                      <h4 className="font-heading font-bold text-base text-foreground">Cabine prête · Aucun rendez-vous</h4>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                        Votre planning d&apos;aujourd&apos;hui est dégagé. Proposez un créneau à vos clientes fidèles ou enregistrez une vente directe.
                       </p>
                     </div>
-                    <Money value={a.price} className="text-xs shrink-0" />
-                    <ApptStatusBadge status={a.status} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+                    <div className="flex flex-wrap justify-center items-center gap-2 pt-1">
+                      <Button onClick={() => onNavigate("agenda")} size="sm" className="k-btn-gold text-xs font-bold gap-1.5 rounded-full">
+                        <Plus className="size-3.5" /> Poser un soin à l&apos;agenda
+                      </Button>
+                      <Button onClick={() => onNavigate("caisse")} size="sm" variant="outline" className="text-xs font-semibold rounded-full">
+                        Ouvrir la Caisse POS
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <ul className="max-h-80 overflow-y-auto pretty-scroll divide-y divide-border/70">
+                    {data.todayAppointments.map((a) => (
+                      <li key={a.id} className="flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-colors">
+                        <span className="font-mono text-xs text-muted-foreground w-12 shrink-0 tabular-nums font-semibold bg-muted px-1.5 py-0.5 rounded-md text-center">
+                          {formatTime(a.startAt)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{a.clientName}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {a.serviceName} · {a.resourceName}
+                          </p>
+                        </div>
+                        <Money value={a.price} className="text-xs font-bold shrink-0" />
+                        <ApptStatusBadge status={a.status} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
 
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="font-heading text-base">Top soins vendus</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {data.topServices.length === 0 ? (
-                <EmptyState label="Pas encore de ventes" />
-              ) : (
-                <ul className="divide-y divide-border/70">
-                  {data.topServices.map((s, i) => (
-                    <li key={s.name} className="flex items-center gap-3 px-4 py-2.5">
-                      <span className="grid size-6 place-items-center rounded-md bg-gold/15 text-gold font-mono text-[11px] font-semibold" aria-hidden="true">
-                        {i + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{s.name}</p>
-                        <p className="text-xs text-muted-foreground">{s.count} prestation{s.count > 1 ? "s" : ""}</p>
-                      </div>
-                      <Money value={s.total} className="text-sm" />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+            {/* Répartition des paiements (5 colonnes) */}
+            <Card className="lg:col-span-5 overflow-hidden pt-0 rounded-[22px] sm:rounded-[26px]">
+              <KenteTop />
+              <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="font-heading text-base flex items-center gap-2">
+                  <Banknote className="size-4 text-gold-text" />
+                  Modes de paiement
+                </CardTitle>
+                <span className="text-xs font-mono font-bold text-foreground">
+                  {xof(pieTotal, { compact: true })}
+                </span>
+              </CardHeader>
+              <CardContent className="h-64 flex flex-col justify-between">
+                {pieTotal > 0 ? (
+                  <>
+                    <div className="flex-1 min-h-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius="56%"
+                            outerRadius="82%"
+                            paddingAngle={3}
+                            strokeWidth={0}
+                          >
+                            {pieData.map((entry) => (
+                              <Cell key={entry.key} fill={PAYMENT_COLORS[entry.key] ?? "var(--chart-3)"} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={tooltipStyle} formatter={(value) => xof(Number(value))} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 border-t border-border/60">
+                      {pieData.map((p) => (
+                        <li key={p.key} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <span className="size-2.5 rounded-full shrink-0" style={{ background: PAYMENT_COLORS[p.key] ?? "var(--chart-3)" }} aria-hidden="true" />
+                          <span className="truncate">{p.name}</span>
+                          <span className="ml-auto font-mono font-semibold text-foreground">{Math.round((p.value / pieTotal) * 100)} %</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <EmptyState label="Aucun paiement enregistré" sub="Les encaissements caisse apparaîtront ici" />
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
-          <Card>
+          {/* ── LIGNE 3 : TOP SOINS & AVIS CLIENTES & ALERTES STOCK ── */}
+          <div className="grid lg:grid-cols-2 gap-4">
+            <Card className="rounded-[22px] sm:rounded-[26px]">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="font-heading text-base flex items-center gap-2">
+                  <Crown className="size-4 text-gold-text" />
+                  Top soins vendus
+                </CardTitle>
+                <span className="text-xs text-muted-foreground">Volume & Récurrence</span>
+              </CardHeader>
+              <CardContent className="p-0">
+                {data.topServices.length === 0 ? (
+                  <EmptyState label="Pas encore de ventes" sub="Vos prestations les plus populaires s'afficheront ici" />
+                ) : (
+                  <ul className="divide-y divide-border/70">
+                    {data.topServices.map((s, i) => (
+                      <li key={s.name} className="flex items-center gap-3 px-4 py-3">
+                        <span className={cn(
+                          "grid size-6 place-items-center rounded-lg font-mono text-[11px] font-bold shrink-0",
+                          i === 0 ? "bg-gold/25 text-gold-text border border-gold/40 shadow-xs" :
+                          i === 1 ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" :
+                          i === 2 ? "bg-terre/15 text-terre" :
+                          "bg-muted text-muted-foreground"
+                        )} aria-hidden="true">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{s.name}</p>
+                          <p className="text-xs text-muted-foreground">{s.count} prestation{s.count > 1 ? "s" : ""}</p>
+                        </div>
+                        <Money value={s.total} className="text-sm font-bold" />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="space-y-4">
+              <Card className="rounded-[22px] sm:rounded-[26px]">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="font-heading text-base flex items-center gap-2">

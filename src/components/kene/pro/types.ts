@@ -77,7 +77,7 @@ export interface ProOverview {
     employeeName: string | null;
   } | null;
   kpis: ProKpis;
-  chart: { date: string; total: number }[];
+  chart: { date: string; total: number; count?: number }[];
   paymentSplit: { method: string; total: number }[];
   topServices: { name: string; count: number; total: number }[];
   todayAppointments: TodayAppointment[];

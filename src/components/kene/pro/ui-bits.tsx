@@ -4,7 +4,7 @@
 // passent à la carte verre k-card + eyebrow + valeur mono signature, les badges
 // aux pastilles ring-inset, les états vides au grain (primitives: ui2026.tsx).
 import { useState, type ReactNode } from "react";
-import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
+import { AlertTriangle, Inbox, RefreshCw, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { xof, formatDate } from "@/lib/kene/format";
@@ -26,30 +26,95 @@ export function Money({ value, className, compact }: { value: number; className?
   return <span className={cn("font-mono tabular-nums", className)}>{xof(value, { compact })}</span>;
 }
 
-/** KPI — carte verre ÉCLAT 2026: label en eyebrow, valeur mono signature
- * (or lisible AA), badge icône teinté selon la donnée (monétaire → or,
- * opérationnel → terre). Hover élévation desktop. */
+/** Mini Sparkline SVG ultra-légère pour cartes métriques */
+export function MiniSparkline({ data, tone = "gold" }: { data: number[]; tone?: "gold" | "terre" }) {
+  if (!data || data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const width = 100;
+  const height = 24;
+  const padding = 2;
+  const h = height - padding * 2;
+  const step = width / (data.length - 1);
+
+  const points = data.map((val, i) => {
+    const x = i * step;
+    const y = height - padding - ((val - min) / range) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+
+  const pathD = `M ${points.join(" L ")}`;
+  const areaD = `M ${points[0]} L ${points.join(" L ")} L ${width},${height} L 0,${height} Z`;
+  const strokeColor = tone === "gold" ? "var(--color-gold, #C8951E)" : "var(--color-primary, #9E6B47)";
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={`spark-${tone}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={strokeColor} stopOpacity={0.28} />
+          <stop offset="100%" stopColor={strokeColor} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <path d={areaD} fill={`url(#spark-${tone})`} />
+      <path d={pathD} fill="none" stroke={strokeColor} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** KPI — carte verre ÉCLAT 2026: label en eyebrow, valeur mono signature,
+ * tendance dynamique, sparkline en arrière-plan et micro-reflet lumière. */
 export function KpiCard({
   icon,
   label,
   value,
   hint,
   monetary = true,
+  sparkline,
+  trend,
+  className,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   hint?: string;
   monetary?: boolean;
+  sparkline?: number[];
+  trend?: { value: number; label?: string; direction?: "up" | "down" | "flat" };
+  className?: string;
 }) {
   return (
-    <div className="k-card k-card-hover relative rounded-[20px] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <Eyebrow className="min-w-0 leading-snug">{label}</Eyebrow>
+    <div className={cn("k-card k-card-hover relative rounded-[20px] p-4 flex flex-col justify-between overflow-hidden group transition-all duration-300", className)}>
+      <div className="flex items-center justify-between gap-2 z-10">
+        <Eyebrow className="min-w-0 leading-snug truncate">{label}</Eyebrow>
         <IconBadge icon={icon} size="sm" tone={monetary ? "gold" : "terre"} />
       </div>
-      <p className="mt-3 font-mono text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-gold-text truncate" title={value}>{value}</p>
-      {hint && <p className="mt-1 text-xs text-muted-foreground truncate" title={hint}>{hint}</p>}
+
+      <div className="mt-2.5 z-10">
+        <div className="flex items-baseline justify-between gap-1 flex-wrap">
+          <p className="font-mono text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-gold-text truncate" title={value}>{value}</p>
+          {trend && (
+            <span className={cn(
+              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold font-mono shrink-0",
+              trend.direction === "up" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25" :
+              trend.direction === "down" ? "bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-500/25" :
+              "bg-muted text-muted-foreground border border-border"
+            )}>
+              {trend.direction === "up" && <TrendingUp className="size-2.5" />}
+              {trend.direction === "down" && <TrendingDown className="size-2.5" />}
+              {trend.direction === "flat" && <Minus className="size-2.5" />}
+              {trend.direction === "up" ? `+${trend.value}%` : trend.direction === "down" ? `-${trend.value}%` : `${trend.value}%`}
+            </span>
+          )}
+        </div>
+        {hint && <p className="mt-0.5 text-xs text-muted-foreground truncate" title={hint}>{hint}</p>}
+      </div>
+
+      {sparkline && sparkline.length >= 2 && (
+        <div className="mt-2 w-full h-6 opacity-70 group-hover:opacity-100 transition-opacity">
+          <MiniSparkline data={sparkline} tone={monetary ? "gold" : "terre"} />
+        </div>
+      )}
     </div>
   );
 }

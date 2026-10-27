@@ -864,5 +864,55 @@
   }
 }
 
+/* ─────────────── SIGNATURE AFRO-LUXE / AWWWARDS 2026 ─────────────── */
+/* Cartes Bento Haute Couture avec micro-liseré intérieur & diffusion ambrée */
+.k-card-awwwards {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 20px -2px rgba(24, 18, 12, 0.04), 0 2px 6px -1px rgba(24, 18, 12, 0.02);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+
+.dark .k-card-awwwards {
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(229, 169, 60, 0.08);
+}
+
+.k-card-awwwards::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.dark .k-card-awwwards::before {
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.k-card-awwwards:hover {
+  transform: translateY(-2px);
+  border-color: rgba(212, 154, 36, 0.4);
+  box-shadow: 0 12px 32px -4px rgba(212, 154, 36, 0.08), 0 4px 12px -2px rgba(24, 18, 12, 0.04);
+}
+
+/* Halo de lumière solaire d'arrière-plan */
+.awwwards-aura {
+  background: radial-gradient(circle at 85% 15%, rgba(212, 154, 36, 0.14) 0%, rgba(212, 154, 36, 0.02) 45%, transparent 70%);
+}
+
+.dark .awwwards-aura {
+  background: radial-gradient(circle at 85% 15%, rgba(229, 169, 60, 0.12) 0%, rgba(229, 169, 60, 0.01) 50%, transparent 75%);
+}
+
+/* Défilement tactile fluide sur mobile */
+.touch-scroll-smooth {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+}
+
 /* typography: Fraunces + Plus Jakarta Sans (Kènè 2026) */
 

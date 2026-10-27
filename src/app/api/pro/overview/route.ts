@@ -103,16 +103,20 @@ export async function GET(req: NextRequest) {
       .reduce((sum, a) => sum + (a.durationMin || 60), 0);
     const occupancyPct = totalCapacityMinutes > 0 ? Math.min(100, Math.round((bookedMinutesToday / totalCapacityMinutes) * 100)) : 0;
 
-    // CA des 14 derniers jours par jour
-    const dayMap = new Map<string, number>();
+    // CA et transactions des 14 derniers jours par jour
+    const dayMap = new Map<string, { total: number; count: number }>();
     for (let i = 13; i >= 0; i--) {
-      dayMap.set(ddMM(daysAgo(i)), 0);
+      dayMap.set(ddMM(daysAgo(i)), { total: 0, count: 0 });
     }
     for (const s of sales14) {
       const key = ddMM(new Date(s.createdAt));
-      if (dayMap.has(key)) dayMap.set(key, (dayMap.get(key) ?? 0) + s.total);
+      const cur = dayMap.get(key);
+      if (cur) {
+        cur.total += s.total;
+        cur.count += 1;
+      }
     }
-    const chart = [...dayMap.entries()].map(([date, total]) => ({ date, total }));
+    const chart = [...dayMap.entries()].map(([date, val]) => ({ date, total: val.total, count: val.count }));
 
     // Répartition des encaissements 30 j
     const splitMap = new Map<string, number>();

@@ -4,7 +4,7 @@
 // top instituts par CA 30 j.
 import { useEffect, useState } from "react";
 import { Activity, AlertCircle, Building2, CheckCircle2, Cpu, CreditCard, Crown, Database, ExternalLink, HeartHandshake, MessageSquare, ReceiptText, RefreshCw, Server, ShoppingBag, Smartphone, Sparkles, BriefcaseBusiness, Users } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,15 @@ export function AdminOverview({
 
   const chartData = data.chart.map((c) => ({ ...c, label: dayLabel(c.date) }));
   const maxCa = Math.max(1, ...data.topTenants.map((t) => t.ca30));
+
+  // Sparklines et tendances réelles pour l'admin
+  const sparklineDiag = data.chart.map((c) => c.count);
+  const last7Diag = data.chart.slice(-7);
+  const prev7Diag = data.chart.slice(-14, -7);
+  const diag7Sum = last7Diag.reduce((s, c) => s + c.count, 0);
+  const diagPrevSum = prev7Diag.reduce((s, c) => s + c.count, 0);
+  const diagTrendVal = diagPrevSum > 0 ? Math.round(((diag7Sum - diagPrevSum) / diagPrevSum) * 100) : 0;
+  const diagTrendDir: "up" | "down" | "flat" = diagTrendVal > 0 ? "up" : diagTrendVal < 0 ? "down" : "flat";
 
   return (
     <div className="space-y-5">
@@ -150,12 +159,20 @@ export function AdminOverview({
       {/* 🛑 Contrôle du Mode Maintenance & Affiche Clientèle */}
       <AdminMaintenanceControl />
 
-      {/* KPIs — Monétisation et volume réel du réseau unifié */}
+      {/* KPIs — Monétisation et volume réel du réseau unifié (Style Bento Afro-Luxe) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-3">
         <KpiCard icon={<Users className="size-4" />} label="Utilisatrices" value={String(data.users)} monetary={false} hint={scope === "real" ? "Comptes réels" : "Tous les comptes"} />
         <KpiCard icon={<HeartHandshake className="size-4" />} label="Parrainages" value={String(data.referrals)} monetary={false} hint="Fil du Parrainage" />
         <KpiCard icon={<Building2 className="size-4" />} label="Instituts" value={String(data.tenants)} monetary={false} hint={scope === "real" ? "Salons actifs réels" : "Tous"} />
-        <KpiCard icon={<Activity className="size-4" />} label="Diagnostics IA" value={String(data.diagnoses)} monetary={false} />
+        <KpiCard
+          icon={<Activity className="size-4" />}
+          label="Diagnostics IA"
+          value={String(data.diagnoses)}
+          monetary={false}
+          sparkline={sparklineDiag}
+          trend={diagTrendVal !== 0 ? { value: Math.abs(diagTrendVal), direction: diagTrendDir } : undefined}
+          hint="Analyses biométriques"
+        />
         <KpiCard icon={<ShoppingBag className="size-4" />} label="Ventes Caisse" value={String(data.salesCount ?? 0)} monetary={false} hint={`CA : ${xof(data.salesVolume ?? 0, { compact: true })}`} />
         <KpiCard icon={<CreditCard className="size-4" />} label="Commandes Web" value={String(data.orders ?? 0)} monetary={false} hint={`CA : ${xof(data.gmvBoutique ?? 0, { compact: true })}`} />
         <KpiCard icon={<ReceiptText className="size-4" />} label="Volume Réseau (GMV)" value={xof(data.networkGmv ?? 0, { compact: true })} hint={`Acomptes RDV : ${xof(data.appointmentsDeposit ?? 0, { compact: true })}`} />
@@ -374,26 +391,68 @@ export function AdminOverview({
         </CardContent>
       </Card>
 
-      {/* Chart */}
-      <Card className="overflow-hidden pt-0">
+      {/* 🌟 Diagnostics IA — Courbe Solaire Awwwards */}
+      <Card className="overflow-hidden pt-0 rounded-[22px] sm:rounded-[26px] border border-border/80 shadow-xs relative">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gold/5 rounded-full blur-2xl pointer-events-none" />
         <CardHeader className="pb-2">
-          <CardTitle className="font-heading text-base">Diagnostics IA par jour — 14 derniers jours</CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <CardTitle className="font-heading text-base flex items-center gap-2">
+                <Activity className="size-4 text-gold-text" />
+                Diagnostics IA biométriques — 14 derniers jours
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Volume d&apos;analyses cutanées traitées en temps réel par le moteur Dermo-IA
+              </CardDescription>
+            </div>
+            <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-full bg-gold/15 text-gold-text border border-gold/30 self-start sm:self-center">
+              Total 14j : {data.chart.reduce((s, c) => s + c.count, 0)} analyses
+            </span>
+          </div>
         </CardHeader>
         <CardContent className="h-64 touch-pan-y">
           {chartData.length === 0 ? (
             <EmptyState label="Aucun diagnostic sur la période" />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -18, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="adminDiagGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#D49A24" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#D49A24" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.6} />
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={{ stroke: "var(--border)" }} interval="preserveStartEnd" />
                 <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} allowDecimals={false} width={36} />
                 <Tooltip
-                  contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: "10px", color: "var(--foreground)", fontSize: "12px" }}
-                  formatter={(value) => [String(value), "Diagnostics"]}
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const p = payload[0].payload as { label: string; date: string; count: number };
+                    return (
+                      <div className="rounded-xl border border-gold/40 bg-card/95 backdrop-blur-md px-3 py-2 shadow-lg text-xs space-y-0.5">
+                        <p className="font-semibold text-foreground flex items-center justify-between gap-3">
+                          <span>{p.label}</span>
+                          <span className="font-mono text-[10px] text-muted-foreground">{p.date}</span>
+                        </p>
+                        <p className="font-mono text-sm font-bold text-gold-text">
+                          {p.count} diagnostic{p.count > 1 ? "s" : ""} IA
+                        </p>
+                      </div>
+                    );
+                  }}
                 />
-                <Line type="monotone" dataKey="count" stroke="var(--chart-1)" strokeWidth={2.5} dot={{ r: 3, fill: "var(--chart-1)" }} activeDot={{ r: 5 }} />
-              </LineChart>
+                <Area
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#D49A24"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#adminDiagGradient)"
+                  dot={{ r: 3, fill: "#D49A24", strokeWidth: 1.5, stroke: "#FFF" }}
+                  activeDot={{ r: 5, fill: "#D49A24", strokeWidth: 2, stroke: "#FFF" }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           )}
         </CardContent>
