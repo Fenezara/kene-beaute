@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, overlaps, dayEnd, notify, ddMM, hhmm } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
+import { ensureClientProfile } from "@/lib/kene/client-link";
+import { canonicalPhone } from "@/lib/kene/phone-normalize";
 
 const include = {
   service: { select: { id: true, name: true, durationMin: true, price: true } },
@@ -110,51 +112,46 @@ export async function POST(req: NextRequest) {
     }
 
     // Résolution / création de la fiche cliente CRM
-    let profileId: string | null = null;
-    let existingProfileUserId: string | null = null;
-    if (clientProfileId && clientProfileId !== "new") {
-      const profile = await db.clientProfile.findFirst({ where: { id: clientProfileId, tenantId } });
-      if (!profile) return jsonError("Fiche cliente introuvable", 404);
-      profileId = profile.id;
-      existingProfileUserId = profile.userId ?? null;
-    } else {
-      const existing = await db.clientProfile.findFirst({ where: { tenantId, phone: clientPhone } });
-      if (existing) {
-        profileId = existing.id;
-        existingProfileUserId = existing.userId ?? null;
-      } else {
-        const created = await db.clientProfile.create({
-          data: { tenantId, name: clientName, phone: clientPhone, rfmSegment: "Nouveaux" },
-        });
-        profileId = created.id;
-      }
+    const normPhone = canonicalPhone(clientPhone);
+
+    // Résolution du compte User Kènè par téléphone pour parité et affichage instantané côté client
+    const digits = normPhone.replace(/\D/g, "");
+    const matchedUser = await db.user.findFirst({
+      where: {
+        OR: [
+          { phone: normPhone },
+          { phone: clientPhone },
+          ...(digits.length >= 8 ? [{ phone: { contains: digits.slice(-8) } }] : []),
+        ],
+      },
+    });
+
+    const isGenericUserName = !matchedUser?.name || matchedUser.name.startsWith("Nouvelle ") || matchedUser.name.startsWith("Membre ") || matchedUser.name.includes("??");
+    if (matchedUser && isGenericUserName && clientName && !clientName.startsWith("Nouvelle ")) {
+      await db.user.update({
+        where: { id: matchedUser.id },
+        data: { name: clientName },
+      }).catch(() => null);
     }
 
-    // Résolution du compte User Kènè par téléphone pour affichage instantané côté client
-    let resolvedUserId: string | null = existingProfileUserId;
-    if (!resolvedUserId) {
-      const trimmedPhone = clientPhone.trim();
-      const digits = trimmedPhone.replace(/\D/g, "");
-      const matchedUser = await db.user.findFirst({
-        where: {
-          OR: [
-            { phone: trimmedPhone },
-            { phone: clientPhone },
-            { phone: clientPhone.replace(/\s+/g, "") },
-            ...(digits.length >= 8 ? [{ phone: { contains: digits.slice(-8) } }] : []),
-          ],
-        },
-      });
-      if (matchedUser) {
-        resolvedUserId = matchedUser.id;
-        if (profileId) {
-          await db.clientProfile.update({
-            where: { id: profileId },
-            data: { userId: matchedUser.id },
-          }).catch(() => null);
-        }
-      }
+    const resolvedUserId = matchedUser?.id ?? null;
+    let profileId: string | null = null;
+
+    if (clientProfileId && clientProfileId !== "new") {
+      const profile = await db.clientProfile.findFirst({ where: { id: clientProfileId, tenantId } });
+      if (profile) profileId = profile.id;
     }
+
+    if (!profileId) {
+      const profile = await ensureClientProfile(db, tenantId, matchedUser || {
+        id: `pro_${Date.now()}`,
+        name: clientName,
+        phone: normPhone,
+      });
+      profileId = profile?.id ?? null;
+    }
+
+    const effectiveClientName = matchedUser && !isGenericUserName ? matchedUser.name : clientName;
 
     // Anti-chevauchement
     const sameDay = await db.appointment.findMany({
@@ -174,8 +171,8 @@ export async function POST(req: NextRequest) {
         tenantId,
         clientProfileId: profileId,
         userId: resolvedUserId,
-        clientName,
-        clientPhone,
+        clientName: effectiveClientName,
+        clientPhone: normPhone,
         serviceId,
         resourceId,
         startAt: start,

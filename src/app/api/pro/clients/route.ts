@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, resolveTenant, slugify } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { ensureClientProfile } from "@/lib/kene/client-link";
+import { canonicalPhone, arePhonesMatching, phoneMatchKey } from "@/lib/kene/phone-normalize";
 
 // Validation zod (, remplace le cast manuel): bornes calquées sur
 // l'ancien contrat (nom ≤ 80, téléphone raisonnablement borné en longueur —
@@ -55,68 +56,84 @@ export async function GET(req: NextRequest) {
       await ensureClientProfile(db, tenant.id, u).catch(() => null);
     }
 
-    // 2. Clientes ayant pris un rendez-vous chez cet institut sans fiche liée
+    // 2. Clientes ayant pris un rendez-vous chez cet institut
     const apptUsers = await db.appointment.findMany({
       where: { tenantId: tenant.id },
       select: { id: true, clientProfileId: true, userId: true, clientName: true, clientPhone: true },
     });
 
     for (const a of apptUsers) {
-      if (!a.clientProfileId) {
-        let matchedUser = a.userId ? await db.user.findUnique({ where: { id: a.userId } }) : null;
-        if (!matchedUser && a.clientPhone) {
-          const digits = a.clientPhone.replace(/\D/g, "");
-          matchedUser = await db.user.findFirst({
+      let matchedUser = a.userId ? await db.user.findUnique({ where: { id: a.userId } }) : null;
+      if (!matchedUser && a.clientPhone) {
+        const digits = a.clientPhone.replace(/\D/g, "");
+        matchedUser = await db.user.findFirst({
+          where: {
+            OR: [
+              { phone: a.clientPhone },
+              { phone: canonicalPhone(a.clientPhone) },
+              ...(digits.length >= 8 ? [{ phone: { contains: digits.slice(-8) } }] : []),
+            ],
+          },
+        });
+      }
+      const profile = await ensureClientProfile(db, tenant.id, matchedUser || {
+        id: a.userId || `auto_${Date.now()}`,
+        name: a.clientName,
+        phone: a.clientPhone,
+      });
+      if (profile) {
+        await db.appointment.update({
+          where: { id: a.id },
+          data: { clientProfileId: profile.id, ...(matchedUser ? { userId: matchedUser.id } : {}) },
+        }).catch(() => null);
+      }
+    }
+
+    // 3. Rapprochement et synchronisation de TOUTES les fiches de l'institut avec le compte User réel
+    const allProfiles = await db.clientProfile.findMany({
+      where: { tenantId: tenant.id },
+    });
+    for (const p of allProfiles) {
+      let u = p.userId ? await db.user.findUnique({ where: { id: p.userId } }) : null;
+      if (!u && p.phone) {
+        const digits = p.phone.replace(/\D/g, "");
+        if (digits.length >= 8) {
+          u = await db.user.findFirst({
             where: {
               OR: [
-                { phone: a.clientPhone },
-                ...(digits.length >= 8 ? [{ phone: { contains: digits.slice(-8) } }] : []),
+                { phone: p.phone },
+                { phone: canonicalPhone(p.phone) },
+                { phone: { contains: digits.slice(-8) } },
               ],
             },
           });
         }
-        const profile = await ensureClientProfile(db, tenant.id, matchedUser || {
-          id: a.userId || `auto_${Date.now()}`,
-          name: a.clientName,
-          phone: a.clientPhone,
-        });
-        if (profile) {
-          await db.appointment.update({
-            where: { id: a.id },
-            data: { clientProfileId: profile.id, ...(matchedUser ? { userId: matchedUser.id } : {}) },
-          }).catch(() => null);
-        }
       }
-    }
+      if (u) {
+        const isGenericProfileName = !p.name || p.name.startsWith("Nouvelle ") || p.name.startsWith("Membre ") || p.name.includes("??");
+        const isGenericUserName = !u.name || u.name.startsWith("Nouvelle ") || u.name.startsWith("Membre ") || u.name.includes("??");
+        const targetName = !isGenericUserName ? u.name : (!isGenericProfileName ? p.name : u.name);
 
-    // 3. Fiches sans userId ou sans peau renseignée -> chercher le User par téléphone
-    const unlinked = await db.clientProfile.findMany({
-      where: { tenantId: tenant.id, OR: [{ userId: null }, { skinType: null }] },
-    });
-    for (const p of unlinked) {
-      const digits = p.phone.replace(/\D/g, "");
-      if (digits.length >= 8) {
-        const u = await db.user.findFirst({
-          where: {
-            OR: [
-              { phone: p.phone },
-              { phone: { contains: digits.slice(-8) } },
-            ],
+        await db.clientProfile.update({
+          where: { id: p.id },
+          data: {
+            userId: u.id,
+            name: targetName,
+            phone: canonicalPhone(u.phone) || canonicalPhone(p.phone),
+            skinType: p.skinType || u.skinType || undefined,
+            fitzpatrick: p.fitzpatrick || u.fitzpatrick || undefined,
+            district: p.district || u.district || undefined,
+            birthDate: p.birthDate || u.birthDate || undefined,
+            pregnant: p.pregnant ?? u.pregnant ?? undefined,
+            preferredChannel: p.preferredChannel || u.preferredChannel || undefined,
+            beautyBudget: p.beautyBudget || u.beautyBudget || undefined,
           },
-        });
-        if (u) {
-          await db.clientProfile.update({
-            where: { id: p.id },
-            data: {
-              userId: u.id,
-              skinType: p.skinType || u.skinType || undefined,
-              fitzpatrick: p.fitzpatrick || u.fitzpatrick || undefined,
-              district: p.district || u.district || undefined,
-              birthDate: p.birthDate || u.birthDate || undefined,
-              pregnant: p.pregnant ?? u.pregnant ?? undefined,
-              preferredChannel: p.preferredChannel || u.preferredChannel || undefined,
-              beautyBudget: p.beautyBudget || u.beautyBudget || undefined,
-            },
+        }).catch(() => null);
+
+        if (isGenericUserName && !isGenericProfileName) {
+          await db.user.update({
+            where: { id: u.id },
+            data: { name: p.name },
           }).catch(() => null);
         }
       }
@@ -164,21 +181,34 @@ export async function POST(req: NextRequest) {
     // Normalisation conservée (trim + espaces multiples): zod garantit la
     // forme, ces sémantiques restent la source des messages FR ci-dessous.
     const name = parsed.data.name.trim().replace(/\s+/g, " ");
-    const phone = parsed.data.phone.trim();
+    const rawPhone = parsed.data.phone.trim();
+    const phone = canonicalPhone(rawPhone);
     const digits = phone.replace(/\D/g, "");
 
     if (name.length < 2 || name.length > 80) return jsonError("Nom invalide (2 à 80 caractères)");
     if (digits.length < 8 || digits.length > 15) return jsonError("Téléphone invalide (8 à 15 chiffres)");
 
-    // anti-doublon: comparaison sur chiffres NORMALISÉS (les formats « 07 05… »,
-    // « 0705… » et « +225 07… » désignent le même numéro — un contains SQL brut
-    // ne le voit pas). Les 10 derniers chiffres = numéro local CI.
-    const tail = digits.slice(-10);
+    const tail = phoneMatchKey(phone);
+
+    // Tenter de lier avec un compte utilisateur Kènè existant
+    const allUsers = await db.user.findMany({ select: { id: true, name: true, phone: true } });
+    const matchingUser = allUsers.find((u) => arePhonesMatching(u.phone, phone));
+
+    if (matchingUser) {
+      const isGenericUserName = !matchingUser.name || matchingUser.name.startsWith("Nouvelle ") || matchingUser.name.startsWith("Membre ") || matchingUser.name.includes("??");
+      if (isGenericUserName) {
+        await db.user.update({
+          where: { id: matchingUser.id },
+          data: { name },
+        }).catch(() => null);
+      }
+    }
+
     const roster = await db.clientProfile.findMany({
       where: { tenantId: tenant.id },
-      select: { id: true, phone: true },
+      select: { id: true, phone: true, userId: true },
     });
-    const existingId = roster.find((c) => c.phone.replace(/\D/g, "").endsWith(tail))?.id;
+    const existingId = roster.find((c) => (matchingUser && c.userId === matchingUser.id) || arePhonesMatching(c.phone, phone))?.id;
     const existing = existingId
       ? await db.clientProfile.findUnique({
           where: { id: existingId },
@@ -187,28 +217,24 @@ export async function POST(req: NextRequest) {
       : null;
     if (existing) {
       // Mettre à jour les informations complémentaires si fournies
-      const updateData: { email?: string; district?: string; notes?: string; skinType?: string; fitzpatrick?: string } = {};
+      const updateData: { name?: string; phone?: string; userId?: string; email?: string; district?: string; notes?: string; skinType?: string; fitzpatrick?: string } = {
+        name,
+        phone,
+      };
+      if (matchingUser && !existing.userId) updateData.userId = matchingUser.id;
       if (parsed.data.email && !existing.email) updateData.email = parsed.data.email;
       if (parsed.data.district && !existing.district) updateData.district = parsed.data.district;
       if (parsed.data.skinType && !existing.skinType) updateData.skinType = parsed.data.skinType;
       if (parsed.data.fitzpatrick && !existing.fitzpatrick) updateData.fitzpatrick = parsed.data.fitzpatrick;
       if (parsed.data.notes && !existing.notes) updateData.notes = parsed.data.notes;
 
-      if (Object.keys(updateData).length > 0) {
-        const updated = await db.clientProfile.update({
-          where: { id: existing.id },
-          data: updateData,
-          include: { _count: { select: { sales: true, appointments: true } } },
-        });
-        return NextResponse.json({ client: updated, reused: true });
-      }
-
-      return NextResponse.json({ client: existing, reused: true });
+      const updated = await db.clientProfile.update({
+        where: { id: existing.id },
+        data: updateData,
+        include: { _count: { select: { sales: true, appointments: true } } },
+      });
+      return NextResponse.json({ client: updated, reused: true });
     }
-
-    // Tenter de lier avec un compte utilisateur Kènè existant
-    const allUsers = await db.user.findMany({ select: { id: true, phone: true } });
-    const matchingUser = allUsers.find((u) => u.phone.replace(/\D/g, "").endsWith(tail));
 
     const client = await db.clientProfile.create({
       data: {

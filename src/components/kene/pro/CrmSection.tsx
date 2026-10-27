@@ -37,6 +37,7 @@ import { ApptStatusBadge, EmptyState, ErrorState, InitialAvatar, Money, SectionH
 import { OrderStatusBadge } from "./OrdersSection";
 import { proToastError } from "./ProApp";
 import { DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
+import { formatPhoneDisplay } from "@/lib/kene/phone-normalize";
 import type { ProClient, ProClientDetail } from "./types";
 
 function useDebounced<T>(value: T, delay = 350): T {
@@ -401,7 +402,7 @@ export function CrmSection({
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{c.name}</p>
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="truncate text-[10px] text-muted-foreground sm:hidden font-mono">{c.phone}</p>
+                            <p className="truncate text-[10px] text-muted-foreground sm:hidden font-mono">{formatPhoneDisplay(c.phone)}</p>
                             {c.district && (
                               <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground font-medium">
                                 <MapPin className="size-2.5 text-gold-text shrink-0" aria-hidden="true" />
@@ -413,7 +414,7 @@ export function CrmSection({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell font-mono text-xs">{c.phone}</TableCell>
+                    <TableCell className="hidden sm:table-cell font-mono text-xs">{formatPhoneDisplay(c.phone)}</TableCell>
                     <TableCell className="text-xs">{c.lastVisit ? formatDate(c.lastVisit) : <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell className="text-right font-mono text-xs tabular-nums">{c.visitsCount}</TableCell>
                     <TableCell className="text-right"><Money value={c.totalSpent} className="text-xs font-semibold" /></TableCell>
@@ -715,7 +716,7 @@ function ClientSheet({
                   <SheetTitle className="font-heading text-lg leading-tight truncate">{c.name}</SheetTitle>
                   <SheetDescription className="flex flex-wrap items-center gap-2 font-mono text-xs mt-0.5">
                     <span className="flex items-center gap-1">
-                      <Phone className="size-3" aria-hidden="true" /> {c.phone}
+                      <Phone className="size-3" aria-hidden="true" /> {formatPhoneDisplay(c.phone)}
                     </span>
                     {c.district && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-[10.5px] font-sans font-medium text-foreground/80">

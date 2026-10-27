@@ -10,6 +10,7 @@ import { rfmScore } from "@/lib/kene/rfm";
 import { jsonError, serverError, resolveTenant } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { getScanVisibility } from "@/lib/kene/share-consent";
+import { canonicalPhone, arePhonesMatching } from "@/lib/kene/phone-normalize";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -29,30 +30,47 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!tenant || client.tenantId !== tenant.id) return jsonError("Fiche cliente introuvable", 404);
 
     let effectiveUserId = client.userId;
-    if (!effectiveUserId && client.phone) {
+    let matchedUser = effectiveUserId ? await db.user.findUnique({ where: { id: effectiveUserId } }) : null;
+
+    if (!matchedUser && client.phone) {
       const digits = client.phone.replace(/\D/g, "");
-      const matchedUser = await db.user.findFirst({
+      matchedUser = await db.user.findFirst({
         where: {
           OR: [
             { phone: client.phone },
+            { phone: canonicalPhone(client.phone) },
             ...(digits.length >= 8 ? [{ phone: { contains: digits.slice(-8) } }] : []),
           ],
         },
       });
-      if (matchedUser) {
-        effectiveUserId = matchedUser.id;
-        await db.clientProfile.update({
-          where: { id: client.id },
-          data: {
-            userId: matchedUser.id,
-            skinType: client.skinType || matchedUser.skinType || undefined,
-            fitzpatrick: client.fitzpatrick || matchedUser.fitzpatrick || undefined,
-            district: client.district || matchedUser.district || undefined,
-            birthDate: client.birthDate || matchedUser.birthDate || undefined,
-            pregnant: client.pregnant ?? matchedUser.pregnant ?? undefined,
-            preferredChannel: client.preferredChannel || matchedUser.preferredChannel || undefined,
-            beautyBudget: client.beautyBudget || matchedUser.beautyBudget || undefined,
-          },
+    }
+
+    if (matchedUser) {
+      effectiveUserId = matchedUser.id;
+      const isGenericProfileName = !client.name || client.name.startsWith("Nouvelle ") || client.name.startsWith("Membre ") || client.name.includes("??");
+      const isGenericUserName = !matchedUser.name || matchedUser.name.startsWith("Nouvelle ") || matchedUser.name.startsWith("Membre ") || matchedUser.name.includes("??");
+      const targetName = !isGenericUserName ? matchedUser.name : (!isGenericProfileName ? client.name : matchedUser.name);
+
+      await db.clientProfile.update({
+        where: { id: client.id },
+        data: {
+          userId: matchedUser.id,
+          name: targetName,
+          phone: canonicalPhone(matchedUser.phone) || canonicalPhone(client.phone),
+          skinType: client.skinType || matchedUser.skinType || undefined,
+          fitzpatrick: client.fitzpatrick || matchedUser.fitzpatrick || undefined,
+          district: client.district || matchedUser.district || undefined,
+          birthDate: client.birthDate || matchedUser.birthDate || undefined,
+          pregnant: client.pregnant ?? matchedUser.pregnant ?? undefined,
+          preferredChannel: client.preferredChannel || matchedUser.preferredChannel || undefined,
+          beautyBudget: client.beautyBudget || matchedUser.beautyBudget || undefined,
+        },
+      }).catch(() => null);
+
+      if (isGenericUserName && !isGenericProfileName) {
+        await db.user.update({
+          where: { id: matchedUser.id },
+          data: { name: client.name },
         }).catch(() => null);
       }
     }
@@ -62,6 +80,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const since12m = new Date();
     since12m.setFullYear(since12m.getFullYear() - 1);
+
+    const clientPhoneDigits = client.phone ? client.phone.replace(/\D/g, "") : "";
+    const apptOrClauses: Array<Record<string, unknown>> = [{ clientProfileId: id }];
+    if (effectiveUserId) apptOrClauses.push({ userId: effectiveUserId });
+    if (client.phone) {
+      apptOrClauses.push({ clientPhone: client.phone });
+      apptOrClauses.push({ clientPhone: canonicalPhone(client.phone) });
+      if (clientPhoneDigits.length >= 8) {
+        apptOrClauses.push({ clientPhone: { contains: clientPhoneDigits.slice(-8) } });
+      }
+    }
 
     const [sales, appointments, sales12m, allDiagnoses, proDiagnoses, orders, reviews] = await Promise.all([
       db.sale.findMany({
@@ -86,10 +115,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         take: 50,
       }),
       db.appointment.findMany({
-        where: { clientProfileId: id },
+        where: {
+          tenantId: tenant.id,
+          OR: apptOrClauses,
+        },
         include: { service: { select: { name: true } } },
         orderBy: { startAt: "desc" },
-        take: 10,
+        take: 20,
       }),
       db.sale.findMany({
         where: { clientProfileId: id, status: "completed", createdAt: { gte: since12m } },

@@ -35,6 +35,7 @@ import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, Money, SectionHeader } from "./ui-bits";
 import { DEFAULT_FALLBACK_CATALOG, DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
+import { formatPhoneDisplay } from "@/lib/kene/phone-normalize";
 import type { ProAppointment, ProCatalog, ProClient, ProLeave } from "./types";
 
 const OPEN = 9;
@@ -268,7 +269,7 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
                     </span>
                     <h4 className="font-bold text-sm text-foreground truncate">{appt.service?.name || "Prestation de soin"}</h4>
                     <p className="text-xs text-muted-foreground">
-                      Cliente : <strong className="text-foreground">{appt.clientName}</strong> ({appt.clientPhone})
+                      Cliente : <strong className="text-foreground">{appt.clientName}</strong> ({formatPhoneDisplay(appt.clientPhone)})
                     </p>
                   </div>
                   <div className="text-right shrink-0">
@@ -538,7 +539,7 @@ function ApptDetailDialog({
           </div>
           <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2">
             <span className="text-muted-foreground">Téléphone</span>
-            <span className="font-mono text-xs">{appt.clientPhone}</span>
+            <span className="font-mono text-xs">{formatPhoneDisplay(appt.clientPhone)}</span>
           </div>
           <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2">
             <span className="text-muted-foreground">Tarif</span>

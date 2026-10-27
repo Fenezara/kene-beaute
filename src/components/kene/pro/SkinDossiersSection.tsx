@@ -34,6 +34,7 @@ import { useApi } from "./useApi";
 import { EmptyState, ErrorState, InitialAvatar, SectionHeader, KenteTop } from "./ui-bits";
 import { proToastError } from "./ProApp";
 import { DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
+import { formatPhoneDisplay } from "@/lib/kene/phone-normalize";
 import type { ProClient, ProClientDetail, ProDiagnosisItem } from "./types";
 
 interface Props {
@@ -81,7 +82,7 @@ export function SkinDossiersSection({
       if (!tenantId) return cachedClients;
       try {
         const res = await apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`);
-        if (res.clients && res.clients.length > 0) return res.clients;
+        if (res.clients) return res.clients;
         return cachedClients;
       } catch {
         return cachedClients;
@@ -335,7 +336,7 @@ export function SkinDossiersSection({
                             <h4 className="font-heading text-sm font-bold truncate group-hover:text-gold-text transition-colors">
                               {client.name}
                             </h4>
-                            <p className="font-mono text-[11px] text-muted-foreground truncate">{client.phone}</p>
+                            <p className="font-mono text-[11px] text-muted-foreground truncate">{formatPhoneDisplay(client.phone)}</p>
                           </div>
                         </div>
                         {client.pregnant && (
@@ -689,7 +690,7 @@ function ClientSkinDossierDetail({
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 font-mono">
-                  <span>{c.phone}</span>
+                  <span>{formatPhoneDisplay(c.phone)}</span>
                   {c.district && <span className="font-sans">· {c.district}</span>}
                   <span className="font-sans">· {d?.proDiagnoses.length ?? 0} cabine · {d?.diagnoses.length ?? 0} auto-scan(s) cliente</span>
                 </p>

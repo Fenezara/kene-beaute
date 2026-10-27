@@ -1,16 +1,10 @@
 // src/lib/kene/client-link.ts — Synchronisation App cliente ↔ espace entreprise.
 //
-// Chaînon manquant réparé: quand une cliente de l'APP réserve un RDV chez un
-// institut ou commande un produit d'une entreprise, sa fiche CRM
-// (ClientProfile, scopée tenant) doit exister ET être LIÉE à son compte User
-// (userId). C'est ce lien qui alimente:
-// - le CRM de l'entreprise (fiche, RFM, visites);
-// - la fiche 360° pro: ses self-scans app (diagnoses via client.userId);
-// - l'historique client: les diagnostics réalisés EN institut
-// (ProDiagnosis.userId posé par la route pro).
-// Isolation garantie par construction: la fiche vit DANS le périmètre du
-// tenant — aucune entreprise ne voit les clientes d'un autre institut.
+// Chaînon d'or Kènè: assure l'identité unique et la parité absolue des données
+// (noms, numéros de téléphone normalisés, diagnostics, historique RDV et routine)
+// entre l'application mobile de la cliente et la console Kènè Pro de l'institut.
 import type { Prisma, User } from "@prisma/client";
+import { canonicalPhone, phoneMatchKey, arePhonesMatching } from "@/lib/kene/phone-normalize";
 
 type Tx = Prisma.TransactionClient;
 
@@ -25,60 +19,104 @@ const skinMirror = (u: Partial<Pick<User, "skinType" | "fitzpatrick" | "district
   beautyBudget: u.beautyBudget ?? undefined,
 });
 
+const isGenericName = (name?: string | null): boolean => {
+  if (!name) return true;
+  const n = name.trim().toLowerCase();
+  return (
+    n === "" ||
+    n === "nouvelle cliente" ||
+    n === "nouvelle invitée" ||
+    n.startsWith("membre ") ||
+    n.includes("??") ||
+    n === "guest" ||
+    n === "ma peau" ||
+    n === "collaboratrice" ||
+    n === "estheticienne"
+  );
+};
+
 /**
- * Trouve ou crée la fiche CRM d'une cliente de l'app pour CE tenant, et pose
- * le lien userId. Ordre de résolution:
- * 1. fiche déjà liée à ce compte (tenantId + userId) → miroir peau rafraîchi;
- * 2. fiche existante au même numéro (créée en caisse « cliente express ») →
- * le compte est LIÉ (userId) + miroir peau;
- * 3. création: fiche liée d'office, note « app Kènè ».
- * Idempotent: appelé à chaque réservation/commande, ne crée jamais de doublon
- * (comparaison sur les 10 derniers chiffres du numéro — cf. pro/clients POST).
+ * Trouve ou crée la fiche CRM d'une cliente de l'app pour CE tenant, et synchronise
+ * son nom réel, son numéro canonique et son miroir peau.
+ * Idempotent, élimine les doublons automatiquement.
  */
 export async function ensureClientProfile(
   tx: Tx,
   tenantId: string,
   user: Pick<User, "id" | "name" | "phone"> & Partial<Pick<User, "skinType" | "fitzpatrick" | "district" | "birthDate" | "pregnant" | "preferredChannel" | "beautyBudget">>,
 ): Promise<{ id: string } | null> {
-  // 1) Déjà liée à ce compte pour ce tenant?
-  const byUser = await tx.clientProfile.findFirst({
-    where: { tenantId, userId: user.id },
-    select: { id: true },
+  const normPhone = canonicalPhone(user.phone);
+  const matchKey = phoneMatchKey(user.phone);
+
+  // 1) Recherche de toutes les fiches existantes pour ce tenant (par userId OU par numéro)
+  const roster = await tx.clientProfile.findMany({
+    where: { tenantId },
+    select: { id: true, userId: true, name: true, phone: true },
   });
-  if (byUser) {
-    await tx.clientProfile.update({
-      where: { id: byUser.id },
-      data: skinMirror(user),
-    });
-    return byUser;
-  }
 
-  // 2) Fiche « caisse » au même numéro → on LIÉ le compte (le miroir peau
-  // suit, la fiche garde son historique ventes/RDV).
-  const tail = user.phone.replace(/\D/g, "").slice(-10);
-  if (tail.length >= 8) {
-    const roster = await tx.clientProfile.findMany({
-      where: { tenantId },
-      select: { id: true, phone: true },
-    });
-    const same = roster.find((c) => c.phone.replace(/\D/g, "").endsWith(tail));
-    if (same) {
-      const linked = await tx.clientProfile.update({
-        where: { id: same.id },
-        data: { userId: user.id, ...skinMirror(user) },
-        select: { id: true },
-      });
-      return linked;
+  const matchingProfiles = roster.filter(
+    (p) => (user.id && p.userId === user.id) || arePhonesMatching(p.phone, user.phone)
+  );
+
+  if (matchingProfiles.length > 0) {
+    const primary = matchingProfiles[0];
+
+    // Résolution du meilleur nom : priorité au nom réel s'il n'est pas générique
+    let resolvedName = user.name;
+    if (isGenericName(resolvedName) && !isGenericName(primary.name)) {
+      resolvedName = primary.name;
     }
+
+    // Mise à jour de la fiche principale
+    const updated = await tx.clientProfile.update({
+      where: { id: primary.id },
+      data: {
+        userId: user.id && !user.id.startsWith("guest") && !user.id.startsWith("auto") ? user.id : primary.userId,
+        name: resolvedName,
+        phone: normPhone || primary.phone,
+        ...skinMirror(user),
+      },
+      select: { id: true },
+    });
+
+    // Fusion des doublons s'il en existe plusieurs pour ce même tenant
+    if (matchingProfiles.length > 1) {
+      for (let i = 1; i < matchingProfiles.length; i++) {
+        const dup = matchingProfiles[i];
+        if (dup.id !== primary.id) {
+          // Réassigner les RDV, ventes et diagnostics vers la fiche principale
+          await tx.appointment.updateMany({
+            where: { clientProfileId: dup.id },
+            data: { clientProfileId: primary.id },
+          }).catch(() => null);
+
+          await tx.sale.updateMany({
+            where: { clientProfileId: dup.id },
+            data: { clientProfileId: primary.id },
+          }).catch(() => null);
+
+          await tx.proDiagnosis.updateMany({
+            where: { clientProfileId: dup.id },
+            data: { clientProfileId: primary.id },
+          }).catch(() => null);
+
+          await tx.clientProfile.delete({
+            where: { id: dup.id },
+          }).catch(() => null);
+        }
+      }
+    }
+
+    return updated;
   }
 
-  // 3) Premier contact: fiche liée, prête pour le CRM et la fiche 360°.
+  // 2) Premier contact: création de la fiche liée d'office, prête pour CRM et fiche 360°
   const created = await tx.clientProfile.create({
     data: {
       tenantId,
-      userId: user.id,
+      userId: user.id && !user.id.startsWith("guest") && !user.id.startsWith("auto") ? user.id : null,
       name: user.name,
-      phone: user.phone,
+      phone: normPhone || user.phone,
       skinType: user.skinType,
       fitzpatrick: user.fitzpatrick,
       district: user.district,
@@ -87,9 +125,10 @@ export async function ensureClientProfile(
       preferredChannel: user.preferredChannel ?? "whatsapp",
       beautyBudget: user.beautyBudget,
       rfmSegment: "Nouveau",
-      notes: "Cliente app Kènè — fiche créée automatiquement à son premier contact (réservation ou commande).",
+      notes: "Cliente app Kènè — fiche synchronisée automatiquement.",
     },
     select: { id: true },
   });
+
   return created;
 }

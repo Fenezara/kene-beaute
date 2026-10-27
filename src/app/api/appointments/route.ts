@@ -14,6 +14,7 @@ import { newConfirmToken, paymentWithConfirmToken, serializePayment } from "@/li
 import type { Appointment, Payment } from "@prisma/client";
 import { guardUserClaim } from "@/lib/kene/session";
 import { ensureClientProfile } from "@/lib/kene/client-link";
+import { canonicalPhone } from "@/lib/kene/phone-normalize";
 import { rateLimit, rlKey, rateLimitResponse, APPOINTMENTS_CREATE } from "@/lib/kene/rate-limit";
 import { createWaveCheckoutSession } from "@/lib/payments/wave";
 import { createWiniPayerPaymentSession } from "@/lib/payments/winipayer";
@@ -303,23 +304,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        let appointment = await tx.appointment.create({
-          data: {
-            tenantId,
-            serviceId: service.id,
-            resourceId: targetResourceId,
-            userId: userId ?? null,
-            clientName,
-            clientPhone,
-            startAt: start,
-            durationMin: service.durationMin,
-            status: "pending",
-            price: service.price,
-            depositAmount: 0,
-            notes: notes ?? null,
-          },
-          include: APPT_INCLUDE,
-        });
+        const normClientPhone = canonicalPhone(clientPhone);
 
         // Synchronisation App↔Institut: création / mise à jour de la fiche client CRM
         let effectiveUser = userId
@@ -330,10 +315,11 @@ export async function POST(req: NextRequest) {
           : null;
 
         if (!effectiveUser && clientPhone) {
-          const digits = clientPhone.replace(/\D/g, "");
+          const digits = normClientPhone.replace(/\D/g, "");
           effectiveUser = await tx.user.findFirst({
             where: {
               OR: [
+                { phone: normClientPhone },
                 { phone: clientPhone },
                 ...(digits.length >= 8 ? [{ phone: { contains: digits.slice(-8) } }] : []),
               ],
@@ -342,6 +328,11 @@ export async function POST(req: NextRequest) {
           });
         }
 
+        const effectiveName = effectiveUser && !effectiveUser.name.startsWith("Nouvelle ") && !effectiveUser.name.startsWith("Membre ") && !effectiveUser.name.includes("??")
+          ? effectiveUser.name
+          : clientName;
+
+        let profileId: string | null = null;
         if (effectiveUser) {
           if (!effectiveUser.selectedTenantId) {
             await tx.user.update({
@@ -350,27 +341,34 @@ export async function POST(req: NextRequest) {
             }).catch(() => null);
           }
           const profile = await ensureClientProfile(tx, tenantId, effectiveUser);
-          if (profile) {
-            appointment = await tx.appointment.update({
-              where: { id: appointment.id },
-              data: { clientProfileId: profile.id, userId: effectiveUser.id },
-              include: APPT_INCLUDE,
-            });
-          }
+          if (profile) profileId = profile.id;
         } else if (clientPhone) {
           const profile = await ensureClientProfile(tx, tenantId, {
             id: `guest_${Date.now()}`,
-            name: clientName,
-            phone: clientPhone,
+            name: effectiveName,
+            phone: normClientPhone,
           });
-          if (profile) {
-            appointment = await tx.appointment.update({
-              where: { id: appointment.id },
-              data: { clientProfileId: profile.id },
-              include: APPT_INCLUDE,
-            });
-          }
+          if (profile) profileId = profile.id;
         }
+
+        let appointment = await tx.appointment.create({
+          data: {
+            tenantId,
+            serviceId: service.id,
+            resourceId: targetResourceId,
+            userId: effectiveUser?.id ?? userId ?? null,
+            clientProfileId: profileId,
+            clientName: effectiveName,
+            clientPhone: normClientPhone,
+            startAt: start,
+            durationMin: service.durationMin,
+            status: "pending",
+            price: service.price,
+            depositAmount: 0,
+            notes: notes ?? null,
+          },
+          include: APPT_INCLUDE,
+        });
 
         // Acompte (simulation MoMo) → Payment en attente de confirmation
         let payment: Payment | null = null;

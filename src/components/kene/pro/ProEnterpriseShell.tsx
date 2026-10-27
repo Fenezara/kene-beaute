@@ -802,22 +802,25 @@ export function ProEnterpriseShell() {
 
   const isAdmin = sessionUser?.role === "admin";
   const proOwner = isOwner ? sessionUser : null;
-  const isGenericClientName =
-    !sessionUser?.name ||
-    sessionUser.name === "Nouvelle cliente" ||
-    sessionUser.name === "Nouvelle invitée" ||
-    sessionUser.name.startsWith("Membre ") ||
-    sessionUser.name.includes("??") ||
-    sessionUser.name === "estheticienne" ||
-    sessionUser.name === "collaboratrice";
+  const isGeneric = (n?: string | null) =>
+    !n ||
+    n.trim() === "" ||
+    n === "Nouvelle cliente" ||
+    n === "Nouvelle invitée" ||
+    n.startsWith("Membre ") ||
+    n.includes("??") ||
+    n === "estheticienne" ||
+    n === "collaboratrice";
 
   const chipName =
-    employeeName && employeeName.trim()
+    sessionUser?.name && !isGeneric(sessionUser.name)
+      ? sessionUser.name.trim()
+      : employeeName && !isGeneric(employeeName)
       ? employeeName.trim()
-      : !isGenericClientName && sessionUser?.name.trim()
+      : sessionUser?.name && sessionUser.name.trim()
       ? sessionUser.name.trim()
       : isOwner
-      ? tenant?.name ?? "Gérante"
+      ? "Gérante"
       : "Collaboratrice";
 
   const chipRole = isAdmin
@@ -998,7 +1001,7 @@ export function ProEnterpriseShell() {
                 haptic(HAPTIC.tap);
                 openSection("parametres");
               }}
-              title={`Cliquez pour ouvrir ${isOwner ? "les paramètres de l'institut" : "vos réglages collaboratrice"} (${chipName})`}
+              title={`Connecté : ${chipName}${sessionUser?.phone ? ` (${sessionUser.phone})` : ""} · Cliquez pour ouvrir vos réglages`}
               className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-border/60 shrink-0 text-left cursor-pointer hover:opacity-85 transition-opacity"
             >
               <span

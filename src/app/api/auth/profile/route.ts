@@ -11,6 +11,8 @@ import { guardUserClaim, sanitizeUser } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
 import { checkPhoto } from "@/lib/kene/photo";
+import { ensureClientProfile } from "@/lib/kene/client-link";
+import { canonicalPhone, phoneMatchKey } from "@/lib/kene/phone-normalize";
 
 const Body = z.object({
   userId: z.string().min(1),
@@ -49,6 +51,10 @@ export async function PATCH(req: NextRequest) {
   } catch (err) {
     return serverError("auth/profile", err);
   }
+}
+
+export async function POST(req: NextRequest) {
+  return PATCH(req);
 }
 
 // Pont GET — voir src/lib/kene/get-bridge.ts. MÊMES garde-fous.
@@ -90,10 +96,11 @@ async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
 
   const updated = await db.user.update({ where: { id: userId }, data: update });
 
-  // MIROIR CLIENTE → CRM: le type de peau, phototype, quartier, anniversaire,
+  // MIROIR CLIENTE → CRM: le nom, type de peau, phototype, quartier, anniversaire,
   // maternité et préférences déclarés par la cliente se répercutent À CHAUD sur
   // toutes ses fiches ClientProfile auprès des instituts partenaires.
   const profileSync: Record<string, unknown> = {};
+  if (update.name !== undefined) profileSync.name = update.name;
   if (update.gender !== undefined) profileSync.gender = update.gender;
   if (update.skinType !== undefined) profileSync.skinType = update.skinType;
   if (update.fitzpatrick !== undefined) profileSync.fitzpatrick = update.fitzpatrick;
@@ -103,9 +110,17 @@ async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
   if (update.preferredChannel !== undefined) profileSync.preferredChannel = update.preferredChannel;
   if (update.beautyBudget !== undefined) profileSync.beautyBudget = update.beautyBudget;
 
+  const userPhone = user.phone;
+  const matchKey = phoneMatchKey(userPhone);
+
   if (Object.keys(profileSync).length > 0) {
     await db.clientProfile.updateMany({
-      where: { userId },
+      where: {
+        OR: [
+          { userId },
+          ...(matchKey.length >= 8 ? [{ phone: { contains: matchKey.slice(-8) } }] : [{ phone: userPhone }]),
+        ],
+      },
       data: profileSync,
     });
   }
@@ -116,29 +131,18 @@ async function runProfile(data: z.infer<typeof Body>): Promise<NextResponse> {
       return jsonError("Inscription requise : un utilisateur en mode invité ne peut pas rattacher son profil à un institut partenaire.", 403);
     }
     const tenantIdStr = String(update.selectedTenantId);
-    const existingProfile = await db.clientProfile.findFirst({
-      where: { tenantId: tenantIdStr, phone: user.phone },
-    });
-    if (existingProfile) {
-      if (!existingProfile.userId) {
-        await db.clientProfile.update({
-          where: { id: existingProfile.id },
-          data: { userId },
-        }).catch(() => null);
-      }
-    } else {
-      await db.clientProfile.create({
-        data: {
-          tenantId: tenantIdStr,
-          userId,
-          name: user.name,
-          phone: user.phone,
-          rfmSegment: "Nouveaux",
-          skinType: user.skinType,
-          fitzpatrick: user.fitzpatrick,
-        },
-      }).catch(() => null);
-    }
+    await ensureClientProfile(db, tenantIdStr, {
+      id: userId,
+      name: (update.name as string | undefined) ?? user.name,
+      phone: user.phone,
+      skinType: (update.skinType as string | undefined) ?? user.skinType,
+      fitzpatrick: (update.fitzpatrick as string | undefined) ?? user.fitzpatrick,
+      district: (update.district as string | undefined) ?? user.district,
+      birthDate: (update.birthDate as string | undefined) ?? user.birthDate,
+      pregnant: (update.pregnant as boolean | undefined) ?? user.pregnant,
+      preferredChannel: (update.preferredChannel as string | undefined) ?? user.preferredChannel,
+      beautyBudget: (update.beautyBudget as string | undefined) ?? user.beautyBudget,
+    }).catch(() => null);
   }
 
   const refreshed = await db.user.findUnique({

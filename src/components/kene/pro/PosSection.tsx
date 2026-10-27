@@ -36,6 +36,7 @@ import {
 import { useApi } from "./useApi";
 import { EmptyState, ErrorState, KenteTop, SectionHeader } from "./ui-bits";
 import { DEFAULT_FALLBACK_CATALOG, DEFAULT_FALLBACK_CLIENTS, DEFAULT_FALLBACK_TEAM } from "@/lib/kene/fallback-catalog";
+import { formatPhoneDisplay } from "@/lib/kene/phone-normalize";
 import type { EmployeesResponse, PaymentMethod, ProCatalog, ProClient, ProSale, SalesResponse } from "./types";
 
 interface TicketLine {
@@ -1008,7 +1009,7 @@ export function PosSection({
                   <SelectContent>
                     <SelectItem value="__none">Sans cliente</SelectItem>
                     {(clients.data ?? []).map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name} — {c.phone}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>{c.name} — {formatPhoneDisplay(c.phone)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
