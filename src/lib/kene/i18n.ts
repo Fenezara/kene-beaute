@@ -25,7 +25,7 @@ export type Dict = Record<string, string>;
 
 const FR: Dict = {
   // Onglets (tab-bar mobile + rail desktop)
-  "tab.home": "Dermo Kènè",
+  "tab.home": "Accueil",
   "tab.agenda": "Soins & RDV",
   "tab.dossier": "Dossier Peau",
   "tab.scan": "Scanner",
@@ -40,7 +40,7 @@ const FR: Dict = {
   "nav.chat.aria": "Dermo Kènè — guide dermo-cosmétique",
 
   // Titres d'écran (h1 du header ClientApp)
-  "title.home": "Dermo Kènè · Conseils & Orbe IA",
+  "title.home": "Accueil · Mon Espace Beauté",
   "title.agenda": "Mes Soins & Rendez-vous",
   "title.dossier": "Mon Dossier Peau & Données",
   "title.institutes": "Instituts & Salons Partenaires",

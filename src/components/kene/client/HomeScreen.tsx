@@ -29,6 +29,7 @@ import { useKene } from "@/store/kene";
 import { MvpFunnelHero } from "./MvpFunnelHero";
 import { AppointmentsCareSection } from "./AppointmentsCareSection";
 import { ContactKeneModal } from "./ContactKeneModal";
+import { SkinHealthDashboard } from "./SkinHealthDashboard";
 import type { ApiAppointment, ApiDiagnosis, ApiInstitute, ApiProduct } from "./types";
 import { parseDiagnosis } from "./types";
 
@@ -264,6 +265,26 @@ export function HomeScreen({
             )}
           </div>
         </header>
+
+        {/* Commutateur Awwwards : Mon Tableau de Bord & Rituels vs Dermo Kènè 24/7 */}
+        <div className="mt-4 flex p-1 rounded-2xl bg-card border border-gold/30 shadow-xs">
+          <div className="flex-1 py-2 px-3 rounded-xl font-heading font-black text-xs bg-gold/15 text-gold-text shadow-2xs flex items-center justify-center gap-2 border border-gold/40">
+            <NsorommaIcon size={14} className="text-gold" />
+            <span>Mon Espace &amp; Bilan Cutané</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              haptic(HAPTIC.tap);
+              setClientTab("chat");
+            }}
+            className="flex-1 py-2 px-3 rounded-xl font-heading font-bold text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <MessageCircle size={14} className="text-primary" />
+            <span>Dermo Kènè IA 24/7</span>
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          </button>
+        </div>
       </RevealItem>
 
       {/* ───── 0. HUB D'INTENTIONS EXPRESS : QUE SOUHAITES-TU POUR TA PEAU ? ───── */}
@@ -406,7 +427,20 @@ export function HomeScreen({
         </RevealItem>
       )}
 
-      {/* ───── 1. HERO DU DIAGNOSTIC DE PEAU & BILAN CUTANÉ ───── */}
+      {/* ───── 1. BILAN CUTANÉ BENTO AWWWARDS & LES 4 PILIERS VITAUX ───── */}
+      {user && (
+        <RevealItem>
+          <SkinHealthDashboard
+            user={user as any}
+            multi={multi}
+            lastResult={lastResult}
+            onScanZone={onScanZone}
+            onOpenFullDiag={() => setClientTab("dossier")}
+          />
+        </RevealItem>
+      )}
+
+      {/* ───── 2. RITUEL SUR-MESURE & ORDONNANCE BEAUTÉ ───── */}
       <RevealItem>
         <div ref={routineSectionRef} className="scroll-mt-4">
           <MvpFunnelHero

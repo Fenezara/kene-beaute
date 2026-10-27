@@ -1129,6 +1129,26 @@ export function ChatScreen() {
 
   return (
     <div className="flex flex-col min-h-[68vh] pt-1 sm:pt-2">
+      {/* Commutateur Awwwards : Mon Tableau de Bord & Rituels vs Dermo Kènè 24/7 */}
+      <div className="mb-3 flex p-1 rounded-2xl bg-card border border-gold/30 shadow-xs">
+        <button
+          type="button"
+          onClick={() => {
+            haptic(HAPTIC.tap);
+            useKene.getState().setClientTab("accueil");
+          }}
+          className="flex-1 py-2 px-3 rounded-xl font-heading font-bold text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-2 transition-all cursor-pointer"
+        >
+          <NsorommaIcon size={14} className="text-gold" />
+          <span>Mon Espace &amp; Bilan Cutané</span>
+        </button>
+        <div className="flex-1 py-2 px-3 rounded-xl font-heading font-black text-xs bg-gold/15 text-gold-text shadow-2xs flex items-center justify-center gap-2 border border-gold/40">
+          <MessageCircle size={14} className="text-primary" />
+          <span>Dermo Kènè IA 24/7</span>
+          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        </div>
+      </div>
+
       <header className="flex items-center justify-between gap-2 pb-2.5 border-b border-border">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="relative shrink-0">
@@ -1165,7 +1185,7 @@ export function ChatScreen() {
               }}
               className={`h-8 px-2.5 rounded-lg font-bold text-xs flex items-center gap-1 transition-all ${
                 viewMode === "orb"
-                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-2xs scale-100"
+                  ? "bg-gradient-to-r from-primary to-bissap text-primary-foreground shadow-2xs scale-100"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -1209,7 +1229,7 @@ export function ChatScreen() {
             aria-label={ttsOn ? "Désactiver la lecture vocale" : "Activer la lecture vocale"}
             title={ttsOn ? "Voix automatique activée (cliquer pour couper)" : "Activer la voix de Dermo Kènè"}
             className={`h-8 w-8 grid place-items-center rounded-xl active:scale-95 transition-all ${
-              ttsOn ? "bg-emerald-600 text-white shadow-2xs" : "border border-border bg-card text-muted-foreground"
+              ttsOn ? "bg-primary text-primary-foreground shadow-2xs" : "border border-border bg-card text-muted-foreground"
             }`}
           >
             {ttsOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
@@ -1305,12 +1325,12 @@ export function ChatScreen() {
                   </div>
                 ) : (
                   <>
-                    {/* Bouton Hero Micro — Pleine largeur */}
+                    {/* Bouton Hero Micro — Pleine largeur Prestige Solaire */}
                     <button
                       type="button"
                       onClick={() => void startRecording()}
                       disabled={sending || photoBusy}
-                      className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#C8951E] text-white font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-98 transition-all"
+                      className="w-full h-11 sm:h-12 px-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-primary via-bissap to-gold text-primary-foreground font-heading font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:brightness-105 active:scale-98 transition-all border border-gold/40 cursor-pointer"
                     >
                       <Mic size={17} />
                       <span>Parler à Dermo Kènè 🎙️</span>
@@ -1322,9 +1342,9 @@ export function ChatScreen() {
                         type="button"
                         onClick={() => setPhotoPickerOpen(true)}
                         disabled={sending || photoBusy}
-                        className="h-10 sm:h-11 px-2 rounded-xl border border-border/80 bg-muted/30 hover:bg-muted text-foreground font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all truncate"
+                        className="h-10 sm:h-11 px-2 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/15 text-primary dark:text-[#F77698] font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all truncate cursor-pointer"
                       >
-                        <Camera size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <Camera size={15} className="shrink-0" />
                         <span className="truncate">Montrer ma peau</span>
                       </button>
                       <button
@@ -1335,7 +1355,7 @@ export function ChatScreen() {
                           nativeCameraInputRef.current?.click();
                         }}
                         disabled={sending || photoBusy}
-                        className="h-10 sm:h-11 px-2 rounded-xl border border-gold/60 bg-gold/10 hover:bg-gold/20 text-gold-text font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all truncate shadow-2xs"
+                        className="h-10 sm:h-11 px-2 rounded-xl border border-gold/60 bg-gold/15 hover:bg-gold/25 text-gold-text font-black text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all truncate shadow-2xs cursor-pointer"
                         title="Scanner un produit cosmétique (INCI)"
                       >
                         <ShieldAlert size={15} className="text-gold-text shrink-0" />
@@ -1361,13 +1381,13 @@ export function ChatScreen() {
                       }
                     }}
                     placeholder="Ou écrivez votre préoccupation…"
-                    className="h-9 min-w-0 flex-1 rounded-xl bg-muted/30 border border-border px-3 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-emerald-500"
+                    className="h-9 min-w-0 flex-1 rounded-xl bg-card border border-border px-3 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-gold"
                   />
                   <button
                     type="button"
                     onClick={() => send()}
                     disabled={!input.trim() || sending}
-                    className="h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold disabled:opacity-40 flex items-center gap-1 transition-all shrink-0"
+                    className="h-9 px-3 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold disabled:opacity-40 flex items-center gap-1 transition-all shrink-0 cursor-pointer"
                   >
                     <Send size={13} />
                     <span className="hidden xs:inline">Envoyer</span>
@@ -1379,10 +1399,11 @@ export function ChatScreen() {
 
           {/* Fiche de Conseils Dermo & Routine de Dermo Kènè */}
           {lastAssistantMessage && (
-            <div className="space-y-3 rounded-[28px] border border-emerald-500/40 bg-card p-5 sm:p-6 shadow-md animate-in fade-in slide-in-from-bottom-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/80">
+            <div className="space-y-3 rounded-[28px] border border-gold/40 bg-card p-5 sm:p-6 shadow-md animate-in fade-in slide-in-from-bottom-3 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-gold/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/80 relative z-10">
                 <div className="flex items-center gap-2.5">
-                  <span className="size-9 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 grid place-items-center font-bold">
+                  <span className="size-9 rounded-xl bg-gold/20 text-gold-text grid place-items-center font-bold shadow-2xs">
                     🌿
                   </span>
                   <div>
@@ -1391,10 +1412,10 @@ export function ChatScreen() {
                       {lastAssistantMessage.niveau && (
                         <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                           lastAssistantMessage.niveau === "vert"
-                            ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                            ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
                             : lastAssistantMessage.niveau === "jaune"
-                            ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
-                            : "bg-red-500/20 text-red-600 dark:text-red-400"
+                            ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                            : "bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30"
                         }`}>
                           {lastAssistantMessage.niveau === "vert" ? "Rassurant" : lastAssistantMessage.niveau === "jaune" ? "À surveiller" : "Consultation recommandée"}
                         </span>
@@ -1416,10 +1437,10 @@ export function ChatScreen() {
                       speak(lastAssistantMessage.content, true, lastAssistantMessage.id);
                     }
                   }}
-                  className={`h-9 px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 self-start sm:self-center transition-all ${
+                  className={`h-9 px-3.5 rounded-xl font-bold text-xs flex items-center gap-1.5 self-start sm:self-center transition-all cursor-pointer ${
                     playingMsgId === lastAssistantMessage.id
-                      ? "bg-emerald-600 text-white animate-pulse"
-                      : "border border-border bg-muted/40 hover:bg-muted text-foreground"
+                      ? "bg-primary text-primary-foreground animate-pulse"
+                      : "border border-gold/40 bg-gold/10 hover:bg-gold/20 text-gold-text"
                   }`}
                 >
                   {playingMsgId === lastAssistantMessage.id ? (
@@ -1429,7 +1450,7 @@ export function ChatScreen() {
                     </>
                   ) : (
                     <>
-                      <Volume2 size={14} className="text-emerald-600 dark:text-emerald-400" />
+                      <Volume2 size={14} className="text-gold-text" />
                       <span>Écouter Dermo Kènè</span>
                     </>
                   )}
@@ -1437,12 +1458,12 @@ export function ChatScreen() {
               </div>
 
               {/* Texte de consultation */}
-              <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
+              <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap relative z-10">
                 {lastAssistantMessage.content}
               </p>
 
               {/* Actions 1-Tap : Commande soins sur WhatsApp, RDV en institut sur WhatsApp, Réception WhatsApp */}
-              <div className="pt-3 border-t border-border/60 flex flex-wrap items-center gap-2.5">
+              <div className="pt-3 border-t border-border/60 flex flex-wrap items-center gap-2.5 relative z-10">
                 <button
                   type="button"
                   onClick={() => {
@@ -1454,7 +1475,7 @@ export function ChatScreen() {
                       country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
                     });
                   }}
-                  className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
+                  className="h-10 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-xs cursor-pointer"
                 >
                   <ShoppingBag size={14} />
                   <span>Commander mes soins sur WhatsApp</span>

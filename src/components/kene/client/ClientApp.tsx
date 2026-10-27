@@ -83,6 +83,7 @@ const TITLES: Record<ScreenTab, string> = {
 const SWIPE_ORDER: ClientTab[] = ["accueil", "dossier", "diagnostic", "agenda", "profil"];
 
 // ─── Écrans intégrés (inclus dans le bundle de base pour garantie 100% hors-ligne) ───
+import { HomeScreen } from "./HomeScreen";
 import { DiagnosticScreen } from "./DiagnosticScreen";
 import { ChatScreen } from "./ChatScreen";
 import { ShopScreen } from "./ShopScreen";
@@ -552,7 +553,7 @@ export function ClientApp() {
                 <span className={cn("text-[9.5px] lg:text-[14px] xl:text-[15px] truncate max-w-full leading-none", active ? "font-bold" : "font-medium")}>
                   {n.tab === "accueil" ? (
                     <>
-                      <span className="lg:hidden">Dermo IA</span>
+                      <span className="lg:hidden">Accueil</span>
                       <span className="hidden lg:inline">{t(n.labelKey)}</span>
                     </>
                   ) : n.tab === "dossier" ? (
@@ -623,8 +624,8 @@ export function ClientApp() {
 
             {/* 2. DROITE : Dermo Kènè + Actions rapides (Switcher, Cloche, Réglages, Thème) — 100% visibles même sur 320px */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0 pr-1">
-              {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — Visible uniquement sur les autres onglets pour retour direct */}
-              {tab !== "accueil" && tab !== "chat" && (
+              {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — Accès instantané à l'experte IA 24/7 */}
+              {tab !== "chat" && (
                 <button
                   type="button"
                   onClick={() => {
@@ -635,11 +636,11 @@ export function ClientApp() {
                       window.sessionStorage.setItem("kene:chat:speak_first", "true");
                       window.dispatchEvent(new CustomEvent("kene:chat:speak_first"));
                     }
-                    goTab("accueil");
+                    goTab("chat");
                   }}
                   aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
                   title="Consulter Dermo Kènè (Conseils dermo-cosmétiques & Chat IA 24/7)"
-                  className="relative flex items-center gap-1 sm:gap-2 h-8 sm:h-11 px-2 sm:px-4 rounded-full border-2 border-[#D49A24]/70 bg-gradient-to-r from-[#D49A24]/15 via-[#C93B62]/10 to-card/90 hover:from-[#D49A24]/25 hover:to-[#C93B62]/15 text-foreground font-black transition-all active:scale-95 shadow-xs shrink-0 select-none cursor-pointer"
+                  className="relative flex items-center gap-1 sm:gap-2 h-8 sm:h-11 px-2.5 sm:px-4 rounded-full border border-gold/60 bg-gradient-to-r from-gold/20 via-primary/15 to-card/90 hover:from-gold/30 hover:to-primary/25 text-foreground font-black transition-all active:scale-95 shadow-xs shrink-0 select-none cursor-pointer"
                 >
                   <span className="relative grid size-5 sm:size-6 place-items-center rounded-full bg-gradient-to-br from-[#D49A24] to-[#C93B62] text-white shadow-xs shrink-0">
                     <MessageCircle size={12} className="text-white sm:hidden" />
@@ -776,7 +777,19 @@ export function ClientApp() {
                 {/* Suspense DANS le motion.div: le squelette d'attente participe
  à la transition d'onglet pendant le chargement du chunk */}
                 <Suspense fallback={<TabLoading />}>
-                  {(tab === "accueil" || tab === "chat") && (
+                  {tab === "accueil" && (
+                    <ScreenBoundary name="Accueil & Rituels">
+                      <HomeScreen
+                        onScanZone={(z) => {
+                          setPendingZone(z);
+                          goTab("diagnostic");
+                        }}
+                        refreshKey={refreshKey}
+                        onRefreshed={() => setRefreshing(false)}
+                      />
+                    </ScreenBoundary>
+                  )}
+                  {tab === "chat" && (
                     <ScreenBoundary name="Dermo Kènè">
                       <ChatScreen />
                     </ScreenBoundary>
@@ -839,7 +852,7 @@ export function ClientApp() {
           aria-label="Navigation principale mobile"
           className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]"
         >
-          <div className="pointer-events-auto mx-2 sm:mx-3 mb-2 px-1 grid grid-cols-5 h-[64px] items-center rounded-[28px] k-chrome">
+          <div className="pointer-events-auto mx-2 sm:mx-3 mb-2 px-1 grid grid-cols-5 h-[64px] items-center rounded-[28px] bg-card/90 backdrop-blur-2xl border border-gold/40 shadow-xl shadow-black/15 relative overflow-hidden before:absolute before:inset-0 before:rounded-[28px] before:pointer-events-none before:border before:border-white/20 dark:before:border-white/5">
             {NAV_MOBILE.map((n) => {
               const active = tab === n.tab;
               const Icon = n.icon;
@@ -854,8 +867,8 @@ export function ClientApp() {
                   >
                     <span
                       className={cn(
-                        "grid place-items-center h-[46px] w-[46px] -mt-6 rounded-full border-4 border-background transition-all active:scale-95 shrink-0",
-                        "bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] k-glow-gold",
+                        "grid place-items-center h-[46px] w-[46px] -mt-6 rounded-full border-4 border-background transition-all active:scale-95 shrink-0 shadow-lg shadow-gold/25 ring-2 ring-gold/50",
+                        "bg-gradient-to-br from-gold via-primary to-bissap text-white",
                       )}
                     >
                       <NeaOnnimIcon size={21} />
