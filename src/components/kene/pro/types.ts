@@ -15,6 +15,7 @@ export interface ProTenant {
   openingHour?: number;
   closingHour?: number;
   phone?: string;
+  themeTier?: string | null;
   [k: string]: unknown;
 }
 

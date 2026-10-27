@@ -159,7 +159,7 @@ export async function resolveUserProContext(user: {
   const userSuffix = phoneSuffix(user.phone);
   const allTenants = await db.tenant.findMany({
     orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, phone: true, city: true, country: true, plan: true },
+    select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, phone: true, city: true, country: true, plan: true, themeTier: true },
   });
 
   // 1) Est-ce le propriétaire officiel (ownerPhone) d'un institut ?
@@ -175,7 +175,7 @@ export async function resolveUserProContext(user: {
     where: { userId: user.id, active: true },
     include: {
       tenant: {
-        select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, city: true, country: true, plan: true },
+        select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, city: true, country: true, plan: true, themeTier: true },
       },
     },
   });
@@ -190,7 +190,7 @@ export async function resolveUserProContext(user: {
         where: { active: true },
         include: {
           tenant: {
-            select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, city: true, country: true, plan: true },
+            select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, city: true, country: true, plan: true, themeTier: true },
           },
         },
       });

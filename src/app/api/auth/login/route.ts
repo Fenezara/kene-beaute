@@ -258,7 +258,7 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
     const firstActive = await db.tenant.findFirst({
       where: { active: true },
       orderBy: { createdAt: "asc" },
-      select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, phone: true, city: true, country: true, plan: true },
+      select: { id: true, name: true, active: true, suspendedReason: true, ownerPhone: true, phone: true, city: true, country: true, plan: true, themeTier: true },
     });
     if (firstActive) ownerTenant = firstActive;
   }
@@ -331,11 +331,12 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
       employeeRole,
       employeePermissions,
       employeeName,
+      tenantThemeTier: employerTenant?.themeTier ?? null,
     },
     tenant: ownerTenant
-      ? { id: ownerTenant.id, name: ownerTenant.name }
+      ? { id: ownerTenant.id, name: ownerTenant.name, themeTier: ownerTenant.themeTier }
       : employeeLink
-        ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name }
+        ? { id: employeeLink.tenant.id, name: employeeLink.tenant.name, themeTier: employeeLink.tenant.themeTier }
         : null,
     employeeRole,
     employeePermissions,

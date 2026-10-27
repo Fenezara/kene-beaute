@@ -59,6 +59,8 @@ export interface SessionUser {
   // — routine cosmétique quotidienne prescrite par son institut en cabine
   cosmeticsUsed?: string | null;
   prescribedByTenant?: string | null;
+  // — parure / palette officielle de l'institut (synchronisée en base de données)
+  tenantThemeTier?: string | null;
 }
 
 /** Shape réellement persistée (liste blanche du partialize). */

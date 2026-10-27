@@ -147,6 +147,7 @@ export async function GET(req: NextRequest) {
         plan: t.plan,
         rating: t.rating,
         reviewCount: t.reviewCount,
+        themeTier: t.themeTier,
         active: t.active,
       })),
     });
@@ -250,6 +251,7 @@ const UpdateTenantBody = z.object({
   description: z.string().trim().max(1000).optional().nullable(),
   address: z.string().trim().max(200).optional().nullable(),
   phone: z.string().trim().min(8).max(30).optional().nullable(),
+  themeTier: z.string().trim().max(80).optional().nullable(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -264,7 +266,7 @@ export async function PATCH(req: NextRequest) {
       return jsonError(issue?.message ?? "Données invalides", 400);
     }
 
-    const { tenantId, description, address, phone } = parsed.data;
+    const { tenantId, description, address, phone, themeTier } = parsed.data;
 
     // Vérification des droits d'accès à l'établissement pour la session
     const tenants = await resolveProTenants(req);
@@ -273,10 +275,11 @@ export async function PATCH(req: NextRequest) {
       return jsonError("Établissement non autorisé pour cette session", 403);
     }
 
-    const dataToUpdate: { description?: string | null; address?: string | null; phone?: string } = {};
+    const dataToUpdate: { description?: string | null; address?: string | null; phone?: string; themeTier?: string | null } = {};
     if (description !== undefined) dataToUpdate.description = description ? description.trim() : null;
     if (address !== undefined) dataToUpdate.address = address ? address.trim() : null;
     if (phone !== undefined && phone) dataToUpdate.phone = phone.trim();
+    if (themeTier !== undefined) dataToUpdate.themeTier = themeTier ? themeTier.trim() : null;
 
     const updated = await db.tenant.update({
       where: { id: target.id },
@@ -294,6 +297,7 @@ export async function PATCH(req: NextRequest) {
         address: updated.address,
         phone: updated.phone,
         description: updated.description,
+        themeTier: updated.themeTier,
         rating: updated.rating,
         reviewCount: updated.reviewCount,
       },

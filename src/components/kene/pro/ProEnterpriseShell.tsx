@@ -49,7 +49,7 @@ import {
   NkonsonkonsonIcon,
 } from "@/components/kene/icons";
 import { ThemeToggle } from "@/components/kene/ThemeToggle";
-import { syncActiveTierTheme } from "@/lib/kene/tier-theme";
+import { applyTierThemeToDom, saveTenantTierTheme, syncActiveTierTheme } from "@/lib/kene/tier-theme";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AuroraBackdrop, Eyebrow } from "@/components/kene/ui2026";
@@ -426,6 +426,18 @@ export function ProEnterpriseShell() {
       setProTenantId(realTenantId);
     }
   }, [proTenantId, overview.data?.tenant?.id, sessionUser?.tenantId, setProTenantId]);
+
+  // Synchronisation de la parure / couleur officielle de l'institut pour tous les écrans du salon (gérante + employées)
+  useEffect(() => {
+    const tenantTheme = (overview.data?.tenant as any)?.themeTier;
+    if (tenantTheme) {
+      applyTierThemeToDom(tenantTheme);
+      const targetTid = overview.data?.tenant?.id || proTenantId;
+      if (targetTid) {
+        saveTenantTierTheme(targetTid, tenantTheme);
+      }
+    }
+  }, [overview.data?.tenant, proTenantId]);
 
   const healedRef = useRef(false);
   useEffect(() => {

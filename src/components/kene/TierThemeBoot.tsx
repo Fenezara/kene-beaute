@@ -34,12 +34,16 @@ export function TierThemeBoot() {
   }, []);
 
   useEffect(() => {
-    // 1. Appliquer immédiatement le choix sauvegardé en local ou par défaut
-    const saved = getSavedTierTheme();
-    if (saved) {
-      applyTierThemeToDom(saved);
+    // 1. Appliquer immédiatement la parure du salon si définie, sinon choix local ou défaut
+    if (user?.tenantThemeTier) {
+      applyTierThemeToDom(user.tenantThemeTier as any);
     } else {
-      applyTierThemeToDom(resolveDefaultTierTheme({ user, planId: null }));
+      const saved = getSavedTierTheme();
+      if (saved) {
+        applyTierThemeToDom(saved);
+      } else {
+        applyTierThemeToDom(resolveDefaultTierTheme({ user, planId: null }));
+      }
     }
 
     // 2. Si aucun utilisateur connecté, s'arrêter là

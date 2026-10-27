@@ -111,6 +111,7 @@ model Tenant {
   // quand, pourquoi — montré à la gérante au login et sur la fiche admin.
   suspendedAt    DateTime?
   suspendedReason String?
+  themeTier      String?  // Parure & palette officielle du salon (ex: emeraude_kinkeliba, indigo_mandingue, etc.)
   createdAt      DateTime @default(now())
 
   resources      Resource[]

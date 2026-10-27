@@ -8,6 +8,8 @@
 // • Pro Complexe : « Nuit d'Indigo Mandingue & Platine Céleste » (Cour impériale de Soundiata Keïta)
 
 import type { SessionUser } from "@/store/kene";
+import { useKene } from "@/store/kene";
+import { apiPatch } from "@/lib/kene/api";
 
 export type TierThemeId =
   | "karite_tiebele"
@@ -152,11 +154,20 @@ const TENANT_STORAGE_PREFIX = "kene_tenant_tier_theme_";
 
 /** Récupère la parure officielle configurée pour un institut */
 export function getTenantTierTheme(tenantId?: string | null): TierThemeId | null {
-  if (typeof window === "undefined" || !tenantId) return null;
+  if (!tenantId) return null;
+  if (typeof window !== "undefined") {
+    try {
+      const val = localStorage.getItem(`${TENANT_STORAGE_PREFIX}${tenantId}`);
+      if (val && TIER_THEMES.some((t) => t.id === val)) {
+        return val as TierThemeId;
+      }
+    } catch {}
+  }
+  // Fallback direct sur l'utilisateur connecté dans le store global
   try {
-    const val = localStorage.getItem(`${TENANT_STORAGE_PREFIX}${tenantId}`);
-    if (val && TIER_THEMES.some((t) => t.id === val)) {
-      return val as TierThemeId;
+    const user = useKene.getState().user;
+    if (user?.tenantThemeTier && TIER_THEMES.some((t) => t.id === user.tenantThemeTier)) {
+      return user.tenantThemeTier as TierThemeId;
     }
   } catch {}
   return null;
@@ -164,18 +175,31 @@ export function getTenantTierTheme(tenantId?: string | null): TierThemeId | null
 
 /** Sauvegarde la parure officielle de l'institut (choisie par la gérante) */
 export function saveTenantTierTheme(tenantId: string, themeId: TierThemeId | null): void {
-  if (typeof window === "undefined" || !tenantId) return;
+  if (!tenantId) return;
+  if (typeof window !== "undefined") {
+    try {
+      if (themeId) {
+        localStorage.setItem(`${TENANT_STORAGE_PREFIX}${tenantId}`, themeId);
+        applyTierThemeToDom(themeId);
+      } else {
+        localStorage.removeItem(`${TENANT_STORAGE_PREFIX}${tenantId}`);
+      }
+      window.dispatchEvent(
+        new CustomEvent("kene:tenant-tier-theme-changed", { detail: { tenantId, themeId } })
+      );
+    } catch {}
+  }
+
+  // Synchronisation dans le store Zustand
   try {
-    if (themeId) {
-      localStorage.setItem(`${TENANT_STORAGE_PREFIX}${tenantId}`, themeId);
-      applyTierThemeToDom(themeId);
-    } else {
-      localStorage.removeItem(`${TENANT_STORAGE_PREFIX}${tenantId}`);
+    const curr = useKene.getState().user;
+    if (curr) {
+      useKene.getState().setUser({ ...curr, tenantThemeTier: themeId });
     }
-    window.dispatchEvent(
-      new CustomEvent("kene:tenant-tier-theme-changed", { detail: { tenantId, themeId } })
-    );
   } catch {}
+
+  // Persistance en base de données pour tout l'établissement (accessible par tous les employés)
+  apiPatch("/api/pro/tenants", { tenantId, themeTier: themeId }).catch(() => null);
 }
 
 /** Vérifie si un thème donné est débloqué pour l'utilisateur */
@@ -296,7 +320,7 @@ export function syncActiveTierTheme(context: {
 
   // Si c'est un employé d'institut en session Pro, la parure officielle du salon prévaut obligatoirement
   if (user?.role === "pro" && user?.employeeRole && tenantId) {
-    const tenantTheme = getTenantTierTheme(tenantId);
+    const tenantTheme = getTenantTierTheme(tenantId) ?? (user?.tenantThemeTier as TierThemeId | null);
     if (tenantTheme) {
       applyTierThemeToDom(tenantTheme);
       return tenantTheme;
@@ -308,7 +332,7 @@ export function syncActiveTierTheme(context: {
 
   // Pour un propriétaire de salon avec tenantId
   if (user?.role === "pro" && tenantId) {
-    const tenantTheme = getTenantTierTheme(tenantId);
+    const tenantTheme = getTenantTierTheme(tenantId) ?? (user?.tenantThemeTier as TierThemeId | null);
     if (tenantTheme && isTierUnlocked(tenantTheme, context)) {
       applyTierThemeToDom(tenantTheme);
       return tenantTheme;
