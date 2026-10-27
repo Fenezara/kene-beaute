@@ -471,6 +471,9 @@ export async function requestAllHardwarePermissionsOnce(userId?: string | null):
   geo: boolean;
   notifications: boolean;
 }> {
+  // RÈGLE MODERNE 2026 : Aucune demande de permission matérielle automatique ou groupée en arrière-plan.
+  // Les accès caméra, micro et GPS sont demandés UNIQUEMENT au moment où l'utilisateur déclenche
+  // l'action correspondante (Selfie, Message vocal, ou Tri GPS).
   const status = {
     camera: isHardwarePermGranted("camera"),
     mic: isHardwarePermGranted("mic"),
@@ -478,66 +481,6 @@ export async function requestAllHardwarePermissionsOnce(userId?: string | null):
     notifications: isHardwarePermGranted("notifications"),
   };
 
-  // 1. Priorité absolue : Caméra & Microphone sous le geste utilisateur actif
-  if (!status.camera && !status.mic && typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
-    try {
-      const combined = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      combined.getTracks().forEach((t) => t.stop());
-      status.camera = true;
-      status.mic = true;
-      saveHardwarePermGranted("camera");
-      saveHardwarePermGranted("mic");
-    } catch {
-      // Si la demande groupée échoue, repli individuel immédiat
-      if (!status.camera) {
-        try {
-          const cam = await getPersistentCameraStream("user");
-          pausePersistentCameraStream();
-          status.camera = true;
-        } catch {}
-      }
-      if (!status.mic) {
-        try {
-          const mic = await getPersistentAudioStream();
-          pausePersistentAudioStream();
-          status.mic = true;
-        } catch {}
-      }
-    }
-  } else {
-    if (!status.camera) {
-      try {
-        const cam = await getPersistentCameraStream("user");
-        pausePersistentCameraStream();
-        status.camera = true;
-      } catch {}
-    }
-    if (!status.mic) {
-      try {
-        const mic = await getPersistentAudioStream();
-        pausePersistentAudioStream();
-        status.mic = true;
-      } catch {}
-    }
-  }
-
-  // 2. Géolocalisation
-  if (!status.geo) {
-    try {
-      await getPersistentGeolocation();
-      status.geo = true;
-    } catch {}
-  }
-
-  // 3. Notifications Push
-  if (!status.notifications) {
-    try {
-      const notif = await requestPersistentNotification();
-      status.notifications = notif === "granted";
-    } catch {}
-  }
-
-  saveHardwarePermGranted();
   void syncHardwareConsentsWithServer(userId);
   notifyHardwareListeners();
 

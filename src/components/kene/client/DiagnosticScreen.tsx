@@ -34,7 +34,6 @@ import { GlossaryDialog } from "./GlossaryDialog";
 import { AudioGuideButton } from "./AudioGuideButton";
 import { LiveCameraModal } from "./LiveCameraModal";
 import { BeautyCardModal } from "./BeautyCardModal";
-import { HardwarePermissionsModal } from "./HardwarePermissionsModal";
 import { isHardwarePermGranted, stopPersistentCameraStream, stopPersistentAudioStream } from "@/lib/kene/hardware-perm";
 import { glossaryFor, type GlossaryEntry } from "@/lib/kene/glossary";
 import { matchProduct, norm } from "@/components/kene/route/ritual";
@@ -124,7 +123,6 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
   // ClientApp (elle marche quel que soit l'écran courant), ici on AFFICHE.
   const [queuedCount, setQueuedCount] = useState(0);
   const [liveCamOpen, setLiveCamOpen] = useState(false);
-  const [hardwarePermOpen, setHardwarePermOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const nativeCameraRef = useRef<HTMLInputElement>(null);
   const landingFileRef = useRef<HTMLInputElement>(null);
@@ -1024,32 +1022,6 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Bannière Autorisation permanente en 1 clic */}
-              {!isHardwarePermGranted("camera") && (
-                <button
-                  type="button"
-                  onClick={() => setHardwarePermOpen(true)}
-                  className="w-full rounded-2xl border border-primary/40 bg-gradient-to-r from-primary/15 via-gold/10 to-primary/5 hover:bg-primary/20 p-3 flex items-center justify-between text-left active:scale-[0.99] transition-all shadow-2xs"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="grid size-8 place-items-center rounded-xl bg-primary text-primary-foreground shrink-0 shadow-xs">
-                      <Sparkles size={16} />
-                    </span>
-                    <div>
-                      <p className="font-heading font-black text-xs text-foreground leading-tight">
-                        Autoriser la caméra &amp; le matériel en 1 clic
-                      </p>
-                      <p className="text-[10.5px] text-muted-foreground mt-0.5">
-                        Mémorisé à vie pour ne plus jamais avoir de confirmation
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-[11px] font-bold text-primary shrink-0 px-2.5 py-1 rounded-xl bg-primary/15">
-                    Activer →
-                  </span>
-                </button>
-              )}
-
               {/* Option 1 : Selfie Caméra Live (Recommandé) */}
               <button
                 type="button"
@@ -1166,13 +1138,6 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             onClose={() => setLiveCamOpen(false)}
           />
         )}
-
-        {/* Modal Trousseau Matériel & Autorisations Téléphone */}
-        <HardwarePermissionsModal
-          isOpen={hardwarePermOpen}
-          onClose={() => setHardwarePermOpen(false)}
-          triggerFeature="camera"
-        />
 
         {/* Synthèse multi-photos avant lancement */}
         {totalCaptured > 1 ? (

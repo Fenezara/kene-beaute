@@ -29,7 +29,7 @@ import { KeneEmblem, NsorommaIcon, NeaOnnimIcon } from "@/components/kene/icons"
 import { Button } from "@/components/ui/button";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { useInstallPrompt } from "./use-install";
-import { requestAllHardwarePermissionsOnce } from "@/lib/kene/hardware-perm";
+
 
 export interface SmartAppInstallModalProps {
   open: boolean;
@@ -85,8 +85,6 @@ export function SmartAppInstallModal({
         toast.success("Application Kènè installée avec succès ! 💛", {
           description: "+100 Fils d'Or crédités sur votre compte.",
         });
-        // Pré-activer les permissions matérielles pour zéro blocage
-        void requestAllHardwarePermissionsOnce();
         onInstalled?.();
         setTimeout(() => {
           onClose();
@@ -105,7 +103,6 @@ export function SmartAppInstallModal({
     toast.success("Bienvenue dans l'application Kènè VIP ! ✨", {
       description: "Profitez de votre expérience fluide et sécurisée.",
     });
-    void requestAllHardwarePermissionsOnce();
     snoozeInstallPrompt(30);
     onInstalled?.();
     setTimeout(() => {
