@@ -3,7 +3,7 @@
 // Mêmes signatures d'export (zéro breaking change pour les 11 sections): les KPI
 // passent à la carte verre k-card + eyebrow + valeur mono signature, les badges
 // aux pastilles ring-inset, les états vides au grain (primitives: ui2026.tsx).
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -155,23 +155,45 @@ export function SectionHeader({ title, sub, actions }: { title: string; sub?: st
   );
 }
 
-/** Avatar initiale cliente */
-export function InitialAvatar({ name, className }: { name: string; className?: string }) {
+/** Avatar cliente ou collaboratrice — affiche la photo de profil si disponible, sinon les initiales */
+export function InitialAvatar({
+  name,
+  userId,
+  className,
+}: {
+  name: string;
+  userId?: string | null;
+  className?: string;
+}) {
+  const [imgError, setImgError] = useState(false);
   const initials = name
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
+
+  const hasPhoto = Boolean(userId && !userId.startsWith("guest") && !userId.startsWith("auto") && !imgError);
+
   return (
     <span
       aria-hidden="true"
       className={cn(
-        "grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[11px] font-semibold text-[#FFF9EC] ring-1 ring-inset ring-gold/30",
+        "relative grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[11px] font-semibold text-[#FFF9EC] ring-1 ring-inset ring-gold/30 overflow-hidden",
         className
       )}
     >
-      {initials || "?"}
+      {hasPhoto ? (
+        <img
+          src={`/api/media/user/${userId}`}
+          alt=""
+          loading="lazy"
+          className="size-full object-cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <span>{initials || "?"}</span>
+      )}
     </span>
   );
 }

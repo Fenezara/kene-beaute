@@ -1006,9 +1006,19 @@ export function ProEnterpriseShell() {
             >
               <span
                 aria-hidden="true"
-                className="k-glow-gold grid size-7 sm:size-8 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[10px] sm:text-[11px] font-bold text-[#FFF9EC] shrink-0"
+                className="k-glow-gold relative grid size-7 sm:size-8 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[10px] sm:text-[11px] font-bold text-[#FFF9EC] shrink-0 overflow-hidden"
               >
-                {chipInitials}
+                {sessionUser?.id ? (
+                  <img
+                    src={`/api/media/user/${sessionUser.id}`}
+                    alt=""
+                    className="size-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = "none";
+                    }}
+                  />
+                ) : null}
+                <span>{chipInitials}</span>
               </span>
               <div className="flex flex-col text-left leading-tight min-w-0">
                 <p className="text-[11px] sm:text-xs font-bold text-foreground truncate max-w-[85px] xs:max-w-[110px] sm:max-w-[150px]">
@@ -1036,8 +1046,18 @@ export function ProEnterpriseShell() {
               title="Toucher pour ouvrir mes réglages"
             >
               <div className="flex items-center gap-2 truncate">
-                <span className="grid size-6 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-white text-[10px] font-bold shrink-0">
-                  {chipInitials}
+                <span className="relative grid size-6 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-white text-[10px] font-bold shrink-0 overflow-hidden">
+                  {sessionUser?.id ? (
+                    <img
+                      src={`/api/media/user/${sessionUser.id}`}
+                      alt=""
+                      className="size-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = "none";
+                      }}
+                    />
+                  ) : null}
+                  <span>{chipInitials}</span>
                 </span>
                 <div className="truncate text-left leading-tight">
                   <span className="text-xs font-bold text-foreground truncate block">{chipName}</span>

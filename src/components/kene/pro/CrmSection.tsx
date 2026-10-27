@@ -398,7 +398,7 @@ export function CrmSection({
                   >
                     <TableCell>
                       <div className="flex items-center gap-2.5">
-                        <InitialAvatar name={c.name} />
+                        <InitialAvatar name={c.name} userId={c.userId} />
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{c.name}</p>
                           <div className="flex items-center gap-1.5 flex-wrap">
@@ -711,7 +711,7 @@ function ClientSheet({
           <>
             <SheetHeader className="p-4 pb-3 border-b border-border bg-muted/40">
               <div className="flex items-center gap-3">
-                <InitialAvatar name={c.name} className="size-12 text-sm" />
+                <InitialAvatar name={c.name} userId={c.userId} className="size-12 text-sm" />
                 <div className="min-w-0 flex-1">
                   <SheetTitle className="font-heading text-lg leading-tight truncate">{c.name}</SheetTitle>
                   <SheetDescription className="flex flex-wrap items-center gap-2 font-mono text-xs mt-0.5">
