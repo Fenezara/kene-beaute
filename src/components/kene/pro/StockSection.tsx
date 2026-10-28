@@ -29,6 +29,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -766,27 +767,24 @@ export function StockSection({ tenantId, onNavigate }: { tenantId: string; onNav
             {/* 1. Sélection du Produit */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Sélectionnez le Produit</Label>
-              <Select value={productId || undefined} onValueChange={setProductId}>
-                <SelectTrigger aria-label="Sélectionnez le produit" className="h-10 text-xs">
-                  <SelectValue placeholder="Choisir un produit…" />
-                </SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {products.map((p) => {
-                    const isCabin = isCabinProduct(p);
-                    const catMeta = getProductCategoryMeta(p.category);
-                    return (
-                      <SelectItem key={p.id} value={p.id}>
-                        <div className="flex items-center justify-between gap-3 w-full">
-                          <span className="font-medium text-xs truncate">{p.name}</span>
-                          <span className="text-[10px] text-muted-foreground shrink-0">
-                            [{catMeta.shortLabel}] · {isCabin ? "Cabine" : "Revente"} (Stock: {p.stock})
-                          </span>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={products.map((p) => {
+                  const isCabin = isCabinProduct(p);
+                  const catMeta = getProductCategoryMeta(p.category);
+                  return {
+                    value: p.id,
+                    label: p.name,
+                    subLabel: `[${catMeta.shortLabel}] · ${isCabin ? "Cabine" : "Revente"}`,
+                    badge: `Stock: ${p.stock}`,
+                  };
+                })}
+                value={productId}
+                onValueChange={setProductId}
+                placeholder="Choisir un produit…"
+                searchPlaceholder="Saisir le nom du produit pour filtrer…"
+                emptyMessage="Aucun produit correspondant en stock"
+                ariaLabel="Sélectionnez le produit"
+              />
             </div>
 
             {/* 2. Carte Aperçu du Produit Sélectionné */}

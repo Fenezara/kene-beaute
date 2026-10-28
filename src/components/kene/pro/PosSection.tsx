@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -2504,27 +2505,33 @@ export function PosSection({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-t pt-2.5">
             <div className="space-y-1">
               <Label className="text-[11px] text-muted-foreground">Praticienne (Commissions)</Label>
-              <Select value={expressPractitioner || "__none"} onValueChange={(v) => setExpressPractitioner(v === "__none" ? "" : v)}>
-                <SelectTrigger className="h-8 text-xs font-semibold">
-                  <SelectValue placeholder="Caisse standard" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">Caisse standard</SelectItem>
-                  {resolvedSessionPractitioner && !(team.data?.employees ?? []).some((e) => e.name.toLowerCase() === resolvedSessionPractitioner.toLowerCase()) && (
-                    <SelectItem value={resolvedSessionPractitioner} className="font-bold text-amber-600 dark:text-amber-400">
-                      ⭐ {resolvedSessionPractitioner} (Session active)
-                    </SelectItem>
-                  )}
-                  {(team.data?.employees ?? []).map((emp) => {
+              <SearchableSelect
+                options={[
+                  { value: "", label: "Caisse standard", subLabel: "Aucune praticienne attitrée" },
+                  ...(resolvedSessionPractitioner && !(team.data?.employees ?? []).some((e) => e.name.toLowerCase() === resolvedSessionPractitioner.toLowerCase())
+                    ? [{
+                        value: resolvedSessionPractitioner,
+                        label: `⭐ ${resolvedSessionPractitioner} (Session active)`,
+                        subLabel: "Connectée",
+                      }]
+                    : []),
+                  ...(team.data?.employees ?? []).map((emp) => {
                     const isCurrent = resolvedSessionPractitioner && emp.name.toLowerCase() === resolvedSessionPractitioner.toLowerCase();
-                    return (
-                      <SelectItem key={emp.id} value={emp.name} className={isCurrent ? "font-bold text-amber-600 dark:text-amber-400" : ""}>
-                        {isCurrent ? "⭐ " : ""}{emp.name} ({emp.role}){isCurrent ? " (Vous)" : ""}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+                    return {
+                      value: emp.name,
+                      label: `${isCurrent ? "⭐ " : ""}${emp.name}${isCurrent ? " (Vous)" : ""}`,
+                      subLabel: emp.role,
+                    };
+                  }),
+                ]}
+                value={expressPractitioner || ""}
+                onValueChange={setExpressPractitioner}
+                placeholder="Caisse standard…"
+                searchPlaceholder="Saisir le nom d'une praticienne…"
+                emptyMessage="Aucune praticienne trouvée"
+                size="sm"
+                ariaLabel="Praticienne"
+              />
             </div>
 
             <div className="space-y-1">

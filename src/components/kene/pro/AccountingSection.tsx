@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -788,16 +789,22 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
             <div className="space-y-2">
               {odLines.map((l, i) => (
                 <div key={i} className="grid grid-cols-[1fr_90px_90px_32px] gap-2 items-center">
-                  <Select value={l.accountCode || undefined} onValueChange={(v) => setOdLines((ls) => ls.map((x, j) => (j === i ? { ...x, accountCode: v } : x)))}>
-                    <SelectTrigger className="text-xs" aria-label={`Compte ligne ${i + 1}`}><SelectValue placeholder="Compte…" /></SelectTrigger>
-                    <SelectContent className="max-h-72">
-                      {data.accounts.map((a) => (
-                        <SelectItem key={a.id} value={a.code}>
-                          <span className="font-mono">{a.code}</span> — {a.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    options={data.accounts.map((a) => ({
+                      value: a.code,
+                      label: `${a.code} — ${a.label}`,
+                      badge: `Cl. ${a.classe}`,
+                    }))}
+                    value={l.accountCode || ""}
+                    onValueChange={(v) =>
+                      setOdLines((ls) => ls.map((x, j) => (j === i ? { ...x, accountCode: v } : x)))
+                    }
+                    placeholder="Choisir compte…"
+                    searchPlaceholder="Saisir code (ex: 571, 401) ou libellé…"
+                    emptyMessage="Aucun compte trouvé"
+                    size="sm"
+                    ariaLabel={`Compte ligne ${i + 1}`}
+                  />
                   <Input
                     inputMode="numeric"
                     value={l.debit}

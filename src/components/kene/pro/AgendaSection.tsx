@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -931,40 +932,46 @@ function CreateApptDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Soin</Label>
-              <Select value={serviceId} onValueChange={setServiceId}>
-                <SelectTrigger aria-label="Soin"><SelectValue placeholder="Choisir…" /></SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {services.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name} — {xof(s.price)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={services.map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                  subLabel: xof(s.price),
+                }))}
+                value={serviceId}
+                onValueChange={setServiceId}
+                placeholder="Choisir un soin…"
+                searchPlaceholder="Saisir pour chercher un soin…"
+                emptyMessage="Aucun soin correspondant"
+                ariaLabel="Soin"
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Praticienne</Label>
-              <Select value={resourceId} onValueChange={setResourceId}>
-                <SelectTrigger aria-label="Praticienne"><SelectValue placeholder="Choisir…" /></SelectTrigger>
-                <SelectContent>
-                  {resources.map((r) => {
-                    const lInfo = checkResourceLeave(r, date, leaves);
-                    return (
-                      <SelectItem key={r.value} value={r.value} disabled={lInfo.onLeave}>
-                        <span className="inline-flex items-center gap-2">
-                          <span className="size-2.5 rounded-full" style={{ background: r.color }} aria-hidden="true" />
-                          <span className={lInfo.onLeave ? "line-through opacity-60" : ""}>{r.name}</span>
-                          {lInfo.onLeave && (
-                            <span className="rounded bg-bissap/15 px-1.5 py-0.5 text-[10px] font-semibold text-bissap">
-                              {lInfo.reason}
-                            </span>
-                          )}
-                        </span>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={resources.map((r) => {
+                  const lInfo = checkResourceLeave(r, date, leaves);
+                  return {
+                    value: r.value,
+                    label: r.name,
+                    subLabel: lInfo.onLeave ? lInfo.reason : undefined,
+                    disabled: lInfo.onLeave,
+                    icon: (
+                      <span
+                        className="size-2.5 rounded-full inline-block shrink-0"
+                        style={{ background: r.color }}
+                        aria-hidden="true"
+                      />
+                    ),
+                  };
+                })}
+                value={resourceId}
+                onValueChange={setResourceId}
+                placeholder="Choisir une praticienne…"
+                searchPlaceholder="Saisir un prénom ou nom…"
+                emptyMessage="Aucune praticienne correspondante"
+                ariaLabel="Praticienne"
+              />
             </div>
           </div>
 

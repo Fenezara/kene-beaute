@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Dialog,
   DialogContent,
@@ -2391,10 +2392,14 @@ function ClientSkinDossierDetail({
                           </p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {instituteProducts.length > 0 && (
-                              <select
-                                defaultValue=""
-                                onChange={(e) => {
-                                  const prodId = e.target.value;
+                              <SearchableSelect
+                                options={instituteProducts.map((p: any) => ({
+                                  value: p.id,
+                                  label: p.name,
+                                  subLabel: xof(p.price),
+                                }))}
+                                value={item.replacementProductId || ""}
+                                onValueChange={(prodId) => {
                                   if (!prodId) return;
                                   const sel = instituteProducts.find((p: any) => p.id === prodId);
                                   if (sel) {
@@ -2410,15 +2415,11 @@ function ClientSkinDossierDetail({
                                     setTransitionProducts(next);
                                   }
                                 }}
-                                className="h-8 rounded-md border border-border bg-background px-2 text-xs font-semibold cursor-pointer w-full"
-                              >
-                                <option value="">Choisir dans le catalogue...</option>
-                                {instituteProducts.map((p: any) => (
-                                  <option key={p.id} value={p.id}>
-                                    {p.name} · {xof(p.price)}
-                                  </option>
-                                ))}
-                              </select>
+                                placeholder="Saisir ou choisir dans le catalogue…"
+                                searchPlaceholder="Rechercher un soin par nom…"
+                                emptyMessage="Aucun produit trouvé"
+                                size="sm"
+                              />
                             )}
                             <Input
                               type="text"

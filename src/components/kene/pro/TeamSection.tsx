@@ -48,6 +48,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -1441,18 +1442,19 @@ function LeaveDialog({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="leave-emp">Employée</Label>
-            <Select value={employeeId} onValueChange={setEmployeeId}>
-              <SelectTrigger id="leave-emp">
-                <SelectValue placeholder="Choisir une employée" />
-              </SelectTrigger>
-              <SelectContent>
-                {actives.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.name} — {formatRole(e.role)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              options={actives.map((e) => ({
+                value: e.id,
+                label: e.name,
+                subLabel: formatRole(e.role),
+              }))}
+              value={employeeId}
+              onValueChange={setEmployeeId}
+              placeholder="Choisir une employée…"
+              searchPlaceholder="Saisir le nom d'une collaboratrice…"
+              emptyMessage="Aucune employée trouvée"
+              ariaLabel="Employée"
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Type d&apos;absence</Label>
