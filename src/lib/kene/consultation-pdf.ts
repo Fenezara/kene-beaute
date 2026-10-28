@@ -272,6 +272,89 @@ export interface ConsultationClientPrefill {
   appAccount?: boolean;
   /** La cliente a-t-elle partagé ses self-scans avec cet institut ? */
   scansShared?: boolean;
+  /** Réponses détaillées du questionnaire clinique (si diagnostic existant) */
+  answers?: QAnswers;
+  /** Date du dernier diagnostic */
+  latestDiagnosisDate?: Date | string | null;
+  /** Score global du dernier diagnostic (0-100) */
+  latestDiagnosisScore?: number | null;
+  /** Numéro de cure / cycle en cours */
+  cureNumber?: number;
+  /** Statut de la prescription */
+  prescriptionStatus?: string;
+  /** Routine du matin prescrite ou conseillée */
+  routineMatin?: string[];
+  /** Routine du soir prescrite ou conseillée */
+  routineSoir?: string[];
+  /** Soins cabine préconisés */
+  soinsCabine?: string[];
+  /** Botaniques recommandées */
+  botaniques?: string[];
+  /** Consentement photo numérique horodaté */
+  consentPhoto?: boolean;
+  /** Consentement données numérique horodaté */
+  consentData?: boolean;
+  /** Date du consentement recueilli */
+  consentDate?: Date | string | null;
+  /** Observations cliniques praticienne */
+  clinicalObservations?: string | null;
+}
+
+function isCriteriaMatched(
+  category: string,
+  item: string,
+  answers?: QAnswers,
+  score?: number | null
+): boolean {
+  if (!answers) return false;
+  const rawSkin = String(answers.peau ?? "").toLowerCase();
+  const rawConcerns = Array.isArray(answers.concerns)
+    ? answers.concerns.map(String)
+    : [String(answers.concerns ?? "")];
+  const sc = score ?? 70;
+
+  if (category.includes("Éclat")) {
+    if (item === "Lumineux") return sc >= 75 && !rawConcerns.some((c) => c.includes("tache") || c.includes("terne"));
+    if (item.includes("Taches")) return rawConcerns.some((c) => c.includes("tache") || c.includes("hpi") || c.includes("pih"));
+    if (item.includes("Terne")) return rawConcerns.some((c) => c.includes("terne") || c.includes("eclat")) || answers.sleep === "5-";
+    if (item === "Irrégulier") return sc < 60 && !rawConcerns.some((c) => c.includes("tache"));
+  }
+
+  if (category.includes("Pores")) {
+    if (item.includes("Comédons")) return rawConcerns.some((c) => c.includes("acne") || c.includes("bouton") || c.includes("comedon") || c.includes("point"));
+    if (item.includes("Dilatés zone T")) return rawSkin.includes("mixt") || rawConcerns.some((c) => c.includes("pore"));
+    if (item.includes("Dilatés diffus")) return rawSkin.includes("grass");
+    if (item === "Resserrés") return rawSkin.includes("norm") || (sc >= 75 && !rawSkin.includes("grass"));
+  }
+
+  if (category.includes("Sébum")) {
+    if (item.includes("Hyperséborrhée")) return rawSkin.includes("grass");
+    if (item.includes("Brillance zone T")) return rawSkin.includes("mixt");
+    if (item.includes("Alipidique")) return rawSkin.includes("sech") || rawSkin.includes("sèch");
+    if (item === "Équilibré") return rawSkin.includes("norm");
+  }
+
+  if (category.includes("Hydratation")) {
+    if (item.includes("Tiraillements")) return String(answers.tiraillements ?? "").includes("oui") || String(answers.tiraillement ?? "").includes("oui");
+    if (item.includes("Déshydratée")) return rawSkin.includes("deshydr") || rawConcerns.some((c) => c.includes("deshydr"));
+    if (item.includes("Desquamation")) return String(answers.desquamation ?? "").includes("oui");
+    if (item === "Souple") return sc >= 70 && !String(answers.tiraillements ?? "").includes("oui");
+  }
+
+  if (category.includes("Sensibilité")) {
+    if (item.includes("Rougeurs")) return rawConcerns.some((c) => c.includes("rougeur")) || String(answers.rougeurs ?? "").includes("oui");
+    if (item.includes("Réactive")) return rawSkin.includes("sensib") || String(answers.sensibilite ?? "").includes("forte");
+    if (item.includes("Échauffements")) return String(answers.echauffement ?? "").includes("oui");
+    if (item === "Résistante") return !rawSkin.includes("sensib") && sc >= 65;
+  }
+
+  if (category.includes("Fermeté")) {
+    if (item.includes("Ridules")) return rawConcerns.some((c) => c.includes("ride") || c.includes("ridule") || c.includes("age"));
+    if (item.includes("perte d'élasticité")) return rawConcerns.some((c) => c.includes("fermete") || c.includes("relach"));
+    if (item === "Tonique") return !rawConcerns.some((c) => c.includes("ride") || c.includes("fermete"));
+  }
+
+  return false;
 }
 
 export function consultationSheetPdf(input: {
@@ -288,11 +371,16 @@ export function consultationSheetPdf(input: {
     `Kènè Pro — Fiche de consultation & diagnostic de peau · dossier cabine · ${fmtDate(input.date ?? new Date())}`
   );
 
+  const c = input.client ?? null;
+  const subTitle = c?.latestDiagnosisDate
+    ? `Dossier clinique cabine · Diagnostic du ${fmtDate(c.latestDiagnosisDate)} · Score santé : ${c.latestDiagnosisScore ?? "—"}/100`
+    : "Dossier confidentiel de suivi cabine — à renseigner lors de l'entretien et de l'examen";
+
   // En-tête officiel
   headerBanner(
     doc,
     "FICHE CLINIQUE DE CONSULTATION & DIAGNOSTIC DE PEAU",
-    "Dossier confidentiel de suivi cabine — à renseigner lors de l'entretien et de l'examen",
+    subTitle,
     {
       name: input.tenantName,
       city: input.tenantCity,
@@ -300,8 +388,6 @@ export function consultationSheetPdf(input: {
       date: input.date ?? new Date(),
     }
   );
-
-  const c = input.client ?? null;
 
   // ── 1. IDENTITÉ & FICHE CLIENTE ──
   sectionBand(doc, "1", "IDENTITÉ & COORDONNÉES DE LA CLIENTE");
@@ -344,12 +430,16 @@ export function consultationSheetPdf(input: {
 
   yR += 22;
   doc.text("STATUT DU DOSSIER", colMid + 10, yR, { font: "bold", size: 6.8, color: SOFT, letterSpace: 0.3 });
-  const statusText = c?.appAccount
+  const statusText = c?.latestDiagnosisDate
+    ? c?.cureNumber && c.cureNumber > 1
+      ? `Contrôle & Cure n°${c.cureNumber}`
+      : "Bilan Clinique Enregistré"
+    : c?.appAccount
     ? c.scansShared
       ? "Compte Kènè App (Historique partagé)"
       : "Compte Kènè App (Non partagé)"
     : "Dossier Papier Cabine";
-  doc.text(statusText, colMid + 10, yR + 10, { font: "bold", size: 8.5, color: c?.appAccount ? GREEN : GOLD_DARK });
+  doc.text(statusText, colMid + 10, yR + 10, { font: "bold", size: 8.5, color: c?.latestDiagnosisDate || c?.appAccount ? GREEN : GOLD_DARK });
 
   doc.advance(idBoxH + 10);
 
@@ -376,8 +466,11 @@ export function consultationSheetPdf(input: {
     { size: 7.2, color: SOFT, font: "oblique" }
   );
 
+  const photoChecked = Boolean(c?.consentPhoto);
+  const dataChecked = Boolean(c?.consentData);
+
   yCs += 15;
-  checkbox(doc, M_X + 12, yCs - 6.5, 8, false);
+  checkbox(doc, M_X + 12, yCs - 6.5, 8, photoChecked);
   doc.text("PRISE DE CLICHÉS & IMAGERIE CABINE :", M_X + 25, yCs, { font: "bold", size: 7.8, color: GOLD_DARK });
   doc.text(
     "J'autorise la prise de photographies cutanées pour mon suivi exclusif au sein de l'institut (aucune diffusion publique).",
@@ -387,7 +480,7 @@ export function consultationSheetPdf(input: {
   );
 
   yCs += 20;
-  checkbox(doc, M_X + 12, yCs - 6.5, 8, false);
+  checkbox(doc, M_X + 12, yCs - 6.5, 8, dataChecked);
   doc.text("TRAITEMENT & CONSERVATION DES DONNÉES :", M_X + 25, yCs, { font: "bold", size: 7.8, color: GOLD_DARK });
   doc.text(
     "J'accepte la conservation de mes données cutanées (scores, routines, historique) pour la personnalisation de mes soins.",
@@ -399,7 +492,9 @@ export function consultationSheetPdf(input: {
   // Ligne de signature consentements
   yCs += 19;
   doc.hline(M_X + 12, M_RIGHT - 12, yCs - 3, LINE_LIGHT, 0.5);
-  doc.text("Fait le : ...............................   Lieu : ...............................", M_X + 12, yCs + 8, {
+  const consentDateStr = c?.consentDate ? fmtDate(c.consentDate) : "...............................";
+  const tenantCityStr = input.tenantCity || "...............................";
+  doc.text(`Fait le : ${consentDateStr}   Lieu : ${tenantCityStr}`, M_X + 12, yCs + 8, {
     size: 7.2,
     color: SOFT,
   });
@@ -409,6 +504,9 @@ export function consultationSheetPdf(input: {
     yCs + 8,
     { size: 7.2, color: SOFT }
   );
+  if (photoChecked && dataChecked) {
+    doc.text("Validé & Horodaté en cabine", M_RIGHT - 82, yCs + 7, { font: "bold", size: 6.5, color: GREEN });
+  }
   doc.rectStroke(M_RIGHT - 85, yCs - 1, 75, 14, LINE, 0.6);
 
   doc.advance(csBoxH + 11);
@@ -423,9 +521,9 @@ export function consultationSheetPdf(input: {
 
   let yP = profBoxY + 12;
 
-  // Ligne 1 : Type de peau
+  // Ligne 1 : Type de peau (profil cliente ou questionnaire)
   doc.text("TYPE DE PEAU OBSERVÉ / DÉCLARÉ :", M_X + 10, yP, { font: "bold", size: 7.2, color: GOLD_DARK });
-  const rawSkin = (c?.skinType ?? "").toLowerCase();
+  const rawSkin = `${c?.skinType ?? ""} ${c?.answers?.peau ?? ""}`.toLowerCase();
   const skinTypes = [
     { id: "normale", label: "Normale", match: rawSkin.includes("norm") },
     { id: "seche", label: "Sèche", match: rawSkin.includes("sech") || rawSkin.includes("sèch") },
@@ -442,10 +540,10 @@ export function consultationSheetPdf(input: {
     xP += 82;
   }
 
-  // Ligne 2 : Phototype Fitzpatrick
+  // Ligne 2 : Phototype Fitzpatrick (profil cliente ou questionnaire)
   yP += 16;
   doc.text("PHOTOTYPE DE FITZPATRICK :", M_X + 10, yP, { font: "bold", size: 7.2, color: GOLD_DARK });
-  const rawFitz = (c?.fitzpatrick ?? "").toUpperCase();
+  const rawFitz = `${c?.fitzpatrick ?? ""} ${c?.answers?.fitz ?? ""}`.toUpperCase();
   const fitzTypes = [
     { label: "Albinos (OCA)", match: rawFitz.toLowerCase().includes("albin") || (rawFitz.includes("I") && !rawFitz.includes("II") && !rawFitz.includes("IV") && !rawFitz.includes("V") && !rawFitz.includes("VI")) },
     { label: "Afro-rousse", match: rawFitz.toLowerCase().includes("rouq") || rawFitz.toLowerCase().includes("rous") || (rawFitz.includes("II") && !rawFitz.includes("III")) },
@@ -511,7 +609,9 @@ export function consultationSheetPdf(input: {
     doc,
     "4",
     "QUESTIONNAIRE CLINIQUE CABINE (ENTRETIEN GUIDÉ)",
-    "Renseigné avec la cliente — les réponses alimentent le score d'équilibre et les recommandations"
+    c?.latestDiagnosisDate
+      ? `Réponses recueillies lors du diagnostic du ${fmtDate(c.latestDiagnosisDate)} · alimente le score d'équilibre`
+      : "Renseigné avec la cliente — les réponses alimentent le score d'équilibre et les recommandations"
   );
 
   const sheetZone = input.zone ?? "visage";
@@ -533,7 +633,7 @@ export function consultationSheetPdf(input: {
     doc.advance(19);
 
     for (const q of qs) {
-      renderQuestionCard(doc, q);
+      renderQuestionCard(doc, q, c?.answers);
     }
     doc.advance(4);
     qSectionIndex++;
@@ -544,7 +644,9 @@ export function consultationSheetPdf(input: {
     doc,
     "5",
     "EXAMEN CLINIQUE & OBSERVATIONS PRATICIENNE",
-    "Constats visuels sous lampe loupe / lumière de Wood avant protocole"
+    c?.latestDiagnosisScore !== undefined && c?.latestDiagnosisScore !== null
+      ? `Constats cliniques cabine · Score santé évalué : ${c.latestDiagnosisScore}/100`
+      : "Constats visuels sous lampe loupe / lumière de Wood avant protocole"
   );
   doc.ensure(118);
   const obsBoxY = doc.cursorY;
@@ -585,7 +687,8 @@ export function consultationSheetPdf(input: {
     doc.text(crit.title, M_X + 10, yObs, { font: "bold", size: 7.2, color: GOLD_DARK });
     let xCrit = M_X + 110;
     for (const item of crit.items) {
-      checkboxItem(doc, xCrit, yObs, item, false, { size: 7.2 });
+      const isChecked = isCriteriaMatched(crit.title, item, c?.answers, c?.latestDiagnosisScore);
+      checkboxItem(doc, xCrit, yObs, item, isChecked, { size: 7.2 });
       xCrit += 98;
     }
     yObs += 12.5;
@@ -599,9 +702,16 @@ export function consultationSheetPdf(input: {
     color: SOFT,
   });
   yObs += 9;
-  writeLine(doc, yObs, M_X + 10, M_RIGHT - 10);
-  yObs += 10;
-  writeLine(doc, yObs, M_X + 10, M_RIGHT - 10);
+  if (c?.clinicalObservations || c?.productObservations) {
+    const obsText = (c.clinicalObservations || c.productObservations || "").slice(0, 160);
+    doc.text(obsText, M_X + 10, yObs, { font: "oblique", size: 7.5, color: INK, maxW: CONTENT_W - 20 });
+    yObs += 10;
+    writeLine(doc, yObs, M_X + 10, M_RIGHT - 10);
+  } else {
+    writeLine(doc, yObs, M_X + 10, M_RIGHT - 10);
+    yObs += 10;
+    writeLine(doc, yObs, M_X + 10, M_RIGHT - 10);
+  }
 
   doc.advance(obsBoxH + 11);
 
@@ -620,30 +730,62 @@ export function consultationSheetPdf(input: {
 
   let yPr = protBoxY + 11;
   doc.text("SOIN EN CABINE PRÉCONISÉ :", M_X + 10, yPr, { font: "bold", size: 7.2, color: GOLD_DARK });
-  writeLine(doc, yPr + 1, M_X + 145, M_RIGHT - 100);
+  const soinsCabineStr = c?.soinsCabine && c.soinsCabine.length > 0 ? c.soinsCabine.join(" · ") : "";
+  if (soinsCabineStr) {
+    doc.text(soinsCabineStr, M_X + 145, yPr, { font: "bold", size: 7.5, color: INK, maxW: CONTENT_W - 245 });
+  } else {
+    writeLine(doc, yPr + 1, M_X + 145, M_RIGHT - 100);
+  }
   doc.text("DURÉE :", M_RIGHT - 90, yPr, { font: "bold", size: 7.2, color: SOFT });
-  writeLine(doc, yPr + 1, M_RIGHT - 50, M_RIGHT - 10);
+  if (soinsCabineStr) {
+    doc.text("45 - 60 min", M_RIGHT - 50, yPr, { font: "bold", size: 7.2, color: GOLD_DARK });
+  } else {
+    writeLine(doc, yPr + 1, M_RIGHT - 50, M_RIGHT - 10);
+  }
 
   yPr += 16;
   doc.text("ROUTINE DOMICILE DU MATIN :", M_X + 10, yPr, { font: "bold", size: 7.2, color: INK });
-  writeLine(doc, yPr + 1, M_X + 145, M_RIGHT - 10);
+  const matinStr = c?.routineMatin && c.routineMatin.length > 0 ? c.routineMatin.join(" · ") : "";
+  if (matinStr) {
+    doc.text(matinStr, M_X + 145, yPr, { font: "bold", size: 7.5, color: GOLD_DARK, maxW: CONTENT_W - 155 });
+  } else {
+    writeLine(doc, yPr + 1, M_X + 145, M_RIGHT - 10);
+  }
 
   yPr += 14;
   doc.text("ROUTINE DOMICILE DU SOIR :", M_X + 10, yPr, { font: "bold", size: 7.2, color: INK });
-  writeLine(doc, yPr + 1, M_X + 145, M_RIGHT - 10);
+  const soirStr = c?.routineSoir && c.routineSoir.length > 0 ? c.routineSoir.join(" · ") : "";
+  if (soirStr) {
+    doc.text(soirStr, M_X + 145, yPr, { font: "bold", size: 7.5, color: GOLD_DARK, maxW: CONTENT_W - 155 });
+  } else {
+    writeLine(doc, yPr + 1, M_X + 145, M_RIGHT - 10);
+  }
 
   yPr += 14;
   doc.text("ACTIFS & BOTANIQUES PHARES :", M_X + 10, yPr, { font: "bold", size: 7.2, color: GOLD_DARK });
-  writeLine(doc, yPr + 1, M_X + 145, M_RIGHT - 10);
+  const botaniquesStr = c?.botaniques && c.botaniques.length > 0 ? c.botaniques.join(" · ") : "";
+  if (botaniquesStr) {
+    doc.text(botaniquesStr, M_X + 145, yPr, { font: "bold", size: 7.5, color: INK, maxW: CONTENT_W - 155 });
+  } else {
+    writeLine(doc, yPr + 1, M_X + 145, M_RIGHT - 10);
+  }
 
   yPr += 16;
   doc.text("PROCHAIN CONTRÔLE CONSEILLÉ :", M_X + 10, yPr, { font: "bold", size: 7.2, color: SOFT });
-  checkboxItem(doc, M_X + 160, yPr, "15 jours", false, { size: 7.2 });
-  checkboxItem(doc, M_X + 220, yPr, "1 mois", false, { size: 7.2 });
+  const is15d = false;
+  const is1m = Boolean(c?.latestDiagnosisDate);
+  checkboxItem(doc, M_X + 160, yPr, "15 jours", is15d, { size: 7.2 });
+  checkboxItem(doc, M_X + 220, yPr, "1 mois", is1m, { size: 7.2 });
   checkboxItem(doc, M_X + 275, yPr, "2 mois", false, { size: 7.2 });
   checkboxItem(doc, M_X + 330, yPr, "Trimestriel", false, { size: 7.2 });
   doc.text("Date fixée :", M_X + 395, yPr, { size: 7.2, color: SOFT });
-  writeLine(doc, yPr + 1, M_X + 440, M_RIGHT - 10);
+  if (c?.latestDiagnosisDate) {
+    const nextDate = new Date(c.latestDiagnosisDate);
+    nextDate.setDate(nextDate.getDate() + 28);
+    doc.text(fmtDate(nextDate), M_X + 440, yPr, { font: "bold", size: 7.2, color: GOLD_DARK });
+  } else {
+    writeLine(doc, yPr + 1, M_X + 440, M_RIGHT - 10);
+  }
 
   doc.advance(protBoxH + 11);
 
@@ -673,6 +815,9 @@ export function consultationSheetPdf(input: {
   const pLabel = input.practitioner ? `Praticienne : ${input.practitioner}` : "Praticienne en charge :";
   doc.text(pLabel, pX + 10, signY + 21, { size: 7, color: INK, maxW: signW - 20 });
   doc.text("Signature & cachet de l'institut :", pX + 10, signY + 34, { size: 7, color: SOFT });
+  if (input.practitioner && c?.latestDiagnosisDate) {
+    doc.text("Visa enregistré lors du diagnostic cabine", pX + 14, signY + 45, { size: 6.5, font: "bold", color: GREEN });
+  }
   doc.rectStroke(pX + 10, signY + 37, signW - 20, 16, LINE_LIGHT, 0.6);
 
   doc.advance(signH + 10);
@@ -680,8 +825,8 @@ export function consultationSheetPdf(input: {
   return doc.finish();
 }
 
-/** Rendu propre d'une question d'entretien */
-function renderQuestionCard(doc: PdfDoc, q: Question): void {
+/** Rendu propre d'une question d'entretien avec coches réelles */
+function renderQuestionCard(doc: PdfDoc, q: Question, answers?: QAnswers): void {
   const fullLabel = `${q.label}${q.help ? ` — ${q.help}` : ""}${q.required ? " *" : ""}`;
 
   doc.ensure(24);
@@ -689,15 +834,34 @@ function renderQuestionCard(doc: PdfDoc, q: Question): void {
   doc.advance(13);
 
   if (q.type === "text") {
-    doc.ensure(14);
-    writeLine(doc, doc.cursorY + 4, M_X + 10, M_RIGHT - 10);
+    const rawVal = answers?.[q.id];
+    const valText = typeof rawVal === "string" ? rawVal.trim() : Array.isArray(rawVal) ? rawVal.join(", ") : "";
+    doc.ensure(15);
+    if (valText) {
+      doc.text(valText, M_X + 12, doc.cursorY + 3, { font: "bold", size: 7.8, color: GOLD_DARK, maxW: CONTENT_W - 24 });
+      doc.hline(M_X + 10, M_RIGHT - 10, doc.cursorY + 5, LINE_LIGHT, 0.5);
+    } else {
+      writeLine(doc, doc.cursorY + 4, M_X + 10, M_RIGHT - 10);
+    }
     doc.advance(15);
     return;
   }
 
   // Options alignées en 2 colonnes ou 1 colonne selon la longueur
-  const boxes = q.options.map((o) => o.label);
-  const twoPerLine = boxes.every((b) => textWidth(b, 7.5) < (CONTENT_W - 40) / 2 - 20);
+  const userAns = answers?.[q.id];
+  const boxes = q.options.map((o) => {
+    let checked = false;
+    if (userAns !== undefined && userAns !== null) {
+      if (Array.isArray(userAns)) {
+        checked = userAns.includes(o.value) || userAns.some((v) => String(v).toLowerCase() === String(o.value).toLowerCase());
+      } else {
+        checked = String(userAns).toLowerCase() === String(o.value).toLowerCase();
+      }
+    }
+    return { label: o.label, checked };
+  });
+
+  const twoPerLine = boxes.every((b) => textWidth(b.label, 7.5) < (CONTENT_W - 40) / 2 - 20);
   const colW = (CONTENT_W - 20) / 2;
 
   let i = 0;
@@ -706,7 +870,7 @@ function renderQuestionCard(doc: PdfDoc, q: Question): void {
     doc.ensure(13);
     let x = M_X + 10;
     for (const b of row) {
-      checkboxItem(doc, x, doc.cursorY + 1, b, false, { size: 7.5, maxW: colW - 14 });
+      checkboxItem(doc, x, doc.cursorY + 1, b.label, b.checked, { size: 7.5, maxW: colW - 14 });
       x += colW + 10;
     }
     doc.advance(12.5);
