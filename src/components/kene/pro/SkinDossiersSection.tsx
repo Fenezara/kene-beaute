@@ -979,49 +979,6 @@ function ClientSkinDossierDetail({
               </div>
             </CardContent>
           </Card>
-
-          {/* Routine quotidienne déclarée par la patiente */}
-          <Card className="border-border bg-card">
-            <CardContent className="p-4 sm:p-5 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <span className="grid size-9 place-items-center rounded-xl bg-gold/15 text-gold-text shrink-0">
-                    <Sun className="size-4.5" />
-                  </span>
-                  <div>
-                    <h4 className="font-heading text-sm font-bold text-foreground">
-                      Routine cosmétique quotidienne à domicile
-                    </h4>
-                    <p className="text-xs text-muted-foreground">
-                      Produits appliqués chaque jour par la cliente (nettoyant, sérum, crème de jour, solaire, nuit)
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <Textarea
-                rows={3}
-                value={cosmeticsUsed}
-                onChange={(e) => setCosmeticsUsed(e.target.value)}
-                placeholder="Ex : Matin : Savon doux surgras, Sérum hydratant Moringa, Fluide SPF50. Soir : Huile démaquillante Balanites, Baume Karité brut…"
-                className="text-xs leading-relaxed"
-              />
-
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-[11px] text-muted-foreground">Partagé sur les bilans de suivi</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void saveCosmeticsUsed()}
-                  disabled={cosmeticsBusy}
-                  className="text-xs gap-1.5"
-                >
-                  <Save className="size-3.5" />
-                  {cosmeticsBusy ? "Enregistrement…" : "Enregistrer la routine"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* ═════════ 2. IMAGERIE HD & ÉVOLUTION VISUELLE ═════════ */}
@@ -1504,9 +1461,9 @@ function ClientSkinDossierDetail({
                 </div>
               </div>
 
-              {/* Sélecteur rapide depuis le catalogue de l'institut */}
-              {instituteProducts.length > 0 && (
-                <div className="flex items-center gap-2">
+              {/* Actions d'ajout de produit : depuis le catalogue ou saisie manuelle */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {instituteProducts.length > 0 && (
                   <select
                     defaultValue=""
                     onChange={(e) => {
@@ -1534,39 +1491,59 @@ function ClientSkinDossierDetail({
                     }}
                     className="h-8.5 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold cursor-pointer"
                   >
-                    <option value="">+ Ajouter un produit du salon...</option>
+                    <option value="">+ Choisir dans le catalogue...</option>
                     {instituteProducts.map((p: any) => (
                       <option key={p.id} value={p.id}>
                         {p.name} · {xof(p.price)}
                       </option>
                     ))}
                   </select>
-                </div>
-              )}
-            </div>
+                )}
 
-            {/* Liste des produits prescrits */}
-            {prescriptionData.products.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border/80 p-4 text-center space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Aucun produit cosmétique sélectionné dans cette ordonnance.
-                </p>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    const fallbackItem: PrescribedProductItem = {
-                      name: "Sérum Anti-Taches & Éclat Hibiscus",
-                      moment: "matin",
-                      posology: "3 gouttes le matin avant le fluide hydratant",
-                      price: 15000,
+                    const customItem: PrescribedProductItem = {
+                      name: "Produit cosmétique sur-mesure",
+                      moment: "matin_soir",
+                      posology: "Appliquer matin et soir sur peau propre",
                     };
-                    setPrescriptionData((prev) => ({ ...prev, products: [...prev.products, fallbackItem] }));
+                    setPrescriptionData((prev) => ({ ...prev, products: [...prev.products, customItem] }));
+                    toast.info("Nouveau produit manuel ajouté. Vous pouvez modifier le nom, le moment et le prix.");
                   }}
-                  className="text-xs h-7.5 gap-1 text-gold-text border-gold/40"
+                  className="text-xs h-8.5 gap-1.5 border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer font-bold"
                 >
-                  <Plus className="size-3" /> Ajouter un produit libre
+                  <Plus className="size-3.5" />
+                  <span>Saisie manuelle d'un produit</span>
                 </Button>
+              </div>
+            </div>
+
+            {/* Liste des produits prescrits */}
+            {prescriptionData.products.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border/80 p-5 text-center space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Aucun produit cosmétique sélectionné dans cette ordonnance.
+                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const fallbackItem: PrescribedProductItem = {
+                        name: "Sérum Anti-Taches & Éclat Hibiscus",
+                        moment: "matin",
+                        posology: "3 gouttes le matin avant le fluide hydratant",
+                        price: 15000,
+                      };
+                      setPrescriptionData((prev) => ({ ...prev, products: [...prev.products, fallbackItem] }));
+                    }}
+                    className="text-xs h-8 gap-1.5 text-gold-text border-gold/40 font-bold"
+                  >
+                    <Plus className="size-3" /> Saisie manuelle d'un produit
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1575,11 +1552,11 @@ function ClientSkinDossierDetail({
                     key={idx}
                     className="p-3.5 rounded-2xl border border-border/80 bg-muted/20 flex flex-col md:flex-row md:items-center justify-between gap-3"
                   >
-                    <div className="flex items-start gap-3 min-w-0">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
                       <span className="grid size-9 place-items-center rounded-xl bg-gold/15 text-gold-text font-black text-xs shrink-0 mt-0.5">
                         {idx + 1}
                       </span>
-                      <div className="min-w-0 space-y-1">
+                      <div className="min-w-0 space-y-1.5 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <input
                             type="text"
@@ -1592,18 +1569,32 @@ function ClientSkinDossierDetail({
                                 return { ...prev, products: next };
                               });
                             }}
-                            className="font-heading font-black text-xs sm:text-sm text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-gold outline-none"
-                            placeholder="Nom du produit..."
+                            className="font-heading font-black text-xs sm:text-sm text-foreground bg-transparent border-b border-border/60 hover:border-border focus:border-gold outline-none flex-1 min-w-[200px] py-0.5"
+                            placeholder="Nom du produit cosmétique..."
                           />
-                          {item.price ? (
-                            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                              {xof(item.price)}
-                            </span>
-                          ) : null}
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={0}
+                              step={500}
+                              value={item.price || ""}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10) || 0;
+                                setPrescriptionData((prev) => {
+                                  const next = [...prev.products];
+                                  next[idx] = { ...next[idx], price: val };
+                                  return { ...prev, products: next };
+                                });
+                              }}
+                              placeholder="Prix FCFA (opt.)"
+                              className="h-7 w-28 rounded-md border border-input bg-background px-2 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums"
+                            />
+                            <span className="text-[10px] text-muted-foreground font-semibold">FCFA</span>
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-2 flex-wrap text-xs">
-                          <span className="text-[11px] font-semibold text-muted-foreground">Moment :</span>
+                          <span className="text-[11px] font-semibold text-muted-foreground">Moment d'application :</span>
                           <select
                             value={item.moment}
                             onChange={(e) => {
@@ -1623,7 +1614,7 @@ function ClientSkinDossierDetail({
                           </select>
                         </div>
 
-                        <div className="pt-1">
+                        <div className="pt-0.5">
                           <input
                             type="text"
                             value={item.posology}
@@ -1658,21 +1649,23 @@ function ClientSkinDossierDetail({
                   </div>
                 ))}
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    const customItem: PrescribedProductItem = {
-                      name: "Nouveau produit prescrit",
-                      moment: "matin_soir",
-                      posology: "Appliquer matin et soir sur peau propre",
-                    };
-                    setPrescriptionData((prev) => ({ ...prev, products: [...prev.products, customItem] }));
-                  }}
-                  className="text-xs h-8 gap-1 text-gold-text border-gold/40"
-                >
-                  <Plus className="size-3" /> Ajouter un autre produit
-                </Button>
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const customItem: PrescribedProductItem = {
+                        name: "Autre produit cosmétique",
+                        moment: "matin_soir",
+                        posology: "Appliquer selon recommandations",
+                      };
+                      setPrescriptionData((prev) => ({ ...prev, products: [...prev.products, customItem] }));
+                    }}
+                    className="text-xs h-8 gap-1.5 text-gold-text border-gold/40 font-bold"
+                  >
+                    <Plus className="size-3.5" /> + Saisie manuelle d'un produit
+                  </Button>
+                </div>
               </div>
             )}
           </Card>
@@ -1694,9 +1687,9 @@ function ClientSkinDossierDetail({
                 </div>
               </div>
 
-              {/* Sélecteur rapide depuis les soins de l'institut */}
-              {instituteServices.length > 0 && (
-                <div className="flex items-center gap-2">
+              {/* Actions d'ajout de soin cabine : catalogue ou saisie manuelle */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {instituteServices.length > 0 && (
                   <select
                     defaultValue=""
                     onChange={(e) => {
@@ -1725,40 +1718,61 @@ function ClientSkinDossierDetail({
                     }}
                     className="h-8.5 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold cursor-pointer"
                   >
-                    <option value="">+ Ajouter un soin cabine du salon...</option>
+                    <option value="">+ Choisir dans le catalogue...</option>
                     {instituteServices.map((s: any) => (
                       <option key={s.id} value={s.id}>
                         {s.name} ({s.durationMin} min) · {xof(s.price)}
                       </option>
                     ))}
                   </select>
-                </div>
-              )}
-            </div>
+                )}
 
-            {/* Liste des soins cabine prescrits */}
-            {prescriptionData.cabineServices.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border/80 p-4 text-center space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Aucun soin en cabine prescrit dans cette ordonnance.
-                </p>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    const fallbackSoin: PrescribedCabineServiceItem = {
-                      name: "Soin Cabine Dermo-Purifiant & Hydratation Prodonde",
-                      frequency: "1 séance / mois",
-                      sessionsCount: 1,
+                    const customSoin: PrescribedCabineServiceItem = {
+                      name: "Soin Esthétique Cabine Sur-Mesure",
+                      frequency: "1 séance toutes les 2 à 3 semaines",
+                      sessionsCount: 3,
                       durationMin: 60,
-                      price: 25000,
                     };
-                    setPrescriptionData((prev) => ({ ...prev, cabineServices: [...prev.cabineServices, fallbackSoin] }));
+                    setPrescriptionData((prev) => ({ ...prev, cabineServices: [...prev.cabineServices, customSoin] }));
+                    toast.info("Nouveau soin cabine manuel ajouté. Vous pouvez modifier le nom, la durée et le rythme.");
                   }}
-                  className="text-xs h-7.5 gap-1 text-indigo-400 border-indigo-500/40"
+                  className="text-xs h-8.5 gap-1.5 border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 cursor-pointer font-bold"
                 >
-                  <Plus className="size-3" /> Ajouter un soin cabine libre
+                  <Plus className="size-3.5" />
+                  <span>Saisie manuelle d'un soin</span>
                 </Button>
+              </div>
+            </div>
+
+            {/* Liste des soins cabine prescrits */}
+            {prescriptionData.cabineServices.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border/80 p-5 text-center space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Aucun soin en cabine prescrit dans cette ordonnance.
+                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const fallbackSoin: PrescribedCabineServiceItem = {
+                        name: "Soin Cabine Dermo-Purifiant & Hydratation Profonde",
+                        frequency: "1 séance / mois",
+                        sessionsCount: 1,
+                        durationMin: 60,
+                        price: 25000,
+                      };
+                      setPrescriptionData((prev) => ({ ...prev, cabineServices: [...prev.cabineServices, fallbackSoin] }));
+                    }}
+                    className="text-xs h-8 gap-1.5 text-indigo-400 border-indigo-500/40 font-bold"
+                  >
+                    <Plus className="size-3" /> Saisie manuelle d'un soin cabine
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1767,11 +1781,11 @@ function ClientSkinDossierDetail({
                     key={idx}
                     className="p-3.5 rounded-2xl border border-indigo-500/25 bg-indigo-500/5 flex flex-col md:flex-row md:items-center justify-between gap-3"
                   >
-                    <div className="flex items-start gap-3 min-w-0">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
                       <span className="grid size-9 place-items-center rounded-xl bg-indigo-500/20 text-indigo-400 font-black text-xs shrink-0 mt-0.5">
                         {idx + 1}
                       </span>
-                      <div className="min-w-0 space-y-1">
+                      <div className="min-w-0 space-y-1.5 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <input
                             type="text"
@@ -1784,24 +1798,54 @@ function ClientSkinDossierDetail({
                                 return { ...prev, cabineServices: next };
                               });
                             }}
-                            className="font-heading font-black text-xs sm:text-sm text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-indigo-400 outline-none"
+                            className="font-heading font-black text-xs sm:text-sm text-foreground bg-transparent border-b border-border/60 hover:border-border focus:border-indigo-400 outline-none flex-1 min-w-[200px] py-0.5"
                             placeholder="Nom du soin en cabine..."
                           />
-                          {srv.durationMin ? (
-                            <Badge variant="outline" className="text-[10.5px] border-border text-muted-foreground font-semibold">
-                              ⏱️ {srv.durationMin} min
-                            </Badge>
-                          ) : null}
-                          {srv.price ? (
-                            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                              {xof(srv.price)}
-                            </span>
-                          ) : null}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-muted-foreground font-semibold">Durée :</span>
+                            <input
+                              type="number"
+                              min={10}
+                              max={240}
+                              step={5}
+                              value={srv.durationMin || ""}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10) || 60;
+                                setPrescriptionData((prev) => {
+                                  const next = [...prev.cabineServices];
+                                  next[idx] = { ...next[idx], durationMin: val };
+                                  return { ...prev, cabineServices: next };
+                                });
+                              }}
+                              className="h-7 w-16 rounded-md border border-input bg-background px-2 text-[11px] font-bold text-center"
+                              placeholder="60"
+                            />
+                            <span className="text-[10px] text-muted-foreground">min</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={0}
+                              step={1000}
+                              value={srv.price || ""}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10) || 0;
+                                setPrescriptionData((prev) => {
+                                  const next = [...prev.cabineServices];
+                                  next[idx] = { ...next[idx], price: val };
+                                  return { ...prev, cabineServices: next };
+                                });
+                              }}
+                              placeholder="Prix (opt.)"
+                              className="h-7 w-24 rounded-md border border-input bg-background px-2 text-[11px] font-bold text-indigo-400 tabular-nums"
+                            />
+                            <span className="text-[10px] text-muted-foreground font-semibold">FCFA</span>
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-3 flex-wrap text-xs">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[11px] font-semibold text-muted-foreground">Rythme :</span>
+                            <span className="text-[11px] font-semibold text-muted-foreground">Rythme conseillé :</span>
                             <input
                               type="text"
                               value={srv.frequency}
@@ -1814,7 +1858,7 @@ function ClientSkinDossierDetail({
                                 });
                               }}
                               placeholder="ex: 1 séance toutes les 2 semaines"
-                              className="h-6.5 rounded-md border border-input bg-background px-2 text-[11px] font-bold"
+                              className="h-7 rounded-md border border-input bg-background px-2 text-[11px] font-bold"
                             />
                           </div>
 
@@ -1833,13 +1877,13 @@ function ClientSkinDossierDetail({
                                   return { ...prev, cabineServices: next };
                                 });
                               }}
-                              className="h-6.5 w-14 rounded-md border border-input bg-background px-2 text-[11px] font-bold text-center"
+                              className="h-7 w-14 rounded-md border border-input bg-background px-2 text-[11px] font-bold text-center"
                             />
                             <span className="text-[11px] text-muted-foreground">séance(s)</span>
                           </div>
                         </div>
 
-                        <div className="pt-1">
+                        <div className="pt-0.5">
                           <input
                             type="text"
                             value={srv.objective || ""}
@@ -1874,21 +1918,24 @@ function ClientSkinDossierDetail({
                   </div>
                 ))}
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    const customSoin: PrescribedCabineServiceItem = {
-                      name: "Soin Visage Sur-Mesure",
-                      frequency: "1 séance par mois",
-                      sessionsCount: 3,
-                    };
-                    setPrescriptionData((prev) => ({ ...prev, cabineServices: [...prev.cabineServices, customSoin] }));
-                  }}
-                  className="text-xs h-8 gap-1 text-indigo-400 border-indigo-500/40"
-                >
-                  <Plus className="size-3" /> Ajouter un autre soin cabine
-                </Button>
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const customSoin: PrescribedCabineServiceItem = {
+                        name: "Autre soin en cabine",
+                        frequency: "1 séance par mois",
+                        sessionsCount: 3,
+                        durationMin: 60,
+                      };
+                      setPrescriptionData((prev) => ({ ...prev, cabineServices: [...prev.cabineServices, customSoin] }));
+                    }}
+                    className="text-xs h-8 gap-1.5 text-indigo-400 border-indigo-500/40 font-bold"
+                  >
+                    <Plus className="size-3.5" /> + Saisie manuelle d'un soin
+                  </Button>
+                </div>
               </div>
             )}
           </Card>
