@@ -15,7 +15,7 @@ import { jsonError, serverError } from "@/lib/kene/server";
 import { guardProRole } from "@/lib/kene/session";
 import { zaiCall } from "@/lib/ai/zai-retry";
 
-const DEBRIEF_TIMEOUT_MS = 12_000;
+const DEBRIEF_TIMEOUT_MS = 7_000;
 
 export const runtime = "nodejs";
 
@@ -540,10 +540,9 @@ Réponds UNIQUEMENT par un objet JSON valide respectant ce schéma exact (sans b
 function getCandidateModels(): string[] {
   const preferred = process.env.GEMINI_MODEL?.trim();
   const models = [
-    preferred && preferred.startsWith("gemini-") ? preferred : null,
     "gemini-2.5-flash",
+    preferred && preferred.startsWith("gemini-") ? preferred : null,
     "gemini-3.5-flash",
-    "gemini-3.5-flash-lite",
   ].filter(Boolean) as string[];
   return Array.from(new Set(models));
 }
@@ -571,6 +570,7 @@ async function callGeminiDebrief(systemPrompt: string, userMessage: string): Pro
 
   for (const model of models) {
     try {
+      const isThinkingModel = model.includes("2.5") || model.includes("3.");
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
@@ -581,8 +581,9 @@ async function callGeminiDebrief(systemPrompt: string, userMessage: string): Pro
             contents: [{ role: "user", parts: [{ text: userMessage }] }],
             generationConfig: {
               temperature: 0.2,
-              maxOutputTokens: 800,
+              maxOutputTokens: 750,
               responseMimeType: "application/json",
+              ...(isThinkingModel ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
             },
           }),
           signal: AbortSignal.timeout(DEBRIEF_TIMEOUT_MS),

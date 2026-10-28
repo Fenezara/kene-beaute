@@ -15,7 +15,7 @@ import { zaiCall } from "@/lib/ai/zai-retry";
 import { KNOWLEDGE_DIGEST } from "@/lib/kene/knowledge";
 import { ATLAS_DIGEST } from "@/lib/kene/conditions";
 
-const CHAT_TIMEOUT_MS = 12_000;
+const CHAT_TIMEOUT_MS = 7_000;
 
 export interface UserProfileContext {
   id?: string;
@@ -261,15 +261,14 @@ export function tidyReply(raw: string): string {
 function getCandidateModels(): string[] {
   const preferred = process.env.GEMINI_MODEL?.trim();
   const models = [
-    preferred && preferred.startsWith("gemini-") ? preferred : null,
     "gemini-2.5-flash",
+    preferred && preferred.startsWith("gemini-") ? preferred : null,
     "gemini-3.5-flash",
-    "gemini-3.5-flash-lite",
   ].filter(Boolean) as string[];
   return Array.from(new Set(models));
 }
 
-/** Palier 1 : Google Gemini REST avec prompt système contextualisé */
+/** Palier 1 : Google Gemini REST avec prompt système contextualisé et latence ultra-faible */
 async function callGeminiChat(
   messages: ChatMessage[],
   systemPrompt: string
@@ -303,6 +302,7 @@ async function callGeminiChat(
 
     for (const model of models) {
       try {
+        const isThinkingModel = model.includes("2.5") || model.includes("3.");
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
           {
@@ -315,7 +315,8 @@ async function callGeminiChat(
               contents,
               generationConfig: {
                 temperature: 0.35,
-                maxOutputTokens: 600,
+                maxOutputTokens: 500,
+                ...(isThinkingModel ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
               },
             }),
             signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
@@ -562,6 +563,7 @@ async function transcribeAudio(audioBase64: string, mimeType: string): Promise<s
 
     for (const model of models) {
       try {
+        const isThinkingModel = model.includes("2.5") || model.includes("3.");
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
           {
@@ -587,10 +589,11 @@ async function transcribeAudio(audioBase64: string, mimeType: string): Promise<s
               ],
               generationConfig: {
                 temperature: 0.0,
-                maxOutputTokens: 1000,
+                maxOutputTokens: 500,
+                ...(isThinkingModel ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
               },
             }),
-            signal: AbortSignal.timeout(20_000),
+            signal: AbortSignal.timeout(7_000),
           }
         );
 

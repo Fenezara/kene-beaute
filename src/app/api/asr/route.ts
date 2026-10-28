@@ -17,7 +17,7 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 const MAX_BYTES = 12 * 1024 * 1024; // ~12 Mo décodés (audio vocal vocal haute-fidélité)
-const ASR_TIMEOUT_MS = 25_000;
+const ASR_TIMEOUT_MS = 7_000;
 
 // Base64 d'un payload de 12 Mo ≈ 16 M caractères (4/3 par octet).
 const Body = z.object({
@@ -47,10 +47,9 @@ function cleanTranscriptionText(raw: string): string {
 function getCandidateModels(): string[] {
   const preferred = process.env.GEMINI_MODEL?.trim();
   const models = [
+    "gemini-2.5-flash",
     preferred && preferred.startsWith("gemini-") ? preferred : null,
     "gemini-3.5-flash",
-    "gemini-3.5-flash-lite",
-    "gemini-2.5-flash",
   ].filter(Boolean) as string[];
   return Array.from(new Set(models));
 }
@@ -71,6 +70,7 @@ async function callGeminiAsr(buf: Buffer, mimeType?: string): Promise<string | n
 
   for (const model of models) {
     try {
+      const isThinkingModel = model.includes("2.5") || model.includes("3.");
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
@@ -106,7 +106,8 @@ async function callGeminiAsr(buf: Buffer, mimeType?: string): Promise<string | n
             ],
             generationConfig: {
               temperature: 0.0,
-              maxOutputTokens: 1000,
+              maxOutputTokens: 500,
+              ...(isThinkingModel ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
             },
           }),
           signal: AbortSignal.timeout(ASR_TIMEOUT_MS),

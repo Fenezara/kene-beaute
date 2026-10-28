@@ -570,8 +570,9 @@ async function callGeminiVision(opts: {
     }
     if (inlineParts.length === 0) return null;
 
-    const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
     const prompt = buildAnalysisPrompt(opts.zone, opts.fitzpatrick, opts.allergies, inlineParts.length);
+    const isThinkingModel = model.includes("2.5") || model.includes("3.");
 
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
       method: "POST",
@@ -589,6 +590,7 @@ async function callGeminiVision(opts: {
         generationConfig: {
           responseMimeType: "application/json",
           temperature: 0.2,
+          ...(isThinkingModel ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
         },
       }),
       signal: AbortSignal.timeout(VLM_TIMEOUT_MS),
@@ -613,8 +615,9 @@ async function callGeminiRecommendations(analysisJson: string, zone: BodyZone): 
   if (!apiKey) return null;
 
   try {
-    const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
     const prompt = buildRecommendationsPrompt(analysisJson, zone);
+    const isThinkingModel = model.includes("2.5") || model.includes("3.");
 
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
       method: "POST",
@@ -629,6 +632,7 @@ async function callGeminiRecommendations(analysisJson: string, zone: BodyZone): 
         generationConfig: {
           responseMimeType: "application/json",
           temperature: 0.3,
+          ...(isThinkingModel ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
         },
       }),
       signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
@@ -704,14 +708,13 @@ Réponds STRICTEMENT sous format JSON valide avec la structure suivante :
 }`;
 
     const candidateModels = [
-      "gemini-flash-lite-latest",
-      "gemini-2.5-flash-lite",
-      "gemini-3.5-flash",
       "gemini-2.5-flash",
+      "gemini-3.5-flash",
     ];
 
     for (const model of candidateModels) {
       try {
+        const isThinkingModel = model.includes("2.5") || model.includes("3.");
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -725,7 +728,8 @@ Réponds STRICTEMENT sous format JSON valide avec la structure suivante :
             generationConfig: {
               responseMimeType: "application/json",
               temperature: 0.2,
-              maxOutputTokens: 1500,
+              maxOutputTokens: 1200,
+              ...(isThinkingModel ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
             },
           }),
           signal: AbortSignal.timeout(VLM_TIMEOUT_MS),
