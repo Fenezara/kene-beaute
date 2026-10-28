@@ -39,6 +39,7 @@ import {
   Droplets,
   Sparkles,
   Lock,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -99,6 +100,8 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   const structuredPrescription: StructuredPrescription = useMemo(() => {
     return parseStructuredPrescription(cosmeticsUsed, prescribedByTenant || undefined);
   }, [cosmeticsUsed, prescribedByTenant]);
+
+  const [pastCuresOpen, setPastCuresOpen] = useState(false);
 
   useEffect(() => {
     if (storeUser?.cosmeticsUsed) setCosmeticsUsed(storeUser.cosmeticsUsed);
@@ -694,7 +697,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                           Mon Ordonnance Dermo-Esthétique
                         </h4>
                         <Badge variant="outline" className="border-[#D49A24]/40 bg-[#D49A24]/15 text-[#F3D98A] text-[10px] font-bold">
-                          ✨ Prescrite en Institut
+                          🟢 Cure Active #{structuredPrescription.cureNumber || 1}
                         </Badge>
                       </div>
                       <p className="text-xs text-[#E6D5B8]/80 mt-0.5">
@@ -721,6 +724,31 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                     </Button>
                   </div>
                 </div>
+
+                {/* 🎯 Bilan d'évolution & Motif de transition de cure */}
+                {structuredPrescription.changeReason && (
+                  <div className="rounded-xl border border-[#D49A24]/40 bg-[#D49A24]/15 p-3 flex flex-wrap items-center justify-between gap-2.5 text-xs text-[#FFF9EC]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🌿</span>
+                      <span>
+                        <strong className="text-[#F3D98A]">Protocole adapté :</strong> {structuredPrescription.changeReason}
+                      </span>
+                    </div>
+                    {structuredPrescription.evolutionDelta && (structuredPrescription.evolutionDelta.previousScore !== undefined || structuredPrescription.evolutionDelta.newScore !== undefined) && (
+                      <div className="flex items-center gap-1.5 font-mono text-[11px] bg-black/40 px-2.5 py-1 rounded-lg border border-white/10">
+                        <span className="text-[#F5ECDD]/70">Score :</span>
+                        <span>{structuredPrescription.evolutionDelta.previousScore ?? "?"}</span>
+                        <ArrowRight className="size-3 text-[#F3D98A]" />
+                        <span className="font-bold text-emerald-400">{structuredPrescription.evolutionDelta.newScore ?? "?"}/100</span>
+                        {structuredPrescription.evolutionDelta.previousScore && structuredPrescription.evolutionDelta.newScore && (
+                          <span className="text-emerald-400 font-bold ml-1">
+                            (+{structuredPrescription.evolutionDelta.newScore - structuredPrescription.evolutionDelta.previousScore} pts)
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Volet 1 : Produits Cosmétiques Prescrits (Domicile) */}
                 {structuredPrescription.products.length > 0 ? (
@@ -764,6 +792,21 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                                   {momentBadge.label}
                                 </Badge>
                               </div>
+                              {prod.transitionStatus === "keep" && (
+                                <div className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/25">
+                                  <span>🟢 Soin conservé (Inutile de racheter)</span>
+                                </div>
+                              )}
+                              {prod.transitionStatus === "replace" && (
+                                <div className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/25" title={prod.transitionNote}>
+                                  <span>🔄 Soin ajusté {prod.replacedProductName ? `(Remplace ${prod.replacedProductName})` : ""}</span>
+                                </div>
+                              )}
+                              {prod.transitionStatus === "new" && (
+                                <div className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/25">
+                                  <span>✨ Nouveau soin</span>
+                                </div>
+                              )}
                               <p className="text-[11px] text-[#F5ECDD]/80 leading-relaxed font-sans">
                                 👉 {prod.posology}
                               </p>
@@ -866,6 +909,57 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                     </p>
                   </div>
                 ) : null}
+
+                {/* Volet 3 : Historique des ordonnances & cures précédentes */}
+                {structuredPrescription.history && structuredPrescription.history.length > 0 && (
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => setPastCuresOpen(!pastCuresOpen)}
+                      className="w-full flex items-center justify-between text-left cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <History className="size-4 text-purple-400" />
+                        <span className="font-heading font-black text-xs sm:text-sm text-[#FFF9EC]">
+                          Mes anciennes ordonnances &amp; cures ({structuredPrescription.history.length})
+                        </span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] border-white/20 text-[#E6D5B8]">
+                        {pastCuresOpen ? "Masquer ▲" : "Consulter ▼"}
+                      </Badge>
+                    </button>
+
+                    {pastCuresOpen && (
+                      <div className="space-y-2.5 pt-2 border-t border-white/10">
+                        {structuredPrescription.history.map((past, idx) => (
+                          <div
+                            key={past.id || idx}
+                            className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-2"
+                          >
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className="font-bold text-xs text-[#F3D98A]">
+                                Cure #{past.cureNumber} · Du {formatDate(past.prescribedAt)}
+                              </span>
+                              {past.changeReason && (
+                                <span className="text-[10.5px] text-[#E6D5B8]/80 italic">
+                                  Motif : {past.changeReason}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-[#F5ECDD]/80 space-y-1">
+                              <p className="font-semibold text-white/90">Soins prescrits :</p>
+                              <ul className="space-y-0.5 pl-2">
+                                {(past.products || []).map((p, pI) => (
+                                  <li key={pI}>• {p.name} ({p.moment === "matin" ? "Matin" : p.moment === "soir" ? "Soir" : "Matin & Soir"})</li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ) : (

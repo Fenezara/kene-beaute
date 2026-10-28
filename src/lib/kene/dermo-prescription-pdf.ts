@@ -37,6 +37,8 @@ export interface PrescriptionPdfInput {
   diagnosisResult: DiagnosisResult;
   passUrl?: string;
   tenantName?: string;
+  cureNumber?: number;
+  changeReason?: string;
 }
 
 const fmtDateLong = (d: Date | string): string => {
@@ -98,7 +100,10 @@ export function generatePrescriptionPdf(input: PrescriptionPdfInput): { data: Ui
     color: BISSAP,
     letterSpace: 1.4,
   });
-  doc.text("RECOMMANDATION DE SOIN & PASS CABINE", M_X + 12, topY + 30, {
+  const docTitle = input.cureNumber && input.cureNumber > 1
+    ? `ORDONNANCE DE SOIN · CURE #${input.cureNumber}`
+    : "RECOMMANDATION DE SOIN & PASS CABINE";
+  doc.text(docTitle, M_X + 12, topY + 30, {
     font: "bold",
     size: 10,
     color: INK,

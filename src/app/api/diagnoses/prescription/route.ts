@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError } from "@/lib/kene/server";
 import { guardUserClaim, sessionFromRequest } from "@/lib/kene/session";
 import { generatePrescriptionPdf } from "@/lib/kene/dermo-prescription-pdf";
+import { parseStructuredPrescription } from "@/lib/kene/prescription-schema";
 import type { DiagnosisResult } from "@/lib/kene/types";
 
 export const runtime = "nodejs";
@@ -91,6 +92,18 @@ export async function GET(req: NextRequest) {
       return jsonError("Données de diagnostic corrompues", 500);
     }
 
+    // Récupération de la cure structurée (numéro de cure & motif d'évolution)
+    const clientProfile = await db.clientProfile.findFirst({
+      where: {
+        OR: [
+          { userId },
+          ...(userPhone ? [{ phone: userPhone }] : []),
+        ],
+      },
+      select: { cosmeticsUsed: true },
+    });
+    const structuredPrescription = parseStructuredPrescription(clientProfile?.cosmeticsUsed);
+
     const origin = req.nextUrl.origin || "https://kene.app";
     const passUrl = `${origin}/pro?clientPass=${encodeURIComponent(effectiveId || "")}`;
 
@@ -101,6 +114,8 @@ export async function GET(req: NextRequest) {
       createdAt,
       diagnosisResult: parsedResult,
       passUrl,
+      cureNumber: structuredPrescription.cureNumber,
+      changeReason: structuredPrescription.changeReason,
     });
 
     const safeName = userName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();

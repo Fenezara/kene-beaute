@@ -9,7 +9,7 @@ import {
   SlidersHorizontal, Eye, ShieldAlert, Sun, Moon, ArrowLeft,
   Calendar, Lock, Layers, Droplets, Camera, Check, Plus, AlertTriangle,
   Smartphone, Stethoscope, FileClock, Clock, UserCheck, Info, Users,
-  ShoppingBag, Sparkle, Trash2, CalendarCheck
+  ShoppingBag, Sparkle, Trash2, CalendarCheck, RefreshCw, ArrowRight, History, CheckCircle, XCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { BissapFlowerIcon, CauriIcon, SankofaIcon } from "@/components/kene/icons";
@@ -20,6 +20,14 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatDate, formatTime, scoreVar, xof } from "@/lib/kene/format";
 import { apiGet, apiPatch } from "@/lib/kene/api";
@@ -40,10 +48,12 @@ import { matchesSearch } from "@/lib/kene/search";
 import {
   parseStructuredPrescription,
   serializeStructuredPrescription,
+  createNewCureTransition,
   buildPrescriptionWhatsAppSummary,
   type PrescribedProductItem,
   type PrescribedCabineServiceItem,
   type StructuredPrescription,
+  type PrescriptionVersion,
 } from "@/lib/kene/prescription-schema";
 import type { ProClient, ProClientDetail, ProDiagnosisItem } from "./types";
 
@@ -447,13 +457,104 @@ function ClientSkinDossierDetail({
   // Routine à domicile & Ordonnance Structurée Hybride (Produits Domicile + Soins Cabine)
   const [cosmeticsUsed, setCosmeticsUsed] = useState("");
   const [prescriptionData, setPrescriptionData] = useState<StructuredPrescription>({
-    version: 2,
+    version: 3,
+    cureNumber: 1,
+    status: "active",
     prescribedAt: new Date().toISOString(),
     products: [],
     cabineServices: [],
     notes: "",
+    history: [],
   });
   const [cosmeticsBusy, setCosmeticsBusy] = useState(false);
+
+  // État du renouvellement et transition de cure (Ordonnance beauté)
+  const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
+  const [renewReason, setRenewReason] = useState("Bilan de contrôle à S+3");
+  const [customRenewReason, setCustomRenewReason] = useState("");
+  const [renewPrevScore, setRenewPrevScore] = useState<number>(70);
+  const [renewNextScore, setRenewNextScore] = useState<number>(82);
+  const [transitionProducts, setTransitionProducts] = useState<
+    Array<{
+      original: PrescribedProductItem;
+      action: "keep" | "replace" | "stop";
+      replacementName?: string;
+      replacementProductId?: string;
+      replacementCategory?: string;
+      replacementPrice?: number;
+      replacementPosology?: string;
+      replacementMoment?: "matin" | "soir" | "matin_soir" | "hebdo";
+      replacementPhotoUrl?: string;
+      note?: string;
+    }>
+  >([]);
+
+  // Ouvre le modal de transition en pré-remplissant les produits actuels
+  function openRenewCureModal() {
+    const currentProds = prescriptionData.products || [];
+    setTransitionProducts(
+      currentProds.map((p) => ({
+        original: p,
+        action: "keep",
+        replacementName: "",
+        replacementPosology: p.posology,
+        replacementMoment: p.moment,
+      }))
+    );
+
+    // Détermination des scores
+    const lastDiagScore = d?.diagnoses?.[0]?.scoreGlobal ?? d?.proDiagnoses?.[0]?.scoreGlobal ?? 78;
+    const prevDiagScore = d?.diagnoses?.[1]?.scoreGlobal ?? d?.proDiagnoses?.[1]?.scoreGlobal ?? Math.max(40, lastDiagScore - 8);
+    setRenewPrevScore(prevDiagScore);
+    setRenewNextScore(lastDiagScore);
+    setRenewReason("Bilan de contrôle à S+3");
+    setCustomRenewReason("");
+    setIsRenewModalOpen(true);
+  }
+
+  // Confirme la transition vers la nouvelle cure
+  function handleConfirmNewCure() {
+    const finalReason = renewReason === "custom" ? (customRenewReason.trim() || "Ajustement sur-mesure") : renewReason;
+    const newProductsList: PrescribedProductItem[] = [];
+
+    transitionProducts.forEach((item) => {
+      if (item.action === "keep") {
+        newProductsList.push({
+          ...item.original,
+          transitionStatus: "keep",
+          transitionNote: "Soin conservé de la cure précédente",
+        });
+      } else if (item.action === "replace") {
+        newProductsList.push({
+          productId: item.replacementProductId || undefined,
+          name: item.replacementName?.trim() || `Soin ciblé (remplace ${item.original.name})`,
+          category: item.replacementCategory || item.original.category,
+          price: item.replacementPrice ?? item.original.price,
+          moment: item.replacementMoment || item.original.moment,
+          posology: item.replacementPosology?.trim() || item.original.posology,
+          photoUrl: item.replacementPhotoUrl || undefined,
+          transitionStatus: "replace",
+          replacedProductName: item.original.name,
+          transitionNote: item.note?.trim() || `Remplace ${item.original.name}`,
+        });
+      }
+      // "stop" est archivé avec l'ancienne cure et retiré de la nouvelle cure active
+    });
+
+    const updated = createNewCureTransition(prescriptionData, {
+      changeReason: finalReason,
+      previousScore: renewPrevScore,
+      newScore: renewNextScore,
+      tenantId,
+      tenantName: prescriptionData.tenantName,
+      prescribedBy: "Dermo-Conseillère",
+      products: newProductsList,
+      cabineServices: prescriptionData.cabineServices,
+    });
+
+    void saveStructuredPrescription(updated);
+    setIsRenewModalOpen(false);
+  }
 
   // Catalogue de l'institut (Produits & Soins) pour sélection en 1 clic
   const catalogApi = useApi<{ services: any[]; products: any[] }>(
@@ -1418,6 +1519,15 @@ function ClientSkinDossierDetail({
                   <MessageCircle className="size-3.5" /> WhatsApp
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={openRenewCureModal}
+                className="text-xs h-8.5 gap-1.5 border-[#D49A24]/60 bg-[#D49A24]/15 hover:bg-[#D49A24]/25 text-[#F3D98A] font-bold cursor-pointer"
+              >
+                <RefreshCw className="size-3.5" />
+                <span>Renouveler (Nouvelle Cure)</span>
+              </Button>
               <a
                 href={`/api/diagnoses/prescription?userId=${encodeURIComponent(c.userId || c.id)}`}
                 target="_blank"
@@ -1436,6 +1546,39 @@ function ClientSkinDossierDetail({
                 {cosmeticsBusy ? "Transmission…" : "Transmettre l'Ordonnance"}
               </Button>
             </div>
+          </div>
+
+          {/* 🌟 BANDEAU DE SUIVI DE CURE & MOTIF DE TRANSITION */}
+          <div className="rounded-2xl border border-gold/30 bg-gold/10 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <Badge className="bg-gold text-[#18120C] font-black text-xs px-2.5 py-1 rounded-lg shadow-xs">
+                🟢 Cure Active #{prescriptionData.cureNumber || 1}
+              </Badge>
+              {prescriptionData.changeReason ? (
+                <span className="text-xs text-foreground font-semibold">
+                  Motif d&apos;ajustement : <span className="text-gold-text font-black">{prescriptionData.changeReason}</span>
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  Protocole en cours · Établi le {formatDate(prescriptionData.prescribedAt)}
+                </span>
+              )}
+            </div>
+            {prescriptionData.evolutionDelta && (prescriptionData.evolutionDelta.previousScore !== undefined || prescriptionData.evolutionDelta.newScore !== undefined) && (
+              <div className="flex items-center gap-2 text-xs bg-card/90 px-3 py-1.5 rounded-xl border border-border shadow-2xs">
+                <span className="text-muted-foreground font-medium">Progression score :</span>
+                <span className="font-mono font-bold text-muted-foreground">{prescriptionData.evolutionDelta.previousScore ?? "?"}</span>
+                <ArrowRight className="size-3 text-gold" />
+                <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
+                  {prescriptionData.evolutionDelta.newScore ?? "?"} / 100
+                </span>
+                {prescriptionData.evolutionDelta.previousScore && prescriptionData.evolutionDelta.newScore && (
+                  <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-bold">
+                    +{prescriptionData.evolutionDelta.newScore - prescriptionData.evolutionDelta.previousScore} pts
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Section 1 : Produits Cosmétiques Prescrits (Domicile) */}
@@ -1566,6 +1709,21 @@ function ClientSkinDossierDetail({
                             className="font-heading font-black text-xs sm:text-sm text-foreground bg-transparent border-b border-border/60 hover:border-border focus:border-gold outline-none flex-1 min-w-[200px] py-0.5"
                             placeholder="Nom du produit cosmétique..."
                           />
+                          {item.transitionStatus === "keep" && (
+                            <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold shrink-0">
+                              🟢 Conservé
+                            </Badge>
+                          )}
+                          {item.transitionStatus === "replace" && (
+                            <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold shrink-0" title={item.transitionNote}>
+                              🔄 Remplace {item.replacedProductName || "l'ancien soin"}
+                            </Badge>
+                          )}
+                          {item.transitionStatus === "new" && (
+                            <Badge variant="outline" className="bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30 text-[10px] font-bold shrink-0">
+                              ✨ Nouveau
+                            </Badge>
+                          )}
                           <div className="flex items-center gap-1">
                             <input
                               type="number"
@@ -1948,8 +2106,376 @@ function ClientSkinDossierDetail({
               className="text-xs leading-relaxed font-sans bg-background/80"
             />
           </Card>
+
+          {/* Section 4 : Historique des Cures & Anciennes Ordonnances */}
+          {prescriptionData.history && prescriptionData.history.length > 0 && (
+            <Card className="border-border bg-card p-4 sm:p-5 space-y-4">
+              <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid size-9 place-items-center rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 shrink-0">
+                    <History className="size-4.5" />
+                  </span>
+                  <div>
+                    <h5 className="font-heading text-sm font-bold text-foreground flex items-center gap-2">
+                      <span>4. Historique des Cures &amp; Anciennes Ordonnances</span>
+                      <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-400 text-[10px] font-bold">
+                        {prescriptionData.history.length} version{prescriptionData.history.length > 1 ? "s" : ""} archivée{prescriptionData.history.length > 1 ? "s" : ""}
+                      </Badge>
+                    </h5>
+                    <p className="text-xs text-muted-foreground">
+                      Traçabilité dermo-cosmétique complète : chaque protocole précédent est conservé tel quel
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {prescriptionData.history.map((past, pIdx) => (
+                  <div
+                    key={past.id || pIdx}
+                    className="p-3.5 rounded-2xl border border-border/70 bg-muted/20 space-y-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="border-muted-foreground/30 bg-muted text-foreground text-xs font-black">
+                          Cure #{past.cureNumber}
+                        </Badge>
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          Prescrite le {formatDate(past.prescribedAt)} {past.archivedAt ? `· Clôturée le ${formatDate(past.archivedAt)}` : ""}
+                        </span>
+                      </div>
+                      {past.changeReason && (
+                        <Badge variant="outline" className="bg-gold/10 text-gold-text border-gold/30 text-[11px] font-bold">
+                          Motif : {past.changeReason}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+                      <div className="rounded-xl bg-background/60 p-2.5 border border-border/50">
+                        <p className="font-bold text-foreground text-[11px] mb-1.5 flex items-center gap-1.5">
+                          <ShoppingBag className="size-3.5 text-amber-500" />
+                          <span>Produits de la cure ({past.products?.length || 0})</span>
+                        </p>
+                        <ul className="space-y-1">
+                          {(past.products || []).map((p, idx) => (
+                            <li key={idx} className="text-muted-foreground flex items-center justify-between text-[11px]">
+                              <span className="truncate">• {p.name}</span>
+                              <span className="shrink-0 text-[10px] font-mono text-muted-foreground/70">{p.moment}</span>
+                            </li>
+                          ))}
+                          {(!past.products || past.products.length === 0) && (
+                            <li className="text-muted-foreground italic text-[11px]">Aucun produit cosmétique</li>
+                          )}
+                        </ul>
+                      </div>
+
+                      <div className="rounded-xl bg-background/60 p-2.5 border border-border/50">
+                        <p className="font-bold text-foreground text-[11px] mb-1.5 flex items-center gap-1.5">
+                          <Sparkles className="size-3.5 text-indigo-500" />
+                          <span>Soins cabine de la cure ({past.cabineServices?.length || 0})</span>
+                        </p>
+                        <ul className="space-y-1">
+                          {(past.cabineServices || []).map((s, idx) => (
+                            <li key={idx} className="text-muted-foreground flex items-center justify-between text-[11px]">
+                              <span className="truncate">• {s.name}</span>
+                              <span className="shrink-0 text-[10px] font-mono text-muted-foreground/70">{s.frequency}</span>
+                            </li>
+                          ))}
+                          {(!past.cabineServices || past.cabineServices.length === 0) && (
+                            <li className="text-muted-foreground italic text-[11px]">Aucun soin cabine</li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
+
+      {/* ═════════ MODAL DE TRANSITION : RENOUVELER VERS UNE NOUVELLE CURE ═════════ */}
+      <Dialog open={isRenewModalOpen} onOpenChange={setIsRenewModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto pretty-scroll p-5 sm:p-6 space-y-4">
+          <DialogHeader className="space-y-1.5 text-left border-b border-border/60 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="grid size-8 place-items-center rounded-xl bg-gold/15 text-gold-text">
+                <RefreshCw className="size-4 animate-spin-reverse" />
+              </span>
+              <DialogTitle className="font-heading text-lg font-black text-foreground">
+                Évolution de l&apos;Ordonnance · Nouvelle Cure #{(prescriptionData.cureNumber || 1) + 1}
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground">
+              L&apos;ordonnance active actuelle (Cure #{prescriptionData.cureNumber || 1}) sera automatiquement archivée dans l&apos;historique sans jamais être écrasée. Indiquez le sort de chaque soin actuel pour guider la cliente.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Étape 1 : Motif de l'évolution */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-foreground">
+              1. Pourquoi le protocole évolue-t-il aujourd&apos;hui ?
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                "Bilan de contrôle à S+3",
+                "Changement de saison (Harmattan / Saison sèche)",
+                "Changement de saison (Humidité / Saison des pluies)",
+                "Objectif atteint (Passage en entretien)",
+                "Grossesse / Maternité",
+                "Sensibilité / Réaction cutanée",
+                "custom",
+              ].map((reasonKey) => {
+                const label = reasonKey === "custom" ? "✏️ Autre motif..." : reasonKey;
+                const isSelected = renewReason === reasonKey;
+                return (
+                  <button
+                    key={reasonKey}
+                    type="button"
+                    onClick={() => setRenewReason(reasonKey)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer",
+                      isSelected
+                        ? "bg-gold text-[#18120C] border-gold font-bold shadow-xs"
+                        : "bg-muted/50 text-muted-foreground border-border hover:bg-muted"
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            {renewReason === "custom" && (
+              <Input
+                type="text"
+                placeholder="Précisez le motif d'évolution de la routine..."
+                value={customRenewReason}
+                onChange={(e) => setCustomRenewReason(e.target.value)}
+                className="h-8 text-xs mt-1.5"
+              />
+            )}
+          </div>
+
+          {/* Étape 2 : Évolution du score vitalité */}
+          <div className="rounded-xl border border-border/80 bg-muted/30 p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <span className="font-bold text-foreground">
+              2. Évolution constatée de la vitalité cutanée :
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Score précédent :</span>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={renewPrevScore}
+                onChange={(e) => setRenewPrevScore(Number(e.target.value))}
+                className="h-7 w-16 text-xs text-center font-bold"
+              />
+              <ArrowRight className="size-3.5 text-gold" />
+              <span className="text-muted-foreground">Nouveau score :</span>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={renewNextScore}
+                onChange={(e) => setRenewNextScore(Number(e.target.value))}
+                className="h-7 w-16 text-xs text-center font-bold text-emerald-600 dark:text-emerald-400"
+              />
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                {renewNextScore > renewPrevScore ? `(+${renewNextScore - renewPrevScore} pts)` : ""}
+              </span>
+            </div>
+          </div>
+
+          {/* Étape 3 : Transition des produits existants */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-foreground">
+                3. Que devient chaque soin de l&apos;ancienne ordonnance ?
+              </label>
+              <span className="text-[11px] text-muted-foreground">
+                {transitionProducts.length} produit{transitionProducts.length > 1 ? "s" : ""} à statuer
+              </span>
+            </div>
+
+            {transitionProducts.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic border border-dashed rounded-xl p-3 text-center">
+                Aucun produit dans l&apos;ordonnance précédente. Vous pourrez en ajouter directement.
+              </p>
+            ) : (
+              <div className="space-y-2.5">
+                {transitionProducts.map((item, idx) => {
+                  return (
+                    <div
+                      key={idx}
+                      className={cn(
+                        "rounded-xl border p-3 space-y-2 transition-colors",
+                        item.action === "keep"
+                          ? "border-emerald-500/30 bg-emerald-500/5"
+                          : item.action === "replace"
+                          ? "border-amber-500/40 bg-amber-500/5"
+                          : "border-rose-500/30 bg-rose-500/5 opacity-70"
+                      )}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-xs text-foreground">{item.original.name}</p>
+                          <p className="text-[11px] text-muted-foreground">{item.original.posology} · ({item.original.moment})</p>
+                        </div>
+
+                        {/* Sélecteur d'action en 3 boutons */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = [...transitionProducts];
+                              next[idx] = { ...next[idx], action: "keep" };
+                              setTransitionProducts(next);
+                            }}
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 border transition-all cursor-pointer",
+                              item.action === "keep"
+                                ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                                : "bg-background text-muted-foreground border-border hover:bg-muted"
+                            )}
+                          >
+                            <CheckCircle className="size-3" />
+                            <span>Conserver</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = [...transitionProducts];
+                              next[idx] = { ...next[idx], action: "replace" };
+                              setTransitionProducts(next);
+                            }}
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 border transition-all cursor-pointer",
+                              item.action === "replace"
+                                ? "bg-amber-600 text-white border-amber-600 shadow-xs"
+                                : "bg-background text-muted-foreground border-border hover:bg-muted"
+                            )}
+                          >
+                            <RefreshCw className="size-3" />
+                            <span>Remplacer</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = [...transitionProducts];
+                              next[idx] = { ...next[idx], action: "stop" };
+                              setTransitionProducts(next);
+                            }}
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 border transition-all cursor-pointer",
+                              item.action === "stop"
+                                ? "bg-rose-600 text-white border-rose-600 shadow-xs"
+                                : "bg-background text-muted-foreground border-border hover:bg-muted"
+                            )}
+                          >
+                            <XCircle className="size-3" />
+                            <span>Arrêter</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Si action === 'replace', champ pour choisir le remplaçant */}
+                      {item.action === "replace" && (
+                        <div className="rounded-lg bg-background p-2.5 border border-amber-500/30 space-y-2 mt-2">
+                          <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                            Choisir le nouveau soin remplaçant :
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {instituteProducts.length > 0 && (
+                              <select
+                                defaultValue=""
+                                onChange={(e) => {
+                                  const prodId = e.target.value;
+                                  if (!prodId) return;
+                                  const sel = instituteProducts.find((p: any) => p.id === prodId);
+                                  if (sel) {
+                                    const next = [...transitionProducts];
+                                    next[idx] = {
+                                      ...next[idx],
+                                      replacementProductId: sel.id,
+                                      replacementName: sel.name,
+                                      replacementCategory: sel.category,
+                                      replacementPrice: sel.price,
+                                      replacementPhotoUrl: sel.hasPhoto ? `/api/media/product/${sel.id}` : sel.image,
+                                    };
+                                    setTransitionProducts(next);
+                                  }
+                                }}
+                                className="h-8 rounded-md border border-border bg-background px-2 text-xs font-semibold cursor-pointer w-full"
+                              >
+                                <option value="">Choisir dans le catalogue...</option>
+                                {instituteProducts.map((p: any) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.name} · {xof(p.price)}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            <Input
+                              type="text"
+                              placeholder="Ou saisir le nom du soin remplaçant..."
+                              value={item.replacementName || ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const next = [...transitionProducts];
+                                next[idx] = { ...next[idx], replacementName: val };
+                                setTransitionProducts(next);
+                              }}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <Input
+                            type="text"
+                            placeholder="Motif de remplacement (ex : imperfections résorbées, passage à l'éclat)..."
+                            value={item.note || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const next = [...transitionProducts];
+                              next[idx] = { ...next[idx], note: val };
+                              setTransitionProducts(next);
+                            }}
+                            className="h-7 text-xs bg-muted/40"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="border-t border-border/60 pt-3 flex flex-row items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsRenewModalOpen(false)}
+              className="text-xs h-9 cursor-pointer"
+            >
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleConfirmNewCure}
+              className="text-xs h-9 k-btn-gold text-[#18120C] font-black gap-1.5 shadow-md cursor-pointer"
+            >
+              <Check className="size-4" />
+              <span>Activer la Cure #{(prescriptionData.cureNumber || 1) + 1} &amp; Transmettre</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Visionneuse HD plein écran */}
       <PhotoLightboxModal
