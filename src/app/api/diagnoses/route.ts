@@ -204,12 +204,14 @@ export async function GET(req: NextRequest) {
     // Récupération de la routine quotidienne prescrite par l'institut (cosmeticsUsed)
     let cosmeticsUsed: string | null = null;
     let instituteName: string | null = null;
+    let tenantId: string | null = null;
 
     if (userRecord && profiles.length > 0) {
       const withRoutine = profiles.find((p) => p.cosmeticsUsed && p.cosmeticsUsed.trim() !== "");
       if (withRoutine) {
         cosmeticsUsed = withRoutine.cosmeticsUsed;
         instituteName = withRoutine.tenant.name;
+        tenantId = withRoutine.tenantId;
         // Rapprochement automatique s'il manquait
         if (!withRoutine.userId) {
           await db.clientProfile.update({
@@ -219,6 +221,7 @@ export async function GET(req: NextRequest) {
         }
       } else {
         instituteName = profiles[0].tenant.name;
+        tenantId = profiles[0].tenantId;
       }
     }
 
@@ -247,6 +250,7 @@ export async function GET(req: NextRequest) {
       diagnoses,
       cosmeticsUsed,
       instituteName,
+      tenantId,
     });
   } catch (err) {
     return serverError("diagnoses:get", err);

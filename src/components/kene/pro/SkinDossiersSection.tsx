@@ -8,7 +8,8 @@ import {
   FlaskConical, Save, FileDown, MessageCircle, CheckCircle2, Phone,
   SlidersHorizontal, Eye, ShieldAlert, Sun, Moon, ArrowLeft,
   Calendar, Lock, Layers, Droplets, Camera, Check, Plus, AlertTriangle,
-  Smartphone, Stethoscope, FileClock, Clock, UserCheck, Info, Users
+  Smartphone, Stethoscope, FileClock, Clock, UserCheck, Info, Users,
+  ShoppingBag, Sparkle, Trash2, CalendarCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { BissapFlowerIcon, CauriIcon, SankofaIcon } from "@/components/kene/icons";
@@ -35,6 +36,14 @@ import { EmptyState, ErrorState, InitialAvatar, SectionHeader, KenteTop } from "
 import { proToastError } from "./ProApp";
 import { DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
 import { formatPhoneDisplay } from "@/lib/kene/phone-normalize";
+import {
+  parseStructuredPrescription,
+  serializeStructuredPrescription,
+  buildPrescriptionWhatsAppSummary,
+  type PrescribedProductItem,
+  type PrescribedCabineServiceItem,
+  type StructuredPrescription,
+} from "@/lib/kene/prescription-schema";
 import type { ProClient, ProClientDetail, ProDiagnosisItem } from "./types";
 
 interface Props {
@@ -436,9 +445,24 @@ function ClientSkinDossierDetail({
   const [productObservations, setProductObservations] = useState("");
   const [obsBusy, setObsBusy] = useState(false);
 
-  // Routine à domicile
+  // Routine à domicile & Ordonnance Structurée Hybride (Produits Domicile + Soins Cabine)
   const [cosmeticsUsed, setCosmeticsUsed] = useState("");
+  const [prescriptionData, setPrescriptionData] = useState<StructuredPrescription>({
+    version: 2,
+    prescribedAt: new Date().toISOString(),
+    products: [],
+    cabineServices: [],
+    notes: "",
+  });
   const [cosmeticsBusy, setCosmeticsBusy] = useState(false);
+
+  // Catalogue de l'institut (Produits & Soins) pour sélection en 1 clic
+  const catalogApi = useApi<{ services: any[]; products: any[] }>(
+    () => (tenantId ? apiGet<{ services: any[]; products: any[] }>(`/api/pro/catalog?tenantId=${tenantId}`) : Promise.resolve({ services: [], products: [] })),
+    [tenantId]
+  );
+  const instituteProducts = catalogApi.data?.products ?? [];
+  const instituteServices = catalogApi.data?.services ?? [];
 
   // Identité cutanée modifiable
   const [skinType, setSkinType] = useState<string>("mixte");
@@ -468,6 +492,7 @@ function ClientSkinDossierDetail({
     if (c) {
       setProductObservations(c.productObservations ?? "");
       setCosmeticsUsed(c.cosmeticsUsed ?? "");
+      setPrescriptionData(parseStructuredPrescription(c.cosmeticsUsed));
       setSkinType(c.skinType ?? "mixte");
       setFitzpatrick(c.fitzpatrick ?? "V");
       setPregnant(Boolean(c.pregnant));
@@ -493,23 +518,38 @@ function ClientSkinDossierDetail({
     }
   }
 
-  // Sauvegarde de la routine quotidienne
-  async function saveCosmeticsUsed() {
+  // Sauvegarde de l'ordonnance beauté structurée
+  async function saveStructuredPrescription(updatedPrescription?: StructuredPrescription) {
+    const pToSave = updatedPrescription ?? prescriptionData;
     setCosmeticsBusy(true);
     try {
-      await apiPatch(`/api/pro/clients/${clientId}?tenantId=${tenantId}`, {
-        cosmeticsUsed: cosmeticsUsed.trim() || null,
+      const serialized = serializeStructuredPrescription({
+        ...pToSave,
+        prescribedAt: new Date().toISOString(),
+        tenantId,
       });
-      toast.success("Routine cosmétique enregistrée", {
-        description: "Les produits appliqués à domicile par la cliente sont conservés au dossier.",
+
+      await apiPatch(`/api/pro/clients/${clientId}?tenantId=${tenantId}`, {
+        cosmeticsUsed: serialized,
+      });
+
+      setCosmeticsUsed(serialized);
+      setPrescriptionData(pToSave);
+      toast.success("Ordonnance Beauté & Soins Cabine enregistrée !", {
+        description: "Transmise en temps réel sur l'application de la cliente.",
       });
       detail.refetch();
       onRefreshList?.();
     } catch (e) {
-      proToastError(e, "Enregistrement impossible");
+      proToastError(e, "Enregistrement de l'ordonnance impossible");
     } finally {
       setCosmeticsBusy(false);
     }
+  }
+
+  // Sauvegarde de la routine quotidienne (texte libre)
+  async function saveCosmeticsUsed() {
+    return saveStructuredPrescription();
   }
 
   // Sauvegarde des caractéristiques de peau (Phototype, Type, Grossesse)
@@ -1390,193 +1430,482 @@ function ClientSkinDossierDetail({
           )}
         </TabsContent>
 
-        {/* ═════════ 5. ORDONNANCE BEAUTÉ & COSMÉTOVIGILANCE ═════════ */}
-        <TabsContent value="prescription" className="mt-4 space-y-4">
-          {/* Bloc d'édition et synchronisation directe de l'ordonnance officielle */}
-          <Card className="border-border bg-card p-4 sm:p-5 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Leaf className="size-5 text-[#C8951E]" />
-                <div>
-                  <h4 className="font-heading text-sm font-bold text-foreground">
-                    Ordonnance Beauté &amp; Routine Personnalisée
+        {/* ═════════ 5. ORDONNANCE BEAUTÉ & SOINS CABINE HYBRIDE ═════════ */}
+        <TabsContent value="prescription" className="mt-4 space-y-5">
+          {/* En-tête Ordonnance Officielle */}
+          <div className="k-obsidian-luxury p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="grid size-11 place-items-center rounded-2xl bg-[#D49A24]/20 border border-[#D49A24]/40 text-[#F3D98A] shadow-inner shrink-0">
+                <Leaf className="size-5" />
+              </span>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-heading text-base font-black text-[#FFF9EC]">
+                    Ordonnance Dermo-Esthétique &amp; Soins Cabine
                   </h4>
+                  <Badge variant="outline" className="border-[#D49A24]/40 bg-[#D49A24]/15 text-[#F3D98A] text-[10px] font-bold">
+                    ✨ Connectée App Cliente
+                  </Badge>
+                </div>
+                <p className="text-xs text-[#E6D5B8]/80 mt-0.5">
+                  Prescrite pour {c.name} · Visible en temps réel sur son smartphone dans « Dossier peau » et « Soin &amp; rdv »
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
+              {c?.phone && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const msg = buildPrescriptionWhatsAppSummary(c.name, prescriptionData);
+                    openWhatsApp(c.phone, msg);
+                  }}
+                  className="text-xs h-8.5 gap-1.5 bg-[#25D366]/20 text-[#25D366] hover:bg-[#25D366]/30 border-[#25D366]/40 cursor-pointer font-bold"
+                >
+                  <MessageCircle className="size-3.5" /> WhatsApp
+                </Button>
+              )}
+              <a
+                href={`/api/diagnoses/prescription?userId=${encodeURIComponent(c.userId || c.id)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-md border border-white/20 bg-white/10 hover:bg-white/20 text-xs font-semibold text-[#FFF9EC] transition-colors"
+              >
+                <FileDown className="size-3.5" /> PDF Officiel
+              </a>
+              <Button
+                size="sm"
+                onClick={() => void saveStructuredPrescription()}
+                disabled={cosmeticsBusy}
+                className="text-xs h-8.5 gap-1.5 k-btn-gold text-[#18120C] font-black shadow-md cursor-pointer"
+              >
+                <Save className="size-3.5" />
+                {cosmeticsBusy ? "Transmission…" : "Transmettre l'Ordonnance"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Section 1 : Produits Cosmétiques Prescrits (Domicile) */}
+          <Card className="border-border bg-card p-4 sm:p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-9 place-items-center rounded-xl bg-amber-500/15 text-amber-500 shrink-0">
+                  <ShoppingBag className="size-4.5" />
+                </span>
+                <div>
+                  <h5 className="font-heading text-sm font-bold text-foreground">
+                    1. Produits Cosmétiques Prescrits à Domicile
+                  </h5>
                   <p className="text-xs text-muted-foreground">
-                    Accessible directement par {c.name} sur son compte Kènè dans &laquo; Mon Dossier &raquo;
+                    Soins matin, soir ou hebdomadaires que la cliente doit appliquer au quotidien
                   </p>
                 </div>
               </div>
 
-              {/* Modèles express */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    const template = `[ORDONNANCE BEAUTÉ & ROUTINE ÉCLAT MÉLANODERME]
-☀️ MATIN :
-1. Nettoyage doux au savon surgras ou infusion tonique de Kinkeliba
-2. Sérum antioxydant à l'Hibiscus & Niacinamide 5% (anti-taches doux)
-3. Fluide hydratant au Moringa & Bouclier solaire SPF50 invisible
-
-🌙 SOIR :
-1. Démaquillage à l'huile pure de Balanites (dissolution sébum & filtres UV)
-2. Soin unifiant ciblé sur les taches d'hyperpigmentation (PIH)
-3. Scellement barrière au Karité brut pur bio non raffiné`;
-                    setCosmeticsUsed(template);
-                    toast.info("Modèle Éclat inséré", { description: "Pensez à cliquer sur Enregistrer l'Ordonnance." });
-                  }}
-                  className="text-xs h-7.5 gap-1 border-gold/40 text-gold-text hover:bg-gold/10"
-                >
-                  <Sparkles className="size-3" /> Modèle Éclat
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    const template = `[ORDONNANCE BEAUTÉ & ROUTINE NUTRITION & CONFORT]
-☀️ MATIN :
-1. Eau florale apaisante ou nettoyant crémeux sans sulfate
-2. Sérum hydratant à l'Aloe Vera & Glycérine végétale
-3. Crème riche au Beurre de Mangue & Écran solaire SPF50 fluide
-
-🌙 SOIR :
-1. Nettoyage délicat à l'huile d'Avocat ou Balanites
-2. Élixir régénérant Karité brut & Huile de Baobab bio
-3. Masque de nuit réparateur barrière lipidique`;
-                    setCosmeticsUsed(template);
-                    toast.info("Modèle Nutrition inséré", { description: "Pensez à cliquer sur Enregistrer l'Ordonnance." });
-                  }}
-                  className="text-xs h-7.5 gap-1 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10"
-                >
-                  <Droplets className="size-3" /> Modèle Nutrition
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    const template = `[ORDONNANCE BEAUTÉ & ROUTINE PURETÉ MATITÉ]
-☀️ MATIN :
-1. Gel moussant doux purifiant au Neem ou Kinkeliba
-2. Sérum rééquilibrant Zinc & Niacinamide (sébo-régulateur)
-3. Fluide matifiant au Balanites & Filtre solaire SPF50 toucher sec
-
-🌙 SOIR :
-1. Double nettoyage doux à l'huile de Jojoba non comédogène
-2. Soin ciblé purifiant anti-imperfections et micro-kystes
-3. Gelée hydratante légère apaisante sans huile occlusive`;
-                    setCosmeticsUsed(template);
-                    toast.info("Modèle Pureté inséré", { description: "Pensez à cliquer sur Enregistrer l'Ordonnance." });
-                  }}
-                  className="text-xs h-7.5 gap-1 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
-                >
-                  <Leaf className="size-3" /> Modèle Pureté
-                </Button>
-              </div>
-            </div>
-
-            <Textarea
-              rows={6}
-              value={cosmeticsUsed}
-              onChange={(e) => setCosmeticsUsed(e.target.value)}
-              placeholder="Rédigez ici la prescription personnalisée pour la cliente (soins matin, soir, posologie, conseils d'application)..."
-              className="text-xs leading-relaxed font-sans bg-background/80"
-            />
-
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60">
-              <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                <CheckCircle2 className="size-3.5 text-emerald-500" />
-                Synchronisé sur le dossier de la cliente en temps réel
-              </span>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                {c?.phone && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const routineText = cosmeticsUsed?.trim()
-                        ? `\n\n🌿 *VOTRE ORDONNANCE & ROUTINE :*\n${cosmeticsUsed.trim()}`
-                        : "";
-                      const msg = `Bonjour ${c.name} ✨,\nVoici votre ordonnance beauté et routine dermo-cosmétique prescrite par votre institut Kènè.${routineText}\n\nRetrouvez votre ordonnance complète et vos bilans sur votre espace beauté : https://kene-beaute.com`;
-                      openWhatsApp(c.phone, msg);
+              {/* Sélecteur rapide depuis le catalogue de l'institut */}
+              {instituteProducts.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <select
+                    defaultValue=""
+                    onChange={(e) => {
+                      const prodId = e.target.value;
+                      if (!prodId) return;
+                      const selected = instituteProducts.find((p: any) => p.id === prodId);
+                      if (selected) {
+                        const newItem: PrescribedProductItem = {
+                          productId: selected.id,
+                          name: selected.name,
+                          category: selected.category,
+                          price: selected.price,
+                          moment: "matin_soir",
+                          posology: "Appliquer délicatement sur peau propre et légèrement humide",
+                          botanicals: selected.botanicals,
+                          photoUrl: selected.hasPhoto ? `/api/media/product/${selected.id}` : selected.image,
+                        };
+                        setPrescriptionData((prev) => ({
+                          ...prev,
+                          products: [...prev.products, newItem],
+                        }));
+                        toast.success(`${selected.name} ajouté à l'ordonnance`);
+                      }
+                      e.target.value = "";
                     }}
-                    className="text-xs h-8 gap-1.5 bg-[#25D366]/15 text-[#128C7E] dark:text-[#25D366] border-[#25D366]/30 hover:bg-[#25D366]/25"
+                    className="h-8.5 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold cursor-pointer"
                   >
-                    <MessageCircle className="size-3.5" /> WhatsApp
-                  </Button>
-                )}
+                    <option value="">+ Ajouter un produit du salon...</option>
+                    {instituteProducts.map((p: any) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} · {xof(p.price)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
 
-                <a
-                  href={`/api/diagnoses/prescription?userId=${encodeURIComponent(c.userId || c.id)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-card hover:bg-muted text-xs font-semibold text-foreground transition-colors"
+            {/* Liste des produits prescrits */}
+            {prescriptionData.products.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border/80 p-4 text-center space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Aucun produit cosmétique sélectionné dans cette ordonnance.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const fallbackItem: PrescribedProductItem = {
+                      name: "Sérum Anti-Taches & Éclat Hibiscus",
+                      moment: "matin",
+                      posology: "3 gouttes le matin avant le fluide hydratant",
+                      price: 15000,
+                    };
+                    setPrescriptionData((prev) => ({ ...prev, products: [...prev.products, fallbackItem] }));
+                  }}
+                  className="text-xs h-7.5 gap-1 text-gold-text border-gold/40"
                 >
-                  <FileDown className="size-3.5" /> PDF Officiel
-                </a>
+                  <Plus className="size-3" /> Ajouter un produit libre
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {prescriptionData.products.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-2xl border border-border/80 bg-muted/20 flex flex-col md:flex-row md:items-center justify-between gap-3"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <span className="grid size-9 place-items-center rounded-xl bg-gold/15 text-gold-text font-black text-xs shrink-0 mt-0.5">
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPrescriptionData((prev) => {
+                                const next = [...prev.products];
+                                next[idx] = { ...next[idx], name: val };
+                                return { ...prev, products: next };
+                              });
+                            }}
+                            className="font-heading font-black text-xs sm:text-sm text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-gold outline-none"
+                            placeholder="Nom du produit..."
+                          />
+                          {item.price ? (
+                            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                              {xof(item.price)}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap text-xs">
+                          <span className="text-[11px] font-semibold text-muted-foreground">Moment :</span>
+                          <select
+                            value={item.moment}
+                            onChange={(e) => {
+                              const val = e.target.value as any;
+                              setPrescriptionData((prev) => {
+                                const next = [...prev.products];
+                                next[idx] = { ...next[idx], moment: val };
+                                return { ...prev, products: next };
+                              });
+                            }}
+                            className="h-7 rounded-md border border-input bg-background px-2 text-[11px] font-bold cursor-pointer"
+                          >
+                            <option value="matin">☀️ Matin</option>
+                            <option value="soir">🌙 Soir</option>
+                            <option value="matin_soir">☀️🌙 Matin &amp; Soir</option>
+                            <option value="hebdo">✨ Hebdomadaire (1 à 2x)</option>
+                          </select>
+                        </div>
+
+                        <div className="pt-1">
+                          <input
+                            type="text"
+                            value={item.posology}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPrescriptionData((prev) => {
+                                const next = [...prev.products];
+                                next[idx] = { ...next[idx], posology: val };
+                                return { ...prev, products: next };
+                              });
+                            }}
+                            placeholder="Posologie & conseils d'application (ex: 3 gouttes avant la crème)..."
+                            className="w-full text-xs text-muted-foreground bg-transparent border-b border-border/40 focus:border-gold outline-none py-0.5"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setPrescriptionData((prev) => ({
+                          ...prev,
+                          products: prev.products.filter((_, i) => i !== idx),
+                        }));
+                      }}
+                      className="text-destructive hover:bg-destructive/10 h-7 px-2 shrink-0 self-end md:self-center"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
 
                 <Button
                   size="sm"
-                  onClick={() => void saveCosmeticsUsed()}
-                  disabled={cosmeticsBusy}
-                  className="text-xs h-8 gap-1.5 k-btn-gold text-primary-foreground font-bold shadow-xs"
+                  variant="outline"
+                  onClick={() => {
+                    const customItem: PrescribedProductItem = {
+                      name: "Nouveau produit prescrit",
+                      moment: "matin_soir",
+                      posology: "Appliquer matin et soir sur peau propre",
+                    };
+                    setPrescriptionData((prev) => ({ ...prev, products: [...prev.products, customItem] }));
+                  }}
+                  className="text-xs h-8 gap-1 text-gold-text border-gold/40"
                 >
-                  <Save className="size-3.5" />
-                  {cosmeticsBusy ? "Enregistrement…" : "Enregistrer l'Ordonnance"}
+                  <Plus className="size-3" /> Ajouter un autre produit
                 </Button>
               </div>
-            </div>
+            )}
           </Card>
 
+          {/* Section 2 : Soins Esthétiques Prescrits en Cabine (Cure Institut) */}
           <Card className="border-border bg-card p-4 sm:p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Leaf className="size-5 text-[#C8951E]" />
-                <h4 className="font-heading text-sm font-bold text-foreground">Pharmacopée Active &amp; Rituels Botaniques</h4>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-9 place-items-center rounded-xl bg-indigo-500/15 text-indigo-500 shrink-0">
+                  <CalendarCheck className="size-4.5" />
+                </span>
+                <div>
+                  <h5 className="font-heading text-sm font-bold text-foreground">
+                    2. Soins Esthétiques Prescrits en Cabine (Cure Salon)
+                  </h5>
+                  <p className="text-xs text-muted-foreground">
+                    Séances à réaliser en institut, rythme conseillé et objectifs cutanés ciblés
+                  </p>
+                </div>
               </div>
-              <Badge variant="outline" className="text-xs font-bold border-gold/30 text-gold-text bg-gold/10">
-                Protocole Dermo-Compatible
-              </Badge>
+
+              {/* Sélecteur rapide depuis les soins de l'institut */}
+              {instituteServices.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <select
+                    defaultValue=""
+                    onChange={(e) => {
+                      const servId = e.target.value;
+                      if (!servId) return;
+                      const selected = instituteServices.find((s: any) => s.id === servId);
+                      if (selected) {
+                        const newCabine: PrescribedCabineServiceItem = {
+                          serviceId: selected.id,
+                          name: selected.name,
+                          category: selected.category,
+                          price: selected.price,
+                          durationMin: selected.durationMin,
+                          frequency: "1 séance toutes les 2 à 3 semaines",
+                          sessionsCount: 3,
+                          objective: "Purification en profondeur & régénération mélanique",
+                          photoUrl: selected.hasPhoto ? `/api/media/service/${selected.id}` : undefined,
+                        };
+                        setPrescriptionData((prev) => ({
+                          ...prev,
+                          cabineServices: [...prev.cabineServices, newCabine],
+                        }));
+                        toast.success(`${selected.name} ajouté aux soins cabine prescrits`);
+                      }
+                      e.target.value = "";
+                    }}
+                    className="h-8.5 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold cursor-pointer"
+                  >
+                    <option value="">+ Ajouter un soin cabine du salon...</option>
+                    {instituteServices.map((s: any) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.durationMin} min) · {xof(s.price)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
-            {/* Rituels Matin & Soir */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3.5 rounded-xl bg-card border border-border space-y-2">
-                <p className="font-bold text-amber-500 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-                  <Sun className="size-3.5" /> Matin (Protection Anti-Pollution &amp; UV)
+            {/* Liste des soins cabine prescrits */}
+            {prescriptionData.cabineServices.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border/80 p-4 text-center space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Aucun soin en cabine prescrit dans cette ordonnance.
                 </p>
-                <ul className="space-y-1.5 text-muted-foreground text-[11px] list-disc pl-4">
-                  <li>Nettoyage doux au savon surgras ou infusion de Kinkeliba</li>
-                  <li>Sérum antioxydant à l&apos;Hibiscus et Niacinamide 5%</li>
-                  <li>Protection solaire SPF50 fluide garantie sans traces blanches</li>
-                </ul>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const fallbackSoin: PrescribedCabineServiceItem = {
+                      name: "Soin Cabine Dermo-Purifiant & Hydratation Prodonde",
+                      frequency: "1 séance / mois",
+                      sessionsCount: 1,
+                      durationMin: 60,
+                      price: 25000,
+                    };
+                    setPrescriptionData((prev) => ({ ...prev, cabineServices: [...prev.cabineServices, fallbackSoin] }));
+                  }}
+                  className="text-xs h-7.5 gap-1 text-indigo-400 border-indigo-500/40"
+                >
+                  <Plus className="size-3" /> Ajouter un soin cabine libre
+                </Button>
               </div>
+            ) : (
+              <div className="space-y-3">
+                {prescriptionData.cabineServices.map((srv, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-2xl border border-indigo-500/25 bg-indigo-500/5 flex flex-col md:flex-row md:items-center justify-between gap-3"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <span className="grid size-9 place-items-center rounded-xl bg-indigo-500/20 text-indigo-400 font-black text-xs shrink-0 mt-0.5">
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <input
+                            type="text"
+                            value={srv.name}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPrescriptionData((prev) => {
+                                const next = [...prev.cabineServices];
+                                next[idx] = { ...next[idx], name: val };
+                                return { ...prev, cabineServices: next };
+                              });
+                            }}
+                            className="font-heading font-black text-xs sm:text-sm text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-indigo-400 outline-none"
+                            placeholder="Nom du soin en cabine..."
+                          />
+                          {srv.durationMin ? (
+                            <Badge variant="outline" className="text-[10.5px] border-border text-muted-foreground font-semibold">
+                              ⏱️ {srv.durationMin} min
+                            </Badge>
+                          ) : null}
+                          {srv.price ? (
+                            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                              {xof(srv.price)}
+                            </span>
+                          ) : null}
+                        </div>
 
-              <div className="p-3.5 rounded-xl bg-card border border-border space-y-2">
-                <p className="font-bold text-indigo-400 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-                  <Moon className="size-3.5" /> Soir (Régénération &amp; Unification)
-                </p>
-                <ul className="space-y-1.5 text-muted-foreground text-[11px] list-disc pl-4">
-                  <li>Démaquillage à l&apos;huile pure de Balanites pour dissoudre les impuretés</li>
-                  <li>Soin ciblé anti-taches formulé pour peau mélanoderme</li>
-                  <li>Scellement barrière au Karité brut pur bio non raffiné</li>
-                </ul>
+                        <div className="flex items-center gap-3 flex-wrap text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-semibold text-muted-foreground">Rythme :</span>
+                            <input
+                              type="text"
+                              value={srv.frequency}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setPrescriptionData((prev) => {
+                                  const next = [...prev.cabineServices];
+                                  next[idx] = { ...next[idx], frequency: val };
+                                  return { ...prev, cabineServices: next };
+                                });
+                              }}
+                              placeholder="ex: 1 séance toutes les 2 semaines"
+                              className="h-6.5 rounded-md border border-input bg-background px-2 text-[11px] font-bold"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-semibold text-muted-foreground">Cure de :</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={12}
+                              value={srv.sessionsCount || 1}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10) || 1;
+                                setPrescriptionData((prev) => {
+                                  const next = [...prev.cabineServices];
+                                  next[idx] = { ...next[idx], sessionsCount: val };
+                                  return { ...prev, cabineServices: next };
+                                });
+                              }}
+                              className="h-6.5 w-14 rounded-md border border-input bg-background px-2 text-[11px] font-bold text-center"
+                            />
+                            <span className="text-[11px] text-muted-foreground">séance(s)</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-1">
+                          <input
+                            type="text"
+                            value={srv.objective || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPrescriptionData((prev) => {
+                                const next = [...prev.cabineServices];
+                                next[idx] = { ...next[idx], objective: val };
+                                return { ...prev, cabineServices: next };
+                              });
+                            }}
+                            placeholder="Objectif du soin cabine (ex: Désincrustation douce et élimination comédons)..."
+                            className="w-full text-xs text-muted-foreground bg-transparent border-b border-border/40 focus:border-indigo-400 outline-none py-0.5"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setPrescriptionData((prev) => ({
+                          ...prev,
+                          cabineServices: prev.cabineServices.filter((_, i) => i !== idx),
+                        }));
+                      }}
+                      className="text-destructive hover:bg-destructive/10 h-7 px-2 shrink-0 self-end md:self-center"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const customSoin: PrescribedCabineServiceItem = {
+                      name: "Soin Visage Sur-Mesure",
+                      frequency: "1 séance par mois",
+                      sessionsCount: 3,
+                    };
+                    setPrescriptionData((prev) => ({ ...prev, cabineServices: [...prev.cabineServices, customSoin] }));
+                  }}
+                  className="text-xs h-8 gap-1 text-indigo-400 border-indigo-500/40"
+                >
+                  <Plus className="size-3" /> Ajouter un autre soin cabine
+                </Button>
               </div>
-            </div>
+            )}
+          </Card>
 
-            {/* Cosmétovigilance anti-dépigmentation */}
-            <div className="p-3.5 rounded-xl bg-[#8B1A3B]/10 border border-[#8B1A3B]/30 text-xs space-y-1.5">
-              <p className="font-bold text-[#8B1A3B] dark:text-[#E89E78] flex items-center gap-1.5">
-                <ShieldAlert className="size-4" /> Règles de Vigilance &amp; Sécurité Cutanée Kènè
-              </p>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Interdiction formelle de tout produit dépigmentant (hydroquinone, corticoïdes, mercure). En cas de rougeur ou
-                d&apos;intolérance à un composant, consigner l&apos;événement dans le Cahier de formulation et suspendre l&apos;actif.
-              </p>
-            </div>
+          {/* Section 3 : Consignes & Vigilance de la Dermo-Conseillère */}
+          <Card className="border-border bg-card p-4 sm:p-5 space-y-3">
+            <h5 className="font-heading text-sm font-bold text-foreground flex items-center gap-2">
+              <FlaskConical className="size-4 text-emerald-500" />
+              <span>3. Recommandations Particulières &amp; Vigilance</span>
+            </h5>
+            <Textarea
+              rows={3}
+              value={prescriptionData.notes || ""}
+              onChange={(e) => setPrescriptionData((prev) => ({ ...prev, notes: e.target.value }))}
+              placeholder="Conseils de la praticienne (ex : Éviter l'exposition directe au soleil entre 12h et 16h, appliquer l'huile de Balanites uniquement le soir sur peau humide)..."
+              className="text-xs leading-relaxed font-sans bg-background/80"
+            />
           </Card>
         </TabsContent>
       </Tabs>

@@ -57,7 +57,8 @@ import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { SkinHealthDashboard } from "./SkinHealthDashboard";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 import { LinkAccountModal } from "./LinkAccountModal";
-import { BookmarkCheck } from "lucide-react";
+import { BookmarkCheck, CalendarCheck, ShoppingBag } from "lucide-react";
+import { parseStructuredPrescription, type StructuredPrescription } from "@/lib/kene/prescription-schema";
 
 interface Props {
   diagnoses?: ApiDiagnosis[];
@@ -90,9 +91,14 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   // Diagnoses gérées localement si non injectées depuis l'extérieur
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>(initialDiagnoses ?? []);
 
-  // Routine quotidienne prescrite par l'institut (cosmeticsUsed)
+  // Routine quotidienne & Ordonnance Beauté structurée
   const [cosmeticsUsed, setCosmeticsUsed] = useState<string | null>(storeUser?.cosmeticsUsed ?? null);
   const [prescribedByTenant, setPrescribedByTenant] = useState<string | null>(storeUser?.prescribedByTenant ?? null);
+  const [prescribedTenantId, setPrescribedTenantId] = useState<string | null>(null);
+
+  const structuredPrescription: StructuredPrescription = useMemo(() => {
+    return parseStructuredPrescription(cosmeticsUsed, prescribedByTenant || undefined);
+  }, [cosmeticsUsed, prescribedByTenant]);
 
   useEffect(() => {
     if (storeUser?.cosmeticsUsed) setCosmeticsUsed(storeUser.cosmeticsUsed);
@@ -104,11 +110,12 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
       setDiagnoses(initialDiagnoses);
     }
     if (storeUser?.id) {
-      apiGet<{ diagnoses: ApiDiagnosis[]; cosmeticsUsed?: string | null; instituteName?: string | null }>(`/api/diagnoses?userId=${storeUser.id}`)
+      apiGet<{ diagnoses: ApiDiagnosis[]; cosmeticsUsed?: string | null; instituteName?: string | null; tenantId?: string | null }>(`/api/diagnoses?userId=${storeUser.id}`)
         .then((res) => {
           if (res?.diagnoses) setDiagnoses(res.diagnoses);
           if (res?.cosmeticsUsed) setCosmeticsUsed(res.cosmeticsUsed);
           if (res?.instituteName) setPrescribedByTenant(res.instituteName);
+          if (res?.tenantId) setPrescribedTenantId(res.tenantId);
         })
         .catch(() => {});
     }
@@ -671,55 +678,203 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
             </CardContent>
           </Card>
 
-          {/* ══════════ 1. ROUTINE QUOTIDIENNE PRESCRITE EN SALON (cosmeticsUsed) ══════════ */}
-          {cosmeticsUsed ? (
-            <Card className="rounded-[26px] border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-card to-card p-4 sm:p-5 space-y-4 shadow-md">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="grid size-10 place-items-center rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shadow-xs shrink-0">
-                    <Sun size={20} />
-                  </span>
-                  <div className="min-w-0">
-                    <h4 className="font-heading font-black text-base text-foreground truncate">
-                      Routine cosmétique quotidienne à domicile
-                    </h4>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {prescribedByTenant ? `Prescrite sur-mesure par ${prescribedByTenant}` : "Protocole de soins prescrit par votre dermo-conseillère"}
-                    </p>
+          {/* ══════════ 1. ORDONNANCE DERMO-ESTHÉTIQUE OFFICIELLE (PRODUITS + SOINS CABINE) ══════════ */}
+          {(structuredPrescription.products.length > 0 || structuredPrescription.cabineServices.length > 0 || structuredPrescription.notes || cosmeticsUsed) ? (
+            <div className="space-y-4">
+              {/* Carte Maîtresse Ordonnance Officielle */}
+              <div className="k-obsidian-luxury p-4 sm:p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-11 place-items-center rounded-2xl bg-[#D49A24]/20 border border-[#D49A24]/40 text-[#F3D98A] shadow-inner shrink-0">
+                      <Leaf className="size-5" />
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-heading text-base font-black text-[#FFF9EC]">
+                          Mon Ordonnance Dermo-Esthétique
+                        </h4>
+                        <Badge variant="outline" className="border-[#D49A24]/40 bg-[#D49A24]/15 text-[#F3D98A] text-[10px] font-bold">
+                          ✨ Prescrite en Institut
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-[#E6D5B8]/80 mt-0.5">
+                        {prescribedByTenant ? `Établie par l'équipe de « ${prescribedByTenant} »` : "Protocole dermo-cosmétique personnalisé"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <a
+                      href={`/api/diagnoses/prescription?userId=${encodeURIComponent(user.id)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 text-xs font-semibold text-[#FFF9EC] transition-colors"
+                    >
+                      <Download className="size-3.5" /> PDF Officiel
+                    </a>
+                    <Button
+                      size="sm"
+                      onClick={shareMySkinReportWhatsApp}
+                      className="h-8 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white text-xs font-bold gap-1.5 shadow-sm"
+                    >
+                      <MessageCircle className="size-3.5" /> Partager
+                    </Button>
                   </div>
                 </div>
-                <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-black uppercase tracking-wider shrink-0 gap-1 px-2.5 py-1">
-                  <Lock size={11} /> Lecture Seule
-                </Badge>
-              </div>
 
-              {/* Bloc de la routine exacte saisie côté salon */}
-              <div className="rounded-2xl border border-emerald-500/30 bg-card/90 p-4 space-y-3 shadow-xs">
-                <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                  <Sparkles size={14} />
-                  <span>Vos soins à appliquer quotidiennement chez vous :</span>
-                </div>
-                <div className="p-3.5 rounded-xl bg-muted/40 border border-border/60">
-                  <p className="whitespace-pre-line text-sm leading-relaxed text-foreground font-medium">
-                    {cosmeticsUsed}
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-border/60 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
-                    <ShieldCheck size={14} />
-                    Validé en institut par votre dermo-conseillère
-                  </span>
-                  <span className="text-[10px] opacity-75">Modifiable uniquement en salon</span>
-                </div>
+                {/* Volet 1 : Produits Cosmétiques Prescrits (Domicile) */}
+                {structuredPrescription.products.length > 0 ? (
+                  <div className="rounded-2xl border border-[#D49A24]/30 bg-black/30 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-black uppercase tracking-wider text-[#F3D98A] flex items-center gap-1.5">
+                        <ShoppingBag size={14} />
+                        <span>1. Produits cosmétiques prescrits pour chez vous ({structuredPrescription.products.length})</span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => onNavigateTab?.("boutique")}
+                        className="text-[11px] font-bold text-[#E5A93C] hover:underline cursor-pointer"
+                      >
+                        Voir la boutique →
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {structuredPrescription.products.map((prod, pIdx) => {
+                        const momentBadge =
+                          prod.moment === "matin"
+                            ? { label: "☀️ Matin", bg: "bg-amber-500/20 text-amber-300 border-amber-500/30" }
+                            : prod.moment === "soir"
+                            ? { label: "🌙 Soir", bg: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" }
+                            : prod.moment === "matin_soir"
+                            ? { label: "☀️🌙 Matin & Soir", bg: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" }
+                            : { label: "✨ Hebdo", bg: "bg-pink-500/20 text-pink-300 border-pink-500/30" };
+
+                        return (
+                          <div
+                            key={pIdx}
+                            className="p-3 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between gap-2"
+                          >
+                            <div className="space-y-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="font-heading font-black text-xs sm:text-sm text-[#FFF9EC] leading-tight">
+                                  {prod.name}
+                                </span>
+                                <Badge variant="outline" className={cn("text-[9.5px] px-2 py-0.5 font-bold shrink-0", momentBadge.bg)}>
+                                  {momentBadge.label}
+                                </Badge>
+                              </div>
+                              <p className="text-[11px] text-[#F5ECDD]/80 leading-relaxed font-sans">
+                                👉 {prod.posology}
+                              </p>
+                            </div>
+
+                            <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+                              {prod.price ? (
+                                <span className="text-xs font-black text-[#F3D98A] tabular-nums">
+                                  {xof(prod.price)}
+                                </span>
+                              ) : <span />}
+                              <Button
+                                size="sm"
+                                onClick={() => onNavigateTab?.("boutique")}
+                                className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold bg-[#D49A24]/30 hover:bg-[#D49A24]/45 text-[#FFF9EC] border border-[#D49A24]/40 cursor-pointer"
+                              >
+                                Commander ce soin
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Volet 2 : Soins Esthétiques Prescrits en Cabine */}
+                {structuredPrescription.cabineServices.length > 0 ? (
+                  <div className="rounded-2xl border border-indigo-500/35 bg-indigo-950/25 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-black uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                        <CalendarCheck size={14} />
+                        <span>2. Soins esthétiques prescrits en cabine ({structuredPrescription.cabineServices.length})</span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => onNavigateTab?.("agenda")}
+                        className="text-[11px] font-bold text-indigo-300 hover:underline cursor-pointer"
+                      >
+                        Prendre rendez-vous →
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {structuredPrescription.cabineServices.map((srv, sIdx) => (
+                        <div
+                          key={sIdx}
+                          className="p-3 rounded-xl bg-white/5 border border-indigo-500/25 flex flex-col justify-between gap-2"
+                        >
+                          <div className="space-y-1.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="font-heading font-black text-xs sm:text-sm text-[#FFF9EC] leading-tight">
+                                {srv.name}
+                              </span>
+                              {srv.durationMin ? (
+                                <Badge variant="outline" className="text-[9.5px] px-2 py-0.5 border-indigo-400/40 text-indigo-200 shrink-0">
+                                  ⏱️ {srv.durationMin} min
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <p className="text-[11px] text-[#F5ECDD]/85 leading-relaxed font-sans">
+                              📅 <strong>Rythme conseillé :</strong> {srv.frequency}
+                              {srv.sessionsCount && srv.sessionsCount > 1 ? ` · Cure de ${srv.sessionsCount} séances` : ""}
+                            </p>
+                            {srv.objective ? (
+                              <p className="text-[10.5px] text-[#E6D5B8]/75 italic">
+                                🎯 Objectif : {srv.objective}
+                              </p>
+                            ) : null}
+                          </div>
+
+                          <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+                            {srv.price ? (
+                              <span className="text-xs font-black text-indigo-300 tabular-nums">
+                                {xof(srv.price)}
+                              </span>
+                            ) : <span />}
+                            <Button
+                              size="sm"
+                              onClick={() => onNavigateTab?.("agenda")}
+                              className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold bg-indigo-600/40 hover:bg-indigo-600/60 text-[#FFF9EC] border border-indigo-400/40 cursor-pointer"
+                            >
+                              Réserver en cabine
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Notes & Conseils praticienne ou texte legacy */}
+                {structuredPrescription.notes ? (
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-3.5 space-y-1.5 text-xs text-[#F5ECDD]/90">
+                    <p className="text-[11px] font-bold text-[#F3D98A] uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles size={13} /> Recommandations de votre dermo-conseillère :
+                    </p>
+                    <p className="whitespace-pre-line leading-relaxed text-[11.5px]">
+                      {structuredPrescription.notes}
+                    </p>
+                  </div>
+                ) : null}
               </div>
-            </Card>
+            </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-amber-500/40 bg-amber-500/5 p-4 flex items-start gap-3 text-xs text-muted-foreground">
               <Info size={18} className="text-amber-500 shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-foreground">Aucune routine sur-mesure enregistrée en institut pour le moment</p>
+                <p className="font-bold text-foreground">Aucune ordonnance beauté enregistrée en institut pour le moment</p>
                 <p className="text-[11px] mt-0.5 leading-relaxed">
-                  Votre dermo-conseillère consignera vos produits quotidiens lors de votre prochaine consultation en salon. En attendant, découvrez le protocole de référence ci-dessous :
+                  Votre dermo-conseillère consignera vos produits quotidiens et vos soins en cabine lors de votre prochaine consultation en salon. En attendant, découvrez le protocole de référence ci-dessous :
                 </p>
               </div>
             </div>
