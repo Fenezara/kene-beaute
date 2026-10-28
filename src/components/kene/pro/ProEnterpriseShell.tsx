@@ -141,6 +141,7 @@ const NAV: ProNavItem[] = [
   { id: "caisse", label: "Ventes & Caisse", icon: AbanIcon, hint: "Caisse POS · Commandes en ligne", category: "commerce" },
   { id: "stock", label: "Inventaire Stock", icon: KenteIcon, hint: "Produits, seuils d'alerte & réassort", category: "commerce" },
   { id: "catalogue", label: "Catalogue Soins", icon: DuafeIcon, hint: "Prestations, tarifs & cartes des soins", category: "commerce" },
+  { id: "promos", label: "Codes Promo", icon: TicketPercent, hint: "Codes promotionnels & remises", category: "commerce" },
 
   // 4. Relation & Fidélité
   { id: "crm", label: "CRM Clientes", icon: OsramIcon, hint: "Clientes, fiches & fidélité", category: "relation" },
@@ -165,7 +166,7 @@ const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
   caissiere: ["caisse", "catalogue", "stock", "assistant", "parametres"],
   receptionniste: ["agenda", "caisse", "crm", "relances", "assistant", "parametres"],
   responsable_stock: ["stock", "catalogue", "assistant", "parametres"],
-  manager: ["dashboard", "dossiers_peau", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue", "stock", "parametres"],
+  manager: ["dashboard", "dossiers_peau", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue", "stock", "promos", "parametres"],
   apprentie: ["dossiers_peau", "diagnostic", "agenda", "assistant", "parametres"],
 };
 
@@ -1307,8 +1308,8 @@ export function ProEnterpriseShell() {
         </div>
 
         {/* Barre Principale d'Organisation par 5 Pôles Métiers intégrée au Header (PC & Tablette md+) */}
-        <div className="hidden md:flex items-center justify-between gap-3 border-t border-border/50 bg-card/65 px-5 py-2 backdrop-blur-md">
-          <nav aria-label="Pôles Métiers Entreprise" className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+        <div className="hidden md:flex items-center justify-between gap-2.5 border-t border-border/50 bg-card/65 px-3 sm:px-5 py-2 backdrop-blur-md">
+          <nav aria-label="Pôles Métiers Entreprise" className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar shrink">
             {availableCategories.map((cat) => {
               const isCatActive = activeCategory === cat.id;
               const catItems = nav.filter((i) => i.category === cat.id);
@@ -1322,17 +1323,17 @@ export function ProEnterpriseShell() {
                     if (firstItem) openSection(firstItem.id);
                   }}
                   className={cn(
-                    "h-9 px-3.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all border shrink-0 cursor-pointer",
+                    "h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-black flex items-center gap-1.5 transition-all border shrink-0 cursor-pointer whitespace-nowrap",
                     isCatActive
                       ? "k-btn-gold text-primary-foreground border-transparent shadow-sm scale-[1.01]"
                       : "bg-background/80 text-muted-foreground border-border/70 hover:text-foreground hover:border-gold/40"
                   )}
                 >
-                  <span>{cat.emoji}</span>
-                  <span>{cat.shortLabel}</span>
+                  <span className="text-xs sm:text-sm">{cat.emoji}</span>
+                  <span className="truncate">{cat.shortLabel}</span>
                   <span
                     className={cn(
-                      "text-[10px] px-1.5 py-0.2 rounded-full font-mono",
+                      "text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full font-mono",
                       isCatActive ? "bg-black/20 text-primary-foreground" : "bg-muted text-muted-foreground"
                     )}
                   >
@@ -1344,7 +1345,7 @@ export function ProEnterpriseShell() {
           </nav>
 
           {/* Actions Express Cabine */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {(!allowedIds || allowedIds.includes("diagnostic")) && (
               <button
                 type="button"
@@ -1352,7 +1353,7 @@ export function ProEnterpriseShell() {
                   haptic(HAPTIC.tap);
                   openSection("diagnostic");
                 }}
-                className="h-8.5 px-3 rounded-xl border border-primary/45 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+                className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-xl border border-primary/45 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="Lancer un diagnostic de peau multi-vues en cabine"
               >
                 <ScanFace size={13} />
@@ -1367,7 +1368,7 @@ export function ProEnterpriseShell() {
                   haptic(HAPTIC.tap);
                   openSection("caisse");
                 }}
-                className="h-8.5 px-3 rounded-xl border border-emerald-600/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+                className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-xl border border-emerald-600/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="Ouvrir la caisse et enregistrer un encaissement"
               >
                 <AbanIcon size={13} />
@@ -1381,11 +1382,12 @@ export function ProEnterpriseShell() {
                 haptic(HAPTIC.tap);
                 setInciScannerOpen(true);
               }}
-              className="h-8.5 px-3 rounded-xl border border-gold/50 bg-gold/15 hover:bg-gold/25 text-gold-text text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+              className="h-8 sm:h-8.5 px-2 sm:px-2.5 rounded-xl border border-gold/50 bg-gold/15 hover:bg-gold/25 text-gold-text text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
               title="Scanner un cosmétique (Liste Rouge Kènè & Analyse INCI)"
             >
               <ShieldAlert size={13} />
-              <span>🧴 Scanner INCI</span>
+              <span className="hidden lg:inline">Scanner INCI</span>
+              <span className="lg:hidden">INCI</span>
             </button>
 
             {(!allowedIds || allowedIds.includes("diagnostic")) && (
@@ -1395,11 +1397,12 @@ export function ProEnterpriseShell() {
                   haptic(HAPTIC.tap);
                   setMirrorKioskOpen(true);
                 }}
-                className="h-8.5 px-3 rounded-xl border border-border bg-card hover:bg-accent text-foreground text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+                className="h-8 sm:h-8.5 px-2 sm:px-2.5 rounded-xl border border-border bg-card hover:bg-accent text-foreground text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="Ouvrir le Mode Kiosque Tablette Salle d'Attente (Kènè Mirror)"
               >
                 <Sparkles size={13} />
-                <span>🪞 Kiosque Mirror</span>
+                <span className="hidden xl:inline">🪞 Kiosque Mirror</span>
+                <span className="xl:hidden">🪞 Mirror</span>
               </button>
             )}
 
@@ -1410,7 +1413,7 @@ export function ProEnterpriseShell() {
                   haptic(HAPTIC.tap);
                   openSection("dossiers_peau");
                 }}
-                className="h-8.5 px-3 rounded-xl border border-border/80 bg-card/80 hover:bg-accent text-muted-foreground hover:text-foreground text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+                className="h-8 sm:h-8.5 px-2 sm:px-2.5 rounded-xl border border-border/80 bg-card/80 hover:bg-accent text-muted-foreground hover:text-foreground text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="Accéder aux dossiers cutanés et historiques"
               >
                 <FolderHeart size={13} />
@@ -1690,12 +1693,12 @@ export function ProEnterpriseShell() {
               : "p-3 sm:p-5 lg:p-6"
           )}
         >
-          {activeSection !== "assistant" && (
-            <div className="mb-3.5 rounded-[18px] border border-primary/25 bg-card/95 px-3 py-2 backdrop-blur-md shadow-xs flex flex-wrap items-center justify-between gap-2">
+          {activeSection !== "assistant" && activeCategoryItems.length > 1 && (
+            <div className="mb-3.5 rounded-[18px] border border-border/80 bg-card/90 px-3.5 py-1.5 backdrop-blur-md shadow-2xs flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                <span className="text-[11px] font-black text-gold-text dark:text-[#E3B04B] uppercase tracking-wider pr-1.5 shrink-0 flex items-center gap-1">
+                <span className="text-[11px] font-black text-gold-text uppercase tracking-wider pr-1 shrink-0 flex items-center gap-1">
                   <span>{activeCategoryDef.emoji}</span>
-                  <span>{activeCategoryDef.label} :</span>
+                  <span className="hidden sm:inline">{activeCategoryDef.shortLabel} :</span>
                 </span>
                 {activeCategoryItems.map((item) => {
                   const isItemActive = activeSection === item.id;
@@ -1706,10 +1709,10 @@ export function ProEnterpriseShell() {
                       type="button"
                       onClick={() => openSection(item.id)}
                       className={cn(
-                        "h-8 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer",
+                        "h-7.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer",
                         isItemActive
                           ? "k-btn-gold text-primary-foreground shadow-xs"
-                          : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
+                          : "bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted"
                       )}
                     >
                       <item.icon className="size-3.5" />
@@ -1877,55 +1880,6 @@ export function ProEnterpriseShell() {
 
               return (
                 <div className="space-y-4">
-                  {subTabCount > 1 && (
-                    <div className="flex items-center gap-2 border-b border-border/60 pb-3 overflow-x-auto no-scrollbar">
-                      {canViewCatalogue && (
-                        <button
-                          type="button"
-                          onClick={() => openSection("catalogue")}
-                          className={cn(
-                            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0 cursor-pointer",
-                            effectiveTab === "products"
-                              ? "k-btn-gold text-primary-foreground shadow-sm"
-                              : "k-chip text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          <DuafeIcon size={15} />
-                          <span>Catalogue & Soins</span>
-                        </button>
-                      )}
-                      {canViewStock && (
-                        <button
-                          type="button"
-                          onClick={() => openSection("stock")}
-                          className={cn(
-                            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0 cursor-pointer",
-                            effectiveTab === "stock"
-                              ? "k-btn-gold text-primary-foreground shadow-sm"
-                              : "k-chip text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          <KenteIcon size={15} />
-                          <span>Inventaire Stock</span>
-                        </button>
-                      )}
-                      {canViewPromos && (
-                        <button
-                          type="button"
-                          onClick={() => openSection("promos")}
-                          className={cn(
-                            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shrink-0 cursor-pointer",
-                            effectiveTab === "promos"
-                              ? "k-btn-gold text-primary-foreground shadow-sm"
-                              : "k-chip text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          <TicketPercent size={15} />
-                          <span>Codes Promo & Réductions</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
                   {effectiveTab === "products" && <CatalogSection tenantId={tid} />}
                   {effectiveTab === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
                   {effectiveTab === "promos" && canViewPromos && (

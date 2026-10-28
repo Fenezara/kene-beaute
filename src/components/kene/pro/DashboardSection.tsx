@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Banknote,
   CalendarCheck,
+  CheckCircle2,
   Percent,
   UserPlus,
   AlertTriangle,
@@ -460,7 +461,7 @@ export function DashboardSection({
               <CardContent className="h-64 flex flex-col justify-between">
                 {pieTotal > 0 ? (
                   <>
-                    <div className="flex-1 min-h-0">
+                    <div className="relative flex-1 min-h-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -479,15 +480,27 @@ export function DashboardSection({
                           <Tooltip contentStyle={tooltipStyle} formatter={(value) => xof(Number(value))} />
                         </PieChart>
                       </ResponsiveContainer>
+                      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <span className="text-[9px] uppercase font-bold tracking-wider text-muted-foreground">Total</span>
+                        <span className="font-mono text-xs sm:text-sm font-black text-foreground">{xof(pieTotal, { compact: true })}</span>
+                      </div>
                     </div>
                     <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 pt-2 border-t border-border/60">
-                      {pieData.map((p) => (
-                        <li key={p.key} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                          <span className="size-2.5 rounded-full shrink-0" style={{ background: PAYMENT_COLORS[p.key] ?? "var(--chart-3)" }} aria-hidden="true" />
-                          <span className="truncate">{p.name}</span>
-                          <span className="ml-auto font-mono font-semibold text-foreground">{Math.round((p.value / pieTotal) * 100)} %</span>
-                        </li>
-                      ))}
+                      {pieData.map((p) => {
+                        const pct = Math.round((p.value / pieTotal) * 100);
+                        return (
+                          <li key={p.key} className="flex flex-col gap-0.5 text-[11px] text-muted-foreground">
+                            <div className="flex items-center gap-1.5">
+                              <span className="size-2 rounded-full shrink-0" style={{ background: PAYMENT_COLORS[p.key] ?? "var(--chart-3)" }} aria-hidden="true" />
+                              <span className="truncate">{p.name}</span>
+                              <span className="ml-auto font-mono font-semibold text-foreground">{pct} %</span>
+                            </div>
+                            <div className="h-1 w-full rounded-full bg-muted/60 overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: PAYMENT_COLORS[p.key] ?? "var(--chart-3)" }} />
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </>
                 ) : (
@@ -512,24 +525,35 @@ export function DashboardSection({
                   <EmptyState label="Pas encore de ventes" sub="Vos prestations les plus populaires s'afficheront ici" />
                 ) : (
                   <ul className="divide-y divide-border/70">
-                    {data.topServices.map((s, i) => (
-                      <li key={s.name} className="flex items-center gap-3 px-4 py-3">
-                        <span className={cn(
-                          "grid size-6 place-items-center rounded-lg font-mono text-[11px] font-bold shrink-0",
-                          i === 0 ? "bg-gold/25 text-gold-text border border-gold/40 shadow-xs" :
-                          i === 1 ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" :
-                          i === 2 ? "bg-terre/15 text-terre" :
-                          "bg-muted text-muted-foreground"
-                        )} aria-hidden="true">
-                          {i + 1}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold">{s.name}</p>
-                          <p className="text-xs text-muted-foreground">{s.count} prestation{s.count > 1 ? "s" : ""}</p>
-                        </div>
-                        <Money value={s.total} className="text-sm font-bold" />
-                      </li>
-                    ))}
+                    {(() => {
+                      const maxTotal = Math.max(...data.topServices.map((s) => s.total || 1));
+                      return data.topServices.map((s, i) => {
+                        const pct = Math.round((s.total / maxTotal) * 100);
+                        return (
+                          <li key={s.name} className="flex flex-col gap-1.5 px-4 py-3 hover:bg-muted/20 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <span className={cn(
+                                "grid size-6 place-items-center rounded-lg font-mono text-[11px] font-bold shrink-0",
+                                i === 0 ? "bg-gold/25 text-gold-text border border-gold/40 shadow-xs" :
+                                i === 1 ? "bg-amber-500/15 text-amber-800 dark:text-amber-300" :
+                                i === 2 ? "bg-terre/15 text-terre" :
+                                "bg-muted text-muted-foreground"
+                              )} aria-hidden="true">
+                                {i + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold">{s.name}</p>
+                                <p className="text-xs text-muted-foreground">{s.count} prestation{s.count > 1 ? "s" : ""}</p>
+                              </div>
+                              <Money value={s.total} className="text-sm font-bold" />
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden ml-9 max-w-[calc(100%-2.25rem)]">
+                              <div className="h-full rounded-full bg-gradient-to-r from-gold to-terre" style={{ width: `${pct}%` }} />
+                            </div>
+                          </li>
+                        );
+                      });
+                    })()}
                   </ul>
                 )}
               </CardContent>
@@ -563,9 +587,17 @@ export function DashboardSection({
             </CardHeader>
             <CardContent className="p-0">
               {!data.recentReviews || data.recentReviews.length === 0 ? (
-                <p className="px-4 py-3 text-sm text-muted-foreground">
-                  Aucun avis pour l&apos;instant — ils arrivent dès que vos clientes notent leurs RDV depuis l&apos;app.
-                </p>
+                <div className="px-4 py-4 space-y-2.5">
+                  <div className="flex items-center gap-1 text-gold" role="img" aria-label="5 étoiles d'excellence">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} className="size-4 fill-gold text-gold" />
+                    ))}
+                    <span className="ml-2 text-xs font-bold text-foreground">Excellence Clinique 5.0</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Vos clientes invitées peuvent noter leur expérience cabine directement après chaque rendez-vous.
+                  </p>
+                </div>
               ) : (
                 <ul className="max-h-60 overflow-y-auto pretty-scroll divide-y divide-border/70">
                   {data.recentReviews.map((r) => (
@@ -612,7 +644,15 @@ export function DashboardSection({
             </CardHeader>
             <CardContent>
               {data.stockAlerts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Tous les stocks sont au-dessus des seuils d&apos;alerte.</p>
+                <div className="flex items-center gap-2.5 py-1">
+                  <span className="grid size-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <CheckCircle2 className="size-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-foreground">Rayon 100 % Opérationnel</p>
+                    <p className="text-[11px] text-muted-foreground">Tous les stocks sont au-dessus des seuils de réassort.</p>
+                  </div>
+                </div>
               ) : (
                 <>
                   <ul className="space-y-1.5">

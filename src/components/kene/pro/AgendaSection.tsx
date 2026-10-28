@@ -13,6 +13,7 @@ import {
   MessageCircle,
   XCircle,
   UserX,
+  Users,
   CalendarClock,
   Calendar as CalendarIcon,
 } from "lucide-react";
@@ -229,6 +230,61 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
         }
       />
 
+      {/* ── Synthèse Bento Cabine (Temps réel) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="k-card rounded-2xl p-3.5 border border-border/80 bg-card/90 shadow-2xs">
+          <div className="flex items-center justify-between text-muted-foreground text-xs">
+            <span className="font-semibold uppercase tracking-wider text-[10px]">RDV Semaine</span>
+            <CalendarDays className="size-3.5 text-gold-text" />
+          </div>
+          <p className="mt-1 font-mono text-xl font-bold text-foreground">
+            {(list.data ?? []).length}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Soins confirmés
+          </p>
+        </div>
+
+        <div className="k-card rounded-2xl p-3.5 border border-border/80 bg-card/90 shadow-2xs">
+          <div className="flex items-center justify-between text-muted-foreground text-xs">
+            <span className="font-semibold uppercase tracking-wider text-[10px]">En attente</span>
+            <CalendarClock className="size-3.5 text-amber-500" />
+          </div>
+          <p className="mt-1 font-mono text-xl font-bold text-amber-600 dark:text-amber-400">
+            {pendingList.data?.length ?? 0}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            À valider par le salon
+          </p>
+        </div>
+
+        <div className="k-card rounded-2xl p-3.5 border border-border/80 bg-card/90 shadow-2xs">
+          <div className="flex items-center justify-between text-muted-foreground text-xs">
+            <span className="font-semibold uppercase tracking-wider text-[10px]">Praticiennes</span>
+            <Users className="size-3.5 text-emerald-500" />
+          </div>
+          <p className="mt-1 font-mono text-xl font-bold text-foreground">
+            {resources.length || 1}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Mobilisées au planning
+          </p>
+        </div>
+
+        <div className="k-card rounded-2xl p-3.5 border border-border/80 bg-card/90 shadow-2xs">
+          <div className="flex items-center justify-between text-muted-foreground text-xs">
+            <span className="font-semibold uppercase tracking-wider text-[10px]">Cabine</span>
+            <CheckCircle2 className="size-3.5 text-gold-text" />
+          </div>
+          <p className="mt-1 font-mono text-xl font-bold text-emerald-600 dark:text-emerald-400">
+            Prête
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Accueil clientes 24/7
+          </p>
+        </div>
+      </div>
+
       {/* 🛎️ Demandes de rendez-vous en attente de validation */}
       {pendingList.data && pendingList.data.length > 0 && (
         <Card className="p-4 border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-card to-card space-y-3 shadow-xs">
@@ -386,9 +442,24 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
               <div className="grid border-b border-border/70 bg-muted/40" style={{ gridTemplateColumns: `56px repeat(${shownDays.length}, minmax(96px, 1fr))` }}>
                 <div className="h-10" aria-hidden="true" />
                 {shownDays.map((d, i) => (
-                  <div key={i} className={cn("h-10 border-l border-border/60 px-2 flex flex-col items-center justify-center", isToday(d) && "bg-gold/10")}>
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{DAY_NAMES[(d.getDay() + 6) % 7]}</span>
-                    <span className={cn("font-mono text-sm font-semibold", isToday(d) && "text-primary")}>{formatDate(d, { day: "numeric", month: "2-digit" })}</span>
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-11 border-l border-border/60 px-2 flex flex-col items-center justify-center transition-colors",
+                      isToday(d) && "bg-gold/15 border-t-2 border-t-gold font-bold shadow-2xs"
+                    )}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className={cn("text-[10px] uppercase tracking-wider", isToday(d) ? "text-gold-text font-bold" : "text-muted-foreground")}>
+                        {DAY_NAMES[(d.getDay() + 6) % 7]}
+                      </span>
+                      {isToday(d) && (
+                        <span className="size-1.5 rounded-full bg-gold animate-ping" />
+                      )}
+                    </div>
+                    <span className={cn("font-mono text-sm font-semibold", isToday(d) ? "text-gold-text font-black" : "text-foreground")}>
+                      {formatDate(d, { day: "numeric", month: "2-digit" })}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -447,7 +518,16 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
       )}
 
       {(list.data ?? []).length === 0 && !list.loading && !list.error && (
-        <p className="text-center text-sm text-muted-foreground">Aucun RDV {view === "jour" ? "ce jour" : "cette semaine"} — planifiez-en un avec « Nouveau RDV ».</p>
+        <div className="flex flex-col items-center justify-center p-6 text-center space-y-2 rounded-2xl bg-muted/20 border border-dashed border-border/70">
+          <p className="text-sm font-semibold text-foreground">Aucun RDV {view === "jour" ? "ce jour" : "cette semaine"}</p>
+          <p className="text-xs text-muted-foreground max-w-sm">
+            La cabine est libre. Planifiez un soin pour une cliente ou enregistrez une réservation en direct.
+          </p>
+          <Button size="sm" onClick={() => setCreateOpen(true)} className="k-btn-gold text-primary-foreground font-bold text-xs h-8 gap-1.5 mt-1">
+            <Plus className="size-3.5" />
+            <span>Nouveau RDV Cabine</span>
+          </Button>
+        </div>
       )}
 
       {/* ── Dialog détail RDV ── */}

@@ -400,13 +400,22 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
                     <Badge variant="outline" className={cn("text-[10px]", d.vlmUsed ? "bg-gold/10 text-gold-text border-gold/30" : "bg-muted text-muted-foreground")}>
                       {d.vlmUsed ? "Scan photo" : "Entretien"}
                     </Badge>
-                    <div className="text-right shrink-0">
-                      <p className="font-mono text-sm font-bold tabular-nums" style={{ color: scoreVar(d.scoreGlobal) }}>
-                        {d.scoreGlobal}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground font-mono">
-                        {formatDate(d.createdAt, { day: "2-digit", month: "2-digit" })} {formatTime(d.createdAt)}
-                      </p>
+                    <div className="text-right shrink-0 flex items-center gap-2">
+                      <div className="flex flex-col items-end">
+                        <span
+                          className="px-2 py-0.5 rounded-lg font-mono text-xs font-black shadow-2xs border"
+                          style={{
+                            color: scoreVar(d.scoreGlobal),
+                            borderColor: `color-mix(in srgb, ${scoreVar(d.scoreGlobal)} 40%, transparent)`,
+                            backgroundColor: `color-mix(in srgb, ${scoreVar(d.scoreGlobal)} 12%, transparent)`,
+                          }}
+                        >
+                          {d.scoreGlobal} / 100
+                        </span>
+                        <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                          {formatDate(d.createdAt, { day: "2-digit", month: "2-digit" })} {formatTime(d.createdAt)}
+                        </p>
+                      </div>
                     </div>
                     <ChevronRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
                   </button>
@@ -653,16 +662,29 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
 }
 
 function KpiStat({ icon, label, value, hint, monetary = false }: { icon: React.ReactNode; label: string; value: string; hint?: string; monetary?: boolean }) {
+  const numericVal = parseInt(value, 10);
+  const isPercent = value.includes("%");
+  const isScore = value.includes("/100");
+  const barVal = isPercent ? numericVal : isScore ? numericVal : 0;
+
   return (
-    <Card className="overflow-hidden pt-0">
+    <Card className="overflow-hidden pt-0 k-card-awwwards border-border/80">
       <KenteTop />
-      <CardContent className="p-3">
+      <CardContent className="p-3.5 space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
-          <span className="text-primary shrink-0">{icon}</span>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{label}</p>
+          <span className="grid size-7 place-items-center rounded-lg bg-gold/15 text-gold-text shrink-0">{icon}</span>
         </div>
-        <p className="mt-1.5 font-mono text-lg font-semibold tabular-nums leading-tight">{monetary ? `${value} F` : value}</p>
-        {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
+        <p className="font-mono text-xl font-bold tabular-nums leading-tight text-foreground">{monetary ? `${value} F` : value}</p>
+        {barVal > 0 && (
+          <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden mt-1">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-gold to-terre transition-all"
+              style={{ width: `${Math.min(100, barVal)}%` }}
+            />
+          </div>
+        )}
+        {hint && <p className="text-[10px] text-muted-foreground pt-0.5">{hint}</p>}
       </CardContent>
     </Card>
   );

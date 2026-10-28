@@ -748,7 +748,7 @@ export function AssistantSection({
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-16 select-none animate-in fade-in duration-300">
+    <div className="space-y-6 max-w-7xl mx-auto pb-16 select-none animate-in fade-in duration-300">
       {/* ─── 1. EN-TÊTE SOUVERAIN ÉPURÉ & CONTRÔLES ─── */}
       <div className="relative overflow-hidden rounded-[24px] border border-border/80 bg-card p-4 sm:p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
@@ -885,7 +885,7 @@ export function AssistantSection({
             </div>
 
             {/* Légende & Statut Parlant de l'Orbe */}
-            <div className="relative z-10 space-y-3.5 max-w-lg mx-auto">
+            <div className="relative z-10 space-y-4 w-full max-w-2xl mx-auto">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/80 dark:bg-muted/40 border border-border/80 text-xs font-semibold text-foreground shadow-xs">
                 {isRecording ? (
                   <>
@@ -929,7 +929,7 @@ export function AssistantSection({
                   type="button"
                   onClick={toggleListening}
                   disabled={loading || isTranscribing}
-                  className={`h-14 px-8 rounded-2xl font-black text-sm tracking-wide shadow-lg flex items-center gap-3 transition-all ${
+                  className={`h-14 px-8 rounded-2xl font-black text-sm tracking-wide shadow-lg flex items-center justify-center gap-3 transition-all min-w-[280px] max-w-full ${
                     isRecording
                       ? "bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 text-white animate-pulse hover:brightness-110"
                       : "k-btn-gold text-primary-foreground hover:scale-105 active:scale-95"
@@ -943,7 +943,7 @@ export function AssistantSection({
                   ) : (
                     <>
                       <Mic size={20} className="animate-pulse" />
-                      <span>Parler à ma Secrétaire, {firstName}… 🎙️</span>
+                      <span>Parler à ma Secrétaire · {firstName} 🎙️</span>
                     </>
                   )}
                 </Button>
@@ -970,8 +970,8 @@ export function AssistantSection({
                     disabled={isRecording || loading}
                     placeholder={
                       canViewCaisse
-                        ? `Posez une question (caisse, RDV, stocks…) ou donnez une instruction, ${firstName}…`
-                        : `Posez une question (vos RDV, soins cabine, stocks…) ou notez une prestation, ${firstName}…`
+                        ? `Posez une question (caisse, RDV, stocks) ou donnez une consigne…`
+                        : `Posez une question (vos RDV, soins cabine, stocks) ou notez un soin…`
                     }
                     className="w-full h-12 pl-4 pr-9 rounded-2xl bg-muted/60 dark:bg-muted/30 border border-border/90 focus:border-[#C8951E] focus:outline-none text-sm text-foreground placeholder:text-muted-foreground transition-colors"
                   />

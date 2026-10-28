@@ -256,11 +256,11 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
 
       {/* ── KPIs ── */}
       <div className={cn("grid grid-cols-2 gap-3", isOwner ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
-        <KpiCard label="En poste" value={String(kpis.effectif)} icon={<Users className="size-4" aria-hidden="true" />} />
-        <KpiCard label="Pointées aujourd'hui" value={String(kpis.presentes)} icon={<UserRoundCheck className="size-4" aria-hidden="true" />} />
-        <KpiCard label="Comptes app liés" value={String(kpis.comptes)} icon={<Smartphone className="size-4" aria-hidden="true" />} />
+        <KpiCard label="En poste" value={String(kpis.effectif)} hint={`${kpis.sorties} sortie(s) archivée(s)`} icon={<Users className="size-4 text-gold-text" aria-hidden="true" />} monetary={false} />
+        <KpiCard label="Pointées aujourd'hui" value={String(kpis.presentes)} hint={`${kpis.presentes} / ${kpis.effectif || 1} collaboratrices`} icon={<UserRoundCheck className="size-4 text-emerald-500" aria-hidden="true" />} monetary={false} />
+        <KpiCard label="Comptes app liés" value={String(kpis.comptes)} hint="Accès mobile sécurisé" icon={<Smartphone className="size-4 text-sky-500" aria-hidden="true" />} monetary={false} />
         {isOwner && (
-          <KpiCard label="Masse de base / mois" value={xof(kpis.masseBase)} icon={<Banknote className="size-4" aria-hidden="true" />} />
+          <KpiCard label="Masse de base / mois" value={xof(kpis.masseBase)} hint="Salaires bruts contractuels" icon={<Banknote className="size-4 text-gold-text" aria-hidden="true" />} monetary={false} />
         )}
       </div>
 

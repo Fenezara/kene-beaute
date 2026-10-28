@@ -193,15 +193,21 @@ export function PayrollSection({
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {[
-                { label: "Masse brute", value: kpis.masseBrute },
-                { label: "Cotis. patronales", value: kpis.patronales },
-                { label: "Cotis. salariés", value: kpis.salariees },
-                { label: "IGR / IR + CN", value: kpis.igr },
-                { label: "Net à payer", value: kpis.net, strong: true },
+                { label: "Masse brute", value: kpis.masseBrute, tone: "text-foreground" },
+                { label: "Cotis. patronales", value: kpis.patronales, tone: "text-muted-foreground" },
+                { label: "Cotis. salariés", value: kpis.salariees, tone: "text-muted-foreground" },
+                { label: "IGR / IR + CN", value: kpis.igr, tone: "text-amber-600 dark:text-amber-400" },
+                { label: "Net à payer", value: kpis.net, strong: true, tone: "text-gold-text font-black" },
               ].map((k) => (
-                <div key={k.label} className={cn("rounded-xl border border-border bg-card p-3", k.strong && "border-gold/40 bg-gold/5")}>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{k.label}</p>
-                  <Money value={k.value} className={cn("text-sm font-semibold", k.strong && "text-gold text-base")} />
+                <div
+                  key={k.label}
+                  className={cn(
+                    "rounded-2xl border border-border/80 bg-card p-3.5 k-card-awwwards shadow-2xs space-y-1 transition-all",
+                    k.strong ? "border-gold/50 bg-gradient-to-br from-card via-background to-gold/10" : ""
+                  )}
+                >
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">{k.label}</p>
+                  <Money value={k.value} className={cn("text-base font-bold", k.tone)} />
                 </div>
               ))}
             </div>

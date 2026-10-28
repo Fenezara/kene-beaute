@@ -222,6 +222,10 @@ export function SalonAnalyticsDashboard({
               <span>Espèces physiques :</span>
               <span className="font-mono font-semibold text-gold-text">{xof(cashPayments)}</span>
             </div>
+            <div className="mt-2.5 h-2 w-full rounded-full bg-muted/60 overflow-hidden flex">
+              <div className="h-full bg-[#008BB5] transition-all" style={{ width: `${digitalRate}%` }} />
+              <div className="h-full bg-gold transition-all" style={{ width: `${100 - digitalRate}%` }} />
+            </div>
           </CardContent>
         </Card>
 
@@ -319,7 +323,7 @@ export function SalonAnalyticsDashboard({
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="h-48 w-full">
+            <div className="h-48 w-full relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -346,6 +350,10 @@ export function SalonAnalyticsDashboard({
                   />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span className="text-[9px] uppercase font-bold tracking-wider text-muted-foreground">Total</span>
+                <span className="font-mono text-xs sm:text-sm font-black text-foreground">{xof(totalPayments, { compact: true })}</span>
+              </div>
             </div>
 
             {/* Légende détaillée */}
@@ -386,23 +394,44 @@ export function SalonAnalyticsDashboard({
             {data.topServices.length === 0 ? (
               <p className="p-4 text-xs text-muted-foreground text-center">Aucun soin enregistré sur la période.</p>
             ) : (
-              data.topServices.map((s, i) => (
-                <div key={s.name} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="grid size-7 place-items-center rounded-lg bg-gold/15 font-mono text-xs font-bold text-gold-text shrink-0">
-                      {i + 1}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate">{s.name}</p>
-                      <p className="text-xs text-muted-foreground">{s.count} prestation(s) réalisée(s)</p>
+              (() => {
+                const totalRev = data.topServices.reduce((acc, curr) => acc + (curr.total || 0), 0) || 1;
+                return data.topServices.map((s, i) => {
+                  const sharePct = Math.round((s.total / totalRev) * 100);
+                  return (
+                    <div key={s.name} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0 flex-1 sm:flex-initial sm:min-w-64">
+                        <span className="grid size-7 place-items-center rounded-lg bg-gold/15 font-mono text-xs font-bold text-gold-text shrink-0">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate">{s.name}</p>
+                          <p className="text-xs text-muted-foreground">{s.count} prestation(s) réalisée(s)</p>
+                        </div>
+                      </div>
+
+                      {/* Jauge centrale de rentabilité & part du CA */}
+                      <div className="hidden sm:flex flex-1 max-w-xs mx-6 flex-col gap-1">
+                        <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+                          <span>Part du CA soins</span>
+                          <span className="font-bold text-foreground">{sharePct} %</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-muted/60 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-gold to-terre transition-all"
+                            style={{ width: `${sharePct}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <p className="font-mono text-sm font-bold text-foreground">{xof(s.total)}</p>
+                        <p className="text-[10px] text-muted-foreground">{sharePct}% du CA soins</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-mono text-sm font-bold text-foreground">{xof(s.total)}</p>
-                    <p className="text-[10px] text-muted-foreground">CA généré</p>
-                  </div>
-                </div>
-              ))
+                  );
+                });
+              })()
             )}
           </div>
         </CardContent>

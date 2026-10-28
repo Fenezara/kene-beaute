@@ -49,10 +49,10 @@ interface TicketLine {
 }
 
 const PAY_METHODS: { code: PaymentMethod; label: string; cls: string }[] = [
-  { code: "wave", label: "Wave", cls: "bg-[#1DC8FF] text-[#062A33] hover:brightness-95" },
-  { code: "orange", label: "Orange Money", cls: "bg-[#FF7900] text-[#3A1D00] hover:brightness-95" },
-  { code: "cash", label: "Espèces", cls: "bg-success text-success-foreground hover:brightness-95" },
-  { code: "card", label: "Carte", cls: "bg-finance text-finance-foreground hover:brightness-95" },
+  { code: "wave", label: "Wave", cls: "bg-[#1DC8FF] text-[#032029] font-bold border border-[#0099cc]/40 hover:brightness-105 shadow-xs" },
+  { code: "orange", label: "Orange Money", cls: "bg-[#FF7900] text-white font-bold border border-[#cc6000]/40 hover:brightness-105 shadow-xs" },
+  { code: "cash", label: "Espèces", cls: "bg-emerald-600 text-white font-bold border border-emerald-700/40 hover:brightness-105 shadow-xs" },
+  { code: "card", label: "Carte bancaire", cls: "bg-slate-700 text-white font-bold border border-slate-800/40 hover:brightness-105 shadow-xs" },
 ];
 
 const METHOD_LABELS: Record<string, string> = { wave: "Wave", orange: "Orange Money", cash: "Espèces", card: "Carte bancaire", wallet: "Wallet Kènè" };
@@ -1326,7 +1326,7 @@ export function PosSection({
                   disabled={busy || lines.length === 0}
                   onClick={() => pay(m.code)}
                   className={cn(
-                    "flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
+                    "flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold shadow-sm transition-all active:scale-95 disabled:opacity-65 disabled:saturate-75 disabled:pointer-events-none cursor-pointer",
                     m.cls
                   )}
                 >

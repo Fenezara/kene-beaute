@@ -402,13 +402,13 @@ export function TierThemeSelector({
                       >
                         {getHeritageIcon(t.symbol)}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <p className={cn("font-heading text-sm font-bold truncate", isSelected ? "text-primary" : "text-foreground")}>
+                          <p className={cn("font-heading text-sm font-bold leading-tight", isSelected ? "text-primary" : "text-foreground")}>
                             {t.name}
                           </p>
                         </div>
-                        <p className="text-[10px] font-mono text-muted-foreground truncate">
+                        <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
                           {t.kingdom}
                         </p>
                       </div>

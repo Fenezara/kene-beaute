@@ -379,6 +379,7 @@ export function CrmSection({
                   <TableHead className="text-right">Visites</TableHead>
                   <TableHead className="text-right">Total dépensé</TableHead>
                   <TableHead>Segment</TableHead>
+                  <TableHead className="text-right">Accès</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -394,13 +395,13 @@ export function CrmSection({
                     }}
                     tabIndex={0}
                     aria-label={`Ouvrir la fiche de ${c.name}`}
-                    className="cursor-pointer hover:bg-accent/50 focus-visible:bg-accent/50 outline-none"
+                    className="cursor-pointer hover:bg-accent/50 focus-visible:bg-accent/50 outline-none transition-colors"
                   >
                     <TableCell>
                       <div className="flex items-center gap-2.5">
                         <InitialAvatar name={c.name} userId={c.userId} />
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{c.name}</p>
+                          <p className="truncate text-sm font-semibold text-foreground">{c.name}</p>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="truncate text-[10px] text-muted-foreground sm:hidden font-mono">{formatPhoneDisplay(c.phone)}</p>
                             {c.district && (
@@ -409,7 +410,11 @@ export function CrmSection({
                                 <span className="truncate max-w-[120px]">{c.district}</span>
                               </span>
                             )}
-                            {c.skinType && <p className="hidden lg:block text-[10px] text-muted-foreground capitalize">· Peau {c.skinType}</p>}
+                            {c.skinType && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-gold/10 text-gold-text font-medium border border-gold/20 capitalize">
+                                Peau {c.skinType}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -419,6 +424,36 @@ export function CrmSection({
                     <TableCell className="text-right font-mono text-xs tabular-nums">{c.visitsCount}</TableCell>
                     <TableCell className="text-right"><Money value={c.totalSpent} className="text-xs font-semibold" /></TableCell>
                     <TableCell>{segmentBadge(c.rfmSegment)}</TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                        {c.phone && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const msg = `Bonjour ${c.name.split(" ")[0]} 🌸\nJ'espère que vous allez bien ! Avez-vous besoin d'un conseil pour votre routine ou d'un créneau soin chez nous ? ✨`;
+                              openWhatsApp(c.phone, msg);
+                            }}
+                            className="p-1.5 rounded-lg text-[#25D366] hover:bg-[#25D366]/15 transition-colors"
+                            title="Contacter sur WhatsApp"
+                            aria-label={`Contacter ${c.name} sur WhatsApp`}
+                          >
+                            <MessageCircle className="size-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onOpenSkinDossier) onOpenSkinDossier(c.id);
+                            else setOpenId(c.id);
+                          }}
+                          className="p-1.5 rounded-lg text-primary hover:bg-primary/15 transition-colors"
+                          title="Ouvrir le dossier cutané"
+                          aria-label={`Dossier de ${c.name}`}
+                        >
+                          <FolderHeart className="size-3.5" />
+                        </button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

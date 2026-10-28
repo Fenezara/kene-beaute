@@ -166,13 +166,15 @@ export function OrdersSection({ tenantId, tenantName = "Institut", refreshKey }:
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-56">
-                      <p className="truncate text-xs">
-                        {o.items.map((i) => `${i.qty}× ${i.label}`).join(" · ")}
-                      </p>
-                      {o.couponCode && (
-                        <p className="text-[10px] text-gold-text">Coupon {o.couponCode} · remise {xof(o.discount)}</p>
-                      )}
+                    <TableCell className="min-w-[180px] max-w-sm">
+                      <div className="flex flex-col gap-0.5">
+                        <p className="text-xs font-medium text-foreground leading-snug line-clamp-2">
+                          {o.items.map((i) => `${i.qty}× ${i.label}`).join(" · ")}
+                        </p>
+                        {o.couponCode && (
+                          <p className="text-[10px] text-gold-text">Coupon {o.couponCode} · remise {xof(o.discount)}</p>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-right">
                       <Money value={o.ownTotal} className="text-xs font-semibold" />

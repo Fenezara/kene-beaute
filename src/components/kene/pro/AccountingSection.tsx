@@ -41,7 +41,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { apiGet, apiPost } from "@/lib/kene/api";
-import { formatDate } from "@/lib/kene/format";
+import { formatDate, xof } from "@/lib/kene/format";
 import { CLASSES_LABELS } from "@/lib/accounting/syscohada";
 import { EXPORT_TYPE_LABELS, exportFilename, type ExportType } from "@/lib/accounting/csv";
 import { useApi } from "./useApi";
@@ -403,6 +403,61 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
         }
       />
 
+      {/* ── Synthèse Bento SYSCOHADA (Partie Double & Équilibre) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="k-card rounded-2xl p-3.5 border border-border/80 bg-card/90 k-card-awwwards shadow-2xs">
+          <div className="flex items-center justify-between text-muted-foreground text-xs">
+            <span className="font-bold uppercase tracking-wider text-[10px]">Total Débit</span>
+            <TrendingUp className="size-3.5 text-gold-text" />
+          </div>
+          <p className="mt-1 font-mono text-lg font-black text-foreground">
+            {xof(totalDebit)}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Flux débiteurs OHADA
+          </p>
+        </div>
+
+        <div className="k-card rounded-2xl p-3.5 border border-border/80 bg-card/90 k-card-awwwards shadow-2xs">
+          <div className="flex items-center justify-between text-muted-foreground text-xs">
+            <span className="font-bold uppercase tracking-wider text-[10px]">Total Crédit</span>
+            <TrendingDown className="size-3.5 text-gold-text" />
+          </div>
+          <p className="mt-1 font-mono text-lg font-black text-foreground">
+            {xof(totalCredit)}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Flux créditeurs OHADA
+          </p>
+        </div>
+
+        <div className="k-card rounded-2xl p-3.5 border border-border/80 bg-card/90 k-card-awwwards shadow-2xs">
+          <div className="flex items-center justify-between text-muted-foreground text-xs">
+            <span className="font-bold uppercase tracking-wider text-[10px]">Partie Double</span>
+            <Scale className="size-3.5 text-emerald-500" />
+          </div>
+          <p className={cn("mt-1 font-mono text-lg font-black", totalDebit === totalCredit ? "text-emerald-600 dark:text-emerald-400" : "text-amber-500")}>
+            {totalDebit === totalCredit ? "Équilibrée" : "Écart"}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            {totalDebit === totalCredit ? "Écart 0 F · Conforme" : `Écart : ${xof(Math.abs(totalDebit - totalCredit))}`}
+          </p>
+        </div>
+
+        <div className="k-card rounded-2xl p-3.5 border border-border/80 bg-card/90 k-card-awwwards shadow-2xs">
+          <div className="flex items-center justify-between text-muted-foreground text-xs">
+            <span className="font-bold uppercase tracking-wider text-[10px]">Écritures Journal</span>
+            <BookOpen className="size-3.5 text-gold-text" />
+          </div>
+          <p className="mt-1 font-mono text-lg font-black text-foreground">
+            {entries.length}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            {balance.length} comptes mouvementés
+          </p>
+        </div>
+      </div>
+
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="journal" className="text-xs gap-1.5"><BookOpen className="size-3.5" aria-hidden="true" /> Journal</TabsTrigger>
@@ -416,7 +471,12 @@ export function AccountingSection({ tenantId, tenantName }: { tenantId: string; 
           <Card className="overflow-hidden">
             <CardContent className="p-0">
               {entries.length === 0 ? (
-                <EmptyState label="Aucune écriture au journal" sub="Les ventes POS et la paie génèrent automatiquement les écritures." />
+                <div className="flex flex-col items-center justify-center p-8 text-center space-y-3">
+                  <EmptyState label="Aucune écriture au journal" sub="Les ventes POS, les encaissements et la paie génèrent automatiquement les écritures SYSCOHADA." />
+                  <Button size="sm" onClick={() => setOdOpen(true)} className="k-btn-gold text-primary-foreground font-bold text-xs gap-1.5">
+                    <Plus className="size-3.5" /> Saisir une première écriture OD
+                  </Button>
+                </div>
               ) : (
                 <ul className="divide-y divide-border/70">
                   {entries.map((e) => {

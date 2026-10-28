@@ -8,7 +8,7 @@ import {
   FlaskConical, Save, FileDown, MessageCircle, CheckCircle2, Phone,
   SlidersHorizontal, Eye, ShieldAlert, Sun, Moon, ArrowLeft,
   Calendar, Lock, Layers, Droplets, Camera, Check, Plus, AlertTriangle,
-  Smartphone, Stethoscope, FileClock, Clock, UserCheck, Info
+  Smartphone, Stethoscope, FileClock, Clock, UserCheck, Info, Users
 } from "lucide-react";
 import { toast } from "sonner";
 import { BissapFlowerIcon, CauriIcon, SankofaIcon } from "@/components/kene/icons";
@@ -192,24 +192,39 @@ export function SkinDossiersSection({
 
           {/* Cartes statistiques cutanées */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <Card className="border-border bg-card p-3 space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Patientes suivies</span>
-              <p className="font-mono text-xl font-bold text-foreground">{kpis.total}</p>
+            <Card className="border-border/80 bg-card p-3.5 space-y-1 k-card-awwwards shadow-2xs">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-[10px] uppercase font-bold tracking-wider">Patientes suivies</span>
+                <Users className="size-3.5 text-gold-text" />
+              </div>
+              <p className="font-mono text-xl font-black text-foreground">{kpis.total}</p>
               <p className="text-[10px] text-muted-foreground">{kpis.withVisits} avec antécédents cabine</p>
             </Card>
-            <Card className="border-border bg-card p-3 space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Phototypes V &amp; VI</span>
-              <p className="font-mono text-xl font-bold text-gold-text">{kpis.melanoVVI}</p>
+
+            <Card className="border-border/80 bg-card p-3.5 space-y-1 k-card-awwwards shadow-2xs">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-[10px] uppercase font-bold tracking-wider">Phototypes V &amp; VI</span>
+                <Sparkles className="size-3.5 text-gold-text" />
+              </div>
+              <p className="font-mono text-xl font-black text-gold-text">{kpis.melanoVVI}</p>
               <p className="text-[10px] text-muted-foreground">Spécificité mélanoderme</p>
             </Card>
-            <Card className="border-border bg-card p-3 space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Vigilance Maternité</span>
-              <p className="font-mono text-xl font-bold text-pink-500">{kpis.pregnantCount}</p>
+
+            <Card className="border-border/80 bg-card p-3.5 space-y-1 k-card-awwwards shadow-2xs">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-[10px] uppercase font-bold tracking-wider">Vigilance Maternité</span>
+                <Baby className="size-3.5 text-pink-500" />
+              </div>
+              <p className="font-mono text-xl font-black text-pink-500">{kpis.pregnantCount}</p>
               <p className="text-[10px] text-muted-foreground">Protocoles doux obligatoires</p>
             </Card>
-            <Card className="border-border bg-card p-3 space-y-0.5">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Actifs Pharmacopée</span>
-              <p className="font-mono text-xl font-bold text-emerald-600 dark:text-emerald-400">100%</p>
+
+            <Card className="border-border/80 bg-card p-3.5 space-y-1 k-card-awwwards shadow-2xs">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="text-[10px] uppercase font-bold tracking-wider">Actifs Pharmacopée</span>
+                <CheckCircle2 className="size-3.5 text-emerald-500" />
+              </div>
+              <p className="font-mono text-xl font-black text-emerald-600 dark:text-emerald-400">100%</p>
               <p className="text-[10px] text-muted-foreground">Karité, Moringa, Balanites...</p>
             </Card>
           </div>

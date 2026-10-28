@@ -246,7 +246,7 @@ export function SettingsSection({
   }
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="w-full max-w-7xl space-y-6">
       <SectionHeader
         title={isOwner ? "Paramètres de l'Établissement & Direction" : "Mon Espace Collaboratrice & Réglages"}
         sub={

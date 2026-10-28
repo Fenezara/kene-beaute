@@ -207,22 +207,22 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
       </div>
 
       {/* Séquence Automatisée Post-Cabine WhatsApp (J+1 · J+7 · J+30) */}
-      <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-gold/5 to-card p-3.5 space-y-2.5">
+      <div className="rounded-2xl border border-gold/40 bg-gradient-to-br from-card via-background to-gold/10 p-3.5 space-y-2.5 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="grid size-7 place-items-center rounded-lg bg-emerald-500/20 text-emerald-500">
+            <span className="grid size-7 place-items-center rounded-lg bg-gold/20 text-gold-text">
               <MessageCircle className="size-4" />
             </span>
             <div>
               <p className="text-xs font-black text-foreground">
-                Protocole Automatisé WhatsApp Business (J+1 · J+7 · J+30)
+                Protocole Conciergerie WhatsApp Business (J+1 · J+7 · J+30)
               </p>
               <p className="text-[11px] text-muted-foreground">
                 Fidélisation clinique post-cabine sans friction pour {tenantName}
               </p>
             </div>
           </div>
-          <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
+          <Badge className="bg-gold/15 text-gold-text border-gold/30 text-[10px] font-bold">
             ✓ Séquences actives
           </Badge>
         </div>
@@ -329,7 +329,7 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
           </CardContent>
         </Card>
       ) : (
-        <ul className="space-y-3 max-h-[62vh] overflow-y-auto pretty-scroll pr-1" aria-label="Liste des relances">
+        <ul className="grid grid-cols-1 xl:grid-cols-2 gap-3.5 max-h-[68vh] overflow-y-auto pretty-scroll pr-1" aria-label="Liste des relances">
           <AnimatePresence initial={false}>
             {visible.map((item) => (
               <motion.li
