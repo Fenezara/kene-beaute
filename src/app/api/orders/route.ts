@@ -1,9 +1,6 @@
 // POST /api/orders — commande boutique (wallet = paiement immédiat, MoMo = en attente)
-// couponCode (facultatif): validé puis consommé via lib/kene/coupons — la
-// remise réduit le total payé, le cashback s'applique sur le montant payé.
-//: le flux complet (order.create, consommation coupon, payment.create,
-// order.update paymentId, débit/crédit wallet, cashback, parrainage, sorties de
-// stock + InventoryMovement, notification) passe dans UNE prisma.$transaction —
+// Le flux complet (order.create, payment.create, order.update paymentId, débit/crédit wallet,
+// cashback, parrainage, sorties de stock + InventoryMovement, notification) passe dans UNE prisma.$transaction —
 // plus de panne partielle. Le paiement MoMo pending porte un code de confirmation
 // (confirmToken renvoyé au front, hash sha256 stocké). Les push temps réel
 // institut restent best-effort, APRÈS le commit.
@@ -14,7 +11,6 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, genRef, debitWallet, creditWallet, notify, rewardReferrerIfNeeded } from "@/lib/kene/server";
 import { CASHBACK_RATE, xof } from "@/lib/kene/format";
-import { checkCoupon, redeemCoupon } from "@/lib/kene/coupons";
 import { newConfirmToken, paymentWithConfirmToken } from "@/lib/kene/confirm-token";
 import { pushTenantFeed } from "@/lib/kene/realtime";
 import { guardUserClaim } from "@/lib/kene/session";
@@ -104,7 +100,6 @@ export async function POST(req: NextRequest) {
       userId,
       items,
       paymentMethod,
-      couponCode,
       deliveryCity,
       deliveryAreaId,
       deliveryAddress,
@@ -134,20 +129,11 @@ export async function POST(req: NextRequest) {
       return { product: p, qty: i.qty, total: p.price * i.qty };
     });
     const subtotal = lines.reduce((s, l) => s + l.total, 0);
-
-    // Coupon: validation complète AVANT toute écriture (garde d'usage incluse)
-    let discount = 0;
-    let appliedCouponId: string | null = null;
-    if (couponCode) {
-      const check = await checkCoupon(couponCode, subtotal, userId);
-      if (!check.ok) return jsonError(check.error ?? "Code promo invalide", 400);
-      discount = check.discount ?? 0;
-      appliedCouponId = check.coupon?.id ?? null;
-    }
+    const discount = 0;
 
     // Frais de livraison urbaine calculés selon la commune
     const shippingFee = deliveryCity ? calculateShippingFee(deliveryAreaId) : 0;
-    const total = subtotal - discount + shippingFee;
+    const total = subtotal + shippingFee;
 
     // Taux de cashback: celui de la wallet de la cliente, sinon le taux par défaut
     // — appliqué au montant PAYÉ (après remise, hors frais de port)
@@ -155,7 +141,7 @@ export async function POST(req: NextRequest) {
     if (paymentMethod === "wallet" && (!wallet || wallet.balance < total)) {
       return jsonError("Solde wallet insuffisant — rechargez votre wallet Kènè", 400);
     }
-    const cashbackBase = Math.max(0, subtotal - discount);
+    const cashbackBase = subtotal;
     const cashback = Math.round(cashbackBase * (wallet?.cashbackRate ?? CASHBACK_RATE));
 
     const orderItemsData = lines.map((l) => ({
@@ -169,7 +155,7 @@ export async function POST(req: NextRequest) {
     // Instituts concernés par la commande (produits maison → aucun).
     const orderTenantIds = [...new Set(lines.map((l) => l.product.tenantId).filter((t): t is string => Boolean(t)))];
 
-    // ─── Transaction atomique: commande + coupon + paiement + wallet + stock ───
+    // ─── Transaction atomique: commande + paiement + wallet + stock ───
     const created = await db.$transaction(async (tx) => {
       const deliveryAreaName = deliveryAreaId ? (getAreaById(deliveryAreaId)?.name ?? deliveryAreaId) : null;
       const order = await tx.order.create({
@@ -182,8 +168,8 @@ export async function POST(req: NextRequest) {
           deliveryAddress: deliveryAddress ?? null,
           deliveryPhone: deliveryPhone ?? user.phone,
           deliveryNotes: deliveryNotes ?? null,
-          discount,
-          couponCode: appliedCouponId ? couponCode!.toUpperCase() : null,
+          discount: 0,
+          couponCode: null,
           cashback,
           total,
           status: paymentMethod === "wallet" ? "paid" : "pending",
@@ -204,13 +190,6 @@ export async function POST(req: NextRequest) {
           skinType: user.skinType,
           fitzpatrick: user.fitzpatrick,
         });
-      }
-
-      // Consommation du coupon DANS la transaction: si la garde échoue
-      // (usage simultané), le throw annule commande + items d'un coup.
-      if (appliedCouponId) {
-        const redeemed = await redeemCoupon(appliedCouponId, userId, subtotal, order.id, tx);
-        if (!redeemed.ok) throw new OrderFlowError(redeemed.error);
       }
 
       let paymentId: string | null = null;

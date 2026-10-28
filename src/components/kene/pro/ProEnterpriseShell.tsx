@@ -22,7 +22,6 @@ import {
   ShoppingBag,
   ScanFace,
   ShieldAlert,
-  TicketPercent,
   WifiOff,
   BriefcaseBusiness,
   LogIn,
@@ -71,7 +70,6 @@ import { CatalogSection } from "./CatalogSection";
 import { StockSection } from "./StockSection";
 import { PayrollSection } from "./PayrollSection";
 import { AccountingSection } from "./AccountingSection";
-import { CouponsSection } from "./CouponsSection";
 import { DiagnosticsSection } from "./DiagnosticsSection";
 import { SettingsSection } from "./SettingsSection";
 import { ProPlanSection } from "./ProPlanSection";
@@ -95,7 +93,6 @@ export type ProSectionId =
   | "relances"
   | "equipe"
   | "catalogue"
-  | "promos"
   | "stock"
   | "paie"
   | "compta"
@@ -141,7 +138,6 @@ const NAV: ProNavItem[] = [
   { id: "caisse", label: "Ventes & Caisse", icon: AbanIcon, hint: "Caisse POS · Commandes en ligne", category: "commerce" },
   { id: "stock", label: "Inventaire Stock", icon: KenteIcon, hint: "Produits, seuils d'alerte & réassort", category: "commerce" },
   { id: "catalogue", label: "Catalogue Soins", icon: DuafeIcon, hint: "Prestations, tarifs & cartes des soins", category: "commerce" },
-  { id: "promos", label: "Codes Promo", icon: TicketPercent, hint: "Codes promotionnels & remises", category: "commerce" },
 
   // 4. Relation & Fidélité
   { id: "crm", label: "CRM Clientes", icon: OsramIcon, hint: "Clientes, fiches & fidélité", category: "relation" },
@@ -166,7 +162,7 @@ const EMPLOYEE_SECTIONS: Record<string, ProSectionId[]> = {
   caissiere: ["caisse", "catalogue", "stock", "assistant", "parametres"],
   receptionniste: ["agenda", "caisse", "crm", "relances", "assistant", "parametres"],
   responsable_stock: ["stock", "catalogue", "assistant", "parametres"],
-  manager: ["dashboard", "dossiers_peau", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue", "stock", "promos", "parametres"],
+  manager: ["dashboard", "dossiers_peau", "diagnostic", "assistant", "agenda", "caisse", "crm", "relances", "equipe", "catalogue", "stock", "parametres"],
   apprentie: ["dossiers_peau", "diagnostic", "agenda", "assistant", "parametres"],
 };
 
@@ -341,7 +337,7 @@ export function ProEnterpriseShell() {
 
   const [section, setSection] = useState<ProSectionId>("dashboard");
   const [salesTab, setSalesTab] = useState<"pos" | "orders">("pos");
-  const [catalogTab, setCatalogTab] = useState<"products" | "stock" | "promos">("products");
+  const [catalogTab, setCatalogTab] = useState<"products" | "stock">("products");
   const [settingsTab, setSettingsTab] = useState<"settings" | "subscription">("settings");
   const [diagCommand, setDiagCommand] = useState<{ clientId: string; nonce: number } | null>(null);
   const [skinDossierClientId, setSkinDossierClientId] = useState<string | null>(null);
@@ -711,15 +707,6 @@ export function ProEnterpriseShell() {
     }
     if (s === "catalogue") {
       setCatalogTab("products");
-      setSection("catalogue");
-      return;
-    }
-    if (s === "promos") {
-      if (!isOwner && employeeRole !== "manager") {
-        toast.error("Accès réservé", { description: "Les codes promo sont réservés à la gérance." });
-        return;
-      }
-      setCatalogTab("promos");
       setSection("catalogue");
       return;
     }
@@ -1774,36 +1761,27 @@ export function ProEnterpriseShell() {
             )}
             {activeSection === "relances" && <RelancesSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />}
             {activeSection === "equipe" && <TeamSection tenantId={tid} defaultCountry={tenant?.country ?? "CI"} />}
-            {(activeSection === "catalogue" || activeSection === "stock" || activeSection === "promos") && (() => {
+            {(activeSection === "catalogue" || activeSection === "stock") && (() => {
               const canViewCatalogue = !allowedIds || allowedIds.includes("catalogue");
               const canViewStock = !allowedIds || allowedIds.includes("stock");
-              const canViewPromos = isOwner || employeeRole === "manager";
-              const subTabCount = [canViewCatalogue, canViewStock, canViewPromos].filter(Boolean).length;
 
-              const effectiveTab: "products" | "stock" | "promos" =
+              const effectiveTab: "products" | "stock" =
                 activeSection === "stock" && canViewStock
                   ? "stock"
                   : activeSection === "catalogue" && canViewCatalogue
                   ? "products"
-                  : activeSection === "promos" && canViewPromos
-                  ? "promos"
                   : canViewCatalogue && catalogTab === "products"
                   ? "products"
                   : canViewStock && catalogTab === "stock"
                   ? "stock"
                   : canViewStock
                   ? "stock"
-                  : canViewCatalogue
-                  ? "products"
                   : "products";
 
               return (
                 <div className="space-y-4">
                   {effectiveTab === "products" && <CatalogSection tenantId={tid} />}
                   {effectiveTab === "stock" && <StockSection tenantId={tid} onNavigate={openSection} />}
-                  {effectiveTab === "promos" && canViewPromos && (
-                    <CouponsSection tenantId={tid} tenantName={tenant?.name ?? "Institut"} />
-                  )}
                 </div>
               );
             })()}

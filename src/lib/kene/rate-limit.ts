@@ -23,7 +23,6 @@ export const TTS = { limit: 12, windowMs: 60_000 } as const;
 export const ASR = { limit: 10, windowMs: 60_000 } as const; // transcription vocale chat 
 export const AUTH_MUTATION = { limit: 20, windowMs: 60_000 } as const;
 export const REVIEWS_POST = { limit: 10, windowMs: 60_000 } as const; // dépôt d'avis vérifié
-export const COUPONS_VALIDATE = { limit: 15, windowMs: 60_000 } as const; // anti-brute force de codes promo
 export const PROFILE_EXPORT = { limit: 6, windowMs: 15 * 60_000 } as const; // export RGPD complet
 export const ACCOUNT_DELETE = { limit: 5, windowMs: 15 * 60_000 } as const; // suppression de compte & PIN
 
@@ -33,8 +32,6 @@ export const ACCOUNT_DELETE = { limit: 5, windowMs: 15 * 60_000 } as const; // s
 export const DIAGNOSES_CREATE = { limit: 6, windowMs: 60_000 } as const;
 // Diagnostic en institut: praticienne en cabine, rythme humain → 10/min.
 export const PRO_DIAGNOSES = { limit: 10, windowMs: 60_000 } as const;
-// Diffusion coupon = mass-notification vers TOUTES les clientes → très strict.
-export const COUPONS_DIFFUSE = { limit: 4, windowMs: 60_000 } as const;
 // Stats admin: scan complet de la base (cachées TTL 60 s côté route) → 30/min.
 export const ADMIN_STATS = { limit: 30, windowMs: 60_000 } as const;
 // Passkey console (t. 130): routes PRÉ-AUTH login/options + login/verify —

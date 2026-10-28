@@ -45,14 +45,6 @@ export interface RoutinePack {
 
 type PayMethod = "wave" | "orange";
 
-/* Coupon validé au checkout (aperçu local — la consommation a lieu à la commande) */
-interface AppliedPromo {
-  code: string;
-  label: string | null;
-  discount: number;
-  subtotal: number; // panier au moment de la validation (invalidation si changement)
-}
-
 export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
   const user = useKene((s) => s.user)!;
   const cart = useKene((s) => s.cart);
@@ -110,9 +102,6 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
       lastTap.current = { id: p.id, t: now, timer };
     }
   };
-  const [promoInput, setPromoInput] = useState("");
-  const [promoChecking, setPromoChecking] = useState(false);
-  const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
  /* « Mes commandes » — historique consultable (chargé au montage, rafraîchi
@@ -137,11 +126,7 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
 
   const shippingFee = calculateShippingFee(delivAreaId);
   const subtotal = cart.reduce((s, l) => s + l.price * l.qty, 0);
-  /* Coupon invalidé si le panier a changé depuis la validation (remise recalculée
-   * sur un autre sous-total) — la cliente re-valide, jamais de surprise serveur. */
-  const livePromo = promo && promo.subtotal === subtotal ? promo : null;
-  const discount = livePromo?.discount ?? 0;
-  const total = subtotal - discount + (cart.length > 0 ? shippingFee : 0);
+  const total = subtotal + (cart.length > 0 ? shippingFee : 0);
   useEffect(() => {
     apiGet<{ products: ApiProduct[] }>("/api/shop/products")
       .then((r) => setProducts(r.products ?? []))
@@ -312,28 +297,6 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
                 : " au catalogue"
           }${favOnly ? " · favoris" : ""}`;
 
- /* Applique un code promo: aperçu de remise sans consommer le coupon
- * (la consommation a lieu à la commande — toutes les gardes côté serveur). */
-  async function applyPromo() {
-    const code = promoInput.trim().toUpperCase();
-    if (!code || promoChecking) return;
-    setPromoChecking(true);
-    try {
-      const r = await apiPost<{ ok: true; coupon: { code: string; label: string | null }; discount: number; total: number }>(
-        "/api/coupons/validate",
-        { code, userId: user.id, subtotal }
-      );
-      setPromo({ code: r.coupon.code, label: r.coupon.label, discount: r.discount, subtotal });
-      setPromoInput("");
-      toast.success(`Code ${r.coupon.code} appliqué`, { description: `Remise de ${xof(r.discount)} déduite du total.` });
-    } catch (e) {
-      setPromo(null);
-      toast.error(e instanceof Error ? e.message : "Code promo invalide");
-    } finally {
-      setPromoChecking(false);
-    }
-  }
-
  /** Passerelle paiement: vérification d'identité par code si la sécurité
  * renforcée est active — le paiement initialement prévu (pay) n'est lancé
  * qu'une fois le code confirmé; annulé sinon, rien n'est engagé. */
@@ -372,7 +335,6 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
         deliveryAddress: delivAddress.trim() || undefined,
         deliveryPhone: delivPhone.trim() || undefined,
         deliveryNotes: delivNotes.trim() || undefined,
-        ...(livePromo ? { couponCode: livePromo.code } : {}),
       });
       const amount = r.order.total;
 
@@ -380,7 +342,6 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
       const checkoutUrl = r.paymentUrl || r.saspayLaunchUrl || r.winipayerLaunchUrl;
       if (checkoutUrl) {
         clearCart();
-        setPromo(null);
         setCheckout(false);
         toast.info("Ouverture du paiement sécurisé...", {
           description: "Finalise ta commande par Mobile Money ou Carte bancaire 💳",
@@ -392,7 +353,6 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
       // Si Wave réel a généré une session de paiement, redirection directe vers l'app Wave
       if (r.waveLaunchUrl) {
         clearCart();
-        setPromo(null);
         setCheckout(false);
         toast.info("Ouverture de Wave pour finaliser le paiement...");
         window.location.href = r.waveLaunchUrl;
@@ -402,7 +362,6 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
       // Si Orange Money a généré une URL de paiement, redirection vers le guichet Orange
       if (r.omLaunchUrl) {
         clearCart();
-        setPromo(null);
         setCheckout(false);
         toast.info("Ouverture d'Orange Money Web Payment...");
         window.location.href = r.omLaunchUrl;
@@ -430,7 +389,6 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
       setPayState({ phase: "success", method, amount });
       haptic(HAPTIC.success);
       clearCart();
-      setPromo(null); // le coupon est consommé: remise à zéro pour la prochaine commande
       void refreshOrders(); // la nouvelle commande apparaît dans « Mes commandes »
       toast.success("Commande confirmée et payée");
     } catch (e) {
@@ -880,51 +838,6 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
               ))}
             </div>
 
-            {/* Code promo — l'aperçu vit côté serveur (lib/kene/coupons) */}
-            {livePromo ? (
-              <div className="rounded-2xl border border-[#3F7D3F]/30 bg-[#3F7D3F]/[0.06] p-3.5 flex items-center gap-3" aria-live="polite">
-                <span className="grid place-items-center h-9 w-9 rounded-full bg-[#3F7D3F]/15 text-[#3F7D3F] shrink-0">
-                  <Tag size={16} aria-hidden="true" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold font-mono tracking-wide">{livePromo.code}</p>
-                  <p className="text-xs text-[#3F7D3F] font-semibold leading-tight">
-                    {livePromo.label ? `${livePromo.label} · ` : ""}−{xof(livePromo.discount)}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setPromo(null)}
-                  aria-label={`Retirer le code ${livePromo.code}`}
-                  className="h-8 w-8 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition-all"
-                >
-                  <X size={15} />
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Tag size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                  <input
-                    value={promoInput}
-                    onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-                    onKeyDown={(e) => e.key === "Enter" && void applyPromo()}
-                    placeholder="CODE PROMO"
-                    aria-label="Code promo"
-                    autoComplete="off"
-                    maxLength={24}
-                    className="k-input h-12 w-full rounded-2xl pl-10 pr-3 text-sm font-mono uppercase tracking-wide placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
-                  />
-                </div>
-                <button
-                  onClick={() => void applyPromo()}
-                  disabled={!promoInput.trim() || promoChecking}
-                  className="k-chip h-12 rounded-2xl px-5 text-xs font-bold disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-primary"
-                >
-                  {promoChecking ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : "Appliquer"}
-                </button>
-              </div>
-            )}
-
             {/* ── Section Destination de Livraison Urbaine (Abidjan / Dakar) ── */}
             <div className="k-card rounded-[24px] p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -1008,12 +921,6 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
 
             <div className="k-card k-card-hero space-y-1.5 rounded-[24px] p-4 text-xs">
               <div className="flex justify-between"><span className="text-muted-foreground">Sous-total</span><span className="font-mono font-semibold tabular-nums">{xof(subtotal)}</span></div>
-              {discount > 0 && (
-                <div className="flex justify-between text-[#3F7D3F]">
-                  <span className="font-semibold">Remise {livePromo?.code}</span>
-                  <span className="font-mono font-semibold tabular-nums">−{xof(discount)}</span>
-                </div>
-              )}
               <div className="flex justify-between text-muted-foreground">
                 <span className="flex items-center gap-1"><Truck size={12} /> Livraison ({delivCity === "abidjan" ? "Abidjan" : "Dakar"})</span>
                 <span className="font-mono font-semibold tabular-nums">+{xof(shippingFee)}</span>
@@ -1035,8 +942,7 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
                       clientName: user.name,
                       items: cart.map((c) => ({ name: c.name, qty: c.qty, price: c.price })),
                       subtotal,
-                      discount,
-                      promoCode: livePromo?.code,
+                      discount: 0,
                       shippingFee,
                       city: delivCity,
                       areaName: area?.name,
