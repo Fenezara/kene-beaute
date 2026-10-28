@@ -40,6 +40,7 @@ import { formatPhoneDisplay } from "@/lib/kene/phone-normalize";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { matchesSearch } from "@/lib/kene/search";
+import { useKene } from "@/store/kene";
 import type { EmployeesResponse, PaymentMethod, ProCatalog, ProClient, ProSale, SalesResponse } from "./types";
 
 interface TicketLine {
@@ -65,14 +66,41 @@ export function PosSection({
   tenantName,
   tenantCity,
   tenantPhone,
+  defaultPractitionerName,
   refreshKey = 0,
 }: {
   tenantId: string;
   tenantName: string;
   tenantCity?: string;
   tenantPhone?: string;
+  defaultPractitionerName?: string | null;
   refreshKey?: number;
 }) {
+  const sessionUser = useKene((s) => s.user);
+
+  // Détermination du nom de la praticienne connectée (session active)
+  const resolvedSessionPractitioner = useMemo(() => {
+    const isGeneric = (n?: string | null) =>
+      !n ||
+      n.trim() === "" ||
+      n === "Gérante" ||
+      n === "Collaboratrice" ||
+      n.startsWith("Membre ") ||
+      n.startsWith("Nouvelle ") ||
+      n.includes("??");
+
+    if (defaultPractitionerName && !isGeneric(defaultPractitionerName)) {
+      return defaultPractitionerName.trim();
+    }
+    if (sessionUser?.employeeName && !isGeneric(sessionUser.employeeName)) {
+      return sessionUser.employeeName.trim();
+    }
+    if (sessionUser?.name && !isGeneric(sessionUser.name)) {
+      return sessionUser.name.trim();
+    }
+    return "";
+  }, [defaultPractitionerName, sessionUser?.employeeName, sessionUser?.name]);
+
   const [lines, setLines] = useState<TicketLine[]>([]);
   const [discountInput, setDiscountInput] = useState("");
   const [clientId, setClientId] = useState("");
@@ -157,7 +185,13 @@ export function PosSection({
   const [expressWalkInName, setExpressWalkInName] = useState("");
   const [expressWalkInPhone, setExpressWalkInPhone] = useState("");
   const [expressExistingClientId, setExpressExistingClientId] = useState("");
-  const [expressPractitioner, setExpressPractitioner] = useState("");
+  const [expressPractitioner, setExpressPractitioner] = useState(resolvedSessionPractitioner);
+
+  useEffect(() => {
+    if (!expressPractitioner && resolvedSessionPractitioner) {
+      setExpressPractitioner(resolvedSessionPractitioner);
+    }
+  }, [resolvedSessionPractitioner]);
   const [expressDiscount, setExpressDiscount] = useState("");
   const [expressPaymentMethod, setExpressPaymentMethod] = useState<PaymentMethod>("cash");
   const [expressReceiptSubmitting, setExpressReceiptSubmitting] = useState(false);
@@ -458,6 +492,7 @@ export function PosSection({
       setExpressWalkInName("");
       setExpressWalkInPhone("");
       setExpressDiscount("");
+      setExpressPractitioner(resolvedSessionPractitioner);
       void sales.refetch();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur lors de l'émission du reçu express");
@@ -740,7 +775,12 @@ export function PosSection({
           <div className="flex items-center gap-2 shrink-0">
             <Button
               size="sm"
-              onClick={() => setExpressReceiptOpen(true)}
+              onClick={() => {
+                if (!expressPractitioner && resolvedSessionPractitioner) {
+                  setExpressPractitioner(resolvedSessionPractitioner);
+                }
+                setExpressReceiptOpen(true);
+              }}
               className="h-8 gap-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-black shadow-xs active:scale-95 transition-all shrink-0"
             >
               <Zap className="size-3.5 fill-black" />
@@ -2465,14 +2505,24 @@ export function PosSection({
             <div className="space-y-1">
               <Label className="text-[11px] text-muted-foreground">Praticienne (Commissions)</Label>
               <Select value={expressPractitioner || "__none"} onValueChange={(v) => setExpressPractitioner(v === "__none" ? "" : v)}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-8 text-xs font-semibold">
                   <SelectValue placeholder="Caisse standard" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">Caisse standard</SelectItem>
-                  {(team.data?.employees ?? []).map((emp) => (
-                    <SelectItem key={emp.id} value={emp.name}>{emp.name} ({emp.role})</SelectItem>
-                  ))}
+                  {resolvedSessionPractitioner && !(team.data?.employees ?? []).some((e) => e.name.toLowerCase() === resolvedSessionPractitioner.toLowerCase()) && (
+                    <SelectItem value={resolvedSessionPractitioner} className="font-bold text-amber-600 dark:text-amber-400">
+                      ⭐ {resolvedSessionPractitioner} (Session active)
+                    </SelectItem>
+                  )}
+                  {(team.data?.employees ?? []).map((emp) => {
+                    const isCurrent = resolvedSessionPractitioner && emp.name.toLowerCase() === resolvedSessionPractitioner.toLowerCase();
+                    return (
+                      <SelectItem key={emp.id} value={emp.name} className={isCurrent ? "font-bold text-amber-600 dark:text-amber-400" : ""}>
+                        {isCurrent ? "⭐ " : ""}{emp.name} ({emp.role}){isCurrent ? " (Vous)" : ""}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

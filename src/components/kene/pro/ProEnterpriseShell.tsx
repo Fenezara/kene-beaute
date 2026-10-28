@@ -1724,6 +1724,7 @@ export function ProEnterpriseShell() {
                     tenantName={tenant?.name ?? "Institut"}
                     tenantCity={tenant?.city}
                     tenantPhone={tenant?.phone}
+                    defaultPractitionerName={chipName}
                     refreshKey={refreshKey}
                   />
                 ) : (
