@@ -312,6 +312,9 @@ export function TierThemeSelector({
           {getHeritageIcon(activeDef.symbol)}
         </div>
 
+        {/* Scrim de contraste haute définition pour garantir la lisibilité parfaite du texte blanc */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/40 to-black/20 pointer-events-none" />
+
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1.5 max-w-md">
             <div className="flex items-center gap-2">

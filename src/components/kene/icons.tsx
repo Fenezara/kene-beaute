@@ -360,6 +360,7 @@ export function KeneEmblemLockup({
   className = "",
   labelSize,
   hideSublabelOnMobile = false,
+  tone = "auto",
 }: {
   size?: number;
   label?: React.ReactNode;
@@ -367,8 +368,22 @@ export function KeneEmblemLockup({
   className?: string;
   labelSize?: number;
   hideSublabelOnMobile?: boolean;
+  tone?: "auto" | "light" | "dark";
 }) {
   const fontSize = labelSize ?? Math.round(size * 0.52 * 100) / 100;
+  const labelColorClass =
+    tone === "light"
+      ? "text-[#FFFDF7]"
+      : tone === "dark"
+      ? "text-[#18120C]"
+      : "text-foreground";
+  const sublabelColorClass =
+    tone === "light"
+      ? "text-[#F3C968]"
+      : tone === "dark"
+      ? "text-[#7A5506]"
+      : "text-[#7A5506] dark:text-[#F3C968]";
+
   return (
     <span className={cn("inline-flex shrink-0 items-center gap-2 sm:gap-3 select-none", className)}>
       <KeneEmblem
@@ -377,7 +392,7 @@ export function KeneEmblemLockup({
       <span className="flex shrink-0 flex-col items-start leading-none justify-center">
         <span className="inline-flex w-fit flex-col items-start">
           <span
-            className="font-heading font-black leading-[1.05] tracking-[0.02em] text-foreground whitespace-nowrap"
+            className={cn("font-heading font-black leading-[1.05] tracking-[0.02em] whitespace-nowrap", labelColorClass)}
             style={{ fontSize: `${fontSize.toFixed(2)}px` }}
           >
             {label}
@@ -392,7 +407,8 @@ export function KeneEmblemLockup({
         {sublabel != null && (
           <span
             className={cn(
-              "mt-1.5 text-[10.5px] sm:text-[12px] font-extrabold uppercase tracking-[0.13em] truncate max-w-[140px] sm:max-w-none text-[#7A5506] dark:text-[#F3C968]",
+              "mt-1.5 text-[10.5px] sm:text-[12px] font-extrabold uppercase tracking-[0.13em] truncate max-w-[140px] sm:max-w-none",
+              sublabelColorClass,
               hideSublabelOnMobile && "hidden md:inline"
             )}
           >

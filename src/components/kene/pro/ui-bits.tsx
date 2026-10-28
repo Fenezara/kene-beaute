@@ -207,7 +207,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
-/** Rangée d'actions défilable avec glissement tactile fluide, drag souris et chevrons de navigation */
+/** Rangée d'actions défilable avec glissement tactile fluide, drag souris universel, molette horizontale et chevrons de navigation */
 export function ScrollableActions({ children }: { children: ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -230,12 +230,31 @@ export function ScrollableActions({ children }: { children: ReactNode }) {
     checkScroll();
     const el = containerRef.current;
     if (!el) return;
+
+    // Écouteur de redimensionnement
     const ro = new ResizeObserver(checkScroll);
     ro.observe(el);
     window.addEventListener("resize", checkScroll);
+
+    // Défilement naturel à la molette verticale converti en horizontal
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return;
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        const atStart = el.scrollLeft <= 0 && e.deltaY < 0;
+        const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 2 && e.deltaY > 0;
+        if (!atStart && !atEnd) {
+          e.preventDefault();
+          el.scrollLeft += e.deltaY;
+          checkScroll();
+        }
+      }
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+
     return () => {
       ro.disconnect();
       window.removeEventListener("resize", checkScroll);
+      el.removeEventListener("wheel", onWheel);
     };
   }, [children]);
 
@@ -244,40 +263,47 @@ export function ScrollableActions({ children }: { children: ReactNode }) {
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.closest("button, a, input, select")) return;
+    if (e.button !== 0) return;
     isDragging.current = true;
     hasMoved.current = false;
-    startX.current = e.pageX - (containerRef.current?.offsetLeft ?? 0);
+    startX.current = e.pageX;
     scrollLeftStart.current = containerRef.current?.scrollLeft ?? 0;
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging.current || !containerRef.current) return;
-    const x = e.pageX - containerRef.current.offsetLeft;
-    const walk = (x - startX.current) * 1.4;
-    if (Math.abs(walk) > 3) {
+    const dx = e.pageX - startX.current;
+    if (Math.abs(dx) > 4) {
       hasMoved.current = true;
-      e.preventDefault();
-      containerRef.current.scrollLeft = scrollLeftStart.current - walk;
+      containerRef.current.scrollLeft = scrollLeftStart.current - dx * 1.2;
+      checkScroll();
     }
   };
 
-  const handleMouseUpOrLeave = () => {
+  const handleMouseUp = () => {
     isDragging.current = false;
   };
 
+  const handleClickCapture = (e: React.MouseEvent) => {
+    // Si l'utilisateur a fait un drag pour faire défiler, intercepter le clic pour ne pas déclencher le bouton
+    if (hasMoved.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      hasMoved.current = false;
+    }
+  };
+
   return (
-    <div className="relative min-w-0 max-w-full flex items-center">
+    <div className="relative w-full min-w-0 max-w-full flex items-center group/scroll">
       {/* Flèche de défilement gauche */}
       {canScrollLeft && (
         <button
           type="button"
-          onClick={() => scrollByAmount(-180)}
+          onClick={() => scrollByAmount(-200)}
           aria-label="Faire défiler les actions vers la gauche"
-          className="absolute -left-1.5 z-20 size-7 rounded-full bg-card/95 border border-gold/40 shadow-md text-foreground flex items-center justify-center hover:bg-gold/15 active:scale-95 transition-all cursor-pointer backdrop-blur-sm"
+          className="absolute -left-1.5 z-20 size-8 rounded-full bg-card/95 border border-gold/50 shadow-lg text-foreground flex items-center justify-center hover:bg-gold/20 active:scale-95 transition-all cursor-pointer backdrop-blur-md"
         >
-          <ChevronLeft className="size-4" />
+          <ChevronLeft className="size-4.5 text-gold-text font-bold" />
         </button>
       )}
 
@@ -286,16 +312,21 @@ export function ScrollableActions({ children }: { children: ReactNode }) {
         <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-card via-card/80 to-transparent z-10" />
       )}
 
-      {/* Zone scrollable fluide (Touch + Souris + Trackpad) */}
+      {/* Zone scrollable fluide (Touch + Souris + Molette + Trackpad) */}
       <div
         ref={containerRef}
         onScroll={checkScroll}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUpOrLeave}
-        onMouseLeave={handleMouseUpOrLeave}
-        className="w-full overflow-x-auto no-scrollbar scroll-smooth overscroll-x-contain py-1 px-1 -mx-1"
-        style={{ WebkitOverflowScrolling: "touch" }}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onClickCapture={handleClickCapture}
+        className="w-full overflow-x-auto touch-pan-x scroll-smooth overscroll-x-contain py-1 px-1 -mx-1 select-none"
+        style={{
+          WebkitOverflowScrolling: "touch",
+          scrollbarWidth: "thin",
+          scrollbarColor: "rgba(184, 124, 14, 0.35) transparent",
+        }}
       >
         <div className="flex items-center gap-2 shrink-0 min-w-max">
           {children}
@@ -311,11 +342,11 @@ export function ScrollableActions({ children }: { children: ReactNode }) {
       {canScrollRight && (
         <button
           type="button"
-          onClick={() => scrollByAmount(180)}
+          onClick={() => scrollByAmount(200)}
           aria-label="Faire défiler les actions vers la droite"
-          className="absolute -right-1.5 z-20 size-7 rounded-full bg-card/95 border border-gold/40 shadow-md text-foreground flex items-center justify-center hover:bg-gold/15 active:scale-95 transition-all cursor-pointer backdrop-blur-sm"
+          className="absolute -right-1.5 z-20 size-8 rounded-full bg-card/95 border border-gold/50 shadow-lg text-foreground flex items-center justify-center hover:bg-gold/20 active:scale-95 transition-all cursor-pointer backdrop-blur-md"
         >
-          <ChevronRight className="size-4" />
+          <ChevronRight className="size-4.5 text-gold-text font-bold" />
         </button>
       )}
     </div>
@@ -334,7 +365,7 @@ export function SectionHeader({ title, sub, actions }: { title: string; sub?: st
         </div>
       </div>
       {actions && (
-        <div className="w-full md:w-auto min-w-0 max-w-full">
+        <div className="w-full md:flex-1 md:min-w-0 flex items-center md:justify-end overflow-hidden">
           <ScrollableActions>
             {actions}
           </ScrollableActions>

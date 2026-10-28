@@ -503,7 +503,7 @@ export function ClientApp() {
         <div className="h-16 lg:h-18 flex items-center justify-center lg:justify-start px-2 lg:px-5 border-b border-white/10">
           {/* Logo en haut à gauche : icône médaillon sur tablette, lockup complet avec slogan sur grand écran */}
           <div className="hidden lg:block">
-            <KeneEmblemLockup size={46} labelSize={23} sublabel="Beauté mélanoderme" />
+            <KeneEmblemLockup size={46} labelSize={23} sublabel="Beauté mélanoderme" tone="light" />
           </div>
           <div className="lg:hidden" title="Kènè — Beauté mélanoderme">
             <KeneEmblem size={38} />
