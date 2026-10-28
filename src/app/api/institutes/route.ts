@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, instituteImage, slugify } from "@/lib/kene/server";
+import { matchesSearch } from "@/lib/kene/search";
 
 /** Champs publics d'un institut (contrat = ApiInstitute côté cliente).
  * — `phone` (numéro OFFICIEL de l'établissement, affiché devanture:
@@ -92,10 +93,10 @@ export async function GET(req: NextRequest) {
       orderBy: { rating: "desc" },
     });
 
-    // SQLite: filtrage insensible à la casse/accents côté JS
+    // SQLite: filtrage insensible à la casse/accents/téléphones côté JS
     let institutes = tenants
-      .filter((t) => !city || slugify(t.city).includes(slugify(city)) || t.city.toLowerCase().includes(city) || (t.address && t.address.toLowerCase().includes(city)))
-      .filter((t) => !q || slugify(t.name).includes(slugify(q)) || t.name.toLowerCase().includes(q) || (t.address && t.address.toLowerCase().includes(q)))
+      .filter((t) => !city || matchesSearch(city, t.city, t.address))
+      .filter((t) => !q || matchesSearch(q, t.name, t.city, t.address, t.description, t.phone))
       .map((t) => {
         const { photoData, ...rest } = t;
         const coords = getTenantCoords(t.city, t.address);

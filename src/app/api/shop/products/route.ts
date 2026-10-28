@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, slugify } from "@/lib/kene/server";
+import { matchesSearch } from "@/lib/kene/search";
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
     // /api/media/product/:id (photo institut) qui prime sur le visuel studio.
     const products = all
       .filter((p) => !category || p.category.toLowerCase() === category)
-      .filter((p) => !q || slugify(p.name).includes(slugify(q)) || slugify(p.description).includes(slugify(q)))
+      .filter((p) => !q || matchesSearch(q, p.name, p.description, p.category, p.botanicals))
       .map((p) => {
         const { photoData, tenant, ...rest } = p;
         return {

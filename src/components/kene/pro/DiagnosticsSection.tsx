@@ -43,6 +43,7 @@ import { BODY_ZONES, ZONE_PHOTO_SLOTS, recommend4SpectralViews, type BodyZone, t
 import {
   getSectionsForZone, getQuestionsForZone, defaultAnswers, questionnaireProgress, parseProDiagnosis,
 } from "@/lib/kene/questionnaire";
+import { matchesSearch } from "@/lib/kene/search";
 import type { ProDiagnosisResult, QAnswers } from "@/lib/kene/questionnaire";
 import { SkinDescent } from "@/components/kene/descent/SkinDescent";
 import { SkinZoneSelector } from "./diagnostic/SkinZoneSelector";
@@ -182,12 +183,10 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
   // Filtrage multi-critères
   const filteredDiagnoses = useMemo(() => {
     return diagnoses.filter((d) => {
-      // Filtre texte (nom cliente ou praticienne)
+      // Filtre texte universel (nom cliente, numéro de téléphone, praticienne ou zone)
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const nameMatch = d.clientName.toLowerCase().includes(q);
-        const pracMatch = d.practitioner ? d.practitioner.toLowerCase().includes(q) : false;
-        if (!nameMatch && !pracMatch) return false;
+        const matches = matchesSearch(searchQuery, d.clientName, d.clientPhone, d.practitioner, d.zone);
+        if (!matches) return false;
       }
       // Filtre zone
       if (zoneFilter !== "all" && d.zone !== zoneFilter) return false;
@@ -275,7 +274,7 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher par cliente ou praticienne…"
+              placeholder="Rechercher par cliente, téléphone ou praticienne…"
               className="pl-9 h-9 text-xs"
             />
           </div>

@@ -251,6 +251,7 @@ export interface ProDiagnosisItem {
   createdAt: string;
   clientProfileId: string;
   clientName: string;
+  clientPhone?: string;
   resultJson: string;
   questionnaireJson?: string;
   photoData?: string | null;

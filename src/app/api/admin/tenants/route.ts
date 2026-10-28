@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, slugify } from "@/lib/kene/server";
+import { matchesSearch } from "@/lib/kene/search";
 import { sessionFromRequest } from "@/lib/kene/session";
 import { toCsv, csvDate, type CsvCell } from "@/lib/accounting/csv";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
@@ -101,11 +102,10 @@ export async function GET(req: NextRequest) {
 
     const type = req.nextUrl.searchParams.get("type")?.trim() || req.nextUrl.searchParams.get("scope")?.trim() || "";
 
-    // Recherche insensible casse/accents (pattern SQLite du projet)
+    // Recherche insensible casse/accents/téléphones
     let filtered = q
       ? rows.filter((r) =>
-          [r.name, r.city, r.ownerName, r.ownerPhone, r.phone]
-            .some((f) => f && (f.toLowerCase().includes(q) || slugify(f).includes(slugify(q)))),
+          matchesSearch(q, r.name, r.city, r.ownerName, r.ownerPhone, r.phone)
         )
       : rows;
 

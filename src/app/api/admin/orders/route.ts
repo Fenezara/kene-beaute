@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { serverError, jsonError } from "@/lib/kene/server";
 import { sessionFromRequest } from "@/lib/kene/session";
+import { extractDigits } from "@/lib/kene/search";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 import { audit, clientIp } from "@/lib/kene/audit";
 
@@ -52,7 +53,8 @@ export async function GET(req: NextRequest) {
       orderWhere.status = status;
     }
     if (q) {
-      orderWhere.OR = [
+      const qDigits = extractDigits(q);
+      const orderOr: any[] = [
         { id: { contains: q } },
         { deliveryCity: { contains: q } },
         { deliveryArea: { contains: q } },
@@ -62,6 +64,11 @@ export async function GET(req: NextRequest) {
         { user: { phone: { contains: q } } },
         { couponCode: { contains: q } },
       ];
+      if (qDigits.length >= 3) {
+        orderOr.push({ deliveryPhone: { contains: qDigits } });
+        orderOr.push({ user: { phone: { contains: qDigits } } });
+      }
+      orderWhere.OR = orderOr;
     }
 
     const saleWhere: any = {};
@@ -69,7 +76,8 @@ export async function GET(req: NextRequest) {
       saleWhere.tenantId = { notIn: demoTenantsArr };
     }
     if (q) {
-      saleWhere.OR = [
+      const qDigits = extractDigits(q);
+      const saleOr: any[] = [
         { id: { contains: q } },
         { receiptNumber: { contains: q } },
         { practitioner: { contains: q } },
@@ -77,6 +85,10 @@ export async function GET(req: NextRequest) {
         { clientProfile: { name: { contains: q } } },
         { clientProfile: { phone: { contains: q } } },
       ];
+      if (qDigits.length >= 3) {
+        saleOr.push({ clientProfile: { phone: { contains: qDigits } } });
+      }
+      saleWhere.OR = saleOr;
     }
 
     // Récupération simultanée des commandes en ligne et des ventes caisse salon avec agrégations globales

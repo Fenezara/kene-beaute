@@ -28,6 +28,7 @@ import { useKene, isSavedUser } from "@/store/kene";
 import { SankofaIcon, CauriIcon, KeneEmblem, NsorommaIcon } from "@/components/kene/icons";
 import { cn } from "@/lib/utils";
 import { HAPTIC, haptic } from "@/lib/kene/ux";
+import { matchesSearch } from "@/lib/kene/search";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { ApiInstitute } from "./types";
 import { LinkAccountModal } from "./LinkAccountModal";
@@ -116,16 +117,12 @@ export function InstitutesScreen() {
 
   // Filtrage des instituts
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return institutes.filter((inst) => {
       const matchCity =
         cityFilter === "all" || inst.city.toLowerCase() === cityFilter.toLowerCase();
       const matchSearch =
-        !q ||
-        inst.name.toLowerCase().includes(q) ||
-        inst.city.toLowerCase().includes(q) ||
-        (inst.address && inst.address.toLowerCase().includes(q)) ||
-        (inst.description && inst.description.toLowerCase().includes(q));
+        !search.trim() ||
+        matchesSearch(search, inst.name, inst.city, inst.address, inst.description, inst.phone);
       return matchCity && matchSearch;
     });
   }, [institutes, search, cityFilter]);

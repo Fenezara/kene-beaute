@@ -7,6 +7,7 @@ import { jsonError, serverError, resolveTenant, slugify } from "@/lib/kene/serve
 import { guardProRole } from "@/lib/kene/session";
 import { ensureClientProfile } from "@/lib/kene/client-link";
 import { canonicalPhone, arePhonesMatching, phoneMatchKey } from "@/lib/kene/phone-normalize";
+import { matchesSearch } from "@/lib/kene/search";
 
 // Validation zod (, remplace le cast manuel): bornes calquées sur
 // l'ancien contrat (nom ≤ 80, téléphone raisonnablement borné en longueur —
@@ -146,7 +147,7 @@ export async function GET(req: NextRequest) {
     });
 
     const clients = all.filter(
-      (c) => !q || slugify(c.name).includes(slugify(q)) || c.phone.replace(/\s/g, "").includes(q.replace(/\s/g, ""))
+      (c) => !q || matchesSearch(q, c.name, c.phone, c.district, c.email)
     );
 
     return NextResponse.json({ clients });

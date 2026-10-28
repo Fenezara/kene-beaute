@@ -38,6 +38,7 @@ import { OrderStatusBadge } from "./OrdersSection";
 import { proToastError } from "./ProApp";
 import { DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
 import { formatPhoneDisplay } from "@/lib/kene/phone-normalize";
+import { matchesSearch } from "@/lib/kene/search";
 import type { ProClient, ProClientDetail } from "./types";
 
 function useDebounced<T>(value: T, delay = 350): T {
@@ -119,31 +120,13 @@ export function CrmSection({
     async () => {
       if (!tenantId) return DEFAULT_FALLBACK_CLIENTS;
       try {
-        const res = await apiGet<{ clients: ProClient[] }>(
-          `/api/pro/clients?tenantId=${tenantId}${q ? `&q=${encodeURIComponent(q)}` : ""}`
-        );
+        const res = await apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`);
         return res.clients ?? [];
       } catch (err) {
-        // En cas d'échec (ex: recherche hors-ligne non présente dans le cache),
-        // on tente de charger la liste complète en cache et de filtrer localement
-        if (q) {
-          try {
-            const fallbackRes = await apiGet<{ clients: ProClient[] }>(`/api/pro/clients?tenantId=${tenantId}`);
-            const allClients = fallbackRes.clients ?? [];
-            const term = q.toLowerCase().trim();
-            return allClients.filter(
-              (c) =>
-                c.name.toLowerCase().includes(term) ||
-                (c.phone && c.phone.includes(term))
-            );
-          } catch {
-            // continuer vers throw originel
-          }
-        }
         return DEFAULT_FALLBACK_CLIENTS;
       }
     },
-    [tenantId, q],
+    [tenantId],
     { cacheKey: `kene_pro_clients_${tenantId || "default"}`, fallbackData: DEFAULT_FALLBACK_CLIENTS }
   );
 
@@ -198,11 +181,16 @@ export function CrmSection({
     return Array.from(set).sort();
   }, [clients.data]);
 
-  const filtered = (clients.data ?? []).filter(
-    (c) =>
-      (segment ? c.rfmSegment === segment : true) &&
-      (!selectedDistrict || c.district === selectedDistrict)
-  );
+  const filtered = useMemo(() => {
+    return (clients.data ?? []).filter((c) => {
+      if (query.trim() && !matchesSearch(query, c.name, c.phone, c.district, c.email, c.notes)) {
+        return false;
+      }
+      if (segment && c.rfmSegment !== segment) return false;
+      if (selectedDistrict && c.district !== selectedDistrict) return false;
+      return true;
+    });
+  }, [clients.data, query, segment, selectedDistrict]);
   const all = clients.data ?? [];
   const totalClients = all.length;
   const totalSpent = all.reduce((s, c) => s + c.totalSpent, 0);
@@ -347,16 +335,16 @@ export function CrmSection({
           <CardContent className="p-8 text-center space-y-3">
             <EmptyState
               label="Aucune cliente trouvée"
-              sub={q ? `Aucune fiche ne correspond à « ${q} »` : "Votre carnet de clientes est vide pour ce filtre."}
+              sub={query ? `Aucune fiche ne correspond à « ${query} »` : "Votre carnet de clientes est vide pour ce filtre."}
             />
             <Button
               onClick={() => {
-                if (q) {
-                  if (/^\+?\d+$/.test(q.replace(/\s/g, ""))) {
-                    setCreatePhone(q);
+                if (query) {
+                  if (/^\+?\d+$/.test(query.replace(/\s/g, ""))) {
+                    setCreatePhone(query);
                     setCreateName("");
                   } else {
-                    setCreateName(q);
+                    setCreateName(query);
                     setCreatePhone("");
                   }
                 }
@@ -365,7 +353,7 @@ export function CrmSection({
               className="k-btn-gold text-primary-foreground font-semibold text-xs gap-1.5"
             >
               <Plus className="size-4" aria-hidden="true" />
-              <span>{q ? `Créer la fiche de « ${q} »` : "Enregistrer une première cliente"}</span>
+              <span>{query ? `Créer la fiche de « ${query} »` : "Enregistrer une première cliente"}</span>
             </Button>
           </CardContent>
         ) : (

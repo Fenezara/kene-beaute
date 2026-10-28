@@ -17,6 +17,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, slugify } from "@/lib/kene/server";
+import { matchesSearch } from "@/lib/kene/search";
 import { subPlanLabel } from "@/lib/kene/plans";
 import { toCsv, csvDate, type CsvCell } from "@/lib/accounting/csv";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
@@ -88,12 +89,10 @@ export async function GET(req: NextRequest) {
     }
     const byPlan = [...byPlanMap.values()].sort((a, b) => b.mrr - a.mrr);
 
-    // Recherche insensible casse/accents (pattern SQLite du projet).
+    // Recherche insensible casse/accents/téléphone
     const filtered = q
       ? rows.filter((r) =>
-          [r.userName, r.userPhone, r.planLabel, r.plan].some(
-            (f) => f && (f.toLowerCase().includes(q) || slugify(f).includes(slugify(q))),
-          ),
+          matchesSearch(q, r.userName, r.userPhone, r.planLabel, r.plan)
         )
       : rows;
 

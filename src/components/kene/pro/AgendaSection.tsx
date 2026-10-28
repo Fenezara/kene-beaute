@@ -37,6 +37,7 @@ import { useApi } from "./useApi";
 import { ApptStatusBadge, EmptyState, ErrorState, Money, SectionHeader } from "./ui-bits";
 import { DEFAULT_FALLBACK_CATALOG, DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
 import { formatPhoneDisplay } from "@/lib/kene/phone-normalize";
+import { matchesSearch } from "@/lib/kene/search";
 import type { ProAppointment, ProCatalog, ProClient, ProLeave } from "./types";
 
 const OPEN = 9;
@@ -801,8 +802,8 @@ function CreateApptDialog({
 
   const client = clients.find((c) => c.id === clientId);
   const service = services.find((s) => s.id === serviceId);
-  const filteredClients = clients.filter(
-    (c) => c.name.toLowerCase().includes(clientQuery.toLowerCase()) || c.phone.replace(/\s/g, "").includes(clientQuery.replace(/\s/g, ""))
+  const filteredClients = clients.filter((c) =>
+    matchesSearch(clientQuery, c.name, c.phone, c.district, c.email)
   );
 
   async function submit() {

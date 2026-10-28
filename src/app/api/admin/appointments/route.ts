@@ -26,6 +26,8 @@ function requireAdmin(req: NextRequest): NextResponse | null {
   return null;
 }
 
+import { extractDigits } from "@/lib/kene/search";
+
 export async function GET(req: NextRequest) {
   const rl = rateLimit(rlKey(req, "admin:appointments"), ADMIN_STATS);
   if (!rl.ok) return rateLimitResponse(rl.retryAfterSec);
@@ -57,7 +59,8 @@ export async function GET(req: NextRequest) {
     }
 
     if (q) {
-      whereClause.OR = [
+      const qDigits = extractDigits(q);
+      const orConditions: any[] = [
         { clientName: { contains: q } },
         { clientPhone: { contains: q } },
         { notes: { contains: q } },
@@ -65,6 +68,13 @@ export async function GET(req: NextRequest) {
         { tenant: { name: { contains: q } } },
         { tenant: { city: { contains: q } } },
       ];
+      if (qDigits.length >= 3) {
+        orConditions.push({ clientPhone: { contains: qDigits } });
+        if (qDigits.startsWith("225") && qDigits.length > 3) {
+          orConditions.push({ clientPhone: { contains: qDigits.slice(3) } });
+        }
+      }
+      whereClause.OR = orConditions;
     }
 
     const [

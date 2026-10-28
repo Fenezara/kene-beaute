@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { serverError, slugify } from "@/lib/kene/server";
+import { matchesSearch } from "@/lib/kene/search";
 import { sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, ADMIN_STATS } from "@/lib/kene/rate-limit";
 import { requireAdmin } from "../tenants/route";
@@ -73,8 +74,7 @@ export async function GET(req: NextRequest) {
     if (role) rows = rows.filter((u) => u.role === role);
     if (q) {
       rows = rows.filter((u) =>
-        [u.name, u.phone, u.city, u.tenantName ?? ""]
-          .some((f) => f && (f.toLowerCase().includes(q) || slugify(f).includes(slugify(q)))),
+        matchesSearch(q, u.name, u.phone, u.city, u.tenantName)
       );
     }
 

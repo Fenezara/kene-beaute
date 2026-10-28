@@ -32,6 +32,7 @@ import {
 import { useApi } from "./useApi";
 import { EmptyState, ErrorState, Money, SectionHeader } from "./ui-bits";
 import { DEFAULT_FALLBACK_CATALOG } from "@/lib/kene/fallback-catalog";
+import { matchesSearch } from "@/lib/kene/search";
 import type { ProCatalog, ProProduct, ProService } from "./types";
 
 const PRODUCT_IMAGES = ["serum-moringa", "baume-karite", "huile-baobab", "gommage-bissap", "masque-aloka", "savon-noir", "brune-nere", "solaire-spf50"] as const;
@@ -139,8 +140,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
       list = list.filter((s) => s.category.toLowerCase() === serviceCatFilter.toLowerCase());
     }
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      list = list.filter((s) => s.name.toLowerCase().includes(q) || (s.botanicals ?? "").toLowerCase().includes(q) || s.category.toLowerCase().includes(q));
+      list = list.filter((s) => matchesSearch(searchQuery, s.name, s.botanicals, s.category, s.description));
     }
     return list;
   }, [catalog.data?.services, serviceCatFilter, searchQuery]);
@@ -151,8 +151,7 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
       list = list.filter((p) => p.category.toLowerCase() === productCatFilter.toLowerCase());
     }
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      list = list.filter((p) => p.name.toLowerCase().includes(q) || (p.botanicals ?? "").toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+      list = list.filter((p) => matchesSearch(searchQuery, p.name, p.botanicals, p.category, p.description));
     }
     return list;
   }, [catalog.data?.products, productCatFilter, searchQuery]);

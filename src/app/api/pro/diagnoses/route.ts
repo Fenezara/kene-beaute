@@ -305,7 +305,11 @@ export async function GET(req: NextRequest) {
     };
 
     return NextResponse.json({
-      diagnoses: rows.map((r) => ({ ...r, clientName: r.clientProfile?.name ?? "Cliente" })),
+      diagnoses: rows.map((r) => ({
+        ...r,
+        clientName: r.clientProfile?.name ?? "Cliente",
+        clientPhone: r.clientProfile?.phone ?? "",
+      })),
       kpis,
     });
   } catch (err) {

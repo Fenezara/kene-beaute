@@ -36,6 +36,7 @@ import { EmptyState, ErrorState, InitialAvatar, SectionHeader, KenteTop } from "
 import { proToastError } from "./ProApp";
 import { DEFAULT_FALLBACK_CLIENTS } from "@/lib/kene/fallback-catalog";
 import { formatPhoneDisplay } from "@/lib/kene/phone-normalize";
+import { matchesSearch } from "@/lib/kene/search";
 import {
   parseStructuredPrescription,
   serializeStructuredPrescription,
@@ -109,10 +110,8 @@ export function SkinDossiersSection({
       // Si la liste contient de vrais clients, ne pas polluer l'affichage avec l'entrée fictive
       if (c.id === "cli_comptoir_express" && allClients.length > 1) return false;
       if (search.trim()) {
-        const q = search.toLowerCase().trim();
-        const matchName = c.name.toLowerCase().includes(q);
-        const matchPhone = (c.phone || "").includes(q);
-        if (!matchName && !matchPhone) return false;
+        const matches = matchesSearch(search, c.name, c.phone, c.district, c.email);
+        if (!matches) return false;
       }
       const fitz = c.fitzpatrick || "V";
       if (selectedFitzy !== "all" && fitz !== selectedFitzy) return false;

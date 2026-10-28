@@ -37,6 +37,9 @@ import { useApi } from "./useApi";
 import { EmptyState, ErrorState, KenteTop, SectionHeader } from "./ui-bits";
 import { DEFAULT_FALLBACK_CATALOG, DEFAULT_FALLBACK_CLIENTS, DEFAULT_FALLBACK_TEAM } from "@/lib/kene/fallback-catalog";
 import { formatPhoneDisplay } from "@/lib/kene/phone-normalize";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { matchesSearch } from "@/lib/kene/search";
 import type { EmployeesResponse, PaymentMethod, ProCatalog, ProClient, ProSale, SalesResponse } from "./types";
 
 interface TicketLine {
@@ -203,9 +206,33 @@ export function PosSection({
   const [posServiceCat, setPosServiceCat] = useState<string>("all");
   const [posProductCat, setPosProductCat] = useState<string>("all");
   const [posSearch, setPosSearch] = useState<string>("");
+  const [posClientQuery, setPosClientQuery] = useState<string>("");
+  const [posClientComboOpen, setPosClientComboOpen] = useState<boolean>(false);
+  const [expressClientQuery, setExpressClientQuery] = useState<string>("");
+  const [expressClientComboOpen, setExpressClientComboOpen] = useState<boolean>(false);
 
   const activeServices = useMemo(() => (catalog.data?.services ?? []).filter((s) => s.active), [catalog.data?.services]);
   const activeProducts = useMemo(() => (catalog.data?.products ?? []).filter((p) => p.active), [catalog.data?.products]);
+
+  const selectedPosClient = useMemo(() => {
+    return (clients.data ?? []).find((c) => c.id === clientId) || null;
+  }, [clients.data, clientId]);
+
+  const filteredPosClients = useMemo(() => {
+    return (clients.data ?? []).filter((c) =>
+      matchesSearch(posClientQuery, c.name, c.phone, c.district, c.email)
+    );
+  }, [clients.data, posClientQuery]);
+
+  const selectedExpressClient = useMemo(() => {
+    return (clients.data ?? []).find((c) => c.id === expressExistingClientId) || null;
+  }, [clients.data, expressExistingClientId]);
+
+  const filteredExpressClients = useMemo(() => {
+    return (clients.data ?? []).filter((c) =>
+      matchesSearch(expressClientQuery, c.name, c.phone, c.district, c.email)
+    );
+  }, [clients.data, expressClientQuery]);
 
   const allPosServiceCategories = useMemo(() => {
     const list = [...SERVICE_CATEGORIES];
@@ -249,8 +276,7 @@ export function PosSection({
       list = list.filter((s) => s.category.toLowerCase() === posServiceCat.toLowerCase());
     }
     if (posSearch.trim()) {
-      const q = posSearch.toLowerCase().trim();
-      list = list.filter((s) => s.name.toLowerCase().includes(q) || (s.botanicals ?? "").toLowerCase().includes(q) || s.category.toLowerCase().includes(q));
+      list = list.filter((s) => matchesSearch(posSearch, s.name, s.botanicals, s.category, s.description));
     }
     return list;
   }, [activeServices, posServiceCat, posSearch]);
@@ -261,8 +287,7 @@ export function PosSection({
       list = list.filter((p) => p.category.toLowerCase() === posProductCat.toLowerCase());
     }
     if (posSearch.trim()) {
-      const q = posSearch.toLowerCase().trim();
-      list = list.filter((p) => p.name.toLowerCase().includes(q) || (p.botanicals ?? "").toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+      list = list.filter((p) => matchesSearch(posSearch, p.name, p.botanicals, p.category, p.description));
     }
     return list;
   }, [activeProducts, posProductCat, posSearch]);
@@ -1185,22 +1210,86 @@ export function PosSection({
             )}
 
             <div className="space-y-1">
-              <Label htmlFor="pos-client" className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <Label className="text-[11px] text-muted-foreground flex items-center gap-1">
                 <User className="size-3" aria-hidden="true" /> Cliente (optionnel)
               </Label>
               <div className="flex gap-1.5">
-                <Select value={clientId || undefined} onValueChange={(v) => setClientId(v === "__none" ? "" : v)}>
-                  <SelectTrigger id="pos-client" className="h-8 text-xs flex-1 min-w-0">
-                    <SelectValue placeholder="Sans cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">Sans cliente</SelectItem>
-                    {(clients.data ?? []).map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name} — {formatPhoneDisplay(c.phone)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={posClientComboOpen} onOpenChange={setPosClientComboOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={posClientComboOpen}
+                      className="h-8 text-xs flex-1 justify-between font-normal min-w-0 px-2.5 bg-background"
+                    >
+                      <span className="truncate">
+                        {selectedPosClient ? `${selectedPosClient.name} — ${formatPhoneDisplay(selectedPosClient.phone)}` : "Sans cliente (rechercher…)"}
+                      </span>
+                      {selectedPosClient ? (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setClientId("");
+                          }}
+                          className="ml-1 p-0.5 text-muted-foreground hover:text-foreground rounded-full cursor-pointer"
+                          title="Retirer la cliente"
+                        >
+                          <X className="size-3" />
+                        </span>
+                      ) : (
+                        <Search className="size-3 opacity-50 shrink-0 ml-1" aria-hidden="true" />
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Nom ou numéro de téléphone…"
+                        value={posClientQuery}
+                        onValueChange={setPosClientQuery}
+                        className="text-xs h-9"
+                      />
+                      <CommandList>
+                        <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
+                          Aucune cliente trouvée
+                        </CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="__none"
+                            onSelect={() => {
+                              setClientId("");
+                              setPosClientComboOpen(false);
+                            }}
+                            className="text-xs text-muted-foreground italic cursor-pointer"
+                          >
+                            Sans cliente (comptoir libre)
+                          </CommandItem>
+                          {filteredPosClients.slice(0, 30).map((c) => (
+                            <CommandItem
+                              key={c.id}
+                              value={c.id}
+                              onSelect={() => {
+                                setClientId(c.id);
+                                setPosClientComboOpen(false);
+                              }}
+                              className="text-xs cursor-pointer"
+                            >
+                              <div className="flex flex-col text-left truncate min-w-0">
+                                <span className="font-semibold text-foreground truncate">{c.name}</span>
+                                <span className="font-mono text-[10.5px] text-muted-foreground">{formatPhoneDisplay(c.phone)}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+
                 <button
+                  type="button"
                   onClick={() => setExpressOpen(true)}
                   aria-label="Cliente express — créer une fiche en 2 champs"
                   title="Cliente express — 2 champs"
@@ -2318,16 +2407,56 @@ export function PosSection({
             )}
 
             {expressClientMode === "existing" && (
-              <Select value={expressExistingClientId} onValueChange={setExpressExistingClientId}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Sélectionner dans le carnet client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(clients.data ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name} — {formatPhoneDisplay(c.phone)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={expressClientComboOpen} onOpenChange={setExpressClientComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={expressClientComboOpen}
+                    className="h-8 text-xs w-full justify-between font-normal px-2.5 bg-background"
+                  >
+                    <span className="truncate">
+                      {selectedExpressClient
+                        ? `${selectedExpressClient.name} — ${formatPhoneDisplay(selectedExpressClient.phone)}`
+                        : "Sélectionner dans le carnet (rechercher…)"}
+                    </span>
+                    <Search className="size-3 opacity-50 shrink-0 ml-1" aria-hidden="true" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Nom ou numéro de téléphone…"
+                      value={expressClientQuery}
+                      onValueChange={setExpressClientQuery}
+                      className="text-xs h-9"
+                    />
+                    <CommandList>
+                      <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
+                        Aucune cliente trouvée
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {filteredExpressClients.slice(0, 30).map((c) => (
+                          <CommandItem
+                            key={c.id}
+                            value={c.id}
+                            onSelect={() => {
+                              setExpressExistingClientId(c.id);
+                              setExpressClientComboOpen(false);
+                            }}
+                            className="text-xs cursor-pointer"
+                          >
+                            <div className="flex flex-col text-left truncate min-w-0">
+                              <span className="font-semibold text-foreground truncate">{c.name}</span>
+                              <span className="font-mono text-[10.5px] text-muted-foreground">{formatPhoneDisplay(c.phone)}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             )}
           </div>
 

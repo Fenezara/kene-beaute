@@ -44,6 +44,7 @@ import { useApi } from "./useApi";
 import { EmptyState, ErrorState, KenteTop, Money, SectionHeader } from "./ui-bits";
 import { DEFAULT_FALLBACK_STOCK } from "@/lib/kene/fallback-catalog";
 import type { ProSectionId } from "./ProApp";
+import { matchesSearch } from "@/lib/kene/search";
 import type { StockResponse, ProProduct } from "./types";
 
 const MOVEMENT_STYLES: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
@@ -124,16 +125,10 @@ export function StockSection({ tenantId, onNavigate }: { tenantId: string; onNav
   const filteredProducts = useMemo(() => {
     let list = products;
 
-    // 1. Recherche textuelle
+    // 1. Recherche textuelle universelle
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      list = list.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.botanicals?.toLowerCase().includes(q) ||
-          p.category?.toLowerCase().includes(q) ||
-          p.brandLine?.toLowerCase().includes(q) ||
-          p.description?.toLowerCase().includes(q)
+      list = list.filter((p) =>
+        matchesSearch(searchQuery, p.name, p.botanicals, p.category, p.brandLine, p.description)
       );
     }
 

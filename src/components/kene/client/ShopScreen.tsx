@@ -31,6 +31,7 @@ import { SHOP_CATEGORIES } from "./types";
 import { EmptyBlock, Stars, SuccessBurst } from "./bits";
 import { FavButton } from "./FavButton";
 import { SecureVerify } from "./SecureVerify";
+import { matchesSearch } from "@/lib/kene/search";
 
 export interface RoutinePack {
   id: string;
@@ -275,13 +276,12 @@ export function ShopScreen({ onBack }: { onBack?: () => void } = {}) {
   };
 
   const filtered = useMemo(() => {
-    const nq = q.trim().toLowerCase();
     return (products ?? []).filter(
       (p) =>
         (!cat || cat === "packs" || p.category === cat) &&
         (institut === "" || p.tenant?.id === institut) &&
         (!favOnly || favs.includes(p.id)) &&
-        (!nq || `${p.name} ${p.botanicals} ${p.description}`.toLowerCase().includes(nq))
+        (!q.trim() || matchesSearch(q, p.name, p.botanicals, p.description, p.category, p.brandLine))
     );
   }, [products, cat, institut, q, favOnly, favs]);
 
