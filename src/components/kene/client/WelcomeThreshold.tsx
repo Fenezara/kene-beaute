@@ -75,11 +75,11 @@ function PortalCard({
       className="group relative block h-[112px] w-full overflow-hidden rounded-[20px] text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary min-[480px]:h-[138px] md:h-[180px]"
       style={{
         boxShadow: mode === "pro"
-          ? "0 0 0 1px rgba(200,149,30,0.4), 0 16px 40px -16px rgba(200,149,30,0.5)"
-          : "0 0 0 1px rgba(139,26,59,0.4), 0 16px 40px -16px rgba(26,18,12,0.55)",
+          ? "0 0 0 1px rgba(200,149,30,0.45), 0 20px 48px -16px rgba(200,149,30,0.35)"
+          : "0 0 0 1px rgba(200,149,30,0.35), 0 20px 48px -16px rgba(26,18,12,0.6)",
       }}
     >
-      {/* Image plein cadre + voile dégradé (lisibilité garantie) */}
+      {/* Image plein cadre + voile dégradé Afro-Luxe (lisibilité et profondeur) */}
       <img
         src={img}
         alt={imgAlt}
@@ -87,26 +87,27 @@ function PortalCard({
         decoding="async"
         className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#140E08]/85 via-[#140E08]/30 to-[#140E08]/10" />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#140E08]/45 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#100C08]/90 via-[#100C08]/40 to-[#100C08]/15" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#100C08]/60 via-transparent to-transparent" />
+      <div className="pointer-events-none absolute inset-0 rounded-[20px] ring-1 ring-inset ring-white/10 group-hover:ring-gold/50 transition-all" />
 
-      {/* Badge espace — opacité montée (lisibilité sur zones claires des photos) */}
-      <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1.5 rounded-full bg-[#140E08]/60 px-2.5 py-1 text-[9.5px] font-bold uppercase tracking-[0.14em] text-[#FFF9EC] ring-1 ring-[#FFF9EC]/25">
+      {/* Badge espace — Signature royale or & nacre */}
+      <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[#140E08]/80 backdrop-blur-md px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-gold-text border border-gold/40 shadow-sm">
         {icon}
         {kicker}
       </span>
 
       {/* Titre + CTA */}
-      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2.5 p-3 sm:p-4">
+      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-3.5 sm:p-4.5">
         <div className="min-w-0">
-          <p className="font-heading text-[15px] font-black leading-tight text-[#FFF9EC] sm:text-[17px] md:text-[19px]">{title}</p>
-          <p className="mt-1 hidden text-[10.5px] text-[#FFF9EC]/75 sm:block">
-            {mode === "client" ? "Bilan Dermo · Dermo Kènè · Boutique" : "Agenda · Caisse · CRM clientes"}
+          <p className="font-heading text-[16px] font-black leading-tight text-[#FFF9EC] sm:text-[18px] md:text-[20px] drop-shadow-sm">{title}</p>
+          <p className="mt-1 hidden text-[11px] font-medium text-[#FFF9EC]/80 sm:block">
+            {mode === "client" ? "Dermo Kènè · Bilan cutané · Ordonnance & RDV" : "Caisse POS · Agenda cabine · CRM & SYSCOHADA"}
           </p>
         </div>
-        <span className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-btn-gold px-3.5 text-[11px] font-bold text-primary-foreground">
+        <span className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-btn-gold px-4 text-[11.5px] font-black text-primary-foreground shadow-md transition-transform duration-200 group-hover:scale-105 active:scale-95 cursor-pointer">
           Entrer
-          <ArrowRight size={12} className="transition-transform duration-300 group-hover:translate-x-0.5" />
+          <ArrowRight size={13} className="transition-transform duration-300 group-hover:translate-x-0.5" />
         </span>
       </div>
     </motion.button>
@@ -814,52 +815,52 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                           </p>
                         </div>
 
-                        {/* Grille des 3 offres Entreprise : Starter, Institut & Complexe */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                        {/* Grille des 3 offres Entreprise : Starter, Institut & Complexe en Bento Afro-Luxe */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {/* 1. Pro Starter */}
-                          <div className="rounded-2xl border border-border bg-card/70 p-4 sm:p-5 flex flex-col justify-between space-y-4">
-                            <div className="space-y-2.5">
+                          <div className="rounded-[22px] border border-border/80 bg-card/85 backdrop-blur-md p-5 flex flex-col justify-between space-y-4 hover:border-gold/50 transition-all shadow-sm">
+                            <div className="space-y-3">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-heading text-[16px] font-bold">Pro Starter</span>
-                                <span className="rounded-full bg-muted px-2 py-0.5 text-[9.5px] font-bold text-muted-foreground">
-                                  Solo
+                                <span className="font-heading text-[17px] font-black text-foreground">Pro Starter</span>
+                                <span className="rounded-full bg-secondary border border-border/80 px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                                  Solo & Cabine
                                 </span>
                               </div>
-                              <p className="text-[11px] text-muted-foreground leading-snug">
+                              <p className="text-[11.5px] text-muted-foreground leading-snug">
                                 Praticienne solo, dermo-conseil indépendant & cabine dédiée.
                               </p>
-                              <div className="pt-1">
+                              <div className="pt-1.5 border-t border-border/40">
                                 <div className="flex items-baseline gap-1.5">
-                                  <span className="font-mono text-xl font-black text-gold-text">10 000</span>
+                                  <span className="font-mono text-2xl font-black text-gold-text">10 000</span>
                                   <span className="text-[11px] text-muted-foreground font-semibold">FCFA / mois</span>
                                 </div>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                  Descend à <strong>5 000 F/mois à vie</strong>
+                                <p className="text-[10px] text-gold-text/90 font-medium mt-0.5">
+                                  Descend à <strong>5 000 F/mois à vie</strong> après fidélité
                                 </p>
                               </div>
-                              <ul className="space-y-1.5 text-xs pt-1">
+                              <ul className="space-y-2 text-xs pt-1">
                                 <li className="flex items-start gap-2">
-                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span className="text-[11.5px]"><strong>Agenda en ligne 24/7</strong></span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span className="text-[11.5px]">Acomptes Mobile Money anti no-show</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
-                                  <span className="text-[11.5px]">Fiches clientes & historique</span>
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]">Fiches clientes & historique cutané</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
-                                  <span className="text-[11.5px]">Rappels WhatsApp & SMS</span>
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]">Relances WhatsApp automatisées</span>
                                 </li>
                               </ul>
                             </div>
                             <button
                               type="button"
                               onClick={() => enterPortal("pro")}
-                              className="w-full h-10 rounded-xl k-chip hover:bg-muted text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                              className="w-full h-10.5 rounded-xl k-chip hover:bg-muted text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                             >
                               <span>Choisir Starter</span>
                               <ArrowRight size={13} />
@@ -867,49 +868,52 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                           </div>
 
                           {/* 2. Pro Institut */}
-                          <div className="rounded-2xl border-2 border-gold/50 bg-gold/10 p-4 sm:p-5 flex flex-col justify-between space-y-4 relative shadow-sm">
-                            <span className="absolute -top-2.5 right-3 rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-[9.5px] font-bold shadow">
-                              Recommandé Salons
+                          <div className="rounded-[22px] border-2 border-gold/60 bg-gradient-to-b from-gold/15 via-gold/5 to-card/90 backdrop-blur-md p-5 flex flex-col justify-between space-y-4 relative shadow-lg shadow-gold/10">
+                            <span className="absolute -top-3 right-4 rounded-full bg-gradient-to-r from-gold to-terre text-primary-foreground px-3 py-0.5 text-[10px] font-black uppercase tracking-wider shadow">
+                              ⭐ Recommandé Salons
                             </span>
-                            <div className="space-y-2.5">
+                            <div className="space-y-3">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-heading text-[16px] font-bold">Pro Institut</span>
+                                <span className="font-heading text-[17px] font-black text-foreground">Pro Institut</span>
+                                <span className="rounded-full bg-gold/20 border border-gold/40 px-2.5 py-0.5 text-[10px] font-black text-gold-text">
+                                  Établissement
+                                </span>
                               </div>
-                              <p className="text-[11px] text-muted-foreground leading-snug">
-                                Le cœur de gestion des salons & instituts (jusqu'à 6 praticiennes).
+                              <p className="text-[11.5px] text-muted-foreground leading-snug">
+                                Le cœur de gestion des salons & instituts (jusqu&apos;à 6 praticiennes).
                               </p>
-                              <div className="pt-1">
+                              <div className="pt-1.5 border-t border-gold/30">
                                 <div className="flex items-baseline gap-1.5">
-                                  <span className="font-mono text-xl font-black text-gold-text">20 000</span>
+                                  <span className="font-mono text-2xl font-black text-gold-text">20 000</span>
                                   <span className="text-[11px] text-muted-foreground font-semibold">FCFA / mois</span>
                                 </div>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                  Descend à <strong>10 000 F/mois à vie</strong>
+                                <p className="text-[10px] text-gold-text/90 font-medium mt-0.5">
+                                  Descend à <strong>10 000 F/mois à vie</strong> après fidélité
                                 </p>
                               </div>
-                              <ul className="space-y-1.5 text-xs pt-1">
+                              <ul className="space-y-2 text-xs pt-1">
                                 <li className="flex items-start gap-2">
-                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
-                                  <span className="text-[11.5px]">Tout Pro Starter inclus</span>
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px] font-bold">Tout Pro Starter inclus</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
-                                  <span className="text-[11.5px]"><strong>Caisse POS tactile</strong> & tickets</span>
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]"><strong>Caisse POS tactile</strong> Wave, OM & Espèces</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span className="text-[11.5px]">Stocks Revente vs Cabine</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
-                                  <span className="text-[11.5px]">CRM & segmentation RFM</span>
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px]">CRM & segmentation fidélité</span>
                                 </li>
                               </ul>
                             </div>
                             <button
                               type="button"
                               onClick={() => enterPortal("pro")}
-                              className="w-full h-10 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-1.5 shadow"
+                              className="w-full h-10.5 rounded-xl k-btn-gold text-primary-foreground text-xs font-black flex items-center justify-center gap-1.5 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
                             >
                               <span>Choisir Institut</span>
                               <ArrowRight size={13} />
@@ -917,41 +921,41 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                           </div>
 
                           {/* 3. Pro Complexe */}
-                          <div className="rounded-2xl border border-border bg-card/70 p-4 sm:p-5 flex flex-col justify-between space-y-4">
-                            <div className="space-y-2.5">
+                          <div className="rounded-[22px] border border-border/80 bg-card/85 backdrop-blur-md p-5 flex flex-col justify-between space-y-4 hover:border-gold/50 transition-all shadow-sm">
+                            <div className="space-y-3">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-heading text-[16px] font-bold">Pro Complexe</span>
-                                <span className="rounded-full bg-gold/15 text-gold-text px-2 py-0.5 text-[9.5px] font-bold">
-                                  Excellence
+                                <span className="font-heading text-[17px] font-black text-foreground">Pro Complexe</span>
+                                <span className="rounded-full bg-gold/15 border border-gold/30 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">
+                                  👑 Excellence
                                 </span>
                               </div>
-                              <p className="text-[11px] text-muted-foreground leading-snug">
+                              <p className="text-[11.5px] text-muted-foreground leading-snug">
                                 Spas, cliniques dermo, multi-succursales & personnel déclaré.
                               </p>
-                              <div className="pt-1">
+                              <div className="pt-1.5 border-t border-border/40">
                                 <div className="flex items-baseline gap-1.5">
-                                  <span className="font-mono text-xl font-black text-gold-text">30 000</span>
+                                  <span className="font-mono text-2xl font-black text-gold-text">30 000</span>
                                   <span className="text-[11px] text-muted-foreground font-semibold">FCFA / mois</span>
                                 </div>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                <p className="text-[10px] text-gold-text/90 font-medium mt-0.5">
                                   Descend à <strong>20 000 F/mois à vie</strong>
                                 </p>
                               </div>
-                              <ul className="space-y-1.5 text-xs pt-1">
+                              <ul className="space-y-2 text-xs pt-1">
                                 <li className="flex items-start gap-2">
-                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
-                                  <span className="text-[11.5px]">Tout Pro Institut inclus</span>
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                  <span className="text-[11.5px] font-bold">Tout Pro Institut inclus</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span className="text-[11.5px]"><strong>Paie CNPS / IPRES</strong> déclarative</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span className="text-[11.5px]"><strong>Comptabilité SYSCOHADA</strong></span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={13} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span className="text-[11.5px]">Multi-établissements illimité</span>
                                 </li>
                               </ul>
@@ -959,7 +963,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                             <button
                               type="button"
                               onClick={() => enterPortal("pro")}
-                              className="w-full h-10 rounded-xl k-chip hover:bg-muted text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                              className="w-full h-10.5 rounded-xl k-chip hover:bg-muted text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                             >
                               <span>Choisir Complexe</span>
                               <ArrowRight size={13} />
@@ -972,36 +976,38 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {/* Carte Gratuit */}
-                          <div className="rounded-2xl border border-border bg-card/70 p-4 sm:p-5 flex flex-col justify-between space-y-4">
-                            <div className="space-y-2.5">
+                          <div className="rounded-[22px] border border-border/80 bg-card/85 backdrop-blur-md p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-gold/40 transition-all">
+                            <div className="space-y-3">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-heading text-[16px] sm:text-[17px] font-bold">Compte Gratuit</span>
-                                <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                                <span className="font-heading text-[18px] font-black text-foreground">Compte Gratuit</span>
+                                <span className="rounded-full bg-secondary border border-border/80 px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground">
                                   Inclus à vie
                                 </span>
                               </div>
-                              <p className="text-[11.5px] text-muted-foreground leading-snug">
+                              <p className="text-[12px] text-muted-foreground leading-snug">
                                 Pour toutes celles qui souhaitent prendre soin de leur peau et réserver leurs soins en salon.
                               </p>
-                              <div className="flex items-baseline gap-1.5 pt-1">
-                                <span className="font-mono text-2xl font-black text-foreground">0</span>
-                                <span className="text-xs text-muted-foreground font-semibold">FCFA · Gratuit pour toujours</span>
+                              <div className="pt-1.5 border-t border-border/40">
+                                <div className="flex items-baseline gap-1.5">
+                                  <span className="font-mono text-3xl font-black text-foreground">0</span>
+                                  <span className="text-xs text-muted-foreground font-semibold">FCFA · 100% Gratuit pour toujours</span>
+                                </div>
                               </div>
-                              <ul className="space-y-2 text-xs pt-2">
+                              <ul className="space-y-2 text-xs pt-1">
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span><strong>1 Bilan dermo-biométrique par mois</strong> (score, type et zone)</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span><strong>Conseils bienveillants Dermo Kènè</strong> (phytothérapie ouest-africaine)</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span><strong>Prise de RDV instantanée</strong> dans les instituts partenaires</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span><strong>Boutique de cosmétiques botaniques</strong> (karité de Korhogo, moringa, baobab)</span>
                                 </li>
                               </ul>
@@ -1009,7 +1015,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                             <button
                               type="button"
                               onClick={() => enterPortal("client")}
-                              className="w-full h-11 rounded-xl k-chip hover:bg-muted text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                              className="w-full h-11 rounded-xl k-chip hover:bg-muted text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
                             >
                               <span>Accéder gratuitement</span>
                               <ArrowRight size={13} />
@@ -1017,41 +1023,44 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                           </div>
 
                           {/* Carte Kènè+ */}
-                          <div className="rounded-2xl border border-gold/50 bg-gold/10 p-4 sm:p-5 flex flex-col justify-between space-y-4 relative">
-                            <span className="absolute -top-2.5 right-4 rounded-full bg-primary text-primary-foreground px-2.5 py-0.5 text-[10px] font-bold shadow">
-                              30j offerts puis dégressif
+                          <div className="rounded-[22px] border-2 border-gold/60 bg-gradient-to-b from-gold/15 via-gold/5 to-card/90 backdrop-blur-md p-5 flex flex-col justify-between space-y-4 relative shadow-lg shadow-gold/10">
+                            <span className="absolute -top-3 right-4 rounded-full bg-gradient-to-r from-gold to-terre text-primary-foreground px-3 py-0.5 text-[10px] font-black uppercase tracking-wider shadow">
+                              ✨ 30j offerts puis dégressif
                             </span>
-                            <div className="space-y-2.5">
+                            <div className="space-y-3">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-heading text-[16px] sm:text-[17px] font-bold">Pass Kènè+</span>
+                                <span className="font-heading text-[18px] font-black text-foreground">Pass Kènè+</span>
+                                <span className="rounded-full bg-gold/20 border border-gold/40 px-2.5 py-0.5 text-[10px] font-black text-gold-text">
+                                  👑 Membre Privilège
+                                </span>
                               </div>
-                              <p className="text-[11.5px] text-muted-foreground leading-snug">
-                                Bilans dermo-biométriques illimités, suivi d'évolution & privilèges boutique.
+                              <p className="text-[12px] text-muted-foreground leading-snug">
+                                Bilans dermo-biométriques illimités, suivi d&apos;évolution &amp; privilèges boutique.
                               </p>
-                              <div className="pt-1">
+                              <div className="pt-1.5 border-t border-gold/30">
                                 <div className="flex items-baseline gap-1.5">
-                                  <span className="font-mono text-2xl font-black text-gold-text">5 000 → 2 500</span>
+                                  <span className="font-mono text-3xl font-black text-gold-text">5 000 → 2 500</span>
                                   <span className="text-xs text-muted-foreground font-semibold">FCFA / mois</span>
                                 </div>
-                                <p className="text-[10.5px] text-muted-foreground mt-0.5">
-                                  <strong>1er mois 100% offert (0 FCFA)</strong>, puis descend jusqu'à 2 500 F à vie !
+                                <p className="text-[10.5px] text-gold-text/90 font-medium mt-0.5">
+                                  <strong>1er mois 100% offert (0 FCFA)</strong>, puis descend jusqu&apos;à 2 500 F à vie !
                                 </p>
                               </div>
-                              <ul className="space-y-2 text-xs pt-2">
+                              <ul className="space-y-2 text-xs pt-1">
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span><strong>Bilans dermo illimités</strong> : Scannez vos zones sans aucune restriction</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span><strong>Courbe d&apos;évolution & avant/après</strong> tactile pour mesurer vos progrès</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span><strong>Dermo Kènè prioritaire 24/7</strong> avec rituels botaniques personnalisés</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-success mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                                   <span><strong>Dossier de Peau 360°</strong> &amp; remises VIP sur la Boutique</span>
                                 </li>
                               </ul>
@@ -1059,10 +1068,10 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                             <button
                               type="button"
                               onClick={() => enterPortal("client")}
-                              className="w-full h-11 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold flex items-center justify-center gap-2"
+                              className="w-full h-11 rounded-xl k-btn-gold text-primary-foreground text-xs font-black flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
                             >
-                              <Crown size={14} />
-                              <span>Tester 30 jours gratuitement</span>
+                              <span>Activer mon Pass Kènè+ (30j offerts)</span>
+                              <ArrowRight size={13} />
                             </button>
                           </div>
                         </div>

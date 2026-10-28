@@ -65,12 +65,12 @@ const NAV_MOBILE: { tab: ClientTab; labelKey: string; icon: React.ComponentType<
 type ScreenTab = ClientTab | "abonnement" | "legal";
 
 const TITLES: Record<ScreenTab, string> = {
-  accueil: "title.home",
+  accueil: "title.chat",
   dossier: "title.dossier",
   agenda: "title.agenda",
-  instituts: "title.profile",
+  instituts: "title.institutes",
   diagnostic: "title.diag",
-  boutique: "title.boutique",
+  boutique: "title.shop",
   rdv: "title.agenda",
   chat: "title.chat",
   profil: "title.profile",
@@ -624,8 +624,8 @@ export function ClientApp() {
 
             {/* 2. DROITE : Dermo Kènè + Actions rapides (Switcher, Cloche, Réglages, Thème) — 100% visibles même sur 320px */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0 pr-1">
-              {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — Accès instantané à l'experte IA 24/7 */}
-              {tab !== "chat" && (
+              {/* 👑 BOUTON DERMO KÈNÈ EN HAUT — Accès instantané à l'experte IA 24/7 (masqué sur l'onglet Dermo Kènè) */}
+              {tab !== "chat" && tab !== "accueil" && (
                 <button
                   type="button"
                   onClick={() => {
@@ -636,7 +636,7 @@ export function ClientApp() {
                       window.sessionStorage.setItem("kene:chat:speak_first", "true");
                       window.dispatchEvent(new CustomEvent("kene:chat:speak_first"));
                     }
-                    goTab("chat");
+                    goTab("accueil");
                   }}
                   aria-label={`${t("nav.chat.aria")}${chatUnread ? " — 1 nouveau message" : ""}`}
                   title="Consulter Dermo Kènè (Conseils dermo-cosmétiques & Chat IA 24/7)"
@@ -777,19 +777,7 @@ export function ClientApp() {
                 {/* Suspense DANS le motion.div: le squelette d'attente participe
  à la transition d'onglet pendant le chargement du chunk */}
                 <Suspense fallback={<TabLoading />}>
-                  {tab === "accueil" && (
-                    <ScreenBoundary name="Accueil & Rituels">
-                      <HomeScreen
-                        onScanZone={(z) => {
-                          setPendingZone(z);
-                          goTab("diagnostic");
-                        }}
-                        refreshKey={refreshKey}
-                        onRefreshed={() => setRefreshing(false)}
-                      />
-                    </ScreenBoundary>
-                  )}
-                  {tab === "chat" && (
+                  {(tab === "accueil" || tab === "chat") && (
                     <ScreenBoundary name="Dermo Kènè">
                       <ChatScreen />
                     </ScreenBoundary>

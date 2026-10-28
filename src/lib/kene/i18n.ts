@@ -25,16 +25,16 @@ export type Dict = Record<string, string>;
 
 const FR: Dict = {
   // Onglets (tab-bar mobile + rail desktop)
-  "tab.home": "Accueil",
-  "tab.agenda": "Soins & RDV",
-  "tab.dossier": "Dossier Peau",
-  "tab.scan": "Scanner",
+  "tab.home": "Dermo kènè",
+  "tab.agenda": "Soin & rdv",
+  "tab.dossier": "Dossier peau",
+  "tab.scan": "Scanne",
   "tab.shop": "Boutique",
   "tab.shop.short": "Boutik",
-  "tab.rdv": "Soins & RDV",
+  "tab.rdv": "Soin & rdv",
   "tab.rdv.short": "RDV",
   "tab.institutes": "Instituts",
-  "tab.chat": "Dermo Kènè",
+  "tab.chat": "Dermo kènè",
   "tab.profile": "Profil",
   "nav.scan.aria": "Scanner ma peau — diagnostic IA",
   "nav.chat.aria": "Dermo Kènè — guide dermo-cosmétique",
