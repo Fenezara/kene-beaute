@@ -1679,8 +1679,8 @@ export function ProEnterpriseShell() {
           )}
         >
           {activeSection !== "assistant" && (
-            <div className="mb-4 k-obsidian-luxury px-4 py-3 sm:px-5 sm:py-3.5 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <div className="mb-4 shrink-0 k-obsidian-luxury px-4 py-3 sm:px-5 sm:py-3.5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <span className="text-[11px] font-black text-[#E5A93C] uppercase tracking-[0.16em] pr-1.5 shrink-0 flex items-center gap-1.5">
                   <span className="text-sm">{activeCategoryDef.emoji}</span>
                   <span>{activeCategoryDef.shortLabel} :</span>
@@ -1694,13 +1694,13 @@ export function ProEnterpriseShell() {
                       type="button"
                       onClick={() => openSection(item.id)}
                       className={cn(
-                        "h-8 px-3.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer border",
+                        "h-8.5 px-3.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer border",
                         isItemActive
                           ? "k-btn-gold text-[#18120C] border-transparent shadow-sm"
-                          : "bg-white/8 text-[#F5ECDD]/85 border-white/15 hover:text-[#FFF9EC] hover:bg-white/15"
+                          : "bg-white/10 text-[#F5ECDD]/90 border-white/15 hover:text-[#FFF9EC] hover:bg-white/18"
                       )}
                     >
-                      <item.icon className="size-3.5" />
+                      <item.icon className="size-3.5 shrink-0" />
                       <span>{item.label}</span>
                       {badge ? (
                         <span className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white">
@@ -1712,8 +1712,8 @@ export function ProEnterpriseShell() {
                 })}
               </div>
 
-              <div className="hidden xl:flex items-center gap-2.5 text-[11px] text-[#F5ECDD]/80 shrink-0">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#E5A93C]" />
+              <div className="hidden xl:flex items-center gap-2 text-[11.5px] text-[#F5ECDD]/90 shrink-0">
+                <span className="h-2 w-2 rounded-full bg-[#E5A93C] shadow-[0_0_8px_rgba(229,169,60,0.8)]" />
                 <span className="font-medium">{activeNavItem?.hint}</span>
               </div>
             </div>

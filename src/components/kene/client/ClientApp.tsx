@@ -905,7 +905,7 @@ export function ClientApp() {
       {tab === "accueil" && (
         <aside aria-label="Informations et raccourcis" className="hidden xl:flex w-[320px] shrink-0 flex-col gap-4 k-chrome p-5 overflow-y-auto pretty-scroll">
           {/* Mini-profil Ébène & Or 24K */}
-          <div className="k-obsidian-luxury p-4">
+          <div className="shrink-0 k-obsidian-luxury p-4">
             <div className="flex items-center gap-3.5">
               <span className="relative grid place-items-center h-14 w-14 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] k-glow-gold text-[#FFF9EC] font-heading font-bold text-xl shrink-0 overflow-hidden border-2 border-[#E5A93C]/60">
                 {effectiveUser.id && !effectiveUser.id.startsWith("guest") ? (

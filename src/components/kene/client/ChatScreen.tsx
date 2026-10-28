@@ -1129,7 +1129,7 @@ export function ChatScreen() {
 
   return (
     <div className="flex flex-col min-h-[68vh] pt-1 sm:pt-2">
-      <header className="mb-3 k-obsidian-luxury px-4 py-3 flex items-center justify-between gap-2">
+      <header className="mb-3 shrink-0 k-obsidian-luxury px-4 py-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-3 min-w-0">
           <span className="relative shrink-0">
             {/* Sceau 2026 — le Médaillon Kènè est l'avatar du Dr. Kènè */}
