@@ -870,7 +870,7 @@ export function ProEnterpriseShell() {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
-            <div className="block">
+            <div className="hidden sm:block">
               <Select
                 value={tid || undefined}
                 onValueChange={handleTenantSwitch}
@@ -1046,7 +1046,7 @@ export function ProEnterpriseShell() {
         </div>
 
         {/* Sous-bandeau mobile uniquement (< md) */}
-        <div className="md:hidden border-t border-border/40 px-3 py-2 space-y-2">
+        <div className="md:hidden border-t border-border/40 px-2.5 py-1.5 space-y-1.5 bg-background/80 backdrop-blur-md">
           {/* Badge d'identification Collaboratrice cliquable vers ses réglages (Mobile < md) */}
           {isEmployee && (
             <button
@@ -1093,7 +1093,7 @@ export function ProEnterpriseShell() {
                 disabled={tenantOptions.length <= 1 && !proOwner && !isAdmin}
               >
                 <SelectTrigger
-                  className="k-chip h-8 w-full rounded-xl px-2.5 text-xs font-semibold"
+                  className="k-chip h-7.5 w-full rounded-xl px-2.5 text-xs font-semibold"
                   aria-label="Changer d'institut"
                 >
                   <div className="flex items-center gap-1.5 truncate">
@@ -1128,8 +1128,8 @@ export function ProEnterpriseShell() {
 
           {/* Pointage Mobile Collaboratrice */}
           {staffEmployee && (
-            <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-card/90 border border-border shadow-2xs">
-              <span className="text-[11px] font-bold text-foreground truncate">
+            <div className="flex items-center justify-between gap-2 p-1.5 rounded-xl bg-card/90 border border-border shadow-2xs">
+              <span className="text-[10.5px] font-bold text-foreground truncate">
                 Pointage · {staffEmployee?.name ? staffEmployee.name.split(" ")[0] : "Collaboratrice"}
               </span>
               {!staffAttendance?.checkIn ? (
@@ -1137,9 +1137,9 @@ export function ProEnterpriseShell() {
                   type="button"
                   onClick={() => handleSelfPointage("in")}
                   disabled={attendanceBusy}
-                  className="h-7 px-2.5 rounded-lg text-[11px] font-bold bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border border-emerald-600/40 flex items-center gap-1 active:scale-95 cursor-pointer shadow-2xs"
+                  className="h-6.5 px-2.5 rounded-lg text-[10.5px] font-bold bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border border-emerald-600/40 flex items-center gap-1 active:scale-95 cursor-pointer shadow-2xs"
                 >
-                  <LogIn size={12} className="text-emerald-600 dark:text-emerald-400" />
+                  <LogIn size={11} className="text-emerald-600 dark:text-emerald-400" />
                   <span>Pointer arrivée</span>
                 </button>
               ) : !staffAttendance?.checkOut ? (
@@ -1147,100 +1147,33 @@ export function ProEnterpriseShell() {
                   type="button"
                   onClick={() => handleSelfPointage("out")}
                   disabled={attendanceBusy}
-                  className="h-7 px-2.5 rounded-lg text-[11px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1 active:scale-95 cursor-pointer shadow-2xs"
+                  className="h-6.5 px-2.5 rounded-lg text-[10.5px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1 active:scale-95 cursor-pointer shadow-2xs"
                 >
-                  <LogOut size={12} className="text-amber-600 dark:text-amber-400" />
+                  <LogOut size={11} className="text-amber-600 dark:text-amber-400" />
                   <span>Pointer sortie ({staffAttendance.checkIn})</span>
                 </button>
               ) : (
                 <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">
-                  <CheckCircle2 size={12} className="text-emerald-500" />
-                  {staffAttendance.checkIn} → {staffAttendance.checkOut} ({staffAttendance.hours || 0}h)
+                  <CheckCircle2 size={11} className="text-emerald-500" />
+                  {staffAttendance.checkIn} → {staffAttendance.checkOut}
                 </span>
               )}
             </div>
           )}
 
-          {/* ⚡ Outils Cabine Express (Mobile < md) */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-            {(!allowedIds || allowedIds.includes("diagnostic")) && (
-              <button
-                type="button"
-                onClick={() => {
-                  haptic(HAPTIC.tap);
-                  openSection("diagnostic");
-                }}
-                className="h-7.5 px-2.5 rounded-xl border border-primary/40 bg-primary/10 text-primary text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
-              >
-                <ScanFace size={13} />
-                <span>📸 Scan Cabine</span>
-              </button>
-            )}
-            {(!allowedIds || allowedIds.includes("caisse")) && (
-              <button
-                type="button"
-                onClick={() => {
-                  haptic(HAPTIC.tap);
-                  openSection("caisse");
-                }}
-                className="h-7.5 px-2.5 rounded-xl border border-emerald-600/40 bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
-              >
-                <AbanIcon size={13} />
-                <span>💳 Caisse POS</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                haptic(HAPTIC.tap);
-                setInciScannerOpen(true);
-              }}
-              className="h-7.5 px-2.5 rounded-xl border border-gold/40 bg-gold/15 text-gold-text text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
-            >
-              <ShieldAlert size={13} />
-              <span>🧴 INCI</span>
-            </button>
-            {(!allowedIds || allowedIds.includes("diagnostic")) && (
-              <button
-                type="button"
-                onClick={() => {
-                  haptic(HAPTIC.tap);
-                  setMirrorKioskOpen(true);
-                }}
-                className="h-7.5 px-2.5 rounded-xl border border-border bg-card text-foreground text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
-              >
-                <Sparkles size={13} />
-                <span>🪞 Miroir</span>
-              </button>
-            )}
-            {(!allowedIds || allowedIds.includes("dossiers_peau")) && (
-              <button
-                type="button"
-                onClick={() => {
-                  haptic(HAPTIC.tap);
-                  openSection("dossiers_peau");
-                }}
-                className="h-7.5 px-2.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-[11px] font-bold flex items-center gap-1.5 shrink-0 shadow-2xs active:scale-95 transition-all"
-              >
-                <FolderHeart size={13} />
-                <span>Dossiers</span>
-              </button>
-            )}
-          </div>
-
           {/* Navigation mobile en 2 niveaux : 1. Pôles Métiers · 2. Onglets du Pôle */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <div
               aria-label="Pôles Métiers Entreprise (mobile)"
-              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar"
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5"
             >
               <button
                 type="button"
                 onClick={goToClientSpace}
-                className="relative inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1 min-h-8 text-[11px] font-bold bg-primary/15 text-primary border border-primary/30 shadow-xs active:scale-95 transition-all"
+                className="relative inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-1 min-h-7 text-[10.5px] font-bold bg-primary/15 text-primary border border-primary/30 shadow-xs active:scale-95 transition-all"
                 title="Accéder à Mon Espace Beauté"
               >
-                <CauriIcon className="size-3.5" />
+                <CauriIcon className="size-3" />
                 <span>Beauté 🌸</span>
               </button>
 
@@ -1255,7 +1188,7 @@ export function ProEnterpriseShell() {
                       if (firstItem) openSection(firstItem.id);
                     }}
                     className={cn(
-                      "inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-1 min-h-8 text-[11px] font-bold transition-all border",
+                      "inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-1 min-h-7 text-[10.5px] font-bold transition-all border",
                       isCatActive
                         ? "bg-primary/15 text-primary border-primary/40 shadow-xs"
                         : "bg-card/60 text-muted-foreground border-border/60 hover:text-foreground"
@@ -1270,7 +1203,7 @@ export function ProEnterpriseShell() {
 
             <nav
               aria-label="Sous-onglets du pôle actif (mobile)"
-              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5"
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 pb-0.5"
             >
               {activeCategoryItems.map((item) => {
                 const badge = navBadges[item.id];
@@ -1284,18 +1217,18 @@ export function ProEnterpriseShell() {
                     aria-current={activeSection === item.id ? "page" : undefined}
                     aria-label={badge ? `${item.label} — ${badge} RDV à confirmer` : item.label}
                     className={cn(
-                      "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 min-h-8 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+                      "relative inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 min-h-7 text-[11px] font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
                       activeSection === item.id
                         ? "k-btn-gold text-primary-foreground font-bold shadow-xs"
                         : "k-chip text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    <item.icon className="size-3.5" />
+                    <item.icon className="size-3" />
                     <span>{item.label}</span>
                     {badge ? (
                       <span
                         role="status"
-                        className="grid h-4 min-w-4 place-items-center rounded-full bg-bissap px-1 text-[10px] font-semibold text-white"
+                        className="grid h-3.5 min-w-3.5 place-items-center rounded-full bg-bissap px-1 text-[9px] font-semibold text-white"
                       >
                         {badge}
                       </span>
