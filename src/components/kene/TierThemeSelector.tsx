@@ -265,7 +265,7 @@ export function TierThemeSelector({
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-[10px] uppercase font-bold tracking-widest text-gold-text bg-gold/15 px-2.5 py-0.5 rounded-full border border-gold/30 inline-flex items-center gap-1.5">
-              <Crown size={12} className="text-gold-text" /> Haute Joaillerie Africaine
+              <Crown size={12} className="text-gold-text" /> {effectiveAudience === "pro" ? "Spas & Palaces Mondiaux 2026" : "Haute Joaillerie Africaine"}
             </span>
             <Badge variant="outline" className="text-[10px] font-bold border-primary/30 text-primary bg-primary/10">
               {activeDef.rarityTag}
@@ -280,9 +280,9 @@ export function TierThemeSelector({
           </h3>
           <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
             {computedIsEmployee
-              ? `Harmonie de marque définie par la gérance pour l'ensemble des postes de travail (accueil, caisse, cabines).`
+              ? `Harmonie visuelle définie par la gérance pour l'ensemble des postes de travail (accueil, caisse, cabines).`
               : effectiveAudience === "pro"
-              ? `Harmonisez l'ambiance royale de votre salon. Votre sélection s'applique instantanément à l'ensemble des écrans de l'établissement.`
+              ? `Harmonisez l'atmosphère de votre établissement avec les 6 collections esthétiques les plus plébiscitées et aimées par les spas d'hôtels et cliniques de beauté d'élite en 2026 dans le monde entier. Votre choix s'applique instantanément à tous les écrans du salon.`
               : `Inspirées des métaux précieux et de la pharmacopée sacrée des grands souverains d'Afrique. Revêtez les parures que vous avez débloquées au fil de vos rituels Kènè+.`}
           </p>
         </div>
@@ -370,7 +370,9 @@ export function TierThemeSelector({
         /* Galerie des Parures Débloquées & Trésors Scellés (Privilège Ascendant) */
         <div className="space-y-2.5">
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            Collection des Parures Sacrées &amp; Matières Précieuses
+            {effectiveAudience === "pro"
+              ? "Collections 2026 plébiscitées par les Spas & Instituts du Monde"
+              : "Collection des Parures Sacrées & Matières Précieuses"}
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">

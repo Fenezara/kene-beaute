@@ -176,27 +176,27 @@
   --sidebar-border: #38291C;
 }
 
-/* ──────────────── HAUTE JOAILLERIE & BOTANIQUE ROYALE AFRICAINE (LIGHT) ──────────────── */
+/* ──────────────── COLLECTIONS SPAS & INSTITUTS D'EXCEPTION 2026 (LIGHT) ──────────────── */
 [data-tier="karite_tiebele"] {
-  --primary: #B8532B;
-  --primary-foreground: #FFF9EC;
-  --accent: #FBF3ED;
+  --primary: #B5582D;
+  --primary-foreground: #FFF9F2;
+  --accent: #FAF2EB;
   --accent-foreground: #782E11;
-  --ring: #D46E45;
-  --tier-glow: rgba(184, 83, 43, 0.35);
-  --tier-gradient: linear-gradient(135deg, #B8532B 0%, #D46E45 50%, #EAA888 100%);
-  --tier-card-border: rgba(212, 110, 69, 0.35);
+  --ring: #D87B4C;
+  --tier-glow: rgba(181, 88, 45, 0.35);
+  --tier-gradient: linear-gradient(135deg, #B5582D 0%, #D87B4C 45%, #F4CFB7 100%);
+  --tier-card-border: rgba(216, 123, 76, 0.45);
 }
 
 [data-tier="bissap_royal"] {
-  --primary: #991438;
-  --primary-foreground: #FFF9EC;
-  --accent: #FDE8EE;
+  --primary: #9E163B;
+  --primary-foreground: #FFF9FA;
+  --accent: #FDEAF0;
   --accent-foreground: #750824;
-  --ring: #B81845;
-  --tier-glow: rgba(184, 24, 69, 0.40);
-  --tier-gradient: linear-gradient(135deg, #7A0A28 0%, #B81845 45%, #E03565 75%, #D49A24 100%);
-  --tier-card-border: rgba(224, 53, 101, 0.45);
+  --ring: #B61845;
+  --tier-glow: rgba(158, 22, 59, 0.40);
+  --tier-gradient: linear-gradient(135deg, #7A0A28 0%, #B81845 45%, #E33E6E 75%, #E5A93C 100%);
+  --tier-card-border: rgba(227, 62, 110, 0.48);
 }
 
 [data-tier="or_imperial"] {
@@ -206,68 +206,68 @@
   --accent-foreground: #6B4504;
   --ring: #D49A24;
   --tier-glow: rgba(212, 154, 36, 0.45);
-  --tier-gradient: linear-gradient(135deg, #F9D87E 0%, #D49A24 35%, #9E6B08 70%, #F5CE7A 100%);
+  --tier-gradient: linear-gradient(135deg, #FAD67B 0%, #D49A24 35%, #9B6606 70%, #F5CE7A 100%);
   --tier-card-border: rgba(245, 206, 122, 0.70);
 }
 
 [data-tier="argile_cuivre"] {
-  --primary: #C65322;
-  --primary-foreground: #FFF9EC;
-  --accent: #FCEFE8;
+  --primary: #C45222;
+  --primary-foreground: #FFF9F2;
+  --accent: #FDF1EB;
   --accent-foreground: #7E2A08;
   --ring: #E06730;
-  --tier-glow: rgba(198, 83, 34, 0.38);
-  --tier-gradient: linear-gradient(135deg, #9C3D12 0%, #C85A24 50%, #EDA33E 100%);
+  --tier-glow: rgba(196, 82, 34, 0.38);
+  --tier-gradient: linear-gradient(135deg, #963810 0%, #C45222 50%, #EC9735 100%);
   --tier-card-border: rgba(200, 90, 36, 0.45);
 }
 
 [data-tier="emeraude_kinkeliba"] {
-  --primary: #186638;
-  --primary-foreground: #F5FFF8;
+  --primary: #1A6B44;
+  --primary-foreground: #F4FFF8;
   --accent: #EBF8F0;
   --accent-foreground: #0B3D1F;
-  --ring: #2AA85B;
-  --tier-glow: rgba(24, 102, 56, 0.42);
-  --tier-gradient: linear-gradient(135deg, #0A3B1D 0%, #156B36 45%, #2AA85B 80%, #D49A24 100%);
-  --tier-card-border: rgba(42, 168, 91, 0.50);
+  --ring: #2FA867;
+  --tier-glow: rgba(26, 107, 68, 0.40);
+  --tier-gradient: linear-gradient(135deg, #0B3D23 0%, #1A6B44 45%, #2FA867 80%, #E2AB3E 100%);
+  --tier-card-border: rgba(47, 168, 103, 0.50);
 }
 
 [data-tier="indigo_mandingue"] {
-  --primary: #142B58;
+  --primary: #153063;
   --primary-foreground: #F4F8FF;
-  --accent: #EEF3FC;
+  --accent: #EFF4FC;
   --accent-foreground: #0A1938;
   --ring: #2A54A4;
-  --tier-glow: rgba(20, 43, 88, 0.42);
+  --tier-glow: rgba(21, 48, 99, 0.42);
   --tier-gradient: linear-gradient(135deg, #0A1938 0%, #15326A 45%, #2A54A4 80%, #F5D37E 100%);
   --tier-card-border: rgba(42, 84, 164, 0.55);
 }
 
-/* ──────────────── HAUTE JOAILLERIE & BOTANIQUE ROYALE AFRICAINE (DARK) ──────────────── */
+/* ──────────────── COLLECTIONS SPAS & INSTITUTS D'EXCEPTION 2026 (DARK) ──────────────── */
 .dark[data-tier="karite_tiebele"],
 .dark [data-tier="karite_tiebele"],
 [data-tier="karite_tiebele"].dark {
-  --primary: #D46E45;
-  --primary-foreground: #18120C;
-  --accent: #2E1A11;
+  --primary: #D4805A;
+  --primary-foreground: #18110B;
+  --accent: #2E1B13;
   --accent-foreground: #FADACE;
-  --ring: #D46E45;
-  --tier-glow: rgba(212, 110, 69, 0.35);
-  --tier-gradient: linear-gradient(135deg, #873615 0%, #B8532B 55%, #D46E45 100%);
-  --tier-card-border: rgba(212, 110, 69, 0.35);
+  --ring: #D4805A;
+  --tier-glow: rgba(212, 128, 90, 0.35);
+  --tier-gradient: linear-gradient(135deg, #873615 0%, #B5582D 55%, #D4805A 100%);
+  --tier-card-border: rgba(212, 128, 90, 0.40);
 }
 
 .dark[data-tier="bissap_royal"],
 .dark [data-tier="bissap_royal"],
 [data-tier="bissap_royal"].dark {
-  --primary: #E63968;
-  --primary-foreground: #14080D;
-  --accent: #2E0E18;
+  --primary: #E83D6F;
+  --primary-foreground: #14070B;
+  --accent: #2E0D17;
   --accent-foreground: #FAD1DF;
-  --ring: #E63968;
-  --tier-glow: rgba(230, 57, 104, 0.40);
+  --ring: #E83D6F;
+  --tier-glow: rgba(232, 61, 111, 0.42);
   --tier-gradient: linear-gradient(135deg, #991438 0%, #C92050 50%, #F05582 85%, #E5A93C 100%);
-  --tier-card-border: rgba(230, 57, 104, 0.45);
+  --tier-card-border: rgba(232, 61, 111, 0.48);
 }
 
 .dark[data-tier="or_imperial"],
@@ -275,7 +275,7 @@
 [data-tier="or_imperial"].dark {
   --primary: #E5A93C;
   --primary-foreground: #120D06;
-  --accent: #2B1D08;
+  --accent: #2A1D08;
   --accent-foreground: #FDE8BC;
   --ring: #E5A93C;
   --tier-glow: rgba(229, 169, 60, 0.45);
@@ -299,27 +299,27 @@
 .dark[data-tier="emeraude_kinkeliba"],
 .dark [data-tier="emeraude_kinkeliba"],
 [data-tier="emeraude_kinkeliba"].dark {
-  --primary: #34C76E;
-  --primary-foreground: #061B0E;
-  --accent: #0C2615;
+  --primary: #38B876;
+  --primary-foreground: #061D12;
+  --accent: #0D2B1C;
   --accent-foreground: #C8F7DA;
-  --ring: #34C76E;
-  --tier-glow: rgba(52, 199, 110, 0.42);
-  --tier-gradient: linear-gradient(135deg, #0F4A26 0%, #1E7E44 50%, #34C76E 85%, #E5A93C 100%);
-  --tier-card-border: rgba(52, 199, 110, 0.50);
+  --ring: #38B876;
+  --tier-glow: rgba(56, 184, 118, 0.42);
+  --tier-gradient: linear-gradient(135deg, #0F4A26 0%, #1E7E44 50%, #38B876 85%, #E5A93C 100%);
+  --tier-card-border: rgba(56, 184, 118, 0.50);
 }
 
 .dark[data-tier="indigo_mandingue"],
 .dark [data-tier="indigo_mandingue"],
 [data-tier="indigo_mandingue"].dark {
-  --primary: #5289E5;
+  --primary: #5088E6;
   --primary-foreground: #060F20;
   --accent: #0E1D3B;
   --accent-foreground: #D3E3FC;
-  --ring: #5289E5;
-  --tier-glow: rgba(82, 137, 229, 0.42);
+  --ring: #5088E6;
+  --tier-glow: rgba(80, 136, 230, 0.42);
   --tier-gradient: linear-gradient(135deg, #112854 0%, #1F4588 50%, #4679D6 85%, #F7D487 100%);
-  --tier-card-border: rgba(82, 137, 229, 0.55);
+  --tier-card-border: rgba(80, 136, 230, 0.55);
 }
 
 /* Effets & Finitions de Haute Joaillerie Panafricaine */

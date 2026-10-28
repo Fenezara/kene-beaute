@@ -207,7 +207,7 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
         title="Diagnostic en cabine"
         sub="L'institut réalise le diagnostic peau, guidé par le questionnaire dermatologique et l'IA visuelle"
         actions={
-          <div className="flex items-center gap-2 shrink-0">
+          <>
             <Button
               variant="outline"
               onClick={() => setVigilanceOpen(true)}
@@ -238,7 +238,7 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
               <ScanFace className="size-4" aria-hidden="true" />
               Nouveau diagnostic
             </Button>
-          </div>
+          </>
         }
       />
 

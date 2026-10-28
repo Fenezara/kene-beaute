@@ -3,8 +3,8 @@
 // Mêmes signatures d'export (zéro breaking change pour les 11 sections): les KPI
 // passent à la carte verre k-card + eyebrow + valeur mono signature, les badges
 // aux pastilles ring-inset, les états vides au grain (primitives: ui2026.tsx).
-import { useState, type ReactNode } from "react";
-import { AlertTriangle, Inbox, RefreshCw, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
+import { AlertTriangle, Inbox, RefreshCw, TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { xof, formatDate } from "@/lib/kene/format";
@@ -207,11 +207,126 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
-/** Titre de section (font-heading) + actions à droite — Signature Éditoriale Afro-Luxe avec défilement horizontal fluide sur mobile */
+/** Rangée d'actions défilable avec glissement tactile fluide, drag souris et chevrons de navigation */
+export function ScrollableActions({ children }: { children: ReactNode }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeftStart = useRef(0);
+  const hasMoved = useRef(false);
+
+  const checkScroll = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    const canLeft = el.scrollLeft > 6;
+    const canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 6;
+    setCanScrollLeft(canLeft);
+    setCanScrollRight(canRight);
+  };
+
+  useEffect(() => {
+    checkScroll();
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(checkScroll);
+    ro.observe(el);
+    window.addEventListener("resize", checkScroll);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", checkScroll);
+    };
+  }, [children]);
+
+  const scrollByAmount = (offset: number) => {
+    containerRef.current?.scrollBy({ left: offset, behavior: "smooth" });
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, input, select")) return;
+    isDragging.current = true;
+    hasMoved.current = false;
+    startX.current = e.pageX - (containerRef.current?.offsetLeft ?? 0);
+    scrollLeftStart.current = containerRef.current?.scrollLeft ?? 0;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current || !containerRef.current) return;
+    const x = e.pageX - containerRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.4;
+    if (Math.abs(walk) > 3) {
+      hasMoved.current = true;
+      e.preventDefault();
+      containerRef.current.scrollLeft = scrollLeftStart.current - walk;
+    }
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDragging.current = false;
+  };
+
+  return (
+    <div className="relative min-w-0 max-w-full flex items-center">
+      {/* Flèche de défilement gauche */}
+      {canScrollLeft && (
+        <button
+          type="button"
+          onClick={() => scrollByAmount(-180)}
+          aria-label="Faire défiler les actions vers la gauche"
+          className="absolute -left-1.5 z-20 size-7 rounded-full bg-card/95 border border-gold/40 shadow-md text-foreground flex items-center justify-center hover:bg-gold/15 active:scale-95 transition-all cursor-pointer backdrop-blur-sm"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+      )}
+
+      {/* Halo indicateur gauche */}
+      {canScrollLeft && (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-card via-card/80 to-transparent z-10" />
+      )}
+
+      {/* Zone scrollable fluide (Touch + Souris + Trackpad) */}
+      <div
+        ref={containerRef}
+        onScroll={checkScroll}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUpOrLeave}
+        onMouseLeave={handleMouseUpOrLeave}
+        className="w-full overflow-x-auto no-scrollbar scroll-smooth overscroll-x-contain py-1 px-1 -mx-1"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        <div className="flex items-center gap-2 shrink-0 min-w-max">
+          {children}
+        </div>
+      </div>
+
+      {/* Halo indicateur droit */}
+      {canScrollRight && (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-card via-card/80 to-transparent z-10" />
+      )}
+
+      {/* Flèche de défilement droite */}
+      {canScrollRight && (
+        <button
+          type="button"
+          onClick={() => scrollByAmount(180)}
+          aria-label="Faire défiler les actions vers la droite"
+          className="absolute -right-1.5 z-20 size-7 rounded-full bg-card/95 border border-gold/40 shadow-md text-foreground flex items-center justify-center hover:bg-gold/15 active:scale-95 transition-all cursor-pointer backdrop-blur-sm"
+        >
+          <ChevronRight className="size-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Titre de section (font-heading) + actions à droite — Signature Éditoriale Afro-Luxe avec défilement horizontal fluide sur mobile & tablette */
 export function SectionHeader({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {
   return (
-    <div className="k-card-awwwards px-3.5 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 overflow-hidden">
-      <div className="flex items-start gap-3 sm:gap-3.5 min-w-0">
+    <div className="k-card-awwwards px-3.5 py-3 sm:px-6 sm:py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 overflow-hidden">
+      <div className="flex items-start gap-3 sm:gap-3.5 min-w-0 shrink-0">
         <div className="mt-1 h-8 sm:h-9 w-1.5 shrink-0 rounded-full k-rail-line" aria-hidden="true" />
         <div className="min-w-0">
           <h1 className="font-heading text-lg sm:text-2xl lg:text-[26px] font-bold tracking-tight text-foreground leading-tight">{title}</h1>
@@ -219,10 +334,10 @@ export function SectionHeader({ title, sub, actions }: { title: string; sub?: st
         </div>
       </div>
       {actions && (
-        <div className="w-full sm:w-auto overflow-x-auto no-scrollbar touch-pan-x -mx-1 px-1 py-0.5">
-          <div className="flex items-center gap-2 shrink-0 min-w-max">
+        <div className="w-full md:w-auto min-w-0 max-w-full">
+          <ScrollableActions>
             {actions}
-          </div>
+          </ScrollableActions>
         </div>
       )}
     </div>

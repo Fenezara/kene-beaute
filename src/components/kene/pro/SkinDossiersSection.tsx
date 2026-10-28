@@ -146,7 +146,7 @@ export function SkinDossiersSection({
         title="Dossiers Cutanés & Cabine"
         sub="Fiches biométriques, phototypes mélanodermes, imagerie HD, formulations & ordonnances"
         actions={
-          <div className="flex items-center gap-2">
+          <>
             {activeClientId && (
               <Button
                 variant="outline"
@@ -155,7 +155,7 @@ export function SkinDossiersSection({
                   setActiveClientId(null);
                   onClearPreselected?.();
                 }}
-                className="gap-1.5 text-xs h-9"
+                className="gap-1.5 text-xs h-9 shrink-0"
               >
                 <ArrowLeft className="size-3.5" />
                 <span>Tous les dossiers</span>
@@ -164,13 +164,13 @@ export function SkinDossiersSection({
             {onStartDiagnostic && (
               <Button
                 onClick={() => onStartDiagnostic(activeClientId || "")}
-                className="k-btn-gold text-primary-foreground font-semibold text-xs h-9 gap-1.5"
+                className="k-btn-gold text-primary-foreground font-semibold text-xs h-9 gap-1.5 shrink-0"
               >
                 <Sparkles className="size-3.5" />
                 <span>{activeClientId ? "Diagnostic de cette cliente" : "Nouveau diagnostic"}</span>
               </Button>
             )}
-          </div>
+          </>
         }
       />
 

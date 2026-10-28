@@ -1,11 +1,12 @@
-// Kènè — Système d'Ambiance & Palettes de Haute Joaillerie & Botanique Royale Africaine.
-// L'expérience de luxe dermo-cosmétique inspirée des trésors minéraux et botaniques des grands royaumes d'Afrique :
-// • Découverte (Gratuit) : « Ocre Sacré & Nacre de Karité » (Royaume Tiébélé & Korhogo)
-// • Kènè+ Initiée (M1-M3) : « Bissap Pourpre & Rubis du Nil » (Calices impériaux & Éclat solaire)
-// • Kènè+ Cercle Royal (M4-M6+) : « Or Pur 24K Akan & Sceau Baoulé » (Le trésor royal Ashanti)
-// • Pro Starter : « Bronze du Bénin & Cuivre Solaire » (Atelier des Maîtres Fondeurs d'Ifè)
-// • Pro Institut : « Malachite du Katanga & Émeraude Royale » (Botanique clinique & Sandawana)
-// • Pro Complexe : « Nuit d'Indigo Mandingue & Platine Céleste » (Cour impériale de Soundiata Keïta)
+// Kènè — Système d'Ambiance & Parures Royales Spas & Instituts 2026.
+// Collections universelles d'exception plébiscitées par les plus grands spas,
+// medispas et sanctuaires de beauté dans le monde entier (Paris, Tokyo, Marrakech, Abidjan, Dubai, Bali) :
+// • Travertin Minéral & Sable Chaud (Minimalisme Minéral & Sérénité Spa)
+// • Sauge Botanique & Eucalyptus Spa (Hydrothérapie Biophilique & Végétale)
+// • Terracotta d'Atlas & Argile Solaire (Rituels Hammam & Chaleur Désertique)
+// • Quartz Rose & Fleur de Soie (Facialiste Dermo-Esthétique & Glow Poudré)
+// • Or Solaire 24K & Nacre Impériale (Haute Joaillerie & Spas Palaces 7★)
+// • Nuit d'Indigo & Lapis Céleste (Night Spa, Luminothérapie & Bains Nocturnes)
 
 import type { SessionUser } from "@/store/kene";
 import { useKene } from "@/store/kene";
@@ -41,111 +42,111 @@ export interface TierThemeDef {
 export const TIER_THEMES: readonly TierThemeDef[] = [
   {
     id: "karite_tiebele",
-    name: "Ocre Sacré & Nacre Karité",
-    tagline: "L'argile royale de Tiébélé et la nacre de Korhogo",
-    subtitle: "Terre cuite satinée, crème de karité fouetté & ambre sablé",
-    badge: "Initiation & Découverte",
-    gemstone: "Argile Noble & Nacre",
-    kingdom: "Royaume Kasséna · Tiébélé",
+    name: "Travertin Minéral & Sable Chaud",
+    tagline: "Le minimalisme minéral et la sérénité des spas contemporains",
+    subtitle: "Travertin calcaire adouci, crème de karité fouetté, ambre sablé & lin écru",
+    badge: "Sérénité Minérale Spa",
+    gemstone: "Travertin & Karité Blanc",
+    kingdom: "Sanctuaires Minéraux & Korhogo",
     symbol: "karite",
     audience: "all",
-    primaryColor: "#B8532B",
-    accentColor: "#FBF3ED",
-    glowColor: "rgba(184, 83, 43, 0.32)",
-    heroGradient: "linear-gradient(135deg, #B8532B 0%, #D46E45 50%, #F5CEB5 100%)",
-    metallicBorder: "rgba(212, 110, 69, 0.4)",
-    description: "Inspirée des fresques royales géométriques de Tiébélé et de la crème de karité ancestral battue à la main sous le soleil de Korhogo.",
-    rarityTag: "Origine",
-  },
-  {
-    id: "bissap_royal",
-    name: "Bissap Pourpre & Rubis du Nil",
-    tagline: "L'élixir des reines et l'éclat rubis de la vallée du Rift",
-    subtitle: "Rouge rubis velours, nectar d'hibiscus impérial & liserés d'or",
-    badge: "Kènè+ Initiée",
-    gemstone: "Rubis Impérial & Fleur de Bissap",
-    kingdom: "Empire de Koush · Nubie",
-    symbol: "bissap",
-    audience: "client",
-    primaryColor: "#991438",
-    accentColor: "#FDE8EE",
-    glowColor: "rgba(184, 24, 69, 0.38)",
-    heroGradient: "linear-gradient(135deg, #7A0A28 0%, #B81845 45%, #E03565 75%, #D49A24 100%)",
-    metallicBorder: "rgba(224, 53, 101, 0.45)",
-    description: "Une infusion opulente de calices de Bissap pourpre velouté et de rubis lumineux, signature suprême de la beauté mélanoderme rayonnante.",
-    rarityTag: "Kènè+ Éclat",
-  },
-  {
-    id: "or_imperial",
-    name: "Or Pur 24K Akan & Sceau Baoulé",
-    tagline: "Le trésor royal Ashanti et la majesté de l'or ciselé",
-    subtitle: "Lingot d'or Akan 24 carats, ambre impérial & onyx ébène",
-    badge: "Le Cercle Royal 👑",
-    gemstone: "Or 24K Solaire & Ambre de Zanzibar",
-    kingdom: "Royaume Ashanti & Baoulé",
-    symbol: "baoule",
-    audience: "client",
-    primaryColor: "#C58A18",
-    accentColor: "#FFF8E7",
-    glowColor: "rgba(216, 154, 30, 0.45)",
-    heroGradient: "linear-gradient(135deg, #F9D87E 0%, #D49A24 35%, #9E6B08 70%, #F5CE7A 100%)",
-    metallicBorder: "rgba(245, 206, 122, 0.65)",
-    description: "Le sacrement de la reine. Inspiré des parures sacrées et des masques d'or pur des souverains Akan. Chaque écran s'illumine d'un halo solaire d'or précieux.",
-    rarityTag: "Souveraineté",
-  },
-  {
-    id: "argile_cuivre",
-    name: "Bronze du Bénin & Cuivre Solaire",
-    tagline: "Le feu des maîtres fondeurs et le cuivre incandescent",
-    subtitle: "Cuivre rouge brossé, patine de bronze d'Ifè & miel d'acacia",
-    badge: "Pro Starter · Atelier d'Art",
-    gemstone: "Bronze Antique & Cuivre Rouge",
-    kingdom: "Royaume du Bénin · Ifè",
-    symbol: "bronze",
-    audience: "pro",
-    primaryColor: "#C65322",
-    accentColor: "#FCEFE8",
-    glowColor: "rgba(198, 83, 34, 0.35)",
-    heroGradient: "linear-gradient(135deg, #9C3D12 0%, #C85A24 50%, #EDA33E 100%)",
-    metallicBorder: "rgba(200, 90, 36, 0.45)",
-    description: "L'énergie magistrale des bronziers d'Ifè et du Royaume du Bénin. Un écrin de caractère pour la praticienne solo et le dermo-conseil d'élite.",
-    rarityTag: "Atelier Solo",
+    primaryColor: "#BA5B30",
+    accentColor: "#FAF2EB",
+    glowColor: "rgba(186, 91, 48, 0.35)",
+    heroGradient: "linear-gradient(135deg, #B5582D 0%, #D87B4C 45%, #F4CFB7 100%)",
+    metallicBorder: "rgba(216, 123, 76, 0.45)",
+    description: "Inspirée des spas d'hôtels et sanctuaires de sérénité les plus prisés au monde en 2026 (Aman, Six Senses, Cheval Blanc) : pureté du travertin, crème de karité fouettée et lumière solaire douce.",
+    rarityTag: "Tendance Spa 2026",
   },
   {
     id: "emeraude_kinkeliba",
-    name: "Malachite du Katanga & Émeraude",
-    tagline: "La gemme de guérison sacrée et la pharmacopée d'apparat",
-    subtitle: "Vert malachite joaillerie, feuillage de moringa & or Akan",
-    badge: "Pro Institut ✨ · Excellence",
-    gemstone: "Malachite du Congo & Émeraude de Sandawana",
-    kingdom: "Empire Luba · Katanga",
+    name: "Sauge Botanique & Eucalyptus Spa",
+    tagline: "L'écrin biophilique d'hydrothérapie et de dermo-clinique végétale",
+    subtitle: "Vert sauge poudré, vapeurs d'eucalyptus frais, kinkeliba sauvage & or mat",
+    badge: "Hydrothérapie & Botanique",
+    gemstone: "Émeraude Brute & Feuilles d'Eucalyptus",
+    kingdom: "Sanctuaires Botaniques & Forêts Sacrées",
     symbol: "moringa",
-    audience: "pro",
-    primaryColor: "#186638",
+    audience: "all",
+    primaryColor: "#1A6B44",
     accentColor: "#EBF8F0",
-    glowColor: "rgba(24, 102, 56, 0.40)",
-    heroGradient: "linear-gradient(135deg, #0A3B1D 0%, #156B36 45%, #2AA85B 80%, #E5A93C 100%)",
-    metallicBorder: "rgba(42, 168, 91, 0.5)",
-    description: "L'alliance majestueuse de la malachite verte et des feuilles fraîches de moringa et kinkeliba. Calibré pour les salons établis respirant l'autorité dermo-clinique.",
-    rarityTag: "Prestige Institut",
+    glowColor: "rgba(26, 107, 68, 0.40)",
+    heroGradient: "linear-gradient(135deg, #0B3D23 0%, #1A6B44 45%, #2FA867 80%, #E2AB3E 100%)",
+    metallicBorder: "rgba(47, 168, 103, 0.50)",
+    description: "L'ambiance star des spas holistiques mondiaux en 2026 : respiration vivifiante d'eucalyptus, vert sauge apaisant et phytothérapie d'élite pour la régénération cellulaire.",
+    rarityTag: "Tendance Spa 2026",
+  },
+  {
+    id: "argile_cuivre",
+    name: "Terracotta d'Atlas & Argile Solaire",
+    tagline: "La chaleur tellurique des rituels hammam et spas du désert",
+    subtitle: "Terre cuite satinée, cuivre rouge incandescent, miel d'acacia & ocre chaud",
+    badge: "Rituels Hammam & Chaleur",
+    gemstone: "Cuivre Rouge Brossé & Argile Ocre",
+    kingdom: "Rituels Sahéliens & Cités d'Ifè",
+    symbol: "bronze",
+    audience: "all",
+    primaryColor: "#C45222",
+    accentColor: "#FDF1EB",
+    glowColor: "rgba(196, 82, 34, 0.38)",
+    heroGradient: "linear-gradient(135deg, #963810 0%, #C45222 50%, #EC9735 100%)",
+    metallicBorder: "rgba(200, 90, 36, 0.45)",
+    description: "Inspirée des grands hammams de palace (Marrakech, Dubai, Palm Springs) : un écrin sensoriel vibrant qui magnifie la carnation et insuffle une énergie bienfaisante.",
+    rarityTag: "Tendance Spa 2026",
+  },
+  {
+    id: "bissap_royal",
+    name: "Quartz Rose & Fleur de Soie",
+    tagline: "L'esthétique glamour et poudrée des facial bars & studios dermo-esthétiques",
+    subtitle: "Velours de bissap rubis, quartz rose translucide, pétales de pivoine & or rosé",
+    badge: "Facialiste & Éclat Glamour",
+    gemstone: "Quartz Rose Givré & Rubis du Nil",
+    kingdom: "Haute Dermo-Esthétique & Nil Solaire",
+    symbol: "bissap",
+    audience: "all",
+    primaryColor: "#9E163B",
+    accentColor: "#FDEAF0",
+    glowColor: "rgba(158, 22, 59, 0.40)",
+    heroGradient: "linear-gradient(135deg, #7A0A28 0%, #B81845 45%, #E33E6E 75%, #E5A93C 100%)",
+    metallicBorder: "rgba(227, 62, 110, 0.48)",
+    description: "Plébiscitée par les facialistes d'élite de Paris, Tokyo et New York : une atmosphère poudrée subtile, associant l'énergie bienfaisante du quartz rose au rubis impérial.",
+    rarityTag: "Tendance Spa 2026",
+  },
+  {
+    id: "or_imperial",
+    name: "Or Solaire 24K & Nacre Impériale",
+    tagline: "Le grand luxe palace et haute joaillerie des spas 7 étoiles",
+    subtitle: "Or pur Akan 24 carats poli miroir, nacre nacrée lustrée & ambre doré",
+    badge: "Haute Joaillerie & Palace 7★",
+    gemstone: "Lingot d'Or 24K & Nacre Solaire",
+    kingdom: "Trésor Royal Akan & Cités d'Or",
+    symbol: "baoule",
+    audience: "all",
+    primaryColor: "#BD7E10",
+    accentColor: "#FFF9EC",
+    glowColor: "rgba(214, 153, 28, 0.45)",
+    heroGradient: "linear-gradient(135deg, #FAD67B 0%, #D49A24 35%, #9B6606 70%, #F5CE7A 100%)",
+    metallicBorder: "rgba(245, 206, 122, 0.70)",
+    description: "L'opulence royale sans compromis : le faste des suites impériales et des cérémonies de beauté Akan baignées d'or pur, apportant un éclat prestigieux à l'institut.",
+    rarityTag: "Tendance Spa 2026",
   },
   {
     id: "indigo_mandingue",
-    name: "Nuit d'Indigo Mandingue & Platine",
-    tagline: "La parure d'apparat des empereurs sous la voûte céleste",
-    subtitle: "Bleu nuit impérial, lapis-lazuli céleste & platine royal",
-    badge: "Pro Complexe 🏛️ · Haute Direction",
-    gemstone: "Lapis-Lazuli & Platine Céleste",
-    kingdom: "Empire du Mali · Soundiata Keïta",
+    name: "Nuit d'Indigo & Lapis Céleste",
+    tagline: "L'ambiance signature Night Spa, luminothérapie et soins profonds",
+    subtitle: "Bleu nuit impérial mandingue, poudre de lapis-lazuli & platine d'apparat",
+    badge: "Night Spa & Haute Institution",
+    gemstone: "Lapis-Lazuli Céleste & Platine Pur",
+    kingdom: "Empire Mandingue & Nuées Célestes",
     symbol: "indigo",
-    audience: "pro",
-    primaryColor: "#142B58",
-    accentColor: "#EEF3FC",
-    glowColor: "rgba(20, 43, 88, 0.42)",
+    audience: "all",
+    primaryColor: "#153063",
+    accentColor: "#EFF4FC",
+    glowColor: "rgba(21, 48, 99, 0.42)",
     heroGradient: "linear-gradient(135deg, #0A1938 0%, #15326A 45%, #2A54A4 80%, #F5D37E 100%)",
     metallicBorder: "rgba(42, 84, 164, 0.55)",
-    description: "Le prestige suprême des grands spas et cliniques dermo d'envergure internationale. Tissé de reflets d'indigo royal mandingue et d'étoiles de platine étincelant.",
-    rarityTag: "Haute Institution",
+    description: "L'élégance suprême des cliniques dermo et spas nocturnes : une immersion feutrée d'indigo impérial et de reflets platine invitant à un lâcher-prise total.",
+    rarityTag: "Tendance Spa 2026",
   },
 ];
 
@@ -214,36 +215,23 @@ export function isTierUnlocked(
 ): boolean {
   const { user, planId, monthsPaid = 0, currentMonth = 0 } = context;
 
-  // 1. Ocre Sacré & Nacre de Karité débloqué pour tous
+  // 1. Les instituts, spas et professionnels ont accès libre à l'ensemble des 6 collections mondiales 2026
+  // afin d'harmoniser parfaitement l'ambiance des écrans avec le décor et l'atmosphère physique de leur établissement.
+  if (user?.role === "pro" || user?.role === "admin") return true;
+
+  // 2. Travertin Minéral & Sable Chaud débloqué pour toutes les clientes (Origine & Sérénité)
   if (themeId === "karite_tiebele") return true;
 
-  // 2. Administrateur : accès à toutes les créations sans restriction
-  if (user?.role === "admin") return true;
-
-  const isPro = user?.role === "pro";
+  // 3. Palettes Clientes Kènè+ (Privilège Ascendant selon fidélité)
   const effectiveMonth = Math.max(monthsPaid, currentMonth);
-
-  // 3. Palettes Entreprise Pro (Privilège Ascendant : qui peut le plus peut le moins)
-  if (themeId === "indigo_mandingue") {
-    return isPro && planId === "pro_complexe";
-  }
-  if (themeId === "emeraude_kinkeliba") {
-    return isPro && (planId === "pro_complexe" || planId === "pro_institut" || !planId);
-  }
-  if (themeId === "argile_cuivre") {
-    return isPro && (planId === "pro_complexe" || planId === "pro_institut" || planId === "pro_starter" || !planId);
-  }
-
-  // 4. Palettes Cliente Kènè+ (Privilège Ascendant)
   if (themeId === "or_imperial") {
-    return (
-      (planId === "kene_plus" && effectiveMonth >= 4) ||
-      user?.role === "pro" // Les professionnelles ont aussi le pass prestige Kènè+
-    );
+    return planId === "kene_plus" && effectiveMonth >= 4;
   }
-
-  if (themeId === "bissap_royal") {
-    return planId === "kene_plus" || user?.role === "pro";
+  if (themeId === "indigo_mandingue") {
+    return planId === "kene_plus" && effectiveMonth >= 6;
+  }
+  if (themeId === "bissap_royal" || themeId === "emeraude_kinkeliba" || themeId === "argile_cuivre") {
+    return planId === "kene_plus";
   }
 
   return false;
