@@ -1679,7 +1679,7 @@ export function ProEnterpriseShell() {
           )}
         >
           {activeSection !== "assistant" && (
-            <div className="mb-4 shrink-0 k-obsidian-luxury px-4 py-3 sm:px-5 sm:py-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div className="hidden md:flex mb-4 shrink-0 k-obsidian-luxury px-4 py-3 sm:px-5 sm:py-3.5 flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 <span className="text-[11px] font-black text-[#E5A93C] uppercase tracking-[0.16em] pr-1.5 shrink-0 flex items-center gap-1.5">
                   <span className="text-sm">{activeCategoryDef.emoji}</span>
