@@ -84,18 +84,18 @@ export function KpiCard({
   className?: string;
 }) {
   return (
-    <div className={cn("k-card k-card-hover relative rounded-[20px] p-4 flex flex-col justify-between overflow-hidden group transition-all duration-300", className)}>
+    <div className={cn("k-card-awwwards k-card-hover relative p-4 sm:p-5 flex flex-col justify-between overflow-hidden group transition-all duration-300", className)}>
       <div className="flex items-center justify-between gap-2 z-10">
-        <Eyebrow className="min-w-0 leading-snug truncate">{label}</Eyebrow>
+        <Eyebrow className="min-w-0 leading-snug truncate text-foreground/80 font-extrabold tracking-[0.12em]">{label}</Eyebrow>
         <IconBadge icon={icon} size="sm" tone={monetary ? "gold" : "terre"} />
       </div>
 
-      <div className="mt-2.5 z-10">
-        <div className="flex items-baseline justify-between gap-1 flex-wrap">
-          <p className="font-mono text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-gold-text truncate" title={value}>{value}</p>
+      <div className="mt-3 z-10">
+        <div className="flex items-baseline justify-between gap-1.5 flex-wrap">
+          <p className="font-heading text-2xl sm:text-[26px] font-bold tabular-nums tracking-tight text-foreground truncate" title={value}>{value}</p>
           {trend && (
             <span className={cn(
-              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold font-mono shrink-0",
+              "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums shrink-0",
               trend.direction === "up" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25" :
               trend.direction === "down" ? "bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-500/25" :
               "bg-muted text-muted-foreground border border-border"
@@ -107,11 +107,11 @@ export function KpiCard({
             </span>
           )}
         </div>
-        {hint && <p className="mt-0.5 text-xs text-muted-foreground truncate" title={hint}>{hint}</p>}
+        {hint && <p className="mt-1 text-xs font-medium text-muted-foreground truncate" title={hint}>{hint}</p>}
       </div>
 
       {sparkline && sparkline.length >= 2 && (
-        <div className="mt-2 w-full h-6 opacity-70 group-hover:opacity-100 transition-opacity">
+        <div className="mt-2.5 w-full h-7 opacity-80 group-hover:opacity-100 transition-opacity">
           <MiniSparkline data={sparkline} tone={monetary ? "gold" : "terre"} />
         </div>
       )}
@@ -207,15 +207,18 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
-/** Titre de section (font-heading) + actions à droite */
+/** Titre de section (font-heading) + actions à droite — Signature Éditoriale Afro-Luxe */
 export function SectionHeader({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight">{title}</h1>
-        {sub && <p className="mt-0.5 text-sm text-muted-foreground">{sub}</p>}
+    <div className="k-card-awwwards px-4 py-3.5 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-start gap-3.5 min-w-0">
+        <div className="mt-1 h-9 w-1.5 shrink-0 rounded-full k-rail-line" aria-hidden="true" />
+        <div className="min-w-0">
+          <h1 className="font-heading text-xl sm:text-2xl lg:text-[26px] font-bold tracking-tight text-foreground leading-tight">{title}</h1>
+          {sub && <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground leading-snug">{sub}</p>}
+        </div>
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
     </div>
   );
 }

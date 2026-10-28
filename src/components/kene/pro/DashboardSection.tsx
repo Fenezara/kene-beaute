@@ -187,12 +187,15 @@ export function DashboardSection({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight">Tableau de bord</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {data.tenant.name} — {data.tenant.city} · vue temps réel de l&apos;activité
-          </p>
+      <div className="k-card-awwwards px-4 py-3.5 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-start gap-3.5 min-w-0">
+          <div className="mt-1 h-9 w-1.5 shrink-0 rounded-full k-rail-line" aria-hidden="true" />
+          <div>
+            <h1 className="font-heading text-xl sm:text-2xl lg:text-[26px] font-bold tracking-tight">Tableau de bord</h1>
+            <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
+              {data.tenant.name} — {data.tenant.city} · vue temps réel de l&apos;activité
+            </p>
+          </div>
         </div>
 
         {/* Toggle Vue Opérationnelle / Analyse Financière */}
@@ -201,8 +204,8 @@ export function DashboardSection({
             type="button"
             onClick={() => setViewMode("operations")}
             className={cn(
-              "rounded-lg px-3 py-1.5 font-semibold transition-all flex items-center gap-1.5",
-              viewMode === "operations" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              "rounded-lg px-3 py-1.5 font-semibold transition-all flex items-center gap-1.5 cursor-pointer",
+              viewMode === "operations" ? "k-btn-gold text-[#18120C] shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"
             )}
           >
             <LayoutDashboard className="size-3.5" />
@@ -212,11 +215,11 @@ export function DashboardSection({
             type="button"
             onClick={() => setViewMode("finance")}
             className={cn(
-              "rounded-lg px-3 py-1.5 font-semibold transition-all flex items-center gap-1.5",
-              viewMode === "finance" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              "rounded-lg px-3 py-1.5 font-semibold transition-all flex items-center gap-1.5 cursor-pointer",
+              viewMode === "finance" ? "k-btn-gold text-[#18120C] shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <BarChart3 className="size-3.5 text-gold-text" />
+            <BarChart3 className="size-3.5" />
             Analyse Financière &amp; KPIs
           </button>
         </div>
@@ -229,53 +232,50 @@ export function DashboardSection({
           {/* ── BENTO GRID SUPRÊME AWWWARDS (HERO AREA + 4 KPI TILES) ── */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3.5 sm:gap-4">
             
-            {/* 🌟 HERO CARTE REVENUE (8 colonnes desktop, 2 col tablette, 1 col mobile) */}
-            <div className="md:col-span-2 lg:col-span-8 rounded-[24px] sm:rounded-[28px] border border-gold/35 bg-card p-4 sm:p-6 relative overflow-hidden shadow-xs flex flex-col justify-between group transition-all duration-300">
-              <div className="absolute top-0 right-0 w-80 h-80 bg-gold/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-              <KenteTop />
-
+            {/* 🌟 HERO CARTE REVENUE (8 colonnes desktop, 2 col tablette, 1 col mobile) — Ébène & Or 24K */}
+            <div className="md:col-span-2 lg:col-span-8 k-obsidian-luxury p-5 sm:p-6 flex flex-col justify-between group transition-all duration-300">
               {/* En-tête Hero */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 z-10">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold font-mono uppercase tracking-wider bg-gold/15 text-gold-text border border-gold/25">
-                      <Zap className="size-3" />
+                    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#D49A24]/25 text-[#F5D37E] border border-[#D49A24]/45">
+                      <Zap className="size-3 text-[#E5A93C]" />
                       Flux d&apos;Encaissement Réel
                     </span>
                     {peakDay.total > 0 && (
-                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground">
+                      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold bg-white/10 text-[#F5ECDD]/90 border border-white/15">
                         Record : {peakDay.label} ({xof(peakDay.total, { compact: true })})
                       </span>
                     )}
                   </div>
-                  <div className="flex items-baseline gap-3 mt-2">
-                    <h2 className="font-heading font-black text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">
+                  <div className="flex items-baseline gap-3 mt-2.5">
+                    <h2 className="font-heading font-black text-3xl sm:text-4xl lg:text-[42px] text-[#FFF9EC] tracking-tight tabular-nums">
                       {xof(chartRange === "7d" ? ca7Total : rawChart.reduce((s, c) => s + c.total, 0))}
                     </h2>
                     {prev7Total > 0 && (
                       <span className={cn(
-                        "inline-flex items-center gap-1 text-xs font-mono font-bold px-2.5 py-0.5 rounded-full border",
-                        caTrendDirection === "up" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/25" :
-                        caTrendDirection === "down" ? "bg-amber-500/15 text-amber-800 dark:text-amber-400 border-amber-500/25" :
-                        "bg-muted text-muted-foreground border-border"
+                        "inline-flex items-center gap-1 text-xs tabular-nums font-bold px-2.5 py-0.5 rounded-full border",
+                        caTrendDirection === "up" ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" :
+                        caTrendDirection === "down" ? "bg-amber-500/20 text-amber-300 border-amber-500/40" :
+                        "bg-white/10 text-[#F5ECDD]/80 border-white/20"
                       )}>
                         {caTrendDirection === "up" ? `+${caTrendValue}% vs sem. préc.` : `${caTrendValue}% vs sem. préc.`}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-[#F5ECDD]/70 mt-1">
                     {chartRange === "7d" ? "Chiffre d'affaires cumulé sur les 7 derniers jours" : "Chiffre d'affaires consolidé sur les 14 derniers jours"}
                   </p>
                 </div>
 
                 {/* Commutateur 7j / 14j */}
-                <div className="flex items-center bg-muted/90 p-1 rounded-xl border border-border/80 self-start sm:self-center shrink-0">
+                <div className="flex items-center bg-white/8 p-1 rounded-xl border border-white/15 self-start sm:self-center shrink-0">
                   <button
                     type="button"
                     onClick={() => setChartRange("7d")}
                     className={cn(
-                      "px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer",
-                      chartRange === "7d" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                      "px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                      chartRange === "7d" ? "k-btn-gold text-[#18120C] shadow-xs" : "text-[#F5ECDD]/75 hover:text-[#FFF9EC]"
                     )}
                   >
                     7 jours
@@ -284,8 +284,8 @@ export function DashboardSection({
                     type="button"
                     onClick={() => setChartRange("14d")}
                     className={cn(
-                      "px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer",
-                      chartRange === "14d" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                      "px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                      chartRange === "14d" ? "k-btn-gold text-[#18120C] shadow-xs" : "text-[#F5ECDD]/75 hover:text-[#FFF9EC]"
                     )}
                   >
                     14 jours
@@ -299,19 +299,19 @@ export function DashboardSection({
                   <AreaChart data={displayChartData} margin={{ top: 10, right: 10, left: -14, bottom: 0 }}>
                     <defs>
                       <linearGradient id="goldAuraGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#D49A24" stopOpacity={0.45} />
+                        <stop offset="5%" stopColor="#F5D37E" stopOpacity={0.55} />
                         <stop offset="95%" stopColor="#D49A24" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
                     <XAxis
                       dataKey="label"
-                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                      tick={{ fontSize: 11, fill: "rgba(245, 236, 221, 0.72)" }}
                       interval="preserveStartEnd"
                       tickLine={false}
-                      axisLine={{ stroke: "var(--border)" }}
+                      axisLine={{ stroke: "rgba(212, 154, 36, 0.25)" }}
                     />
                     <YAxis
-                      tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                      tick={{ fontSize: 10, fill: "rgba(245, 236, 221, 0.72)" }}
                       tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
                       tickLine={false}
                       axisLine={false}
@@ -322,16 +322,16 @@ export function DashboardSection({
                         if (!active || !payload?.length) return null;
                         const point = payload[0].payload as { label: string; date: string; total: number; count?: number };
                         return (
-                          <div className="rounded-xl border border-gold/40 bg-card/95 backdrop-blur-md px-3.5 py-2.5 shadow-xl text-xs space-y-1">
-                            <p className="font-semibold text-foreground flex items-center justify-between gap-3">
+                          <div className="rounded-xl border border-[#D49A24]/50 bg-[#1A130D]/95 text-[#FFF9EC] backdrop-blur-md px-3.5 py-2.5 shadow-xl text-xs space-y-1">
+                            <p className="font-semibold text-[#FFF9EC] flex items-center justify-between gap-3">
                               <span>{point.label}</span>
-                              <span className="font-mono text-[10px] text-muted-foreground">{point.date}</span>
+                              <span className="tabular-nums text-[10px] text-[#F5ECDD]/70">{point.date}</span>
                             </p>
-                            <p className="font-mono text-base font-bold text-gold-text">
+                            <p className="font-heading text-base font-bold text-[#F5D37E] tabular-nums">
                               {xof(point.total)}
                             </p>
                             {typeof point.count === "number" && (
-                              <p className="text-[10px] text-muted-foreground">
+                              <p className="text-[10px] text-[#F5ECDD]/75">
                                 {point.count} transaction{point.count > 1 ? "s" : ""} enregistrée{point.count > 1 ? "s" : ""}
                               </p>
                             )}
@@ -342,12 +342,12 @@ export function DashboardSection({
                     <Area
                       type="monotone"
                       dataKey="total"
-                      stroke="#D49A24"
+                      stroke="#F5D37E"
                       strokeWidth={2.75}
                       fillOpacity={1}
                       fill="url(#goldAuraGradient)"
-                      dot={{ r: 3, fill: "#D49A24", strokeWidth: 1.5, stroke: "#FFF" }}
-                      activeDot={{ r: 5, fill: "#D49A24", strokeWidth: 2, stroke: "#FFF" }}
+                      dot={{ r: 3.5, fill: "#D49A24", strokeWidth: 1.5, stroke: "#FFF9EC" }}
+                      activeDot={{ r: 5.5, fill: "#F5D37E", strokeWidth: 2, stroke: "#18120C" }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>

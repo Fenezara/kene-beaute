@@ -476,11 +476,11 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                       <button
                         onClick={startExploration}
                         disabled={exploring}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-full bg-secondary/60 hover:bg-secondary px-3.5 text-[11.5px] font-medium text-foreground transition-colors"
+                        className="inline-flex h-9 items-center gap-1.5 rounded-full bg-secondary/60 hover:bg-secondary px-3.5 text-[11.5px] font-medium text-foreground transition-colors cursor-pointer"
                       >
                         {exploring ? <Loader2 size={12} className="animate-spin" /> : <CauriIcon size={12} className="text-gold-text" />}
-                        <span className="hidden xs:inline">Explorer sans inscription</span>
-                        <span className="xs:hidden">Démo</span>
+                        <span className="hidden sm:inline">Explorer sans inscription</span>
+                        <span className="sm:hidden">Démo Express</span>
                       </button>
                     )}
                   </div>
@@ -495,12 +495,12 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
               <div className="mt-4 sm:mt-6 lg:mt-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-center">
                 {/* Bloc Hero (Gauche sur PC) */}
                 <section className="relative lg:col-span-7 flex flex-col justify-center" aria-label="Promesse Kènè">
-                  {/* Lumière dorée localisée */}
+                  {/* Halo organique doré diffus (sans rectangle dur) */}
                   <div
-                    className="pointer-events-none absolute -inset-x-5 -top-6 h-[130%]"
+                    className="pointer-events-none absolute -inset-8 rounded-full blur-3xl opacity-55"
                     style={{
                       backgroundImage:
-                        "radial-gradient(58% 52% at 16% 10%, color-mix(in srgb, #D49A24 22%, transparent) 0%, transparent 70%), radial-gradient(46% 42% at 92% 26%, color-mix(in srgb, #C93B62 18%, transparent) 0%, transparent 66%), radial-gradient(64% 55% at 55% 112%, color-mix(in srgb, #9E2045 15%, transparent) 0%, transparent 72%)",
+                        "radial-gradient(circle at 25% 25%, rgba(212, 154, 36, 0.22) 0%, transparent 65%), radial-gradient(circle at 80% 40%, rgba(201, 59, 98, 0.14) 0%, transparent 60%)",
                     }}
                     aria-hidden="true"
                   />
@@ -679,22 +679,22 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                   </div>
 
                   {/* Accès direct aux comptes existants avec numéro (Cliente ou Gérante de salon) */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-1 text-[11.5px] text-muted-foreground">
                     <button
                       type="button"
                       onClick={() => enterPortal("client")}
-                      className="inline-flex items-center gap-1.5 hover:text-foreground font-semibold transition-colors underline-offset-4 hover:underline cursor-pointer"
+                      className="inline-flex items-center gap-1.5 hover:text-foreground font-semibold transition-colors underline-offset-4 hover:underline cursor-pointer whitespace-nowrap"
                     >
-                      <LogIn size={13} className="text-gold-text" />
-                      <span>Créer mon compte ou me connecter (0 FCFA)</span>
+                      <LogIn size={13} className="text-gold-text shrink-0" />
+                      <span>Créer mon compte / Connexion (0 FCFA)</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => enterPortal("pro")}
-                      className="inline-flex items-center gap-1.5 hover:text-foreground font-semibold transition-colors underline-offset-4 hover:underline"
+                      className="inline-flex items-center gap-1.5 hover:text-foreground font-semibold transition-colors underline-offset-4 hover:underline cursor-pointer whitespace-nowrap"
                     >
-                      <BriefcaseBusiness size={13} className="text-gold-text" />
-                      <span>Gérante de salon ? Connexion numéro</span>
+                      <BriefcaseBusiness size={13} className="text-gold-text shrink-0" />
+                      <span>Gérante de salon ? Connexion Pro</span>
                     </button>
                   </div>
                 </div>
@@ -920,42 +920,42 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                             </button>
                           </div>
 
-                          {/* 3. Pro Complexe */}
-                          <div className="rounded-[22px] border border-border/80 bg-card/85 backdrop-blur-md p-5 flex flex-col justify-between space-y-4 hover:border-gold/50 transition-all shadow-sm">
+                          {/* 3. Pro Complexe — Obsidian & Or 24K */}
+                          <div className="rounded-[22px] k-obsidian-luxury p-5 flex flex-col justify-between space-y-4 transition-all shadow-lg">
                             <div className="space-y-3">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-heading text-[17px] font-black text-foreground">Pro Complexe</span>
-                                <span className="rounded-full bg-gold/15 border border-gold/30 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">
+                                <span className="font-heading text-[17px] font-black text-[#FFF9EC]">Pro Complexe</span>
+                                <span className="rounded-full bg-[#D49A24]/25 border border-[#D49A24]/50 text-[#F3D98A] px-2.5 py-0.5 text-[10px] font-bold">
                                   👑 Excellence
                                 </span>
                               </div>
-                              <p className="text-[11.5px] text-muted-foreground leading-snug">
+                              <p className="text-[11.5px] text-[#E6D5B8]/80 leading-snug">
                                 Spas, cliniques dermo, multi-succursales & personnel déclaré.
                               </p>
-                              <div className="pt-1.5 border-t border-border/40">
+                              <div className="pt-1.5 border-t border-[#D49A24]/25">
                                 <div className="flex items-baseline gap-1.5">
-                                  <span className="font-mono text-2xl font-black text-gold-text">30 000</span>
-                                  <span className="text-[11px] text-muted-foreground font-semibold">FCFA / mois</span>
+                                  <span className="font-heading text-2xl font-black text-[#F3D98A] tabular-nums">30 000</span>
+                                  <span className="text-[11px] text-[#E6D5B8]/75 font-semibold">FCFA / mois</span>
                                 </div>
-                                <p className="text-[10px] text-gold-text/90 font-medium mt-0.5">
+                                <p className="text-[10px] text-[#F3D98A] font-medium mt-0.5">
                                   Descend à <strong>20 000 F/mois à vie</strong>
                                 </p>
                               </div>
-                              <ul className="space-y-2 text-xs pt-1">
+                              <ul className="space-y-2 text-xs pt-1 text-[#FFF9EC]/90">
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-[#F3D98A] mt-0.5 shrink-0" />
                                   <span className="text-[11.5px] font-bold">Tout Pro Institut inclus</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-[#F3D98A] mt-0.5 shrink-0" />
                                   <span className="text-[11.5px]"><strong>Paie CNPS / IPRES</strong> déclarative</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-[#F3D98A] mt-0.5 shrink-0" />
                                   <span className="text-[11.5px]"><strong>Comptabilité SYSCOHADA</strong></span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                  <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                  <Check size={14} className="text-[#F3D98A] mt-0.5 shrink-0" />
                                   <span className="text-[11.5px]">Multi-établissements illimité</span>
                                 </li>
                               </ul>
@@ -963,7 +963,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                             <button
                               type="button"
                               onClick={() => enterPortal("pro")}
-                              className="w-full h-10.5 rounded-xl k-chip hover:bg-muted text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                              className="w-full h-10.5 rounded-xl bg-[#D49A24]/20 hover:bg-[#D49A24]/35 border border-[#D49A24]/45 text-[#FFF9EC] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                             >
                               <span>Choisir Complexe</span>
                               <ArrowRight size={13} />

@@ -495,12 +495,12 @@ export function ClientApp() {
  de page vient du body: ce div reste transparent pour laisser passer
  la couche fixe -z-10, light et dark). */}
       <AuroraBackdrop />
-      {/* ───────── Rail latéral tablette + desktop (md+) — chrome verre ───────── */}
+      {/* ───────── Rail latéral tablette + desktop (md+) — Ébène & Or 24K Afro-Luxe ───────── */}
       <aside
         aria-label="Navigation principale"
-        className="hidden md:flex w-[84px] lg:w-[240px] xl:w-[260px] shrink-0 flex-col k-chrome transition-[width] duration-200"
+        className="hidden md:flex w-[84px] lg:w-[244px] xl:w-[264px] shrink-0 flex-col bg-gradient-to-b from-[#1A130D] via-[#150F0A] to-[#110B07] text-[#F5ECDD] border-r border-[#D49A24]/30 shadow-xl transition-[width] duration-200"
       >
-        <div className="h-16 lg:h-18 flex items-center justify-center lg:justify-start px-2 lg:px-5 border-b border-border/60">
+        <div className="h-16 lg:h-18 flex items-center justify-center lg:justify-start px-2 lg:px-5 border-b border-white/10">
           {/* Logo en haut à gauche : icône médaillon sur tablette, lockup complet avec slogan sur grand écran */}
           <div className="hidden lg:block">
             <KeneEmblemLockup size={46} labelSize={23} sublabel="Beauté mélanoderme" />
@@ -522,12 +522,12 @@ export function ClientApp() {
                   aria-current={active ? "page" : undefined}
                   title={t(n.labelKey)}
                   className={cn(
-                    "k-cta flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 px-2 lg:px-3 h-14 lg:h-12 rounded-2xl text-[#FFF9EC] focus-visible:outline-2 focus-visible:outline-primary transition-all",
-                    active && "outline-2 outline-[#FFF9EC]/80",
+                    "k-cta flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3 px-2 lg:px-3.5 h-14 lg:h-12 rounded-2xl text-[#FFF9EC] focus-visible:outline-2 focus-visible:outline-primary transition-all shadow-md",
+                    active && "ring-2 ring-[#F5D37E]",
                   )}
                 >
                   <NeaOnnimIcon size={20} className="shrink-0" />
-                  <span className="text-[10px] lg:hidden font-bold tracking-tight">Scanner</span>
+                  <span className="text-[10px] lg:hidden font-bold tracking-tight">Scanne</span>
                   <span className="hidden lg:inline text-sm font-bold tracking-wide truncate max-w-full">{t(n.labelKey)}</span>
                 </button>
               );
@@ -540,20 +540,22 @@ export function ClientApp() {
                 aria-label={`${t(n.labelKey)}${n.tab === "chat" && chatUnread ? " — 1 nouveau message" : ""}`}
                 title={t(n.labelKey)}
                 className={cn(
-                  "relative flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3.5 h-14 lg:h-12 px-1 lg:px-3 rounded-2xl transition-colors focus-visible:outline-2 focus-visible:outline-primary",
-                  active ? "bg-primary/12 text-primary" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                  "relative flex flex-col lg:flex-row items-center justify-center lg:justify-start gap-1 lg:gap-3.5 h-14 lg:h-12 px-1 lg:px-3.5 rounded-2xl transition-all focus-visible:outline-2 focus-visible:outline-primary",
+                  active
+                    ? "k-btn-gold text-[#18120C] font-bold shadow-sm"
+                    : "text-[#F5ECDD]/75 hover:bg-white/8 hover:text-[#FFF9EC]",
                 )}
               >
                 <span className="relative shrink-0">
                   <Icon className={cn("size-[22px]", active && "font-bold")} />
                   {n.tab === "chat" && chatUnread && (
-                    <span className="absolute -top-1 -right-1.5 h-2.5 w-2.5 rounded-full bg-[#8B1A3B] ring-2 ring-card" aria-hidden="true" />
+                    <span className="absolute -top-1 -right-1.5 h-2.5 w-2.5 rounded-full bg-[#E04E75] ring-2 ring-[#1A130D]" aria-hidden="true" />
                   )}
                 </span>
-                <span className={cn("text-[9.5px] lg:text-[14px] xl:text-[15px] truncate max-w-full leading-none", active ? "font-bold" : "font-medium")}>
+                <span className={cn("text-[9.5px] lg:text-[14px] xl:text-[15px] truncate max-w-full leading-none", active ? "font-extrabold" : "font-medium")}>
                   {n.tab === "accueil" ? (
                     <>
-                      <span className="lg:hidden">Accueil</span>
+                      <span className="lg:hidden">Dermo</span>
                       <span className="hidden lg:inline">{t(n.labelKey)}</span>
                     </>
                   ) : n.tab === "dossier" ? (
@@ -563,7 +565,7 @@ export function ClientApp() {
                     </>
                   ) : n.tab === "agenda" ? (
                     <>
-                      <span className="lg:hidden">Agenda</span>
+                      <span className="lg:hidden">Soin &amp; rdv</span>
                       <span className="hidden lg:inline">{t(n.labelKey)}</span>
                     </>
                   ) : n.tab === "profil" ? (
@@ -575,16 +577,15 @@ export function ClientApp() {
                     t(n.labelKey)
                   )}
                 </span>
-                {active && <motion.span layoutId="side-indicator" className="k-rail-line absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-full" aria-hidden="true" />}
               </button>
             );
           })}
         </nav>
 
         {/* Bas de sidebar: sélecteur d'interface + micro légal */}
-        <div className="border-t border-border/60 p-2 lg:p-3 xl:p-4 space-y-2 lg:space-y-3">
+        <div className="border-t border-white/10 p-2 lg:p-3 xl:p-4 space-y-2 lg:space-y-3">
           <div className="space-y-1">
-            <span className="hidden lg:block text-xs uppercase font-bold text-muted-foreground/80 tracking-wider">Interfaces Kènè</span>
+            <span className="hidden lg:block text-[10px] uppercase font-bold text-[#E5A93C] tracking-wider">Interfaces Kènè</span>
             <div className="lg:hidden flex justify-center">
               <SpaceSwitcher variant="compact" />
             </div>
@@ -592,8 +593,8 @@ export function ClientApp() {
               <SpaceSwitcher variant="pills" className="w-full justify-between" />
             </div>
           </div>
-          <p className="hidden lg:block px-1 text-xs leading-relaxed text-muted-foreground/75">
-            Kènè — paiements sécurisés Mobile Money & Carte · estimations IA non médicales
+          <p className="hidden lg:block px-1 text-[11px] leading-relaxed text-[#F5ECDD]/60">
+            Kènè — paiements sécurisés Mobile Money &amp; Carte · estimations IA non médicales
           </p>
         </div>
       </aside>
@@ -759,7 +760,7 @@ export function ClientApp() {
             </div>
           )}
           {refreshing && <span role="status" className="sr-only">Actualisation du fil en cours</span>}
-          <div className="mx-auto w-full max-w-[640px] px-2.5 sm:px-5 pt-2.5 sm:pt-3 pb-[calc(84px+env(safe-area-inset-bottom,0px))] md:pb-8">
+          <div className="mx-auto w-full max-w-5xl xl:max-w-6xl px-2.5 sm:px-5 lg:px-6 pt-2.5 sm:pt-3 pb-[calc(84px+env(safe-area-inset-bottom,0px))] md:pb-8">
             {/* Bannière incitative d'installation PWA si sur navigateur smartphone */}
             <SmartInstallBar />
 
@@ -903,21 +904,31 @@ export function ClientApp() {
       {/* ───────── Rail droit desktop (xl+, accueil) — chrome verre + cartes k ───────── */}
       {tab === "accueil" && (
         <aside aria-label="Informations et raccourcis" className="hidden xl:flex w-[320px] shrink-0 flex-col gap-4 k-chrome p-5 overflow-y-auto pretty-scroll">
-          {/* Mini-profil */}
-          <div className="k-card k-card-hover rounded-[24px] p-4">
+          {/* Mini-profil Ébène & Or 24K */}
+          <div className="k-obsidian-luxury p-4">
             <div className="flex items-center gap-3.5">
-              <span className="grid place-items-center h-14 w-14 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] k-glow-gold text-[#FFF9EC] font-heading font-bold text-xl">
-                {first.charAt(0)}
+              <span className="relative grid place-items-center h-14 w-14 rounded-full bg-gradient-to-br from-[#A0522D] to-[#8B1A3B] k-glow-gold text-[#FFF9EC] font-heading font-bold text-xl shrink-0 overflow-hidden border-2 border-[#E5A93C]/60">
+                {effectiveUser.id && !effectiveUser.id.startsWith("guest") ? (
+                  <img
+                    src={`/api/media/user/${effectiveUser.id}`}
+                    alt={effectiveUser.name}
+                    className="size-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = "none";
+                    }}
+                  />
+                ) : null}
+                <span>{first.charAt(0)}</span>
               </span>
               <div className="min-w-0">
-                <p className="font-heading font-bold truncate">{effectiveUser.name}</p>
-                <p className="text-[11px] text-muted-foreground truncate">{effectiveUser.phone || "Mode Invité / Hors-ligne"}</p>
-                <p className="text-[11px] text-muted-foreground truncate">{effectiveUser.city || "Abidjan"} · {effectiveUser.fitzpatrick ? `Fitzpatrick ${effectiveUser.fitzpatrick}` : "phototype à définir"}</p>
+                <p className="font-heading font-bold text-[#FFF9EC] truncate">{effectiveUser.name}</p>
+                <p className="text-[11px] tabular-nums text-[#F5ECDD]/75 truncate">{effectiveUser.phone || "Mode Invité / Hors-ligne"}</p>
+                <p className="text-[11px] text-[#E5A93C] font-semibold truncate">{effectiveUser.city || "Abidjan"} · {effectiveUser.fitzpatrick ? `Fitzpatrick ${effectiveUser.fitzpatrick}` : "phototype à définir"}</p>
               </div>
             </div>
             <button
               onClick={() => goTab("profil")}
-              className="mt-3.5 h-10 w-full rounded-2xl k-btn-gold text-primary-foreground text-xs font-bold focus-visible:outline-2 focus-visible:outline-primary"
+              className="mt-3.5 h-10 w-full rounded-2xl k-btn-gold text-[#18120C] text-xs font-extrabold focus-visible:outline-2 focus-visible:outline-primary"
             >
               {t("rail.view.profile")}
             </button>

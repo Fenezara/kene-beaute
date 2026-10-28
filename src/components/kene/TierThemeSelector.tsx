@@ -373,7 +373,7 @@ export function TierThemeSelector({
             Collection des Parures Sacrées &amp; Matières Précieuses
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
             {displayedThemes.map((t) => {
               const isSelected = t.id === currentTierId;
               const unlocked = isTierUnlocked(t.id, context);
@@ -382,41 +382,38 @@ export function TierThemeSelector({
                 <div
                   key={t.id}
                   className={cn(
-                    "rounded-2xl border p-3.5 transition-all duration-300 relative flex flex-col justify-between gap-3 group",
+                    "rounded-2xl border p-4 transition-all duration-300 relative flex flex-col justify-between gap-3 group",
                     isSelected
                       ? "border-primary bg-primary/10 shadow-md ring-1 ring-primary/40"
                       : unlocked
-                      ? "border-border/80 bg-card/60 hover:border-primary/50 hover:bg-muted/40"
-                      : "border-border/40 bg-muted/15 opacity-75 hover:opacity-90"
+                      ? "border-border/80 bg-card/80 hover:border-primary/50 hover:bg-muted/40"
+                      : "border-border/40 bg-muted/15 opacity-80 hover:opacity-95"
                   )}
                   style={{
                     borderColor: isSelected ? undefined : t.metallicBorder,
                   }}
                 >
                   {/* En-tête de la carte */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2">
                       <div
                         className="size-9 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm border border-white/20"
                         style={{ background: t.heroGradient }}
                       >
                         {getHeritageIcon(t.symbol)}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <p className={cn("font-heading text-sm font-bold leading-tight", isSelected ? "text-primary" : "text-foreground")}>
-                            {t.name}
-                          </p>
-                        </div>
-                        <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
-                          {t.kingdom}
-                        </p>
-                      </div>
+                      <span className="text-[9px] font-bold px-2.5 py-0.5 rounded-full bg-muted border border-border/60 text-muted-foreground shrink-0">
+                        {t.rarityTag}
+                      </span>
                     </div>
-
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-muted border border-border/60 text-muted-foreground shrink-0">
-                      {t.rarityTag}
-                    </span>
+                    <div>
+                      <p className={cn("font-heading text-[15px] font-bold leading-snug", isSelected ? "text-primary" : "text-foreground")}>
+                        {t.name}
+                      </p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-gold-text mt-0.5">
+                        {t.kingdom}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Subtitle & Matière précieuse */}

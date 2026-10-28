@@ -697,18 +697,18 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           </div>
 
           {/* Mini-aperçu des résultats délivrés (Ce que la cliente découvre) */}
-          <div className="grid grid-cols-3 gap-1.5 mb-4 p-2 rounded-2xl bg-card/80 border border-gold/20 shadow-2xs">
-            <div className="flex flex-col items-center text-center p-1.5 rounded-xl bg-gold/10 border border-gold/20">
-              <span className="text-xs font-black text-gold-text">/100</span>
+          <div className="grid grid-cols-3 gap-2 mb-4 p-2.5 rounded-2xl bg-card/90 border border-gold/25 shadow-2xs">
+            <div className="flex flex-col items-center text-center p-2 rounded-xl bg-gold/10 border border-gold/25">
+              <span className="text-xs font-black text-gold-text tabular-nums">100/100</span>
               <span className="text-[10px] font-bold text-foreground mt-0.5">Score Peau</span>
               <span className="text-[9px] text-muted-foreground">Éclat &amp; Santé</span>
             </div>
-            <div className="flex flex-col items-center text-center p-1.5 rounded-xl bg-primary/10 border border-primary/20">
-              <span className="text-xs font-black text-primary">360°</span>
+            <div className="flex flex-col items-center text-center p-2 rounded-xl bg-primary/10 border border-primary/25">
+              <span className="text-xs font-black text-primary">8 Spectres</span>
               <span className="text-[10px] font-bold text-foreground mt-0.5">Cartographie</span>
               <span className="text-[9px] text-muted-foreground">Taches &amp; Sébum</span>
             </div>
-            <div className="flex flex-col items-center text-center p-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <div className="flex flex-col items-center text-center p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
               <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">Matin &amp; Soir</span>
               <span className="text-[10px] font-bold text-foreground mt-0.5">Routine Ciblée</span>
               <span className="text-[9px] text-muted-foreground">Sur-mesure</span>

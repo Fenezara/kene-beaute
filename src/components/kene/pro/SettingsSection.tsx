@@ -268,25 +268,67 @@ export function SettingsSection({
         }
       />
 
-      {/* Compte — gérante de session / collaboratrice + institut actif */}
-      <div className="k-card rounded-[20px] p-4">
-        <div className="flex items-center gap-3.5">
-          <InitialAvatar name={managerName} className="size-12 text-[13px]" />
-          <div className="min-w-0 flex-1">
-            <p className="font-heading text-[15px] font-bold truncate">{managerName}</p>
-            <Eyebrow className="mt-0.5">
-              {isOwner ? "Fondatrice / Gérante" : (sessionUser?.employeeRole ? formatRole(sessionUser.employeeRole) : "Collaboratrice")}
-            </Eyebrow>
+      {/* Compte — gérante de session / collaboratrice + institut actif (Carte Maîtresse Ébène & Or 24K) */}
+      <div className="k-obsidian-luxury p-5 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="k-glow-gold relative grid size-14 sm:size-16 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-base font-bold text-[#FFF9EC] shrink-0 overflow-hidden border-2 border-[#E5A93C]/60 shadow-lg">
+              {sessionUser?.id ? (
+                <img
+                  src={`/api/media/user/${sessionUser.id}`}
+                  alt={managerName}
+                  className="size-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = "none";
+                  }}
+                />
+              ) : null}
+              <span>
+                {managerName
+                  .split(/\s+/)
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((w) => w[0]?.toUpperCase() ?? "")
+                  .join("") || "DT"}
+              </span>
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-heading text-lg sm:text-xl font-bold text-[#FFF9EC]">{managerName}</p>
+                <span className="rounded-full bg-[#D49A24]/25 border border-[#D49A24]/50 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#F5D37E]">
+                  {isOwner ? "👑 Fondatrice & Gérante" : (sessionUser?.employeeRole ? formatRole(sessionUser.employeeRole) : "Collaboratrice")}
+                </span>
+              </div>
+              <p className="text-xs text-[#F5ECDD]/75 mt-1 flex items-center gap-1.5">
+                <Building2 size={13} className="text-[#E5A93C] shrink-0" />
+                <span>{tenantName}{tenantCity ? ` · ${tenantCity}` : ""}</span>
+              </p>
+            </div>
           </div>
+
+          <button
+            onClick={() => {
+              setSpace("client");
+              if (typeof window !== "undefined") {
+                window.history.pushState(null, "", "/");
+                window.dispatchEvent(new Event("popstate"));
+              }
+              toast.success("Bienvenue dans ton Espace Beauté personnel 🌸");
+            }}
+            className="h-10 px-4 rounded-xl k-btn-gold text-[#18120C] text-xs font-extrabold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-md shrink-0 cursor-pointer"
+          >
+            <DuafeIcon size={15} /> Mon Espace Beauté 🌸
+          </button>
         </div>
-        <div className="mt-3.5 grid gap-2 sm:grid-cols-2">
-          <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 min-h-10 text-xs text-muted-foreground gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Phone size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex items-center justify-between rounded-xl bg-white/8 border border-white/15 px-3.5 py-2.5 text-xs gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Phone size={15} className="shrink-0 text-[#E5A93C]" aria-hidden="true" />
               <div className="min-w-0">
-                <span className="truncate font-mono font-medium text-foreground block">{managerPhone}</span>
-                <span className="text-[10px] text-muted-foreground block -mt-0.5">
-                  {isOwner ? "Connexion gérante (privé & confidentiel)" : "Ligne collaboratrice"}
+                <span className="truncate tabular-nums font-bold text-[#FFF9EC] text-sm block">{managerPhone}</span>
+                <span className="text-[10px] text-[#F5ECDD]/70 block">
+                  {isOwner ? "Ligne gérante (privée & confidentielle)" : "Ligne collaboratrice"}
                 </span>
               </div>
             </div>
@@ -294,34 +336,42 @@ export function SettingsSection({
               <button
                 type="button"
                 onClick={() => setChangePhoneOpen(true)}
-                className="text-[11px] font-bold text-primary hover:underline shrink-0"
+                className="px-2.5 py-1 rounded-lg bg-[#D49A24]/20 hover:bg-[#D49A24]/35 text-[11px] font-bold text-[#F5D37E] transition-colors shrink-0"
               >
                 Changer
               </button>
             )}
           </div>
-          <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 min-h-10 text-xs text-muted-foreground gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <KeyRound size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
+          <div className="flex items-center justify-between rounded-xl bg-white/8 border border-white/15 px-3.5 py-2.5 text-xs gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <KeyRound size={15} className="shrink-0 text-[#E5A93C]" aria-hidden="true" />
               <div className="min-w-0">
-                <span className="truncate font-medium text-foreground block">Code secret PIN (4 chiffres)</span>
-                <span className="text-[10px] text-muted-foreground block -mt-0.5">
-                  {isOwner ? "Code gérante & caisse" : "Code de poste & validation"}
+                <span className="truncate font-bold text-[#FFF9EC] text-sm block">Code secret PIN (4 chiffres)</span>
+                <span className="text-[10px] text-[#F5ECDD]/70 block">
+                  {isOwner ? "Code direction & caisse" : "Code de poste & validation"}
                 </span>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setChangePinOpen(true)}
-              className="text-[11px] font-bold text-primary hover:underline shrink-0"
+              className="px-2.5 py-1 rounded-lg bg-[#D49A24]/20 hover:bg-[#D49A24]/35 text-[11px] font-bold text-[#F5D37E] transition-colors shrink-0"
             >
               Modifier
             </button>
           </div>
-          <p className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 min-h-10 text-xs text-muted-foreground sm:col-span-2">
-            <Building2 size={13} className="shrink-0 text-gold-text" aria-hidden="true" />
-            <span className="truncate">{tenantName}{tenantCity ? ` · ${tenantCity}` : ""}</span>
-          </p>
+          <div className="flex items-center justify-between rounded-xl bg-white/8 border border-white/15 px-3.5 py-2.5 text-xs gap-2 sm:col-span-2 lg:col-span-1">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Building2 size={15} className="shrink-0 text-[#E5A93C]" aria-hidden="true" />
+              <div className="min-w-0">
+                <span className="truncate font-bold text-[#FFF9EC] text-sm block">{tenantName}</span>
+                <span className="text-[10px] text-[#F5ECDD]/70 block">{tenantCity || "Établissement actif"}</span>
+              </div>
+            </div>
+            <span className="rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300 shrink-0">
+              Certifié Kènè
+            </span>
+          </div>
         </div>
       </div>
 
@@ -446,9 +496,9 @@ export function SettingsSection({
 
       {/* Paramètres réservés à la fondatrice / gérante */}
       {isOwner && (
-        <>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
           {/* Coordonnées publiques de l'établissement (WhatsApp officiel et adresse de l'institut) */}
-          <div className="k-card rounded-[20px] p-4 space-y-3">
+          <div className="k-card-awwwards p-5 space-y-3.5 h-full">
             <div className="flex items-center gap-3">
               <IconBadge icon={<Phone size={18} />} tone="gold" />
               <div className="flex-1 min-w-0">
@@ -459,7 +509,7 @@ export function SettingsSection({
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                  Ces coordonnées sont transmises à votre clientèle pour vous contacter directement et se rendre en institut. Elles sont indépendantes de votre compte privé de gérante (aucun conflit d&apos;unicité).
+                  Ces coordonnées sont transmises à votre clientèle pour vous contacter directement et se rendre en institut. Elles sont indépendantes de votre compte privé de gérante.
                 </p>
               </div>
             </div>
@@ -474,7 +524,7 @@ export function SettingsSection({
                   value={salonPhone}
                   onChange={(e) => setSalonPhone(e.target.value)}
                   placeholder="Ex : +225 07 00 00 00 00 ou +221 77 000 00 00"
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs tabular-nums font-semibold text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary"
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">
                   Alimente le bouton d&apos;échange WhatsApp et les rappels de rendez-vous de l&apos;établissement.
@@ -511,108 +561,110 @@ export function SettingsSection({
             </div>
           </div>
 
-          {/* Identité visuelle — photo de vitrine de l'institut */}
-          <div className="k-card rounded-[20px] p-4">
-            <div className="flex items-center gap-3">
-              <IconBadge icon={<Camera size={18} />} tone="gold" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold">Photo de l&apos;institut</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                  Façade, enseigne ou intérieur — elle devient la vitrine de {tenantName} dans l&apos;annuaire et la boutique.
-                </p>
+          <div className="space-y-5">
+            {/* Identité visuelle — photo de vitrine de l'institut */}
+            <div className="k-card-awwwards p-5">
+              <div className="flex items-center gap-3">
+                <IconBadge icon={<Camera size={18} />} tone="gold" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold">Photo de l&apos;institut</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                    Façade, enseigne ou intérieur — elle devient la vitrine de {tenantName} dans l&apos;annuaire et la boutique.
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="mt-3 flex items-center gap-3">
-              <div className="h-20 w-32 shrink-0 overflow-hidden rounded-[14px] border border-border bg-muted">
-                {(photoPreview || currentImage || hasPhoto) ? (
-                  <img
-                    src={photoPreview ?? currentImage ?? `/api/media/tenant/${tenantId}`}
-                    alt={`Vitrine de ${tenantName}`}
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  <span className="grid size-full place-items-center text-muted-foreground">
-                    <Building2 size={22} aria-hidden="true" />
-                  </span>
-                )}
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => photoInput.current?.click()}
-                  disabled={photoBusy}
-                  className="h-11 rounded-[14px] border border-border bg-card px-3 text-xs font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60"
-                >
-                  {photoBusy ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} aria-hidden="true" />}
-                  {hasPhoto ? "Changer la photo" : "Ajouter une photo"}
-                </button>
-                {hasPhoto && (
+              <div className="mt-3 flex items-center gap-3">
+                <div className="h-20 w-32 shrink-0 overflow-hidden rounded-[14px] border border-border bg-muted">
+                  {(photoPreview || currentImage || hasPhoto) ? (
+                    <img
+                      src={photoPreview ?? currentImage ?? `/api/media/tenant/${tenantId}`}
+                      alt={`Vitrine de ${tenantName}`}
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <span className="grid size-full place-items-center text-muted-foreground">
+                      <Building2 size={22} aria-hidden="true" />
+                    </span>
+                  )}
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
                   <button
                     type="button"
-                    onClick={() => void removeVitrine()}
+                    onClick={() => photoInput.current?.click()}
                     disabled={photoBusy}
-                    className="h-10 rounded-[14px] px-3 text-xs font-semibold text-muted-foreground inline-flex items-center justify-center gap-2 hover:text-destructive active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive disabled:opacity-60"
+                    className="h-11 rounded-[14px] border border-border bg-card px-3 text-xs font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60"
                   >
-                    <ImageOff size={14} aria-hidden="true" /> Retirer (visuel par défaut)
+                    {photoBusy ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} aria-hidden="true" />}
+                    {hasPhoto ? "Changer la photo" : "Ajouter une photo"}
                   </button>
-                )}
-                <input
-                  ref={photoInput}
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={(e) => {
-                    void uploadVitrine(e.target.files?.[0]);
-                    e.target.value = "";
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Présentation de l'établissement — description visible côté cliente */}
-          <div className="k-card rounded-[20px] p-4 space-y-3">
-            <div className="flex items-center gap-3">
-              <IconBadge icon={<Sparkles size={18} />} tone="gold" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-bold text-foreground">Présentation &amp; Savoir-faire</p>
-                  <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold">
-                    Visible côté client
-                  </span>
+                  {hasPhoto && (
+                    <button
+                      type="button"
+                      onClick={() => void removeVitrine()}
+                      disabled={photoBusy}
+                      className="h-10 rounded-[14px] px-3 text-xs font-semibold text-muted-foreground inline-flex items-center justify-center gap-2 hover:text-destructive active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive disabled:opacity-60"
+                    >
+                      <ImageOff size={14} aria-hidden="true" /> Retirer (visuel par défaut)
+                    </button>
+                  )}
+                  <input
+                    ref={photoInput}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(e) => {
+                      void uploadVitrine(e.target.files?.[0]);
+                      e.target.value = "";
+                    }}
+                  />
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                  Décrivez l&apos;histoire, les rituels signature et l&apos;expertise de {tenantName}. Vos clientes la découvriront lors de la réservation.
-                </p>
               </div>
             </div>
 
-            <div className="space-y-2 pt-1">
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={600}
-                rows={4}
-                placeholder="Ex : Institut dermo-cosmétique de référence à Cocody. Rituels éclat anti-taches, gommages régénérants au beurre de karité brut de Korhogo, bilans de peau haute précision..."
-                className="w-full rounded-xl border border-border bg-background p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary resize-none"
-              />
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] text-muted-foreground">
-                  {description.length} / 600 caractères
-                </span>
-                <button
-                  type="button"
-                  onClick={handleSaveDescription}
-                  disabled={descBusy}
-                  className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 shadow-sm"
-                >
-                  {descBusy ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
-                  Enregistrer la présentation
-                </button>
+            {/* Présentation de l'établissement — description visible côté cliente */}
+            <div className="k-card-awwwards p-5 space-y-3">
+              <div className="flex items-center gap-3">
+                <IconBadge icon={<Sparkles size={18} />} tone="gold" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-bold text-foreground">Présentation &amp; Savoir-faire</p>
+                    <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold">
+                      Visible côté client
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                    Décrivez l&apos;histoire, les rituels signature et l&apos;expertise de {tenantName}. Vos clientes la découvriront lors de la réservation.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  maxLength={600}
+                  rows={3}
+                  placeholder="Ex : Institut dermo-cosmétique de référence à Cocody. Rituels éclat anti-taches, gommages régénérants au beurre de karité brut de Korhogo, bilans de peau haute précision..."
+                  className="w-full rounded-xl border border-border bg-background p-3 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary resize-none"
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-muted-foreground">
+                    {description.length} / 600 caractères
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleSaveDescription}
+                    disabled={descBusy}
+                    className="h-9 px-4 rounded-xl k-btn-gold text-primary-foreground text-xs font-bold inline-flex items-center gap-1.5 active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60 shadow-sm"
+                  >
+                    {descBusy ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
+                    Enregistrer la présentation
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* Palettes & Ambiance de Statut d'Abonnement (Option 1 : Privilège Ascendant + Harmonie du Salon) */}
@@ -624,250 +676,214 @@ export function SettingsSection({
         isEmployee={!isOwner}
       />
 
-      {/* Affichage — Clair/Sombre (mêmes boutons que l'app cliente, cohérence) */}
-      <div className="k-card rounded-[20px] p-4">
-        <div className="flex items-center gap-3">
-          <IconBadge icon={<SunMedium size={18} />} tone="gold" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold">Affichage</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Clair de jour, sombre le soir — appliqué aussitôt à tout Kènè.</p>
-          </div>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button
-            onClick={() => setTheme("light")}
-            aria-pressed={activeTheme === "light"}
-            className={`h-11 rounded-[14px] inline-flex items-center justify-center gap-2 text-xs font-bold active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${activeTheme === "light" ? "k-btn-gold text-primary-foreground" : "k-chip"}`}
-          >
-            <SunMedium size={16} /> Clair {activeTheme === "light" && <Check size={14} aria-hidden="true" />}
-          </button>
-          <button
-            onClick={() => setTheme("dark")}
-            aria-pressed={activeTheme === "dark"}
-            className={`h-11 rounded-[14px] inline-flex items-center justify-center gap-2 text-xs font-bold active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${activeTheme === "dark" ? "k-btn-gold text-primary-foreground" : "k-chip"}`}
-          >
-            <Moon size={16} /> Sombre {activeTheme === "dark" && <Check size={14} aria-hidden="true" />}
-          </button>
-        </div>
-      </div>
-
-      {/* ── Régime fiscal & Encaissement (Strictement réservé à la Patronne / Gérante) ── */}
-      {isOwner && (
-        <div className="k-card rounded-[20px] p-4 sm:p-5 space-y-4 border border-gold/40 shadow-sm bg-gradient-to-b from-card to-background">
-          <div className="flex items-start justify-between gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <div className="space-y-5">
+          {/* Affichage — Clair/Sombre */}
+          <div className="k-card-awwwards p-5">
             <div className="flex items-center gap-3">
-              <IconBadge icon={<Receipt size={18} />} tone="gold" />
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-bold text-foreground">Régime fiscal &amp; Encaissement</p>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gold/15 text-gold-text border border-gold/30 px-2 py-0.5 text-[10px] font-bold">
-                    👑 Patronne
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                  Configuration fiscale et modes de paiement autorisés à la caisse de l&apos;institut.
-                </p>
+              <IconBadge icon={<SunMedium size={18} />} tone="gold" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold">Affichage</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Clair de jour, sombre le soir — appliqué aussitôt à tout Kènè.</p>
               </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setTheme("light")}
+                aria-pressed={activeTheme === "light"}
+                className={`h-11 rounded-[14px] inline-flex items-center justify-center gap-2 text-xs font-bold active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${activeTheme === "light" ? "k-btn-gold text-primary-foreground" : "k-chip"}`}
+              >
+                <SunMedium size={16} /> Clair {activeTheme === "light" && <Check size={14} aria-hidden="true" />}
+              </button>
+              <button
+                onClick={() => setTheme("dark")}
+                aria-pressed={activeTheme === "dark"}
+                className={`h-11 rounded-[14px] inline-flex items-center justify-center gap-2 text-xs font-bold active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${activeTheme === "dark" ? "k-btn-gold text-primary-foreground" : "k-chip"}`}
+              >
+                <Moon size={16} /> Sombre {activeTheme === "dark" && <Check size={14} aria-hidden="true" />}
+              </button>
             </div>
           </div>
 
-          {/* Toggle TVA 18% SYSCOHADA */}
-          <div className="rounded-xl border border-border/70 bg-muted/20 p-3.5 flex items-center justify-between gap-4">
-            <div className="space-y-1 pr-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-foreground">Assujetti à la TVA (18 % SYSCOHADA)</span>
-                {posSettings.isVatSubject ? (
-                  <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold">
-                    Activée (Réel)
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold">
-                    Désactivée (Exonéré)
-                  </span>
-                )}
+          {/* Langue — grid compact */}
+          <div className="k-card-awwwards p-5">
+            <div className="flex items-center gap-3">
+              <IconBadge icon={<Languages size={18} />} tone="gold" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold">Langue de l&apos;interface</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Textes des écrans — le reste de l&apos;interface reste en français.</p>
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {posSettings.isVatSubject
-                  ? "Les tickets et clôtures de caisse ventilent le montant HT et la TVA 18 % incluse."
-                  : "Régime synthétique / micro-entreprise : les reçus de caisse portent la mention légale « Exonéré de TVA »."}
-              </p>
             </div>
-            <Switch
-              checked={posSettings.isVatSubject}
-              onCheckedChange={updateVat}
-              aria-label="Activer ou désactiver la TVA 18%"
-            />
-          </div>
-
-          {/* Modes de paiement autorisés à la caisse */}
-          <div className="space-y-2 pt-1">
-            <div className="flex items-center gap-2">
-              <CreditCard size={14} className="text-primary" />
-              <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">Modes de paiement autorisés en caisse</p>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Décidez quels modes d&apos;encaissement vos employées peuvent sélectionner lors de l&apos;encaissement.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-              {[
-                { key: "cash", label: "Espèces (Tiroir-caisse)", note: "Monnaie physique" },
-                { key: "wave", label: "Wave Mobile Money", note: "Paiement 1% sans frais" },
-                { key: "orange", label: "Orange Money", note: "Paiement cellulaire" },
-                { key: "card", label: "Carte Bancaire (TPE)", note: "Visa, Mastercard" },
-                { key: "wallet", label: "Wallet Kènè", note: "Portefeuille cliente" },
-              ].map((m) => {
-                const checked = posSettings.allowedPaymentMethods[m.key as keyof TenantPosSettings["allowedPaymentMethods"]];
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {LANGS.map((l) => {
+                const active = lang === l.id;
                 return (
-                  <div
-                    key={m.key}
-                    className="flex items-center justify-between rounded-xl border border-border/50 bg-background/60 p-2.5 px-3"
+                  <button
+                    key={l.id}
+                    onClick={() => selectLang(l.id)}
+                    aria-pressed={active}
+                    className={`k-chip rounded-[14px] border p-2.5 min-h-11 text-left active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                      active ? "border-primary bg-primary/10" : "hover:border-primary/40"
+                    }`}
                   >
-                    <div>
-                      <p className="text-xs font-bold text-foreground">{m.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{m.note}</p>
-                    </div>
-                    <Switch
-                      checked={checked}
-                      onCheckedChange={(val) => updatePaymentMethod(m.key as keyof TenantPosSettings["allowedPaymentMethods"], val)}
-                      aria-label={`Autoriser ${m.label}`}
-                    />
-                  </div>
+                    <span className="flex items-center justify-between gap-1.5">
+                      <span className={`text-xs font-bold ${active ? "text-primary" : "text-foreground"}`}>{l.label}</span>
+                      {active ? (
+                        <Check size={13} className="text-primary shrink-0" aria-hidden="true" />
+                      ) : (
+                        <span className="text-[9px] font-bold text-muted-foreground/70" aria-hidden="true">{l.flag}</span>
+                      )}
+                    </span>
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">{l.note}</span>
+                  </button>
                 );
               })}
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Langue — grid compact, même logique selectLang que l'app cliente */}
-      <div className="k-card rounded-[20px] p-4">
-        <div className="flex items-center gap-3">
-          <IconBadge icon={<Languages size={18} />} tone="gold" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold">Langue de l&apos;interface</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">Textes des écrans — le reste de l&apos;interface reste en français.</p>
-          </div>
+          {/* Kit Commercial & Abonnement */}
+          {isOwner && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="k-card-awwwards p-2">
+                <button
+                  type="button"
+                  onClick={() => setCommercialKitOpen(true)}
+                  className="w-full flex items-center gap-3 rounded-[14px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  <IconBadge icon={<Sparkles size={18} />} tone="gold" />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-xs font-bold text-foreground">Kit Commercial Cabine</span>
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">
+                      QR code &amp; guide de vente
+                    </span>
+                  </span>
+                  <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
+                </button>
+              </div>
+              <div className="k-card-awwwards p-2">
+                <button
+                  onClick={() => onNavigate?.("abonnement")}
+                  className="w-full flex items-center gap-3 rounded-[14px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  <IconBadge icon={<Crown size={18} />} tone="gold" />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-xs font-bold">Abonnement Kènè+</span>
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">Essentiel / Complexe</span>
+                  </span>
+                  <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {LANGS.map((l) => {
-            const active = lang === l.id;
-            return (
+
+        <div className="space-y-5">
+          {/* ── Régime fiscal & Encaissement (Strictement réservé à la Patronne / Gérante) ── */}
+          {isOwner && (
+            <div className="k-card-awwwards p-5 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <IconBadge icon={<Receipt size={18} />} tone="gold" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold text-foreground">Régime fiscal &amp; Encaissement</p>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gold/15 text-gold-text border border-gold/30 px-2 py-0.5 text-[10px] font-bold">
+                        👑 Patronne
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                      Configuration fiscale et modes de paiement autorisés à la caisse de l&apos;institut.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Toggle TVA 18% SYSCOHADA */}
+              <div className="rounded-xl border border-border/70 bg-muted/20 p-3.5 flex items-center justify-between gap-4">
+                <div className="space-y-1 pr-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-foreground">Assujetti à la TVA (18 % SYSCOHADA)</span>
+                    {posSettings.isVatSubject ? (
+                      <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold">
+                        Activée (Réel)
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold">
+                        Désactivée (Exonéré)
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    {posSettings.isVatSubject
+                      ? "Les tickets et clôtures de caisse ventilent le montant HT et la TVA 18 % incluse."
+                      : "Régime synthétique / micro-entreprise : les reçus de caisse portent la mention légale « Exonéré de TVA »."}
+                  </p>
+                </div>
+                <Switch
+                  checked={posSettings.isVatSubject}
+                  onCheckedChange={updateVat}
+                  aria-label="Activer ou désactiver la TVA 18%"
+                />
+              </div>
+
+              {/* Modes de paiement autorisés à la caisse */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-2">
+                  <CreditCard size={14} className="text-primary" />
+                  <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">Modes de paiement autorisés en caisse</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                  {[
+                    { key: "cash", label: "Espèces (Tiroir-caisse)", note: "Monnaie physique" },
+                    { key: "wave", label: "Wave Mobile Money", note: "Paiement 1% sans frais" },
+                    { key: "orange", label: "Orange Money", note: "Paiement cellulaire" },
+                    { key: "card", label: "Carte Bancaire (TPE)", note: "Visa, Mastercard" },
+                    { key: "wallet", label: "Wallet Kènè", note: "Portefeuille cliente" },
+                  ].map((m) => {
+                    const checked = posSettings.allowedPaymentMethods[m.key as keyof TenantPosSettings["allowedPaymentMethods"]];
+                    return (
+                      <div
+                        key={m.key}
+                        className="flex items-center justify-between rounded-xl border border-border/50 bg-background/60 p-2.5 px-3"
+                      >
+                        <div>
+                          <p className="text-xs font-bold text-foreground">{m.label}</p>
+                          <p className="text-[10px] text-muted-foreground">{m.note}</p>
+                        </div>
+                        <Switch
+                          checked={checked}
+                          onCheckedChange={(val) => updatePaymentMethod(m.key as keyof TenantPosSettings["allowedPaymentMethods"], val)}
+                          aria-label={`Autoriser ${m.label}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Session & À propos */}
+          <div className="k-card-awwwards p-5 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <IconBadge icon={<LogOut size={18} />} tone="bissap" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold">Session de travail · Kènè Pro</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                    Conformité CNPS CI / IPM SN / SYSCOHADA · Temps réel actif.
+                  </p>
+                </div>
+              </div>
               <button
-                key={l.id}
-                onClick={() => selectLang(l.id)}
-                aria-pressed={active}
-                className={`k-chip rounded-[14px] border p-2.5 min-h-11 text-left active:scale-[0.98] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-                  active ? "border-primary bg-primary/10" : "hover:border-primary/40"
-                }`}
+                onClick={closeSession}
+                className="h-10 px-4 rounded-xl border border-destructive/40 bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-all shrink-0 cursor-pointer"
               >
-                <span className="flex items-center justify-between gap-1.5">
-                  <span className={`text-xs font-bold ${active ? "text-primary" : "text-foreground"}`}>{l.label}</span>
-                  {active ? (
-                    <Check size={13} className="text-primary shrink-0" aria-hidden="true" />
-                  ) : (
-                    <span className="text-[9px] font-mono font-bold text-muted-foreground/70" aria-hidden="true">{l.flag}</span>
-                  )}
-                </span>
-                <span className="block text-[10px] text-muted-foreground mt-0.5">{l.note}</span>
+                <LogOut size={14} /> Fermer la session
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Kit Commercial & Chevalet Cabine — réservé à la direction / gérante */}
-      {isOwner && (
-        <div className="k-card rounded-[20px] p-2 border border-gold/30 shadow-xs">
-          <button
-            type="button"
-            onClick={() => setCommercialKitOpen(true)}
-            className="w-full flex items-center gap-3 rounded-[14px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
-          >
-            <IconBadge icon={<Sparkles size={18} />} tone="gold" />
-            <span className="flex-1 min-w-0">
-              <span className="flex items-center gap-2">
-                <span className="text-xs font-bold text-foreground">Kit Commercial &amp; Chevalet Cabine</span>
-                <span className="rounded-full bg-gold/15 text-gold-text px-2 py-0.5 text-[9px] font-bold">Outils Salon</span>
-              </span>
-              <span className="block text-[11px] text-muted-foreground mt-0.5">
-                Affichette QR code imprimable, scripts d&apos;accueil et guide d&apos;aide à la vente
-              </span>
-            </span>
-            <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
-          </button>
-        </div>
-      )}
-
-      {/* Abonnement & facturation — réservé à la direction / gérante */}
-      {isOwner && (
-        <div className="k-card rounded-[20px] p-2">
-          <button
-            onClick={() => onNavigate?.("abonnement")}
-            className="w-full flex items-center gap-3 rounded-[14px] p-2.5 text-left active:scale-[0.99] transition-transform focus-visible:outline-2 focus-visible:outline-primary"
-          >
-            <IconBadge icon={<Crown size={18} />} tone="gold" />
-            <span className="flex-1 min-w-0">
-              <span className="block text-xs font-bold">Abonnement &amp; facturation</span>
-              <span className="block text-[11px] text-muted-foreground mt-0.5">Offres Essentiel / Complexe · facturation certifiée</span>
-            </span>
-            <ChevronRight size={16} className="text-muted-foreground shrink-0" aria-hidden="true" />
-          </button>
-        </div>
-      )}
-
-      {/* Espace Beauté personnel (bilan dermo-biométrique, Dermo Kènè & soins) */}
-      <div className="k-card rounded-[20px] p-4 bg-gradient-to-br from-primary/5 via-card to-gold/5 border border-primary/20">
-        <div className="flex items-center gap-3">
-          <IconBadge icon={<DuafeIcon size={18} />} tone="gold" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold">Mon Espace Beauté personnel</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-              Accède à ton espace beauté personnel : bilan dermo-biométrique, Dermo Kènè, soins et rituels.
-            </p>
+            </div>
           </div>
         </div>
-        <button
-          onClick={() => {
-            setSpace("client");
-            if (typeof window !== "undefined") {
-              window.history.pushState(null, "", "/");
-              window.dispatchEvent(new Event("popstate"));
-            }
-            toast.success("Bienvenue dans ton Espace Beauté personnel 🌸");
-          }}
-          className="mt-3 h-11 w-full rounded-xl k-btn-gold text-primary-foreground text-sm font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-primary shadow-xs"
-        >
-          <DuafeIcon size={16} /> Ouvrir Mon Espace Beauté 🌸
-        </button>
-      </div>
-
-      {/* Session */}
-      <div className="k-card rounded-[20px] p-4">
-        <div className="flex items-center gap-3">
-          <IconBadge icon={<LogOut size={18} />} tone="bissap" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold">Session de travail</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-              {isOwner
-                ? "Ferme la session de cet appareil — tu te reconnecteras avec ton numéro gérante."
-                : "Ferme la session de ton poste — tu te reconnecteras avec ton numéro de collaboratrice et ton code PIN."}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={closeSession}
-          className="mt-3 h-11 w-full rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform focus-visible:outline-2 focus-visible:outline-destructive"
-        >
-          <LogOut size={15} /> Fermer la session
-        </button>
-      </div>
-
-      {/* À propos */}
-      <div className="k-card rounded-[20px] p-4">
-        <p className="font-heading font-bold text-sm">Kènè Pro — v1.0</p>
-        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-          Paiements certifiés Mobile Money & Carte · conformité CNPS CI / IPM SN / SYSCOHADA. Réservations, commandes et ventes de l&apos;institut arrivent en temps réel lorsque le service de notifications est en ligne.
-        </p>
       </div>
 
       <ChangePhoneModal

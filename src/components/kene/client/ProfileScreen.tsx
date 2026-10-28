@@ -288,16 +288,15 @@ export function ProfileScreen() {
         </RevealItem>
       )}
 
-      {/* Identité */}
+      {/* Identité (Carte Maîtresse Ébène & Or 24K) */}
       <RevealItem>
-        <section aria-labelledby="me-t" className="k-card overflow-hidden rounded-[24px]">
-          <div className="kente-band h-1.5 w-full" aria-hidden="true" />
-          <div id="me-t" className="p-5">
+        <section aria-labelledby="me-t" className="k-obsidian-luxury overflow-hidden">
+          <div id="me-t" className="p-5 sm:p-6">
             <div className="flex items-center gap-4">
               {/* Photo de profil si posée, sinon l'initiale dorée */}
               <span className="relative shrink-0">
                 <span
-                  className={`k-glow-gold grid place-items-center h-16 w-16 rounded-full text-[#FFF9EC] font-heading font-black text-2xl overflow-hidden ${avatarSrc ? "" : "bg-gradient-to-br from-[#C8951E] to-[#A0522D]"}`}
+                  className={`k-glow-gold grid place-items-center h-16 w-16 sm:h-18 sm:w-18 rounded-full text-[#FFF9EC] font-heading font-black text-2xl overflow-hidden border-2 border-[#E5A93C]/60 ${avatarSrc ? "" : "bg-gradient-to-br from-[#C8951E] to-[#A0522D]"}`}
                 >
                   {avatarSrc ? (
                     <img src={avatarSrc} alt={`Photo de profil de ${user.name}`} className="size-full object-cover" />
@@ -311,7 +310,7 @@ export function ProfileScreen() {
                   onClick={() => fileRef.current?.click()}
                   disabled={avatarBusy}
                   aria-label={hasAvatar ? "Changer ma photo de profil" : "Ajouter une photo de profil"}
-                  className="absolute -bottom-0.5 -right-0.5 grid place-items-center size-8 rounded-full bg-card border border-border text-primary shadow-sm hover:scale-105 active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60"
+                  className="absolute -bottom-0.5 -right-0.5 grid place-items-center size-8 rounded-full k-btn-gold text-[#18120C] shadow-md hover:scale-105 active:scale-95 transition-transform focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60"
                 >
                   {avatarBusy ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
                 </button>
@@ -327,20 +326,20 @@ export function ProfileScreen() {
                 />
               </span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="font-heading font-black text-[22px] leading-tight truncate">{user.name}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-heading font-black text-[22px] sm:text-2xl text-[#FFF9EC] leading-tight truncate">{user.name}</p>
                   {user.gender && user.gender !== "non_precise" && (
-                    <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 border border-primary/20 text-primary">
+                    <span className="shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#D49A24]/25 border border-[#D49A24]/50 text-[#F5D37E]">
                       {user.gender === "femme" ? "👩 Femme" : "👨 Homme"}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-mono"><Phone size={12} /> {user.phone}</p>
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                  <MapPin size={12} /> {user.district ? `${user.district} · ${user.city || "Abidjan"}` : user.city || "Ville non renseignée"}
+                <p className="text-xs text-[#F5ECDD]/80 flex items-center gap-1.5 mt-1 tabular-nums font-semibold"><Phone size={12} className="text-[#E5A93C]" /> {user.phone}</p>
+                <p className="text-xs text-[#F5ECDD]/75 flex items-center gap-1.5 mt-0.5">
+                  <MapPin size={12} className="text-[#E5A93C]" /> {user.district ? `${user.district} · ${user.city || "Abidjan"}` : user.city || "Ville non renseignée"}
                 </p>
               </div>
-              <button onClick={() => setEdit((v) => !v)} aria-label="Modifier mon profil" className="k-chip h-10 w-10 grid place-items-center rounded-full text-muted-foreground hover:text-primary transition-all focus-visible:outline-2 focus-visible:outline-primary">
+              <button onClick={() => setEdit((v) => !v)} aria-label="Modifier mon profil" className="h-10 w-10 grid place-items-center rounded-full bg-white/10 border border-white/20 text-[#FFF9EC] hover:bg-white/20 transition-all focus-visible:outline-2 focus-visible:outline-primary">
                 <Pencil size={16} />
               </button>
             </div>

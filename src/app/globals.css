@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-display), ui-serif, Georgia, serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --font-mono: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -408,7 +408,10 @@
     font-family: var(--font-display), ui-serif, Georgia, serif;
   }
   .font-mono, .tabular-nums {
-    font-family: var(--font-plex-mono), ui-monospace, monospace;
+    font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: "tnum" 1, "lnum" 1, "zero" 0;
+    letter-spacing: -0.015em;
   }
 }
 
@@ -865,37 +868,80 @@
 }
 
 /* ─────────────── SIGNATURE AFRO-LUXE / AWWWARDS 2026 ─────────────── */
-/* Cartes Bento Haute Couture avec micro-liseré intérieur & diffusion ambrée */
+/* Cartes Bento Haute Couture avec liseré d'or Akan, profondeur veloutée & diffusion ambrée */
 .k-card-awwwards {
   position: relative;
-  background: var(--card);
-  border: 1px solid var(--border);
+  background:
+    radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--gold) 9%, transparent) 0%, transparent 50%),
+    radial-gradient(100% 100% at 100% 100%, color-mix(in srgb, var(--terre) 6%, transparent) 0%, transparent 50%),
+    var(--card);
+  border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--border));
   border-radius: 1.5rem;
-  box-shadow: 0 4px 20px -2px rgba(24, 18, 12, 0.04), 0 2px 6px -1px rgba(24, 18, 12, 0.02);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 253, 248, 0.7),
+    0 12px 32px -10px rgba(24, 18, 12, 0.08),
+    0 2px 6px -1px rgba(24, 18, 12, 0.03);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.28s ease;
 }
 
 .dark .k-card-awwwards {
-  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(229, 169, 60, 0.08);
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(229, 169, 60, 0.11) 0%, transparent 52%),
+    radial-gradient(100% 100% at 100% 100%, rgba(224, 78, 117, 0.07) 0%, transparent 52%),
+    var(--card);
+  border-color: rgba(229, 169, 60, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 249, 236, 0.08),
+    0 14px 36px -8px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(229, 169, 60, 0.1);
 }
 
 .k-card-awwwards::before {
   content: "";
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
+  top: 0;
+  left: 1.25rem;
+  right: 1.25rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0%, rgba(212, 154, 36, 0.65) 35%, rgba(158, 32, 69, 0.5) 65%, transparent 100%);
   pointer-events: none;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.dark .k-card-awwwards::before {
-  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .k-card-awwwards:hover {
   transform: translateY(-2px);
-  border-color: rgba(212, 154, 36, 0.4);
-  box-shadow: 0 12px 32px -4px rgba(212, 154, 36, 0.08), 0 4px 12px -2px rgba(24, 18, 12, 0.04);
+  border-color: rgba(212, 154, 36, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 253, 248, 0.85),
+    0 18px 40px -8px rgba(212, 154, 36, 0.14),
+    0 4px 12px -2px rgba(24, 18, 12, 0.06);
+}
+
+/* Carte Prestige Ébène & Or 24K (Contraste Noble Afro-Luxe pour Hero & KPI maîtres) */
+.k-obsidian-luxury {
+  position: relative;
+  background:
+    radial-gradient(90% 120% at 100% 0%, rgba(212, 154, 36, 0.24) 0%, transparent 58%),
+    radial-gradient(80% 100% at 0% 100%, rgba(158, 32, 69, 0.20) 0%, transparent 55%),
+    linear-gradient(135deg, #1A130D 0%, #241911 52%, #140E09 100%);
+  color: #FFF9EC;
+  border: 1px solid rgba(212, 154, 36, 0.45);
+  border-radius: 1.5rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 236, 179, 0.22),
+    0 20px 44px -12px rgba(20, 14, 9, 0.38);
+  overflow: hidden;
+}
+
+.k-obsidian-luxury::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, #D49A24 0%, #F5D37E 35%, #C93B62 70%, #D49A24 100%);
+  pointer-events: none;
 }
 
 /* Halo de lumière solaire d'arrière-plan */

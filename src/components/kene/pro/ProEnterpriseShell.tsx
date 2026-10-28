@@ -1308,8 +1308,8 @@ export function ProEnterpriseShell() {
         </div>
 
         {/* Barre Principale d'Organisation par 5 Pôles Métiers intégrée au Header (PC & Tablette md+) */}
-        <div className="hidden md:flex items-center justify-between gap-2.5 border-t border-border/50 bg-card/65 px-3 sm:px-5 py-2 backdrop-blur-md">
-          <nav aria-label="Pôles Métiers Entreprise" className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar shrink">
+        <div className="hidden md:flex items-center justify-between gap-2 border-t border-[#D49A24]/25 bg-gradient-to-r from-[#1A130D] via-[#221810] to-[#1A130D] text-[#FFF9EC] px-3 sm:px-5 py-2 shadow-md">
+          <nav aria-label="Pôles Métiers Entreprise" className="flex items-center gap-1 lg:gap-1.5 overflow-x-auto no-scrollbar min-w-0">
             {availableCategories.map((cat) => {
               const isCatActive = activeCategory === cat.id;
               const catItems = nav.filter((i) => i.category === cat.id);
@@ -1323,18 +1323,18 @@ export function ProEnterpriseShell() {
                     if (firstItem) openSection(firstItem.id);
                   }}
                   className={cn(
-                    "h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-black flex items-center gap-1.5 transition-all border shrink-0 cursor-pointer whitespace-nowrap",
+                    "h-8 px-2.5 lg:px-3 rounded-xl text-[11px] lg:text-xs font-extrabold flex items-center gap-1.5 transition-all border shrink-0 cursor-pointer whitespace-nowrap",
                     isCatActive
-                      ? "k-btn-gold text-primary-foreground border-transparent shadow-sm scale-[1.01]"
-                      : "bg-background/80 text-muted-foreground border-border/70 hover:text-foreground hover:border-gold/40"
+                      ? "k-btn-gold text-[#18120C] border-transparent shadow-sm"
+                      : "bg-white/5 text-[#F5ECDD]/80 border-white/10 hover:text-[#FFF9EC] hover:bg-white/10 hover:border-[#D49A24]/40"
                   )}
                 >
-                  <span className="text-xs sm:text-sm">{cat.emoji}</span>
-                  <span className="truncate">{cat.shortLabel}</span>
+                  <span className="text-xs">{cat.emoji}</span>
+                  <span>{cat.shortLabel}</span>
                   <span
                     className={cn(
-                      "text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full font-mono",
-                      isCatActive ? "bg-black/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                      "hidden xl:inline-flex text-[10px] px-1.5 py-0.2 rounded-full tabular-nums font-bold",
+                      isCatActive ? "bg-black/20 text-[#18120C]" : "bg-white/10 text-[#F5ECDD]/75"
                     )}
                   >
                     {catItems.length}
@@ -1345,7 +1345,7 @@ export function ProEnterpriseShell() {
           </nav>
 
           {/* Actions Express Cabine */}
-          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {(!allowedIds || allowedIds.includes("diagnostic")) && (
               <button
                 type="button"
@@ -1353,11 +1353,11 @@ export function ProEnterpriseShell() {
                   haptic(HAPTIC.tap);
                   openSection("diagnostic");
                 }}
-                className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-xl border border-primary/45 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                className="h-8 px-2.5 lg:px-3 rounded-xl border border-[#E04E75]/50 bg-[#9E2045]/30 hover:bg-[#9E2045]/45 text-[#FFD9E4] text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="Lancer un diagnostic de peau multi-vues en cabine"
               >
                 <ScanFace size={13} />
-                <span>📸 Scan Cabine</span>
+                <span>Scan Cabine</span>
               </button>
             )}
 
@@ -1368,11 +1368,11 @@ export function ProEnterpriseShell() {
                   haptic(HAPTIC.tap);
                   openSection("caisse");
                 }}
-                className="h-8 sm:h-8.5 px-2.5 sm:px-3 rounded-xl border border-emerald-600/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                className="h-8 px-2.5 lg:px-3 rounded-xl border border-emerald-500/50 bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="Ouvrir la caisse et enregistrer un encaissement"
               >
                 <AbanIcon size={13} />
-                <span>💳 Encaisser POS</span>
+                <span>Encaisser POS</span>
               </button>
             )}
 
@@ -1382,7 +1382,7 @@ export function ProEnterpriseShell() {
                 haptic(HAPTIC.tap);
                 setInciScannerOpen(true);
               }}
-              className="h-8 sm:h-8.5 px-2 sm:px-2.5 rounded-xl border border-gold/50 bg-gold/15 hover:bg-gold/25 text-gold-text text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+              className="h-8 px-2.5 rounded-xl border border-[#D49A24]/50 bg-[#D49A24]/20 hover:bg-[#D49A24]/30 text-[#F5D37E] text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
               title="Scanner un cosmétique (Liste Rouge Kènè & Analyse INCI)"
             >
               <ShieldAlert size={13} />
@@ -1397,27 +1397,12 @@ export function ProEnterpriseShell() {
                   haptic(HAPTIC.tap);
                   setMirrorKioskOpen(true);
                 }}
-                className="h-8 sm:h-8.5 px-2 sm:px-2.5 rounded-xl border border-border bg-card hover:bg-accent text-foreground text-[11px] font-black flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                className="h-8 px-2.5 rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-[#FFF9EC] text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="Ouvrir le Mode Kiosque Tablette Salle d'Attente (Kènè Mirror)"
               >
-                <Sparkles size={13} />
-                <span className="hidden xl:inline">🪞 Kiosque Mirror</span>
-                <span className="xl:hidden">🪞 Mirror</span>
-              </button>
-            )}
-
-            {(!allowedIds || allowedIds.includes("dossiers_peau")) && (
-              <button
-                type="button"
-                onClick={() => {
-                  haptic(HAPTIC.tap);
-                  openSection("dossiers_peau");
-                }}
-                className="h-8 sm:h-8.5 px-2 sm:px-2.5 rounded-xl border border-border/80 bg-card/80 hover:bg-accent text-muted-foreground hover:text-foreground text-[11px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer whitespace-nowrap"
-                title="Accéder aux dossiers cutanés et historiques"
-              >
-                <FolderHeart size={13} />
-                <span>Dossiers</span>
+                <Sparkles size={13} className="text-[#E5A93C]" />
+                <span className="hidden 2xl:inline">Kiosque Mirror</span>
+                <span className="2xl:hidden">Mirror</span>
               </button>
             )}
           </div>
@@ -1435,16 +1420,16 @@ export function ProEnterpriseShell() {
       <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
         <aside
           className={cn(
-            "hidden md:flex flex-col shrink-0 k-chrome text-foreground h-full overflow-y-auto overscroll-contain pretty-scroll border-r border-border/60 transition-all duration-300",
-            sidebarExpanded ? "w-[248px]" : "w-[68px]"
+            "hidden md:flex flex-col shrink-0 bg-gradient-to-b from-[#1A130D] via-[#150F0A] to-[#110B07] text-[#F5ECDD] h-full overflow-y-auto overscroll-contain pretty-scroll border-r border-[#D49A24]/30 shadow-xl transition-all duration-300",
+            sidebarExpanded ? "w-[252px]" : "w-[68px]"
           )}
         >
           {sidebarExpanded && (
-            <div className="px-3.5 pt-3 pb-1 flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gold-text">
+            <div className="px-3.5 pt-3.5 pb-1.5 flex items-center justify-between border-b border-white/10 mx-2 mb-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[#E5A93C]">
                 5 Pôles Métiers
               </span>
-              <span className="text-[10px] text-muted-foreground font-medium">
+              <span className="text-[10px] text-[#F5ECDD]/65 font-semibold">
                 {activeCategoryDef.shortLabel}
               </span>
             </div>
@@ -1452,13 +1437,13 @@ export function ProEnterpriseShell() {
 
           {/* Identification Employée / Collaboratrice dans le menu latéral */}
           {sidebarExpanded && isEmployee && (
-            <div className="mx-2.5 mt-1.5 mb-2 p-2.5 rounded-xl bg-gold/10 border border-gold/25 flex items-center gap-2 shadow-2xs">
+            <div className="mx-2.5 mt-1.5 mb-2 p-2.5 rounded-xl bg-[#D49A24]/15 border border-[#D49A24]/35 flex items-center gap-2 shadow-2xs">
               <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-gold to-terre text-[#FFF9EC] text-xs font-black shrink-0 shadow-xs">
                 {chipInitials}
               </span>
               <div className="min-w-0 flex-1 text-left leading-tight">
-                <p className="text-xs font-bold text-foreground truncate">{chipName}</p>
-                <p className="text-[10px] text-gold-text font-semibold truncate">{chipRole}</p>
+                <p className="text-xs font-bold text-[#FFF9EC] truncate">{chipName}</p>
+                <p className="text-[10px] text-[#E5A93C] font-semibold truncate">{chipRole}</p>
               </div>
             </div>
           )}
@@ -1484,8 +1469,8 @@ export function ProEnterpriseShell() {
                     className={cn(
                       "relative w-full flex flex-col items-center justify-center rounded-2xl p-2.5 text-xs transition-all cursor-pointer border",
                       isCatActive
-                        ? "k-btn-gold text-primary-foreground font-black border-transparent shadow-sm"
-                        : "bg-card/50 text-muted-foreground border-border/50 hover:text-foreground hover:bg-accent/50"
+                        ? "k-btn-gold text-[#18120C] font-black border-transparent shadow-sm"
+                        : "bg-white/5 text-[#F5ECDD]/70 border-white/10 hover:text-[#FFF9EC] hover:bg-white/10"
                     )}
                   >
                     <span className="text-base">{cat.emoji}</span>
@@ -1504,8 +1489,8 @@ export function ProEnterpriseShell() {
                   className={cn(
                     "rounded-2xl border transition-all overflow-hidden",
                     isCatActive
-                      ? "border-gold/50 bg-gradient-to-b from-gold/12 via-primary/5 to-card shadow-xs"
-                      : "border-border/55 bg-card/40 hover:border-border"
+                      ? "border-[#D49A24]/55 bg-gradient-to-b from-[#D49A24]/20 via-[#9E2045]/10 to-white/5 shadow-md"
+                      : "border-white/10 bg-white/[0.03] hover:border-[#D49A24]/30 hover:bg-white/[0.06]"
                   )}
                 >
                   <button
@@ -1518,7 +1503,7 @@ export function ProEnterpriseShell() {
                     }}
                     className={cn(
                       "w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors cursor-pointer",
-                      isCatActive ? "text-foreground font-black" : "text-muted-foreground hover:text-foreground font-bold"
+                      isCatActive ? "text-[#FFF9EC] font-black" : "text-[#F5ECDD]/80 hover:text-[#FFF9EC] font-bold"
                     )}
                   >
                     <span className="flex items-center gap-2 min-w-0">
@@ -1535,14 +1520,14 @@ export function ProEnterpriseShell() {
                         size={14}
                         className={cn(
                           "transition-transform duration-200",
-                          isCatActive ? "rotate-0 text-gold-text" : "-rotate-90 opacity-60"
+                          isCatActive ? "rotate-0 text-[#E5A93C]" : "-rotate-90 opacity-60"
                         )}
                       />
                     </span>
                   </button>
 
                   {isCatActive && (
-                    <div className="px-2 pb-2 pt-0.5 space-y-1 border-t border-border/40">
+                    <div className="px-2 pb-2 pt-1 space-y-1 border-t border-white/10">
                       {catItems.map((item) => {
                         const active = activeSection === item.id;
                         const badge = navBadges[item.id];
@@ -1556,8 +1541,8 @@ export function ProEnterpriseShell() {
                             className={cn(
                               "relative w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs transition-all cursor-pointer",
                               active
-                                ? "k-btn-gold text-primary-foreground font-black shadow-xs"
-                                : "text-foreground/80 hover:bg-accent/70 hover:text-foreground font-semibold"
+                                ? "k-btn-gold text-[#18120C] font-black shadow-xs"
+                                : "text-[#F5ECDD]/80 hover:bg-white/10 hover:text-[#FFF9EC] font-semibold"
                             )}
                           >
                             <item.icon className="size-4 shrink-0" />
@@ -1581,13 +1566,13 @@ export function ProEnterpriseShell() {
 
             {sidebarExpanded && (
               <div className="pt-2 space-y-1.5">
-                <p className="px-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                <p className="px-2 text-[10px] font-black uppercase tracking-wider text-[#E5A93C]/80">
                   ⚡ Outils Cabine Express
                 </p>
                 <button
                   type="button"
                   onClick={() => setMirrorKioskOpen(true)}
-                  className="w-full flex items-center gap-2 rounded-xl border border-gold/40 bg-gold/10 hover:bg-gold/20 px-3 py-2 text-xs font-bold text-foreground transition-all cursor-pointer"
+                  className="w-full flex items-center gap-2 rounded-xl border border-[#D49A24]/40 bg-[#D49A24]/15 hover:bg-[#D49A24]/25 px-3 py-2 text-xs font-bold text-[#FFF9EC] transition-all cursor-pointer"
                 >
                   <span>🪞</span>
                   <span className="truncate">Borne Kènè Mirror (30s)</span>
@@ -1595,7 +1580,7 @@ export function ProEnterpriseShell() {
                 <button
                   type="button"
                   onClick={() => setInciScannerOpen(true)}
-                  className="w-full flex items-center gap-2 rounded-xl border border-primary/35 bg-primary/10 hover:bg-primary/20 px-3 py-2 text-xs font-bold text-foreground transition-all cursor-pointer"
+                  className="w-full flex items-center gap-2 rounded-xl border border-[#E04E75]/40 bg-[#9E2045]/25 hover:bg-[#9E2045]/40 px-3 py-2 text-xs font-bold text-[#FFF9EC] transition-all cursor-pointer"
                 >
                   <span>🧴</span>
                   <span className="truncate">Scanner Produit INCI</span>
@@ -1604,18 +1589,18 @@ export function ProEnterpriseShell() {
             )}
           </nav>
 
-          <div className="p-2 border-t border-border/40">
+          <div className="p-2 border-t border-white/10">
             {staffEmployee && (
-              <div className="hidden md:flex items-center shrink-0">
+              <div className="hidden md:flex items-center shrink-0 mb-2">
                 {!staffAttendance?.checkIn ? (
                   <button
                     type="button"
                     onClick={() => handleSelfPointage("in")}
                     disabled={attendanceBusy}
-                    className="h-8 px-3 rounded-full text-xs font-bold bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-700 dark:text-emerald-300 border border-emerald-600/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    className="h-8 w-full justify-center px-3 rounded-full text-xs font-bold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
                     title="Enregistrer mon heure d'arrivée au salon"
                   >
-                    <LogIn size={13} className="text-emerald-600 dark:text-emerald-400" />
+                    <LogIn size={13} className="text-emerald-400" />
                     <span>Pointer mon arrivée</span>
                   </button>
                 ) : !staffAttendance?.checkOut ? (
@@ -1623,18 +1608,18 @@ export function ProEnterpriseShell() {
                     type="button"
                     onClick={() => handleSelfPointage("out")}
                     disabled={attendanceBusy}
-                    className="h-8 px-3 rounded-full text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                    className="h-8 w-full justify-center px-3 rounded-full text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs cursor-pointer"
                     title="Enregistrer mon départ du salon"
                   >
-                    <LogOut size={13} className="text-amber-600 dark:text-amber-400" />
-                    <span>Arrivée {staffAttendance.checkIn} · Pointer sortie</span>
+                    <LogOut size={13} className="text-amber-400" />
+                    <span>Arrivée {staffAttendance.checkIn} · Sortie</span>
                   </button>
                 ) : (
                   <span
-                    className="h-8 px-3 rounded-full text-[11px] font-bold bg-muted/70 text-muted-foreground border border-border flex items-center gap-1.5"
+                    className="h-8 w-full justify-center px-3 rounded-full text-[11px] font-bold bg-white/10 text-[#F5ECDD]/80 border border-white/15 flex items-center gap-1.5"
                     title={`Pointage effectué aujourd'hui : ${staffAttendance.checkIn} → ${staffAttendance.checkOut} (${staffAttendance.hours || 0}h)`}
                   >
-                    <CheckCircle2 size={13} className="text-emerald-500" />
+                    <CheckCircle2 size={13} className="text-emerald-400" />
                     <span>Pointé ({staffAttendance.checkIn} → {staffAttendance.checkOut})</span>
                   </span>
                 )}
@@ -1645,27 +1630,27 @@ export function ProEnterpriseShell() {
               type="button"
               onClick={goToClientSpace}
               className={cn(
-                "w-full flex items-center gap-2.5 rounded-xl p-2.5 text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/25 transition-all active:scale-95 shadow-xs",
+                "w-full flex items-center gap-2.5 rounded-xl p-2.5 text-xs font-bold bg-gradient-to-r from-[#9E2045]/30 to-[#D49A24]/25 text-[#FFF9EC] hover:from-[#9E2045]/45 hover:to-[#D49A24]/35 border border-[#D49A24]/35 transition-all active:scale-95 shadow-xs",
                 sidebarExpanded ? "justify-start px-3" : "justify-center"
               )}
               title="Basculer vers Mon Espace Beauté (Soins & Rituels personnels)"
               aria-label="Basculer vers Mon Espace Beauté"
             >
-              <CauriIcon size={16} className="text-primary shrink-0" />
+              <CauriIcon size={16} className="text-[#E5A93C] shrink-0" />
               {sidebarExpanded && (
                 <div className="flex flex-col text-left leading-tight truncate">
                   <span className="truncate">Mon Espace Beauté</span>
-                  <span className="text-[10px] text-muted-foreground font-normal">Personnel 🌸</span>
+                  <span className="text-[10px] text-[#F5ECDD]/70 font-normal">Personnel 🌸</span>
                 </div>
               )}
             </button>
           </div>
 
-          <div className="p-2 border-t border-border/40">
+          <div className="p-2 border-t border-white/10">
             <button
               onClick={() => setSidebarExpanded(!sidebarExpanded)}
               className={cn(
-                "w-full flex items-center gap-2 rounded-xl p-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors",
+                "w-full flex items-center gap-2 rounded-xl p-2 text-xs font-medium text-[#F5ECDD]/70 hover:text-[#FFF9EC] hover:bg-white/10 transition-colors",
                 sidebarExpanded ? "justify-start px-2.5" : "justify-center"
               )}
               title={sidebarExpanded ? "Réduire la barre de navigation" : "Agrandir la barre de navigation"}
@@ -1693,12 +1678,12 @@ export function ProEnterpriseShell() {
               : "p-3 sm:p-5 lg:p-6"
           )}
         >
-          {activeSection !== "assistant" && activeCategoryItems.length > 1 && (
-            <div className="mb-3.5 rounded-[18px] border border-border/80 bg-card/90 px-3.5 py-1.5 backdrop-blur-md shadow-2xs flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                <span className="text-[11px] font-black text-gold-text uppercase tracking-wider pr-1 shrink-0 flex items-center gap-1">
-                  <span>{activeCategoryDef.emoji}</span>
-                  <span className="hidden sm:inline">{activeCategoryDef.shortLabel} :</span>
+          {activeSection !== "assistant" && (
+            <div className="mb-4 k-obsidian-luxury px-4 py-3 sm:px-5 sm:py-3.5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <span className="text-[11px] font-black text-[#E5A93C] uppercase tracking-[0.16em] pr-1.5 shrink-0 flex items-center gap-1.5">
+                  <span className="text-sm">{activeCategoryDef.emoji}</span>
+                  <span>{activeCategoryDef.shortLabel} :</span>
                 </span>
                 {activeCategoryItems.map((item) => {
                   const isItemActive = activeSection === item.id;
@@ -1709,10 +1694,10 @@ export function ProEnterpriseShell() {
                       type="button"
                       onClick={() => openSection(item.id)}
                       className={cn(
-                        "h-7.5 px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer",
+                        "h-8 px-3.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer border",
                         isItemActive
-                          ? "k-btn-gold text-primary-foreground shadow-xs"
-                          : "bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted"
+                          ? "k-btn-gold text-[#18120C] border-transparent shadow-sm"
+                          : "bg-white/8 text-[#F5ECDD]/85 border-white/15 hover:text-[#FFF9EC] hover:bg-white/15"
                       )}
                     >
                       <item.icon className="size-3.5" />
@@ -1727,9 +1712,10 @@ export function ProEnterpriseShell() {
                 })}
               </div>
 
-              <span className="text-[11px] text-muted-foreground hidden xl:inline truncate">
-                {activeNavItem?.hint}
-              </span>
+              <div className="hidden xl:flex items-center gap-2.5 text-[11px] text-[#F5ECDD]/80 shrink-0">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#E5A93C]" />
+                <span className="font-medium">{activeNavItem?.hint}</span>
+              </div>
             </div>
           )}
 

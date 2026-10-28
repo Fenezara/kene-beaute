@@ -1129,67 +1129,47 @@ export function ChatScreen() {
 
   return (
     <div className="flex flex-col min-h-[68vh] pt-1 sm:pt-2">
-      {/* Commutateur Awwwards : Mon Tableau de Bord & Rituels vs Dermo Kènè 24/7 */}
-      <div className="mb-3 flex p-1 rounded-2xl bg-card border border-gold/30 shadow-xs">
-        <button
-          type="button"
-          onClick={() => {
-            haptic(HAPTIC.tap);
-            useKene.getState().setClientTab("accueil");
-          }}
-          className="flex-1 py-2 px-3 rounded-xl font-heading font-bold text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-2 transition-all cursor-pointer"
-        >
-          <NsorommaIcon size={14} className="text-gold" />
-          <span>Mon Espace &amp; Bilan Cutané</span>
-        </button>
-        <div className="flex-1 py-2 px-3 rounded-xl font-heading font-black text-xs bg-gold/15 text-gold-text shadow-2xs flex items-center justify-center gap-2 border border-gold/40">
-          <MessageCircle size={14} className="text-primary" />
-          <span>Dermo Kènè IA 24/7</span>
-          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-        </div>
-      </div>
-
-      <header className="flex items-center justify-between gap-2 pb-2.5 border-b border-border">
-        <div className="flex items-center gap-2.5 min-w-0">
+      <header className="mb-3 k-obsidian-luxury px-4 py-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
           <span className="relative shrink-0">
             {/* Sceau 2026 — le Médaillon Kènè est l'avatar du Dr. Kènè */}
             <span className="k-glow-gold inline-grid rounded-[12px]">
-              <KeneEmblem size={34} />
+              <KeneEmblem size={36} />
             </span>
-            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-background animate-pulse" aria-hidden="true" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-[#1A130D] animate-pulse" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h2 className="font-heading font-black text-sm text-foreground truncate flex items-center gap-1.5">
-                <NsorommaIcon size={14} className="text-gold-text" />
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="font-heading font-black text-base text-[#FFF9EC] truncate flex items-center gap-1.5">
+                <NsorommaIcon size={14} className="text-[#E5A93C]" />
                 <span>Dermo Kènè</span>
               </h2>
-              <span className="text-[9px] uppercase font-black px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                IA 24/7
+              <span className="text-[9px] uppercase font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                Experte IA 24/7
               </span>
             </div>
-            <p className="text-[10px] text-muted-foreground truncate hidden xs:block">
-              Peaux noires &amp; métissées · Écoute &amp; soin
+            <p className="text-[11px] text-[#F5ECDD]/75 truncate">
+              Spécialiste des peaux noires &amp; métissées · Voix &amp; Analyse INCI
             </p>
           </div>
         </div>
 
         {/* Sélecteur de rituel (Orbe Sacré vs Fil complet) */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <div className="flex bg-muted/70 p-0.5 rounded-xl border border-border/80 shadow-2xs">
+          <div className="flex bg-white/10 p-0.5 rounded-xl border border-white/15 shadow-2xs">
             <button
               type="button"
               onClick={() => {
                 setViewMode("orb");
                 haptic(HAPTIC.light);
               }}
-              className={`h-8 px-2.5 rounded-lg font-bold text-xs flex items-center gap-1 transition-all ${
+              className={`h-8 px-3 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all ${
                 viewMode === "orb"
-                  ? "bg-gradient-to-r from-primary to-bissap text-primary-foreground shadow-2xs scale-100"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "k-btn-gold text-[#18120C] shadow-2xs"
+                  : "text-[#F5ECDD]/75 hover:text-[#FFF9EC]"
               }`}
             >
-              <NsorommaIcon size={13} className={viewMode === "orb" ? "text-amber-300 animate-pulse" : ""} />
+              <NsorommaIcon size={13} className={viewMode === "orb" ? "text-[#18120C]" : "text-[#E5A93C]"} />
               <span>Orbe</span>
             </button>
             <button
@@ -1201,10 +1181,10 @@ export function ChatScreen() {
                 setTimeout(() => scrollToBottom(false), 30);
                 setTimeout(() => scrollToBottom(true), 150);
               }}
-              className={`h-8 px-2.5 rounded-lg font-bold text-xs flex items-center gap-1 transition-all ${
+              className={`h-8 px-3 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all ${
                 viewMode === "thread"
-                  ? "bg-primary text-primary-foreground shadow-2xs scale-100"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "k-btn-gold text-[#18120C] shadow-2xs"
+                  : "text-[#F5ECDD]/75 hover:text-[#FFF9EC]"
               }`}
             >
               <MessageCircle size={12} />
@@ -1229,7 +1209,7 @@ export function ChatScreen() {
             aria-label={ttsOn ? "Désactiver la lecture vocale" : "Activer la lecture vocale"}
             title={ttsOn ? "Voix automatique activée (cliquer pour couper)" : "Activer la voix de Dermo Kènè"}
             className={`h-8 w-8 grid place-items-center rounded-xl active:scale-95 transition-all ${
-              ttsOn ? "bg-primary text-primary-foreground shadow-2xs" : "border border-border bg-card text-muted-foreground"
+              ttsOn ? "k-btn-gold text-[#18120C] shadow-2xs" : "border border-white/20 bg-white/10 text-[#F5ECDD]/75"
             }`}
           >
             {ttsOn ? <Volume2 size={15} /> : <VolumeX size={15} />}

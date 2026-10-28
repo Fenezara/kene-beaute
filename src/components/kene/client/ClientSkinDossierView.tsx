@@ -364,24 +364,23 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
 
   return (
     <div className="space-y-5 pb-2">
-      {/* ───── En-tête : Mon Dossier Peau & Suivi Cutané ───── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* ───── En-tête : Mon Dossier Peau & Suivi Cutané (Ébène & Or 24K) ───── */}
+      <div className="k-obsidian-luxury p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <span
-            aria-hidden="true"
-            className="mb-1.5 block h-[3.5px] w-12 rounded-full bg-gradient-to-r from-[#D49A24] via-[#C93B62] to-[#9E2045] shadow-xs opacity-90"
-          />
-          <h2 className="font-heading font-black text-xl sm:text-2xl text-foreground leading-tight">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#E5A93C] mb-1">
+            <span>🔬 Passeport Dermo-Biométrique</span>
+          </span>
+          <h2 className="font-heading font-black text-xl sm:text-2xl text-[#FFF9EC] leading-tight">
             Mon Dossier Peau &amp; Suivi Cutané
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-[#F5ECDD]/75 mt-0.5">
             Indicateurs dermo-biométriques, routine beauté active, cosmétovigilance et comparateur Avant / Après
           </p>
         </div>
 
         <Button
           onClick={onStartScan || (() => setClientTab("diagnostic"))}
-          className="k-btn-gold text-primary-foreground font-black text-xs h-10 px-4 rounded-xl gap-2 shrink-0 self-start sm:self-auto shadow-md active:scale-95 transition-all cursor-pointer"
+          className="k-btn-gold text-[#18120C] font-black text-xs h-10 px-4 rounded-xl gap-2 shrink-0 self-start sm:self-auto shadow-md active:scale-95 transition-all cursor-pointer"
         >
           <NeaOnnimIcon size={18} />
           <span>Nouveau Bilan</span>
@@ -420,101 +419,73 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
         </div>
       )}
 
-      {/* ───── 4 Cartes KPIs Cutanées de la Cliente (Architecture 2 niveaux sur mobile 320-360px : icône+titre en haut, valeur 100% largeur en bas) ───── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
-        <Card className="py-0 gap-0 border-border/80 bg-card/85 backdrop-blur-md shadow-xs">
-          <CardContent className="p-2.5 sm:p-3.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
-            <div className="flex items-center gap-2 sm:shrink-0">
-              <span className="grid place-items-center size-7 sm:size-10 rounded-lg sm:rounded-xl bg-primary/10 text-primary shrink-0 shadow-xs">
-                <Award className="size-4 sm:size-5" />
-              </span>
-              <p className="sm:hidden text-[9.5px] text-muted-foreground font-bold uppercase tracking-wider truncate">
-                Score Global
-              </p>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="hidden sm:block text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">
-                Score Global
-              </p>
-              <div className="flex items-baseline gap-1 sm:mt-0.5 whitespace-nowrap">
-                <span className={cn("text-base sm:text-lg font-black font-heading leading-none", scoreCl)}>
-                  {globalScore !== null ? globalScore : "--"}
-                </span>
-                <span className="text-[10px] text-muted-foreground font-bold">/100</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* ───── 4 Cartes KPIs Cutanées de la Cliente (Zéro troncature sur PC & Mobile) ───── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="k-card-awwwards p-3.5 sm:p-4 flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground font-extrabold uppercase tracking-wider">
+              Score Global
+            </p>
+            <span className="grid place-items-center size-8 rounded-xl bg-primary/12 text-primary shrink-0 shadow-2xs">
+              <Award className="size-4" />
+            </span>
+          </div>
+          <div className="flex items-baseline gap-1 whitespace-nowrap">
+            <span className={cn("text-xl sm:text-2xl font-black font-heading tabular-nums leading-none", scoreCl)}>
+              {globalScore !== null ? globalScore : "--"}
+            </span>
+            <span className="text-xs text-muted-foreground font-bold tabular-nums">/100</span>
+          </div>
+        </div>
 
-        <Card className="py-0 gap-0 border-border/80 bg-card/85 backdrop-blur-md shadow-xs">
-          <CardContent className="p-2.5 sm:p-3.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
-            <div className="flex items-center gap-2 sm:shrink-0">
-              <span className="grid place-items-center size-7 sm:size-10 rounded-lg sm:rounded-xl bg-amber-500/10 text-amber-500 shrink-0 shadow-xs">
-                <ShieldCheck className="size-4 sm:size-5" />
-              </span>
-              <p className="sm:hidden text-[9.5px] text-muted-foreground font-bold uppercase tracking-wider truncate">
-                Carnation
-              </p>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="hidden sm:block text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">
-                Carnation
-              </p>
-              <p className="text-xs sm:text-sm font-black font-heading text-amber-500 truncate sm:mt-0.5 leading-tight" title="Peaux noires, mates et métissées">
-                Type {user.fitzpatrick || "V"} · Mélanoderme
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="k-card-awwwards p-3.5 sm:p-4 flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground font-extrabold uppercase tracking-wider">
+              Carnation
+            </p>
+            <span className="grid place-items-center size-8 rounded-xl bg-amber-500/12 text-amber-500 shrink-0 shadow-2xs">
+              <ShieldCheck className="size-4" />
+            </span>
+          </div>
+          <p className="text-sm sm:text-base font-black font-heading text-amber-600 dark:text-amber-400 leading-tight" title="Peaux noires, mates et métissées">
+            Type {user.fitzpatrick || "V"} · Mélanoderme
+          </p>
+        </div>
 
-        <Card className="py-0 gap-0 border-border/80 bg-card/85 backdrop-blur-md shadow-xs">
-          <CardContent className="p-2.5 sm:p-3.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
-            <div className="flex items-center gap-2 sm:shrink-0">
-              <span className="grid place-items-center size-7 sm:size-10 rounded-lg sm:rounded-xl bg-emerald-500/10 text-emerald-500 shrink-0 shadow-xs">
-                <History className="size-4 sm:size-5" />
-              </span>
-              <p className="sm:hidden text-[9.5px] text-muted-foreground font-bold uppercase tracking-wider truncate">
-                Scans &amp; Bilans
-              </p>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="hidden sm:block text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">
-                Scans &amp; Bilans
-              </p>
-              <p className="text-xs sm:text-sm font-black font-heading text-foreground sm:mt-0.5 whitespace-nowrap truncate leading-tight">
-                {diagnoses.length} analyse{diagnoses.length > 1 ? "s" : ""}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="k-card-awwwards p-3.5 sm:p-4 flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground font-extrabold uppercase tracking-wider">
+              Scans &amp; Bilans
+            </p>
+            <span className="grid place-items-center size-8 rounded-xl bg-emerald-500/12 text-emerald-500 shrink-0 shadow-2xs">
+              <History className="size-4" />
+            </span>
+          </div>
+          <p className="text-sm sm:text-base font-black font-heading text-foreground tabular-nums leading-tight">
+            {diagnoses.length} analyse{diagnoses.length > 1 ? "s" : ""}
+          </p>
+        </div>
 
-        <Card
+        <div
           onClick={() => {
             haptic(HAPTIC.tap);
             setActiveView("dossier");
           }}
-          className="py-0 gap-0 border-border/80 bg-card/85 backdrop-blur-md shadow-xs cursor-pointer hover:border-[#C8951E]/60 transition-all select-none"
+          className="k-card-awwwards p-3.5 sm:p-4 flex flex-col justify-between gap-2 cursor-pointer select-none"
         >
-          <CardContent className="p-2.5 sm:p-3.5 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2.5">
-            <div className="flex items-center gap-2 sm:shrink-0">
-              <span className="grid place-items-center size-7 sm:size-10 rounded-lg sm:rounded-xl bg-gold/15 text-gold-text shrink-0 shadow-xs">
-                <Leaf className="size-4 sm:size-5" />
-              </span>
-              <p className="sm:hidden text-[9.5px] text-muted-foreground font-bold uppercase tracking-wider truncate">
-                Ma Routine
-              </p>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="hidden sm:block text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">
-                Ma Routine
-              </p>
-              <p className="text-xs sm:text-sm font-black font-heading text-gold-text sm:mt-0.5 flex items-center gap-1.5 whitespace-nowrap leading-tight">
-                <span className={cn("size-2 rounded-full inline-block shrink-0", cosmeticsUsed ? "bg-emerald-500 animate-pulse" : (globalScore !== null ? "bg-emerald-500" : "bg-muted-foreground"))} />
-                <span className="truncate">{cosmeticsUsed ? "Prescrite en salon" : (globalScore !== null ? "Active" : "En attente")}</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground font-extrabold uppercase tracking-wider">
+              Ma Routine
+            </p>
+            <span className="grid place-items-center size-8 rounded-xl bg-gold/15 text-gold-text shrink-0 shadow-2xs">
+              <Leaf className="size-4" />
+            </span>
+          </div>
+          <p className="text-sm sm:text-base font-black font-heading text-gold-text flex items-center gap-1.5 leading-tight">
+            <span className={cn("size-2 rounded-full inline-block shrink-0", cosmeticsUsed ? "bg-emerald-500 animate-pulse" : (globalScore !== null ? "bg-emerald-500" : "bg-muted-foreground"))} />
+            <span className="truncate">{cosmeticsUsed ? "Prescrite en salon" : (globalScore !== null ? "Active" : "En attente")}</span>
+          </p>
+        </div>
       </div>
 
       {/* ───── Barre des 3 Vues Clés — Ergonomie Mobile Optimisée ───── */}
