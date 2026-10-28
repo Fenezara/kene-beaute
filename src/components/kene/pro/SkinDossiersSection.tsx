@@ -546,11 +546,6 @@ function ClientSkinDossierDetail({
     }
   }
 
-  // Sauvegarde de la routine quotidienne (texte libre)
-  async function saveCosmeticsUsed() {
-    return saveStructuredPrescription();
-  }
-
   // Sauvegarde des caractéristiques de peau (Phototype, Type, Grossesse)
   async function saveSkinIdentity() {
     setIdentityBusy(true);
