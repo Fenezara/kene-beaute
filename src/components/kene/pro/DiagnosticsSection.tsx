@@ -208,11 +208,11 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
         title="Diagnostic en cabine"
         sub="L'institut réalise le diagnostic peau, guidé par le questionnaire dermatologique et l'IA visuelle"
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outline"
               onClick={() => setVigilanceOpen(true)}
-              className="gap-2 text-bissap border-bissap/40 hover:bg-bissap/10 font-semibold text-xs"
+              className="gap-2 text-bissap border-bissap/40 hover:bg-bissap/10 font-semibold text-xs shrink-0"
             >
               <AlertTriangle className="size-4" />
               Cosmétovigilance ({vigilanceApi.data?.incidents?.length ?? 0})
@@ -220,7 +220,7 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
             <Button
               variant="outline"
               onClick={() => window.open(`/api/pro/consultation-sheet?tenantId=${tenantId}&_t=${Date.now()}`, "_blank")}
-              className="gap-2"
+              className="gap-2 shrink-0"
               aria-label="Imprimer une fiche de consultation vierge (support papier de l'entretien)"
             >
               <Printer className="size-4" aria-hidden="true" />
@@ -229,13 +229,13 @@ export function DiagnosticsSection({ tenantId, refreshKey = 0, preselectCommand,
             <Button
               variant="outline"
               onClick={() => setInciModalOpen(true)}
-              className="gap-2 text-gold-text border-gold/40 hover:bg-gold/10 font-bold text-xs"
+              className="gap-2 text-gold-text border-gold/40 hover:bg-gold/10 font-bold text-xs shrink-0"
               title="Scanner la composition INCI d'un produit (Hydroquinone, Corticoïdes, Allergènes)"
             >
               <ShieldAlert className="size-4 text-gold-text" />
               Scanner Produit (INCI)
             </Button>
-            <Button onClick={() => setWizardOpen(true)} className="gap-2 font-semibold k-btn-gold text-primary-foreground" aria-label="Lancer un nouveau diagnostic en cabine">
+            <Button onClick={() => setWizardOpen(true)} className="gap-2 font-semibold k-btn-gold text-primary-foreground shrink-0" aria-label="Lancer un nouveau diagnostic en cabine">
               <ScanFace className="size-4" aria-hidden="true" />
               Nouveau diagnostic
             </Button>

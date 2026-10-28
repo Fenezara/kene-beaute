@@ -168,14 +168,14 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
         title="Relances &amp; Automatisation WhatsApp"
         sub="Le Fil du Retour — séquences automatisées J+1 / J+7 / J+30, soins de suivi et clientes à réactiver"
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {counts.late > 0 && (
               <>
                 <Button
                   size="sm"
                   onClick={() => void batchRelance("whatsapp")}
                   disabled={batchBusy}
-                  className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm"
+                  className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm shrink-0"
                 >
                   {batchBusy ? <Loader2 className="size-3.5 animate-spin" /> : <MessageCircle className="size-3.5" />}
                   <span>Relancer ({counts.late}) WhatsApp</span>
@@ -184,14 +184,14 @@ export function RelancesSection({ tenantId, tenantName }: { tenantId: string; te
                   size="sm"
                   onClick={() => void batchRelance("sms")}
                   disabled={batchBusy}
-                  className="h-8 gap-1.5 k-btn-gold text-primary-foreground text-xs font-bold shadow-sm"
+                  className="h-8 gap-1.5 k-btn-gold text-primary-foreground text-xs font-bold shadow-sm shrink-0"
                 >
                   {batchBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
                   <span>Relancer ({counts.late}) SMS</span>
                 </Button>
               </>
             )}
-            <Badge variant="outline" className="gap-1.5 bg-muted/60 text-muted-foreground">
+            <Badge variant="outline" className="gap-1.5 bg-muted/60 text-muted-foreground shrink-0">
               <KeneSunIcon className="size-3" aria-hidden="true" /> {todoTotal} à traiter · auto
             </Badge>
           </div>

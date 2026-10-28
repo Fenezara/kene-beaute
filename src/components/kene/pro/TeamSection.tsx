@@ -241,12 +241,12 @@ export function TeamSection({ tenantId, defaultCountry }: { tenantId: string; de
         title="Équipe"
         sub="Registre du personnel — postes, contrats, comptes app et pointage du jour"
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={() => setLeaveOpen(true)} className="gap-1.5">
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" onClick={() => setLeaveOpen(true)} className="gap-1.5 shrink-0">
               <Palmtree className="size-4" aria-hidden="true" /> Poser un congé
             </Button>
             {isOwner && (
-              <Button variant="outline" onClick={() => setHireOpen(true)} className="gap-1.5">
+              <Button variant="outline" onClick={() => setHireOpen(true)} className="gap-1.5 shrink-0">
                 <Plus className="size-4" aria-hidden="true" /> Embaucher
               </Button>
             )}

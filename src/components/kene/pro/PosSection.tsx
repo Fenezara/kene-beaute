@@ -708,71 +708,74 @@ export function PosSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SectionHeader title="Caisse" sub="Encaissement soins & produits — Wave, Orange Money, espèces, carte" />
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => setExpressReceiptOpen(true)}
-            className="h-8 gap-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-black shadow-xs active:scale-95 transition-all"
-          >
-            <Zap className="size-3.5 fill-black" />
-            ⚡ Reçu Express (Saisie Libre)
-          </Button>
+      <SectionHeader
+        title="Caisse"
+        sub="Encaissement soins & produits — Wave, Orange Money, espèces, carte"
+        actions={
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              onClick={() => setExpressReceiptOpen(true)}
+              className="h-8 gap-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-black shadow-xs active:scale-95 transition-all shrink-0"
+            >
+              <Zap className="size-3.5 fill-black" />
+              ⚡ Reçu Express (Saisie Libre)
+            </Button>
 
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setExpenseOpen(true);
-              void loadExpenses();
-            }}
-            className="h-8 gap-1.5 text-xs font-semibold border-rose-400/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20"
-          >
-            <ArrowDownCircle className="size-3.5" />
-            Sortie de Caisse / Dépense
-          </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setExpenseOpen(true);
+                void loadExpenses();
+              }}
+              className="h-8 gap-1.5 text-xs font-semibold border-rose-400/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 shrink-0"
+            >
+              <ArrowDownCircle className="size-3.5" />
+              Sortie de Caisse / Dépense
+            </Button>
 
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setClosureOpen(true);
-              void loadClosureData();
-            }}
-            className="h-8 gap-1.5 text-xs font-semibold border-gold/40 text-gold-text hover:bg-gold/10"
-          >
-            <Lock className="size-3.5" />
-            Clôture de Caisse (Rapport Z)
-          </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setClosureOpen(true);
+                void loadClosureData();
+              }}
+              className="h-8 gap-1.5 text-xs font-semibold border-gold/40 text-gold-text hover:bg-gold/10 shrink-0"
+            >
+              <Lock className="size-3.5" />
+              Clôture de Caisse (Rapport Z)
+            </Button>
 
-          {online && pendingOfflineCount === 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-3 py-1 text-xs font-semibold text-success">
-              <span className="size-2 rounded-full bg-success animate-pulse" />
-              En ligne
-            </span>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                <WifiOff className="size-3.5" />
-                {pendingOfflineCount > 0 ? `${pendingOfflineCount} vente(s) en attente` : "Mode Hors-ligne"}
+            {online && pendingOfflineCount === 0 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-3 py-1 text-xs font-semibold text-success shrink-0">
+                <span className="size-2 rounded-full bg-success animate-pulse" />
+                En ligne
               </span>
-              {pendingOfflineCount > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleSyncOffline}
-                  disabled={syncingOffline}
-                  className="h-8 gap-1.5 text-xs font-semibold"
-                >
-                  <RefreshCw className={cn("size-3.5", syncingOffline && "animate-spin")} />
-                  Synchroniser
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+            ) : (
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-600 dark:text-amber-400 shrink-0">
+                  <WifiOff className="size-3.5" />
+                  {pendingOfflineCount > 0 ? `${pendingOfflineCount} vente(s) en attente` : "Mode Hors-ligne"}
+                </span>
+                {pendingOfflineCount > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleSyncOffline}
+                    disabled={syncingOffline}
+                    className="h-8 gap-1.5 text-xs font-semibold shrink-0"
+                  >
+                    <RefreshCw className={cn("size-3.5", syncingOffline && "animate-spin")} />
+                    Synchroniser
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        }
+      />
 
       <div className="grid lg:grid-cols-[1fr_400px] gap-4 items-start">
         {/* ── Catalogue ── */}

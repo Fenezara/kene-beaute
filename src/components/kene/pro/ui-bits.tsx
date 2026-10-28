@@ -207,18 +207,24 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
-/** Titre de section (font-heading) + actions à droite — Signature Éditoriale Afro-Luxe */
+/** Titre de section (font-heading) + actions à droite — Signature Éditoriale Afro-Luxe avec défilement horizontal fluide sur mobile */
 export function SectionHeader({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {
   return (
-    <div className="k-card-awwwards px-4 py-3.5 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-start gap-3.5 min-w-0">
-        <div className="mt-1 h-9 w-1.5 shrink-0 rounded-full k-rail-line" aria-hidden="true" />
+    <div className="k-card-awwwards px-3.5 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 overflow-hidden">
+      <div className="flex items-start gap-3 sm:gap-3.5 min-w-0">
+        <div className="mt-1 h-8 sm:h-9 w-1.5 shrink-0 rounded-full k-rail-line" aria-hidden="true" />
         <div className="min-w-0">
-          <h1 className="font-heading text-xl sm:text-2xl lg:text-[26px] font-bold tracking-tight text-foreground leading-tight">{title}</h1>
+          <h1 className="font-heading text-lg sm:text-2xl lg:text-[26px] font-bold tracking-tight text-foreground leading-tight">{title}</h1>
           {sub && <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground leading-snug">{sub}</p>}
         </div>
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
+      {actions && (
+        <div className="w-full sm:w-auto overflow-x-auto no-scrollbar touch-pan-x -mx-1 px-1 py-0.5">
+          <div className="flex items-center gap-2 shrink-0 min-w-max">
+            {actions}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

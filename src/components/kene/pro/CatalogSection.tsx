@@ -283,10 +283,10 @@ export function CatalogSection({ tenantId }: { tenantId: string }) {
         sub="Soins praticables et produits revendus en institut"
         actions={
           <>
-            <Button variant="outline" onClick={() => openCreate("product")} className="gap-1.5">
+            <Button variant="outline" onClick={() => openCreate("product")} className="gap-1.5 shrink-0">
               <Plus className="size-4" aria-hidden="true" /> Nouveau produit
             </Button>
-            <Button onClick={() => openCreate("service")} className="gap-1.5 font-semibold">
+            <Button onClick={() => openCreate("service")} className="gap-1.5 font-semibold shrink-0">
               <Plus className="size-4" aria-hidden="true" /> Nouveau soin
             </Button>
           </>

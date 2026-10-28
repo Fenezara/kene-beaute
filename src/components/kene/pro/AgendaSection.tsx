@@ -219,11 +219,11 @@ export function AgendaSection({ tenantId, refreshKey = 0 }: { tenantId: string; 
         sub="Planification des soins et praticiennes"
         actions={
           <>
-            <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v as "jour" | "semaine")} variant="outline" className="rounded-lg">
+            <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v as "jour" | "semaine")} variant="outline" className="rounded-lg shrink-0">
               <ToggleGroupItem value="jour" className="text-xs px-3">Jour</ToggleGroupItem>
               <ToggleGroupItem value="semaine" className="text-xs px-3">Semaine</ToggleGroupItem>
             </ToggleGroup>
-            <Button onClick={() => setCreateOpen(true)} className="gap-1.5 font-semibold">
+            <Button onClick={() => setCreateOpen(true)} className="gap-1.5 font-semibold shrink-0">
               <Plus className="size-4" aria-hidden="true" /> Nouveau RDV
             </Button>
           </>
