@@ -96,10 +96,10 @@ export async function GET(req: NextRequest) {
       }),
       db.order.findMany({
         where: {
-          status: { in: ["paid", "delivered"] },
+          status: { in: ["paid", "preparing", "in_transit", "delivered"] },
           ...(excludeDemo ? { user: { phone: { notIn: demoPhonesArr } } } : {}),
         },
-        include: { items: { include: { product: { include: { tenant: { select: { commissionRate: true } } } } } } },
+        include: { items: { include: { product: { include: { tenant: { select: { id: true, commissionRate: true } } } } } } },
       }),
       db.diagnosis.findMany({
         where: {
@@ -177,9 +177,17 @@ export async function GET(req: NextRequest) {
     }
     const chart = [...dayMap.entries()].map(([date, count]) => ({ date, count }));
 
-    // Top instituts par CA 30 j
+    // Top instituts par CA 30 j (Ventes caisse POS + Commandes boutique rattachées)
     const caByTenant = new Map<string, number>();
     for (const s of sales30) caByTenant.set(s.tenantId, (caByTenant.get(s.tenantId) ?? 0) + s.total);
+    for (const o of paidOrders) {
+      if (new Date(o.createdAt) < since30) continue;
+      for (const item of o.items) {
+        const tid = item.product?.tenant?.id;
+        if (!tid || (excludeDemo && DEMO_TENANT_IDS.has(tid))) continue;
+        caByTenant.set(tid, (caByTenant.get(tid) ?? 0) + item.total);
+      }
+    }
     const tenantIds = [...caByTenant.keys()];
     const tenantInfos = await db.tenant.findMany({ where: { id: { in: tenantIds } }, select: { id: true, name: true, city: true } });
     const topTenants = tenantInfos

@@ -33,12 +33,14 @@ export async function GET(req: NextRequest) {
     // KPIs: articles DE L'INSTITUT uniquement (commandes mixtes neutralisées)
     const ownItems = (o: (typeof orders)[number]) => o.items.filter((i) => i.product.tenantId === tenant.id);
     const today = dayStart();
+    const paidStatuses = new Set(["paid", "preparing", "in_transit", "delivered"]);
+    const toDeliverStatuses = new Set(["paid", "preparing", "in_transit"]);
     const kpis = {
       today: orders.filter((o) => new Date(o.createdAt) >= today).length,
       toPay: orders.filter((o) => o.status === "pending").length,
-      toDeliver: orders.filter((o) => o.status === "paid").length,
+      toDeliver: orders.filter((o) => toDeliverStatuses.has(o.status)).length,
       revenue30d: orders
-        .filter((o) => new Date(o.createdAt) >= since30 && (o.status === "paid" || o.status === "delivered"))
+        .filter((o) => new Date(o.createdAt) >= since30 && paidStatuses.has(o.status))
         .reduce((s, o) => s + ownItems(o).reduce((x, i) => x + i.total, 0), 0),
     };
 

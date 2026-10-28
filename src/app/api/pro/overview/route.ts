@@ -43,59 +43,116 @@ export async function GET(req: NextRequest) {
     }
 
     const now = new Date();
+    const todayStart = dayStart();
     const since7 = new Date(now.getTime() - 7 * 86_400_000);
+    const since14 = daysAgo(13);
     const since30 = new Date(now.getTime() - 30 * 86_400_000);
     const completed = { tenantId: tenant.id, status: "completed" as string };
+    const paidOrderStatuses = ["paid", "preparing", "in_transit", "delivered"];
 
-    const [salesToday, agg7, agg30, activeResources, apptsToday, newClients, sales14, sales30d, todayAppts, products, recentReviews] =
-      await Promise.all([
-        db.sale.findMany({ where: { ...completed, createdAt: { gte: dayStart() } }, select: { total: true } }),
-        db.sale.aggregate({ where: { ...completed, createdAt: { gte: since7 } }, _sum: { total: true } }),
-        db.sale.aggregate({ where: { ...completed, createdAt: { gte: since30 } }, _sum: { total: true }, _count: true }),
-        db.resource.count({ where: { tenantId: tenant.id, active: true } }),
-        db.appointment.count({
-          where: { tenantId: tenant.id, startAt: { gte: dayStart(), lte: dayEnd() }, status: { not: "cancelled" } },
-        }),
-        db.clientProfile.count({ where: { tenantId: tenant.id, createdAt: { gte: since30 } } }),
-        db.sale.findMany({
-          where: { ...completed, createdAt: { gte: daysAgo(13) } },
-          select: { createdAt: true, total: true },
-        }),
-        db.sale.findMany({
-          where: { ...completed, createdAt: { gte: since30 } },
-          select: {
-            total: true,
-            paymentMethod: true,
-            items: { select: { kind: true, total: true, serviceId: true, service: { select: { name: true } } } },
-          },
-        }),
-        db.appointment.findMany({
-          where: { tenantId: tenant.id, startAt: { gte: dayStart(), lte: dayEnd() } },
-          include: { service: { select: { name: true } }, resource: { select: { name: true } } },
-          orderBy: { startAt: "asc" },
-        }),
-        db.product.findMany({ where: { tenantId: tenant.id } }),
-        // Derniers avis déposés par les clientes depuis l'app (après RDV) —
-        // remontés au tableau de bord: la gérante voit la parole cliente.
-        db.review.findMany({
-          where: { tenantId: tenant.id },
-          orderBy: { createdAt: "desc" },
-          take: 5,
-          select: {
-            id: true,
-            rating: true,
-            comment: true,
-            createdAt: true,
-            user: { select: { name: true } },
-            appointment: { select: { service: { select: { name: true } } } },
-          },
-        }),
-      ]);
+    const [
+      salesToday,
+      agg7,
+      agg30,
+      activeResources,
+      apptsToday,
+      newClients,
+      sales14,
+      sales30d,
+      todayAppts,
+      appts14d,
+      paidOrders30d,
+      products,
+      recentReviews,
+      reviewStats,
+    ] = await Promise.all([
+      db.sale.findMany({ where: { ...completed, createdAt: { gte: todayStart } }, select: { total: true } }),
+      db.sale.aggregate({ where: { ...completed, createdAt: { gte: since7 } }, _sum: { total: true } }),
+      db.sale.aggregate({ where: { ...completed, createdAt: { gte: since30 } }, _sum: { total: true }, _count: true }),
+      db.resource.count({ where: { tenantId: tenant.id, active: true } }),
+      db.appointment.count({
+        where: { tenantId: tenant.id, startAt: { gte: todayStart, lte: dayEnd() }, status: { not: "cancelled" } },
+      }),
+      db.clientProfile.count({ where: { tenantId: tenant.id, createdAt: { gte: since30 } } }),
+      db.sale.findMany({
+        where: { ...completed, createdAt: { gte: since14 } },
+        select: { createdAt: true, total: true },
+      }),
+      db.sale.findMany({
+        where: { ...completed, createdAt: { gte: since30 } },
+        select: {
+          total: true,
+          paymentMethod: true,
+          items: { select: { kind: true, total: true, serviceId: true, service: { select: { name: true } } } },
+        },
+      }),
+      db.appointment.findMany({
+        where: { tenantId: tenant.id, startAt: { gte: todayStart, lte: dayEnd() } },
+        include: { service: { select: { name: true } }, resource: { select: { name: true } } },
+        orderBy: { startAt: "asc" },
+      }),
+      db.appointment.findMany({
+        where: { tenantId: tenant.id, startAt: { gte: since14, lte: dayEnd() }, status: { not: "cancelled" } },
+        select: { startAt: true },
+      }),
+      db.order.findMany({
+        where: {
+          status: { in: paidOrderStatuses },
+          createdAt: { gte: since30 },
+          items: { some: { product: { tenantId: tenant.id } } },
+        },
+        select: {
+          createdAt: true,
+          payment: { select: { method: true } },
+          items: { select: { total: true, product: { select: { tenantId: true } } } },
+        },
+      }),
+      db.product.findMany({ where: { tenantId: tenant.id } }),
+      // Derniers avis déposés par les clientes depuis l'app (après RDV) —
+      // remontés au tableau de bord: la gérante voit la parole cliente.
+      db.review.findMany({
+        where: { tenantId: tenant.id },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          rating: true,
+          comment: true,
+          createdAt: true,
+          user: { select: { name: true, phone: true } },
+          appointment: { select: { service: { select: { name: true } } } },
+        },
+      }),
+      db.review.aggregate({
+        where: { tenantId: tenant.id },
+        _avg: { rating: true },
+        _count: true,
+      }),
+    ]);
 
-    const caToday = salesToday.reduce((s, x) => s + x.total, 0);
-    const ca7d = agg7._sum.total ?? 0;
-    const ca30d = agg30._sum.total ?? 0;
-    const avgBasket = agg30._count > 0 ? Math.round(ca30d / agg30._count) : 0;
+    // Consolidation : Ventes Caisse POS + Commandes Boutique en ligne (articles appartenant à cet institut)
+    const ordersWithOwnTotal = paidOrders30d
+      .map((o) => ({
+        createdAt: new Date(o.createdAt),
+        method: o.payment?.method ?? "wallet",
+        ownTotal: o.items.filter((i) => i.product.tenantId === tenant.id).reduce((s, i) => s + i.total, 0),
+      }))
+      .filter((o) => o.ownTotal > 0);
+
+    const ordersTodayTotal = ordersWithOwnTotal
+      .filter((o) => o.createdAt >= todayStart)
+      .reduce((s, o) => s + o.ownTotal, 0);
+    const orders7dTotal = ordersWithOwnTotal
+      .filter((o) => o.createdAt >= since7)
+      .reduce((s, o) => s + o.ownTotal, 0);
+    const orders30dTotal = ordersWithOwnTotal.reduce((s, o) => s + o.ownTotal, 0);
+
+    const caToday = salesToday.reduce((s, x) => s + x.total, 0) + ordersTodayTotal;
+    const ca7d = (agg7._sum.total ?? 0) + orders7dTotal;
+    const ca30d = (agg30._sum.total ?? 0) + orders30dTotal;
+    const txCount30d = agg30._count + ordersWithOwnTotal.length;
+    const avgBasket = txCount30d > 0 ? Math.round(ca30d / txCount30d) : 0;
+
     const openMinutes = Math.max(0, (tenant.closingHour ?? 19) - (tenant.openingHour ?? 9)) * 60;
     const totalCapacityMinutes = Math.max(1, activeResources) * openMinutes;
     const bookedMinutesToday = todayAppts
@@ -103,10 +160,10 @@ export async function GET(req: NextRequest) {
       .reduce((sum, a) => sum + (a.durationMin || 60), 0);
     const occupancyPct = totalCapacityMinutes > 0 ? Math.min(100, Math.round((bookedMinutesToday / totalCapacityMinutes) * 100)) : 0;
 
-    // CA et transactions des 14 derniers jours par jour
-    const dayMap = new Map<string, { total: number; count: number }>();
+    // CA, transactions et RDV des 14 derniers jours par jour
+    const dayMap = new Map<string, { total: number; count: number; apptsCount: number }>();
     for (let i = 13; i >= 0; i--) {
-      dayMap.set(ddMM(daysAgo(i)), { total: 0, count: 0 });
+      dayMap.set(ddMM(daysAgo(i)), { total: 0, count: 0, apptsCount: 0 });
     }
     for (const s of sales14) {
       const key = ddMM(new Date(s.createdAt));
@@ -116,11 +173,33 @@ export async function GET(req: NextRequest) {
         cur.count += 1;
       }
     }
-    const chart = [...dayMap.entries()].map(([date, val]) => ({ date, total: val.total, count: val.count }));
+    for (const o of ordersWithOwnTotal) {
+      if (o.createdAt < since14) continue;
+      const key = ddMM(o.createdAt);
+      const cur = dayMap.get(key);
+      if (cur) {
+        cur.total += o.ownTotal;
+        cur.count += 1;
+      }
+    }
+    for (const a of appts14d) {
+      const key = ddMM(new Date(a.startAt));
+      const cur = dayMap.get(key);
+      if (cur) {
+        cur.apptsCount += 1;
+      }
+    }
+    const chart = [...dayMap.entries()].map(([date, val]) => ({
+      date,
+      total: val.total,
+      count: val.count,
+      apptsCount: val.apptsCount,
+    }));
 
-    // Répartition des encaissements 30 j
+    // Répartition des encaissements 30 j (POS + Boutique en ligne)
     const splitMap = new Map<string, number>();
     for (const s of sales30d) splitMap.set(s.paymentMethod, (splitMap.get(s.paymentMethod) ?? 0) + s.total);
+    for (const o of ordersWithOwnTotal) splitMap.set(o.method, (splitMap.get(o.method) ?? 0) + o.ownTotal);
     const paymentSplit = [...splitMap.entries()].map(([method, total]) => ({ method, total })).sort((a, b) => b.total - a.total);
 
     // Top 5 prestations par CA 30 j
@@ -141,8 +220,14 @@ export async function GET(req: NextRequest) {
       .filter((p) => p.stock <= p.stockAlert)
       .map((p) => ({ id: p.id, name: p.name, stock: p.stock, stockAlert: p.stockAlert }));
 
+    const tenantWithLiveReviews = {
+      ...tenant,
+      rating: reviewStats._count > 0 && reviewStats._avg.rating ? Math.round(reviewStats._avg.rating * 10) / 10 : tenant.rating,
+      reviewCount: reviewStats._count > 0 ? reviewStats._count : tenant.reviewCount,
+    };
+
     return NextResponse.json({
-      tenant,
+      tenant: tenantWithLiveReviews,
       viewer,
       tenants: proTenants.map((t) => ({
         id: t.id,
@@ -168,7 +253,9 @@ export async function GET(req: NextRequest) {
         id: a.id,
         clientName: a.clientName,
         service: a.service.name,
+        serviceName: a.service.name,
         resource: a.resource.name,
+        resourceName: a.resource.name,
         startAt: a.startAt,
         status: a.status,
         price: a.price,
@@ -177,6 +264,7 @@ export async function GET(req: NextRequest) {
       recentReviews: recentReviews.map((r) => ({
         id: r.id,
         clientName: r.user.name,
+        clientPhone: r.user.phone,
         rating: r.rating,
         comment: r.comment,
         serviceName: r.appointment?.service?.name ?? null,

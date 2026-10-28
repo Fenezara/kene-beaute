@@ -51,18 +51,28 @@ import type { UseApiResult } from "./useApi";
 import type { ProSectionId } from "./ProApp";
 
 const PAYMENT_COLORS: Record<string, string> = {
+  saspay: "#D4AF37",
+  winipayer: "#9B6D12",
   wave: "#1DC8FF",
   orange: "#FF7900",
+  mtn: "#FFCC00",
+  moov: "#0066B3",
   cash: "#C8951E",
   card: "#3F7D3F",
   wallet: "#A0522D",
+  online: "#2E8B57",
 };
 const PAYMENT_LABELS: Record<string, string> = {
+  saspay: "SasPay (Mobile & Carte)",
+  winipayer: "WiniPayer",
   wave: "Wave",
   orange: "Orange Money",
+  mtn: "MTN MoMo",
+  moov: "Moov Money",
   cash: "Espèces",
   card: "Carte bancaire",
   wallet: "Wallet Kènè",
+  online: "Acompte en ligne",
 };
 
 const tooltipStyle = {
@@ -90,6 +100,7 @@ export function DashboardSection({
   const data = overview.data;
 
   const [viewMode, setViewMode] = useState<"operations" | "finance">("operations");
+  const [chartRange, setChartRange] = useState<"7d" | "14d">("14d");
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [allReviews, setAllReviews] = useState<ProReviewView[]>([]);
   const [reviewsSummary, setReviewsSummary] = useState<ProReviewSummary | null>(null);
@@ -157,7 +168,6 @@ export function DashboardSection({
   }
   if (!data) return null;
 
-  const [chartRange, setChartRange] = useState<"7d" | "14d">("14d");
   const k = data.kpis;
   const pieData = data.paymentSplit.map((p) => ({ name: PAYMENT_LABELS[p.method] ?? p.method, value: p.total, key: p.method }));
   const pieTotal = pieData.reduce((s, p) => s + p.value, 0);
@@ -177,7 +187,7 @@ export function DashboardSection({
   const caTrendDirection: "up" | "down" | "flat" = caTrendValue > 0 ? "up" : caTrendValue < 0 ? "down" : "flat";
 
   const sparklineCA = rawChart.map((c) => c.total);
-  const sparklineBaskets = rawChart.map((c) => c.count ?? (c.total > 0 ? 1 : 0));
+  const sparklineAppts = rawChart.map((c) => c.apptsCount ?? 0);
 
   // Jour record sur la période affichée
   const peakDay = displayChartData.reduce(
@@ -360,7 +370,7 @@ export function DashboardSection({
                 icon={<Banknote className="size-4" />}
                 label="CA du jour"
                 value={xof(k.caToday)}
-                hint="Caisse & Acomptes"
+                hint="Caisse & Boutique"
                 sparkline={sparklineCA.slice(-7)}
               />
               <KpiCard
@@ -369,7 +379,7 @@ export function DashboardSection({
                 value={String(k.appointmentsToday)}
                 monetary={false}
                 hint="En cabine & agenda"
-                sparkline={sparklineBaskets.slice(-7)}
+                sparkline={sparklineAppts.slice(-7)}
               />
               <KpiCard
                 icon={<CauriIcon className="size-4" />}

@@ -41,6 +41,7 @@ import type { ProOverview } from "./types";
 import { dayLabel, KenteTop } from "./ui-bits";
 
 const PAYMENT_COLORS: Record<string, string> = {
+  saspay: "#D4AF37",
   winipayer: "#10B981",
   wave: "#1DC8FF",
   orange: "#FF7900",
@@ -49,9 +50,11 @@ const PAYMENT_COLORS: Record<string, string> = {
   cash: "#C8951E",
   card: "#3F7D3F",
   wallet: "#8B1A3B",
+  online: "#2E8B57",
 };
 
 const PAYMENT_LABELS: Record<string, string> = {
+  saspay: "SasPay (Mobile & Carte)",
   winipayer: "WiniPayer (Multi-opérateurs)",
   wave: "Wave Mobile Money",
   orange: "Orange Money",
@@ -60,6 +63,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   cash: "Espèces (Caisse)",
   card: "Carte Bancaire",
   wallet: "Compte Kènè",
+  online: "Acompte en ligne",
 };
 
 export function SalonAnalyticsDashboard({
@@ -85,7 +89,7 @@ export function SalonAnalyticsDashboard({
 
   const digitalPayments = useMemo(() => {
     return pieData
-      .filter((p) => p.key === "wave" || p.key === "orange" || p.key === "card" || p.key === "wallet")
+      .filter((p) => p.key !== "cash")
       .reduce((s, p) => s + p.value, 0);
   }, [pieData]);
 
