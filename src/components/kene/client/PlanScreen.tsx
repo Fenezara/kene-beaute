@@ -325,11 +325,11 @@ export function PlanScreen() {
                 </p>
               </div>
             ) : (
-              <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-2.5">
+              <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <Crown size={14} className="text-gold-text" />
-                    Formule Privilège Kènè+
+                    Tableau des privilèges actifs Kènè+
                   </p>
                   <span className="rounded-full bg-gold/15 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">
                     {data.subscription.source === "welcome_trial"
@@ -337,9 +337,57 @@ export function PlanScreen() {
                       : "2 500 FCFA / mois"}
                   </span>
                 </div>
-                <p className="text-[11.5px] text-muted-foreground leading-relaxed">
-                  🌿 <strong>Accès dermo-esthétique illimité :</strong> scans de peau sans restriction, visualiseur multi-spectral, suivi tactile et accompagnement 24/7 par Dermo Kènè.
-                </p>
+
+                {/* Tableau récapitulatif des quotas actifs */}
+                <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                  <div className="rounded-xl border border-border/50 bg-card p-2.5 space-y-1">
+                    <p className="font-bold flex items-center gap-1 text-foreground">
+                      <CauriIcon size={13} className="text-gold-text" /> Bilans de peau
+                    </p>
+                    <p className="text-xs font-bold text-success">⚡ Illimités</p>
+                    <p className="text-[10px] text-muted-foreground">Analyses photo sans restriction</p>
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card p-2.5 space-y-1">
+                    <p className="font-bold flex items-center gap-1 text-foreground">
+                      <ShieldAlert size={13} className="text-rose-500" /> Scanner INCI
+                    </p>
+                    <p className="text-xs font-bold text-success">⚡ Illimité</p>
+                    <p className="text-[10px] text-muted-foreground">Toute la trousse cosmétique</p>
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card p-2.5 space-y-1">
+                    <p className="font-bold flex items-center gap-1 text-foreground">
+                      <Zap size={13} className="text-gold-text" /> Orbe 3D Vocale
+                    </p>
+                    <p className="text-xs font-bold text-success">👑 Illimité 24/7</p>
+                    <p className="text-[10px] text-muted-foreground">Échanges audio &amp; vocaux en direct</p>
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card p-2.5 space-y-1">
+                    <p className="font-bold flex items-center gap-1 text-foreground">
+                      <MessageCircle size={13} className="text-primary" /> Fil SMS &amp; WhatsApp
+                    </p>
+                    <p className="text-xs font-bold text-success">✓ Coaching dermo</p>
+                    <p className="text-[10px] text-muted-foreground">Relances routines &amp; ordonnance</p>
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card p-2.5 space-y-1">
+                    <p className="font-bold flex items-center gap-1 text-foreground">
+                      <TrendingUp size={13} className="text-primary" /> Multi-spectral
+                    </p>
+                    <p className="text-xs font-bold text-success">✓ Inclus</p>
+                    <p className="text-[10px] text-muted-foreground">Suivi d&apos;évolution Avant/Après</p>
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card p-2.5 space-y-1">
+                    <p className="font-bold flex items-center gap-1 text-foreground">
+                      <Trophy size={13} className="text-gold-text" /> Boutique Kènè
+                    </p>
+                    <p className="text-xs font-bold text-success">-5% à -10%</p>
+                    <p className="text-[10px] text-muted-foreground">Remises exclusives adhérentes</p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -426,20 +474,67 @@ export function PlanScreen() {
                 </div>
               </div>
 
-              {/* Présentation Formule Mensuelle */}
-              <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-2">
+              {/* Présentation Formule Mensuelle & Tableau des Privilèges */}
+              <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <Crown size={14} className="text-gold-text" />
-                    Formule Privilège Mensuelle
+                    Tableau des privilèges Kènè+
                   </p>
                   <span className="rounded-full bg-gold/20 text-gold-text px-2.5 py-0.5 text-[11px] font-bold">
                     2 500 FCFA / mois
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  Un tarif unique et accessible de <strong>2 500 FCFA / mois</strong> pour bénéficier de tous les avantages de l&apos;application en illimité (bilans dermo-biométriques, Dermo Kènè 24/7 et remises boutiques).
-                </p>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                  <div className="rounded-xl border border-border/50 bg-card p-2.5 space-y-0.5">
+                    <p className="font-bold flex items-center gap-1 text-foreground">
+                      <CauriIcon size={13} className="text-gold-text" /> Bilans de peau
+                    </p>
+                    <p className="text-xs font-bold text-success">⚡ Illimités</p>
+                    <p className="text-[10px] text-muted-foreground">vs 1 seul scan / mois en gratuit</p>
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card p-2.5 space-y-0.5">
+                    <p className="font-bold flex items-center gap-1 text-foreground">
+                      <ShieldAlert size={13} className="text-rose-500" /> Scanner INCI
+                    </p>
+                    <p className="text-xs font-bold text-success">⚡ Illimité</p>
+                    <p className="text-[10px] text-muted-foreground">vs 3 produits / mois en gratuit</p>
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card p-2.5 space-y-0.5">
+                    <p className="font-bold flex items-center gap-1 text-foreground">
+                      <Zap size={13} className="text-gold-text" /> Orbe 3D Vocale
+                    </p>
+                    <p className="text-xs font-bold text-success">👑 Illimité 24/7</p>
+                    <p className="text-[10px] text-muted-foreground">vs 5 vocaux / mois en gratuit</p>
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card p-2.5 space-y-0.5">
+                    <p className="font-bold flex items-center gap-1 text-foreground">
+                      <MessageCircle size={13} className="text-primary" /> Fil SMS / WhatsApp
+                    </p>
+                    <p className="text-xs font-bold text-success">✓ Coaching dermo</p>
+                    <p className="text-[10px] text-muted-foreground">Rappels routines &amp; ordonnance</p>
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card p-2.5 space-y-0.5">
+                    <p className="font-bold flex items-center gap-1 text-foreground">
+                      <TrendingUp size={13} className="text-primary" /> Multi-spectral
+                    </p>
+                    <p className="text-xs font-bold text-success">✓ Inclus</p>
+                    <p className="text-[10px] text-muted-foreground">Suivi d&apos;évolution Avant/Après</p>
+                  </div>
+
+                  <div className="rounded-xl border border-border/50 bg-card p-2.5 space-y-0.5">
+                    <p className="font-bold flex items-center gap-1 text-foreground">
+                      <Trophy size={13} className="text-gold-text" /> Remises Boutique
+                    </p>
+                    <p className="text-xs font-bold text-success">-5% à -10%</p>
+                    <p className="text-[10px] text-muted-foreground">Remises exclusives adhérentes</p>
+                  </div>
+                </div>
               </div>
 
               <ul className="space-y-2.5">
@@ -519,44 +614,49 @@ export function PlanScreen() {
                   <td className="py-2.5 px-2 text-center text-success font-bold">⚡ Illimité</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-2 font-medium">Scanner INCI toxicologique</td>
+                  <td className="py-2.5 px-2 font-medium">Scanner INCI toxicologique (flacons &amp; cosmétiques)</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">3 produits / mois</td>
-                  <td className="py-2.5 px-2 text-center text-success font-bold">⚡ Illimité</td>
+                  <td className="py-2.5 px-2 text-center text-success font-bold">⚡ Illimité (toute la trousse)</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-2 font-medium">Orbe 3D &amp; Consultations vocales</td>
-                  <td className="py-2.5 px-2 text-center text-muted-foreground">5 vocaux / mois</td>
-                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">👑 Illimité 24/7</td>
+                  <td className="py-2.5 px-2 font-medium">Orbe 3D &amp; Consultations vocales Dermo Kènè</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">5 vocaux / mois (texte libre)</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">👑 Illimité 24h/24 &amp; 7j/7</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-2 font-medium">Suivi de l&apos;évolution &amp; multi-spectral</td>
+                  <td className="py-2.5 px-2 font-medium">Fil SMS &amp; WhatsApp : Coaching routine &amp; ordonnance</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">Rappels RDV seuls</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Coaching dermo inclus</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Suivi de l&apos;évolution &amp; courbe d&apos;éclat</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">— Non (données figées)</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Inclus (tactile Avant/Après)</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Visualiseur multi-spectral (taches, sébum, rougeurs)</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">— Non</td>
                   <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Inclus</td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-2 font-medium">Fil WhatsApp &amp; SMS coaching routine</td>
-                  <td className="py-2.5 px-2 text-center text-muted-foreground">Rappels RDV seuls</td>
-                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Coaching beauté</td>
                 </tr>
                 <tr>
                   <td className="py-2.5 px-2 font-medium">Dossier de Peau digital (partage institut)</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">Basique</td>
-                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Fiche 360°</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Fiche 360° complète</td>
                 </tr>
                 <tr>
                   <td className="py-2.5 px-2 font-medium">Remises Boutique Kènè</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">Tarif normal</td>
-                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">-5% à -10%</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ -5% à -10% immédiats</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-2 font-medium">Défis & rituels botaniques personnalisés</td>
+                  <td className="py-2.5 px-2 font-medium">Défis &amp; rituels botaniques personnalisés</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">— Non</td>
                   <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Inclus</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-2 font-medium">Réservation en institut & Boutique en ligne</td>
+                  <td className="py-2.5 px-2 font-medium">Réservation en institut &amp; Boutique en ligne</td>
                   <td className="py-2.5 px-2 text-center text-success font-bold">✓ Inclus</td>
-                  <td className="py-2.5 px-2 text-center text-success font-bold">✓ Inclus</td>
+                  <td className="py-2.5 px-2 text-center text-success font-bold">✓ Inclus (Coupe-file VIP)</td>
                 </tr>
               </tbody>
             </table>
