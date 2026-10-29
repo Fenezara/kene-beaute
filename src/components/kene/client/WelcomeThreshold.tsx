@@ -757,8 +757,8 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                 <section aria-label="Formules et abonnements Kènè">
                   <GlassCard grain className="rounded-[24px] p-4 sm:p-6 lg:p-7 space-y-4 sm:space-y-5">
                     {/* En-tête des tarifs avec sélecteur d'audience */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div>
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      <div className="min-w-0">
                         <Eyebrow>Transparence & Tarifs Kènè</Eyebrow>
                         <h2 className="font-heading text-lg sm:text-xl font-black text-foreground mt-0.5">
                           Des formules adaptées, sans engagement
@@ -768,31 +768,36 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                         </p>
                       </div>
 
-                      {/* Onglets Client vs Pro */}
-                      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60 self-start sm:self-auto shrink-0">
+                      {/* Onglets Client vs Pro - Segmented control responsive anti-débordement */}
+                      <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60 w-full sm:w-auto shrink-0">
                         <button
                           type="button"
                           onClick={() => setPricingTab("client")}
                           className={cn(
-                            "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
+                            "px-3 sm:px-4 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5",
                             pricingTab === "client"
                               ? "k-btn-gold text-primary-foreground shadow-sm"
                               : "text-muted-foreground hover:text-foreground"
                           )}
                         >
-                          🌸 Pour les Clientes
+                          <span>🌸</span>
+                          <span className="truncate">Pour les Clientes</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setPricingTab("pro")}
                           className={cn(
-                            "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
+                            "px-3 sm:px-4 py-2 sm:py-1.5 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5",
                             pricingTab === "pro"
                               ? "k-btn-gold text-primary-foreground shadow-sm"
                               : "text-muted-foreground hover:text-foreground"
                           )}
                         >
-                          🏢 Pour les Instituts (30j offerts)
+                          <span>🏢</span>
+                          <span className="truncate">Instituts</span>
+                          <span className="text-[10px] font-medium opacity-90 px-1.5 py-0.5 rounded-full bg-black/10 dark:bg-white/10 shrink-0">
+                            30j offerts
+                          </span>
                         </button>
                       </div>
                     </div>
