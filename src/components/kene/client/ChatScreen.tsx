@@ -882,8 +882,10 @@ export function ChatScreen() {
       stopBrowserVoice();
       if (messageId) setPlayingMsgId(messageId);
 
+      const cleanText = text.replace(/\[CHIPS:\s*[^\]]+\]/gi, "").trim();
+
       void playSpeech({
-        text,
+        text: cleanText,
         speed: 1,
         lang: "fr",
         onStart: () => {
@@ -1617,7 +1619,7 @@ export function ChatScreen() {
               )}
 
               {orderedMessages.map((m, idx) => {
-                const isNewestCard = threadOrder === "newest-first" && idx === 0;
+                const isNewestCard = threadOrder === "newest-first" ? idx === 0 : idx === orderedMessages.length - 1;
                 if (m.role === "user") {
                   return (
                     <motion.div key={m.id} initial={{ opacity: 0, y: 8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="self-end max-w-[85%]">

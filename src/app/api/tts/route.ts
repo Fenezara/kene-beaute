@@ -47,6 +47,7 @@ function fnv1a(s: string): string {
 /** Nettoyage et humanisation du texte pour une diction chaleureuse et fluide */
 function cleanTextForSpeech(raw: string): string {
   return raw
+    .replace(/\[CHIPS:\s*[^\]]+\]/gi, "")
     .replace(/```[a-z]*\n?/gi, "")
     .replace(/```/g, "")
     .replace(/[•\-\*#_]/g, " ")

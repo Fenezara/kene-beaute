@@ -469,10 +469,20 @@ export function generateDrKeneKnowledgeReply(
 
   // 2b. BOUTONS DE RASAGE / FOLLICULITE / BARBE (Spécifique Homme & Barbe)
   if (/rasage|barbe|poil.*incarn|bouton.*barbe|folliculite|apres[- ]rasage|rasoir/.test(text)) {
+    const hasDetails = /lame|tondeuse|savon|huile|creme|apres|depuis|sens/.test(fullContext);
+    if (!hasDetails) {
+      return (
+        `Les boutons et poils incarnés après le rasage (pseudofolliculite) sont très fréquents sur les poils crépus et bouclés : le poil se recourbe sous la peau et crée une inflammation pigmentée.\n\n` +
+        `Pour t'orienter précisément ${addressFriend} : **te rases-tu au rasoir mécanique (combien de lames ?) ou à la tondeuse, et appliques-tu un après-rasage ou de l'alcool ?**\n\n` +
+        `[CHIPS: Rasoir mécanique | Tondeuse électrique | Après-rasage alcoolisé | Huile ou sans produit]`
+      );
+    }
     return (
-      "Les boutons et poils incarnés au niveau de la barbe (pseudofolliculite) sont très fréquents sur les poils crépus et bouclés : après le rasage, le poil se recourbe et pénètre sous la peau, créant inflammation et taches brunes. " +
-      "Pour apaiser ta peau immédiatement : rase-toi toujours après une douche tiède avec un rasoir à une seule lame (ou une tondeuse de précision à 1 mm), toujours dans le sens de la pousse du poil. " +
-      "Bannis absolument les après-rasages à base d'alcool qui brûlent et noircissent l'épiderme. Applique plutôt un sérum doux apaisant à la niacinamide ou à l'acide azélaïque, puis une noisette de pur gel d'aloka ou d'huile de balanites pour cicatriser."
+      `Voici ton protocole apaisant anti-boutons de rasage ${addressFriend} :\n\n` +
+      `☀️ **Avant & Pendant le rasage :** Rase-toi toujours après une douche tiède. Utilise un rasoir 1 lame ou une tondeuse réglée à 1 mm, STRICTEMENT dans le sens de pousse du poil (jamais à rebrousse-poil).\n` +
+      `🌙 **Après le rasage & Soir :** Bannis rigoureusement l'alcool qui noircit la peau. Applique un sérum apaisant à la niacinamide ou acide azélaïque, puis 3 gouttes d'huile de balanites ou gel d'aloka pour cicatriser.\n` +
+      `🏢 **En institut :** Un soin assainissant haute-fréquence en institut partenaire élimine les bactéries logées dans les follicules.\n\n` +
+      `[CHIPS: Prendre RDV en institut | Commander les soins | Poser une autre question]`
     );
   }
 
@@ -557,20 +567,39 @@ export function generateDrKeneKnowledgeReply(
 
   // 6. DÉPIGMENTATION VOLONTAIRE / DÉCAPAGE
   if (/depigment|decap|eclaircis|tchatcho|hydroquinone|cortico|clobetasol|abim|brul/.test(text)) {
+    const hasDetails = /mois|an|arrete|continue|creme|savon|visage|peau|chauffe|brul/.test(fullContext);
+    if (!hasDetails) {
+      return (
+        `Yako du fond du cœur ${addressFriend}, et merci pour ta confiance. Ici tu es chez toi, avec zéro honte et zéro jugement : on va réparer ta peau ensemble pas à pas.\n\n` +
+        `Pour adapter le protocole de sevrage : **depuis combien de temps as-tu utilisé ces produits, et ta peau chauffe-t-elle ou tiraille-t-elle actuellement ?**\n\n` +
+        `[CHIPS: Depuis quelques mois | Depuis plusieurs années | Ça brûle & tiraille | Peau rouge & amincie]`
+      );
+    }
     return (
-      `Yako du fond du cœur ${addressFriend}, et merci pour ta confiance. Ici tu es chez toi, zéro honte et zéro jugement : on répare ta peau ensemble pas à pas. ` +
-      "Quand on arrête les produits décapants, la peau peut chauffer ou tirailler, c'est l'étape normale de sevrage et de reconstruction. " +
-      "Nourris-la matin et soir avec du pur beurre de karité brut non raffiné et de l'huile de baobab pour reconstituer la barrière lipidique. " +
-      "Protège-toi impérativement du soleil avec un écran SPF 50+, et viens faire le point en institut partenaire Kènè pour un protocole apaisant."
+      `Yako ${addressFriend}. Voici ton protocole dermo-réparateur et protecteur de barrière cutanée :\n\n` +
+      `☀️ **Le Matin :** Nettoyage à l'eau florale ou nettoyant physiologique sans savon, hydratation relipidante au beurre de karité pur non raffiné mélangé à 2 gouttes d'huile de baobab, et écran solaire SPF 50+ obligatoire (ta peau étant privée de ses défenses naturelles).\n` +
+      `🌙 **Le Soir :** Démaquillage ultra-doux au doigt sans frotter avec de l'huile de baobab, couche généreuse de karité brut de Korhogo pour sceller la régénération nocturne.\n` +
+      `🚫 **À bannir :** Tout acide fort, gommage ou savon antiseptique qui enflammerait l'épiderme en sevrage.\n\n` +
+      `[CHIPS: Prendre RDV en institut | Commander les soins | Poser une autre question]`
     );
   }
 
   // 7. PEAU SÈCHE / TIRAILLEMENTS / HARMATTAN
   if (/sech|seche|tirail|deshydrat|pele|harmattan|rugueu|cendre/.test(text)) {
+    const hasDetails = /karite|creme|eau|savon|huile|matin|soir|douche/.test(fullContext);
+    if (!hasDetails) {
+      return (
+        `Avec l'eau calcaire, la climatisation ou l'harmattan, la peau mélanoderme perd rapidement son eau et prend un reflet gris cendré caractéristique.\n\n` +
+        `Pour cibler ta routine nutritive : **ressens-tu des tiraillements surtout après la douche, et qu'appliques-tu actuellement pour nourrir ta peau ?**\n\n` +
+        `[CHIPS: Tiraillements après douche | Reflet gris cendré | Beurre de karité brut | Aucune crème hydratante]`
+      );
+    }
     return (
-      "Avec l'harmattan ou la climatisation, notre peau mélanoderme perd rapidement son eau et prend un reflet gris cendré. " +
-      "Pour retrouver un confort immédiat, lave-toi à l'eau tiède et, dès la sortie de la douche pendant que ta peau est encore humide, scelle cette hydratation avec une noisette de pur beurre de karité tiédi dans tes mains ou de l'huile de baobab. " +
-      "Bois aussi beaucoup d'eau dans la journée, et tu verras ton teint retrouver tout son éclat naturel."
+      `Voici ton protocole grand confort pour réparer ton film hydrolipidique ${addressFriend} :\n\n` +
+      `☀️ **Le Matin :** Évite de laver ton visage à l'eau calcaire pure (privilégie une brume d'aloka), puis applique une émulsion hydratante scellée par 2 gouttes d'huile pure de baobab ou de moringa.\n` +
+      `🌙 **Le Soir :** Sur peau encore légèrement humide après la toilette, applique une noisette de pur beurre de karité brut chauffé entre tes paumes. La peau absorbe immédiatement les acides gras.\n` +
+      `💧 **Geste quotidien :** Boire au moins 1,5 L d'eau par jour.\n\n` +
+      `[CHIPS: Prendre RDV en institut | Commander les soins | Poser une autre question]`
     );
   }
 
@@ -602,12 +631,23 @@ export function generateDrKeneKnowledgeReply(
     );
   }
 
-  // ROUTINE PAR DÉFAUT
+  // ROUTINE PAR DÉFAUT / ANAMNÈSE GÉNÉRALE
+  const hasDetails = /mois|semaine|an|depuis|savon|creme|mal|gratt|routine|visage|zone/.test(fullContext);
+  if (!hasDetails && text.length > 12) {
+    return (
+      `Je t'écoute avec grand intérêt ${addressFriend}. Sur notre peau mélanoderme, chaque détail compte pour poser la bonne routine dermo-cosmétique.\n\n` +
+      `Pour que je puisse t'orienter au mieux : **depuis combien de temps constates-tu cela, et quels produits ou savons appliques-tu actuellement sur cette zone ?**\n` +
+      `Tu peux aussi me partager une photo nette en cliquant sur le bouton 📷.\n\n` +
+      `[CHIPS: Moins d'un mois | Depuis longtemps | Ça gratte ou tiraille | Pas de douleur]`
+    );
+  }
+
   return (
-    `Pour prendre soin de ta peau avec amour et efficacité, voici la règle d'or pour nous à Abidjan : ` +
+    `Pour prendre soin de ta peau avec amour et efficacité ${addressFriend}, voici la règle d'or pour nous à Abidjan : ` +
     "un nettoyage doux sans savon matin et soir, une bonne hydratation avec un soin léger ou quelques gouttes d'huile végétale pure, " +
     "et un écran solaire SPF 50 tous les matins pour te protéger du rayonnement intense. " +
-    "Dis-moi ce qui préoccupe ta peau en ce moment, et on avance ensemble pas à pas 🌿."
+    "Dis-moi ce qui préoccupe ta peau en ce moment, et on avance ensemble pas à pas 🌿.\n\n" +
+    `[CHIPS: Routine éclat du teint | Problème de boutons | Taches sombres | Prendre RDV en institut]`
   );
 }
 
