@@ -1,5 +1,5 @@
 // Kènè — Abonnements & monétisation (lib serveur,).
-// Plans: cliente « Kènè+ » (2 500 FCFA/mois — diagnostics illimités, suivi
+// Plans: cliente « Kènè+ » (25 000 FCFA/mois — diagnostics illimités, suivi
 // évolution, Dermo Kènè prioritaire, défis routines); pro « Essentiel »
 // (15 000 FCFA/mois — RDV, clients, catalogue, boutique) et « Complexe »
 // (45 000 FCFA/mois — + paie CNPS/IPM, comptabilité SYSCOHADA,
@@ -44,24 +44,24 @@ export const PLAN_DEFS: readonly PlanDef[] = [
     audience: "client",
     name: "Kènè+",
     tagline: "Le rituel beauté mélanoderme complet, sans limite",
-    priceFcfa: 5000,
-    minPriceFcfa: 2500,
+    priceFcfa: 25000,
+    minPriceFcfa: 25000,
     trialDays: 30,
     tiers: [
       { month: 0, priceFcfa: 0, label: "Mois Découverte (30j offerts)" },
-      { month: 1, priceFcfa: 5000, label: "Mois 1 · L'Initiée" },
-      { month: 2, priceFcfa: 4500, label: "Mois 2 · L'Adepte" },
-      { month: 3, priceFcfa: 4000, label: "Mois 3 · L'Ambassadrice" },
-      { month: 4, priceFcfa: 3500, label: "Mois 4 · L'Étoffe d'Or" },
-      { month: 5, priceFcfa: 3000, label: "Mois 5 · La Favorite" },
-      { month: 6, priceFcfa: 2500, label: "Mois 6+ · Le Cercle Royal (à vie)" },
+      { month: 1, priceFcfa: 25000, label: "Abonnement Mensuel" },
+      { month: 2, priceFcfa: 25000, label: "Abonnement Mensuel" },
+      { month: 3, priceFcfa: 25000, label: "Abonnement Mensuel" },
+      { month: 4, priceFcfa: 25000, label: "Abonnement Mensuel" },
+      { month: 5, priceFcfa: 25000, label: "Abonnement Mensuel" },
+      { month: 6, priceFcfa: 25000, label: "Abonnement Mensuel" },
     ],
     perks: [
       "1er mois 100% gratuit avec accès complet à toutes les fonctionnalités",
       "Bilans dermo-biométriques illimités (visage, dos, mains, cuir chevelu)",
       "Dermo Kènè illimitée 24h/24 & 7j/7 par texte et notes vocales",
       "Visualiseur multi-spectral & comparatif tactile Avant/Après",
-      "Tarif dégressif à la fidélité : descend de 5 000 F à 2 500 F/mois",
+      "Formule tout inclus sans engagement : 25 000 FCFA / mois",
       "Remises de 5% à 10% sur toute la Boutique Kènè",
       "Coupe-file et accueil VIP dans les instituts partenaires",
     ],

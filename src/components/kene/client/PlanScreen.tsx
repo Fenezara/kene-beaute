@@ -1,5 +1,5 @@
 "use client";
-// Kènè Cliente — Abonnement: offres Kènè+ (2 500 FCFA/mois) et
+// Kènè Cliente — Abonnement: offres Kènè+ (25 000 FCFA/mois) et
 // état du quota diagnostics (gratuit = 1/mois, Kènè+ = illimité).
 // Paiement mobile money SIMULÉ: le Sheet d'activation propose Wave / Orange
 // Money / MTN MoMo en pastilles texte stylées (aucune image externe) et
@@ -80,24 +80,24 @@ const DEFAULT_PLUS_DEF: ApiPlanDef = {
   audience: "client",
   name: "Kènè+",
   tagline: "L'intelligence dermo-cosmétique illimitée pour sublimer votre peau",
-  priceFcfa: 5000,
-  minPriceFcfa: 2500,
+  priceFcfa: 25000,
+  minPriceFcfa: 25000,
   trialDays: 30,
   tiers: [
     { month: 0, priceFcfa: 0, label: "Mois Découverte (30j offerts)" },
-    { month: 1, priceFcfa: 5000, label: "Mois 1" },
-    { month: 2, priceFcfa: 4500, label: "Mois 2" },
-    { month: 3, priceFcfa: 4000, label: "Mois 3" },
-    { month: 4, priceFcfa: 3500, label: "Mois 4" },
-    { month: 5, priceFcfa: 3000, label: "Mois 5" },
-    { month: 6, priceFcfa: 2500, label: "Mois 6+ (à vie)" },
+    { month: 1, priceFcfa: 25000, label: "Abonnement Mensuel" },
+    { month: 2, priceFcfa: 25000, label: "Abonnement Mensuel" },
+    { month: 3, priceFcfa: 25000, label: "Abonnement Mensuel" },
+    { month: 4, priceFcfa: 25000, label: "Abonnement Mensuel" },
+    { month: 5, priceFcfa: 25000, label: "Abonnement Mensuel" },
+    { month: 6, priceFcfa: 25000, label: "Abonnement Mensuel" },
   ],
   perks: [
     "1er mois 100% gratuit avec accès complet à toutes les fonctionnalités",
     "Diagnostics dermo-biométriques illimités (visage, dos, mains)",
     "Dermo Kènè illimitée 24h/24 & 7j/7 (texte et notes vocales)",
     "Comparatif tactile Avant/Après & visualiseur multi-spectral",
-    "Tarif dégressif à la fidélité : descend de 5 000 F à 2 500 F/mois",
+    "Formule tout inclus sans engagement : 25 000 FCFA / mois",
     "Remises exclusives de 5% à 10% sur toute la Boutique",
     "Coupe-file et accueil VIP dans les instituts partenaires",
   ],
@@ -145,7 +145,7 @@ export function PlanScreen() {
   const isPlus = data?.plan === "kene_plus";
   const quota = data?.quota ?? { quota: 1, used: 0, remaining: 1, plan: "gratuit" };
 
-  const currentChargePrice = plusDef?.nextTierPrice ?? (data?.loyalty?.nextTierPrice || plusDef?.priceFcfa || 5000);
+  const currentChargePrice = plusDef?.nextTierPrice ?? (data?.loyalty?.nextTierPrice || plusDef?.priceFcfa || 25000);
 
   /** Confirme l'activation ou le renouvellement → POST activate/renew → passerelle ou succès. */
   async function confirmPayment() {
@@ -306,12 +306,12 @@ export function PlanScreen() {
                     ? `Offert par votre institut (${data.subscription.perkLabel || "Institut Partenaire"}) · Diagnostics & soins personnels illimités`
                     : data.subscription.source === "welcome_trial"
                     ? "30 jours offerts pour explorer tous les privilèges sans limite"
-                    : `${plusDef.tagline} · Tarif fidélité : ${xof(currentChargePrice)}/mois`}
+                    : `${plusDef.tagline} · Formule : 25 000 FCFA / mois`}
                 </p>
               </div>
             </div>
 
-            {/* Échelle de Fidélité Dégressive ou Avantage Collaboratrice */}
+            {/* Formule Privilège ou Avantage Collaboratrice */}
             {data.subscription.source === "employee_perk" ? (
               <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-2">
                 <div className="flex items-center gap-2">
@@ -323,45 +323,20 @@ export function PlanScreen() {
                 </p>
               </div>
             ) : (
-              <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-3">
+              <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <Crown size={14} className="text-gold-text" />
-                    Échelle de fidélité dégressive (5 000 F → 2 500 F)
+                    Formule Privilège Kènè+
                   </p>
-                  <span className="rounded-full bg-gold/15 text-gold-text px-2 py-0.5 text-[10px] font-bold">
+                  <span className="rounded-full bg-gold/15 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">
                     {data.subscription.source === "welcome_trial"
-                      ? "Mois Découverte actif"
-                      : `Palier Mois ${(data.loyalty?.consecutiveMonths ?? 0) + 1}`}
+                      ? "Pass Découverte actif"
+                      : "25 000 FCFA / mois"}
                   </span>
                 </div>
-
-                {/* Paliers visuels */}
-                <div className="grid grid-cols-6 gap-1.5 pt-1">
-                  {plusDef.tiers.filter((t) => t.month > 0).map((tier) => {
-                    const currentM = data.loyalty?.consecutiveMonths ?? 0;
-                    const isReached = currentM >= tier.month;
-                    const isNext = currentM + 1 === tier.month;
-                    return (
-                      <div
-                        key={tier.month}
-                        className={`rounded-xl p-2 text-center border transition-all ${
-                          isReached
-                            ? "bg-gold/20 border-gold/60 text-gold-text shadow-sm"
-                            : isNext
-                            ? "bg-background border-gold/40 text-foreground ring-1 ring-gold/40"
-                            : "bg-muted/20 border-border/40 text-muted-foreground opacity-60"
-                        }`}
-                      >
-                        <p className="text-[10px] font-bold">M{tier.month}</p>
-                        <p className="text-[11px] font-black font-mono">{tier.priceFcfa / 1000}k</p>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <p className="text-[10.5px] text-muted-foreground leading-snug">
-                  🌿 <strong>Règle de continuité :</strong> chaque mois payé réduit votre tarif de 500 F jusqu'à <strong>2 500 F/mois à vie</strong>. En cas de mois sauté sans paiement (+5 jours de grâce Mobile Money), le tarif redémarre au Mois 1 (5 000 F).
+                <p className="text-[11.5px] text-muted-foreground leading-relaxed">
+                  🌿 <strong>Accès dermo-esthétique illimité :</strong> scans de peau sans restriction, visualiseur multi-spectral, suivi tactile et accompagnement 24/7 par Dermo Kènè.
                 </p>
               </div>
             )}
@@ -449,22 +424,19 @@ export function PlanScreen() {
                 </div>
               </div>
 
-              {/* Échelle dégressive */}
-              <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-2.5">
-                <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                  <Crown size={14} className="text-gold-text" />
-                  Tarif dégressif à la fidélité (5 000 F → 2 500 F/mois)
-                </p>
-                <div className="grid grid-cols-6 gap-1.5 pt-1">
-                  {plusDef.tiers.filter((t) => t.month > 0).map((tier) => (
-                    <div key={tier.month} className="rounded-xl p-2 text-center border bg-card border-border/60">
-                      <p className="text-[10px] font-bold text-muted-foreground">M{tier.month}</p>
-                      <p className="text-[11px] font-black font-mono text-gold-text">{tier.priceFcfa / 1000}k</p>
-                    </div>
-                  ))}
+              {/* Présentation Formule Mensuelle */}
+              <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Crown size={14} className="text-gold-text" />
+                    Formule Privilège Mensuelle
+                  </p>
+                  <span className="rounded-full bg-gold/20 text-gold-text px-2.5 py-0.5 text-[11px] font-bold">
+                    25 000 FCFA / mois
+                  </span>
                 </div>
-                <p className="text-[10.5px] text-muted-foreground leading-snug">
-                  Chaque mois renouvelé réduit votre tarif de 500 F jusqu'à <strong>2 500 F/mois à vie</strong>. Si un mois est sauté (+5j de tolérance), retour au tarif Mois 1.
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Un tarif unique et transparent de <strong>25 000 FCFA / mois</strong> pour bénéficier de tous les avantages de l&apos;application en illimité (bilans dermo-biométriques, Dermo Kènè 24/7 et remises boutiques).
                 </p>
               </div>
 
@@ -486,7 +458,6 @@ export function PlanScreen() {
                 <p className="flex items-baseline gap-1.5">
                   <span className="font-mono font-black text-3xl tabular-nums text-gold-text">{currentChargePrice.toLocaleString("fr-FR")}</span>
                   <span className="text-xs font-semibold text-muted-foreground">FCFA / mois</span>
-                  <span className="ml-auto text-xs text-muted-foreground line-through">5 000 FCFA</span>
                 </p>
 
                 <button
@@ -500,7 +471,7 @@ export function PlanScreen() {
                   <Crown size={16} /> Activer Kènè+ ({xof(currentChargePrice)})
                 </button>
                 <p className="mt-2 text-center text-[10px] text-muted-foreground">
-                  Paiement sécurisé par Mobile Money (Wave, Orange, MTN, Moov) & Carte via SasPay/WiniPayer.
+                  Paiement sécurisé par Mobile Money (Wave, Orange, MTN, Moov) & Carte bancaire.
                 </p>
               </div>
             </div>
@@ -536,9 +507,9 @@ export function PlanScreen() {
                   <td className="py-2.5 px-2 text-center text-success font-bold">🎁 30j offerts (0 F)</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-2 font-medium">Tarif fidélité dégressif</td>
-                  <td className="py-2.5 px-2 text-center text-muted-foreground">0 F à vie</td>
-                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">5 000 F → 2 500 F/m</td>
+                  <td className="py-2.5 px-2 font-medium">Tarif mensuel</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">0 F</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">25 000 FCFA / mois</td>
                 </tr>
                 <tr>
                   <td className="py-2.5 px-2 font-medium">Bilan de peau par photo</td>
@@ -591,8 +562,8 @@ export function PlanScreen() {
           </div>
           <div className="k-card rounded-2xl p-3 text-center space-y-1">
             <ShieldCheck size={16} className="mx-auto text-terre" />
-            <p className="text-[11px] font-bold">Tarif dégressif</p>
-            <p className="text-[9px] text-muted-foreground">Descend jusqu'à 2 500 F à vie</p>
+            <p className="text-[11px] font-bold">Sans engagement</p>
+            <p className="text-[9px] text-muted-foreground">25 000 FCFA / mois · Liberté totale</p>
           </div>
         </div>
       </RevealItem>
@@ -611,15 +582,15 @@ export function PlanScreen() {
               </p>
             </div>
             <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
-              <p className="font-bold text-foreground">Comment fonctionne le mois gratuit et le tarif dégressif de 5 000 F à 2 500 F ?</p>
+              <p className="font-bold text-foreground">Comment fonctionne l&apos;abonnement Kènè+ à 25 000 FCFA / mois ?</p>
               <p className="text-muted-foreground leading-relaxed">
-                Votre tout 1er mois est <strong>100% offert (30 jours, 0 FCFA)</strong> pour explorer tous les privilèges. Ensuite, votre 1er mois payé débute à 5 000 FCFA, le 2e passe à 4 500 FCFA, et ainsi de suite de -500 FCFA par mois jusqu'au 6e mois où votre tarif devient <strong>2 500 FCFA/mois à vie</strong> tant que vous renouvelez sans interruption (avec 5 jours de tolérance Mobile Money).
+                Votre tout 1er mois est <strong>100% offert (Pass Découverte 30 jours, 0 FCFA)</strong> pour explorer tous les privilèges sans limite. Ensuite, l&apos;abonnement est à tarif fixe de <strong>25 000 FCFA par mois</strong> sans aucun prélèvement automatique imposé. Vous renouvelez chaque mois en toute simplicité par Mobile Money (Wave, Orange, MTN, Moov) ou Carte bancaire.
               </p>
             </div>
             <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
-              <p className="font-bold text-foreground">Que se passe-t-il si je saute un mois sans payer ?</p>
+              <p className="font-bold text-foreground">Que se passe-t-il si je ne renouvelle pas mon abonnement ?</p>
               <p className="text-muted-foreground leading-relaxed">
-                Si vous ne renouvelez pas dans les 5 jours suivant l'échéance, la continuité de fidélité est interrompue. Votre compte repasse en mode gratuit sans frais. Lorsque vous choisirez de vous réabonner, le tarif redémarrera au Mois 1 (5 000 FCFA).
+                Si vous ne renouvelez pas à la fin des 30 jours, votre compte repasse en mode gratuit sans aucun frais ni pénalité. Vos diagnostics passés, fiches et photos restent précieusement sauvegardés. Vous pourrez réactiver Kènè+ à 25 000 FCFA quand vous le souhaitez.
               </p>
             </div>
           </div>
