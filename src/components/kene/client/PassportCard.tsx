@@ -104,8 +104,15 @@ export function PassportCard({ userId }: { userId: string }) {
         <SectionTitle icon={<QrCode size={16} />}>
           <span id="pp-t">Passeport de Peau</span>
         </SectionTitle>
-        <div className="k-card rounded-[24px] p-4">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+        <div className="k-solar-glass relative overflow-hidden rounded-[24px] p-4">
+          <div
+            aria-hidden="true"
+            className="k-aura-glow absolute -top-12 -right-12 h-40 w-40 rounded-full"
+            style={{
+              background: "radial-gradient(circle, rgba(212,154,36,0.58) 0%, rgba(158,32,69,0.25) 55%, transparent 75%)",
+            }}
+          />
+          <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-4">
             {/* QR — encart crème scannable (contraste AA + quiet zone) */}
             <div
               ref={qrBox}

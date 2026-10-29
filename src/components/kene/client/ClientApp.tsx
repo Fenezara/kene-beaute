@@ -836,12 +836,12 @@ export function ClientApp() {
           </div>
         </div>
 
-        {/* ───────── Tab-bar mobile flottante — calibrée pour Android 320px-360px (1 ligne stricte, zéro débordement) ───────── */}
+        {/* ───────── Tab-bar mobile flottante « Capsule Bijou » — calibrée pour Android 320px-360px (1 ligne stricte, zéro débordement) ───────── */}
         <nav
           aria-label="Navigation principale mobile"
           className="md:hidden absolute inset-x-0 bottom-0 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]"
         >
-          <div className="pointer-events-auto mx-2 sm:mx-3 mb-2 px-1 grid grid-cols-5 h-[64px] items-center rounded-[28px] bg-card/90 backdrop-blur-2xl border border-gold/40 shadow-xl shadow-black/15 relative overflow-hidden before:absolute before:inset-0 before:rounded-[28px] before:pointer-events-none before:border before:border-white/20 dark:before:border-white/5">
+          <div className="pointer-events-auto mx-2.5 sm:mx-3.5 mb-2.5 px-1.5 grid grid-cols-5 h-[66px] items-center rounded-[30px] k-capsule-dock relative overflow-visible">
             {NAV_MOBILE.map((n) => {
               const active = tab === n.tab;
               const Icon = n.icon;
@@ -856,13 +856,13 @@ export function ClientApp() {
                   >
                     <span
                       className={cn(
-                        "grid place-items-center h-[46px] w-[46px] -mt-6 rounded-full border-4 border-background transition-all active:scale-95 shrink-0 shadow-lg shadow-gold/25 ring-2 ring-gold/50",
+                        "grid place-items-center h-[48px] w-[48px] -mt-7 rounded-full border-[3.5px] border-background transition-all active:scale-95 shrink-0 shadow-[0_10px_24px_-4px_rgba(212,154,36,0.55),inset_0_2px_3px_rgba(255,255,255,0.55)] ring-2 ring-gold/60",
                         "bg-gradient-to-br from-gold via-primary to-bissap text-white",
                       )}
                     >
                       <NeaOnnimIcon size={21} />
                     </span>
-                    <span className={cn("text-[10px] sm:text-[11px] leading-none whitespace-nowrap truncate max-w-full px-0.5 mt-1", active ? "text-primary font-bold" : "text-muted-foreground font-semibold")}>
+                    <span className={cn("text-[10px] sm:text-[11px] leading-none whitespace-nowrap truncate max-w-full px-0.5 mt-1", active ? "text-primary font-extrabold" : "text-muted-foreground font-semibold")}>
                       {t(n.labelKey)}
                     </span>
                   </button>
@@ -879,19 +879,19 @@ export function ClientApp() {
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 >
-                  <span className="relative grid place-items-center rounded-full p-1 shrink-0">
-                    {/* Blob actif — pastille or translucide qui glisse entre les onglets */}
+                  <span className="relative grid place-items-center rounded-2xl px-2.5 py-1 shrink-0">
+                    {/* Blob actif — pastille 3D gel ambré qui glisse entre les onglets */}
                     {active && (
                       <motion.span
                         layoutId="nav-blob"
                         transition={{ type: "spring", stiffness: 420, damping: 32 }}
-                        className="absolute inset-0 rounded-full bg-primary/18"
+                        className="absolute inset-0 rounded-2xl bg-gradient-to-b from-gold/25 to-primary/18 border border-gold/40 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.7),0_3px_8px_rgba(212,154,36,0.2)]"
                         aria-hidden="true"
                       />
                     )}
                     <Icon className="relative size-[20px] sm:size-[22px]" />
                   </span>
-                  <span className={cn("text-[10px] sm:text-[11px] leading-none tracking-tight whitespace-nowrap truncate w-full text-center", active ? "font-bold text-primary" : "font-semibold")}>
+                  <span className={cn("text-[10px] sm:text-[11px] leading-none tracking-tight whitespace-nowrap truncate w-full text-center", active ? "font-extrabold text-primary" : "font-semibold")}>
                     {t(n.labelKey)}
                   </span>
                 </button>
@@ -934,19 +934,19 @@ export function ClientApp() {
             </button>
           </div>
 
-          {/* Actions rapides */}
+          {/* Actions rapides — Galets 3D Céramique Karité */}
           <div className="grid grid-cols-2 gap-3">
             <button onClick={() => goTab("diagnostic")} className="k-cta rounded-[24px] text-[#FFF9EC] p-3.5 text-left focus-visible:outline-2 focus-visible:outline-primary" aria-label={t("home.scan.cta")}>
               <NeaOnnimIcon size={20} />
               <p className="text-xs font-bold mt-1.5 leading-tight">Scanner<br />ma peau</p>
             </button>
-            <button onClick={() => goTab("chat")} className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary" aria-label="Dermo Kènè — Dermo-Conseil IA">
+            <button onClick={() => goTab("chat")} className="k-ceramic-tile rounded-[24px] p-3.5 text-left focus-visible:outline-2 focus-visible:outline-primary" aria-label="Dermo Kènè — Dermo-Conseil IA">
               <MessageCircle size={20} className="text-primary" />
               <p className="text-xs font-bold mt-1.5 leading-tight text-foreground/90">Dermo Kènè<br />Conseil IA</p>
             </button>
             <button
               onClick={() => goTab("agenda")}
-              className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-primary/20 bg-primary/5"
+              className="k-ceramic-tile rounded-[24px] p-3.5 text-left focus-visible:outline-2 focus-visible:outline-primary"
               aria-label="Mon Agenda & Tous mes Rendez-vous"
             >
               <CalendarDays size={20} className="text-gold-text" />
@@ -954,7 +954,7 @@ export function ClientApp() {
             </button>
             <button
               onClick={() => goTab("profil")}
-              className="k-card k-card-hover rounded-[24px] p-3.5 text-left active:scale-[0.97] transition-transform focus-visible:outline-2 focus-visible:outline-primary border-primary/20 bg-card"
+              className="k-ceramic-tile rounded-[24px] p-3.5 text-left focus-visible:outline-2 focus-visible:outline-primary"
               aria-label="Partager avec mes instituts"
             >
               <Share2 size={20} className="text-primary" />

@@ -520,92 +520,265 @@
     display: none;
   }
 
-  /* 2) Surfaces verre 2.0 — nacre ambrée & translucidité chaleureuse */
+  /* 2) Surfaces Céramique Karité 3D & Verre Solaire 2026 — nacre ambrée, relief coussiné & réfraction d'or */
   .k-card {
     background:
-      linear-gradient(160deg, color-mix(in srgb, #FFFDF8 6%, transparent) 0%, transparent 34%),
-      color-mix(in srgb, var(--card) 82%, transparent);
-    border: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
+      linear-gradient(155deg, color-mix(in srgb, #FFFFFF 45%, var(--card)) 0%, color-mix(in srgb, var(--card) 92%, transparent) 100%);
+    border: 1px solid color-mix(in srgb, var(--gold) 24%, color-mix(in srgb, var(--foreground) 8%, transparent));
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #FFFDF8 35%, transparent),
-      0 1px 2px rgba(24, 18, 12, 0.05),
-      0 18px 44px -18px rgba(24, 18, 12, 0.18);
+      inset 0 2px 3px rgba(255, 255, 255, 0.90),
+      inset 0 -2.5px 5px rgba(178, 90, 56, 0.08),
+      0 10px 26px -10px rgba(24, 18, 12, 0.11),
+      0 2px 5px rgba(24, 18, 12, 0.04);
   }
-  /* Hover desktop — élévation douce (transform + ombre renforcée) */
+  .dark .k-card {
+    background:
+      linear-gradient(155deg, color-mix(in srgb, #FFF9EC 6%, var(--card)) 0%, color-mix(in srgb, var(--card) 92%, transparent) 100%);
+    border-color: color-mix(in srgb, var(--gold) 24%, rgba(255, 255, 255, 0.07));
+    box-shadow:
+      inset 0 1.5px 2px rgba(255, 238, 200, 0.13),
+      inset 0 -2px 5px rgba(0, 0, 0, 0.45),
+      0 14px 32px -10px rgba(0, 0, 0, 0.52),
+      0 2px 6px rgba(0, 0, 0, 0.30);
+  }
+  /* Hover desktop — élévation coussinée 3D (transform + liseré d'or + ombre ambrée) */
   .k-card-hover {
-    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease;
   }
   @media (hover: hover) and (pointer: fine) {
     .k-card-hover:hover {
       transform: translateY(-3px);
+      border-color: color-mix(in srgb, var(--gold) 48%, transparent);
       box-shadow:
-        inset 0 1px 0 color-mix(in srgb, #FFFDF8 35%, transparent),
-        0 2px 4px rgba(24, 18, 12, 0.06),
-        0 26px 60px -20px rgba(24, 18, 12, 0.26);
+        inset 0 2px 4px rgba(255, 255, 255, 0.95),
+        inset 0 -2.5px 5px rgba(212, 154, 36, 0.12),
+        0 20px 44px -14px rgba(212, 154, 36, 0.18),
+        0 4px 10px rgba(24, 18, 12, 0.07);
+    }
+    .dark .k-card-hover:hover {
+      box-shadow:
+        inset 0 1.5px 3px rgba(255, 238, 200, 0.20),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.50),
+        0 22px 48px -12px rgba(0, 0, 0, 0.65),
+        0 0 18px -4px rgba(229, 169, 60, 0.18);
     }
   }
-  /* Carte « héro » — lueur or solaire interne & souffle de bissap */
+  /* Carte « héro » — lueur or solaire interne, souffle de bissap & dôme spéculaire 3D */
   .k-card-hero {
     background:
-      radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--gold) 13%, transparent) 0%, transparent 52%),
-      radial-gradient(110% 90% at 100% 100%, color-mix(in srgb, var(--hibiscus) 11%, transparent) 0%, transparent 56%),
-      color-mix(in srgb, var(--card) 85%, transparent);
-  }
-  /* Chrome verre (header, nav, sheets) — blur + saturation veloutée */
-  .k-chrome {
-    background: color-mix(in srgb, var(--card) 68%, transparent);
-    -webkit-backdrop-filter: blur(22px) saturate(1.6);
-    backdrop-filter: blur(22px) saturate(1.6);
-    border: 1px solid color-mix(in srgb, var(--foreground) 8%, transparent);
+      radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--gold) 15%, transparent) 0%, transparent 54%),
+      radial-gradient(110% 90% at 100% 100%, color-mix(in srgb, var(--hibiscus) 12%, transparent) 0%, transparent 58%),
+      linear-gradient(160deg, color-mix(in srgb, #FFFFFF 50%, var(--card)) 0%, color-mix(in srgb, var(--card) 92%, transparent) 100%);
+    border: 1px solid color-mix(in srgb, var(--gold) 34%, transparent);
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #FFFDF8 25%, transparent),
-      0 18px 44px -14px rgba(24, 18, 12, 0.35);
+      inset 0 2px 4px rgba(255, 255, 255, 0.92),
+      inset 0 -2.5px 5px rgba(178, 90, 56, 0.10),
+      0 14px 36px -12px rgba(24, 18, 12, 0.15);
+  }
+  .dark .k-card-hero {
+    background:
+      radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--gold) 16%, transparent) 0%, transparent 54%),
+      radial-gradient(110% 90% at 100% 100%, color-mix(in srgb, var(--hibiscus) 13%, transparent) 0%, transparent 58%),
+      linear-gradient(160deg, color-mix(in srgb, #FFF9EC 7%, var(--card)) 0%, color-mix(in srgb, var(--card) 94%, transparent) 100%);
+    box-shadow:
+      inset 0 1.5px 3px rgba(255, 238, 200, 0.16),
+      inset 0 -2px 5px rgba(0, 0, 0, 0.45),
+      0 18px 42px -12px rgba(0, 0, 0, 0.58);
+  }
+  /* Chrome verre & Verre Ambré Solaire (header, nav, rails, KPIs) — réfraction chaude + double biseau spéculaire */
+  .k-chrome,
+  .k-solar-glass {
+    background:
+      linear-gradient(135deg, color-mix(in srgb, #FFFDF9 84%, var(--card)) 0%, color-mix(in srgb, var(--card) 72%, transparent) 55%, color-mix(in srgb, var(--gold) 10%, var(--card)) 100%);
+    -webkit-backdrop-filter: blur(22px) saturate(1.65);
+    backdrop-filter: blur(22px) saturate(1.65);
+    border: 1px solid color-mix(in srgb, var(--gold) 32%, rgba(255, 255, 255, 0.65));
+    box-shadow:
+      inset 0 1.5px 2.5px rgba(255, 255, 255, 0.90),
+      inset 1px 0 2px rgba(212, 154, 36, 0.24),
+      inset 0 -1.5px 3px rgba(158, 32, 69, 0.10),
+      0 14px 36px -12px rgba(24, 18, 12, 0.16),
+      0 2px 6px rgba(24, 18, 12, 0.05);
+  }
+  .dark .k-chrome,
+  .dark .k-solar-glass {
+    background:
+      linear-gradient(135deg, rgba(44, 31, 21, 0.84) 0%, rgba(26, 18, 12, 0.76) 55%, rgba(56, 35, 22, 0.82) 100%);
+    border-color: rgba(229, 169, 60, 0.30);
+    box-shadow:
+      inset 0 1.5px 2px rgba(255, 236, 190, 0.22),
+      inset 1px 0 2px rgba(229, 169, 60, 0.20),
+      inset 0 -1.5px 3px rgba(224, 78, 117, 0.16),
+      0 18px 42px -12px rgba(0, 0, 0, 0.62);
   }
 
-  /* 3) Boutons & actions — Reine Solaire & Bissap Velours */
+  /* 2b) Galet Tactile 3D « Céramique Karité » — tuiles d'action rapide, pavés numériques & cartes interactives */
+  .k-ceramic-tile {
+    position: relative;
+    background:
+      linear-gradient(150deg, color-mix(in srgb, #FFFFFF 65%, var(--card)) 0%, var(--card) 58%, color-mix(in srgb, var(--gold) 9%, var(--card)) 100%);
+    border: 1px solid color-mix(in srgb, var(--gold) 28%, color-mix(in srgb, var(--foreground) 8%, transparent));
+    box-shadow:
+      inset 0 2.5px 3.5px rgba(255, 255, 255, 0.94),
+      inset 0 -2.5px 4.5px rgba(178, 90, 56, 0.11),
+      0 8px 18px -6px rgba(24, 18, 12, 0.10),
+      0 2px 4px rgba(24, 18, 12, 0.04);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .dark .k-ceramic-tile {
+    background:
+      linear-gradient(150deg, rgba(50, 36, 25, 0.95) 0%, rgba(31, 22, 15, 0.95) 60%, rgba(23, 16, 11, 0.98) 100%);
+    border-color: rgba(229, 169, 60, 0.26);
+    box-shadow:
+      inset 0 1.5px 2.5px rgba(255, 235, 195, 0.16),
+      inset 0 -2.5px 5px rgba(0, 0, 0, 0.55),
+      0 10px 22px -6px rgba(0, 0, 0, 0.50);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .k-ceramic-tile:hover {
+      transform: translateY(-2.5px);
+      border-color: color-mix(in srgb, var(--gold) 55%, transparent);
+      box-shadow:
+        inset 0 2.5px 4px rgba(255, 255, 255, 0.98),
+        inset 0 -2.5px 5px rgba(212, 154, 36, 0.15),
+        0 14px 26px -8px rgba(212, 154, 36, 0.20),
+        0 3px 6px rgba(24, 18, 12, 0.06);
+    }
+    .dark .k-ceramic-tile:hover {
+      border-color: rgba(229, 169, 60, 0.50);
+      box-shadow:
+        inset 0 1.5px 3px rgba(255, 235, 195, 0.24),
+        inset 0 -2.5px 5px rgba(0, 0, 0, 0.55),
+        0 14px 28px -6px rgba(0, 0, 0, 0.65),
+        0 0 16px -4px rgba(229, 169, 60, 0.22);
+    }
+  }
+  .k-ceramic-tile:active {
+    transform: translateY(1.5px) scale(0.97);
+    box-shadow:
+      inset 0 2px 5px rgba(24, 18, 12, 0.14),
+      inset 0 -1px 2px rgba(255, 255, 255, 0.6),
+      0 2px 5px rgba(24, 18, 12, 0.06);
+  }
+
+  /* 2c) Dock Flottant « Capsule Bijou » — barre de navigation détachée à réfraction ambrée */
+  .k-capsule-dock {
+    background:
+      linear-gradient(135deg, color-mix(in srgb, #FFFDF9 88%, var(--card)) 0%, color-mix(in srgb, var(--card) 78%, transparent) 100%);
+    -webkit-backdrop-filter: blur(24px) saturate(1.75);
+    backdrop-filter: blur(24px) saturate(1.75);
+    border: 1px solid color-mix(in srgb, var(--gold) 38%, rgba(255, 255, 255, 0.75));
+    box-shadow:
+      inset 0 2px 3px rgba(255, 255, 255, 0.94),
+      inset 0 -2px 4px rgba(178, 90, 56, 0.10),
+      0 18px 38px -8px rgba(24, 18, 12, 0.22),
+      0 4px 12px rgba(212, 154, 36, 0.12);
+  }
+  .dark .k-capsule-dock {
+    background:
+      linear-gradient(135deg, rgba(42, 30, 20, 0.88) 0%, rgba(22, 15, 10, 0.84) 100%);
+    border-color: rgba(229, 169, 60, 0.36);
+    box-shadow:
+      inset 0 1.5px 2.5px rgba(255, 236, 190, 0.22),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.55),
+      0 20px 42px -6px rgba(0, 0, 0, 0.70),
+      0 0 20px -4px rgba(229, 169, 60, 0.16);
+  }
+
+  /* 2d) Aura Cutanée Vivante — halo atmosphérique bio-réactif */
+  .k-aura-glow {
+    pointer-events: none;
+    filter: blur(36px);
+    opacity: 0.42;
+    animation: kenePulseAura 5.5s ease-in-out infinite alternate;
+    transition: background 0.7s ease, opacity 0.5s ease;
+  }
+  .dark .k-aura-glow {
+    opacity: 0.34;
+  }
+  @keyframes kenePulseAura {
+    0% { transform: scale(0.94); opacity: 0.32; }
+    100% { transform: scale(1.08); opacity: 0.52; }
+  }
+
+  /* 3) Boutons & actions — Gel Solaire 3D & Bissap Velours (dôme spéculaire interne) */
   .k-cta {
     background-image: linear-gradient(135deg, var(--gold) 0%, var(--hibiscus) 48%, var(--bissap) 100%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 253, 248, 0.28),
-      0 10px 28px -10px color-mix(in srgb, var(--bissap) 52%, transparent);
-    transition: box-shadow 0.3s ease, transform 0.18s ease, filter 0.3s ease;
+      inset 0 2px 3px rgba(255, 255, 255, 0.45),
+      inset 0 -3px 6px rgba(0, 0, 0, 0.24),
+      0 10px 26px -8px color-mix(in srgb, var(--bissap) 52%, transparent);
+    transition: box-shadow 0.25s ease, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s ease;
   }
-  .k-cta:hover { filter: brightness(1.06); box-shadow: inset 0 1px 0 rgba(255,253,248,.3), 0 16px 38px -12px color-mix(in srgb, var(--bissap) 58%, transparent); }
-  .k-cta:active { transform: scale(0.965); }
+  .k-cta:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 2px 4px rgba(255, 255, 255, 0.55),
+      inset 0 -3px 6px rgba(0, 0, 0, 0.24),
+      0 16px 34px -10px color-mix(in srgb, var(--bissap) 60%, transparent);
+  }
+  .k-cta:active { transform: translateY(1px) scale(0.97); }
   /* Halo doré solaire — pour l'avatar, le CTA scan, éléments focus premium */
   .k-glow-gold {
     box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent),
-      0 8px 24px -6px color-mix(in srgb, var(--gold) 50%, transparent);
+      inset 0 1.5px 2px rgba(255, 255, 255, 0.45),
+      0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent),
+      0 8px 24px -6px color-mix(in srgb, var(--gold) 52%, transparent);
   }
-  /* Bouton primaire plat or solaire & nacre ambrée (AA) */
+  /* Bouton gel 3D or solaire & nacre ambrée (AA) */
   .k-btn-gold {
-    background-image: linear-gradient(160deg, #F3C35C 0%, #D49A24 55%, #B87C12 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 253, 248, 0.35), 0 8px 22px -8px rgba(212, 154, 36, 0.55);
-    transition: box-shadow 0.3s ease, transform 0.18s ease, filter 0.25s ease;
+    background-image: linear-gradient(160deg, #F5CA69 0%, #D49A24 52%, #B57910 100%);
+    box-shadow:
+      inset 0 2px 3px rgba(255, 255, 255, 0.52),
+      inset 0 -3px 5px rgba(120, 72, 4, 0.28),
+      0 8px 22px -6px rgba(212, 154, 36, 0.52);
+    transition: box-shadow 0.25s ease, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s ease;
   }
-  .k-btn-gold:hover { filter: brightness(1.05); }
-  .k-btn-gold:active { transform: scale(0.965); }
+  .k-btn-gold:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+  }
+  .k-btn-gold:active { transform: translateY(1px) scale(0.97); }
 
-  /* Bouton velours de Bissap — puissance douce & élégance */
+  /* Bouton gel 3D velours de Bissap — puissance douce & élégance */
   .k-btn-bissap {
-    background-image: linear-gradient(160deg, #C93B62 0%, #9E2045 60%, #7E1535 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 253, 248, 0.25), 0 8px 22px -8px rgba(158, 32, 69, 0.5);
-    transition: box-shadow 0.3s ease, transform 0.18s ease, filter 0.25s ease;
+    background-image: linear-gradient(160deg, #CF3E66 0%, #9E2045 58%, #791331 100%);
+    box-shadow:
+      inset 0 2px 3px rgba(255, 255, 255, 0.38),
+      inset 0 -3px 5px rgba(64, 6, 24, 0.32),
+      0 8px 22px -6px rgba(158, 32, 69, 0.50);
+    transition: box-shadow 0.25s ease, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s ease;
   }
-  .k-btn-bissap:hover { filter: brightness(1.06); }
-  .k-btn-bissap:active { transform: scale(0.965); }
+  .k-btn-bissap:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
+  .k-btn-bissap:active { transform: translateY(1px) scale(0.97); }
 
-  /* 4) Puces (chips) verre — non sélectionnées translucides, sélectionnées or */
+  /* 4) Puces (chips) galet 3D — non sélectionnées céramique nacrée, sélectionnées or */
   .k-chip {
-    background: color-mix(in srgb, var(--card) 62%, transparent);
-    border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
-    box-shadow: inset 0 1px 0 color-mix(in srgb, #FFF9EC 18%, transparent);
-    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    background:
+      linear-gradient(155deg, color-mix(in srgb, #FFFFFF 55%, var(--card)) 0%, color-mix(in srgb, var(--card) 78%, transparent) 100%);
+    border: 1px solid color-mix(in srgb, var(--gold) 24%, color-mix(in srgb, var(--foreground) 9%, transparent));
+    box-shadow:
+      inset 0 1.5px 2px rgba(255, 255, 255, 0.85),
+      inset 0 -1.5px 3px rgba(178, 90, 56, 0.08),
+      0 3px 8px -2px rgba(24, 18, 12, 0.07);
+    transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1);
     cursor: pointer;
     touch-action: manipulation;
   }
-  .k-chip:active { transform: scale(0.95); }
+  .dark .k-chip {
+    background:
+      linear-gradient(155deg, rgba(46, 33, 22, 0.85) 0%, rgba(28, 20, 14, 0.85) 100%);
+    border-color: rgba(229, 169, 60, 0.22);
+    box-shadow:
+      inset 0 1px 1.5px rgba(255, 236, 190, 0.14),
+      inset 0 -1.5px 3px rgba(0, 0, 0, 0.45),
+      0 4px 10px -2px rgba(0, 0, 0, 0.40);
+  }
+  .k-chip:active { transform: translateY(1px) scale(0.95); }
 
   /* Règle globale pour garantir le curseur main et la réactivité tactile sur tous les boutons */
   button, [role="button"] {
@@ -695,16 +868,28 @@
     100% { background-position: 0% 50%; }
   }
 
-  /* 11) Carte Kaolin purificatrice — céramique argileuse douce */
+  /* 11) Carte Kaolin purificatrice — céramique argileuse douce & relief 3D */
   .kaolin-card {
     background:
-      radial-gradient(130% 100% at 10% 0%, color-mix(in srgb, var(--gold) 8%, transparent) 0%, transparent 45%),
-      radial-gradient(100% 120% at 90% 100%, color-mix(in srgb, var(--terre) 7%, transparent) 0%, transparent 40%),
-      color-mix(in srgb, var(--card) 88%, transparent);
-    border: 1px solid color-mix(in srgb, var(--gold) 26%, transparent);
+      radial-gradient(130% 100% at 10% 0%, color-mix(in srgb, var(--gold) 10%, transparent) 0%, transparent 45%),
+      radial-gradient(100% 120% at 90% 100%, color-mix(in srgb, var(--terre) 8%, transparent) 0%, transparent 40%),
+      linear-gradient(155deg, color-mix(in srgb, #FFFFFF 55%, var(--card)) 0%, color-mix(in srgb, var(--card) 92%, transparent) 100%);
+    border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
     box-shadow:
-      inset 0 1px 0 rgba(255, 249, 236, 0.35),
-      0 4px 20px -6px color-mix(in srgb, var(--melanine) 20%, transparent);
+      inset 0 2px 3.5px rgba(255, 255, 255, 0.90),
+      inset 0 -2px 4px rgba(178, 90, 56, 0.09),
+      0 8px 24px -8px color-mix(in srgb, var(--melanine) 18%, transparent);
+  }
+  .dark .kaolin-card {
+    background:
+      radial-gradient(130% 100% at 10% 0%, rgba(229, 169, 60, 0.10) 0%, transparent 45%),
+      radial-gradient(100% 120% at 90% 100%, rgba(224, 78, 117, 0.08) 0%, transparent 40%),
+      linear-gradient(155deg, rgba(44, 31, 21, 0.94) 0%, rgba(26, 18, 12, 0.94) 100%);
+    border-color: rgba(229, 169, 60, 0.28);
+    box-shadow:
+      inset 0 1.5px 2px rgba(255, 238, 200, 0.14),
+      inset 0 -2px 5px rgba(0, 0, 0, 0.45),
+      0 12px 28px -8px rgba(0, 0, 0, 0.50);
   }
 
   /* 12) Halo d'ambre et de mélanine — chaleur royale */
@@ -872,28 +1057,30 @@
 .k-card-awwwards {
   position: relative;
   background:
-    radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--gold) 9%, transparent) 0%, transparent 50%),
-    radial-gradient(100% 100% at 100% 100%, color-mix(in srgb, var(--terre) 6%, transparent) 0%, transparent 50%),
-    var(--card);
-  border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--border));
+    radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--gold) 10%, transparent) 0%, transparent 50%),
+    radial-gradient(100% 100% at 100% 100%, color-mix(in srgb, var(--terre) 7%, transparent) 0%, transparent 50%),
+    linear-gradient(155deg, color-mix(in srgb, #FFFFFF 55%, var(--card)) 0%, var(--card) 100%);
+  border: 1px solid color-mix(in srgb, var(--gold) 32%, var(--border));
   border-radius: 1.5rem;
   box-shadow:
-    inset 0 1px 0 rgba(255, 253, 248, 0.7),
-    0 12px 32px -10px rgba(24, 18, 12, 0.08),
-    0 2px 6px -1px rgba(24, 18, 12, 0.03);
+    inset 0 2px 3.5px rgba(255, 255, 255, 0.92),
+    inset 0 -2.5px 5px rgba(178, 90, 56, 0.09),
+    0 12px 32px -10px rgba(24, 18, 12, 0.10),
+    0 2px 6px -1px rgba(24, 18, 12, 0.04);
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.28s ease;
 }
 
 .dark .k-card-awwwards {
   background:
-    radial-gradient(120% 100% at 0% 0%, rgba(229, 169, 60, 0.11) 0%, transparent 52%),
-    radial-gradient(100% 100% at 100% 100%, rgba(224, 78, 117, 0.07) 0%, transparent 52%),
-    var(--card);
-  border-color: rgba(229, 169, 60, 0.24);
+    radial-gradient(120% 100% at 0% 0%, rgba(229, 169, 60, 0.12) 0%, transparent 52%),
+    radial-gradient(100% 100% at 100% 100%, rgba(224, 78, 117, 0.08) 0%, transparent 52%),
+    linear-gradient(155deg, rgba(44, 31, 21, 0.96) 0%, var(--card) 100%);
+  border-color: rgba(229, 169, 60, 0.28);
   box-shadow:
-    inset 0 1px 0 rgba(255, 249, 236, 0.08),
-    0 14px 36px -8px rgba(0, 0, 0, 0.48),
-    0 0 0 1px rgba(229, 169, 60, 0.1);
+    inset 0 1.5px 2.5px rgba(255, 238, 200, 0.16),
+    inset 0 -2.5px 5px rgba(0, 0, 0, 0.50),
+    0 14px 36px -8px rgba(0, 0, 0, 0.52),
+    0 0 0 1px rgba(229, 169, 60, 0.10);
 }
 
 .k-card-awwwards::before {

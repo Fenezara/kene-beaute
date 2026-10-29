@@ -68,9 +68,16 @@ export function AdminOverview({
 
   return (
     <div className="space-y-5">
-      {/* 👑 Cockpit Exécutif du Fondateur */}
-      <div className="relative overflow-hidden rounded-2xl border border-gold/40 bg-gradient-to-r from-gold/15 via-gold/5 to-transparent p-4 sm:p-5 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* 👑 Cockpit Exécutif du Fondateur — Verre Solaire & Aura d'Or */}
+      <div className="k-solar-glass relative overflow-hidden rounded-[24px] p-4 sm:p-5">
+        <div
+          aria-hidden="true"
+          className="k-aura-glow absolute -top-12 -right-12 h-44 w-44 rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(212,154,36,0.55) 0%, rgba(158,32,69,0.22) 55%, transparent 75%)",
+          }}
+        />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground shadow-xs">

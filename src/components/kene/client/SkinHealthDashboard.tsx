@@ -258,10 +258,29 @@ export function SkinHealthDashboard({
     setSelectedPillar(p);
   }
 
+  const auraBackground = useMemo(() => {
+    if (globalScore === null) {
+      return "radial-gradient(circle, rgba(212,154,36,0.55) 0%, rgba(178,90,56,0.22) 55%, transparent 75%)";
+    }
+    if (globalScore >= 75) {
+      return "radial-gradient(circle, rgba(46,111,64,0.62) 0%, rgba(212,154,36,0.28) 55%, transparent 75%)";
+    }
+    if (globalScore >= 60) {
+      return "radial-gradient(circle, rgba(212,154,36,0.68) 0%, rgba(178,90,56,0.30) 55%, transparent 75%)";
+    }
+    return "radial-gradient(circle, rgba(158,32,69,0.68) 0%, rgba(217,107,39,0.34) 55%, transparent 75%)";
+  }, [globalScore]);
+
   return (
     <div className={cn("space-y-4", className)}>
-      {/* ───── 1. CARTE PRINCIPALE : BILAN DE SANTÉ CUTANÉE ───── */}
-      <div className="relative overflow-hidden rounded-[22px] sm:rounded-[28px] k-card kaolin-card p-3.5 sm:p-6 border border-[#C8951E]/35 shadow-xl">
+      {/* ───── 1. CARTE PRINCIPALE : BILAN DE SANTÉ CUTANÉE & AURA VIVANTE ───── */}
+      <div className="relative overflow-hidden rounded-[24px] sm:rounded-[28px] k-card kaolin-card p-3.5 sm:p-6 border border-[#C8951E]/40 shadow-xl">
+        {/* Aura Cutanée Vivante — halo bio-réactif qui respire selon le score de la peau */}
+        <div
+          aria-hidden="true"
+          className="k-aura-glow absolute -top-16 -right-12 h-52 w-52 rounded-full"
+          style={{ background: auraBackground }}
+        />
         {/* Liseré Kente orfèvre supérieur */}
         <div className="absolute inset-x-0 top-0 h-[3px] kente-band" aria-hidden="true" />
 
@@ -370,12 +389,12 @@ export function SkinHealthDashboard({
                   key={p.id}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => onPillarClick(p)}
-                  className="rounded-2xl p-2.5 sm:p-3 text-left transition-all border border-border/80 bg-background/60 hover:bg-background flex flex-col justify-between focus-visible:outline-2 focus-visible:outline-primary shadow-xs cursor-pointer"
-                  style={{ minHeight: "104px" }}
+                  className="k-ceramic-tile rounded-[20px] p-2.5 sm:p-3 text-left flex flex-col justify-between focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
+                  style={{ minHeight: "106px" }}
                 >
                   <div className="flex items-start justify-between gap-1">
                     <span
-                      className="grid place-items-center size-7 sm:size-8 rounded-xl shadow-xs shrink-0"
+                      className="grid place-items-center size-7 sm:size-8 rounded-xl shadow-[inset_0_1px_1.5px_rgba(255,255,255,0.8),0_2px_6px_rgba(0,0,0,0.08)] shrink-0"
                       style={{ backgroundColor: p.bgLight, color: p.color }}
                     >
                       <Icon size={16} />

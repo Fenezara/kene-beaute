@@ -72,11 +72,11 @@ function PortalCard({
       animate={{ opacity: dimmed && !entering ? 0.35 : 1, y: 0, scale: entering ? 1.045 : 1 }}
       transition={{ delay, type: "spring", stiffness: 210, damping: 24 }}
       whileTap={{ scale: 0.97 }}
-      className="group relative block h-[112px] w-full overflow-hidden rounded-[20px] text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary min-[480px]:h-[138px] md:h-[180px]"
+      className="group relative block h-[112px] w-full overflow-hidden rounded-[22px] text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary min-[480px]:h-[138px] md:h-[180px]"
       style={{
         boxShadow: mode === "pro"
-          ? "0 0 0 1px rgba(200,149,30,0.45), 0 20px 48px -16px rgba(200,149,30,0.35)"
-          : "0 0 0 1px rgba(200,149,30,0.35), 0 20px 48px -16px rgba(26,18,12,0.6)",
+          ? "inset 0 2px 3px rgba(255,255,255,0.45), inset 0 -2px 5px rgba(0,0,0,0.6), 0 0 0 1.5px rgba(212,154,36,0.55), 0 20px 48px -16px rgba(200,149,30,0.40)"
+          : "inset 0 2px 3px rgba(255,255,255,0.45), inset 0 -2px 5px rgba(0,0,0,0.6), 0 0 0 1.5px rgba(212,154,36,0.42), 0 20px 48px -16px rgba(26,18,12,0.65)",
       }}
     >
       {/* Image plein cadre + voile dégradé Afro-Luxe (lisibilité et profondeur) */}
@@ -87,9 +87,9 @@ function PortalCard({
         decoding="async"
         className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#100C08]/90 via-[#100C08]/40 to-[#100C08]/15" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#100C08]/92 via-[#100C08]/42 to-[#100C08]/15" />
       <div className="absolute inset-0 bg-gradient-to-r from-[#100C08]/60 via-transparent to-transparent" />
-      <div className="pointer-events-none absolute inset-0 rounded-[20px] ring-1 ring-inset ring-white/10 group-hover:ring-gold/50 transition-all" />
+      <div className="pointer-events-none absolute inset-0 rounded-[22px] ring-1 ring-inset ring-white/20 group-hover:ring-gold/60 transition-all" />
 
       {/* Badge espace — Signature royale or & nacre */}
       <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[#140E08]/80 backdrop-blur-md px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-gold-text border border-gold/40 shadow-sm">

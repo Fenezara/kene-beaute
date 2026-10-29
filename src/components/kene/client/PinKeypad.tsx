@@ -282,7 +282,7 @@ export function PinKeypad({
               onClick={() => pressDigit(k)}
               disabled={loading || activeDigits.length >= PIN_LENGTH}
               aria-label={`Chiffre ${k}`}
-              className="k-chip cursor-pointer select-none active:scale-95 transition-transform h-[64px] rounded-[20px] font-mono text-[26px] font-bold text-foreground disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center"
+              className="k-ceramic-tile cursor-pointer select-none h-[64px] rounded-[22px] font-mono text-[26px] font-bold text-foreground disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center"
             >
               {k}
             </button>
@@ -308,7 +308,7 @@ export function PinKeypad({
             onClick={() => pressDigit("0")}
             disabled={loading || activeDigits.length >= PIN_LENGTH}
             aria-label="Chiffre 0"
-            className="k-chip cursor-pointer select-none active:scale-95 transition-transform h-[64px] rounded-[20px] font-mono text-[26px] font-bold text-foreground disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center"
+            className="k-ceramic-tile cursor-pointer select-none h-[64px] rounded-[22px] font-mono text-[26px] font-bold text-foreground disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center"
           >
             0
           </button>
@@ -319,7 +319,7 @@ export function PinKeypad({
             onClick={deleteDigit}
             disabled={loading || activeDigits.length === 0}
             aria-label="Effacer le dernier chiffre"
-            className="k-chip cursor-pointer select-none active:scale-95 transition-transform h-[64px] rounded-[20px] text-foreground/70 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
+            className="k-ceramic-tile cursor-pointer select-none h-[64px] rounded-[22px] text-foreground/70 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
           >
             <Delete size={24} className="mx-auto" />
           </button>

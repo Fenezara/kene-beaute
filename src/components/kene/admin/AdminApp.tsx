@@ -127,19 +127,19 @@ export function AdminApp() {
           <div className="mx-auto max-w-6xl px-3 sm:px-6 py-6 pb-32 space-y-5">
             <ConsoleHeader />
 
-            {/* Onglets — pills larges (44 px+), icône + libellé, scroll horizontal mobile */}
+            {/* Onglets — Capsule Verre Ambré & Or Solaire (44 px+), icône + libellé, scroll horizontal mobile */}
             <nav aria-label="Sections de la console" className="sticky top-2 z-20 -mx-1 overflow-x-auto pretty-scroll px-1 pb-1 touch-pan-x">
-              <div className="flex min-w-max gap-1.5 rounded-2xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur">
+              <div className="flex min-w-max gap-1.5 rounded-[22px] k-solar-glass p-1.5">
               {TABS.map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
                   onClick={() => handleTabChange(key)}
                   aria-current={tab === key ? "page" : undefined}
                   className={cn(
-                    "flex min-h-11 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-colors",
+                    "flex min-h-11 items-center gap-2 rounded-[16px] px-4 text-sm font-semibold transition-all",
                     tab === key
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      ? "k-btn-gold text-[#18120C] font-extrabold shadow-xs"
+                      : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
                   )}
                 >
                   <Icon className="size-4 shrink-0" aria-hidden="true" />

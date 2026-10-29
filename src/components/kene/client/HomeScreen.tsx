@@ -305,7 +305,7 @@ export function HomeScreen({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
             {/* 1. Scanner ma peau */}
             <button
               type="button"
@@ -313,10 +313,10 @@ export function HomeScreen({
                 haptic(HAPTIC.medium);
                 onScanZone("visage");
               }}
-              className="group relative flex flex-col items-start p-3 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card hover:border-primary/50 text-left transition-all active:scale-[0.97] shadow-xs cursor-pointer"
+              className="group k-ceramic-tile flex flex-col items-start p-3.5 rounded-[22px] text-left cursor-pointer"
             >
-              <span className="grid size-9 place-items-center rounded-xl bg-primary/15 text-primary mb-2 transition-transform group-hover:scale-105 shadow-2xs">
-                <ScanFace size={18} />
+              <span className="grid size-10 place-items-center rounded-[14px] bg-gradient-to-br from-primary/20 to-primary/8 text-primary mb-2 transition-transform group-hover:scale-105 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_4px_8px_rgba(178,90,56,0.15)]">
+                <ScanFace size={19} />
               </span>
               <span className="font-heading font-black text-xs sm:text-[13px] text-foreground leading-tight">
                 {multi.score ? "Nouveau Scan" : "Scanner ma peau"}
@@ -335,10 +335,10 @@ export function HomeScreen({
                   window.dispatchEvent(new CustomEvent("kene:open-inci-scanner"));
                 }
               }}
-              className="group relative flex flex-col items-start p-3 rounded-2xl border border-gold/40 bg-gradient-to-br from-gold/15 via-card to-card hover:border-gold text-left transition-all active:scale-[0.97] shadow-xs cursor-pointer"
+              className="group k-ceramic-tile flex flex-col items-start p-3.5 rounded-[22px] text-left cursor-pointer"
             >
-              <span className="grid size-9 place-items-center rounded-xl bg-gold/25 text-gold-text mb-2 transition-transform group-hover:scale-105 shadow-2xs">
-                <ShieldAlert size={18} />
+              <span className="grid size-10 place-items-center rounded-[14px] bg-gradient-to-br from-gold/25 to-gold/10 text-gold-text mb-2 transition-transform group-hover:scale-105 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.85),0_4px_8px_rgba(212,154,36,0.20)]">
+                <ShieldAlert size={19} />
               </span>
               <span className="font-heading font-black text-xs sm:text-[13px] text-foreground leading-tight">
                 Scanner produit INCI
@@ -355,16 +355,16 @@ export function HomeScreen({
                 haptic(HAPTIC.tap);
                 setClientTab("chat");
               }}
-              className="group relative flex flex-col items-start p-3 rounded-2xl border border-finance/25 bg-gradient-to-br from-finance/10 via-card to-card hover:border-finance/50 text-left transition-all active:scale-[0.97] shadow-xs cursor-pointer"
+              className="group k-ceramic-tile flex flex-col items-start p-3.5 rounded-[22px] text-left cursor-pointer"
             >
-              <span className="grid size-9 place-items-center rounded-xl bg-finance/15 text-finance dark:text-blue-400 mb-2 transition-transform group-hover:scale-105 shadow-2xs">
-                <MessageCircle size={18} />
+              <span className="grid size-10 place-items-center rounded-[14px] bg-gradient-to-br from-bissap/20 to-bissap/8 text-bissap mb-2 transition-transform group-hover:scale-105 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_4px_8px_rgba(158,32,69,0.16)]">
+                <MessageCircle size={19} />
               </span>
               <span className="font-heading font-black text-xs sm:text-[13px] text-foreground leading-tight">
                 Dermo Kènè
               </span>
               <span className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
-                Conseils & analyse
+                Conseils &amp; Orbe 3D
               </span>
             </button>
 
@@ -375,10 +375,10 @@ export function HomeScreen({
                 haptic(HAPTIC.tap);
                 careSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
-              className="group relative flex flex-col items-start p-3 rounded-2xl border border-success/25 bg-gradient-to-br from-success/10 via-card to-card hover:border-success/50 text-left transition-all active:scale-[0.97] shadow-xs cursor-pointer"
+              className="group k-ceramic-tile flex flex-col items-start p-3.5 rounded-[22px] text-left cursor-pointer"
             >
-              <span className="grid size-9 place-items-center rounded-xl bg-success/15 text-success dark:text-emerald-400 mb-2 transition-transform group-hover:scale-105 shadow-2xs">
-                <CalendarDays size={18} />
+              <span className="grid size-10 place-items-center rounded-[14px] bg-gradient-to-br from-success/22 to-success/8 text-success dark:text-emerald-400 mb-2 transition-transform group-hover:scale-105 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_4px_8px_rgba(46,111,64,0.16)]">
+                <CalendarDays size={19} />
               </span>
               <span className="font-heading font-black text-xs sm:text-[13px] text-foreground leading-tight">
                 Soin en institut

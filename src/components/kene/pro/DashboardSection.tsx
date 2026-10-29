@@ -197,7 +197,7 @@ export function DashboardSection({
 
   return (
     <div className="space-y-5">
-      <div className="k-card-awwwards px-4 py-3.5 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="k-solar-glass rounded-[24px] px-4 py-3.5 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-start gap-3.5 min-w-0">
           <div className="mt-1 h-9 w-1.5 shrink-0 rounded-full k-rail-line" aria-hidden="true" />
           <div>
@@ -209,7 +209,7 @@ export function DashboardSection({
         </div>
 
         {/* Toggle Vue Opérationnelle / Analyse Financière */}
-        <div className="flex rounded-xl bg-muted p-1 text-xs">
+        <div className="flex rounded-xl bg-muted/70 border border-gold/25 p-1 text-xs">
           <button
             type="button"
             onClick={() => setViewMode("operations")}
@@ -233,6 +233,77 @@ export function DashboardSection({
             Analyse Financière &amp; KPIs
           </button>
         </div>
+      </div>
+
+      {/* ── ACTIONS RAPIDES CABINE & CAISSE (Galets Tactiles 3D Céramique Karité) ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
+        <button
+          type="button"
+          onClick={() => {
+            haptic(HAPTIC.tap);
+            onNavigate("caisse");
+          }}
+          className="k-ceramic-tile group flex items-center gap-3 rounded-[20px] p-3 sm:p-3.5 text-left cursor-pointer"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-[14px] bg-gradient-to-br from-gold/25 to-gold/10 text-gold-text shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.85),0_4px_8px_rgba(212,154,36,0.2)] transition-transform group-hover:scale-105">
+            <Banknote className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-heading text-xs sm:text-[13px] font-black text-foreground truncate">Caisse POS</p>
+            <p className="text-[10.5px] text-muted-foreground truncate">Encaisser un soin / produit</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            haptic(HAPTIC.tap);
+            onNavigate("agenda");
+          }}
+          className="k-ceramic-tile group flex items-center gap-3 rounded-[20px] p-3 sm:p-3.5 text-left cursor-pointer"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-[14px] bg-gradient-to-br from-primary/22 to-primary/8 text-primary shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_4px_8px_rgba(178,90,56,0.16)] transition-transform group-hover:scale-105">
+            <CalendarCheck className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-heading text-xs sm:text-[13px] font-black text-foreground truncate">Agenda Cabine</p>
+            <p className="text-[10.5px] text-muted-foreground truncate">{k.appointmentsToday} RDV aujourd&apos;hui</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            haptic(HAPTIC.tap);
+            onNavigate("diagnostic");
+          }}
+          className="k-ceramic-tile group flex items-center gap-3 rounded-[20px] p-3 sm:p-3.5 text-left cursor-pointer"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-[14px] bg-gradient-to-br from-bissap/22 to-bissap/8 text-bissap shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_4px_8px_rgba(158,32,69,0.16)] transition-transform group-hover:scale-105">
+            <Sparkles className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-heading text-xs sm:text-[13px] font-black text-foreground truncate">Diagnostic &amp; INCI</p>
+            <p className="text-[10.5px] text-muted-foreground truncate">Bilan dermo &amp; scan cabine</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            haptic(HAPTIC.tap);
+            onNavigate("crm");
+          }}
+          className="k-ceramic-tile group flex items-center gap-3 rounded-[20px] p-3 sm:p-3.5 text-left cursor-pointer"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-[14px] bg-gradient-to-br from-emerald-600/22 to-emerald-600/8 text-emerald-700 dark:text-emerald-400 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.8),0_4px_8px_rgba(46,111,64,0.16)] transition-transform group-hover:scale-105">
+            <UserPlus className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-heading text-xs sm:text-[13px] font-black text-foreground truncate">Carnet Clientes</p>
+            <p className="text-[10.5px] text-muted-foreground truncate">Fiches &amp; Passeports QR</p>
+          </div>
+        </button>
       </div>
 
       {viewMode === "finance" ? (

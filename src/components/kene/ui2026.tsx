@@ -124,10 +124,10 @@ export function IconBadge({
   tone?: "gold" | "terre" | "bissap" | "success";
 }) {
   const tones: Record<string, string> = {
-    gold: "from-[#C8951E]/18 to-[#C8951E]/6 text-gold-text ring-[#C8951E]/25",
-    terre: "from-[#A0522D]/18 to-[#A0522D]/6 text-terre ring-[#A0522D]/25",
-    bissap: "from-[#8B1A3B]/16 to-[#8B1A3B]/6 text-bissap ring-[#8B1A3B]/25",
-    success: "from-[#346834]/16 to-[#346834]/6 text-success ring-[#346834]/25",
+    gold: "from-[#C8951E]/24 via-[#C8951E]/12 to-[#C8951E]/6 text-gold-text ring-[#C8951E]/35 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.75),0_4px_10px_-3px_rgba(200,149,30,0.22)] dark:shadow-[inset_0_1px_1.5px_rgba(255,235,190,0.22),0_4px_10px_-3px_rgba(0,0,0,0.45)]",
+    terre: "from-[#A0522D]/24 via-[#A0522D]/12 to-[#A0522D]/6 text-terre ring-[#A0522D]/35 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.75),0_4px_10px_-3px_rgba(160,82,45,0.22)] dark:shadow-[inset_0_1px_1.5px_rgba(255,235,190,0.20),0_4px_10px_-3px_rgba(0,0,0,0.45)]",
+    bissap: "from-[#8B1A3B]/22 via-[#8B1A3B]/10 to-[#8B1A3B]/6 text-bissap ring-[#8B1A3B]/35 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.70),0_4px_10px_-3px_rgba(139,26,59,0.22)] dark:shadow-[inset_0_1px_1.5px_rgba(255,220,230,0.18),0_4px_10px_-3px_rgba(0,0,0,0.45)]",
+    success: "from-[#346834]/22 via-[#346834]/10 to-[#346834]/6 text-success ring-[#346834]/35 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.75),0_4px_10px_-3px_rgba(52,104,52,0.22)] dark:shadow-[inset_0_1px_1.5px_rgba(200,255,220,0.18),0_4px_10px_-3px_rgba(0,0,0,0.45)]",
   };
   const sizes: Record<string, string> = {
     sm: "h-9 w-9 rounded-[12px]",

@@ -173,7 +173,7 @@ export function PhoneKeypad({
               onClick={() => press(k)}
               disabled={loading}
               aria-label={`Chiffre ${k}`}
-              className="k-chip cursor-pointer select-none active:scale-95 transition-transform h-[64px] rounded-[20px] font-mono text-[26px] font-bold text-foreground disabled:opacity-40 flex items-center justify-center"
+              className="k-ceramic-tile cursor-pointer select-none h-[64px] rounded-[22px] font-mono text-[26px] font-bold text-foreground disabled:opacity-40 flex items-center justify-center"
             >
               {k}
             </button>
@@ -184,7 +184,7 @@ export function PhoneKeypad({
             onClick={() => setDigits((d) => d.slice(0, -1))}
             disabled={loading || digits.length === 0}
             aria-label="Effacer le dernier chiffre"
-            className="k-chip cursor-pointer select-none active:scale-95 transition-transform h-[64px] rounded-[20px] text-foreground/70 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
+            className="k-ceramic-tile cursor-pointer select-none h-[64px] rounded-[22px] text-foreground/70 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
           >
             <Delete size={24} className="mx-auto" />
           </button>
@@ -193,7 +193,7 @@ export function PhoneKeypad({
             onClick={() => press("0")}
             disabled={loading}
             aria-label="Chiffre 0"
-            className="k-chip cursor-pointer select-none active:scale-95 transition-transform h-[64px] rounded-[20px] font-mono text-[26px] font-bold text-foreground disabled:opacity-40 flex items-center justify-center"
+            className="k-ceramic-tile cursor-pointer select-none h-[64px] rounded-[22px] font-mono text-[26px] font-bold text-foreground disabled:opacity-40 flex items-center justify-center"
           >
             0
           </button>

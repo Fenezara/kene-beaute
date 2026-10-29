@@ -84,9 +84,10 @@ export function KpiCard({
   className?: string;
 }) {
   return (
-    <div className={cn("k-card-awwwards k-card-hover relative p-4 sm:p-5 flex flex-col justify-between overflow-hidden group transition-all duration-300", className)}>
+    <div className={cn("k-solar-glass k-card-hover rounded-[22px] relative p-4 sm:p-5 flex flex-col justify-between overflow-hidden group transition-all duration-300", className)}>
+      <div aria-hidden="true" className="pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full bg-[#D49A24]/15 blur-2xl group-hover:bg-[#D49A24]/25 transition-colors" />
       <div className="flex items-center justify-between gap-2 z-10">
-        <Eyebrow className="min-w-0 leading-snug truncate text-foreground/80 font-extrabold tracking-[0.12em]">{label}</Eyebrow>
+        <Eyebrow className="min-w-0 leading-snug truncate text-foreground/85 font-extrabold tracking-[0.12em]">{label}</Eyebrow>
         <IconBadge icon={icon} size="sm" tone={monetary ? "gold" : "terre"} />
       </div>
 
