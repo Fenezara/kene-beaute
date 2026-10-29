@@ -825,11 +825,15 @@ export function ChatScreen() {
       // la lecture vocale de la réponse de Dr. Kènè démarre immédiatement et automatiquement !
       speak(r.reply, true, assistantMsgId);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur lors de l'envoi de la note vocale");
+      const errorMsg = e instanceof Error ? e.message : "Erreur lors de l'envoi de la note vocale";
+      toast.error(errorMsg);
+      const isVoiceQuota = errorMsg.includes("consultations vocales") || errorMsg.includes("Orbe 3D");
       add({
         id: nid(),
         role: "assistant",
-        content: "Pardon, je n'ai pas pu recevoir ta note vocale. Peux-tu me la réenregistrer ?",
+        content: isVoiceQuota
+          ? "Tu as atteint tes 5 consultations vocales gratuites ce mois-ci avec l'Orbe 3D. Active Kènè+ (2 500 FCFA/mois) pour des échanges vocaux illimités 24h/24, ou écris-moi directement ton message par texte !"
+          : "Pardon, je n'ai pas pu recevoir ta note vocale. Peux-tu me la réenregistrer ou me l'écrire ?",
         kind: "text",
         time: Date.now(),
       });

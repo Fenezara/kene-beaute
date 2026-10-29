@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   MessageCircle,
   RotateCcw,
+  Crown,
 } from "lucide-react";
 import { MoringaIcon } from "@/components/kene/icons";
 import { toast } from "sonner";
@@ -42,10 +43,12 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
   const [manualText, setManualText] = useState("");
   const [, setImagePreview] = useState<string | null>(null);
   const [reported, setReported] = useState(false);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
+  const user = useKene((s) => s.user);
   const setClientTab = useKene((s) => s.setClientTab);
 
   const reset = () => {
@@ -54,6 +57,7 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
     setManualText("");
     setImagePreview(null);
     setReported(false);
+    setQuotaExceeded(false);
   };
 
   const handleClose = () => {
@@ -64,6 +68,7 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
   const processImage = async (file: File) => {
     try {
       setAnalyzing(true);
+      setQuotaExceeded(false);
       const resized = await resizeImage(file, 1600);
       setImagePreview(resized);
 
@@ -74,7 +79,7 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
         isProduct?: boolean;
         productName?: string;
         productAnalysis?: InciAnalysisResult;
-      }>("/api/dermato/photo", { image: resized });
+      }>("/api/dermato/photo", { image: resized, userId: user?.id || "" });
 
       if (res?.productAnalysis) {
         setAnalysis(res.productAnalysis);
@@ -87,7 +92,11 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
         setAnalysis(directAnalysis);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur lors de l'analyse de l'image");
+      const msg = err instanceof Error ? err.message : "Erreur lors de l'analyse de l'image";
+      if (msg.includes("3 analyses") || msg.includes("Scanner INCI") || msg.includes("quota")) {
+        setQuotaExceeded(true);
+      }
+      toast.error(msg);
     } finally {
       setAnalyzing(false);
     }
@@ -163,6 +172,28 @@ export function ClientInciScannerModal({ open, onOpenChange }: Props) {
 
         {/* Mode Capture / Saisie */}
         <div className="space-y-4 pt-1">
+          {quotaExceeded && (
+            <div className="rounded-2xl border border-gold/40 bg-gold/10 p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Crown size={16} className="text-gold-text" />
+                <p className="text-xs font-bold text-foreground">Quota mensuel gratuit atteint (3 produits / mois)</p>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Vous avez utilisé vos 3 analyses gratuites du Scanner INCI pour ce mois. Passez à Kènè+ pour analyser l&apos;ensemble de vos produits cosmétiques en illimité !
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  handleClose();
+                  setClientTab("abonnement");
+                }}
+                className="k-btn-gold h-10 px-4 rounded-xl text-xs font-bold text-primary-foreground flex items-center justify-center gap-1.5 w-full mt-2"
+              >
+                <Crown size={14} /> Activer Kènè+ (2 500 FCFA / mois)
+              </button>
+            </div>
+          )}
+
           {!analysis && !analyzing && (
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

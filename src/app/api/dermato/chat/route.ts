@@ -6,6 +6,8 @@ import { z } from "zod";
 import { jsonError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, DERMATO } from "@/lib/kene/rate-limit";
 import { decodeBridge } from "@/lib/kene/get-bridge";
+import { voiceQuotaFor } from "@/lib/kene/plans";
+import { audit } from "@/lib/kene/audit";
 import {
   getDrKeneReply,
   getDrKeneAudioReply,
@@ -82,6 +84,21 @@ async function runChat(parsed: z.infer<typeof Body>): Promise<NextResponse> {
 
   // Cas 1 : Note vocale directe (l'audio est envoyé directement à Dermo Kènè)
   if (parsed.audio) {
+    if (parsed.userId) {
+      const vQuota = await voiceQuotaFor(parsed.userId);
+      if (vQuota.remaining <= 0) {
+        return NextResponse.json(
+          {
+            error: "Tu as utilisé tes 5 consultations vocales gratuites ce mois-ci avec l'Orbe 3D. Active Kènè+ (2 500 FCFA/mois) pour des échanges vocaux illimités 24h/24, ou écris-moi en texte !",
+            quotaExceeded: true,
+            quota: vQuota,
+          },
+          { status: 403 },
+        );
+      }
+      void audit({ kind: "orbe_voice", userId: parsed.userId });
+    }
+
     const audioResult = await getDrKeneAudioReply(
       parsed.audio,
       parsed.mimeType || "audio/wav",

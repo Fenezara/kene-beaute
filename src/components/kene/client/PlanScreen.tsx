@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, BadgeCheck, Check, CheckCircle2, Clock, Crown, Loader2, ShieldCheck, TrendingUp, Trophy, Zap,
+  ArrowLeft, BadgeCheck, Check, CheckCircle2, Clock, Crown, Loader2, MessageCircle, ShieldAlert, ShieldCheck, TrendingUp, Trophy, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -94,9 +94,11 @@ const DEFAULT_PLUS_DEF: ApiPlanDef = {
   ],
   perks: [
     "1er mois 100% gratuit avec accès complet à toutes les fonctionnalités",
-    "Diagnostics dermo-biométriques illimités (visage, dos, mains)",
-    "Dermo Kènè illimitée 24h/24 & 7j/7 (texte et notes vocales)",
+    "Bilans dermo-biométriques illimités (visage, dos, mains)",
+    "Orbe 3D & Dermo Kènè vocale en illimité 24h/24 & 7j/7",
+    "Scanner INCI toxicologique illimité (hydroquinone, corticoïdes, métaux)",
     "Comparatif tactile Avant/Après & visualiseur multi-spectral",
+    "Fil WhatsApp & SMS : coaching routine & ordonnance beauté",
     "Formule tout inclus sans engagement : 2 500 FCFA / mois",
     "Remises exclusives de 5% à 10% sur toute la Boutique",
     "Coupe-file et accueil VIP dans les instituts partenaires",
@@ -106,7 +108,7 @@ const DEFAULT_PLUS_DEF: ApiPlanDef = {
 
 /** Icônes des perks Kènè+ — mappées par index sur l'ordre stable de
  * PLAN_DEFS (diagnostics illimités, suivi évolution, priorité, défis). */
-const PLUS_PERK_ICONS = [Clock, CauriIcon, Zap, TrendingUp, Crown, Trophy, Crown] as const;
+const PLUS_PERK_ICONS = [Clock, CauriIcon, Zap, ShieldAlert, TrendingUp, MessageCircle, Crown, Trophy, Crown] as const;
 
 /** « 25/03 » à partir d'une date ISO — pas de dépendance locale floue. */
 function fmtJJMM(iso: string): string {
@@ -517,19 +519,34 @@ export function PlanScreen() {
                   <td className="py-2.5 px-2 text-center text-success font-bold">⚡ Illimité</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-2 font-medium">Suivi de l&apos;évolution & courbe d&apos;éclat</td>
+                  <td className="py-2.5 px-2 font-medium">Scanner INCI toxicologique</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">3 produits / mois</td>
+                  <td className="py-2.5 px-2 text-center text-success font-bold">⚡ Illimité</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Orbe 3D &amp; Consultations vocales</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">5 vocaux / mois</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">👑 Illimité 24/7</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Suivi de l&apos;évolution &amp; multi-spectral</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">— Non</td>
                   <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Inclus</td>
                 </tr>
                 <tr>
-                  <td className="py-2.5 px-2 font-medium">Dermo Kènè (Conseils botaniques & routines)</td>
-                  <td className="py-2.5 px-2 text-center text-muted-foreground">Standard</td>
-                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">👑 Prioritaire 24/7</td>
+                  <td className="py-2.5 px-2 font-medium">Fil WhatsApp &amp; SMS coaching routine</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">Rappels RDV seuls</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Coaching beauté</td>
                 </tr>
                 <tr>
                   <td className="py-2.5 px-2 font-medium">Dossier de Peau digital (partage institut)</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">Basique</td>
                   <td className="py-2.5 px-2 text-center text-gold-text font-bold">✓ Fiche 360°</td>
+                </tr>
+                <tr>
+                  <td className="py-2.5 px-2 font-medium">Remises Boutique Kènè</td>
+                  <td className="py-2.5 px-2 text-center text-muted-foreground">Tarif normal</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">-5% à -10%</td>
                 </tr>
                 <tr>
                   <td className="py-2.5 px-2 font-medium">Défis & rituels botaniques personnalisés</td>

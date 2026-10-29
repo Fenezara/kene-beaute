@@ -6,6 +6,7 @@ import { jsonError, serverError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, DERMATO } from "@/lib/kene/rate-limit";
 import { checkImageDataUrl } from "@/lib/kene/upload";
 import { audit, clientIp } from "@/lib/kene/audit";
+import { inciQuotaFor } from "@/lib/kene/plans";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -44,7 +45,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Vérification du quota Scanner INCI pour les utilisatrices identifiées
+    if (parsed.data.userId) {
+      const iQuota = await inciQuotaFor(parsed.data.userId);
+      if (iQuota.remaining <= 0) {
+        return NextResponse.json(
+          {
+            error: "Tu as utilisé tes 3 analyses de produits gratuites ce mois-ci avec le Scanner INCI. Active Kènè+ (2 500 FCFA/mois) pour analyser tous tes cosmétiques en illimité !",
+            quotaExceeded: true,
+            quota: iQuota,
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     const triage = await triageLesion(imgList);
+
+    if (parsed.data.userId && (triage.isProduct || triage.productAnalysis)) {
+      void audit({ kind: "inci_scan", userId: parsed.data.userId });
+    }
     return NextResponse.json({
       niveau: triage.niveau,
       message: triage.message,

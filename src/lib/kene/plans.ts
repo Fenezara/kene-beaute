@@ -59,8 +59,10 @@ export const PLAN_DEFS: readonly PlanDef[] = [
     perks: [
       "1er mois 100% gratuit avec accès complet à toutes les fonctionnalités",
       "Bilans dermo-biométriques illimités (visage, dos, mains, cuir chevelu)",
-      "Dermo Kènè illimitée 24h/24 & 7j/7 par texte et notes vocales",
+      "Orbe 3D & Dermo Kènè vocale en illimité 24h/24 & 7j/7",
+      "Scanner INCI toxicologique illimité (hydroquinone, corticoïdes, métaux)",
       "Visualiseur multi-spectral & comparatif tactile Avant/Après",
+      "Fil SMS & WhatsApp : coaching routines & ordonnance beauté",
       "Formule tout inclus sans engagement : 2 500 FCFA / mois",
       "Remises de 5% à 10% sur toute la Boutique Kènè",
       "Coupe-file et accueil VIP dans les instituts partenaires",
@@ -181,6 +183,8 @@ export const DIAG_QUOTA_UNLIMITED = 9999;
 export const FREE_PLAN = {
   id: "gratuit",
   diagQuotaMonth: 1,
+  inciQuotaMonth: 3,
+  voiceQuotaMonth: 5,
 } as const;
 
 // ─────────────── Lecture de l'abonnement actif ───────────────
@@ -447,6 +451,76 @@ export async function diagQuotaFor(userId: string): Promise<DiagQuota> {
     used,
     remaining: isPlus ? DIAG_QUOTA_UNLIMITED : Math.max(0, quota - used),
     plan: isPlus ? "kene_plus" : (sub?.plan ?? FREE_PLAN.id),
+  };
+}
+
+export interface FeatureQuota {
+  quota: number;
+  used: number;
+  remaining: number;
+  plan: string;
+  isPlus: boolean;
+}
+
+/** Quota mensuel du Scanner INCI : gratuit = 3 produits/mois, Kènè+ = illimité */
+export async function inciQuotaFor(userId?: string | null): Promise<FeatureQuota> {
+  if (!userId) {
+    return { quota: FREE_PLAN.inciQuotaMonth, used: 0, remaining: FREE_PLAN.inciQuotaMonth, plan: FREE_PLAN.id, isPlus: false };
+  }
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const [used, sub, user] = await Promise.all([
+    db.securityEvent.count({ where: { userId, kind: "inci_scan", ts: { gte: monthStart } } }),
+    getActiveSubscription(userId),
+    db.user.findUnique({ where: { id: userId }, select: { id: true, phone: true, name: true, role: true } }),
+  ]);
+  let isPlus = sub?.plan === "kene_plus";
+  if (!isPlus && user) {
+    try {
+      const proCtx = await resolveUserProContext(user);
+      if ((proCtx.employeeLink && proCtx.employeeLink.tenant?.active) || (proCtx.ownerTenant && proCtx.ownerTenant.active)) {
+        isPlus = true;
+      }
+    } catch {}
+  }
+  const quota = isPlus ? DIAG_QUOTA_UNLIMITED : FREE_PLAN.inciQuotaMonth;
+  return {
+    quota,
+    used,
+    remaining: isPlus ? DIAG_QUOTA_UNLIMITED : Math.max(0, quota - used),
+    plan: isPlus ? "kene_plus" : (sub?.plan ?? FREE_PLAN.id),
+    isPlus,
+  };
+}
+
+/** Quota mensuel des consultations audio/voix Orbe 3D : gratuit = 5 vocaux/mois, Kènè+ = illimité */
+export async function voiceQuotaFor(userId?: string | null): Promise<FeatureQuota> {
+  if (!userId) {
+    return { quota: FREE_PLAN.voiceQuotaMonth, used: 0, remaining: FREE_PLAN.voiceQuotaMonth, plan: FREE_PLAN.id, isPlus: false };
+  }
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const [used, sub, user] = await Promise.all([
+    db.securityEvent.count({ where: { userId, kind: "orbe_voice", ts: { gte: monthStart } } }),
+    getActiveSubscription(userId),
+    db.user.findUnique({ where: { id: userId }, select: { id: true, phone: true, name: true, role: true } }),
+  ]);
+  let isPlus = sub?.plan === "kene_plus";
+  if (!isPlus && user) {
+    try {
+      const proCtx = await resolveUserProContext(user);
+      if ((proCtx.employeeLink && proCtx.employeeLink.tenant?.active) || (proCtx.ownerTenant && proCtx.ownerTenant.active)) {
+        isPlus = true;
+      }
+    } catch {}
+  }
+  const quota = isPlus ? DIAG_QUOTA_UNLIMITED : FREE_PLAN.voiceQuotaMonth;
+  return {
+    quota,
+    used,
+    remaining: isPlus ? DIAG_QUOTA_UNLIMITED : Math.max(0, quota - used),
+    plan: isPlus ? "kene_plus" : (sub?.plan ?? FREE_PLAN.id),
+    isPlus,
   };
 }
 
