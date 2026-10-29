@@ -1,5 +1,5 @@
 "use client";
-// Kènè Cliente — Abonnement: offres Kènè+ (25 000 FCFA/mois) et
+// Kènè Cliente — Abonnement: offres Kènè+ (2 500 FCFA/mois) et
 // état du quota diagnostics (gratuit = 1/mois, Kènè+ = illimité).
 // Paiement mobile money SIMULÉ: le Sheet d'activation propose Wave / Orange
 // Money / MTN MoMo en pastilles texte stylées (aucune image externe) et
@@ -80,24 +80,24 @@ const DEFAULT_PLUS_DEF: ApiPlanDef = {
   audience: "client",
   name: "Kènè+",
   tagline: "L'intelligence dermo-cosmétique illimitée pour sublimer votre peau",
-  priceFcfa: 25000,
-  minPriceFcfa: 25000,
+  priceFcfa: 2500,
+  minPriceFcfa: 2500,
   trialDays: 30,
   tiers: [
     { month: 0, priceFcfa: 0, label: "Mois Découverte (30j offerts)" },
-    { month: 1, priceFcfa: 25000, label: "Abonnement Mensuel" },
-    { month: 2, priceFcfa: 25000, label: "Abonnement Mensuel" },
-    { month: 3, priceFcfa: 25000, label: "Abonnement Mensuel" },
-    { month: 4, priceFcfa: 25000, label: "Abonnement Mensuel" },
-    { month: 5, priceFcfa: 25000, label: "Abonnement Mensuel" },
-    { month: 6, priceFcfa: 25000, label: "Abonnement Mensuel" },
+    { month: 1, priceFcfa: 2500, label: "Abonnement Mensuel" },
+    { month: 2, priceFcfa: 2500, label: "Abonnement Mensuel" },
+    { month: 3, priceFcfa: 2500, label: "Abonnement Mensuel" },
+    { month: 4, priceFcfa: 2500, label: "Abonnement Mensuel" },
+    { month: 5, priceFcfa: 2500, label: "Abonnement Mensuel" },
+    { month: 6, priceFcfa: 2500, label: "Abonnement Mensuel" },
   ],
   perks: [
     "1er mois 100% gratuit avec accès complet à toutes les fonctionnalités",
     "Diagnostics dermo-biométriques illimités (visage, dos, mains)",
     "Dermo Kènè illimitée 24h/24 & 7j/7 (texte et notes vocales)",
     "Comparatif tactile Avant/Après & visualiseur multi-spectral",
-    "Formule tout inclus sans engagement : 25 000 FCFA / mois",
+    "Formule tout inclus sans engagement : 2 500 FCFA / mois",
     "Remises exclusives de 5% à 10% sur toute la Boutique",
     "Coupe-file et accueil VIP dans les instituts partenaires",
   ],
@@ -145,7 +145,7 @@ export function PlanScreen() {
   const isPlus = data?.plan === "kene_plus";
   const quota = data?.quota ?? { quota: 1, used: 0, remaining: 1, plan: "gratuit" };
 
-  const currentChargePrice = plusDef?.nextTierPrice ?? (data?.loyalty?.nextTierPrice || plusDef?.priceFcfa || 25000);
+  const currentChargePrice = plusDef?.nextTierPrice ?? (data?.loyalty?.nextTierPrice || plusDef?.priceFcfa || 2500);
 
   /** Confirme l'activation ou le renouvellement → POST activate/renew → passerelle ou succès. */
   async function confirmPayment() {
@@ -306,7 +306,7 @@ export function PlanScreen() {
                     ? `Offert par votre institut (${data.subscription.perkLabel || "Institut Partenaire"}) · Diagnostics & soins personnels illimités`
                     : data.subscription.source === "welcome_trial"
                     ? "30 jours offerts pour explorer tous les privilèges sans limite"
-                    : `${plusDef.tagline} · Formule : 25 000 FCFA / mois`}
+                    : `${plusDef.tagline} · Formule : 2 500 FCFA / mois`}
                 </p>
               </div>
             </div>
@@ -332,7 +332,7 @@ export function PlanScreen() {
                   <span className="rounded-full bg-gold/15 text-gold-text px-2.5 py-0.5 text-[10px] font-bold">
                     {data.subscription.source === "welcome_trial"
                       ? "Pass Découverte actif"
-                      : "25 000 FCFA / mois"}
+                      : "2 500 FCFA / mois"}
                   </span>
                 </div>
                 <p className="text-[11.5px] text-muted-foreground leading-relaxed">
@@ -432,11 +432,11 @@ export function PlanScreen() {
                     Formule Privilège Mensuelle
                   </p>
                   <span className="rounded-full bg-gold/20 text-gold-text px-2.5 py-0.5 text-[11px] font-bold">
-                    25 000 FCFA / mois
+                    2 500 FCFA / mois
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-snug">
-                  Un tarif unique et transparent de <strong>25 000 FCFA / mois</strong> pour bénéficier de tous les avantages de l&apos;application en illimité (bilans dermo-biométriques, Dermo Kènè 24/7 et remises boutiques).
+                  Un tarif unique et accessible de <strong>2 500 FCFA / mois</strong> pour bénéficier de tous les avantages de l&apos;application en illimité (bilans dermo-biométriques, Dermo Kènè 24/7 et remises boutiques).
                 </p>
               </div>
 
@@ -509,7 +509,7 @@ export function PlanScreen() {
                 <tr>
                   <td className="py-2.5 px-2 font-medium">Tarif mensuel</td>
                   <td className="py-2.5 px-2 text-center text-muted-foreground">0 F</td>
-                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">25 000 FCFA / mois</td>
+                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">2 500 FCFA / mois</td>
                 </tr>
                 <tr>
                   <td className="py-2.5 px-2 font-medium">Bilan de peau par photo</td>
@@ -563,7 +563,7 @@ export function PlanScreen() {
           <div className="k-card rounded-2xl p-3 text-center space-y-1">
             <ShieldCheck size={16} className="mx-auto text-terre" />
             <p className="text-[11px] font-bold">Sans engagement</p>
-            <p className="text-[9px] text-muted-foreground">25 000 FCFA / mois · Liberté totale</p>
+            <p className="text-[9px] text-muted-foreground">2 500 FCFA / mois · Liberté totale</p>
           </div>
         </div>
       </RevealItem>
@@ -582,15 +582,15 @@ export function PlanScreen() {
               </p>
             </div>
             <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
-              <p className="font-bold text-foreground">Comment fonctionne l&apos;abonnement Kènè+ à 25 000 FCFA / mois ?</p>
+              <p className="font-bold text-foreground">Comment fonctionne l&apos;abonnement Kènè+ à 2 500 FCFA / mois ?</p>
               <p className="text-muted-foreground leading-relaxed">
-                Votre tout 1er mois est <strong>100% offert (Pass Découverte 30 jours, 0 FCFA)</strong> pour explorer tous les privilèges sans limite. Ensuite, l&apos;abonnement est à tarif fixe de <strong>25 000 FCFA par mois</strong> sans aucun prélèvement automatique imposé. Vous renouvelez chaque mois en toute simplicité par Mobile Money (Wave, Orange, MTN, Moov) ou Carte bancaire.
+                Votre tout 1er mois est <strong>100% offert (Pass Découverte 30 jours, 0 FCFA)</strong> pour explorer tous les privilèges sans limite. Ensuite, l&apos;abonnement est à tarif fixe de <strong>2 500 FCFA par mois</strong> sans aucun prélèvement automatique imposé. Vous renouvelez chaque mois en toute simplicité par Mobile Money (Wave, Orange, MTN, Moov) ou Carte bancaire.
               </p>
             </div>
             <div className="rounded-xl border border-border/60 p-3 bg-muted/10 space-y-1">
               <p className="font-bold text-foreground">Que se passe-t-il si je ne renouvelle pas mon abonnement ?</p>
               <p className="text-muted-foreground leading-relaxed">
-                Si vous ne renouvelez pas à la fin des 30 jours, votre compte repasse en mode gratuit sans aucun frais ni pénalité. Vos diagnostics passés, fiches et photos restent précieusement sauvegardés. Vous pourrez réactiver Kènè+ à 25 000 FCFA quand vous le souhaitez.
+                Si vous ne renouvelez pas à la fin des 30 jours, votre compte repasse en mode gratuit sans aucun frais ni pénalité. Vos diagnostics passés, fiches et photos restent précieusement sauvegardés. Vous pourrez réactiver Kènè+ à 2 500 FCFA quand vous le souhaitez.
               </p>
             </div>
           </div>

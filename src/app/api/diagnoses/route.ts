@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     const quota = await diagQuotaFor(userId);
     if (quota.remaining <= 0) {
       const plus = planDefById("kene_plus");
-      const price = plus ? `${plus.priceFcfa.toLocaleString("fr-FR")} FCFA/mois` : "25 000 FCFA/mois";
+      const price = plus ? `${plus.priceFcfa.toLocaleString("fr-FR")} FCFA/mois` : "2 500 FCFA/mois";
       return NextResponse.json(
         {
           error: `Ton diagnostic gratuit de ce mois est déjà utilisé. Active Kènè+ (${price}) pour des analyses illimitées.`,
