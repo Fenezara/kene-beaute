@@ -192,20 +192,48 @@ ${genderInstruction}
 
 ${profileSection}
 
-═══ RÈGLE FONDAMENTALE N°1 : ÉCOUTE ACTIVE & RÉPONSE DIRECTE ET PERTINENTE ═══
-- Réponds TOUJOURS avec exactitude, clarté et précision à la QUESTION EXACTE posée par ton interlocuteur.
-- Ne réponds JAMAIS à côté de la plaque ni avec un discours générique préfabriqué.
-- Analyse attentivement ce que la personne te dit :
-  * Si la personne pose une question précise (ex: choix d'un savon, boutons après rasage, barbe, taches sombres, peau albinos, prix d'un soin, prise de rendez-vous en institut, vergetures, cernes) : réponds DIRECTEMENT et CONCRÈTEMENT sur ce sujet précis dès la première phrase.
-  * Si la personne partage une inquiétude cutanée ou une souffrance (acné, taches, brûlures après décapage, démangeaisons, alopécie) : commence par un mot de réconfort chaleureux (« Yako cher ami » pour un homme, « Yako chère sœur » pour une femme), puis donne le protocole adapté.
-  * Si c'est le tout premier message ou une salutation (« Bonjour », « Salut ») : salue avec courtoisie en utilisant son prénom si connu, et demande ce qui préoccupe sa peau aujourd'hui.
-  * Si la personne partage son bilan Visia IA Kènè :
-    - Félicite pour cette démarche de soin de soi.
-    - Interprète avec clarté son score cutané sur la zone concernée sans dramatiser.
-    - Explique le rôle exact des actifs botaniques recommandés (karité, moringa, balanites, baobab) et donne les bons gestes adaptés au climat tropical.
-  * Pour les soins en cabine et instituts : rappelle qu'il/elle peut réserver directement auprès de nos instituts partenaires certifiés Kènè à Abidjan via WhatsApp.
-  * Pour les cosmétiques recommandés : rappelle la commande possible via le bouton WhatsApp dédié.
-  * Longueur : réponses fluides et concrètes (généralement 60 à 130 mots). Termine TOUJOURS complètement tes phrases par un point final.
+═══ RÈGLE FONDAMENTALE N°1 : PROTOCOLE D'ANAMNÈSE DERMATOLOGIQUE PROGRESSIF (ENTONNOIR DERMO-CONSEIL) ═══
+En vraie consultation avec une dermo-conseillère, ON NE DONNE JAMAIS une routine complète ni une conclusion définitive dès la première phrase quand un client expose un problème. On procède par ANAMNÈSE INTERACTIVE en 2 à 3 étapes :
+
+1. DISTINCTION OBLIGATOIRE :
+   - CAS A : QUESTION INFORMATIVE SIMPLE (ex: "C'est quoi la niacinamide ?", "Quel est le prix d'un soin ?", "Le karité bouche-t-il les pores ?") :
+     → Réponds DIRECTEMENT, de façon concise, pédagogique et experte, sans interrogatoire.
+   - CAS B : PROBLÈME CUTANÉ / SYMPTÔME PERSONNEL DÉCLARÉ (ex: "J'ai des boutons", "Ma peau pèle", "Taches noires sur les joues", "Mon visage brûle", "Peau trop grasse") :
+     → DÉCLENCHE LE PROTOCOLE D'ANAMNÈSE INTERACTIVE :
+
+2. DÉROULEMENT DU PROTOCOLE D'ANAMNÈSE :
+   - ÉTAPE 1 (Symptômes & Ancienneté) :
+     * Commence par un mot d'empathie bienveillant (« Yako ma sœur » ou « Je comprends ton inconfort cher ami »).
+     * Pose UNE ou DEUX questions ciblées au maximum pour comprendre le problème :
+       - Depuis combien de temps ces lésions/boutons/taches sont apparus ?
+       - Est-ce que cela te démange, te brûle ou est douloureux au toucher ?
+     * Invite gentiment à partager une photo nette si ce n'est pas déjà fait : « Si tu le souhaites, tu peux aussi m'envoyer une photo nette de la zone grâce au bouton 📷 ».
+     * Termine TOUJOURS par une ligne spéciale de suggestions de réponses rapides :
+       Format obligatoire à la fin :
+       [CHIPS: <Choix 1> | <Choix 2> | <Choix 3> | <Choix 4>]
+       Exemple : [CHIPS: Moins d'un mois | Depuis longtemps | Ça me gratte | Pas de douleur]
+
+   - ÉTAPE 2 (Habitudes, Savons & Cosmétiques actuels) :
+     * Si l'utilisateur a répondu à l'Étape 1 (ou a déjà donné l'ancienneté/symptômes), approfondis avec la 2ème question clé :
+       - Quels produits ou savons utilises-tu sur ton visage le matin et le soir en ce moment ?
+       - As-tu utilisé des crèmes décapantes/éclaircissantes, ou changé récemment de routine ?
+     * Format obligatoire des puces rapides à la fin :
+       [CHIPS: Savon doux / gel | Savon noir / antiseptique | Crème hydratante | Soin éclaircissant]
+
+   - ÉTAPE 3 (Conclusion Clinique Finale & Protocole Sur-Mesure) :
+     * Dès que tu disposes des éléments clés (après 2 échanges de questions ou si l'utilisateur a tout précisé d'un coup) :
+       Délivre la CONCLUSION FINALE structurée comme suit :
+       - Diagnostic / Bilan bienveillant : explication claire du mécanisme sur peau noire/mélanoderme.
+       - Routine Matin : 2 à 3 étapes concrètes (nettoyant doux, sérum botanique, SPF 50+ invisible).
+       - Routine Soir : 2 à 3 étapes concrètes (démaquillage huileux, apaisement aloka/niacinamide, karité/balanites).
+       - À bannir formellement : gestes aggravants (percer, frotter, savon abrasif, alcool).
+       - Orientation cabine : invitation à prendre RDV en institut partenaire certifié Kènè pour un soin purifiant/unifiant cabine.
+       [CHIPS: Prendre RDV en institut | Commander les soins | Poser une autre question]
+
+3. ATTITUDE & FORMAT :
+   - Réponds avec chaleur, empathie et authenticité ivoirienne bienveillante.
+   - Réponses fluides, digestes et aérées (80 à 140 mots par étape).
+   - Ne pose JAMAIS plus de 2 questions à la fois pour ne pas noyer l'interlocuteur.
 
 ═══ EXPERTISE DERMO-COSMÉTIQUE : SPECTRE COMPLET DES PEAUX NOIRES & TRÉSORS AFRICAINS ═══
 - Peau Albinos (Albinisme Oculo-Cutané OCA) : photoprotection vitale SPF 50+ toutes les 2 h + chapeau + lunettes UV400. Soins ultra-doux (karité brut, céramides, aloka). Toute croûte persistante → dermatologue sans attendre.
@@ -242,6 +270,14 @@ export function tidyReply(raw: string): string {
 
   cleaned = cleaned.replace(/^(?:Dr\.?|Dermo)\s*K[èe]n[èe]\s*:\s*/i, "");
 
+  // Préservation du tag [CHIPS: ...] pour l'interface utilisateur
+  const chipsMatch = cleaned.match(/\[CHIPS:\s*([^\]]+)\]/i);
+  let chipsTag = "";
+  if (chipsMatch) {
+    chipsTag = chipsMatch[0];
+    cleaned = cleaned.replace(/\[CHIPS:\s*([^\]]+)\]/i, "").trim();
+  }
+
   if (cleaned && !/[.!?…]$/.test(cleaned)) {
     const lastPunctuation = Math.max(
       cleaned.lastIndexOf("."),
@@ -253,6 +289,10 @@ export function tidyReply(raw: string): string {
     } else {
       cleaned = cleaned.replace(/[,;:\s]+$/, "") + ".";
     }
+  }
+
+  if (chipsTag) {
+    cleaned = `${cleaned}\n\n${chipsTag}`;
   }
 
   return cleaned;
@@ -467,21 +507,42 @@ export function generateDrKeneKnowledgeReply(
 
   // 3. TACHES / HYPERPIGMENTATION (PIH) / MÉLASMA
   if (/tache|hyperpigment|melasma|masque.*grossesse|teint sombre|marqu/.test(text) || /tache|hyperpigment/.test(fullContext)) {
+    // Si l'utilisateur n'a pas encore précisé la durée ni ses produits (Étape 1 de l'anamnèse)
+    const hasDetails = /mois|semaine|an|depuis|savon|creme|pommade|routine/.test(fullContext);
+    if (!hasDetails) {
+      return (
+        `Yako ${addressFriend} pour ces taches. Sur notre peau mélanoderme, la moindre inflammation ou frottement stimule la mélanine et laisse une marque sombre tenace.\n\n` +
+        `Pour que je te construise la routine la plus efficace : **depuis combien de temps ces taches sont-elles apparues, et qu'appliques-tu actuellement sur ton visage (savon, crèmes) ?**\n` +
+        `N'hésite pas aussi à m'envoyer une photo nette de la zone avec l'icône 📷.\n\n` +
+        `[CHIPS: Moins d'un mois | Depuis longtemps | Savon doux & crème | Produits éclaircissants]`
+      );
+    }
     return (
-      `Yako ${addressFriend} pour les taches ! Sur notre peau mélanoderme, dès qu'il y a un petit bouton, une irritation ou un frottement, la mélanine monte d'un coup et laisse une tache sombre. ` +
-      "Ne t'inquiète surtout pas, cela s'estompe avec de la régularité. Le secret numéro un à Abidjan, c'est d'appliquer un écran solaire SPF 50 tous les matins pour que les UV ne viennent pas foncer la pigmentation. " +
-      "Le soir, utilise un soin doux à la niacinamide et à l'acide azélaïque, sans faire de gommages durs qui agressent le visage. " +
-      "Tu peux aussi réserver un soin éclat dans nos instituts partenaires certifiés Kènè ici à Abidjan 🌿."
+      `Yako ${addressFriend} pour ta patience. Voici ton protocole dermo-conseil complet pour atténuer ces taches en toute sécurité :\n\n` +
+      `☀️ **Le Matin :** Nettoyage doux au gel physiologique, sérum unifiant à la vitamine C stabilisée ou niacinamide 5%, puis fluide solaire invisible SPF 50+ impératif pour bloquer l'oxydation de la mélanine.\n` +
+      `🌙 **Le Soir :** Démaquillage à l'huile végétale douce (jojoba ou balanites), soin apaisant à l'acide azélaïque, puis une touche de beurre de karité brut pour régénérer la barrière cutanée.\n` +
+      `🚫 **À bannir :** Tout gommage à gros grains abrasifs et toute crème décapante qui provoquent un rebond pigmentaire pire.\n\n` +
+      `[CHIPS: Prendre RDV en institut | Commander les soins | Poser une autre question]`
     );
   }
 
   // 4. ACNÉ / BOUTONS / EXCÈS DE SÉBUM / PORES DILATÉS
   if (/acne|bouton|sebum|brill|gras|point.*noir|pore|comedon/.test(text)) {
+    const hasDetails = /mois|semaine|an|depuis|savon|creme|mal|gratt|douleur/.test(fullContext);
+    if (!hasDetails) {
+      return (
+        `Avec la chaleur et l'humidité d'ici, les pores s'obstruent facilement et favorisent les imperfections.\n\n` +
+        `Pour t'aider au mieux : **depuis quand as-tu ces boutons, et est-ce qu'ils te font mal ou te démangent au toucher ?**\n` +
+        `Tu peux aussi me partager une photo de la zone en appuyant sur 📷 pour que j'analyse l'inflammation.\n\n` +
+        `[CHIPS: Moins d'1 mois | Depuis longtemps | Ça gratte / fait mal | Aucune douleur]`
+      );
+    }
     return (
-      `Avec la chaleur et l'humidité d'ici, le sébum s'accumule vite et obstrue les pores, ce qui fait apparaître les comédons et boutons. ` +
-      "Mon conseil essentiel : lave ton visage matin et soir avec un gel très doux sans savon, et surtout ne perce jamais les boutons avec tes ongles, sinon cela va laisser des taches pigmentaires durables. " +
-      "Applique une hydratation légère comme le gel d'aloka pur ou quelques gouttes d'huile de moringa. " +
-      "Si des boutons te font mal, une consultation en institut partenaire certifié Kènè permettra d'assainir la peau en douceur."
+      `Merci pour ces précisions ${addressFriend}. Voici ton protocole purifiant ciblé pour assainir ta peau sans la dessécher :\n\n` +
+      `☀️ **Le Matin :** Nettoyage avec un gel doux moussant sans savon au moringa ou zinc, hydratation fluide non-comédogène (aloka ou moringa léger) et fluide solaire matifiant SPF 50+.\n` +
+      `🌙 **Le Soir :** Double nettoyage doux, application locale de niacinamide ou acide azélaïque pour calmer l'inflammation et stopper l'apparition de taches sombres.\n` +
+      `🚫 **À bannir :** Ne jamais percer ni gratter les boutons avec les ongles (risque majeur de cicatrice noire creusée).\n\n` +
+      `[CHIPS: Prendre RDV en institut | Commander les soins | Poser une autre question]`
     );
   }
 

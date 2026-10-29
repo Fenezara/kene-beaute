@@ -696,7 +696,14 @@ SI C'EST UN PRODUIT COSMÉTIQUE :
 SI C'EST UNE ZONE DE PEAU HUMAINE :
 - is_product = false
 - niveau : "vert" | "jaune" | "rouge"
-- message : analyse bienveillante des zones de peau, conseil botanique africain si vert, institut partenaire si jaune, dermato urgent si rouge.
+- message :
+  * Si NIVEAU ROUGE (urgence/lésion suspecte grave) : alerte médicale immédiate, oriente vers un dermatologue sans attendre.
+  * Si NIVEAU VERT ou JAUNE (aspect courant : boutons, taches, déshydratation, sébum, pores) :
+    Adopte la posture d'une vraie dermo-conseillère en anamnèse !
+    1) Décris avec chaleur ce que tu observes visuellement sur la peau (ex: "J'observe bien ta photo : on note de petits boutons inflammatoires avec un début de marques pigmentaires sur la zone...").
+    2) Pose ensuite LA question clé d'anamnèse pour compléter le diagnostic avant de poser la routine définitive : "Depuis combien de temps as-tu cela, et quels produits ou savons appliques-tu en ce moment sur ton visage ?"
+    3) Termine toujours ton message par des puces de réponses rapides au format :
+       [CHIPS: Moins d'un mois | Depuis longtemps | Ça me gratte | Pas de douleur]
 
 Réponds STRICTEMENT sous format JSON valide avec la structure suivante :
 {
@@ -978,27 +985,27 @@ const EXPERT_TRIAGE_PROFILES: ClinicalTriageProfile[] = [
   {
     niveau: "vert",
     message:
-      "J'observe une hyperpigmentation superficielle fréquente après une inflammation sur peau mélanoderme. Une routine douce associant un sérum au moringa régulateur, du beurre de karité de Korhogo et un écran solaire SPF50 évitera que la zone ne s'assombrisse. Avec de la régularité et une hydratation bienveillante, votre peau retrouvera toute son harmonie.",
+      "J'observe sur ta photo une hyperpigmentation superficielle fréquente après une inflammation sur peau mélanoderme.\n\nPour te prescrire la routine sur-mesure la plus efficace : depuis combien de temps ces marques sont-elles apparues, et quels produits ou savons appliques-tu en ce moment sur ton visage ?\n\n[CHIPS: Moins d'un mois | Depuis longtemps | Savon doux & crème | Produits éclaircissants]",
   },
   {
     niveau: "vert",
     message:
-      "L'aspect visuel traduit une déshydratation avec un léger voile cendré, signe d'une barrière cutanée éprouvée par l'eau calcaire ou l'harmattan. Je vous recommande d'appliquer de l'huile pure de baobab ou du karité brut après une brume florale apaisante à l'aloka, matin et soir. Votre film hydrolipidique retrouvera rapidement son éclat et sa souplesse.",
+      "L'aspect visuel traduit une déshydratation avec un léger voile cendré, signe d'une barrière cutanée éprouvée par l'eau calcaire ou l'harmattan.\n\nPour t'orienter précisément : ressens-tu des tiraillements après le nettoyage, et qu'utilises-tu comme huile ou baume actuellement ?\n\n[CHIPS: Tiraillements après la douche | Peau inconfortable | Karité brut | Aucune crème]",
   },
   {
     niveau: "jaune",
     message:
-      "La photo met en évidence de petits comédons et une inflammation locale modérée qui requiert un soin ciblé pour prévenir les taches cicatricielles. Évitez absolument de percer ou frotter les lésions, et appliquez quelques gouttes d'huile de neem purifiante le soir. Je vous invite à prendre rendez-vous avec une dermo-conseillère partenaire Kènè pour un protocole assainissant personnalisé.",
+      "La photo met en évidence de petits comédons et une inflammation locale modérée qui requiert un soin ciblé pour prévenir les taches cicatricielles.\n\nPour affiner ton bilan : est-ce que ces boutons te grattent ou sont douloureux au toucher, et depuis combien de temps sont-ils là ?\n\n[CHIPS: Moins d'1 mois | Depuis longtemps | Ça gratte / fait mal | Pas de douleur]",
   },
   {
     niveau: "jaune",
     message:
-      "Je note des zones pigmentaires diffuses qui évoquent un mélasma ou des macules tenaces. Il est capital de proscrire les produits décapants ou éclaircissants agressifs qui aggraveraient le rebond pigmentaire. Un rendez-vous avec une dermo-conseillère Kènè permettra d'instaurer un rituel unifiant doux, complété impérativement par une protection solaire SPF50 quotidienne.",
+      "Je note des zones pigmentaires diffuses qui évoquent un mélasma ou des macules tenaces. Il est capital de proscrire les produits décapants qui aggraveraient le rebond pigmentaire.\n\nDis-moi : ces taches sont-elles apparues après le soleil ou une grossesse, et quelle protection solaire utilises-tu ?\n\n[CHIPS: Après le soleil | Après grossesse | Jamais d'écran solaire | Avec crème]",
   },
   {
     niveau: "vert",
     message:
-      "La zone photographiée montre une sensibilité cutanée passagère sans caractère d'alerte. Privilégiez un nettoyage doux sans tensioactifs agressifs, suivi d'un massage nourrissant à l'huile de baobab et au beurre de karité. Veillez à protéger votre peau du soleil direct avec un fluide protecteur SPF50.",
+      "La zone photographiée montre une sensibilité cutanée passagère sans caractère d'alerte grave.\n\nPour t'accompagner : as-tu changé récemment de lessive, de produit cosmétique ou appliqué un soin particulier ?\n\n[CHIPS: Nouveau produit récent | Même routine | Ça chauffe | Rien d'anormal]",
   },
   {
     niveau: "rouge",
@@ -1068,7 +1075,7 @@ export async function triageLesion(
             type: "text",
             text: `Tu es Dermo Kènè, la conseillère dermo-cosmétique bienveillante d'Abidjan. Détermine s'il s'agit d'un PRODUIT COSMÉTIQUE (flacon, pot, étiquette INCI) ou d'une PEAU mélanoderme.
 Si PRODUIT: is_product: true, product_name: "<nom>", extracted_text: "<ingrédients lisibles>", niveau: "vert"|"jaune"|"rouge" (rouge si hydroquinone ou corticoïde comme clobétasol).
-Si PEAU: is_product: false, niveau: "vert"|"jaune"|"rouge".
+Si PEAU: is_product: false, niveau: "vert"|"jaune"|"rouge". Si vert ou jaune, décris ce que tu vois sur la peau avec douceur et pose LA question clé d'anamnèse (durée, produits actuels, douleur/démangeaison) en terminant par [CHIPS: Moins d'un mois | Depuis longtemps | Ça gratte | Pas de douleur].
 Réponds STRICTEMENT en JSON: {"is_product": boolean, "product_name": string|null, "extracted_text": string|null, "niveau": "vert"|"jaune"|"rouge", "message": "<ton analyse bienveillante d'Abidjan terminée par un point final>"}.`,
           },
           ...imageContents,

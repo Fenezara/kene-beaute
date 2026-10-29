@@ -149,6 +149,18 @@ const TRIAGE = {
   rouge: { border: "border-l-4 border-bissap", bg: "bg-bissap/5", text: "text-destructive", Icon: OctagonAlert, cta: "Prendre RDV en institut (WhatsApp)" },
 };
 
+/** Découpe le contenu d'un message pour extraire les suggestions de réponse rapide [CHIPS: ...] */
+function extractMessageContentAndChips(raw: string): { text: string; chips: string[] } {
+  const match = raw.match(/\[CHIPS:\s*([^\]]+)\]/i);
+  if (!match) return { text: raw, chips: [] };
+  const chips = match[1]
+    .split("|")
+    .map((c) => c.trim())
+    .filter(Boolean);
+  const cleanText = raw.replace(/\[CHIPS:\s*([^\]]+)\]/i, "").trim();
+  return { text: cleanText, chips };
+}
+
 /* ── Déverrouillage audio préventif mobile ── */
 
 /** Déverrouillage préventif de l'AudioContext pour les navigateurs mobiles (iOS Safari / Android Chrome)
@@ -1441,10 +1453,52 @@ export function ChatScreen() {
                 </button>
               </div>
 
-              {/* Texte de consultation */}
-              <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap relative z-10">
-                {lastAssistantMessage.content}
-              </p>
+              {/* Texte de consultation & Chips interactifs */}
+              {(() => {
+                const parsed = extractMessageContentAndChips(lastAssistantMessage.content);
+                return (
+                  <>
+                    <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap relative z-10">
+                      {parsed.text}
+                    </p>
+                    {parsed.chips.length > 0 && !sending && (
+                      <div className="pt-2.5 flex flex-wrap gap-1.5 relative z-10">
+                        {parsed.chips.map((chip, cIdx) => (
+                          <button
+                            key={cIdx}
+                            type="button"
+                            onClick={() => {
+                              haptic(HAPTIC.light);
+                              if (chip.toLowerCase().includes("rdv") || chip.toLowerCase().includes("institut")) {
+                                openWhatsAppAppointmentInquiry({
+                                  serviceCategory: "Consultation & Soin",
+                                  serviceName: "Protocole recommandé par Dermo Kènè",
+                                  tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
+                                  instituteName: user?.selectedTenant?.name,
+                                  country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
+                                });
+                              } else if (chip.toLowerCase().includes("commander") || chip.toLowerCase().includes("soins")) {
+                                openWhatsAppProductOrderInquiry({
+                                  summary: parsed.text,
+                                  tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
+                                  instituteName: user?.selectedTenant?.name,
+                                  country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
+                                });
+                              } else {
+                                send(chip);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 active:scale-95 transition-all shadow-2xs cursor-pointer"
+                          >
+                            <Sparkles size={11} className="text-gold" />
+                            <span>{chip}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* Actions 1-Tap : Commande soins sur WhatsApp, RDV en institut sur WhatsApp, Réception WhatsApp */}
               <div className="pt-3 border-t border-border/60 flex flex-wrap items-center gap-2.5 relative z-10">
@@ -1623,7 +1677,49 @@ export function ChatScreen() {
                               {m.niveau === "vert" ? "Rassurant" : m.niveau === "jaune" ? "À surveiller" : "Consultation conseillée"}
                             </p>
                           )}
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                          {(() => {
+                            const parsed = extractMessageContentAndChips(m.content);
+                            return (
+                              <>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{parsed.text}</p>
+                                {parsed.chips.length > 0 && isNewestCard && !sending && (
+                                  <div className="mt-3 pt-2.5 border-t border-border/50 flex flex-wrap gap-1.5">
+                                    {parsed.chips.map((chip, cIdx) => (
+                                      <button
+                                        key={cIdx}
+                                        type="button"
+                                        onClick={() => {
+                                          haptic(HAPTIC.light);
+                                          if (chip.toLowerCase().includes("rdv") || chip.toLowerCase().includes("institut")) {
+                                            openWhatsAppAppointmentInquiry({
+                                              serviceCategory: "Consultation & Soin",
+                                              serviceName: "Protocole recommandé par Dermo Kènè",
+                                              tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
+                                              instituteName: user?.selectedTenant?.name,
+                                              country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
+                                            });
+                                          } else if (chip.toLowerCase().includes("commander") || chip.toLowerCase().includes("soins")) {
+                                            openWhatsAppProductOrderInquiry({
+                                              summary: parsed.text,
+                                              tenantPhone: user?.selectedTenant?.phone || (user?.selectedTenant as any)?.ownerPhone,
+                                              instituteName: user?.selectedTenant?.name,
+                                              country: ((user?.selectedTenant as any)?.country || "CI") as "CI" | "SN",
+                                            });
+                                          } else {
+                                            send(chip);
+                                          }
+                                        }}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 active:scale-95 transition-all shadow-2xs cursor-pointer"
+                                      >
+                                        <Sparkles size={11} className="text-gold" />
+                                        <span>{chip}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                           {m.productAnalysis && (
                             <InciShieldCard analysis={m.productAnalysis} />
                           )}
