@@ -18,6 +18,7 @@ import { rateLimit, rlKey, rateLimitResponse, PRO_DIAGNOSES } from "@/lib/kene/r
 import { checkImageDataUrl } from "@/lib/kene/upload";
 import { getActiveLeaveForEmployee, formatLeaveBlockedMessage } from "@/lib/kene/leaves";
 import { canonicalPhone } from "@/lib/kene/phone-normalize";
+import { proDiagQuotaFor } from "@/lib/kene/plans";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -93,6 +94,19 @@ export async function POST(req: NextRequest) {
 
     const tenant = await resolveTenant(req, parsed.data.tenantId);
     if (!tenant) return jsonError("Institut introuvable", 404);
+
+    // Contrôle du quota de bilans cutanés IA en cabine (3 offerts/mois sans abonnement, illimité avec abonnement Pro)
+    const diagQuota = await proDiagQuotaFor(tenant.id);
+    if (diagQuota.remaining <= 0) {
+      return NextResponse.json(
+        {
+          error: "Votre institut a utilisé ses 3 bilans de peau cabine gratuits ce mois-ci. Activez votre formule Kènè Pro (Starter, Institut ou Complexe) pour réaliser des diagnostics dermo-biométriques illimités avec vos clientes !",
+          quotaExceeded: true,
+          quota: diagQuota,
+        },
+        { status: 403 }
+      );
+    }
 
     // Règle d'entreprise : une praticienne en congé ne peut pas réaliser de diagnostic cabine
     if (practitioner && practitioner.trim().length > 0) {

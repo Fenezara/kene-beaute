@@ -811,8 +811,22 @@ function DiagWizard({
       if (res.reusedClient) toast.info("Fiche CRM existante réutilisée.");
       onSaved();
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : "Analyse impossible");
-      toastError(e, "Analyse impossible");
+      const msg = e instanceof Error ? e.message : "Analyse impossible";
+      setSubmitError(msg);
+      if (msg.includes("3 bilans") || msg.includes("quota")) {
+        toast.error("Quota cabine atteint (3 bilans gratuits)", {
+          description: "Votre salon a utilisé ses 3 bilans gratuits ce mois-ci. Activez votre forfait Kènè Pro pour bénéficier de diagnostics illimités.",
+          action: {
+            label: "Voir les formules Pro",
+            onClick: () => {
+              onClose();
+              onNavigate?.("parametres");
+            },
+          },
+        });
+      } else {
+        toastError(e, "Analyse impossible");
+      }
     } finally {
       setSubmitting(false);
     }

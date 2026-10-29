@@ -88,10 +88,12 @@ export const PLAN_DEFS: readonly PlanDef[] = [
     ],
     perks: [
       "1er mois 100% gratuit avec accès complet à toutes les fonctionnalités",
+      "Diagnostic de peau IA cabine illimité & ordonnance beauté digitale",
+      "Scanner INCI toxicologique cabine illimité (anti-dépigmentants)",
       "1 Praticienne & 1 Cabine de soin dédiée",
       "Agenda en ligne synchronisé & réservations 24h/24",
       "Acomptes Mobile Money SasPay / Wave (zéro no-show)",
-      "Fiches clientes & historique dermo-conseil",
+      "Fiches clientes & historique dermo-conseil complet",
       "Tarif dégressif à la fidélité : descend de 10 000 F à 5 000 F/mois",
       "Rappels de RDV automatisés par WhatsApp & SMS",
       "Référencement sur l'annuaire dermo-beauté Kènè",
@@ -185,6 +187,12 @@ export const FREE_PLAN = {
   diagQuotaMonth: 1,
   inciQuotaMonth: 3,
   voiceQuotaMonth: 5,
+} as const;
+
+export const FREE_PRO_PLAN = {
+  id: "pro_non_abonne",
+  diagQuotaMonth: 3,
+  inciQuotaMonth: 5,
 } as const;
 
 // ─────────────── Lecture de l'abonnement actif ───────────────
@@ -521,6 +529,100 @@ export async function voiceQuotaFor(userId?: string | null): Promise<FeatureQuot
     remaining: isPlus ? DIAG_QUOTA_UNLIMITED : Math.max(0, quota - used),
     plan: isPlus ? "kene_plus" : (sub?.plan ?? FREE_PLAN.id),
     isPlus,
+  };
+}
+
+/**
+ * Vérifie si un établissement / salon dispose d'un abonnement Pro actif et non expiré
+ * (Starter, Institut, Complexe ou Pass Découverte 30j).
+ */
+export async function getActiveProSubscriptionForTenant(tenantId: string): Promise<Subscription | null> {
+  const tenant = await db.tenant.findUnique({
+    where: { id: tenantId },
+    select: { ownerPhone: true },
+  });
+  if (!tenant) return null;
+  const ownerUser = await db.user.findUnique({
+    where: { phone: tenant.ownerPhone },
+    select: { id: true },
+  });
+  if (!ownerUser) return null;
+  return db.subscription.findFirst({
+    where: {
+      userId: ownerUser.id,
+      status: "active",
+      expiresAt: { gt: new Date() },
+      plan: { in: ["pro_starter", "pro_institut", "pro_complexe", "pro_essentiel"] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/**
+ * Quota mensuel de bilans cutanés IA en cabine pour un institut :
+ * Sans abonnement actif = 3 diagnostics cabine / mois de dépannage.
+ * Avec abonnement Pro actif (ou Pass Découverte 30j) = Illimité (9999).
+ */
+export async function proDiagQuotaFor(tenantId: string): Promise<FeatureQuota> {
+  const activeSub = await getActiveProSubscriptionForTenant(tenantId);
+  const isPro = Boolean(activeSub);
+  if (isPro) {
+    return {
+      quota: DIAG_QUOTA_UNLIMITED,
+      used: 0,
+      remaining: DIAG_QUOTA_UNLIMITED,
+      plan: activeSub?.plan ?? "pro_institut",
+      isPlus: true,
+    };
+  }
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const used = await db.proDiagnosis.count({
+    where: { tenantId, createdAt: { gte: monthStart } },
+  });
+  const quota = FREE_PRO_PLAN.diagQuotaMonth;
+  return {
+    quota,
+    used,
+    remaining: Math.max(0, quota - used),
+    plan: FREE_PRO_PLAN.id,
+    isPlus: false,
+  };
+}
+
+/**
+ * Quota mensuel du Scanner INCI cabine pour un institut :
+ * Sans abonnement actif = 5 scans de produits / mois de dépannage.
+ * Avec abonnement Pro actif (ou Pass Découverte 30j) = Illimité (9999).
+ */
+export async function proInciQuotaFor(tenantId: string, userId?: string | null): Promise<FeatureQuota> {
+  const activeSub = await getActiveProSubscriptionForTenant(tenantId);
+  const isPro = Boolean(activeSub);
+  if (isPro) {
+    return {
+      quota: DIAG_QUOTA_UNLIMITED,
+      used: 0,
+      remaining: DIAG_QUOTA_UNLIMITED,
+      plan: activeSub?.plan ?? "pro_institut",
+      isPlus: true,
+    };
+  }
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const used = await db.securityEvent.count({
+    where: {
+      kind: "pro_inci_scan",
+      detail: { contains: tenantId },
+      ts: { gte: monthStart },
+    },
+  });
+  const quota = FREE_PRO_PLAN.inciQuotaMonth;
+  return {
+    quota,
+    used,
+    remaining: Math.max(0, quota - used),
+    plan: FREE_PRO_PLAN.id,
+    isPlus: false,
   };
 }
 

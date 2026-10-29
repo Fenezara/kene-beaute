@@ -600,8 +600,8 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
       {/* Matrice comparative détaillée des fonctionnalités */}
       <div className="k-card rounded-[22px] p-5 space-y-4">
         <div>
-          <h3 className="font-heading text-base font-bold text-foreground">Tableau comparatif détaillé des 3 formules</h3>
-          <p className="text-xs text-muted-foreground">Choisissez l'outil parfaitement dimensionné pour votre établissement.</p>
+          <h3 className="font-heading text-base font-bold text-foreground">Tableau comparatif détaillé des formules Pro</h3>
+          <p className="text-xs text-muted-foreground">Comparez les capacités avec ou sans abonnement et choisissez la formule idéale pour votre salon.</p>
         </div>
 
         <div className="overflow-x-auto">
@@ -609,6 +609,7 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
             <thead>
               <tr className="border-b border-border/60">
                 <th className="py-2.5 px-3 font-bold text-muted-foreground">Fonctionnalités & Modules</th>
+                <th className="py-2.5 px-3 font-bold text-center w-28 text-muted-foreground">Sans Abonnement</th>
                 <th className="py-2.5 px-3 font-bold text-center w-28 text-foreground">Starter</th>
                 <th className="py-2.5 px-3 font-bold text-center w-28 text-gold-text">Institut</th>
                 <th className="py-2.5 px-3 font-bold text-center w-28 text-terre">Complexe</th>
@@ -616,24 +617,27 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
             </thead>
             <tbody className="divide-y divide-border/40">
               <tr className="bg-muted/20">
-                <td colSpan={4} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
+                <td colSpan={5} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
                   1. Capacité & Infrastructure
                 </td>
               </tr>
               <tr>
                 <td className="py-2 px-3 font-medium">1er mois 100% offert (Pass Découverte)</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Expiré</td>
                 <td className="py-2 px-3 text-center text-success font-bold">30j (0 F)</td>
                 <td className="py-2 px-3 text-center text-success font-bold">30j (0 F)</td>
                 <td className="py-2 px-3 text-center text-success font-bold">30j (0 F)</td>
               </tr>
               <tr>
                 <td className="py-2 px-3 font-medium">Tarif fidélité dégressif (M1 → M6+)</td>
+                <td className="py-2 px-3 text-center text-muted-foreground font-mono">0 F / mois</td>
                 <td className="py-2 px-3 text-center font-mono font-bold">10k → 5k</td>
                 <td className="py-2 px-3 text-center font-mono font-bold text-gold-text">20k → 10k</td>
                 <td className="py-2 px-3 text-center font-mono font-bold text-terre">30k → 20k</td>
               </tr>
               <tr>
                 <td className="py-2 px-3 font-medium">Praticiennes & Cabines de soin</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">1 Praticienne solo</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">1 Praticienne</td>
                 <td className="py-2 px-3 text-center font-bold">Jusqu'à 6</td>
                 <td className="py-2 px-3 text-center text-gold-text font-bold">Illimitées</td>
@@ -642,22 +646,25 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                 <td className="py-2 px-3 font-medium">Nombre d'établissements / succursales</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">1 salon</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">1 salon</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">1 salon</td>
                 <td className="py-2 px-3 text-center text-gold-text font-bold">Multi-succursales</td>
               </tr>
 
               <tr className="bg-muted/20">
-                <td colSpan={4} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
+                <td colSpan={5} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
                   2. Gestion Quotidienne & Clientèle
                 </td>
               </tr>
               <tr>
                 <td className="py-2 px-3 font-medium">Agenda en ligne 24/7 & réservations clientes</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Désactivé</td>
                 <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
                 <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
                 <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
               </tr>
               <tr>
                 <td className="py-2 px-3 font-medium">Acomptes Mobile Money anti-désistement</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
                 <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
                 <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
                 <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
@@ -665,11 +672,13 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
               <tr>
                 <td className="py-2 px-3 font-medium">Caisse enregistreuse POS tactile & tickets Bluetooth</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">— Basique</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Basique</td>
                 <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
                 <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
               </tr>
               <tr>
                 <td className="py-2 px-3 font-medium">Gestion des stocks (Revente vs Cabine)</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Basique</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">— Basique</td>
                 <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
                 <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
@@ -677,17 +686,60 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
               <tr>
                 <td className="py-2 px-3 font-medium">CRM avancé & segmentation RFM</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">— Fiches simples</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Fiches simples</td>
                 <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
                 <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus</td>
               </tr>
+              <tr>
+                <td className="py-2 px-3 font-medium">Le Fil du Retour (Relances auto SMS & WhatsApp)</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Suspendu</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Rappels RDV seuls</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Relances J+7/J+21</td>
+                <td className="py-2 px-3 text-center text-gold-text font-bold">⭐ Relances VIP auto</td>
+              </tr>
 
               <tr className="bg-muted/20">
-                <td colSpan={4} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
-                  3. Gestion Sociale & Comptabilité OHADA
+                <td colSpan={5} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
+                  3. IA Clinique & Dermo-Conseil en Cabine
+                </td>
+              </tr>
+              <tr>
+                <td className="py-2 px-3 font-medium">Diagnostic de peau IA en cabine (multi-angles)</td>
+                <td className="py-2 px-3 text-center font-bold text-muted-foreground">3 / mois (dépannage)</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Illimité</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Illimité</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Illimité</td>
+              </tr>
+              <tr>
+                <td className="py-2 px-3 font-medium">Scanner INCI toxicologique cabine (flacons)</td>
+                <td className="py-2 px-3 text-center font-bold text-muted-foreground">5 produits / mois</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Illimité</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Illimité</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Illimité</td>
+              </tr>
+              <tr>
+                <td className="py-2 px-3 font-medium">Fiche clinique PDF & Ordonnance Beauté</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Non disponible</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus certifié</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Inclus certifié</td>
+                <td className="py-2 px-3 text-center text-gold-text font-bold">⭐ Inclus + Logo Salon</td>
+              </tr>
+              <tr>
+                <td className="py-2 px-3 font-medium">Dossiers cutanés & Suivi Avant/Après</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">Lecture seule</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Interactif complet</td>
+                <td className="py-2 px-3 text-center text-success font-bold">✓ Interactif complet</td>
+                <td className="py-2 px-3 text-center text-gold-text font-bold">⭐ Multi-spectral HD</td>
+              </tr>
+
+              <tr className="bg-muted/20">
+                <td colSpan={5} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
+                  4. Gestion Sociale & Comptabilité OHADA
                 </td>
               </tr>
               <tr>
                 <td className="py-2 px-3 font-medium">Paie RH certifiée CNPS (CI) / IPRES (SN) & commissions</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
                 <td className="py-2 px-3 text-center text-gold-text font-bold">⭐ Inclus</td>
@@ -696,13 +748,15 @@ export function ProPlanSection({ tenantId, tenantName }: { tenantId: string; ten
                 <td className="py-2 px-3 font-medium">Comptabilité SYSCOHADA (Clôtures, TVA, Bilan)</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
                 <td className="py-2 px-3 text-center text-gold-text font-bold">⭐ Inclus</td>
               </tr>
               <tr>
                 <td className="py-2 px-3 font-medium">Secrétaire IA de Direction Kènè (Orbe vocal 3D)</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
                 <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
-                <td className="py-2 px-3 text-center text-gold-text font-bold">⭐ Inclus</td>
+                <td className="py-2 px-3 text-center text-muted-foreground">— Non</td>
+                <td className="py-2 px-3 text-center text-gold-text font-bold">⭐ Inclus 24/7</td>
               </tr>
             </tbody>
           </table>

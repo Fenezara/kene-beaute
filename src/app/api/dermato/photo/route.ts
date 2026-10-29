@@ -6,7 +6,7 @@ import { jsonError, serverError } from "@/lib/kene/server";
 import { rateLimit, rlKey, rateLimitResponse, DERMATO } from "@/lib/kene/rate-limit";
 import { checkImageDataUrl } from "@/lib/kene/upload";
 import { audit, clientIp } from "@/lib/kene/audit";
-import { inciQuotaFor } from "@/lib/kene/plans";
+import { inciQuotaFor, proInciQuotaFor } from "@/lib/kene/plans";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -15,6 +15,7 @@ const Body = z.object({
   image: z.string().startsWith("data:image/").optional(),
   images: z.array(z.string().startsWith("data:image/")).min(1).max(5).optional(),
   userId: z.string().optional(),
+  tenantId: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -45,8 +46,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Vérification du quota Scanner INCI pour les utilisatrices identifiées
-    if (parsed.data.userId) {
+    // Vérification du quota Scanner INCI
+    if (parsed.data.tenantId) {
+      // 1. Quota Pro (si appelé par un institut / tenant)
+      const pQuota = await proInciQuotaFor(parsed.data.tenantId, parsed.data.userId);
+      if (pQuota.remaining <= 0) {
+        return NextResponse.json(
+          {
+            error: "Votre établissement a utilisé ses 5 analyses de produits gratuites ce mois-ci avec le Scanner INCI. Activez votre formule Kènè Pro (Starter, Institut ou Complexe) pour analyser la composition de tous vos produits et flacons en illimité !",
+            quotaExceeded: true,
+            quota: pQuota,
+          },
+          { status: 403 },
+        );
+      }
+    } else if (parsed.data.userId) {
+      // 2. Quota Cliente (grand public autonome)
       const iQuota = await inciQuotaFor(parsed.data.userId);
       if (iQuota.remaining <= 0) {
         return NextResponse.json(
@@ -62,7 +77,14 @@ export async function POST(req: NextRequest) {
 
     const triage = await triageLesion(imgList);
 
-    if (parsed.data.userId && (triage.isProduct || triage.productAnalysis)) {
+    if (parsed.data.tenantId) {
+      void audit({
+        kind: "pro_inci_scan",
+        userId: parsed.data.userId,
+        ip: clientIp(req),
+        detail: `tenant:${parsed.data.tenantId}`,
+      });
+    } else if (parsed.data.userId && (triage.isProduct || triage.productAnalysis)) {
       void audit({ kind: "inci_scan", userId: parsed.data.userId });
     }
     return NextResponse.json({

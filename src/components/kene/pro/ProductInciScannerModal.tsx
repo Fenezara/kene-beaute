@@ -3,7 +3,7 @@
 // Permet à la praticienne d'analyser la formule d'un produit apporté par la cliente
 // ou utilisé en cabine (Détection Hydroquinone, Corticoïdes, Allergènes, etc.).
 import { useState, useRef } from "react";
-import { Camera, ImagePlus, Loader2, ShieldAlert, ShieldCheck, TriangleAlert, X, AlertTriangle } from "lucide-react";
+import { Camera, ImagePlus, Loader2, ShieldAlert, ShieldCheck, TriangleAlert, X, AlertTriangle, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { analyzeInciList, WEST_AFRICAN_MARKET_BLACKLIST, type InciAnalysisResult } from "@/lib/kene/inci-analyzer";
 import { apiPost, resizeImage } from "@/lib/kene/api";
+import { useKene } from "@/store/kene";
 
 interface Props {
   open: boolean;
@@ -19,10 +20,12 @@ interface Props {
 }
 
 export function ProductInciScannerModal({ open, onOpenChange, tenantId }: Props) {
+  const user = useKene((s) => s.user);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<InciAnalysisResult | null>(null);
   const [manualText, setManualText] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [quotaError, setQuotaError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -32,6 +35,7 @@ export function ProductInciScannerModal({ open, onOpenChange, tenantId }: Props)
     setAnalysis(null);
     setManualText("");
     setImagePreview(null);
+    setQuotaError(null);
   };
 
   const handleClose = () => {
@@ -42,17 +46,30 @@ export function ProductInciScannerModal({ open, onOpenChange, tenantId }: Props)
   const processImage = async (file: File) => {
     try {
       setAnalyzing(true);
+      setQuotaError(null);
       const resized = await resizeImage(file, 1600);
       setImagePreview(resized);
 
-      // Appel de l'analyseur VLM & INCI via l'API Kènè
+      // Appel de l'analyseur VLM & INCI via l'API Kènè avec contexte Pro
       const res = await apiPost<{
         niveau?: "vert" | "jaune" | "rouge";
         message?: string;
         isProduct?: boolean;
         productName?: string;
         productAnalysis?: InciAnalysisResult;
-      }>("/api/dermato/photo", { image: resized });
+        quotaExceeded?: boolean;
+        error?: string;
+      }>("/api/dermato/photo", {
+        image: resized,
+        tenantId,
+        userId: user?.id,
+      });
+
+      if (res?.quotaExceeded || res?.error) {
+        setQuotaError(res.error || "Quota Scanner INCI atteint pour cet établissement.");
+        toast.error(res.error || "Quota Scanner INCI atteint");
+        return;
+      }
 
       if (res?.productAnalysis) {
         setAnalysis(res.productAnalysis);
@@ -66,7 +83,11 @@ export function ProductInciScannerModal({ open, onOpenChange, tenantId }: Props)
         setAnalysis(directAnalysis);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur lors de l'analyse de l'image");
+      const msg = err instanceof Error ? err.message : "Erreur lors de l'analyse de l'image";
+      if (msg.includes("quota") || msg.includes("5 analyses")) {
+        setQuotaError(msg);
+      }
+      toast.error(msg);
     } finally {
       setAnalyzing(false);
     }
@@ -135,6 +156,32 @@ export function ProductInciScannerModal({ open, onOpenChange, tenantId }: Props)
 
         {/* Section Actions de Capture / Sélection */}
         <div className="space-y-4 pt-2">
+          {quotaError && (
+            <div className="rounded-2xl border border-gold/40 bg-gold/10 p-4 space-y-2.5 text-xs animate-in fade-in">
+              <div className="flex items-center gap-2 text-gold-text font-bold">
+                <Crown size={18} />
+                <span>Quota Pro mensuel atteint (5 analyses offertes)</span>
+              </div>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                Votre établissement a utilisé ses 5 scans INCI de dépannage ce mois-ci. Activez votre abonnement Kènè Pro pour débloquer les analyses toxicologiques illimitées en cabine et protéger vos clientes contre les produits dépigmentants interdits.
+              </p>
+              <div className="pt-1 flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenChange(false);
+                    const evt = new CustomEvent("kene:open-pro-subscription");
+                    window.dispatchEvent(evt);
+                  }}
+                  className="k-btn-gold text-primary-foreground font-bold px-3.5 py-2 rounded-xl text-xs inline-flex items-center gap-1.5 shadow"
+                >
+                  <Crown size={14} />
+                  Activer Kènè Pro (Illimité)
+                </button>
+              </div>
+            </div>
+          )}
+
           {!analysis && !analyzing && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
