@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   }
   try {
     const raw = sanitizePayload(await req.json().catch(() => null));
-    const botCheck = checkBotGuard(req, raw);
+    const botCheck = await checkBotGuard(req, raw);
     if (!botCheck.ok && botCheck.response) return botCheck.response;
 
     const parsed = Body.safeParse(raw);

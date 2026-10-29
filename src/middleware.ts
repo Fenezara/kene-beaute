@@ -44,12 +44,13 @@ export const config = {
 // soumission de formulaire hors du domaine.
 const CONTENT_SECURITY_POLICY =
   "default-src 'self'; " +
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com; " +
   "style-src 'self' 'unsafe-inline'; " +
   "img-src 'self' data: blob:; " +
   "media-src 'self' blob: data:; " +
   "font-src 'self' data:; " +
-  "connect-src 'self' ws: wss:; " +
+  "connect-src 'self' ws: wss: https://challenges.cloudflare.com; " +
+  "frame-src 'self' https://challenges.cloudflare.com; " +
   "worker-src 'self' blob:; " +
   "manifest-src 'self'; " +
   "object-src 'none'; " +

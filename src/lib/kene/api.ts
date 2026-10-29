@@ -230,15 +230,30 @@ function looksProxyBlocked(res: Response): boolean {
   return !ct.includes("json");
 }
 
+/** Jeton actif Cloudflare Turnstile pour authentifier les requêtes clientes légitimes */
+let currentTurnstileToken: string | null = null;
+
+export function setTurnstileToken(token: string | null): void {
+  currentTurnstileToken = token;
+}
+
+export function getTurnstileToken(): string | null {
+  return currentTurnstileToken;
+}
+
 /** Requête à corps JSON bornée dans le temps: résout la réponse, rejette
  * l'erreur réseau, ou rejette PostTimeoutError si elle reste muette (le fetch
  * d'origine continue en arrière-plan — son éventuel résultat est ignoré). */
 function raceMethod(url: string, method: "POST" | "PATCH" | "DELETE", json: string | undefined, ms: number): Promise<Response> {
   return new Promise<Response>((resolve, reject) => {
     const timer = setTimeout(() => reject(new PostTimeoutError(ms)), ms);
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (currentTurnstileToken) {
+      headers["x-turnstile-token"] = currentTurnstileToken;
+    }
     fetch(url, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: json,
     }).then(
       (res) => {
@@ -260,7 +275,14 @@ async function bridgeCall<T>(url: string, json: string): Promise<T> {
   const sep = url.includes("?") ? "&" : "?";
   let res: Response;
   try {
-    res = await fetch(`${url}${sep}${GET_BRIDGE_PARAM}=${encodeURIComponent(json)}`, { cache: "no-store" });
+    const headers: Record<string, string> = {};
+    if (currentTurnstileToken) {
+      headers["x-turnstile-token"] = currentTurnstileToken;
+    }
+    res = await fetch(`${url}${sep}${GET_BRIDGE_PARAM}=${encodeURIComponent(json)}`, {
+      cache: "no-store",
+      headers,
+    });
   } catch {
     throw new ApiError(MSG_INSTABLE, 0);
   }

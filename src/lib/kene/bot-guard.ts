@@ -1,7 +1,7 @@
-// src/lib/kene/bot-guard.ts — Bouclier Anti-Robots Invisible pour Kènè.
+// src/lib/kene/bot-guard.ts — Bouclier Anti-Robots & Cloudflare Turnstile pour Kènè.
 // Protège les routes d'authentification (OTP, PIN, Inscription) contre les
 // scrapers, bots de force brute, scripts d'épuisement SMS et navigateurs headless.
-// 100% invisible pour les vraies clientes : zéro captcha, zéro friction.
+// 100% invisible pour les vraies clientes : zéro captcha bloquant, zéro friction.
 
 import { NextRequest } from "next/server";
 import { jsonError } from "@/lib/kene/server";
@@ -31,11 +31,71 @@ export interface BotGuardResult {
 }
 
 /**
- * Analyse une requête entrante pour détecter les robots et scripts automatisés.
- * @param req La requête Next.js
- * @param body Le payload JSON ou objet soumis
+ * Vérifie un jeton Cloudflare Turnstile auprès de l'API Cloudflare
+ * https://challenges.cloudflare.com/turnstile/v0/siteverify
  */
-export function checkBotGuard(req: NextRequest, body?: Record<string, unknown> | null): BotGuardResult {
+export async function verifyTurnstileToken(
+  token: string | null | undefined,
+  ip?: string
+): Promise<{ ok: boolean; reason?: string }> {
+  // Clé secrète configurée dans l'environnement, sinon clé de test Cloudflare invisible par défaut
+  const secretKey =
+    process.env.TURNSTILE_SECRET_KEY || "1x0000000000000000000000000000000BB";
+
+  // Si aucun jeton n'a été fourni
+  if (!token) {
+    // Si la vérification Turnstile est strictement obligatoire (ex. configurée en prod via TURNSTILE_ENFORCE=true)
+    if (process.env.TURNSTILE_ENFORCE === "true") {
+      return { ok: false, reason: "Vérification de sécurité Turnstile requise (jeton absent)" };
+    }
+    // Sinon, tolérance par défaut (le bouclier User-Agent + Honeypot protège déjà)
+    return { ok: true };
+  }
+
+  try {
+    const formData = new URLSearchParams();
+    formData.append("secret", secretKey);
+    formData.append("response", token);
+    if (ip && ip !== "local") {
+      formData.append("remoteip", ip);
+    }
+
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: formData,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      signal: AbortSignal.timeout(4000), // 4 secondes max
+    });
+
+    if (!res.ok) {
+      console.warn(`[turnstile] Réponse HTTP Cloudflare inattendue (${res.status})`);
+      return { ok: true }; // Tolérance réseau pour ne pas bloquer les utilisateurs
+    }
+
+    const data = (await res.json()) as { success: boolean; "error-codes"?: string[] };
+    if (!data.success) {
+      const errDetail = data["error-codes"]?.join(", ") || "token_invalide";
+      return { ok: false, reason: `Échec du contrôle de sécurité robot Turnstile (${errDetail})` };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    console.warn("[turnstile] Erreur réseau lors de la vérification:", err);
+    return { ok: true }; // Résilience : en cas de coupure externe Cloudflare, le service continue
+  }
+}
+
+/**
+ * Analyse une requête entrante pour détecter les robots et scripts automatisés.
+ * 1. Filtre les User-Agents malveillants / scrapers
+ * 2. Vérifie le pot de miel (Honeypot)
+ * 3. Valide le jeton temporel anti-rejeu
+ * 4. Valide le jeton Cloudflare Turnstile (en-tête x-turnstile-token ou champ payload)
+ */
+export async function checkBotGuard(
+  req: NextRequest,
+  body?: Record<string, unknown> | null
+): Promise<BotGuardResult> {
   const ua = req.headers.get("user-agent") || "";
   const ip = clientIp(req);
 
@@ -57,7 +117,6 @@ export function checkBotGuard(req: NextRequest, body?: Record<string, unknown> |
 
   if (body && typeof body === "object") {
     // 2. Détection par Pot de Miel (Honeypot)
-    // Ce champ invisible est ignoré par les humains, mais systématiquement rempli par les bots
     const trapValue = body._kene_bot_trap ?? body.hp_check ?? body.website_url;
     if (typeof trapValue === "string" && trapValue.trim().length > 0) {
       void audit({
@@ -65,7 +124,6 @@ export function checkBotGuard(req: NextRequest, body?: Record<string, unknown> |
         ip,
         detail: `bot_honeypot_triggered:trap_length=${trapValue.length}`,
       });
-      // Réponse silencieuse ou 403 pour décourager le robot
       return {
         ok: false,
         reason: "Activité automatisée détectée (pot de miel)",
@@ -90,6 +148,29 @@ export function checkBotGuard(req: NextRequest, body?: Record<string, unknown> |
         };
       }
     }
+  }
+
+  // 4. Contrôle Cloudflare Turnstile
+  const turnstileToken =
+    req.headers.get("x-turnstile-token") ||
+    (body && typeof body === "object"
+      ? (body._turnstile_token as string) ||
+        (body.turnstileToken as string) ||
+        (body["cf-turnstile-response"] as string)
+      : null);
+
+  const turnstileResult = await verifyTurnstileToken(turnstileToken, ip);
+  if (!turnstileResult.ok) {
+    void audit({
+      kind: "security_alert",
+      ip,
+      detail: `turnstile_verification_failed:${turnstileResult.reason}`,
+    });
+    return {
+      ok: false,
+      reason: turnstileResult.reason,
+      response: jsonError(turnstileResult.reason || "Vérification de sécurité requise", 403),
+    };
   }
 
   return { ok: true };

@@ -24,6 +24,7 @@ import { SessionKeeper } from "@/components/kene/SessionKeeper";
 import { TransportProbe } from "@/components/kene/TransportProbe";
 import { TierThemeBoot } from "@/components/kene/TierThemeBoot";
 import { PwaProvider } from "@/components/kene/pwa/PwaProvider";
+import { TurnstileProvider } from "@/components/kene/TurnstileProvider";
 import { ConsoleEntry, ConsoleRedirect, useEntryKind } from "@/components/kene/admin/ConsoleEntry";
 import { MaintenanceScreen } from "@/components/kene/MaintenanceScreen";
 import type { MaintenanceConfig } from "@/lib/kene/maintenance";
@@ -263,6 +264,9 @@ export default function Page() {
 
         {/* PWA: enregistrement du service worker + mise à jour offline (aucun rendu) */}
         <PwaProvider />
+
+        {/* Protection Anti-Robots Cloudflare Turnstile invisible en arrière-plan */}
+        <TurnstileProvider />
 
         <Toaster position="top-center" richColors closeButton />
       </div>
