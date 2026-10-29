@@ -285,15 +285,19 @@ export function KeneEmblem({ size = 96, className = "" }: { size?: number; class
     <span
       aria-hidden="true"
       className={cn(
-        "relative inline-block shrink-0 select-none overflow-hidden rounded-[26%] ring-2 ring-[#C8951E] dark:ring-[#E3B04B] shadow-[0_2px_12px_rgba(200,149,30,0.30)] dark:shadow-[0_2px_14px_rgba(227,176,75,0.25)] bg-[#FAF5EB] dark:bg-[#14100B]",
+        "relative inline-block shrink-0 select-none overflow-hidden rounded-[26%] transition-transform duration-200",
+        // Finition 3D Céramique Karité en Mode Jour :
+        "border border-[#D49A24]/45 shadow-[inset_0_2px_3px_rgba(255,255,255,0.95),inset_0_-2px_4px_rgba(178,90,56,0.12),0_4px_14px_-2px_rgba(212,154,36,0.30)] bg-[#FAF5EB]",
+        // Finition Verre Ambré & Or Solaire en Mode Nuit :
+        "dark:border-[#E5A93C]/55 dark:shadow-[inset_0_1.5px_2px_rgba(255,236,190,0.35),inset_0_-2px_4px_rgba(158,32,69,0.22),0_6px_18px_-2px_rgba(0,0,0,0.7),0_0_12px_rgba(229,169,60,0.25)] dark:bg-[#14100B]",
         className
       )}
       style={{ width: size, height: size }}
     >
-      {/* Version Journée / Fond Clair : affichée en mode clair */}
+      {/* Version Journée (Céramique Karité 3D) : affichée en mode clair */}
       <img
         src="/brand/kene-emblem-light.png"
-        alt="Logo Kènè Journée"
+        alt="Logo Kènè Journée — Céramique Karité"
         width={size}
         height={size}
         loading="eager"
@@ -301,10 +305,10 @@ export function KeneEmblem({ size = 96, className = "" }: { size?: number; class
         draggable={false}
         className="absolute inset-0 h-full w-full object-cover dark:hidden"
       />
-      {/* Version Soirée / Fond Sombre : affichée en mode sombre */}
+      {/* Version Soirée (Verre Ambré & Or Solaire) : affichée en mode sombre */}
       <img
         src="/brand/kene-emblem-dark.png"
-        alt="Logo Kènè Soirée"
+        alt="Logo Kènè Soirée — Verre Ambré & Or Solaire"
         width={size}
         height={size}
         loading="eager"
