@@ -141,7 +141,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
   const [last, setLast] = useState<LastAccount | null>(null);
   const [exploring, setExploring] = useState(false);
   const [first, setFirst] = useState(true);
-  const [pricingTab, setPricingTab] = useState<"pro" | "client">("pro");
+  const [pricingTab, setPricingTab] = useState<"client" | "pro">("client");
   const [showFullMatrix, setShowFullMatrix] = useState(false);
   const enterTimer = useRef<number | null>(null);
 
@@ -768,20 +768,8 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                         </p>
                       </div>
 
-                      {/* Onglets Pro vs Client */}
+                      {/* Onglets Client vs Pro */}
                       <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60 self-start sm:self-auto shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setPricingTab("pro")}
-                          className={cn(
-                            "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                            pricingTab === "pro"
-                              ? "k-btn-gold text-primary-foreground shadow-sm"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          🏢 Pour les Instituts (30j offerts)
-                        </button>
                         <button
                           type="button"
                           onClick={() => setPricingTab("client")}
@@ -793,6 +781,18 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                           )}
                         >
                           🌸 Pour les Clientes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPricingTab("pro")}
+                          className={cn(
+                            "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
+                            pricingTab === "pro"
+                              ? "k-btn-gold text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          🏢 Pour les Instituts (30j offerts)
                         </button>
                       </div>
                     </div>
