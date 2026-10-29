@@ -1025,7 +1025,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                           {/* Carte Kènè+ */}
                           <div className="rounded-[22px] border-2 border-gold/60 bg-gradient-to-b from-gold/15 via-gold/5 to-card/90 backdrop-blur-md p-5 flex flex-col justify-between space-y-4 relative shadow-lg shadow-gold/10">
                             <span className="absolute -top-3 right-4 rounded-full bg-gradient-to-r from-gold to-terre text-primary-foreground px-3 py-0.5 text-[10px] font-black uppercase tracking-wider shadow">
-                              ✨ 30j offerts puis dégressif
+                              ✨ 30j offerts (0 FCFA)
                             </span>
                             <div className="space-y-3">
                               <div className="flex items-center justify-between gap-2">
@@ -1039,11 +1039,11 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                               </p>
                               <div className="pt-1.5 border-t border-gold/30">
                                 <div className="flex items-baseline gap-1.5">
-                                  <span className="font-mono text-3xl font-black text-gold-text">5 000 → 2 500</span>
+                                  <span className="font-mono text-3xl font-black text-gold-text">2 500</span>
                                   <span className="text-xs text-muted-foreground font-semibold">FCFA / mois</span>
                                 </div>
                                 <p className="text-[10.5px] text-gold-text/90 font-medium mt-0.5">
-                                  <strong>1er mois 100% offert (0 FCFA)</strong>, puis descend jusqu&apos;à 2 500 F à vie !
+                                  <strong>1er mois 100% offert (Pass Découverte 30j, 0 FCFA)</strong>, puis 2 500 F/mois sans engagement !
                                 </p>
                               </div>
                               <ul className="space-y-2 text-xs pt-1">
