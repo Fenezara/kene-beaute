@@ -71,7 +71,7 @@ const FR: Dict = {
 
   // Onboarding — écran 1 (téléphone)
   "onboarding.title": "La beauté mélanoderme, enfin comprise.",
-  "onboarding.subtitle": "Diagnostic IA multi-zones, boutique botaniques, instituts partenaires et coach Dermo Kènè — pensés pour les peaux Fitzpatrick IV–VI.",
+  "onboarding.subtitle": "Diagnostic IA multi-zones, boutique botaniques, instituts partenaires et coach Dermo Kènè — pensés pour toute la diversité des peaux africaines.",
   "onboarding.phone.label": "Mon numéro",
   "onboarding.cta": "Recevoir mon code",
   "onboarding.legal": "En continuant, tu acceptes les conditions Kènè. Données santé chiffrées, jamais revendues.",

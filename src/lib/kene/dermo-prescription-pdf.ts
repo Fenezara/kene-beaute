@@ -151,7 +151,22 @@ export function generatePrescriptionPdf(input: PrescriptionPdfInput): { data: Ui
   doc.textRight("VITALITÉ CUTANÉE", M_RIGHT - 12, doc.cursorY + 12, { font: "bold", size: 8, color: SOFT });
   doc.textRight(`${score} / 100`, M_RIGHT - 12, doc.cursorY + 25, { font: "bold", size: 13, color: scoreColor });
   if (res?.fitzpatrick_estime) {
-    doc.textRight(`Phototype : ${res.fitzpatrick_estime}`, M_RIGHT - 12, doc.cursorY + 35, { size: 8, color: SOFT });
+    const rawF = res.fitzpatrick_estime;
+    const labelF =
+      rawF === "albinos"
+        ? "Albinos (OCA)"
+        : rawF === "rouquine"
+        ? "Afro-rousse (Phéomélanine)"
+        : rawF === "III"
+        ? "Fitzpatrick III (Chabine)"
+        : rawF === "IV"
+        ? "Fitzpatrick IV (Caramel)"
+        : rawF === "V"
+        ? "Fitzpatrick V (Brune)"
+        : rawF === "VI"
+        ? "Fitzpatrick VI (Ébène)"
+        : `Phototype ${rawF}`;
+    doc.textRight(`Nuance : ${labelF}`, M_RIGHT - 12, doc.cursorY + 35, { size: 8, color: SOFT });
   }
   doc.advance(50);
 

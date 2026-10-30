@@ -59,7 +59,7 @@ export const CHAPTERS: ChapterDef[] = [
     to: 0.9,
     overline: "Chapitre IV — L'écho",
     title: "Une IA qui lit ta peau.",
-    sub: "Diagnostic multi-zones calibré Fitzpatrick IV–VI. Les mélanines enfin comprises.",
+    sub: "Diagnostic multi-zones calibré pour tout le spectre mélanodermique. Les peaux africaines enfin comprises.",
     pos: "right-low",
   },
   {

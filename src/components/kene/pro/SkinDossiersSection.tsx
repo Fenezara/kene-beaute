@@ -261,7 +261,7 @@ export function SkinDossiersSection({
                 />
               </div>
 
-              {/* Filtre Fitzpatrick */}
+              {/* Filtre Phototype mélanique */}
               <select
                 value={selectedFitzy}
                 onChange={(e) => setSelectedFitzy(e.target.value)}
@@ -269,10 +269,12 @@ export function SkinDossiersSection({
                 aria-label="Filtrer par phototype"
               >
                 <option value="all">Tous les phototypes</option>
-                <option value="III">Phototype III (Mat clair)</option>
-                <option value="IV">Phototype IV (Mat méditerranéen)</option>
-                <option value="V">Phototype V (Brun foncé métis)</option>
-                <option value="VI">Phototype VI (Noir profond)</option>
+                <option value="albinos">Albinos (OCA — I africain)</option>
+                <option value="rouquine">Afro-rousse / Rouquine (OCA3 / Phéomélanine)</option>
+                <option value="III">Phototype III (Chabine / Doré très clair)</option>
+                <option value="IV">Phototype IV (Caramel / Métissé)</option>
+                <option value="V">Phototype V (Brun cuivré à chocolat)</option>
+                <option value="VI">Phototype VI (Ébène / Cacao intense)</option>
               </select>
 
               {/* Filtre Type de peau */}
@@ -908,16 +910,18 @@ function ClientSkinDossierDetail({
               </div>
 
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-muted-foreground">Phototype Fitzpatrick :</span>
+                <span className="font-semibold text-muted-foreground">Phototype & Nuance :</span>
                 <select
                   value={fitzpatrick}
                   onChange={(e) => setFitzpatrick(e.target.value)}
                   className="h-8 rounded-md border border-input bg-background px-2 text-xs font-medium"
                 >
-                  <option value="III">Phototype III</option>
-                  <option value="IV">Phototype IV</option>
-                  <option value="V">Phototype V</option>
-                  <option value="VI">Phototype VI</option>
+                  <option value="albinos">Albinos (OCA — I africain)</option>
+                  <option value="rouquine">Afro-rousse / Rouquine (Phéomélanine)</option>
+                  <option value="III">Phototype III (Chabine / Doré très clair)</option>
+                  <option value="IV">Phototype IV (Caramel / Métissé)</option>
+                  <option value="V">Phototype V (Brun cuivré à chocolat)</option>
+                  <option value="VI">Phototype VI (Ébène / Cacao intense)</option>
                 </select>
               </div>
 

@@ -545,7 +545,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                   <motion.p className="mt-3 max-w-[48ch] text-[12.5px] sm:text-[13.5px] lg:text-[14px] leading-relaxed text-muted-foreground"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.62 * d }}>
                     Bilan dermo-biométrique, coach Dermo Kènè, boutique botanique et instituts partenaires —
-                    pensés pour les teints Fitzpatrick&nbsp;IV–VI.
+                    pensés pour toute la diversité des teints africains (Albinos, Afro-roux, Chabins, Caramel à Ébène intense).
                   </motion.p>
                   {/* Boutons d'action Hero — Compte gratuit (0 FCFA) prioritaire & Aperçu temporaire */}
                   <div className="flex flex-wrap items-center gap-2.5 mt-4">

@@ -825,23 +825,24 @@ export function Onboarding({
               <RevealItem>
                 <section aria-labelledby="fitz-t">
                   <h2 id="fitz-t" className="text-sm font-semibold mb-2 flex items-center gap-2">
-                    <IconBadge icon={<CauriIcon size={14} />} size="sm" tone="gold" /> Phototype Fitzpatrick
+                    <IconBadge icon={<CauriIcon size={14} />} size="sm" tone="gold" /> Phototype & Nuance de peau (Diversité africaine)
                   </h2>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                     {FITZPATRICK_CARDS.map((f) => (
                       <button
                         key={f.id}
                         onClick={() => setFitz(f.id)}
                         aria-pressed={fitz === f.id}
-                        className="k-card relative rounded-[22px] p-2.5 text-left transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary"
+                        className="k-card relative rounded-[20px] p-2.5 text-left transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-primary"
                       >
                         {fitz === f.id && (
-                          <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[22px] bg-primary/8 ring-2 ring-inset ring-primary/60" />
+                          <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[20px] bg-primary/8 ring-2 ring-inset ring-primary/60" />
                         )}
                         <div className="relative">
-                          <div className="h-12 rounded-xl mb-2" style={{ background: f.gradient }} aria-hidden="true" />
-                          <p className="font-heading font-bold text-sm">{f.id}</p>
-                          <p className="text-[10px] leading-tight text-muted-foreground mt-0.5 line-clamp-3">{f.desc}</p>
+                          <div className="h-10 rounded-xl mb-1.5" style={{ background: f.gradient }} aria-hidden="true" />
+                          <p className="font-heading font-bold text-xs sm:text-sm text-foreground">{f.label.split(" — ")[0]}</p>
+                          <p className="text-[10px] font-medium text-primary mt-0.5">{f.label.split(" — ")[1] || ""}</p>
+                          <p className="text-[9.5px] leading-tight text-muted-foreground mt-0.5 line-clamp-2">{f.desc}</p>
                         </div>
                       </button>
                     ))}

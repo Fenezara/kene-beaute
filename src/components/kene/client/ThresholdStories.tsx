@@ -24,7 +24,7 @@ const STORIES: StoryCard[] = [
     imgAlt: "Lecture spectrale et bilan de peau Kènè",
     num: "01",
     title: "Ton visage, écouté",
-    sub: "Lecture spectrale zone par zone — pensée pour les teints Fitzpatrick IV–VI.",
+    sub: "Lecture spectrale zone par zone — pensée pour toute la diversité des teints africains (I à VI).",
   },
   {
     img: "/products/serum-moringa.webp",

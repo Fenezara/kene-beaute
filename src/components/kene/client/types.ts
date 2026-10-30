@@ -408,21 +408,39 @@ export const SKIN_GOALS = [
 
 export const FITZPATRICK_CARDS = [
   {
+    id: "albinos",
+    label: "Albinos (OCA) — Peau dépigmentée / I africain",
+    desc: "Absence d'eumélanine protectrice, vulnérabilité solaire maximale, photoprotection vitale",
+    gradient: "linear-gradient(135deg,#FFF2EB 0%,#FDE2D6 100%)",
+  },
+  {
+    id: "rouquine",
+    label: "Afro-rousse / Rouquine (Phéomélanine / OCA3)",
+    desc: "Teint cuivré doré à fauve, cheveux roux crépus, éphélides (taches de rousseur), fort stress UV",
+    gradient: "linear-gradient(135deg,#D97742 0%,#B45309 100%)",
+  },
+  {
+    id: "III",
+    label: "III — Chabine / Teint très clair doré",
+    desc: "Peau claire dorée, rougit d'abord (EPI) puis marque en taches brunes, sensible aux UV",
+    gradient: "linear-gradient(135deg,#C48C56 0%,#A36F38 100%)",
+  },
+  {
     id: "IV",
-    label: "IV — Brun méditerranéen / métissé",
-    desc: "Brunit facilement, hyperpigmentations fréquentes",
+    label: "IV — Métissée / Teint clair caramel",
+    desc: "Teint ambré caramel, PIH très contrastée, forte prédisposition au mélasma",
     gradient: "linear-gradient(135deg,#8D5524 0%,#6B4226 100%)",
   },
   {
     id: "V",
-    label: "V — Brun foncé",
-    desc: "Peau brune, PIH marquées, chéloïdes possibles",
+    label: "V — Brune cuivrée à chocolat",
+    desc: "Haute eumélanine, PIH très tenaces (6-18 mois), érythème masqué violacé",
     gradient: "linear-gradient(135deg,#5C3A21 0%,#43291A 100%)",
   },
   {
     id: "VI",
-    label: "VI — Noir profond",
-    desc: "Mélanine riche, sécheresse et ashy skin fréquentes",
-    gradient: "linear-gradient(135deg,#3A2C1C 0%,#241A10 100%)",
+    label: "VI — Ébène / Cacao intense à noir bleuté",
+    desc: "Bouclier mélanique maximal, perte en eau élevée (reflet gris-cendré), tendance chéloïde",
+    gradient: "linear-gradient(135deg,#3A2C1C 0%,#18120C 100%)",
   },
 ] as const;

@@ -545,12 +545,13 @@ export function ProfileScreen() {
           <SectionTitle icon={<CauriIcon size={16} />}><span id="skin-t">Mon profil peau</span></SectionTitle>
           <div className="k-card rounded-[24px] p-4 space-y-4">
             <div>
-              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Phototype Fitzpatrick</p>
-              <div className="grid grid-cols-3 gap-2">
+              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Phototype & Nuance de peau (Spectre mélanique africain)</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {FITZPATRICK_CARDS.map((f) => (
-                  <button key={f.id} onClick={() => setFitz(f.id)} aria-pressed={fitz === f.id} className={`rounded-[14px] p-1.5 border-2 text-left active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${fitz === f.id ? "border-primary" : "border-transparent"}`}>
-                    <div className="h-8 rounded-lg mb-1" style={{ background: f.gradient }} aria-hidden="true" />
-                    <p className="text-[11px] font-bold">{f.id}</p>
+                  <button key={f.id} onClick={() => setFitz(f.id)} aria-pressed={fitz === f.id} className={`rounded-[14px] p-2 border-2 text-left active:scale-95 transition-all focus-visible:outline-2 focus-visible:outline-primary ${fitz === f.id ? "border-primary bg-primary/10 shadow-xs" : "border-border/60 bg-card/60"}`}>
+                    <div className="h-7 rounded-lg mb-1.5" style={{ background: f.gradient }} aria-hidden="true" />
+                    <p className="text-[11px] font-bold text-foreground leading-tight">{f.label.split(" — ")[0]}</p>
+                    <p className="text-[9.5px] text-muted-foreground leading-tight line-clamp-1">{f.label.split(" — ")[1] || f.desc}</p>
                   </button>
                 ))}
               </div>
