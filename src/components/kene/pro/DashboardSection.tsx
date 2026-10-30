@@ -20,6 +20,7 @@ import {
   Zap,
   Plus,
   Crown,
+  ShoppingBag,
 } from "lucide-react";
 import {
   AreaChart,

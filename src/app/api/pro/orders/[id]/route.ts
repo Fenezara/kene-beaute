@@ -71,11 +71,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         if (!order.paymentId) {
           const payment = await tx.payment.create({
             data: {
+              purpose: "shop_order",
               method: paymentMethod,
-              status: "success",
               amount: order.total,
-              currency: "XOF",
-              ref: `ENCAISSEMENT-${ref}`,
+              status: "success",
+              ref: `ENCAISSEMENT-${ref}-${Date.now()}`,
+              userId: order.userId,
             },
           });
           await tx.order.update({
