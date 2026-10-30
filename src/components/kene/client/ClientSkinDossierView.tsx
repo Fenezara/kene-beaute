@@ -47,7 +47,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatDate, formatTime, scoreColor, xof } from "@/lib/kene/format";
-import { apiGet } from "@/lib/kene/api";
+import { apiGet, apiPost } from "@/lib/kene/api";
 import { openWhatsApp } from "@/lib/kene/whatsapp-relay";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
 import { PhotoLightboxModal, type LightboxPhoto } from "@/components/kene/common/PhotoLightboxModal";
@@ -58,8 +58,8 @@ import { HAPTIC, haptic } from "@/lib/kene/ux";
 import { SkinHealthDashboard } from "./SkinHealthDashboard";
 import { BODY_ZONES, type BodyZone } from "@/lib/kene/types";
 import { LinkAccountModal } from "./LinkAccountModal";
-import { BookmarkCheck, CalendarCheck, ShoppingBag } from "lucide-react";
-import { parseStructuredPrescription, type StructuredPrescription } from "@/lib/kene/prescription-schema";
+import { BookmarkCheck, CalendarCheck, ShoppingBag, X, Loader2 } from "lucide-react";
+import { parseStructuredPrescription, type StructuredPrescription, type PrescribedProductItem, type PrescribedCabineServiceItem } from "@/lib/kene/prescription-schema";
 
 interface Props {
   diagnoses?: ApiDiagnosis[];
@@ -102,6 +102,138 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
   }, [cosmeticsUsed, prescribedByTenant]);
 
   const [pastCuresOpen, setPastCuresOpen] = useState(false);
+  const [clientOrders, setClientOrders] = useState<any[]>([]);
+  const [clientAppts, setClientAppts] = useState<any[]>([]);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const refreshOrdersAndAppts = useCallback(() => {
+    if (!storeUser?.id) return;
+    apiGet<{ orders: any[] }>(`/api/orders?userId=${storeUser.id}`)
+      .then((res) => {
+        if (res?.orders) setClientOrders(res.orders);
+      })
+      .catch(() => {});
+
+    apiGet<{ appointments: any[] }>(`/api/appointments?userId=${storeUser.id}`)
+      .then((res) => {
+        if (res?.appointments) setClientAppts(res.appointments);
+      })
+      .catch(() => {});
+  }, [storeUser?.id]);
+
+  useEffect(() => {
+    refreshOrdersAndAppts();
+  }, [refreshOrdersAndAppts]);
+
+  // Commander un soin cosmétique prescrit
+  const handleOrderProduct = async (prod: PrescribedProductItem) => {
+    if (!storeUser?.id) {
+      toast.error("Veuillez vous connecter pour commander");
+      return;
+    }
+    const actionKey = `order_${prod.name}`;
+    setActionLoading(actionKey);
+    try {
+      haptic(HAPTIC.tap);
+      const res = await apiPost<{ ok: boolean; message: string; order: any }>("/api/orders/prescription", {
+        userId: storeUser.id,
+        productName: prod.name,
+        price: prod.price || 15000,
+        posology: prod.posology,
+        moment: prod.moment,
+        tenantId: prescribedTenantId || storeUser.selectedTenantId || undefined,
+        tenantName: prescribedByTenant || storeUser.selectedTenant?.name || "Cabinet LA DERMO",
+      });
+      if (res?.ok) {
+        toast.success(res.message || `Commande transmise à l'institut !`);
+        refreshOrdersAndAppts();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Impossible de passer la commande.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Annuler / Désactiver la commande
+  const handleCancelOrder = async (orderId: string, prodName: string) => {
+    if (!storeUser?.id) return;
+    const actionKey = `cancel_order_${orderId}`;
+    setActionLoading(actionKey);
+    try {
+      haptic(HAPTIC.tap);
+      const res = await apiPost<{ ok: boolean; message: string }>(`/api/orders/${orderId}/cancel`, {
+        userId: storeUser.id,
+      });
+      if (res?.ok) {
+        toast.success(res.message || `Commande désactivée pour ${prodName}.`);
+        refreshOrdersAndAppts();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur lors de l'annulation de la commande.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Réserver le soin en cabine
+  const handleBookCabine = async (srv: PrescribedCabineServiceItem) => {
+    if (!storeUser?.id) {
+      toast.error("Veuillez vous connecter pour réserver en cabine");
+      return;
+    }
+    const actionKey = `book_${srv.name}`;
+    setActionLoading(actionKey);
+    try {
+      haptic(HAPTIC.tap);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(10, 0, 0, 0);
+
+      const targetTenantId = prescribedTenantId || storeUser.selectedTenantId || "cmts1w5ui0008oww7hm3v18oo";
+
+      const res = await apiPost<{ ok: boolean; appointment: any }>("/api/appointments", {
+        tenantId: targetTenantId,
+        serviceName: srv.name,
+        startAt: tomorrow.toISOString(),
+        clientName: storeUser.name || "Cliente Kènè",
+        clientPhone: storeUser.phone || "+22500000000",
+        userId: storeUser.id,
+        notes: `Réservation sur ordonnance · ${srv.name} (Rythme : ${srv.frequency || "1 fois par mois"})`,
+      });
+
+      if (res?.appointment) {
+        const ref = res.appointment.id.slice(-6).toUpperCase();
+        toast.success(`Soin réservé en cabine (Réf #${ref}) !`);
+        refreshOrdersAndAppts();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Impossible de réserver ce soin en cabine.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Annuler / Désactiver la réservation en cabine
+  const handleCancelAppointment = async (apptId: string, srvName: string) => {
+    if (!storeUser?.id) return;
+    const actionKey = `cancel_appt_${apptId}`;
+    setActionLoading(actionKey);
+    try {
+      haptic(HAPTIC.tap);
+      const res = await apiPost<{ ok: boolean }>(`/api/appointments/${apptId}/cancel`, {
+        userId: storeUser.id,
+      });
+      if (res?.ok) {
+        toast.success(`Réservation pour « ${srvName} » désactivée.`);
+        refreshOrdersAndAppts();
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur lors de l'annulation du rendez-vous.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   useEffect(() => {
     if (storeUser?.cosmeticsUsed) setCosmeticsUsed(storeUser.cosmeticsUsed);
@@ -708,7 +840,7 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
 
                   <div className="flex items-center gap-2 flex-wrap">
                     <a
-                      href={`/api/diagnoses/prescription?userId=${encodeURIComponent(user.id)}`}
+                      href={`/api/diagnoses/prescription?userId=${encodeURIComponent(user.id)}${cosmeticsUsed ? `&cosmeticsUsed=${encodeURIComponent(cosmeticsUsed)}` : ""}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 text-xs font-semibold text-[#FFF9EC] transition-colors"
@@ -812,19 +944,64 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                               </p>
                             </div>
 
-                            <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+                            <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2 flex-wrap">
                               {prod.price ? (
                                 <span className="text-xs font-black text-[#F3D98A] tabular-nums">
                                   {xof(prod.price)}
                                 </span>
                               ) : <span />}
-                              <Button
-                                size="sm"
-                                onClick={() => onNavigateTab?.("boutique")}
-                                className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold bg-[#D49A24]/30 hover:bg-[#D49A24]/45 text-[#FFF9EC] border border-[#D49A24]/40 cursor-pointer"
-                              >
-                                Commander ce soin
-                              </Button>
+
+                              {(() => {
+                                const activeOrder = clientOrders.find(
+                                  (o) =>
+                                    (o.status === "pending" || o.status === "paid" || o.status === "preparing") &&
+                                    o.items?.some(
+                                      (it: any) =>
+                                        it.label?.toLowerCase().trim().includes(prod.name.toLowerCase().trim()) ||
+                                        prod.name.toLowerCase().trim().includes(it.label?.toLowerCase().trim())
+                                    )
+                                );
+
+                                if (activeOrder) {
+                                  return (
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 rounded-md">
+                                        <CheckCircle2 size={11} />
+                                        Transmise (#{activeOrder.id.slice(-6).toUpperCase()})
+                                      </span>
+                                      <Button
+                                        size="sm"
+                                        disabled={actionLoading === `cancel_order_${activeOrder.id}`}
+                                        onClick={() => handleCancelOrder(activeOrder.id, prod.name)}
+                                        className="h-7 px-2 rounded-lg text-[10px] font-bold bg-rose-500/20 hover:bg-rose-500/35 text-rose-200 border border-rose-500/40 cursor-pointer"
+                                      >
+                                        {actionLoading === `cancel_order_${activeOrder.id}` ? (
+                                          <Loader2 size={11} className="animate-spin mr-1" />
+                                        ) : (
+                                          <X size={11} className="mr-1" />
+                                        )}
+                                        Désactiver
+                                      </Button>
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <Button
+                                    size="sm"
+                                    disabled={actionLoading === `order_${prod.name}`}
+                                    onClick={() => handleOrderProduct(prod)}
+                                    className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold bg-[#D49A24]/30 hover:bg-[#D49A24]/45 text-[#FFF9EC] border border-[#D49A24]/40 cursor-pointer"
+                                  >
+                                    {actionLoading === `order_${prod.name}` ? (
+                                      <Loader2 size={12} className="animate-spin mr-1" />
+                                    ) : (
+                                      <ShoppingBag size={12} className="mr-1" />
+                                    )}
+                                    Commander ce soin
+                                  </Button>
+                                );
+                              })()}
                             </div>
                           </div>
                         );
@@ -878,19 +1055,62 @@ export function ClientSkinDossierView({ diagnoses: initialDiagnoses, selectedIns
                             ) : null}
                           </div>
 
-                          <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+                          <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2 flex-wrap">
                             {srv.price ? (
                               <span className="text-xs font-black text-indigo-300 tabular-nums">
                                 {xof(srv.price)}
                               </span>
                             ) : <span />}
-                            <Button
-                              size="sm"
-                              onClick={() => onNavigateTab?.("agenda")}
-                              className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold bg-indigo-600/40 hover:bg-indigo-600/60 text-[#FFF9EC] border border-indigo-400/40 cursor-pointer"
-                            >
-                              Réserver en cabine
-                            </Button>
+
+                            {(() => {
+                              const activeAppt = clientAppts.find(
+                                (a) =>
+                                  (a.status === "pending" || a.status === "confirmed") &&
+                                  (a.service?.name?.toLowerCase().trim().includes(srv.name.toLowerCase().trim()) ||
+                                    srv.name.toLowerCase().trim().includes(a.service?.name?.toLowerCase().trim()) ||
+                                    a.notes?.toLowerCase().includes(srv.name.toLowerCase().trim()))
+                              );
+
+                              if (activeAppt) {
+                                return (
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-200 bg-indigo-500/25 border border-indigo-400/40 px-2 py-0.5 rounded-md">
+                                      <CalendarCheck size={11} />
+                                      Réservé (#{activeAppt.id.slice(-6).toUpperCase()})
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      disabled={actionLoading === `cancel_appt_${activeAppt.id}`}
+                                      onClick={() => handleCancelAppointment(activeAppt.id, srv.name)}
+                                      className="h-7 px-2 rounded-lg text-[10px] font-bold bg-rose-500/20 hover:bg-rose-500/35 text-rose-200 border border-rose-500/40 cursor-pointer"
+                                    >
+                                      {actionLoading === `cancel_appt_${activeAppt.id}` ? (
+                                        <Loader2 size={11} className="animate-spin mr-1" />
+                                      ) : (
+                                        <X size={11} className="mr-1" />
+                                      )}
+                                      Désactiver
+                                    </Button>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <Button
+                                  size="sm"
+                                  disabled={actionLoading === `book_${srv.name}`}
+                                  onClick={() => handleBookCabine(srv)}
+                                  className="h-7 px-2.5 rounded-lg text-[10.5px] font-bold bg-indigo-600/40 hover:bg-indigo-600/60 text-[#FFF9EC] border border-indigo-400/40 cursor-pointer"
+                                >
+                                  {actionLoading === `book_${srv.name}` ? (
+                                    <Loader2 size={12} className="animate-spin mr-1" />
+                                  ) : (
+                                    <CalendarCheck size={12} className="mr-1" />
+                                  )}
+                                  Réserver en cabine
+                                </Button>
+                              );
+                            })()}
                           </div>
                         </div>
                       ))}

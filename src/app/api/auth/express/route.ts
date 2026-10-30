@@ -23,6 +23,7 @@ import { jsonError, serverError, genRef } from "@/lib/kene/server";
 import { setSessionCookie, sanitizeUser, sessionFromRequest } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, OTP_REQUEST } from "@/lib/kene/rate-limit";
 import { audit, clientIp } from "@/lib/kene/audit";
+import { getDefaultCabinetTenant } from "@/lib/kene/tenant-defaults";
 import { KENE_ADMIN_PHONE } from "@/lib/kene/config";
 import { grantClientWelcomeTrial, grantProWelcomeTrial } from "@/lib/kene/plans";
 
@@ -70,12 +71,14 @@ export async function GET(req: NextRequest) {
       // Sinon on génère un compte invité unique et dédié à cet appareil
       if (!user) {
         const uniqueGuestPhone = `+22500${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
+        const defaultTenant = await getDefaultCabinetTenant();
         user = await db.user.create({
           data: {
             phone: uniqueGuestPhone,
             name: "Nouvelle invitée",
             role: "client",
             referralCode: genRef("KENE"),
+            selectedTenantId: defaultTenant?.id ?? null,
           },
         });
         await grantClientWelcomeTrial(user.id).catch(() => null);

@@ -17,6 +17,7 @@ import { checkBotGuard } from "@/lib/kene/bot-guard";
 import { genRef } from "@/lib/kene/server";
 import { grantClientWelcomeTrial, grantProWelcomeTrial } from "@/lib/kene/plans";
 import { sanitizePayload } from "@/lib/kene/security-sanitize";
+import { getDefaultCabinetTenant } from "@/lib/kene/tenant-defaults";
 
 const Body = z.object({
   phone: z.string().min(5),
@@ -110,6 +111,7 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
     }
 
     const initialRole = ownerTenantByPhone ? "pro" : "client";
+    const defaultTenant = initialRole === "client" ? await getDefaultCabinetTenant() : null;
     user = await db.user.create({
       data: {
         phone,
@@ -119,6 +121,7 @@ async function runLogin(data: z.infer<typeof Body>, req: NextRequest): Promise<N
         pinHash: hashPin(pin),
         consentHealth: true,
         consentTs: new Date(),
+        selectedTenantId: defaultTenant?.id ?? null,
       },
     });
     if (user.role === "client") {

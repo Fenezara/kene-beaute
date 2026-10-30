@@ -198,6 +198,18 @@ export async function POST(req: NextRequest) {
           ],
         },
       });
+      if (!service && serviceName) {
+        service = await db.service.create({
+          data: {
+            tenantId,
+            name: serviceName,
+            price: 15000,
+            durationMin: 30,
+            category: "visage",
+            active: true,
+          },
+        }).catch(() => null);
+      }
       if (!service) {
         service = await db.service.findFirst({ where: { tenantId, active: true } });
       }

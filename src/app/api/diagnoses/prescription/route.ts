@@ -92,34 +92,58 @@ export async function GET(req: NextRequest) {
       return jsonError("Données de diagnostic corrompues", 500);
     }
 
-    // Récupération de la cure structurée (numéro de cure & motif d'évolution)
+    // Récupération du profil utilisateur et de l'institut référent
+    const userRecord = await db.user.findUnique({
+      where: { id: userId },
+      include: { selectedTenant: { select: { id: true, name: true } } },
+    });
+    const effPhone = userPhone || userRecord?.phone || "";
+    const digits = effPhone.replace(/\D/g, "");
+    const tail = digits.length >= 8 ? digits.slice(-8) : digits;
+
+    // Récupération de l'ordonnance structurée émise par l'institut (cosmeticsUsed)
     const clientProfile = await db.clientProfile.findFirst({
       where: {
         OR: [
           { userId },
-          ...(userPhone ? [{ phone: userPhone }] : []),
+          ...(effPhone ? [{ phone: effPhone }] : []),
+          ...(tail ? [{ phone: { contains: tail } }] : []),
         ],
+        cosmeticsUsed: { not: null },
+        NOT: { cosmeticsUsed: "" },
       },
-      select: { cosmeticsUsed: true },
+      include: { tenant: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
     });
-    const structuredPrescription = parseStructuredPrescription(clientProfile?.cosmeticsUsed);
+
+    const queryCosmetics = req.nextUrl.searchParams.get("cosmeticsUsed");
+    const rawCosmetics = clientProfile?.cosmeticsUsed || queryCosmetics || null;
+
+    const tenantName =
+      clientProfile?.tenant?.name ||
+      userRecord?.selectedTenant?.name ||
+      "Cabinet LA DERMO";
+
+    const structuredPrescription = parseStructuredPrescription(rawCosmetics, tenantName);
 
     const origin = req.nextUrl.origin || "https://kene.app";
     const passUrl = `${origin}/pro?clientPass=${encodeURIComponent(effectiveId || "")}`;
 
     const pdf = generatePrescriptionPdf({
-      userName,
-      userPhone,
+      userName: userName || userRecord?.name || "Cliente Kènè",
+      userPhone: effPhone,
       zone,
       createdAt,
       diagnosisResult: parsedResult,
       passUrl,
+      tenantName,
       cureNumber: structuredPrescription.cureNumber,
       changeReason: structuredPrescription.changeReason,
+      structuredPrescription,
     });
 
-    const safeName = userName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
-    const filename = `kene-recommandation-botanique-${safeName}-${(effectiveId || "ord").slice(-6)}.pdf`;
+    const safeName = (userName || "cliente").replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+    const filename = `kene-ordonnance-dermo-${safeName}-${(effectiveId || "ord").slice(-6)}.pdf`;
 
     return new NextResponse(new Uint8Array(pdf.data), {
       status: 200,

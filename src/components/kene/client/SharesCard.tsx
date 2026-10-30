@@ -75,6 +75,29 @@ export function SharesCard({ userId, userName }: { userId: string; userName: str
     load();
   }, [load]);
 
+  // Présélection par défaut de « Cabinet LA DERMO » dès la création / consultation du compte
+  useEffect(() => {
+    if (data?.shares && user && !user.selectedTenantId) {
+      const dermo = data.shares.find(
+        (s) => s.name?.toLowerCase().includes("dermo") || s.name?.toLowerCase().includes("la dermo")
+      );
+      if (dermo) {
+        void apiPatch("/api/auth/profile", { userId: user.id, selectedTenantId: dermo.tenantId }).catch(() => null);
+        setUser({
+          ...user,
+          selectedTenantId: dermo.tenantId,
+          selectedTenant: {
+            id: dermo.tenantId,
+            name: dermo.name,
+            city: dermo.city,
+            phone: dermo.phone || (dermo as any).ownerPhone,
+            ownerPhone: (dermo as any).ownerPhone || dermo.phone,
+          },
+        });
+      }
+    }
+  }, [data?.shares, user, setUser]);
+
   // Villes uniques disponibles
   const cities = useMemo(() => {
     if (!data?.shares) return [];

@@ -19,6 +19,7 @@ import { db } from "@/lib/db";
 import { jsonError, serverError, resolveUserProContext } from "@/lib/kene/server";
 import { sessionFromRequest, setSessionCookie, sanitizeUser } from "@/lib/kene/session";
 import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
+import { getDefaultCabinetTenant } from "@/lib/kene/tenant-defaults";
 
 export const runtime = "nodejs";
 
@@ -49,6 +50,17 @@ export async function GET(req: NextRequest) {
       // Un compte invité temporaire (+22500...) sans cookie valide ne doit pas être restauré
       if (!sess && user.phone.startsWith("+22500")) {
         return jsonError("Session expirée ou absente", 401);
+      }
+
+      if (user.role === "client" && !user.selectedTenantId) {
+        const defaultTenant = await getDefaultCabinetTenant();
+        if (defaultTenant) {
+          user = await db.user.update({
+            where: { id: user.id },
+            data: { selectedTenantId: defaultTenant.id },
+            include: { selectedTenant: { select: { id: true, name: true, city: true, phone: true, ownerPhone: true, address: true, country: true } } },
+          });
+        }
       }
 
       const proCtx = await resolveUserProContext(user);

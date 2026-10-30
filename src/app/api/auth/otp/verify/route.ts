@@ -22,6 +22,7 @@ import { audit, clientIp, sha256Hex, hashEqual } from "@/lib/kene/audit";
 import { hashPin } from "@/lib/kene/pin";
 import { grantClientWelcomeTrial, grantProWelcomeTrial } from "@/lib/kene/plans";
 import { checkBotGuard } from "@/lib/kene/bot-guard";
+import { getDefaultCabinetTenant } from "@/lib/kene/tenant-defaults";
 
 const Body = z.object({
   phone: z.string().min(5),
@@ -165,13 +166,16 @@ async function runVerify(data: z.infer<typeof Body>, req: NextRequest): Promise<
   }
 
   if (!user) {
+    const isPro = Boolean(ownerTenantByPhone);
+    const defaultTenant = !isPro ? await getDefaultCabinetTenant() : null;
     user = await db.user.create({
       data: {
         phone,
         name: name || "Nouvelle cliente",
-        role: ownerTenantByPhone ? "pro" : "client",
+        role: isPro ? "pro" : "client",
         referralCode: genRef("KENE"),
         pinHash: pin ? hashPin(pin) : null,
+        selectedTenantId: defaultTenant?.id ?? null,
       },
     });
     if (user.role === "client") {
