@@ -18,27 +18,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError, serverError, resolveUserProContext } from "@/lib/kene/server";
 import { sessionFromRequest, setSessionCookie, sanitizeUser } from "@/lib/kene/session";
-import { rateLimit, rlKey, rateLimitResponse, AUTH_MUTATION } from "@/lib/kene/rate-limit";
+import { rateLimit, rlKey, rateLimitResponse, SESSION_CHECK } from "@/lib/kene/rate-limit";
 import { getDefaultCabinetTenant } from "@/lib/kene/tenant-defaults";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
-  // Léger: appelé une fois au boot — AUTH_MUTATION (20/min) suffit largement.
-  const rl = rateLimit(rlKey(req, "auth:session"), AUTH_MUTATION);
+  // 1) Cookie de session valide prioritaire, ou repli sur ?userId= persisté côté client
+  const sess = sessionFromRequest(req);
+  const queryUserId = req.nextUrl.searchParams.get("userId")?.trim() || null;
+  const targetUserId =
+    sess?.userId ??
+    (queryUserId && queryUserId !== "guest" && !queryUserId.startsWith("guest_") && !queryUserId.startsWith("pro_offline") && !queryUserId.startsWith("client_")
+      ? queryUserId
+      : null);
+
+  // Clé couplée par utilisateur pour ne pas pénaliser tous les appareils derrière le même reverse-proxy (Docker/Caddy)
+  const rlIdentifier = targetUserId ? `auth:session:${targetUserId}` : rlKey(req, "auth:session");
+  const rl = rateLimit(rlIdentifier, SESSION_CHECK);
   if (!rl.ok) {
     return rateLimitResponse(rl.retryAfterSec, "Trop de vérifications de session — réessaie dans quelques secondes");
   }
+
   try {
-    // 1) Cookie de session valide prioritaire, ou repli sur ?userId= persisté côté client
-    // (évite toute déconnexion intempestive à la réouverture de l'app ou après redémarrage conteneur)
-    const sess = sessionFromRequest(req);
-    const queryUserId = req.nextUrl.searchParams.get("userId")?.trim() || null;
-    const targetUserId =
-      sess?.userId ??
-      (queryUserId && queryUserId !== "guest" && !queryUserId.startsWith("guest_") && !queryUserId.startsWith("pro_offline") && !queryUserId.startsWith("client_")
-        ? queryUserId
-        : null);
 
     if (targetUserId) {
       let user = await db.user.findUnique({

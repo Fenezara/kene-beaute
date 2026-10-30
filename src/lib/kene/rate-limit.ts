@@ -22,6 +22,7 @@ export const REFERRAL_REDEEM = { limit: 5, windowMs: 3_600_000 } as const;
 export const TTS = { limit: 12, windowMs: 60_000 } as const;
 export const ASR = { limit: 10, windowMs: 60_000 } as const; // transcription vocale chat 
 export const AUTH_MUTATION = { limit: 20, windowMs: 60_000 } as const;
+export const SESSION_CHECK = { limit: 120, windowMs: 60_000 } as const; // vérification de session (tolère F5 et multi-onglets)
 export const REVIEWS_POST = { limit: 10, windowMs: 60_000 } as const; // dépôt d'avis vérifié
 export const PROFILE_EXPORT = { limit: 6, windowMs: 15 * 60_000 } as const; // export RGPD complet
 export const ACCOUNT_DELETE = { limit: 5, windowMs: 15 * 60_000 } as const; // suppression de compte & PIN

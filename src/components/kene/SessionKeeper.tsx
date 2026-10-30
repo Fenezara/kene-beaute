@@ -34,19 +34,26 @@ export function SessionKeeper() {
   const clearCart = useKene((s) => s.clearCart);
   const validatedUserIdRef = useRef<string | null>(null);
   const checkedCookieRef = useRef(false);
+  const lastCheckTsRef = useRef<number>(0);
   const userId = user?.id;
 
   useEffect(() => {
     if (!hydrated) return;
-    if (userId && validatedUserIdRef.current === userId) return;
-    if (!userId && checkedCookieRef.current) return;
 
-    if (userId) validatedUserIdRef.current = userId;
+    const now = Date.now();
+    const effectiveUserId = userId || useKene.getState().user?.id;
+
+    // Anti-rebond : ne pas réinterroger la session si vérifiée il y a moins de 5 secondes
+    if (now - lastCheckTsRef.current < 5000 && validatedUserIdRef.current) return;
+
+    if (effectiveUserId && validatedUserIdRef.current === effectiveUserId) return;
+    if (!effectiveUserId && checkedCookieRef.current) return;
+
+    lastCheckTsRef.current = now;
+    if (effectiveUserId) validatedUserIdRef.current = effectiveUserId;
     else checkedCookieRef.current = true;
 
     let cancelled = false;
-    // Lire l'id courant depuis le store au cas où la réhydratation vient tout juste de se terminer
-    const effectiveUserId = userId || useKene.getState().user?.id;
     apiGet<unknown>(effectiveUserId ? `/api/auth/session?userId=${encodeURIComponent(effectiveUserId)}` : "/api/auth/session")
       .then((payload) => {
         if (cancelled) return;
