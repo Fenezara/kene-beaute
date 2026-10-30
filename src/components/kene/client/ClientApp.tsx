@@ -380,7 +380,7 @@ export function ClientApp() {
 
   const onZoneConsumed = useCallback(() => setPendingZone(null), []);
 
-  const [mounted, setMounted] = useState(() => typeof window !== "undefined");
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -446,8 +446,8 @@ export function ClientApp() {
   }, []);
 
   // Store persisté en cours de relecture : squelette d'amorçage
-  // Côté navigateur, l'amorçage est garanti immédiat (zéro blocage infini sur BootSkeleton)
-  if (!mounted && typeof window === "undefined") {
+  // Côté SSR et au premier rendu avant montage client, on rend un squelette stable identique
+  if (!mounted) {
     return <BootSkeleton />;
   }
 

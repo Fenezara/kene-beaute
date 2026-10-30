@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Fraunces, Plus_Jakarta_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
@@ -133,7 +134,9 @@ export default function RootLayout({
         {/* Filet de résilience hors-ligne Kènè 2026 :
             1. Détecte si le squelette de démarrage reste affiché plus de 800ms et force le déblocage
             2. Écoute le retour réseau ('online') pour réveiller immédiatement l'application sans manipulation manuelle */}
-        <script
+        <Script
+          id="kene-resilience-script"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
