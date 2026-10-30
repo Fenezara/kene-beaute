@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Loader2, LogIn, Play, ShieldCheck, X,
+  ArrowLeft, ArrowRight, BriefcaseBusiness, Building2, Camera, Check, CheckCircle2, ChevronDown, ChevronUp, Clock, Crown, Droplets, Heart, Leaf, Loader2, LogIn, Play, ShieldCheck, Sparkles, Star, UserCheck, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiGet, apiPost } from "@/lib/kene/api";
@@ -27,8 +27,8 @@ import {
   firstNameOf, forgetAccount, maskPhone, readLastAccount, rememberAccount, type LastAccount,
 } from "@/lib/kene/last-account";
 import { AuroraBackdrop, Eyebrow, GlassCard, Reveal, RevealItem } from "@/components/kene/ui2026";
-import { DuafeIcon, KeneEmblem, KeneEmblemLockup, KeneMark, CauriIcon, NsorommaIcon, KeneSunIcon } from "@/components/kene/icons";
-import { useKene, type SessionUser } from "@/store/kene";
+import { DuafeIcon, KeneEmblem, KeneEmblemLockup, KeneMark, CauriIcon, NsorommaIcon, KeneSunIcon, BissapFlowerIcon } from "@/components/kene/icons";
+import { useKene, type SessionUser, type ClientTab } from "@/store/kene";
 import { SpaceSwitcher } from "@/components/kene/SpaceSwitcher";
 import { isOnline } from "@/lib/kene/ux";
 import { DEFAULT_FALLBACK_TENANT_ID } from "@/lib/kene/fallback-catalog";
@@ -38,6 +38,7 @@ import { PhoneKeypad, otpErrorToast, requestOtp } from "./PhoneKeypad";
 import { ThresholdStories } from "./ThresholdStories";
 import { type ApiUser } from "./types";
 import { createHumanPayload } from "@/components/kene/auth/BotHoneypot";
+import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
 
 /* ───────────────────────── Portail image plein cadre ───────────────────────── */
 function PortalCard({
@@ -390,7 +391,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
     }
   }
 
-  async function startExploration() {
+  async function startExploration(targetTab: ClientTab = "diagnostic") {
     if (exploring) return;
     setExploring(true);
     try {
@@ -400,6 +401,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
       // — UNE requête GET: l'accès express ne dépend d'AUCUN POST.
       const v = await apiGet<{ user: ApiUser; tenant: { id: string; name: string } | null }>("/api/auth/express?newGuest=1");
       setUser(v.user as SessionUser);
+      useKene.getState().setClientTab(targetTab);
       toast.success(v.user.name && v.user.name !== "Nouvelle invitée" ? `Bienvenue ${v.user.name.split(" ")[0]} 💛` : "Bienvenue sur Kènè 💛");
       if (onBackToApp) onBackToApp();
     } catch {
@@ -414,6 +416,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
         window.dispatchEvent(new CustomEvent("kene:start-explore"));
       }
       setUser(fallbackGuest);
+      useKene.getState().setClientTab(targetTab);
       toast.success("Bienvenue sur Kènè 💛");
       if (onBackToApp) onBackToApp();
     } finally {
@@ -466,36 +469,33 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                     </Link>
                     <button
                       onClick={() => setStories(true)}
-                      className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-full k-chip px-3.5 text-[11.5px] font-semibold text-foreground/85 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
+                      className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-full k-chip px-3.5 text-[11.5px] font-semibold text-foreground/85 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
                       aria-label="Découvrir Kènè en 30 secondes (stories)"
                     >
                       <Play size={11} className="ml-0.5 text-gold-text" />
                       Découvrir en 30&nbsp;s
                     </button>
-                    {!last && (
-                      <button
-                        onClick={startExploration}
-                        disabled={exploring}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-full bg-secondary/60 hover:bg-secondary px-3.5 text-[11.5px] font-medium text-foreground transition-colors cursor-pointer"
-                      >
-                        {exploring ? <Loader2 size={12} className="animate-spin" /> : <CauriIcon size={12} className="text-gold-text" />}
-                        <span className="hidden sm:inline">Explorer sans inscription</span>
-                        <span className="sm:hidden">Démo Express</span>
-                      </button>
-                    )}
+                    {/* Accès discret mais prestigieux pour les gérantes d'instituts */}
+                    <button
+                      type="button"
+                      onClick={() => enterPortal("pro")}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 hover:bg-gold/20 px-3 sm:px-3.5 text-[11.5px] font-bold text-gold-text transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer"
+                      title="Espace réservé aux gérantes d'instituts, spas et dermo-praticiennes"
+                    >
+                      <BriefcaseBusiness size={13} className="text-gold-text shrink-0" />
+                      <span className="hidden sm:inline">Espace Pro &amp; Salons</span>
+                      <span className="sm:hidden">Pro</span>
+                      <ArrowRight size={11} />
+                    </button>
                   </div>
                 </div>
               </Reveal>
 
-              {/* ── ZONE HAUTE : Hero & Portails (Adaptatif selon mode) ──
-                  - Mobile : Hero puis Portails l'un sous l'autre
-                  - Tablette : Hero centré puis Portails en 2 colonnes en dessous
-                  - PC : Split Screen 2 Colonnes côte à côte (Hero 7 cols / Portails 5 cols)
-              */}
-              <div className="mt-4 sm:mt-6 lg:mt-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-center">
-                {/* Bloc Hero (Gauche sur PC) */}
+              {/* ── ZONE HAUTE : Hero de Conversion & Démonstration en Direct ── */}
+              <div className="mt-4 sm:mt-6 lg:mt-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center">
+                {/* Bloc Hero (Gauche sur PC) — Focalisé 100% sur le désir cutané et l'action */}
                 <section className="relative lg:col-span-7 flex flex-col justify-center" aria-label="Promesse Kènè">
-                  {/* Halo organique doré diffus (sans rectangle dur) */}
+                  {/* Halo organique doré diffus */}
                   <div
                     className="pointer-events-none absolute -inset-8 rounded-full blur-3xl opacity-55"
                     style={{
@@ -515,89 +515,90 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                     <KeneMark size={160} />
                   </motion.span>
 
+                  {/* Badge d'autorité IA & Carnations */}
                   <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 * d, duration: 0.5 }}>
-                    <Eyebrow>
-                      Akwaba · {greet} à Kènè
-                    </Eyebrow>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/15 border border-gold/40 px-3.5 py-1 text-[11px] font-black uppercase tracking-wider text-gold-text shadow-xs">
+                      <Sparkles size={13} className="animate-pulse text-gold-text shrink-0" />
+                      <span>1er Scanner Dermo-IA calibré pour carnations africaines (Albinos à Ébène)</span>
+                    </span>
                   </motion.div>
-                  <h1 className="mt-2 font-heading text-[30px] font-black leading-[1.04] tracking-tight text-foreground sm:text-[38px] lg:text-[46px] xl:text-[50px]">
-                    {["Ta peau,", "mélanoderme,"].map((line, i) =>
-                      i === 1 ? (
-                        <motion.span key={line} className="kente-text-flow block italic"
-                          initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: (0.28 + i * 0.13) * d, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
-                          {line}
-                        </motion.span>
-                      ) : (
-                        <motion.span key={line} className="block"
-                          initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: (0.28 + i * 0.13) * d, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
-                          {line}
-                        </motion.span>
-                      ),
-                    )}
-                    <motion.span className="block"
-                      initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: (0.28 + 2 * 0.13) * d, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
-                      enfin comprise.
-                    </motion.span>
-                  </h1>
-                  <motion.p className="mt-3 max-w-[48ch] text-[12.5px] sm:text-[13.5px] lg:text-[14px] leading-relaxed text-muted-foreground"
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.62 * d }}>
-                    Bilan dermo-biométrique, coach Dermo Kènè, boutique botanique et instituts partenaires —
-                    pensés pour toute la diversité des teints africains (Albinos, Afro-roux, Chabins, Caramel à Ébène intense).
-                  </motion.p>
-                  {/* Boutons d'action Hero — Compte gratuit (0 FCFA) prioritaire & Aperçu temporaire */}
-                  <div className="flex flex-wrap items-center gap-2.5 mt-4">
-                    <motion.button
-                      onClick={() => enterPortal("client")}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.68 * d }}
-                      className="inline-flex min-h-11 items-center gap-2 rounded-full k-btn-gold px-5 text-[13px] font-bold text-primary-foreground shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-                    >
-                      <CauriIcon size={15} />
-                      <span>Créer mon compte gratuit (0 FCFA)</span>
-                      <ArrowRight size={14} />
-                    </motion.button>
 
+                  {/* Titre choc orienté résultat & éthique */}
+                  <h1 className="mt-3.5 font-heading text-[32px] sm:text-[42px] lg:text-[46px] xl:text-[52px] font-black leading-[1.05] tracking-tight text-foreground">
+                    Révèle l&apos;éclat pur de ta peau.
+                    <span className="kente-text-flow block italic mt-1 sm:mt-1.5">Sans dépigmentation.</span>
+                    <span className="block mt-1 sm:mt-1.5">Sans fausses promesses.</span>
+                  </h1>
+
+                  {/* Sous-titre répondant directement aux peurs & douleurs de la cliente */}
+                  <motion.p
+                    className="mt-3.5 max-w-[50ch] text-[13px] sm:text-[14.5px] leading-relaxed text-muted-foreground"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.35 * d }}
+                  >
+                    Taches d&apos;acné, hyperpigmentation, teint terne ou excès de sébum ? Scanne ton visage en <strong>30 secondes chrono</strong>. Obtiens ton score de santé cutanée, ton <strong>ordonnance personnalisée</strong> aux trésors botaniques africains purs (Karité brut de Korhogo, Balanites, Moringa) et ton <strong>Pass Cabine offert</strong>.
+                  </motion.p>
+
+                  {/* LE GRAND BOUTON D'ACTION MAGNÉTIQUE (0 friction, 0 FCFA) */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-5 sm:mt-6">
                     <motion.button
-                      onClick={startExploration}
+                      onClick={() => startExploration("diagnostic")}
                       disabled={exploring}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.72 * d }}
-                      className="inline-flex min-h-11 items-center gap-1.5 rounded-full k-chip px-3.5 text-[12px] font-semibold text-foreground/80 hover:text-foreground cursor-pointer"
-                      title="Tester immédiatement l'application sans créer de compte (session temporaire)"
+                      transition={{ delay: 0.45 * d }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="inline-flex min-h-12 sm:min-h-13 items-center justify-center gap-2.5 rounded-full k-btn-gold px-6 sm:px-7 text-[13.5px] sm:text-[14.5px] font-black text-primary-foreground shadow-xl shadow-gold/20 hover:shadow-gold/30 transition-all cursor-pointer"
                     >
-                      {exploring ? <Loader2 size={13} className="animate-spin text-gold-text" /> : null}
-                      <span>Tester sans compte</span>
-                      <span className="text-[10px] text-muted-foreground font-normal">(Aperçu)</span>
+                      {exploring ? <Loader2 size={18} className="animate-spin text-primary-foreground" /> : <Camera size={19} />}
+                      <span>Analyser ma peau gratuitement (0 FCFA)</span>
+                      <ArrowRight size={16} />
                     </motion.button>
 
                     <motion.button
-                      onClick={() => setStories(true)}
+                      type="button"
+                      onClick={() => enterPortal("client")}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.76 * d }}
-                      className="inline-flex min-h-11 items-center gap-2 rounded-full k-chip px-3.5 text-[12px] font-semibold text-foreground/85 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
-                      aria-label="Découvrir Kènè en 30 secondes (stories)"
+                      transition={{ delay: 0.5 * d }}
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full k-chip px-4.5 text-[12.5px] font-bold text-foreground/90 hover:text-foreground cursor-pointer"
                     >
-                      <span className="grid h-5 w-5 place-items-center rounded-full bg-gold/20 text-gold-text" aria-hidden="true">
-                        <Play size={10} className="ml-0.5" />
-                      </span>
-                      <span>En 30&nbsp;s</span>
+                      <LogIn size={15} className="text-gold-text" />
+                      <span>Déjà cliente ? Me connecter</span>
                     </motion.button>
                   </div>
-                  <p className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1.5">
-                    <ShieldCheck size={13} className="text-emerald-500 shrink-0" />
-                    <span>Inscription 100% gratuite (0 FCFA) · Vos bilans &amp; ordonnances conservés à vie sur WhatsApp</span>
-                  </p>
 
-                  {/* Reconnexion express sur grand écran si présente */}
+                  {/* Micro-réassurances indispensables pour lever les doutes */}
+                  <motion.div
+                    className="flex flex-wrap items-center gap-y-1.5 gap-x-4 text-[11px] sm:text-[11.5px] text-muted-foreground mt-3.5"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.55 * d }}
+                  >
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
+                      <span>100% Gratuit à vie</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Check size={13} className="text-gold-text shrink-0" />
+                      <span>Sans carte bancaire</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Check size={13} className="text-gold-text shrink-0" />
+                      <span>0% Hydroquinone &amp; Corticoïdes</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Check size={13} className="text-gold-text shrink-0" />
+                      <span>Ordonnance WhatsApp</span>
+                    </span>
+                  </motion.div>
+
+                  {/* Reconnexion express si compte déjà mémorisé */}
                   <AnimatePresence initial={false}>
                     {last && (
-                      <div className="mt-4 hidden lg:block">
+                      <div className="mt-4">
                         <GlassCard hero grain className="rounded-[20px] p-3">
                           <div className="flex items-center gap-3">
                             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full k-cta text-[15px] font-heading font-black text-[#FFF9EC]" aria-hidden="true">
@@ -611,37 +612,33 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                 {maskPhone(last.phone)} · {last.role === "pro" ? "Compte Pro & Personnel" : last.role === "admin" ? "Console Kènè" : "Espace cliente"}
                               </p>
                             </div>
-                            {last.role === "pro" ? (
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <button onClick={() => startReconnect(last, "client")}
-                                  className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full k-btn-gold px-3 text-[11px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary cursor-pointer hover:scale-105 active:scale-95 transition-all"
-                                  title="Accéder directement à mon Espace Beauté personnel">
-                                  <span>🌸 Espace Beauté</span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {last.role === "pro" ? (
+                                <>
+                                  <button onClick={() => startReconnect(last, "client")}
+                                    className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full k-btn-gold px-3 text-[11px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                                    title="Accéder directement à mon Espace Beauté personnel">
+                                    <span>🌸 Beauté</span>
+                                  </button>
+                                  <button onClick={() => startReconnect(last, "pro")}
+                                    className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full k-chip px-3 text-[11px] font-bold text-foreground hover:border-gold/60 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                                    title="Accéder à l'Espace Entreprise (Institut & Caisse)">
+                                    <span>💼 Pro</span>
+                                  </button>
+                                </>
+                              ) : (
+                                <button onClick={() => startReconnect(last)}
+                                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-btn-gold px-4 text-[11.5px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary cursor-pointer">
+                                  <LogIn size={13} />
+                                  Reprendre
                                 </button>
-                                <button onClick={() => startReconnect(last, "pro")}
-                                  className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full k-chip px-3 text-[11px] font-bold text-foreground hover:border-gold/60 transition-all cursor-pointer hover:scale-105 active:scale-95"
-                                  title="Accéder à l'Espace Entreprise (Institut & Caisse)">
-                                  <span>💼 Institut &amp; Pro</span>
-                                </button>
-                              </div>
-                            ) : (
-                              <button onClick={() => startReconnect(last)}
-                                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-btn-gold px-4 text-[11.5px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary cursor-pointer">
-                                <LogIn size={13} />
-                                Reprendre
+                              )}
+                              <button onClick={() => { forgetAccount(); setLast(null); }}
+                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
+                                aria-label="Oublier ce numéro sur cet appareil">
+                                <X size={14} />
                               </button>
-                            )}
-                            <button onClick={startExploration}
-                              disabled={exploring}
-                              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full k-chip px-3 text-[11px] font-bold text-foreground hover:border-gold/60 transition-all cursor-pointer">
-                              <CauriIcon size={12} className="text-gold-text" />
-                              Nouveau
-                            </button>
-                            <button onClick={() => { forgetAccount(); setLast(null); }}
-                              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
-                              aria-label="Oublier ce numéro sur cet appareil">
-                              <X size={14} />
-                            </button>
+                            </div>
                           </div>
                         </GlassCard>
                       </div>
@@ -649,117 +646,333 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                   </AnimatePresence>
                 </section>
 
-                {/* Bloc Portails (Droite sur PC, au-dessous du Hero sur mobile/tablette) */}
-                <div className="lg:col-span-5 flex flex-col gap-3 sm:gap-4">
-                  <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-4">
-                    <PortalCard
-                      mode="client"
-                      img="/hero/hero-client.webp"
-                      imgAlt="Femme au teint lumineux, porte de l'espace cliente"
-                      icon={<DuafeIcon size={13} className="text-[#F3D98A]" />}
-                      kicker="Espace cliente"
-                      title="Prendre soin de ma peau"
-                      entering={entering === "client"}
-                      dimmed={entering === "pro"}
-                      onEnter={() => enterPortal("client")}
-                      delay={0.06}
-                    />
-                    <PortalCard
-                      mode="pro"
-                      img="/instituts/eclat-d-abidjan.webp"
-                      imgAlt="Institut partenaire, porte de l'espace entreprise"
-                      icon={<BriefcaseBusiness size={13} className="text-[#FFF9EC]" />}
-                      kicker="Espace entreprise"
-                      title="Gérer mon institut"
-                      entering={entering === "pro"}
-                      dimmed={entering === "client"}
-                      onEnter={() => enterPortal("pro")}
-                      delay={0.16}
-                    />
-                  </div>
+                {/* Bloc Simulateur en Direct (Droite sur PC) — Preuve Visuelle Irrésistible */}
+                <div className="lg:col-span-5 flex flex-col gap-3">
+                  <div className="relative overflow-hidden rounded-[26px] border-2 border-gold/50 bg-gradient-to-b from-[#1C140E]/95 via-[#18110B]/90 to-[#100C08]/95 p-4 sm:p-5 text-[#FFF9EC] shadow-2xl shadow-gold/15 backdrop-blur-xl">
+                    {/* Badge en-tête du simulateur */}
+                    <div className="flex items-center justify-between gap-2 border-b border-gold/25 pb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="grid size-7 place-items-center rounded-lg bg-gold/20 text-gold-text">
+                          <Camera size={14} />
+                        </span>
+                        <div>
+                          <p className="text-[12px] font-black uppercase tracking-wider text-gold-text">Aperçu Bilan &amp; Ordonnance</p>
+                          <p className="text-[10px] text-[#FFF9EC]/70">Exemple réel généré en 30 secondes</p>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        IA Active
+                      </span>
+                    </div>
 
-                  {/* Accès direct aux comptes existants avec numéro (Cliente ou Gérante de salon) */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-1 text-[11.5px] text-muted-foreground">
+                    {/* Visuel du visage avec ciblage biométrique */}
+                    <div className="relative mt-3.5 h-[160px] sm:h-[180px] w-full overflow-hidden rounded-2xl border border-white/10">
+                      <img
+                        src="/hero/hero-client.webp"
+                        alt="Visage analysé par l'IA Kènè"
+                        className="h-full w-full object-cover object-center"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#100C08]/90 via-transparent to-[#100C08]/30" />
+
+                      {/* Repères biométriques HUD */}
+                      <div className="absolute inset-0 pointer-events-none p-3 flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
+                          <span className="rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[9.5px] font-mono text-gold-text border border-gold/30">
+                            23 zones cartographiées
+                          </span>
+                          <span className="rounded-md bg-black/60 backdrop-blur-md px-2 py-0.5 text-[9.5px] font-mono text-emerald-400 border border-emerald-500/30">
+                            Phototype V (Brun cuivré)
+                          </span>
+                        </div>
+
+                        {/* Réticule d'analyse centré */}
+                        <div className="self-center flex items-center gap-1 rounded-full bg-black/70 backdrop-blur-md px-2.5 py-1 text-[10px] font-bold text-[#FFF9EC] border border-white/20">
+                          <Sparkles size={11} className="text-gold-text animate-pulse" />
+                          <span>Score Global : 78 / 100</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[9.5px] text-[#FFF9EC]/80 font-mono">
+                          <span>Mélanine : 100% préservée</span>
+                          <span>HPI : Réversible</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3 Indicateurs clés mesurés */}
+                    <div className="mt-3.5 space-y-2 text-xs">
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[11px] font-bold">
+                          <span className="text-[#FFF9EC]/90">Taches d&apos;acné &amp; Hyperpigmentation (HPI)</span>
+                          <span className="text-gold-text font-mono">32% · Atténuation douce</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-gold to-amber-500 w-[68%]" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[11px] font-bold">
+                          <span className="text-[#FFF9EC]/90">Barrière lipidique &amp; Hydratation</span>
+                          <span className="text-emerald-400 font-mono">84% · Optimale</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full rounded-full bg-emerald-500 w-[84%]" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Routine botanique prescrite sur l'ordonnance */}
+                    <div className="mt-3.5 rounded-xl border border-gold/30 bg-gold/10 p-2.5 text-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <p className="font-bold text-[11px] text-gold-text flex items-center gap-1">
+                          <Leaf size={12} /> Ordonnance de soins recommandée :
+                        </p>
+                        <span className="text-[9.5px] text-muted-foreground">Matin &amp; Soir</span>
+                      </div>
+                      <p className="text-[11px] leading-tight text-[#FFF9EC]/90">
+                        • <strong>Matin :</strong> Savon noir doux surgras &amp; Extrait pur de Moringa<br />
+                        • <strong>Soir :</strong> Huile de Balanites (Dattier) &amp; Karité brut de Korhogo
+                      </p>
+                      <p className="text-[10px] text-gold-text/80 pt-1 border-t border-gold/20 flex items-center gap-1">
+                        <Building2 size={11} /> Prescrit &amp; disponible chez « Cabinet LA DERMO » (Abidjan)
+                      </p>
+                    </div>
+
+                    {/* Bouton d'action directe depuis le simulateur */}
                     <button
                       type="button"
-                      onClick={() => enterPortal("client")}
-                      className="inline-flex items-center gap-1.5 hover:text-foreground font-semibold transition-colors underline-offset-4 hover:underline cursor-pointer whitespace-nowrap"
+                      onClick={() => startExploration("diagnostic")}
+                      disabled={exploring}
+                      className="mt-3.5 w-full h-11 rounded-xl k-btn-gold text-primary-foreground font-black text-xs flex items-center justify-center gap-2 shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
                     >
-                      <LogIn size={13} className="text-gold-text shrink-0" />
-                      <span>Créer mon compte / Connexion (0 FCFA)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => enterPortal("pro")}
-                      className="inline-flex items-center gap-1.5 hover:text-foreground font-semibold transition-colors underline-offset-4 hover:underline cursor-pointer whitespace-nowrap"
-                    >
-                      <BriefcaseBusiness size={13} className="text-gold-text shrink-0" />
-                      <span>Gérante de salon ? Connexion Pro</span>
+                      {exploring ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} />}
+                      <span>Tester gratuitement sur mon propre visage →</span>
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* ── Reconnexion express sur Mobile & Tablette ── */}
-              <AnimatePresence initial={false}>
-                {last && (
-                  <div className="mt-4 lg:hidden">
-                    <GlassCard hero grain className="rounded-[20px] p-3">
-                      <div className="flex items-center gap-3">
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full k-cta text-[15px] font-heading font-black text-[#FFF9EC]" aria-hidden="true">
-                          {firstNameOf(last.name).slice(0, 1).toUpperCase() || "K"}
+              {/* ── SECTION 2 : La Preuve Clinique Avant / Après en 30 Jours ── */}
+              <div className="mt-10 sm:mt-14 w-full">
+                <section aria-label="Résultats cliniques avant après">
+                  <GlassCard grain className="rounded-[26px] p-5 sm:p-7 space-y-5">
+                    <div className="max-w-2xl">
+                      <Eyebrow>Preuve Clinique &amp; Résultats Visibles</Eyebrow>
+                      <h2 className="font-heading text-xl sm:text-2xl font-black text-foreground mt-1">
+                        Mesurer les progrès en 30 jours, sans décapage
+                      </h2>
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                        Glisse le curseur pour observer l&apos;atténuation naturelle de l&apos;hyperpigmentation et l&apos;unification du teint avec des actifs de la pharmacopée ouest-africaine.
+                      </p>
+                    </div>
+
+                    {/* Le comparateur interactif tactile BeforeAfterSlider */}
+                    <div className="pt-2">
+                      <BeforeAfterSlider
+                        beforePhoto="/skin/clinical-before.jpg"
+                        afterPhoto="/skin/clinical-after.jpg"
+                        beforeLabel="J0 : Taches HPI & Sébum"
+                        afterLabel="J+30 : Teint unifié & apaisé"
+                        beforeScore={52}
+                        afterScore={84}
+                        zoneLabel="Visage & Pommettes · Suivi Dermo Kènè"
+                        defaultLayoutMode="slider"
+                      />
+                    </div>
+
+                    {/* Chiffres d'impact réels */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                      <div className="rounded-2xl border border-border/80 bg-card/60 p-3.5 text-center space-y-1">
+                        <p className="font-mono text-2xl font-black text-gold-text">-35%</p>
+                        <p className="text-xs font-bold text-foreground">Taches d&apos;acné visibles</p>
+                        <p className="text-[10.5px] text-muted-foreground">Atténuation sans éclaircissement de la peau saine</p>
+                      </div>
+                      <div className="rounded-2xl border border-border/80 bg-card/60 p-3.5 text-center space-y-1">
+                        <p className="font-mono text-2xl font-black text-emerald-500">+45%</p>
+                        <p className="text-xs font-bold text-foreground">Hydratation profonde</p>
+                        <p className="text-[10.5px] text-muted-foreground">Barrière lipidique renforcée au Karité brut</p>
+                      </div>
+                      <div className="rounded-2xl border border-border/80 bg-card/60 p-3.5 text-center space-y-1">
+                        <p className="font-mono text-2xl font-black text-primary">100%</p>
+                        <p className="text-xs font-bold text-foreground">Respect de la mélanine</p>
+                        <p className="text-[10.5px] text-muted-foreground">Zéro hydroquinone, zéro corticoïde, zéro brûlure</p>
+                      </div>
+                    </div>
+                  </GlassCard>
+                </section>
+              </div>
+
+              {/* ── SECTION 3 : Comment ça marche (3 Étapes Limpides) ── */}
+              <div className="mt-8 sm:mt-12 w-full">
+                <section aria-label="Comment fonctionne Kènè">
+                  <div className="text-center max-w-xl mx-auto mb-6 sm:mb-8 space-y-1.5">
+                    <Eyebrow>Simple · Rapide · Scientifique</Eyebrow>
+                    <h2 className="font-heading text-xl sm:text-2xl font-black text-foreground">
+                      Ton diagnostic et ton ordonnance en 3 étapes
+                    </h2>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      Conçu pour s&apos;adapter à ton quotidien, directement depuis ton smartphone.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Étape 1 */}
+                    <div className="rounded-[22px] border border-border/80 bg-card/75 p-5 space-y-3 relative hover:border-gold/50 transition-all">
+                      <span className="grid size-10 place-items-center rounded-2xl bg-gold/15 text-gold-text font-mono font-black text-sm">
+                        01
+                      </span>
+                      <h3 className="font-heading text-base font-black text-foreground">
+                        Prends 1 selfie en 10 secondes
+                      </h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Notre IA vision calibrée sur peaux noires et métissées cartographie 23 zones de ton visage et mesure 14 biomarqueurs (sébum, taches, barrière cutanée).
+                      </p>
+                    </div>
+
+                    {/* Étape 2 */}
+                    <div className="rounded-[22px] border border-gold/40 bg-gradient-to-b from-gold/10 to-card/75 p-5 space-y-3 relative hover:border-gold/60 transition-all shadow-xs">
+                      <span className="grid size-10 place-items-center rounded-2xl bg-gold text-primary-foreground font-mono font-black text-sm shadow-xs">
+                        02
+                      </span>
+                      <h3 className="font-heading text-base font-black text-foreground">
+                        Reçois ton ordonnance sur-mesure
+                      </h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Une routine claire (Matin &amp; Soir) formulée avec les trésors purs de notre pharmacopée (Karité bio de Korhogo, Balanites, Moringa) et sans actifs décapants.
+                      </p>
+                    </div>
+
+                    {/* Étape 3 */}
+                    <div className="rounded-[22px] border border-border/80 bg-card/75 p-5 space-y-3 relative hover:border-gold/50 transition-all">
+                      <span className="grid size-10 place-items-center rounded-2xl bg-gold/15 text-gold-text font-mono font-black text-sm">
+                        03
+                      </span>
+                      <h3 className="font-heading text-base font-black text-foreground">
+                        Soins en cabine ou chez toi
+                      </h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Commande tes soins pour livraison à domicile ou réserve ton soin cabine en 1 clic chez nos instituts certifiés comme <strong>Cabinet LA DERMO</strong>.
+                      </p>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              {/* ── SECTION 4 : Notre Charte d'Engagement Éthique & Médicale ── */}
+              <div className="mt-8 sm:mt-12 w-full">
+                <section aria-label="Charte éthique et dermatologique">
+                  <div className="rounded-[26px] border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-card/90 to-card p-5 sm:p-7 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="grid size-9 place-items-center rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                          <ShieldCheck size={20} />
                         </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-heading text-[13.5px] font-bold leading-tight">
-                            {greet}, {firstNameOf(last.name) || "bienvenue"} 👋
-                          </p>
-                          <p className="mt-0.5 truncate font-mono text-[10.5px] text-muted-foreground">
-                            {maskPhone(last.phone)} · {last.role === "pro" ? "Compte Pro & Personnel" : last.role === "admin" ? "Console Kènè" : "Espace cliente"}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {last.role === "pro" ? (
-                            <>
-                              <button onClick={() => startReconnect(last, "client")}
-                                className="inline-flex h-8 items-center gap-1 rounded-full k-btn-gold px-2.5 text-[10.5px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-primary cursor-pointer active:scale-95"
-                                title="Mon Espace Beauté personnel">
-                                <span>🌸 Beauté</span>
-                              </button>
-                              <button onClick={() => startReconnect(last, "pro")}
-                                className="inline-flex h-8 items-center gap-1 rounded-full k-chip px-2.5 text-[10.5px] font-bold text-foreground hover:border-gold/60 cursor-pointer active:scale-95"
-                                title="Espace Entreprise (Institut & Caisse)">
-                                <span>💼 Pro</span>
-                              </button>
-                            </>
-                          ) : (
-                            <button onClick={() => startReconnect(last)}
-                              className="inline-flex h-9 items-center gap-1 rounded-full k-btn-gold px-2.5 text-[11px] font-bold text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary cursor-pointer">
-                              <LogIn size={12} />
-                              Reprendre
-                            </button>
-                          )}
-                          <button onClick={() => { forgetAccount(); setLast(null); }}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
-                            aria-label="Oublier ce numéro sur cet appareil">
-                            <X size={13} />
-                          </button>
+                        <div>
+                          <h3 className="font-heading text-base sm:text-lg font-black text-foreground">
+                            Notre Charte Médicale &amp; Dermo-Éthique
+                          </h3>
+                          <p className="text-xs text-muted-foreground">Une dermatologie bienveillante, fière de chaque mélanine</p>
                         </div>
                       </div>
-                    </GlassCard>
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-3 py-1 rounded-full border border-emerald-500/30 w-fit">
+                        100% Sans Hydroquinone
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs pt-1">
+                      <div className="space-y-1.5">
+                        <p className="font-bold text-foreground flex items-center gap-1.5">
+                          🚫 Tolérance Zéro Décapage
+                        </p>
+                        <p className="text-muted-foreground leading-relaxed">
+                          Refus strict de l&apos;hydroquinone, des dermocorticoïdes, du mercure et des acides agressifs responsables de l&apos;ochronose et du vieillissement prématuré.
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <p className="font-bold text-foreground flex items-center gap-1.5">
+                          🌍 Toutes les Nuances d&apos;Afrique
+                        </p>
+                        <p className="text-muted-foreground leading-relaxed">
+                          De la peau albinos (OCA) aux Afro-rousses, Chabines, teints Caramel, Chocolat et Ébène intense : chaque carnation a son protocole de lumière respectueux.
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <p className="font-bold text-foreground flex items-center gap-1.5">
+                          👩🏾‍⚕️ Validation par Dermo-Conseillères
+                        </p>
+                        <p className="text-muted-foreground leading-relaxed">
+                          Vos fiches de soins et prescriptions sont supervisées par des professionnelles qualifiées en cabine, avec traçabilité et historique conservé à vie.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </AnimatePresence>
+                </section>
+              </div>
 
+              {/* ── SECTION 5 : Avis Clientes & Témoignages Vérifiés ── */}
+              <div className="mt-8 sm:mt-12 w-full">
+                <section aria-label="Témoignages clientes">
+                  <div className="text-center max-w-xl mx-auto mb-6 space-y-1">
+                    <Eyebrow>Elles ont retrouvé leur éclat naturel</Eyebrow>
+                    <h2 className="font-heading text-xl sm:text-2xl font-black text-foreground">
+                      Témoignages de nos clientes à Abidjan &amp; Dakar
+                    </h2>
+                  </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="rounded-[22px] border border-border/80 bg-card/70 p-4.5 space-y-2.5">
+                      <div className="flex items-center gap-1 text-gold-text">
+                        {[...Array(5)].map((_, i) => <Star key={i} size={13} fill="currentColor" />)}
+                      </div>
+                      <p className="text-xs text-foreground/90 italic leading-relaxed">
+                        &laquo; J&apos;avais des taches noires tenaces après chaque bouton. En 4 semaines avec le protocole Balanites &amp; Niacinamide, mon teint s&apos;est unifié sans aucune décoloration agressive. &raquo;
+                      </p>
+                      <div className="pt-2 border-t border-border/40 text-[11px]">
+                        <p className="font-bold text-foreground">Aïcha M. · 26 ans</p>
+                        <p className="text-muted-foreground">Abidjan Cocody · Phototype V (Chocolat)</p>
+                      </div>
+                    </div>
 
-              {/* ── Les Tarifs & Abonnements Kènè (Section Éditoriale Complète) ── */}
-              <div className="mt-6 sm:mt-8 lg:mt-10 w-full">
+                    <div className="rounded-[22px] border border-border/80 bg-card/70 p-4.5 space-y-2.5">
+                      <div className="flex items-center gap-1 text-gold-text">
+                        {[...Array(5)].map((_, i) => <Star key={i} size={13} fill="currentColor" />)}
+                      </div>
+                      <p className="text-xs text-foreground/90 italic leading-relaxed">
+                        &laquo; Le premier diagnostic qui comprend vraiment la peau noire profonde sans nous proposer de produits blanchissants. L&apos;ordonnance reçue sur WhatsApp est limpide. &raquo;
+                      </p>
+                      <div className="pt-2 border-t border-border/40 text-[11px]">
+                        <p className="font-bold text-foreground">Aminata D. · 32 ans</p>
+                        <p className="text-muted-foreground">Dakar Almadies · Phototype VI (Ébène intense)</p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[22px] border border-border/80 bg-card/70 p-4.5 space-y-2.5">
+                      <div className="flex items-center gap-1 text-gold-text">
+                        {[...Array(5)].map((_, i) => <Star key={i} size={13} fill="currentColor" />)}
+                      </div>
+                      <p className="text-xs text-foreground/90 italic leading-relaxed">
+                        &laquo; Je suis allée chez Cabinet LA DERMO avec mon Pass Cabine Kènè : la praticienne avait déjà tout mon bilan sur sa tablette. Soin incroyable, zéro perte de temps ! &raquo;
+                      </p>
+                      <div className="pt-2 border-t border-border/40 text-[11px]">
+                        <p className="font-bold text-foreground">Grace K. · 29 ans</p>
+                        <p className="text-muted-foreground">Abidjan Marcory · Phototype IV (Caramel)</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              {/* ── SECTION 6 : Les Tarifs & Abonnements Kènè (Transparence Absolue) ── */}
+              <div className="mt-8 sm:mt-12 w-full">
                 <section aria-label="Formules et abonnements Kènè">
                   <GlassCard grain className="rounded-[24px] p-4 sm:p-6 lg:p-7 space-y-4 sm:space-y-5">
                     {/* En-tête des tarifs avec sélecteur d'audience */}
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                       <div className="min-w-0">
-                        <Eyebrow>Transparence & Tarifs Kènè</Eyebrow>
+                        <Eyebrow>Transparence &amp; Tarifs Kènè</Eyebrow>
                         <h2 className="font-heading text-lg sm:text-xl font-black text-foreground mt-0.5">
                           Des formules adaptées, sans engagement
                         </h2>
@@ -768,7 +981,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                         </p>
                       </div>
 
-                      {/* Onglets Client vs Pro - Segmented control responsive anti-débordement */}
+                      {/* Onglets Client vs Pro */}
                       <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 p-1 rounded-2xl bg-muted/50 border border-border/60 w-full sm:w-auto shrink-0">
                         <button
                           type="button"
@@ -816,11 +1029,11 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                             </p>
                           </div>
                           <p className="text-[11.5px] text-muted-foreground leading-relaxed">
-                            Le <strong>Pass Découverte 30 jours (0 FCFA)</strong> débloque l'intégralité des fonctionnalités Pro (Caisse POS tactile, Agenda 24/7, Stock, CRM, SYSCOHADA, Paie CNPS) sans carte bancaire et sans aucun prélèvement surprise.
+                            Le <strong>Pass Découverte 30 jours (0 FCFA)</strong> débloque l&apos;intégralité des fonctionnalités Pro (Caisse POS tactile, Agenda 24/7, Stock, CRM, SYSCOHADA, Paie CNPS) sans carte bancaire et sans aucun prélèvement surprise.
                           </p>
                         </div>
 
-                        {/* Grille des 3 offres Entreprise : Starter, Institut & Complexe en Bento Afro-Luxe */}
+                        {/* Grille des 3 offres Entreprise : Starter, Institut & Complexe */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {/* 1. Pro Starter */}
                           <div className="rounded-[22px] border border-border/80 bg-card/85 backdrop-blur-md p-5 flex flex-col justify-between space-y-4 hover:border-gold/50 transition-all shadow-sm">
@@ -828,11 +1041,11 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                               <div className="flex items-center justify-between gap-2">
                                 <span className="font-heading text-[17px] font-black text-foreground">Pro Starter</span>
                                 <span className="rounded-full bg-secondary border border-border/80 px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground">
-                                  Solo & Cabine
+                                  Solo &amp; Cabine
                                 </span>
                               </div>
                               <p className="text-[11.5px] text-muted-foreground leading-snug">
-                                Praticienne solo, dermo-conseil indépendant & cabine dédiée.
+                                Praticienne solo, dermo-conseil indépendant &amp; cabine dédiée.
                               </p>
                               <div className="pt-1.5 border-t border-border/40">
                                 <div className="flex items-baseline gap-1.5">
@@ -854,7 +1067,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-                                  <span className="text-[11.5px]">Fiches clientes & historique cutané</span>
+                                  <span className="text-[11.5px]">Fiches clientes &amp; historique cutané</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
@@ -885,7 +1098,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                 </span>
                               </div>
                               <p className="text-[11.5px] text-muted-foreground leading-snug">
-                                Le cœur de gestion des salons & instituts (jusqu&apos;à 6 praticiennes).
+                                Le cœur de gestion des salons &amp; instituts (jusqu&apos;à 6 praticiennes).
                               </p>
                               <div className="pt-1.5 border-t border-gold/30">
                                 <div className="flex items-baseline gap-1.5">
@@ -903,7 +1116,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-                                  <span className="text-[11.5px]"><strong>Caisse POS tactile</strong> Wave, OM & Espèces</span>
+                                  <span className="text-[11.5px]"><strong>Caisse POS tactile</strong> Wave, OM &amp; Espèces</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
@@ -911,7 +1124,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-                                  <span className="text-[11.5px]">CRM & segmentation fidélité</span>
+                                  <span className="text-[11.5px]">CRM &amp; segmentation fidélité</span>
                                 </li>
                               </ul>
                             </div>
@@ -925,7 +1138,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                             </button>
                           </div>
 
-                          {/* 3. Pro Complexe — Obsidian & Or 24K */}
+                          {/* 3. Pro Complexe */}
                           <div className="rounded-[22px] k-obsidian-luxury p-5 flex flex-col justify-between space-y-4 transition-all shadow-lg">
                             <div className="space-y-3">
                               <div className="flex items-center justify-between gap-2">
@@ -935,7 +1148,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                 </span>
                               </div>
                               <p className="text-[11.5px] text-[#E6D5B8]/80 leading-snug">
-                                Spas, cliniques dermo, multi-succursales & personnel déclaré.
+                                Spas, cliniques dermo, multi-succursales &amp; personnel déclaré.
                               </p>
                               <div className="pt-1.5 border-t border-[#D49A24]/25">
                                 <div className="flex items-baseline gap-1.5">
@@ -986,11 +1199,11 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                               <div className="flex items-center justify-between gap-2">
                                 <span className="font-heading text-[18px] font-black text-foreground">Compte Gratuit</span>
                                 <span className="rounded-full bg-secondary border border-border/80 px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground">
-                                  Inclus à vie
+                                  Inclus à vie (0 FCFA)
                                 </span>
                               </div>
                               <p className="text-[12px] text-muted-foreground leading-snug">
-                                Pour toutes celles qui souhaitent prendre soin de leur peau et réserver leurs soins en salon.
+                                Pour toutes celles qui souhaitent comprendre leur peau, obtenir leur ordonnance et réserver en salon.
                               </p>
                               <div className="pt-1.5 border-t border-border/40">
                                 <div className="flex items-baseline gap-1.5">
@@ -1001,11 +1214,11 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                               <ul className="space-y-2 text-xs pt-1">
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-                                  <span><strong>1 Bilan dermo-biométrique par mois</strong> (score, type et zone)</span>
+                                  <span><strong>Bilan dermo-biométrique complet</strong> (score de peau, type et zones)</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-                                  <span><strong>Conseils bienveillants Dermo Kènè</strong> (phytothérapie ouest-africaine)</span>
+                                  <span><strong>Ordonnance dermo-cosmétique</strong> (phytothérapie ouest-africaine)</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
@@ -1013,13 +1226,13 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-                                  <span><strong>Boutique de cosmétiques botaniques</strong> (karité de Korhogo, moringa, baobab)</span>
+                                  <span><strong>Boutique cosmétique</strong> (Karité de Korhogo, moringa, baobab)</span>
                                 </li>
                               </ul>
                             </div>
                             <button
                               type="button"
-                              onClick={() => enterPortal("client")}
+                              onClick={() => startExploration("diagnostic")}
                               className="w-full h-11 rounded-xl k-chip hover:bg-muted text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
                             >
                               <span>Accéder gratuitement</span>
@@ -1058,7 +1271,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-                                  <span><strong>Courbe d&apos;évolution & avant/après</strong> tactile pour mesurer vos progrès</span>
+                                  <span><strong>Courbe d&apos;évolution &amp; avant/après</strong> tactile pour mesurer vos progrès</span>
                                 </li>
                                 <li className="flex items-start gap-2">
                                   <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
@@ -1088,7 +1301,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                       <button
                         type="button"
                         onClick={() => setShowFullMatrix(!showFullMatrix)}
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline underline-offset-4"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline underline-offset-4 cursor-pointer"
                       >
                         <span>{showFullMatrix ? "Masquer la matrice comparative" : "Voir le tableau comparatif détaillé de toutes les formules"}</span>
                         {showFullMatrix ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -1111,22 +1324,22 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                               <tr>
                                 <td className="py-2.5 px-3 font-medium">Bilan de peau par IA photo</td>
                                 <td className="py-2.5 px-2 text-center text-muted-foreground">1 / mois</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">⭐ Illimité</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">⭐ Illimité</td>
                               </tr>
-                                <tr>
-                                  <td className="py-2.5 px-3 font-medium">Dermo Kènè IA (Conseils dermo-cosmétiques)</td>
-                                  <td className="py-2.5 px-2 text-center text-muted-foreground">Standard</td>
-                                  <td className="py-2.5 px-2 text-center text-gold-text font-bold">⭐ Prioritaire &amp; Illimité</td>
-                                </tr>
+                              <tr>
+                                <td className="py-2.5 px-3 font-medium">Dermo Kènè IA (Conseils dermo-cosmétiques)</td>
+                                <td className="py-2.5 px-2 text-center text-muted-foreground">Standard</td>
+                                <td className="py-2.5 px-2 text-center text-gold-text font-bold">⭐ Prioritaire &amp; Illimité</td>
+                              </tr>
                               <tr>
                                 <td className="py-2.5 px-3 font-medium">Réservation de soins &amp; Acompte en ligne</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Inclus</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Inclus</td>
                               </tr>
                               <tr>
                                 <td className="py-2.5 px-3 font-medium">Boutique cosmétiques des instituts</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Inclus</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Inclus</td>
                               </tr>
                               <tr>
                                 <td className="py-2.5 px-3 font-medium">Suivi d&apos;évolution &amp; Progrès cutanés</td>
@@ -1135,8 +1348,8 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                               </tr>
                               <tr>
                                 <td className="py-2.5 px-3 font-medium">Dossier de Peau &amp; Pass Cabine QR</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Inclus</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Inclus</td>
                               </tr>
                             </tbody>
                           </table>
@@ -1145,35 +1358,30 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                             <thead>
                               <tr className="border-b border-border/60">
                                 <th className="py-2.5 px-3 font-bold text-muted-foreground">Outils de Gestion Institut</th>
-                                <th className="py-2.5 px-2 font-bold text-center w-32 text-terre">Pro Essentiel</th>
+                                <th className="py-2.5 px-2 font-bold text-center w-32 text-terre">Pro Starter</th>
                                 <th className="py-2.5 px-2 font-bold text-center w-32 text-gold-text">Pro Complexe</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border/40">
                               <tr>
                                 <td className="py-2.5 px-3 font-medium">Agenda en ligne &amp; Réservations 24/7</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Inclus</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Inclus</td>
                               </tr>
                               <tr>
                                 <td className="py-2.5 px-3 font-medium">Caisse tactile &amp; Tickets de caisse</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Inclus</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Inclus</td>
                               </tr>
                               <tr>
                                 <td className="py-2.5 px-3 font-medium">Diagnostics IA en cabine &amp; Fiches clientes</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Cabine illimité</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Cabine illimité</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Cabine illimité</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Cabine illimité</td>
                               </tr>
                               <tr>
                                 <td className="py-2.5 px-3 font-medium">Gestion du stock (Revente vs Cabine)</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
-                              </tr>
-                              <tr>
-                                <td className="py-2.5 px-3 font-medium">Commissions praticiennes &amp; Clôture Rapport Z</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
-                                <td className="py-2.5 px-2 text-center text-success font-bold">Inclus</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Inclus</td>
+                                <td className="py-2.5 px-2 text-center text-emerald-500 font-bold">Inclus</td>
                               </tr>
                               <tr>
                                 <td className="py-2.5 px-3 font-medium">Paie sociale déclarative (CNPS CI / IPRES SN)</td>
@@ -1185,11 +1393,6 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                                 <td className="py-2.5 px-2 text-center text-muted-foreground">— Non inclus</td>
                                 <td className="py-2.5 px-2 text-center text-gold-text font-bold">⭐ Inclus</td>
                               </tr>
-                              <tr>
-                                <td className="py-2.5 px-3 font-medium">Multi-établissements &amp; Succursales</td>
-                                <td className="py-2.5 px-2 text-center text-muted-foreground">1 établissement</td>
-                                <td className="py-2.5 px-2 text-center text-gold-text font-bold">⭐ Multi-succursales</td>
-                              </tr>
                             </tbody>
                           </table>
                         )}
@@ -1198,7 +1401,7 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
 
                     {/* Garantie de réassurance sous les tarifs */}
                     <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground pt-1">
-                      <ShieldCheck size={14} className="mt-0.5 shrink-0 text-success" aria-hidden="true" />
+                      <ShieldCheck size={14} className="mt-0.5 shrink-0 text-emerald-500" aria-hidden="true" />
                       <span>
                         <strong>Garantie sans engagement :</strong> Tous les paiements s&apos;effectuent par Mobile Money direct (Wave, Orange Money, MTN MoMo). Aucun numéro de carte bancaire n&apos;est enregistré et aucun débit automatique n&apos;est effectué sans votre confirmation expresse.
                       </span>
@@ -1207,19 +1410,48 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                 </section>
               </div>
 
-              {/* ── Bouton universel Nouveau client & Mentions Légales ── */}
-              <div className="mt-auto pt-4 sm:pt-6 flex flex-col items-center gap-3 text-center">
-                <button
+              {/* ── SECTION 7 : Bannière Dédiée Instituts Partenaires (B2B) ── */}
+              <div className="mt-8 sm:mt-10 w-full">
+                <div className="rounded-[24px] border border-gold/40 bg-gradient-to-r from-card via-[#1A120B]/40 to-card p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                  <div className="space-y-1 min-w-0">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-gold-text flex items-center gap-1.5">
+                      <Building2 size={13} /> Espace Entreprise &amp; Salons de Beauté
+                    </span>
+                    <h3 className="font-heading text-base sm:text-lg font-bold text-foreground">
+                      Vous gérez un salon, spa ou institut dermo-esthétique ?
+                    </h3>
+                    <p className="text-xs text-muted-foreground max-w-xl">
+                      Rejoignez le réseau officiel Kènè : caisse tactile conforme SYSCOHADA, agenda cabine 24/7, fiches de consultation et fidélisation cliente.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => enterPortal("pro")}
+                    className="shrink-0 px-5 py-2.5 rounded-full k-btn-gold text-primary-foreground font-black text-xs flex items-center justify-center gap-2 shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <BriefcaseBusiness size={14} />
+                    <span>Découvrir Kènè Pro (30j offerts)</span>
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
+              </div>
+
+              {/* ── SECTION 8 : CTA Final Géant de Pied de Page & Mentions Légales ── */}
+              <div className="mt-10 pt-6 pb-4 flex flex-col items-center gap-3.5 text-center">
+                <motion.button
                   type="button"
-                  onClick={startExploration}
+                  onClick={() => startExploration("diagnostic")}
                   disabled={exploring}
-                  className="flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 bg-secondary/80 hover:bg-secondary text-[12.5px] font-bold text-foreground border border-gold/40 shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-primary cursor-pointer"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex min-h-12 items-center gap-2.5 rounded-full px-7 py-3 k-btn-gold text-[13.5px] font-black text-primary-foreground shadow-xl shadow-gold/25 cursor-pointer"
                 >
-                  {exploring ? <Loader2 size={15} className="animate-spin text-gold-text" /> : <CauriIcon size={15} className="text-gold-text" aria-hidden="true" />}
-                  <span>Tester sans compte (Aperçu temporaire non sauvegardé)</span>
-                </button>
+                  {exploring ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+                  <span>Démarrer mon bilan cutané gratuit (30s chrono)</span>
+                  <ArrowRight size={15} />
+                </motion.button>
                 <p className="text-[10.5px] sm:text-[11.5px] leading-relaxed text-muted-foreground">
-                  Données chiffrées, jamais revendues · En continuant, tu acceptes les conditions Kènè.
+                  Données médicales chiffrées &amp; protégées · En continuant, vous acceptez les conditions Kènè.
                 </p>
                 <Link
                   href="/case-study"
