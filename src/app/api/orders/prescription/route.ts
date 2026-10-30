@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     if (!user) return jsonError("Utilisatrice introuvable", 404);
 
     // Résolution du salon partenaire (Cabinet LA DERMO par défaut)
-    let tenant = null;
+    let tenant: { id: string; name: string; phone?: string | null } | null = null;
     if (tenantId) {
       tenant = await db.tenant.findUnique({ where: { id: tenantId } });
     }
@@ -54,12 +54,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Recherche ou création automatique du produit sous cet institut
-    let product = await db.product.findFirst({
+    const allProducts = await db.product.findMany({
       where: {
         tenantId: tenant.id,
-        name: { equals: productName, mode: "insensitive" },
       },
     });
+    let product = allProducts.find((p) => p.name.trim().toLowerCase() === productName.trim().toLowerCase()) ?? null;
 
     if (!product) {
       product = await db.product.create({
@@ -71,6 +71,8 @@ export async function POST(req: NextRequest) {
           active: true,
           category: "visage",
           description: `Soin prescrit en ordonnance beauté (${moment || "quotidien"}). ${posology || ""}`,
+          botanicals: "[]",
+          image: "/products/creme-visage.webp",
         },
       });
     }
@@ -111,20 +113,15 @@ export async function POST(req: NextRequest) {
     const ref = order.id.slice(-6).toUpperCase();
 
     // Notification et push temps-réel à l'institut
-    await pushTenantFeed(tenant.id, {
-      kind: "order_created",
-      orderId: order.id,
-      clientName: user.name,
-      total: itemPrice,
-    }).catch(() => null);
+    pushTenantFeed(tenant.id);
 
-    await notify({
+    notify({
       userId: user.id,
       tenantId: tenant.id,
-      type: "order",
-      title: "Nouvelle commande sur ordonnance 🧴",
-      body: `${user.name} a commandé « ${productName} » (${itemPrice.toLocaleString("fr-FR")} FCFA) depuis son ordonnance beauté (Réf #${ref}).`,
-    }).catch(() => null);
+      channel: "whatsapp",
+      toPhone: user.phone,
+      message: `${user.name} a commandé « ${productName} » (${itemPrice.toLocaleString("fr-FR")} FCFA) depuis son ordonnance beauté (Réf #${ref}).`,
+    });
 
     return NextResponse.json(
       {

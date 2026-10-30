@@ -2,14 +2,14 @@
 // Kènè Pro — 🔬 Dossiers Cutanés & Cahier de Formulation des Clientes
 // Espace dédié exclusivement à la santé de la peau, phototypes mélanodermes,
 // imagerie spectrale HD, suivi d'évolution avant/après et formulation d'actifs sur-mesure.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   FolderHeart, Search, Sparkles, Filter, ChevronRight, Baby, Leaf,
   FlaskConical, Save, FileDown, MessageCircle, CheckCircle2, Phone,
   SlidersHorizontal, Eye, ShieldAlert, Sun, Moon, ArrowLeft,
   Calendar, Lock, Layers, Droplets, Camera, Check, Plus, AlertTriangle,
   Smartphone, Stethoscope, FileClock, Clock, UserCheck, Info, Users,
-  ShoppingBag, Sparkle, Trash2, CalendarCheck, RefreshCw, ArrowRight, History, CheckCircle, XCircle
+  ShoppingBag, Sparkle, Trash2, CalendarCheck, RefreshCw, ArrowRight, History, CheckCircle, XCircle, Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 import { BissapFlowerIcon, CauriIcon, SankofaIcon } from "@/components/kene/icons";
@@ -981,7 +981,7 @@ function ClientSkinDossierDetail({
             <Button
               size="sm"
               variant="outline"
-              onClick={saveSkinIdentity}
+              onClick={() => void saveSkinIdentity(true)}
               disabled={identityBusy}
               className="h-8 text-xs gap-1 border-gold/40 text-gold-text hover:bg-gold/10"
             >

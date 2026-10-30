@@ -9,28 +9,8 @@ export const DEFAULT_TENANT_NAME = "Cabinet LA DERMO";
  */
 export async function getDefaultCabinetTenant() {
   try {
-    const dermo = await db.tenant.findFirst({
-      where: {
-        active: true,
-        OR: [
-          { name: { contains: "LA DERMO", mode: "insensitive" } },
-          { name: { contains: "DERMO", mode: "insensitive" } },
-        ],
-      },
-      select: {
-        id: true,
-        name: true,
-        city: true,
-        phone: true,
-        ownerPhone: true,
-        address: true,
-        country: true,
-      },
-    });
-    if (dermo) return dermo;
-    return await db.tenant.findFirst({
+    const all = await db.tenant.findMany({
       where: { active: true },
-      orderBy: { createdAt: "asc" },
       select: {
         id: true,
         name: true,
@@ -41,6 +21,9 @@ export async function getDefaultCabinetTenant() {
         country: true,
       },
     });
+
+    const dermo = all.find((t) => t.name.toLowerCase().includes("dermo")) ?? all[0] ?? null;
+    return dermo;
   } catch {
     return null;
   }

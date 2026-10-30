@@ -65,19 +65,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Notification aux instituts concernés par les produits
     const tenantIds = Array.from(new Set(order.items.map((i) => i.product.tenantId)));
     for (const tId of tenantIds) {
-      await pushTenantFeed(tId, {
-        kind: "order_cancelled",
-        orderId: order.id,
-        clientName: order.user?.name ?? "Cliente",
-      }).catch(() => null);
+      pushTenantFeed(tId);
 
-      await notify({
+      notify({
         userId: order.userId,
         tenantId: tId,
-        type: "order",
-        title: "Commande désactivée / annulée ⚠️",
-        body: `La commande #${ref} (${order.total.toLocaleString("fr-FR")} FCFA) a été annulée par ${order.user?.name ?? "la cliente"}.`,
-      }).catch(() => null);
+        channel: "whatsapp",
+        toPhone: order.user?.phone ?? "",
+        message: `La commande #${ref} (${order.total.toLocaleString("fr-FR")} FCFA) a été annulée par ${order.user?.name ?? "la cliente"}.`,
+      });
     }
 
     return NextResponse.json({
