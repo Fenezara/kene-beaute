@@ -651,7 +651,7 @@ function ClientSkinDossierDetail({
   }
 
   // Sauvegarde des caractéristiques de peau (Phototype, Type, Grossesse)
-  async function saveSkinIdentity() {
+  async function saveSkinIdentity(showFeedback = true) {
     setIdentityBusy(true);
     try {
       await apiPatch(`/api/pro/clients/${clientId}?tenantId=${tenantId}`, {
@@ -659,17 +659,59 @@ function ClientSkinDossierDetail({
         fitzpatrick,
         pregnant,
       });
-      toast.success("Identité cutanée mise à jour", {
-        description: `Phototype ${fitzpatrick} · Peau ${skinType} sauvegardés.`,
-      });
+      if (showFeedback) {
+        toast.success("Identité cutanée mise à jour", {
+          description: `Phototype ${fitzpatrick} · Peau ${skinType} sauvegardés.`,
+        });
+      }
       detail.refetch();
       onRefreshList?.();
     } catch (e) {
-      proToastError(e, "Mise à jour impossible");
+      if (showFeedback) {
+        proToastError(e, "Mise à jour impossible");
+      }
     } finally {
       setIdentityBusy(false);
     }
   }
+
+  // Auto-sauvegarde debouncée des observations / cahier de formulation
+  const obsSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isObsInitial = useRef(true);
+  const [obsAutoSaveStatus, setObsAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  useEffect(() => {
+    if (isObsInitial.current) {
+      isObsInitial.current = false;
+      return;
+    }
+    if (!clientId || !tenantId) return;
+
+    if (obsSaveTimeoutRef.current) {
+      clearTimeout(obsSaveTimeoutRef.current);
+    }
+    setObsAutoSaveStatus("saving");
+
+    obsSaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await apiPatch(`/api/pro/clients/${clientId}?tenantId=${tenantId}`, {
+          productObservations: productObservations.trim() || null,
+        });
+        setObsAutoSaveStatus("saved");
+        setTimeout(() => {
+          setObsAutoSaveStatus((c) => (c === "saved" ? "idle" : c));
+        }, 2000);
+      } catch {
+        setObsAutoSaveStatus("idle");
+      }
+    }, 800);
+
+    return () => {
+      if (obsSaveTimeoutRef.current) {
+        clearTimeout(obsSaveTimeoutRef.current);
+      }
+    };
+  }, [productObservations, clientId, tenantId]);
 
   // Insertion automatique d'un canevas de formulation magistrale
   function handleInsertFormulationTemplate() {
@@ -1064,9 +1106,21 @@ function ClientSkinDossierDetail({
               </div>
 
               <div className="pt-2 border-t border-border/60 flex items-center justify-between">
-                <p className="text-[11px] text-muted-foreground">
-                  Synchronisé avec la fiche de consultation cabine et conservé au dossier.
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[11px] text-muted-foreground">
+                    Synchronisé avec la fiche de consultation cabine et conservé au dossier.
+                  </p>
+                  {obsAutoSaveStatus === "saving" && (
+                    <span className="text-[11px] font-bold text-primary flex items-center gap-1 animate-pulse">
+                      <Loader2 className="size-3 animate-spin" /> Auto-sauvegarde…
+                    </span>
+                  )}
+                  {obsAutoSaveStatus === "saved" && (
+                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <Check className="size-3" /> Enregistré ✓
+                    </span>
+                  )}
+                </div>
                 <Button
                   size="sm"
                   onClick={() => void saveProductObservations()}

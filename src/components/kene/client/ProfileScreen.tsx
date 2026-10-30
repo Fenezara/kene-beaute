@@ -52,6 +52,11 @@ export function ProfileScreen() {
   const [contactOpen, setContactOpen] = useState(false);
   const [linkModalOpen, setLinkModalOpen] = useState(false);
 
+  // Indicateur dynamique d'auto-sauvegarde
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitialMount = useRef(true);
+
   // Sync state if user prop changes
   useEffect(() => {
     if (user) {
@@ -199,10 +204,11 @@ export function ProfileScreen() {
     }
   }
 
-  async function saveUnifiedProfile() {
+  async function saveUnifiedProfile(showNotification = true) {
     if (!user) return;
     setSavingSkin(true);
     setSavingPrefs(true);
+    setAutoSaveStatus("saving");
     try {
       const r = await apiPatch<{ user: ApiUser }>("/api/auth/profile", {
         userId: user.id,
@@ -219,16 +225,49 @@ export function ProfileScreen() {
         goals: goals.map((id) => ({ id, label: SKIN_GOALS.find((g) => g.id === id)?.label ?? id })),
       });
       setUser({ ...user, ...r.user } as SessionUser);
-      toast.success("Profil complet mis à jour avec succès ✨", {
-        description: "Tes informations d'identité, de privilèges et de routine sont sauvegardées.",
-      });
+      setAutoSaveStatus("saved");
+      if (showNotification) {
+        toast.success("Profil complet mis à jour avec succès ✨", {
+          description: "Tes informations d'identité, de privilèges et de routine sont sauvegardées.",
+        });
+      }
+      setTimeout(() => {
+        setAutoSaveStatus((current) => (current === "saved" ? "idle" : current));
+      }, 2500);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Mise à jour impossible");
+      setAutoSaveStatus("idle");
+      if (showNotification) {
+        toast.error(e instanceof Error ? e.message : "Mise à jour impossible");
+      }
     } finally {
       setSavingSkin(false);
       setSavingPrefs(false);
     }
   }
+
+  // Auto-sauvegarde fluide et debouncée lors de toute modification
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (!user?.id) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    setAutoSaveStatus("saving");
+    saveTimeoutRef.current = setTimeout(() => {
+      void saveUnifiedProfile(false);
+    }, 750);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [name, city, district, gender, birthDate, pregnant, preferredChannel, skinType, fitz, allergies, goals]);
 
 
   if (!user) return null;
@@ -542,7 +581,21 @@ export function ProfileScreen() {
       {/* Profil peau */}
       <RevealItem>
         <section aria-labelledby="skin-t">
-          <SectionTitle icon={<CauriIcon size={16} />}><span id="skin-t">Mon profil peau</span></SectionTitle>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <SectionTitle icon={<CauriIcon size={16} />}><span id="skin-t">Mon profil peau</span></SectionTitle>
+            <div className="flex items-center gap-1.5 text-xs">
+              {autoSaveStatus === "saving" && (
+                <span className="flex items-center gap-1 text-primary animate-pulse text-[11px] font-bold">
+                  <Loader2 size={12} className="animate-spin" /> Synchronisation…
+                </span>
+              )}
+              {autoSaveStatus === "saved" && (
+                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold">
+                  <Check size={12} /> Sauvegardé automatiquement ✓
+                </span>
+              )}
+            </div>
+          </div>
           <div className="k-card rounded-[24px] p-4 space-y-4">
             <div>
               <p className="text-[11px] font-semibold text-muted-foreground mb-2">Phototype & Nuance de peau (Spectre mélanique africain)</p>
@@ -576,14 +629,20 @@ export function ProfileScreen() {
               <label htmlFor="p-all" className="text-[11px] font-semibold text-muted-foreground">Allergies</label>
               <textarea id="p-all" value={allergies} onChange={(e) => setAllergies(e.target.value)} rows={2} placeholder="Ex. huile de coco…" className="k-input mt-1 w-full rounded-xl px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-primary" />
             </div>
-            <button
-              onClick={saveUnifiedProfile}
-              disabled={savingSkin || savingPrefs}
-              className="k-btn-gold h-12 w-full rounded-2xl text-primary-foreground text-sm font-black flex items-center justify-center gap-2 disabled:opacity-60 shadow-md active:scale-[0.99] transition-all cursor-pointer"
-            >
-              {savingSkin || savingPrefs ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-              <span>Enregistrer mon Profil &amp; Sécurité Soins</span>
-            </button>
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[11px] text-muted-foreground italic">
+                {autoSaveStatus === "saving" ? "Sauvegarde en cours…" : autoSaveStatus === "saved" ? "Tous les changements sont enregistrés" : "Sauvegarde automatique pendant la saisie"}
+              </span>
+              <button
+                type="button"
+                onClick={() => void saveUnifiedProfile(true)}
+                disabled={savingSkin || savingPrefs}
+                className="text-xs text-primary font-bold hover:underline px-2 py-1 cursor-pointer flex items-center gap-1"
+              >
+                {savingSkin || savingPrefs ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                <span>Forcer l&apos;enregistrement</span>
+              </button>
+            </div>
           </div>
         </section>
       </RevealItem>
