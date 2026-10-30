@@ -374,19 +374,25 @@ export function middleware(req: NextRequest) {
     return applySecurityHeaders(res);
   }
 
-  // 1-bis) Désactiver le cache HTTP sur /sw.js, la page d'accueil et les chunks /_next/
-  // (en mode Turbopack/dev les noms de chunks sont basés sur le chemin de fichier : un max-age long bloque les mises à jour UI)
+  // 1-bis) Désactiver le cache HTTP sur /sw.js et la page d'accueil HTML pour toujours servir la dernière version.
+  // En revanche, les chunks /_next/static/ avec hash immuable bénéficient du cache longue durée (géré par Next.js).
   if (
     path === "/sw.js" ||
     path === "/" ||
-    path === "" ||
-    path.startsWith("/_next/")
+    path === ""
   ) {
     const res = NextResponse.next();
     res.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
     res.headers.set("Pragma", "no-cache");
     res.headers.set("Expires", "0");
     return applySecurityHeaders(res);
+  }
+
+  // 1-ter) Cache ultra-rapide immuable pour les assets Next.js hashés (JS/CSS)
+  if (path.startsWith("/_next/static/")) {
+    const res = NextResponse.next();
+    res.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    return applySecurityHeaders(res, false);
   }
 
   // 1-ter) Cache optimisé haute performance uniquement pour les images et polices statiques

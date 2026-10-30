@@ -39,6 +39,7 @@ import { ThresholdStories } from "./ThresholdStories";
 import { type ApiUser } from "./types";
 import { createHumanPayload } from "@/components/kene/auth/BotHoneypot";
 import { BeforeAfterSlider } from "@/components/kene/evolution/BeforeAfterSlider";
+import { SmartInstallBar } from "@/components/kene/pwa/SmartInstallBar";
 
 /* ───────────────────────── Portail image plein cadre ───────────────────────── */
 function PortalCard({
@@ -490,6 +491,11 @@ export function WelcomeThreshold({ onBackToApp }: { onBackToApp?: () => void } =
                   </div>
                 </div>
               </Reveal>
+
+              {/* ── BANNIÈRE INCITATIVE PWA (Installation 1-Clic sur PC / Mobile / Tablette) ── */}
+              <div className="mt-3 sm:mt-4">
+                <SmartInstallBar />
+              </div>
 
               {/* ── ZONE HAUTE : Hero de Conversion & Démonstration en Direct ── */}
               <div className="mt-4 sm:mt-6 lg:mt-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center">
