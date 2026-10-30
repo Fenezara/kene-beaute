@@ -76,11 +76,11 @@ export async function GET(req: NextRequest) {
 
 /** Cœur partagé POST/GET : traitement texte ou audio direct pour Dermo Kènè */
 async function runChat(parsed: z.infer<typeof Body>): Promise<NextResponse> {
-  const profileOrId =
-    parsed.userId ||
-    (parsed.userName || parsed.userGender
-      ? { name: parsed.userName, gender: parsed.userGender || "non_precise" }
-      : undefined);
+  const profileOrId = {
+    id: parsed.userId || undefined,
+    name: parsed.userName || undefined,
+    gender: parsed.userGender || "non_precise",
+  };
 
   // Cas 1 : Note vocale directe (l'audio est envoyé directement à Dermo Kènè)
   if (parsed.audio) {
@@ -123,9 +123,14 @@ function chatFallbackResponse(err: unknown, parsed?: z.infer<typeof Body>): Next
     "[kene:api:dermato/chat] Bascule sur le filet de sécurité expert :",
     err instanceof Error ? err.message : err,
   );
+  const fallbackProfile = {
+    id: parsed?.userId || undefined,
+    name: parsed?.userName || undefined,
+    gender: parsed?.userGender || "non_precise",
+  };
   const reply = generateDrKeneKnowledgeReply(
     parsed?.messages ?? [{ role: "user", content: "conseil" }],
-    null,
+    fallbackProfile,
   );
   return NextResponse.json({ reply });
 }

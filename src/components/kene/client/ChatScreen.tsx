@@ -579,7 +579,7 @@ export function ChatScreen() {
 
   // Engagement obligatoire de la conversation par Dermo Kènè dès l'ouverture
   useEffect(() => {
-    const userName = user?.name || "Cliente";
+    const userName = user?.name || "";
     const userCity = user?.city;
     if (!useChat.persist.hasHydrated()) {
       const res = useChat.persist.rehydrate();

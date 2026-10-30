@@ -27,7 +27,8 @@ export function getTimeGreeting(countryOrCity?: string | null): string {
 /** Message d'accueil et d'engagement direct de Dermo Kènè.
  * Personnalisé avec la salutation temporelle (Bonjour / Bon après-midi / Bonsoir), le prénom et la localité/pays. */
 export function welcomeMsg(userName?: string | null, city?: string | null): ChatMsg {
-  const name = userName ? userName.split(" ")[0] : "";
+  const clean = userName?.trim();
+  const name = clean && clean.toLowerCase() !== "cliente" ? clean.split(/\s+/)[0] : "";
   const greeting = getTimeGreeting(city);
   const salutation = name ? `${greeting} ${name} ! 🌸` : `${greeting} ! 🌸`;
   const loc = city || "Abidjan";
@@ -63,13 +64,31 @@ export const useChat = create<ChatState>()(
         }),
       reset: (userName, city) => set({ messages: [welcomeMsg(userName, city)] }),
       ensureEngaged: (userName, city) => {
+        const clean = userName?.trim();
+        const validFirstName = clean && clean.toLowerCase() !== "cliente" ? clean.split(/\s+/)[0] : "";
         const current = get().messages;
         if (current.length === 0) {
           set({ messages: [welcomeMsg(userName, city)] });
-        } else {
-          const hasAssistant = current.some((m) => m.role === "assistant");
-          if (!hasAssistant) {
-            set({ messages: [welcomeMsg(userName, city), ...current] });
+          return;
+        }
+
+        const hasAssistant = current.some((m) => m.role === "assistant");
+        if (!hasAssistant) {
+          set({ messages: [welcomeMsg(userName, city), ...current] });
+          return;
+        }
+
+        // Si le fil contient le message de bienvenue initial w1 et que l'utilisateur est maintenant nommé,
+        // on actualise w1 avec son vrai prénom s'il ne le contient pas encore
+        if (validFirstName) {
+          const w1Index = current.findIndex((m) => m.id === "w1");
+          if (w1Index !== -1) {
+            const currentW1 = current[w1Index];
+            if (!currentW1.content.includes(validFirstName)) {
+              const updated = [...current];
+              updated[w1Index] = welcomeMsg(userName, city);
+              set({ messages: updated });
+            }
           }
         }
       },

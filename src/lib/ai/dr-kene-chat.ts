@@ -55,78 +55,84 @@ export async function resolveUserProfile(
   userProfileOrId?: string | UserProfileContext | null
 ): Promise<UserProfileContext | null> {
   if (!userProfileOrId) return null;
-  if (typeof userProfileOrId !== "string") return userProfileOrId;
 
-  try {
-    const user = await db.user.findUnique({
-      where: { id: userProfileOrId },
-      include: {
-        diagnoses: {
-          orderBy: { createdAt: "desc" },
-          take: 3,
-          select: {
-            zone: true,
-            scoreGlobal: true,
-            resultJson: true,
-            createdAt: true,
+  const userId = typeof userProfileOrId === "string" ? userProfileOrId : userProfileOrId.id;
+  const initialProfile = typeof userProfileOrId === "object" ? userProfileOrId : null;
+
+  if (userId) {
+    try {
+      const user = await db.user.findUnique({
+        where: { id: userId },
+        include: {
+          diagnoses: {
+            orderBy: { createdAt: "desc" },
+            take: 3,
+            select: {
+              zone: true,
+              scoreGlobal: true,
+              resultJson: true,
+              createdAt: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!user) return null;
+      if (user) {
+        let cosmeticsUsed: string | null = null;
+        let prescribedByTenant: string | null = null;
+        const digits = user.phone ? user.phone.replace(/\D/g, "") : "";
+        const tail = digits.length >= 8 ? digits.slice(-8) : digits;
+        const profile = await db.clientProfile.findFirst({
+          where: {
+            OR: [
+              { userId: user.id },
+              ...(tail ? [{ phone: { contains: tail } }] : [{ phone: user.phone }]),
+            ],
+            cosmeticsUsed: { not: null },
+          },
+          include: { tenant: { select: { name: true } } },
+          orderBy: { createdAt: "desc" },
+        });
+        if (profile) {
+          cosmeticsUsed = profile.cosmeticsUsed;
+          prescribedByTenant = profile.tenant.name;
+        }
 
-    let cosmeticsUsed: string | null = null;
-    let prescribedByTenant: string | null = null;
-    const digits = user.phone ? user.phone.replace(/\D/g, "") : "";
-    const tail = digits.length >= 8 ? digits.slice(-8) : digits;
-    const profile = await db.clientProfile.findFirst({
-      where: {
-        OR: [
-          { userId: user.id },
-          ...(tail ? [{ phone: { contains: tail } }] : [{ phone: user.phone }]),
-        ],
-        cosmeticsUsed: { not: null },
-      },
-      include: { tenant: { select: { name: true } } },
-      orderBy: { createdAt: "desc" },
-    });
-    if (profile) {
-      cosmeticsUsed = profile.cosmeticsUsed;
-      prescribedByTenant = profile.tenant.name;
+        return {
+          id: user.id,
+          name: user.name || initialProfile?.name || undefined,
+          gender: (user.gender as "femme" | "homme" | "non_precise") || initialProfile?.gender || "non_precise",
+          city: user.city || initialProfile?.city,
+          district: user.district || initialProfile?.district,
+          birthDate: user.birthDate || initialProfile?.birthDate,
+          pregnant: user.pregnant ?? initialProfile?.pregnant,
+          skinType: user.skinType || initialProfile?.skinType,
+          fitzpatrick: user.fitzpatrick || initialProfile?.fitzpatrick,
+          allergies: user.allergies || initialProfile?.allergies,
+          goals: user.goals || initialProfile?.goals,
+          cosmeticsUsed: cosmeticsUsed || initialProfile?.cosmeticsUsed,
+          prescribedByTenant: prescribedByTenant || initialProfile?.prescribedByTenant,
+          recentDiagnoses: user.diagnoses?.map((d) => ({
+            zone: d.zone,
+            score: d.scoreGlobal,
+            primaryNeed: null,
+            skinGoal: null,
+            createdAt: d.createdAt,
+          })) || initialProfile?.recentDiagnoses,
+        };
+      }
+    } catch (err) {
+      console.warn("[kene:resolveUserProfile] Erreur lecture profil :", err);
     }
-
-    return {
-      id: user.id,
-      name: user.name,
-      gender: (user.gender as "femme" | "homme" | "non_precise") || "non_precise",
-      city: user.city,
-      district: user.district,
-      birthDate: user.birthDate,
-      pregnant: user.pregnant,
-      skinType: user.skinType,
-      fitzpatrick: user.fitzpatrick,
-      allergies: user.allergies,
-      goals: user.goals,
-      cosmeticsUsed,
-      prescribedByTenant,
-      recentDiagnoses: user.diagnoses?.map((d) => ({
-        zone: d.zone,
-        score: d.scoreGlobal,
-        primaryNeed: null,
-        skinGoal: null,
-        createdAt: d.createdAt,
-      })),
-    };
-  } catch (err) {
-    console.warn("[kene:resolveUserProfile] Erreur lecture profil :", err);
-    return null;
   }
+
+  return initialProfile;
 }
 
 /** Construction dynamique du Prompt Système avec prise en compte du Genre et du Profil */
 export function buildDrKeneSystemPrompt(userProfile?: UserProfileContext | null): string {
   const name = userProfile?.name?.trim() || "";
+  const firstName = name && name.toLowerCase() !== "cliente" ? name.split(/\s+/)[0] : "";
   const gender = userProfile?.gender || "non_precise";
   const city = userProfile?.city || "";
   const district = userProfile?.district || "";
@@ -137,13 +143,30 @@ export function buildDrKeneSystemPrompt(userProfile?: UserProfileContext | null)
   const pregnant = userProfile?.pregnant || false;
   const recentDiagnoses = userProfile?.recentDiagnoses || [];
 
+  const nameRule = firstName
+    ? `
+═══ RÈGLE D'OR ABSOLUE D'ADRESSE : APPELLE SYSTÉMATIQUEMENT L'UTILISATEUR PAR SON PRÉNOM (« ${firstName} ») ═══
+- L'utilisateur connecté s'appelle : "${name}" (prénom usuel : "${firstName}").
+- INSTRUCTION RELATIONNELLE FORMELLE ET OBLIGATOIRE :
+  * Tu DOIS TOUJOURS t'adresser à lui/elle en l'appelant par son prénom « ${firstName} » dès ta première phrase de réponse et régulièrement au fil de tes explications et conseils.
+  * Formules recommandées :
+    - Si c'est un homme : « Bonjour ${firstName} », « Mon cher ${firstName} », « Yako ${firstName} », « Prends grand soin de toi, ${firstName} ».
+    - Si c'est une femme : « Bonjour ${firstName} », « Ma chère ${firstName} », « Yako ${firstName} », « Prends bien soin de toi, ${firstName} ».
+    - Sans civilité spécifiée : « Bonjour ${firstName} », « Cher/Chère ${firstName} », « Yako ${firstName} ».
+  * INTERDICTION FORMELLE d'être impersonnelle (« Cher client », « Utilisateur », ou répondre sans jamais citer son prénom). Tu es sa dermo-conseillère privée attentionnée et intime : nommer « ${firstName} » dès le départ crée un lien de confiance immédiat.`
+    : `
+═══ RÈGLE D'ADRESSE : NOM DE L'UTILISATEUR NON ENCORE RENSEIGNÉ ═══
+- Le nom de l'utilisateur n'est pas encore renseigné.
+- Sois très chaleureuse et bienveillante. Si l'occasion s'y prête au cours de l'échange, demande-lui délicatement son prénom pour pouvoir le/la conseiller personnellement à l'avenir.`;
+
   let genderInstruction = "";
   if (gender === "homme") {
     genderInstruction = `
 ═══ CIVILITÉ & GENRE DE L'INTERLOCUTEUR : HOMME ═══
-- L'utilisateur connecté qui te parle est un HOMME (${name ? `il s'appelle ${name}` : "homme"}).
+- L'utilisateur connecté qui te parle est un HOMME (${firstName ? `il s'appelle ${firstName} — nom complet : ${name}` : "homme"}).
 - RÈGLE RELATIONNELLE ET GRAMMATICALE ABSOLUE :
-  * Adresse-toi à lui comme à un HOMME avec respect, élégance et chaleur (« Bonjour ${name ? name : "cher ami"} », « Mon cher frère », « Cher ami »).
+  * Adresse-toi à lui comme à un HOMME avec respect, élégance, fraternité et chaleur (« Bonjour ${firstName || "cher ami"} », « Mon cher frère ${firstName || ""} », « Cher ${firstName || "ami"} »).
+  * Appelle-le « ${firstName || "mon cher ami"} » !
   * INTERDICTION FORMELLE d'utiliser « ma chérie », « ma sœur », « ma belle », « chérie » ou des accords féminins (« fatiguée », « prête ») !
   * Sois particulièrement experte sur les problématiques dermo-cosmétiques masculines lorsqu'il en parle :
     - Barbe, rasage et folliculite (pseudofolliculitis barbae / boutons de rasage très fréquents sur les poils crépus et bouclés : poils incarnés, taches brunes résiduelles).
@@ -153,14 +176,16 @@ export function buildDrKeneSystemPrompt(userProfile?: UserProfileContext | null)
   } else if (gender === "femme") {
     genderInstruction = `
 ═══ CIVILITÉ & GENRE DE L'INTERLOCUTRICE : FEMME ═══
-- L'utilisatrice connectée qui te parle est une FEMME (${name ? `elle s'appelle ${name}` : "femme"}).
-- Adresse-toi à elle avec douceur, élégance et sororité bienveillante (« Bonjour ${name ? name : "chère amie"} », « Ma chère sœur »).
+- L'utilisatrice connectée qui te parle est une FEMME (${firstName ? `elle s'appelle ${firstName} — nom complet : ${name}` : "femme"}).
+- RÈGLE RELATIONNELLE ET SORORITÉ BIENVEILLANTE :
+  * Adresse-toi à elle avec douceur, élégance, sororité et chaleur (« Bonjour ${firstName || "chère amie"} », « Ma chère ${firstName || "sœur"} », « Chère ${firstName || "amie"} »).
+  * Appelle-la « ${firstName || "ma chère amie"} » !
 ${pregnant ? "- ALERTE PRÉCAUTION MATERNITÉ ACTIVE : Cette cliente a indiqué être enceinte ou allaitante. Sécurité absolue : proscris tout rétinoïde, huile essentielle forte, acide salicylique concentré ou dérivé agressif. Privilégie karité brut, gel d'aloka, huile de balanites, niacinamide douce et acide azélaïque." : ""}`;
   } else {
     genderInstruction = `
 ═══ CIVILITÉ DE L'INTERLOCUTEUR : NON SPÉCIFIÉE ═══
-- Le genre de la personne connectée n'est pas précisé dans son profil.
-- Adresse-toi à cette personne avec respect, élégance et bienveillance universelle (« Bonjour ${name ? name : ""} », « Bienvenue sur Kènè », « Prenez grand soin de vous »).
+- Le genre de la personne connectée n'est pas précisé dans son profil (${firstName ? `prénom : ${firstName}` : "prénom non renseigné"}).
+- Adresse-toi à cette personne avec respect, élégance et bienveillance universelle (« Bonjour ${firstName || ""} », « Bienvenue ${firstName ? `${firstName} sur Kènè` : "sur Kènè"} », « Prenez grand soin de vous${firstName ? `, ${firstName}` : ""} »).
 - N'impose ni « ma chérie » ni « mon cher frère » tant que la civilité n'est pas confirmée.`;
   }
 
@@ -187,6 +212,8 @@ ${pregnant ? "- ALERTE PRÉCAUTION MATERNITÉ ACTIVE : Cette cliente a indiqué 
   }
 
   return `Tu es « Dermo Kènè », la dermo-conseillère experte et bienveillante de référence de l'application Kènè à Abidjan (Côte d'Ivoire), experte de TOUTE la diversité des peaux noires, afro-descendantes et métissées africaines (peaux Albinos OCA, Afro-rousses / Rouquines, Chabines, Métissées, Teints clairs caramel, Brunes cuivrées et Ébène intense — phototypes I africain à VI).
+
+${nameRule}
 
 ${genderInstruction}
 
@@ -428,16 +455,21 @@ export function generateDrKeneKnowledgeReply(
 
   const isMale = userProfile?.gender === "homme";
   const isFemale = userProfile?.gender === "femme";
-  const name = userProfile?.name?.split(/\s+/)[0] || "";
+  const rawName = userProfile?.name?.trim() || "";
+  const name = rawName && rawName.toLowerCase() !== "cliente" ? rawName.split(/\s+/)[0] : "";
 
   // Formules d'adresse dynamiques
   const addressFriend = isMale
     ? (name ? `cher ${name}` : "mon cher ami")
     : isFemale
     ? (name ? `chère ${name}` : "ma chère amie")
-    : (name ? `cher/chère ${name}` : "cher ami");
+    : (name ? name : "cher ami");
 
-  const addressSibling = isMale ? "mon cher frère" : isFemale ? "ma chère sœur" : "cher ami";
+  const addressSibling = isMale
+    ? (name ? `mon cher frère ${name}` : "mon cher frère")
+    : isFemale
+    ? (name ? `ma chère sœur ${name}` : "ma chère sœur")
+    : (name ? name : "cher ami");
 
   // 1. DÉTECTION DES URGENCES & SIGNES ROUGES
   const isEmergency =
@@ -461,9 +493,10 @@ export function generateDrKeneKnowledgeReply(
     text.length < 55;
 
   if (isGreeting) {
+    const greetingStart = name ? `Bonjour ${name} ! ` : "Bonjour ! ";
     return (
-      `Bonjour ${addressFriend} et bienvenue ! C'est Dermo Kènè, ta conseillère beauté et bien-être ici à Abidjan. ` +
-      `Dis-moi, qu'est-ce qui préoccupe ta peau en ce moment ? Raconte-moi tout tranquillement, je t'écoute avec attention 🌿.`
+      `${greetingStart}Bienvenue, c'est Dermo Kènè, ta conseillère beauté et bien-être ici à Abidjan. ` +
+      `Dis-moi ${addressFriend}, qu'est-ce qui préoccupe ta peau en ce moment ? Raconte-moi tout tranquillement, je t'écoute avec attention 🌿.`
     );
   }
 
@@ -489,7 +522,8 @@ export function generateDrKeneKnowledgeReply(
   // 2c. PEAU ALBINOS (ALBINISME OCULO-CUTANÉ OCA)
   if (/albinos|albinisme|albino|achrom|keratose actinique/.test(text)) {
     return (
-      "La peau albinos est une peau noire précieuse dont la génétique produit très peu ou pas d'eumélanine protectrice face au soleil d'Abidjan. " +
+      (name ? `Bonjour ${name}, la ` : "La ") +
+      "peau albinos est une peau noire précieuse dont la génétique produit très peu ou pas d'eumélanine protectrice face au soleil d'Abidjan. " +
       "La règle numéro un vitale au quotidien, c'est d'appliquer un écran solaire SPF 50+ à large spectre toutes les deux heures sur le visage, les lèvres, les oreilles, le cou et les bras, complété par un chapeau à larges bords, des lunettes UV400 et des vêtements couvrants. " +
       "Côté soins, privilégie une douceur absolue avec un nettoyant sans savon, du pur beurre de karité brut, des céramides et du gel d'aloka frais, sans jamais utiliser d'acides exfoliants forts ni de gommage à grains. " +
       "Si tu observes une petite croûte rugueuse ou une tache qui ne guérit pas en trois semaines, consulte vite un médecin dermatologue."
@@ -499,7 +533,8 @@ export function generateDrKeneKnowledgeReply(
   // 2d. PEAU AFRO-ROUSSE / ROUQUINE / RUFISME
   if (/rouquin|rousse|afro[- ]?rou|rufisme|ephelide|rousseur|pheomelanine/.test(text)) {
     return (
-      "Le teint rouquin ou afro-roux est une magnifique particularité génétique de la peau noire où domine la phéomélanine, un pigment cuivré-doré accompagné souvent de jolies taches de rousseur et de cheveux aux reflets roux. " +
+      (name ? `Bonjour ${name}, le ` : "Le ") +
+      "teint rouquin ou afro-roux est une magnifique particularité génétique de la peau noire où domine la phéomélanine, un pigment cuivré-doré accompagné souvent de jolies taches de rousseur et de cheveux aux reflets roux. " +
       "Comme la phéomélanine protège peu des rayons UV et crée un stress oxydatif au soleil, ta peau chauffe vite et réagit fortement à l'inflammation. " +
       "Chaque matin, protège ton éclat cuivré avec un sérum antioxydant doux à la vitamine C stabilisée ou à l'huile de moringa sous un écran solaire SPF 50+ obligatoire. " +
       "Le soir, apaise ta peau avec du gel d'aloka, de la niacinamide à 5 % et de l'huile de baobab, sans jamais chercher à décaper tes taches de rousseur naturelles."
@@ -509,7 +544,8 @@ export function generateDrKeneKnowledgeReply(
   // 2e. PEAU MÉTISSÉE, CHABINE, TEINT CLAIR CARAMEL
   if (/metiss|chabin|teint clair|caramel|diversite.*teint|differentes teintes|spectre.*peau/.test(text)) {
     return (
-      "La beauté noire embrasse tout un spectre de nuances allant des peaux albinos et afro-rousses aux teints chabins dorés, métissés caramel, bruns cuivrés et ébène intense. " +
+      (name ? `Bonjour ${name}, la ` : "La ") +
+      "beauté noire embrasse tout un spectre de nuances allant des peaux albinos et afro-rousses aux teints chabins dorés, métissés caramel, bruns cuivrés et ébène intense. " +
       "Sur les peaux métissées, chabines et à teint clair caramel, les mélanocytes sont hyper-réactifs : le moindre bouton ou coup de soleil déclenche d'abord une rougeur puis une tache brune très contrastée ou un mélasma hormonal. " +
       "Pour garder un teint lumineux et uniforme sans démarcation entre le visage et le cou, adopte chaque matin un sérum à la vitamine C et niacinamide sous un fluide solaire SPF 50+, et le soir un soin doux à l'acide azélaïque et à l'huile sèche de moringa, sans jamais utiliser de crèmes décapantes."
     );
@@ -541,7 +577,8 @@ export function generateDrKeneKnowledgeReply(
     const hasDetails = /mois|semaine|an|depuis|savon|creme|mal|gratt|douleur/.test(fullContext);
     if (!hasDetails) {
       return (
-        `Avec la chaleur et l'humidité d'ici, les pores s'obstruent facilement et favorisent les imperfections.\n\n` +
+        (name ? `${addressFriend}, avec ` : "Avec ") +
+        `la chaleur et l'humidité d'ici, les pores s'obstruent facilement et favorisent les imperfections.\n\n` +
         `Pour t'aider au mieux : **depuis quand as-tu ces boutons, et est-ce qu'ils te font mal ou te démangent au toucher ?**\n` +
         `Tu peux aussi me partager une photo de la zone en appuyant sur 📷 pour que j'analyse l'inflammation.\n\n` +
         `[CHIPS: Moins d'1 mois | Depuis longtemps | Ça gratte / fait mal | Aucune douleur]`
@@ -559,7 +596,8 @@ export function generateDrKeneKnowledgeReply(
   // 5. SAVON / NETTOYANT
   if (/savon|nettoyant|gel lavant|pain dermatologique|syndet/.test(text)) {
     return (
-      "Pour le visage, évite absolument les savons décapants ordinaires qui assèchent et créent une hypersécrétion de sébum réactionnelle. " +
+      (name ? `${addressFriend}, pour ` : "Pour ") +
+      "le visage, évite absolument les savons décapants ordinaires qui assèchent et créent une hypersécrétion de sébum réactionnelle. " +
       "Choisis un pain dermatologique surgras sans savon (syndet) ou un gel moussant doux au pH physiologique. " +
       "Lave-toi à l'eau tiède sans frotter fort avec un gant rugueux. Tu peux retrouver d'excellents nettoyants doux certifiés dans l'onglet Boutique de l'application."
     );
@@ -589,7 +627,8 @@ export function generateDrKeneKnowledgeReply(
     const hasDetails = /karite|creme|eau|savon|huile|matin|soir|douche/.test(fullContext);
     if (!hasDetails) {
       return (
-        `Avec l'eau calcaire, la climatisation ou l'harmattan, la peau mélanoderme perd rapidement son eau et prend un reflet gris cendré caractéristique.\n\n` +
+        (name ? `${addressFriend}, avec ` : "Avec ") +
+        `l'eau calcaire, la climatisation ou l'harmattan, la peau mélanoderme perd rapidement son eau et prend un reflet gris cendré caractéristique.\n\n` +
         `Pour cibler ta routine nutritive : **ressens-tu des tiraillements surtout après la douche, et qu'appliques-tu actuellement pour nourrir ta peau ?**\n\n` +
         `[CHIPS: Tiraillements après douche | Reflet gris cendré | Beurre de karité brut | Aucune crème hydratante]`
       );
@@ -606,7 +645,8 @@ export function generateDrKeneKnowledgeReply(
   // 8. INSTITUTS & RDV CABINE
   if (/institut|rendez[- ]vous|rdv|soin|cabine|reserver|reservation|dermo|adresse|cabinet/.test(text)) {
     return (
-      "Tu peux échanger directement par WhatsApp avec ton institut partenaire certifié Kènè pour convenir d'un rendez-vous cabine personnalisé. " +
+      (name ? `${addressFriend}, tu ` : "Tu ") +
+      "peux échanger directement par WhatsApp avec ton institut partenaire certifié Kènè pour convenir d'un rendez-vous cabine personnalisé. " +
       "Les praticiennes certifiées connaissent parfaitement la physiologie des peaux mélanodermes et adaptent chaque protocole sans agresser la peau. " +
       "Rends-toi dans ton Profil ou dans l'onglet Agenda pour choisir ton institut favori et lui transmettre ton bilan cutané 🌿."
     );
@@ -615,7 +655,8 @@ export function generateDrKeneKnowledgeReply(
   // 9. PRIX / BOUTIQUE
   if (/prix|tarif|combien|acheter|commander|produit|boutique|creme|serum/.test(text)) {
     return (
-      "Pour commander nos soins dermo-cosmétiques formulés spécialement pour la peau mélanoderme, tu peux commander directement via l'onglet Boutique ou auprès de ton institut partenaire certifié via WhatsApp. " +
+      (name ? `${addressFriend}, pour ` : "Pour ") +
+      "commander nos soins dermo-cosmétiques formulés spécialement pour la peau mélanoderme, tu peux commander directement via l'onglet Boutique ou auprès de ton institut partenaire certifié via WhatsApp. " +
       "Chaque routine est validée sur-mesure d'après ton diagnostic de peau, avec livraison soignée à Abidjan et partout en Côte d'Ivoire. " +
       "Dis-moi ce que tu recherches exactement et je te guide vers le meilleur soin pour ton teint 🌿."
     );
@@ -624,7 +665,8 @@ export function generateDrKeneKnowledgeReply(
   // 10. BOTANIQUES AFRICAINES
   if (/karite|moringa|baobab|bissap|aloka|plante|naturel|botanique/.test(text)) {
     return (
-      "Nos plantes africaines sont de véritables trésors pour la peau mélanoderme : " +
+      (name ? `${addressFriend}, nos ` : "Nos ") +
+      "plantes africaines sont de véritables trésors pour la peau mélanoderme : " +
       "le vrai beurre de karité brut répare la barrière cutanée, l'huile de moringa nourrit sans graisser, " +
       "l'huile de balanites régule le sébum et cicatrise, et le gel d'aloka apaise immédiatement le feu du soleil. " +
       "Ce sont des actifs purs et performants lorsqu'ils sont appliqués avec régularité."

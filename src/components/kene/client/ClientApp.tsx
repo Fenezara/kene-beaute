@@ -632,7 +632,7 @@ export function ClientApp() {
                   onClick={() => {
                     haptic(HAPTIC.tap);
                     unlockAudioContext();
-                    useChat.getState().ensureEngaged(user?.name || "Cliente", user?.city);
+                    useChat.getState().ensureEngaged(user?.name, user?.city);
                     if (typeof window !== "undefined") {
                       window.sessionStorage.setItem("kene:chat:speak_first", "true");
                       window.dispatchEvent(new CustomEvent("kene:chat:speak_first"));
