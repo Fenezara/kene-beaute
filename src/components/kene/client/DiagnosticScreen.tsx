@@ -661,7 +661,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
         </div>
 
         {/* 🌟 1. CARTE HÉRO STAR : LE VISAGE (85%+ DES ANALYSES) */}
-        <div className="relative overflow-hidden rounded-[26px] border-2 border-gold/50 bg-gradient-to-br from-card via-[#FAF4E8] dark:via-card/90 to-card p-4 sm:p-5 shadow-lg mb-4">
+        <div className="relative overflow-hidden rounded-[26px] border-2 border-gold/60 bg-gradient-to-br from-card via-[#FAF4E8] dark:via-card/90 to-card p-4 sm:p-5 shadow-xl mb-4">
           <div className="absolute -top-12 -right-12 size-36 rounded-full bg-gold/20 blur-2xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 size-32 rounded-full bg-primary/15 blur-2xl pointer-events-none" />
 
@@ -672,7 +672,7 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
               <span>Diagnostic Recommandé · Visage</span>
             </span>
             <AudioGuideButton
-              text="Bienvenue sur le Scanner Kènè. Pour lancer ton analyse du visage, clique directement sur Révéler mon Bilan Visage. Tu découvriras ton score de santé cutanée, tes zones d'action et ta routine personnalisée en 5 secondes."
+              text="Bienvenue sur le Scanner Kènè. Pour lancer ton analyse du visage, clique sur Scanner mon visage. En 10 secondes, l'IA dermatologique et notre Dermo-Conseillère Déborah détectent les besoins précis de ta peau pour t'offrir ta routine sur-mesure."
               label="Écouter"
               compact
             />
@@ -691,27 +691,29 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
                 Bilan Cutané &amp; Éclat du Visage
               </h2>
               <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                Diagnostic dermatologique IA adapté aux peaux mélanodermes et foncées.
+                Analyse IA spécialisée peaux mélanodermes · Validée par notre Dermo-Conseillère Déborah.
               </p>
             </div>
           </div>
 
-          {/* Mini-aperçu des résultats délivrés (Ce que la cliente découvre) */}
-          <div className="grid grid-cols-3 gap-2 mb-4 p-2.5 rounded-2xl bg-card/90 border border-gold/25 shadow-2xs">
-            <div className="flex flex-col items-center text-center p-2 rounded-xl bg-gold/10 border border-gold/25">
-              <span className="text-xs font-black text-gold-text tabular-nums">100/100</span>
-              <span className="text-[10px] font-bold text-foreground mt-0.5">Score Peau</span>
-              <span className="text-[9px] text-muted-foreground">Éclat &amp; Santé</span>
+          {/* Détecteurs cutanés ciblés (Ce que le scan analyse concrètement) */}
+          <div className="mb-3.5">
+            <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 px-0.5">
+              Ce que le diagnostic détecte immédiatement :
             </div>
-            <div className="flex flex-col items-center text-center p-2 rounded-xl bg-primary/10 border border-primary/25">
-              <span className="text-xs font-black text-primary">8 Spectres</span>
-              <span className="text-[10px] font-bold text-foreground mt-0.5">Cartographie</span>
-              <span className="text-[9px] text-muted-foreground">Taches &amp; Sébum</span>
-            </div>
-            <div className="flex flex-col items-center text-center p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
-              <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">Matin &amp; Soir</span>
-              <span className="text-[10px] font-bold text-foreground mt-0.5">Routine Ciblée</span>
-              <span className="text-[9px] text-muted-foreground">Sur-mesure</span>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col items-center text-center p-2 rounded-xl bg-amber-500/10 border border-amber-500/25">
+                <span className="text-xs font-black text-amber-700 dark:text-amber-300">Taches &amp; HPI</span>
+                <span className="text-[9.5px] text-muted-foreground mt-0.5">Hyperpigmentation</span>
+              </div>
+              <div className="flex flex-col items-center text-center p-2 rounded-xl bg-primary/10 border border-primary/25">
+                <span className="text-xs font-black text-primary">Pores &amp; Sébum</span>
+                <span className="text-[9.5px] text-muted-foreground mt-0.5">Zone T &amp; Brillance</span>
+              </div>
+              <div className="flex flex-col items-center text-center p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
+                <span className="text-xs font-black text-emerald-700 dark:text-emerald-400">Barrière Cut.</span>
+                <span className="text-[9.5px] text-muted-foreground mt-0.5">Hydratation &amp; Éclat</span>
+              </div>
             </div>
           </div>
 
@@ -719,16 +721,23 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
           <button
             type="button"
             onClick={() => launchScan("visage", { openCamera: true })}
-            className="group relative overflow-hidden w-full h-14 sm:h-15 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#C8951E] via-[#D44A63] to-[#80132B] text-white shadow-xl shadow-[#80132B]/30 hover:shadow-2xl hover:shadow-[#C8951E]/40 ring-4 ring-[#C8951E]/30 active:scale-[0.98] transition-all duration-200 cursor-pointer flex items-center justify-center gap-2.5 px-4 font-heading font-black text-base sm:text-lg tracking-tight"
+            className="group relative overflow-hidden w-full h-15 sm:h-16 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#C8951E] via-[#D44A63] to-[#80132B] text-white shadow-xl shadow-[#80132B]/35 hover:shadow-2xl hover:shadow-[#C8951E]/45 ring-4 ring-[#C8951E]/30 active:scale-[0.98] transition-all duration-200 cursor-pointer flex flex-col items-center justify-center px-4"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out pointer-events-none" />
-            <Camera size={22} className="shrink-0 drop-shadow-sm group-hover:scale-110 transition-transform" />
-            <span>Révéler mon Bilan Visage</span>
-            <Sparkles size={18} className="shrink-0 text-gold drop-shadow-sm" />
+            <div className="flex items-center gap-2 font-heading font-black text-base sm:text-lg tracking-tight">
+              <Camera size={22} className="shrink-0 drop-shadow-sm group-hover:scale-110 transition-transform" />
+              <span>Scanner mon visage en 10s</span>
+              <span className="text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/20 border border-white/30 text-white">
+                Gratuit
+              </span>
+            </div>
+            <span className="text-[11px] text-white/85 font-medium mt-0.5">
+              Résultats instantanés &amp; Routine sur-mesure
+            </span>
           </button>
 
           {/* Option alternative immédiate : Importer une photo depuis la galerie */}
-          <div className="mt-2.5 text-center">
+          <div className="mt-2 text-center">
             <button
               type="button"
               onClick={() => landingFileRef.current?.click()}
@@ -739,16 +748,38 @@ export function DiagnosticScreen({ pendingZone, onZoneConsumed }: { pendingZone:
             </button>
           </div>
 
+          {/* Encart Teaser : Ce que la cliente débloque */}
+          <div className="mt-3 p-2.5 rounded-2xl bg-card/80 border border-gold/30 text-xs">
+            <div className="font-bold text-foreground text-[11px] flex items-center gap-1.5 mb-1 text-gold-text">
+              <Sparkles size={13} className="text-gold" />
+              <span>Ce que tu débloques après le scan :</span>
+            </div>
+            <ul className="space-y-1 text-[11px] text-muted-foreground">
+              <li className="flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-gold shrink-0" />
+                <span><strong>Cartographie cutanée IA</strong> (8 spectres d&apos;analyse)</span>
+              </li>
+              <li className="flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-primary shrink-0" />
+                <span><strong>3 actifs botaniques ciblés</strong> (Balanites, Moringa, Karité brut...)</span>
+              </li>
+              <li className="flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-emerald-600 shrink-0" />
+                <span><strong>Ordonnance Beauté Kènè</strong> validée avec la Dermo-Conseillère Déborah</span>
+              </li>
+            </ul>
+          </div>
+
           {/* Réassurance discrète & 100% vraie */}
-          <div className="mt-3 pt-2.5 border-t border-border/50 flex items-center justify-center gap-3 text-center text-[10.5px] text-muted-foreground">
+          <div className="mt-3 pt-2.5 border-t border-border/50 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[10.5px] text-muted-foreground">
             <span className="flex items-center gap-1">
               <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
-              <span>Dossier Peau privé</span>
+              <span>Dossier Peau 100% confidentiel</span>
             </span>
             <span className="inline-block size-1 rounded-full bg-border" />
             <span className="flex items-center gap-1">
               <Zap size={12} className="text-gold-text shrink-0" />
-              <span>Résultats en 5 secondes</span>
+              <span>Zéro hydroquinone ni corticoïdes</span>
             </span>
           </div>
         </div>
