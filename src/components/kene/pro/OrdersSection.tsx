@@ -58,13 +58,20 @@ export function OrdersSection({ tenantId, tenantName = "Institut", refreshKey }:
     [tenantId, refreshKey]
   );
 
-  async function patchStatus(order: ProOrderView, status: "delivered" | "cancelled") {
+  async function patchStatus(order: ProOrderView, status: "paid" | "delivered" | "cancelled", paymentMethod: "cash" | "wave" | "orange" | "card" = "cash") {
     setBusyId(order.id);
     try {
-      await apiPatch(`/api/pro/orders/${order.id}?tenantId=${tenantId}`, { status });
-      toast.success(status === "delivered" ? "Commande marquée livrée" : "Commande annulée", {
-        description: `${order.clientName} · ${xof(order.total)}`,
-      });
+      await apiPatch(`/api/pro/orders/${order.id}?tenantId=${tenantId}`, { status, paymentMethod });
+      toast.success(
+        status === "paid"
+          ? "Commande encaissée avec succès !"
+          : status === "delivered"
+          ? "Commande marquée livrée"
+          : "Commande annulée",
+        {
+          description: `${order.clientName} · ${xof(order.total)}`,
+        }
+      );
       setConfirmCancelId(null);
       await orders.refetch();
     } catch (e) {
@@ -265,6 +272,32 @@ export function OrdersSection({ tenantId, tenantName = "Institut", refreshKey }:
                           <Truck className="size-3.5" aria-hidden="true" />
                           <span className="hidden xl:inline">Coursier</span>
                         </Button>
+                      )}
+                      {o.status === "pending" && confirmCancelId !== o.id && (
+                        <div className="inline-flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            className="gap-1 h-8 k-btn-gold text-[#18120C] font-black text-xs cursor-pointer shadow-xs"
+                            disabled={busyId === o.id}
+                            onClick={() => void patchStatus(o, "paid", "cash")}
+                            aria-label={`Encaisser la commande de ${o.clientName}`}
+                            title="Encaisser la commande en espèces ou au comptoir"
+                          >
+                            <Banknote className="size-3.5" aria-hidden="true" />
+                            <span>Encaisser</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 h-8 text-[11px] font-bold text-sky-600 dark:text-sky-400 border-sky-500/30 hover:bg-sky-500/10 cursor-pointer"
+                            disabled={busyId === o.id}
+                            onClick={() => void patchStatus(o, "paid", "wave")}
+                            aria-label={`Encaisser via Wave la commande de ${o.clientName}`}
+                            title="Encaisser via Wave"
+                          >
+                            <span>Wave</span>
+                          </Button>
+                        </div>
                       )}
                       {o.status === "paid" && confirmCancelId !== o.id && (
                         <Button

@@ -1783,6 +1783,13 @@ function ClientSkinDossierDetail({
                               ✨ Nouveau
                             </Badge>
                           )}
+                          {/* Détection si ce produit d'ordonnance a été commandé par la cliente */}
+                          {d?.orders && d.orders.some((ord) => ord.items.some((it) => it.label.trim().toLowerCase().includes(item.name.trim().toLowerCase()) || item.name.trim().toLowerCase().includes(it.label.trim().toLowerCase()))) && (
+                            <Badge className="bg-emerald-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full shadow-2xs gap-1">
+                              <ShoppingBag className="size-3" />
+                              <span>Commandé par la cliente</span>
+                            </Badge>
+                          )}
                           <div className="flex items-center gap-1">
                             <input
                               type="number"

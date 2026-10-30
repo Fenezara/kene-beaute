@@ -65,6 +65,7 @@ export async function GET(req: NextRequest) {
       products,
       recentReviews,
       reviewStats,
+      pendingOrders,
     ] = await Promise.all([
       db.sale.findMany({ where: { ...completed, createdAt: { gte: todayStart } }, select: { total: true } }),
       db.sale.aggregate({ where: { ...completed, createdAt: { gte: since7 } }, _sum: { total: true } }),
@@ -127,6 +128,22 @@ export async function GET(req: NextRequest) {
         where: { tenantId: tenant.id },
         _avg: { rating: true },
         _count: true,
+      }),
+      // Commandes en attente (ordonnances et boutique) contenant au moins un produit de l'institut
+      db.order.findMany({
+        where: {
+          status: "pending",
+          items: { some: { product: { tenantId: tenant.id } } },
+        },
+        include: {
+          user: { select: { name: true, phone: true } },
+          items: {
+            where: { product: { tenantId: tenant.id } },
+            select: { label: true, total: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10,
       }),
     ]);
 
@@ -226,6 +243,23 @@ export async function GET(req: NextRequest) {
       reviewCount: reviewStats._count > 0 ? reviewStats._count : tenant.reviewCount,
     };
 
+    const pendingOrdersFormatted = pendingOrders.map((o) => {
+      const ownItems = o.items;
+      const ownTotal = ownItems.reduce((s, i) => s + i.total, 0);
+      return {
+        id: o.id,
+        clientName: o.user.name,
+        clientPhone: o.user.phone,
+        total: ownTotal,
+        itemsCount: ownItems.length,
+        labels: ownItems.map((i) => i.label),
+        createdAt: o.createdAt.toISOString(),
+      };
+    });
+
+    const pendingOrdersCount = pendingOrdersFormatted.length;
+    const pendingOrdersTotal = pendingOrdersFormatted.reduce((s, o) => s + o.total, 0);
+
     return NextResponse.json({
       tenant: tenantWithLiveReviews,
       viewer,
@@ -245,10 +279,13 @@ export async function GET(req: NextRequest) {
         appointmentsToday: apptsToday,
         newClients30d: newClients,
         occupancyPct,
+        pendingOrdersCount,
+        pendingOrdersTotal,
       },
       chart,
       paymentSplit,
       topServices,
+      pendingOrders: pendingOrdersFormatted,
       todayAppointments: todayAppts.map((a) => ({
         id: a.id,
         clientName: a.clientName,

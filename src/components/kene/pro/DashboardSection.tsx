@@ -235,6 +235,38 @@ export function DashboardSection({
         </div>
       </div>
 
+      {/* ── BANDEAU ALERTE COMMANDE D'ORDONNANCE EN ATTENTE ── */}
+      {data.pendingOrders && data.pendingOrders.length > 0 && (
+        <div className="rounded-[22px] border-2 border-gold/60 bg-gradient-to-r from-gold/20 via-card to-card p-4 sm:p-5 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
+            <span className="grid size-11 place-items-center rounded-2xl bg-gold text-[#18120C] shrink-0 shadow-sm animate-pulse">
+              <ShoppingBag className="size-6" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-heading font-black text-sm sm:text-base text-foreground">
+                  {data.pendingOrders.length} Commande{data.pendingOrders.length > 1 ? "s" : ""} d&apos;Ordonnance en Attente d&apos;Encaissement
+                </span>
+                <span className="rounded-full bg-gold/30 border border-gold/50 px-2 py-0.5 text-[10.5px] font-black text-gold-text">
+                  {xof(data.kpis.pendingOrdersTotal || 0)}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                {data.pendingOrders[0].clientName} · {data.pendingOrders[0].labels.join(", ")}
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => onNavigate("orders" as any)}
+            className="k-btn-gold text-[#18120C] font-black text-xs h-10 px-4 rounded-xl gap-2 shrink-0 shadow-sm cursor-pointer"
+          >
+            <ShoppingBag className="size-4" />
+            <span>Traiter les commandes ({data.pendingOrders.length}) →</span>
+          </Button>
+        </div>
+      )}
+
       {/* ── ACTIONS RAPIDES CABINE & CAISSE (Galets Tactiles 3D Céramique Karité) ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5">
         <button

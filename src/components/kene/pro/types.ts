@@ -48,6 +48,8 @@ export interface ProKpis {
   appointmentsToday: number;
   newClients30d: number;
   occupancyPct: number;
+  pendingOrdersCount?: number;
+  pendingOrdersTotal?: number;
 }
 
 export interface TodayAppointment {
@@ -83,6 +85,15 @@ export interface ProOverview {
   todayAppointments: TodayAppointment[];
   stockAlerts: StockAlertItem[];
   recentReviews?: ProReviewView[];
+  pendingOrders?: Array<{
+    id: string;
+    clientName: string;
+    clientPhone: string;
+    total: number;
+    itemsCount: number;
+    labels: string[];
+    createdAt: string;
+  }>;
 }
 
 // ─────────────── Agenda ───────────────

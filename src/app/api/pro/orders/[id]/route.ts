@@ -12,7 +12,8 @@ import { pushTenantFeed } from "@/lib/kene/realtime";
 import { xof } from "@/lib/kene/format";
 
 const Body = z.object({
-  status: z.enum(["preparing", "in_transit", "delivered", "cancelled"]),
+  status: z.enum(["paid", "preparing", "in_transit", "delivered", "cancelled"]),
+  paymentMethod: z.enum(["cash", "wave", "orange", "card", "wallet"]).optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -41,13 +42,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     const target = parsed.data.status;
-    if (target === "preparing" && order.status !== "paid") {
-      return jsonError("Seule une commande payée peut être mise en préparation", 400);
+    const paymentMethod = parsed.data.paymentMethod || "cash";
+
+    if (target === "paid" && order.status !== "pending") {
+      return jsonError("Seule une commande en attente peut être encaissée", 400);
+    }
+    if (target === "preparing" && order.status !== "paid" && order.status !== "pending") {
+      return jsonError("Seule une commande payée ou en attente peut être mise en préparation", 400);
     }
     if (target === "in_transit" && order.status !== "paid" && order.status !== "preparing") {
       return jsonError("Seule une commande payée ou en préparation peut être expédiée", 400);
     }
-    if (target === "delivered" && order.status !== "paid" && order.status !== "preparing" && order.status !== "in_transit") {
+    if (target === "delivered" && order.status !== "paid" && order.status !== "preparing" && order.status !== "in_transit" && order.status !== "pending") {
       return jsonError("Cette commande ne peut pas être marquée comme livrée", 400);
     }
     if (target === "cancelled" && order.status !== "pending" && order.status !== "paid" && order.status !== "preparing") {
@@ -59,6 +65,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const ref = order.id.slice(-6).toUpperCase();
     const updated = await db.$transaction(async (tx) => {
+      // Si la commande est encaissée manuellement en caisse ou à la livraison
+      if (target === "paid" || (target === "delivered" && order.status === "pending")) {
+        // Enregistrement d'un paiement en caisse si absent
+        if (!order.paymentId) {
+          const payment = await tx.payment.create({
+            data: {
+              method: paymentMethod,
+              status: "success",
+              amount: order.total,
+              currency: "XOF",
+              ref: `ENCAISSEMENT-${ref}`,
+            },
+          });
+          await tx.order.update({
+            where: { id: order.id },
+            data: { paymentId: payment.id },
+          });
+        }
+      }
+
       if (target === "cancelled") {
         // Remboursement wallet automatique (paiement wallet confirmé)
         if (order.payment?.method === "wallet" && order.payment.status === "success") {
