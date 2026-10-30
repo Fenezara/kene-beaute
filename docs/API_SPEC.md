@@ -205,6 +205,16 @@ Validation de commande avec panier multi-produits.
   ```
 - **Traitement** : Déduction de stock transactionnelle, calcul du cashback crédité sur le wallet (5 %) et émission du reçu.
 
+### `POST /api/orders/prescription`
+Commande directe issue des produits d'une ordonnance beauté prescrite.
+- **Body JSON** : `{ "userId": "...", "tenantId": "...", "productName": "...", "price": 15000, "instructions": "..." }`
+- **Résultat** : Création de la commande rattachée à l'institut et visible en temps réel côté cliente et côté institut.
+
+### `PATCH /api/orders/[id]/cancel`
+Désactivation / Annulation d'une commande par la cliente finale.
+- **Condition** : La commande doit être au statut `pending`.
+- **Résultat** : Statut basculé à `cancelled`, libération des réservations associées.
+
 ---
 
 ## 7. Domaine 6 : Système de Gestion Kènè Pro (`/api/pro/*`)

@@ -3433,3 +3433,40 @@ Work Log:
   - Compilation Next.js locale sans avertissement, commit `fb14c8b` poussé sur `origin/main`.
   - Re-déploiement Docker sur le serveur VPS Hetzner (`2.29.53.176`).
   - Vérification de l'endpoint `/api/health` ➔ `200 OK`.
+
+---
+Task: Ordonnance Beauté & Soins Cabine Fidèle, Commandes en Ligne avec Annulation Cliente, Cabinet LA DERMO par Défaut (Session fin Octobre 2026).
+
+Work Log:
+- Ordonnance Beauté & Prescription Cabine Réelle :
+  - Restructuration du PDF (`src/lib/kene/dermo-prescription-pdf.ts`) pour refléter exactement l'ordonnance beauté émise par l'institut :
+    - Volet 1 : Produits cosmétiques prescrits pour chez vous (posologie, matin/soir, prix unitaire).
+    - Volet 2 : Soins esthétiques prescrits en cabine (durée, rythme conseillé, tarif).
+    - Volet 3 : Recommandations personnalisées de la dermo-conseillère.
+  - Commandes et Réservations en Ligne actives :
+    - Route `POST /api/orders/prescription` : commande directe des produits prescrits chez l'institut émetteur.
+    - Route `POST /api/appointments` : réservation directe du soin cabine prescrit.
+    - Route `PATCH /api/orders/[id]/cancel` : la cliente peut désactiver/annuler sa commande en 1 clic tant qu'elle est en attente.
+  - Cabinet LA DERMO coché par défaut :
+    - Filiation immédiate du salon de référence dès la création du compte invité ou inscription (`tenant-defaults.ts`).
+
+---
+Task: Spectre Mélanodermique Africain Exhaustif & Auto-Sauvegarde Dynamique sans Bouton.
+
+Work Log:
+- Inclusion Complète du Spectre de Peau Africain :
+  - Refonte de la cartographie des phototypes dans l'ensemble de l'écosystème (`types.ts`, `ProfileScreen.tsx`, `Onboarding.tsx`, `SkinDossiersSection.tsx`, `dermo-prescription-pdf.ts`, `WelcomeThreshold.tsx`, `ThresholdStories.tsx`, `chapters.ts`, `i18n.ts`) :
+    - Albinos africain (OCA — albinisme oculo-cutané, phototype I d'Afrique subsaharienne, haute vulnérabilité UV).
+    - Afro-rousse / Rouquine (phéomélanine prédominante, taches de rousseur cutanées).
+    - Chabine / Teint doré très clair (Phototype III mélanoderme).
+    - Caramel / Métissée (Phototype IV).
+    - Brun cuivré à chocolat (Phototype V).
+    - Ébène / Cacao intense (Phototype VI profond).
+- Auto-Sauvegarde Dynamique & Analyse Ergonomique (Debounce) :
+  - Profil Client Beauté (`ProfileScreen.tsx`) : auto-sauvegarde immédiate sur sélections (nuance, type de peau, objectifs, maternité, canal de contact) et debouncée (750 ms) sur champs textes (nom, commune, date anniversaire, allergies).
+  - Indicateur visuel discret façon Google Docs / Notion : `Synchronisation…` et `Sauvegardé automatiquement ✓` (remplacement du gros bouton bloquant tout en gardant un lien discret de secours).
+  - Notes et observations de formulation en cabine (`SkinDossiersSection.tsx`) : auto-sauvegarde debouncée au fil de l'eau pendant que la dermo-conseillère saisit les actifs et observations.
+  - Sanctuarisation des boutons de validation obligatoires pour la sécurité financière et juridique (Caisse POS, clôture, mouvements de stock, création de compte, changement de code PIN, confirmation de commandes/réservations).
+- Validation :
+  - Compilation Next.js Turbopack validée avec 0 erreur (`113/113` pages).
+  - Commits `c4f4581`, `c6854ad`, `2c57cbe` synchronisés sur GitHub `origin/main`.

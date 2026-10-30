@@ -94,6 +94,9 @@ La dermatologie et la cosmétologie mondiales ont historiquement été formulée
   - **Coordonnées de l'institut** : le numéro privé de la gérante/fondatrice (`User.phone`) reste isolé ; un **WhatsApp public du salon** et une adresse (`Tenant.phone`, `Tenant.address`) sont affichés aux clientes, sans conflit d'unicité.
   - **Abonnement Pro Complexe (fidélité dégressive)** : 30 000 → 28 000 → 26 000 → 24 000 → 22 000 → 20 000 FCFA/mois (plancher atteint au mois 6) ; le renouvellement repart de 30 000 FCFA au mois 1.
   - **Mot de passe & Code PIN** : modification disponible depuis les paramètres de compte.
+  - **Spectre Mélanodermique Africain Exhaustif (Octobre 2026)** : Adaptation inclusive de la totalité du nuancier de peaux d'origine africaine : Albinos (OCA I), Afro-rousse (phéomélanine), Chabine (III), Caramel/Métisse (IV), Brun cuivré (V), Ébène/Cacao intense (VI), intégré dans l'anamnèse, le diagnostic VLM, les PDF et les dossiers cabine.
+  - **Ordonnance Beauté & Soins Cabine Fidèle** : Ordonnance PDF vectorielle structurée en 3 volets (soins cosmétiques à domicile, soins esthétiques en cabine, conseils praticienne) avec commandes réelles en ligne et possibilité d'annulation/désactivation directe par la cliente. Filiation automatique de l'institut partenaire de référence (*Cabinet LA DERMO*) dès la création de compte.
+  - **Auto-Sauvegarde Dynamique (Smart Debounce)** : Remplacement des boutons d'enregistrement manuels lourds par une synchronisation automatique en tâche de fond (indicateur discret « Sauvegardé automatiquement ✓ ») sur le profil client et les notes de formulation cabine, tout en maintenant les validations explicites sur la caisse, les stocks, la sécurité et les transactions.
 
 ### 3.3 Espace Admin & Sécurité (`/console`)
 * **Durcissement NIST 800-63B-4 & OWASP ASVS V2.7** :
