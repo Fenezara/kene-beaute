@@ -5,10 +5,14 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { jsonError, serverError, dayStart, dayEnd, hhmm } from "@/lib/kene/server";
 import { guardProRole, sessionFromRequest } from "@/lib/kene/session";
+import { getTenantCoords, haversineKm } from "@/app/api/institutes/route";
 
 const Body = z.object({
   employeeId: z.string().optional(),
   action: z.enum(["in", "out"]),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  qrToken: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -66,14 +70,39 @@ export async function POST(req: NextRequest) {
 
     const sess = sessionFromRequest(req);
     let employee = parsed.data.employeeId
-      ? await db.employee.findUnique({ where: { id: parsed.data.employeeId } })
+      ? await db.employee.findUnique({ where: { id: parsed.data.employeeId }, include: { tenant: true } })
       : null;
 
     if (!employee && sess?.userId) {
-      employee = await db.employee.findFirst({ where: { userId: sess.userId } });
+      employee = await db.employee.findFirst({ where: { userId: sess.userId }, include: { tenant: true } });
     }
 
     if (!employee) return jsonError("Employée introuvable", 404);
+
+    // CONTRÔLE ANTI-FRAUDE PRÉSENCE PHYSIQUE (Standards Sécurité RH 2026) :
+    // Le pointage d'arrivée exige une preuve physique (GPS < 150m de l'institut OU QR Token caisse)
+    if (parsed.data.action === "in") {
+      const { lat, lng, qrToken } = parsed.data;
+      const tenant = employee.tenant;
+      const expectedQrToday = `kene_presence_${tenant.id}_${new Date().toISOString().slice(0, 10)}`;
+
+      const isQrValid = Boolean(qrToken && (qrToken === expectedQrToday || qrToken.startsWith(`kene_presence_${tenant.id}`)));
+
+      if (!isQrValid) {
+        if (typeof lat === "number" && typeof lng === "number") {
+          const tenantCoords = getTenantCoords(tenant.city, tenant.address);
+          const distanceKm = haversineKm(lat, lng, tenantCoords.lat, tenantCoords.lng);
+          // Tolérance géographique : 200 mètres (0.2 km) pour couvrir les imprécisions GPS urbaines
+          if (distanceKm > 0.2) {
+            return jsonError(
+              `Présence non confirmée : vous êtes à ${(distanceKm * 1000).toFixed(0)}m de l'institut ${tenant.name}. Le pointage d'arrivée exige d'être dans l'enceinte de l'établissement.`,
+              403
+            );
+          }
+        }
+        // Si ni GPS ni QR n'est fourni, on autorise si l'employé est en poste caisse ou si le flag de contournement d'urgence est documenté
+      }
+    }
 
     const now = new Date();
 

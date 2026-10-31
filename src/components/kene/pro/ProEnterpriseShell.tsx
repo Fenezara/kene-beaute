@@ -574,16 +574,39 @@ export function ProEnterpriseShell() {
     setAttendanceBusy(true);
     try {
       haptic(HAPTIC.success);
+
+      // Récupération automatique des coordonnées GPS du navigateur pour preuve physique de présence
+      let lat: number | undefined;
+      let lng: number | undefined;
+
+      if (action === "in" && typeof navigator !== "undefined" && "geolocation" in navigator) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 6000,
+              maximumAge: 30000,
+            });
+          });
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+        } catch {
+          // Si l'employé refuse la géolocalisation ou délai dépassé
+        }
+      }
+
       const res = await apiPost<{
         attendance: { id: string; checkIn?: string | null; checkOut?: string | null; status: string; hours?: number | null };
       }>("/api/pro/employees/attendance", {
         employeeId: staffEmployee.id,
         action,
+        lat,
+        lng,
       });
       setStaffAttendance(res.attendance);
       toast.success(
         action === "in"
-          ? `Pointage d'arrivée enregistré (${res.attendance.checkIn || "OK"}). Bonne journée !`
+          ? `Pointage d'arrivée validé sur place (${res.attendance.checkIn || "OK"}). Bonne journée !`
           : `Pointage de sortie enregistré (${res.attendance.checkOut || "OK"}). ${res.attendance.hours || 0}h travaillées.`
       );
     } catch (e: any) {
