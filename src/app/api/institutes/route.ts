@@ -41,6 +41,8 @@ const DISTRICT_COORDS: Record<string, { lat: number; lng: number }> = {
   zone4: { lat: 5.2950, lng: -3.9780 },
   plateau_abidjan: { lat: 5.3261, lng: -4.0197 },
   yopougon: { lat: 5.3420, lng: -4.0830 },
+  abobo: { lat: 5.4167, lng: -4.0167 },
+  dokui: { lat: 5.3950, lng: -4.0050 },
   almadies: { lat: 14.7436, lng: -17.5147 },
   ngor: { lat: 14.7540, lng: -17.5160 },
   mermoz: { lat: 14.7080, lng: -17.4720 },
@@ -48,7 +50,19 @@ const DISTRICT_COORDS: Record<string, { lat: number; lng: number }> = {
 };
 
 export function getTenantCoords(city: string, address?: string | null): { lat: number; lng: number } {
-  const text = `${city} ${address ?? ""}`.toLowerCase();
+  const combined = `${city} ${address ?? ""}`;
+
+  // 1. Détection de coordonnées GPS explicites stockées dans address ("GPS:5.3950,-4.0050" ou "lat,lng")
+  const gpsMatch = combined.match(/(-?\d+\.\d{3,})[,\s/]+(-?\d+\.\d{3,})/);
+  if (gpsMatch) {
+    const parsedLat = parseFloat(gpsMatch[1]);
+    const parsedLng = parseFloat(gpsMatch[2]);
+    if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+      return { lat: parsedLat, lng: parsedLng };
+    }
+  }
+
+  const text = combined.toLowerCase();
   if (text.includes("almadie") || text.includes("ngor")) return DISTRICT_COORDS.almadies;
   if (text.includes("dakar") && text.includes("plateau")) return DISTRICT_COORDS.dakar_plateau;
   if (text.includes("mermoz")) return DISTRICT_COORDS.mermoz;
@@ -58,6 +72,8 @@ export function getTenantCoords(city: string, address?: string | null): { lat: n
   if (text.includes("riviera")) return DISTRICT_COORDS.riviera;
   if (text.includes("vallon")) return DISTRICT_COORDS.vallon;
   if (text.includes("plateau")) return DISTRICT_COORDS.plateau_abidjan;
+  if (text.includes("dokui")) return DISTRICT_COORDS.dokui;
+  if (text.includes("abobo")) return DISTRICT_COORDS.abobo;
   if (text.includes("yopougon")) return DISTRICT_COORDS.yopougon;
   return DISTRICT_COORDS.cocody;
 }

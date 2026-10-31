@@ -92,10 +92,10 @@ export async function POST(req: NextRequest) {
         if (typeof lat === "number" && typeof lng === "number") {
           const tenantCoords = getTenantCoords(tenant.city, tenant.address);
           const distanceKm = haversineKm(lat, lng, tenantCoords.lat, tenantCoords.lng);
-          // Tolérance géographique : 200 mètres (0.2 km) pour couvrir les imprécisions GPS urbaines
-          if (distanceKm > 0.2) {
+          // Rayon de tolérance : 350 mètres (0.35 km) pour absorber les imprécisions GPS en intérieur / Abidjan
+          if (distanceKm > 0.35) {
             return jsonError(
-              `Présence non confirmée : vous êtes à ${(distanceKm * 1000).toFixed(0)}m de l'institut ${tenant.name}. Le pointage d'arrivée exige d'être dans l'enceinte de l'établissement.`,
+              `Présence non confirmée : vous êtes à ${(distanceKm * 1000).toFixed(0)}m de l'institut ${tenant.name}. Le pointage mobile exige d'être dans l'enceinte de l'établissement (ou pointez directement sur l'écran du salon).`,
               403
             );
           }

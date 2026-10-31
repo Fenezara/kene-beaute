@@ -503,13 +503,13 @@ export function SettingsSection({
               <IconBadge icon={<Phone size={18} />} tone="gold" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-xs font-bold text-foreground">Coordonnées publiques de l&apos;institut</p>
+                  <p className="text-xs font-bold text-foreground">Coordonnées publiques &amp; Localisation</p>
                   <span className="inline-flex items-center rounded-full bg-success/15 text-success px-2 py-0.5 text-[10px] font-bold">
-                    WhatsApp &amp; Accueil
+                    GPS &amp; WhatsApp
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                  Ces coordonnées sont transmises à votre clientèle pour vous contacter directement et se rendre en institut. Elles sont indépendantes de votre compte privé de gérante.
+                  Définissez l&apos;adresse et la position Google Maps de votre établissement pour certifier la présence de vos collaboratrices au pointage.
                 </p>
               </div>
             </div>
@@ -539,12 +539,38 @@ export function SettingsSection({
                   type="text"
                   value={salonAddress}
                   onChange={(e) => setSalonAddress(e.target.value)}
-                  placeholder="Ex : Rue des Jardins, Cocody Deux Plateaux Vallon, Abidjan"
+                  placeholder="Ex : Abobo Plateau-dokui, Abidjan (ou GPS: 5.3950, -4.0050)"
                   className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus-visible:outline-2 focus-visible:outline-primary"
                 />
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Affichée sur les confirmations de RDV et le plan d&apos;accès de vos clientes.
-                </p>
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <p className="text-[10px] text-muted-foreground">
+                    Affichée sur les confirmations de RDV et le plan d&apos;accès.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof navigator !== "undefined" && "geolocation" in navigator) {
+                        navigator.geolocation.getCurrentPosition(
+                          (pos) => {
+                            const lat = pos.coords.latitude.toFixed(5);
+                            const lng = pos.coords.longitude.toFixed(5);
+                            const baseAddr = salonAddress.replace(/\(GPS:.*?\)/, "").trim();
+                            setSalonAddress(`${baseAddr} (GPS: ${lat}, ${lng})`.trim());
+                            toast.success(`Position GPS capturée (${lat}, ${lng}) ! Pensez à enregistrer.`);
+                          },
+                          () => {
+                            toast.error("Impossible de capter votre position GPS. Vérifiez les autorisations de votre appareil.");
+                          },
+                          { enableHighAccuracy: true, timeout: 8000 }
+                        );
+                      }
+                    }}
+                    className="text-[10.5px] font-bold text-gold-text hover:underline inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <MapPin size={12} />
+                    <span>Capturer ma position ici</span>
+                  </button>
+                </div>
               </div>
 
               <div className="flex justify-end pt-1">
