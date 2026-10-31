@@ -99,6 +99,7 @@ export function CrmSection({
   const q = useDebounced(query);
   const [segment, setSegment] = useState<string | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
+  const [birthdayMonthOnly, setBirthdayMonthOnly] = useState<boolean>(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
   // Création d'une nouvelle cliente depuis le CRM
@@ -181,6 +182,20 @@ export function CrmSection({
     return Array.from(set).sort();
   }, [clients.data]);
 
+  const isBirthdayThisMonth = (birthDate?: string | null): boolean => {
+    if (!birthDate) return false;
+    const curMonth = new Date().getMonth() + 1;
+    const clean = birthDate.trim();
+    let m: number | null = null;
+    if (clean.includes("/")) {
+      m = parseInt(clean.split("/")[1], 10);
+    } else if (clean.includes("-")) {
+      const parts = clean.split("-");
+      m = parts.length >= 3 ? parseInt(parts[1], 10) : parseInt(parts[0], 10);
+    }
+    return m === curMonth;
+  };
+
   const filtered = useMemo(() => {
     return (clients.data ?? []).filter((c) => {
       if (query.trim() && !matchesSearch(query, c.name, c.phone, c.district, c.email, c.notes)) {
@@ -188,9 +203,10 @@ export function CrmSection({
       }
       if (segment && c.rfmSegment !== segment) return false;
       if (selectedDistrict && c.district !== selectedDistrict) return false;
+      if (birthdayMonthOnly && !isBirthdayThisMonth(c.birthDate)) return false;
       return true;
     });
-  }, [clients.data, query, segment, selectedDistrict]);
+  }, [clients.data, query, segment, selectedDistrict, birthdayMonthOnly]);
   const all = clients.data ?? [];
   const totalClients = all.length;
   const totalSpent = all.reduce((s, c) => s + c.totalSpent, 0);
@@ -270,6 +286,19 @@ export function CrmSection({
             </button>
           );
         })}
+        <button
+          onClick={() => setBirthdayMonthOnly((v) => !v)}
+          aria-pressed={birthdayMonthOnly}
+          className={cn(
+            "shrink-0 rounded-full px-3 py-1.5 min-h-11 text-xs font-medium border transition-colors inline-flex items-center gap-1.5 cursor-pointer",
+            birthdayMonthOnly
+              ? "bg-gold/25 text-gold-text border-gold font-bold shadow-xs"
+              : "bg-card border-border text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <span>🎂 Anniversaires du mois</span>
+          <span className="font-mono text-[10px]">({all.filter((c) => isBirthdayThisMonth(c.birthDate)).length})</span>
+        </button>
       </div>
 
       {/* Filtres quartiers / communes */}

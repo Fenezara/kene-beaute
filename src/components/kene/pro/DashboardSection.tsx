@@ -21,6 +21,7 @@ import {
   Plus,
   Crown,
   ShoppingBag,
+  Gift,
 } from "lucide-react";
 import {
   AreaChart,
@@ -674,6 +675,44 @@ export function DashboardSection({
             </Card>
 
             <div className="space-y-4">
+              {/* Anniversaires Clientes du Jour */}
+              {data.birthdays?.today && data.birthdays.today.length > 0 && (
+                <Card className="rounded-[22px] sm:rounded-[26px] border-gold/40 bg-gradient-to-br from-gold/15 via-background to-gold/5 shadow-xs">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="font-heading text-base flex items-center gap-2">
+                        <span className="text-lg">🎂</span>
+                        <span>Anniversaires du jour ({data.birthdays.today.length})</span>
+                      </CardTitle>
+                      <span className="rounded-full bg-gold/20 text-gold-text border border-gold/40 px-2 py-0.5 text-[11px] font-bold">
+                        {data.birthdays.thisMonthCount} ce mois-ci
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {data.birthdays.today.map((b) => (
+                      <div key={b.id} className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-card border border-border/70">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-foreground truncate">{b.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">{b.phone}</p>
+                        </div>
+                        <a
+                          href={waLink(
+                            b.phone,
+                            `Joyeux anniversaire ${b.name} ! 🎂🎉 Toute l'équipe de votre institut partenaire vous souhaite le meilleur. Pour fêter cet événement, nous avons le plaisir de vous offrir une remise privilège sur votre prochain soin en cabine ! 🌿`
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25D366] text-white hover:bg-[#20ba5a] text-xs font-bold shrink-0 shadow-xs transition-transform active:scale-95"
+                        >
+                          <Gift className="size-3.5" /> Souhaiter
+                        </a>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
               <Card className="rounded-[22px] sm:rounded-[26px]">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between gap-2">

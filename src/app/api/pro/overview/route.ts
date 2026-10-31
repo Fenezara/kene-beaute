@@ -260,6 +260,43 @@ export async function GET(req: NextRequest) {
     const pendingOrdersCount = pendingOrdersFormatted.length;
     const pendingOrdersTotal = pendingOrdersFormatted.reduce((s, o) => s + o.total, 0);
 
+    // Anniversaires clientes : du jour et du mois
+    const clientsWithBirthdays = await db.clientProfile.findMany({
+      where: { tenantId: tenant.id, birthDate: { not: null } },
+      select: { id: true, name: true, phone: true, birthDate: true },
+    });
+    const curDay = now.getDate();
+    const curMonth = now.getMonth() + 1; // 1-12
+    const birthdaysToday: { id: string; name: string; phone: string; birthDate: string }[] = [];
+    let birthdaysThisMonthCount = 0;
+
+    for (const c of clientsWithBirthdays) {
+      if (!c.birthDate) continue;
+      const clean = c.birthDate.trim();
+      let d: number | null = null;
+      let m: number | null = null;
+      if (clean.includes("/")) {
+        const parts = clean.split("/");
+        d = parseInt(parts[0], 10);
+        m = parseInt(parts[1], 10);
+      } else if (clean.includes("-")) {
+        const parts = clean.split("-");
+        if (parts.length >= 3) {
+          d = parseInt(parts[2], 10);
+          m = parseInt(parts[1], 10);
+        } else if (parts.length === 2) {
+          m = parseInt(parts[0], 10);
+          d = parseInt(parts[1], 10);
+        }
+      }
+      if (m === curMonth) {
+        birthdaysThisMonthCount += 1;
+        if (d === curDay) {
+          birthdaysToday.push({ id: c.id, name: c.name, phone: c.phone, birthDate: clean });
+        }
+      }
+    }
+
     return NextResponse.json({
       tenant: tenantWithLiveReviews,
       viewer,
@@ -307,6 +344,10 @@ export async function GET(req: NextRequest) {
         serviceName: r.appointment?.service?.name ?? null,
         createdAt: r.createdAt,
       })),
+      birthdays: {
+        today: birthdaysToday,
+        thisMonthCount: birthdaysThisMonthCount,
+      },
     });
   } catch (err) {
     return serverError("pro/overview", err);

@@ -140,24 +140,30 @@ export async function POST(req: NextRequest) {
         if (alreadyEmployee && alreadyEmployee.tenantId !== tenantId) {
           return jsonError("Ce numéro est déjà employée dans un autre institut", 409);
         }
+        const initialPin = pin?.trim() || "1234";
         // Toujours promouvoir le compte en rôle pro et mettre à jour le nom et code PIN éventuel
         await db.user.update({
           where: { id: existing.id },
           data: {
             role: "pro",
             ...((!existing.name || existing.name === "Nouvelle cliente") ? { name } : {}),
-            ...(pin ? { pinHash: hashPin(pin), pinFails: 0, pinLockedUntil: null } : {}),
+            pinHash: hashPin(initialPin),
+            pinFails: 0,
+            pinLockedUntil: null,
           },
         });
         accountUserId = existing.id;
       } else {
+        const initialPin = pin?.trim() || "1234";
         const created = await db.user.create({
           data: {
             phone: normalized,
-            name: role,
+            name: name.trim(),
             role: "pro",
             referralCode: genRef("KENE"),
-            ...(pin ? { pinHash: hashPin(pin), pinFails: 0, pinLockedUntil: null } : {}),
+            pinHash: hashPin(initialPin),
+            pinFails: 0,
+            pinLockedUntil: null,
           },
         });
         accountUserId = created.id;

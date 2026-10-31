@@ -94,6 +94,10 @@ export interface ProOverview {
     labels: string[];
     createdAt: string;
   }>;
+  birthdays?: {
+    today: Array<{ id: string; name: string; phone: string; birthDate: string }>;
+    thisMonthCount: number;
+  };
 }
 
 // ─────────────── Agenda ───────────────

@@ -119,6 +119,7 @@ export function ChangePinModal({ open, onOpenChange, currentPhone, hasPin }: Cha
 
   // 5. Enregistrement final du nouveau code PIN
   const handleConfirmPinSubmit = async (val = confirmPin) => {
+    if (loading) return;
     if (val.length !== 4) return;
     if (val !== newPin) {
       haptic(HAPTIC.warning);
